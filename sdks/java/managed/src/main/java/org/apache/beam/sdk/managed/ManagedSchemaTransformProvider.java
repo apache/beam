@@ -101,6 +101,11 @@ public class ManagedSchemaTransformProvider
     @SchemaFieldDescription("YAML string config used to build the underlying SchemaTransform.")
     public abstract @Nullable String getConfig();
 
+    @SchemaFieldDescription(
+        "Skips configuration validation. If unset, the pipeline will fail at construction "
+            + "time if the configuration includes unknown fields or missing required fields.")
+    public abstract @Nullable Boolean getSkipConfigValidation();
+
     @AutoValue.Builder
     public abstract static class Builder {
       public abstract Builder setTransformIdentifier(String identifier);
@@ -108,6 +113,8 @@ public class ManagedSchemaTransformProvider
       public abstract Builder setConfigUrl(@Nullable String configUrl);
 
       public abstract Builder setConfig(@Nullable String yamlConfig);
+
+      public abstract Builder setSkipConfigValidation(boolean skip);
 
       public abstract ManagedConfig build();
     }
@@ -222,7 +229,8 @@ public class ManagedSchemaTransformProvider
       configMap = remappedConfig;
     }
 
-    if (!options.as(ManagedOptions.class).isSkipManagedConfigValidation()) {
+    @Nullable Boolean skipValidation = config.getSkipConfigValidation();
+    if (skipValidation == null || !skipValidation) {
       validateUserConfig(
           config.getTransformIdentifier(),
           new HashSet<>(configMap.keySet()),

@@ -174,6 +174,8 @@ public class Managed {
     @VisibleForTesting
     abstract List<String> getSupportedIdentifiers();
 
+    abstract boolean getSkipConfigValidation();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -186,6 +188,8 @@ public class Managed {
 
       @VisibleForTesting
       abstract Builder setSupportedIdentifiers(List<String> supportedIdentifiers);
+
+      abstract Builder setSkipConfigValidation(boolean skip);
 
       abstract ManagedTransform build();
     }
@@ -211,6 +215,14 @@ public class Managed {
     @VisibleForTesting
     ManagedTransform withSupportedIdentifiers(List<String> supportedIdentifiers) {
       return toBuilder().setSupportedIdentifiers(supportedIdentifiers).build();
+    }
+
+    /**
+     * Skips configuration validation. If unset, the pipeline will fail at construction time if the
+     * configuration includes unknown fields or missing required fields.
+     */
+    public ManagedTransform skipConfigValidation() {
+      return toBuilder().setSkipConfigValidation(true).build();
     }
 
     @Override

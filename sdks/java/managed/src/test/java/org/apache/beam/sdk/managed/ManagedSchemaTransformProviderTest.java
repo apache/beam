@@ -144,11 +144,10 @@ public class ManagedSchemaTransformProviderTest {
         ManagedSchemaTransformProvider.ManagedConfig.builder()
             .setTransformIdentifier(TestSchemaTransformProvider.IDENTIFIER)
             .setConfig(YamlUtils.yamlStringFromMap(config))
+            .setSkipConfigValidation(true)
             .build();
 
-    ManagedOptions options = PipelineOptionsFactory.as(ManagedOptions.class);
-    options.setSkipManagedConfigValidation(true);
-    Pipeline p = Pipeline.create(options);
+    Pipeline p = Pipeline.create();
     new ManagedSchemaTransformProvider(null)
         .from(managedConfig)
         .expand(
