@@ -97,6 +97,7 @@ import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewPartitions;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
@@ -213,6 +214,124 @@ public class KafkaIOIT {
     if (kafkaContainer != null) {
       kafkaContainer.stop();
     }
+  }
+
+  @Test
+  public void testKafkaIOFailsFastWithInvalidPartitions() throws IOException {
+    thrown.expect(Pipeline.PipelineExecutionException.class);
+    thrown.expectMessage(
+        "Partition 1000 does not exist for topic "
+            + options.getKafkaTopic()
+            + ". Please check Kafka configuration.");
+
+    // Use streaming pipeline to read Kafka records.
+    readPipeline.getOptions().as(Options.class).setStreaming(true);
+    TopicPartition invalidPartition = new TopicPartition(options.getKafkaTopic(), 1000);
+    readPipeline.apply(
+        "Read from unbounded Kafka",
+        readFromKafka().withTopicPartitions(ImmutableList.of(invalidPartition)));
+
+    PipelineResult readResult = readPipeline.run();
+    PipelineResult.State readState =
+        readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
+
+    // call asynchronous deleteTopics first since cancelIfTimeouted is blocking.
+    tearDownTopic(options.getKafkaTopic());
+    cancelIfTimeouted(readResult, readState);
+  }
+
+  @Test
+  public void testKafkaIOFailsFastWithInvalidTopics() throws IOException {
+    // This test will fail on versions before 2.3.0 due to the non-existence of the
+    // allow.auto.create.topics
+    // flag. This can be removed when/if support for this older version is dropped.
+    String actualVer = AppInfoParser.getVersion();
+    assumeFalse(actualVer.compareTo("2.0.0") >= 0 && actualVer.compareTo("2.3.0") < 0);
+
+    thrown.expect(Pipeline.PipelineExecutionException.class);
+    thrown.expectMessage(
+        "Could not find any partitions info for topic invalid_topic. Please check Kafka configuration"
+            + " and make sure that provided topics exist.");
+
+    // Use streaming pipeline to read Kafka records.
+    sdfReadPipeline.getOptions().as(Options.class).setStreaming(true);
+    String invalidTopic = "invalid_topic";
+    sdfReadPipeline.apply(
+        "Read from unbounded Kafka",
+        KafkaIO.<byte[], byte[]>read()
+            .withConsumerConfigUpdates(ImmutableMap.of("allow.auto.create.topics", "false"))
+            .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
+            .withTopics(ImmutableList.of(invalidTopic))
+            .withKeyDeserializer(ByteArrayDeserializer.class)
+            .withValueDeserializer(ByteArrayDeserializer.class));
+
+    PipelineResult readResult = sdfReadPipeline.run();
+    PipelineResult.State readState =
+        readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
+
+    // call asynchronous deleteTopics first since cancelIfTimeouted is blocking.
+    tearDownTopic(options.getKafkaTopic());
+    cancelIfTimeouted(readResult, readState);
+  }
+
+  @Test
+  public void testKafkaIODoesNotErrorAtValidationWithBadBootstrapServer() throws IOException {
+    // expect an error during execution that the bootstrap server is bad, not during validation
+    // steps in
+    // KafakUnboundedSource.
+    thrown.expect(KafkaException.class);
+    // Use streaming pipeline to read Kafka records.
+    readPipeline.getOptions().as(Options.class).setStreaming(true);
+    TopicPartition invalidPartition = new TopicPartition(options.getKafkaTopic(), 1000);
+    readPipeline.apply(
+        "Read from unbounded Kafka",
+        KafkaIO.readBytes()
+            .withBootstrapServers("bootstrap.invalid-name.fake-region.bad-project:invalid-port")
+            .withConsumerConfigUpdates(ImmutableMap.of("auto.offset.reset", "earliest"))
+            .withTopicPartitions(ImmutableList.of(invalidPartition)));
+
+    PipelineResult readResult = readPipeline.run();
+    PipelineResult.State readState =
+        readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
+
+    // call asynchronous deleteTopics first since cancelIfTimeouted is blocking.
+    tearDownTopic(options.getKafkaTopic());
+    cancelIfTimeouted(readResult, readState);
+  }
+
+  @Test
+  public void testKafkaIOFailsFastWithInvalidTopicsAndDynamicRead() throws IOException {
+    // This test will fail on versions before 2.3.0 due to the non-existence of the
+    // allow.auto.create.topics
+    // flag. This can be removed when/if support for this older version is dropped.
+    String actualVer = AppInfoParser.getVersion();
+    assumeFalse(actualVer.compareTo("2.0.0") >= 0 && actualVer.compareTo("2.3.0") < 0);
+
+    thrown.expect(Pipeline.PipelineExecutionException.class);
+    thrown.expectMessage(
+        "Could not find any partitions info for topic invalid_topic. Please check Kafka configuration"
+            + " and make sure that provided topics exist.");
+
+    // Use streaming pipeline to read Kafka records.
+    sdfReadPipeline.getOptions().as(Options.class).setStreaming(true);
+    String invalidTopic = "invalid_topic";
+    sdfReadPipeline.apply(
+        "Read from unbounded Kafka",
+        KafkaIO.<byte[], byte[]>read()
+            .withConsumerConfigUpdates(ImmutableMap.of("allow.auto.create.topics", "false"))
+            .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
+            .withTopics(ImmutableList.of(invalidTopic))
+            .withDynamicRead(Duration.standardSeconds(5))
+            .withKeyDeserializer(ByteArrayDeserializer.class)
+            .withValueDeserializer(ByteArrayDeserializer.class));
+
+    PipelineResult readResult = sdfReadPipeline.run();
+    PipelineResult.State readState =
+        readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
+
+    // call asynchronous deleteTopics first since cancelIfTimeouted is blocking.
+    tearDownTopic(options.getKafkaTopic());
+    cancelIfTimeouted(readResult, readState);
   }
 
   @Test

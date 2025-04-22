@@ -101,7 +101,39 @@ class KafkaUnboundedSource<K, V> extends UnboundedSource<KafkaRecord<K, V>, Kafk
       }
     } else {
       for (TopicPartition p : partitions) {
-        Lineage.getSources().add("kafka", ImmutableList.of(bootStrapServers, p.topic()));
+        topicsAndPartitions.computeIfAbsent(p.topic(), k -> new ArrayList<>()).add(p.partition());
+      }
+      try (Consumer<?, ?> consumer = spec.getConsumerFactoryFn().apply(spec.getConsumerConfig())) {
+        for (Map.Entry<String, List<Integer>> e : topicsAndPartitions.entrySet()) {
+          final String providedTopic = e.getKey();
+          final List<Integer> providedPartitions = e.getValue();
+          final Set<Integer> partitionsForTopic;
+          try {
+            partitionsForTopic =
+                consumer.partitionsFor(providedTopic).stream()
+                    .map(PartitionInfo::partition)
+                    .collect(Collectors.toSet());
+            for (Integer p : providedPartitions) {
+              checkState(
+                  partitionsForTopic.contains(p),
+                  "Partition "
+                      + p
+                      + " does not exist for topic "
+                      + providedTopic
+                      + ". Please check Kafka configuration.");
+            }
+          } catch (KafkaException exception) {
+            LOG.warn("Unable to access cluster. Skipping fail fast checks.");
+          }
+          Lineage.getSources().add("kafka", ImmutableList.of(bootStrapServers, providedTopic));
+        }
+      } catch (KafkaException exception) {
+        LOG.warn(
+            "WARN: Failed to connect to kafka for running pre-submit validation of kafka "
+                + "topic and partition configuration. This may be due to local permissions or "
+                + "connectivity to the kafka bootstrap server, or due to misconfiguration of "
+                + "KafkaIO. This validation is not required, and this warning may be ignored "
+                + "if the Beam job runs successfully.");
       }
     }
 
