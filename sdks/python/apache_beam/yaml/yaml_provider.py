@@ -515,7 +515,7 @@ class YamlProvider(Provider):
     if (body.get('type') == 'chain' and 'input' not in body and
         spec.get('requires_inputs', True)):
       body['input'] = 'input'
-    return yaml_create_transform(preprocess(body), [])
+    return yaml_create_transform(preprocess(body))  # type: ignore
 
 
 # This is needed because type inference can't handle *args, **kwargs forwarding.
