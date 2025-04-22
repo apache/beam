@@ -25,9 +25,10 @@ public abstract class ResourceHint {
   /**
    * Reconciles values of a hint when the hint specified on a transform is also defined in an outer
    * context, for example on a composite transform, or specified in the transform's execution
-   * environment. Override this method for a custom reconciliation logic.
+   * environment. Override this method for a custom reconciliation logic. If isSum is true the merge
+   * result will be flipped.
    */
-  public ResourceHint mergeWithOuter(ResourceHint outer) {
+  public ResourceHint mergeWithOuter(ResourceHint outer, boolean isSum) {
     // Defaults to the inner value as it is the most specific one.
     return this;
   }
