@@ -18333,7 +18333,7 @@ limitations under the License.
 -->
 &lt;h1 id="container-environments">Container environments&lt;/h1>
 &lt;p>The Beam SDK runtime environment can be &lt;a href="https://www.docker.com/resources/what-container">containerized&lt;/a> with &lt;a href="https://www.docker.com/">Docker&lt;/a> to isolate it from other runtime systems. To learn more about the container environment, read the Beam &lt;a href="https://s.apache.org/beam-fn-api-container-contract">SDK Harness container contract&lt;/a>.&lt;/p>
-&lt;p>Prebuilt SDK container images are released per supported language during Beam releases and pushed to &lt;a href="https://hub.docker.com/search?q=apache%2Fbeam&amp;amp;type=image">Docker Hub&lt;/a>.&lt;/p>
+&lt;p>Prebuilt SDK container images are released per supported language during Beam releases and pushed to &lt;a href="https://hub.docker.com/search?q=apache%2Fbeam&amp;amp;type=image">Docker Hub&lt;/a>. &lt;strong>Note:&lt;/strong> These images, such as &lt;code>apache/beam_python3.12_sdk:2.63.0&lt;/code>, are designed specifically as worker images for the distributed execution of Beam pipelines. They are not intended as fully featured SDK development environments.&lt;/p>
 &lt;h2 id="custom-containers">Custom containers&lt;/h2>
 &lt;p>You may want to customize container images for many reasons, including:&lt;/p>
 &lt;ul>
