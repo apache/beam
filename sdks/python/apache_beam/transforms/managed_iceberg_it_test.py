@@ -72,7 +72,10 @@ class ManagedIcebergIT(unittest.TestCase):
     with beam.Pipeline(argv=self.args) as read_pipeline:
       output_dicts = (
           read_pipeline
-          | beam.managed.Read(beam.managed.ICEBERG, config=iceberg_config)
+          | beam.managed.Read(
+              beam.managed.ICEBERG,
+              config=iceberg_config,
+              skip_config_validation=True)
           | beam.Map(lambda row: row._asdict()))
 
       assert_that(output_dicts, equal_to(expected_dicts))
