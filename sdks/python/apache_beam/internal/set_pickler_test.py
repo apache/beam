@@ -19,6 +19,7 @@
 
 import enum
 import unittest
+
 from apache_beam.internal.set_pickler import sort_if_possible
 
 

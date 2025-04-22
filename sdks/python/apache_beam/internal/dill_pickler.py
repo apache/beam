@@ -41,9 +41,11 @@ import zlib
 from typing import Any
 from typing import Dict
 from typing import Tuple
-from apache_beam.internal.set_pickler import save_frozenset, save_set
 
 import dill
+
+from apache_beam.internal.set_pickler import save_frozenset
+from apache_beam.internal.set_pickler import save_set
 
 settings = {'dill_byref': None}
 
@@ -385,6 +387,8 @@ def dumps(
   """For internal use only; no backwards-compatibility guarantees."""
   with _pickle_lock:
     if enable_best_effort_determinism:
+      old_save_set = dill.dill.Pickler.dispatch[set]
+      old_save_frozenset = dill.dill.Pickler.dispatch[frozenset]
       dill.dill.pickle(set, save_set)
       dill.dill.pickle(frozenset, save_frozenset)
     try:
@@ -397,6 +401,9 @@ def dumps(
         raise
     finally:
       dill.dill._trace(False)  # pylint: disable=protected-access
+    if enable_best_effort_determinism:
+      dill.dill.pickle(set, old_save_set)
+      dill.dill.pickle(frozenset, old_save_frozenset)
 
   # Compress as compactly as possible (compresslevel=9) to decrease peak memory
   # usage (of multiple in-memory copies) and to avoid hitting protocol buffer
