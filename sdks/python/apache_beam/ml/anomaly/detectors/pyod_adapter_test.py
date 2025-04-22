@@ -50,9 +50,9 @@ class PyODIForestTest(unittest.TestCase):
     seed = 1234
     model = IForest(random_state=seed)
     model.fit(self.get_train_data())
-    self.tmp_fn = os.path.join(self.tmp_dir, 'iforest_pickled')
+    self.pickled_model_uri = os.path.join(self.tmp_dir, 'iforest_pickled')
 
-    with open(self.tmp_fn, 'wb') as fp:
+    with open(self.pickled_model_uri, 'wb') as fp:
       pickle.dump(model, fp)
 
   def tearDown(self) -> None:
@@ -89,12 +89,13 @@ class PyODIForestTest(unittest.TestCase):
       rows = [beam.Row(a=2, b=6, target=0), beam.Row(a=100, b=100, target=1)]
       field_names = ["a", "b", "target"]
       # The selected features should match the features used for training
-      detector = PyODFactory.create_detector(self.tmp_fn, features=["a", "b"])
+      detector = PyODFactory.create_detector(
+          self.pickled_model_uri, features=["a", "b"])
       input_data = self.get_test_data_with_target()
     else:
       rows = [beam.Row(a=2, b=6), beam.Row(a=100, b=100)]
       field_names = ["a", "b"]
-      detector = PyODFactory.create_detector(self.tmp_fn)
+      detector = PyODFactory.create_detector(self.pickled_model_uri)
       input_data = self.get_test_data()
 
     expected_out = [(
@@ -139,7 +140,7 @@ class PyODIForestTest(unittest.TestCase):
     # In this case, we should either get rid of the extra feature(s) from
     # the scoring input or set `features` when creating the offline detector
     # (see the `test_scoring_with_matched_features`)
-    detector = PyODFactory.create_detector(self.tmp_fn)
+    detector = PyODFactory.create_detector(self.pickled_model_uri)
     options = PipelineOptions([])
     p = beam.Pipeline(options=options)
     _ = (
