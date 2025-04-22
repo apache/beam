@@ -1038,7 +1038,6 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
   }
 
   protected final void invokeFinishBundle() {
-    long previousBundleFinishTime = lastFinishBundleTime;
     if (bundleStarted) {
       LOG.debug("Finishing bundle.");
       pushbackDoFnRunner.finishBundle();
@@ -1052,14 +1051,12 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
         LOG.debug("Invoking bundle finish callback.");
         bundleFinishedCallback.run();
       }
-    }
-    try {
-      if (previousBundleFinishTime - getProcessingTimeService().getCurrentProcessingTime()
-          > maxBundleTimeMills) {
+      try {
+        LOG.debug("Updating watermark after closing bundle of {}", getOperatorName());
         processInputWatermark(false);
+      } catch (Exception ex) {
+        LOG.warn("Failed to update downstream watermark", ex);
       }
-    } catch (Exception ex) {
-      LOG.warn("Failed to update downstream watermark", ex);
     }
   }
 

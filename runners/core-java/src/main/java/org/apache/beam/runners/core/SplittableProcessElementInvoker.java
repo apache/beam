@@ -27,6 +27,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.common.base.MoreObjects;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
@@ -75,6 +76,16 @@ public abstract class SplittableProcessElementInvoker<
 
     public @Nullable WatermarkEstimatorStateT getFutureWatermarkEstimatorState() {
       return futureWatermarkEstimatorState;
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(Result.class)
+          .add("residualRestriction", residualRestriction)
+          .add("continuation", continuation)
+          .add("futureOutputWatermark", futureOutputWatermark)
+          .add("futureWatermarkEstimatorState", futureWatermarkEstimatorState)
+          .toString();
     }
   }
 
