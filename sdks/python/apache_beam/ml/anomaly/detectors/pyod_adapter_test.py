@@ -37,7 +37,6 @@ from apache_beam.testing.util import equal_to
 # Protect against environments where onnx and pytorch library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
-  import pyod
   from apache_beam.ml.anomaly.detectors.pyod_adapter import PyODFactory
   from pyod.models.iforest import IForest
 except ImportError:
