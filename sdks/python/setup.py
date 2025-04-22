@@ -395,6 +395,7 @@ if __name__ == '__main__':
               'Sphinx>=7.0.0,<8.0',
               'docstring-parser>=0.15,<1.0',
               'docutils>=0.18.1',
+              'markdown',
               'pandas<2.3.0',
               'openai',
               'virtualenv-clone>=0.5,<1.0',
