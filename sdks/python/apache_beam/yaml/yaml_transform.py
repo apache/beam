@@ -86,7 +86,8 @@ def validate_against_schema(pipeline, strictness):
   except jsonschema.ValidationError as exn:
     exn.message += f" around line {_closest_line(pipeline, exn.path)}"
     # validation message for chain-type transform
-    if exn.schema_path[-1]=='not' and exn.schema_path[-2] in ['input', 'output']:
+    if exn.schema_path[-1] == 'not' and exn.schema_path[-2] in ['input',
+                                                                'output']:
       exn.message = f"'{exn.schema_path[-2]}' should not be used along with 'chain' type transforms. " + exn.message
     raise exn
 
