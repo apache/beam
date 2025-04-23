@@ -135,6 +135,7 @@ public class Managed {
                 source,
                 READ_TRANSFORMS.keySet()))
         .setSupportedIdentifiers(new ArrayList<>(READ_TRANSFORMS.values()))
+        .setSkipConfigValidation(false)
         .build();
   }
 
@@ -160,6 +161,7 @@ public class Managed {
                 sink,
                 WRITE_TRANSFORMS.keySet()))
         .setSupportedIdentifiers(new ArrayList<>(WRITE_TRANSFORMS.values()))
+        .setSkipConfigValidation(false)
         .build();
   }
 
