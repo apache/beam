@@ -560,7 +560,13 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
     with the input PCollection (or the first input if several).
     """
     if inputs:
-      return inputs[0].windowing
+      try:
+        return inputs[0].windowing
+      except:
+        raise AttributeError(f"'{type(inputs[0]).__name__}' object has no"
+            " attribute 'windowing'. Expected a PCollection as input,"
+            f" but received '{type(inputs[0]).__name__}'. "
+            "Did you accidentally pass a Pipeline object or a PBegin?")
     else:
       from apache_beam.transforms.core import Windowing
       from apache_beam.transforms.window import GlobalWindows
