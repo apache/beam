@@ -29,7 +29,7 @@ try:
   from sdks.python.apache_beam.ml.transforms.embeddings.open_ai import OpenAITextEmbeddings
 except ImportError:
   OpenAITextEmbeddings = None
-# pylint: disable=ungrouped-imports
+
 try:
   import tensorflow_transform as tft
   from apache_beam.ml.transforms.tft import ScaleTo01
@@ -44,11 +44,9 @@ model_name: str = "text-embedding-3-small"
 @unittest.skipIf(
     OpenAITextEmbeddings is None, 'OpenAI Python SDK is not installed.')
 class OpenAIEmbeddingsTest(unittest.TestCase):
-  print("check1", OpenAITextEmbeddings)
 
   def setUp(self) -> None:
     self.artifact_location = tempfile.mkdtemp(prefix='_openai_test')
-    # Remove GCS artifact location as we'll use a local directory instead
     self.api_key = os.environ.get('OPENAI_API_KEY')
 
   def tearDown(self) -> None:
