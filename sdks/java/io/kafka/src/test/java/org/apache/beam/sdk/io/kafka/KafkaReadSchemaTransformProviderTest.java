@@ -309,11 +309,6 @@ public class KafkaReadSchemaTransformProviderTest {
                 + "schema: '{\"type\":\"record\",\"name\":\"my_record\",\"fields\":[{\"name\":\"bool\",\"type\":\"boolean\"}]}'",
             "topic: topic_3\n"
                 + "bootstrap_servers: some bootstrap\n"
-                + "schema_registry_url: some-url\n"
-                + "schema_registry_subject: some-subject\n"
-                + "data_format: RAW",
-            "topic: topic_4\n"
-                + "bootstrap_servers: some bootstrap\n"
                 + "data_format: PROTO\n"
                 + "schema: '"
                 + PROTO_SCHEMA
