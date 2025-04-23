@@ -143,16 +143,12 @@ task integrationTest(type: Test) {
     outputs.upToDateWhen { false }
 
     include '**/*IT.class'
-    // Exclude flaky tests on DirectRunner
-    // TODO: https://github.com/apache/beam/issues/34680
-    exclude '**/HiveCatalogIT.class'
-    exclude '**/BigQueryMetastoreCatalogIT.class'
     // BQ metastore catalog doesn't support java 8
     if (usingJava8) {
         exclude '**/BigQueryMetastoreCatalogIT.class'
     }
 
-    maxParallelForks 4
+    maxParallelForks 1
     classpath = sourceSets.test.runtimeClasspath
     testClassesDirs = sourceSets.test.output.classesDirs
 }

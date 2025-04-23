@@ -41,6 +41,7 @@ import org.junit.BeforeClass;
  */
 public class HiveCatalogIT extends IcebergCatalogBaseIT {
   private static HiveMetastoreExtension hiveMetastoreExtension;
+  private static long SALT = System.nanoTime();
 
   private String testDb() {
     return "test_db_" + testName.getMethodName();
@@ -48,7 +49,7 @@ public class HiveCatalogIT extends IcebergCatalogBaseIT {
 
   @Override
   public String tableId() {
-    return String.format("%s.%s", testDb(), "test_table");
+    return String.format("%s.%s", testDb(), "test_table" + "_" + SALT);
   }
 
   @BeforeClass
@@ -73,6 +74,7 @@ public class HiveCatalogIT extends IcebergCatalogBaseIT {
 
   @Override
   public Catalog createCatalog() {
+    SALT = System.nanoTime();
     return CatalogUtil.loadCatalog(
         HiveCatalog.class.getName(),
         "hive_" + catalogName,
