@@ -245,22 +245,22 @@ class PrismJobServerTest(unittest.TestCase):
     rmtree(self.local_dir)
     pass
 
-  def _make_local_bin(self, fn = None):
+  def _make_local_bin(self, fn=None):
     fn = fn or self.local_bin_path
     with open(fn, 'wb'):
       pass
 
-  def _make_local_zip(self, fn = None):
+  def _make_local_zip(self, fn=None):
     fn = fn or self.local_zip_path
     with zipfile.ZipFile(fn, 'w', zipfile.ZIP_DEFLATED):
       pass
 
-  def _make_cache_bin(self, fn = None):
+  def _make_cache_bin(self, fn=None):
     fn = fn or self.cache_bin_path
     with open(fn, 'wb'):
       pass
 
-  def _make_cache_zip(self, fn = None):
+  def _make_cache_zip(self, fn=None):
     fn = fn or self.cache_zip_path
     with zipfile.ZipFile(fn, 'w', zipfile.ZIP_DEFLATED):
       pass

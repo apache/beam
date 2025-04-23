@@ -83,7 +83,7 @@ class PrismRunner(portable_runner.PortableRunner):
 
 
 def _md5sum(filename, block_size=8192) -> str:
-  md5 =hashlib.md5()
+  md5 = hashlib.md5()
   with open(filename, 'rb') as f:
     while True:
       data = f.read(block_size)
@@ -94,7 +94,7 @@ def _md5sum(filename, block_size=8192) -> str:
 
 
 def _rename_if_different(src, dst):
-  assert(os.path.isfile(src))
+  assert (os.path.isfile(src))
 
   if os.path.isfile(dst):
     if _md5sum(src) != _md5sum(dst):
@@ -130,7 +130,6 @@ class PrismJobServer(job_server.SubprocessJobServer):
 
     job_options = options.view_as(pipeline_options.JobServerOptions)
     self._job_port = job_options.job_port
-
 
   @classmethod
   def maybe_unzip_and_make_executable(
