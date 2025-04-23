@@ -2,10 +2,10 @@
   "commentedAboutFailingChecks": false,
   "reviewersAssignedForLabels": {
     "java": "m-trieu",
-    "kafka": "Dippatel98"
+    "kafka": "johnjcasey"
   },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
-  "committerAssigned": false
+  "committerAssigned": true
 }
