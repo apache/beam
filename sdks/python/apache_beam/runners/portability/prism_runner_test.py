@@ -245,32 +245,37 @@ class PrismJobServerTest(unittest.TestCase):
     rmtree(self.local_dir)
     pass
 
-  def _make_local_bin(self):
-    with open(self.local_bin_path, 'wb'):
+  def _make_local_bin(self, fn=None):
+    fn = fn or self.local_bin_path
+    with open(fn, 'wb'):
       pass
 
-  def _make_local_zip(self):
-    with zipfile.ZipFile(self.local_zip_path, 'w', zipfile.ZIP_DEFLATED):
+  def _make_local_zip(self, fn=None):
+    fn = fn or self.local_zip_path
+    with zipfile.ZipFile(fn, 'w', zipfile.ZIP_DEFLATED):
       pass
 
-  def _make_cache_bin(self):
-    with open(self.cache_bin_path, 'wb'):
+  def _make_cache_bin(self, fn=None):
+    fn = fn or self.cache_bin_path
+    with open(fn, 'wb'):
       pass
 
-  def _make_cache_zip(self):
-    with zipfile.ZipFile(self.cache_zip_path, 'w', zipfile.ZIP_DEFLATED):
+  def _make_cache_zip(self, fn=None):
+    fn = fn or self.cache_zip_path
+    with zipfile.ZipFile(fn, 'w', zipfile.ZIP_DEFLATED):
       pass
 
-  def _extract_side_effect(self, a, path=None):
+  def _extract_side_effect(self, fn, path=None):
     if path is None:
-      return a
+      return fn
 
+    full_path = os.path.join(str(path), fn)
     if path.startswith(self.cache_dir):
-      self._make_cache_bin()
+      self._make_cache_bin(full_path)
     else:
-      self._make_local_bin()
+      self._make_local_bin(full_path)
 
-    return os.path.join(str(path), a)
+    return full_path
 
   @parameterized.expand([[True, True], [True, False], [False, True],
                          [False, False]])
@@ -352,7 +357,11 @@ class PrismJobServerTest(unittest.TestCase):
     with mock.patch(
         'apache_beam.runners.portability.prism_runner.urlopen') as mock_urlopen:
       mock_response = mock.MagicMock()
-      mock_response.read.return_value = b''
+      if has_cache_zip:
+        with open(self.cache_zip_path, 'rb') as f:
+          mock_response.read.side_effect = [f.read(), b'']
+      else:
+        mock_response.read.return_value = b''
       mock_urlopen.return_value = mock_response
       with mock.patch('zipfile.is_zipfile') as mock_is_zipfile:
         with mock.patch('zipfile.ZipFile') as mock_zipfile_init:
