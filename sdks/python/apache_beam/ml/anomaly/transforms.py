@@ -454,6 +454,16 @@ class RunOfflineDetector(beam.PTransform[beam.PCollection[KeyedInputT],
         ])
     return orig_key, (temp_key, result)
 
+  def _select_features(self, elem: Tuple[Any,
+                                         beam.Row]) -> Tuple[Any, beam.Row]:
+    assert self._offline_detector._features is not None
+    k, v = elem
+    row_dict = v._asdict()
+    return (
+        k,
+        beam.Row(**{k: row_dict[k]
+                    for k in self._offline_detector._features}))
+
   def expand(
       self,
       input: beam.PCollection[KeyedInputT]) -> beam.PCollection[KeyedOutputT]:
@@ -467,6 +477,10 @@ class RunOfflineDetector(beam.PTransform[beam.PCollection[KeyedInputT],
     # ((orig_key, temp_key, beam.Row), beam.Row)
     rekeyed_model_input = input | "Rekey" >> beam.Map(
         lambda x: ((x[0], x[1][0], x[1][1]), x[1][1]))
+
+    if self._offline_detector._features is not None:
+      rekeyed_model_input = rekeyed_model_input | "Select Features" >> beam.Map(
+          self._select_features)
 
     # ((orig_key, temp_key, beam.Row), AnomalyPrediction)
     rekeyed_model_output = (
