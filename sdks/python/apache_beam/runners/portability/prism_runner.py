@@ -22,6 +22,7 @@
 # sunset it
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
 import platform
@@ -81,6 +82,35 @@ class PrismRunner(portable_runner.PortableRunner):
         job_service, options, retain_unknown_options=True)
 
 
+def _md5sum(filename, block_size=8192) -> str:
+  md5 =hashlib.md5()
+  with open(filename, 'rb') as f:
+    while True:
+      data = f.read(block_size)
+      if not data:
+        break
+      md5.update(data)
+  return md5.hexdigest()
+
+
+def _rename_if_different(src, dst):
+  assert(os.path.isfile(src))
+
+  if os.path.isfile(dst):
+    if _md5sum(src) != _md5sum(dst):
+      # Remove existing binary to prevent exception on Windows during
+      # os.rename.
+      # See: https://docs.python.org/3/library/os.html#os.rename
+      os.remove(dst)
+      os.rename(src, dst)
+    else:
+      _LOGGER.info(
+          'Found %s and %s with the same md5. Skipping overwrite.' % (src, dst))
+      os.remove(src)
+  else:
+    os.rename(src, dst)
+
+
 class PrismJobServer(job_server.SubprocessJobServer):
   PRISM_CACHE = os.path.expanduser("~/.apache_beam/cache/prism")
   BIN_CACHE = os.path.expanduser("~/.apache_beam/cache/prism/bin")
@@ -101,6 +131,7 @@ class PrismJobServer(job_server.SubprocessJobServer):
     job_options = options.view_as(pipeline_options.JobServerOptions)
     self._job_port = job_options.job_port
 
+
   @classmethod
   def maybe_unzip_and_make_executable(
       cls, url: str, bin_cache: str, ignore_cache: bool = True) -> str:
@@ -117,7 +148,13 @@ class PrismJobServer(job_server.SubprocessJobServer):
         # True (cache disabled)
         _LOGGER.info("Unzipping prism from %s to %s" % (url, target_url))
         z = zipfile.ZipFile(url)
-        target_url = z.extract(target, path=bin_cache)
+
+        bin_cache_tmp = os.path.join(bin_cache, 'tmp')
+        if not os.path.exists(bin_cache_tmp):
+          os.makedirs(bin_cache_tmp)
+        target_tmp_url = z.extract(target, path=bin_cache_tmp)
+
+        _rename_if_different(target_tmp_url, target_url)
     else:
       target_url = url
 
@@ -154,12 +191,8 @@ class PrismJobServer(job_server.SubprocessJobServer):
             url_read = urlopen(url)
           with open(cached_file + '.tmp', 'wb') as zip_write:
             shutil.copyfileobj(url_read, zip_write, length=1 << 20)
-          if os.path.isfile(cached_file):
-            # Remove existing binary to prevent exception on Windows during
-            # os.rename.
-            # See: https://docs.python.org/3/library/os.html#os.rename
-            os.remove(cached_file)
-          os.rename(cached_file + '.tmp', cached_file)
+
+          _rename_if_different(cached_file + '.tmp', cached_file)
         except URLError as e:
           raise RuntimeError(
               'Unable to fetch remote prism binary at %s: %s' % (url, e))
