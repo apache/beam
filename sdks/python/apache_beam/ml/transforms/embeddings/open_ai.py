@@ -13,17 +13,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# OpenAI Python SDK is required for this module.
-# Install using: pip install openai
-
 import logging
 import time
 from collections.abc import Iterable
 from collections.abc import Sequence
-from typing import Any, Optional, TypeVar, Union, Tuple, cast
+from typing import Any
+from typing import Optional
+from typing import TypeVar
+from typing import Union
+from typing import cast
 
 import apache_beam as beam
-from apache_beam.pvalue import PCollection, Row
+from apache_beam.pvalue import PCollection
+from apache_beam.pvalue import Row
 from apache_beam.io.components.adaptive_throttler import AdaptiveThrottler
 from apache_beam.metrics.metric import Metrics
 from apache_beam.ml.inference.base import ModelHandler
@@ -32,37 +34,40 @@ from apache_beam.ml.transforms.base import EmbeddingsManager
 from apache_beam.ml.transforms.base import _TextEmbeddingHandler
 from apache_beam.utils import retry
 
+import openai
+from openai import RateLimitError
+from openai import APIError
+
 __all__ = ["OpenAITextEmbeddings"]
 
 # Define a type variable for the output
 MLTransformOutputT = TypeVar('MLTransformOutputT')
 
-# Default batch size for OpenAI calls
-_BATCH_SIZE = 20  # OpenAI can handle larger batches than Vertex
 _MSEC_TO_SEC = 1000
+_BATCH_SIZE = 20  # OpenAI can handle larger batches than Vertex
 
 LOGGER = logging.getLogger("OpenAIEmbeddings")
 
 
 def _retry_on_appropriate_openai_error(exception):
   """
-    Retry filter that returns True if a returned error is rate limit (429) or server error (5xx).
+  Retry filter that returns True if a returned error is rate limit (429) or server error (5xx).
 
-    Args:
-        exception: the returned exception encountered during the request/response
-          loop.
+  Args:
+    exception: the returned exception encountered during the request/response
+      loop.
 
-    Returns:
-        boolean indication whether or not the exception is a Server Error (5xx) or
-          a RateLimitError (429) error.
-    """
+  Returns:
+    boolean indication whether or not the exception is a Server Error (5xx) or
+      a RateLimitError (429) error.
+  """
   return isinstance(exception, (RateLimitError, APIError))
 
 
 class _OpenAITextEmbeddingHandler(ModelHandler):
   """
-    Note: Intended for internal use and guarantees no backwards compatibility.
-    """
+  Note: Intended for internal use and guarantees no backwards compatibility.
+  """
 
   def __init__(
       self,
@@ -71,22 +76,14 @@ class _OpenAITextEmbeddingHandler(ModelHandler):
       organization: Optional[str] = None,
       dimensions: Optional[int] = None,
       user: Optional[str] = None,
+      batch_size: Optional[int] = None,
   ):
-    """Initialize OpenAI embedding handler.
-
-        Args:
-            model_name: Name of the OpenAI embedding model (e.g., "text-embedding-3-small")
-            api_key: OpenAI API key
-            organization: OpenAI organization ID
-            dimensions: Specific embedding dimensions to use (if model supports it)
-            user: End-user identifier for tracking and rate limit calculations
-        """
-    # Store only configuration parameters, not the client
     self.model_name = model_name
     self.api_key = api_key
     self.organization = organization
     self.dimensions = dimensions
     self.user = user
+    self.batch_size = batch_size or _BATCH_SIZE
 
     # Configure AdaptiveThrottler and throttling metrics for client-side
     # throttling behavior.
@@ -127,21 +124,18 @@ class _OpenAITextEmbeddingHandler(ModelHandler):
       LOGGER.error("Unexpected exception raised as part of request: %s", e)
       raise
 
+  def batch_elements_kwargs(self) -> dict[str, Any]:
+    """Returns kwargs suitable for beam.BatchElements with appropriate batch size."""
+    return {'max_batch_size': self.batch_size}
+
   def run_inference(
       self,
       batch: Sequence[str],
       model: Any,
       inference_args: Optional[dict[str, Any]] = None,
   ) -> Iterable:
-    # Validate that all elements in the batch are strings
-    for item in batch:
-      if not isinstance(item, str):
-        raise TypeError(
-            f"Embeddings can only be generated on strings. Got {type(item)} instead."
-        )
-
     embeddings = []
-    batch_size = _BATCH_SIZE
+    batch_size = self.batch_size
     for i in range(0, len(batch), batch_size):
       text_batch = batch[i:i + batch_size]
       embeddings_batch = self.get_request(
@@ -150,15 +144,14 @@ class _OpenAITextEmbeddingHandler(ModelHandler):
     return embeddings
 
   def load_model(self):
-    # Create the client just before it's needed during pipeline execution
     if self.api_key:
-      client = open_ai.OpenAI(
+      client = openai.OpenAI(
           api_key=self.api_key,
           organization=self.organization,
       )
     else:
       # Use environment variables or default configuration
-      client = open_ai.OpenAI(organization=self.organization)
+      client = openai.OpenAI(organization=self.organization)
 
     return client
 
@@ -168,19 +161,19 @@ class _OpenAITextEmbeddingHandler(ModelHandler):
 
 class OpenAITextEmbeddings(EmbeddingsManager):
   """
-    A PTransform that uses OpenAI's API to generate embeddings from text inputs.
+  A PTransform that uses OpenAI's API to generate embeddings from text inputs.
 
-    Example Usage::
+  Example Usage::
 
-        with pipeline as p:
-            text = p | "Create texts" >> beam.Create([{"text": "Hello world"}, {"text": "Beam ML"}])
-            embeddings = text | OpenAITextEmbeddings(
-                model_name="text-embedding-3-small",
-                columns=["embedding_col"],
-                api_key=api_key
-            )
-    """
-  # Define a consistent output type with proper annotations for PTransform
+      with pipeline as p:
+          text = p | "Create texts" >> beam.Create([{"text": "Hello world"}, {"text": "Beam ML"}])
+          embeddings = text | OpenAITextEmbeddings(
+              model_name="text-embedding-3-small",
+              columns=["embedding_col"],
+              api_key=api_key
+          )
+  """
+
   @beam.typehints.with_output_types(PCollection[Union[MLTransformOutputT, Row]])
   def __init__(
       self,
@@ -190,22 +183,27 @@ class OpenAITextEmbeddings(EmbeddingsManager):
       organization: Optional[str] = None,
       dimensions: Optional[int] = None,
       user: Optional[str] = None,
+      batch_size: Optional[int] = None,
       **kwargs):
-    """Initialize the OpenAITextEmbeddings transform.
-
-        Args:
-            model_name: Name of the OpenAI embedding model (e.g., "text-embedding-3-small")
-            api_key: OpenAI API key
-            organization: OpenAI organization ID
-            dimensions: Specific embedding dimensions to use (if model supports it)
-            user: End-user identifier for tracking and rate limit calculations
-            columns: The columns where the embeddings will be stored in the output
-        """
+    """
+    Embedding Config for OpenAI Text Embedding models.
+    Text Embeddings are generated for a batch of text using the OpenAI API.
+    
+    Args:
+      model_name: Name of the OpenAI embedding model (e.g., "text-embedding-3-small")
+      columns: The columns where the embeddings will be stored in the output
+      api_key: OpenAI API key
+      organization: OpenAI organization ID
+      dimensions: Specific embedding dimensions to use (if model supports it)
+      user: End-user identifier for tracking and rate limit calculations
+      batch_size: Maximum batch size for requests to OpenAI API (default: 20)
+    """
     self.model_name = model_name
     self.api_key = api_key
     self.organization = organization
     self.dimensions = dimensions
     self.user = user
+    self.batch_size = batch_size
     super().__init__(columns=columns, **kwargs)
 
   def get_model_handler(self) -> ModelHandler:
@@ -215,6 +213,7 @@ class OpenAITextEmbeddings(EmbeddingsManager):
         organization=self.organization,
         dimensions=self.dimensions,
         user=self.user,
+        batch_size=self.batch_size,
     )
 
   def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
