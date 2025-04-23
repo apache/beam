@@ -48,7 +48,7 @@ public class BigQueryMetastoreCatalogIT extends IcebergCatalogBaseIT {
   private static final BigqueryClient BQ_CLIENT = new BigqueryClient("BigQueryMetastoreCatalogIT");
   static final String BQMS_CATALOG = "org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog";
   static final String DATASET = "managed_iceberg_bqms_tests_" + System.nanoTime();;
-  static long SALT = System.nanoTime();
+  static long salt = System.nanoTime();
 
   @BeforeClass
   public static void createDataset() throws IOException, InterruptedException {
@@ -62,12 +62,12 @@ public class BigQueryMetastoreCatalogIT extends IcebergCatalogBaseIT {
 
   @Override
   public String tableId() {
-    return DATASET + "." + testName.getMethodName() + "_" + SALT;
+    return DATASET + "." + testName.getMethodName() + "_" + salt;
   }
 
   @Override
   public Catalog createCatalog() {
-    SALT = System.nanoTime();
+    salt = System.nanoTime();
     return CatalogUtil.loadCatalog(
         BQMS_CATALOG,
         "bqms_" + catalogName,
@@ -83,7 +83,7 @@ public class BigQueryMetastoreCatalogIT extends IcebergCatalogBaseIT {
   public void catalogCleanup() {
     for (TableIdentifier tableIdentifier : catalog.listTables(Namespace.of(DATASET))) {
       // only delete tables that were created in this test run
-      if (tableIdentifier.name().contains(String.valueOf(SALT))) {
+      if (tableIdentifier.name().contains(String.valueOf(salt))) {
         catalog.dropTable(tableIdentifier);
       }
     }
