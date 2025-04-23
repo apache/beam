@@ -237,6 +237,10 @@ class PrismJobServer(job_server.SubprocessJobServer):
         # The path is local and exists, use directly.
         return self._path
 
+      if FileSystems.exists(self._path):
+        # The path is in one of the supported filesystems.
+        return self._path
+
       # Check if the path is a URL.
       url = urllib.parse.urlparse(self._path)
       if not url.scheme:
