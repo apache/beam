@@ -178,7 +178,7 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          python-version: 3.9
+          python-version: default
           disable-cache: true
       - name: run Java PreCommit script
         uses: ./.github/actions/gradle-command-self-hosted-action
