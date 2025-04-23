@@ -401,9 +401,9 @@ def dumps(
         raise
     finally:
       dill.dill._trace(False)  # pylint: disable=protected-access
-    if enable_best_effort_determinism:
-      dill.dill.pickle(set, old_save_set)
-      dill.dill.pickle(frozenset, old_save_frozenset)
+      if enable_best_effort_determinism:
+        dill.dill.pickle(set, old_save_set)
+        dill.dill.pickle(frozenset, old_save_frozenset)
 
   # Compress as compactly as possible (compresslevel=9) to decrease peak memory
   # usage (of multiple in-memory copies) and to avoid hitting protocol buffer
