@@ -31,7 +31,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.protobuf.ProtoByteUtils;
 import org.apache.beam.sdk.io.kafka.KafkaWriteSchemaTransformProvider.KafkaWriteSchemaTransform.ErrorCounterFn;
 import org.apache.beam.sdk.managed.Managed;
-import org.apache.beam.sdk.managed.ManagedTransformConstants;
+import org.apache.beam.sdk.managed.ManagedSchemaTransformProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
 import org.apache.beam.sdk.schemas.utils.JsonUtils;
@@ -232,7 +232,8 @@ public class KafkaWriteSchemaTransformProviderTest {
   @Test
   public void testManagedMappings() {
     KafkaWriteSchemaTransformProvider provider = new KafkaWriteSchemaTransformProvider();
-    Map<String, String> mapping = ManagedTransformConstants.MAPPINGS.get(provider.identifier());
+    Map<String, String> mapping =
+        ManagedSchemaTransformProvider.getAliases().get(provider.identifier());
 
     assertNotNull(mapping);
 

@@ -165,6 +165,8 @@ public class Managed {
 
   @AutoValue
   public abstract static class ManagedTransform extends PTransform<PInput, PCollectionRowTuple> {
+    public static final String INPUT = "input";
+
     abstract String getIdentifier();
 
     abstract @Nullable Map<String, Object> getConfig();
@@ -242,8 +244,7 @@ public class Managed {
                 + "(using .setRowSchema()). Instead, found collection %s with coder: %s.",
             inputCollection.getName(),
             inputCollection.getCoder());
-        return PCollectionRowTuple.of(
-            ManagedTransformConstants.INPUT, (PCollection<Row>) inputCollection);
+        return PCollectionRowTuple.of(INPUT, (PCollection<Row>) inputCollection);
       } else if (input instanceof PCollectionRowTuple) {
         return (PCollectionRowTuple) input;
       }

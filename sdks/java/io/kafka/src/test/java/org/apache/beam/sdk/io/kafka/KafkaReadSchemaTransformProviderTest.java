@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.managed.Managed;
-import org.apache.beam.sdk.managed.ManagedTransformConstants;
+import org.apache.beam.sdk.managed.ManagedSchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.utils.YamlUtils;
@@ -331,7 +331,8 @@ public class KafkaReadSchemaTransformProviderTest {
   @Test
   public void testManagedMappings() {
     KafkaReadSchemaTransformProvider provider = new KafkaReadSchemaTransformProvider();
-    Map<String, String> mapping = ManagedTransformConstants.MAPPINGS.get(provider.identifier());
+    Map<String, String> mapping =
+        ManagedSchemaTransformProvider.getAliases().get(provider.identifier());
 
     assertNotNull(mapping);
 

@@ -58,6 +58,7 @@ dependencies {
     implementation "org.apache.iceberg:iceberg-orc:$iceberg_version"
     implementation "org.apache.iceberg:iceberg-data:$iceberg_version"
     implementation library.java.hadoop_common
+    runtimeOnly library.java.hadoop_mapreduce_client_core
     runtimeOnly "org.apache.iceberg:iceberg-gcp:$iceberg_version"
 
     testImplementation project(":sdks:java:managed")
