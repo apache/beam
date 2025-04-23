@@ -114,7 +114,7 @@ public class ManagedSchemaTransformProvider
 
       public abstract Builder setConfig(@Nullable String yamlConfig);
 
-      public abstract Builder setSkipConfigValidation(boolean skip);
+      public abstract Builder setSkipConfigValidation(@Nullable Boolean skip);
 
       public abstract ManagedConfig build();
     }

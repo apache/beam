@@ -135,7 +135,6 @@ public class Managed {
                 source,
                 READ_TRANSFORMS.keySet()))
         .setSupportedIdentifiers(new ArrayList<>(READ_TRANSFORMS.values()))
-        .setSkipConfigValidation(false)
         .build();
   }
 
@@ -161,7 +160,6 @@ public class Managed {
                 sink,
                 WRITE_TRANSFORMS.keySet()))
         .setSupportedIdentifiers(new ArrayList<>(WRITE_TRANSFORMS.values()))
-        .setSkipConfigValidation(false)
         .build();
   }
 
@@ -176,7 +174,7 @@ public class Managed {
     @VisibleForTesting
     abstract List<String> getSupportedIdentifiers();
 
-    abstract boolean getSkipConfigValidation();
+    abstract @Nullable Boolean getSkipConfigValidation();
 
     abstract Builder toBuilder();
 
@@ -236,6 +234,7 @@ public class Managed {
               .setTransformIdentifier(getIdentifier())
               .setConfig(YamlUtils.yamlStringFromMap(getConfig()))
               .setConfigUrl(getConfigUrl())
+              .setSkipConfigValidation(getSkipConfigValidation())
               .build();
 
       SchemaTransform underlyingTransform =
