@@ -203,7 +203,11 @@ public class StateBackedIterable<T>
    */
   public static class Coder<T> extends IterableLikeCoder<T, Iterable<T>> {
 
+    // TODO(https://github.com/apache/beam/issues/34717): Cleanup this and all
+    // the callers that lead it to be populated.
+    @SuppressWarnings("unused")
     private final Supplier<Cache<?, ?>> cache;
+
     private final BeamFnStateClient beamFnStateClient;
     private final Supplier<String> instructionId;
 
@@ -230,7 +234,16 @@ public class StateBackedIterable<T>
         long tokenLength = VarInt.decodeLong(in);
         ByteString token = ByteString.readFrom(ByteStreams.limit(in, tokenLength));
         return new StateBackedIterable<>(
-            cache.get(),
+            // State backed iterables are used specifically for the case where the full
+            // iterable in question has already been deemed onerously large to fit into
+            // memory, which is the antithesis of the kind of thing we want to cache.
+            // In particular, for iterables too large to entirely fit into the cache,
+            // this will evict everything else in the cache as a side effect of iterating
+            // over them.
+            // Also, unlike standard state (including side input) values, these iterables
+            // are much less likely to be iterated over more than once, reducing the
+            // value of caching them.
+            Caches.noop(),
             beamFnStateClient,
             instructionId.get(),
             StateKey.newBuilder().setRunner(StateKey.Runner.newBuilder().setKey(token)).build(),
