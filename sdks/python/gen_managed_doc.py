@@ -301,19 +301,26 @@ def get_type_color(primitive_type: str):
 
 def get_type_format_html(type: str, with_paranthesis: bool):
   if type.startswith("map"):
-    regex = "map\[(.*?),\s*(.*?)\]"
+    regex = r"map\[(.*?),\s*(.*?)\]"
     match = re.search(regex, type)
     key_type = match.group(1)
     value_type = match.group(2)
     key_color = get_type_color(key_type)
     value_color = get_type_color(value_type)
-    html_type = f'<code>map[<span style="color: {key_color};">{key_type}</span>, <span style="color: {value_color};">{value_type}</span>]</code>'
+    html_type = (
+        '<code>map['
+        f'<span style="color: {key_color};">{key_type}</span>, '
+        f'<span style="color: {value_color};">{value_type}</span>]'
+        '</code>')
   elif type.startswith("list"):
-    regex = "list\[(.*?)\]"
+    regex = r"list\[(.*?)\]"
     match = re.search(regex, type)
     inner_type = match.group(1)
     inner_color = get_type_color(inner_type)
-    html_type = f'<code>list[<span style="color: {inner_color};">{inner_type}</span>]</code>'
+    html_type = (
+        '<code>list['
+        f'<span style="color: {inner_color};">{inner_type}</span>]'
+        '</code>')
   else:
     color = get_type_color(type)
     html_type = f'<code style="color: {color}">{type}</code>'

@@ -395,9 +395,9 @@ class AutoGenerationScriptIT(unittest.TestCase):
 
   def test_check_managed_configs_doc_in_sync(self):
     """
-    This test generates the ManagedIO config doc and checks it against the local
-    `website/www/site/content/en/documentation/io/managed-io.md`. Fails if the two docs don't
-     match.
+    This test generates the ManagedIO config doc and checks it against the
+    local `website/www/site/content/en/documentation/io/managed-io.md`.
+    Fails if the two docs don't match.
 
     Fix by running `./gradlew generateExternalTransformsConfig` and
     committing the changes.

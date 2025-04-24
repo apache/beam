@@ -228,7 +228,9 @@ def pretty_type(tp):
   if tp.__module__ == 'builtins':
     tp = tp.__name__
   elif tp.__module__ == 'typing':
-    tp = str(tp).replace("typing.", "").replace("Sequence", "list").replace("Mapping", "map")
+    tp = str(tp).replace("typing.", "")
+    tp = tp.replace("Sequence", "list")
+    tp = tp.replace("Mapping", "map")
   elif tp.__module__ == 'numpy':
     tp = tp.__name__
   tp = str(tp).replace("numpy.", "")
