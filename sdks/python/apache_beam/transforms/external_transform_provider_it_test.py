@@ -147,8 +147,7 @@ class AutoGenerationScriptIT(unittest.TestCase):
     self.xlang_script = importlib.util.module_from_spec(xlang_spec)
     xlang_spec.loader.exec_module(self.xlang_script)
     managed_spec = importlib.util.spec_from_file_location(
-      'gen_managed_doc',
-      os.path.join(self.sdk_dir, 'gen_managed_doc.py'))
+        'gen_managed_doc', os.path.join(self.sdk_dir, 'gen_managed_doc.py'))
     self.managed_script = importlib.util.module_from_spec(managed_spec)
     managed_spec.loader.exec_module(self.managed_script)
 
@@ -410,11 +409,11 @@ class AutoGenerationScriptIT(unittest.TestCase):
       actual_doc = f.readlines()
 
     self.assertEqual(
-      actual_doc,
-      test_doc,
-      "The ManagedIO configuration page is out of sync! Please "
-      "update by running './gradlew generateManagedIOPage' "
-      "and committing the changes.")
+        actual_doc,
+        test_doc,
+        "The ManagedIO configuration page is out of sync! Please "
+        "update by running './gradlew generateManagedIOPage' "
+        "and committing the changes.")
 
 
 if __name__ == '__main__':

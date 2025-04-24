@@ -166,7 +166,7 @@ public class ManagedSchemaTransformProvider
         underlyingRowConfig = getRowConfig(managedConfig, transformConfigSchema);
       } catch (Exception e) {
         throw new IllegalArgumentException(
-            "Encountered an error when retrieving a Row configuration", e);
+            "Encountered an error when retrieving a configuration", e);
       }
 
       this.underlyingRowConfig = underlyingRowConfig;
