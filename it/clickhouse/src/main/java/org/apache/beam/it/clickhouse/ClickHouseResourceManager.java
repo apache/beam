@@ -89,7 +89,11 @@ public class ClickHouseResourceManager extends TestContainerResourceManager<Gene
     super(container, builder);
 
     this.jdbcConnectionString =
-        "http://" + this.getHost() + ":" + this.getPort(CLICKHOUSE_INTERNAL_PORT);
+        "jdbc:clickhouse://"
+            + this.getHost()
+            + ":"
+            + this.getPort(CLICKHOUSE_INTERNAL_PORT)
+            + "/default";
 
     this.connection =
         clickHosueConnection != null ? clickHosueConnection : container.createConnection("");
@@ -118,7 +122,7 @@ public class ClickHouseResourceManager extends TestContainerResourceManager<Gene
   }
 
   /** Returns the JDBC connection string to the ClickHouse service. */
-  public synchronized String getUri() {
+  public synchronized String getJdbcConnectionString() {
     return jdbcConnectionString;
   }
 

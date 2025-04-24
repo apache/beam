@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.spanner;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings.isNullOrEmpty;
 
 import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.StatusCode.Code;
@@ -57,6 +58,13 @@ public abstract class SpannerConfig implements Serializable {
   public abstract @Nullable ValueProvider<String> getDatabaseId();
 
   public abstract @Nullable ValueProvider<String> getHost();
+
+  public String getHostValue() {
+    if (getHost() == null || isNullOrEmpty(getHost().get())) {
+      return DEFAULT_HOST;
+    }
+    return getHost().get();
+  }
 
   public abstract @Nullable ValueProvider<String> getEmulatorHost();
 

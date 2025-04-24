@@ -238,7 +238,7 @@ also take a callable that receives a table reference.
 
 Chaining of operations after WriteToBigQuery
 --------------------------------------------
-WritToBigQuery returns an object with several PCollections that consist of
+WriteToBigQuery returns an object with several PCollections that consist of
 metadata about the write operations. These are useful to inspect the write
 operation and follow with the results::
 
@@ -784,14 +784,15 @@ class _CustomBigQuerySource(BoundedSource):
 
   def _create_source(self, path, coder):
     if not self.use_json_exports:
-      return create_avro_source(path)
+      return create_avro_source(path, validate=self.validate)
     else:
       return TextSource(
           path,
           min_bundle_size=0,
           compression_type=CompressionTypes.UNCOMPRESSED,
           strip_trailing_newlines=True,
-          coder=coder)
+          coder=coder,
+          validate=self.validate)
 
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
     if self.export_result is None:

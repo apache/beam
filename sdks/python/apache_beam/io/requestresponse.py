@@ -43,7 +43,6 @@ from apache_beam import pvalue
 from apache_beam.coders import coders
 from apache_beam.io.components.adaptive_throttler import AdaptiveThrottler
 from apache_beam.metrics import Metrics
-from apache_beam.ml.inference.vertex_ai_inference import MSEC_TO_SEC
 from apache_beam.transforms.util import BatchElements
 from apache_beam.utils import retry
 
@@ -57,6 +56,8 @@ DEFAULT_TIMEOUT_SECS = 30
 # DEFAULT_CACHE_ENTRY_TTL_SEC represents the total time-to-live
 # for cache record.
 DEFAULT_CACHE_ENTRY_TTL_SEC = 24 * 60 * 60
+
+MSEC_TO_SEC = 1000
 
 _LOGGER = logging.getLogger(__name__)
 

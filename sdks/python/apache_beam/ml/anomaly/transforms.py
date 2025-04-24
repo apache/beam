@@ -21,7 +21,6 @@ from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import Iterable
-from typing import List
 from typing import Optional
 from typing import Tuple
 from typing import TypeVar
@@ -427,26 +426,43 @@ class RunOfflineDetector(beam.PTransform[beam.PCollection[KeyedInputT],
   def __init__(self, offline_detector: OfflineDetector):
     self._offline_detector = offline_detector
 
-  def unnest_and_convert(
-      self, nested: Tuple[Tuple[Any, Any], dict[str, List]]) -> KeyedOutputT:
-    """Unnests and converts the model output to AnomalyResult.
+  def _restore_and_convert(
+      self, elem: Tuple[Tuple[Any, Any, beam.Row], Any]) -> KeyedOutputT:
+    """Converts the model output to AnomalyResult.
 
     Args:
-      nested: A tuple containing the combined key (origin key, temp key) and
-        a dictionary of input and output from RunInference.
+      elem: A tuple containing the combined key (original key, temp key, row)
+        and the output from RunInference.
 
     Returns:
-      A tuple containing the original key and AnomalyResult.
+      A tuple containing the keyed AnomalyResult.
     """
-    key, value_dict = nested
-    score = value_dict['output'][0]
+    (orig_key, temp_key, row), prediction = elem
+    assert isinstance(prediction, AnomalyPrediction), (
+      "Wrong model handler output type." +
+      f"Expected: 'AnomalyPrediction', but got '{type(prediction).__name__}'. " +  # pylint: disable=line-too-long
+      "Consider adding a post-processing function via `with_postprocess_fn` " +
+      f"to convert from '{type(prediction).__name__}' to 'AnomalyPrediction', " +  # pylint: disable=line-too-long
+      "or use `score_prediction_adapter` or `label_prediction_adapter` to " +
+      "perform the conversion.")
+
     result = AnomalyResult(
-        example=value_dict['input'][0],
+        example=row,
         predictions=[
-            AnomalyPrediction(
-                model_id=self._offline_detector._model_id, score=score)
+            dataclasses.replace(
+                prediction, model_id=self._offline_detector._model_id)
         ])
-    return key[0], (key[1], result)
+    return orig_key, (temp_key, result)
+
+  def _select_features(self, elem: Tuple[Any,
+                                         beam.Row]) -> Tuple[Any, beam.Row]:
+    assert self._offline_detector._features is not None
+    k, v = elem
+    row_dict = v._asdict()
+    return (
+        k,
+        beam.Row(**{k: row_dict[k]
+                    for k in self._offline_detector._features}))
 
   def expand(
       self,
@@ -458,23 +474,22 @@ class RunOfflineDetector(beam.PTransform[beam.PCollection[KeyedInputT],
         self._offline_detector._keyed_model_handler,
         **self._offline_detector._run_inference_args)
 
-    # ((orig_key, temp_key), beam.Row)
+    # ((orig_key, temp_key, beam.Row), beam.Row)
     rekeyed_model_input = input | "Rekey" >> beam.Map(
-        lambda x: ((x[0], x[1][0]), x[1][1]))
+        lambda x: ((x[0], x[1][0], x[1][1]), x[1][1]))
 
-    # ((orig_key, temp_key), float)
+    if self._offline_detector._features is not None:
+      rekeyed_model_input = rekeyed_model_input | "Select Features" >> beam.Map(
+          self._select_features)
+
+    # ((orig_key, temp_key, beam.Row), AnomalyPrediction)
     rekeyed_model_output = (
         rekeyed_model_input
         | f"Call RunInference ({model_uuid})" >> run_inference)
 
-    # ((orig_key, temp_key), {'input':[row], 'output:[float]})
-    rekeyed_cogbk = {
-        'input': rekeyed_model_input, 'output': rekeyed_model_output
-    } | beam.CoGroupByKey()
-
     ret = (
-        rekeyed_cogbk |
-        "Unnest and convert model output" >> beam.Map(self.unnest_and_convert))
+        rekeyed_model_output | "Restore keys and convert model output" >>
+        beam.Map(self._restore_and_convert))
 
     if self._offline_detector._threshold_criterion:
       ret = (

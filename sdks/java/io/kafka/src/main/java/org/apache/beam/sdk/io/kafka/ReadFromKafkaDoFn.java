@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import java.io.Closeable;
 import java.math.BigDecimal;
 import java.math.MathContext;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -145,8 +146,8 @@ import org.slf4j.LoggerFactory;
  * {@link ReadFromKafkaDoFn} will stop reading from any removed {@link TopicPartition} automatically
  * by querying Kafka {@link Consumer} APIs. Please note that stopping reading may not happen as soon
  * as the {@link TopicPartition} is removed. For example, the removal could happen at the same time
- * when {@link ReadFromKafkaDoFn} performs a {@link Consumer#poll(java.time.Duration)}. In that
- * case, the {@link ReadFromKafkaDoFn} will still output the fetched records.
+ * when {@link ReadFromKafkaDoFn} performs a {@link Consumer#poll(Duration)}. In that case, the
+ * {@link ReadFromKafkaDoFn} will still output the fetched records.
  *
  * <h4>Stop Reading from Stopped {@link TopicPartition}</h4>
  *
@@ -283,11 +284,11 @@ abstract class ReadFromKafkaDoFn<K, V>
                             return consumer;
                           }
                         }));
-    if (transform.getConsumerPollingTimeout() > 0) {
-      this.consumerPollingTimeout = transform.getConsumerPollingTimeout();
-    } else {
-      this.consumerPollingTimeout = DEFAULT_KAFKA_POLL_TIMEOUT;
-    }
+    this.consumerPollingTimeout =
+        Duration.ofSeconds(
+            transform.getConsumerPollingTimeout() > 0
+                ? transform.getConsumerPollingTimeout()
+                : DEFAULT_KAFKA_POLL_TIMEOUT);
   }
 
   private static final Logger LOG = LoggerFactory.getLogger(ReadFromKafkaDoFn.class);
@@ -319,7 +320,7 @@ abstract class ReadFromKafkaDoFn<K, V>
   private transient @Nullable Deserializer<K> keyDeserializerInstance = null;
   private transient @Nullable Deserializer<V> valueDeserializerInstance = null;
   private static final long DEFAULT_KAFKA_POLL_TIMEOUT = 2L;
-  @VisibleForTesting final long consumerPollingTimeout;
+  @VisibleForTesting final Duration consumerPollingTimeout;
   @VisibleForTesting final DeserializerProvider<K> keyDeserializerProvider;
   @VisibleForTesting final DeserializerProvider<V> valueDeserializerProvider;
   @VisibleForTesting final Map<String, Object> consumerConfig;
@@ -597,11 +598,19 @@ abstract class ReadFromKafkaDoFn<K, V>
     final KafkaMetrics kafkaMetrics = KafkaSinkMetrics.kafkaMetrics();
     try {
       while (true) {
+        // TODO: Remove this timer and use the existing fetch-latency-avg	metric.
+        // A consumer will often have prefetches waiting to be returned immediately in which case
+        // this timer may contribute more latency than it measures.
+        // See https://shipilev.net/blog/2014/nanotrusting-nanotime/ for more information.
+        final Stopwatch pollTimer = Stopwatch.createStarted();
+        // Fetch the next records.
         final ConsumerRecords<byte[], byte[]> rawRecords =
-            poll(consumer, topicPartition, kafkaMetrics);
-        // When there are no records available for the current TopicPartition, self-checkpoint
-        // and move to process the next element.
-        if (rawRecords.isEmpty()) {
+            consumer.poll(this.consumerPollingTimeout);
+        kafkaMetrics.updateSuccessfulRpcMetrics(topicPartition.topic(), pollTimer.elapsed());
+
+        // No progress when the polling timeout expired.
+        // Self-checkpoint and move to process the next element.
+        if (rawRecords == ConsumerRecords.<byte[], byte[]>empty()) {
           if (!topicPartitionExists(
               kafkaSourceDescriptor.getTopicPartition(),
               consumer.partitionsFor(kafkaSourceDescriptor.getTopic()))) {
@@ -612,6 +621,9 @@ abstract class ReadFromKafkaDoFn<K, V>
           }
           return ProcessContinuation.resume();
         }
+
+        // Visible progress within the consumer polling timeout.
+        // Partially or fully claim and process records in this batch.
         for (ConsumerRecord<byte[], byte[]> rawRecord : rawRecords) {
           // If the Kafka consumer returns a record with an offset that is already processed
           // the record can be safely skipped. This is needed because there is a possibility
@@ -650,6 +662,7 @@ abstract class ReadFromKafkaDoFn<K, V>
 
             return ProcessContinuation.stop();
           }
+          expectedOffset = rawRecord.offset() + 1;
           try {
             KafkaRecord<K, V> kafkaRecord =
                 new KafkaRecord<>(
@@ -666,7 +679,6 @@ abstract class ReadFromKafkaDoFn<K, V>
                     + (rawRecord.value() == null ? 0 : rawRecord.value().length);
             avgRecordSize.update(recordSize);
             rawSizes.update(recordSize);
-            expectedOffset = rawRecord.offset() + 1;
             Instant outputTimestamp;
             // The outputTimestamp and watermark will be computed by timestampPolicy, where the
             // WatermarkEstimator should be a manual one.
@@ -696,6 +708,17 @@ abstract class ReadFromKafkaDoFn<K, V>
           }
         }
 
+        // Non-visible progress within the consumer polling timeout.
+        // Claim up to the current position.
+        if (expectedOffset < (expectedOffset = consumer.position(topicPartition))) {
+          if (!tracker.tryClaim(expectedOffset - 1)) {
+            return ProcessContinuation.stop();
+          }
+          if (timestampPolicy != null) {
+            updateWatermarkManually(timestampPolicy, watermarkEstimator, tracker);
+          }
+        }
+
         final long estimatedBacklogBytes =
             (long)
                 (BigDecimal.valueOf(latestOffsetEstimator.estimate())
@@ -718,36 +741,6 @@ abstract class ReadFromKafkaDoFn<K, V>
     // Check if the current TopicPartition still exists.
     return partitionInfos.stream()
         .anyMatch(partitionInfo -> partitionInfo.partition() == (topicPartition.partition()));
-  }
-
-  // see https://github.com/apache/beam/issues/25962
-  private ConsumerRecords<byte[], byte[]> poll(
-      Consumer<byte[], byte[]> consumer, TopicPartition topicPartition, KafkaMetrics kafkaMetrics) {
-    final Stopwatch sw = Stopwatch.createStarted();
-    long previousPosition = -1;
-    java.time.Duration timeout = java.time.Duration.ofSeconds(this.consumerPollingTimeout);
-    java.time.Duration elapsed = java.time.Duration.ZERO;
-    while (true) {
-      final ConsumerRecords<byte[], byte[]> rawRecords = consumer.poll(timeout.minus(elapsed));
-      elapsed = sw.elapsed();
-      kafkaMetrics.updateSuccessfulRpcMetrics(
-          topicPartition.topic(), java.time.Duration.ofMillis(elapsed.toMillis()));
-      if (!rawRecords.isEmpty()) {
-        // return as we have found some entries
-        return rawRecords;
-      }
-      if (previousPosition == (previousPosition = consumer.position(topicPartition))) {
-        // there was no progress on the offset/position, which indicates end of stream
-        return rawRecords;
-      }
-      if (elapsed.toMillis() >= timeout.toMillis()) {
-        // timeout is over
-        LOG.warn(
-            "No messages retrieved with polling timeout {} seconds. Consider increasing the consumer polling timeout using withConsumerPollingTimeout method.",
-            consumerPollingTimeout);
-        return rawRecords;
-      }
-    }
   }
 
   private TimestampPolicyContext updateWatermarkManually(

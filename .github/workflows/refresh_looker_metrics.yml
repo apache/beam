@@ -18,8 +18,6 @@
 name: Refresh Looker Performance Metrics
 
 on:
-  schedule:
-    - cron: '10 10 * * 1'
   workflow_dispatch:
     inputs:
       READ_ONLY:
@@ -45,9 +43,10 @@ jobs:
           python-version: 3.11
       - run: pip install requests google-cloud-storage looker-sdk
       - name: Authenticate on GCP
-        uses: google-github-actions/setup-gcloud@v0
+        uses: google-github-actions/auth@v2
         with:
-          service_account_email: ${{ secrets.GCP_SA_EMAIL }}
-          service_account_key: ${{ secrets.GCP_SA_KEY }}
-          export_default_credentials: true
+          service_account: ${{ secrets.GCP_SA_EMAIL }}
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
       - run: python .test-infra/tools/refresh_looker_metrics.py

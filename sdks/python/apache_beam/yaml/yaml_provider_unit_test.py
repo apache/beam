@@ -185,14 +185,12 @@ class YamlDefinedProider(unittest.TestCase):
             properties:
               n: {type: integer}
           body:
-            type: chain
-            transforms:
-              - type: MapToFields
-                config:
-                  language: python
-                  append: true
-                  fields:
-                    power: "element**{{n}}"
+            type: MapToFields
+            config:
+              language: python
+              append: true
+              fields:
+                power: "element**{{n}}"
     '''
 
     pipeline = '''
