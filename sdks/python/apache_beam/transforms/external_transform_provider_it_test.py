@@ -196,9 +196,9 @@ class AutoGenerationScriptIT(unittest.TestCase):
         typing.Dict[int, typing.Optional[str]]
     ]
 
-    expected_type_names = [('List[str]', True), ('numpy.int16', False),
-                           ('str', False), ('Dict[str, numpy.float64]', False),
-                           ('Dict[str, List[numpy.int64]]', True),
+    expected_type_names = [('List[str]', True), ('int16', False),
+                           ('str', False), ('Dict[str, float64]', False),
+                           ('Dict[str, List[int64]]', True),
                            ('Dict[int, Optional[str]]', False)]
 
     for i in range(len(types)):
