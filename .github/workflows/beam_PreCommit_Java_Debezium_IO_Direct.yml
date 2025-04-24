@@ -33,7 +33,7 @@ on:
   schedule:
     - cron: '15 1/6 * * *'
   workflow_dispatch:
-
+# TODO: .github/trigger_files/beam_PreCommit_Java_Debezium_IO_Direct.json seems not to exist
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
   actions: write
@@ -83,8 +83,21 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-      - name: Setup environment
+      - name: Setup environment (Sets up default Java)
         uses: ./.github/actions/setup-environment-action
+        with:
+          distribution: 'temurin'
+          java-version: 17
+      - name: Set up JDK 17 (ensures it's available and its path can be captured)
+        id: setup_jdk_17 # Crucial: give it an ID
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - name: Debug JDK 17 Path
+        run: |
+          echo "Installed JDK 17 path for ORG_GRADLE_PROJECT_java17Home is: ${{ steps.setup_jdk_17.outputs.path }}"
+          echo "Also, JAVA_HOME_17_X64 is: $JAVA_HOME_17_X64" # Check if this is also set by setup-java or the environment
       - name: run Debezium IO build task
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -92,6 +105,8 @@ jobs:
           arguments: |
             -PdisableSpotlessCheck=true \
             -PdisableCheckStyle=true \
+            -Pjava17Home=$JAVA_HOME_17_X64 \
+            -PtestJavaVersion=17 \
       - name: run Debezium IO additional tasks
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -101,6 +116,8 @@ jobs:
           arguments: |
             -PdisableSpotlessCheck=true \
             -PdisableCheckStyle=true \
+            -Pjava17Home=$JAVA_HOME_17_X64 \
+            -PtestJavaVersion=17 \
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v4
         if: ${{ !success() }}
