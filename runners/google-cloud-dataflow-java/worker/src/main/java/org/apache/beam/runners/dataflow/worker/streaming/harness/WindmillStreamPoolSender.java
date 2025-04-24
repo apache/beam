@@ -169,6 +169,7 @@ public final class WindmillStreamPoolSender implements WindmillStreamSender {
               getWorkRequest,
               streamingEngineThrottleTimers.getWorkThrottleTimer(),
               getWorkItemReceiver());
+      this.getWorkStream.start();
       try {
         // Reconnect every now and again to enable better load balancing.
         // If at any point the server closes the stream, we will reconnect immediately;
