@@ -33,7 +33,7 @@ from gen_xlang_wrappers import pretty_type
 SUPPORTED_SDK_DESTINATIONS = ['python']
 PYTHON_SUFFIX = "_et.py"
 PY_WRAPPER_OUTPUT_DIR = os.path.join(
-  PYTHON_SDK_ROOT, 'apache_beam', 'transforms', 'xlang')
+    PYTHON_SDK_ROOT, 'apache_beam', 'transforms', 'xlang')
 
 MANAGED_HEADER = """---
 title: "Managed I/O Connectors"
@@ -64,10 +64,22 @@ For example, the DataflowRunner can automatically upgrade a Managed transform to
 SDK version, pulling in bug fixes and new features -- with no effort from the user.
 
 """
-_MANAGED_RESOURCES_DIR = os.path.join(PROJECT_ROOT, 'sdks', 'java', 'managed', 'src', 'main', 'resources')
-_DOCUMENTED_MANAGED_CONFIGS = os.path.join(_MANAGED_RESOURCES_DIR, 'available_configs.yaml')
-_MANAGED_CONFIG_ALIASES = os.path.join(_MANAGED_RESOURCES_DIR, 'config_aliases.yaml')
-_DOCUMENTATION_DESTINATION = os.path.join(PROJECT_ROOT, 'website', 'www', 'site', 'content', 'en', 'documentation', 'io', 'managed-io.md')
+_MANAGED_RESOURCES_DIR = os.path.join(
+    PROJECT_ROOT, 'sdks', 'java', 'managed', 'src', 'main', 'resources')
+_DOCUMENTED_MANAGED_CONFIGS = os.path.join(
+    _MANAGED_RESOURCES_DIR, 'available_configs.yaml')
+_MANAGED_CONFIG_ALIASES = os.path.join(
+    _MANAGED_RESOURCES_DIR, 'config_aliases.yaml')
+_DOCUMENTATION_DESTINATION = os.path.join(
+    PROJECT_ROOT,
+    'website',
+    'www',
+    'site',
+    'content',
+    'en',
+    'documentation',
+    'io',
+    'managed-io.md')
 
 
 def generate_managed_doc(output_location):
@@ -94,10 +106,13 @@ def generate_managed_doc(output_location):
     for identifier, transform in discovered.items():
       if identifier in read_names_and_identifiers.values():
         mode = "read"
-        name = next(k for k, v in read_names_and_identifiers.items() if v == identifier)
+        name = next(
+            k for k, v in read_names_and_identifiers.items() if v == identifier)
       elif identifier in write_names_and_identifiers.values():
         mode = "write"
-        name = next(k for k, v in write_names_and_identifiers.items() if v == identifier)
+        name = next(
+            k for k,
+            v in write_names_and_identifiers.items() if v == identifier)
       else:
         continue
 
@@ -112,16 +127,16 @@ def generate_managed_doc(output_location):
 
         (tp, nullable) = pretty_type(param.type)
         field_info = {
-          'name': field_name,
-          'type': str(tp),
-          'description': param.description,
-          'nullable': nullable
+            'name': field_name,
+            'type': str(tp),
+            'description': param.description,
+            'nullable': nullable
         }
         fields.append(field_info)
 
       transform = {
-        'identifier': identifier,
-        'fields': fields,
+          'identifier': identifier,
+          'fields': fields,
       }
 
       all_transforms.setdefault(name, {})[mode] = transform
@@ -144,6 +159,7 @@ def generate_detailed_configs(all_transforms: dict) -> str:
       details += get_transform_config_details(transform_details)
   return details
 
+
 def get_transform_config_details(transform):
   transform_details = """<div class="table-container-wrapper">
   <table class="table table-bordered table-connectors">
@@ -163,7 +179,7 @@ def get_transform_config_details(transform):
     transform_details += f"""
     <tr>
       <td>
-        {field['name']}
+        {get_field_name_html(field)}
       </td>
       <td>
         {get_type_format_html(type, False)}
@@ -176,6 +192,7 @@ def get_transform_config_details(transform):
   transform_details += "\n" + spaces(2) + "</table>\n</div>\n\n"
 
   return transform_details
+
 
 def generate_configs_summary(all_transforms: dict) -> str:
   summary = """## Available Configurations
@@ -192,20 +209,25 @@ def generate_configs_summary(all_transforms: dict) -> str:
   summary += "  </table>\n</div>\n\n"
   return summary
 
+
 def create_html_row(transform_name: str, transforms: dict):
-  doc = spaces(4) + "<tr>\n" + spaces(6) + f"<td>{transform_name.upper()}</td>\n"
+  doc = spaces(4) + "<tr>\n" + spaces(
+      6) + f"<td>{transform_name.upper()}</td>\n"
 
   if "read" in transforms:
     doc += get_transform_cell_html(transforms['read'])
   else:
-    doc += spaces(6) + "<td>\n" + spaces(8) + "Unavailable\n" + spaces(6) + "</td>\n"
+    doc += spaces(6) + "<td>\n" + spaces(8) + "Unavailable\n" + spaces(
+        6) + "</td>\n"
   if "write" in transforms:
     doc += get_transform_cell_html(transforms['write'])
   else:
-    doc += spaces(6) + "<td>\n" + spaces(8) + "Unavailable\n" + spaces(6) + "</td>\n"
+    doc += spaces(6) + "<td>\n" + spaces(8) + "Unavailable\n" + spaces(
+        6) + "</td>\n"
   doc += spaces(4) + "</tr>\n"
 
   return doc
+
 
 def get_transform_cell_html(transform: dict):
   html = spaces(6) + "<td>\n"
@@ -216,10 +238,12 @@ def get_transform_cell_html(transform: dict):
     type = field['type']
     if field['name'] == "error_handling":
       continue
-    field_line = spaces(8) + get_field_name_html(field) + " " + get_type_format_html(type, True) + "<br>\n"
+    field_line = spaces(8) + get_field_name_html(
+        field) + " " + get_type_format_html(type, True) + "<br>\n"
     html += field_line
   html += spaces(6) + "</td>\n"
   return html
+
 
 def get_field_name_html(field: dict):
   field_name = field['name']
@@ -230,9 +254,12 @@ def get_field_name_html(field: dict):
   else:
     return field_name
 
+
 def resolve_field_name(config_aliases: dict, field_name: str) -> str:
-  public_name = next((k for k, v in config_aliases.items() if v == field_name), field_name)
+  public_name = next((k for k, v in config_aliases.items() if v == field_name),
+                     field_name)
   return public_name
+
 
 def should_document(public_config: dict, field_name: str) -> bool:
   if not public_config:
@@ -242,15 +269,18 @@ def should_document(public_config: dict, field_name: str) -> bool:
   documented = public_config.get("available", [])
 
   if not ignored and not documented:
-    raise RuntimeError("Documented config should set only one of 'ignored' or 'documented'. "
-                       "Check " + _DOCUMENTED_MANAGED_CONFIGS)
+    raise RuntimeError(
+        "Documented config should set only one of 'ignored' or 'documented'. "
+        "Check " + _DOCUMENTED_MANAGED_CONFIGS)
   if documented:
     return field_name in documented
-  else: # ignored
+  else:  # ignored
     return field_name not in ignored
+
 
 def spaces(n: int):
   return " " * n
+
 
 def get_type_color(primitive_type: str):
   if primitive_type == "str":
@@ -261,6 +291,7 @@ def get_type_color(primitive_type: str):
     return "orange"
 
   raise ValueError("Unsupported type: " + primitive_type)
+
 
 def get_type_format_html(type: str, with_paranthesis: bool):
   if type.startswith("map"):
@@ -288,10 +319,10 @@ def get_type_format_html(type: str, with_paranthesis: bool):
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument(
-    '--output_location',
-    dest='output_location',
-    default=_DOCUMENTATION_DESTINATION,
-    help="Destination that the generated doc will be written to.")
+      '--output_location',
+      dest='output_location',
+      default=_DOCUMENTATION_DESTINATION,
+      help="Destination that the generated doc will be written to.")
   args = parser.parse_args()
 
   generate_managed_doc(args.output_location)
