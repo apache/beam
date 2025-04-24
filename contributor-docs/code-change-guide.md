@@ -453,7 +453,7 @@ This SNAPSHOT version will use the final containers published on [DockerHub](htt
 
 Certain runners may override this snapshot behavior; for example, the Dataflow runner overrides all SNAPSHOT containers into a [single registry](https://console.cloud.google.com/gcr/images/cloud-dataflow/GLOBAL/v1beta3). The same downtime will still be incurred, however, when switching to the final container
 
-## Python guide
+## Python development guide
 
 The Beam Python SDK is distributed as a single wheel, which is more straightforward than the Java SDK.
 
