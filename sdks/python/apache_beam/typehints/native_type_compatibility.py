@@ -364,7 +364,7 @@ def convert_to_beam_type(typ):
     # Only translate primitives and types from collections.abc and typing.
     return typ
   if (typ_module == 'collections.abc' and
-      typ.__origin__ not in _CONVERTED_COLLECTIONS):
+      getattr(typ, '__origin__', typ) not in _CONVERTED_COLLECTIONS):
     # TODO(https://github.com/apache/beam/issues/29135):
     # Support more collections types
     return typ

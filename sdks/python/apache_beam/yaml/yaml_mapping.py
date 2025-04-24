@@ -322,6 +322,8 @@ def _validator(beam_type: schema_pb2.FieldType) -> Callable[[Any], bool]:
       return lambda x: isinstance(x, (int, float))
     elif beam_type.atomic_type == schema_pb2.STRING:
       return lambda x: isinstance(x, str)
+    elif beam_type.atomic_type == schema_pb2.BYTES:
+      return lambda x: isinstance(x, bytes)
     else:
       raise ValueError(
           f'Unknown or unsupported atomic type: {beam_type.atomic_type}')
@@ -562,7 +564,10 @@ class _Explode(beam.PTransform):
         cross_product = True
     self._fields = fields
     self._cross_product = cross_product
-    # TODO(yaml): Support standard error handling argument.
+    # TODO(yaml):
+    # 1. Support standard error handling argument.
+    # 2. Supposedly error_handling parameter is not an accepted parameter when
+    #    executing.  Needs further investigation.
     self._exception_handling_args = exception_handling_args(error_handling)
 
   @maybe_with_exception_handling
@@ -748,7 +753,7 @@ def _Partition(
     outputs: list[str],
     unknown_output: Optional[str] = None,
     error_handling: Optional[Mapping[str, Any]] = None,
-    language: Optional[str] = 'generic'):
+    language: str = 'generic'):
   """Splits an input into several distinct outputs.
 
   Each input element will go to a distinct output based on the field or
@@ -765,7 +770,7 @@ def _Partition(
         parameter.
       error_handling: (Optional) Whether and how to handle errors during
         partitioning.
-      language: (Optional) The language of the `by` expression.
+      language: The language of the `by` expression.
   """
   split_fn = _as_callable_for_pcoll(pcoll, by, 'by', language)
   try:
@@ -814,6 +819,9 @@ def _Partition(
     mapping_transform = mapping_transform.with_outputs(*output_set)
   splits = pcoll | mapping_transform.with_input_types(T).with_output_types(T)
   result = {out: getattr(splits, out) for out in output_set}
+  for tag, out in result.items():
+    if tag != error_output:
+      out.element_type = pcoll.element_type
   if error_output:
     result[error_output] = result[error_output] | map_errors_to_standard_format(
         pcoll.element_type)

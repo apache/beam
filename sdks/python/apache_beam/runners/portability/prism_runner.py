@@ -22,6 +22,7 @@
 # sunset it
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
 import platform
@@ -39,6 +40,7 @@ from apache_beam.options import pipeline_options
 from apache_beam.runners.portability import job_server
 from apache_beam.runners.portability import portable_runner
 from apache_beam.transforms import environments
+from apache_beam.utils import shared
 from apache_beam.utils import subprocess_server
 from apache_beam.version import __version__ as beam_version
 
@@ -56,6 +58,8 @@ class PrismRunner(portable_runner.PortableRunner):
   """A runner for launching jobs on Prism, automatically downloading and
   starting a Prism instance if needed.
   """
+  shared_handle = shared.Shared()
+
   def default_environment(
       self,
       options: pipeline_options.PipelineOptions) -> environments.Environment:
@@ -66,11 +70,45 @@ class PrismRunner(portable_runner.PortableRunner):
     return super().default_environment(options)
 
   def default_job_server(self, options):
-    return job_server.StopOnExitJobServer(PrismJobServer(options))
+    debug_options = options.view_as(pipeline_options.DebugOptions)
+    get_job_server = lambda: job_server.StopOnExitJobServer(
+        PrismJobServer(options))
+    if debug_options.lookup_experiment("enable_prism_server_singleton"):
+      return PrismRunner.shared_handle.acquire(get_job_server)
+    return get_job_server()
 
   def create_job_service_handle(self, job_service, options):
     return portable_runner.JobServiceHandle(
         job_service, options, retain_unknown_options=True)
+
+
+def _md5sum(filename, block_size=8192) -> str:
+  md5 = hashlib.md5()
+  with open(filename, 'rb') as f:
+    while True:
+      data = f.read(block_size)
+      if not data:
+        break
+      md5.update(data)
+  return md5.hexdigest()
+
+
+def _rename_if_different(src, dst):
+  assert (os.path.isfile(src))
+
+  if os.path.isfile(dst):
+    if _md5sum(src) != _md5sum(dst):
+      # Remove existing binary to prevent exception on Windows during
+      # os.rename.
+      # See: https://docs.python.org/3/library/os.html#os.rename
+      os.remove(dst)
+      os.rename(src, dst)
+    else:
+      _LOGGER.info(
+          'Found %s and %s with the same md5. Skipping overwrite.' % (src, dst))
+      os.remove(src)
+  else:
+    os.rename(src, dst)
 
 
 class PrismJobServer(job_server.SubprocessJobServer):
@@ -109,7 +147,13 @@ class PrismJobServer(job_server.SubprocessJobServer):
         # True (cache disabled)
         _LOGGER.info("Unzipping prism from %s to %s" % (url, target_url))
         z = zipfile.ZipFile(url)
-        target_url = z.extract(target, path=bin_cache)
+
+        bin_cache_tmp = os.path.join(bin_cache, 'tmp')
+        if not os.path.exists(bin_cache_tmp):
+          os.makedirs(bin_cache_tmp)
+        target_tmp_url = z.extract(target, path=bin_cache_tmp)
+
+        _rename_if_different(target_tmp_url, target_url)
     else:
       target_url = url
 
@@ -146,12 +190,8 @@ class PrismJobServer(job_server.SubprocessJobServer):
             url_read = urlopen(url)
           with open(cached_file + '.tmp', 'wb') as zip_write:
             shutil.copyfileobj(url_read, zip_write, length=1 << 20)
-          if os.path.isfile(cached_file):
-            # Remove existing binary to prevent exception on Windows during
-            # os.rename.
-            # See: https://docs.python.org/3/library/os.html#os.rename
-            os.remove(cached_file)
-          os.rename(cached_file + '.tmp', cached_file)
+
+          _rename_if_different(cached_file + '.tmp', cached_file)
         except URLError as e:
           raise RuntimeError(
               'Unable to fetch remote prism binary at %s: %s' % (url, e))
@@ -194,6 +234,10 @@ class PrismJobServer(job_server.SubprocessJobServer):
       # The path is overidden, check various cases.
       if os.path.exists(self._path):
         # The path is local and exists, use directly.
+        return self._path
+
+      if FileSystems.exists(self._path):
+        # The path is in one of the supported filesystems.
         return self._path
 
       # Check if the path is a URL.

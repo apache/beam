@@ -72,7 +72,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.Co
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException;
-import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannels;
 import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactoryFactory;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
@@ -156,7 +156,7 @@ public class GrpcWindmillServerTest {
                 new FakeWindmillStubFactory(
                     () -> {
                       ManagedChannel channel =
-                          grpcCleanup.register(WindmillChannelFactory.inProcessChannel(name));
+                          grpcCleanup.register(WindmillChannels.inProcessChannel(name));
                       openedChannels.add(channel);
                       return channel;
                     })));
