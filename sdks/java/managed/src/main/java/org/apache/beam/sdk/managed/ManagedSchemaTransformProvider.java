@@ -217,6 +217,7 @@ public class ManagedSchemaTransformProvider
       for (Map.Entry<String, Object> entry : configMap.entrySet()) {
         String paramName = entry.getKey();
         if (aliases.containsKey(paramName)) {
+          // replace alias with the actual field name
           paramName = aliases.get(paramName);
         }
         remappedConfig.put(paramName, entry.getValue());

@@ -19,6 +19,9 @@
 # Empty list means all fields are available and documented.
 # Either explicitly list all available fields or point out the ignored fields.
 
+# If a Managed transform is not listed here, all of its config fields will
+# be considered available.
+
 "beam:schematransform:org.apache.beam:kafka_read:v1":
     ignored:
         - "auto_offset_reset_config"
@@ -27,7 +30,6 @@
 "beam:schematransform:org.apache.beam:kafka_write:v1":
     ignored:
         - "error_handling"
-"beam:schematransform:org.apache.beam:bigquery_storage_read:v1":
 "beam:schematransform:org.apache.beam:bigquery_write:v1":
     available:
         - "table"

@@ -19,10 +19,6 @@
 # SchemaTransform field names.
 # This file specifies aliases for existing configuration fields.
 
-"beam:schematransform:org.apache.beam:kafka_read:v1":
-    "data_format": "format"
-"beam:schematransform:org.apache.beam:kafka_write:v1":
-    "data_format": "format"
 "beam:schematransform:org.apache.beam:bigquery_storage_read:v1":
     "table": "table_spec"
     "fields": "selected_fields"

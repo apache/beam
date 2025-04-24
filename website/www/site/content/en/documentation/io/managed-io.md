@@ -18,13 +18,19 @@ limitations under the License.
 
 # Managed I/O Connectors
 
-Beam's new Managed API allows you to use existing I/Os with some added practical benefits.
-I/Os are built using a simple configuration map with a unified API across different I/Os.
-Managed IO gives the runner more information about the I/O, and allows the runner to fine-tune the I/O's
-behavior, or even swap it out for a completely different implementation.
+Beam’s new Managed API streamlines how you use existing I/Os, offering both
+simplicity and powerful enhancements. I/Os are now configured through a
+lightweight, consistent interface: a simple configuration map with a unified
+API that spans multiple connectors.
 
-For example, the DataflowRunner can automatically upgrade a Managed transform to its latest 
-SDK version, pulling in bug fixes and new features -- with no effort from the user.
+With Managed I/O, runners gain deeper insight into each I/O’s structure and
+intent. This allows the runner to optimize performance, adjust behavior
+dynamically, or even replace the I/O with a more efficient or updated
+implementation behind the scenes.
+
+For example, the DataflowRunner can seamlessly upgrade a Managed transform to
+its latest SDK version, automatically applying bug fixes and new features (no
+manual updates or user intervention required!)
 
 ## Available Configurations
 
@@ -130,7 +136,7 @@ SDK version, pulling in bug fixes and new features -- with no effort from the us
     </tr>
     <tr>
       <td>
-        table
+        <strong>table</strong>
       </td>
       <td>
         <code style="color: green">str</code>
@@ -263,7 +269,7 @@ SDK version, pulling in bug fixes and new features -- with no effort from the us
     </tr>
     <tr>
       <td>
-        table
+        <strong>table</strong>
       </td>
       <td>
         <code style="color: green">str</code>
@@ -363,7 +369,7 @@ SDK version, pulling in bug fixes and new features -- with no effort from the us
     </tr>
     <tr>
       <td>
-        table
+        <strong>table</strong>
       </td>
       <td>
         <code style="color: green">str</code>
@@ -419,7 +425,7 @@ SDK version, pulling in bug fixes and new features -- with no effort from the us
     </tr>
     <tr>
       <td>
-        bootstrap_servers
+        <strong>bootstrap_servers</strong>
       </td>
       <td>
         <code style="color: green">str</code>
@@ -430,7 +436,7 @@ SDK version, pulling in bug fixes and new features -- with no effort from the us
     </tr>
     <tr>
       <td>
-        topic
+        <strong>topic</strong>
       </td>
       <td>
         <code style="color: green">str</code>
@@ -530,7 +536,7 @@ SDK version, pulling in bug fixes and new features -- with no effort from the us
     </tr>
     <tr>
       <td>
-        bootstrap_servers
+        <strong>bootstrap_servers</strong>
       </td>
       <td>
         <code style="color: green">str</code>
@@ -541,7 +547,7 @@ SDK version, pulling in bug fixes and new features -- with no effort from the us
     </tr>
     <tr>
       <td>
-        data_format
+        <strong>data_format</strong>
       </td>
       <td>
         <code style="color: green">str</code>
@@ -552,7 +558,7 @@ SDK version, pulling in bug fixes and new features -- with no effort from the us
     </tr>
     <tr>
       <td>
-        topic
+        <strong>topic</strong>
       </td>
       <td>
         <code style="color: green">str</code>
@@ -619,7 +625,7 @@ SDK version, pulling in bug fixes and new features -- with no effort from the us
     </tr>
     <tr>
       <td>
-        table
+        <strong>table</strong>
       </td>
       <td>
         <code style="color: green">str</code>
