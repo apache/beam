@@ -241,7 +241,7 @@ class DataflowMetrics extends MetricResults {
 
     /** Translate Struct proto returned by Dataflow API client to BoundedTrieData. */
     @VisibleForTesting
-    @SuppressWarnings("ReferenceEquality") // compare with protobuf Struct default instance
+    @SuppressWarnings("ReferenceEquality") // Compare with protobuf Struct default instance
     static BoundedTrieData trieFromStruct(com.google.protobuf.Struct responseProto) {
       Map<String, com.google.protobuf.Value> fieldsMap = responseProto.getFieldsMap();
       int bound = 0;
@@ -271,7 +271,7 @@ class DataflowMetrics extends MetricResults {
     /**
      * Translate Struct proto returned by Dataflow API client to BoundedTrieData.BoundedTrieNode.
      */
-    @SuppressWarnings("ReferenceEquality") // compare with protobuf Struct default instance
+    @SuppressWarnings({"ReferenceEquality"}) // Compare with protobuf Struct default instance
     private static BoundedTrieData.BoundedTrieNode trieNodeFromStruct(
         com.google.protobuf.Struct responseProto) {
       Map<String, com.google.protobuf.Value> fieldsMap = responseProto.getFieldsMap();
