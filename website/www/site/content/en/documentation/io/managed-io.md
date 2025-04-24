@@ -18,10 +18,13 @@ limitations under the License.
 
 # Managed I/O Connectors
 
-~Some background about Managed I/Os~
-Beam's new Managed API is simply a wrapper over existing I/Os. This wrapper gives
-the runner more information about the transform, and more control over what
-actually gets executed at runtime. For example, the Dataflow runner can 
+Beam's new Managed API allows you to use existing I/Os with some added practical benefits.
+I/Os are built using a simple configuration map with a unified API across different I/Os.
+Managed IO gives the runner more information about the I/O, and allows the runner to fine-tune the I/O's
+behavior, or even swap it out for a completely different implementation.
+
+For example, the DataflowRunner can automatically upgrade a Managed transform to its latest 
+SDK version, pulling in bug fixes and new features -- with no effort from the user.
 
 ## Available Configurations
 

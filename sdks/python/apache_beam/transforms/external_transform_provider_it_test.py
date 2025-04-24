@@ -411,7 +411,7 @@ class AutoGenerationScriptIT(unittest.TestCase):
     self.assertEqual(
       actual_doc,
       test_doc,
-      "The Managed Connectors configuration page is out of sync! Please "
+      "The ManagedIO configuration page is out of sync! Please "
       "update by running './gradlew generateManagedIOPage' "
       "and committing the changes.")
 
