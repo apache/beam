@@ -62,6 +62,7 @@ from apache_beam.transforms.window import SlidingWindows
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
+from apache_beam.runners.direct import direct_runner
 
 
 class FakeUnboundedSource(SourceBase):
@@ -155,6 +156,20 @@ class PipelineTest(unittest.TestCase):
       pcoll2 = pipeline | 'label2' >> Create(iter((4, 5, 6)))
       pcoll3 = pcoll2 | 'do' >> FlatMap(lambda x: [x + 10])
       assert_that(pcoll3, equal_to([14, 15, 16]), label='pcoll3')
+
+  @mock.patch('logging.info')
+  def test_runner_overrides_default_pickler(self, mock_info):
+    with mock.patch.object(direct_runner.SwitchingDirectRunner,
+                           'default_pickle_library_override') as mock_fn:
+      mock_fn.return_value = 'dill'
+      with TestPipeline() as pipeline:
+        pcoll = pipeline | 'label1' >> Create([1, 2, 3])
+        assert_that(pcoll, equal_to([1, 2, 3]))
+
+        from apache_beam.internal import pickler
+        from apache_beam.internal import dill_pickler
+        self.assertIs(pickler.desired_pickle_lib, dill_pickler)
+    mock_info.assert_any_call('Default pickling library set to : %s.', 'dill')
 
   def test_flatmap_builtin(self):
     with TestPipeline() as pipeline:
@@ -279,7 +294,7 @@ class PipelineTest(unittest.TestCase):
     with Pipeline(runner='DirectRunner',
                   options=PipelineOptions(["--no_wait_until_finish"])) as p:
       _ = p | beam.Create(['test'])
-    mock_info.assert_called_once_with(
+    mock_info.assert_any_call(
         'Job execution continues without waiting for completion. '
         'Use "wait_until_finish" in PipelineResult to block until finished.')
     p.result.wait_until_finish()
