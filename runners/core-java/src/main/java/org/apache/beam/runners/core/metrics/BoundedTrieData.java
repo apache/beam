@@ -345,7 +345,8 @@ public class BoundedTrieData implements Serializable {
      * @param truncated Whether this node is truncated.
      * @param size The size of the subtree rooted at this node.
      */
-    public BoundedTrieNode(@Nonnull Map<String, BoundedTrieNode> children, boolean truncated, int size) {
+    public BoundedTrieNode(
+        @Nonnull Map<String, BoundedTrieNode> children, boolean truncated, int size) {
       this.children = children;
       this.size = size;
       this.truncated = truncated;

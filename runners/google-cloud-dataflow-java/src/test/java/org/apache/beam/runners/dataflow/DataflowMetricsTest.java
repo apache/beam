@@ -39,7 +39,6 @@ import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.JobMetrics;
 import com.google.api.services.dataflow.model.MetricStructuredName;
 import com.google.api.services.dataflow.model.MetricUpdate;
-import com.google.protobuf.Struct;
 import com.google.protobuf.TextFormat;
 import com.google.protobuf.TextFormat.ParseException;
 import java.io.IOException;
@@ -328,7 +327,8 @@ public class DataflowMetricsTest {
             + "      }\n"
             + "    }\n"
             + "  }";
-    Struct response = TextFormat.parse(textProto, Struct.class);
+    com.google.protobuf.Struct response =
+        TextFormat.parse(textProto, com.google.protobuf.Struct.class);
     BoundedTrieData result = DataflowMetrics.DataflowMetricResultExtractor.trieFromStruct(response);
     assertEquals(
         "BoundedTrieData({'pubsub:topic:`google.com:abc`.some-topicfalse'})", result.toString());
@@ -416,7 +416,8 @@ public class DataflowMetricsTest {
             + "    }\n"
             + "  }\n"
             + "}";
-    Struct response = TextFormat.parse(textProto, Struct.class);
+    com.google.protobuf.Struct response =
+        TextFormat.parse(textProto, com.google.protobuf.Struct.class);
     BoundedTrieData result = DataflowMetrics.DataflowMetricResultExtractor.trieFromStruct(response);
     assertEquals("BoundedTrieData({'gcs:some-bucket.some-folder/true'})", result.toString());
   }
