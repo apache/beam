@@ -23,12 +23,11 @@ import sys
 import tempfile
 import time
 import unittest
+from collections.abc import Iterable
+from collections.abc import Mapping
+from collections.abc import Sequence
 from typing import Any
-from typing import Dict
-from typing import Iterable
-from typing import Mapping
 from typing import Optional
-from typing import Sequence
 from typing import Union
 
 import pytest
@@ -1081,7 +1080,7 @@ class RunInferenceBaseTest(unittest.TestCase):
           self,
           batch: Sequence[int],
           model: FakeModel,
-          inference_args: Optional[Dict[str, Any]] = None) -> Iterable[int]:
+          inference_args: Optional[dict[str, Any]] = None) -> Iterable[int]:
         yield 0
 
       def get_num_bytes(self, batch: Sequence[int]) -> int:
@@ -1097,7 +1096,7 @@ class RunInferenceBaseTest(unittest.TestCase):
         return {}
 
       def validate_inference_args(
-          self, inference_args: Optional[Dict[str, Any]]):
+          self, inference_args: Optional[dict[str, Any]]):
         pass
 
     # This test passes if calling these methods does not cause
