@@ -124,10 +124,10 @@ class ExternalTransformProviderIT(unittest.TestCase):
 
 
 @pytest.mark.xlang_wrapper_generation
-# @unittest.skipUnless(
-#     os.environ.get('EXPANSION_JARS'),
-#     "EXPANSION_JARS environment var is not provided, "
-#     "indicating that jars have not been built")
+@unittest.skipUnless(
+    os.environ.get('EXPANSION_JARS'),
+    "EXPANSION_JARS environment var is not provided, "
+    "indicating that jars have not been built")
 class AutoGenerationScriptIT(unittest.TestCase):
   """
   This class tests the generation and regeneration operations in

@@ -43,7 +43,7 @@
       number of seconds. Applicable only to unbounded sequences.
     name: rate
     nullable: true
-    type: Row(elements=<class 'numpy.int64'>, seconds=typing.Optional[numpy.int64])
+    type: Row(elements=<class 'int64'>, seconds=typing.Optional[int64])
   - description: The minimum number to generate (inclusive).
     name: start
     nullable: false
