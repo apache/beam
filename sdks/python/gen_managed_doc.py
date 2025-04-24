@@ -55,16 +55,19 @@ limitations under the License.
 
 # Managed I/O Connectors
 
-Beam’s new Managed API streamlines how you use existing I/Os, offering both simplicity and
-powerful enhancements. I/Os are now configured through a lightweight, consistent
-interface: a simple configuration map with a unified API that spans multiple connectors.
+Beam’s new Managed API streamlines how you use existing I/Os, offering both
+simplicity and powerful enhancements. I/Os are now configured through a
+lightweight, consistent interface: a simple configuration map with a unified
+API that spans multiple connectors.
 
-With Managed I/O, runners gain deeper insight into each I/O’s structure and intent. This
-allows the runner to optimize performance, adjust behavior dynamically, or even replace
-the I/O with a more efficient or updated implementation behind the scenes.
+With Managed I/O, runners gain deeper insight into each I/O’s structure and
+intent. This allows the runner to optimize performance, adjust behavior
+dynamically, or even replace the I/O with a more efficient or updated
+implementation behind the scenes.
 
-For example, the DataflowRunner can seamlessly upgrade a Managed transform to its latest
-SDK version, automatically applying bug fixes and new features (no manual updates or user intervention required!)
+For example, the DataflowRunner can seamlessly upgrade a Managed transform to
+its latest SDK version, automatically applying bug fixes and new features (no
+manual updates or user intervention required!)
 
 """
 _MANAGED_RESOURCES_DIR = os.path.join(
