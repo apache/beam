@@ -611,6 +611,8 @@ abstract class ReadFromKafkaDoFn<K, V>
         // No progress when the polling timeout expired.
         // Self-checkpoint and move to process the next element.
         if (rawRecords == ConsumerRecords.<byte[], byte[]>empty()) {
+          consumer.pause(Collections.singleton(topicPartition));
+
           if (!topicPartitionExists(
               kafkaSourceDescriptor.getTopicPartition(),
               consumer.partitionsFor(kafkaSourceDescriptor.getTopic()))) {
@@ -712,6 +714,9 @@ abstract class ReadFromKafkaDoFn<K, V>
         // Claim up to the current position.
         if (expectedOffset < (expectedOffset = consumer.position(topicPartition))) {
           if (!tracker.tryClaim(expectedOffset - 1)) {
+            consumer.seek(topicPartition, expectedOffset - 1);
+            consumer.pause(Collections.singleton(topicPartition));
+
             return ProcessContinuation.stop();
           }
           if (timestampPolicy != null) {
