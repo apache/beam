@@ -144,7 +144,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   public void catalogCleanup() throws Exception {}
 
   public Integer numRecords() {
-    return 100;
+    return OPTIONS.getRunner().equals(DirectRunner.class) ? 10 : 1000;
   }
 
   public String tableId() {
