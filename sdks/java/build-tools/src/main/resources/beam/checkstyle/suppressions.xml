@@ -90,6 +90,8 @@
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*testinfra.*mockapis.*" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*requestresponse.*" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*examples.*webapis.*" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*runners.*dataflow.*DataflowMetrics\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*runners.*dataflow.*DataflowMetricsTest\.java" />
 
   <!-- Flink -->
   <!-- Checkstyle does not correctly detect package files across multiple source directories. -->

@@ -111,6 +111,7 @@ dependencies {
   implementation library.java.google_auth_library_oauth2_http
   implementation library.java.google_http_client
   implementation library.java.google_http_client_gson
+  implementation library.java.protobuf_java
   permitUnusedDeclared library.java.google_http_client_gson // BEAM-11761
   implementation library.java.hamcrest
   implementation library.java.jackson_annotations
