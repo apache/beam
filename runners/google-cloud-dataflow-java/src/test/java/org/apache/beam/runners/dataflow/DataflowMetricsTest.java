@@ -25,6 +25,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
@@ -38,6 +39,9 @@ import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.JobMetrics;
 import com.google.api.services.dataflow.model.MetricStructuredName;
 import com.google.api.services.dataflow.model.MetricUpdate;
+import com.google.protobuf.Struct;
+import com.google.protobuf.TextFormat;
+import com.google.protobuf.TextFormat.ParseException;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.Set;
@@ -294,6 +298,127 @@ public class DataflowMetricsTest {
                 "counterName",
                 "myStepName",
                 StringSetResult.create(ImmutableSet.of("ab", "cd")))));
+  }
+
+  @Test
+  public void testSingletonBoundedTrieFromMessage() throws ParseException {
+    String textProto =
+        "  fields {\n"
+            + "    key: \"bound\"\n"
+            + "    value {\n"
+            + "      number_value: 100\n"
+            + "    }\n"
+            + "  }\n"
+            + "  fields {\n"
+            + "    key: \"singleton\"\n"
+            + "    value {\n"
+            + "      list_value {\n"
+            + "        values {\n"
+            + "          string_value: \"pubsub:\"\n"
+            + "        }\n"
+            + "        values {\n"
+            + "          string_value: \"topic:\"\n"
+            + "        }\n"
+            + "        values {\n"
+            + "          string_value: \"`google.com:abc`.\"\n"
+            + "        }\n"
+            + "        values {\n"
+            + "          string_value: \"some-topic\"\n"
+            + "        }\n"
+            + "      }\n"
+            + "    }\n"
+            + "  }";
+    Struct response = TextFormat.parse(textProto, Struct.class);
+    BoundedTrieData result = DataflowMetrics.DataflowMetricResultExtractor.trieFromStruct(response);
+    assertEquals(
+        "BoundedTrieData({'pubsub:topic:`google.com:abc`.some-topicfalse'})", result.toString());
+  }
+
+  @Test
+  public void testNestedBoundedTrieFromMessage() throws ParseException {
+    String textProto =
+        "fields {\n"
+            + "  key: \"bound\"\n"
+            + "  value {\n"
+            + "    number_value: 100\n"
+            + "  }\n"
+            + "}\n"
+            + "fields {\n"
+            + "  key: \"root\"\n"
+            + "  value {\n"
+            + "    struct_value {\n"
+            + "      fields {\n"
+            + "        key: \"children\"\n"
+            + "        value {\n"
+            + "          struct_value {\n"
+            + "            fields {\n"
+            + "              key: \"gcs:\"\n"
+            + "              value {\n"
+            + "                struct_value {\n"
+            + "                  fields {\n"
+            + "                    key: \"children\"\n"
+            + "                    value {\n"
+            + "                      struct_value {\n"
+            + "                        fields {\n"
+            + "                          key: \"some-bucket.\"\n"
+            + "                          value {\n"
+            + "                            struct_value {\n"
+            + "                              fields {\n"
+            + "                                key: \"children\"\n"
+            + "                                value {\n"
+            + "                                  struct_value {\n"
+            + "                                    fields {\n"
+            + "                                      key: \"some-folder/\"\n"
+            + "                                      value {\n"
+            + "                                        struct_value {\n"
+            + "                                          fields {\n"
+            + "                                            key: \"truncated\"\n"
+            + "                                            value {\n"
+            + "                                              bool_value: true\n"
+            + "                                            }\n"
+            + "                                          }\n"
+            + "                                        }\n"
+            + "                                      }\n"
+            + "                                    }\n"
+            + "                                  }\n"
+            + "                                }\n"
+            + "                              }\n"
+            + "                              fields {\n"
+            + "                                key: \"truncated\"\n"
+            + "                                value {\n"
+            + "                                  bool_value: false\n"
+            + "                                }\n"
+            + "                              }\n"
+            + "                            }\n"
+            + "                          }\n"
+            + "                        }\n"
+            + "                      }\n"
+            + "                    }\n"
+            + "                  }\n"
+            + "                  fields {\n"
+            + "                    key: \"truncated\"\n"
+            + "                    value {\n"
+            + "                      bool_value: false\n"
+            + "                    }\n"
+            + "                  }\n"
+            + "                }\n"
+            + "              }\n"
+            + "            }\n"
+            + "          }\n"
+            + "        }\n"
+            + "      }\n"
+            + "      fields {\n"
+            + "        key: \"truncated\"\n"
+            + "        value {\n"
+            + "          bool_value: false\n"
+            + "        }\n"
+            + "      }\n"
+            + "    }\n"
+            + "  }\n"
+            + "}";
+    Struct response = TextFormat.parse(textProto, Struct.class);
+    BoundedTrieData result = DataflowMetrics.DataflowMetricResultExtractor.trieFromStruct(response);
+    assertEquals("BoundedTrieData({'gcs:some-bucket.some-folder/true'})", result.toString());
   }
 
   @Test
