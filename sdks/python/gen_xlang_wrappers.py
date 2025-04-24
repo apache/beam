@@ -231,6 +231,7 @@ def pretty_type(tp):
     tp = str(tp).replace("typing.", "").replace("Sequence", "list").replace("Mapping", "map")
   elif tp.__module__ == 'numpy':
     tp = tp.__name__
+  tp = str(tp).replace("numpy.", "")
 
   if tp == "bool":
     tp = "boolean"

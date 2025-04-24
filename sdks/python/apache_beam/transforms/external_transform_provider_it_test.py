@@ -124,10 +124,10 @@ class ExternalTransformProviderIT(unittest.TestCase):
 
 
 @pytest.mark.xlang_wrapper_generation
-@unittest.skipUnless(
-    os.environ.get('EXPANSION_JARS'),
-    "EXPANSION_JARS environment var is not provided, "
-    "indicating that jars have not been built")
+# @unittest.skipUnless(
+#     os.environ.get('EXPANSION_JARS'),
+#     "EXPANSION_JARS environment var is not provided, "
+#     "indicating that jars have not been built")
 class AutoGenerationScriptIT(unittest.TestCase):
   """
   This class tests the generation and regeneration operations in
@@ -230,9 +230,10 @@ class AutoGenerationScriptIT(unittest.TestCase):
       self.assertEqual(gen_seq_config['name'], expected_name)
       self.assertEqual(
           gen_seq_config['destinations']['python'], expected_destination)
-      self.assertIn("end", gen_seq_config['fields'])
-      self.assertIn("start", gen_seq_config['fields'])
-      self.assertIn("rate", gen_seq_config['fields'])
+      field_names = [field['name'] for field in gen_seq_config['fields']]
+      self.assertIn("end", field_names)
+      self.assertIn("start", field_names)
+      self.assertIn("rate", field_names)
 
   def get_module(self, dest):
     module_name = dest.replace('apache_beam/', '').replace('/', '_')

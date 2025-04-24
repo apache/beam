@@ -88,13 +88,13 @@ manual updates or user intervention required!)
         confluent_schema_registry_url (<code style="color: green">str</code>)<br>
         consumer_config_updates (<code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>)<br>
         file_descriptor_path (<code style="color: green">str</code>)<br>
-        data_format (<code style="color: green">str</code>)<br>
+        format (<code style="color: green">str</code>)<br>
         message_name (<code style="color: green">str</code>)<br>
         schema (<code style="color: green">str</code>)<br>
       </td>
       <td>
         <strong>bootstrap_servers</strong> (<code style="color: green">str</code>)<br>
-        <strong>data_format</strong> (<code style="color: green">str</code>)<br>
+        <strong>format</strong> (<code style="color: green">str</code>)<br>
         <strong>topic</strong> (<code style="color: green">str</code>)<br>
         file_descriptor_path (<code style="color: green">str</code>)<br>
         message_name (<code style="color: green">str</code>)<br>
@@ -491,7 +491,7 @@ manual updates or user intervention required!)
     </tr>
     <tr>
       <td>
-        data_format
+        format
       </td>
       <td>
         <code style="color: green">str</code>
@@ -547,7 +547,7 @@ manual updates or user intervention required!)
     </tr>
     <tr>
       <td>
-        <strong>data_format</strong>
+        <strong>format</strong>
       </td>
       <td>
         <code style="color: green">str</code>
