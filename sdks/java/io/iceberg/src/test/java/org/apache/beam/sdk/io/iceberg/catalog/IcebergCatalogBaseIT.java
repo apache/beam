@@ -224,7 +224,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   public transient Timeout globalTimeout =
       Timeout.seconds(OPTIONS.getRunner().equals(DirectRunner.class) ? 300 : 20 * 60);
 
-  private static final int NUM_SHARDS = 1;
+  private static final int NUM_SHARDS = OPTIONS.getRunner().equals(DirectRunner.class) ? 1 : 10;
   private static final Logger LOG = LoggerFactory.getLogger(IcebergCatalogBaseIT.class);
   private static final Schema DOUBLY_NESTED_ROW_SCHEMA =
       Schema.builder()

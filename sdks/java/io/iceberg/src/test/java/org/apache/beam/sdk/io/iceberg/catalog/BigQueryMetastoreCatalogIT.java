@@ -48,7 +48,7 @@ public class BigQueryMetastoreCatalogIT extends IcebergCatalogBaseIT {
   private static final BigqueryClient BQ_CLIENT = new BigqueryClient("BigQueryMetastoreCatalogIT");
   static final String BQMS_CATALOG = "org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog";
   static final String DATASET = "managed_iceberg_bqms_tests_" + System.nanoTime();;
-  static long salt = System.nanoTime();
+  private long salt = System.nanoTime();
 
   @BeforeClass
   public static void createDataset() throws IOException, InterruptedException {
@@ -67,7 +67,7 @@ public class BigQueryMetastoreCatalogIT extends IcebergCatalogBaseIT {
 
   @Override
   public Catalog createCatalog() {
-    salt = System.nanoTime();
+    salt += System.nanoTime();
     return CatalogUtil.loadCatalog(
         BQMS_CATALOG,
         "bqms_" + catalogName,
