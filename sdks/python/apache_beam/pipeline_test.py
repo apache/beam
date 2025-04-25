@@ -41,6 +41,7 @@ from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.pvalue import AsSingleton
 from apache_beam.pvalue import TaggedOutput
+from apache_beam.runners.runner import PipelineRunner
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -62,7 +63,6 @@ from apache_beam.transforms.window import SlidingWindows
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
-from apache_beam.runners.direct import direct_runner
 
 
 class FakeUnboundedSource(SourceBase):
@@ -159,7 +159,7 @@ class PipelineTest(unittest.TestCase):
 
   @mock.patch('logging.info')
   def test_runner_overrides_default_pickler(self, mock_info):
-    with mock.patch.object(direct_runner.SwitchingDirectRunner,
+    with mock.patch.object(PipelineRunner,
                            'default_pickle_library_override') as mock_fn:
       mock_fn.return_value = 'dill'
       with TestPipeline() as pipeline:
@@ -169,7 +169,8 @@ class PipelineTest(unittest.TestCase):
         from apache_beam.internal import pickler
         from apache_beam.internal import dill_pickler
         self.assertIs(pickler.desired_pickle_lib, dill_pickler)
-    mock_info.assert_any_call('Default pickling library set to : %s.', 'dill')
+    mock_info.assert_any_call(
+        'Runner defaulting to pickling library: %s.', 'dill')
 
   def test_flatmap_builtin(self):
     with TestPipeline() as pipeline:

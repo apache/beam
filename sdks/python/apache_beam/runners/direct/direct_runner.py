@@ -66,10 +66,6 @@ class SwitchingDirectRunner(PipelineRunner):
   which supports streaming execution and certain primitives not yet
   implemented in the FnApiRunner.
   """
-  def default_pickle_library_override(self):
-    """Default pickle library, can be overridden by runner implementation."""
-    return 'cloudpickle'
-
   def is_fnapi_compatible(self):
     return BundleBasedDirectRunner.is_fnapi_compatible()
 
