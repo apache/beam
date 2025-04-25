@@ -41,7 +41,7 @@ four main steps:
    which provides an identifier used to refer to this transform later as well
    as metadata like a human-readable description and its configuration parameters.
 3. Building a Jar that contains these classes and vends them via the
-   [Service Loader](https://github.com/Polber/beam-yaml-xlang/blob/95abf0864e313232a89f3c9e57b950d0fb478979/src/main/java/org/example/ToUpperCaseTransformProvider.java#L30)
+   [Service Loader](https://github.com/apache/beam-starter-java-provider/blob/main/src/main/java/org/example/ToUpperCaseTransformProvider.java#L47)
    infrastructure.
 4. Writing a [provider specification](https://beam.apache.org/documentation/sdks/yaml/#providers)
    that tells Beam YAML where to find this jar and what it contains.
@@ -133,12 +133,14 @@ the implementation in terms of other YAML transforms.
         properties:
           n: {type: integer}
       body:
-        type: MapToFields
-        config:
-          language: python
-          append: true
-          fields:
-            power: "element ** {{n}}"
+        type: chain
+        transforms:
+          - type: MapToFields
+            config:
+              language: python
+              append: true
+              fields:
+                power: "element ** {{n}}"
 
     # Define a second transform that produces consecutive integers.
     Range:

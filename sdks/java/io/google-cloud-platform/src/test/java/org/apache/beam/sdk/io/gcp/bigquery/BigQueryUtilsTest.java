@@ -1136,6 +1136,24 @@ public class BigQueryUtilsTest {
     assertEquals(expected, actual);
   }
 
+  /**
+   * Dedicated test for MicrosInstant logical type because this type is intended only for
+   * cross-language use-cases. This is a one-way mapping from BQ --> Beam based on Beam Schema.
+   */
+  @Test
+  public void testToBeamRow_timestamp_micros() {
+    Schema schema =
+        Schema.builder().addLogicalTypeField("timestamp_micros", SqlTypes.TIMESTAMP).build();
+    Row beamRow =
+        BigQueryUtils.toBeamRow(
+            schema, new TableRow().set("timestamp_micros", "2024-08-10T16:52:07.123456Z"));
+    Row expectedRow =
+        Row.withSchema(schema)
+            .addValue(java.time.Instant.parse("2024-08-10T16:52:07.123456Z"))
+            .build();
+    assertEquals(expectedRow, beamRow);
+  }
+
   @Test
   public void testToTableSpec() {
     TableReference withProject =

@@ -15,21 +15,11 @@
 name: PreCommit Spotless
 
 on:
-  push:
-    tags: ['v*']
-    branches: ['master', 'release-*']
-    paths:
-      - 'buildSrc/**'
-      - 'sdks/java/**'
-      - 'runners/**'
-      - 'examples/java/**'
-      - 'examples/kotlin/**'
-      - '.test-infra/jenkins/'
-      - '.github/workflows/beam_PreCommit_Spotless.yml'
   pull_request_target:
     branches: ['master', 'release-*']
     paths:
       - 'buildSrc/**'
+      - 'it/**'
       - 'sdks/java/**'
       - 'runners/**'
       - 'examples/java/**'

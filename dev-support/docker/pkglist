@@ -29,7 +29,7 @@ vim
 locales
 wget
 time
-openjdk-8-jdk
+openjdk-11-jdk
 python3-setuptools
 python3-pip
 python3.9
@@ -46,7 +46,6 @@ python3.11-distutils
 python3.11-venv
 python3.12
 python3.12-dev
-python3.12-distutils
 python3.12-venv
 tox
 docker.io

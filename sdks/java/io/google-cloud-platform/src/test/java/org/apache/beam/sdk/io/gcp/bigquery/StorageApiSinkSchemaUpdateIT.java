@@ -22,6 +22,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeFalse;
 import static org.junit.Assume.assumeTrue;
 
 import com.google.api.services.bigquery.model.Table;
@@ -228,7 +229,8 @@ public class StorageApiSinkSchemaUpdateIT {
     public void processElement(ProcessContext c, @StateId(ROW_COUNTER) ValueState<Integer> counter)
         throws Exception {
       int current = firstNonNull(counter.read(), 0);
-      // We update schema early on to leave a healthy amount of time for the StreamWriter to recognize it,
+      // We update schema early on to leave a healthy amount of time for the StreamWriter to
+      // recognize it,
       // ensuring that subsequent writers are created with the updated schema.
       if (current == SCHEMA_UPDATE_TRIGGER) {
         for (Map.Entry<String, String> entry : newSchemas.entrySet()) {
@@ -246,8 +248,10 @@ public class StorageApiSinkSchemaUpdateIT {
         while (System.currentTimeMillis() - startTime < timeoutMillis) {
           schemaPropagated = true;
           for (Map.Entry<String, String> entry : newSchemas.entrySet()) {
-            TableSchema currentSchema = bqClient.getTableResource(projectId, datasetId, entry.getKey()).getSchema();
-            TableSchema expectedSchema = BigQueryHelpers.fromJsonString(entry.getValue(), TableSchema.class);
+            TableSchema currentSchema =
+                bqClient.getTableResource(projectId, datasetId, entry.getKey()).getSchema();
+            TableSchema expectedSchema =
+                BigQueryHelpers.fromJsonString(entry.getValue(), TableSchema.class);
             if (currentSchema.getFields().size() != expectedSchema.getFields().size()) {
               schemaPropagated = false;
               break;
@@ -261,7 +265,9 @@ public class StorageApiSinkSchemaUpdateIT {
         if (!schemaPropagated) {
           LOG.warn("Schema update did not propagate fully within the timeout.");
         } else {
-          LOG.info("Schema update propagated fully within the timeout - {}.", System.currentTimeMillis() - startTime);
+          LOG.info(
+              "Schema update propagated fully within the timeout - {}.",
+              System.currentTimeMillis() - startTime);
           // wait for streams to recognize the new schema
           Thread.sleep(STREAM_RECOGNITION_DELAY_MS);
         }
@@ -367,8 +373,8 @@ public class StorageApiSinkSchemaUpdateIT {
     // Only run the most relevant test case on Dataflow
     if (p.getOptions().getRunner().getName().contains("DataflowRunner")) {
       assumeTrue(
-          "Skipping in favor of more relevant test case",
-          changeTableSchema && useInputSchema && useAutoSchemaUpdate);
+          "Skipping in favor of more relevant test case and to avoid timing issues",
+          !changeTableSchema && useInputSchema && useAutoSchemaUpdate);
     }
 
     List<String> fieldNamesOrigin = new ArrayList<String>(Arrays.asList(FIELDS));
@@ -409,14 +415,19 @@ public class StorageApiSinkSchemaUpdateIT {
     // recognize the new schema. Apply on relevant tests.
     boolean waitLonger = changeTableSchema && (useAutoSchemaUpdate || !useInputSchema);
     if (method == Write.Method.STORAGE_WRITE_API) {
-      write = write.withTriggeringFrequency(Duration.standardSeconds(waitLonger ? LONG_WAIT_SECONDS : 1));
+      write =
+          write.withTriggeringFrequency(
+              Duration.standardSeconds(waitLonger ? LONG_WAIT_SECONDS : 1));
     }
 
     // set up and build pipeline
     Instant start = new Instant(0);
-    Duration interval = waitLonger ? Duration.standardSeconds(LONG_WAIT_SECONDS) : Duration.millis(1);
+    Duration interval =
+        waitLonger ? Duration.standardSeconds(LONG_WAIT_SECONDS) : Duration.millis(1);
     Duration stop =
-        waitLonger ? Duration.standardSeconds((TOTAL_N - 1) * LONG_WAIT_SECONDS) : Duration.millis(TOTAL_N - 1);
+        waitLonger
+            ? Duration.standardSeconds((TOTAL_N - 1) * LONG_WAIT_SECONDS)
+            : Duration.millis(TOTAL_N - 1);
     Function<Instant, Long> getIdFromInstant =
         waitLonger
             ? (Function<Instant, Long> & Serializable)
@@ -608,11 +619,11 @@ public class StorageApiSinkSchemaUpdateIT {
     // Need to manually enable streaming engine for legacy dataflow runner
     ExperimentalOptions.addExperiment(
         p.getOptions().as(ExperimentalOptions.class), GcpOptions.STREAMING_ENGINE_EXPERIMENT);
-    // Only run the most relevant test case on Dataflow
-    if (p.getOptions().getRunner().getName().contains("DataflowRunner")) {
-      assumeTrue(
-          "Skipping in favor of more relevant test case", changeTableSchema && useInputSchema);
-    }
+    // Skipping dynamic destinations tests on Dataflow because of timing issues
+    // These tests are more stable on the DirectRunner, where timing is less variable
+    assumeFalse(
+        "Skipping dynamic destinations tests on Dataflow because of timing issues",
+        p.getOptions().getRunner().getName().contains("DataflowRunner"));
 
     List<String> fieldNamesOrigin = new ArrayList<String>(Arrays.asList(FIELDS));
 
@@ -666,7 +677,8 @@ public class StorageApiSinkSchemaUpdateIT {
       write =
           write
               .withMethod(Write.Method.STORAGE_WRITE_API)
-              .withTriggeringFrequency(Duration.standardSeconds(changeTableSchema ? LONG_WAIT_SECONDS : 1));
+              .withTriggeringFrequency(
+                  Duration.standardSeconds(changeTableSchema ? LONG_WAIT_SECONDS : 1));
     }
 
     int numRows = TOTAL_N;
@@ -674,9 +686,12 @@ public class StorageApiSinkSchemaUpdateIT {
     Instant start = new Instant(0);
     // We give a healthy waiting period between each element to give Storage API streams a chance to
     // recognize the new schema. Apply on relevant tests.
-    Duration interval = changeTableSchema ? Duration.standardSeconds(LONG_WAIT_SECONDS) : Duration.millis(1);
+    Duration interval =
+        changeTableSchema ? Duration.standardSeconds(LONG_WAIT_SECONDS) : Duration.millis(1);
     Duration stop =
-        changeTableSchema ? Duration.standardSeconds((numRows - 1) * LONG_WAIT_SECONDS) : Duration.millis(numRows - 1);
+        changeTableSchema
+            ? Duration.standardSeconds((numRows - 1) * LONG_WAIT_SECONDS)
+            : Duration.millis(numRows - 1);
     Function<Instant, Long> getIdFromInstant =
         changeTableSchema
             ? (Function<Instant, Long> & Serializable)

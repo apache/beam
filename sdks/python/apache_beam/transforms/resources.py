@@ -39,6 +39,7 @@ __all__ = [
     'AcceleratorHint',
     'MinRamHint',
     'CpuCountHint',
+    'MaxActiveBundlesPerWorkerHint',
     'merge_resource_hints',
     'parse_resource_hints',
     'resource_hints_from_options',
@@ -144,6 +145,10 @@ class ResourceHint:
   def _use_max(v1, v2):
     return str(max(int(v1), int(v2))).encode('ascii')
 
+  @staticmethod
+  def _use_sum(v1, v2):
+    return str(int(v1) + int(v2)).encode('ascii')
+
 
 class AcceleratorHint(ResourceHint):
   """Describes desired hardware accelerators in execution environment."""
@@ -183,6 +188,30 @@ class CpuCountHint(ResourceHint):
 ResourceHint.register_resource_hint('cpu_count', CpuCountHint)
 # Alias for interoperability with SDKs preferring camelCase.
 ResourceHint.register_resource_hint('cpuCount', CpuCountHint)
+
+
+class MaxActiveBundlesPerWorkerHint(ResourceHint):
+  """
+  Describes max active bundles processed in parallel
+  in transform's execution environment.
+  """
+  urn = resource_hints.MAX_ACTIVE_BUNDLES_PER_WORKER.urn
+
+  @classmethod
+  def get_merged_value(cls, outer_value: bytes, inner_value: bytes) -> bytes:
+    return ResourceHint._use_sum(outer_value, inner_value)
+
+
+ResourceHint.register_resource_hint(
+    'max_active_bundles_per_worker', MaxActiveBundlesPerWorkerHint)
+# Alias for interoperability with SDKs preferring camelCase.
+ResourceHint.register_resource_hint(
+    'MaxActiveBundlesPerWorker', MaxActiveBundlesPerWorkerHint)
+# Alias for common typo.
+ResourceHint.register_resource_hint(
+    'max_active_bundle_per_worker', MaxActiveBundlesPerWorkerHint)
+ResourceHint.register_resource_hint(
+    'MaxActiveBundlePerWorker', MaxActiveBundlesPerWorkerHint)
 
 
 def parse_resource_hints(hints: dict[Any, Any]) -> dict[str, bytes]:

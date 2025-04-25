@@ -42,7 +42,8 @@ class SaveModel(core.DoFn):
 
   def process(self, model):
     # generate ISO 8601
-    iso_timestamp = datetime.datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+    iso_timestamp = datetime.datetime.now(
+        datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     checkpoint_name = f'{self.checkpoints_path}/{iso_timestamp}.checkpoint'
     latest_checkpoint = f'{self.checkpoints_path}/latest.checkpoint'
     # rename previous checkpoint

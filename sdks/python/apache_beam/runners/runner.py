@@ -32,7 +32,7 @@ from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.runners.common import group_by_key_input_visitor
+from apache_beam.runners.pipeline_utils import group_by_key_input_visitor
 from apache_beam.transforms import environments
 
 if TYPE_CHECKING:

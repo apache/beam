@@ -27,33 +27,40 @@ import com.google.api.services.bigquery.model.TableCell;
 import com.google.api.services.bigquery.model.TableRow;
 import java.math.BigInteger;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
 /** Tests for {@link BigqueryMatcher}. */
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(BigqueryClient.class)
+@RunWith(JUnit4.class)
 public class BigqueryMatcherTest {
   private final String appName = "test-app";
   private final String projectId = "test-project";
   private final String query = "test-query";
 
   @Rule public ExpectedException thrown = ExpectedException.none();
-  @Mock private BigqueryClient mockBigqueryClient;
+  @Mock public BigqueryClient mockBigqueryClient;
+  private MockedStatic<BigqueryClient> mockStatic;
 
   @Before
+  @SuppressWarnings("CheckReturnValue") // mockStatic
   public void setUp() {
     MockitoAnnotations.initMocks(this);
-    PowerMockito.mockStatic(BigqueryClient.class);
+    mockStatic = Mockito.mockStatic(BigqueryClient.class);
     when(BigqueryClient.getClient(anyString())).thenReturn(mockBigqueryClient);
+  }
+
+  @After
+  public void tearDown() {
+    mockStatic.close();
   }
 
   @Test

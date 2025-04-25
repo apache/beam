@@ -315,7 +315,7 @@ class VertexAIImageEmbeddings(EmbeddingsManager):
 
     Args:
       model_name: The name of the Vertex AI Multi-Modal Embedding model.
-      columns: The columns containing the text to be embedded.
+      columns: The columns containing the image to be embedded.
       dimension: The length of the embedding vector to generate. Must be one of
         128, 256, 512, or 1408. If not set, Vertex AI's default value is 1408.
       project: The default GCP project for API calls.

@@ -25,13 +25,13 @@ import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.expansion.service.ExpansionService;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.construction.ParDoTranslation;
@@ -45,7 +45,6 @@ import org.hamcrest.text.MatchesPattern;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.powermock.reflect.Whitebox;
 
 /** Tests for building {@link PubsubIO} externally via the ExpansionService. */
 @RunWith(JUnit4.class)
@@ -175,12 +174,12 @@ public class PubsubIOExternalTest {
 
     RunnerApi.ParDoPayload parDoPayload =
         RunnerApi.ParDoPayload.parseFrom(writeParDo.getSpec().getPayload());
-    DoFn<?, ?> pubsubWriter = ParDoTranslation.getDoFn(parDoPayload);
+    PubsubUnboundedSink.WriterFn pubsubWriter =
+        (PubsubUnboundedSink.WriterFn) ParDoTranslation.getDoFn(parDoPayload);
 
-    String idAttributeActual = (String) Whitebox.getInternalState(pubsubWriter, "idAttribute");
+    String idAttributeActual = pubsubWriter.getIdAttribute();
 
-    ValueProvider<PubsubClient.TopicPath> topicActual =
-        (ValueProvider<PubsubClient.TopicPath>) Whitebox.getInternalState(pubsubWriter, "topic");
+    ValueProvider<TopicPath> topicActual = pubsubWriter.getTopic();
 
     assertThat(topicActual == null ? null : String.valueOf(topicActual), Matchers.is(topic));
     assertThat(idAttributeActual, Matchers.is(idAttribute));

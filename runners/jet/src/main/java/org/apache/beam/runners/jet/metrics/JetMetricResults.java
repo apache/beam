@@ -18,6 +18,7 @@
 package org.apache.beam.runners.jet.metrics;
 
 import com.hazelcast.map.IMap;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.concurrent.GuardedBy;
@@ -37,6 +38,7 @@ import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.metrics.StringSetResult;
+import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicate;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -111,6 +113,7 @@ public class JetMetricResults extends MetricResults {
     private final Iterable<MetricResult<GaugeResult>> gauges;
     private final Iterable<MetricResult<StringSetResult>> stringSets;
     private final Iterable<MetricResult<BoundedTrieResult>> boundedTries;
+    private final Iterable<MetricResult<HistogramData>> histograms;
 
     private QueryResults(
         Iterable<MetricResult<Long>> counters,
@@ -123,6 +126,7 @@ public class JetMetricResults extends MetricResults {
       this.gauges = gauges;
       this.stringSets = stringSets;
       this.boundedTries = boundedTries;
+      this.histograms = Collections.emptyList(); // not implemented
     }
 
     @Override
@@ -148,6 +152,11 @@ public class JetMetricResults extends MetricResults {
     @Override
     public Iterable<MetricResult<BoundedTrieResult>> getBoundedTries() {
       return boundedTries;
+    }
+
+    @Override
+    public Iterable<MetricResult<HistogramData>> getHistograms() {
+      return histograms;
     }
   }
 
