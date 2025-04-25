@@ -49,6 +49,7 @@ Typical usage::
 
 import abc
 import contextlib
+import copy
 import logging
 import os
 import re
@@ -171,7 +172,9 @@ class Pipeline(HasDisplayData):
 
     if options is not None:
       if isinstance(options, PipelineOptions):
-        self._options = options
+        # Make a deep copy of options since they could be overwritten in later
+        # steps.
+        self._options = copy.deepcopy(options)
       else:
         raise ValueError(
             'Parameter options, if specified, must be of type PipelineOptions. '
