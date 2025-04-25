@@ -44,7 +44,6 @@ model_name: str = "text-embedding-3-small"
 @unittest.skipIf(
     OpenAITextEmbeddings is None, 'OpenAI Python SDK is not installed.')
 class OpenAIEmbeddingsTest(unittest.TestCase):
-
   def setUp(self) -> None:
     self.artifact_location = tempfile.mkdtemp(prefix='_openai_test')
     self.api_key = os.environ.get('OPENAI_API_KEY')

@@ -68,7 +68,6 @@ class _OpenAITextEmbeddingHandler(ModelHandler):
   """
   Note: Intended for internal use and guarantees no backwards compatibility.
   """
-
   def __init__(
       self,
       model_name: str,
@@ -173,7 +172,6 @@ class OpenAITextEmbeddings(EmbeddingsManager):
               api_key=api_key
           )
   """
-
   @beam.typehints.with_output_types(PCollection[Union[MLTransformOutputT, Row]])
   def __init__(
       self,
