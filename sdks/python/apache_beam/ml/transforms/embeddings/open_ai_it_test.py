@@ -18,7 +18,6 @@ import os
 import shutil
 import tempfile
 import unittest
-import uuid
 
 import apache_beam as beam
 from apache_beam.ml.inference.base import RunInference
@@ -28,11 +27,11 @@ from apache_beam.ml.transforms.base import MLTransform
 try:
   from sdks.python.apache_beam.ml.transforms.embeddings.open_ai import OpenAITextEmbeddings
 except ImportError:
-  OpenAITextEmbeddings = None
+  OpenAITextEmbeddings = None  # type: ignore
 
+# pylint: disable=ungrouped-imports
 try:
   import tensorflow_transform as tft
-  from apache_beam.ml.transforms.tft import ScaleTo01
 except ImportError:
   tft = None
 
@@ -187,7 +186,7 @@ class OpenAIEmbeddingsTest(unittest.TestCase):
                 write_artifact_location=self.artifact_location).with_transform(
                     embedding_config))
 
-  def test_with_artifact_location(self):
+  def test_with_artifact_location(self):  # pylint: disable=line-too-long
     """Local artifact location test (renamed from test_with_gcs_artifact_location)"""
     # Use a different local directory instead of GCS
     secondary_artifact_location = tempfile.mkdtemp(
@@ -233,7 +232,7 @@ class OpenAIEmbeddingsTest(unittest.TestCase):
       # Clean up the temporary directory
       shutil.rmtree(secondary_artifact_location)
 
-  def test_mltransform_to_ptransform_with_openai(self):
+  def test_mltransform_to_ptransform_with_openai(self):  # pylint: disable=line-too-long
     transforms = [
         OpenAITextEmbeddings(
             columns=['x'],

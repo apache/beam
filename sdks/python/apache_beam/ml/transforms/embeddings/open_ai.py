@@ -49,7 +49,7 @@ _BATCH_SIZE = 20  # OpenAI can handle larger batches than Vertex
 LOGGER = logging.getLogger("OpenAIEmbeddings")
 
 
-def _retry_on_appropriate_openai_error(exception):
+def _retry_on_appropriate_openai_error(exception):  # pylint: disable=line-too-long
   """
   Retry filter that returns True if a returned error is rate limit (429) or server error (5xx).
 
@@ -117,13 +117,13 @@ class _OpenAITextEmbeddingHandler(ModelHandler):
       self.throttler.successful_request(req_time * _MSEC_TO_SEC)
       return [item.embedding for item in response.data]
     except RateLimitError as e:
-      LOGGER.warning("Request was rate limited by OpenAI API")
+      LOGGER.warning("Request was rate limited by OpenAI API: %s", e)
       raise
     except Exception as e:
       LOGGER.error("Unexpected exception raised as part of request: %s", e)
       raise
 
-  def batch_elements_kwargs(self) -> dict[str, Any]:
+  def batch_elements_kwargs(self) -> dict[str, Any]:  # pylint: disable=line-too-long
     """Returns kwargs suitable for beam.BatchElements with appropriate batch size."""
     return {'max_batch_size': self.batch_size}
 
@@ -164,7 +164,7 @@ class OpenAITextEmbeddings(EmbeddingsManager):
 
   Example Usage::
 
-      with pipeline as p:
+      with pipeline as p:  # pylint: disable=line-too-long
           text = p | "Create texts" >> beam.Create([{"text": "Hello world"}, {"text": "Beam ML"}])
           embeddings = text | OpenAITextEmbeddings(
               model_name="text-embedding-3-small",
@@ -172,7 +172,7 @@ class OpenAITextEmbeddings(EmbeddingsManager):
               api_key=api_key
           )
   """
-  @beam.typehints.with_output_types(PCollection[Union[MLTransformOutputT, Row]])
+  @beam.typehints.with_output_types(PCollection[Union[MLTransformOutputT, Row]])  # pylint: disable=line-too-long
   def __init__(
       self,
       model_name: str,
@@ -188,7 +188,7 @@ class OpenAITextEmbeddings(EmbeddingsManager):
     Text Embeddings are generated for a batch of text using the OpenAI API.
     
     Args:
-      model_name: Name of the OpenAI embedding model (e.g., "text-embedding-3-small")
+      model_name: Name of the OpenAI embedding model (e.g., "text-embedding-3-small") 
       columns: The columns where the embeddings will be stored in the output
       api_key: OpenAI API key
       organization: OpenAI organization ID
