@@ -24,19 +24,18 @@ from typing import Union
 from typing import cast
 
 import apache_beam as beam
-from apache_beam.pvalue import PCollection
-from apache_beam.pvalue import Row
+import openai
 from apache_beam.io.components.adaptive_throttler import AdaptiveThrottler
 from apache_beam.metrics.metric import Metrics
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.transforms.base import EmbeddingsManager
 from apache_beam.ml.transforms.base import _TextEmbeddingHandler
+from apache_beam.pvalue import PCollection
+from apache_beam.pvalue import Row
 from apache_beam.utils import retry
-
-import openai
-from openai import RateLimitError
 from openai import APIError
+from openai import RateLimitError
 
 __all__ = ["OpenAITextEmbeddings"]
 
