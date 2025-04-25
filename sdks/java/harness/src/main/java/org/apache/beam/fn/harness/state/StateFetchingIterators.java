@@ -20,6 +20,8 @@ package org.apache.beam.fn.harness.state;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -46,6 +48,7 @@ import org.apache.beam.sdk.util.Weighted;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.AbstractIterator;
 
 /**
  * Adapters which convert a logical series of chunks using continuation tokens over the Beam Fn
@@ -89,6 +92,82 @@ public class StateFetchingIterators {
         beamFnStateClient,
         stateRequestForFirstChunk,
         valueCoder);
+  }
+
+  public static <T> UncachedStateIterable<T> readAllAndDecodeStartingFrom(
+      BeamFnStateClient beamFnStateClient,
+      StateRequest stateRequestForFirstChunk,
+      Coder<T> valueCoder) {
+    return new UncachedStateIterable<>(beamFnStateClient, stateRequestForFirstChunk, valueCoder);
+  }
+
+  static class UncachedStateIterable<T> extends PrefetchableIterables.Default<T> {
+    private final BeamFnStateClient beamFnStateClient;
+    private final StateRequest stateRequestForFirstChunk;
+    private final Coder<T> valueCoder;
+
+    public UncachedStateIterable(
+        BeamFnStateClient beamFnStateClient,
+        StateRequest stateRequestForFirstChunk,
+        Coder<T> valueCoder) {
+      this.beamFnStateClient = beamFnStateClient;
+      this.stateRequestForFirstChunk = stateRequestForFirstChunk;
+      this.valueCoder = valueCoder;
+    }
+
+    @Override
+    public PrefetchableIterator<T> createIterator() {
+      return new DecodingIterator<T>(
+          new LazyBlockingStateFetchingIterator(beamFnStateClient, stateRequestForFirstChunk),
+          valueCoder);
+    }
+
+    private static class DecodingIterator<T> extends AbstractIterator<T>
+        implements PrefetchableIterator<T> {
+      PrefetchableIterator<ByteString> chunkIterator;
+      InputStream currentChunk;
+      Coder<T> valueCoder;
+
+      public DecodingIterator(PrefetchableIterator<ByteString> chunkIterator, Coder<T> valueCoder) {
+        this.chunkIterator = chunkIterator;
+        this.currentChunk = ByteString.EMPTY.newInput();
+        this.valueCoder = valueCoder;
+      }
+
+      @Override
+      protected T computeNext() {
+        try {
+          while (currentChunk.available() == 0) {
+            if (chunkIterator.hasNext()) {
+              currentChunk = chunkIterator.next().newInput();
+            } else {
+              return endOfData();
+            }
+          }
+          return valueCoder.decode(currentChunk);
+        } catch (IOException exn) {
+          // Should never get here as ByteString.newInput() returns InputStreams
+          // that don't do actual IO operations.
+          throw new IllegalStateException(exn);
+        }
+      }
+
+      @Override
+      public boolean isReady() {
+        try {
+          return currentChunk.available() > 0 || chunkIterator.isReady();
+        } catch (IOException exn) {
+          throw new IllegalStateException(exn);
+        }
+      }
+
+      @Override
+      public void prefetch() {
+        if (!isReady()) {
+          chunkIterator.prefetch();
+        }
+      }
+    }
   }
 
   @VisibleForTesting
