@@ -950,6 +950,11 @@ class Pipeline(HasDisplayData):
       raise ValueError(
           'Only one of context or default_environment may be specified.')
 
+    # The FlumeRunner is the only runner setting this option. Use getattr
+    # because other runners do not have this option.
+    context.enable_best_effort_deterministic_pickling = getattr(
+        self.runner, 'enable_best_effort_deterministic_pickling', False)
+
     # The RunnerAPI spec requires certain transforms and side-inputs to have KV
     # inputs (and corresponding outputs).
     # Currently we only upgrade to KV pairs.  If there is a need for more
