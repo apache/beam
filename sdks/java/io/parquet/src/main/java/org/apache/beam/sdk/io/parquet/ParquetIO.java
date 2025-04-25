@@ -248,6 +248,12 @@ import org.slf4j.LoggerFactory;
 public class ParquetIO {
   private static final Logger LOG = LoggerFactory.getLogger(ParquetIO.class);
 
+  // New: Enum for more flexibility in the future
+  public enum ReaderFormat {
+    AVRO,
+    PROTO
+  }
+
   /**
    * Reads {@link GenericRecord} from a Parquet file (or multiple Parquet files matching the
    * pattern).
@@ -267,7 +273,7 @@ public class ParquetIO {
     return new AutoValue_ParquetIO_ReadFiles.Builder()
         .setSchema(schema)
         .setInferBeamSchema(false)
-        .setUseProtoReader(false) // NEW: default to false
+        .setReaderFormat(ReaderFormat.AVRO) // NEW: default to existing AVRO and new PROTO
         .build();
   }
 
@@ -621,8 +627,8 @@ public class ParquetIO {
 
     abstract Builder toBuilder();
 
-    // New: flag to indicate using ProtoParquetReader for protobuf data.
-    abstract boolean getUseProtoReader();
+    // New: enum returned to indicate using AVRO or PROTO for protobuf data.
+    abstract ReaderFormat getReaderFormat();
 
     @AutoValue.Builder
     abstract static class Builder {
@@ -638,7 +644,7 @@ public class ParquetIO {
 
       abstract Builder setInferBeamSchema(boolean inferBeamSchema);
 
-      abstract Builder setUseProtoReader(boolean useProtoReader);
+      abstract Builder setReaderFormat(ReaderFormat readerFormat);
 
       abstract ReadFiles build();
     }
@@ -673,9 +679,14 @@ public class ParquetIO {
       return toBuilder().setInferBeamSchema(inferBeamSchema).build();
     }
 
-    // New: method to opt into using ProtoParquetReader.
+    // New: method to opt into using avro
+    public ReadFiles withAvroReader() {
+      return toBuilder().setReaderFormat(ReaderFormat.AVRO).build();
+    }
+
+    // New: method to opt into using Protobuf
     public ReadFiles withProtoReader() {
-      return toBuilder().setUseProtoReader(true).build();
+      return toBuilder().setReaderFormat(ReaderFormat.PROTO).build();
     }
 
     @Override
@@ -689,7 +700,7 @@ public class ParquetIO {
                       getProjectionSchema(),
                       GenericRecordPassthroughFn.create(),
                       getConfiguration(),
-                      getUseProtoReader() // New: pass the new flag here
+                      getReaderFormat() // New: pass the new enum here
                       )))
           .setCoder(getCollectionCoder());
     }
@@ -705,8 +716,8 @@ public class ParquetIO {
           .addIfNotNull(DisplayData.item("projectionSchema", String.valueOf(getProjectionSchema())))
           .addIfNotNull(DisplayData.item("avroDataModel", String.valueOf(getAvroDataModel())))
           .add(
-              DisplayData.item("useProtoReader", getUseProtoReader())
-                  .withLabel("Use ProtoParquetReader"));
+              DisplayData.item("readerFormat", getReaderFormat().name())
+                  .withLabel("Reader format (AVRO|PROTO)"));
       if (this.getConfiguration() != null) {
         Configuration configuration = this.getConfiguration().get();
         for (Entry<String, String> entry : configuration) {
@@ -738,21 +749,21 @@ public class ParquetIO {
 
       private final SerializableFunction<GenericRecord, T> parseFn;
 
-      private final boolean useProtoReader; // New: new flag for protobuf
+      private final ReaderFormat readerFormat; // New: new flag for protobuf or avro
 
       SplitReadFn(
           GenericData model,
           Schema requestSchema,
           SerializableFunction<GenericRecord, T> parseFn,
           @Nullable SerializableConfiguration configuration,
-          boolean useProtoReader // New: add flag here
+          ReaderFormat readerFormat // New: add flag here
           ) {
 
         this.modelClass = model != null ? model.getClass() : null;
         this.requestSchemaString = requestSchema != null ? requestSchema.toString() : null;
         this.parseFn = checkNotNull(parseFn, "GenericRecord parse function can't be null");
         this.configuration = configuration;
-        this.useProtoReader = useProtoReader; // New: assign the flag
+        this.readerFormat = readerFormat; // New: assign the format
       }
 
       // New: Overloaded constructor for backward compatibility:
@@ -761,7 +772,7 @@ public class ParquetIO {
           Schema requestSchema,
           SerializableFunction<GenericRecord, T> parseFn,
           @Nullable SerializableConfiguration configuration) {
-        this(model, requestSchema, parseFn, configuration, false);
+        this(model, requestSchema, parseFn, configuration, ReaderFormat.AVRO);
       }
 
       private ParquetFileReader getParquetFileReader(ReadableFile file) throws Exception {
@@ -781,120 +792,122 @@ public class ParquetIO {
             tracker.currentRestriction().getTo());
         Configuration conf = getConfWithModelClass();
 
-        if (useProtoReader) {
-          // Use ProtoParquetReader to read protobuf data.
-          // Derive a Hadoop Path from the file metadata. Adjust as needed.
-          Path path = new Path(file.getMetadata().resourceId().toString());
+        switch (readerFormat) {
+          case PROTO:
+            // Use ProtoParquetReader to read protobuf data.
+            // Derive a Hadoop Path from the file metadata. Adjust as needed.
+            Path path = new Path(file.getMetadata().resourceId().toString());
 
-          // Get the configuration and set the property using the literal.
-          Configuration conf2 = getConfWithModelClass();
-          conf2.set("parquet.proto.ignore.unknown.fields", "TRUE");
-
-          // Use the builder overload that takes a ReadSupport and a Path.
-          try (ParquetReader<GenericRecord> reader =
-              ProtoParquetReader.<GenericRecord>builder(new ProtoReadSupport(), path).build()) {
-            GenericRecord message;
-            while ((message = reader.read()) != null) {
-              // Cast through Object so that parseFn (which expects GenericRecord)
-              // can accept the DynamicMessage.
-              outputReceiver.output(parseFn.apply((GenericRecord) (Object) message));
-            }
-          }
-
-          return; // exit after using the proto path
-        }
-
-        // ELSE: existing logic using ParquetFileReader for Avro
-        GenericData model = null;
-        if (modelClass != null) {
-          model = (GenericData) modelClass.getMethod("get").invoke(null);
-        }
-        AvroReadSupport<GenericRecord> readSupport = new AvroReadSupport<>(model);
-        if (requestSchemaString != null) {
-          AvroReadSupport.setRequestedProjection(
-              conf, new Schema.Parser().parse(requestSchemaString));
-        }
-        ParquetReadOptions options = HadoopReadOptions.builder(conf).build();
-        try (ParquetFileReader reader =
-            ParquetFileReader.open(new BeamParquetInputFile(file.openSeekable()), options)) {
-          Filter filter = checkNotNull(options.getRecordFilter(), "filter");
-          Configuration hadoopConf = ((HadoopReadOptions) options).getConf();
-          FileMetaData parquetFileMetadata = reader.getFooter().getFileMetaData();
-          MessageType fileSchema = parquetFileMetadata.getSchema();
-          Map<String, String> fileMetadata = parquetFileMetadata.getKeyValueMetaData();
-          ReadSupport.ReadContext readContext =
-              readSupport.init(
-                  new InitContext(
-                      hadoopConf,
-                      Maps.transformValues(fileMetadata, ImmutableSet::of),
-                      fileSchema));
-          ColumnIOFactory columnIOFactory = new ColumnIOFactory(parquetFileMetadata.getCreatedBy());
-
-          RecordMaterializer<GenericRecord> recordConverter =
-              readSupport.prepareForRead(hadoopConf, fileMetadata, fileSchema, readContext);
-          reader.setRequestedSchema(readContext.getRequestedSchema());
-          MessageColumnIO columnIO =
-              columnIOFactory.getColumnIO(readContext.getRequestedSchema(), fileSchema, true);
-          long currentBlock = tracker.currentRestriction().getFrom();
-          for (int i = 0; i < currentBlock; i++) {
-            reader.skipNextRowGroup();
-          }
-          while (tracker.tryClaim(currentBlock)) {
-            PageReadStore pages = reader.readNextRowGroup();
-            LOG.debug("block {} read in memory. row count = {}", currentBlock, pages.getRowCount());
-            currentBlock += 1;
-            RecordReader<GenericRecord> recordReader =
-                columnIO.getRecordReader(
-                    pages, recordConverter, options.useRecordFilter() ? filter : FilterCompat.NOOP);
-            long currentRow = 0;
-            long totalRows = pages.getRowCount();
-            while (currentRow < totalRows) {
-              try {
-                GenericRecord record;
-                currentRow += 1;
-                try {
-                  record = recordReader.read();
-                } catch (RecordMaterializer.RecordMaterializationException e) {
-                  LOG.warn(
-                      "skipping a corrupt record at {} in block {} in file {}",
-                      currentRow,
-                      currentBlock,
-                      file.toString());
-                  continue;
-                }
-                if (record == null) {
-                  // it happens when a record is filtered out in this block
-                  LOG.debug(
-                      "record is filtered out by reader in block {} in file {}",
-                      currentBlock,
-                      file.toString());
-                  continue;
-                }
-                if (recordReader.shouldSkipCurrentRecord()) {
-                  // this record is being filtered via the filter2 package
-                  LOG.debug(
-                      "skipping record at {} in block {} in file {}",
-                      currentRow,
-                      currentBlock,
-                      file.toString());
-                  continue;
-                }
-                outputReceiver.output(parseFn.apply(record));
-              } catch (RuntimeException e) {
-
-                throw new ParquetDecodingException(
-                    format(
-                        "Can not read value at %d in block %d in file %s",
-                        currentRow, currentBlock, file.toString()),
-                    e);
+            // Use the builder overload that takes a ReadSupport and a Path.
+            try (ParquetReader<GenericRecord> reader =
+                ProtoParquetReader.<GenericRecord>builder(new ProtoReadSupport(), path).build()) {
+              GenericRecord message;
+              while ((message = reader.read()) != null) {
+                // Cast through Object so that parseFn (which expects GenericRecord)
+                // can accept the DynamicMessage.
+                outputReceiver.output(parseFn.apply((GenericRecord) (Object) message));
               }
             }
-            LOG.debug(
-                "Finish processing {} rows from block {} in file {}",
-                currentRow,
-                currentBlock - 1,
-                file.toString());
-          }
+            break;
+
+          case AVRO:
+          default:
+            // ELSE: existing logic using ParquetFileReader for Avro
+            GenericData model = null;
+            if (modelClass != null) {
+              model = (GenericData) modelClass.getMethod("get").invoke(null);
+            }
+            AvroReadSupport<GenericRecord> readSupport = new AvroReadSupport<>(model);
+            if (requestSchemaString != null) {
+              AvroReadSupport.setRequestedProjection(
+                  conf, new Schema.Parser().parse(requestSchemaString));
+            }
+            ParquetReadOptions options = HadoopReadOptions.builder(conf).build();
+            try (ParquetFileReader reader =
+                ParquetFileReader.open(new BeamParquetInputFile(file.openSeekable()), options)) {
+              Filter filter = checkNotNull(options.getRecordFilter(), "filter");
+              Configuration hadoopConf = ((HadoopReadOptions) options).getConf();
+              FileMetaData parquetFileMetadata = reader.getFooter().getFileMetaData();
+              MessageType fileSchema = parquetFileMetadata.getSchema();
+              Map<String, String> fileMetadata = parquetFileMetadata.getKeyValueMetaData();
+              ReadSupport.ReadContext readContext =
+                  readSupport.init(
+                      new InitContext(
+                          hadoopConf,
+                          Maps.transformValues(fileMetadata, ImmutableSet::of),
+                          fileSchema));
+              ColumnIOFactory columnIOFactory =
+                  new ColumnIOFactory(parquetFileMetadata.getCreatedBy());
+
+              RecordMaterializer<GenericRecord> recordConverter =
+                  readSupport.prepareForRead(hadoopConf, fileMetadata, fileSchema, readContext);
+              reader.setRequestedSchema(readContext.getRequestedSchema());
+              MessageColumnIO columnIO =
+                  columnIOFactory.getColumnIO(readContext.getRequestedSchema(), fileSchema, true);
+              long currentBlock = tracker.currentRestriction().getFrom();
+              for (int i = 0; i < currentBlock; i++) {
+                reader.skipNextRowGroup();
+              }
+              while (tracker.tryClaim(currentBlock)) {
+                PageReadStore pages = reader.readNextRowGroup();
+                LOG.debug(
+                    "block {} read in memory. row count = {}", currentBlock, pages.getRowCount());
+                currentBlock += 1;
+                RecordReader<GenericRecord> recordReader =
+                    columnIO.getRecordReader(
+                        pages,
+                        recordConverter,
+                        options.useRecordFilter() ? filter : FilterCompat.NOOP);
+                long currentRow = 0;
+                long totalRows = pages.getRowCount();
+                while (currentRow < totalRows) {
+                  try {
+                    GenericRecord record;
+                    currentRow += 1;
+                    try {
+                      record = recordReader.read();
+                    } catch (RecordMaterializer.RecordMaterializationException e) {
+                      LOG.warn(
+                          "skipping a corrupt record at {} in block {} in file {}",
+                          currentRow,
+                          currentBlock,
+                          file.toString());
+                      continue;
+                    }
+                    if (record == null) {
+                      // it happens when a record is filtered out in this block
+                      LOG.debug(
+                          "record is filtered out by reader in block {} in file {}",
+                          currentBlock,
+                          file.toString());
+                      continue;
+                    }
+                    if (recordReader.shouldSkipCurrentRecord()) {
+                      // this record is being filtered via the filter2 package
+                      LOG.debug(
+                          "skipping record at {} in block {} in file {}",
+                          currentRow,
+                          currentBlock,
+                          file.toString());
+                      continue;
+                    }
+                    outputReceiver.output(parseFn.apply(record));
+                  } catch (RuntimeException e) {
+
+                    throw new ParquetDecodingException(
+                        format(
+                            "Can not read value at %d in block %d in file %s",
+                            currentRow, currentBlock, file.toString()),
+                        e);
+                  }
+                }
+                LOG.debug(
+                    "Finish processing {} rows from block {} in file {}",
+                    currentRow,
+                    currentBlock - 1,
+                    file.toString());
+              }
+            }
         }
       }
 

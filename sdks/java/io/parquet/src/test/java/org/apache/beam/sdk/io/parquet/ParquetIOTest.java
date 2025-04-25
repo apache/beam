@@ -45,6 +45,7 @@ import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.parquet.ParquetIO.GenericRecordPassthroughFn;
+import org.apache.beam.sdk.io.parquet.ParquetIO.ReaderFormat;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.testing.PAssert;
@@ -152,7 +153,8 @@ public class ParquetIOTest implements Serializable {
   public void testReadFilesWithProtoReaderFlag() {
     // Create a ReadFiles transform with the proto-reader enabled.
     ParquetIO.ReadFiles readFiles = ParquetIO.readFiles(SCHEMA).withProtoReader();
-    assertTrue("Proto reader flag should be enabled", readFiles.getUseProtoReader());
+    assertEquals(
+        "Proto reader flag should be enabled", ReaderFormat.PROTO, readFiles.getReaderFormat());
   }
 
   @Test
@@ -160,7 +162,7 @@ public class ParquetIOTest implements Serializable {
     // Create a ReadFiles transform with proto-reader enabled.
     ParquetIO.ReadFiles readFiles = ParquetIO.readFiles(SCHEMA).withProtoReader();
     DisplayData displayData = DisplayData.from(readFiles);
-    assertThat(displayData, hasDisplayItem("useProtoReader", true));
+    assertThat(displayData, hasDisplayItem("readerFormat", ReaderFormat.PROTO.name()));
   }
 
   @Test
