@@ -187,8 +187,7 @@ class OpenAIEmbeddingsTest(unittest.TestCase):
                     embedding_config))
 
   def test_with_artifact_location(self):  # pylint: disable=line-too-long
-    """Local artifact location test (renamed from test_with_gcs_artifact_location)"""
-    # Use a different local directory instead of GCS
+    """Local artifact location test"""
     secondary_artifact_location = tempfile.mkdtemp(
         prefix='_openai_secondary_test')
 

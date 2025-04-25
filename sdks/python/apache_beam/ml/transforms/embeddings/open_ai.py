@@ -51,7 +51,7 @@ LOGGER = logging.getLogger("OpenAIEmbeddings")
 
 def _retry_on_appropriate_openai_error(exception):  # pylint: disable=line-too-long
   """
-  Retry filter that returns True if a returned error is rate limit (429) or server error (5xx).
+  Retry filter that returns True for rate limit (429) or server (5xx) errors.
 
   Args:
     exception: the returned exception encountered during the request/response
@@ -123,8 +123,8 @@ class _OpenAITextEmbeddingHandler(ModelHandler):
       LOGGER.error("Unexpected exception raised as part of request: %s", e)
       raise
 
-  def batch_elements_kwargs(self) -> dict[str, Any]:  # pylint: disable=line-too-long
-    """Returns kwargs suitable for beam.BatchElements with appropriate batch size."""
+  def batch_elements_kwargs(self) -> dict[str, Any]:
+    """Returns kwargs suitable for beam.BatchElements with appropriate batch size."""  # pylint: disable=line-too-long
     return {'max_batch_size': self.batch_size}
 
   def run_inference(
@@ -188,7 +188,7 @@ class OpenAITextEmbeddings(EmbeddingsManager):
     Text Embeddings are generated for a batch of text using the OpenAI API.
     
     Args:
-      model_name: Name of the OpenAI embedding model (e.g., "text-embedding-3-small") 
+      model_name: Name of the OpenAI embedding model
       columns: The columns where the embeddings will be stored in the output
       api_key: OpenAI API key
       organization: OpenAI organization ID
