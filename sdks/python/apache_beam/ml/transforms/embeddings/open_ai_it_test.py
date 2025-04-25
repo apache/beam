@@ -27,7 +27,7 @@ from apache_beam.ml.transforms.base import MLTransform
 try:
   from sdks.python.apache_beam.ml.transforms.embeddings.open_ai import OpenAITextEmbeddings
 except ImportError:
-  OpenAITextEmbeddings = None  # type: ignore
+  OpenAITextEmbeddings = None
 
 # pylint: disable=ungrouped-imports
 try:
