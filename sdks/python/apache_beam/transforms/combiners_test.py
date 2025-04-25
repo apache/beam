@@ -991,6 +991,7 @@ class CombineGloballyTest(unittest.TestCase):
                 stop_timestamp=time.time() + 4,
                 fire_interval=1,
                 apply_windowing=False,
+                is_bounded=False,
             )
             | beam.Map(lambda x: ('c', 1))
             | beam.WindowInto(

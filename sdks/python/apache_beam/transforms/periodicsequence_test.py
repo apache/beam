@@ -91,7 +91,8 @@ class PeriodicSequenceTest(unittest.TestCase):
     assert is_same_type, error
 
     with TestPipeline() as p:
-      result = p | 'PeriodicImpulse' >> PeriodicImpulse(it, et, interval)
+      result = p | 'PeriodicImpulse' >> PeriodicImpulse(
+          it, et, interval, is_bounded=False)
 
       k = [it + x * interval for x in range(0, int(duration / interval))]
       self.assertEqual(result.is_bounded, False)
