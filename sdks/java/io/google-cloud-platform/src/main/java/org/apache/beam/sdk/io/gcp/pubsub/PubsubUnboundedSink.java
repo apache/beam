@@ -213,7 +213,9 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
       int shard =
           Strings.isNullOrEmpty(orderingKey)
               ? ThreadLocalRandom.current().nextInt(numShards)
-              : Hashing.murmur3_32_fixed().hashString(orderingKey, StandardCharsets.UTF_8).asInt();
+              : Hashing.consistentHash(
+                  Hashing.farmHashFingerprint64().hashString(orderingKey, StandardCharsets.UTF_8),
+                  numShards);
       K key = keyFunction.apply(shard, topic);
       o.output(KV.of(key, OutgoingMessage.of(message, timestampMsSinceEpoch, recordId, topic)));
     }
