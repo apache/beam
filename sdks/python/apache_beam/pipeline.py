@@ -207,9 +207,9 @@ class Pipeline(HasDisplayData):
           'Runner %s is not a PipelineRunner object or the '
           'name of a registered runner.' % runner)
 
-    # Runner can oerride the default runner to be used.
+    # Runner can override the default pickler to be used.
     if (self._options.view_as(SetupOptions).pickle_library == 'default' and
-        runner.default_pickle_library_override() is not None):
+        runner.default_pickle_library_override()):
       logging.info(
           "Runner defaulting to pickling library: %s.",
           runner.default_pickle_library_override())
