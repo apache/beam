@@ -197,13 +197,15 @@ public class PreparePubsubWriteDoFn<InputT> extends DoFn<InputT, PubsubMessage> 
           .add("pubsub", "topic", PubsubClient.topicPathFromPath(topic).getDataCatalogSegments());
       reportedLineage = topic;
     }
-    if (!usesOrderingKey
-        && !Strings.isNullOrEmpty(message.getOrderingKey())
-        && !logOrderingKeyUnconfigured) {
-      LOG.warn(
-          "Encountered Pubsub message with ordering key but this sink was not configured to "
-              + "retain ordering keys, so they will be dropped. Please set #withOrderingKeys().");
-      logOrderingKeyUnconfigured = true;
+    if (!usesOrderingKey && !Strings.isNullOrEmpty(message.getOrderingKey())) {
+      if (!logOrderingKeyUnconfigured) {
+        LOG.warn(
+            "Encountered Pubsub message with ordering key but this sink was not configured to "
+                + "retain ordering keys, so they will be dropped. Please set #withOrderingKeys().");
+
+        logOrderingKeyUnconfigured = true;
+      }
+      message = message.withOrderingKey(null);
     }
     try {
       validatePubsubMessageSize(message, maxPublishBatchSize);
