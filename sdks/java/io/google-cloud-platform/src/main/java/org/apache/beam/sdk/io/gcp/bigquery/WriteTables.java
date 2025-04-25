@@ -76,10 +76,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
-import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -110,17 +108,13 @@ class WriteTables<DestinationT extends @NonNull Object>
     static final ResultCoder INSTANCE = new ResultCoder();
 
     @Override
-    public void encode(Result value, @UnknownKeyFor @NonNull @Initialized OutputStream outStream)
-        throws @UnknownKeyFor @NonNull @Initialized CoderException, @UnknownKeyFor @NonNull
-            @Initialized IOException {
+    public void encode(Result value, OutputStream outStream) throws CoderException, IOException {
       StringUtf8Coder.of().encode(value.getTableName(), outStream);
       BooleanCoder.of().encode(value.isFirstPane(), outStream);
     }
 
     @Override
-    public Result decode(@UnknownKeyFor @NonNull @Initialized InputStream inStream)
-        throws @UnknownKeyFor @NonNull @Initialized CoderException, @UnknownKeyFor @NonNull
-            @Initialized IOException {
+    public Result decode(InputStream inStream) throws CoderException, IOException {
       return new AutoValue_WriteTables_Result(
           StringUtf8Coder.of().decode(inStream), BooleanCoder.of().decode(inStream));
     }

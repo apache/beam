@@ -24,12 +24,8 @@ import com.solacesystems.jcsmp.StaleSessionException;
 import java.io.IOException;
 import org.apache.beam.sdk.io.solace.RetryCallableManager;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class SolaceMessageReceiver implements MessageReceiver {
-  private static final Logger LOG = LoggerFactory.getLogger(SolaceMessageReceiver.class);
-
   public static final int DEFAULT_ADVANCE_TIMEOUT_IN_MILLIS = 100;
   private final FlowReceiver flowReceiver;
   private final RetryCallableManager retryCallableManager = RetryCallableManager.create();
@@ -53,18 +49,13 @@ public class SolaceMessageReceiver implements MessageReceiver {
   }
 
   @Override
-  public boolean isClosed() {
-    return flowReceiver == null || flowReceiver.isClosed();
-  }
-
-  @Override
   public BytesXMLMessage receive() throws IOException {
     try {
       return flowReceiver.receive(DEFAULT_ADVANCE_TIMEOUT_IN_MILLIS);
     } catch (StaleSessionException e) {
-      LOG.warn("SolaceIO: Caught StaleSessionException, restarting the FlowReceiver.");
       startFlowReceiver();
-      throw new IOException(e);
+      throw new IOException(
+          "SolaceIO: Caught StaleSessionException, restarting the FlowReceiver.", e);
     } catch (JCSMPException e) {
       throw new IOException(e);
     }
@@ -72,8 +63,6 @@ public class SolaceMessageReceiver implements MessageReceiver {
 
   @Override
   public void close() {
-    if (!isClosed()) {
-      this.flowReceiver.close();
-    }
+    flowReceiver.close();
   }
 }

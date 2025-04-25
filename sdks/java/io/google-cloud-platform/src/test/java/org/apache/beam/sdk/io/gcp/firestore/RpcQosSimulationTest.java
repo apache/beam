@@ -236,7 +236,7 @@ public final class RpcQosSimulationTest {
     assertTrue(
         msg(description, t, "awaitSafeToProceed was false, expected true"),
         attempt.awaitSafeToProceed(t));
-    FlushBufferImpl<Object, Element<Object>> buffer = attempt.newFlushBuffer(t);
+    FlushBufferImpl<Element<Object>> buffer = attempt.newFlushBuffer(t);
     assertEquals(
         msg(description, t, "unexpected batchMaxCount"),
         expectedBatchMaxCount,

@@ -21,6 +21,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeTrue;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
@@ -59,6 +60,8 @@ import org.junit.Test;
 public class TestSamzaRunnerWithTransformMetrics {
   @Test
   public void testSamzaRunnerWithDefaultMetrics() {
+    // TODO(https://github.com/apache/beam/issues/32208)
+    assumeTrue(System.getProperty("java.version").startsWith("1."));
     SamzaPipelineOptions options = PipelineOptionsFactory.create().as(SamzaPipelineOptions.class);
     InMemoryMetricsReporter inMemoryMetricsReporter = new InMemoryMetricsReporter();
     options.setMetricsReporters(ImmutableList.of(inMemoryMetricsReporter));

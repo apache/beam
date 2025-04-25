@@ -90,7 +90,6 @@ def portableValidatesRunnerTask(String name, boolean docker) {
             excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
             excludeCategories 'org.apache.beam.sdk.testing.UsesFailureMessage'
             excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
-            excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
             excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
             excludeCategories 'org.apache.beam.sdk.testing.UsesMultimapState'
             excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
@@ -127,6 +126,8 @@ def portableValidatesRunnerTask(String name, boolean docker) {
             excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testParDoShiftTimestampInvalid'
             // TODO(https://github.com/apache/beam/issues/21144)
             excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testParDoShiftTimestampInvalidZeroAllowed'
+            // TODO(https://github.com/apache/beam/issues/32520)
+            excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionIn*Stateful'
             // TODO(https://github.com/apache/beam/issues/21145)
             excludeTestsMatching 'org.apache.beam.sdk.transforms.DeduplicateTest.testEventTime'
             // TODO(https://github.com/apache/beam/issues/21146)

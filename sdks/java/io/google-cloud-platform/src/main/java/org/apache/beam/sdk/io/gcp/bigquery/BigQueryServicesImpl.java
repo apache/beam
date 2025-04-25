@@ -76,6 +76,7 @@ import com.google.cloud.bigquery.storage.v1.FinalizeWriteStreamRequest;
 import com.google.cloud.bigquery.storage.v1.FinalizeWriteStreamResponse;
 import com.google.cloud.bigquery.storage.v1.FlushRowsRequest;
 import com.google.cloud.bigquery.storage.v1.FlushRowsResponse;
+import com.google.cloud.bigquery.storage.v1.GetWriteStreamRequest;
 import com.google.cloud.bigquery.storage.v1.ProtoRows;
 import com.google.cloud.bigquery.storage.v1.ProtoSchema;
 import com.google.cloud.bigquery.storage.v1.ReadRowsRequest;
@@ -86,6 +87,7 @@ import com.google.cloud.bigquery.storage.v1.SplitReadStreamResponse;
 import com.google.cloud.bigquery.storage.v1.StreamWriter;
 import com.google.cloud.bigquery.storage.v1.TableSchema;
 import com.google.cloud.bigquery.storage.v1.WriteStream;
+import com.google.cloud.bigquery.storage.v1.WriteStreamView;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.ChainingHttpRequestInitializer;
 import com.google.protobuf.DescriptorProtos;
@@ -503,13 +505,22 @@ public class BigQueryServicesImpl implements BigQueryServices {
           new Job()
               .setJobReference(jobRef)
               .setConfiguration(new JobConfiguration().setQuery(queryConfig).setDryRun(true));
+      // Use a custom backoff to avoid blocking job submission on being able to do a dry run.
+      int maxRetries = 5;
+      BackOff backoff =
+          BackOffAdapter.toGcpBackOff(
+              FluentBackoff.DEFAULT
+                  .withMaxRetries(maxRetries)
+                  .withInitialBackoff(INITIAL_JOB_STATUS_POLL_BACKOFF)
+                  .withMaxBackoff(Duration.standardMinutes(1))
+                  .backoff());
       return executeWithRetries(
               client.jobs().insert(projectId, job).setPrettyPrint(false),
               String.format(
                   "Unable to dry run query: %s, aborting after %d retries.",
-                  queryConfig, MAX_RPC_RETRIES),
+                  queryConfig, maxRetries),
               Sleeper.DEFAULT,
-              createDefaultBackoff(),
+              backoff,
               ALWAYS_RETRY)
           .getStatistics();
     }
@@ -1418,8 +1429,15 @@ public class BigQueryServicesImpl implements BigQueryServices {
     }
 
     @Override
-    public @Nullable WriteStream getWriteStream(String writeStream) {
-      return newWriteClient.getWriteStream(writeStream);
+    public @Nullable TableSchema getWriteStreamSchema(String writeStream) {
+      @Nullable
+      WriteStream stream =
+          newWriteClient.getWriteStream(
+              GetWriteStreamRequest.newBuilder()
+                  .setView(WriteStreamView.FULL)
+                  .setName(writeStream)
+                  .build());
+      return (stream != null && stream.hasTableSchema()) ? stream.getTableSchema() : null;
     }
 
     @Override

@@ -88,8 +88,7 @@ public class ManagedSchemaTransformProviderTest {
             .withFieldValue("extra_integer", 123)
             .build();
     Row configRow =
-        ManagedSchemaTransformProvider.getRowConfig(
-            config, new TestSchemaTransformProvider().configurationSchema());
+        ManagedSchemaTransformProvider.getRowConfig(config, TestSchemaTransformProvider.SCHEMA);
 
     assertEquals(expectedRow, configRow);
   }

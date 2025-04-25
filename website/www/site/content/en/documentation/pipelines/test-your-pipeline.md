@@ -22,9 +22,9 @@ Testing your pipeline is a particularly important step in developing an effectiv
 
 Before running your pipeline on the runner of your choice, unit testing your pipeline code locally is often the best way to identify and fix bugs in your pipeline code. Unit testing your pipeline locally also allows you to use your familiar/favorite local debugging tools.
 
-You can use [DirectRunner](/documentation/runners/direct), a local runner helpful for testing and local development.
+You can use [DirectRunner](/documentation/runners/direct), or [PrismRunner](/documentation/runners/prism). Both are local runners helpful for testing and local development.
 
-After you test your pipeline using the `DirectRunner`, you can use the runner of your choice to test on a small scale. For example, use the Flink runner with a local or remote Flink cluster.
+After you test your pipeline locally, you can use the runner of your choice to test on a small scale. For example, use the Flink runner with a local or remote Flink cluster.
 
 The Beam SDKs provide a number of ways to unit test your pipeline code, from the lowest to the highest levels. From the lowest to the highest level, these are:
 

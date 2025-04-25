@@ -47,6 +47,12 @@ class RedistributeByKeyOverrideFactory<K, V>
     extends SingleInputOutputOverrideFactory<
         PCollection<KV<K, V>>, PCollection<KV<K, V>>, RedistributeByKey<K, V>> {
 
+  private final boolean usesAtLeastOnceStreamingMode;
+
+  public RedistributeByKeyOverrideFactory(boolean usesAtLeastOnceStreamingMode) {
+    this.usesAtLeastOnceStreamingMode = usesAtLeastOnceStreamingMode;
+  }
+
   @Override
   public PTransformReplacement<PCollection<KV<K, V>>, PCollection<KV<K, V>>>
       getReplacementTransform(
@@ -54,17 +60,24 @@ class RedistributeByKeyOverrideFactory<K, V>
               transform) {
     return PTransformOverrideFactory.PTransformReplacement.of(
         PTransformReplacements.getSingletonMainInput(transform),
-        new DataflowRedistributeByKey<>(transform.getTransform()));
+        new DataflowRedistributeByKey<>(transform.getTransform(), usesAtLeastOnceStreamingMode));
   }
 
   /** Specialized implementation of {@link RedistributeByKey} for Dataflow pipelines. */
-  private static class DataflowRedistributeByKey<K, V>
+  public static class DataflowRedistributeByKey<K, V>
       extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>> {
 
     private final RedistributeByKey<K, V> originalTransform;
+    private final boolean usesAtLeastOnceStreamingMode;
 
-    private DataflowRedistributeByKey(RedistributeByKey<K, V> originalTransform) {
+    private DataflowRedistributeByKey(
+        RedistributeByKey<K, V> originalTransform, boolean usesAtLeastOnceStreamingMode) {
       this.originalTransform = originalTransform;
+      this.usesAtLeastOnceStreamingMode = usesAtLeastOnceStreamingMode;
+    }
+
+    public boolean getAllowDuplicates() {
+      return this.usesAtLeastOnceStreamingMode || this.originalTransform.getAllowDuplicates();
     }
 
     @Override
@@ -84,7 +97,7 @@ class RedistributeByKeyOverrideFactory<K, V>
               .apply("ReifyOriginalMetadata", Reify.windowsInValue());
 
       PCollection<KV<K, Iterable<ValueInSingleWindow<V>>>> grouped;
-      if (originalTransform.getAllowDuplicates()) {
+      if (getAllowDuplicates()) {
         grouped = reified.apply(DataflowGroupByKey.createWithAllowDuplicates());
       } else {
         grouped = reified.apply(DataflowGroupByKey.create());

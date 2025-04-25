@@ -34,7 +34,7 @@ import (
 )
 
 const (
-	debeziumImage = "debezium/example-postgres:latest"
+	debeziumImage = "quay.io/debezium/example-postgres:latest"
 	debeziumPort  = "5432/tcp"
 	maxRetries    = 5
 )

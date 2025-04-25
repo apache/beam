@@ -26,7 +26,6 @@ import org.apache.beam.examples.complete.game.UserScore.ParseEventFn;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -36,7 +35,6 @@ import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -114,7 +112,6 @@ public class UserScoreTest implements Serializable {
 
   /** Tests ExtractAndSumScore("user"). */
   @Test
-  @Category(ValidatesRunner.class)
   public void testUserScoreSums() throws Exception {
 
     PCollection<String> input = p.apply(Create.of(GAME_EVENTS));
@@ -133,7 +130,6 @@ public class UserScoreTest implements Serializable {
 
   /** Tests ExtractAndSumScore("team"). */
   @Test
-  @Category(ValidatesRunner.class)
   public void testTeamScoreSums() throws Exception {
 
     PCollection<String> input = p.apply(Create.of(GAME_EVENTS));
@@ -152,7 +148,6 @@ public class UserScoreTest implements Serializable {
 
   /** Test that bad input data is dropped appropriately. */
   @Test
-  @Category(ValidatesRunner.class)
   public void testUserScoresBadInput() throws Exception {
 
     PCollection<String> input = p.apply(Create.of(GAME_EVENTS2).withCoder(StringUtf8Coder.of()));

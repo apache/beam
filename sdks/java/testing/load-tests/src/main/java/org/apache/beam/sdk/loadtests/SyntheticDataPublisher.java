@@ -20,7 +20,6 @@ package org.apache.beam.sdk.loadtests;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 
-import com.amazonaws.regions.Regions;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -30,10 +29,11 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.io.aws2.common.ClientConfiguration;
+import org.apache.beam.sdk.io.aws2.kinesis.KinesisIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
-import org.apache.beam.sdk.io.kinesis.KinesisIO;
 import org.apache.beam.sdk.io.synthetic.SyntheticBoundedSource;
 import org.apache.beam.sdk.io.synthetic.SyntheticOptions;
 import org.apache.beam.sdk.io.synthetic.SyntheticSourceOptions;
@@ -47,6 +47,9 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.kafka.common.serialization.StringSerializer;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.regions.Region;
 
 /**
  * Pipeline that generates synthetic data and publishes it in a PubSub or Kafka topic or in a
@@ -180,17 +183,21 @@ public class SyntheticDataPublisher {
   }
 
   private static void writeToKinesis(PCollection<KV<byte[], byte[]>> collection) {
+    AwsBasicCredentials creds =
+        AwsBasicCredentials.create(options.getKinesisAwsKey(), options.getKinesisAwsSecret());
+    StaticCredentialsProvider provider = StaticCredentialsProvider.create(creds);
     collection
         .apply("Map to byte array for Kinesis", MapElements.via(new MapKVToByteArray()))
         .apply(
             "Write to Kinesis",
-            KinesisIO.write()
+            KinesisIO.<byte[]>write()
                 .withStreamName(options.getKinesisStreamName())
-                .withPartitionKey(options.getKinesisPartitionKey())
-                .withAWSClientsProvider(
-                    options.getKinesisAwsKey(),
-                    options.getKinesisAwsSecret(),
-                    Regions.fromName(options.getKinesisAwsRegion())));
+                .withPartitioner(p -> options.getKinesisPartitionKey())
+                .withClientConfiguration(
+                    ClientConfiguration.builder()
+                        .credentialsProvider(provider)
+                        .region(Region.of(options.getKinesisAwsRegion()))
+                        .build()));
   }
 
   private static class MapKVToString extends SimpleFunction<KV<byte[], byte[]>, String> {

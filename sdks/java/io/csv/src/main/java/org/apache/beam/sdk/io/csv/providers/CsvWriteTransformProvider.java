@@ -39,6 +39,7 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.commons.csv.CSVFormat;
 
@@ -134,10 +135,18 @@ public class CsvWriteTransformProvider
       if (configuration.getDelimiter() != null) {
         format = format.withDelimiter(configuration.getDelimiter().charAt(0));
       }
-      WriteFilesResult<?> result =
-          input
-              .get(INPUT_ROWS_TAG)
-              .apply(CsvIO.writeRows(configuration.getPath(), format).withSuffix(""));
+
+      // Preserve input windowing
+      CsvIO.Write<Row> writeTransform =
+          CsvIO.writeRows(configuration.getPath(), format).withSuffix("");
+      if (!input
+          .get(INPUT_ROWS_TAG)
+          .getWindowingStrategy()
+          .equals(WindowingStrategy.globalDefault())) {
+        writeTransform = writeTransform.withWindowedWrites();
+      }
+
+      WriteFilesResult<?> result = input.get(INPUT_ROWS_TAG).apply(writeTransform);
       Schema outputSchema = Schema.of(Field.of("filename", FieldType.STRING));
       return PCollectionRowTuple.of(
           WRITE_RESULTS,

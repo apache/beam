@@ -72,7 +72,8 @@ public abstract class UnprocessedEvent<EventT> {
     duplicate,
     buffered,
     sequence_id_outside_valid_range,
-    exception_thrown
+    exception_thrown,
+    before_initial_sequence
   };
 
   public abstract EventT getEvent();

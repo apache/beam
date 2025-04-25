@@ -117,7 +117,7 @@ public abstract class GCPSecretSessionServiceFactory extends SessionServiceFacto
 
   @Override
   public SessionService create() {
-    String password = null;
+    String password;
     try {
       password = retrieveSecret();
     } catch (IOException e) {

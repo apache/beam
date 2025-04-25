@@ -137,6 +137,7 @@ class KafkaIOReadImplementationCompatibility {
         return false;
       }
     },
+    OFFSET_DEDUPLICATION(LEGACY),
     ;
 
     private final @NonNull ImmutableSet<KafkaIOReadImplementation> supportedImplementations;

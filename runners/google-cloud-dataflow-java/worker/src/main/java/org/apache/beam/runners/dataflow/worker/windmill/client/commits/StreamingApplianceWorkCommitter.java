@@ -42,7 +42,6 @@ import org.slf4j.LoggerFactory;
 public final class StreamingApplianceWorkCommitter implements WorkCommitter {
   private static final Logger LOG = LoggerFactory.getLogger(StreamingApplianceWorkCommitter.class);
   private static final long TARGET_COMMIT_BUNDLE_BYTES = 32 << 20;
-  private static final int MAX_COMMIT_QUEUE_BYTES = 500 << 20; // 500MB
 
   private final Consumer<CommitWorkRequest> commitWorkFn;
   private final WeightedBoundedQueue<Commit> commitQueue;
@@ -53,11 +52,9 @@ public final class StreamingApplianceWorkCommitter implements WorkCommitter {
   private StreamingApplianceWorkCommitter(
       Consumer<CommitWorkRequest> commitWorkFn, Consumer<CompleteCommit> onCommitComplete) {
     this.commitWorkFn = commitWorkFn;
-    this.commitQueue =
-        WeightedBoundedQueue.create(
-            MAX_COMMIT_QUEUE_BYTES, commit -> Math.min(MAX_COMMIT_QUEUE_BYTES, commit.getSize()));
+    this.commitQueue = WeightedBoundedQueue.create(Commits.maxCommitByteSemaphore());
     this.commitWorkers =
-        Executors.newSingleThreadScheduledExecutor(
+        Executors.newSingleThreadExecutor(
             new ThreadFactoryBuilder()
                 .setDaemon(true)
                 .setPriority(Thread.MAX_PRIORITY)
@@ -73,10 +70,9 @@ public final class StreamingApplianceWorkCommitter implements WorkCommitter {
   }
 
   @Override
-  @SuppressWarnings("FutureReturnValueIgnored")
   public void start() {
     if (!commitWorkers.isShutdown()) {
-      commitWorkers.submit(this::commitLoop);
+      commitWorkers.execute(this::commitLoop);
     }
   }
 

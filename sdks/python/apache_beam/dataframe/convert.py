@@ -17,11 +17,9 @@
 import inspect
 import warnings
 import weakref
+from collections.abc import Iterable
 from typing import Any
-from typing import Dict
-from typing import Iterable
 from typing import Optional
-from typing import Tuple
 from typing import Union
 
 import pandas as pd
@@ -172,7 +170,7 @@ def to_pcollection(
     always_return_tuple=False,
     yield_elements='schemas',
     include_indexes=False,
-    pipeline=None) -> Union[pvalue.PCollection, Tuple[pvalue.PCollection, ...]]:
+    pipeline=None) -> Union[pvalue.PCollection, tuple[pvalue.PCollection, ...]]:
   """Converts one or more deferred dataframe-like objects back to a PCollection.
 
   This method creates and applies the actual Beam operations that compute
@@ -252,7 +250,7 @@ def to_pcollection(
       df for df in dataframes if df._expr._id not in TO_PCOLLECTION_CACHE
   ]
   if len(new_dataframes):
-    new_results: Dict[Any, pvalue.PCollection] = {
+    new_results: dict[Any, pvalue.PCollection] = {
         p: extract_input(p)
         for p in placeholders
     } | label >> transforms._DataframeExpressionsTransform(

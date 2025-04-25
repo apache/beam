@@ -40,8 +40,7 @@ func init() {
 // Execute runs the given pipeline on prism. If no endpoint is set, then an in process instance
 // is started, and the job run against that.
 //
-// At present, loopback mode is forced, though this will change once prism is able to
-// use SDK containers.
+// If an environment type isn't set, then loopback mode is forced and started up.
 func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error) {
 	if *jobopts.Endpoint == "" {
 		// One hasn't been selected, so lets start one up and set the address.
@@ -50,7 +49,8 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 		s := jobservices.NewServer(0, internal.RunPipeline)
 		*jobopts.Endpoint = s.Endpoint()
 		go s.Serve()
-		if !jobopts.IsLoopback() {
+		// If the environmentType isn't set, use loopback instead.
+		if *jobopts.EnvironmentType == "" {
 			*jobopts.EnvironmentType = "loopback"
 		}
 	}

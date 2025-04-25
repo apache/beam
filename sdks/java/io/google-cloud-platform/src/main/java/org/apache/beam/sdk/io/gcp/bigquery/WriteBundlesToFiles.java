@@ -297,19 +297,15 @@ class WriteBundlesToFiles<DestinationT extends @NonNull Object, ElementT>
     }
 
     for (Map.Entry<DestinationT, BigQueryRowWriter<ElementT>> entry : writers.entrySet()) {
-      try {
-        DestinationT destination = entry.getKey();
-        BigQueryRowWriter<ElementT> writer = entry.getValue();
-        BigQueryRowWriter.Result result = writer.getResult();
-        BoundedWindow window = writerWindows.get(destination);
-        Preconditions.checkStateNotNull(window);
-        c.output(
-            new Result<>(result.resourceId.toString(), result.byteSize, destination),
-            window.maxTimestamp(),
-            window);
-      } catch (Exception e) {
-        exceptionList.add(e);
-      }
+      DestinationT destination = entry.getKey();
+      BigQueryRowWriter<ElementT> writer = entry.getValue();
+      BigQueryRowWriter.Result result = writer.getResult();
+      BoundedWindow window = writerWindows.get(destination);
+      Preconditions.checkStateNotNull(window);
+      c.output(
+          new Result<>(result.resourceId.toString(), result.byteSize, destination),
+          window.maxTimestamp(),
+          window);
     }
     writers.clear();
   }

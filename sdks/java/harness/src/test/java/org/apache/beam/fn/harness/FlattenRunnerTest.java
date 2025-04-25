@@ -90,8 +90,11 @@ public class FlattenRunnerTest {
     PTransformRunnerFactoryTestContext context =
         PTransformRunnerFactoryTestContext.builder(pTransformId, pTransform)
             .processBundleInstructionId("57")
-            .pCollections(pCollectionMap)
-            .coders(Collections.singletonMap("coder-id", coder))
+            .components(
+                RunnerApi.Components.newBuilder()
+                    .putAllPcollections(pCollectionMap)
+                    .putAllCoders(Collections.singletonMap("coder-id", coder))
+                    .build())
             .build();
     List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
     context.addPCollectionConsumer(
@@ -150,8 +153,11 @@ public class FlattenRunnerTest {
     PTransformRunnerFactoryTestContext context =
         PTransformRunnerFactoryTestContext.builder(pTransformId, pTransform)
             .processBundleInstructionId("57")
-            .pCollections(Collections.singletonMap("inputATarget", pCollection))
-            .coders(Collections.singletonMap("coder-id", coder))
+            .components(
+                RunnerApi.Components.newBuilder()
+                    .putAllPcollections(Collections.singletonMap("inputATarget", pCollection))
+                    .putAllCoders(Collections.singletonMap("coder-id", coder))
+                    .build())
             .build();
     List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
     context.addPCollectionConsumer(

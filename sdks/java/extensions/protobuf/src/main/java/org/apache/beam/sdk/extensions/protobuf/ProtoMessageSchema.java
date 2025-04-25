@@ -43,12 +43,9 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-@SuppressWarnings({
-  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
-  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
-})
 public class ProtoMessageSchema extends GetterBasedSchemaProviderV2 {
 
   private static final class ProtoClassFieldValueTypeSupplier implements FieldValueTypeSupplier {
@@ -72,7 +69,8 @@ public class ProtoMessageSchema extends GetterBasedSchemaProviderV2 {
             Method method = getProtoGetter(methods, oneOfField.getName(), oneOfField.getType());
             oneOfTypes.put(
                 oneOfField.getName(),
-                FieldValueTypeInformation.forGetter(method, i).withName(field.getName()));
+                FieldValueTypeInformation.forGetter(typeDescriptor, method, i)
+                    .withName(field.getName()));
           }
           // Add an entry that encapsulates information about all possible getters.
           types.add(
@@ -82,7 +80,9 @@ public class ProtoMessageSchema extends GetterBasedSchemaProviderV2 {
         } else {
           // This is a simple field. Add the getter.
           Method method = getProtoGetter(methods, field.getName(), field.getType());
-          types.add(FieldValueTypeInformation.forGetter(method, i).withName(field.getName()));
+          types.add(
+              FieldValueTypeInformation.forGetter(typeDescriptor, method, i)
+                  .withName(field.getName()));
         }
       }
       return types;
@@ -96,8 +96,8 @@ public class ProtoMessageSchema extends GetterBasedSchemaProviderV2 {
   }
 
   @Override
-  public List<FieldValueGetter> fieldValueGetters(
-      TypeDescriptor<?> targetTypeDescriptor, Schema schema) {
+  public <T> List<FieldValueGetter<@NonNull T, Object>> fieldValueGetters(
+      TypeDescriptor<T> targetTypeDescriptor, Schema schema) {
     return ProtoByteBuddyUtils.getGetters(
         targetTypeDescriptor.getRawType(),
         schema,
@@ -117,7 +117,7 @@ public class ProtoMessageSchema extends GetterBasedSchemaProviderV2 {
       TypeDescriptor<?> targetTypeDescriptor, Schema schema) {
     SchemaUserTypeCreator creator =
         ProtoByteBuddyUtils.getBuilderCreator(
-            targetTypeDescriptor.getRawType(), schema, new ProtoClassFieldValueTypeSupplier());
+            targetTypeDescriptor, schema, new ProtoClassFieldValueTypeSupplier());
     if (creator == null) {
       throw new RuntimeException("Cannot create creator for " + targetTypeDescriptor);
     }
@@ -152,7 +152,8 @@ public class ProtoMessageSchema extends GetterBasedSchemaProviderV2 {
   private <T> void checkForDynamicType(TypeDescriptor<T> typeDescriptor) {
     if (typeDescriptor.getRawType().equals(DynamicMessage.class)) {
       throw new RuntimeException(
-          "DynamicMessage is not allowed for the standard ProtoSchemaProvider, use ProtoDynamicMessageSchema  instead.");
+          "DynamicMessage is not allowed for the standard ProtoSchemaProvider, use"
+              + " ProtoDynamicMessageSchema  instead.");
     }
   }
 

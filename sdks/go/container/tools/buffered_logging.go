@@ -18,13 +18,15 @@ package tools
 import (
 	"context"
 	"log"
-	"math"
 	"os"
 	"strings"
 	"time"
 )
 
-const initialLogSize int = 255
+const (
+	initialLogSize       int           = 255
+	defaultFlushInterval time.Duration = 15 * time.Second
+)
 
 // BufferedLogger is a wrapper around the FnAPI logging client meant to be used
 // in place of stdout and stderr in bootloader subprocesses. Not intended for
@@ -41,7 +43,7 @@ type BufferedLogger struct {
 
 // NewBufferedLogger returns a new BufferedLogger type by reference.
 func NewBufferedLogger(logger *Logger) *BufferedLogger {
-	return &BufferedLogger{logger: logger, lastFlush: time.Now(), flushInterval: time.Duration(math.MaxInt64), periodicFlushContext: context.Background(), now: time.Now}
+	return &BufferedLogger{logger: logger, lastFlush: time.Now(), flushInterval: defaultFlushInterval, periodicFlushContext: context.Background(), now: time.Now}
 }
 
 // NewBufferedLoggerWithFlushInterval returns a new BufferedLogger type by reference. This type will

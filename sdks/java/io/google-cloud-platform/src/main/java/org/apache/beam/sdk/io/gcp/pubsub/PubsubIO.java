@@ -49,6 +49,7 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.OutgoingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.metrics.Lineage;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -859,6 +860,8 @@ public class PubsubIO {
 
     abstract ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 
+    abstract boolean getValidate();
+
     abstract Builder<T> toBuilder();
 
     static <T> Builder<T> newBuilder(SerializableFunction<PubsubMessage, T> parseFn) {
@@ -870,6 +873,7 @@ public class PubsubIO {
       builder.setNeedsOrderingKey(false);
       builder.setBadRecordRouter(BadRecordRouter.THROWING_ROUTER);
       builder.setBadRecordErrorHandler(new DefaultErrorHandler<>());
+      builder.setValidate(false);
       return builder;
     }
 
@@ -916,6 +920,8 @@ public class PubsubIO {
 
       abstract Builder<T> setBadRecordErrorHandler(
           ErrorHandler<BadRecord, ?> badRecordErrorHandler);
+
+      abstract Builder<T> setValidate(boolean validation);
 
       abstract Read<T> build();
     }
@@ -1096,6 +1102,11 @@ public class PubsubIO {
           .build();
     }
 
+    /** Enable validation of the PubSub Read. */
+    public Read<T> withValidation() {
+      return toBuilder().setValidate(true).build();
+    }
+
     @VisibleForTesting
     /**
      * Set's the internal Clock.
@@ -1177,14 +1188,15 @@ public class PubsubIO {
                 if (topicPath != null) {
                   TopicPath topic = topicPath.get();
                   if (topic != null) {
-                    Lineage.getSources().add("pubsub", "topic", topic.getDataCatalogSegments());
+                    Lineage.getSources()
+                        .add("pubsub", "topic", topic.getDataCatalogSegments(), null);
                   }
                 }
                 if (subscriptionPath != null) {
                   SubscriptionPath sub = subscriptionPath.get();
                   if (sub != null) {
                     Lineage.getSources()
-                        .add("pubsub", "subscription", sub.getDataCatalogSegments());
+                        .add("pubsub", "subscription", sub.getDataCatalogSegments(), null);
                   }
                 }
                 reportedMetrics = true;
@@ -1259,6 +1271,35 @@ public class PubsubIO {
         }
       }
       return read.setCoder(getCoder());
+    }
+
+    @Override
+    public void validate(PipelineOptions options) {
+      if (!getValidate()) {
+        return;
+      }
+
+      PubsubOptions psOptions = options.as(PubsubOptions.class);
+
+      // Validate the existence of the topic.
+      if (getTopicProvider() != null) {
+        PubsubTopic topic = getTopicProvider().get();
+        boolean topicExists = true;
+        try (PubsubClient pubsubClient =
+            getPubsubClientFactory()
+                .newClient(getTimestampAttribute(), getIdAttribute(), psOptions)) {
+          topicExists =
+              pubsubClient.isTopicExists(
+                  PubsubClient.topicPathFromName(topic.project, topic.topic));
+        } catch (Exception e) {
+          throw new RuntimeException(e);
+        }
+
+        if (!topicExists) {
+          throw new IllegalArgumentException(
+              String.format("Pubsub topic '%s' does not exist.", topic));
+        }
+      }
     }
 
     @Override
@@ -1342,6 +1383,8 @@ public class PubsubIO {
 
     abstract ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 
+    abstract boolean getValidate();
+
     abstract Builder<T> toBuilder();
 
     static <T> Builder<T> newBuilder(
@@ -1352,6 +1395,7 @@ public class PubsubIO {
       builder.setBadRecordRouter(BadRecordRouter.THROWING_ROUTER);
       builder.setBadRecordErrorHandler(new DefaultErrorHandler<>());
       builder.setPublishWithOrderingKey(false);
+      builder.setValidate(false);
       return builder;
     }
 
@@ -1390,6 +1434,8 @@ public class PubsubIO {
       abstract Builder<T> setBadRecordErrorHandler(
           ErrorHandler<BadRecord, ?> badRecordErrorHandler);
 
+      abstract Builder<T> setValidate(boolean validation);
+
       abstract Write<T> build();
     }
 
@@ -1400,16 +1446,26 @@ public class PubsubIO {
      * {@code topic} string.
      */
     public Write<T> to(String topic) {
+      ValueProvider<String> topicProvider = StaticValueProvider.of(topic);
+      validateTopic(topicProvider);
       return to(StaticValueProvider.of(topic));
     }
 
     /** Like {@code topic()} but with a {@link ValueProvider}. */
     public Write<T> to(ValueProvider<String> topic) {
+      validateTopic(topic);
       return toBuilder()
           .setTopicProvider(NestedValueProvider.of(topic, PubsubTopic::fromPath))
           .setTopicFunction(null)
           .setDynamicDestinations(false)
           .build();
+    }
+
+    /** Handles validation of {@code topic}. */
+    private static void validateTopic(ValueProvider<String> topic) {
+      if (topic.isAccessible()) {
+        PubsubTopic.fromPath(topic.get());
+      }
     }
 
     /**
@@ -1514,6 +1570,11 @@ public class PubsubIO {
           .build();
     }
 
+    /** Enable validation of the PubSub Write. */
+    public Write<T> withValidation() {
+      return toBuilder().setValidate(true).build();
+    }
+
     @Override
     public PDone expand(PCollection<T> input) {
       if (getTopicProvider() == null && !getDynamicDestinations()) {
@@ -1587,6 +1648,35 @@ public class PubsubIO {
                   getPubsubRootUrl()));
       }
       throw new RuntimeException(); // cases are exhaustive.
+    }
+
+    @Override
+    public void validate(PipelineOptions options) {
+      if (!getValidate()) {
+        return;
+      }
+
+      PubsubOptions psOptions = options.as(PubsubOptions.class);
+
+      // Validate the existence of the topic.
+      if (getTopicProvider() != null) {
+        PubsubTopic topic = getTopicProvider().get();
+        boolean topicExists = true;
+        try (PubsubClient pubsubClient =
+            getPubsubClientFactory()
+                .newClient(getTimestampAttribute(), getIdAttribute(), psOptions)) {
+          topicExists =
+              pubsubClient.isTopicExists(
+                  PubsubClient.topicPathFromName(topic.project, topic.topic));
+        } catch (Exception e) {
+          throw new RuntimeException(e);
+        }
+
+        if (!topicExists) {
+          throw new IllegalArgumentException(
+              String.format("Pubsub topic '%s' does not exist.", topic));
+        }
+      }
     }
 
     @Override

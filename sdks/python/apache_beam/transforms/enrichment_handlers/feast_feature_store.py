@@ -16,11 +16,10 @@
 #
 import logging
 import tempfile
+from collections.abc import Callable
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
-from typing import Callable
-from typing import List
-from typing import Mapping
 from typing import Optional
 
 import apache_beam as beam
@@ -95,7 +94,7 @@ class FeastFeatureStoreEnrichmentHandler(EnrichmentSourceHandler[beam.Row,
   def __init__(
       self,
       feature_store_yaml_path: str,
-      feature_names: Optional[List[str]] = None,
+      feature_names: Optional[list[str]] = None,
       feature_service_name: Optional[str] = "",
       full_feature_names: Optional[bool] = False,
       entity_id: str = "",

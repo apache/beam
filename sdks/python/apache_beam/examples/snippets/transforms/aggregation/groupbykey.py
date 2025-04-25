@@ -40,9 +40,9 @@ def groupbykey(test=None):
   import apache_beam as beam
 
   with beam.Pipeline() as pipeline:
-    produce_counts = (
+    produce_per_season = (
         pipeline
-        | 'Create produce counts' >> beam.Create([
+        | 'Create produce list' >> beam.Create([
             ('spring', '🍓'),
             ('spring', '🥕'),
             ('spring', '🍆'),
@@ -54,12 +54,12 @@ def groupbykey(test=None):
             ('fall', '🍅'),
             ('winter', '🍆'),
         ])
-        | 'Group counts per produce' >> beam.GroupByKey()
+        | 'Group produce per season' >> beam.GroupByKey()
         | beam.MapTuple(lambda k, vs: (k, sorted(vs)))  # sort and format
         | beam.Map(print))
     # [END groupbykey]
     if test:
-      test(produce_counts)
+      test(produce_per_season)
 
 
 if __name__ == '__main__':

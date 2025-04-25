@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.spark.translation.streaming;
 
-import static org.apache.beam.runners.spark.translation.TranslationUtils.rejectStateAndTimers;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
@@ -44,6 +43,7 @@ import org.apache.beam.runners.spark.translation.Dataset;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
 import org.apache.beam.runners.spark.translation.GroupCombineFunctions;
 import org.apache.beam.runners.spark.translation.MultiDoFnFunction;
+import org.apache.beam.runners.spark.translation.SingleEmitInputDStream;
 import org.apache.beam.runners.spark.translation.SparkAssignWindowFn;
 import org.apache.beam.runners.spark.translation.SparkCombineFn;
 import org.apache.beam.runners.spark.translation.SparkPCollectionView;
@@ -65,6 +65,7 @@ import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -88,6 +89,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.JavaSparkContext$;
+import org.apache.spark.streaming.StreamingContext;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaInputDStream;
 import org.apache.spark.streaming.api.java.JavaPairDStream;
@@ -291,18 +293,23 @@ public final class StreamingTransformTranslator {
             dStreams.add(unboundedDataset.getDStream());
           } else {
             // create a single RDD stream.
-            Queue<JavaRDD<WindowedValue<T>>> q = new LinkedBlockingQueue<>();
-            q.offer(((BoundedDataset) dataset).getRDD());
-            // TODO (https://github.com/apache/beam/issues/20426): this is not recoverable from
-            // checkpoint!
-            JavaDStream<WindowedValue<T>> dStream = context.getStreamingContext().queueStream(q);
-            dStreams.add(dStream);
+            dStreams.add(
+                this.buildDStream(context.getStreamingContext().ssc(), (BoundedDataset) dataset));
           }
         }
         // start by unifying streams into a single stream.
         JavaDStream<WindowedValue<T>> unifiedStreams =
             context.getStreamingContext().union(JavaConverters.asScalaBuffer(dStreams));
         context.putDataset(transform, new UnboundedDataset<>(unifiedStreams, streamingSources));
+      }
+
+      private JavaDStream<WindowedValue<T>> buildDStream(
+          final StreamingContext ssc, final BoundedDataset<T> dataset) {
+
+        final SingleEmitInputDStream<WindowedValue<T>> singleEmitDStream =
+            new SingleEmitInputDStream<>(ssc, dataset.getRDD().rdd());
+
+        return JavaDStream.fromDStream(singleEmitDStream, JavaSparkContext$.MODULE$.fakeClassTag());
       }
 
       @Override
@@ -434,11 +441,27 @@ public final class StreamingTransformTranslator {
       public void evaluate(
           final ParDo.MultiOutput<InputT, OutputT> transform, final EvaluationContext context) {
         final DoFn<InputT, OutputT> doFn = transform.getFn();
+        final DoFnSignature signature = DoFnSignatures.signatureForDoFn(doFn);
         checkArgument(
-            !DoFnSignatures.signatureForDoFn(doFn).processElement().isSplittable(),
+            !signature.processElement().isSplittable(),
             "Splittable DoFn not yet supported in streaming mode: %s",
             doFn);
-        rejectStateAndTimers(doFn);
+        checkState(
+            signature.onWindowExpiration() == null,
+            "onWindowExpiration is not supported: %s",
+            doFn);
+
+        boolean stateful =
+            signature.stateDeclarations().size() > 0 || signature.timerDeclarations().size() > 0;
+
+        if (stateful) {
+          final StatefulStreamingParDoEvaluator<?, ?, ?> delegate =
+              new StatefulStreamingParDoEvaluator<>();
+
+          delegate.evaluate((ParDo.MultiOutput) transform, context);
+          return;
+        }
+
         final SerializablePipelineOptions options = context.getSerializableOptions();
         final SparkPCollectionView pviews = context.getPViews();
         final WindowingStrategy<?, ?> windowingStrategy =

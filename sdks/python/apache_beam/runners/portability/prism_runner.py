@@ -22,11 +22,13 @@
 # sunset it
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
 import platform
 import shutil
 import stat
+import subprocess
 import typing
 import urllib
 import zipfile
@@ -38,6 +40,7 @@ from apache_beam.options import pipeline_options
 from apache_beam.runners.portability import job_server
 from apache_beam.runners.portability import portable_runner
 from apache_beam.transforms import environments
+from apache_beam.utils import shared
 from apache_beam.utils import subprocess_server
 from apache_beam.version import __version__ as beam_version
 
@@ -55,6 +58,8 @@ class PrismRunner(portable_runner.PortableRunner):
   """A runner for launching jobs on Prism, automatically downloading and
   starting a Prism instance if needed.
   """
+  shared_handle = shared.Shared()
+
   def default_environment(
       self,
       options: pipeline_options.PipelineOptions) -> environments.Environment:
@@ -65,11 +70,45 @@ class PrismRunner(portable_runner.PortableRunner):
     return super().default_environment(options)
 
   def default_job_server(self, options):
-    return job_server.StopOnExitJobServer(PrismJobServer(options))
+    debug_options = options.view_as(pipeline_options.DebugOptions)
+    get_job_server = lambda: job_server.StopOnExitJobServer(
+        PrismJobServer(options))
+    if debug_options.lookup_experiment("enable_prism_server_singleton"):
+      return PrismRunner.shared_handle.acquire(get_job_server)
+    return get_job_server()
 
   def create_job_service_handle(self, job_service, options):
     return portable_runner.JobServiceHandle(
         job_service, options, retain_unknown_options=True)
+
+
+def _md5sum(filename, block_size=8192) -> str:
+  md5 = hashlib.md5()
+  with open(filename, 'rb') as f:
+    while True:
+      data = f.read(block_size)
+      if not data:
+        break
+      md5.update(data)
+  return md5.hexdigest()
+
+
+def _rename_if_different(src, dst):
+  assert (os.path.isfile(src))
+
+  if os.path.isfile(dst):
+    if _md5sum(src) != _md5sum(dst):
+      # Remove existing binary to prevent exception on Windows during
+      # os.rename.
+      # See: https://docs.python.org/3/library/os.html#os.rename
+      os.remove(dst)
+      os.rename(src, dst)
+    else:
+      _LOGGER.info(
+          'Found %s and %s with the same md5. Skipping overwrite.' % (src, dst))
+      os.remove(src)
+  else:
+    os.rename(src, dst)
 
 
 class PrismJobServer(job_server.SubprocessJobServer):
@@ -93,16 +132,36 @@ class PrismJobServer(job_server.SubprocessJobServer):
     self._job_port = job_options.job_port
 
   @classmethod
-  def maybe_unzip_and_make_executable(cls, url: str, bin_cache: str) -> str:
-    if zipfile.is_zipfile(url):
-      z = zipfile.ZipFile(url)
-      url = z.extract(
-          os.path.splitext(os.path.basename(url))[0], path=bin_cache)
+  def maybe_unzip_and_make_executable(
+      cls, url: str, bin_cache: str, ignore_cache: bool = True) -> str:
+    assert (os.path.isfile(url))
 
+    if zipfile.is_zipfile(url):
+      target = os.path.splitext(os.path.basename(url))[0]
+      target_url = os.path.join(bin_cache, target)
+      if not ignore_cache and os.path.exists(target_url):
+        _LOGGER.info(
+            'Using cached prism binary from %s for %s' % (target_url, url))
+      else:
+        # Only unzip the zip file if the url is a zip file and ignore_cache is
+        # True (cache disabled)
+        _LOGGER.info("Unzipping prism from %s to %s" % (url, target_url))
+        z = zipfile.ZipFile(url)
+
+        bin_cache_tmp = os.path.join(bin_cache, 'tmp')
+        if not os.path.exists(bin_cache_tmp):
+          os.makedirs(bin_cache_tmp)
+        target_tmp_url = z.extract(target, path=bin_cache_tmp)
+
+        _rename_if_different(target_tmp_url, target_url)
+    else:
+      target_url = url
+
+    _LOGGER.info("Prism binary path resolved to: %s", target_url)
     # Make sure the binary is executable.
-    st = os.stat(url)
-    os.chmod(url, st.st_mode | stat.S_IEXEC)
-    return url
+    st = os.stat(target_url)
+    os.chmod(target_url, st.st_mode | stat.S_IEXEC)
+    return target_url
 
   # Finds the bin or zip in the local cache, and if not, fetches it.
   @classmethod
@@ -113,14 +172,15 @@ class PrismJobServer(job_server.SubprocessJobServer):
     if bin_cache == '':
       bin_cache = cls.BIN_CACHE
     if os.path.exists(url):
-      _LOGGER.info('Using local prism binary from %s' % url)
-      return cls.maybe_unzip_and_make_executable(url, bin_cache=bin_cache)
+      _LOGGER.info('Using local prism binary/zip from %s' % url)
+      cached_file = url
     else:
-      cached_bin = os.path.join(bin_cache, os.path.basename(url))
-      if os.path.exists(cached_bin) and not ignore_cache:
-        _LOGGER.info('Using cached prism binary from %s' % url)
+      cached_file = os.path.join(bin_cache, os.path.basename(url))
+      if os.path.exists(cached_file) and not ignore_cache:
+        _LOGGER.info(
+            'Using cached prism binary/zip from %s for %s' % (cached_file, url))
       else:
-        _LOGGER.info('Downloading prism binary from %s' % url)
+        _LOGGER.info('Downloading prism from %s' % url)
         if not os.path.exists(bin_cache):
           os.makedirs(bin_cache)
         try:
@@ -128,14 +188,18 @@ class PrismJobServer(job_server.SubprocessJobServer):
             url_read = FileSystems.open(url)
           except ValueError:
             url_read = urlopen(url)
-          with open(cached_bin + '.tmp', 'wb') as zip_write:
+          with open(cached_file + '.tmp', 'wb') as zip_write:
             shutil.copyfileobj(url_read, zip_write, length=1 << 20)
-          os.rename(cached_bin + '.tmp', cached_bin)
+
+          _rename_if_different(cached_file + '.tmp', cached_file)
         except URLError as e:
           raise RuntimeError(
               'Unable to fetch remote prism binary at %s: %s' % (url, e))
-      return cls.maybe_unzip_and_make_executable(
-          cached_bin, bin_cache=bin_cache)
+        # If we download a new prism, then we should always use it but not
+        # the cached one.
+        ignore_cache = True
+    return cls.maybe_unzip_and_make_executable(
+        cached_file, bin_cache=bin_cache, ignore_cache=ignore_cache)
 
   def construct_download_url(self, root_tag: str, sys: str, mach: str) -> str:
     """Construct the prism download URL with the appropriate release tag.
@@ -167,37 +231,96 @@ class PrismJobServer(job_server.SubprocessJobServer):
 
   def path_to_binary(self) -> str:
     if self._path is not None:
-      if not os.path.exists(self._path):
-        url = urllib.parse.urlparse(self._path)
-        if not url.scheme:
-          raise ValueError(
-              'Unable to parse binary URL "%s". If using a full URL, make '
-              'sure the scheme is specified. If using a local file xpath, '
-              'make sure the file exists; you may have to first build prism '
-              'using `go build `.' % (self._path))
+      # The path is overidden, check various cases.
+      if os.path.exists(self._path):
+        # The path is local and exists, use directly.
+        return self._path
 
-        # We have a URL, see if we need to construct a valid file name.
-        if self._path.startswith(GITHUB_DOWNLOAD_PREFIX):
-          # If this URL starts with the download prefix, let it through.
-          return self._path
-        # The only other valid option is a github release page.
-        if not self._path.startswith(GITHUB_TAG_PREFIX):
-          raise ValueError(
-              'Provided --prism_location URL is not an Apache Beam Github '
-              'Release page URL or download URL: %s' % (self._path))
-        # Get the root tag for this URL
-        root_tag = os.path.basename(os.path.normpath(self._path))
-        return self.construct_download_url(
-            root_tag, platform.system(), platform.machine())
-      return self._path
-    else:
-      if '.dev' in self._version:
+      if FileSystems.exists(self._path):
+        # The path is in one of the supported filesystems.
+        return self._path
+
+      # Check if the path is a URL.
+      url = urllib.parse.urlparse(self._path)
+      if not url.scheme:
         raise ValueError(
-            'Unable to derive URL for dev versions "%s". Please provide an '
-            'alternate version to derive the release URL with the '
-            '--prism_beam_version_override flag.' % (self._version))
+            'Unable to parse binary URL "%s". If using a full URL, make '
+            'sure the scheme is specified. If using a local file xpath, '
+            'make sure the file exists; you may have to first build prism '
+            'using `go build `.' % (self._path))
+
+      # We have a URL, see if we need to construct a valid file name.
+      if self._path.startswith(GITHUB_DOWNLOAD_PREFIX):
+        # If this URL starts with the download prefix, let it through.
+        return self._path
+      # The only other valid option is a github release page.
+      if not self._path.startswith(GITHUB_TAG_PREFIX):
+        raise ValueError(
+            'Provided --prism_location URL is not an Apache Beam Github '
+            'Release page URL or download URL: %s' % (self._path))
+      # Get the root tag for this URL
+      root_tag = os.path.basename(os.path.normpath(self._path))
+      return self.construct_download_url(
+          root_tag, platform.system(), platform.machine())
+
+    if '.dev' not in self._version:
+      # Not a development version, so construct the production download URL
       return self.construct_download_url(
           self._version, platform.system(), platform.machine())
+
+    # This is a development version! Assume Go is installed.
+    # Set the install directory to the cache location.
+    envdict = {**os.environ, "GOBIN": self.BIN_CACHE}
+    PRISMPKG = "github.com/apache/beam/sdks/v2/go/cmd/prism"
+
+    process = subprocess.run(["go", "install", PRISMPKG],
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.STDOUT,
+                             env=envdict,
+                             check=False)
+    if process.returncode == 0:
+      # Successfully installed
+      return '%s/prism' % (self.BIN_CACHE)
+
+    # We failed to build for some reason.
+    output = process.stdout.decode("utf-8")
+    if ("not in a module" not in output) and (
+        "no required module provides" not in output):
+      # This branch handles two classes of failures:
+      # 1. Go isn't installed, so it needs to be installed by the Beam SDK
+      #   developer.
+      # 2. Go is installed, and they are building in a local version of Prism,
+      #    but there was a compile error that the developer should address.
+      # Either way, the @latest fallback either would fail, or hide the error,
+      # so fail now.
+      _LOGGER.info(output)
+      raise ValueError(
+          'Unable to install a local of Prism: "%s";\n'
+          'Likely Go is not installed, or a local change to Prism did not '
+          'compile.\nPlease install Go (see https://go.dev/doc/install) to '
+          'enable automatic local builds.\n'
+          'Alternatively provide a binary with the --prism_location flag.'
+          '\nCaptured output:\n %s' % (self._version, output))
+
+    # Go is installed and claims we're not in a Go module that has access to
+    # the Prism package.
+
+    # Fallback to using the @latest version of prism, which works everywhere.
+    process = subprocess.run(["go", "install", PRISMPKG + "@latest"],
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.STDOUT,
+                             env=envdict,
+                             check=False)
+
+    if process.returncode == 0:
+      return '%s/prism' % (self.BIN_CACHE)
+
+    output = process.stdout.decode("utf-8")
+    raise ValueError(
+        'We were unable to execute the subprocess "%s" to automatically '
+        'build prism.\nAlternatively provide an alternate binary with the '
+        '--prism_location flag.'
+        '\nCaptured output:\n %s' % (process.args, output))
 
   def subprocess_cmd_and_endpoint(
       self) -> typing.Tuple[typing.List[typing.Any], str]:

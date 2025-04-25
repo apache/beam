@@ -229,4 +229,20 @@ public interface BigQueryOptions
   String getBigQueryEndpoint();
 
   void setBigQueryEndpoint(String value);
+
+  /**
+   * Choose to use a GBK when gathering a list of files in batch FILE_LOAD.
+   *
+   * <p>The purpose of this option is to accommodate the runner compatibility, for example, some
+   * runners having known issues on large side input, turning on this option avoids trigger side
+   * input related issues.
+   *
+   * <p>This is an experimental pipeline option, no backward compatibility guaranteed.
+   */
+  @Hidden
+  @Description("Whether involves side input when gathering a list of files in batch FILE_LOAD.")
+  @Default.Boolean(false)
+  Boolean getGroupFilesFileLoad();
+
+  void setGroupFilesFileLoad(Boolean value);
 }

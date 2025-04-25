@@ -27,7 +27,7 @@ import re
 import sys
 import traceback
 
-from google.protobuf import text_format  # type: ignore # not in typeshed
+from google.protobuf import text_format
 
 from apache_beam.internal import pickler
 from apache_beam.io import filesystems

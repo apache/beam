@@ -53,6 +53,7 @@ import org.apache.beam.sdk.schemas.utils.TestJavaBeans.PrimitiveArrayBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.PrimitiveMapBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.SimpleBean;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.joda.time.DateTime;
 import org.junit.Test;
 
@@ -142,11 +143,11 @@ public class JavaBeanUtilsTest {
     simpleBean.setBigDecimal(new BigDecimal(42));
     simpleBean.setStringBuilder(new StringBuilder("stringBuilder"));
 
-    List<FieldValueGetter> getters =
+    List<FieldValueGetter<@NonNull SimpleBean, Object>> getters =
         JavaBeanUtils.getGetters(
             new TypeDescriptor<SimpleBean>() {},
             SIMPLE_BEAN_SCHEMA,
-            new JavaBeanSchema.GetterTypeSupplier(),
+            new GetterTypeSupplier(),
             new DefaultTypeConversionsFactory());
     assertEquals(12, getters.size());
     assertEquals("str", getters.get(0).name());
@@ -220,7 +221,7 @@ public class JavaBeanUtilsTest {
     bean.setaLong(44L);
     bean.setaBoolean(true);
 
-    List<FieldValueGetter> getters =
+    List<FieldValueGetter<@NonNull BeanWithBoxedFields, Object>> getters =
         JavaBeanUtils.getGetters(
             new TypeDescriptor<BeanWithBoxedFields>() {},
             BEAN_WITH_BOXED_FIELDS_SCHEMA,

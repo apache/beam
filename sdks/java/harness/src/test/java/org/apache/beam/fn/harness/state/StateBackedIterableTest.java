@@ -38,7 +38,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -269,7 +269,9 @@ public class StateBackedIterableTest {
               .sum();
       observer.advance();
       // 5 comes from size and hasNext (see IterableLikeCoder)
-      assertEquals(iterateBytes + 5, observer.total);
+      // observer receives scaled, StringUtf8Coder is not cheap so sampling may produce value that
+      // is off
+      assertEquals((float) iterateBytes + 5, (float) observer.total, 3);
     }
   }
 

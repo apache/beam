@@ -19,15 +19,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sync"
 	"sync/atomic"
 
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
-	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slog"
+	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -73,6 +72,13 @@ func (e *joinError) Error() string {
 	return string(b)
 }
 
+func getOnlyValue[K comparable, V any](in map[K]V) V {
+	for _, v := range in {
+		return v
+	}
+	panic("unreachable")
+}
+
 func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *jobpb.PrepareJobResponse, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -92,7 +98,9 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *
 			cancelFn(err)
 			terminalOnceWrap()
 		},
+		Logger:           s.logger, // TODO substitute with a configured logger.
 		artifactEndpoint: s.Endpoint(),
+		mw:               s.mw,
 	}
 	// Stop the idle timer when a new job appears.
 	if idleTimer := s.idleTimer.Load(); idleTimer != nil {
@@ -124,7 +132,6 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *
 	}
 
 	// Inspect Transforms for unsupported features.
-	bypassedWindowingStrategies := map[string]bool{}
 	ts := job.Pipeline.GetComponents().GetTransforms()
 	var testStreamIds []string
 	for tid, t := range ts {
@@ -142,23 +149,8 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *
 			urns.TransformAssignWindows:
 		// Very few expected transforms types for submitted pipelines.
 		// Most URNs are for the runner to communicate back to the SDK for execution.
-		case urns.TransformReshuffle:
-			// Reshuffles use features we don't yet support, but we would like to
-			// support them by making them the no-op they are, and be precise about
-			// what we're ignoring.
-			var cols []string
-			for _, stID := range t.GetSubtransforms() {
-				st := ts[stID]
-				// Only check the outputs, since reshuffle re-instates any previous WindowingStrategy
-				// so we still validate the strategy used by the input, avoiding skips.
-				cols = append(cols, maps.Values(st.GetOutputs())...)
-			}
-
-			pcs := job.Pipeline.GetComponents().GetPcollections()
-			for _, col := range cols {
-				wsID := pcs[col].GetWindowingStrategyId()
-				bypassedWindowingStrategies[wsID] = true
-			}
+		case urns.TransformReshuffle, urns.TransformRedistributeArbitrarily, urns.TransformRedistributeByKey:
+			// Reshuffles and Redistributes are permitted and have special handling during optimization.
 
 		case urns.TransformParDo:
 			var pardo pipepb.ParDoPayload
@@ -173,7 +165,8 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *
 			// Validate all the state features
 			for _, spec := range pardo.GetStateSpecs() {
 				isStateful = true
-				check("StateSpec.Protocol.Urn", spec.GetProtocol().GetUrn(), urns.UserStateBag, urns.UserStateMultiMap)
+				check("StateSpec.Protocol.Urn", spec.GetProtocol().GetUrn(),
+					urns.UserStateBag, urns.UserStateMultiMap, urns.UserStateOrderedList)
 			}
 			// Validate all the timer features
 			for _, spec := range pardo.GetTimerFamilySpecs() {
@@ -181,11 +174,59 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *
 				check("TimerFamilySpecs.TimeDomain.Urn", spec.GetTimeDomain(), pipepb.TimeDomain_EVENT_TIME, pipepb.TimeDomain_PROCESSING_TIME)
 			}
 
-			check("OnWindowExpirationTimerFamily", pardo.GetOnWindowExpirationTimerFamilySpec(), "") // Unsupported for now.
-
 			// Check for a stateful SDF and direct user to https://github.com/apache/beam/issues/32139
 			if pardo.GetRestrictionCoderId() != "" && isStateful {
-				check("Splittable+Stateful DoFn", "See https://github.com/apache/beam/issues/32139 for information.", "")
+				check("Splittable+Stateful DoFn", "See https://github.com/apache/beam/issues/32139 for information.")
+			}
+
+			// Validate whether the triggers on side inputs for are required for
+			// expedient data processing..
+			//
+			// Currently triggered side inputs are not supported by prism, and will
+			// not have early or late firings.
+			//
+			// This feature is required when the Side Input PCollection is unbounded
+			// and is in the a Global Window. This can cause the pipeline to fully
+			// stall while the input is being computed, and may never terminate.
+			//
+			// Other situations may not have desired results, but are valid behaviors
+			// within the model.
+			//
+			// See https://github.com/apache/beam/issues/31438 for implementation tracking.
+			for sideID := range pardo.GetSideInputs() {
+				pcolID := t.GetInputs()[sideID]
+				pcol := job.Pipeline.GetComponents().GetPcollections()[pcolID]
+				wsID := pcol.GetWindowingStrategyId()
+				ws := job.Pipeline.GetComponents().GetWindowingStrategies()[wsID]
+
+				if pcol.GetIsBounded() == pipepb.IsBounded_BOUNDED ||
+					ws.GetWindowFn().GetUrn() != urns.WindowFnGlobal {
+					continue
+				}
+
+				// Within the Unbounded GlobalWindow space is a nich of expressed
+				// user intent that they *do* want to wait for the end of the global
+				// window for output. We should permit these pipelines, as there
+				// is utility for this in testing situations anyway.
+				switch trig := ws.GetTrigger().GetTrigger().(type) {
+				case *pipepb.Trigger_Never_, *pipepb.Trigger_Default_:
+					// Only one firing, at the end of the global window, and is
+					// compatible with Prism's current execution.
+					continue
+				case *pipepb.Trigger_AfterEndOfWindow_:
+					if early := trig.AfterEndOfWindow.GetEarlyFirings(); early == nil || early.GetNever() != nil {
+						if ws.GetAllowedLateness() == 0 {
+							// Late configuration doesn't matter, and there are no early firings.
+							continue
+						}
+						if late := trig.AfterEndOfWindow.GetLateFirings(); late == nil || late.GetNever() != nil {
+							// Lateness allowed, but but no firings anyway.
+							continue
+						}
+					}
+				}
+
+				check("Unbounded GlobalWindow Triggered SideInput, are not currently supported by Prism. Sideinputs are only ready at end of window+allowed lateness. See https://github.com/apache/beam/issues/31438 for information.", prototext.Format(ws))
 			}
 
 		case urns.TransformTestStream:
@@ -214,6 +255,16 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *
 			if len(t.GetSpec().GetPayload()) == 0 {
 				continue
 			}
+			// Another type of "empty" composite transforms without subtransforms but with
+			// a non-empty payload and identical input/output pcollections
+			if len(t.GetInputs()) == 1 && len(t.GetOutputs()) == 1 {
+				inputID := getOnlyValue(t.GetInputs())
+				outputID := getOnlyValue(t.GetOutputs())
+				if inputID == outputID {
+					slog.Warn("empty transform, with payload and identical input and output pcollection", "urn", urn, "name", t.GetUniqueName(), "pcoll", inputID)
+					continue
+				}
+			}
 			// Otherwise fail.
 			slog.Warn("unknown transform, with payload", "urn", urn, "name", t.GetUniqueName(), "payload", t.GetSpec().GetPayload())
 			check("PTransform.Spec.Urn", urn+" "+t.GetUniqueName(), "<doesn't exist>")
@@ -225,37 +276,25 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *
 	}
 
 	// Inspect Windowing strategies for unsupported features.
-	for wsID, ws := range job.Pipeline.GetComponents().GetWindowingStrategies() {
-		check("WindowingStrategy.AllowedLateness", ws.GetAllowedLateness(), int64(0), mtime.MaxTimestamp.Milliseconds())
-
+	for _, ws := range job.Pipeline.GetComponents().GetWindowingStrategies() {
 		// Both Closing behaviors are identical without additional trigger firings.
 		check("WindowingStrategy.ClosingBehaviour", ws.GetClosingBehavior(), pipepb.ClosingBehavior_EMIT_IF_NONEMPTY, pipepb.ClosingBehavior_EMIT_ALWAYS)
-		check("WindowingStrategy.AccumulationMode", ws.GetAccumulationMode(), pipepb.AccumulationMode_DISCARDING)
+		check("WindowingStrategy.AccumulationMode", ws.GetAccumulationMode(), pipepb.AccumulationMode_DISCARDING, pipepb.AccumulationMode_ACCUMULATING)
 		if ws.GetWindowFn().GetUrn() != urns.WindowFnSession {
 			check("WindowingStrategy.MergeStatus", ws.GetMergeStatus(), pipepb.MergeStatus_NON_MERGING)
+		} else if hasStatefulTriggers(ws.GetTrigger()) {
+			// Technically for any merging windows, but per the above, we only support session windows presently.
+			check("WindowingStrategy: Using stateful triggers with merging windows isn't currently supported in prism. See https://github.com/apache/beam/issues/31438 for information.", prototext.Format(ws))
 		}
-		if !bypassedWindowingStrategies[wsID] {
-			check("WindowingStrategy.OnTimeBehavior", ws.GetOnTimeBehavior(), pipepb.OnTimeBehavior_FIRE_IF_NONEMPTY, pipepb.OnTimeBehavior_FIRE_ALWAYS)
+		check("WindowingStrategy.OnTimeBehavior", ws.GetOnTimeBehavior(), pipepb.OnTimeBehavior_FIRE_IF_NONEMPTY, pipepb.OnTimeBehavior_FIRE_ALWAYS)
 
-			// Allow earliest and latest in pane to unblock running python tasks.
-			// Tests actually using the set behavior will fail.
-			check("WindowingStrategy.OutputTime", ws.GetOutputTime(), pipepb.OutputTime_END_OF_WINDOW,
-				pipepb.OutputTime_EARLIEST_IN_PANE, pipepb.OutputTime_LATEST_IN_PANE)
-			// Non default triggers should fail.
-			if ws.GetTrigger().GetDefault() == nil {
-				dt := &pipepb.Trigger{
-					Trigger: &pipepb.Trigger_Default_{},
-				}
-				// Allow Never and Always triggers to unblock iteration on Java and Python SDKs.
-				// Without multiple firings, these will be very similar to the default trigger.
-				nt := &pipepb.Trigger{
-					Trigger: &pipepb.Trigger_Never_{},
-				}
-				at := &pipepb.Trigger{
-					Trigger: &pipepb.Trigger_Always_{},
-				}
-				check("WindowingStrategy.Trigger", ws.GetTrigger().String(), dt.String(), nt.String(), at.String())
-			}
+		// Allow earliest and latest in pane to unblock running python tasks.
+		// Tests actually using the set behavior will fail.
+		check("WindowingStrategy.OutputTime", ws.GetOutputTime(), pipepb.OutputTime_END_OF_WINDOW,
+			pipepb.OutputTime_EARLIEST_IN_PANE, pipepb.OutputTime_LATEST_IN_PANE)
+
+		if hasUnsupportedTriggers(ws.GetTrigger()) {
+			check("WindowingStrategy.Trigger", ws.GetTrigger().String())
 		}
 	}
 	if len(errs) > 0 {
@@ -272,6 +311,75 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *
 			Url: s.Endpoint(),
 		},
 	}, nil
+}
+
+func hasUnsupportedTriggers(tpb *pipepb.Trigger) bool {
+	unsupported := false
+	switch at := tpb.GetTrigger().(type) {
+	case *pipepb.Trigger_AfterProcessingTime_, *pipepb.Trigger_AfterSynchronizedProcessingTime_:
+		return true
+	case *pipepb.Trigger_AfterAll_:
+		for _, st := range at.AfterAll.GetSubtriggers() {
+			unsupported = unsupported || hasUnsupportedTriggers(st)
+		}
+		return unsupported
+	case *pipepb.Trigger_AfterAny_:
+		for _, st := range at.AfterAny.GetSubtriggers() {
+			unsupported = unsupported || hasUnsupportedTriggers(st)
+		}
+		return unsupported
+	case *pipepb.Trigger_AfterEach_:
+		for _, st := range at.AfterEach.GetSubtriggers() {
+			unsupported = unsupported || hasUnsupportedTriggers(st)
+		}
+		return unsupported
+	case *pipepb.Trigger_AfterEndOfWindow_:
+		return hasUnsupportedTriggers(at.AfterEndOfWindow.GetEarlyFirings()) ||
+			hasUnsupportedTriggers(at.AfterEndOfWindow.GetLateFirings())
+	case *pipepb.Trigger_OrFinally_:
+		return hasUnsupportedTriggers(at.OrFinally.GetMain()) ||
+			hasUnsupportedTriggers(at.OrFinally.GetFinally())
+	case *pipepb.Trigger_Repeat_:
+		return hasUnsupportedTriggers(at.Repeat.GetSubtrigger())
+	default:
+		return false
+	}
+}
+
+// hasStatefulTriggers checks if the triggers use state that might not function
+// properly without proper merge handling.
+func hasStatefulTriggers(tpb *pipepb.Trigger) bool {
+	stateful := false
+	switch at := tpb.GetTrigger().(type) {
+	case *pipepb.Trigger_AfterProcessingTime_, *pipepb.Trigger_AfterSynchronizedProcessingTime_, *pipepb.Trigger_ElementCount_:
+		// These triggers have state that needs care when used with merging windows.
+		return true
+	case *pipepb.Trigger_AfterAll_:
+		for _, st := range at.AfterAll.GetSubtriggers() {
+			stateful = stateful || hasStatefulTriggers(st)
+		}
+		return stateful
+	case *pipepb.Trigger_AfterAny_:
+		for _, st := range at.AfterAny.GetSubtriggers() {
+			stateful = stateful || hasStatefulTriggers(st)
+		}
+		return stateful
+	case *pipepb.Trigger_AfterEach_:
+		for _, st := range at.AfterEach.GetSubtriggers() {
+			stateful = stateful || hasStatefulTriggers(st)
+		}
+		return stateful
+	case *pipepb.Trigger_AfterEndOfWindow_:
+		return hasStatefulTriggers(at.AfterEndOfWindow.GetEarlyFirings()) ||
+			hasStatefulTriggers(at.AfterEndOfWindow.GetLateFirings())
+	case *pipepb.Trigger_OrFinally_:
+		return hasStatefulTriggers(at.OrFinally.GetMain()) ||
+			hasStatefulTriggers(at.OrFinally.GetFinally())
+	case *pipepb.Trigger_Repeat_:
+		return hasStatefulTriggers(at.Repeat.GetSubtrigger())
+	default:
+		return false
+	}
 }
 
 func (s *Server) Run(ctx context.Context, req *jobpb.RunJobRequest) (*jobpb.RunJobResponse, error) {

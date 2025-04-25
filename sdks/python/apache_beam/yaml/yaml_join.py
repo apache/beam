@@ -17,8 +17,6 @@
 
 """This module defines the Join operation."""
 from typing import Any
-from typing import Dict
-from typing import List
 from typing import Optional
 from typing import Union
 
@@ -62,9 +60,11 @@ def _validate_equalities(equalities, pcolls):
   error_prefix = f'Invalid value "{equalities}" for "equalities".'
 
   valid_cols = {
-      name: set(dict(pcoll.element_type._fields).keys())
-      for name,
-      pcoll in pcolls.items()
+      name: set(
+          dict(fields).keys() if fields and all(
+              isinstance(field, tuple) for field in fields) else fields)
+      for (name, pcoll) in pcolls.items()
+      for fields in [getattr(pcoll.element_type, '_fields', [])]
   }
 
   if isinstance(equalities, str):
@@ -174,9 +174,9 @@ def _SqlJoinTransform(
     pcolls,
     sql_transform_constructor,
     *,
-    equalities: Union[str, List[Dict[str, str]]],
-    type: Union[str, Dict[str, List]] = 'inner',
-    fields: Optional[Dict[str, Any]] = None):
+    equalities: Union[str, list[dict[str, str]]],
+    type: Union[str, dict[str, list]] = 'inner',
+    fields: Optional[dict[str, Any]] = None):
   """Joins two or more inputs using a specified condition.
 
   For example::

@@ -46,9 +46,15 @@ import dill
 
 settings = {'dill_byref': None}
 
-if sys.version_info >= (3, 10) and dill.__version__ == "0.3.1.1":
-  # Let's make dill 0.3.1.1 support Python 3.11.
+patch_save_code = sys.version_info >= (3, 10) and dill.__version__ == "0.3.1.1"
 
+
+def get_normalized_path(path):
+  """Returns a normalized path. This function is intended to be overridden."""
+  return path
+
+
+if patch_save_code:
   # The following function is based on 'save_code' from 'dill'
   # Author: Mike McKerns (mmckerns @caltech and @uqfoundation)
   # Copyright (c) 2008-2015 California Institute of Technology.
@@ -66,6 +72,7 @@ if sys.version_info >= (3, 10) and dill.__version__ == "0.3.1.1":
 
   @dill.register(CodeType)
   def save_code(pickler, obj):
+    co_filename = get_normalized_path(obj.co_filename)
     if hasattr(obj, "co_endlinetable"):  # python 3.11a (20 args)
       args = (
           obj.co_argcount,
@@ -78,7 +85,7 @@ if sys.version_info >= (3, 10) and dill.__version__ == "0.3.1.1":
           obj.co_consts,
           obj.co_names,
           obj.co_varnames,
-          obj.co_filename,
+          co_filename,
           obj.co_name,
           obj.co_qualname,
           obj.co_firstlineno,
@@ -100,7 +107,7 @@ if sys.version_info >= (3, 10) and dill.__version__ == "0.3.1.1":
           obj.co_consts,
           obj.co_names,
           obj.co_varnames,
-          obj.co_filename,
+          co_filename,
           obj.co_name,
           obj.co_qualname,
           obj.co_firstlineno,
@@ -120,7 +127,7 @@ if sys.version_info >= (3, 10) and dill.__version__ == "0.3.1.1":
           obj.co_consts,
           obj.co_names,
           obj.co_varnames,
-          obj.co_filename,
+          co_filename,
           obj.co_name,
           obj.co_firstlineno,
           obj.co_linetable,
@@ -138,7 +145,7 @@ if sys.version_info >= (3, 10) and dill.__version__ == "0.3.1.1":
           obj.co_consts,
           obj.co_names,
           obj.co_varnames,
-          obj.co_filename,
+          co_filename,
           obj.co_name,
           obj.co_firstlineno,
           obj.co_lnotab,

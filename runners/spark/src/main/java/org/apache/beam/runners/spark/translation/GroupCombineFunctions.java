@@ -17,6 +17,9 @@
  */
 package org.apache.beam.runners.spark.translation;
 
+import java.util.Iterator;
+import java.util.List;
+import java.util.stream.Collectors;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.sdk.coders.Coder;
@@ -27,6 +30,7 @@ import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
 import org.apache.spark.Partitioner;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
@@ -49,18 +53,36 @@ public class GroupCombineFunctions {
       @Nullable Partitioner partitioner) {
     // we use coders to convert objects in the PCollection to byte arrays, so they
     // can be transferred over the network for the shuffle.
-    JavaPairRDD<ByteArray, byte[]> pairRDD =
-        rdd.map(new ReifyTimestampsAndWindowsFunction<>())
-            .mapToPair(TranslationUtils.toPairFunction())
-            .mapToPair(CoderHelpers.toByteFunction(keyCoder, wvCoder));
+    final JavaPairRDD<ByteArray, byte[]> pairRDD =
+        rdd.mapPartitionsToPair(
+            (Iterator<WindowedValue<KV<K, V>>> iter) ->
+                Iterators.transform(
+                    iter,
+                    (WindowedValue<KV<K, V>> wv) -> {
+                      final K key = wv.getValue().getKey();
+                      final WindowedValue<V> windowedValue = wv.withValue(wv.getValue().getValue());
+                      final ByteArray keyBytes =
+                          new ByteArray(CoderHelpers.toByteArray(key, keyCoder));
+                      final byte[] windowedValueBytes =
+                          CoderHelpers.toByteArray(windowedValue, wvCoder);
+                      return Tuple2.apply(keyBytes, windowedValueBytes);
+                    }));
 
-    // If no partitioner is passed, the default group by key operation is called
-    JavaPairRDD<ByteArray, Iterable<byte[]>> groupedRDD =
-        (partitioner != null) ? pairRDD.groupByKey(partitioner) : pairRDD.groupByKey();
+    final JavaPairRDD<ByteArray, List<byte[]>> combined =
+        GroupNonMergingWindowsFunctions.combineByKey(pairRDD, partitioner).cache();
 
-    return groupedRDD
-        .mapToPair(CoderHelpers.fromByteFunctionIterable(keyCoder, wvCoder))
-        .map(new TranslationUtils.FromPairFunction<>());
+    return combined.mapPartitions(
+        (Iterator<Tuple2<ByteArray, List<byte[]>>> iter) ->
+            Iterators.transform(
+                iter,
+                (Tuple2<ByteArray, List<byte[]>> tuple) -> {
+                  final K key = CoderHelpers.fromByteArray(tuple._1().getValue(), keyCoder);
+                  final List<WindowedValue<V>> windowedValues =
+                      tuple._2().stream()
+                          .map(bytes -> CoderHelpers.fromByteArray(bytes, wvCoder))
+                          .collect(Collectors.toList());
+                  return KV.of(key, windowedValues);
+                }));
   }
 
   /**

@@ -189,7 +189,12 @@ func launchSDKProcess() error {
 		fmtErr := fmt.Errorf("failed to retrieve staged files: %v", err)
 		// Send error message to logging service before returning up the call stack
 		logger.Errorf(ctx, fmtErr.Error())
-		return fmtErr
+		// No need to fail the job if submission_environment_dependencies.txt cannot be loaded
+		if strings.Contains(fmtErr.Error(), "submission_environment_dependencies.txt") {
+			logger.Printf(ctx, "Ignore the error when loading submission_environment_dependencies.txt.")
+		} else {
+			return fmtErr
+		}
 	}
 
 	// TODO(herohde): the packages to install should be specified explicitly. It

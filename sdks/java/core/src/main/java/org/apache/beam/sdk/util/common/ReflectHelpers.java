@@ -44,6 +44,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Fluent
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSortedSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Queues;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Utilities for working with with {@link Class Classes} and {@link Method Methods}. */
 @SuppressWarnings({"nullness", "keyfor"}) // TODO(https://github.com/apache/beam/issues/20497)
@@ -216,7 +217,7 @@ public class ReflectHelpers {
    * which by default would use the proposed {@code ClassLoader}, which can be null. The fallback is
    * as follows: context ClassLoader, class ClassLoader and finally the system ClassLoader.
    */
-  public static ClassLoader findClassLoader(final ClassLoader proposed) {
+  public static ClassLoader findClassLoader(@Nullable final ClassLoader proposed) {
     ClassLoader classLoader = proposed;
     if (classLoader == null) {
       classLoader = ReflectHelpers.class.getClassLoader();

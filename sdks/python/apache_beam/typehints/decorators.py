@@ -82,7 +82,6 @@ defined, or before importing a module containing type-hinted functions.
 import inspect
 import itertools
 import logging
-import sys
 import traceback
 import types
 from typing import Any
@@ -686,9 +685,6 @@ def get_type_hints(fn: Any) -> IOTypeHints:
       # Can't add arbitrary attributes to this object,
       # but might have some restrictions anyways...
       hints = IOTypeHints.empty()
-      # Python 3.7 introduces annotations for _MethodDescriptorTypes.
-      if isinstance(fn, _MethodDescriptorType) and sys.version_info < (3, 7):
-        hints = hints.with_input_types(fn.__objclass__)  # type: ignore
       return hints
   return fn._type_hints
   # pylint: enable=protected-access

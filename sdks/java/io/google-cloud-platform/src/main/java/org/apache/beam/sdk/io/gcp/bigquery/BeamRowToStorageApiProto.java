@@ -30,7 +30,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
-import java.util.List;
+import java.util.Collections;
 import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -220,11 +220,18 @@ public class BeamRowToStorageApiProto {
       case ITERABLE:
         @Nullable FieldType elementType = field.getType().getCollectionElementType();
         if (elementType == null) {
-          throw new RuntimeException("Unexpected null element type!");
+          throw new RuntimeException("Unexpected null element type on " + field.getName());
         }
+        TypeName containedTypeName =
+            Preconditions.checkNotNull(
+                elementType.getTypeName(),
+                "Null type name found in contained type at " + field.getName());
         Preconditions.checkState(
-            !Preconditions.checkNotNull(elementType.getTypeName()).isCollectionType(),
-            "Nested arrays not supported by BigQuery.");
+            !(containedTypeName.isCollectionType() || containedTypeName.isMapType()),
+            "Nested container types are not supported by BigQuery. Field "
+                + field.getName()
+                + " contains a type "
+                + containedTypeName.name());
         TableFieldSchema elementFieldSchema =
             fieldDescriptorFromBeamField(Field.of(field.getName(), elementType));
         builder = builder.setType(elementFieldSchema.getType());
@@ -243,7 +250,24 @@ public class BeamRowToStorageApiProto {
         builder = builder.setType(type);
         break;
       case MAP:
-        throw new RuntimeException("Map types not supported by BigQuery.");
+        @Nullable FieldType keyType = field.getType().getMapKeyType();
+        @Nullable FieldType valueType = field.getType().getMapValueType();
+        if (keyType == null) {
+          throw new RuntimeException(
+              "Unexpected null element type for the map's key on " + field.getName());
+        }
+        if (valueType == null) {
+          throw new RuntimeException(
+              "Unexpected null element type for the map's value on " + field.getName());
+        }
+
+        builder =
+            builder
+                .setType(TableFieldSchema.Type.STRUCT)
+                .addFields(fieldDescriptorFromBeamField(Field.of("key", keyType)))
+                .addFields(fieldDescriptorFromBeamField(Field.of("value", valueType)))
+                .setMode(TableFieldSchema.Mode.REPEATED);
+        break;
       default:
         @Nullable
         TableFieldSchema.Type primitiveType = PRIMITIVE_TYPES.get(field.getType().getTypeName());
@@ -272,6 +296,8 @@ public class BeamRowToStorageApiProto {
     if (value == null) {
       if (fieldDescriptor.isOptional()) {
         return null;
+      } else if (fieldDescriptor.isRepeated()) {
+        return Collections.emptyList();
       } else {
         throw new IllegalArgumentException(
             "Received null value for non-nullable field " + fieldDescriptor.getName());
@@ -286,25 +312,34 @@ public class BeamRowToStorageApiProto {
       case ROW:
         return messageFromBeamRow(fieldDescriptor.getMessageType(), (Row) value, null, -1);
       case ARRAY:
-        List<Object> list = (List<Object>) value;
-        @Nullable FieldType arrayElementType = beamFieldType.getCollectionElementType();
-        if (arrayElementType == null) {
-          throw new RuntimeException("Unexpected null element type!");
-        }
-        return list.stream()
-            .map(v -> toProtoValue(fieldDescriptor, arrayElementType, v))
-            .collect(Collectors.toList());
       case ITERABLE:
         Iterable<Object> iterable = (Iterable<Object>) value;
         @Nullable FieldType iterableElementType = beamFieldType.getCollectionElementType();
         if (iterableElementType == null) {
-          throw new RuntimeException("Unexpected null element type!");
+          throw new RuntimeException("Unexpected null element type: " + fieldDescriptor.getName());
         }
+
         return StreamSupport.stream(iterable.spliterator(), false)
             .map(v -> toProtoValue(fieldDescriptor, iterableElementType, v))
             .collect(Collectors.toList());
       case MAP:
-        throw new RuntimeException("Map types not supported by BigQuery.");
+        Map<Object, Object> map = (Map<Object, Object>) value;
+        @Nullable FieldType keyType = beamFieldType.getMapKeyType();
+        @Nullable FieldType valueType = beamFieldType.getMapValueType();
+        if (keyType == null) {
+          throw new RuntimeException("Unexpected null for key type: " + fieldDescriptor.getName());
+        }
+        if (valueType == null) {
+          throw new RuntimeException(
+              "Unexpected null for value type: " + fieldDescriptor.getName());
+        }
+
+        return map.entrySet().stream()
+            .map(
+                (Map.Entry<Object, Object> entry) ->
+                    mapEntryToProtoValue(
+                        fieldDescriptor.getMessageType(), keyType, valueType, entry))
+            .collect(Collectors.toList());
       default:
         return scalarToProtoValue(beamFieldType, value);
     }
@@ -332,6 +367,28 @@ public class BeamRowToStorageApiProto {
       }
       return encoder.apply(value);
     }
+  }
+
+  static Object mapEntryToProtoValue(
+      Descriptor descriptor,
+      FieldType keyFieldType,
+      FieldType valueFieldType,
+      Map.Entry<Object, Object> entryValue) {
+    DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
+    FieldDescriptor keyFieldDescriptor =
+        Preconditions.checkNotNull(descriptor.findFieldByName("key"));
+    @Nullable Object key = toProtoValue(keyFieldDescriptor, keyFieldType, entryValue.getKey());
+    if (key != null) {
+      builder.setField(keyFieldDescriptor, key);
+    }
+    FieldDescriptor valueFieldDescriptor =
+        Preconditions.checkNotNull(descriptor.findFieldByName("value"));
+    @Nullable
+    Object value = toProtoValue(valueFieldDescriptor, valueFieldType, entryValue.getValue());
+    if (value != null) {
+      builder.setField(valueFieldDescriptor, value);
+    }
+    return builder.build();
   }
 
   static ByteString serializeBigDecimalToNumeric(BigDecimal o) {

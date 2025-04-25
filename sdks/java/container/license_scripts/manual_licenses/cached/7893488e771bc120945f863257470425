@@ -1,0 +1,128 @@
+<!doctype html>
+<!--[if lt IE 9]><html class="ie"><![endif]-->
+<!--[if gte IE 9]><!--><html><!--<![endif]-->
+
+	<head>
+                <!-- Global site tag (gtag.js) - Google Analytics -->
+                <script async src="https://www.googletagmanager.com/gtag/js?id=G-G0NX9K3FP5"></script>
+                <script>
+                  window.dataLayer = window.dataLayer || [];
+                  function gtag(){dataLayer.push(arguments);}
+                  gtag('js', new Date());
+
+                  gtag('config', 'G-G0NX9K3FP5');
+                </script>
+
+		<meta charset="utf-8"/>
+		<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1"/>
+		<meta name="viewport" content="width=device-width, initial-scale=1"/>
+
+		<title>ANTLR v4 License</title>
+
+		<!--[if lt IE 9]><script src="//html5shim.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+		
+		
+		<link rel="stylesheet" href="css/fontface/Droid-Sans/stylesheet.css" type="text/css" media="screen" />
+		<link rel="stylesheet" href="css/fontface/Droid-Serif/stylesheet.css" type="text/css" media="screen" />
+		<link rel="stylesheet" href="css/fontface/DejaVu-Sans-Mono/stylesheet.css" type="text/css" media="screen" />
+			
+		<link rel="stylesheet" href="css/antlr.css" type="text/css" media="screen" />
+		
+		<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+		<script src="scripts/selectivizr-min.js"></script>	
+		<script src="scripts/cycle.js"></script>	
+		<script src="scripts/rounded.js"></script>	
+		<script src="scripts/watermark.js"></script>	
+		
+		<script type="text/javascript" src="scripts/lib/jquery.mousewheel-3.0.6.pack.js"></script>
+		<script type="text/javascript" src="scripts/source/jquery.fancybox.js?v=2.0.6"></script>
+		<link rel="stylesheet" type="text/css" href="scripts/source/jquery.fancybox.css?v=2.0.6" media="screen" />		
+	
+
+	</head>
+
+<body>
+
+<header>
+
+<a id="index" href="index.html">ANTLR</a>
+
+<nav>
+  <script src="scripts/topnav.js"></script>
+</nav>
+
+
+</header>
+
+<div id="wrapper">
+<div id="container">
+
+<div id="main">
+
+	<div id="content">
+	
+	<h1>ANTLR 4 License</h1>
+
+<i>[The BSD License]</i><br>
+Copyright (c) 2012 Terence Parr and Sam Harwell<br>
+All rights reserved.<br>
+
+<p>
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+
+<ul>
+<li>
+Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+
+<li>Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+<li>Neither the name of the author nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
+
+</ul>
+
+<p>THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.</p>
+	
+<br>
+<h1>Developer's Certificate of Origin</h1>
+
+<p>As of 4.10, ANTLR uses the Linux Foundation's Developer Certificate of Origin, DCO, version 1.1. See <a href="https://github.com/antlr/antlr4/blob/master/developer-cert-of-origin.txt">certificate
+of origin</a>. To contribute:</p>
+
+<ul>
+<li>fork the dev branch of the <a href="https://github.com/antlr/antlr4">ANTLR v4 github repository</a>
+<li>make your changes
+<li>commit your changes, signing your commits with <tt>git commit -s ...</tt>.
+<li>send a pull request
+</ul>
+
+	</div><!--/content-->
+	
+<div id="sidebar">
+    <script src="scripts/leftnav.js"></script>
+</div><!--/sidebar-->
+
+</div><!--/main-->
+
+
+</div><!--/container-->
+
+<div class="clear"><!--necessary nudge--></div>
+</div><!--/wrapper-->	
+
+<footer>
+	<script src="scripts/bottomnav.js"></script>
+</footer>
+
+<script src="scripts/functions.js"></script>	
+
+</body>
+</html>

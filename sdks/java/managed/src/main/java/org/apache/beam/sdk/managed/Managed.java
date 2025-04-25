@@ -17,11 +17,14 @@
  */
 package org.apache.beam.sdk.managed;
 
+import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
+
 import com.google.auto.value.AutoValue;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
@@ -77,23 +80,35 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  *
  * inputRows.apply(Managed.write(ICEBERG).withConfigUrl("path/to/config.yaml"));
  * }</pre>
+ *
+ * <h3>Runner specific features</h3>
+ *
+ * Google Cloud Dataflow supports additional management features for {@code Managed} including
+ * automatically upgrading transforms to the latest supported version. For more details and
+ * examples, please see <a href="https://cloud.google.com/dataflow/docs/guides/managed-io">Dataflow
+ * managed I/O</a>.
  */
 public class Managed {
 
   // TODO: Dynamically generate a list of supported transforms
   public static final String ICEBERG = "iceberg";
+  public static final String ICEBERG_CDC = "iceberg_cdc";
   public static final String KAFKA = "kafka";
+  public static final String BIGQUERY = "bigquery";
 
   // Supported SchemaTransforms
   public static final Map<String, String> READ_TRANSFORMS =
       ImmutableMap.<String, String>builder()
-          .put(ICEBERG, ManagedTransformConstants.ICEBERG_READ)
-          .put(KAFKA, ManagedTransformConstants.KAFKA_READ)
+          .put(ICEBERG, getUrn(ExternalTransforms.ManagedTransforms.Urns.ICEBERG_READ))
+          .put(ICEBERG_CDC, getUrn(ExternalTransforms.ManagedTransforms.Urns.ICEBERG_CDC_READ))
+          .put(KAFKA, getUrn(ExternalTransforms.ManagedTransforms.Urns.KAFKA_READ))
+          .put(BIGQUERY, getUrn(ExternalTransforms.ManagedTransforms.Urns.BIGQUERY_READ))
           .build();
   public static final Map<String, String> WRITE_TRANSFORMS =
       ImmutableMap.<String, String>builder()
-          .put(ICEBERG, ManagedTransformConstants.ICEBERG_WRITE)
-          .put(KAFKA, ManagedTransformConstants.KAFKA_WRITE)
+          .put(ICEBERG, getUrn(ExternalTransforms.ManagedTransforms.Urns.ICEBERG_WRITE))
+          .put(KAFKA, getUrn(ExternalTransforms.ManagedTransforms.Urns.KAFKA_WRITE))
+          .put(BIGQUERY, getUrn(ExternalTransforms.ManagedTransforms.Urns.BIGQUERY_WRITE))
           .build();
 
   /**
@@ -101,7 +116,14 @@ public class Managed {
    * supported managed sources are:
    *
    * <ul>
-   *   <li>{@link Managed#ICEBERG} : Read from Apache Iceberg
+   *   <li>{@link Managed#ICEBERG} : Read from Apache Iceberg tables using <a
+   *       href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/iceberg/IcebergIO.html">IcebergIO</a>
+   *   <li>{@link Managed#ICEBERG_CDC} : CDC Read from Apache Iceberg tables using <a
+   *       href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/iceberg/IcebergIO.html">IcebergIO</a>
+   *   <li>{@link Managed#KAFKA} : Read from Apache Kafka topics using <a
+   *       href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/kafka/KafkaIO.html">KafkaIO</a>
+   *   <li>{@link Managed#BIGQUERY} : Read from GCP BigQuery tables using <a
+   *       href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.html">BigQueryIO</a>
    * </ul>
    */
   public static ManagedTransform read(String source) {
@@ -121,7 +143,12 @@ public class Managed {
    * managed sinks are:
    *
    * <ul>
-   *   <li>{@link Managed#ICEBERG} : Write to Apache Iceberg
+   *   <li>{@link Managed#ICEBERG} : Write to Apache Iceberg tables <a
+   *       href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/iceberg/IcebergIO.html">IcebergIO</a>
+   *   <li>{@link Managed#KAFKA} : Write to Apache Kafka topics <a
+   *       href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/kafka/KafkaIO.html">KafkaIO</a>
+   *   <li>{@link Managed#BIGQUERY} : Write to GCP BigQuery tables <a
+   *       href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.html">BigQueryIO</a>
    * </ul>
    */
   public static ManagedTransform write(String sink) {

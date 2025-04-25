@@ -168,8 +168,10 @@ class FileBasedSource(iobase.BoundedSource):
             min_bundle_size=self._min_bundle_size,
             splittable=splittable)
         single_file_sources.append(single_file_source)
-        FileSystems.report_source_lineage(file_name)
+
+      FileSystems.report_source_lineage(pattern)
       self._concat_source = concat_source.ConcatSource(single_file_sources)
+
     return self._concat_source
 
   def open_file(self, file_name):
@@ -343,6 +345,7 @@ class _ExpandIntoRanges(DoFn):
     self._min_bundle_size = min_bundle_size
     self._splittable = splittable
     self._compression_type = compression_type
+    self._size_track = None
 
   def process(self, element: Union[str, FileMetadata], *args,
               **kwargs) -> Iterable[Tuple[FileMetadata, OffsetRange]]:
@@ -353,6 +356,7 @@ class _ExpandIntoRanges(DoFn):
       metadata_list = match_results[0].metadata_list
     for metadata in metadata_list:
       FileSystems.report_source_lineage(metadata.path)
+
       splittable = (
           self._splittable and _determine_splittability_from_compression_type(
               metadata.path, self._compression_type))

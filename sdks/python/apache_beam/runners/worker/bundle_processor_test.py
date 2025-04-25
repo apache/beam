@@ -18,24 +18,31 @@
 """Unit tests for bundle processing."""
 # pytype: skip-file
 
+import random
 import unittest
 
 import apache_beam as beam
+from apache_beam.coders import StrUtf8Coder
 from apache_beam.coders.coders import FastPrimitivesCoder
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners import common
+from apache_beam.runners.portability.fn_api_runner.worker_handlers import StateServicer
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import operations
 from apache_beam.runners.worker.bundle_processor import BeamTransformFactory
 from apache_beam.runners.worker.bundle_processor import BundleProcessor
 from apache_beam.runners.worker.bundle_processor import DataInputOperation
 from apache_beam.runners.worker.bundle_processor import FnApiUserStateContext
+from apache_beam.runners.worker.bundle_processor import SynchronousOrderedListRuntimeState
 from apache_beam.runners.worker.bundle_processor import TimerInfo
 from apache_beam.runners.worker.data_plane import SizeBasedBufferingClosableOutputStream
 from apache_beam.runners.worker.data_sampler import DataSampler
+from apache_beam.runners.worker.sdk_worker import GlobalCachingStateHandler
+from apache_beam.runners.worker.statecache import StateCache
 from apache_beam.transforms import userstate
 from apache_beam.transforms.window import GlobalWindow
+from apache_beam.utils import timestamp
 from apache_beam.utils.windowed_value import WindowedValue
 
 
@@ -420,6 +427,313 @@ class EnvironmentCompatibilityTest(unittest.TestCase):
         bundle_processor._environments_compatible(
             "beam:version:sdk_base:apache/beam_python3.5_sdk:2.1.0-custom",
             "beam:version:sdk_base:apache/beam_python3.5_sdk:2.1.0-custom"))
+
+
+class OrderedListStateTest(unittest.TestCase):
+  class NoStateCache(StateCache):
+    def __init__(self):
+      super().__init__(max_weight=0)
+
+  @staticmethod
+  def _create_state(window=b"my_window", key=b"my_key", coder=StrUtf8Coder()):
+    state_handler = GlobalCachingStateHandler(
+        OrderedListStateTest.NoStateCache(), StateServicer())
+    state_key = beam_fn_api_pb2.StateKey(
+        ordered_list_user_state=beam_fn_api_pb2.StateKey.OrderedListUserState(
+            window=window, key=key))
+    return SynchronousOrderedListRuntimeState(state_handler, state_key, coder)
+
+  def setUp(self):
+    self.state = self._create_state()
+
+  def test_read_range(self):
+    T0 = timestamp.Timestamp.of(0)
+    T1 = timestamp.Timestamp.of(1)
+    T2 = timestamp.Timestamp.of(2)
+    T3 = timestamp.Timestamp.of(3)
+    T4 = timestamp.Timestamp.of(4)
+    T5 = timestamp.Timestamp.of(5)
+    T9 = timestamp.Timestamp.of(9)
+    A1, B1, A4 = [(T1, "a1"), (T1, "b1"), (T4, "a4")]
+    self.assertEqual([], list(self.state.read_range(T0, T5)))
+
+    self.state.add(A1)
+    self.assertEqual([A1], list(self.state.read_range(T0, T5)))
+
+    self.state.add(B1)
+    self.assertEqual([A1, B1], list(self.state.read_range(T0, T5)))
+
+    self.state.add(A4)
+    self.assertEqual([A1, B1, A4], list(self.state.read_range(T0, T5)))
+
+    self.assertEqual([], list(self.state.read_range(T0, T1)))
+    self.assertEqual([], list(self.state.read_range(T5, T9)))
+    self.assertEqual([A1, B1], list(self.state.read_range(T1, T2)))
+    self.assertEqual([], list(self.state.read_range(T2, T3)))
+    self.assertEqual([], list(self.state.read_range(T2, T4)))
+    self.assertEqual([A4], list(self.state.read_range(T4, T5)))
+
+  def test_read(self):
+    T1 = timestamp.Timestamp.of(1)
+    T4 = timestamp.Timestamp.of(4)
+    A1, B1, A4 = [(T1, "a1"), (T1, "b1"), (T4, "a4")]
+    self.assertEqual([], list(self.state.read()))
+
+    self.state.add(A1)
+    self.assertEqual([A1], list(self.state.read()))
+
+    self.state.add(A1)
+    self.assertEqual([A1, A1], list(self.state.read()))
+
+    self.state.add(B1)
+    self.assertEqual([A1, A1, B1], list(self.state.read()))
+
+    self.state.add(A4)
+    self.assertEqual([A1, A1, B1, A4], list(self.state.read()))
+
+  def test_clear_range(self):
+    T0 = timestamp.Timestamp.of(0)
+    T1 = timestamp.Timestamp.of(1)
+    T2 = timestamp.Timestamp.of(2)
+    T3 = timestamp.Timestamp.of(3)
+    T4 = timestamp.Timestamp.of(4)
+    T5 = timestamp.Timestamp.of(5)
+    A1, B1, A4, A5 = [(T1, "a1"), (T1, "b1"), (T4, "a4"), (T5, "a5")]
+    self.state.clear_range(T0, T1)
+    self.assertEqual([], list(self.state.read()))
+
+    self.state.add(A1)
+    self.state.add(B1)
+    self.state.add(A4)
+    self.state.add(A5)
+    self.assertEqual([A1, B1, A4, A5], list(self.state.read()))
+
+    self.state.clear_range(T0, T1)
+    self.assertEqual([A1, B1, A4, A5], list(self.state.read()))
+
+    self.state.clear_range(T1, T2)
+    self.assertEqual([A4, A5], list(self.state.read()))
+
+    # no side effect on clearing the same range twice
+    self.state.clear_range(T1, T2)
+    self.assertEqual([A4, A5], list(self.state.read()))
+
+    self.state.clear_range(T3, T4)
+    self.assertEqual([A4, A5], list(self.state.read()))
+
+    self.state.clear_range(T3, T5)
+    self.assertEqual([A5], list(self.state.read()))
+
+  def test_add_and_clear_range_after_commit(self):
+    T1 = timestamp.Timestamp.of(1)
+    T4 = timestamp.Timestamp.of(4)
+    T5 = timestamp.Timestamp.of(5)
+    T6 = timestamp.Timestamp.of(6)
+    A1, B1, C1, A4, A5, A6 = [(T1, "a1"), (T1, "b1"), (T1, "c1"),
+                              (T4, "a4"), (T5, "a5"), (T6, "a6")]
+    self.state.add(A1)
+    self.state.add(B1)
+    self.state.add(A4)
+    self.state.add(A5)
+    self.state.clear_range(T4, T5)
+    self.assertEqual([A1, B1, A5], list(self.state.read()))
+
+    self.state.commit()
+    self.assertEqual(len(self.state._pending_adds), 0)
+    self.assertEqual(len(self.state._pending_removes), 0)
+    self.assertEqual([A1, B1, A5], list(self.state.read()))
+
+    self.state.add(C1)
+    self.state.add(A6)
+    self.assertEqual([A1, B1, C1, A5, A6], list(self.state.read()))
+
+    self.state.clear_range(T5, T6)
+    self.assertEqual([A1, B1, C1, A6], list(self.state.read()))
+
+    self.state.commit()
+    self.assertEqual(len(self.state._pending_adds), 0)
+    self.assertEqual(len(self.state._pending_removes), 0)
+    self.assertEqual([A1, B1, C1, A6], list(self.state.read()))
+
+  def test_clear(self):
+    T1 = timestamp.Timestamp.of(1)
+    T4 = timestamp.Timestamp.of(4)
+    T5 = timestamp.Timestamp.of(5)
+    T9 = timestamp.Timestamp.of(9)
+    A1, B1, C1, A4, A5, B5 = [(T1, "a1"), (T1, "b1"), (T1, "c1"),
+                              (T4, "a4"), (T5, "a5"), (T5, "b5")]
+    self.state.add(A1)
+    self.state.add(B1)
+    self.state.add(A4)
+    self.state.add(A5)
+    self.state.clear_range(T4, T5)
+    self.assertEqual([A1, B1, A5], list(self.state.read()))
+    self.state.commit()
+
+    self.state.add(C1)
+    self.state.clear_range(T5, T9)
+    self.assertEqual([A1, B1, C1], list(self.state.read()))
+    self.state.clear()
+    self.assertEqual(len(self.state._pending_adds), 0)
+    self.assertEqual(len(self.state._pending_removes), 1)
+
+    self.state.add(B5)
+    self.assertEqual([B5], list(self.state.read()))
+    self.state.commit()
+
+    self.assertEqual(len(self.state._pending_adds), 0)
+    self.assertEqual(len(self.state._pending_removes), 0)
+
+    self.assertEqual([B5], list(self.state.read()))
+
+  def test_multiple_iterators(self):
+    T1 = timestamp.Timestamp.of(1)
+    T3 = timestamp.Timestamp.of(3)
+    T9 = timestamp.Timestamp.of(9)
+    A1, B1, A3, B3 = [(T1, "a1"), (T1, "b1"), (T3, "a3"), (T3, "b3")]
+    self.state.add(A1)
+    self.state.add(A3)
+    self.state.commit()
+
+    iter_before_b1 = iter(self.state.read())
+    self.assertEqual(A1, next(iter_before_b1))
+
+    self.state.add(B1)
+    self.assertEqual(A3, next(iter_before_b1))
+    self.assertRaises(StopIteration, lambda: next(iter_before_b1))
+
+    self.state.add(B3)
+    iter_before_clear_range = iter(self.state.read())
+    self.assertEqual(A1, next(iter_before_clear_range))
+    self.state.clear_range(T3, T9)
+    self.assertEqual(B1, next(iter_before_clear_range))
+    self.assertEqual(A3, next(iter_before_clear_range))
+    self.assertEqual(B3, next(iter_before_clear_range))
+    self.assertRaises(StopIteration, lambda: next(iter_before_clear_range))
+    self.assertEqual([A1, B1], list(self.state.read()))
+
+    iter_before_clear = iter(self.state.read())
+    self.assertEqual(A1, next(iter_before_clear))
+    self.state.clear()
+    self.assertEqual(B1, next(iter_before_clear))
+    self.assertRaises(StopIteration, lambda: next(iter_before_clear))
+
+    self.assertEqual([], list(self.state.read()))
+
+  def fuzz_test_helper(self, seed=0, lower=0, upper=20):
+    class NaiveState:
+      def __init__(self):
+        self._data = [[] for i in range((upper - lower + 1))]
+        self._logs = []
+
+      def add(self, elem):
+        k, v = elem
+        k = k.micros
+        self._data[k - lower].append(v)
+        self._logs.append("add(%d, %s)" % (k, v))
+
+      def clear_range(self, lo, hi):
+        lo = lo.micros
+        hi = hi.micros
+        for i in range(lo, hi):
+          self._data[i - lower] = []
+        self._logs.append("clear_range(%d, %d)" % (lo, hi))
+
+      def clear(self):
+        for i in range(len(self._data)):
+          self._data[i] = []
+        self._logs.append("clear()")
+
+      def read(self):
+        self._logs.append("read()")
+        for i in range(len(self._data)):
+          for v in self._data[i]:
+            yield (timestamp.Timestamp(micros=(i + lower)), v)
+
+    random.seed(seed)
+
+    state = self._create_state()
+    bench_state = NaiveState()
+
+    steps = random.randint(20, 50)
+    for i in range(steps):
+      op = random.randint(1, 100)
+      if 1 <= op < 70:
+        num = random.randint(lower, upper)
+        state.add((timestamp.Timestamp(micros=num), "a%d" % num))
+        bench_state.add((timestamp.Timestamp(micros=num), "a%d" % num))
+      elif 70 <= op < 95:
+        num1 = random.randint(lower, upper)
+        num2 = random.randint(lower, upper)
+        min_time = timestamp.Timestamp(micros=min(num1, num2))
+        max_time = timestamp.Timestamp(micros=max(num1, num2))
+        state.clear_range(min_time, max_time)
+        bench_state.clear_range(min_time, max_time)
+      elif op >= 95:
+        state.clear()
+        bench_state.clear()
+
+      op = random.randint(1, 10)
+      if 1 <= op <= 9:
+        pass
+      else:
+        state.commit()
+
+      a = list(bench_state.read())
+      b = list(state.read())
+      self.assertEqual(
+          a,
+          b,
+          "Mismatch occurred on seed=%d, step=%d, logs=%s" %
+          (seed, i, ';'.join(bench_state._logs)))
+
+  def test_fuzz(self):
+    for _ in range(1000):
+      seed = random.randint(0, 0xffffffffffffffff)
+      try:
+        self.fuzz_test_helper(seed=seed)
+      except Exception as e:
+        raise RuntimeError("Exception occurred on seed=%d: %s" % (seed, e))
+
+  def test_min_max(self):
+    T_MIN = timestamp.Timestamp(micros=(-(1 << 63)))
+    T_MAX_MINUS_ONE = timestamp.Timestamp(micros=((1 << 63) - 2))
+    T_MAX = timestamp.Timestamp(micros=((1 << 63) - 1))
+    T0 = timestamp.Timestamp(micros=0)
+    INT64_MIN, INT64_MAX_MINUS_ONE, INT64_MAX = [(T_MIN, "min"),
+                                                 (T_MAX_MINUS_ONE, "max"),
+                                                 (T_MAX, "err")]
+    self.state.add(INT64_MIN)
+    self.state.add(INT64_MAX_MINUS_ONE)
+    self.assertRaises(ValueError, lambda: self.state.add(INT64_MAX))
+
+    self.assertEqual([INT64_MIN, INT64_MAX_MINUS_ONE], list(self.state.read()))
+    self.assertEqual([INT64_MIN], list(self.state.read_range(T_MIN, T0)))
+    self.assertEqual([INT64_MAX_MINUS_ONE],
+                     list(self.state.read_range(T0, T_MAX)))
+
+  def test_continuation_token(self):
+    T1 = timestamp.Timestamp.of(1)
+    T2 = timestamp.Timestamp.of(2)
+    T7 = timestamp.Timestamp.of(7)
+    T8 = timestamp.Timestamp.of(8)
+    A1, A2, A7, B7, A8 = [(T1, "a1"), (T2, "a2"), (T7, "a7"),
+                          (T7, "b7"), (T8, "a8")]
+    self.state._state_handler._underlying._use_continuation_tokens = True
+    self.assertEqual([], list(self.state.read_range(T1, T8)))
+
+    self.state.add(A1)
+    self.state.add(A2)
+    self.state.add(A7)
+    self.state.add(B7)
+    self.state.add(A8)
+
+    self.assertEqual([A2, A7, B7], list(self.state.read_range(T2, T8)))
+
+    self.state.commit()
+    self.assertEqual([A2, A7, B7], list(self.state.read_range(T2, T8)))
+
+    self.assertEqual([A1, A2, A7, B7, A8], list(self.state.read()))
 
 
 if __name__ == '__main__':

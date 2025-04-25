@@ -41,7 +41,8 @@ class JavaJarJobServerStub(JavaJarJobServer):
     return '/path/to/jar'
 
   @staticmethod
-  def local_jar(url):
+  def local_jar(url, jar_cache_dir=None):
+    logging.debug("url({%s}), jar_cache_dir({%s})", url, jar_cache_dir)
     return url
 
 

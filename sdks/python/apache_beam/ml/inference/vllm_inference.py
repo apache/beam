@@ -17,9 +17,11 @@
 
 # pytype: skip-file
 
+import asyncio
 import logging
 import os
 import subprocess
+import sys
 import threading
 import time
 import uuid
@@ -35,6 +37,7 @@ from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.utils import subprocess_server
+from openai import AsyncOpenAI
 from openai import OpenAI
 
 try:
@@ -94,6 +97,15 @@ def getVLLMClient(port) -> OpenAI:
   )
 
 
+def getAsyncVLLMClient(port) -> AsyncOpenAI:
+  openai_api_key = "EMPTY"
+  openai_api_base = f"http://localhost:{port}/v1"
+  return AsyncOpenAI(
+      api_key=openai_api_key,
+      base_url=openai_api_base,
+  )
+
+
 class _VLLMModelServer():
   def __init__(self, model_name: str, vllm_server_kwargs: Dict[str, str]):
     self._model_name = model_name
@@ -107,7 +119,7 @@ class _VLLMModelServer():
   def start_server(self, retries=3):
     if not self._server_started:
       server_cmd = [
-          'python',
+          sys.executable,
           '-m',
           'vllm.entrypoints.openai.api_server',
           '--model',
@@ -120,7 +132,7 @@ class _VLLMModelServer():
         server_cmd.append(v)
       self._server_process, self._server_port = start_process(server_cmd)
 
-    self.check_connectivity()
+    self.check_connectivity(retries)
 
   def get_server_port(self) -> int:
     if not self._server_started:
@@ -184,6 +196,34 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
   def load_model(self) -> _VLLMModelServer:
     return _VLLMModelServer(self._model_name, self._vllm_server_kwargs)
 
+  async def _async_run_inference(
+      self,
+      batch: Sequence[str],
+      model: _VLLMModelServer,
+      inference_args: Optional[Dict[str, Any]] = None
+  ) -> Iterable[PredictionResult]:
+    client = getAsyncVLLMClient(model.get_server_port())
+    inference_args = inference_args or {}
+    async_predictions = []
+    for prompt in batch:
+      try:
+        completion = client.completions.create(
+            model=self._model_name, prompt=prompt, **inference_args)
+        async_predictions.append(completion)
+      except Exception as e:
+        model.check_connectivity()
+        raise e
+
+    predictions = []
+    for p in async_predictions:
+      try:
+        predictions.append(await p)
+      except Exception as e:
+        model.check_connectivity()
+        raise e
+
+    return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
+
   def run_inference(
       self,
       batch: Sequence[str],
@@ -200,22 +240,7 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
     Returns:
       An Iterable of type PredictionResult.
     """
-    client = getVLLMClient(model.get_server_port())
-    inference_args = inference_args or {}
-    predictions = []
-    # TODO(https://github.com/apache/beam/issues/32528): We should add support
-    # for taking in batches and doing a bunch of async calls. That will end up
-    # being more efficient when we can do in bundle batching.
-    for prompt in batch:
-      try:
-        completion = client.completions.create(
-            model=self._model_name, prompt=prompt, **inference_args)
-        predictions.append(completion)
-      except Exception as e:
-        model.check_connectivity()
-        raise e
-
-    return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
+    return asyncio.run(self._async_run_inference(batch, model, inference_args))
 
   def share_model_across_processes(self) -> bool:
     return True
@@ -272,6 +297,37 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
 
     return _VLLMModelServer(self._model_name, self._vllm_server_kwargs)
 
+  async def _async_run_inference(
+      self,
+      batch: Sequence[Sequence[OpenAIChatMessage]],
+      model: _VLLMModelServer,
+      inference_args: Optional[Dict[str, Any]] = None
+  ) -> Iterable[PredictionResult]:
+    client = getAsyncVLLMClient(model.get_server_port())
+    inference_args = inference_args or {}
+    async_predictions = []
+    for messages in batch:
+      formatted = []
+      for message in messages:
+        formatted.append({"role": message.role, "content": message.content})
+      try:
+        completion = client.chat.completions.create(
+            model=self._model_name, messages=formatted, **inference_args)
+        async_predictions.append(completion)
+      except Exception as e:
+        model.check_connectivity()
+        raise e
+
+    predictions = []
+    for p in async_predictions:
+      try:
+        predictions.append(await p)
+      except Exception as e:
+        model.check_connectivity()
+        raise e
+
+    return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
+
   def run_inference(
       self,
       batch: Sequence[Sequence[OpenAIChatMessage]],
@@ -288,25 +344,7 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
     Returns:
       An Iterable of type PredictionResult.
     """
-    client = getVLLMClient(model.get_server_port())
-    inference_args = inference_args or {}
-    predictions = []
-    # TODO(https://github.com/apache/beam/issues/32528): We should add support
-    # for taking in batches and doing a bunch of async calls. That will end up
-    # being more efficient when we can do in bundle batching.
-    for messages in batch:
-      formatted = []
-      for message in messages:
-        formatted.append({"role": message.role, "content": message.content})
-      try:
-        completion = client.chat.completions.create(
-            model=self._model_name, messages=formatted, **inference_args)
-        predictions.append(completion)
-      except Exception as e:
-        model.check_connectivity()
-        raise e
-
-    return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
+    return asyncio.run(self._async_run_inference(batch, model, inference_args))
 
   def share_model_across_processes(self) -> bool:
     return True

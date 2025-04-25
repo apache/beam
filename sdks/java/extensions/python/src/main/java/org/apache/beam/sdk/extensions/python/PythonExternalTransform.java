@@ -54,13 +54,14 @@ import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.util.construction.External;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
@@ -586,6 +587,8 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
       outputs = ((PCollection<?>) input).apply(transform);
     } else if (input instanceof PCollectionTuple) {
       outputs = ((PCollectionTuple) input).apply(transform);
+    } else if (input instanceof PCollectionRowTuple) {
+      outputs = ((PCollectionRowTuple) input).apply(transform);
     } else if (input instanceof PBegin) {
       outputs = ((PBegin) input).apply(transform);
     } else {

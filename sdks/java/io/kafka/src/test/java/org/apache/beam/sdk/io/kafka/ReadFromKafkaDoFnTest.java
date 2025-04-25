@@ -151,6 +151,11 @@ public class ReadFromKafkaDoFnTest {
     public FailingDeserializer() {}
 
     @Override
+    public void configure(Map<String, ?> configs, boolean isKey) {
+      // intentionally left blank for compatibility with older kafka versions
+    }
+
+    @Override
     public String deserialize(String topic, byte[] data) {
       throw new SerializationException("Intentional serialization exception");
     }
@@ -200,6 +205,8 @@ public class ReadFromKafkaDoFnTest {
         OffsetResetStrategy offsetResetStrategy, TopicPartition topicPartition) {
       super(offsetResetStrategy);
       this.topicPartition = topicPartition;
+      updateBeginningOffsets(ImmutableMap.of(topicPartition, 0L));
+      updateEndOffsets(ImmutableMap.of(topicPartition, Long.MAX_VALUE));
     }
 
     public void reset() {
@@ -209,6 +216,8 @@ public class ReadFromKafkaDoFnTest {
       this.startOffsetForTime = KV.of(0L, Instant.now());
       this.stopOffsetForTime = KV.of(Long.MAX_VALUE, null);
       this.numOfRecordsPerPoll = 0L;
+      updateBeginningOffsets(ImmutableMap.of(topicPartition, 0L));
+      updateEndOffsets(ImmutableMap.of(topicPartition, Long.MAX_VALUE));
     }
 
     public void setRemoved() {
@@ -241,6 +250,17 @@ public class ReadFromKafkaDoFnTest {
           ImmutableList.of(
               new PartitionInfo(
                   topicPartition.topic(), topicPartition.partition(), null, null, null)));
+    }
+
+    @Override
+    public synchronized List<PartitionInfo> partitionsFor(String partition) {
+      if (this.isRemoved) {
+        return ImmutableList.of();
+      } else {
+        return ImmutableList.of(
+            new PartitionInfo(
+                topicPartition.topic(), topicPartition.partition(), null, null, null));
+      }
     }
 
     @Override
@@ -697,14 +717,14 @@ public class ReadFromKafkaDoFnTest {
   @Test
   public void testConstructorWithPollTimeout() {
     ReadSourceDescriptors<String, String> descriptors = makeReadSourceDescriptor(consumer);
-    // default poll timeout = 1 scond
+    // default poll timeout = 2 seconds
     ReadFromKafkaDoFn<String, String> dofnInstance = ReadFromKafkaDoFn.create(descriptors, RECORDS);
-    Assert.assertEquals(2L, dofnInstance.consumerPollingTimeout);
+    Assert.assertEquals(Duration.ofSeconds(2L), dofnInstance.consumerPollingTimeout);
     // updated timeout = 5 seconds
     descriptors = descriptors.withConsumerPollingTimeout(5L);
     ReadFromKafkaDoFn<String, String> dofnInstanceNew =
         ReadFromKafkaDoFn.create(descriptors, RECORDS);
-    Assert.assertEquals(5L, dofnInstanceNew.consumerPollingTimeout);
+    Assert.assertEquals(Duration.ofSeconds(5L), dofnInstanceNew.consumerPollingTimeout);
   }
 
   private BoundednessVisitor testBoundedness(

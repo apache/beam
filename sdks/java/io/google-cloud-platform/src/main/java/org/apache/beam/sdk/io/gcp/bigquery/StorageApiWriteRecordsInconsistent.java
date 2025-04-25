@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.bigquery.storage.v1.AppendRowsRequest;
+import java.util.Map;
 import java.util.function.Predicate;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
@@ -55,6 +56,7 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
   private final @Nullable String kmsKey;
   private final boolean usesCdc;
   private final AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation;
+  private final @Nullable Map<String, String> bigLakeConfiguration;
 
   public StorageApiWriteRecordsInconsistent(
       StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
@@ -69,7 +71,8 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
       BigQueryIO.Write.CreateDisposition createDisposition,
       @Nullable String kmsKey,
       boolean usesCdc,
-      AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation) {
+      AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation,
+      @Nullable Map<String, String> bigLakeConfiguration) {
     this.dynamicDestinations = dynamicDestinations;
     this.bqServices = bqServices;
     this.failedRowsTag = failedRowsTag;
@@ -83,6 +86,7 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
     this.kmsKey = kmsKey;
     this.usesCdc = usesCdc;
     this.defaultMissingValueInterpretation = defaultMissingValueInterpretation;
+    this.bigLakeConfiguration = bigLakeConfiguration;
   }
 
   @Override
@@ -116,7 +120,8 @@ public class StorageApiWriteRecordsInconsistent<DestinationT, ElementT>
                         kmsKey,
                         usesCdc,
                         defaultMissingValueInterpretation,
-                        bigQueryOptions.getStorageWriteApiMaxRetries()))
+                        bigQueryOptions.getStorageWriteApiMaxRetries(),
+                        bigLakeConfiguration))
                 .withOutputTags(finalizeTag, tupleTagList)
                 .withSideInputs(dynamicDestinations.getSideInputs()));
     result.get(failedRowsTag).setCoder(failedRowsCoder);

@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Queue;
 import javax.annotation.Nullable;
@@ -29,7 +30,10 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.avro.Avro;
+import org.apache.iceberg.data.GenericDeleteFilter;
+import org.apache.iceberg.data.IdentityPartitionConverters;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.data.avro.DataReader;
 import org.apache.iceberg.data.orc.GenericOrcReader;
@@ -40,6 +44,7 @@ import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.io.CloseableIterator;
 import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.io.InputFile;
+import org.apache.iceberg.mapping.NameMappingParser;
 import org.apache.iceberg.orc.ORC;
 import org.apache.iceberg.parquet.Parquet;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -88,6 +93,8 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
     // which are not null-safe.
     @SuppressWarnings("nullness")
     org.apache.iceberg.@NonNull Schema project = this.project;
+    @Nullable
+    String nameMapping = source.getTable().properties().get(TableProperties.DEFAULT_NAME_MAPPING);
 
     do {
       // If our current iterator is working... do that.
@@ -112,43 +119,66 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
       FileScanTask fileTask = fileScanTasks.remove();
       DataFile file = fileTask.file();
       InputFile input = decryptor.getInputFile(fileTask);
+      Map<Integer, ?> idToConstants =
+          ReadUtils.constantsMap(fileTask, IdentityPartitionConverters::convertConstant, project);
 
       CloseableIterable<Record> iterable;
       switch (file.format()) {
         case ORC:
           LOG.info("Preparing ORC input");
-          iterable =
+          ORC.ReadBuilder orcReader =
               ORC.read(input)
                   .split(fileTask.start(), fileTask.length())
                   .project(project)
-                  .createReaderFunc(fileSchema -> GenericOrcReader.buildReader(project, fileSchema))
-                  .filter(fileTask.residual())
-                  .build();
+                  .createReaderFunc(
+                      fileSchema ->
+                          GenericOrcReader.buildReader(project, fileSchema, idToConstants))
+                  .filter(fileTask.residual());
+
+          if (nameMapping != null) {
+            orcReader.withNameMapping(NameMappingParser.fromJson(nameMapping));
+          }
+
+          iterable = orcReader.build();
           break;
         case PARQUET:
           LOG.info("Preparing Parquet input.");
-          iterable =
+          Parquet.ReadBuilder parquetReader =
               Parquet.read(input)
                   .split(fileTask.start(), fileTask.length())
                   .project(project)
                   .createReaderFunc(
-                      fileSchema -> GenericParquetReaders.buildReader(project, fileSchema))
-                  .filter(fileTask.residual())
-                  .build();
+                      fileSchema ->
+                          GenericParquetReaders.buildReader(project, fileSchema, idToConstants))
+                  .filter(fileTask.residual());
+
+          if (nameMapping != null) {
+            parquetReader.withNameMapping(NameMappingParser.fromJson(nameMapping));
+          }
+
+          iterable = parquetReader.build();
           break;
         case AVRO:
           LOG.info("Preparing Avro input.");
-          iterable =
+          Avro.ReadBuilder avroReader =
               Avro.read(input)
                   .split(fileTask.start(), fileTask.length())
                   .project(project)
-                  .createReaderFunc(DataReader::create)
-                  .build();
+                  .createReaderFunc(
+                      fileSchema -> DataReader.create(project, fileSchema, idToConstants));
+
+          if (nameMapping != null) {
+            avroReader.withNameMapping(NameMappingParser.fromJson(nameMapping));
+          }
+
+          iterable = avroReader.build();
           break;
         default:
           throw new UnsupportedOperationException("Cannot read format: " + file.format());
       }
-      currentIterator = iterable.iterator();
+      GenericDeleteFilter deleteFilter =
+          new GenericDeleteFilter(checkStateNotNull(io), fileTask, fileTask.schema(), project);
+      currentIterator = deleteFilter.filter(iterable).iterator();
 
     } while (true);
 

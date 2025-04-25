@@ -39,4 +39,7 @@ spec:
     scaleDownThreshold: '0.25'
     scaleUpFactor: '2'
     scaleDownFactor: '0.5'
+  - type: TotalNumberOfQueuedAndInProgressWorkflowRuns
+    repositoryNames:
+    - beam
   %{~ endif ~}

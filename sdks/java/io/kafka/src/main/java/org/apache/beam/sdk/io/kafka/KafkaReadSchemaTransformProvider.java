@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 
 import com.google.auto.service.AutoService;
 import java.io.FileOutputStream;
@@ -26,6 +27,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -34,6 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.extensions.protobuf.ProtoByteUtils;
@@ -101,9 +104,20 @@ public class KafkaReadSchemaTransformProvider
     };
   }
 
+  public static SerializableFunction<byte[], Row> getRawStringToRowFunction(Schema stringSchema) {
+    return new SimpleFunction<byte[], Row>() {
+      @Override
+      public Row apply(byte[] input) {
+        return Row.withSchema(stringSchema)
+            .addValue(new String(input, StandardCharsets.UTF_8))
+            .build();
+      }
+    };
+  }
+
   @Override
   public String identifier() {
-    return "beam:schematransform:org.apache.beam:kafka_read:v1";
+    return getUrn(ExternalTransforms.ManagedTransforms.Urns.KAFKA_READ);
   }
 
   @Override
@@ -191,6 +205,9 @@ public class KafkaReadSchemaTransformProvider
       if ("RAW".equals(format)) {
         beamSchema = Schema.builder().addField("payload", Schema.FieldType.BYTES).build();
         valueMapper = getRawBytesToRowFunction(beamSchema);
+      } else if ("STRING".equals(format)) {
+        beamSchema = Schema.builder().addField("payload", Schema.FieldType.STRING).build();
+        valueMapper = getRawStringToRowFunction(beamSchema);
       } else if ("PROTO".equals(format)) {
         String fileDescriptorPath = configuration.getFileDescriptorPath();
         String messageName = checkArgumentNotNull(configuration.getMessageName());

@@ -30,10 +30,16 @@ public abstract class WindmillServerStub
   @Override
   public void appendSummaryHtml(PrintWriter writer) {}
 
-  /** Generic Exception type for implementors to use to represent errors while making RPCs. */
-  public static final class RpcException extends RuntimeException {
-    public RpcException(Throwable cause) {
+  /**
+   * Generic Exception type for implementors to use to represent errors while making Windmill RPCs.
+   */
+  public static final class WindmillRpcException extends RuntimeException {
+    public WindmillRpcException(Throwable cause) {
       super(cause);
+    }
+
+    public WindmillRpcException(String message, Throwable cause) {
+      super(message, cause);
     }
   }
 }

@@ -13,6 +13,9 @@
 - name: { text: "DirectRunner:", link: /documentation/runners/direct/ }
   icon: icons/documentation/runners/beam-icon.svg
   description: Runs locally on your machine – great for developing, testing, and debugging.
+- name: { text: "PrismRunner:", link: /documentation/runners/prism/ }
+  icon: icons/documentation/runners/beam-icon.svg
+  description: Runs locally on your machine – great for developing, testing, and debugging.
 - name: { text: "FlinkRunner:", link: /documentation/runners/flink/ }
   icon: icons/documentation/runners/flink-icon.svg
   description: Runs on <a target="_blank" href="https://flink.apache.org">Apache Flink</a>.

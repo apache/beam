@@ -30,7 +30,7 @@ dependencies {
   implementation project(path: ":sdks:java:extensions:google-cloud-platform-core")
   permitUnusedDeclared project(path: ":sdks:java:extensions:google-cloud-platform-core")
   implementation library.java.slf4j_api
-  implementation group: 'net.snowflake', name: 'snowflake-jdbc', version: '3.12.11'
+  implementation group: 'net.snowflake', name: 'snowflake-jdbc', version: '3.20.0'
   implementation group: 'com.opencsv', name: 'opencsv', version: '5.0'
   implementation 'net.snowflake:snowflake-ingest-sdk:0.9.9'
   implementation "org.bouncycastle:bcprov-jdk15on:1.70"

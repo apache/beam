@@ -22,7 +22,11 @@ import static org.junit.Assert.assertThrows;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.UnsafeByteOperations;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.UnsafeByteOperations;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -155,6 +159,67 @@ public class ByteStringOutputStreamTest {
       }
       assertEquals(UnsafeByteOperations.unsafeWrap(testBuffer), out.toByteString());
       assertEquals(UnsafeByteOperations.unsafeWrap(testBuffer), out.toByteStringAndReset());
+    }
+  }
+
+  @Test
+  public void appendEquivalentToOutputStreamWriter() throws IOException {
+    String randomString = "⣏⓫⦎⊺ⱄ\u243B♼⢓␜\u2065✝⡳oⶤⱲ⨻1⅒ↀ◅⡪⋲";
+    ByteString byteString1, byteString2;
+    {
+      ByteStringOutputStream stream = new ByteStringOutputStream();
+      OutputStreamWriter writer = new OutputStreamWriter(stream, StandardCharsets.UTF_8);
+      writer.append(randomString);
+      writer.flush();
+      byteString1 = stream.toByteString();
+    }
+
+    {
+      ByteStringOutputStream stream = new ByteStringOutputStream();
+      stream.append(randomString);
+      byteString2 = stream.toByteString();
+    }
+    assertEquals(byteString1, byteString2);
+  }
+
+  @Test
+  public void appendEquivalentToOutputStreamWriterSubstr() throws IOException {
+    String randomString = "⣏⓫⦎⊺ⱄ\u243B♼⢓␜\u2065✝⡳oⶤⱲ⨻1⅒ↀ◅⡪⋲";
+    ByteString byteString1, byteString2;
+    {
+      ByteStringOutputStream stream = new ByteStringOutputStream();
+      OutputStreamWriter writer = new OutputStreamWriter(stream, StandardCharsets.UTF_8);
+      writer.append(randomString, 3, 10);
+      writer.flush();
+      byteString1 = stream.toByteString();
+    }
+
+    {
+      ByteStringOutputStream stream = new ByteStringOutputStream();
+      stream.append(randomString, 3, 10);
+      byteString2 = stream.toByteString();
+    }
+    assertEquals(byteString1, byteString2);
+  }
+
+  @Test
+  public void appendEquivalentToOutputStreamWriterChar() throws IOException {
+    for (char c = 0; c <= 255; ++c) {
+      ByteString byteString1, byteString2;
+      {
+        ByteStringOutputStream stream = new ByteStringOutputStream();
+        OutputStreamWriter writer = new OutputStreamWriter(stream, StandardCharsets.UTF_8);
+        writer.append(c);
+        writer.flush();
+        byteString1 = stream.toByteString();
+      }
+
+      {
+        ByteStringOutputStream stream = new ByteStringOutputStream();
+        stream.append(c);
+        byteString2 = stream.toByteString();
+      }
+      assertEquals(byteString1, byteString2);
     }
   }
 

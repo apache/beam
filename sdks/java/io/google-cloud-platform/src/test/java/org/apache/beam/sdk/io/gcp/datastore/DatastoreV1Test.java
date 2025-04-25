@@ -43,12 +43,12 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
 import com.google.datastore.v1.CommitRequest;
@@ -608,17 +608,28 @@ public class DatastoreV1Test {
             makeUpsert(Entity.newBuilder().setKey(makeKey("key" + i, i + 1)).build()).build());
       }
 
+      int start = 0;
+      ArgumentCaptor<CommitRequest> requestCaptor = ArgumentCaptor.forClass(CommitRequest.class);
+      CommitResponse response = CommitResponse.getDefaultInstance();
+      while (start < numMutations) {
+        int end = Math.min(numMutations, start + DatastoreV1.DATASTORE_BATCH_UPDATE_ENTITIES_START);
+        when(mockDatastore.commit(requestCaptor.capture())).thenReturn(response);
+        start = end;
+      }
+
       DatastoreWriterFn datastoreWriter =
           new DatastoreWriterFn(
               StaticValueProvider.of(PROJECT_ID),
               null,
               mockDatastoreFactory,
               new FakeWriteBatcher());
-      DoFnTester<Mutation, Void> doFnTester = DoFnTester.of(datastoreWriter);
+      DoFnTester<Mutation, DatastoreV1.WriteSuccessSummary> doFnTester =
+          DoFnTester.of(datastoreWriter);
       doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
       doFnTester.processBundle(mutations);
 
-      int start = 0;
+      start = 0;
+      List<CommitRequest> requests = new ArrayList<>();
       while (start < numMutations) {
         int end = Math.min(numMutations, start + DatastoreV1.DATASTORE_BATCH_UPDATE_ENTITIES_START);
         CommitRequest.Builder commitRequest = CommitRequest.newBuilder();
@@ -627,9 +638,12 @@ public class DatastoreV1Test {
         commitRequest.setMode(CommitRequest.Mode.NON_TRANSACTIONAL);
         commitRequest.addAllMutations(mutations.subList(start, end));
         // Verify all the batch requests were made with the expected mutations.
-        verify(mockDatastore, times(1)).commit(commitRequest.build());
+        CommitRequest expectedRequest = commitRequest.build();
+        verify(mockDatastore, times(1)).commit(expectedRequest);
+        requests.add(expectedRequest);
         start = end;
       }
+      assertTrue(requestCaptor.getAllValues().containsAll(requests));
     }
 
     /**
@@ -651,20 +665,31 @@ public class DatastoreV1Test {
         mutations.add(makeUpsert(entity).build());
       }
 
+      int entitiesPerRpc = DATASTORE_BATCH_UPDATE_BYTES_LIMIT / entitySize;
+      int start = 0;
+      ArgumentCaptor<CommitRequest> requestCaptor = ArgumentCaptor.forClass(CommitRequest.class);
+      CommitResponse response = CommitResponse.getDefaultInstance();
+      while (start < mutations.size()) {
+        int end = Math.min(mutations.size(), start + entitiesPerRpc);
+        when(mockDatastore.commit(requestCaptor.capture())).thenReturn(response);
+        start = end;
+      }
+
       DatastoreWriterFn datastoreWriter =
           new DatastoreWriterFn(
               StaticValueProvider.of(PROJECT_ID),
               null,
               mockDatastoreFactory,
               new FakeWriteBatcher());
-      DoFnTester<Mutation, Void> doFnTester = DoFnTester.of(datastoreWriter);
+      DoFnTester<Mutation, DatastoreV1.WriteSuccessSummary> doFnTester =
+          DoFnTester.of(datastoreWriter);
       doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
       doFnTester.processBundle(mutations);
 
       // This test is over-specific currently; it requires that we split the 12 entity writes into 3
       // requests, but we only need each CommitRequest to be less than 10MB in size.
-      int entitiesPerRpc = DATASTORE_BATCH_UPDATE_BYTES_LIMIT / entitySize;
-      int start = 0;
+      start = 0;
+      List<CommitRequest> requests = new ArrayList<>();
       while (start < mutations.size()) {
         int end = Math.min(mutations.size(), start + entitiesPerRpc);
         CommitRequest.Builder commitRequest = CommitRequest.newBuilder();
@@ -673,9 +698,12 @@ public class DatastoreV1Test {
         commitRequest.setMode(CommitRequest.Mode.NON_TRANSACTIONAL);
         commitRequest.addAllMutations(mutations.subList(start, end));
         // Verify all the batch requests were made with the expected mutations.
-        verify(mockDatastore).commit(commitRequest.build());
+        CommitRequest expectedRequest = commitRequest.build();
+        verify(mockDatastore).commit(expectedRequest);
+        requests.add(expectedRequest);
         start = end;
       }
+      assertTrue(requestCaptor.getAllValues().containsAll(requests));
     }
 
     /** Tests {@link DatastoreWriterFn} correctly flushes batch upon receive same entity keys. */
@@ -693,13 +721,18 @@ public class DatastoreV1Test {
                 .build());
       }
 
+      ArgumentCaptor<CommitRequest> requestCaptor = ArgumentCaptor.forClass(CommitRequest.class);
+      CommitResponse response = CommitResponse.getDefaultInstance();
+      when(mockDatastore.commit(requestCaptor.capture())).thenReturn(response).thenReturn(response);
+
       DatastoreWriterFn datastoreWriter =
           new DatastoreWriterFn(
               StaticValueProvider.of(PROJECT_ID),
               null,
               mockDatastoreFactory,
               new FakeWriteBatcher());
-      DoFnTester<Mutation, Void> doFnTester = DoFnTester.of(datastoreWriter);
+      DoFnTester<Mutation, DatastoreV1.WriteSuccessSummary> doFnTester =
+          DoFnTester.of(datastoreWriter);
       doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
       doFnTester.processBundle(mutations);
 
@@ -709,7 +742,8 @@ public class DatastoreV1Test {
       commitRequest.addAllMutations(mutations.subList(0, 2));
       commitRequest.setProjectId(PROJECT_ID);
       commitRequest.setDatabaseId(DATABASE_ID);
-      verify(mockDatastore, times(1)).commit(commitRequest.build());
+      CommitRequest expectedRequest1 = commitRequest.build();
+      verify(mockDatastore, times(1)).commit(expectedRequest1);
 
       // second invocation has key [0, 2] because the second 0 triggered a flush batch
       commitRequest = CommitRequest.newBuilder();
@@ -717,8 +751,14 @@ public class DatastoreV1Test {
       commitRequest.addAllMutations(mutations.subList(2, 4));
       commitRequest.setProjectId(PROJECT_ID);
       commitRequest.setDatabaseId(DATABASE_ID);
-      verify(mockDatastore, times(1)).commit(commitRequest.build());
+      CommitRequest expectedRequest2 = commitRequest.build();
+      verify(mockDatastore, times(1)).commit(expectedRequest2);
       verifyMetricWasSet("BatchDatastoreWrite", "ok", "", 2);
+
+      assertTrue(
+          requestCaptor
+              .getAllValues()
+              .containsAll(Arrays.asList(expectedRequest1, expectedRequest2)));
     }
 
     /** Tests {@link DatastoreWriterFn} with a failed request which is retried. */
@@ -743,7 +783,8 @@ public class DatastoreV1Test {
               null,
               mockDatastoreFactory,
               new FakeWriteBatcher());
-      DoFnTester<Mutation, Void> doFnTester = DoFnTester.of(datastoreWriter);
+      DoFnTester<Mutation, DatastoreV1.WriteSuccessSummary> doFnTester =
+          DoFnTester.of(datastoreWriter);
       doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
       doFnTester.processBundle(mutations);
       verifyMetricWasSet("BatchDatastoreWrite", "ok", "", 2);
@@ -942,7 +983,7 @@ public class DatastoreV1Test {
                 any(Datastore.class),
                 eq(readTimeProto));
       }
-      verifyZeroInteractions(mockDatastore);
+      verifyNoInteractions(mockDatastore);
     }
 
     /** Tests {@link SplitQueryFn} when no query splits is specified. */

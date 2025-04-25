@@ -777,26 +777,10 @@ class TriggerLoadJobs(beam.DoFn):
         GlobalWindows.windowed_value((destination, job_reference)))
 
   def finish_bundle(self):
-    dataset_locations = {}
-
     for windowed_value in self.pending_jobs:
-      table_ref = bigquery_tools.parse_table_reference(windowed_value.value[0])
-      project_dataset = (table_ref.projectId, table_ref.datasetId)
-
       job_ref = windowed_value.value[1]
-      # In some cases (e.g. when the load job op returns a 409 ALREADY_EXISTS),
-      # the returned job reference may not include a location. In such cases,
-      # we need to override with the dataset's location.
-      job_location = job_ref.location
-      if not job_location and project_dataset not in dataset_locations:
-        job_location = self.bq_wrapper.get_table_location(
-            table_ref.projectId, table_ref.datasetId, table_ref.tableId)
-        dataset_locations[project_dataset] = job_location
-
       self.bq_wrapper.wait_for_bq_job(
-          job_ref,
-          sleep_duration_sec=_SLEEP_DURATION_BETWEEN_POLLS,
-          location=job_location)
+          job_ref, sleep_duration_sec=_SLEEP_DURATION_BETWEEN_POLLS)
     return self.pending_jobs
 
 

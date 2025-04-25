@@ -118,7 +118,6 @@ def portableValidatesRunnerTask(String name, boolean streaming, boolean docker, 
         excludeCategories 'org.apache.beam.sdk.testing.UsesFailureMessage'
         excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
         excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderedDelivery'
-        excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
         excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
         excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
         excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
@@ -187,7 +186,6 @@ def portableValidatesRunnerTask(String name, boolean streaming, boolean docker, 
         excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
         excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderedDelivery'
         excludeCategories 'org.apache.beam.sdk.testing.UsesPerKeyOrderInBundle'
-        excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
         excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
         excludeCategories 'org.apache.beam.sdk.testing.UsesMultimapState'
         excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
@@ -303,3 +301,7 @@ createCrossLanguageValidatesRunnerTask(
     "--endpoint localhost:${jobPort}",
   ],
 )
+
+shadowJar {
+  outputs.upToDateWhen { false }
+}

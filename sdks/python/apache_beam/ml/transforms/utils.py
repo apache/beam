@@ -19,7 +19,6 @@ __all__ = ['ArtifactsFetcher']
 
 import os
 import tempfile
-import typing
 
 from google.cloud.storage import Client
 from google.cloud.storage import transfer_manager
@@ -72,7 +71,7 @@ class ArtifactsFetcher:
     self._artifact_location = os.path.join(artifact_location, files[0])
     self.transform_output = tft.TFTransformOutput(self._artifact_location)
 
-  def get_vocab_list(self, vocab_filename: str) -> typing.List[bytes]:
+  def get_vocab_list(self, vocab_filename: str) -> list[bytes]:
     """
     Returns list of vocabulary terms created during MLTransform.
     """

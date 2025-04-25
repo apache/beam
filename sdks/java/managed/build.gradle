@@ -28,6 +28,7 @@ ext.summary = """Library that provides managed IOs."""
 
 dependencies {
     implementation project(path: ":sdks:java:core", configuration: "shadow")
+    implementation project(path: ":model:pipeline", configuration: "shadow")
     implementation library.java.vendored_guava_32_1_2_jre
     implementation library.java.slf4j_api
 

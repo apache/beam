@@ -29,7 +29,6 @@ import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1.Exceptions;
 import com.google.cloud.bigquery.storage.v1.ProtoRows;
 import com.google.cloud.bigquery.storage.v1.TableSchema;
-import com.google.cloud.bigquery.storage.v1.WriteStream;
 import com.google.cloud.bigquery.storage.v1.WriteStream.Type;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.DescriptorProtos;
@@ -120,6 +119,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
   private final @Nullable String kmsKey;
   private final boolean usesCdc;
   private final AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation;
+  private final @Nullable Map<String, String> bigLakeConfiguration;
 
   /**
    * The Guava cache object is thread-safe. However our protocol requires that client pin the
@@ -179,7 +179,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       BigQueryIO.Write.CreateDisposition createDisposition,
       @Nullable String kmsKey,
       boolean usesCdc,
-      AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation) {
+      AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation,
+      @Nullable Map<String, String> bigLakeConfiguration) {
     this.dynamicDestinations = dynamicDestinations;
     this.bqServices = bqServices;
     this.failedRowsTag = failedRowsTag;
@@ -193,6 +194,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     this.kmsKey = kmsKey;
     this.usesCdc = usesCdc;
     this.defaultMissingValueInterpretation = defaultMissingValueInterpretation;
+    this.bigLakeConfiguration = bigLakeConfiguration;
   }
 
   @Override
@@ -228,7 +230,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                         kmsKey,
                         usesCdc,
                         defaultMissingValueInterpretation,
-                        options.getStorageWriteApiMaxRetries()))
+                        options.getStorageWriteApiMaxRetries(),
+                        bigLakeConfiguration))
                 .withOutputTags(finalizeTag, tupleTagList)
                 .withSideInputs(dynamicDestinations.getSideInputs()));
 
@@ -471,15 +474,18 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
             () -> {
               if (autoUpdateSchema) {
                 @Nullable
-                WriteStream writeStream =
+                TableSchema streamSchema =
                     Preconditions.checkStateNotNull(maybeWriteStreamService)
-                        .getWriteStream(streamName);
-                if (writeStream != null && writeStream.hasTableSchema()) {
-                  TableSchema updatedFromStream = writeStream.getTableSchema();
-                  currentSchema.set(updatedFromStream);
-                  updated.set(true);
-                  LOG.debug(
-                      "Fetched updated schema for table {}:\n\t{}", tableUrn, updatedFromStream);
+                        .getWriteStreamSchema(streamName);
+                if (streamSchema != null) {
+                  Optional<TableSchema> newSchema =
+                      TableSchemaUpdateUtils.getUpdatedSchema(initialTableSchema, streamSchema);
+                  if (newSchema.isPresent()) {
+                    currentSchema.set(newSchema.get());
+                    updated.set(true);
+                    LOG.debug(
+                        "Fetched updated schema for table {}:\n\t{}", tableUrn, newSchema.get());
+                  }
                 }
               }
               return null;
@@ -575,8 +581,10 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
             appendClientInfo = getAppendClientInfo(true, null);
           }
           @Nullable TableRow unknownFields = payload.getUnknownFields();
-          if (unknownFields != null) {
+          if (unknownFields != null && !unknownFields.isEmpty()) {
             try {
+              // TODO(34145, radoslaws): concat will work for unknownFields that are primitive type,
+              //  will cause issues with nested and repeated fields
               payloadBytes =
                   payloadBytes.concat(
                       Preconditions.checkStateNotNull(appendClientInfo)
@@ -954,6 +962,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
     private final BigQueryServices bqServices;
     private final boolean useDefaultStream;
     private int streamAppendClientCount;
+    private final @Nullable Map<String, String> bigLakeConfiguration;
 
     WriteRecordsDoFn(
         String operationName,
@@ -973,7 +982,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         @Nullable String kmsKey,
         boolean usesCdc,
         AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation,
-        int maxRetries) {
+        int maxRetries,
+        @Nullable Map<String, String> bigLakeConfiguration) {
       this.messageConverters = new TwoLevelMessageConverterCache<>(operationName);
       this.dynamicDestinations = dynamicDestinations;
       this.bqServices = bqServices;
@@ -992,6 +1002,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       this.usesCdc = usesCdc;
       this.defaultMissingValueInterpretation = defaultMissingValueInterpretation;
       this.maxRetries = maxRetries;
+      this.bigLakeConfiguration = bigLakeConfiguration;
     }
 
     boolean shouldFlush() {
@@ -1098,7 +1109,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                 createDisposition,
                 destinationCoder,
                 kmsKey,
-                bqServices);
+                bqServices,
+                bigLakeConfiguration);
             return true;
           };
 

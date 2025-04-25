@@ -40,6 +40,7 @@ import com.google.pubsub.v1.SubscriberGrpc.SubscriberImplBase;
 import com.google.pubsub.v1.Topic;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
+import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
@@ -428,6 +429,45 @@ public class PubsubGrpcClientTest {
           "Pub/Sub Schema type PROTOCOL_BUFFER is not supported at this time",
           IllegalArgumentException.class,
           () -> client.getSchema(SCHEMA));
+    } finally {
+      server.shutdownNow();
+    }
+  }
+
+  @Test
+  public void isTopicExists() throws IOException {
+    initializeClient(null, null);
+    TopicPath topicDoesNotExist =
+        PubsubClient.topicPathFromPath("projects/testProject/topics/dontexist");
+    TopicPath topicExists = PubsubClient.topicPathFromPath("projects/testProject/topics/exist");
+
+    PublisherImplBase publisherImplBase =
+        new PublisherImplBase() {
+          @Override
+          public void getTopic(GetTopicRequest request, StreamObserver<Topic> responseObserver) {
+            String topicPath = request.getTopic();
+            if (topicPath.equals(topicDoesNotExist.getPath())) {
+              responseObserver.onError(
+                  new StatusRuntimeException(Status.fromCode(Status.Code.NOT_FOUND)));
+            }
+            if (topicPath.equals(topicExists.getPath())) {
+              responseObserver.onNext(
+                  Topic.newBuilder()
+                      .setName(topicPath)
+                      .setSchemaSettings(
+                          SchemaSettings.newBuilder().setSchema(SCHEMA.getPath()).build())
+                      .build());
+              responseObserver.onCompleted();
+            }
+          }
+        };
+    Server server =
+        InProcessServerBuilder.forName(channelName).addService(publisherImplBase).build().start();
+    try {
+      assertEquals(false, client.isTopicExists(topicDoesNotExist));
+
+      assertEquals(true, client.isTopicExists(topicExists));
+
     } finally {
       server.shutdownNow();
     }

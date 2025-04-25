@@ -23,7 +23,7 @@ If you already know [_Apache Spark_](https://spark.apache.org/),
 using Beam should be easy.
 The basic concepts are the same, and the APIs are similar as well.
 
-Spark stores data _Spark DataFrames_ for structured data,
+Spark stores data in _Spark DataFrames_ for structured data,
 and in _Resilient Distributed Datasets_ (RDD) for unstructured data.
 We are using RDDs for this guide.
 

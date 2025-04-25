@@ -37,6 +37,8 @@ The guide contains the following sections:
   for Python development, running unit and integration tests, and running a pipeline
   with modified Beam code.
 
+For instructions regarding testing code changes for Go SDK, please see the Go SDK's [README file](https://github.com/apache/beam/tree/master/sdks/go).
+
 ## Repository structure
 
 The Apache Beam GitHub repository (Beam repo) is, for the most part, a "mono repo".
@@ -145,7 +147,7 @@ in the Google Cloud documentation.
 
 Depending on the languages involved, your `PATH` file needs to have the following elements configured.
 
-* A Java environment that uses a supported Java version, preferably Java 8.
+* A Java environment that uses a supported Java version, preferably Java 11.
   * This environment is needed for all development, because Beam is a Gradle project that uses JVM.
   * Recommended: To manage Java versions, use [sdkman](https://sdkman.io/install).
 
@@ -375,6 +377,9 @@ Follow these steps for Maven projects.
       <id>Maven-Snapshot</id>
       <name>maven snapshot repository</name>
       <url>https://repository.apache.org/content/groups/snapshots/</url>
+      <releases>
+        <enabled>false</enabled>
+      </releases>
     </repository>
     ```
 
@@ -423,18 +428,19 @@ If you're using Dataflow Runner v2 and `sdks/java/harness` or its dependencies (
 1. Use the following command to build the SDK harness container:
 
     ```shell
-    ./gradlew :sdks:java:container:java8:docker # java8, java11, java17, etc
-  docker tag apache/beam_java8_sdk:2.49.0.dev \
-    "us.gcr.io/apache-beam-testing/beam_java11_sdk:2.49.0-custom"  # change to your container registry
-  docker push "us.gcr.io/apache-beam-testing/beam_java11_sdk:2.49.0-custom"
+    ./gradlew :sdks:java:container:java11:docker # java8, java11, java17, etc
+    # change version number to the actual tag below
+    docker tag apache/beam_java8_sdk:2.64.0.dev \
+      "us.gcr.io/apache-beam-testing/beam_java11_sdk:2.64.0-custom"  # change to your container registry
+    docker push "us.gcr.io/apache-beam-testing/beam_java11_sdk:2.64.0-custom"
     ```
 
 2. Run the pipeline with the following options:
 
-  ```
-  --experiments=use_runner_v2 \
-  --sdkContainerImage="us.gcr.io/apache-beam-testing/beam_java11_sdk:2.49.0-custom"
-  ```
+    ```
+    --experiments=use_runner_v2 \
+    --sdkContainerImage="us.gcr.io/apache-beam-testing/beam_java11_sdk:2.49.0-custom"
+    ```
 
 #### Snapshot Version Containers
 
@@ -447,7 +453,7 @@ This SNAPSHOT version will use the final containers published on [DockerHub](htt
 
 Certain runners may override this snapshot behavior; for example, the Dataflow runner overrides all SNAPSHOT containers into a [single registry](https://console.cloud.google.com/gcr/images/cloud-dataflow/GLOBAL/v1beta3). The same downtime will still be incurred, however, when switching to the final container
 
-## Python guide
+## Python development guide
 
 The Beam Python SDK is distributed as a single wheel, which is more straightforward than the Java SDK.
 
@@ -463,16 +469,19 @@ These instructions explain how to configure your console (shell) for Python deve
 
 2. Use the following commands to set up and activate the virtual environment:
 
-  1. `pyenv virtualenv 3.X ENV_NAME`
-  2. `pyenv activate ENV_NAME`
+    1. `pyenv virtualenv 3.X ENV_NAME`
+    2. `pyenv activate ENV_NAME`
 
 3. Install the `apache_beam` package in editable mode:
-  `pip install -e .[gcp, test]`
+   ```
+   cd sdks/python
+   pip install -e .[gcp, test]
+   ```
 
 4. For development that uses an SDK container image, do the following:
 
-  1. Install Docker Desktop.
-  2. Install Go.
+    1. Install Docker Desktop.
+    2. Install Go.
 
 5. If you're going to submit PRs, use the following command to precommit the hook for Python code changes (nobody likes lint failures!!):
 
@@ -623,6 +632,14 @@ Tips for using the Dataflow runner:
 <!-- # Cross-language Guide -->
 
 ## Appendix
+
+### Common Issues
+
+* If you run into some strange errors such as `java.lang.NoClassDefFoundError` or errors related to proto changes, try these:
+  * run `./gradlew clean`
+  * remove the gradle cache, e.g., `rm -fr ~/.gradle` and `rm -fr <beam-repo-dir>/.gradle`
+  * remove the `build` directory at the repo root
+* To run one single Java test with gradle, use `--tests` to filter, for example, `./gradlew :it:google-cloud-platform:WordCountIntegrationTest --tests "org.apache.beam.it.gcp.WordCountIT.testWordCountDataflow"`
 
 ### Directories of snapshot builds
 

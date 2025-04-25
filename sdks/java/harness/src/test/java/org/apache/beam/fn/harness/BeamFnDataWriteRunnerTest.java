@@ -53,7 +53,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.CoderTranslation;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.hamcrest.collection.IsMapContaining;
 import org.junit.Before;
@@ -153,12 +153,15 @@ public class BeamFnDataWriteRunnerTest {
             .beamFnDataClient(mockBeamFnDataClient)
             .processBundleInstructionIdSupplier(bundleId::get)
             .outboundAggregators(aggregators)
-            .pCollections(
-                ImmutableMap.of(
-                    localInputId,
-                    RunnerApi.PCollection.newBuilder().setCoderId(ELEM_CODER_ID).build()))
-            .coders(COMPONENTS.getCodersMap())
-            .windowingStrategies(COMPONENTS.getWindowingStrategiesMap())
+            .components(
+                RunnerApi.Components.newBuilder()
+                    .putAllPcollections(
+                        ImmutableMap.of(
+                            localInputId,
+                            RunnerApi.PCollection.newBuilder().setCoderId(ELEM_CODER_ID).build()))
+                    .putAllCoders(COMPONENTS.getCodersMap())
+                    .putAllWindowingStrategies(COMPONENTS.getWindowingStrategiesMap())
+                    .build())
             .build();
 
     new BeamFnDataWriteRunner.Factory<String>().createRunnerForPTransform(context);

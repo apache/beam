@@ -17,18 +17,22 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
-import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
-
+import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PInput;
@@ -42,7 +46,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Precondit
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
-import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.catalog.Catalog;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -53,7 +56,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * written via another method.
  */
 class WriteUngroupedRowsToFiles
-    extends PTransform<PCollection<Row>, WriteUngroupedRowsToFiles.Result> {
+    extends PTransform<PCollection<KV<String, Row>>, WriteUngroupedRowsToFiles.Result> {
 
   /**
    * Maximum number of writers that will be created per bundle. Any elements requiring more writers
@@ -65,21 +68,24 @@ class WriteUngroupedRowsToFiles
 
   private static final TupleTag<FileWriteResult> WRITTEN_FILES_TAG = new TupleTag<>("writtenFiles");
   private static final TupleTag<Row> WRITTEN_ROWS_TAG = new TupleTag<Row>("writtenRows") {};
-  private static final TupleTag<Row> SPILLED_ROWS_TAG = new TupleTag<Row>("spilledRows") {};
+  private static final TupleTag<KV<ShardedKey<String>, Row>> SPILLED_ROWS_TAG =
+      new TupleTag<KV<ShardedKey<String>, Row>>("spilledRows") {};
 
   private final String filePrefix;
   private final DynamicDestinations dynamicDestinations;
   private final IcebergCatalogConfig catalogConfig;
 
   WriteUngroupedRowsToFiles(
-      IcebergCatalogConfig catalogConfig, DynamicDestinations dynamicDestinations) {
+      IcebergCatalogConfig catalogConfig,
+      DynamicDestinations dynamicDestinations,
+      String filePrefix) {
     this.catalogConfig = catalogConfig;
     this.dynamicDestinations = dynamicDestinations;
-    this.filePrefix = UUID.randomUUID().toString();
+    this.filePrefix = filePrefix;
   }
 
   @Override
-  public Result expand(PCollection<Row> input) {
+  public Result expand(PCollection<KV<String, Row>> input) {
 
     PCollectionTuple resultTuple =
         input.apply(
@@ -97,8 +103,15 @@ class WriteUngroupedRowsToFiles
     return new Result(
         input.getPipeline(),
         resultTuple.get(WRITTEN_FILES_TAG),
-        resultTuple.get(WRITTEN_ROWS_TAG).setCoder(input.getCoder()),
-        resultTuple.get(SPILLED_ROWS_TAG).setCoder(input.getCoder()));
+        resultTuple
+            .get(WRITTEN_ROWS_TAG)
+            .setCoder(RowCoder.of(dynamicDestinations.getDataSchema())),
+        resultTuple
+            .get(SPILLED_ROWS_TAG)
+            .setCoder(
+                KvCoder.of(
+                    ShardedKey.Coder.of(StringUtf8Coder.of()),
+                    RowCoder.of(dynamicDestinations.getDataSchema()))));
   }
 
   /**
@@ -109,14 +122,14 @@ class WriteUngroupedRowsToFiles
 
     private final Pipeline pipeline;
     private final PCollection<Row> writtenRows;
-    private final PCollection<Row> spilledRows;
+    private final PCollection<KV<ShardedKey<String>, Row>> spilledRows;
     private final PCollection<FileWriteResult> writtenFiles;
 
     private Result(
         Pipeline pipeline,
         PCollection<FileWriteResult> writtenFiles,
         PCollection<Row> writtenRows,
-        PCollection<Row> spilledRows) {
+        PCollection<KV<ShardedKey<String>, Row>> spilledRows) {
       this.pipeline = pipeline;
       this.writtenFiles = writtenFiles;
       this.writtenRows = writtenRows;
@@ -127,7 +140,7 @@ class WriteUngroupedRowsToFiles
       return writtenRows;
     }
 
-    public PCollection<Row> getSpilledRows() {
+    public PCollection<KV<ShardedKey<String>, Row>> getSpilledRows() {
       return spilledRows;
     }
 
@@ -168,8 +181,11 @@ class WriteUngroupedRowsToFiles
    *   <li>the spilled records which were not written
    * </ul>
    */
-  private static class WriteUngroupedRowsToFilesDoFn extends DoFn<Row, FileWriteResult> {
+  private static class WriteUngroupedRowsToFilesDoFn
+      extends DoFn<KV<String, Row>, FileWriteResult> {
 
+    // When we spill records, shard the output keys to prevent hotspots.
+    private static final int SPILLED_RECORD_SHARDING_FACTOR = 10;
     private final String filename;
     private final int maxWritersPerBundle;
     private final long maxFileSize;
@@ -177,6 +193,7 @@ class WriteUngroupedRowsToFiles
     private final IcebergCatalogConfig catalogConfig;
     private transient @MonotonicNonNull Catalog catalog;
     private transient @Nullable RecordWriterManager recordWriterManager;
+    private int spilledShardNumber;
 
     public WriteUngroupedRowsToFilesDoFn(
         IcebergCatalogConfig catalogConfig,
@@ -202,17 +219,19 @@ class WriteUngroupedRowsToFiles
     public void startBundle() {
       recordWriterManager =
           new RecordWriterManager(getCatalog(), filename, maxFileSize, maxWritersPerBundle);
+      this.spilledShardNumber = ThreadLocalRandom.current().nextInt(SPILLED_RECORD_SHARDING_FACTOR);
     }
 
     @ProcessElement
     public void processElement(
-        @Element Row element, BoundedWindow window, PaneInfo pane, MultiOutputReceiver out)
+        @Element KV<String, Row> element,
+        BoundedWindow window,
+        PaneInfo pane,
+        MultiOutputReceiver out)
         throws Exception {
-
-      Row data = checkArgumentNotNull(element.getRow("data"), "Input row missing `data` field.");
-      Row destMetadata =
-          checkArgumentNotNull(element.getRow("dest"), "Input row missing `dest` field.");
-      IcebergDestination destination = dynamicDestinations.instantiateDestination(destMetadata);
+      String dest = element.getKey();
+      Row data = element.getValue();
+      IcebergDestination destination = dynamicDestinations.instantiateDestination(dest);
       WindowedValue<IcebergDestination> windowedDestination =
           WindowedValue.of(destination, window.maxTimestamp(), window, pane);
 
@@ -230,7 +249,14 @@ class WriteUngroupedRowsToFiles
         }
         throw e;
       }
-      out.get(writeSuccess ? WRITTEN_ROWS_TAG : SPILLED_ROWS_TAG).output(element);
+
+      if (writeSuccess) {
+        out.get(WRITTEN_ROWS_TAG).output(data);
+      } else {
+        ByteBuffer buffer = ByteBuffer.allocate(Integer.BYTES);
+        buffer.putInt(++spilledShardNumber % SPILLED_RECORD_SHARDING_FACTOR);
+        out.get(SPILLED_ROWS_TAG).output(KV.of(ShardedKey.of(dest, buffer.array()), data));
+      }
     }
 
     @FinishBundle
@@ -239,14 +265,18 @@ class WriteUngroupedRowsToFiles
         return;
       }
       recordWriterManager.close();
-      for (Map.Entry<WindowedValue<IcebergDestination>, List<ManifestFile>> destinationAndFiles :
-          Preconditions.checkNotNull(recordWriterManager).getManifestFiles().entrySet()) {
+
+      for (Map.Entry<WindowedValue<IcebergDestination>, List<SerializableDataFile>>
+          destinationAndFiles :
+              Preconditions.checkNotNull(recordWriterManager)
+                  .getSerializableDataFiles()
+                  .entrySet()) {
         WindowedValue<IcebergDestination> windowedDestination = destinationAndFiles.getKey();
 
-        for (ManifestFile manifestFile : destinationAndFiles.getValue()) {
+        for (SerializableDataFile dataFile : destinationAndFiles.getValue()) {
           c.output(
               FileWriteResult.builder()
-                  .setManifestFile(manifestFile)
+                  .setSerializableDataFile(dataFile)
                   .setTableIdentifier(windowedDestination.getValue().getTableIdentifier())
                   .build(),
               windowedDestination.getTimestamp(),

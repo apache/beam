@@ -29,9 +29,11 @@ import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.TimestampBound;
 import java.io.Serializable;
 import java.util.List;
+import java.util.Objects;
 import org.apache.beam.runners.core.metrics.ServiceCallMetric;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.ReadAll;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -42,6 +44,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheLoader;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.LoadingCache;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -197,6 +200,10 @@ abstract class BatchSpannerRead
     private transient SpannerAccessor spannerAccessor;
     private transient LoadingCache<ReadOperation, ServiceCallMetric> metricsForReadOperation;
 
+    // resolved at runtime for metrics report purpose. SpannerConfig may not have projectId set.
+    private transient String projectId;
+    private transient @Nullable String reportedLineage;
+
     public ReadFromPartitionFn(
         SpannerConfig config, PCollectionView<? extends Transaction> txView) {
       this.config = config;
@@ -221,6 +228,7 @@ abstract class BatchSpannerRead
                       return ReadAll.buildServiceCallMetricForReadOp(config, op);
                     }
                   });
+      projectId = SpannerIO.resolveSpannerProjectId(config);
     }
 
     @Teardown
@@ -251,6 +259,22 @@ abstract class BatchSpannerRead
         throw (e);
       }
       serviceCallMetric.call("ok");
+      // Report Lineage metrics
+      @Nullable String tableName = op.getReadOperation().tryGetTableName();
+      if (!Objects.equals(reportedLineage, tableName)) {
+        ImmutableList.Builder<String> segments =
+            ImmutableList.<String>builder()
+                .add(
+                    projectId,
+                    spannerAccessor.getInstanceConfigId(),
+                    config.getInstanceId().get(),
+                    config.getDatabaseId().get());
+        if (tableName != null) {
+          segments.add(tableName);
+        }
+        Lineage.getSources().add("spanner", segments.build());
+        reportedLineage = tableName;
+      }
     }
   }
 }

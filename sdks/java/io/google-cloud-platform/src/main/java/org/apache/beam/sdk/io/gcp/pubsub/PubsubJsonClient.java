@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.services.pubsub.Pubsub;
 import com.google.api.services.pubsub.Pubsub.Projects.Subscriptions;
@@ -157,12 +158,7 @@ public class PubsubJsonClient extends PubsubClient {
   }
 
   private Map<String, String> getMessageAttributes(OutgoingMessage outgoingMessage) {
-    Map<String, String> attributes = null;
-    if (outgoingMessage.getMessage().getAttributesMap() == null) {
-      attributes = new TreeMap<>();
-    } else {
-      attributes = new TreeMap<>(outgoingMessage.getMessage().getAttributesMap());
-    }
+    Map<String, String> attributes = new TreeMap<>(outgoingMessage.getMessage().getAttributesMap());
     if (timestampAttribute != null) {
       attributes.put(
           timestampAttribute, String.valueOf(outgoingMessage.getTimestampMsSinceEpoch()));
@@ -308,6 +304,19 @@ public class PubsubJsonClient extends PubsubClient {
       response = request.execute();
     }
     return topics;
+  }
+
+  @Override
+  public boolean isTopicExists(TopicPath topic) throws IOException {
+    try {
+      pubsub.projects().topics().get(topic.getPath()).execute();
+      return true;
+    } catch (GoogleJsonResponseException e) {
+      if (e.getStatusCode() == 404) {
+        return false;
+      }
+      throw e;
+    }
   }
 
   @Override

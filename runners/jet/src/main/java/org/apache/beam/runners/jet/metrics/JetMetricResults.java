@@ -18,14 +18,17 @@
 package org.apache.beam.runners.jet.metrics;
 
 import com.hazelcast.map.IMap;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.concurrent.GuardedBy;
+import org.apache.beam.runners.core.metrics.BoundedTrieData;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.GaugeData;
 import org.apache.beam.runners.core.metrics.MetricUpdates;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.runners.core.metrics.StringSetData;
+import org.apache.beam.sdk.metrics.BoundedTrieResult;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricFiltering;
@@ -35,6 +38,7 @@ import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.metrics.StringSetResult;
+import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicate;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -58,6 +62,9 @@ public class JetMetricResults extends MetricResults {
   private final StringSets stringSet = new StringSets();
 
   @GuardedBy("this")
+  private final BoundedTries boundedTries = new BoundedTries();
+
+  @GuardedBy("this")
   private IMap<String, MetricUpdates> metricsAccumulator;
 
   public JetMetricResults(IMap<String, MetricUpdates> metricsAccumulator) {
@@ -78,7 +85,8 @@ public class JetMetricResults extends MetricResults {
         counters.filter(filter),
         distributions.filter(filter),
         gauges.filter(filter),
-        stringSet.filter(filter));
+        stringSet.filter(filter),
+        boundedTries.filter(filter));
   }
 
   private synchronized void updateLocalMetrics(IMap<String, MetricUpdates> metricsAccumulator) {
@@ -104,16 +112,21 @@ public class JetMetricResults extends MetricResults {
     private final Iterable<MetricResult<DistributionResult>> distributions;
     private final Iterable<MetricResult<GaugeResult>> gauges;
     private final Iterable<MetricResult<StringSetResult>> stringSets;
+    private final Iterable<MetricResult<BoundedTrieResult>> boundedTries;
+    private final Iterable<MetricResult<HistogramData>> histograms;
 
     private QueryResults(
         Iterable<MetricResult<Long>> counters,
         Iterable<MetricResult<DistributionResult>> distributions,
         Iterable<MetricResult<GaugeResult>> gauges,
-        Iterable<MetricResult<StringSetResult>> stringSets) {
+        Iterable<MetricResult<StringSetResult>> stringSets,
+        Iterable<MetricResult<BoundedTrieResult>> boundedTries) {
       this.counters = counters;
       this.distributions = distributions;
       this.gauges = gauges;
       this.stringSets = stringSets;
+      this.boundedTries = boundedTries;
+      this.histograms = Collections.emptyList(); // not implemented
     }
 
     @Override
@@ -134,6 +147,16 @@ public class JetMetricResults extends MetricResults {
     @Override
     public Iterable<MetricResult<StringSetResult>> getStringSets() {
       return stringSets;
+    }
+
+    @Override
+    public Iterable<MetricResult<BoundedTrieResult>> getBoundedTries() {
+      return boundedTries;
+    }
+
+    @Override
+    public Iterable<MetricResult<HistogramData>> getHistograms() {
+      return histograms;
     }
   }
 
@@ -260,6 +283,38 @@ public class JetMetricResults extends MetricResults {
       MetricKey key = entry.getKey();
       StringSetResult stringSetResult = entry.getValue().extractResult();
       return MetricResult.create(key, stringSetResult, stringSetResult);
+    }
+  }
+
+  private static class BoundedTries {
+
+    private final Map<MetricKey, BoundedTrieData> boundedTries = new HashMap<>();
+
+    void merge(Iterable<MetricUpdate<BoundedTrieData>> updates) {
+      for (MetricUpdate<BoundedTrieData> update : updates) {
+        MetricKey key = update.getKey();
+        BoundedTrieData oldStringSet = boundedTries.getOrDefault(key, new BoundedTrieData());
+        BoundedTrieData updatedStringSet = update.getUpdate().combine(oldStringSet);
+        boundedTries.put(key, updatedStringSet);
+      }
+    }
+
+    void clear() {
+      boundedTries.clear();
+    }
+
+    Iterable<MetricResult<BoundedTrieResult>> filter(MetricsFilter filter) {
+      return FluentIterable.from(boundedTries.entrySet())
+          .filter(matchesFilter(filter))
+          .transform(this::toUpdateResult)
+          .toList();
+    }
+
+    private MetricResult<BoundedTrieResult> toUpdateResult(
+        Map.Entry<MetricKey, BoundedTrieData> entry) {
+      MetricKey key = entry.getKey();
+      BoundedTrieResult boundedTrieResult = entry.getValue().extractResult();
+      return MetricResult.create(key, boundedTrieResult, boundedTrieResult);
     }
   }
 }

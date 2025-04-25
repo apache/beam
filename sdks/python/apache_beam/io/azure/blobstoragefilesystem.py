@@ -18,6 +18,7 @@
 """Azure Blob Storage Implementation for accesing files on
 Azure Blob Storage.
 """
+import traceback
 
 from apache_beam.io.azure import blobstorageio
 from apache_beam.io.filesystem import BeamIOError
@@ -319,8 +320,12 @@ class BlobStorageFileSystem(FileSystem):
 
   def report_lineage(self, path, lineage):
     try:
-      components = blobstorageio.parse_azfs_path(path, get_account=True)
+      components = blobstorageio.parse_azfs_path(
+          path, blob_optional=True, get_account=True)
     except ValueError:
       # report lineage is fail-safe
+      traceback.print_exc()
       return
-    lineage.add('abs', *components)
+    if components and not components[-1]:
+      components = components[:-1]
+    lineage.add('abs', *components, last_segment_sep='/')

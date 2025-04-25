@@ -901,7 +901,8 @@ class TestWriteToPubSub(unittest.TestCase):
 
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
-    with self.assertRaisesRegex(Exception, r'Type hint violation'):
+    with self.assertRaisesRegex(Exception,
+                                r'requires.*PubsubMessage.*applied.*str'):
       with TestPipeline(options=options) as p:
         _ = (
             p

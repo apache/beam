@@ -24,7 +24,7 @@ from apache_beam import coders
 from apache_beam.portability.api import external_transforms_pb2
 from apache_beam.pvalue import Row
 from apache_beam.transforms import ptransform
-from apache_beam.typehints.native_type_compatibility import convert_to_typing_type
+from apache_beam.typehints.native_type_compatibility import convert_to_python_type
 from apache_beam.typehints.schemas import named_fields_to_schema
 from apache_beam.typehints.trivial_inference import instance_to_type
 from apache_beam.utils import python_callable
@@ -100,11 +100,11 @@ class FullyQualifiedNamedTransform(ptransform.PTransform):
 
   def to_runner_api_parameter(self, unused_context):
     _args_schema = named_fields_to_schema([
-        (f'arg{ix}', convert_to_typing_type(instance_to_type(value)))
+        (f'arg{ix}', convert_to_python_type(instance_to_type(value)))
         for (ix, value) in enumerate(self._args)
     ])
     _kwargs_schema = named_fields_to_schema([
-        (key, convert_to_typing_type(instance_to_type(value)))
+        (key, convert_to_python_type(instance_to_type(value)))
         for (key, value) in self._kwargs.items()
     ])
     payload_schema = named_fields_to_schema({

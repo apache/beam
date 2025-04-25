@@ -22,9 +22,11 @@ import static org.apache.beam.sdk.util.ByteBuddyUtils.getClassLoadingStrategy;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.asm.AsmVisitorWrapper;
@@ -54,14 +56,22 @@ import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.TypeConversionsFactory;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils.TypeDescriptorWithSchema;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A set of utilities to generate getter and setter classes for JavaBean objects. */
-@SuppressWarnings({
-  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
-  "rawtypes"
-})
+@SuppressWarnings({"rawtypes"})
 public class JavaBeanUtils {
+
+  private static final String X_WITH_NULL_METHOD_ERROR_FMT =
+      "a %s FieldValueTypeInformation object has a null method field";
+  public static final String GETTER_WITH_NULL_METHOD_ERROR =
+      String.format(X_WITH_NULL_METHOD_ERROR_FMT, "getter");
+  public static final String SETTER_WITH_NULL_METHOD_ERROR =
+      String.format(X_WITH_NULL_METHOD_ERROR_FMT, "setter");
+
   /** Create a {@link Schema} for a Java Bean class. */
   public static Schema schemaFromJavaBeanClass(
       TypeDescriptor<?> typeDescriptor, FieldValueTypeSupplier fieldValueTypeSupplier) {
@@ -69,7 +79,9 @@ public class JavaBeanUtils {
   }
 
   private static final String CONSTRUCTOR_HELP_STRING =
-      "In order to infer a Schema from a Java Bean, it must have a constructor annotated with @SchemaCreate, or it must have a compatible setter for every getter used as a Schema field.";
+      "In order to infer a Schema from a Java Bean, it must have a constructor annotated with"
+          + " @SchemaCreate, or it must have a compatible setter for every getter used as a Schema"
+          + " field.";
 
   // Make sure that there are matching setters and getters.
   public static void validateJavaBean(
@@ -88,23 +100,26 @@ public class JavaBeanUtils {
 
     for (FieldValueTypeInformation type : getters) {
       FieldValueTypeInformation setterType = setterMap.get(type.getName());
+      Method m = Preconditions.checkNotNull(type.getMethod(), GETTER_WITH_NULL_METHOD_ERROR);
       if (setterType == null) {
         throw new RuntimeException(
             String.format(
-                "Java Bean '%s' contains a getter for field '%s', but does not contain a matching setter. %s",
-                type.getMethod().getDeclaringClass(), type.getName(), CONSTRUCTOR_HELP_STRING));
+                "Java Bean '%s' contains a getter for field '%s', but does not contain a matching"
+                    + " setter. %s",
+                m.getDeclaringClass(), type.getName(), CONSTRUCTOR_HELP_STRING));
       }
       if (!type.getType().equals(setterType.getType())) {
         throw new RuntimeException(
             String.format(
                 "Java Bean '%s' contains a setter for field '%s' that has a mismatching type. %s",
-                type.getMethod().getDeclaringClass(), type.getName(), CONSTRUCTOR_HELP_STRING));
+                m.getDeclaringClass(), type.getName(), CONSTRUCTOR_HELP_STRING));
       }
       if (!type.isNullable() == setterType.isNullable()) {
         throw new RuntimeException(
             String.format(
-                "Java Bean '%s' contains a setter for field '%s' that has a mismatching nullable attribute. %s",
-                type.getMethod().getDeclaringClass(), type.getName(), CONSTRUCTOR_HELP_STRING));
+                "Java Bean '%s' contains a setter for field '%s' that has a mismatching nullable"
+                    + " attribute. %s",
+                m.getDeclaringClass(), type.getName(), CONSTRUCTOR_HELP_STRING));
       }
     }
   }
@@ -126,36 +141,41 @@ public class JavaBeanUtils {
 
   // The list of getters for a class is cached, so we only create the classes the first time
   // getSetters is called.
-  private static final Map<TypeDescriptorWithSchema<?>, List<FieldValueGetter>> CACHED_GETTERS =
-      Maps.newConcurrentMap();
+  private static final Map<TypeDescriptorWithSchema<?>, List<FieldValueGetter<@NonNull ?, ?>>>
+      CACHED_GETTERS = Maps.newConcurrentMap();
 
   /**
    * Return the list of {@link FieldValueGetter}s for a Java Bean class
    *
    * <p>The returned list is ordered by the order of fields in the schema.
    */
-  public static List<FieldValueGetter> getGetters(
-      TypeDescriptor<?> typeDescriptor,
+  public static <T> List<FieldValueGetter<@NonNull T, Object>> getGetters(
+      TypeDescriptor<T> typeDescriptor,
       Schema schema,
       FieldValueTypeSupplier fieldValueTypeSupplier,
       TypeConversionsFactory typeConversionsFactory) {
-    return CACHED_GETTERS.computeIfAbsent(
-        TypeDescriptorWithSchema.create(typeDescriptor, schema),
-        c -> {
-          List<FieldValueTypeInformation> types =
-              fieldValueTypeSupplier.get(typeDescriptor, schema);
-          return types.stream()
-              .map(t -> createGetter(t, typeConversionsFactory))
-              .collect(Collectors.toList());
-        });
+    return (List)
+        CACHED_GETTERS.computeIfAbsent(
+            TypeDescriptorWithSchema.create(typeDescriptor, schema),
+            c -> {
+              List<FieldValueTypeInformation> types =
+                  fieldValueTypeSupplier.get(typeDescriptor, schema);
+              return types.stream()
+                  .map(t -> JavaBeanUtils.createGetter(t, typeConversionsFactory))
+                  .collect(Collectors.toList());
+            });
   }
 
-  public static <T> FieldValueGetter createGetter(
-      FieldValueTypeInformation typeInformation, TypeConversionsFactory typeConversionsFactory) {
-    DynamicType.Builder<FieldValueGetter> builder =
+  public static <ObjectT extends @NonNull Object, ValueT>
+      FieldValueGetter<ObjectT, ValueT> createGetter(
+          FieldValueTypeInformation typeInformation,
+          TypeConversionsFactory typeConversionsFactory) {
+    final Method m =
+        Preconditions.checkNotNull(typeInformation.getMethod(), GETTER_WITH_NULL_METHOD_ERROR);
+    DynamicType.Builder<FieldValueGetter<ObjectT, ValueT>> builder =
         ByteBuddyUtils.subclassGetterInterface(
             BYTE_BUDDY,
-            typeInformation.getMethod().getDeclaringClass(),
+            m.getDeclaringClass(),
             typeConversionsFactory.createTypeConversion(false).convert(typeInformation.getType()));
     builder = implementGetterMethods(builder, typeInformation, typeConversionsFactory);
     try {
@@ -163,9 +183,8 @@ public class JavaBeanUtils {
           .visit(new AsmVisitorWrapper.ForDeclaredMethods().writerFlags(ClassWriter.COMPUTE_FRAMES))
           .make()
           .load(
-              ReflectHelpers.findClassLoader(
-                  typeInformation.getMethod().getDeclaringClass().getClassLoader()),
-              getClassLoadingStrategy(typeInformation.getMethod().getDeclaringClass()))
+              ReflectHelpers.findClassLoader(m.getDeclaringClass().getClassLoader()),
+              getClassLoadingStrategy(m.getDeclaringClass()))
           .getLoaded()
           .getDeclaredConstructor()
           .newInstance();
@@ -178,10 +197,11 @@ public class JavaBeanUtils {
     }
   }
 
-  private static DynamicType.Builder<FieldValueGetter> implementGetterMethods(
-      DynamicType.Builder<FieldValueGetter> builder,
-      FieldValueTypeInformation typeInformation,
-      TypeConversionsFactory typeConversionsFactory) {
+  private static <ObjectT extends @NonNull Object, ValueT>
+      DynamicType.Builder<FieldValueGetter<ObjectT, ValueT>> implementGetterMethods(
+          DynamicType.Builder<FieldValueGetter<ObjectT, ValueT>> builder,
+          FieldValueTypeInformation typeInformation,
+          TypeConversionsFactory typeConversionsFactory) {
     return builder
         .method(ElementMatchers.named("name"))
         .intercept(FixedValue.reference(typeInformation.getName()))
@@ -215,12 +235,14 @@ public class JavaBeanUtils {
         });
   }
 
-  public static FieldValueSetter createSetter(
+  public static <ObjectT, ValueT> FieldValueSetter<ObjectT, ValueT> createSetter(
       FieldValueTypeInformation typeInformation, TypeConversionsFactory typeConversionsFactory) {
-    DynamicType.Builder<FieldValueSetter> builder =
+    final Method m =
+        Preconditions.checkNotNull(typeInformation.getMethod(), SETTER_WITH_NULL_METHOD_ERROR);
+    DynamicType.Builder<FieldValueSetter<ObjectT, ValueT>> builder =
         ByteBuddyUtils.subclassSetterInterface(
             BYTE_BUDDY,
-            typeInformation.getMethod().getDeclaringClass(),
+            m.getDeclaringClass(),
             typeConversionsFactory.createTypeConversion(false).convert(typeInformation.getType()));
     builder = implementSetterMethods(builder, typeInformation, typeConversionsFactory);
     try {
@@ -228,9 +250,8 @@ public class JavaBeanUtils {
           .visit(new AsmVisitorWrapper.ForDeclaredMethods().writerFlags(ClassWriter.COMPUTE_FRAMES))
           .make()
           .load(
-              ReflectHelpers.findClassLoader(
-                  typeInformation.getMethod().getDeclaringClass().getClassLoader()),
-              getClassLoadingStrategy(typeInformation.getMethod().getDeclaringClass()))
+              ReflectHelpers.findClassLoader(m.getDeclaringClass().getClassLoader()),
+              getClassLoadingStrategy(m.getDeclaringClass()))
           .getLoaded()
           .getDeclaredConstructor()
           .newInstance();
@@ -243,10 +264,11 @@ public class JavaBeanUtils {
     }
   }
 
-  private static DynamicType.Builder<FieldValueSetter> implementSetterMethods(
-      DynamicType.Builder<FieldValueSetter> builder,
-      FieldValueTypeInformation fieldValueTypeInformation,
-      TypeConversionsFactory typeConversionsFactory) {
+  private static <ObjectT, ValueT>
+      DynamicType.Builder<FieldValueSetter<ObjectT, ValueT>> implementSetterMethods(
+          DynamicType.Builder<FieldValueSetter<ObjectT, ValueT>> builder,
+          FieldValueTypeInformation fieldValueTypeInformation,
+          TypeConversionsFactory typeConversionsFactory) {
     return builder
         .method(ElementMatchers.named("name"))
         .intercept(FixedValue.reference(fieldValueTypeInformation.getName()))
@@ -358,6 +380,11 @@ public class JavaBeanUtils {
     }
   }
 
+  public static <T, K extends Comparable<? super K>> Comparator<T> comparingNullFirst(
+      Function<? super T, ? extends @Nullable K> keyExtractor) {
+    return Comparator.comparing(keyExtractor, Comparator.nullsFirst(Comparator.naturalOrder()));
+  }
+
   // Implements a method to read a public getter out of an object.
   private static class InvokeGetterInstruction implements Implementation {
     private final FieldValueTypeInformation typeInformation;
@@ -386,7 +413,10 @@ public class JavaBeanUtils {
                 // Method param is offset 1 (offset 0 is the this parameter).
                 MethodVariableAccess.REFERENCE.loadFrom(1),
                 // Invoke the getter
-                MethodInvocation.invoke(new ForLoadedMethod(typeInformation.getMethod())));
+                MethodInvocation.invoke(
+                    new ForLoadedMethod(
+                        Preconditions.checkNotNull(
+                            typeInformation.getMethod(), GETTER_WITH_NULL_METHOD_ERROR))));
 
         StackManipulation stackManipulation =
             new StackManipulation.Compound(
@@ -428,7 +458,9 @@ public class JavaBeanUtils {
         // The instruction to read the field.
         StackManipulation readField = MethodVariableAccess.REFERENCE.loadFrom(2);
 
-        Method method = fieldValueTypeInformation.getMethod();
+        Method method =
+            Preconditions.checkNotNull(
+                fieldValueTypeInformation.getMethod(), SETTER_WITH_NULL_METHOD_ERROR);
         boolean setterMethodReturnsVoid = method.getReturnType().equals(Void.TYPE);
         // Read the object onto the stack.
         StackManipulation stackManipulation =

@@ -17,6 +17,9 @@
  */
 package org.apache.beam.runners.spark.stateful;
 
+import static org.apache.beam.runners.spark.translation.TranslationUtils.checkpointIfNeeded;
+import static org.apache.beam.runners.spark.translation.TranslationUtils.getBatchDuration;
+
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -35,7 +38,6 @@ import org.apache.beam.runners.core.metrics.CounterCell;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachines;
-import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.translation.ReifyTimestampsAndWindowsFunction;
 import org.apache.beam.runners.spark.translation.TranslationUtils;
@@ -60,10 +62,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicate
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.AbstractIterator;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Table;
 import org.apache.spark.api.java.JavaSparkContext$;
 import org.apache.spark.api.java.function.FlatMapFunction;
-import org.apache.spark.streaming.Duration;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaPairDStream;
 import org.apache.spark.streaming.dstream.DStream;
@@ -99,27 +99,6 @@ import scala.runtime.AbstractFunction1;
 public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
   private static final Logger LOG =
       LoggerFactory.getLogger(SparkGroupAlsoByWindowViaWindowSet.class);
-
-  /** State and Timers wrapper. */
-  public static class StateAndTimers implements Serializable {
-    // Serializable state for internals (namespace to state tag to coded value).
-    private final Table<String, String, byte[]> state;
-    private final Collection<byte[]> serTimers;
-
-    private StateAndTimers(
-        final Table<String, String, byte[]> state, final Collection<byte[]> timers) {
-      this.state = state;
-      this.serTimers = timers;
-    }
-
-    Table<String, String, byte[]> getState() {
-      return state;
-    }
-
-    Collection<byte[]> getTimers() {
-      return serTimers;
-    }
-  }
 
   private static class OutputWindowedValueHolder<K, V>
       implements OutputWindowedValue<KV<K, Iterable<V>>> {
@@ -348,7 +327,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
 
             // empty outputs are filtered later using DStream filtering
             final StateAndTimers updated =
-                new StateAndTimers(
+                StateAndTimers.of(
                     stateInternals.getState(),
                     SparkTimerInternals.serializeTimers(
                         timerInternals.getTimers(), timerDataCoder));
@@ -464,21 +443,6 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
   private static <W extends BoundedWindow> TimerInternals.TimerDataCoderV2 timerDataCoderOf(
       final WindowingStrategy<?, W> windowingStrategy) {
     return TimerInternals.TimerDataCoderV2.of(windowingStrategy.getWindowFn().windowCoder());
-  }
-
-  private static void checkpointIfNeeded(
-      final DStream<Tuple2<ByteArray, Tuple2<StateAndTimers, List<byte[]>>>> firedStream,
-      final SerializablePipelineOptions options) {
-
-    final Long checkpointDurationMillis = getBatchDuration(options);
-
-    if (checkpointDurationMillis > 0) {
-      firedStream.checkpoint(new Duration(checkpointDurationMillis));
-    }
-  }
-
-  private static Long getBatchDuration(final SerializablePipelineOptions options) {
-    return options.get().as(SparkPipelineOptions.class).getCheckpointDurationMillis();
   }
 
   private static <K, InputT> JavaDStream<WindowedValue<KV<K, Iterable<InputT>>>> stripStateValues(

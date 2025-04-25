@@ -20,8 +20,8 @@ package org.apache.beam.runners.dataflow.worker.windmill.work.refresh;
 import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.streaming.RefreshableWork;
-import org.apache.beam.runners.dataflow.worker.windmill.client.AbstractWindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException;
 import org.apache.beam.sdk.annotations.Internal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,7 +61,7 @@ public final class FixedStreamHeartbeatSender implements HeartbeatSender {
         Thread.currentThread().setName(originalThreadName + "-" + backendWorkerToken);
       }
       getDataStream.refreshActiveWork(heartbeats.heartbeatRequests().asMap());
-    } catch (AbstractWindmillStream.WindmillStreamShutdownException e) {
+    } catch (WindmillStreamShutdownException e) {
       LOG.warn(
           "Trying to refresh work w/ {} heartbeats on stream={} after work has moved off of worker."
               + " heartbeats",

@@ -36,7 +36,6 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.MockConsumer;
@@ -138,10 +137,6 @@ public class KafkaTestTable extends BeamKafkaTable {
                     .collect(Collectors.toList());
             super.assign(realPartitions);
             assignedPartitions.set(ImmutableList.copyOf(realPartitions));
-            for (TopicPartition tp : realPartitions) {
-              updateBeginningOffsets(ImmutableMap.of(tp, 0L));
-              updateEndOffsets(ImmutableMap.of(tp, (long) kafkaRecords.get(tp).size()));
-            }
           }
           // Override offsetsForTimes() in order to look up the offsets by timestamp.
           @Override
@@ -163,9 +158,12 @@ public class KafkaTestTable extends BeamKafkaTable {
           }
         };
 
-    for (String topic : getTopics()) {
-      consumer.updatePartitions(topic, partitionInfoMap.get(topic));
-    }
+    partitionInfoMap.forEach(consumer::updatePartitions);
+    consumer.updateBeginningOffsets(
+        kafkaRecords.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, e -> 0L)));
+    consumer.updateEndOffsets(
+        kafkaRecords.entrySet().stream()
+            .collect(Collectors.toMap(Map.Entry::getKey, e -> (long) e.getValue().size())));
 
     Runnable recordEnqueueTask =
         new Runnable() {

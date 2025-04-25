@@ -27,7 +27,7 @@ applyJavaNature(
 description = "Apache Beam :: SDKs :: Java :: Extensions :: SQL :: ZetaSQL"
 ext.summary = "ZetaSQL to Calcite translator"
 
-def zetasql_version = "2022.04.1"
+def zetasql_version = "2024.11.1"
 
 dependencies {
   // TODO(https://github.com/apache/beam/issues/21156): Determine how to build without this dependency

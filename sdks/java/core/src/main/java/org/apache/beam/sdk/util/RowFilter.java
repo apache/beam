@@ -53,21 +53,21 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * // this filter will exclusively keep these fields and drop everything else
  * List<String> fields = Arrays.asList("foo", "bar", "baz");
- * RowFilter keepingFilter = new RowFilter(beamSchema).keeping(fields);
+ * RowFilter keepFilter = new RowFilter(beamSchema).keep(fields);
  *
  * // this filter will drop these fields
- * RowFilter droppingFilter = new RowFilter(beamSchema).dropping(fields);
+ * RowFilter dropFilter = new RowFilter(beamSchema).drop(fields);
  *
  * // this filter will only output the contents of row field "my_record"
  * String field = "my_record";
  * RowFilter onlyFilter = new RowFilter(beamSchema).only(field);
  *
  * // produces a filtered row
- * Row outputRow = keepingFilter.filter(row);
+ * Row outputRow = keepFilter.filter(row);
  * }</pre>
  *
- * Check the documentation for {@link #keeping(List)}, {@link #dropping(List)}, and {@link
- * #only(String)} for further details on what an output Row can look like.
+ * Check the documentation for {@link #keep(List)}, {@link #drop(List)}, and {@link #only(String)}
+ * for further details on what an output Row can look like.
  */
 public class RowFilter implements Serializable {
   private final Schema rowSchema;
@@ -103,7 +103,7 @@ public class RowFilter implements Serializable {
    *   nested_2: xyz
    * }</pre>
    */
-  public RowFilter keeping(List<String> fields) {
+  public RowFilter keep(List<String> fields) {
     checkUnconfigured();
     verifyNoNestedFields(fields, "keep");
     validateSchemaContainsFields(rowSchema, fields, "keep");
@@ -132,7 +132,7 @@ public class RowFilter implements Serializable {
    * bar: 456
    * }</pre>
    */
-  public RowFilter dropping(List<String> fields) {
+  public RowFilter drop(List<String> fields) {
     checkUnconfigured();
     verifyNoNestedFields(fields, "drop");
     validateSchemaContainsFields(rowSchema, fields, "drop");
@@ -168,6 +168,7 @@ public class RowFilter implements Serializable {
    */
   public RowFilter only(String field) {
     checkUnconfigured();
+    verifyNoNestedFields(Collections.singletonList(field), "only");
     validateSchemaContainsFields(rowSchema, Collections.singletonList(field), "only");
     Schema.Field rowField = rowSchema.getField(field);
     Preconditions.checkArgument(
@@ -184,8 +185,8 @@ public class RowFilter implements Serializable {
 
   /**
    * Performs a filter operation (keep or drop) on the input {@link Row}. Must have already
-   * configured a filter operation with {@link #dropping(List)} or {@link #keeping(List)} for this
-   * {@link RowFilter}.
+   * configured a filter operation with {@link #drop(List)} or {@link #keep(List)} for this {@link
+   * RowFilter}.
    *
    * <p>If not yet configured, will simply return the same {@link Row}.
    */
@@ -196,9 +197,9 @@ public class RowFilter implements Serializable {
 
     Preconditions.checkState(
         row.getSchema().assignableTo(rowSchema),
-        "Encountered Row with schema that is incompatible with this RowFilter's schema."
+        "Encountered Row with schema that is incompatible with this filter's schema."
             + "\nRow schema: %s"
-            + "\nSchema used to initialize this RowFilter: %s",
+            + "\nSchema used to initialize this filter: %s",
         row.getSchema(),
         rowSchema);
 
@@ -219,8 +220,7 @@ public class RowFilter implements Serializable {
   private void checkUnconfigured() {
     Preconditions.checkState(
         transformedSchema == null,
-        "This RowFilter has already been configured to filter to the following Schema: %s",
-        transformedSchema);
+        "Invalid filter configuration: Please set only one of 'keep', 'drop', or 'only'.");
   }
 
   /** Verifies that this selection contains no nested fields. */
@@ -233,9 +233,7 @@ public class RowFilter implements Serializable {
     }
     if (!nestedFields.isEmpty()) {
       throw new IllegalArgumentException(
-          String.format(
-              "RowFilter does not support specifying nested fields to %s: %s",
-              operation, nestedFields));
+          String.format("'%s' does not support nested fields: %s", operation, nestedFields));
     }
   }
 

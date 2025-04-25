@@ -61,8 +61,8 @@ var (
 	JobName = flag.String("job_name", "", "Job name (optional).")
 
 	// EnvironmentType is the environment type to run the user code.
-	EnvironmentType = flag.String("environment_type", "DOCKER",
-		"Environment Type. Possible options are DOCKER, and LOOPBACK.")
+	EnvironmentType = flag.String("environment_type", "",
+		"Environment Type. Possible options are DOCKER, EXTERNAL, and LOOPBACK.")
 
 	// EnvironmentConfig is the environment configuration for running the user code.
 	EnvironmentConfig = flag.String("environment_config",

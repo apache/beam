@@ -40,7 +40,7 @@ RUN pip install openai vllm
 RUN apt install libcairo2-dev pkg-config python3-dev -y
 RUN pip install pycairo
 
-# Copy the Apache Beam worker dependencies from the Beam Python 3.8 SDK image.
+# Copy the Apache Beam worker dependencies from the Beam Python 3.12 SDK image.
 COPY --from=apache/beam_python3.12_sdk:2.58.1 /opt/apache/beam /opt/apache/beam
 
 # Set the entrypoint to Apache Beam SDK worker launcher.

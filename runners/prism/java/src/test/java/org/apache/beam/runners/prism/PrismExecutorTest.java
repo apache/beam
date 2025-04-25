@@ -59,7 +59,7 @@ public class PrismExecutorTest {
     sleep(3000L);
     executor.stop();
     String output = outputStream.toString(StandardCharsets.UTF_8.name());
-    assertThat(output).contains("INFO Serving JobManagement endpoint=localhost:8073");
+    assertThat(output).contains("level=INFO msg=\"Serving JobManagement\" endpoint=localhost:8073");
   }
 
   @Test
@@ -71,7 +71,8 @@ public class PrismExecutorTest {
     executor.stop();
     try (Stream<String> stream = Files.lines(log.toPath(), StandardCharsets.UTF_8)) {
       String output = stream.collect(Collectors.joining("\n"));
-      assertThat(output).contains("INFO Serving JobManagement endpoint=localhost:8073");
+      assertThat(output)
+          .contains("level=INFO msg=\"Serving JobManagement\" endpoint=localhost:8073");
     }
   }
 
@@ -79,21 +80,23 @@ public class PrismExecutorTest {
   public void executeWithCustomArgumentsThenStop() throws IOException {
     PrismExecutor executor =
         underTest()
-            .setArguments(Collections.singletonList("-" + JOB_PORT_FLAG_NAME + "=5555"))
+            .addArguments(Collections.singletonList("-" + JOB_PORT_FLAG_NAME + "=5555"))
             .build();
     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
     executor.execute(outputStream);
     sleep(3000L);
     executor.stop();
     String output = outputStream.toString(StandardCharsets.UTF_8.name());
-    assertThat(output).contains("INFO Serving JobManagement endpoint=localhost:5555");
+    assertThat(output).contains("level=INFO msg=\"Serving JobManagement\" endpoint=localhost:5555");
   }
 
   @Test
   public void executeWithPortFinderThenStop() throws IOException {}
 
   private PrismExecutor.Builder underTest() {
-    return PrismExecutor.builder().setCommand(getLocalPrismBuildOrIgnoreTest());
+    return PrismExecutor.builder()
+        .setCommand(getLocalPrismBuildOrIgnoreTest())
+        .setArguments(Collections.singletonList("--log_kind=text")); // disable color control chars
   }
 
   private void sleep(long millis) {

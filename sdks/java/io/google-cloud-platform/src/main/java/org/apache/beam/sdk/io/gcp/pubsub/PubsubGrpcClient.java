@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auth.Credentials;
@@ -54,6 +53,7 @@ import com.google.pubsub.v1.Topic;
 import io.grpc.Channel;
 import io.grpc.ClientInterceptors;
 import io.grpc.ManagedChannel;
+import io.grpc.StatusRuntimeException;
 import io.grpc.auth.ClientAuthInterceptor;
 import io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.NegotiationType;
@@ -268,13 +268,12 @@ public class PubsubGrpcClient extends PubsubClient {
     List<IncomingMessage> incomingMessages = new ArrayList<>(response.getReceivedMessagesCount());
     for (ReceivedMessage message : response.getReceivedMessagesList()) {
       PubsubMessage pubsubMessage = message.getMessage();
-      @Nullable Map<String, String> attributes = pubsubMessage.getAttributes();
+      Map<String, String> attributes = pubsubMessage.getAttributes();
 
       // Timestamp.
       long timestampMsSinceEpoch;
       if (Strings.isNullOrEmpty(timestampAttribute)) {
         Timestamp timestampProto = pubsubMessage.getPublishTime();
-        checkArgument(timestampProto != null, "Pubsub message is missing timestamp proto");
         timestampMsSinceEpoch =
             timestampProto.getSeconds() * 1000 + timestampProto.getNanos() / 1000L / 1000L;
       } else {
@@ -287,7 +286,7 @@ public class PubsubGrpcClient extends PubsubClient {
 
       // Record id, if any.
       @Nullable String recordId = null;
-      if (idAttribute != null && attributes != null) {
+      if (idAttribute != null) {
         recordId = attributes.get(idAttribute);
       }
       if (Strings.isNullOrEmpty(recordId)) {
@@ -370,6 +369,21 @@ public class PubsubGrpcClient extends PubsubClient {
       response = publisherStub().listTopics(request.build());
     }
     return topics;
+  }
+
+  @Override
+  public boolean isTopicExists(TopicPath topic) throws IOException {
+    GetTopicRequest request = GetTopicRequest.newBuilder().setTopic(topic.getPath()).build();
+    try {
+      publisherStub().getTopic(request);
+      return true;
+    } catch (StatusRuntimeException e) {
+      if (e.getStatus().getCode() == io.grpc.Status.Code.NOT_FOUND) {
+        return false;
+      }
+
+      throw e;
+    }
   }
 
   @Override

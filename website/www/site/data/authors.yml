@@ -107,6 +107,9 @@ lkuligin:
   name: Leonid Kuligin
   email: kuligin@google.com
   twitter: lkulighin
+liferoad:
+  name: XQ Hu
+  email: xqhu@google.com
 markliu:
   name: Mark Liu
   email: markliu@apache.org
@@ -284,3 +287,6 @@ jkinard:
 jkim:
   name: Jaehyeon Kim
   email: dottami@gmail.com
+ffernandez92:
+  name: Ferran Fernandez
+  email: ffernandez.upc@gmail.com

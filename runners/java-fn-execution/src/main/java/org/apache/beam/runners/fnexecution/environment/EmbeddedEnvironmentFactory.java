@@ -140,6 +140,8 @@ public class EmbeddedEnvironmentFactory implements EnvironmentFactory {
           try {
             fnHarness.get();
           } catch (Throwable t) {
+            // Print stacktrace to stderr. Could be useful if underlying error not surfaced earlier
+            t.printStackTrace();
             executor.shutdownNow();
           }
         });

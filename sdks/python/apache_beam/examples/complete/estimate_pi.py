@@ -30,9 +30,8 @@ import argparse
 import json
 import logging
 import random
+from collections.abc import Iterable
 from typing import Any
-from typing import Iterable
-from typing import Tuple
 
 import apache_beam as beam
 from apache_beam.io import WriteToText
@@ -40,7 +39,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 
 
-@beam.typehints.with_output_types(Tuple[int, int, int])
+@beam.typehints.with_output_types(tuple[int, int, int])
 @beam.typehints.with_input_types(int)
 def run_trials(runs):
   """Run trials and return a 3-tuple representing the results.
@@ -62,8 +61,8 @@ def run_trials(runs):
   return runs, inside_runs, 0
 
 
-@beam.typehints.with_output_types(Tuple[int, int, float])
-@beam.typehints.with_input_types(Iterable[Tuple[int, int, Any]])
+@beam.typehints.with_output_types(tuple[int, int, float])
+@beam.typehints.with_input_types(Iterable[tuple[int, int, Any]])
 def combine_results(results):
   """Combiner function to sum up trials and compute the estimate.
 

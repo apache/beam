@@ -30,6 +30,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
@@ -118,16 +119,17 @@ public class RowStringInterpolator implements Serializable {
    * Performs string interpolation on the template using values from the input {@link Row} and its
    * windowing metadata.
    */
-  public String interpolate(Row row, BoundedWindow window, PaneInfo paneInfo, Instant timestamp) {
+  public String interpolate(ValueInSingleWindow<Row> element) {
     String interpolated = this.template;
     for (String field : fieldsToReplace) {
       Object val;
+      Instant timestamp = element.getTimestamp();
       switch (field) {
         case WINDOW:
-          val = window.toString();
+          val = element.getWindow().toString();
           break;
         case PANE_INDEX:
-          val = paneInfo.getIndex();
+          val = element.getPane().getIndex();
           break;
         case YYYY:
           val = timestamp.getChronology().year().get(timestamp.getMillis());
@@ -139,7 +141,7 @@ public class RowStringInterpolator implements Serializable {
           val = timestamp.getChronology().dayOfMonth().get(timestamp.getMillis());
           break;
         default:
-          val = MoreObjects.firstNonNull(getValue(row, field), "");
+          val = MoreObjects.firstNonNull(getValue(element.getValue(), field), "");
           break;
       }
 

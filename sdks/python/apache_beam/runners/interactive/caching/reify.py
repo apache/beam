@@ -28,7 +28,6 @@ from typing import Optional
 import apache_beam as beam
 from apache_beam.runners.interactive import cache_manager as cache
 from apache_beam.testing import test_stream
-from apache_beam.transforms.window import WindowedValue
 
 READ_CACHE = 'ReadCache_'
 WRITE_CACHE = 'WriteCache_'
@@ -40,13 +39,8 @@ class Reify(beam.DoFn):
   Internally used to capture window info with each element into cache for
   replayability.
   """
-  def process(
-      self,
-      e,
-      w=beam.DoFn.WindowParam,
-      p=beam.DoFn.PaneInfoParam,
-      t=beam.DoFn.TimestampParam):
-    yield test_stream.WindowedValueHolder(WindowedValue(e, t, [w], p))
+  def process(self, e, wv=beam.DoFn.WindowedValueParam):
+    yield test_stream.WindowedValueHolder(wv)
 
 
 class Unreify(beam.DoFn):

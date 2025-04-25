@@ -42,17 +42,16 @@ RUN curl https://pyenv.run | bash && \
     echo 'command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"' >> /root/.bashrc && \
     echo ''eval "$(pyenv init -)"'' >> /root/.bashrc && \
     source /root/.bashrc && \
-    pyenv install 3.8.9 && \
     pyenv install 3.9.4 && \
     pyenv install 3.10.7 && \
     pyenv install 3.11.3 && \
     pyenv install 3.12.3 && \
-    pyenv global 3.8.9 3.9.4 3.10.7 3.11.3 3.12.3
+    pyenv global 3.9.4 3.10.7 3.11.3 3.12.3
 
 # Install a Go version >= 1.16 so we can bootstrap higher
 # Go versions
-RUN wget https://golang.org/dl/go1.17.linux-amd64.tar.gz && \
-    tar -zxvf go1.17.linux-amd64.tar.gz -C /usr/local/ && \
+RUN wget https://golang.org/dl/go1.23.1.linux-amd64.tar.gz && \
+    tar -zxvf go1.23.1.linux-amd64.tar.gz -C /usr/local/ && \
     echo "export PATH=/usr/local/go/bin:${PATH}" | tee /etc/profile.d/go.sh && \
     chmod a+x "/etc/profile.d/go.sh" && \
     source "/etc/profile.d/go.sh"

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.fn;
 
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.sdk.harness.JvmInitializer;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
@@ -25,6 +26,8 @@ import org.slf4j.LoggerFactory;
 
 /** Helpers for executing {@link JvmInitializer} implementations. */
 public class JvmInitializers {
+  private static final AtomicBoolean initialized = new AtomicBoolean(false);
+
   /**
    * Finds all registered implementations of JvmInitializer and executes their {@code onStartup}
    * methods. Should be called in worker harness implementations at the very beginning of their main
@@ -50,10 +53,23 @@ public class JvmInitializers {
     // We load the logger in the method to minimize the amount of class loading that happens
     // during class initialization.
     Logger logger = LoggerFactory.getLogger(JvmInitializers.class);
-    for (JvmInitializer initializer : ReflectHelpers.loadServicesOrdered(JvmInitializer.class)) {
-      logger.info("Running JvmInitializer#beforeProcessing for {}", initializer);
-      initializer.beforeProcessing(options);
-      logger.info("Completed JvmInitializer#beforeProcessing for {}", initializer);
+
+    try {
+      for (JvmInitializer initializer : ReflectHelpers.loadServicesOrdered(JvmInitializer.class)) {
+        logger.info("Running JvmInitializer#beforeProcessing for {}", initializer);
+        initializer.beforeProcessing(options);
+        logger.info("Completed JvmInitializer#beforeProcessing for {}", initializer);
+      }
+      initialized.compareAndSet(false, true);
+    } catch (Error e) {
+      if (initialized.get()) {
+        logger.warn(
+            "Error at JvmInitializer#beforeProcessing. This error is suppressed after "
+                + "previous success runs. It is expected on Embedded environment",
+            e);
+      } else {
+        throw e;
+      }
     }
   }
 }

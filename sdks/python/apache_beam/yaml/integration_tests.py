@@ -69,7 +69,7 @@ def temp_bigquery_table(project, prefix='yaml_bq_it_'):
   dataset_id = '%s_%s' % (prefix, uuid.uuid4().hex)
   bigquery_client.get_or_create_dataset(project, dataset_id)
   logging.info("Created dataset %s in project %s", dataset_id, project)
-  yield f'{project}:{dataset_id}.tmp_table'
+  yield f'{project}.{dataset_id}.tmp_table'
   request = bigquery.BigqueryDatasetsDeleteRequest(
       projectId=project, datasetId=dataset_id, deleteContents=True)
   logging.info("Deleting dataset %s in project %s", dataset_id, project)
@@ -124,7 +124,12 @@ def provider_sets(spec, require_available=False):
             for p in spec['pipelines']))
 
   def filter_to_available(t, providers):
-    if require_available:
+    if t == 'LogForTesting':
+      # Don't fan out to all the (many) possibilities for this one...
+      return [
+          p for p in providers if isinstance(p, yaml_provider.InlineProvider)
+      ][:1]
+    elif require_available:
       for p in providers:
         if not p.available():
           raise ValueError("Provider {p} required for {t} is not available.")

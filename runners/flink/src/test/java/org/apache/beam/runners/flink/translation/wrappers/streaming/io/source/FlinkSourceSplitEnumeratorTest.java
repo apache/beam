@@ -23,6 +23,8 @@ import static org.junit.Assert.fail;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.TestBoundedCountingSource;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.TestCountingSource;
@@ -127,6 +129,49 @@ public class FlinkSourceSplitEnumeratorTest {
       splitEnumerator.addSplitsBack(splitsForReader, 0);
       splitEnumerator.addReader(0);
       assertEquals(2 * numSplits / numSubtasks, splitsForReader.size());
+    }
+  }
+
+  @Test
+  public void testAddSplitsBackAfterRescale() throws Exception {
+    final int numSubtasks = 2;
+    final int numSplits = 10;
+    final int totalNumRecords = 10;
+    TestingSplitEnumeratorContext<FlinkSourceSplit<KV<Integer, Integer>>> testContext =
+        new TestingSplitEnumeratorContext<>(numSubtasks);
+    TestBoundedCountingSource testSource =
+        new TestBoundedCountingSource(numSplits, totalNumRecords);
+    final Map<Integer, List<FlinkSourceSplit<KV<Integer, Integer>>>> assignment;
+    try (FlinkSourceSplitEnumerator<KV<Integer, Integer>> splitEnumerator =
+        new FlinkSourceSplitEnumerator<>(
+            testContext, testSource, FlinkPipelineOptions.defaults(), numSplits)) {
+      splitEnumerator.start();
+      for (int i = 0; i < numSubtasks; i++) {
+        testContext.registerReader(i, String.valueOf(i));
+        splitEnumerator.addReader(i);
+      }
+      testContext.getExecutorService().triggerAll();
+      assignment =
+          testContext.getSplitAssignments().entrySet().stream()
+              .map(e -> KV.of(e.getKey(), e.getValue().getAssignedSplits()))
+              .collect(Collectors.toMap(KV::getKey, KV::getValue));
+    }
+
+    // add tasks back
+    testContext = new TestingSplitEnumeratorContext<>(numSubtasks);
+    try (FlinkSourceSplitEnumerator<KV<Integer, Integer>> splitEnumerator =
+        new FlinkSourceSplitEnumerator<>(
+            testContext, testSource, FlinkPipelineOptions.defaults(), numSplits, true)) {
+      splitEnumerator.start();
+      assignment.forEach(
+          (splitId, assignedSplits) -> splitEnumerator.addSplitsBack(assignedSplits, splitId));
+      testContext.registerReader(0, "0");
+      splitEnumerator.addReader(0);
+      testContext.getExecutorService().triggerAll();
+
+      List<FlinkSourceSplit<KV<Integer, Integer>>> splitsForReader =
+          testContext.getSplitAssignments().get(0).getAssignedSplits();
+      assertEquals(numSplits / numSubtasks, splitsForReader.size());
     }
   }
 

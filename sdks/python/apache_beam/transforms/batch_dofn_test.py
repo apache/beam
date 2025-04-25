@@ -20,9 +20,7 @@
 # pytype: skip-file
 
 import unittest
-from typing import Iterator
-from typing import List
-from typing import Tuple
+from collections.abc import Iterator
 from typing import no_type_check
 
 from parameterized import parameterized_class
@@ -36,13 +34,13 @@ class ElementDoFn(beam.DoFn):
 
 
 class BatchDoFn(beam.DoFn):
-  def process_batch(self, batch: List[int], *args,
-                    **kwargs) -> Iterator[List[float]]:
+  def process_batch(self, batch: list[int], *args,
+                    **kwargs) -> Iterator[list[float]]:
     yield [element / 2 for element in batch]
 
 
 class NoReturnAnnotation(beam.DoFn):
-  def process_batch(self, batch: List[int], *args, **kwargs):
+  def process_batch(self, batch: list[int], *args, **kwargs):
     yield [element * 2 for element in batch]
 
 
@@ -51,24 +49,24 @@ class OverrideTypeInference(beam.DoFn):
     yield [element * 2 for element in batch]
 
   def get_input_batch_type(self, input_element_type):
-    return List[input_element_type]
+    return list[input_element_type]
 
   def get_output_batch_type(self, input_element_type):
-    return List[input_element_type]
+    return list[input_element_type]
 
 
 class EitherDoFn(beam.DoFn):
   def process(self, element: int, *args, **kwargs) -> Iterator[float]:
     yield element / 2
 
-  def process_batch(self, batch: List[int], *args,
-                    **kwargs) -> Iterator[List[float]]:
+  def process_batch(self, batch: list[int], *args,
+                    **kwargs) -> Iterator[list[float]]:
     yield [element / 2 for element in batch]
 
 
 class ElementToBatchDoFn(beam.DoFn):
   @beam.DoFn.yields_batches
-  def process(self, element: int, *args, **kwargs) -> Iterator[List[int]]:
+  def process(self, element: int, *args, **kwargs) -> Iterator[list[int]]:
     yield [element] * element
 
   def infer_output_type(self, input_element_type):
@@ -77,8 +75,8 @@ class ElementToBatchDoFn(beam.DoFn):
 
 class BatchToElementDoFn(beam.DoFn):
   @beam.DoFn.yields_elements
-  def process_batch(self, batch: List[int], *args,
-                    **kwargs) -> Iterator[Tuple[int, int]]:
+  def process_batch(self, batch: list[int], *args,
+                    **kwargs) -> Iterator[tuple[int, int]]:
     yield (sum(batch), len(batch))
 
 
@@ -178,11 +176,11 @@ class MismatchedBatchProducingDoFn(beam.DoFn):
   mismatched return types (one yields floats, the other ints). Should yield
   a construction time error when applied."""
   @beam.DoFn.yields_batches
-  def process(self, element: int, *args, **kwargs) -> Iterator[List[int]]:
+  def process(self, element: int, *args, **kwargs) -> Iterator[list[int]]:
     yield [element]
 
-  def process_batch(self, batch: List[int], *args,
-                    **kwargs) -> Iterator[List[float]]:
+  def process_batch(self, batch: list[int], *args,
+                    **kwargs) -> Iterator[list[float]]:
     yield [element / 2 for element in batch]
 
 
@@ -194,13 +192,13 @@ class MismatchedElementProducingDoFn(beam.DoFn):
     yield element / 2
 
   @beam.DoFn.yields_elements
-  def process_batch(self, batch: List[int], *args, **kwargs) -> Iterator[int]:
+  def process_batch(self, batch: list[int], *args, **kwargs) -> Iterator[int]:
     yield batch[0]
 
 
 class NoElementOutputAnnotation(beam.DoFn):
-  def process_batch(self, batch: List[int], *args,
-                    **kwargs) -> Iterator[List[int]]:
+  def process_batch(self, batch: list[int], *args,
+                    **kwargs) -> Iterator[list[int]]:
     yield [element * 2 for element in batch]
 
 
@@ -225,7 +223,7 @@ class BatchDoFnTest(unittest.TestCase):
   def test_unsupported_dofn_param_raises(self):
     class BadParam(beam.DoFn):
       @no_type_check
-      def process_batch(self, batch: List[int], key=beam.DoFn.KeyParam):
+      def process_batch(self, batch: list[int], key=beam.DoFn.KeyParam):
         yield batch * key
 
     p = beam.Pipeline()

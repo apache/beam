@@ -41,7 +41,7 @@ dependencies {
   permitUnusedDeclared library.java.hamcrest
   implementation library.java.joda_time
   implementation library.java.slf4j_api
-  implementation library.java.vendored_grpc_1_60_1
+  implementation library.java.vendored_grpc_1_69_0
   implementation library.java.vendored_guava_32_1_2_jre
 
   testImplementation library.java.hamcrest
@@ -156,6 +156,7 @@ def createUlrValidatesRunnerTask = { name, environmentType, dockerImageTask = ""
     useJUnit {
       includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
       // Should be run only in a properly configured SDK harness environment
+      excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedTrieMetrics'
       excludeCategories 'org.apache.beam.sdk.testing.UsesExternalService'
       excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
       excludeCategories 'org.apache.beam.sdk.testing.UsesGaugeMetrics'
@@ -253,7 +254,7 @@ tasks.register("validatesRunnerSickbay", Test) {
 }
 
 task ulrDockerValidatesRunner {
-  dependsOn createUlrValidatesRunnerTask("ulrDockerValidatesRunnerTests", "DOCKER", ":sdks:java:container:java8:docker")
+  dependsOn createUlrValidatesRunnerTask("ulrDockerValidatesRunnerTests", "DOCKER", ":sdks:java:container:${project.ext.currentJavaVersion}:docker")
 }
 
 task ulrLoopbackValidatesRunner {

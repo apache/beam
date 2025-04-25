@@ -17,6 +17,7 @@ package internal
 
 import (
 	"fmt"
+	"log/slog"
 	"sort"
 	"strings"
 
@@ -26,7 +27,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/jobservices"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
 	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slog"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -106,6 +106,15 @@ func (p *preprocessor) preProcessGraph(comps *pipepb.Components, j *jobservices.
 
 			// If there's an unknown urn, and it's not composite, simply add it to the leaves.
 			if len(t.GetSubtransforms()) == 0 {
+				// However, if it is an empty transform with identical input/output pcollections,
+				// it will be discarded.
+				if len(t.GetInputs()) == 1 && len(t.GetOutputs()) == 1 {
+					inputID := getOnlyValue(t.GetInputs())
+					outputID := getOnlyValue(t.GetOutputs())
+					if inputID == outputID {
+						continue
+					}
+				}
 				leaves[tid] = struct{}{}
 			}
 			continue
@@ -445,9 +454,14 @@ func finalizeStage(stg *stage, comps *pipepb.Components, pipelineFacts *fusionFa
 				if err := (proto.UnmarshalOptions{}).Unmarshal(t.GetSpec().GetPayload(), pardo); err != nil {
 					return fmt.Errorf("unable to decode ParDoPayload for %v", link.Transform)
 				}
-				stg.finalize = pardo.RequestsFinalization
+				if pardo.GetRequestsFinalization() {
+					stg.finalize = true
+				}
 				if len(pardo.GetTimerFamilySpecs())+len(pardo.GetStateSpecs())+len(pardo.GetOnWindowExpirationTimerFamilySpec()) > 0 {
 					stg.stateful = true
+				}
+				if pardo.GetOnWindowExpirationTimerFamilySpec() != "" {
+					stg.onWindowExpiration = engine.StaticTimerID{TransformID: link.Transform, TimerFamily: pardo.GetOnWindowExpirationTimerFamilySpec()}
 				}
 				sis = pardo.GetSideInputs()
 			}
@@ -478,6 +492,9 @@ func finalizeStage(stg *stage, comps *pipepb.Components, pipelineFacts *fusionFa
 	}
 
 	stg.internalCols = internal
+	// Sort the keys of internal producers (from stageFacts.PcolProducers)
+	// to ensure deterministic order for stable tests.
+	sort.Strings(stg.internalCols)
 	stg.outputs = maps.Values(outputs)
 	stg.sideInputs = sideInputs
 

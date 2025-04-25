@@ -60,10 +60,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
-import org.checkerframework.checker.initialization.qual.Initialized;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,9 +78,15 @@ public class PubsubLiteWriteSchemaTransformProvider
       LoggerFactory.getLogger(PubsubLiteWriteSchemaTransformProvider.class);
 
   @Override
-  protected @UnknownKeyFor @NonNull @Initialized Class<PubsubLiteWriteSchemaTransformConfiguration>
-      configurationClass() {
+  protected Class<PubsubLiteWriteSchemaTransformConfiguration> configurationClass() {
     return PubsubLiteWriteSchemaTransformConfiguration.class;
+  }
+
+  @Override
+  public String description() {
+    return "Performs a write to Google Pub/Sub Lite.\n"
+        + "\n"
+        + "**Note**: This provider is deprecated. See Pub/Sub Lite <a href=\"https://cloud.google.com/pubsub/lite/docs\">documentation</a> for more information.";
   }
 
   public static class ErrorCounterFn extends DoFn<Row, PubSubMessage> {
@@ -172,8 +175,7 @@ public class PubsubLiteWriteSchemaTransformProvider
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized SchemaTransform from(
-      PubsubLiteWriteSchemaTransformConfiguration configuration) {
+  public SchemaTransform from(PubsubLiteWriteSchemaTransformConfiguration configuration) {
 
     if (!SUPPORTED_FORMATS.contains(configuration.getFormat())) {
       throw new IllegalArgumentException(
@@ -317,19 +319,17 @@ public class PubsubLiteWriteSchemaTransformProvider
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized String identifier() {
+  public String identifier() {
     return "beam:schematransform:org.apache.beam:pubsublite_write:v1";
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized List<@UnknownKeyFor @NonNull @Initialized String>
-      inputCollectionNames() {
+  public List<String> inputCollectionNames() {
     return Collections.singletonList("input");
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized List<@UnknownKeyFor @NonNull @Initialized String>
-      outputCollectionNames() {
+  public List<String> outputCollectionNames() {
     return Collections.singletonList("errors");
   }
 

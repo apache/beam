@@ -30,7 +30,6 @@ from typing import NamedTuple
 from typing import Optional
 from typing import Sequence
 
-import cloudpickle
 import dill
 import numpy as np
 from hypothesis import given
@@ -38,6 +37,7 @@ from hypothesis import settings
 from parameterized import parameterized
 from parameterized import parameterized_class
 
+from apache_beam.internal.cloudpickle import cloudpickle
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import row_type
@@ -488,6 +488,44 @@ class SchemaTest(unittest.TestCase):
         schema_pb2.Option(name='some_flag')
     ]
     self.assertEqual(list(field.options), expected)
+
+  def test_row_type_constraint_to_schema_with_field_descriptions(self):
+    row_type_with_options = row_type.RowTypeConstraint.from_fields(
+        [
+            ('foo', np.int8),
+            ('bar', float),
+            ('baz', bytes),
+        ],
+        field_descriptions={
+            'foo': 'foo description',
+            'bar': 'bar description',
+            'baz': 'baz description',
+        })
+    result_type = typing_to_runner_api(row_type_with_options)
+
+    self.assertIsInstance(result_type, schema_pb2.FieldType)
+    self.assertEqual(result_type.WhichOneof("type_info"), "row_type")
+
+    fields = result_type.row_type.schema.fields
+
+    expected = [
+        schema_pb2.Field(
+            name='foo',
+            description='foo description',
+            type=schema_pb2.FieldType(atomic_type=schema_pb2.BYTE),
+        ),
+        schema_pb2.Field(
+            name='bar',
+            description='bar description',
+            type=schema_pb2.FieldType(atomic_type=schema_pb2.DOUBLE),
+        ),
+        schema_pb2.Field(
+            name='baz',
+            description='baz description',
+            type=schema_pb2.FieldType(atomic_type=schema_pb2.BYTES),
+        ),
+    ]
+    self.assertEqual(list(fields), expected)
 
   def assert_namedtuple_equivalent(self, actual, expected):
     # Two types are only considered equal if they are literally the same

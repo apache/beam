@@ -194,7 +194,11 @@ public class PreparePubsubWriteDoFn<InputT> extends DoFn<InputT, PubsubMessage> 
     // topic shouldn't be null, but lineage report is fail-safe
     if (topic != null && !topic.equals(reportedLineage)) {
       Lineage.getSinks()
-          .add("pubsub", "topic", PubsubClient.topicPathFromPath(topic).getDataCatalogSegments());
+          .add(
+              "pubsub",
+              "topic",
+              PubsubClient.topicPathFromPath(topic).getDataCatalogSegments(),
+              null);
       reportedLineage = topic;
     }
     if (!usesOrderingKey && !Strings.isNullOrEmpty(message.getOrderingKey())) {

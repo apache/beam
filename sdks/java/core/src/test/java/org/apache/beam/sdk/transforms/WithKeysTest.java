@@ -22,6 +22,7 @@ import static org.junit.Assert.assertEquals;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -225,6 +226,20 @@ public class WithKeysTest {
 
     public String getStr() {
       return this.str;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (!(o instanceof Pojo)) {
+        return false;
+      }
+      Pojo pojo = (Pojo) o;
+      return num == pojo.num && Objects.equals(str, pojo.str);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(num, str);
     }
   }
 }

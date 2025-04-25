@@ -17,7 +17,7 @@
 #    Provide the following environment to run this script:
 #
 #    GCLOUD_ZONE: Google cloud zone. Optional. Default: "us-central1-a"
-#    DATAPROC_VERSION: Dataproc version. Optional. Default: 2.1
+#    DATAPROC_VERSION: Dataproc version. Optional. Default: 2.2
 #    CLUSTER_NAME: Cluster name
 #    GCS_BUCKET: GCS bucket url for Dataproc resources (init actions)
 #    HARNESS_IMAGES_TO_PULL: Urls to SDK Harness' images to pull on dataproc workers (optional: 0, 1 or multiple urls for every harness image)
@@ -35,8 +35,8 @@
 #    HARNESS_IMAGES_TO_PULL='gcr.io/<IMAGE_REPOSITORY>/python:latest gcr.io/<IMAGE_REPOSITORY>/java:latest' \
 #    JOB_SERVER_IMAGE=gcr.io/<IMAGE_REPOSITORY>/job-server-flink:latest \
 #    ARTIFACTS_DIR=gs://<bucket-for-artifacts> \
-#    FLINK_DOWNLOAD_URL=https://archive.apache.org/dist/flink/flink-1.12.3/flink-1.12.3-bin-scala_2.11.tgz \
-#    HADOOP_DOWNLOAD_URL=https://repo.maven.apache.org/maven2/org/apache/flink/flink-shaded-hadoop-2-uber/2.8.3-9.0/flink-shaded-hadoop-2-uber-2.8.3-9.0.jar \
+#    FLINK_DOWNLOAD_URL=https://archive.apache.org/dist/flink/flink-1.17.0/flink-1.17.0-bin-scala_2.12.tgz \
+#    HADOOP_DOWNLOAD_URL=https://repo.maven.apache.org/maven2/org/apache/flink/flink-shaded-hadoop-2-uber/2.8.3-10.0/flink-shaded-hadoop-2-uber-2.8.3-9.0.jar \
 #    FLINK_NUM_WORKERS=2 \
 #    FLINK_TASKMANAGER_SLOTS=1 \
 #    DETACHED_MODE=false \
@@ -46,7 +46,7 @@ set -Eeuxo pipefail
 
 # GCloud properties
 GCLOUD_ZONE="${GCLOUD_ZONE:=us-central1-a}"
-DATAPROC_VERSION="${DATAPROC_VERSION:=2.1-debian}"
+DATAPROC_VERSION="${DATAPROC_VERSION:=2.2-debian}"
 GCLOUD_REGION=`echo $GCLOUD_ZONE | sed -E "s/(-[a-z])?$//"`
 
 MASTER_NAME="$CLUSTER_NAME-m"
@@ -129,13 +129,26 @@ function create_cluster() {
   local image_version=$DATAPROC_VERSION
   echo "Starting dataproc cluster. Dataproc version: $image_version"
 
-  # Docker init action restarts yarn so we need to start yarn session after this restart happens.
-  # This is why flink init action is invoked last.
-  # TODO(11/11/2022) remove --worker-machine-type and --master-machine-type once N2 CPUs quota relaxed
-  # Dataproc 2.1 uses n2-standard-2 by default but there is N2 CPUs=24 quota limit
-  gcloud dataproc clusters create $CLUSTER_NAME --region=$GCLOUD_REGION --num-workers=$FLINK_NUM_WORKERS \
-  --master-machine-type=n1-standard-2 --worker-machine-type=n1-standard-2 --metadata "${metadata}", \
-  --image-version=$image_version --zone=$GCLOUD_ZONE  --optional-components=FLINK,DOCKER  --quiet
+  local worker_machine_type="n1-standard-2" # Default worker type
+  local master_machine_type="n1-standard-2" # Default master type
+
+  if [[ -n "${HIGH_MEM_MACHINE:=}" ]]; then
+      worker_machine_type="${HIGH_MEM_MACHINE}"
+      master_machine_type="${HIGH_MEM_MACHINE}"
+
+    gcloud dataproc clusters create $CLUSTER_NAME --enable-component-gateway --region=$GCLOUD_REGION --num-workers=$FLINK_NUM_WORKERS --public-ip-address \
+    --master-machine-type=${master_machine_type} --worker-machine-type=${worker_machine_type} --metadata "${metadata}", \
+    --image-version=$image_version --zone=$GCLOUD_ZONE --optional-components=FLINK,DOCKER  \
+    --properties="${HIGH_MEM_FLINK_PROPS}"
+  else
+    # Docker init action restarts yarn so we need to start yarn session after this restart happens.
+    # This is why flink init action is invoked last.
+    # TODO(11/22/2024) remove --worker-machine-type and --master-machine-type once N2 CPUs quota relaxed
+    # Dataproc 2.1 uses n2-standard-2 by default but there is N2 CPUs=24 quota limit for this project
+    gcloud dataproc clusters create $CLUSTER_NAME --enable-component-gateway --region=$GCLOUD_REGION --num-workers=$FLINK_NUM_WORKERS --public-ip-address \
+    --master-machine-type=${master_machine_type} --worker-machine-type=${worker_machine_type} --metadata "${metadata}", \
+    --image-version=$image_version --zone=$GCLOUD_ZONE --optional-components=FLINK,DOCKER  --quiet
+  fi
 }
 
 # Runs init actions for Docker, Portability framework (Beam) and Flink cluster

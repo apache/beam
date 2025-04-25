@@ -21,12 +21,13 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
@@ -40,6 +41,7 @@ import com.google.cloud.spanner.CommitResponse;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.ErrorCode;
+import com.google.cloud.spanner.InstanceConfigId;
 import com.google.cloud.spanner.Key;
 import com.google.cloud.spanner.KeyRange;
 import com.google.cloud.spanner.KeySet;
@@ -64,12 +66,14 @@ import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.BatchableMutationFilterFn;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.FailureMode;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.GatherSortCreateBatchesFn;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.Write;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.WriteToSpannerFn;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.PAssert;
@@ -112,12 +116,18 @@ import org.mockito.MockitoAnnotations;
 public class SpannerIOWriteTest implements Serializable {
 
   private static final long CELLS_PER_KEY = 7;
+  private static final String PROJECT_NAME = "test-project";
+  private static final String INSTANCE_CONFIG_NAME = "regional-us-central1";
+  private static final String INSTANCE_NAME = "test-instance";
+  private static final String DATABASE_NAME = "test-database";
   private static final String TABLE_NAME = "test-table";
   private static final SpannerConfig SPANNER_CONFIG =
       SpannerConfig.create()
-          .withDatabaseId("test-database")
-          .withInstanceId("test-instance")
-          .withProjectId("test-project");
+          .withDatabaseId(DATABASE_NAME)
+          .withInstanceId(INSTANCE_NAME)
+          .withProjectId(PROJECT_NAME);
+  private static final String DEFAULT_PROJECT =
+      Lineage.wrapSegment(SpannerOptions.getDefaultProjectId());
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
   @Rule public transient ExpectedException thrown = ExpectedException.none();
@@ -141,6 +151,8 @@ public class SpannerIOWriteTest implements Serializable {
             .mockDatabaseClient()
             .writeAtLeastOnceWithOptions(mutationBatchesCaptor.capture(), optionsCaptor.capture()))
         .thenReturn(null);
+    when(serviceFactory.mockInstance().getInstanceConfigId())
+        .thenReturn(InstanceConfigId.of(PROJECT_NAME, INSTANCE_CONFIG_NAME));
 
     // Simplest schema: a table with int64 key
     // Verify case-insensitivity of table names by using different case for teble name.
@@ -314,9 +326,10 @@ public class SpannerIOWriteTest implements Serializable {
 
     mutations.apply(
         SpannerIO.write().withSpannerConfig(SPANNER_CONFIG).withServiceFactory(serviceFactory));
-    pipeline.run();
+    PipelineResult result = pipeline.run();
 
     verifyBatches(buildMutationBatch(buildUpsertMutation(2L)));
+    assertThat(Lineage.query(result.metrics(), Lineage.Type.SINK), hasItem(getFQN(PROJECT_NAME)));
   }
 
   @Test
@@ -333,9 +346,10 @@ public class SpannerIOWriteTest implements Serializable {
             .withSpannerConfig(SPANNER_CONFIG)
             .withServiceFactory(serviceFactory)
             .withDialectView(pgDialectView));
-    pipeline.run();
+    PipelineResult result = pipeline.run();
 
     verifyBatches(buildMutationBatch(buildUpsertMutation(2L)));
+    assertThat(Lineage.query(result.metrics(), Lineage.Type.SINK), hasItem(getFQN(PROJECT_NAME)));
   }
 
   @Test
@@ -346,7 +360,7 @@ public class SpannerIOWriteTest implements Serializable {
     SpannerConfig config =
         SpannerConfig.create().withInstanceId("test-instance").withDatabaseId("test-database");
     mutations.apply(SpannerIO.write().withSpannerConfig(config).withServiceFactory(serviceFactory));
-    pipeline.run();
+    PipelineResult result = pipeline.run();
 
     // don't use VerifyBatches as that uses the common SPANNER_CONFIG with project ID:
     verify(serviceFactory.mockDatabaseClient(), times(1))
@@ -355,6 +369,8 @@ public class SpannerIOWriteTest implements Serializable {
             any(ReadQueryUpdateTransactionOption.class));
 
     verifyTableWriteRequestMetricWasSet(config, TABLE_NAME, "ok", 1);
+    assertThat(
+        Lineage.query(result.metrics(), Lineage.Type.SINK), hasItem(getFQN(DEFAULT_PROJECT)));
   }
 
   @Test
@@ -368,7 +384,7 @@ public class SpannerIOWriteTest implements Serializable {
             .withInstanceId("test-instance")
             .withDatabaseId("test-database");
     mutations.apply(SpannerIO.write().withSpannerConfig(config).withServiceFactory(serviceFactory));
-    pipeline.run();
+    PipelineResult result = pipeline.run();
 
     // don't use VerifyBatches as that uses the common SPANNER_CONFIG with project ID:
     verify(serviceFactory.mockDatabaseClient(), times(1))
@@ -377,6 +393,8 @@ public class SpannerIOWriteTest implements Serializable {
             any(ReadQueryUpdateTransactionOption.class));
 
     verifyTableWriteRequestMetricWasSet(config, TABLE_NAME, "ok", 1);
+    assertThat(
+        Lineage.query(result.metrics(), Lineage.Type.SINK), hasItem(getFQN(DEFAULT_PROJECT)));
   }
 
   @Test
@@ -391,11 +409,12 @@ public class SpannerIOWriteTest implements Serializable {
             .withSpannerConfig(SPANNER_CONFIG)
             .withServiceFactory(serviceFactory)
             .grouped());
-    pipeline.run();
+    PipelineResult result = pipeline.run();
 
     verifyBatches(
         buildMutationBatch(
             buildUpsertMutation(1L), buildUpsertMutation(2L), buildUpsertMutation(3L)));
+    assertThat(Lineage.query(result.metrics(), Lineage.Type.SINK), hasItem(getFQN(PROJECT_NAME)));
   }
 
   @Test
@@ -416,11 +435,12 @@ public class SpannerIOWriteTest implements Serializable {
             .withServiceFactory(serviceFactory)
             .withDialectView(pgDialectView)
             .grouped());
-    pipeline.run();
+    PipelineResult result = pipeline.run();
 
     verifyBatches(
         buildMutationBatch(
             buildUpsertMutation(1L), buildUpsertMutation(2L), buildUpsertMutation(3L)));
+    assertThat(Lineage.query(result.metrics(), Lineage.Type.SINK), hasItem(getFQN(PROJECT_NAME)));
   }
 
   @Test
@@ -1687,5 +1707,11 @@ public class SpannerIOWriteTest implements Serializable {
     baseLabels.put(
         MonitoringInfoConstants.Labels.SPANNER_DATABASE_ID, config.getDatabaseId().get());
     return baseLabels;
+  }
+
+  private static String getFQN(String projectID) {
+    return String.format(
+        "spanner:%s.%s.%s.%s.%s",
+        projectID, INSTANCE_CONFIG_NAME, INSTANCE_NAME, DATABASE_NAME, TABLE_NAME);
   }
 }

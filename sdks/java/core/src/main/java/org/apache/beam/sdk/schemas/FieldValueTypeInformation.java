@@ -27,7 +27,9 @@ import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Stream;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.annotations.SchemaCaseFormat;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
@@ -40,10 +42,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Represents type information for a Java type that will be used to infer a Schema type. */
 @AutoValue
-@SuppressWarnings({
-  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
-  "rawtypes"
-})
+@Internal
 public abstract class FieldValueTypeInformation implements Serializable {
   /** Optionally returns the field index. */
   public abstract @Nullable Integer getNumber();
@@ -125,8 +124,13 @@ public abstract class FieldValueTypeInformation implements Serializable {
         .build();
   }
 
-  public static FieldValueTypeInformation forField(Field field, int index) {
-    TypeDescriptor<?> type = TypeDescriptor.of(field.getGenericType());
+  public static FieldValueTypeInformation forField(
+      @Nullable TypeDescriptor<?> typeDescriptor, Field field, int index) {
+    TypeDescriptor<?> type =
+        Optional.ofNullable(typeDescriptor)
+            .map(td -> (TypeDescriptor) td.resolveType(field.getGenericType()))
+            // fall back to previous behavior
+            .orElseGet(() -> TypeDescriptor.of(field.getGenericType()));
     return new AutoValue_FieldValueTypeInformation.Builder()
         .setName(getNameOverride(field.getName(), field))
         .setNumber(getNumberOverride(index, field))
@@ -134,9 +138,9 @@ public abstract class FieldValueTypeInformation implements Serializable {
         .setType(type)
         .setRawType(type.getRawType())
         .setField(field)
-        .setElementType(getIterableComponentType(field))
-        .setMapKeyType(getMapKeyType(field))
-        .setMapValueType(getMapValueType(field))
+        .setElementType(getIterableComponentType(type))
+        .setMapKeyType(getMapKeyType(type))
+        .setMapValueType(getMapValueType(type))
         .setOneOfTypes(Collections.emptyMap())
         .setDescription(getFieldDescription(field))
         .build();
@@ -185,6 +189,11 @@ public abstract class FieldValueTypeInformation implements Serializable {
   }
 
   public static FieldValueTypeInformation forGetter(Method method, int index) {
+    return forGetter(null, method, index);
+  }
+
+  public static FieldValueTypeInformation forGetter(
+      @Nullable TypeDescriptor<?> typeDescriptor, Method method, int index) {
     String name;
     if (method.getName().startsWith("get")) {
       name = ReflectUtils.stripPrefix(method.getName(), "get");
@@ -194,7 +203,12 @@ public abstract class FieldValueTypeInformation implements Serializable {
       throw new RuntimeException("Getter has wrong prefix " + method.getName());
     }
 
-    TypeDescriptor<?> type = TypeDescriptor.of(method.getGenericReturnType());
+    TypeDescriptor<?> type =
+        Optional.ofNullable(typeDescriptor)
+            .map(td -> (TypeDescriptor) td.resolveType(method.getGenericReturnType()))
+            // fall back to previous behavior
+            .orElseGet(() -> TypeDescriptor.of(method.getGenericReturnType()));
+
     boolean nullable = hasNullableReturnType(method);
     return new AutoValue_FieldValueTypeInformation.Builder()
         .setName(getNameOverride(name, method))
@@ -253,10 +267,20 @@ public abstract class FieldValueTypeInformation implements Serializable {
   }
 
   public static FieldValueTypeInformation forSetter(Method method) {
-    return forSetter(method, "set");
+    return forSetter(null, method);
   }
 
   public static FieldValueTypeInformation forSetter(Method method, String setterPrefix) {
+    return forSetter(null, method, setterPrefix);
+  }
+
+  public static FieldValueTypeInformation forSetter(
+      @Nullable TypeDescriptor<?> typeDescriptor, Method method) {
+    return forSetter(typeDescriptor, method, "set");
+  }
+
+  public static FieldValueTypeInformation forSetter(
+      @Nullable TypeDescriptor<?> typeDescriptor, Method method, String setterPrefix) {
     String name;
     if (method.getName().startsWith(setterPrefix)) {
       name = ReflectUtils.stripPrefix(method.getName(), setterPrefix);
@@ -264,7 +288,11 @@ public abstract class FieldValueTypeInformation implements Serializable {
       throw new RuntimeException("Setter has wrong prefix " + method.getName());
     }
 
-    TypeDescriptor<?> type = TypeDescriptor.of(method.getGenericParameterTypes()[0]);
+    TypeDescriptor<?> type =
+        Optional.ofNullable(typeDescriptor)
+            .map(td -> (TypeDescriptor) td.resolveType(method.getGenericParameterTypes()[0]))
+            // fall back to previous behavior
+            .orElseGet(() -> TypeDescriptor.of(method.getGenericParameterTypes()[0]));
     boolean nullable = hasSingleNullableParameter(method);
     return new AutoValue_FieldValueTypeInformation.Builder()
         .setName(name)
@@ -281,10 +309,6 @@ public abstract class FieldValueTypeInformation implements Serializable {
 
   public FieldValueTypeInformation withName(String name) {
     return toBuilder().setName(name).build();
-  }
-
-  private static FieldValueTypeInformation getIterableComponentType(Field field) {
-    return getIterableComponentType(TypeDescriptor.of(field.getGenericType()));
   }
 
   static @Nullable FieldValueTypeInformation getIterableComponentType(TypeDescriptor<?> valueType) {
@@ -306,23 +330,13 @@ public abstract class FieldValueTypeInformation implements Serializable {
         .build();
   }
 
-  // If the Field is a map type, returns the key type, otherwise returns a null reference.
-
-  private static @Nullable FieldValueTypeInformation getMapKeyType(Field field) {
-    return getMapKeyType(TypeDescriptor.of(field.getGenericType()));
-  }
-
+  // If the type is a map type, returns the key type, otherwise returns a null reference.
   private static @Nullable FieldValueTypeInformation getMapKeyType(
       TypeDescriptor<?> typeDescriptor) {
     return getMapType(typeDescriptor, 0);
   }
 
-  // If the Field is a map type, returns the value type, otherwise returns a null reference.
-
-  private static @Nullable FieldValueTypeInformation getMapValueType(Field field) {
-    return getMapType(TypeDescriptor.of(field.getGenericType()), 1);
-  }
-
+  // If the type is a map type, returns the value type, otherwise returns a null reference.
   private static @Nullable FieldValueTypeInformation getMapValueType(
       TypeDescriptor<?> typeDescriptor) {
     return getMapType(typeDescriptor, 1);
@@ -330,10 +344,9 @@ public abstract class FieldValueTypeInformation implements Serializable {
 
   // If the Field is a map type, returns the key or value type (0 is key type, 1 is value).
   // Otherwise returns a null reference.
-  @SuppressWarnings("unchecked")
   private static @Nullable FieldValueTypeInformation getMapType(
       TypeDescriptor<?> valueType, int index) {
-    TypeDescriptor mapType = ReflectUtils.getMapType(valueType, index);
+    TypeDescriptor<?> mapType = ReflectUtils.getMapType(valueType, index);
     if (mapType == null) {
       return null;
     }

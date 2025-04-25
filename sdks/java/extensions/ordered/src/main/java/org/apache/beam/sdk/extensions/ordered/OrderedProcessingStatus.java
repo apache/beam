@@ -30,16 +30,17 @@ import org.joda.time.Instant;
 public abstract class OrderedProcessingStatus {
 
   public static OrderedProcessingStatus create(
-      Long lastOutputSequence,
+      @Nullable Long lastProcessedSequence,
       long numberOfBufferedEvents,
-      Long earliestBufferedSequence,
-      Long latestBufferedSequence,
+      @Nullable Long earliestBufferedSequence,
+      @Nullable Long latestBufferedSequence,
       long numberOfReceivedEvents,
       long resultCount,
       long duplicateCount,
-      boolean lastEventReceived) {
+      boolean lastEventReceived,
+      @Nullable ContiguousSequenceRange lastContiguousRange) {
     return new AutoValue_OrderedProcessingStatus.Builder()
-        .setLastProcessedSequence(lastOutputSequence)
+        .setLastProcessedSequence(lastProcessedSequence)
         .setNumberOfBufferedEvents(numberOfBufferedEvents)
         .setEarliestBufferedSequence(earliestBufferedSequence)
         .setLatestBufferedSequence(latestBufferedSequence)
@@ -48,6 +49,7 @@ public abstract class OrderedProcessingStatus {
         .setDuplicateCount(duplicateCount)
         .setResultCount(resultCount)
         .setStatusDate(Instant.now())
+        .setLastContiguousSequenceRange(lastContiguousRange)
         .build();
   }
 
@@ -55,8 +57,7 @@ public abstract class OrderedProcessingStatus {
    * @return Last sequence processed. If null is returned - no elements for the given key and window
    *     have been processed yet.
    */
-  @Nullable
-  public abstract Long getLastProcessedSequence();
+  public abstract @Nullable Long getLastProcessedSequence();
 
   /** @return Number of events received out of sequence and buffered. */
   public abstract long getNumberOfBufferedEvents();
@@ -94,6 +95,9 @@ public abstract class OrderedProcessingStatus {
    */
   public abstract Instant getStatusDate();
 
+  @Nullable
+  public abstract ContiguousSequenceRange getLastContiguousSequenceRange();
+
   @Override
   public final boolean equals(@Nullable Object obj) {
     if (obj == null) {
@@ -129,13 +133,13 @@ public abstract class OrderedProcessingStatus {
   @AutoValue.Builder
   public abstract static class Builder {
 
-    public abstract Builder setLastProcessedSequence(Long value);
+    public abstract Builder setLastProcessedSequence(@Nullable Long value);
 
     public abstract Builder setNumberOfBufferedEvents(long value);
 
-    public abstract Builder setEarliestBufferedSequence(Long value);
+    public abstract Builder setEarliestBufferedSequence(@Nullable Long value);
 
-    public abstract Builder setLatestBufferedSequence(Long value);
+    public abstract Builder setLatestBufferedSequence(@Nullable Long value);
 
     public abstract Builder setNumberOfReceivedEvents(long value);
 
@@ -146,6 +150,8 @@ public abstract class OrderedProcessingStatus {
     public abstract Builder setLastEventReceived(boolean value);
 
     public abstract Builder setStatusDate(Instant value);
+
+    public abstract Builder setLastContiguousSequenceRange(@Nullable ContiguousSequenceRange value);
 
     public abstract OrderedProcessingStatus build();
   }

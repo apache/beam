@@ -46,13 +46,15 @@ import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.WorkId;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.client.CloseableStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamPool;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.testing.GrpcCleanupRule;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -60,25 +62,30 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ErrorCollector;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class StreamingEngineWorkCommitterTest {
-
+  @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
   @Rule public ErrorCollector errorCollector = new ErrorCollector();
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private WorkCommitter workCommitter;
   private FakeWindmillServer fakeWindmillServer;
   private Supplier<CloseableStream<CommitWorkStream>> commitWorkStreamFactory;
 
   private static Work createMockWork(long workToken) {
-    return Work.create(
-        Windmill.WorkItem.newBuilder()
+    WorkItem workItem =
+        WorkItem.newBuilder()
             .setKey(ByteString.EMPTY)
             .setWorkToken(workToken)
             .setCacheToken(1L)
             .setShardingKey(2L)
-            .build(),
+            .build();
+    return Work.create(
+        workItem,
+        workItem.getSerializedSize(),
         Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
         Work.createProcessingContext(
             "computationId",
@@ -87,8 +94,7 @@ public class StreamingEngineWorkCommitterTest {
               throw new UnsupportedOperationException();
             },
             mock(HeartbeatSender.class)),
-        Instant::now,
-        Collections.emptyList());
+        Instant::now);
   }
 
   private static ComputationState createComputationState(String computationId) {
@@ -121,6 +127,7 @@ public class StreamingEngineWorkCommitterTest {
 
   private WorkCommitter createWorkCommitter(Consumer<CompleteCommit> onCommitComplete) {
     return StreamingEngineWorkCommitter.builder()
+        .setCommitByteSemaphore(Commits.maxCommitByteSemaphore())
         .setCommitWorkStreamFactory(commitWorkStreamFactory)
         .setOnCommitComplete(onCommitComplete)
         .build();
@@ -261,6 +268,10 @@ public class StreamingEngineWorkCommitterTest {
     Supplier<CommitWorkStream> fakeCommitWorkStream =
         () ->
             new CommitWorkStream() {
+
+              @Override
+              public void start() {}
+
               @Override
               public RequestBatcher batcher() {
                 return new RequestBatcher() {
@@ -342,6 +353,7 @@ public class StreamingEngineWorkCommitterTest {
     Set<CompleteCommit> completeCommits = Collections.newSetFromMap(new ConcurrentHashMap<>());
     workCommitter =
         StreamingEngineWorkCommitter.builder()
+            .setCommitByteSemaphore(Commits.maxCommitByteSemaphore())
             .setCommitWorkStreamFactory(commitWorkStreamFactory)
             .setNumCommitSenders(5)
             .setOnCommitComplete(completeCommits::add)

@@ -119,5 +119,10 @@ func (l *Logger) Errorf(ctx context.Context, format string, args ...any) {
 // Fatalf logs the message with Critical severity, and then calls os.Exit(1).
 func (l *Logger) Fatalf(ctx context.Context, format string, args ...any) {
 	l.Log(ctx, fnpb.LogEntry_Severity_CRITICAL, fmt.Sprintf(format, args...))
+	// Allow additional time for other background processes (e.g., log agent) to
+	// complete before exiting. This ensures crucial information is captured
+	// before the worker process terminates.
+	l.Log(ctx, fnpb.LogEntry_Severity_CRITICAL, "Completing background processes before exiting...")
+	time.Sleep(15 * time.Second)
 	os.Exit(1)
 }

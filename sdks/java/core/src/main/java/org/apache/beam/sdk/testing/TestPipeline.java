@@ -373,7 +373,7 @@ public class TestPipeline extends Pipeline implements TestRule {
       }
       newOptions.setStableUniqueNames(CheckEnabled.ERROR);
 
-      FileSystems.setDefaultPipelineOptions(options);
+      FileSystems.registerFileSystemsOnce(options);
       return run(newOptions);
     } catch (IOException e) {
       throw new RuntimeException(
@@ -515,7 +515,7 @@ public class TestPipeline extends Pipeline implements TestRule {
       }
       options.setStableUniqueNames(CheckEnabled.ERROR);
 
-      FileSystems.setDefaultPipelineOptions(options);
+      FileSystems.registerFileSystemsOnce(options);
       return options;
     } catch (IOException e) {
       throw new RuntimeException(

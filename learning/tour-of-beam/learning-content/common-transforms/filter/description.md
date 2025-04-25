@@ -51,7 +51,7 @@ world
 
 ### Built-in filters
 
-The Java SDK has several filter methods built-in, like `Filter.greaterThan` and `Filter.lessThen`  With `Filter.greaterThan`, the input `PCollection` can be filtered so that only the elements whose values are greater than the specified amount remain. Similarly, you can use `Filter.lessThen` to filter out elements of the input `PCollection` whose values are greater than the specified amount.
+The Java SDK has several filter methods built-in, like `Filter.greaterThan` and `Filter.lessThan`  With `Filter.greaterThan`, the input `PCollection` can be filtered so that only the elements whose values are greater than the specified amount remain. Similarly, you can use `Filter.lessThan` to filter out elements of the input `PCollection` whose values are greater than the specified amount.
 
 Other built-in filters are:
 
@@ -62,7 +62,7 @@ Other built-in filters are:
 * Filter.equal
 
 
-## Example 2: Filtering with a built-in methods
+## Example 2: Filtering with built-in methods
 
 ```
 // List of integers
@@ -404,11 +404,3 @@ func applyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
     })
 }
 ```
-
-### Playground exercise
-
-You can find the complete code of the above example using 'Filter' in the playground window, which you can run and experiment with.
-
-Filter transform can be used with both text and numerical collection. For example, let's try filtering the input collection that contains words so that only words that start with the letter 'a' are returned.
-
-You can also chain several filter transforms to form more complex filtering based on several simple filters or implement more complex filtering logic within a single filter transform. For example, try both approaches to filter the same list of words such that only ones that start with a letter 'a' (regardless of the case) and containing more than three symbols are returned.

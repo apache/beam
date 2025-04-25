@@ -917,6 +917,19 @@ class SnippetsTest(unittest.TestCase):
     snippets.model_multiple_pcollections_flatten(contents, result_path)
     self.assertEqual(contents, self.get_output(result_path))
 
+  def test_model_multiple_pcollections_flatten_with(self):
+    contents = ['a', 'b', 'c', 'd', 'e', 'f']
+    result_path = self.create_temp_file()
+    snippets.model_multiple_pcollections_flatten_with(contents, result_path)
+    self.assertEqual(contents, self.get_output(result_path))
+
+  def test_model_multiple_pcollections_flatten_with_transform(self):
+    contents = ['a', 'b', 'c', 'd', 'e', 'f']
+    result_path = self.create_temp_file()
+    snippets.model_multiple_pcollections_flatten_with_transform(
+        contents, result_path)
+    self.assertEqual(contents + ['x', 'y', 'z'], self.get_output(result_path))
+
   def test_model_multiple_pcollections_partition(self):
     contents = [17, 42, 64, 32, 0, 99, 53, 89]
     result_path = self.create_temp_file()
@@ -1140,7 +1153,7 @@ class SnippetsTest(unittest.TestCase):
           pcollection | WindowInto(
               FixedWindows(1 * 60),
               trigger=AfterWatermark(late=AfterProcessingTime(10 * 60)),
-              allowed_lateness=10,
+              allowed_lateness=2 * 24 * 60 * 60,
               accumulation_mode=AccumulationMode.DISCARDING)
           # [END model_composite_triggers]
           | 'group' >> beam.GroupByKey()
@@ -1452,6 +1465,18 @@ class SlowlyChangingSideInputsTest(unittest.TestCase):
     finally:
       for i in range(-1, 10, 1):
         os.unlink(src_file_pattern + str(first_ts + interval * i))
+
+
+class ValueProviderInfoTest(unittest.TestCase):
+  """Tests for accessing value provider info after run."""
+  def test_accessing_valueprovider_info_after_run(self):
+    with self.assertLogs(level='INFO') as log_capture:
+      snippets.accessing_valueprovider_info_after_run()
+    expected_log_message = "The string value is"
+    self.assertTrue(
+        any(expected_log_message in log for log in log_capture.output),
+        f"Expected log message '{expected_log_message}' not found in logs: "
+        f"{log_capture.output}")
 
 
 if __name__ == '__main__':

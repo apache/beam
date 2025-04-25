@@ -40,7 +40,8 @@ export async function getChecksStatus(
     }
     if (
       mostRecentChecks[i].conclusion != "success" &&
-      mostRecentChecks[i].conclusion != "skipped"
+      mostRecentChecks[i].conclusion != "skipped" &&
+      mostRecentChecks[i].conclusion != "neutral"
     ) {
       checkStatus.succeeded = false;
     }

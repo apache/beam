@@ -19,6 +19,8 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor.longToSplitInt;
 
+import com.google.api.services.dataflow.model.BoundedTrie;
+import com.google.api.services.dataflow.model.BoundedTrieNode;
 import com.google.api.services.dataflow.model.CounterMetadata;
 import com.google.api.services.dataflow.model.CounterStructuredName;
 import com.google.api.services.dataflow.model.CounterStructuredNameAndMetadata;
@@ -27,10 +29,15 @@ import com.google.api.services.dataflow.model.DistributionUpdate;
 import com.google.api.services.dataflow.model.IntegerGauge;
 import com.google.api.services.dataflow.model.StringList;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import org.apache.beam.model.pipeline.v1.MetricsApi;
+import org.apache.beam.runners.core.metrics.BoundedTrieData;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.StringSetData;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 
 /** Convertor from Metrics to {@link CounterUpdate} protos. */
 @SuppressWarnings({
@@ -98,7 +105,8 @@ public class MetricsToCounterUpdateConverter {
         .setIntegerGauge(integerGaugeProto);
   }
 
-  public static CounterUpdate fromStringSet(MetricKey key, StringSetData stringSetData) {
+  public static CounterUpdate fromStringSet(
+      MetricKey key, boolean isCumulative, StringSetData stringSetData) {
     CounterStructuredNameAndMetadata name = structuredNameAndMetadata(key, Kind.SET);
 
     StringList stringList = new StringList();
@@ -106,8 +114,48 @@ public class MetricsToCounterUpdateConverter {
 
     return new CounterUpdate()
         .setStructuredNameAndMetadata(name)
-        .setCumulative(false)
+        .setCumulative(isCumulative)
         .setStringList(stringList);
+  }
+
+  public static CounterUpdate fromBoundedTrie(
+      MetricKey key, boolean isCumulative, BoundedTrieData boundedTrieData) {
+    // BoundedTrie uses SET kind metric aggregation which tracks unique strings as a trie.
+    CounterStructuredNameAndMetadata name = structuredNameAndMetadata(key, Kind.SET);
+    BoundedTrie counterUpdateTrie = getBoundedTrie(boundedTrieData.toProto());
+
+    return new CounterUpdate()
+        .setStructuredNameAndMetadata(name)
+        .setCumulative(isCumulative)
+        .setBoundedTrie(counterUpdateTrie);
+  }
+
+  /**
+   * Converts from org.apache.beam.model.pipeline.v1.BoundedTrie to
+   * com.google.api.services.dataflow.model.BoundedTrie. This is because even though Dataflow
+   * CounterUpdate uses org.apache.beam.model.pipeline.v1.BoundedTrieNode in it's definition when
+   * the google-api client is generated the package is renamed.
+   *
+   * @param trie org.apache.beam.model.pipeline.v1.BoundedTrie to be converted
+   * @return converted com.google.api.services.dataflow.model.BoundedTrie.
+   */
+  @VisibleForTesting
+  static BoundedTrie getBoundedTrie(MetricsApi.BoundedTrie trie) {
+    BoundedTrie counterUpdateTrie = new BoundedTrie();
+    counterUpdateTrie.setBound(trie.getBound());
+    counterUpdateTrie.setSingleton(
+        trie.getSingletonList().isEmpty() ? null : trie.getSingletonList());
+    counterUpdateTrie.setRoot(trie.hasRoot() ? getBoundedTrieNode(trie.getRoot()) : null);
+    return counterUpdateTrie;
+  }
+
+  private static BoundedTrieNode getBoundedTrieNode(MetricsApi.BoundedTrieNode node) {
+    BoundedTrieNode boundedTrieNode = new BoundedTrieNode();
+    boundedTrieNode.setTruncated(node.getTruncated());
+    Map<String, BoundedTrieNode> children = new HashMap<>();
+    node.getChildrenMap().forEach((key, value) -> children.put(key, getBoundedTrieNode(value)));
+    boundedTrieNode.setChildren(children);
+    return boundedTrieNode;
   }
 
   public static CounterUpdate fromDistribution(

@@ -19,11 +19,11 @@
 
 type: edu
 files:
-- name: src/org/apache/beam/learning/katas/commontransforms/aggregation/sum/Task.java
-  visible: true
-  placeholders:
-  - offset: 1899
-    length: 42
-    placeholder_text: TODO()
-- name: test/org/apache/beam/learning/katas/commontransforms/aggregation/sum/TaskTest.java
-  visible: false
+  - name: src/org/apache/beam/learning/katas/commontransforms/aggregation/sum/Task.java
+    visible: true
+    placeholders:
+      - offset: 1965
+        length: 42
+        placeholder_text: TODO()
+  - name: test/org/apache/beam/learning/katas/commontransforms/aggregation/sum/TaskTest.java
+    visible: false

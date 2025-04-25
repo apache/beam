@@ -19,12 +19,18 @@ package org.apache.beam.sdk.io.jdbc;
 
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
+import com.google.auto.value.AutoValue;
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.net.URI;
 import java.net.URL;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.Paths;
+import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.Date;
 import java.sql.JDBCType;
 import java.sql.PreparedStatement;
@@ -33,6 +39,7 @@ import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.EnumMap;
@@ -40,12 +47,17 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Properties;
 import java.util.TimeZone;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import javax.sql.DataSource;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedPrecisionNumeric;
 import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
@@ -57,10 +69,13 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Files;
+import org.apache.commons.dbcp2.BasicDataSource;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
@@ -69,20 +84,25 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Provides utility functions for working with {@link JdbcIO}. */
-class JdbcUtil {
+public class JdbcUtil {
 
   private static final Logger LOG = LoggerFactory.getLogger(JdbcUtil.class);
+
+  public static final String MYSQL = "mysql";
+  public static final String POSTGRES = "postgres";
+  public static final String ORACLE = "oracle";
+  public static final String MSSQL = "mssql";
 
   static final Map<String, String> JDBC_DRIVER_MAP =
       new HashMap<>(
           ImmutableMap.of(
-              "mysql",
+              MYSQL,
               "com.mysql.cj.jdbc.Driver",
-              "postgres",
+              POSTGRES,
               "org.postgresql.Driver",
-              "oracle",
+              ORACLE,
               "oracle.jdbc.driver.OracleDriver",
-              "mssql",
+              MSSQL,
               "com.microsoft.sqlserver.jdbc.SQLServerDriver"));
 
   @VisibleForTesting
@@ -92,7 +112,8 @@ class JdbcUtil {
 
   /** Utility method to save jar files locally in the worker. */
   static URL[] saveFilesLocally(String driverJars) {
-    List<String> listOfJarPaths = Splitter.on(',').trimResults().splitToList(driverJars);
+    List<String> listOfJarPaths =
+        Splitter.on(',').trimResults().omitEmptyStrings().splitToList(driverJars);
 
     final String destRoot = Files.createTempDir().getAbsolutePath();
     List<URL> driverJarUrls = new ArrayList<>();
@@ -563,4 +584,308 @@ class JdbcUtil {
               }
             }
           });
+
+  @AutoValue
+  abstract static class JdbcUrl {
+    abstract String getScheme();
+
+    abstract @Nullable String getHostAndPort();
+
+    abstract String getDatabase();
+
+    /**
+     * Parse Jdbc Url String and return an {@link JdbcUrl} object, or return null for unsupported
+     * formats.
+     *
+     * <p>Example of supported format:
+     *
+     * <ul>
+     *   <li>"jdbc:postgresql://localhost:5432/postgres"
+     *   <li>"jdbc:mysql://127.0.0.1:3306/db"
+     *   <li>"jdbc:oracle:thin:HR/hr@localhost:5221:orcl"
+     *   <li>"jdbc:derby:memory:testDB;create=true"
+     *   <li>"jdbc:oracle:thin:@//myhost.example.com:1521/my_service"
+     *   <li>"jdbc:mysql:///cloud_sql" (GCP CloudSQL, supported if Connection name setup via
+     *       HikariDataSource)
+     * </ul>
+     */
+    static @Nullable JdbcUrl of(String url) {
+      if (Strings.isNullOrEmpty(url) || !url.startsWith("jdbc:")) {
+        return null;
+      }
+      String cleanUri = url.substring(5);
+
+      // 1. Resolve the scheme
+      // handle sub-schemes e.g. oracle:thin (RAC)
+      int start = cleanUri.indexOf("//");
+      if (start != -1) {
+        List<String> subschemes = Splitter.on(':').splitToList(cleanUri.substring(0, start));
+        cleanUri = subschemes.get(0) + ":" + cleanUri.substring(start);
+      } else {
+        // not a URI format e.g. oracle:thin (non-RAC); derby in memory
+        if (cleanUri.startsWith("derby:")) {
+          String scheme = "derby";
+          int endUrl = cleanUri.indexOf(";");
+          if (endUrl == -1) {
+            endUrl = cleanUri.length();
+          }
+          List<String> components =
+              Splitter.on(':').splitToList(cleanUri.substring("derby:".length(), endUrl));
+          if (components.size() < 2) {
+            return null;
+          }
+          return new AutoValue_JdbcUtil_JdbcUrl(scheme, components.get(0), components.get(1));
+        } else if (cleanUri.startsWith("oracle:thin:")) {
+          String scheme = "oracle";
+
+          int startHost = cleanUri.indexOf("@");
+          if (startHost == -1) {
+            return null;
+          }
+          List<String> components = Splitter.on(':').splitToList(cleanUri.substring(startHost + 1));
+          if (components.size() < 3) {
+            return null;
+          }
+          return new AutoValue_JdbcUtil_JdbcUrl(
+              scheme, components.get(0) + ":" + components.get(1), components.get(2));
+        } else {
+          return null;
+        }
+      }
+
+      URI uri = URI.create(cleanUri);
+      String scheme = uri.getScheme();
+
+      // 2. resolve database
+      @Nullable String path = uri.getPath();
+      if (path != null && path.startsWith("/")) {
+        path = path.substring(1);
+      }
+      if (path == null) {
+        return null;
+      }
+
+      // 3. resolve host and port
+      // treat as self-managed SQL instance
+      @Nullable String hostAndPort = null;
+      @Nullable String host = uri.getHost();
+      if (host != null) {
+        int port = uri.getPort();
+        hostAndPort = port != -1 ? host + ":" + port : null;
+      }
+      return new AutoValue_JdbcUtil_JdbcUrl(scheme, hostAndPort, path);
+    }
+  }
+
+  /** Jdbc fully qualified name components. */
+  @AutoValue
+  abstract static class FQNComponents {
+
+    static final String DEFAULT_SCHEMA = "default";
+
+    abstract String getScheme();
+
+    abstract Iterable<String> getSegments();
+
+    void reportLineage(Lineage lineage, @Nullable KV<@Nullable String, String> tableWithSchema) {
+      ImmutableList.Builder<String> builder = ImmutableList.<String>builder().addAll(getSegments());
+      if (tableWithSchema != null) {
+        if (tableWithSchema.getKey() != null && !tableWithSchema.getKey().isEmpty()) {
+          builder.add(tableWithSchema.getKey());
+        } else {
+          // Every database engine has the default schema or search path if user hasn't provided
+          // one. The name
+          // is specific to db engine. For PostgreSQL it is public, for MSSQL it is dbo.
+          // Users can have custom default scheme for the benefit of the user but dataflow is unable
+          // to determine that.
+          builder.add(DEFAULT_SCHEMA);
+        }
+        if (!tableWithSchema.getValue().isEmpty()) {
+          builder.add(tableWithSchema.getValue());
+        }
+      }
+      lineage.add(getScheme(), builder.build());
+    }
+
+    /** Fail-safely extract FQN from supported DataSource. Return null if failed. */
+    static @Nullable FQNComponents of(DataSource dataSource) {
+      // Supported case CloudSql using HikariDataSource
+      // Had to retrieve properties via Reflection to avoid introduce mandatory Hikari dependencies
+      String maybeSqlInstance;
+      String url;
+      try {
+        if (dataSource instanceof BasicDataSource) {
+          // try default data source implementation
+          BasicDataSource source = (BasicDataSource) dataSource;
+          Method getProperties = source.getClass().getDeclaredMethod("getConnectionProperties");
+          getProperties.setAccessible(true);
+          Properties properties = (Properties) getProperties.invoke(dataSource);
+          if (properties == null) {
+            return null;
+          }
+          maybeSqlInstance = properties.getProperty("cloudSqlInstance");
+          if (maybeSqlInstance == null) {
+            // not a cloudSqlInstance
+            return null;
+          }
+          url = source.getUrl();
+        } else { // try recommended as per best practice
+          Class<?> hikariClass = Class.forName("com.zaxxer.hikari.HikariDataSource");
+          if (!hikariClass.isInstance(dataSource)) {
+            return null;
+          }
+          Method getProperties = hikariClass.getMethod("getDataSourceProperties");
+          Properties properties = (Properties) getProperties.invoke(dataSource);
+          if (properties == null) {
+            return null;
+          }
+          maybeSqlInstance = properties.getProperty("cloudSqlInstance");
+          if (maybeSqlInstance == null) {
+            // not a cloudSqlInstance
+            return null;
+          }
+          Method getUrl = hikariClass.getMethod("getJdbcUrl");
+          url = (String) getUrl.invoke(dataSource);
+          if (url == null) {
+            return null;
+          }
+        }
+      } catch (ClassNotFoundException
+          | InvocationTargetException
+          | IllegalAccessException
+          | NoSuchMethodException e) {
+        return null;
+      }
+
+      JdbcUrl jdbcUrl = JdbcUrl.of(url);
+      if (jdbcUrl == null) {
+        LOG.info("Failed to parse JdbcUrl {}. Lineage will not be reported.", url);
+        return null;
+      }
+
+      String scheme = "cloudsql_" + jdbcUrl.getScheme();
+      ImmutableList.Builder<String> segments = ImmutableList.builder();
+      List<String> sqlInstance = Arrays.asList(maybeSqlInstance.split(":"));
+      if (sqlInstance.size() > 3) {
+        // project name contains ":"
+        segments
+            .add(String.join(":", sqlInstance.subList(0, sqlInstance.size() - 2)))
+            .add(sqlInstance.get(sqlInstance.size() - 2))
+            .add(sqlInstance.get(sqlInstance.size() - 1));
+      } else {
+        segments.addAll(Arrays.asList(maybeSqlInstance.split(":")));
+      }
+      segments.add(jdbcUrl.getDatabase());
+      return new AutoValue_JdbcUtil_FQNComponents(scheme, segments.build());
+    }
+
+    /** Fail-safely extract FQN from an active connection. Return null if failed. */
+    static @Nullable FQNComponents of(Connection connection) {
+      try {
+        DatabaseMetaData metadata = connection.getMetaData();
+        if (metadata == null) {
+          // usually not-null, but can be null when running a mock
+          return null;
+        }
+        String url = metadata.getURL();
+        if (url == null) {
+          // usually not-null, but can be null when running a mock
+          return null;
+        }
+        return of(url);
+      } catch (Exception e) {
+        // suppressed
+        return null;
+      }
+    }
+
+    /**
+     * Fail-safely parse FQN from a Jdbc URL. Return null if failed.
+     *
+     * <p>e.g.
+     *
+     * <p>jdbc:postgresql://localhost:5432/postgres -> (postgresql, [localhost:5432, postgres])
+     *
+     * <p>jdbc:mysql://127.0.0.1:3306/db -> (mysql, [127.0.0.1:3306, db])
+     */
+    @VisibleForTesting
+    static @Nullable FQNComponents of(String url) {
+      JdbcUrl jdbcUrl = JdbcUrl.of(url);
+      if (jdbcUrl == null || jdbcUrl.getHostAndPort() == null) {
+        LOG.info("Failed to parse JdbcUrl {}. Lineage will not be reported.", url);
+        return null;
+      }
+      String hostAndPort = jdbcUrl.getHostAndPort();
+      if (hostAndPort == null) {
+        LOG.info("Failed to parse host/port from JdbcUrl {}. Lineage will not be reported.", url);
+        return null;
+      }
+
+      return new AutoValue_JdbcUtil_FQNComponents(
+          jdbcUrl.getScheme(), ImmutableList.of(hostAndPort, jdbcUrl.getDatabase()));
+    }
+  }
+
+  private static final Pattern TABLE_PATTERN =
+      Pattern.compile(
+          "(\\[?`?(?<schemaName>[^\\s\\[\\]`]+)\\]?`?\\.)?\\[?`?(?<tableName>[^\\s\\[\\]`]+)\\]?`?",
+          Pattern.CASE_INSENSITIVE);
+
+  private static final Pattern READ_STATEMENT_PATTERN =
+      Pattern.compile(
+          "SELECT\\s+.+?\\s+FROM\\s+(\\[?`?(?<schemaName>[^\\s\\[\\]`]+)\\]?`?\\.)?\\[?`?(?<tableName>[^\\s\\[\\]`]+)\\]?`?",
+          Pattern.CASE_INSENSITIVE);
+
+  private static final Pattern WRITE_STATEMENT_PATTERN =
+      Pattern.compile(
+          "INSERT\\s+INTO\\s+(\\[?`?(?<schemaName>[^\\s\\[\\]`]+)\\]?`?\\.)?\\[?(?<tableName>[^\\s\\[\\]]+)\\]?",
+          Pattern.CASE_INSENSITIVE);
+
+  /** Extract schema and table name a SELECT statement. Return null if fail to extract. */
+  static @Nullable KV<@Nullable String, String> extractTableFromReadQuery(@Nullable String query) {
+    if (query == null) {
+      return null;
+    }
+    Matcher matchRead = READ_STATEMENT_PATTERN.matcher(query);
+    if (matchRead.find()) {
+      String matchedTable = matchRead.group("tableName");
+      String matchedSchema = matchRead.group("schemaName");
+      System.out.println(matchedSchema);
+      if (matchedTable != null) {
+        return KV.of(matchedSchema, matchedTable);
+      }
+    }
+    return null;
+  }
+
+  static @Nullable KV<@Nullable String, String> extractTableFromTable(@Nullable String table) {
+    if (table == null) {
+      return null;
+    }
+    Matcher matchRead = TABLE_PATTERN.matcher(table);
+    if (matchRead.find()) {
+      String matchedTable = matchRead.group("tableName");
+      String matchedSchema = matchRead.group("schemaName");
+      if (matchedTable != null) {
+        return KV.of(matchedSchema, matchedTable);
+      }
+    }
+    return null;
+  }
+
+  /** Extract table name from an INSERT statement. Return empty string if fail to extract. */
+  static @Nullable KV<@Nullable String, String> extractTableFromWriteQuery(@Nullable String query) {
+    if (query == null) {
+      return null;
+    }
+    Matcher matchRead = WRITE_STATEMENT_PATTERN.matcher(query);
+    if (matchRead.find()) {
+      String matchedTable = matchRead.group("tableName");
+      String matchedSchema = matchRead.group("schemaName");
+      if (matchedTable != null) {
+        return KV.of(matchedSchema, matchedTable);
+      }
+    }
+    return null;
+  }
 }

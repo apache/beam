@@ -28,7 +28,7 @@ import { JavaJarService } from "../utils/service";
 const MAGIC_HOST_NAMES = ["[local]", "[auto]"];
 
 // These should stay in sync with gradle.properties.
-const PUBLISHED_FLINK_VERSIONS = ["1.15", "1.16", "1.17", "1.18"];
+const PUBLISHED_FLINK_VERSIONS = ["1.17", "1.18", "1.19"];
 
 const defaultOptions = {
   flinkMaster: "[local]",

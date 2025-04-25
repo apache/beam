@@ -40,12 +40,12 @@ import com.google.api.services.dataflow.model.SdkHarnessContainerImage;
 import com.google.api.services.dataflow.model.WorkerPool;
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
-import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
 import java.nio.channels.Channels;
+import java.nio.channels.ReadableByteChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -102,6 +102,7 @@ import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverride;
@@ -168,8 +169,8 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.InvalidProtocolBufferException;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
@@ -180,6 +181,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterab
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.HashCode;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Files;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.DateTimeZone;
@@ -200,6 +202,17 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Please see <a href="https://cloud.google.com/dataflow/security-and-permissions">Google Cloud
  * Dataflow Security and Permissions</a> for more details.
+ *
+ * <p>DataflowRunner now supports creating job templates using the {@code --templateLocation}
+ * option. If this option is set, the runner will generate a template instead of running the
+ * pipeline immediately.
+ *
+ * <p>Example:
+ *
+ * <pre>{@code
+ * --runner=DataflowRunner
+ * --templateLocation=gs://your-bucket/templates/my-template
+ * }</pre>
  */
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
@@ -259,6 +272,92 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   static final String ENDPOINT_REGEXP = "https://[\\S]*googleapis\\.com[/]?";
 
   /**
+   * Replaces GCS file paths with local file paths by downloading the GCS files locally. This is
+   * useful when files need to be accessed locally before being staged to Dataflow.
+   *
+   * @param filesToStage List of file paths that may contain GCS paths (gs://) and local paths
+   * @return List of local file paths where any GCS paths have been downloaded locally
+   * @throws RuntimeException if there are errors copying GCS files locally
+   */
+  public static List<String> replaceGcsFilesWithLocalFiles(List<String> filesToStage) {
+    List<String> processedFiles = new ArrayList<>();
+
+    for (String fileToStage : filesToStage) {
+      String localPath;
+      if (fileToStage.contains("=")) {
+        // Handle files with staging name specified
+        String[] components = fileToStage.split("=", 2);
+        String stagingName = components[0];
+        String filePath = components[1];
+
+        if (filePath.startsWith("gs://")) {
+          try {
+            // Create temp file with exact same name as GCS file
+            String gcsFileName = filePath.substring(filePath.lastIndexOf('/') + 1);
+            File tempDir = Files.createTempDir();
+            tempDir.deleteOnExit();
+            File tempFile = new File(tempDir, gcsFileName);
+            tempFile.deleteOnExit();
+
+            LOG.info(
+                "Downloading GCS file {} to local temp file {}",
+                filePath,
+                tempFile.getAbsolutePath());
+
+            // Copy GCS file to local temp file
+            ResourceId source = FileSystems.matchNewResource(filePath, false);
+            try (ReadableByteChannel reader = FileSystems.open(source);
+                FileOutputStream writer = new FileOutputStream(tempFile)) {
+              ByteStreams.copy(Channels.newInputStream(reader), writer);
+            }
+
+            localPath = stagingName + "=" + tempFile.getAbsolutePath();
+            LOG.info("Replaced GCS path {} with local path {}", fileToStage, localPath);
+          } catch (IOException e) {
+            throw new RuntimeException("Failed to copy GCS file locally: " + filePath, e);
+          }
+        } else {
+          localPath = fileToStage;
+        }
+      } else {
+        // Handle files without staging name
+        if (fileToStage.startsWith("gs://")) {
+          try {
+            // Create temp file with exact same name as GCS file
+            String gcsFileName = fileToStage.substring(fileToStage.lastIndexOf('/') + 1);
+            File tempDir = Files.createTempDir();
+            tempDir.deleteOnExit();
+            File tempFile = new File(tempDir, gcsFileName);
+            tempFile.deleteOnExit();
+
+            LOG.info(
+                "Downloading GCS file {} to local temp file {}",
+                fileToStage,
+                tempFile.getAbsolutePath());
+
+            // Copy GCS file to local temp file
+            ResourceId source = FileSystems.matchNewResource(fileToStage, false);
+            try (ReadableByteChannel reader = FileSystems.open(source);
+                FileOutputStream writer = new FileOutputStream(tempFile)) {
+              ByteStreams.copy(Channels.newInputStream(reader), writer);
+            }
+
+            localPath = tempFile.getAbsolutePath();
+            LOG.info("Replaced GCS path {} with local path {}", fileToStage, localPath);
+          } catch (IOException e) {
+            throw new RuntimeException("Failed to copy GCS file locally: " + fileToStage, e);
+          }
+        } else {
+          localPath = fileToStage;
+        }
+      }
+      processedFiles.add(localPath);
+    }
+
+    return processedFiles;
+  }
+
+  /**
    * Construct a runner from the provided options.
    *
    * @param options Properties that configure the runner.
@@ -313,6 +412,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     if (dataflowOptions.getFilesToStage() != null) {
+      // Replace GCS file paths with local file paths
+      dataflowOptions.setFilesToStage(
+          replaceGcsFilesWithLocalFiles(dataflowOptions.getFilesToStage()));
       // The user specifically requested these files, so fail now if they do not exist.
       // (automatically detected classpath elements are permitted to not exist, so later
       // staging will not fail on nonexistent files)
@@ -505,6 +607,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   private static class AlwaysCreateViaRead<T>
       implements PTransformOverrideFactory<PBegin, PCollection<T>, Create.Values<T>> {
+
     @Override
     public PTransformOverrideFactory.PTransformReplacement<PBegin, PCollection<T>>
         getReplacementTransform(
@@ -685,7 +788,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         PTransformOverride.of(
             PTransformMatchers.requiresStableInputParDoMulti(),
             RequiresStableInputParDoOverrides.multiOutputOverrideFactory()));
-    */
+         */
     overridesBuilder
         .add(
             PTransformOverride.of(
@@ -700,10 +803,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                 PTransformMatchers.classEqualTo(ParDo.SingleOutput.class),
                 new PrimitiveParDoSingleFactory()));
 
+    boolean usesAtLeastOnceStreamingMode =
+        options.getDataflowServiceOptions() != null
+            && options.getDataflowServiceOptions().contains("streaming_mode_at_least_once");
     overridesBuilder.add(
         PTransformOverride.of(
             PTransformMatchers.classEqualTo(RedistributeByKey.class),
-            new RedistributeByKeyOverrideFactory()));
+            new RedistributeByKeyOverrideFactory(usesAtLeastOnceStreamingMode)));
 
     if (streaming) {
       // For update compatibility, always use a Read for Create in streaming mode.
@@ -859,7 +965,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       The PCollectionView itself must have the same tag since that tag may have been embedded in serialized DoFns
       previously and cannot easily be rewired. The PCollection may differ, so we rewire it, even if the rewiring
       is a noop.
-      */
+             */
       return ReplacementOutputs.singleton(outputs, newOutput);
     }
   }
@@ -1089,6 +1195,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   @VisibleForTesting
   static boolean isMultiLanguagePipeline(Pipeline pipeline) {
     class IsMultiLanguageVisitor extends PipelineVisitor.Defaults {
+
       private boolean isMultiLanguage = false;
 
       private void performMultiLanguageTest(Node node) {
@@ -1161,6 +1268,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         experiments.add("use_portable_job_submission");
       }
       options.setExperiments(ImmutableList.copyOf(experiments));
+      // Ensure that logging via the FnApi is enabled
+      options.as(SdkHarnessOptions.class).setEnableLogViaFnApi(true);
     }
 
     logWarningIfPCollectionViewHasNonDeterministicKeyCoder(pipeline);
@@ -1430,15 +1539,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           fileLocation.startsWith("/") || fileLocation.startsWith("gs://"),
           "Location must be local or on Cloud Storage, got %s.",
           fileLocation);
-      ResourceId fileResource = FileSystems.matchNewResource(fileLocation, false /* isDirectory */);
-      String workSpecJson = DataflowPipelineTranslator.jobToString(newJob);
-      try (PrintWriter printWriter =
-          new PrintWriter(
-              new BufferedWriter(
-                  new OutputStreamWriter(
-                      Channels.newOutputStream(FileSystems.create(fileResource, MimeTypes.TEXT)),
-                      UTF_8)))) {
-        printWriter.print(workSpecJson);
+
+      try {
+        printWorkSpecJsonToFile(fileLocation, newJob);
         LOG.info("Printed job specification to {}", fileLocation);
       } catch (IOException ex) {
         String error = String.format("Cannot create output file at %s", fileLocation);
@@ -1448,6 +1551,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           LOG.warn(error, ex);
         }
       }
+
       if (isTemplate) {
         LOG.info("Template successfully created.");
         return new DataflowTemplateJob();
@@ -1535,6 +1639,18 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     return dataflowPipelineJob;
   }
 
+  private static void printWorkSpecJsonToFile(String fileLocation, Job job) throws IOException {
+    String workSpecJson = DataflowPipelineTranslator.jobToString(job);
+    ResourceId fileResource = FileSystems.matchNewResource(fileLocation, false /* isDirectory */);
+    try (OutputStreamWriter writer =
+        new OutputStreamWriter(
+            Channels.newOutputStream(FileSystems.create(fileResource, MimeTypes.TEXT)), UTF_8)) {
+      // Not using PrintWriter as it swallows IOException.
+      // Not using BufferedWriter as this invokes write() only once.
+      writer.write(workSpecJson);
+    }
+  }
+
   private static EnvironmentInfo getEnvironmentInfoFromEnvironmentId(
       String environmentId, RunnerApi.Pipeline pipelineProto) {
     RunnerApi.Environment environment =
@@ -1557,6 +1673,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   @AutoValue
   abstract static class EnvironmentInfo {
+
     static EnvironmentInfo create(
         String environmentId, String containerUrl, List<String> capabilities) {
       return new AutoValue_DataflowRunner_EnvironmentInfo(
@@ -1855,7 +1972,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   // ================================================================================
   // PubsubIO translations
   // ================================================================================
-
   private static class StreamingPubsubIOReadOverrideFactory
       implements PTransformOverrideFactory<
           PBegin, PCollection<PubsubMessage>, PubsubUnboundedSource> {
@@ -2014,6 +2130,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   private static class StreamingPubsubSinkTranslators {
+
     /** Rewrite {@link StreamingPubsubIOWrite} to the appropriate internal node. */
     static class StreamingPubsubIOWriteTranslator
         implements TransformTranslator<StreamingPubsubIOWrite> {
@@ -2076,9 +2193,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   // ================================================================================
-
   private static class SingleOutputExpandableTransformTranslator
       implements TransformTranslator<External.SingleOutputExpandableTransform> {
+
     @Override
     public void translate(
         External.SingleOutputExpandableTransform transform, TranslationContext context) {
@@ -2096,6 +2213,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   private static class MultiOutputExpandableTransformTranslator
       implements TransformTranslator<External.MultiOutputExpandableTransform> {
+
     @Override
     public void translate(
         External.MultiOutputExpandableTransform transform, TranslationContext context) {
@@ -2644,6 +2762,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    */
   private static class DataflowPayloadTranslator
       implements TransformPayloadTranslator<PTransform<?, ?>> {
+
     @Override
     public String getUrn(PTransform transform) {
       return "dataflow_stub:" + transform.getClass().getName();
@@ -2668,6 +2787,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   })
   @AutoService(TransformPayloadTranslatorRegistrar.class)
   public static class DataflowTransformTranslator implements TransformPayloadTranslatorRegistrar {
+
     @Override
     public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
         getTransformPayloadTranslators() {

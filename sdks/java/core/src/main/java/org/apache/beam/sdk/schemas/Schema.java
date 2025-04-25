@@ -90,6 +90,7 @@ public class Schema implements Serializable {
       return Arrays.toString(array);
     }
   }
+
   // A mapping between field names an indices.
   private final BiMap<String, Integer> fieldIndices;
 
@@ -830,10 +831,11 @@ public class Schema implements Serializable {
     public static FieldType map(FieldType keyType, FieldType valueType) {
       if (FieldType.BYTES.equals(keyType)) {
         LOG.warn(
-            "Using byte arrays as keys in a Map may lead to unexpected behavior and may not work as intended. "
-                + "Since arrays do not override equals() or hashCode, comparisons will be done on reference equality only. "
-                + "ByteBuffers, when used as keys, present similar challenges because Row stores ByteBuffer as a byte array. "
-                + "Consider using a different type of key for more consistent and predictable behavior.");
+            "Using byte arrays as keys in a Map may lead to unexpected behavior and may not work as"
+                + " intended. Since arrays do not override equals() or hashCode, comparisons will"
+                + " be done on reference equality only. ByteBuffers, when used as keys, present"
+                + " similar challenges because Row stores ByteBuffer as a byte array. Consider"
+                + " using a different type of key for more consistent and predictable behavior.");
       }
       return FieldType.forTypeName(TypeName.MAP)
           .setMapKeyType(keyType)
@@ -1443,7 +1445,7 @@ public class Schema implements Serializable {
   }
 
   /** Return the list of all field names. */
-  public List<String> getFieldNames() {
+  public List<@NonNull String> getFieldNames() {
     return getFields().stream().map(Schema.Field::getName).collect(Collectors.toList());
   }
 

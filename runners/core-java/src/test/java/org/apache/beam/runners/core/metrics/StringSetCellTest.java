@@ -20,7 +20,13 @@ package org.apache.beam.runners.core.metrics;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.junit.Assert;
@@ -93,5 +99,43 @@ public class StringSetCellTest {
     stringSetCell.reset();
     assertThat(stringSetCell.getCumulative(), equalTo(StringSetData.empty()));
     assertThat(stringSetCell.getDirty(), equalTo(new DirtyState()));
+  }
+
+  @Test(timeout = 5000)
+  public void testStringSetCellConcurrentAddRetrieval() throws InterruptedException {
+    StringSetCell cell = new StringSetCell(MetricName.named("namespace", "name"));
+    AtomicBoolean finished = new AtomicBoolean(false);
+    Thread increment =
+        new Thread(
+            () -> {
+              for (long i = 0; !finished.get(); ++i) {
+                cell.add(String.valueOf(i));
+                try {
+                  Thread.sleep(1);
+                } catch (InterruptedException e) {
+                  break;
+                }
+              }
+            });
+    increment.start();
+    Instant start = Instant.now();
+    try {
+      while (true) {
+        Set<String> s = cell.getCumulative().stringSet();
+        List<String> snapshot = new ArrayList<>(s);
+        if (Instant.now().isAfter(start.plusSeconds(3)) && snapshot.size() > 0) {
+          finished.compareAndSet(false, true);
+          break;
+        }
+      }
+    } finally {
+      increment.interrupt();
+      increment.join();
+    }
+
+    Set<String> s = cell.getCumulative().stringSet();
+    for (long i = 0; i < s.size(); ++i) {
+      assertTrue(s.contains(String.valueOf(i)));
+    }
   }
 }

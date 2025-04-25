@@ -35,7 +35,7 @@ import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.fn.test.TestExecutors;
 import org.apache.beam.sdk.fn.test.TestExecutors.TestExecutorService;
 import org.apache.beam.sdk.fn.test.TestStreams;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.hamcrest.MatcherAssert;
 import org.hamcrest.Matchers;
@@ -280,6 +280,7 @@ public class BeamFnDataGrpcMultiplexerTest {
             DESCRIPTOR,
             OutboundObserverFactory.clientDirect(),
             inboundObserver -> TestStreams.withOnNext(outboundValues::add).build());
+    final AtomicBoolean closed = new AtomicBoolean();
     multiplexer.registerConsumer(
         DATA_INSTRUCTION_ID,
         new CloseableFnDataReceiver<BeamFnApi.Elements>() {
@@ -290,7 +291,7 @@ public class BeamFnDataGrpcMultiplexerTest {
 
           @Override
           public void close() throws Exception {
-            fail("Unexpected call");
+            closed.set(true);
           }
 
           @Override
@@ -320,6 +321,7 @@ public class BeamFnDataGrpcMultiplexerTest {
         dataInboundValues,
         Matchers.contains(
             BeamFnApi.Elements.newBuilder().addData(data.setTransformId("A").build()).build()));
+    assertTrue(closed.get());
   }
 
   @Test

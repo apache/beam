@@ -296,12 +296,16 @@ public class SpannerChangeStreamOrderedWithinKeyIT {
 
     @Override
     public int compareTo(SortKey other) {
-      return Comparator.<SortKey>comparingDouble(
-              sortKey ->
-                  sortKey.getCommitTimestamp().getSeconds()
-                      + sortKey.getCommitTimestamp().getNanos() / 1000000000.0)
-          .thenComparing(sortKey -> sortKey.getTransactionId())
-          .compare(this, other);
+      // Compare commit timestamps by seconds and nanos separately to avoid
+      // rounding issues from floating-point arithmetic.
+      int cmp = Long.compare(this.commitTimestamp.getSeconds(), other.commitTimestamp.getSeconds());
+      if (cmp == 0) {
+        cmp = Integer.compare(this.commitTimestamp.getNanos(), other.commitTimestamp.getNanos());
+      }
+      if (cmp == 0) {
+        cmp = this.transactionId.compareTo(other.transactionId);
+      }
+      return cmp;
     }
   }
 

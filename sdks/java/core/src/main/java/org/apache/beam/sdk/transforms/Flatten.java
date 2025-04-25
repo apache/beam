@@ -20,6 +20,7 @@ package org.apache.beam.sdk.transforms;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableLikeCoder;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -80,6 +81,81 @@ public class Flatten {
    */
   public static <T> Iterables<T> iterables() {
     return new Iterables<>();
+  }
+
+  /**
+   * Returns a {@link PTransform} that flattens the input {@link PCollection} with a given {@link
+   * PCollection} resulting in a {@link PCollection} containing all the elements of both {@link
+   * PCollection}s as its output.
+   *
+   * <p>This is equivalent to creating a {@link PCollectionList} containing both the input and
+   * {@code other} and then applying {@link #pCollections()}, but has the advantage that it can be
+   * more easily used inline.
+   *
+   * <p>Both {@cpde PCollections} must have equal {@link WindowFn}s. The output elements of {@code
+   * Flatten<T>} are in the same windows and have the same timestamps as their corresponding input
+   * elements. The output {@code PCollection} will have the same {@link WindowFn} as both inputs.
+   *
+   * @param other the other PCollection to flatten with the input
+   * @param <T> the type of the elements in the input and output {@code PCollection}s.
+   */
+  public static <T> PTransform<PCollection<T>, PCollection<T>> with(PCollection<T> other) {
+    return new FlattenWithPCollection<>(other);
+  }
+
+  /** Implementation of {@link #with(PCollection)}. */
+  private static class FlattenWithPCollection<T>
+      extends PTransform<PCollection<T>, PCollection<T>> {
+    // We only need to access this at pipeline construction time.
+    private final transient PCollection<T> other;
+
+    public FlattenWithPCollection(PCollection<T> other) {
+      this.other = other;
+    }
+
+    @Override
+    public PCollection<T> expand(PCollection<T> input) {
+      return PCollectionList.of(input).and(other).apply(pCollections());
+    }
+
+    @Override
+    public String getKindString() {
+      return "Flatten.With";
+    }
+  }
+
+  /**
+   * Returns a {@link PTransform} that flattens the input {@link PCollection} with the output of
+   * another {@link PTransform} resulting in a {@link PCollection} containing all the elements of
+   * both the input {@link PCollection}s and the output of the given {@link PTransform} as its
+   * output.
+   *
+   * <p>This is equivalent to creating a {@link PCollectionList} containing both the input and the
+   * output of {@code other} and then applying {@link #pCollections()}, but has the advantage that
+   * it can be more easily used inline.
+   *
+   * <p>Both {@code PCollections} must have equal {@link WindowFn}s. The output elements of {@code
+   * Flatten<T>} are in the same windows and have the same timestamps as their corresponding input
+   * elements. The output {@code PCollection} will have the same {@link WindowFn} as both inputs.
+   *
+   * @param <T> the type of the elements in the input and output {@code PCollection}s.
+   * @param other a PTransform whose ouptput should be flattened with the input
+   */
+  public static <T> PTransform<PCollection<T>, PCollection<T>> with(
+      PTransform<PBegin, PCollection<T>> other) {
+    return new PTransform<PCollection<T>, PCollection<T>>() {
+      @Override
+      public PCollection<T> expand(PCollection<T> input) {
+        return PCollectionList.of(input)
+            .and(input.getPipeline().apply(other))
+            .apply(pCollections());
+      }
+
+      @Override
+      public String getKindString() {
+        return "Flatten.With";
+      }
+    };
   }
 
   /**

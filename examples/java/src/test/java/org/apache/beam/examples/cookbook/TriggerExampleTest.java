@@ -27,7 +27,6 @@ import org.apache.beam.examples.cookbook.TriggerExample.TotalFlow;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -42,7 +41,6 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -118,7 +116,6 @@ public class TriggerExampleTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
   public void testTotalFlow() {
     PCollection<KV<String, Integer>> flow =
         pipeline

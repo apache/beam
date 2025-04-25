@@ -21,8 +21,8 @@ import java.io.PrintWriter;
 import java.util.function.Function;
 import org.apache.beam.runners.dataflow.worker.WorkItemCancelledException;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
-import org.apache.beam.runners.dataflow.worker.windmill.client.AbstractWindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetDataStream;
+import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException;
 import org.apache.beam.sdk.annotations.Internal;
 
 /** {@link GetDataClient} that fetches data directly from a specific {@link GetDataStream}. */
@@ -61,7 +61,7 @@ public final class StreamGetDataClient implements GetDataClient {
       String computationId, Windmill.KeyedGetDataRequest request) throws GetDataException {
     try (AutoCloseable ignored = getDataMetricTracker.trackStateDataFetchWithThrottling()) {
       return getDataStream.requestKeyedData(computationId, request);
-    } catch (AbstractWindmillStream.WindmillStreamShutdownException e) {
+    } catch (WindmillStreamShutdownException e) {
       throw new WorkItemCancelledException(request.getShardingKey());
     } catch (Exception e) {
       throw new GetDataException(
@@ -86,7 +86,7 @@ public final class StreamGetDataClient implements GetDataClient {
         sideInputGetDataStreamFactory.apply(request.getDataId().getTag());
     try (AutoCloseable ignored = getDataMetricTracker.trackSideInputFetchWithThrottling()) {
       return sideInputGetDataStream.requestGlobalData(request);
-    } catch (AbstractWindmillStream.WindmillStreamShutdownException e) {
+    } catch (WindmillStreamShutdownException e) {
       throw new WorkItemCancelledException(e);
     } catch (Exception e) {
       throw new GetDataException(

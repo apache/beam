@@ -22,8 +22,8 @@ to set up test feast feature repository.
 """
 
 import unittest
+from collections.abc import Mapping
 from typing import Any
-from typing import Mapping
 
 import pytest
 

@@ -78,6 +78,8 @@ class DirectPipelineResultTest(unittest.TestCase):
         distro.update(element)
         str_set = Metrics.string_set(self.__class__, 'element_str_set')
         str_set.add(str(element % 4))
+        Metrics.bounded_trie(self.__class__, 'element_bounded_trie').add(
+            ("a", "b", str(element % 4)))
         return [element]
 
     p = Pipeline(DirectRunner())
@@ -123,6 +125,14 @@ class DirectPipelineResultTest(unittest.TestCase):
         hc.equal_to(MetricKey('Do', MetricName(namespace, 'element_str_set'))))
     hc.assert_that(len(str_set_result.committed), hc.equal_to(4))
     hc.assert_that(len(str_set_result.attempted), hc.equal_to(4))
+
+    bounded_trie_results = metrics['bounded_tries'][0]
+    hc.assert_that(
+        bounded_trie_results.key,
+        hc.equal_to(
+            MetricKey('Do', MetricName(namespace, 'element_bounded_trie'))))
+    hc.assert_that(bounded_trie_results.committed.size(), hc.equal_to(4))
+    hc.assert_that(bounded_trie_results.attempted.size(), hc.equal_to(4))
 
   def test_create_runner(self):
     self.assertTrue(isinstance(create_runner('DirectRunner'), DirectRunner))

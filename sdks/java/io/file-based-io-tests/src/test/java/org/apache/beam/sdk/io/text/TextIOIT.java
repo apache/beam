@@ -154,9 +154,16 @@ public class TextIOIT {
 
     PipelineResult result = pipeline.run();
     PipelineResult.State pipelineState = result.waitUntilFinish();
-    assertEquals(
-        Lineage.query(result.metrics(), Lineage.Type.SOURCE),
-        Lineage.query(result.metrics(), Lineage.Type.SINK));
+
+    Set<String> sources = Lineage.query(result.metrics(), Lineage.Type.SOURCE);
+    Set<String> sinks = Lineage.query(result.metrics(), Lineage.Type.SINK);
+    if (numShards != null && numShards <= 100) {
+      // both should be the full files, if supported by the runner
+      assertEquals(sources, sinks);
+    } else {
+      // if supported by runner, both should be non-empty
+      assertEquals(sources.isEmpty(), sinks.isEmpty());
+    }
 
     collectAndPublishMetrics(result);
     // Fail the test if pipeline failed.

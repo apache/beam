@@ -33,6 +33,7 @@ import org.apache.beam.sdk.schemas.FieldValueSetter;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import software.amazon.awssdk.core.SdkPojo;
 import software.amazon.awssdk.utils.builder.SdkBuilder;
@@ -78,7 +79,7 @@ class AwsSchemaUtils {
     return new ValueSetter(name, setter);
   }
 
-  static <ObjT, ValT> FieldValueGetter<ObjT, ValT> getter(
+  static <ObjT extends @NonNull Object, ValT> FieldValueGetter<ObjT, ValT> getter(
       String name, SerializableFunction<ObjT, ValT> getter) {
     return new ValueGetter<>(name, getter);
   }
@@ -107,7 +108,8 @@ class AwsSchemaUtils {
     }
   }
 
-  private static class ValueGetter<ObjT, ValT> implements FieldValueGetter<ObjT, ValT> {
+  private static class ValueGetter<ObjT extends @NonNull Object, ValT>
+      implements FieldValueGetter<ObjT, ValT> {
     private final SerializableFunction<ObjT, ValT> getter;
     private final String name;
 
