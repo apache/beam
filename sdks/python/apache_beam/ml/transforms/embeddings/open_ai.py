@@ -109,7 +109,7 @@ class _OpenAITextEmbeddingHandler(ModelHandler):
           "input": text_batch,
       }
       if self.dimensions:
-        kwargs["dimensions"] = self.dimensions
+        kwargs["dimensions"] = cast(Any, self.dimensions)
       if self.user:
         kwargs["user"] = self.user
 
