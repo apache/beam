@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.extensions.avro.io;
 
 import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericDatumWriter;
@@ -31,6 +33,8 @@ import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.avro.specific.SpecificRecord;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Create {@link DatumReader} and {@link DatumWriter} for given schemas. */
@@ -166,26 +170,94 @@ public abstract class AvroDatumFactory<T>
    * Specialized {@link AvroDatumFactory} for java classes transforming to avro through reflection.
    */
   public static class ReflectDatumFactory<T> extends AvroDatumFactory<T> {
+    private static final int CACHE_SIZE;
+    private static final Cache<SchemaPair, ReflectDatumReader<?>> READER_CACHE;
+    private static final Cache<Schema, ReflectDatumWriter<?>> WRITER_CACHE;
+
+    static {
+      String cacheSizeProperty = System.getProperty("beam.avro.reflectdatumfactory.cachesize");
+      CACHE_SIZE = Optional.ofNullable(cacheSizeProperty).map(Integer::parseInt).orElse(100);
+
+      if (CACHE_SIZE > 0) {
+        READER_CACHE = CacheBuilder.newBuilder().maximumSize(CACHE_SIZE).build();
+        WRITER_CACHE = CacheBuilder.newBuilder().maximumSize(CACHE_SIZE).build();
+      } else {
+        READER_CACHE = null;
+        WRITER_CACHE = null;
+      }
+    }
+
     public ReflectDatumFactory(Class<T> type) {
       super(type);
     }
 
     @Override
     public DatumReader<T> apply(Schema writer, Schema reader) {
+      if (CACHE_SIZE > 0) {
+        try {
+          return (ReflectDatumReader<T>)
+              READER_CACHE.get(new SchemaPair(writer, reader), () -> createReader(writer, reader));
+        } catch (ExecutionException e) {
+          // ignore
+        }
+      }
+      return createReader(writer, reader);
+    }
+
+    @Override
+    public DatumWriter<T> apply(Schema writer) {
+      if (CACHE_SIZE > 0) {
+        try {
+          return (ReflectDatumWriter<T>) WRITER_CACHE.get(writer, () -> createWriter(writer));
+        } catch (ExecutionException e) {
+          // ignore
+        }
+      }
+      return createWriter(writer);
+    }
+
+    public static <T> ReflectDatumFactory<T> of(Class<T> type) {
+      return new ReflectDatumFactory<>(type);
+    }
+
+    private ReflectDatumReader<T> createReader(Schema writer, Schema reader) {
       ReflectData data = new ReflectData(type.getClassLoader());
       AvroUtils.addLogicalTypeConversions(data);
       return new ReflectDatumReader<>(writer, reader, data);
     }
 
-    @Override
-    public DatumWriter<T> apply(Schema writer) {
+    private ReflectDatumWriter<T> createWriter(Schema writer) {
       ReflectData data = new ReflectData(type.getClassLoader());
       AvroUtils.addLogicalTypeConversions(data);
       return new ReflectDatumWriter<>(writer, data);
     }
 
-    public static <T> ReflectDatumFactory<T> of(Class<T> type) {
-      return new ReflectDatumFactory<>(type);
+    static class SchemaPair {
+      private final Schema writerSchema;
+      private final Schema readerSchema;
+
+      SchemaPair(Schema writerSchema, Schema readerSchema) {
+        this.writerSchema = writerSchema;
+        this.readerSchema = readerSchema;
+      }
+
+      @Override
+      public int hashCode() {
+        return Objects.hash(writerSchema, readerSchema);
+      }
+
+      @Override
+      public boolean equals(@Nullable Object other) {
+        if (this == other) {
+          return true;
+        }
+        if (other == null || getClass() != other.getClass()) {
+          return false;
+        }
+        SchemaPair that = (SchemaPair) other;
+        return Objects.equals(writerSchema, that.writerSchema)
+            && Objects.equals(readerSchema, that.readerSchema);
+      }
     }
   }
 }
