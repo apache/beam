@@ -28,7 +28,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Tuple3;
 
 /** SparkPCollectionView is used to pass serialized views to lambdas. */
 @SuppressWarnings({
@@ -50,8 +49,7 @@ public class SparkPCollectionView implements Serializable {
   }
 
   // Holds the Actual data of the views in serialize form
-  private final Map<PCollectionView<?>, Tuple3<byte[], Type, Coder<Iterable<WindowedValue<?>>>>>
-      pviews = new LinkedHashMap<>();
+  private final Map<PCollectionView<?>, SideInputMetadata> pviews = new LinkedHashMap<>();
 
   public void putPView(
       PCollectionView<?> view,
@@ -74,7 +72,7 @@ public class SparkPCollectionView implements Serializable {
       Coder<Iterable<WindowedValue<?>>> coder,
       Type type) {
 
-    pviews.put(view, new Tuple3<>(CoderHelpers.toByteArray(value, coder), type, coder));
+    pviews.put(view, SideInputMetadata.create(CoderHelpers.toByteArray(value, coder), type, coder));
 
     // Currently unsynchronized unpersist, if needed can be changed to blocking
     if (broadcastHelperMap != null) {
@@ -113,8 +111,8 @@ public class SparkPCollectionView implements Serializable {
 
   private SideInputBroadcast createBroadcastHelper(
       PCollectionView<?> view, JavaSparkContext context) {
-    Tuple3<byte[], Type, Coder<Iterable<WindowedValue<?>>>> tuple3 = pviews.get(view);
-    SideInputBroadcast helper = SideInputBroadcast.create(tuple3._1(), tuple3._2(), tuple3._3());
+    final SideInputMetadata sideInputMetadata = pviews.get(view);
+    SideInputBroadcast helper = sideInputMetadata.toSideInputBroadcast();
     String pCollectionName =
         view.getPCollection() != null ? view.getPCollection().getName() : "UNKNOWN";
     LOG.debug(
