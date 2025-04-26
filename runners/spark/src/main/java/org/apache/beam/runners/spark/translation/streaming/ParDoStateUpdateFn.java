@@ -40,7 +40,7 @@ import org.apache.beam.runners.spark.translation.SparkProcessContext;
 import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
-import org.apache.beam.runners.spark.util.SideInputReaderUtils;
+import org.apache.beam.runners.spark.util.SideInputReaderFactory;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
@@ -202,7 +202,7 @@ public class ParDoStateUpdateFn<KeyT, ValueT, InputT extends KV<KeyT, ValueT>, O
         DoFnRunners.simpleRunner(
             options.get(),
             doFn,
-            SideInputReaderUtils.getSideInputReader(this.useStreamingSideInput, this.sideInputs),
+            SideInputReaderFactory.create(this.useStreamingSideInput, this.sideInputs),
             processor.getOutputManager(),
             (TupleTag<OutputT>) mainOutputTag,
             additionalOutputTags,

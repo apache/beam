@@ -30,7 +30,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  * implementations based on the execution mode (streaming or batch) to optimize side input access
  * patterns.
  */
-public class SideInputReaderUtils {
+public class SideInputReaderFactory {
   /**
    * Creates and returns a {@link SideInputReader} based on the configuration.
    *
@@ -42,7 +42,7 @@ public class SideInputReaderUtils {
    * @param sideInputs A map of side inputs with their windowing strategies and broadcasts
    * @return A {@link SideInputReader} instance appropriate for the current configuration
    */
-  public static SideInputReader getSideInputReader(
+  public static SideInputReader create(
       boolean useStreamingSideInput,
       Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs) {
     return useStreamingSideInput

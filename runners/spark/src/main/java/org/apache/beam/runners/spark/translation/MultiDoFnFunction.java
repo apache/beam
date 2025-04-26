@@ -32,7 +32,7 @@ import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.spark.metrics.MetricsContainerStepMapAccumulator;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
-import org.apache.beam.runners.spark.util.SideInputReaderUtils;
+import org.apache.beam.runners.spark.util.SideInputReaderFactory;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
@@ -180,7 +180,7 @@ public class MultiDoFnFunction<InputT, OutputT>
         DoFnRunners.simpleRunner(
             options.get(),
             doFn,
-            SideInputReaderUtils.getSideInputReader(this.useStreamingSideInput, this.sideInputs),
+            SideInputReaderFactory.create(this.useStreamingSideInput, this.sideInputs),
             processor.getOutputManager(),
             mainOutputTag,
             additionalOutputTags,
