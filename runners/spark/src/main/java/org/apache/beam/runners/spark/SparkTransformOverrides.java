@@ -54,10 +54,12 @@ public final class SparkTransformOverrides {
                   PTransformMatchers.urnEqualTo(PTransformTranslation.SPLITTABLE_PROCESS_KEYED_URN),
                   new SplittableParDoNaiveBounded.OverrideFactory()));
     } else {
-      // For streaming pipelines, this override is applied only when the PTransform has the same URN
-      // as PTransformTranslation.CREATE_VIEW_TRANSFORM and at least one of its inputs is UNBOUNDED
       builder.add(
           PTransformOverride.of(
+              // For streaming pipelines, this override is applied only when the PTransform has the
+              // same URN
+              // as PTransformTranslation.CREATE_VIEW_TRANSFORM and at least one of its inputs is
+              // UNBOUNDED
               PTransformMatchers.urnEqualTo(PTransformTranslation.CREATE_VIEW_TRANSFORM_URN)
                   .and(
                       (AppliedPTransform<?, ?, ?> appliedPTransform) ->
