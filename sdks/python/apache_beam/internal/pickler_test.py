@@ -19,6 +19,7 @@
 
 # pytype: skip-file
 
+import random
 import sys
 import threading
 import types
@@ -114,6 +115,52 @@ class PicklerTest(unittest.TestCase):
 from apache_beam.internal.module_test import DataClass
 self.assertEqual(DataClass(datum='abc'), loads(dumps(DataClass(datum='abc'))))
     ''')
+
+  def maybe_get_sets_with_different_iteration_orders(self):
+    # Use a mix of types in an attempt to create sets with the same elements
+    # whose iteration order is different.
+    elements = [
+        100,
+        'hello',
+        3.14159,
+        True,
+        None,
+        -50,
+        'world',
+        False, (1, 2), (4, 3), ('hello', 'world')
+    ]
+    set1 = set(elements)
+    # Try random addition orders until finding an order that works.
+    for _ in range(100):
+      set2 = set()
+      random.shuffle(elements)
+      for e in elements:
+        set2.add(e)
+      if list(set1) != list(set2):
+        break
+    return set1, set2
+
+  def test_best_effort_determinism(self):
+    set1, set2 = self.maybe_get_sets_with_different_iteration_orders()
+    self.assertEqual(
+        dumps(set1, enable_best_effort_determinism=True),
+        dumps(set2, enable_best_effort_determinism=True))
+    # The test relies on the sets having different iteration orders for the
+    # elements. Iteration order is implementation dependent and undefined,
+    # meaning the test won't always be able to setup these conditions.
+    if list(set1) == list(set2):
+      self.skipTest('Set iteration orders matched. Test results inconclusive.')
+
+  def test_disable_best_effort_determinism(self):
+    set1, set2 = self.maybe_get_sets_with_different_iteration_orders()
+    # The test relies on the sets having different iteration orders for the
+    # elements. Iteration order is implementation dependent and undefined,
+    # meaning the test won't always be able to setup these conditions.
+    if list(set1) == list(set2):
+      self.skipTest('Set iteration orders matched. Unable to complete test.')
+    self.assertNotEqual(
+        dumps(set1, enable_best_effort_determinism=False),
+        dumps(set2, enable_best_effort_determinism=False))
 
 
 if __name__ == '__main__':

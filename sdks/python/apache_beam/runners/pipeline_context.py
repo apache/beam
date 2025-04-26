@@ -226,6 +226,7 @@ class PipelineContext(object):
     self.iterable_state_read = iterable_state_read
     self.iterable_state_write = iterable_state_write
     self._requirements = set(requirements)
+    self.enable_best_effort_deterministic_pickling = False
 
   def add_requirement(self, requirement: str) -> None:
     self._requirements.add(requirement)

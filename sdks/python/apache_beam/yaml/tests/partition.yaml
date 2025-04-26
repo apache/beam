@@ -1,0 +1,268 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+fixtures:
+  - name: TEMP_DIR
+    type: "tempfile.TemporaryDirectory"
+
+pipelines:
+  # Simple Partition into one group with individual values
+  - pipeline:
+      type: composite
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - produce: 'Apple'
+              - produce: 'Apricot'
+              - produce: 'Blueberry'
+              - produce: 'Date'
+              - produce: 'Fig'
+              - produce: 'Mango'
+              - produce: 'Orange'
+              - produce: 'Strawberry'
+        - type: Partition
+          name: PartitionFruits
+          input: Create
+          config:
+            by: "'fruits'"
+            language: python
+            outputs:
+              - "fruits"
+        - type: AssertEqual
+          input: PartitionFruits.fruits
+          config:
+            elements:
+              - produce: 'Apple'
+              - produce: 'Apricot'
+              - produce: 'Blueberry'
+              - produce: 'Date'
+              - produce: 'Fig'
+              - produce: 'Mango'
+              - produce: 'Orange'
+              - produce: 'Strawberry'
+
+  # Simple Partition into two groups with individual values
+  - pipeline:
+      type: composite
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - produce: 'Apple'
+              - produce: 'Apricot'
+              - produce: 'Blueberry'
+              - produce: 'Date'
+              - produce: 'Fig'
+              - produce: 'Mango'
+              - produce: 'Orange'
+              - produce: 'Strawberry'
+        - type: Partition
+          name: PartitionFruits
+          input: Create
+          config:
+            by: "'vowel_fruits' if produce[0].upper() in 'AEIOU' else 'consonant_fruits'"
+            language: python
+            outputs:
+              - "vowel_fruits"
+              - "consonant_fruits"
+        - type: AssertEqual
+          input: PartitionFruits.vowel_fruits
+          config:
+            elements:
+              - produce: 'Apple'
+              - produce: 'Apricot'
+              - produce: 'Orange'
+        - type: AssertEqual
+          input: PartitionFruits.consonant_fruits
+          config:
+            elements:
+              - produce: 'Blueberry'
+              - produce: 'Date'
+              - produce: 'Fig'
+              - produce: 'Mango'
+              - produce: 'Strawberry'
+
+  # Simple Partition into two groups with lists of values
+  - pipeline:
+      type: composite
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - produce: ['Grapefruit', 'Cantaloupe', 'Fig', 'Raspberry', 'Lemon', 'Peach', 'Watermelon']
+              - produce: ['Strawberry', 'Kiwi', 'Lime', 'Pear', 'Plum', 'Orange', 'Pomegranate', 'Cranberry']
+              - produce: ['Banana']
+              - produce: ['Apricot', 'Blackberry', 'Mango', 'Apple', 'Blueberry']
+              - produce: ['Cherry', 'Grape']
+        - type: Partition
+          name: PartitionFruits
+          input: Create
+          config:
+            by: "'too_much_fruits' if len(produce) > 4 else 'just_right_fruits'"
+            language: python
+            outputs:
+              - "too_much_fruits"
+              - "just_right_fruits"
+        - type: AssertEqual
+          input: PartitionFruits.too_much_fruits
+          config:
+            elements:
+              - produce: ['Grapefruit', 'Cantaloupe', 'Fig', 'Raspberry', 'Lemon', 'Peach', 'Watermelon']
+              - produce: ['Strawberry', 'Kiwi', 'Lime', 'Pear', 'Plum', 'Orange', 'Pomegranate', 'Cranberry']
+              - produce: ['Apricot', 'Blackberry', 'Mango', 'Apple', 'Blueberry']
+        - type: AssertEqual
+          input: PartitionFruits.just_right_fruits
+          config:
+            elements:
+              - produce: ['Banana']
+              - produce: ['Cherry', 'Grape']
+
+  # Sequentially Partition into two groups each with lists of values
+  - pipeline:
+      type: composite
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - produce: ['Grapefruit', 'Cantaloupe', 'Fig', 'Raspberry', 'Lemon', 'Peach', 'Watermelon']
+              - produce: ['Strawberry', 'Kiwi', 'Lime', 'Pear', 'Plum', 'Orange', 'Pomegranate', 'Cranberry']
+              - produce: ['Banana']
+              - produce: ['Apricot', 'Blackberry', 'Mango', 'Apple', 'Blueberry']
+              - produce: ['Cherry', 'Grape']
+        - type: Partition
+          name: PartitionFruitsSize
+          input: Create
+          config:
+            by: "'too_much_fruits' if len(produce) > 4 else 'just_right_fruits'"
+            language: python
+            outputs:
+              - "too_much_fruits"
+              - "just_right_fruits"
+        - type: Partition
+          name: PartitionFruitsYummyness
+          input: PartitionFruitsSize.too_much_fruits
+          config:
+            by:
+              callable: |
+                def partition_by_yummyness(row):
+                  produce_list = row.produce
+                  if any(fruit[0].upper() in 'AEIOU' for fruit in produce_list):
+                    return 'yummy'
+                  else:
+                    return 'not_yummy'            
+            language: python
+            outputs:
+              - "yummy"
+              - "not_yummy"
+        - type: AssertEqual
+          input: PartitionFruitsYummyness.yummy
+          config:
+            elements:
+              - produce: ['Strawberry', 'Kiwi', 'Lime', 'Pear', 'Plum', 'Orange', 'Pomegranate', 'Cranberry']
+              - produce: ['Apricot', 'Blackberry', 'Mango', 'Apple', 'Blueberry']
+        - type: AssertEqual
+          input: PartitionFruitsYummyness.not_yummy
+          config:
+            elements:
+              - produce: ['Grapefruit', 'Cantaloupe', 'Fig', 'Raspberry', 'Lemon', 'Peach', 'Watermelon']
+
+
+  # Simple Partition into two groups with individual values with unknown output
+  - pipeline:
+      type: composite
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - produce: 'Apple'
+              - produce: 'Apricot'
+              - produce: 'Blueberry'
+              - produce: 'Date'
+              - produce: 'Fig'
+              - produce: 'Mango'
+              - produce: 'Orange'
+              - produce: 'Strawberry'
+        - type: Partition
+          name: PartitionFruits
+          input: Create
+          config:
+            by:
+              callable: |
+                def partition(row):
+                  if row.produce[0].upper() in 'AEIOU':
+                    return 'vowel_fruits'
+                  elif row.produce in ['Date', 'Mango']:
+                    return 'yummy_fruits'
+            language: python
+            outputs:
+              - "vowel_fruits"
+              - "yummy_fruits"
+            unknown_output: "unknown_fruits"
+        - type: AssertEqual
+          input: PartitionFruits.vowel_fruits
+          config:
+            elements:
+              - produce: 'Apple'
+              - produce: 'Apricot'
+              - produce: 'Orange'
+        - type: AssertEqual
+          input: PartitionFruits.yummy_fruits
+          config:
+            elements:
+              - produce: 'Date'
+              - produce: 'Mango'
+        - type: AssertEqual
+          input: PartitionFruits.unknown_fruits
+          config:
+            elements:
+              - produce: 'Blueberry'
+              - produce: 'Fig'
+              - produce: 'Strawberry'
+
+
+  # Simple Partition with error
+  - pipeline:
+      type: composite
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - produce: 'Apple'
+              - produce: 'Apricot'
+              - produce: 'Blueberry'
+              - produce: 'Date'
+              - produce: 'Fig'
+              - produce: 'Mango'
+              - produce: 'Orange'
+              - produce: 'Strawberry'
+        - type: Partition
+          name: PartitionFruits
+          input: Create
+          config:
+            by: "'vowel_fruits' if produce[100] in 'AEIOU' else 'consonant_fruits'"
+            language: python
+            outputs:
+              - "vowel_fruits"
+              - "consonant_fruits"
+            error_handling:
+              output: error_output
+        - type: WriteToJson
+          name: WriteErrorsToJson
+          input: PartitionFruits.error_output
+          config:
+            path: "{TEMP_DIR}/error.json"

@@ -396,7 +396,11 @@ class Scope(LightweightScope):
       # pylint: disable=undefined-loop-variable
       ptransform = maybe_with_resource_hints(
           provider.create_transform(
-              spec['type'], config, self.create_ptransform))
+              spec['type'],
+              config,
+              lambda config,
+              input_pcolls=input_pcolls: self.create_ptransform(
+                  config, input_pcolls)))
       # TODO(robertwb): Should we have a better API for adding annotations
       # than this?
       annotations = {

@@ -22,6 +22,7 @@ labels:
     reviewers:
       - jrmccluskey
       - lostluck
+      - shunping
     exclusionList: []
   - name: Python
     reviewers:
@@ -39,7 +40,6 @@ labels:
       - chamikaramj
       - m-trieu
       - kennknowles
-      - shunping
       - robertwb
     exclusionList: []
   - name: spanner
@@ -79,7 +79,6 @@ fallbackReviewers:
   - johnjcasey
   - jrmccluskey
   - kennknowles
-  - lostluck
   - robertwb
   - shunping
   - tvalentyn

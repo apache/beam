@@ -184,6 +184,47 @@ $defs:
     else:
       $ref: '#/$defs/provider'
 
+  testElementsSpec:
+    type: object
+    properties:
+      name: { type: string }
+      elements:
+        type: array
+        item:
+          type: object
+      __line__: {}
+      __uuid__: {}
+    additionalProperties: false
+
+  testSpec:
+    type: object
+    properties:
+      name: { type: string }
+      mock_inputs:
+        type: array
+        items:
+          $ref: '#/$defs/testElementsSpec'
+      mock_outputs:
+        type: array
+        items:
+          $ref: '#/$defs/testElementsSpec'
+      expected_inputs:
+        type: array
+        items:
+          $ref: '#/$defs/testElementsSpec'
+      expected_outputs:
+        type: array
+        items:
+          $ref: '#/$defs/testElementsSpec'
+      allowed_sources:
+        type: array
+        items:
+          { type: string }
+      __line__: {}
+      __uuid__: {}
+    additionalProperties: false
+
+
 type: object
 properties:
   pipeline:
@@ -220,5 +261,9 @@ properties:
       $ref: '#/$defs/providerOrProviderInclude'
   options:
     type: object
+  tests:
+    type: array
+    items:
+      $ref: '#/$defs/testSpec'
 required:
   - pipeline
