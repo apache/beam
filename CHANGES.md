@@ -89,6 +89,7 @@
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Fixed read Beam rows from cross-lang transform (for example, ReadFromJdbc) involving negative 32-bit integers incorrectly decoded to large integers ([#34089](https://github.com/apache/beam/issues/34089))
 * (Java) Fixed SDF-based KafkaIO (ReadFromKafkaViaSDF) to properly handle custom deserializers that extend Deserializer<Row> interface([#34505](https://github.com/apache/beam/pull/34505))
+* (Java) Fixed memory allocation issue in `AvroDatumFactory.ReflectDatumFactory` where the same avro DatumReader and DatumWriter were created over and over ([#34750](https://github.com/apache/beam/pull/34750))
 
 ## Security Fixes
 * Fixed [CVE-YYYY-NNNN](https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN) (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
