@@ -187,6 +187,10 @@ public abstract class AvroDatumFactory<T>
       }
     }
 
+    public static <T> ReflectDatumFactory<T> of(Class<T> type) {
+      return new ReflectDatumFactory<>(type);
+    }
+
     public ReflectDatumFactory(Class<T> type) {
       super(type);
     }
@@ -198,7 +202,7 @@ public abstract class AvroDatumFactory<T>
           return (ReflectDatumReader<T>)
               READER_CACHE.get(new SchemaPair(writer, reader), () -> createReader(writer, reader));
         } catch (ExecutionException e) {
-          // ignore
+          throw new RuntimeException(e);
         }
       }
       return createReader(writer, reader);
@@ -210,14 +214,10 @@ public abstract class AvroDatumFactory<T>
         try {
           return (ReflectDatumWriter<T>) WRITER_CACHE.get(writer, () -> createWriter(writer));
         } catch (ExecutionException e) {
-          // ignore
+          throw new RuntimeException(e);
         }
       }
       return createWriter(writer);
-    }
-
-    public static <T> ReflectDatumFactory<T> of(Class<T> type) {
-      return new ReflectDatumFactory<>(type);
     }
 
     private ReflectDatumReader<T> createReader(Schema writer, Schema reader) {
