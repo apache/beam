@@ -31,7 +31,7 @@
 
 ## I/Os
 
-* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Debezium IO now requires Java 17 (Java) ([#34747](https://github.com/apache/beam/issues/34747)).
 
 ## New Features / Improvements
 
