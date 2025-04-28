@@ -146,10 +146,10 @@ public final class PaneInfo {
     ImmutableMap.Builder<Byte, PaneInfo> decodingBuilder = ImmutableMap.builder();
     for (Timing timing : Timing.values()) {
       long onTimeIndex = timing == Timing.EARLY ? -1 : 0;
-      register(decodingBuilder, new PaneInfo(true, true, timing, 0, onTimeIndex));
-      register(decodingBuilder, new PaneInfo(true, false, timing, 0, onTimeIndex));
-      register(decodingBuilder, new PaneInfo(false, true, timing, -1, onTimeIndex));
-      register(decodingBuilder, new PaneInfo(false, false, timing, -1, onTimeIndex));
+      register(decodingBuilder, new PaneInfo(true, true, timing, 0, onTimeIndex, false));
+      register(decodingBuilder, new PaneInfo(true, false, timing, 0, onTimeIndex, false));
+      register(decodingBuilder, new PaneInfo(false, true, timing, -1, onTimeIndex, false));
+      register(decodingBuilder, new PaneInfo(false, false, timing, -1, onTimeIndex, false));
     }
     BYTE_TO_PANE_INFO = decodingBuilder.build();
   }
@@ -159,7 +159,7 @@ public final class PaneInfo {
   }
 
   private final byte encodedByte;
-
+  private final boolean containsElementMetadata;
   private final boolean isFirst;
   private final boolean isLast;
   private final Timing timing;
@@ -177,13 +177,20 @@ public final class PaneInfo {
   public static final PaneInfo ON_TIME_AND_ONLY_FIRING =
       PaneInfo.createPane(true, true, Timing.ON_TIME, 0, 0);
 
-  private PaneInfo(boolean isFirst, boolean isLast, Timing timing, long index, long onTimeIndex) {
+  private PaneInfo(
+      boolean isFirst,
+      boolean isLast,
+      Timing timing,
+      long index,
+      long onTimeIndex,
+      boolean containsElementMetadata) {
     this.encodedByte = encodedByte(isFirst, isLast, timing);
     this.isFirst = isFirst;
     this.isLast = isLast;
     this.timing = timing;
     this.index = index;
     this.nonSpeculativeIndex = onTimeIndex;
+    this.containsElementMetadata = containsElementMetadata;
   }
 
   public static PaneInfo createPane(boolean isFirst, boolean isLast, Timing timing) {
@@ -194,10 +201,21 @@ public final class PaneInfo {
   /** Factory method to create a {@link PaneInfo} with the specified parameters. */
   public static PaneInfo createPane(
       boolean isFirst, boolean isLast, Timing timing, long index, long onTimeIndex) {
+    return createPane(isFirst, isLast, timing, index, onTimeIndex, false);
+  }
+
+  /** Factory method to create a {@link PaneInfo} with the specified parameters. */
+  public static PaneInfo createPane(
+      boolean isFirst,
+      boolean isLast,
+      Timing timing,
+      long index,
+      long onTimeIndex,
+      boolean containsElementMetadata) {
     if (isFirst || timing == Timing.UNKNOWN) {
       return checkNotNull(BYTE_TO_PANE_INFO.get(encodedByte(isFirst, isLast, timing)));
     } else {
-      return new PaneInfo(isFirst, isLast, timing, index, onTimeIndex);
+      return new PaneInfo(isFirst, isLast, timing, index, onTimeIndex, containsElementMetadata);
     }
   }
 
@@ -239,6 +257,15 @@ public final class PaneInfo {
    */
   public long getIndex() {
     return index;
+  }
+
+  public boolean isElementMetadata() {
+    return containsElementMetadata;
+  }
+
+  public PaneInfo withElementMetadata(boolean elementMetadata) {
+    return new PaneInfo(
+        this.isFirst, this.isLast, this.timing, index, nonSpeculativeIndex, elementMetadata);
   }
 
   /**
@@ -360,7 +387,8 @@ public final class PaneInfo {
       byte keyAndTag = (byte) inStream.read();
       PaneInfo base = Preconditions.checkNotNull(BYTE_TO_PANE_INFO.get((byte) (keyAndTag & 0x0F)));
       long index, onTimeIndex;
-      switch (Encoding.fromTag(keyAndTag)) {
+      boolean elementMetadata = (keyAndTag & 0x80) > 0;
+      switch (Encoding.fromTag((byte) (keyAndTag & 0x7F))) {
         case FIRST:
           return base;
         case ONE_INDEX:
@@ -374,7 +402,8 @@ public final class PaneInfo {
         default:
           throw new CoderException("Unknown encoding " + (keyAndTag & 0xF0));
       }
-      return new PaneInfo(base.isFirst, base.isLast, base.timing, index, onTimeIndex);
+      return new PaneInfo(
+          base.isFirst, base.isLast, base.timing, index, onTimeIndex, elementMetadata);
     }
 
     @Override

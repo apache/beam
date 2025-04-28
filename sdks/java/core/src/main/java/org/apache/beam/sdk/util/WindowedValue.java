@@ -34,6 +34,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -61,40 +62,65 @@ public abstract class WindowedValue<T> {
 
   /** Returns a {@code WindowedValue} with the given value, timestamp, and windows. */
   public static <T> WindowedValue<T> of(
-      T value, Instant timestamp, Collection<? extends BoundedWindow> windows, PaneInfo pane) {
+      T value,
+      Instant timestamp,
+      Collection<? extends BoundedWindow> windows,
+      PaneInfo pane,
+      @Nullable ElementMetadata elementMetadata) {
     checkArgument(pane != null, "WindowedValue requires PaneInfo, but it was null");
     checkArgument(windows.size() > 0, "WindowedValue requires windows, but there were none");
 
     if (windows.size() == 1) {
-      return of(value, timestamp, windows.iterator().next(), pane);
+      return of(value, timestamp, windows.iterator().next(), pane, elementMetadata);
     } else {
-      return new TimestampedValueInMultipleWindows<>(value, timestamp, windows, pane);
+      return new TimestampedValueInMultipleWindows<>(
+          value, timestamp, windows, pane, elementMetadata);
     }
+  }
+
+  public static <T> WindowedValue<T> of(
+      T value, Instant timestamp, Collection<? extends BoundedWindow> windows, PaneInfo pane) {
+    return of(value, timestamp, windows, pane, null);
   }
 
   /** @deprecated for use only in compatibility with old broken code */
   @Deprecated
   static <T> WindowedValue<T> createWithoutValidation(
-      T value, Instant timestamp, Collection<? extends BoundedWindow> windows, PaneInfo pane) {
+      T value,
+      Instant timestamp,
+      Collection<? extends BoundedWindow> windows,
+      PaneInfo pane,
+      @Nullable ElementMetadata elementMetadata) {
     if (windows.size() == 1) {
-      return of(value, timestamp, windows.iterator().next(), pane);
+      return of(value, timestamp, windows.iterator().next(), pane, elementMetadata);
     } else {
-      return new TimestampedValueInMultipleWindows<>(value, timestamp, windows, pane);
+      return new TimestampedValueInMultipleWindows<>(
+          value, timestamp, windows, pane, elementMetadata);
     }
   }
 
   /** Returns a {@code WindowedValue} with the given value, timestamp, and window. */
   public static <T> WindowedValue<T> of(
       T value, Instant timestamp, BoundedWindow window, PaneInfo pane) {
+    return of(value, timestamp, window, pane, null);
+  }
+
+  public static <T> WindowedValue<T> of(
+      T value,
+      Instant timestamp,
+      BoundedWindow window,
+      PaneInfo pane,
+      @Nullable ElementMetadata elementMetadata) {
+
     checkArgument(pane != null, "WindowedValue requires PaneInfo, but it was null");
 
     boolean isGlobal = GlobalWindow.INSTANCE.equals(window);
     if (isGlobal && BoundedWindow.TIMESTAMP_MIN_VALUE.equals(timestamp)) {
       return valueInGlobalWindow(value, pane);
     } else if (isGlobal) {
-      return new TimestampedValueInGlobalWindow<>(value, timestamp, pane);
+      return new TimestampedValueInGlobalWindow<>(value, timestamp, pane, elementMetadata);
     } else {
-      return new TimestampedValueInSingleWindow<>(value, timestamp, window, pane);
+      return new TimestampedValueInSingleWindow<>(value, timestamp, window, pane, elementMetadata);
     }
   }
 
@@ -156,6 +182,8 @@ public abstract class WindowedValue<T> {
 
   /** Returns the pane of this {@code WindowedValue} in its window. */
   public abstract PaneInfo getPane();
+
+  public abstract @Nullable ElementMetadata getElementMetadata();
 
   /** Returns {@code true} if this WindowedValue has exactly one window. */
   public boolean isSingleWindowedValue() {
@@ -221,15 +249,23 @@ public abstract class WindowedValue<T> {
 
     private final T value;
     private final PaneInfo pane;
+    private final @Nullable ElementMetadata elementMetadata;
 
-    protected SimpleWindowedValue(T value, PaneInfo pane) {
+    protected SimpleWindowedValue(
+        T value, PaneInfo pane, @Nullable ElementMetadata elementMetadata) {
       this.value = value;
       this.pane = checkNotNull(pane);
+      this.elementMetadata = elementMetadata;
     }
 
     @Override
     public PaneInfo getPane() {
       return pane;
+    }
+
+    @Override
+    public @Nullable ElementMetadata getElementMetadata() {
+      return elementMetadata;
     }
 
     @Override
@@ -240,8 +276,9 @@ public abstract class WindowedValue<T> {
 
   /** The abstract superclass of WindowedValue representations where timestamp == MIN. */
   private abstract static class MinTimestampWindowedValue<T> extends SimpleWindowedValue<T> {
-    public MinTimestampWindowedValue(T value, PaneInfo pane) {
-      super(value, pane);
+    public MinTimestampWindowedValue(
+        T value, PaneInfo pane, @Nullable ElementMetadata elementMetadata) {
+      super(value, pane, elementMetadata);
     }
 
     @Override
@@ -254,13 +291,17 @@ public abstract class WindowedValue<T> {
   private static class ValueInGlobalWindow<T> extends MinTimestampWindowedValue<T>
       implements SingleWindowedValue {
 
+    public ValueInGlobalWindow(T value, PaneInfo pane, @Nullable ElementMetadata elementMetadata) {
+      super(value, pane, elementMetadata);
+    }
+
     public ValueInGlobalWindow(T value, PaneInfo pane) {
-      super(value, pane);
+      this(value, pane, null);
     }
 
     @Override
     public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
-      return new ValueInGlobalWindow<>(newValue, getPane());
+      return new ValueInGlobalWindow<>(newValue, getPane(), getElementMetadata());
     }
 
     @Override
@@ -307,8 +348,9 @@ public abstract class WindowedValue<T> {
   private abstract static class TimestampedWindowedValue<T> extends SimpleWindowedValue<T> {
     private final Instant timestamp;
 
-    public TimestampedWindowedValue(T value, Instant timestamp, PaneInfo pane) {
-      super(value, pane);
+    public TimestampedWindowedValue(
+        T value, Instant timestamp, PaneInfo pane, @Nullable ElementMetadata elementMetadata) {
+      super(value, pane, elementMetadata);
       this.timestamp = checkNotNull(timestamp);
     }
 
@@ -325,13 +367,19 @@ public abstract class WindowedValue<T> {
   private static class TimestampedValueInGlobalWindow<T> extends TimestampedWindowedValue<T>
       implements SingleWindowedValue {
 
+    public TimestampedValueInGlobalWindow(
+        T value, Instant timestamp, PaneInfo pane, @Nullable ElementMetadata elementMetadata) {
+      super(value, timestamp, pane, elementMetadata);
+    }
+
     public TimestampedValueInGlobalWindow(T value, Instant timestamp, PaneInfo pane) {
-      super(value, timestamp, pane);
+      this(value, timestamp, pane, null);
     }
 
     @Override
     public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
-      return new TimestampedValueInGlobalWindow<>(newValue, getTimestamp(), getPane());
+      return new TimestampedValueInGlobalWindow<>(
+          newValue, getTimestamp(), getPane(), getElementMetadata());
     }
 
     @Override
@@ -390,14 +438,19 @@ public abstract class WindowedValue<T> {
     private final BoundedWindow window;
 
     public TimestampedValueInSingleWindow(
-        T value, Instant timestamp, BoundedWindow window, PaneInfo pane) {
-      super(value, timestamp, pane);
+        T value,
+        Instant timestamp,
+        BoundedWindow window,
+        PaneInfo pane,
+        @Nullable ElementMetadata elementMetadata) {
+      super(value, timestamp, pane, elementMetadata);
       this.window = checkNotNull(window);
     }
 
     @Override
     public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
-      return new TimestampedValueInSingleWindow<>(newValue, getTimestamp(), window, getPane());
+      return new TimestampedValueInSingleWindow<>(
+          newValue, getTimestamp(), window, getPane(), getElementMetadata());
     }
 
     @Override
@@ -453,14 +506,19 @@ public abstract class WindowedValue<T> {
     private Collection<? extends BoundedWindow> windows;
 
     public TimestampedValueInMultipleWindows(
-        T value, Instant timestamp, Collection<? extends BoundedWindow> windows, PaneInfo pane) {
-      super(value, timestamp, pane);
+        T value,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo pane,
+        @Nullable ElementMetadata elementMetadata) {
+      super(value, timestamp, pane, elementMetadata);
       this.windows = checkNotNull(windows);
     }
 
     @Override
     public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
-      return new TimestampedValueInMultipleWindows<>(newValue, getTimestamp(), windows, getPane());
+      return new TimestampedValueInMultipleWindows<>(
+          newValue, getTimestamp(), windows, getPane(), getElementMetadata());
     }
 
     @Override
@@ -603,7 +661,18 @@ public abstract class WindowedValue<T> {
         throws CoderException, IOException {
       InstantCoder.of().encode(windowedElem.getTimestamp(), outStream);
       windowsCoder.encode(windowedElem.getWindows(), outStream);
-      PaneInfoCoder.INSTANCE.encode(windowedElem.getPane(), outStream);
+      ElementMetadata elementMetadata = windowedElem.getElementMetadata();
+      PaneInfoCoder.INSTANCE.encode(
+          windowedElem.getPane().withElementMetadata(elementMetadata != null), outStream);
+      if (elementMetadata != null) {
+        RunnerApi.ElementMetadata.Builder builder = RunnerApi.ElementMetadata.newBuilder();
+        RunnerApi.DrainMode.Enum drainMode = elementMetadata.drainMode();
+        if (drainMode != null) {
+          builder.setDrain(drainMode);
+        }
+        RunnerApi.ElementMetadata em = builder.build();
+        em.writeDelimitedTo(outStream);
+      }
       valueCoder.encode(windowedElem.getValue(), outStream, context);
     }
 
@@ -618,11 +687,18 @@ public abstract class WindowedValue<T> {
       Instant timestamp = InstantCoder.of().decode(inStream);
       Collection<? extends BoundedWindow> windows = windowsCoder.decode(inStream);
       PaneInfo pane = PaneInfoCoder.INSTANCE.decode(inStream);
+      ElementMetadata elementMetadata = null;
+      if (pane.isElementMetadata()) {
+        RunnerApi.ElementMetadata metadata = RunnerApi.ElementMetadata.parseDelimitedFrom(inStream);
+        RunnerApi.DrainMode.Enum drain = metadata.getDrain();
+        elementMetadata = ElementMetadata.create(metadata.hasDrain() ? drain : null);
+      }
       T value = valueCoder.decode(inStream, context);
 
       // Because there are some remaining (incorrect) uses of WindowedValue with no windows,
       // we call this deprecated no-validation path when decoding
-      return WindowedValue.createWithoutValidation(value, timestamp, windows, pane);
+      return WindowedValue.createWithoutValidation(
+          value, timestamp, windows, pane, elementMetadata);
     }
 
     @Override
