@@ -52,8 +52,7 @@ public class PubsubMessageSchemaCoder {
                 message.getTopic(),
                 message.getAttributeMap(),
                 message.getMessageId(),
-                message.getOrderingKey())
-            .build();
+                message.getOrderingKey());
       };
 
   private static final SerializableFunction<Row, PubsubMessage> FROM_ROW =
