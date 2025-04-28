@@ -64,7 +64,7 @@ public class PubsubMessageSchemaCoder {
                 row.getString("message_id"),
                 row.getString("ordering_key"));
 
-        String topic = row.getString("topic");
+        @Nullable String topic = row.getString("topic");
         if (topic != null) {
           message = message.withTopic(topic);
         }

@@ -240,7 +240,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
 
       OutgoingData() {
         this.bytes = 0;
-        this.messages = new ArrayList<>(publishBatchSize);
+        this.messages = new ArrayList<>();
       }
     }
 
