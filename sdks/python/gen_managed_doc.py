@@ -168,7 +168,7 @@ def generate_detailed_configs(all_transforms: dict) -> str:
 
 def get_transform_config_details(transform):
   transform_details = """<div class="table-container-wrapper">
-  <table class="table table-bordered table-connectors">
+  <table class="table table-bordered">
     <tr>
       <th>Configuration</th>
       <th>Type</th>
@@ -203,8 +203,10 @@ def get_transform_config_details(transform):
 def generate_configs_summary(all_transforms: dict) -> str:
   summary = """## Available Configurations
 
+<i>Note: required configuration fields are <strong>bolded</strong>.</i> 
+
 <div class="table-container-wrapper">
-  <table class="table table-bordered table-connectors">
+  <table class="table table-bordered">
     <tr>
       <th>Connector Name</th>
       <th>Read Configuration</th>
@@ -218,7 +220,7 @@ def generate_configs_summary(all_transforms: dict) -> str:
 
 def create_html_row(transform_name: str, transforms: dict):
   doc = spaces(4) + "<tr>\n" + spaces(
-      6) + f"<td>{transform_name.upper()}</td>\n"
+      6) + f"<td><strong>{transform_name.upper()}</strong></td>\n"
 
   if "read" in transforms:
     doc += get_transform_cell_html(transforms['read'])

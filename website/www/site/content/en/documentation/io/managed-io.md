@@ -34,15 +34,17 @@ manual updates or user intervention required!)
 
 ## Available Configurations
 
+<i>Note: required configuration fields are <strong>bolded</strong>.</i> 
+
 <div class="table-container-wrapper">
-  <table class="table table-bordered table-connectors">
+  <table class="table table-bordered">
     <tr>
       <th>Connector Name</th>
       <th>Read Configuration</th>
       <th>Write Configuration</th>
     </tr>
     <tr>
-      <td>ICEBERG_CDC</td>
+      <td><strong>ICEBERG_CDC</strong></td>
       <td>
         <strong>table</strong> (<code style="color: green">str</code>)<br>
         catalog_name (<code style="color: green">str</code>)<br>
@@ -61,7 +63,7 @@ manual updates or user intervention required!)
       </td>
     </tr>
     <tr>
-      <td>ICEBERG</td>
+      <td><strong>ICEBERG</strong></td>
       <td>
         <strong>table</strong> (<code style="color: green">str</code>)<br>
         catalog_name (<code style="color: green">str</code>)<br>
@@ -80,7 +82,7 @@ manual updates or user intervention required!)
       </td>
     </tr>
     <tr>
-      <td>KAFKA</td>
+      <td><strong>KAFKA</strong></td>
       <td>
         <strong>bootstrap_servers</strong> (<code style="color: green">str</code>)<br>
         <strong>topic</strong> (<code style="color: green">str</code>)<br>
@@ -103,7 +105,7 @@ manual updates or user intervention required!)
       </td>
     </tr>
     <tr>
-      <td>BIGQUERY</td>
+      <td><strong>BIGQUERY</strong></td>
       <td>
         kms_key (<code style="color: green">str</code>)<br>
         query (<code style="color: green">str</code>)<br>
@@ -128,7 +130,7 @@ manual updates or user intervention required!)
 ### `ICEBERG_CDC` Read
 
 <div class="table-container-wrapper">
-  <table class="table table-bordered table-connectors">
+  <table class="table table-bordered">
     <tr>
       <th>Configuration</th>
       <th>Type</th>
@@ -261,7 +263,7 @@ manual updates or user intervention required!)
 ### `ICEBERG` Write
 
 <div class="table-container-wrapper">
-  <table class="table table-bordered table-connectors">
+  <table class="table table-bordered">
     <tr>
       <th>Configuration</th>
       <th>Type</th>
@@ -361,7 +363,7 @@ manual updates or user intervention required!)
 ### `ICEBERG` Read
 
 <div class="table-container-wrapper">
-  <table class="table table-bordered table-connectors">
+  <table class="table table-bordered">
     <tr>
       <th>Configuration</th>
       <th>Type</th>
@@ -417,7 +419,7 @@ manual updates or user intervention required!)
 ### `KAFKA` Read
 
 <div class="table-container-wrapper">
-  <table class="table table-bordered table-connectors">
+  <table class="table table-bordered">
     <tr>
       <th>Configuration</th>
       <th>Type</th>
@@ -528,7 +530,7 @@ manual updates or user intervention required!)
 ### `KAFKA` Write
 
 <div class="table-container-wrapper">
-  <table class="table table-bordered table-connectors">
+  <table class="table table-bordered">
     <tr>
       <th>Configuration</th>
       <th>Type</th>
@@ -617,7 +619,7 @@ manual updates or user intervention required!)
 ### `BIGQUERY` Write
 
 <div class="table-container-wrapper">
-  <table class="table table-bordered table-connectors">
+  <table class="table table-bordered">
     <tr>
       <th>Configuration</th>
       <th>Type</th>
@@ -695,7 +697,7 @@ manual updates or user intervention required!)
 ### `BIGQUERY` Read
 
 <div class="table-container-wrapper">
-  <table class="table table-bordered table-connectors">
+  <table class="table table-bordered">
     <tr>
       <th>Configuration</th>
       <th>Type</th>
