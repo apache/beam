@@ -264,6 +264,10 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
             typehints.Dict[str, int]),
         ('count', collections.Counter[str, int], typehints.Dict[str, int]),
         (
+            'single param counter',
+            collections.Counter[str],
+            typehints.Dict[str, int]),
+        (
             'bare callable',
             collections.abc.Callable,
             collections.abc.Callable,

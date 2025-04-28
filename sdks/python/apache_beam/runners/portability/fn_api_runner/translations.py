@@ -459,7 +459,7 @@ class TransformContext(object):
     self.components.coders[new_coder_id].CopyFrom(coder_proto)
     return new_coder_id
 
-  def add_data_channel_coder(self, pcoll_id):
+  def add_data_channel_coder(self, pcoll_id, is_input=False):
     pcoll = self.components.pcollections[pcoll_id]
     proto = beam_runner_api_pb2.Coder(
         spec=beam_runner_api_pb2.FunctionSpec(
@@ -469,8 +469,12 @@ class TransformContext(object):
             self.components.windowing_strategies[
                 pcoll.windowing_strategy_id].window_coder_id
         ])
+    windowed_coder_id = self.add_or_get_coder_id(
+        proto, pcoll.coder_id + '_windowed')
+    if is_input and self.use_state_iterables:
+      windowed_coder_id = self.with_state_iterables(windowed_coder_id)
     self.data_channel_coders[pcoll_id] = self.maybe_length_prefixed_coder(
-        self.add_or_get_coder_id(proto, pcoll.coder_id + '_windowed'))
+        windowed_coder_id)
 
   @memoize_on_instance
   def with_state_iterables(self, coder_id):
@@ -1692,10 +1696,6 @@ def expand_gbk(stages, pipeline_context):
       for pcoll_id in transform.inputs.values():
         pipeline_context.length_prefix_pcoll_coders(pcoll_id)
       for pcoll_id in transform.outputs.values():
-        if pipeline_context.use_state_iterables:
-          pipeline_context.components.pcollections[
-              pcoll_id].coder_id = pipeline_context.with_state_iterables(
-                  pipeline_context.components.pcollections[pcoll_id].coder_id)
         pipeline_context.length_prefix_pcoll_coders(pcoll_id)
 
       # This is used later to correlate the read and write.
@@ -2078,7 +2078,8 @@ def populate_data_channel_coders(stages, pipeline_context):
           sdk_pcoll_id = only_element(transform.outputs.values())
         else:
           sdk_pcoll_id = only_element(transform.inputs.values())
-        pipeline_context.add_data_channel_coder(sdk_pcoll_id)
+        pipeline_context.add_data_channel_coder(
+            sdk_pcoll_id, transform.spec.urn == bundle_processor.DATA_INPUT_URN)
 
   return stages
 

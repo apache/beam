@@ -116,7 +116,7 @@ def _specifiable_from_spec_helper(v, _run_init):
   # TODO: support spec treatment for more types
   if not isinstance(v, BUILTIN_TYPES_IN_SPEC):
     logging.warning(
-        "Type %s is not a recognized supported type for the"
+        "Type %s is not a recognized supported type for the "
         "specification. It will be included without conversion.",
         str(type(v)))
   return v
@@ -142,7 +142,7 @@ def _specifiable_to_spec_helper(v):
   # TODO: support spec treatment for more types
   if not isinstance(v, BUILTIN_TYPES_IN_SPEC):
     logging.warning(
-        "Type %s is not a recognized supported type for the"
+        "Type %s is not a recognized supported type for the "
         "specification. It will be included without conversion.",
         str(type(v)))
   return v

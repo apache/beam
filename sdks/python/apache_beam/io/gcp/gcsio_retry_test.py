@@ -34,6 +34,7 @@ except ImportError:
   api_exceptions = None
 
 
+@unittest.skip("https://github.com/apache/beam/issues/34736")
 @unittest.skipIf((gcsio_retry is None or api_exceptions is None),
                  'GCP dependencies are not installed')
 class TestGCSIORetry(unittest.TestCase):
