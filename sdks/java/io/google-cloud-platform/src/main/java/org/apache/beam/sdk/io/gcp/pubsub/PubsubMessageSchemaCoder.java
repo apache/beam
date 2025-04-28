@@ -31,7 +31,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Precondit
  * PubSub message from server.
  *
  * <p>{@link SchemaCoder} is used so that fields can be added in the future without breaking update
- * compatibility.
+ * compatibility. Maintainers should prefer this coder when adding new features to {@link PubsubIO}.
  */
 public class PubsubMessageSchemaCoder {
   private static final Schema PUBSUB_MESSAGE_SCHEMA =
