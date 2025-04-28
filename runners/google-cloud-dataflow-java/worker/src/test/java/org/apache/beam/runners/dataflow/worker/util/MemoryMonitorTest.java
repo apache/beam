@@ -27,6 +27,7 @@ import static org.junit.Assume.assumeThat;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -69,15 +70,17 @@ public class MemoryMonitorTest {
 
   private FakeGCStatsProvider provider;
   private File localDumpFolder;
-  private MemoryMonitor monitor;
-  private Thread thread;
 
   @Before
   public void setup() throws IOException {
     provider = new FakeGCStatsProvider();
     localDumpFolder = tempFolder.newFolder();
+  }
+
+  @Test(timeout = 1000)
+  public void detectGCThrashing() throws InterruptedException {
     // Update every 10ms, never shutdown VM.
-    monitor =
+    MemoryMonitor monitor =
         MemoryMonitor.forTest(
             provider,
             10,
@@ -89,12 +92,8 @@ public class MemoryMonitorTest {
             "test-worker",
             null,
             Clock.systemUTC());
-    thread = new Thread(monitor);
+    Thread thread = new Thread(monitor);
     thread.start();
-  }
-
-  @Test(timeout = 1000)
-  public void detectGCThrashing() throws InterruptedException {
     monitor.waitForRunning();
     monitor.waitForResources("Test1");
     provider.inGCThrashingState.set(true);
@@ -111,16 +110,28 @@ public class MemoryMonitorTest {
     monitor.waitForThrashingState(false);
     assertTrue(s.tryAcquire(100, TimeUnit.MILLISECONDS));
     monitor.waitForResources("Test3");
+    monitor.stop();
+    thread.join();
   }
 
   @Test
   public void heapDumpOnce() throws Exception {
-    File folder = tempFolder.newFolder();
-
-    File dump1 = MemoryMonitor.dumpHeap(folder);
+    MemoryMonitor monitor =
+        MemoryMonitor.forTest(
+            provider,
+            10,
+            0,
+            false,
+            50.0,
+            null,
+            localDumpFolder,
+            "test-worker",
+            null,
+            Clock.systemUTC());
+    File dump1 = monitor.dumpHeap();
     assertNotNull(dump1);
     assertTrue(dump1.exists());
-    assertThat(dump1.getParentFile(), Matchers.equalTo(folder));
+    assertThat(dump1.getParentFile(), Matchers.equalTo(localDumpFolder));
   }
 
   @Test
@@ -141,7 +152,7 @@ public class MemoryMonitorTest {
   @Test
   public void uploadToGcs() throws Exception {
     File remoteFolder = tempFolder.newFolder();
-    monitor =
+    MemoryMonitor monitor =
         MemoryMonitor.forTest(
             provider,
             10,
@@ -171,7 +182,7 @@ public class MemoryMonitorTest {
     assumeThat(Environments.getJavaVersion(), is(not(Environments.JavaVersion.java8)));
 
     File remoteFolder = tempFolder.newFolder();
-    monitor =
+    MemoryMonitor monitor =
         MemoryMonitor.forTest(
             provider,
             10,
@@ -194,7 +205,7 @@ public class MemoryMonitorTest {
 
   @Test
   public void uploadToGcsDisabled() throws Exception {
-    monitor =
+    MemoryMonitor monitor =
         MemoryMonitor.forTest(
             provider,
             10,
@@ -216,6 +227,22 @@ public class MemoryMonitorTest {
 
   @Test
   public void disableMemoryMonitor() throws Exception {
+    // Update every 10ms, never shutdown VM.
+    MemoryMonitor monitor =
+        MemoryMonitor.forTest(
+            provider,
+            10,
+            0,
+            false,
+            50.0,
+            null,
+            localDumpFolder,
+            "test-worker",
+            null,
+            Clock.systemUTC());
+    Thread thread = new Thread(monitor);
+    thread.start();
+
     MemoryMonitor disabledMonitor =
         MemoryMonitor.forTest(
             provider,
@@ -238,5 +265,7 @@ public class MemoryMonitorTest {
 
     // Enabled monitor thread should still be running.
     assertTrue(thread.isAlive());
+    monitor.stop();
+    thread.join();
   }
 }
