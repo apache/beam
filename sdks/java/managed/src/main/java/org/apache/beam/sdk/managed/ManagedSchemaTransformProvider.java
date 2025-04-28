@@ -256,7 +256,11 @@ public class ManagedSchemaTransformProvider
         msg += " Missing required fields: " + missingRequiredFields + ".";
       }
       if (!userParams.isEmpty()) {
-        msg += " Contains unknown fields: " + userParams + ".";
+        msg +=
+            " Contains unknown fields: "
+                + userParams
+                + ". If you'd still like to pass "
+                + "these fields, use '.skipConfigValidation()'";
       }
 
       throw new IllegalArgumentException(msg);
