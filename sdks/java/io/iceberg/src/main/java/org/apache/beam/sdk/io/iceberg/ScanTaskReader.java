@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.io.iceberg.IcebergUtils.icebergRecordToBeamRow;
+import static org.apache.beam.sdk.io.iceberg.IcebergUtils.icebergSchemaToBeamSchema;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import java.io.IOException;
@@ -65,7 +67,7 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
 
   public ScanTaskReader(ScanTaskSource source) {
     this.source = source;
-    this.project = IcebergUtils.beamSchemaToIcebergSchema(source.getSchema());
+    this.project = source.getSchema();
   }
 
   @Override
@@ -190,7 +192,7 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
     if (current == null) {
       throw new NoSuchElementException();
     }
-    return IcebergUtils.icebergRecordToBeamRow(source.getSchema(), current);
+    return icebergRecordToBeamRow(icebergSchemaToBeamSchema(source.getSchema()), current);
   }
 
   @Override

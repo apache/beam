@@ -29,6 +29,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.iceberg.BaseCombinedScanTask;
 import org.apache.iceberg.CombinedScanTask;
+import org.apache.iceberg.Table;
 import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.TableScan;
 import org.apache.iceberg.io.CloseableIterable;
@@ -46,11 +47,8 @@ class ScanSource extends BoundedSource<Row> {
   }
 
   private TableScan getTableScan() {
-    TableScan tableScan =
-        scanConfig
-            .getTable()
-            .newScan()
-            .project(IcebergUtils.beamSchemaToIcebergSchema(scanConfig.getSchema()));
+    Table table = scanConfig.getTable();
+    TableScan tableScan = table.newScan().project(table.schema());
 
     if (scanConfig.getFilter() != null) {
       tableScan = tableScan.filter(scanConfig.getFilter());
