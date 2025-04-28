@@ -187,11 +187,11 @@ def _resolve_expansion_service(
   if expansion_service:
     return expansion_service
 
-  default_target = None
+  gradle_target = None
   if identifier in MANAGED_TRANSFORM_URN_TO_JAR_TARGET_MAPPING:
-    default_target = MANAGED_TRANSFORM_URN_TO_JAR_TARGET_MAPPING.get(identifier)
-  if not default_target:
+    gradle_target = MANAGED_TRANSFORM_URN_TO_JAR_TARGET_MAPPING.get(identifier)
+  if not gradle_target:
     raise ValueError(
         "No expansion service was specified and could not find a "
         f"default expansion service for {transform_name}: '{identifier}'.")
-  return BeamJarExpansionService(default_target)
+  return BeamJarExpansionService(gradle_target)

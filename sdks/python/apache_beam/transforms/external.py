@@ -403,7 +403,7 @@ SchemaTransformsConfig = namedtuple(
 
 ManagedReplacement = namedtuple(
     'ManagedReplacement',
-    'underlying_transform_identifier update_compatibility_version')
+    ['underlying_transform_identifier', 'update_compatibility_version'])
 
 
 class SchemaAwareExternalTransform(ptransform.PTransform):
@@ -494,12 +494,11 @@ class SchemaAwareExternalTransform(ptransform.PTransform):
     payload_builder = self._payload_builder
     expansion_service = self._expansion_service
 
-    compatibility_version_match = True
-    if self._managed_replacement and compatibility_version_match:
-      compat_version_match = not is_compat_version_prior_to(
+    if self._managed_replacement:
+      compat_version_prior_to_current = is_compat_version_prior_to(
           pcolls.pipeline._options,
           self._managed_replacement.update_compatibility_version)
-      if compat_version_match:
+      if not compat_version_prior_to_current:
         payload_builder = self._managed_payload_builder
         expansion_service = self._managed_expansion_service
 
