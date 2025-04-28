@@ -192,7 +192,8 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
     if (current == null) {
       throw new NoSuchElementException();
     }
-    return icebergRecordToBeamRow(icebergSchemaToBeamSchema(source.getSchema()), current);
+    return icebergRecordToBeamRow(
+        icebergSchemaToBeamSchema(source.getSchema()), checkStateNotNull(current));
   }
 
   @Override
