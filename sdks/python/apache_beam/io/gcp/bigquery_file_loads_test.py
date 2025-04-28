@@ -812,11 +812,16 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     self.assertEqual(mock_call_process.call_count, 1)
 
   @parameterized.expand([
-      param(is_streaming=False, with_auto_sharding=False),
-      param(is_streaming=True, with_auto_sharding=False),
-      param(is_streaming=True, with_auto_sharding=True),
+      param(is_streaming=False, with_auto_sharding=False, compat_version=None),
+      param(is_streaming=True, with_auto_sharding=False, compat_version=None),
+      param(is_streaming=True, with_auto_sharding=True, compat_version=None),
+      param(
+          is_streaming=True, with_auto_sharding=False, compat_version="2.64.0"),
+      param(
+          is_streaming=True, with_auto_sharding=True, compat_version="2.64.0"),
   ])
-  def test_triggering_frequency(self, is_streaming, with_auto_sharding):
+  def test_triggering_frequency(
+      self, is_streaming, with_auto_sharding, compat_version):
     destination = 'project1:dataset1.table1'
 
     job_reference = bigquery_api.JobReference()
@@ -858,7 +863,9 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
         with_auto_sharding=with_auto_sharding)
 
     # Need to test this with the DirectRunner to avoid serializing mocks
-    test_options = PipelineOptions(flags=['--allow_unsafe_triggers'])
+    test_options = PipelineOptions(
+        flags=['--allow_unsafe_triggers'],
+        update_compatibility_version=compat_version)
     test_options.view_as(StandardOptions).streaming = is_streaming
     with TestPipeline(runner='BundleBasedDirectRunner',
                       options=test_options) as p:
