@@ -452,6 +452,14 @@ def convert_to_beam_type(typ):
       args = (typehints.TypeVariable('T'), ) * arity
   elif matched_entry.arity == -1:
     arity = len_args
+  # Counters are special dict types that are implicitly parameterized to
+  # [T, int], so we fix cases where they only have one argument to match
+  # a more traditional dict hint.
+  elif len_args == 1 and _safe_issubclass(getattr(typ, '__origin__', typ),
+                                          collections.Counter):
+    args = (args[0], int)
+    len_args = 2
+    arity = matched_entry.arity
   else:
     arity = matched_entry.arity
     if len_args != arity:
