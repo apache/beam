@@ -129,7 +129,7 @@ class BigQueryVectorSearchParameters:
         columns: List of columns to retrieve from matched vectors.
         neighbor_count: Number of similar vectors to return (top-k).
         metadata_restriction_template: Template string or callable for filtering
-            vectors. Templat string supports two formats:
+            vectors. Template string supports two formats:
             
             1. For flattened metadata columns: 
                ``column_name = '{metadata_key}'`` where column_name is the 
