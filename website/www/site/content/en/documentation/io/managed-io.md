@@ -34,7 +34,7 @@ manual updates or user intervention required!)
 
 ## Available Configurations
 
-<i>Note: required configuration fields are <strong>bolded</strong>.</i> 
+<i>Note: required configuration fields are <strong>bolded</strong>.</i>
 
 <div class="table-container-wrapper">
   <table class="table table-bordered">

@@ -203,7 +203,7 @@ def get_transform_config_details(transform):
 def generate_configs_summary(all_transforms: dict) -> str:
   summary = """## Available Configurations
 
-<i>Note: required configuration fields are <strong>bolded</strong>.</i> 
+<i>Note: required configuration fields are <strong>bolded</strong>.</i>
 
 <div class="table-container-wrapper">
   <table class="table table-bordered">
