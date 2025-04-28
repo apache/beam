@@ -234,7 +234,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
   /** Publish messages to Pubsub in batches. */
   @VisibleForTesting
   static class WriterFn extends DoFn<Iterable<OutgoingMessage>, Void> {
-    private class OutgoingData {
+    private static class OutgoingData {
       int bytes;
       List<OutgoingMessage> messages;
 
@@ -248,7 +248,6 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
     private final @Nullable ValueProvider<TopicPath> topic;
     private final String timestampAttribute;
     private final String idAttribute;
-    private final int publishBatchSize;
     private final int publishBatchBytes;
 
     private final String pubsubRootUrl;
@@ -271,7 +270,6 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
       this.topic = topic;
       this.timestampAttribute = timestampAttribute;
       this.idAttribute = idAttribute;
-      this.publishBatchSize = publishBatchSize;
       this.publishBatchBytes = publishBatchBytes;
       this.pubsubRootUrl = null;
     }
@@ -281,14 +279,12 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
         @Nullable ValueProvider<TopicPath> topic,
         String timestampAttribute,
         String idAttribute,
-        int publishBatchSize,
         int publishBatchBytes,
         String pubsubRootUrl) {
       this.pubsubFactory = pubsubFactory;
       this.topic = topic;
       this.timestampAttribute = timestampAttribute;
       this.idAttribute = idAttribute;
-      this.publishBatchSize = publishBatchSize;
       this.publishBatchBytes = publishBatchBytes;
       this.pubsubRootUrl = pubsubRootUrl;
     }
@@ -663,7 +659,6 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
                       outer.topic,
                       outer.timestampAttribute,
                       outer.idAttribute,
-                      outer.publishBatchSize,
                       outer.publishBatchBytes,
                       outer.pubsubRootUrl)));
       return PDone.in(input.getPipeline());
@@ -716,7 +711,6 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
                       outer.topic,
                       outer.timestampAttribute,
                       outer.idAttribute,
-                      outer.publishBatchSize,
                       outer.publishBatchBytes,
                       outer.pubsubRootUrl)));
       return PDone.in(input.getPipeline());
