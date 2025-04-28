@@ -30,6 +30,8 @@ from typing import List
 from typing import NamedTuple
 
 import pytest
+from parameterized import param
+from parameterized import parameterized
 
 from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
 from apache_beam.coders import coders
@@ -219,7 +221,12 @@ class CodersTest(unittest.TestCase):
     coder = coders._MemoizingPickleCoder()
     self.check_coder(coder, *self.test_values)
 
-  def test_deterministic_coder(self):
+  @parameterized.expand([
+      param(pickle_lib='dill'),
+      param(pickle_lib='cloudpickle'),
+  ])
+  def test_deterministic_coder(self, pickle_lib):
+    pickler.set_library(pickle_lib)
     coder = coders.FastPrimitivesCoder()
     deterministic_coder = coders.DeterministicFastPrimitivesCoder(coder, 'step')
     self.check_coder(deterministic_coder, *self.test_values_deterministic)
@@ -280,6 +287,13 @@ class CodersTest(unittest.TestCase):
     self.check_coder(coders.DillCoder(), 'a', 1, cell_value)
     self.check_coder(
         coders.TupleCoder((coders.VarIntCoder(), coders.DillCoder())),
+        (1, cell_value))
+
+  def test_cloudpickle_pickle_coder(self):
+    cell_value = (lambda x: lambda: x)(0).__closure__[0]
+    self.check_coder(coders.CloudpickleCoder(), 'a', 1, cell_value)
+    self.check_coder(
+        coders.TupleCoder((coders.VarIntCoder(), coders.CloudpickleCoder())),
         (1, cell_value))
 
   def test_fast_primitives_coder(self):
@@ -539,6 +553,7 @@ class CodersTest(unittest.TestCase):
   def test_param_windowed_value_coder(self):
     from apache_beam.transforms.window import IntervalWindow
     from apache_beam.utils.windowed_value import PaneInfo
+    # pylint: disable=too-many-function-args
     wv = windowed_value.create(
         b'',
         # Milliseconds to microseconds

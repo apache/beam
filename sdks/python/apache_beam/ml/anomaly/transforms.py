@@ -24,7 +24,7 @@ from typing import Optional
 from typing import TypeVar
 
 import apache_beam as beam
-from apache_beam.coders import DillCoder
+from apache_beam.coders import CloudpickleCoder
 from apache_beam.ml.anomaly import aggregations
 from apache_beam.ml.anomaly.base import AggregationFn
 from apache_beam.ml.anomaly.base import AnomalyDetector
@@ -53,7 +53,8 @@ class _ScoreAndLearnDoFn(beam.DoFn):
   then updates the model with the same data. It maintains the model state
   using Beam's state management.
   """
-  MODEL_STATE_INDEX = ReadModifyWriteStateSpec('saved_model', DillCoder())
+  MODEL_STATE_INDEX = ReadModifyWriteStateSpec(
+      'saved_model', CloudpickleCoder())
 
   def __init__(self, detector_spec: Spec):
     self._detector_spec = detector_spec
@@ -222,7 +223,8 @@ class _StatefulThresholdDoFn(_BaseThresholdDoFn):
     AssertionError: If the provided `threshold_fn_spec` leads to the
       creation of a stateless `ThresholdFn`.
   """
-  THRESHOLD_STATE_INDEX = ReadModifyWriteStateSpec('saved_tracker', DillCoder())
+  THRESHOLD_STATE_INDEX = ReadModifyWriteStateSpec(
+      'saved_tracker', CloudpickleCoder())
 
   def __init__(self, threshold_fn_spec: Spec):
     assert isinstance(threshold_fn_spec.config, dict)

@@ -59,6 +59,8 @@ from google.protobuf import message
 
 from apache_beam.coders import coder_impl
 from apache_beam.coders.avro_record import AvroRecord
+from apache_beam.internal import cloudpickle_pickler
+from apache_beam.internal import pickler
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
@@ -77,21 +79,17 @@ except ImportError:
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 # pylint: disable=wrong-import-order, wrong-import-position
-# Avoid dependencies on the full SDK.
 try:
-  # Import dill from the pickler module to make sure our monkey-patching of dill
-  # occurs.
-  from apache_beam.internal.dill_pickler import dill
+  from apache_beam.internal import dill_pickler
 except ImportError:
-  # We fall back to using the stock dill library in tests that don't use the
-  # full Python SDK.
-  import dill
+  dill_pickler = None  # type: ignore
 
 __all__ = [
     'Coder',
     'AvroGenericCoder',
     'BooleanCoder',
     'BytesCoder',
+    'CloudpickleCoder',
     'DillCoder',
     'FastPrimitivesCoder',
     'FloatCoder',
@@ -123,14 +121,12 @@ ConstructorFn = Callable[[Optional[Any], List['Coder'], 'PipelineContext'], Any]
 
 
 def serialize_coder(coder):
-  from apache_beam.internal import pickler
   return b'%s$%s' % (
       coder.__class__.__name__.encode('utf-8'),
       pickler.dumps(coder, use_zlib=True))
 
 
 def deserialize_coder(serialized):
-  from apache_beam.internal import pickler
   return pickler.loads(serialized.split(b'$', 1)[1], use_zlib=True)
 
 
@@ -812,7 +808,7 @@ def maybe_dill_dumps(o):
   try:
     return pickle.dumps(o, pickle.HIGHEST_PROTOCOL)
   except Exception:  # pylint: disable=broad-except
-    return dill.dumps(o)
+    return dill_pickler.dumps(o)
 
 
 def maybe_dill_loads(o):
@@ -820,7 +816,7 @@ def maybe_dill_loads(o):
   try:
     return pickle.loads(o)
   except Exception:  # pylint: disable=broad-except
-    return dill.loads(o)
+    return dill_pickler.loads(o)
 
 
 class _PickleCoderBase(FastCoder):
@@ -860,7 +856,6 @@ class _MemoizingPickleCoder(_PickleCoderBase):
     self.cache_size = cache_size
 
   def _create_impl(self):
-    from apache_beam.internal import pickler
     dumps = pickler.dumps
 
     mdumps = lru_cache(maxsize=self.cache_size, typed=True)(dumps)
@@ -896,9 +891,22 @@ class PickleCoder(_PickleCoderBase):
 
 
 class DillCoder(_PickleCoderBase):
-  """Coder using dill's pickle functionality."""
+  def __init__(self):
+    """Coder using dill's pickle functionality."""
+    if dill_pickler is None:
+      raise ImportError(
+          "Dill is not installed. To use DillCoder, please install "
+          "apache-beam[dill] or install dill separately.")
+
   def _create_impl(self):
     return coder_impl.CallbackCoderImpl(maybe_dill_dumps, maybe_dill_loads)
+
+
+class CloudpickleCoder(_PickleCoderBase):
+  """Coder using Apache Beam's vendored Cloudpickle pickler."""
+  def _create_impl(self):
+    return coder_impl.CallbackCoderImpl(
+        cloudpickle_pickler.dumps, cloudpickle_pickler.loads)
 
 
 class DeterministicFastPrimitivesCoder(FastCoder):
