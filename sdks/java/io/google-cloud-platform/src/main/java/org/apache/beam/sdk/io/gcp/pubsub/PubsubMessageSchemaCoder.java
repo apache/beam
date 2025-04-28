@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
-import java.util.HashMap;
-import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -34,6 +32,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Precondit
  * compatibility. Maintainers should prefer this coder when adding new features to {@link PubsubIO}.
  */
 public class PubsubMessageSchemaCoder {
+  // NOTE: Fields must not be reordered.
   private static final Schema PUBSUB_MESSAGE_SCHEMA =
       Schema.builder()
           .addByteArrayField("payload")
@@ -45,26 +44,15 @@ public class PubsubMessageSchemaCoder {
 
   private static final SerializableFunction<PubsubMessage, Row> TO_ROW =
       (PubsubMessage message) -> {
-        Map<String, Object> fieldValues = new HashMap<>();
-        fieldValues.put("payload", message.getPayload());
-
-        String topic = message.getTopic();
-        if (topic != null) {
-          fieldValues.put("topic", topic);
-        }
-        Map<String, String> attributeMap = message.getAttributeMap();
-        if (attributeMap != null) {
-          fieldValues.put("attributes", attributeMap);
-        }
-        String messageId = message.getMessageId();
-        if (messageId != null) {
-          fieldValues.put("message_id", messageId);
-        }
-        String orderingKey = message.getOrderingKey();
-        if (orderingKey != null) {
-          fieldValues.put("ordering_key", orderingKey);
-        }
-        return Row.withSchema(PUBSUB_MESSAGE_SCHEMA).withFieldValues(fieldValues).build();
+        // NOTE: The row's value attachment order must match the schema's definition order.
+        return Row.withSchema(PUBSUB_MESSAGE_SCHEMA)
+            .attachValues(
+                message.getPayload(),
+                message.getTopic(),
+                message.getAttributeMap(),
+                message.getMessageId(),
+                message.getOrderingKey())
+            .build();
       };
 
   private static final SerializableFunction<Row, PubsubMessage> FROM_ROW =
