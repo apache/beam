@@ -98,6 +98,7 @@ tasks.withType(JavaCompile).configureEach { JavaCompile task ->
 
             // Configure JVM args for ErrorProne (for the forked JVM)
             if (project.plugins.hasPlugin('net.ltgt.errorprone')) {
+                // This list is effectively a copy of what's in BeamModulePlugin.groovy's errorProneAddModuleOpts
                 def errorProneAddModuleOptsForJava17 = [
                     "--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
                     "--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
@@ -116,28 +117,27 @@ tasks.withType(JavaCompile).configureEach { JavaCompile task ->
                 }
                 task.options.forkOptions.setJvmArgs(currentJvmArgs)
                 logger.lifecycle("[BUILD_GRADLE] Debezium IO: ${task.path} - Updated forkOptions.jvmArgs for ErrorProne: ${task.options.forkOptions.jvmArgs.join(' ')}")
+            } else {
+                 logger.warn("[BUILD_GRADLE] Debezium IO: ${task.path} - ErrorProne plugin not detected. Skipping ErrorProne JVM args specific setup.")
             }
 
             // After everything (including ErrorProne plugin) has configured the task,
             // ensure --add-exports are not in compilerArgs for --release.
-            // This needs to happen late in the configuration.
-            task.doFirst { // Or use project.afterEvaluate if doFirst is too late for some checks
+            task.doFirst {
                 List<String> finalArgs = []
-                boolean skipNext = false
+                boolean skipNextInDoFirst = false
                 for (String arg : task.options.compilerArgs) {
-                    if (skipNext) {
-                        skipNext = false
+                    if (skipNextInDoFirst) {
+                        skipNextInDoFirst = false
                         continue
                     }
                     if (arg.startsWith("--add-exports=") || arg.startsWith("--add-opens=")) {
-                        // Skip these if they are direct compiler args
                         logger.lifecycle("[BUILD_GRADLE] Debezium IO: ${task.path} - Removing direct ${arg} from compilerArgs due to --release.")
                         continue
                     }
-                    // Also handle cases where --add-exports might be two arguments
                     if (arg == "--add-exports" || arg == "--add-opens") {
                         logger.lifecycle("[BUILD_GRADLE] Debezium IO: ${task.path} - Removing split ${arg} and its value from compilerArgs due to --release.")
-                        skipNext = true
+                        skipNextInDoFirst = true
                         continue
                     }
                     finalArgs.add(arg)
@@ -149,17 +149,14 @@ tasks.withType(JavaCompile).configureEach { JavaCompile task ->
                 } else {
                     int releaseIdx = finalArgs.indexOf('--release')
                     if (releaseIdx + 1 >= finalArgs.size() || finalArgs.get(releaseIdx + 1) != '17') {
-                        if (releaseIdx + 1 < finalArgs.size()) finalArgs.removeAt(releaseIdx + 1) // remove wrong value
-                        finalArgs.removeAt(releaseIdx) // remove --release
+                        if (releaseIdx + 1 < finalArgs.size()) finalArgs.removeAt(releaseIdx + 1)
+                        finalArgs.removeAt(releaseIdx)
                         finalArgs.add('--release')
                         finalArgs.add('17')
                     }
                 }
                 task.options.compilerArgs = finalArgs
                 logger.lifecycle("[BUILD_GRADLE] Debezium IO: ${task.path} - Final compilerArgs before execution: ${task.options.compilerArgs.join(' ')}")
-                    
-            } else {
-                 logger.warn("[BUILD_GRADLE] Debezium IO: ${task.path} - ErrorProne plugin not detected. Skipping ErrorProne JVM args specific setup.")
             }
         } else {
             logger.warn("[BUILD_GRADLE] Debezium IO: Project property 'java17Home' not found, empty, " +
