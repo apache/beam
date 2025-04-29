@@ -79,6 +79,49 @@ java {
     targetCompatibility = JavaVersion.VERSION_17
 }
 
+// Configure the compileJava and compileTestJava tasks directly to use JDK17
+tasks.withType(JavaCompile).configureEach { task ->
+    // Only configure for the current project's main and test compile tasks
+    if (task.project == project && (task.name == 'compileJava' || task.name == 'compileTestJava')) {
+        logger.lifecycle("[BUILD_GRADLE] Debezium IO: Attempting to configure ${task.path} for Java 17.")
+
+        // Read the JDK 17 home path from the environment variable
+        String jdk17HomePath = System.getenv("JAVA_HOME_17_X64")
+
+        if (jdk17HomePath != null && !jdk17HomePath.trim().isEmpty() && project.file(jdk17HomePath.trim()).isDirectory()) {
+            logger.lifecycle("[BUILD_GRADLE] Debezium IO: Using JAVA_HOME_17_X64='${jdk17HomePath}' for ${task.path}.")
+            task.options.fork = true
+            task.options.forkOptions.javaHome = project.file(jdk17HomePath.trim())
+
+            // Explicitly set compiler arguments for Java 17 mode.
+            // This overrides any defaults (like --release 11) potentially set by BeamModulePlugin.
+            def newCompilerArgs = task.options.compilerArgs.findAll { arg ->
+                !arg.startsWith('-source') && !arg.startsWith('-target') && !arg.startsWith('--release')
+            }
+            newCompilerArgs.addAll(['--release', '17'])
+            task.options.compilerArgs = newCompilerArgs
+            logger.lifecycle("[BUILD_GRADLE] Debezium IO: ${task.path} compilerArgs set to: ${task.options.compilerArgs.join(' ')}")
+
+            // Handle ErrorProne specific arguments for Java 17 if errorprone is enabled for this task
+            if (task.extensions.findByName("errorprone") != null && project.rootProject.ext.has('errorProneAddModuleOpts')) {
+                def errorProneAddModuleOpts = project.rootProject.ext.errorProneAddModuleOpts
+                task.options.forkOptions.jvmArgs += errorProneAddModuleOpts.collect { '-J' + it }
+                // Potentially: task.options.errorprone.errorproneArgs.add("-XepDisableAllChecks")
+                logger.lifecycle("[BUILD_GRADLE] Debezium IO: ${task.path} - Added ErrorProne JVM args for forked Java 17 compiler.")
+            }
+        } else {
+            logger.warn("[BUILD_GRADLE] Debezium IO: Environment variable JAVA_HOME_17_X64 not found, empty, or not a valid directory. Value: '${jdk17HomePath ?: 'null'}'. ${task.path} will use default JDK. Java 17 is required for Debezium IO.")
+            // If JAVA_HOME_17_X64 isn't found, we still try to make the default compiler (if it's 17) behave correctly.
+            // Or if default is 11, this will likely lead to bad class file version if it finds Debezium JARs.
+            def newCompilerArgs = task.options.compilerArgs.findAll { arg ->
+                !arg.startsWith('-source') && !arg.startsWith('-target') && !arg.startsWith('--release')
+            }
+            newCompilerArgs.addAll(['--release', '17']) // Attempt to set for default JDK too
+            task.options.compilerArgs = newCompilerArgs
+        }
+    }
+}
+
 task integrationTest(type: Test, dependsOn: processTestResources) {
   group = "Verification"
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
