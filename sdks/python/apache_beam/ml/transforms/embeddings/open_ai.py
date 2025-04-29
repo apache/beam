@@ -24,7 +24,7 @@ from typing import cast
 
 import apache_beam as beam
 import openai
-from apache_beam.ml.inference.base import ModelHandler, RemoteModelHandler
+from apache_beam.ml.inference.base import RemoteModelHandler
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.transforms.base import EmbeddingsManager
 from apache_beam.ml.transforms.base import _TextEmbeddingHandler
