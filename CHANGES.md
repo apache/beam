@@ -64,6 +64,7 @@
 ## I/Os
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Support for streaming writes for AvroIO, ParquetIO and TFRecordIO
 
 ## New Features / Improvements
 
