@@ -20,7 +20,6 @@ import dataclasses
 import logging
 import os
 import unittest
-from typing import List
 from typing import Optional
 
 from parameterized import parameterized
@@ -167,7 +166,7 @@ class TestSpecifiable(unittest.TestCase):
     @dataclasses.dataclass
     class ShoppingCart():
       user_id: str
-      entries: List[Entry]
+      entries: list[Entry]
 
     orange = Product("orange", 1.0)
 

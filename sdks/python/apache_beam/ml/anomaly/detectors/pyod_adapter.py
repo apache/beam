@@ -16,11 +16,10 @@
 #
 
 import pickle
+from collections.abc import Iterable
+from collections.abc import Sequence
 from typing import Any
-from typing import Dict
-from typing import Iterable
 from typing import Optional
-from typing import Sequence
 
 import numpy as np
 
@@ -74,7 +73,7 @@ class PyODModelHandler(ModelHandler[beam.Row,
       self,
       batch: Sequence[beam.Row],
       model: PyODBaseDetector,
-      inference_args: Optional[Dict[str, Any]] = None
+      inference_args: Optional[dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
     np_batch = []
     for row in batch:
