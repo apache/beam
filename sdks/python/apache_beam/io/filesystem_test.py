@@ -470,6 +470,21 @@ atomized in instants hammered around the
 
         self.assertEqual(first_pass, second_pass)
 
+  def test_read(self):
+    for compression_type in [CompressionTypes.BZIP2,
+                             CompressionTypes.DEFLATE,
+                             CompressionTypes.GZIP,
+                             CompressionTypes.ZSTD,
+                             CompressionTypes.LZMA]:
+      file_name = self._create_compressed_file(compression_type, self.content)
+      with open(file_name, 'rb') as f:
+        compressed_fd = CompressedFile(
+            f, compression_type, read_size=self.read_block_size)
+
+        data = compressed_fd.read()
+
+        self.assertEqual(data, self.content)
+
   def test_tell(self):
     lines = [b'line%d\n' % i for i in range(10)]
     tmpfile = self._create_temp_file()

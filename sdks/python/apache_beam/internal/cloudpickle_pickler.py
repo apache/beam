@@ -107,8 +107,16 @@ def _pickle_enum_descriptor(obj):
   return _reconstruct_enum_descriptor, (full_name, )
 
 
-def dumps(o, enable_trace=True, use_zlib=False) -> bytes:
+def dumps(
+    o,
+    enable_trace=True,
+    use_zlib=False,
+    enable_best_effort_determinism=False) -> bytes:
   """For internal use only; no backwards-compatibility guarantees."""
+  if enable_best_effort_determinism:
+    # TODO: Add support once https://github.com/cloudpipe/cloudpickle/pull/563
+    # is merged in.
+    raise NotImplementedError('This option has only been implemeneted for dill')
   with _pickle_lock:
     with io.BytesIO() as file:
       pickler = cloudpickle.CloudPickler(file)

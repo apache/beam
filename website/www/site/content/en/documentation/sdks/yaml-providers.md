@@ -133,12 +133,14 @@ the implementation in terms of other YAML transforms.
         properties:
           n: {type: integer}
       body:
-        type: MapToFields
-        config:
-          language: python
-          append: true
-          fields:
-            power: "element ** {{n}}"
+        type: chain
+        transforms:
+          - type: MapToFields
+            config:
+              language: python
+              append: true
+              fields:
+                power: "element ** {{n}}"
 
     # Define a second transform that produces consecutive integers.
     Range:

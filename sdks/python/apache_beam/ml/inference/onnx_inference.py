@@ -15,13 +15,12 @@
 # limitations under the License.
 #
 
+from collections.abc import Callable
+from collections.abc import Iterable
+from collections.abc import Mapping
+from collections.abc import Sequence
 from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import Iterable
-from typing import Mapping
 from typing import Optional
-from typing import Sequence
 
 import numpy
 
@@ -35,14 +34,14 @@ from apache_beam.ml.inference.base import PredictionResult
 __all__ = ['OnnxModelHandlerNumpy']
 
 NumpyInferenceFn = Callable[
-    [Sequence[numpy.ndarray], ort.InferenceSession, Optional[Dict[str, Any]]],
+    [Sequence[numpy.ndarray], ort.InferenceSession, Optional[dict[str, Any]]],
     Iterable[PredictionResult]]
 
 
 def default_numpy_inference_fn(
     inference_session: ort.InferenceSession,
     batch: Sequence[numpy.ndarray],
-    inference_args: Optional[Dict[str, Any]] = None) -> Any:
+    inference_args: Optional[dict[str, Any]] = None) -> Any:
   ort_inputs = {
       inference_session.get_inputs()[0].name: numpy.stack(batch, axis=0)
   }
@@ -136,7 +135,7 @@ class OnnxModelHandlerNumpy(ModelHandler[numpy.ndarray,
       self,
       batch: Sequence[numpy.ndarray],
       inference_session: ort.InferenceSession,
-      inference_args: Optional[Dict[str, Any]] = None
+      inference_args: Optional[dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
     """Runs inferences on a batch of numpy arrays.
 

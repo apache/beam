@@ -75,7 +75,7 @@ jobs:
       PYTHON_VERSION: '3.12' # Or adjust if needed
       BEAM_PYTHON_SDK_TAR_GZ: apache_beam-${{ github.event.inputs.RELEASE_VER }}.tar.gz
       BEAM_SOURCE_ZIP: apache-beam-${{ github.event.inputs.RELEASE_VER }}-source-release.zip
-      APACHE_DIST_URL_BASE: https://dist.apache.org/repos/dist/dev/beam/${{ github.event.inputs.RELEASE_VER }}/python
+      APACHE_DIST_URL_BASE: https://dist.apache.org/repos/dist/dev/beam/${{ github.event.inputs.RELEASE_VER }}
       YAML_PIPELINE_FILE: t1_2.yaml
       SUBMISSION_TIMEOUT_SECONDS: 120 # Timeout for the python submission script itself
 
