@@ -180,6 +180,7 @@ class Pipeline(HasDisplayData):
         options.view_as(StandardOptions).runner = None
         self._options = copy.deepcopy(options)
         self._options.view_as(StandardOptions).runner = saved_runner
+        options.view_as(StandardOptions).runner = saved_runner
       else:
         raise ValueError(
             'Parameter options, if specified, must be of type PipelineOptions. '
