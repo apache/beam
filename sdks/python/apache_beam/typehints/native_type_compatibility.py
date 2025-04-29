@@ -28,12 +28,12 @@ import typing
 from typing import Generic
 from typing import TypeVar
 
+from apache_beam.typehints import typehints
+
 try:
   from typing import is_typeddict
 except ImportError:
   from typing_extensions import is_typeddict
-
-from apache_beam.typehints import typehints
 
 T = TypeVar('T')
 
