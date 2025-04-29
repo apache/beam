@@ -202,4 +202,3 @@ class OpenAITextEmbeddings(EmbeddingsManager):
     return RunInference(
         model_handler=_TextEmbeddingHandler(self),
         inference_args=self.inference_args)
-    
