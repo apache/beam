@@ -63,11 +63,13 @@ from apache_beam.transforms.ptransform import ptransform_fn
 from apache_beam.transforms.timeutil import TimeDomain
 from apache_beam.transforms.trigger import AccumulationMode
 from apache_beam.transforms.trigger import Always
+from apache_beam.transforms.trigger import DefaultTrigger
 from apache_beam.transforms.userstate import BagStateSpec
 from apache_beam.transforms.userstate import CombiningValueStateSpec
 from apache_beam.transforms.userstate import ReadModifyWriteStateSpec
 from apache_beam.transforms.userstate import TimerSpec
 from apache_beam.transforms.userstate import on_timer
+from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import NonMergingWindowFn
 from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import TimestampedValue
@@ -107,6 +109,8 @@ V = TypeVar('V')
 T = TypeVar('T')
 
 RESHUFFLE_TYPEHINT_BREAKING_CHANGE_VERSION = "2.64.0"
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class CoGroupByKey(PTransform):
@@ -875,6 +879,25 @@ class BatchElements(PTransform):
     self._clock = clock
 
   def expand(self, pcoll):
+    windowing = pcoll.windowing
+    trigger = windowing.triggerfn
+    if not pcoll.is_bounded and isinstance(
+        windowing.windowfn, GlobalWindows) and isinstance(trigger,
+                                                          DefaultTrigger):
+      if pcoll.pipeline.allow_unsafe_triggers:
+        _LOGGER.warning(
+            '%s: PCollection passed to BatchElements is unbounded, has a '
+            'global window, and uses a default trigger, but BatchElements is '
+            'not initialized with `max_batch_duration_secs. This is being '
+            'allowed because --allow_unsafe_triggers is set, but it may '
+            'prevent data from making it through the pipeline.',
+            self.label)
+      else:
+        raise ValueError(
+            'Without specifying `max_batch_duration_secs`, BatchElements '
+            'cannot be applied to an unbounded PCollection with global '
+            'windowing and a default trigger')
+
     if getattr(pcoll.pipeline.runner, 'is_streaming', False):
       raise NotImplementedError("Requires stateful processing (BEAM-2687)")
     elif self._max_batch_dur is not None:
