@@ -32,6 +32,7 @@ import java.util.Set;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -461,7 +462,12 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
             topic,
             STATE.expectedTopic);
       }
+      @MonotonicNonNull String batchOrderingKey = null;
       for (OutgoingMessage outgoingMessage : outgoingMessages) {
+        if (batchOrderingKey == null) {
+          batchOrderingKey = outgoingMessage.getMessage().getOrderingKey();
+        }
+        checkState(outgoingMessage.getMessage().getOrderingKey().equals(batchOrderingKey));
         if (isDynamic) {
           checkState(outgoingMessage.topic().equals(topic.getPath()));
         } else {
