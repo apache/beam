@@ -35,6 +35,7 @@ import logging
 import math
 import random
 import uuid
+import apache_beam as beam
 from collections import namedtuple
 from typing import Any
 from typing import Iterator
@@ -56,8 +57,10 @@ from apache_beam.transforms import PTransform
 from apache_beam.transforms import core
 from apache_beam.transforms import ptransform
 from apache_beam.transforms import window
+from apache_beam.transforms.core import DoFn
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.display import HasDisplayData
+from apache_beam.transforms.util import LogElements
 from apache_beam.utils import timestamp
 from apache_beam.utils import urns
 from apache_beam.utils.windowed_value import WindowedValue
@@ -778,7 +781,7 @@ class Sink(HasDisplayData):
     """
     raise NotImplementedError
 
-  def pre_finalize(self, init_result, writer_results):
+  def pre_finalize(self, init_result, writer_results, window=None):
     """Pre-finalization stage for sink.
 
     Called after all bundle writes are complete and before finalize_write.
@@ -1127,47 +1130,155 @@ class WriteImpl(ptransform.PTransform):
     self.sink = sink
 
   def expand(self, pcoll):
-    do_once = pcoll.pipeline | 'DoOnce' >> core.Create([None])
-    init_result_coll = do_once | 'InitializeWrite' >> core.Map(
-        lambda _, sink: sink.initialize_write(), self.sink)
+    if (pcoll.is_bounded):
+      do_once = pcoll.pipeline | 'DoOnce' >> core.Create([None])
+      init_result_coll = do_once | 'InitializeWrite' >> core.Map(
+          lambda _, sink: sink.initialize_write(), self.sink)
     if getattr(self.sink, 'num_shards', 0):
       min_shards = self.sink.num_shards
-      if min_shards == 1:
-        keyed_pcoll = pcoll | core.Map(lambda x: (None, x))
-      else:
-        keyed_pcoll = pcoll | core.ParDo(_RoundRobinKeyFn(), count=min_shards)
-      write_result_coll = (
+      
+      if (pcoll.is_bounded):
+        if min_shards == 1:
+          keyed_pcoll = pcoll | core.Map(lambda x: (None, x))
+        else:
+          keyed_pcoll = pcoll | core.ParDo(_RoundRobinKeyFn(), count=min_shards)
+        write_result_coll = (
+            keyed_pcoll
+            | core.WindowInto(window.GlobalWindows())
+            | core.GroupByKey()
+            | 'WriteBundles' >> core.ParDo(
+                _WriteKeyedBundleDoFn(self.sink), AsSingleton(init_result_coll)))
+      else: #unbounded PCollection needes to be written per window
+        if isinstance(pcoll.windowing.windowfn, window.GlobalWindows):
+          widowed_pcoll = (
+            pcoll
+              | core.WindowInto(window.FixedWindows(self.sink.triggering_frequency),
+                                trigger=beam.transforms.trigger.AfterWatermark(),
+                                accumulation_mode=beam.transforms.trigger.AccumulationMode.DISCARDING,
+                                allowed_lateness=beam.utils.timestamp.Duration(seconds=0))
+          )
+        else: #keep user windowing
+          widowed_pcoll = pcoll
+        if self.sink.convert_fn is not None:
+          widowed_pcoll = widowed_pcoll | core.ParDo(self.sink.convert_fn)
+        if min_shards == 1:
+          keyed_pcoll = widowed_pcoll | core.Map(lambda x: (None, x))
+        else:
+          keyed_pcoll = widowed_pcoll | core.ParDo(_RoundRobinKeyFn(), count=min_shards)
+        init_result_window_coll = (
           keyed_pcoll
-          | core.WindowInto(window.GlobalWindows())
-          | core.GroupByKey()
-          | 'WriteBundles' >> core.ParDo(
-              _WriteKeyedBundleDoFn(self.sink), AsSingleton(init_result_coll)))
+            | 'Pair init' >> core.Map(lambda x: (None, x))
+            | 'Pair init gbk' >> core.GroupByKey()
+            | 'InitializeWindowedWrite' >> core.Map(
+              lambda _, sink: sink.initialize_write(), self.sink)
+            #| 'LogElements init_result_window_coll' >> LogElements(prefix="init_result_window_coll :",with_window=True,with_timestamp=True,level=logging.INFO)
+        )
+        
+        write_result_coll = (
+          keyed_pcoll
+            | 'Group by random key' >> core.GroupByKey()
+            #| 'LogElements before WriteWindowedBundles' >> LogElements(prefix="before WriteWindowedBundles :",with_window=True,with_timestamp=True,level=logging.INFO)
+            | 'WriteWindowedBundles' >> core.ParDo(
+                _WriteWindowedBundleDoFn(sink=self.sink,per_key=True), 
+                AsSingleton(init_result_window_coll))
+            #| 'LogElements' >> LogElements(prefix="after WriteWindowedBundles :",with_window=True,with_timestamp=True,level=logging.INFO)
+            | 'Pair' >> core.Map(lambda x: (None, x))
+            | core.GroupByKey()
+            | 'Extract' >> core.Map(lambda x: x[1])
+        )
+        pre_finalized_write_result_coll = (
+          write_result_coll 
+          | 'PreFinalize' >> core.ParDo(
+                _PreFinalizeWindowedBundleDoFn(self.sink), AsSingleton(init_result_window_coll))
+        )
+        finalized_write_result_coll = (
+          pre_finalized_write_result_coll 
+          #| 'LogElements pre_finalized_write_result_coll' >> LogElements(prefix="pre_finalized_write_result_coll :",with_window=True,with_timestamp=True,level=logging.INFO)
+          | 'FinalizeWrite' >> core.FlatMap(
+              _finalize_write,
+              self.sink,
+              AsSingleton(init_result_window_coll),
+              AsSingleton(write_result_coll),
+              min_shards,
+              AsIter(pre_finalized_write_result_coll)
+            ).with_output_types(str)
+        )
+        return finalized_write_result_coll
     else:
+      _LOGGER.info("*** WriteImpl min_shards undef so it's 1, and we write per Bundle")
       min_shards = 1
-      write_result_coll = (
+      if (pcoll.is_bounded):
+        write_result_coll = (
+            pcoll
+            | core.WindowInto(window.GlobalWindows())
+            | 'WriteBundles' >> core.ParDo(
+                _WriteBundleDoFn(self.sink), AsSingleton(init_result_coll))
+            | 'Pair' >> core.Map(lambda x: (None, x))
+            | core.GroupByKey()
+            | 'Extract' >> core.FlatMap(lambda x: x[1]))
+      else: #unbounded PCollection needes to be written per window
+        widowed_pcoll = (
           pcoll
-          | core.WindowInto(window.GlobalWindows())
-          | 'WriteBundles' >> core.ParDo(
-              _WriteBundleDoFn(self.sink), AsSingleton(init_result_coll))
-          | 'Pair' >> core.Map(lambda x: (None, x))
-          | core.GroupByKey()
-          | 'Extract' >> core.FlatMap(lambda x: x[1]))
+            | core.WindowInto(window.FixedWindows(self.sink.triggering_frequency),
+                              trigger=beam.transforms.trigger.AfterWatermark(),
+                              accumulation_mode=beam.transforms.trigger.AccumulationMode.DISCARDING,
+                              allowed_lateness=beam.utils.timestamp.Duration(seconds=0))
+        )
+        init_result_window_coll = (
+          widowed_pcoll
+            | 'Pair init' >> core.Map(lambda x: (None, x))
+            | 'Pair init gbk' >> core.GroupByKey()
+            | 'InitializeWindowedWrite' >> core.Map(
+              lambda _, sink: sink.initialize_write(), self.sink)
+        )
+        if self.sink.convert_fn is not None:
+          widowed_pcoll = widowed_pcoll | core.ParDo(self.sink.convert_fn)
+        write_result_coll = (
+          widowed_pcoll
+            | 'WriteWindowedBundles' >> core.ParDo(
+                _WriteWindowedBundleDoFn(self.sink), AsSingleton(init_result_window_coll))
+            | 'LogElements' >> LogElements(prefix="after WriteWindowedBundles :",with_window=True,with_timestamp=True,level=logging.INFO)
+            | 'Pair' >> core.Map(lambda x: (None, x))
+            | core.GroupByKey()
+            | 'Extract' >> core.Map(lambda x: x[1])
+        )
+        pre_finalized_write_result_coll = (
+          write_result_coll 
+          | 'PreFinalize' >> core.ParDo(
+                _PreFinalizeWindowedBundleDoFn(self.sink), AsSingleton(init_result_window_coll))
+        )
+        finalized_write_result_coll = (
+          pre_finalized_write_result_coll 
+          | 'LogElements 2' >> LogElements(prefix="before finalize :",with_window=True,with_timestamp=True,level=logging.INFO)
+          | 'FinalizeWrite' >> core.FlatMap(
+              _finalize_write,
+              self.sink,
+              AsSingleton(init_result_window_coll),
+              AsSingleton(write_result_coll),
+              min_shards,
+              AsIter(pre_finalized_write_result_coll)
+            ).with_output_types(str)
+        )
+        return finalized_write_result_coll
     # PreFinalize should run before FinalizeWrite, and the two should not be
     # fused.
-    pre_finalize_coll = (
-        do_once
-        | 'PreFinalize' >> core.FlatMap(
-            _pre_finalize,
-            self.sink,
-            AsSingleton(init_result_coll),
-            AsIter(write_result_coll)))
-    return do_once | 'FinalizeWrite' >> core.FlatMap(
-        _finalize_write,
-        self.sink,
-        AsSingleton(init_result_coll),
-        AsIter(write_result_coll),
-        min_shards,
-        AsSingleton(pre_finalize_coll)).with_output_types(str)
+    if (pcoll.is_bounded):
+      pre_finalize_coll = (
+          do_once
+          | 'PreFinalize' >> core.FlatMap(
+              _pre_finalize,
+              self.sink,
+              AsSingleton(init_result_coll),
+              AsIter(write_result_coll)))
+      return (do_once | 'FinalizeWrite' >> core.FlatMap(
+          _finalize_write,
+          self.sink,
+          AsSingleton(init_result_coll),
+          AsIter(write_result_coll),
+          min_shards,
+          AsSingleton(pre_finalize_coll)).with_output_types(str)
+          | 'LogElements after FinalizeWrite' >> LogElements(prefix='after FinalizeWrite ', with_window=False,level=logging.INFO) 
+      )
 
 
 class _WriteBundleDoFn(core.DoFn):
@@ -1198,6 +1309,89 @@ class _WriteBundleDoFn(core.DoFn):
           self.writer.close(),
           window.GlobalWindow().max_timestamp(), [window.GlobalWindow()])
 
+class _PreFinalizeWindowedBundleDoFn(core.DoFn):
+  """A DoFn for writing elements to an iobase.Writer.
+  Opens a writer at the first element and closes the writer at finish_bundle().
+  """
+  def __init__(
+      self,
+      sink,
+      destination_fn=None,
+      temp_directory=None,):
+    self.sink = sink
+    self._temp_directory = temp_directory
+    self.destination_fn = destination_fn
+
+  def display_data(self):
+    return {'sink_dd': self.sink}
+
+  def process(self, 
+      element, 
+      init_result, 
+      w=core.DoFn.WindowParam, 
+      pane=core.DoFn.PaneInfoParam):
+    self.sink.pre_finalize(init_result=init_result,writer_results=element,window=w)
+    yield element
+
+class _WriteWindowedBundleDoFn(core.DoFn):
+  """A DoFn for writing elements to an iobase.Writer.
+  Opens a writer at the first element and closes the writer at finish_bundle().
+  """
+  def __init__(
+      self,
+      sink,
+      per_key=False):
+    self.sink = sink
+    self.per_key = per_key
+
+  def display_data(self):
+    return {'sink_dd': self.sink}
+
+  def start_bundle(self):
+    self.writer = {}
+    self.window = {}
+    self.init_result = {}
+
+  def process(self, 
+      element, 
+      init_result, 
+      w=core.DoFn.WindowParam, 
+      pane=core.DoFn.PaneInfoParam):
+
+    if self.per_key:
+      w_key = "%s_%s" % (w , element[0]) # key
+    else:
+      w_key = w
+
+    if not w in self.writer :
+      # We ignore UUID collisions here since they are extremely rare.
+      self.window[w_key] = w
+      self.writer[w_key] = self.sink.open_writer(init_result, '%s_%s' % (w_key, uuid.uuid4()))
+      self.init_result[w_key] = init_result
+      #_LOGGER.info("*** _WriteWindowedBundleDoFn writer %s", self.writer[w_key].temp_shard_path)
+    if self.per_key:
+      for e in element[1]:  # values
+        self.writer[w_key].write(e) # value
+    else:
+      self.writer[w_key].write(element)
+    if self.writer[w_key].at_capacity():
+      yield self.writer[w_key].close()
+      self.writer[w_key] = None
+
+  def finish_bundle(self):
+    for w_key, writer in self.writer.items():
+      w = self.window[w_key]
+      if writer is not None:
+        closed = writer.temp_shard_path
+        try:
+          closed = writer.close() # TODO : improve sink closing for streaming
+        except ValueError as exp:
+          _LOGGER.info("*** _WriteWindowedBundleDoFn finish_bundle closed ERROR %s",exp)
+        yield WindowedValue(
+            closed,
+            timestamp=w.start,
+            windows=[w]  # TODO(pabloem) HOW DO WE GET THE PANE
+        )
 
 class _WriteKeyedBundleDoFn(core.DoFn):
   def __init__(self, sink):
@@ -1224,7 +1418,8 @@ def _finalize_write(
     init_result,
     write_results,
     min_shards,
-    pre_finalize_results):
+    pre_finalize_results,
+    w=DoFn.WindowParam):
   write_results = list(write_results)
   extra_shards = []
   if len(write_results) < min_shards:
@@ -1235,10 +1430,20 @@ def _finalize_write(
         writer = sink.open_writer(init_result, str(uuid.uuid4()))
         extra_shards.append(writer.close())
   outputs = sink.finalize_write(
-      init_result, write_results + extra_shards, pre_finalize_results)
+      init_result, write_results + extra_shards, pre_finalize_results, w)
+  outputs = list(outputs)
+  _LOGGER.info("*** _finalize_write outputs %s",outputs)
   if outputs:
-    return (
-        window.TimestampedValue(v, timestamp.MAX_TIMESTAMP) for v in outputs)
+    if not isinstance(w, window.GlobalWindow):
+      #handle windowed finalize
+      yield (
+          window.TimestampedValue(v, 
+              timestamp=self.window.start,
+              windows=[w]
+            ) for v in outputs)
+    else:
+      return (
+          window.TimestampedValue(v, timestamp.MAX_TIMESTAMP) for v in outputs)
 
 
 class _RoundRobinKeyFn(core.DoFn):

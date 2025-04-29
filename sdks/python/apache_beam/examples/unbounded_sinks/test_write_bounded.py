@@ -1,0 +1,100 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#  http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+# python -m apache_beam.examples.unbounded_sinks.test_write   --runner DirectRunner
+# python -m apache_beam.examples.unbounded_sinks.test_write   --region us-central1 --project ai-poney --temp_location=gs://poney-us --runner DataflowRunne
+
+import apache_beam as beam, json, pyarrow
+import argparse
+import logging
+import re
+from apache_beam.examples.unbounded_sinks.generate_event import GenerateEvent
+from apache_beam.transforms.window import FixedWindows
+from apache_beam.transforms.trigger import AccumulationMode
+from apache_beam.transforms.trigger import AfterWatermark
+from apache_beam.utils.timestamp import Duration
+from apache_beam.transforms.util import LogElements
+from apache_beam.io.textio import WriteToText
+from apache_beam.io.fileio import WriteToFiles
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.runners.runner import PipelineResult
+
+class CountEvents(beam.PTransform):
+  def expand(self, events):
+    return (events
+            | beam.WindowInto(FixedWindows(5),
+                              trigger=AfterWatermark(),
+                              accumulation_mode=AccumulationMode.DISCARDING,
+                              allowed_lateness=Duration(seconds=0))
+            | beam.CombineGlobally(beam.combiners.CountCombineFn()).without_defaults())          
+
+def run(argv=None, save_main_session=True) -> PipelineResult:
+  """Main entry point; defines and runs the wordcount pipeline."""
+  parser = argparse.ArgumentParser()
+  known_args, pipeline_args = parser.parse_known_args(argv)
+
+  # We use the save_main_session option because one or more DoFn's in this
+  # workflow rely on global context (e.g., a module imported at module level).
+  pipeline_options = PipelineOptions(pipeline_args)
+  pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
+
+  p = beam.Pipeline(options=pipeline_options)
+
+  output = (p | beam.Create([{'age': 10}, {'age': 20}, {'age': 30}])
+     #| beam.CombineGlobally(AverageFn())
+     #| 'Serialize' >> beam.Map(json.dumps)
+     | beam.LogElements(prefix='before write ', with_window=False,level=logging.INFO) )
+  #OK in batch
+  output2 = output | 'Write to text' >> WriteToText(file_path_prefix="__output_batch__/ouput_WriteToText",file_name_suffix=".txt",shard_name_template='-U-SSSSS-of-NNNNN')   
+  output2 | 'LogElements after WriteToText' >> LogElements(prefix='after WriteToText ', with_window=False,level=logging.INFO) 
+
+  #OK in batch and stream
+  # output3 = (output | 'Serialize' >> beam.Map(json.dumps)
+  #   | 'Write to files' >> WriteToFiles(path="__output_batch__/output_WriteToFiles")  
+  # )
+  # output3 | 'LogElements after WriteToFiles' >> LogElements(prefix='after WriteToFiles ', with_window=False,level=logging.INFO) 
+
+  #KO - ValueError: GroupByKey cannot be applied to an unbounded PCollection with global windowing and a default trigger
+  # output4 = output | 'Write' >> beam.io.WriteToParquet(file_path_prefix="__output_batch__/output_parquet",
+  #       schema=
+  #           pyarrow.schema(
+  #               [('age', pyarrow.int64())]
+  #           ) 
+  #   )
+  # output4 | 'LogElements after WriteToParquet' >> LogElements(prefix='after WriteToParquet ', with_window=False,level=logging.INFO) 
+  # output | 'Write' >> beam.io.WriteToParquet(file_path_prefix="output",
+  #       schema=
+  #           pyarrow.schema(
+  #               [('cnt', pyarrow.int64()),('json', pyarrow.string())]
+  #           ),
+  #       record_batch_size = 10,
+  #       num_shards=0
+  #   )
+  
+     
+
+  # Execute the pipeline and return the result.
+  result = p.run()
+  result.wait_until_finish()
+  return result
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  run()
