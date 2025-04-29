@@ -37,22 +37,6 @@ To execute TPC-DS benchmark for 1Gb dataset on Google Dataflow, run the followin
   --maxNumWorkers=10"
 ```
 
-To run a query using ZetaSQL planner (currently Query96 can be run using ZetaSQL), set the plannerName as below. If not specified, the default planner is Calcite.
-
-```bash
-./gradlew :sdks:java:testing:tpcds:run -Ptpcds.args="--dataSize=1G \
-  --runner=DataflowRunner \
-  --queries=96 \
-  --tpcParallel=2 \
-  --dataDirectory=/path/to/tpcds_data/ \
-  --plannerName=org.apache.beam.sdk.extensions.sql.zetasql.ZetaSQLQueryPlanner \
-  --project=apache-beam-testing \
-  --stagingLocation=gs://beamsql_tpcds_1/staging \
-  --tempLocation=gs://beamsql_tpcds_2/temp \
-  --region=us-west1 \
-  --maxNumWorkers=10"
-```
-
 ## Spark Runner
 
 To execute TPC-DS benchmark with Query3 for 1Gb dataset on Apache Spark 3.x, run the following example command from the command line:

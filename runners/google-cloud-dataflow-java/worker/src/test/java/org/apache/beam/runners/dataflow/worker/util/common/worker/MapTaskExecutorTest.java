@@ -329,6 +329,7 @@ public class MapTaskExecutorTest {
               }
             });
 
+    assertEquals(TimeUnit.MINUTES.toMillis(10), stateTracker.getNextBundleLullDurationReportMs());
     try (MapTaskExecutor executor = new MapTaskExecutor(operations, counterSet, stateTracker)) {
       // Call execute so that we run all the counters
       executor.execute();
@@ -343,7 +344,6 @@ public class MapTaskExecutorTest {
           context3.metricsContainer().getUpdates().counterUpdates(),
           contains(metricUpdate("TestMetric", "MetricCounter", o3, 3L)));
       assertEquals(0, stateTracker.getMillisSinceBundleStart());
-      assertEquals(TimeUnit.MINUTES.toMillis(10), stateTracker.getNextBundleLullDurationReportMs());
     }
   }
 

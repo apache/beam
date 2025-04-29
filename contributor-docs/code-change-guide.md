@@ -37,6 +37,8 @@ The guide contains the following sections:
   for Python development, running unit and integration tests, and running a pipeline
   with modified Beam code.
 
+For instructions regarding testing code changes for Go SDK, please see the Go SDK's [README file](https://github.com/apache/beam/tree/master/sdks/go).
+
 ## Repository structure
 
 The Apache Beam GitHub repository (Beam repo) is, for the most part, a "mono repo".
@@ -393,6 +395,8 @@ Follow these steps for Gradle projects.
 
     ```groovy
     repositories {
+    mavenCentral()
+    mavenLocal()
     maven { url "https://repository.apache.org/content/groups/snapshots" }
     }
     ```
@@ -426,18 +430,18 @@ If you're using Dataflow Runner v2 and `sdks/java/harness` or its dependencies (
 1. Use the following command to build the SDK harness container:
 
     ```shell
-    ./gradlew :sdks:java:container:java11:docker # java8, java11, java17, etc
-    # change version number to the actual tag below
-    docker tag apache/beam_java8_sdk:2.64.0.dev \
-      "us.gcr.io/apache-beam-testing/beam_java11_sdk:2.64.0-custom"  # change to your container registry
-    docker push "us.gcr.io/apache-beam-testing/beam_java11_sdk:2.64.0-custom"
+    ./gradlew :sdks:java:harness:publishToMavenLocal -Ppublishing
     ```
 
-2. Run the pipeline with the following options:
+2. add `org.apache.beam:beam-sdks-java-harness:2.XX.0-SNAPSHOT` as your project dependency. e.g. for Gradle project, add
+    ```
+    implementation("org.apache.beam:beam-sdks-java-harness:2.XX.0-SNAPSHOT")
+    ```
+
+3. Run the pipeline with the following options:
 
     ```
-    --experiments=use_runner_v2 \
-    --sdkContainerImage="us.gcr.io/apache-beam-testing/beam_java11_sdk:2.49.0-custom"
+    --experiments=use_runner_v2,use_staged_dataflow_worker_jar
     ```
 
 #### Snapshot Version Containers
@@ -451,7 +455,7 @@ This SNAPSHOT version will use the final containers published on [DockerHub](htt
 
 Certain runners may override this snapshot behavior; for example, the Dataflow runner overrides all SNAPSHOT containers into a [single registry](https://console.cloud.google.com/gcr/images/cloud-dataflow/GLOBAL/v1beta3). The same downtime will still be incurred, however, when switching to the final container
 
-## Python guide
+## Python development guide
 
 The Beam Python SDK is distributed as a single wheel, which is more straightforward than the Java SDK.
 

@@ -93,7 +93,7 @@ public class TpcdsRunResult {
     String dialect;
     if (queryPlannerClassName.equals(
         "org.apache.beam.sdk.extensions.sql.zetasql.ZetaSQLQueryPlanner")) {
-      dialect = "ZetaSQL";
+      throw new IllegalArgumentException("ZetaSQL support is removed in Tpcds benchmark");
     } else {
       dialect = "Calcite";
     }

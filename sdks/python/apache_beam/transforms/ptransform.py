@@ -778,9 +778,16 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
         python_urns.GENERIC_COMPOSITE_TRANSFORM,
         getattr(self, '_fn_api_payload', str(self)))
 
-  def to_runner_api_pickled(self, unused_context):
+  def to_runner_api_pickled(self, context):
     # type: (PipelineContext) -> tuple[str, bytes]
-    return (python_urns.PICKLED_TRANSFORM, pickler.dumps(self))
+    return (
+        python_urns.PICKLED_TRANSFORM,
+        pickler.dumps(
+            self,
+            enable_best_effort_determinism=context.
+            enable_best_effort_deterministic_pickling,
+        ),
+    )
 
   def runner_api_requires_keyed_input(self):
     return False

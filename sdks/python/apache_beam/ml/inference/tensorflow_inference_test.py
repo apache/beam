@@ -22,11 +22,10 @@ import shutil
 import tempfile
 import unittest
 import uuid
+from collections.abc import Iterable
+from collections.abc import Sequence
 from typing import Any
-from typing import Dict
-from typing import Iterable
 from typing import Optional
-from typing import Sequence
 from typing import Union
 
 import numpy
@@ -78,7 +77,7 @@ def _compare_tensor_prediction_result(x, y):
 def fake_inference_fn(
     model: tf.Module,
     batch: Union[Sequence[numpy.ndarray], Sequence[tf.Tensor]],
-    inference_args: Dict[str, Any],
+    inference_args: dict[str, Any],
     model_id: Optional[str] = None) -> Iterable[PredictionResult]:
   predictions = model.predict(batch, **inference_args)
   return utils._convert_to_result(batch, predictions, model_id)
@@ -135,7 +134,7 @@ class TFRunInferenceTest(unittest.TestCase):
       def fake_batching_inference_fn(
           model: tf.Module,
           batch: Union[Sequence[numpy.ndarray], Sequence[tf.Tensor]],
-          inference_args: Dict[str, Any],
+          inference_args: dict[str, Any],
           model_id: Optional[str] = None) -> Iterable[PredictionResult]:
         if len(batch) != 2:
           raise Exception(
@@ -181,7 +180,7 @@ class TFRunInferenceTest(unittest.TestCase):
       def fake_batching_inference_fn(
           model: tf.Module,
           batch: Union[Sequence[numpy.ndarray], Sequence[tf.Tensor]],
-          inference_args: Dict[str, Any],
+          inference_args: dict[str, Any],
           model_id: Optional[str] = None) -> Iterable[PredictionResult]:
         multi_process_shared_loaded = "multi_process_shared" in str(type(model))
         if not multi_process_shared_loaded:
@@ -228,7 +227,7 @@ class TFRunInferenceTest(unittest.TestCase):
       def fake_batching_inference_fn(
           model: tf.Module,
           batch: Sequence[numpy.ndarray],
-          inference_args: Dict[str, Any],
+          inference_args: dict[str, Any],
           model_id: Optional[str] = None) -> Iterable[PredictionResult]:
         if len(batch) != 2:
           raise Exception(
@@ -271,7 +270,7 @@ class TFRunInferenceTest(unittest.TestCase):
       def fake_inference_fn(
           model: tf.Module,
           batch: Sequence[numpy.ndarray],
-          inference_args: Dict[str, Any],
+          inference_args: dict[str, Any],
           model_id: Optional[str] = None) -> Iterable[PredictionResult]:
         multi_process_shared_loaded = "multi_process_shared" in str(type(model))
         if not multi_process_shared_loaded:

@@ -211,9 +211,9 @@ def copy_tests_from_docs():
     for path in glob.glob(os.path.join(docs_src, 'yaml*.md')):
       shutil.copy(path, docs_dest)
   else:
-    if not os.path.exists(docs_dest):
-      raise RuntimeError(
-          f'Could not locate yaml docs in {docs_src} or {docs_dest}.')
+    warnings.warn(
+        f'Could not locate yaml docs source directory {docs_src}. '
+        f'Skipping copying tests from docs.')
 
 
 def generate_external_transform_wrappers():
@@ -347,11 +347,6 @@ if __name__ == '__main__':
           # dill on client and server, therefore list of allowed versions is
           # very narrow. See: https://github.com/uqfoundation/dill/issues/341.
           'dill>=0.3.1.1,<0.3.2',
-          # It is prudent to use the same version of pickler at job submission
-          # and at runtime, therefore bounds need to be tight.
-          # To avoid depending on an old dependency, update the minor version on
-          # every Beam release, see: https://github.com/apache/beam/issues/23119
-          'cloudpickle~=2.2.1',
           'fastavro>=0.23.6,<2',
           'fasteners>=0.3,<1.0',
           # TODO(https://github.com/grpc/grpc/issues/37710): Unpin grpc
@@ -400,6 +395,7 @@ if __name__ == '__main__':
               'Sphinx>=7.0.0,<8.0',
               'docstring-parser>=0.15,<1.0',
               'docutils>=0.18.1',
+              'markdown',
               'pandas<2.3.0',
               'openai',
               'virtualenv-clone>=0.5,<1.0',
@@ -494,6 +490,7 @@ if __name__ == '__main__':
               'sentence-transformers',
               'skl2onnx',
               'pillow',
+              'pyod',
               'tensorflow',
               'tensorflow-hub',
               'tensorflow-transform',
@@ -513,6 +510,7 @@ if __name__ == '__main__':
               'sentence-transformers',
               'skl2onnx',
               'pillow',
+              'pyod',
               'tensorflow',
               'tensorflow-hub',
               'tf2onnx',
