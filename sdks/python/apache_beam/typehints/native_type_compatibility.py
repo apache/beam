@@ -33,7 +33,6 @@ try:
 except ImportError:
   from typing_extensions import is_typeddict
 
-
 from apache_beam.typehints import typehints
 
 T = TypeVar('T')
