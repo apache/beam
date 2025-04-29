@@ -30,15 +30,13 @@ provideIntegrationTestingDependencies()
 description = "Apache Beam :: SDKs :: Java :: IO :: Debezium"
 ext.summary = "Library to work with Debezium data."
 
-// Declare Java 17 requirement using Gradle Toolchains
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(17)
-    }
-    // These will be respected by the toolchain
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
-}
+// Declare Java 11 requirement using Gradle Toolchains
+// java {
+//     toolchain {
+//         languageVersion = JavaLanguageVersion.of(11)
+
+//     }
+// }
 
 dependencies {
     implementation library.java.vendored_guava_32_1_2_jre
@@ -82,12 +80,13 @@ test {
     }
 }
 
-// sourceCompatibility = JavaVersion.VERSION_17
-// targetCompatibility = JavaVersion.VERSION_17
-
 // tasks.withType(JavaCompile).configureEach { JavaCompile task ->
-//     if (task.project == project && (task.name == 'compileJava' || task.name == 'compileTestJava')) {
+//     if (task.procject == project && (task.name == 'compileJava' || task.name == 'compileTestJava')) {
 //         logger.lifecycle("[BUILD_GRADLE] Debezium IO: Configuring ${task.path} for Java 17.")
+//         task.javaCompiler = javaToolchains.compilerFor { 
+//             languageVersion = JavaLanguageVersion.of(17)
+//         }
+        
 //         String jdk17HomePath = project.findProperty("java17Home")?.toString()?.trim()
 
 //         if (jdk17HomePath != null && !jdk17HomePath.isEmpty() && project.file(jdk17HomePath).isDirectory()) {
