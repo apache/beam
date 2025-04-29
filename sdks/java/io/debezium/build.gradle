@@ -72,7 +72,6 @@ test {
     }
 }
 
-// Set Java 17 compatibility for this module
 sourceCompatibility = JavaVersion.VERSION_17
 targetCompatibility = JavaVersion.VERSION_17
 
@@ -86,23 +85,19 @@ tasks.withType(JavaCompile).configureEach { JavaCompile task ->
             task.options.fork = true
             task.options.forkOptions.javaHome = project.file(jdk17HomePath)
 
-            // Reconstruct compiler arguments
-            List<String> existingArgs = task.options.compilerArgs.collect { it.toString() }
-            List<String> finalCompilerArgs = []
-            existingArgs.each { arg ->
+            // Initial compiler args (will be further modified by ErrorProne plugin, then we clean up)
+            List<String> baseCompilerArgs = []
+            task.options.compilerArgs.each { arg -> // Keep existing Beam defaults if they don't conflict
                 if (arg.startsWith('-Xlint') || arg == '-parameters' || arg == '-Werror' || arg.startsWith("-XD")) {
-                    finalCompilerArgs.add(arg)
+                    baseCompilerArgs.add(arg.toString())
                 }
             }
-            finalCompilerArgs.add('--release')
-            finalCompilerArgs.add('17')
-            task.options.compilerArgs = finalCompilerArgs
-            logger.lifecycle("[BUILD_GRADLE] Debezium IO: ${task.path} compilerArgs RECONSTRUCTED to: ${task.options.compilerArgs.join(' ')}")
+            baseCompilerArgs.add('--release')
+            baseCompilerArgs.add('17')
+            task.options.compilerArgs = baseCompilerArgs // Set our base Java 17 args
 
-            // ** Directly define and add ErrorProne JVM args for Java 17 **
-            // This is necessary because BeamModulePlugin.groovy doesn't expose its internal list easily.
+            // Configure JVM args for ErrorProne (for the forked JVM)
             if (project.plugins.hasPlugin('net.ltgt.errorprone')) {
-                // This list is effectively a copy of what's in BeamModulePlugin.groovy's errorProneAddModuleOpts
                 def errorProneAddModuleOptsForJava17 = [
                     "--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
                     "--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
@@ -115,18 +110,54 @@ tasks.withType(JavaCompile).configureEach { JavaCompile task ->
                     "--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
                     "--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED"
                 ]
-                
                 List<String> currentJvmArgs = task.options.forkOptions.getJvmArgs() ?: []
-                List<String> newErrorProneJvmArgs = errorProneAddModuleOptsForJava17.collect { '-J' + it }
-
-                newErrorProneJvmArgs.each { argToAdd ->
-                    if (!currentJvmArgs.contains(argToAdd)) {
-                        currentJvmArgs.add(argToAdd)
-                    }
+                errorProneAddModuleOptsForJava17.collect { '-J' + it }.each { argToAdd ->
+                    if (!currentJvmArgs.contains(argToAdd)) { currentJvmArgs.add(argToAdd) }
                 }
                 task.options.forkOptions.setJvmArgs(currentJvmArgs)
-                logger.lifecycle("[BUILD_GRADLE] Debezium IO: ${task.path} - Applied direct ErrorProne JVM args: ${task.options.forkOptions.jvmArgs.join(' ')}")
+                logger.lifecycle("[BUILD_GRADLE] Debezium IO: ${task.path} - Updated forkOptions.jvmArgs for ErrorProne: ${task.options.forkOptions.jvmArgs.join(' ')}")
+            }
 
+            // After everything (including ErrorProne plugin) has configured the task,
+            // ensure --add-exports are not in compilerArgs for --release.
+            // This needs to happen late in the configuration.
+            task.doFirst { // Or use project.afterEvaluate if doFirst is too late for some checks
+                List<String> finalArgs = []
+                boolean skipNext = false
+                for (String arg : task.options.compilerArgs) {
+                    if (skipNext) {
+                        skipNext = false
+                        continue
+                    }
+                    if (arg.startsWith("--add-exports=") || arg.startsWith("--add-opens=")) {
+                        // Skip these if they are direct compiler args
+                        logger.lifecycle("[BUILD_GRADLE] Debezium IO: ${task.path} - Removing direct ${arg} from compilerArgs due to --release.")
+                        continue
+                    }
+                    // Also handle cases where --add-exports might be two arguments
+                    if (arg == "--add-exports" || arg == "--add-opens") {
+                        logger.lifecycle("[BUILD_GRADLE] Debezium IO: ${task.path} - Removing split ${arg} and its value from compilerArgs due to --release.")
+                        skipNext = true
+                        continue
+                    }
+                    finalArgs.add(arg)
+                }
+                // Ensure --release 17 is still there and correctly placed if it was removed.
+                if (!finalArgs.contains('--release')) {
+                    finalArgs.add('--release')
+                    finalArgs.add('17')
+                } else {
+                    int releaseIdx = finalArgs.indexOf('--release')
+                    if (releaseIdx + 1 >= finalArgs.size() || finalArgs.get(releaseIdx + 1) != '17') {
+                        if (releaseIdx + 1 < finalArgs.size()) finalArgs.removeAt(releaseIdx + 1) // remove wrong value
+                        finalArgs.removeAt(releaseIdx) // remove --release
+                        finalArgs.add('--release')
+                        finalArgs.add('17')
+                    }
+                }
+                task.options.compilerArgs = finalArgs
+                logger.lifecycle("[BUILD_GRADLE] Debezium IO: ${task.path} - Final compilerArgs before execution: ${task.options.compilerArgs.join(' ')}")
+                    
             } else {
                  logger.warn("[BUILD_GRADLE] Debezium IO: ${task.path} - ErrorProne plugin not detected. Skipping ErrorProne JVM args specific setup.")
             }
