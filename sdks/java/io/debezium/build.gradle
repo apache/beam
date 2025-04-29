@@ -76,14 +76,9 @@ test {
 sourceCompatibility = JavaVersion.VERSION_17
 targetCompatibility = JavaVersion.VERSION_17
 
-
-// Configure the compileJava and compileTestJava tasks directly to use JDK17
-tasks.withType(JavaCompile).configureEach { JavaCompile task -> // Add type for task
-    // Only configure for the current project's main and test compile tasks
+tasks.withType(JavaCompile).configureEach { JavaCompile task ->
     if (task.project == project && (task.name == 'compileJava' || task.name == 'compileTestJava')) {
         logger.lifecycle("[BUILD_GRADLE] Debezium IO: Attempting to configure ${task.path} for Java 17.")
-
-        // Read the JDK 17 home path from the environment variable (passed as -Pjava17Home from CI)
         String jdk17HomePath = project.findProperty("java17Home")?.toString()?.trim()
 
         if (jdk17HomePath != null && !jdk17HomePath.isEmpty() && project.file(jdk17HomePath).isDirectory()) {
@@ -91,36 +86,38 @@ tasks.withType(JavaCompile).configureEach { JavaCompile task -> // Add type for 
             task.options.fork = true
             task.options.forkOptions.javaHome = project.file(jdk17HomePath)
 
-            // Reconstruct compiler arguments to ensure Java 17 mode and remove conflicting old flags
+            // Reconstruct compiler arguments
             List<String> existingArgs = task.options.compilerArgs.collect { it.toString() }
             List<String> finalCompilerArgs = []
-
-            // Keep standard linting, parameters, Werror, and other potentially useful Beam default args
             existingArgs.each { arg ->
-                if (arg.startsWith('-Xlint') || arg == '-parameters' || arg == '-Werror' || arg.startsWith("-XD")) { // Keep -XD args like -XDoptimizeOuterThis
+                if (arg.startsWith('-Xlint') || arg == '-parameters' || arg == '-Werror' || arg.startsWith("-XD")) {
                     finalCompilerArgs.add(arg)
                 }
             }
-
-            // Add Java 17 release flag
             finalCompilerArgs.add('--release')
             finalCompilerArgs.add('17')
-
             task.options.compilerArgs = finalCompilerArgs
             logger.lifecycle("[BUILD_GRADLE] Debezium IO: ${task.path} compilerArgs RECONSTRUCTED to: ${task.options.compilerArgs.join(' ')}")
 
-            // Check if the errorprone plugin is effectively active for this project/task
-            // and if the centrally defined options exist.
-            if (project.plugins.hasPlugin('net.ltgt.errorprone') && project.rootProject.ext.has('errorProneAddModuleOpts')) {
-                def errorProneAddModuleOpts = project.rootProject.ext.errorProneAddModuleOpts
+            // ** Directly define and add ErrorProne JVM args for Java 17 **
+            // This is necessary because BeamModulePlugin.groovy doesn't expose its internal list easily.
+            if (project.plugins.hasPlugin('net.ltgt.errorprone')) {
+                // This list is effectively a copy of what's in BeamModulePlugin.groovy's errorProneAddModuleOpts
+                def errorProneAddModuleOptsForJava17 = [
+                    "--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
+                    "--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
+                    "--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
+                    "--add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED",
+                    "--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED",
+                    "--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED",
+                    "--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
+                    "--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED",
+                    "--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
+                    "--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED"
+                ]
                 
-                // Ensure jvmArgs is initialized if null
-                List<String> currentJvmArgs = task.options.forkOptions.getJvmArgs()
-                if (currentJvmArgs == null) {
-                    currentJvmArgs = []
-                }
-
-                List<String> newErrorProneJvmArgs = errorProneAddModuleOpts.collect { '-J' + it }
+                List<String> currentJvmArgs = task.options.forkOptions.getJvmArgs() ?: []
+                List<String> newErrorProneJvmArgs = errorProneAddModuleOptsForJava17.collect { '-J' + it }
 
                 newErrorProneJvmArgs.each { argToAdd ->
                     if (!currentJvmArgs.contains(argToAdd)) {
@@ -128,20 +125,15 @@ tasks.withType(JavaCompile).configureEach { JavaCompile task -> // Add type for 
                     }
                 }
                 task.options.forkOptions.setJvmArgs(currentJvmArgs)
-                logger.lifecycle("[BUILD_GRADLE] Debezium IO: ${task.path} - Updated forkOptions.jvmArgs for ErrorProne: ${task.options.forkOptions.jvmArgs.join(' ')}")
+                logger.lifecycle("[BUILD_GRADLE] Debezium IO: ${task.path} - Applied direct ErrorProne JVM args: ${task.options.forkOptions.jvmArgs.join(' ')}")
 
             } else {
-                if (!project.plugins.hasPlugin('net.ltgt.errorprone')) {
-                    logger.warn("[BUILD_GRADLE] Debezium IO: ${task.path} - ErrorProne plugin ('net.ltgt.errorprone') not detected on project. Skipping ErrorProne JVM args.")
-                }
-                if (!project.rootProject.ext.has('errorProneAddModuleOpts')) {
-                    logger.warn("[BUILD_GRADLE] Debezium IO: ${task.path} - rootProject.ext.errorProneAddModuleOpts missing. Skipping ErrorProne JVM args.")
-                }
+                 logger.warn("[BUILD_GRADLE] Debezium IO: ${task.path} - ErrorProne plugin not detected. Skipping ErrorProne JVM args specific setup.")
             }
-                
         } else {
-            logger.warn("[BUILD_GRADLE] Debezium IO: Project property 'java17Home' not found, empty, or not a valid directory. Value: '${jdk17HomePath ?: 'null'}'. ${task.path} will attempt to use default JDK with --release 17.")
-            // Fallback: attempt to use default JDK but still try to set --release 17.
+            logger.warn("[BUILD_GRADLE] Debezium IO: Project property 'java17Home' not found, empty, " +
+                "or not a valid directory. Value: '${jdk17HomePath ?: 'null'}'. " +
+                "${task.path} will attempt to use default JDK with --release 17.")
             List<String> existingArgs = task.options.compilerArgs.collect { it.toString() }
             List<String> finalCompilerArgs = []
             existingArgs.each { arg ->
