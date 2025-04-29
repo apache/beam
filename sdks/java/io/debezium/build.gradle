@@ -151,58 +151,47 @@ tasks.withType(JavaCompile).configureEach { JavaCompile task ->
             }
 
             // Step 3: Use doFirst to clean up compilerArgs (arguments for javac itself)
-            // This runs AFTER other plugins (like ErrorProne) have had a chance to modify compilerArgs.
             task.doFirst {
-                logger.lifecycle("[BUILD_GRADLE] Debezium IO: ${task.path} - In doFirst. Initial compilerArgs from task.options: ${task.options.compilerArgs.join(' ')}")
-                
-                // Start with a completely clean list, only adding what we know is safe and necessary
-                List<String> strictlyFinalCompilerArgs = []
-                boolean foundRelease17 = false
+                logger.lifecycle("[BUILD_GRADLE] Debezium IO: ${task.path} - In doFirst. Current compilerArgs from task.options: ${task.options.compilerArgs.join(' ')}")
+                List<String> currentCompilerArgs = task.options.compilerArgs.collect{ it.toString() } // Make a mutable copy
+                List<String> cleanedCompilerArgs = []
+                boolean skipNextInDoFirst = false
 
-                // Preserve known-good Beam arguments, but NOT module system related ones
-                task.options.compilerArgs.each { currentArg ->
-                    if (currentArg.startsWith('-Xlint') || currentArg == '-parameters' || currentArg == '-Werror' || currentArg.startsWith("-XD")) {
-                        strictlyFinalCompilerArgs.add(currentArg)
+                for (String currentArg : currentCompilerArgs) {
+                    if (skipNextInDoFirst) {
+                        skipNextInDoFirst = false; continue;
                     }
-                    // Check if --release 17 was already correctly set
-                    if (currentArg == '--release') {
-                        // peek next, assume it's the value
-                    } else if (strictlyFinalCompilerArgs.lastOrNull() == '--release' && currentArg == '17') {
-                        foundRelease17 = true
+                    // Remove any direct module access flags (without -J) as --release dislikes them
+                    if (currentArg.startsWith("--add-exports=") || currentArg.startsWith("--add-opens=")) {
+                        logger.lifecycle("[BUILD_GRADLE] Debezium IO: ${task.path} - Removing direct ${currentArg} from compilerArgs in doFirst.")
+                        continue;
                     }
-                }
-                
-                // Remove any stray --add-exports or --add-opens just in case
-                strictlyFinalCompilerArgs.removeAll { it.startsWith("--add-exports=") || it.startsWith("--add-opens=") }
-                // And the two-part versions
-                for (int i = strictlyFinalCompilerArgs.size() - 1; i >= 0; i--) {
-                    if (strictlyFinalCompilerArgs.get(i) == "--add-exports" || strictlyFinalCompilerArgs.get(i) == "--add-opens") {
-                        if (i + 1 < strictlyFinalCompilerArgs.size()) {
-                            strictlyFinalCompilerArgs.removeAt(i + 1) // remove value
-                        }
-                        strictlyFinalCompilerArgs.removeAt(i) // remove flag
+                    if (currentArg == "--add-exports" || currentArg == "--add-opens") {
+                        logger.lifecycle("[BUILD_GRADLE] Debezium IO: ${task.path} - Removing split ${currentArg} and its value from compilerArgs in doFirst.")
+                        skipNextInDoFirst = true; continue;
                     }
+                    cleanedCompilerArgs.add(currentArg)
                 }
 
-
-                // Ensure --release 17 is the only versioning flag and is present
-                // Remove any other -source, -target, or --release flags first
-                List<String> tempArgs = []
+                // Ensure --release 17 is the definitive versioning flag.
+                // Remove any other -source, -target, or other --release flags first.
+                List<String> tempArgsForReleaseCheck = []
                 boolean skipNextForRelease = false
-                for (String arg : strictlyFinalCompilerArgs) {
+                for (String arg : cleanedCompilerArgs) {
                     if (skipNextForRelease) { skipNextForRelease = false; continue; }
                     if (arg == '--release' || arg == '-source' || arg == '-target') {
-                        skipNextForRelease = true; continue;
+                        skipNextForRelease = true; continue; // Remove the flag and its value
                     }
-                    tempArgs.add(arg)
+                    tempArgsForReleaseCheck.add(arg)
                 }
-                strictlyFinalCompilerArgs = tempArgs
-                strictlyFinalCompilerArgs.add('--release')
-                strictlyFinalCompilerArgs.add('17')
+                cleanedCompilerArgs = tempArgsForReleaseCheck
+                cleanedCompilerArgs.add('--release')
+                cleanedCompilerArgs.add('17')
 
-                task.options.compilerArgs = strictlyFinalCompilerArgs
+                task.options.compilerArgs = cleanedCompilerArgs
                 logger.lifecycle("[BUILD_GRADLE] Debezium IO: ${task.path} - Final compilerArgs set in doFirst: ${task.options.compilerArgs.join(' ')}")
             }
+
         } else {
             // Fallback if java17Home is not found
             logger.warn("[BUILD_GRADLE] Debezium IO: Project property 'java17Home' not found, empty, " +
