@@ -109,24 +109,34 @@ tasks.withType(JavaCompile).configureEach { JavaCompile task -> // Add type for 
             task.options.compilerArgs = finalCompilerArgs
             logger.lifecycle("[BUILD_GRADLE] Debezium IO: ${task.path} compilerArgs RECONSTRUCTED to: ${task.options.compilerArgs.join(' ')}")
 
-            // Handle ErrorProne specific arguments for Java 17
-            // Check if the errorprone plugin is applied to this task's project
+            // Check if the errorprone plugin is effectively active for this project/task
+            // and if the centrally defined options exist.
             if (project.plugins.hasPlugin('net.ltgt.errorprone') && project.rootProject.ext.has('errorProneAddModuleOpts')) {
                 def errorProneAddModuleOpts = project.rootProject.ext.errorProneAddModuleOpts
-                List<String> currentJvmArgs = task.options.forkOptions.getJvmArgs() ?: [] // Get existing or empty list
+                
+                // Ensure jvmArgs is initialized if null
+                List<String> currentJvmArgs = task.options.forkOptions.getJvmArgs()
+                if (currentJvmArgs == null) {
+                    currentJvmArgs = []
+                }
+
                 List<String> newErrorProneJvmArgs = errorProneAddModuleOpts.collect { '-J' + it }
 
-                // Avoid adding duplicates if this block somehow runs multiple times (unlikely here)
-                newErrorProneJvmArgs.each { arg ->
-                    if (!currentJvmArgs.contains(arg)) {
-                        currentJvmArgs.add(arg)
+                newErrorProneJvmArgs.each { argToAdd ->
+                    if (!currentJvmArgs.contains(argToAdd)) {
+                        currentJvmArgs.add(argToAdd)
                     }
                 }
-                task.options.forkOptions.setJvmArgs(currentJvmArgs) // Use the setter
-                logger.lifecycle("[BUILD_GRADLE] Debezium IO: ${task.path} - Updated ErrorProne JVM args for forked Java 17 compiler: ${task.options.forkOptions.jvmArgs.join(' ')}")
+                task.options.forkOptions.setJvmArgs(currentJvmArgs)
+                logger.lifecycle("[BUILD_GRADLE] Debezium IO: ${task.path} - Updated forkOptions.jvmArgs for ErrorProne: ${task.options.forkOptions.jvmArgs.join(' ')}")
 
             } else {
-                logger.lifecycle("[BUILD_GRADLE] Debezium IO: ${task.path} - ErrorProne plugin not detected or rootProject.ext.errorProneAddModuleOpts missing. Skipping ErrorProne JVM args.")
+                if (!project.plugins.hasPlugin('net.ltgt.errorprone')) {
+                    logger.warn("[BUILD_GRADLE] Debezium IO: ${task.path} - ErrorProne plugin ('net.ltgt.errorprone') not detected on project. Skipping ErrorProne JVM args.")
+                }
+                if (!project.rootProject.ext.has('errorProneAddModuleOpts')) {
+                    logger.warn("[BUILD_GRADLE] Debezium IO: ${task.path} - rootProject.ext.errorProneAddModuleOpts missing. Skipping ErrorProne JVM args.")
+                }
             }
                 
         } else {
