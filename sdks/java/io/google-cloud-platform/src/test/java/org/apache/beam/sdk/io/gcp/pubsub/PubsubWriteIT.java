@@ -126,7 +126,8 @@ public class PubsubWriteIT {
     byte[] payload = new byte[] {-16, -97, -89, -86}; // U+1F9EA
 
     Map<String, PubsubMessage> outgoingMessages = new HashMap<>();
-    outgoingMessages.put("0", new PubsubMessage(payload, ImmutableMap.of("id", "0")));
+    outgoingMessages.put(
+        "0", new PubsubMessage(payload, ImmutableMap.of("id", "0")).withOrderingKey(""));
     outgoingMessages.put(
         "1", new PubsubMessage(payload, ImmutableMap.of("id", "1")).withOrderingKey("12"));
     outgoingMessages.put(
