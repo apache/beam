@@ -113,27 +113,28 @@ tasks.withType(JavaCompile).configureEach { JavaCompile task ->
                     "--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED"
                 ]
                 
-                // Start with only -J prefixed arguments for ErrorProne.
-                // Discard any existing jvmArgs that might have non-J prefixed module options.
-                List<String> newJvmArgs = []
-                // If there are other legitimate JVM args you need to preserve, filter them here.
-                // For now, assuming only ErrorProne args are critical for this forked JVM.
-                // (task.options.forkOptions.getJvmArgs() ?: []).each { existingJvmArg ->
-                //    if (!existingJvmArg.contains("jdk.compiler")) { // Example filter
-                //        newJvmArgs.add(existingJvmArg)
-                //    }
-                // }
-
-                errorProneAddModuleOptsForJava17.collect { '-J' + it }.each { argToAdd ->
-                    if (!newJvmArgs.contains(argToAdd)) { newJvmArgs.add(argToAdd) }
+                // Get existing JVM args, but filter out any problematic jdk.compiler args without -J
+                List<String> existingJvmArgs = task.options.forkOptions.getJvmArgs() ?: []
+                List<String> cleanJvmArgs = []
+                existingJvmArgs.each { ejArg ->
+                    if (!ejArg.contains("jdk.compiler")) { // Keep other unrelated JVM args
+                        cleanJvmArgs.add(ejArg)
+                    }
                 }
-                task.options.forkOptions.setJvmArgs(newJvmArgs) // Use the cleaned and J-prefixed list
-                logger.lifecycle("[BUILD_GRADLE] Debezium IO: ${task.path} - Set pristine forkOptions.jvmArgs for ErrorProne: ${task.options.forkOptions.jvmArgs.join(' ')}")
+                
+                // Add ONLY the -J prefixed versions for ErrorProne
+                errorProneAddModuleOptsForJava17.collect { '-J' + it }.each { argToAdd ->
+                    if (!cleanJvmArgs.contains(argToAdd)) { 
+                        cleanJvmArgs.add(argToAdd) 
+                    }
+                }
+                task.options.forkOptions.setJvmArgs(cleanJvmArgs) // Use the cleaned and J-prefixed list
+                logger.lifecycle("[BUILD_GRADLE] Debezium IO: ${task.path} - Set STRICT forkOptions.jvmArgs for ErrorProne: ${task.options.forkOptions.jvmArgs.join(' ')}")
             } else {
-                 logger.warn("[BUILD_GRADLE] Debezium IO: ${task.path} - ErrorProne plugin not detected. Skipping ErrorProne JVM args.")
+                 logger.warn("[BUILD_GRADLE] Debezium IO: ${task.path} - ErrorProne plugin not detected. Skipping ErrorProne JVM args specific setup.")
             }
 
-            // Step 3: Use doFirst to aggressively clean up compilerArgs (arguments for javac itself)
+            // Step 3: Use doFirst to clean up compilerArgs (arguments for javac itself)
             task.doFirst {
                 logger.lifecycle("[BUILD_GRADLE] Debezium IO: ${task.path} - In doFirst. Current compilerArgs from task.options: ${task.options.compilerArgs.join(' ')}")
                 List<String> cleanedCompilerArgs = []
@@ -151,17 +152,30 @@ tasks.withType(JavaCompile).configureEach { JavaCompile task ->
                     cleanedCompilerArgs.add(currentArg)
                 }
 
-                // Ensure --release 17 is the effective release flag
-                List<String> tempArgsForReleaseCheck = []
-                boolean skipRelease = false
-                for (String arg : cleanedCompilerArgs) {
-                    if (skipRelease) { skipRelease = false; continue; }
-                    if (arg == '--release' || arg == '-source' || arg == '-target') { skipRelease = true; continue; }
-                    tempArgsForReleaseCheck.add(arg)
+                boolean releaseFlagPresent = false
+                boolean correctReleaseValue = false
+                for(int i=0; i < cleanedCompilerArgs.size(); i++) {
+                    if(cleanedCompilerArgs.get(i) == '--release') {
+                        releaseFlagPresent = true
+                        if (i + 1 < cleanedCompilerArgs.size() && cleanedCompilerArgs.get(i + 1) == '17') {
+                            correctReleaseValue = true
+                        }
+                        break 
+                    }
                 }
-                cleanedCompilerArgs = tempArgsForReleaseCheck
-                cleanedCompilerArgs.add('--release')
-                cleanedCompilerArgs.add('17')
+                if (!releaseFlagPresent || !correctReleaseValue) {
+                    logger.warn("[BUILD_GRADLE] Debezium IO: ${task.path} - Ensuring --release 17. Was present: ${releaseFlagPresent}, Was correct: ${correctReleaseValue}. Re-adding/Correcting.")
+                    List<String> tempArgs = []
+                    boolean skipRelease = false
+                    for (String arg : cleanedCompilerArgs) {
+                        if (skipRelease) { skipRelease = false; continue; }
+                        if (arg == '--release') { skipRelease = true; continue; }
+                        tempArgs.add(arg)
+                    }
+                    cleanedCompilerArgs = tempArgs
+                    cleanedCompilerArgs.add('--release')
+                    cleanedCompilerArgs.add('17')
+                }
 
                 task.options.compilerArgs = cleanedCompilerArgs
                 logger.lifecycle("[BUILD_GRADLE] Debezium IO: ${task.path} - Final compilerArgs set in doFirst: ${task.options.compilerArgs.join(' ')}")
