@@ -28,6 +28,7 @@ import java.util.NoSuchElementException;
 import java.util.Queue;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.FileScanTask;
@@ -58,6 +59,7 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
 
   private final ScanTaskSource source;
   private final org.apache.iceberg.Schema project;
+  private final Schema beamSchema;
 
   transient @Nullable FileIO io;
   transient @Nullable InputFilesDecryptor decryptor;
@@ -68,6 +70,7 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
   public ScanTaskReader(ScanTaskSource source) {
     this.source = source;
     this.project = source.getSchema();
+    this.beamSchema = icebergSchemaToBeamSchema(source.getSchema());
   }
 
   @Override
@@ -192,8 +195,7 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
     if (current == null) {
       throw new NoSuchElementException();
     }
-    return icebergRecordToBeamRow(
-        icebergSchemaToBeamSchema(source.getSchema()), checkStateNotNull(current));
+    return icebergRecordToBeamRow(beamSchema, current);
   }
 
   @Override
