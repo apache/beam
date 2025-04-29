@@ -125,15 +125,29 @@ public class PubsubWriteIT {
 
     byte[] payload = new byte[] {-16, -97, -89, -86}; // U+1F9EA
 
+    // Messages with and without ordering keys can be mixed together in a collection. The writer
+    // ensures that a publish request only sends message batches with the same ordering key,
+    // otherwise the Pub/Sub service will reject the request.
+    // Outgoing messages may specify either null or empty string to represent messages without
+    // ordering keys, but Protobuf treats strings as primitives so we explicitly use empty string in
+    // this test for the round trip assertion.
     Map<String, PubsubMessage> outgoingMessages = new HashMap<>();
     outgoingMessages.put(
-        "0", new PubsubMessage(payload, ImmutableMap.of("id", "0")).withOrderingKey(""));
+        "0",
+        new PubsubMessage(payload, ImmutableMap.of("id", "0"))
+            .withOrderingKey("")); // No ordering key
     outgoingMessages.put(
-        "1", new PubsubMessage(payload, ImmutableMap.of("id", "1")).withOrderingKey("12"));
+        "1",
+        new PubsubMessage(payload, ImmutableMap.of("id", "1"))
+            .withOrderingKey("12")); // Repeated ordering key
     outgoingMessages.put(
-        "2", new PubsubMessage(payload, ImmutableMap.of("id", "2")).withOrderingKey("12"));
+        "2",
+        new PubsubMessage(payload, ImmutableMap.of("id", "2"))
+            .withOrderingKey("12")); // Repeated ordering key
     outgoingMessages.put(
-        "3", new PubsubMessage(payload, ImmutableMap.of("id", "3")).withOrderingKey("3"));
+        "3",
+        new PubsubMessage(payload, ImmutableMap.of("id", "3"))
+            .withOrderingKey("3")); // Distinct ordering key
 
     pipeline
         .apply(
