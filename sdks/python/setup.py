@@ -422,6 +422,8 @@ if __name__ == '__main__':
               'cryptography>=41.0.2',
               'hypothesis>5.0.0,<7.0.0',
               'virtualenv-clone>=0.5,<1.0',
+              'mysql-connector-python>=9.3.0',
+              'pymssql>=2.3.4'
           ],
           'gcp': [
               'cachetools>=3.1.0,<6',
