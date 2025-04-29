@@ -322,6 +322,8 @@ public final class PaneInfo {
 
   /** A Coder for encoding PaneInfo instances. */
   public static class PaneInfoCoder extends AtomicCoder<PaneInfo> {
+    private static byte ELEMENT_METADATA_MASK = (byte) 0x80;
+
     private enum Encoding {
       FIRST,
       ONE_INDEX,
@@ -364,16 +366,17 @@ public final class PaneInfo {
     public void encode(PaneInfo value, final OutputStream outStream)
         throws CoderException, IOException {
       Encoding encoding = chooseEncoding(value);
+      byte elementMetadata = value.containsElementMetadata ? ELEMENT_METADATA_MASK : 0x00;
       switch (chooseEncoding(value)) {
         case FIRST:
-          outStream.write(value.encodedByte);
+          outStream.write(value.encodedByte | elementMetadata);
           break;
         case ONE_INDEX:
-          outStream.write(value.encodedByte | encoding.tag);
+          outStream.write(value.encodedByte | encoding.tag | elementMetadata);
           VarInt.encode(value.index, outStream);
           break;
         case TWO_INDICES:
-          outStream.write(value.encodedByte | encoding.tag);
+          outStream.write(value.encodedByte | encoding.tag | elementMetadata);
           VarInt.encode(value.index, outStream);
           VarInt.encode(value.nonSpeculativeIndex, outStream);
           break;
@@ -387,10 +390,10 @@ public final class PaneInfo {
       byte keyAndTag = (byte) inStream.read();
       PaneInfo base = Preconditions.checkNotNull(BYTE_TO_PANE_INFO.get((byte) (keyAndTag & 0x0F)));
       long index, onTimeIndex;
-      boolean elementMetadata = (keyAndTag & 0x80) > 0;
-      switch (Encoding.fromTag((byte) (keyAndTag & 0x7F))) {
+      boolean elementMetadata = (keyAndTag & ELEMENT_METADATA_MASK) != 0;
+      switch (Encoding.fromTag((byte) (keyAndTag & ~ELEMENT_METADATA_MASK))) {
         case FIRST:
-          return base;
+          return base.withElementMetadata(elementMetadata);
         case ONE_INDEX:
           index = VarInt.decodeLong(inStream);
           onTimeIndex = base.timing == Timing.EARLY ? -1 : index;
