@@ -35,14 +35,20 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.runners.runner import PipelineResult
 
+
 class CountEvents(beam.PTransform):
+
   def expand(self, events):
-    return (events
-            | beam.WindowInto(FixedWindows(5),
-                              trigger=AfterWatermark(),
-                              accumulation_mode=AccumulationMode.DISCARDING,
-                              allowed_lateness=Duration(seconds=0))
-            | beam.CombineGlobally(beam.combiners.CountCombineFn()).without_defaults())          
+    return (
+        events
+        | beam.WindowInto(
+            FixedWindows(5),
+            trigger=AfterWatermark(),
+            accumulation_mode=AccumulationMode.DISCARDING,
+            allowed_lateness=Duration(seconds=0))
+        | beam.CombineGlobally(
+            beam.combiners.CountCombineFn()).without_defaults())
+
 
 def run(argv=None, save_main_session=True) -> PipelineResult:
   """Main entry point; defines and runs the wordcount pipeline."""
@@ -56,80 +62,82 @@ def run(argv=None, save_main_session=True) -> PipelineResult:
 
   p = beam.Pipeline(options=pipeline_options)
 
-  output = (p | GenerateEvent.sample_data()
-     #| 'Count' >> CountEvents()
-     #| 'Serialize' >> beam.Map(json.dumps)   
-     #| beam.LogElements(prefix='before write ', with_window=False, with_timestamp=True,level=logging.INFO)  
-     )
+  output = (
+      p | GenerateEvent.sample_data()
+      #| 'Count' >> CountEvents()
+      #| 'Serialize' >> beam.Map(json.dumps)
+      #| beam.LogElements(prefix='before write ', with_window=False, with_timestamp=True,level=logging.INFO)
+  )
   #TextIO
   output2 = output | 'TextIO WriteToText' >> beam.io.WriteToText(
       file_path_prefix="__output__/ouput_WriteToText",
       file_name_suffix=".txt",
       #shard_name_template='-V-SSSSS-of-NNNNN',
-      num_shards=2,
-      #triggering_frequency=5,
-    ) 
-  output2 | 'LogElements after WriteToText' >> LogElements(prefix='after WriteToText ', with_window=True,level=logging.INFO) 
-  
+      num_shards=2,  #triggering_frequency=5,
+  )
+  output2 | 'LogElements after WriteToText' >> LogElements(
+      prefix='after WriteToText ', with_window=True, level=logging.INFO)
+
   #FileIO
-  output5 = ( output 
-    | 'FileIO window' >> beam.WindowInto(FixedWindows(5),
-                              trigger=AfterWatermark(),
-                              accumulation_mode=AccumulationMode.DISCARDING,
-                              allowed_lateness=Duration(seconds=0))
-    | 'Serialize' >> beam.Map(json.dumps) 
-    | 'FileIO WriteToFiles' >> WriteToFiles(path="__output__/output_WriteToFiles")  
-  )
-  
-  
+  output5 = (
+      output
+      | 'FileIO window' >> beam.WindowInto(
+          FixedWindows(5),
+          trigger=AfterWatermark(),
+          accumulation_mode=AccumulationMode.DISCARDING,
+          allowed_lateness=Duration(seconds=0))
+      | 'Serialize' >> beam.Map(json.dumps)
+      | 'FileIO WriteToFiles' >>
+      WriteToFiles(path="__output__/output_WriteToFiles"))
+
   #ParquetIO
-  pyschema = pyarrow.schema(
-                  [('age', pyarrow.int64())]
-              )
-  
+  pyschema = pyarrow.schema([('age', pyarrow.int64())])
+
   output4a = output | 'WriteToParquet' >> beam.io.WriteToParquet(
-        file_path_prefix="__output__/output_parquet",
-        #shard_name_template='-V-SSSSS-of-NNNNN',
-        file_name_suffix=".parquet" ,
-        num_shards=2,
-        triggering_frequency=5,
-        schema=pyschema 
-  )
-  output4a | 'LogElements after WriteToParquet' >> LogElements(prefix='after WriteToParquet 4a ', with_window=True,level=logging.INFO) 
-  
-  output4aw = ( output 
-      | 'ParquetIO window' >> beam.WindowInto(FixedWindows(20),
+      file_path_prefix="__output__/output_parquet",
+      #shard_name_template='-V-SSSSS-of-NNNNN',
+      file_name_suffix=".parquet",
+      num_shards=2,
+      triggering_frequency=5,
+      schema=pyschema)
+  output4a | 'LogElements after WriteToParquet' >> LogElements(
+      prefix='after WriteToParquet 4a ', with_window=True, level=logging.INFO)
+
+  output4aw = (
+      output
+      | 'ParquetIO window' >> beam.WindowInto(
+          FixedWindows(20),
           trigger=AfterWatermark(),
           accumulation_mode=AccumulationMode.DISCARDING,
           allowed_lateness=Duration(seconds=0))
       | 'WriteToParquet windowed' >> beam.io.WriteToParquet(
           file_path_prefix="__output__/output_parquet",
           shard_name_template='-W-SSSSS-of-NNNNN',
-          file_name_suffix=".parquet" ,
+          file_name_suffix=".parquet",
           num_shards=2,
-          schema=pyschema 
-      )
-  )
-  output4aw | 'LogElements after WriteToParquet windowed' >> LogElements(prefix='after WriteToParquet 4aw ', with_window=True,level=logging.INFO) 
-  
+          schema=pyschema))
+  output4aw | 'LogElements after WriteToParquet windowed' >> LogElements(
+      prefix='after WriteToParquet 4aw ', with_window=True, level=logging.INFO)
 
-  output4b = (output 
-    | 'To PyArrow Table' >> beam.Map(lambda x: pyarrow.Table.from_pylist([x], schema=pyschema))
-    | 'WriteToParquetBatched to parquet' >> beam.io.WriteToParquetBatched(
+  output4b = (
+      output
+      | 'To PyArrow Table' >>
+      beam.Map(lambda x: pyarrow.Table.from_pylist([x], schema=pyschema))
+      | 'WriteToParquetBatched to parquet' >> beam.io.WriteToParquetBatched(
           file_path_prefix="__output__/output_parquet_batched",
           shard_name_template='-V-SSSSS-of-NNNNN',
-          file_name_suffix=".parquet" ,
+          file_name_suffix=".parquet",
           num_shards=2,
           triggering_frequency=5,
-          schema=pyschema 
-    )
-  )
-  output4b | 'LogElements after WriteToParquetBatched' >> LogElements(prefix='after WriteToParquetBatched 4b ', with_window=True,level=logging.INFO)     
-
+          schema=pyschema))
+  output4b | 'LogElements after WriteToParquetBatched' >> LogElements(
+      prefix='after WriteToParquetBatched 4b ',
+      with_window=True,
+      level=logging.INFO)
 
   #AvroIO
   avroschema = {
-      #'doc': 'A dummy avro file', # a short description 
+      #'doc': 'A dummy avro file', # a short description
       'name': 'dummy', # your supposed to be file name with .avro extension 
       'type': 'record', # type of avro serilazation, there are more (see above docs) but as per me this will do most of the time
       'fields': [ # this defines actual keys & their types
@@ -137,33 +145,33 @@ def run(argv=None, save_main_session=True) -> PipelineResult:
       ],
     }
   output5 = output | 'WriteToAvro' >> beam.io.WriteToAvro(
-        file_path_prefix="__output__/output_avro",
-        #shard_name_template='-V-SSSSS-of-NNNNN',
-        file_name_suffix=".avro" ,
-        num_shards=2,
-        #triggering_frequency=5,
-        schema=avroschema 
-  )
-  output5 | 'LogElements after WriteToAvro' >> LogElements(prefix='after WriteToAvro 5 ', with_window=True,level=logging.INFO) 
-  
+      file_path_prefix="__output__/output_avro",
+      #shard_name_template='-V-SSSSS-of-NNNNN',
+      file_name_suffix=".avro",
+      num_shards=2,
+      #triggering_frequency=5,
+      schema=avroschema)
+  output5 | 'LogElements after WriteToAvro' >> LogElements(
+      prefix='after WriteToAvro 5 ', with_window=True, level=logging.INFO)
+
   #TFrecordIO
-  output6 = (output 
-   | "encode" >> beam.Map(lambda s: json.dumps(s).encode('utf-8')) 
-   | 'WriteToTFRecord' >> beam.io.WriteToTFRecord(
-       file_path_prefix="__output__/output_tfrecord",
-       #shard_name_template='-V-SSSSS-of-NNNNN',
-       file_name_suffix=".tfrecord" ,
-       num_shards=2,
-       triggering_frequency=5
-   )
-  )
-  output6 | 'LogElements after WriteToTFRecord' >> LogElements(prefix='after WriteToTFRecord 6 ', with_window=True,level=logging.INFO) 
-  
-  
+  output6 = (
+      output
+      | "encode" >> beam.Map(lambda s: json.dumps(s).encode('utf-8'))
+      | 'WriteToTFRecord' >> beam.io.WriteToTFRecord(
+          file_path_prefix="__output__/output_tfrecord",
+          #shard_name_template='-V-SSSSS-of-NNNNN',
+          file_name_suffix=".tfrecord",
+          num_shards=2,
+          triggering_frequency=5))
+  output6 | 'LogElements after WriteToTFRecord' >> LogElements(
+      prefix='after WriteToTFRecord 6 ', with_window=True, level=logging.INFO)
+
   # Execute the pipeline and return the result.
   result = p.run()
   result.wait_until_finish()
   return result
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

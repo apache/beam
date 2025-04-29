@@ -36,14 +36,20 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.runners.runner import PipelineResult
 
+
 class CountEvents(beam.PTransform):
+
   def expand(self, events):
-    return (events
-            | beam.WindowInto(FixedWindows(5),
-                              trigger=AfterWatermark(),
-                              accumulation_mode=AccumulationMode.DISCARDING,
-                              allowed_lateness=Duration(seconds=0))
-            | beam.CombineGlobally(beam.combiners.CountCombineFn()).without_defaults())          
+    return (
+        events
+        | beam.WindowInto(
+            FixedWindows(5),
+            trigger=AfterWatermark(),
+            accumulation_mode=AccumulationMode.DISCARDING,
+            allowed_lateness=Duration(seconds=0))
+        | beam.CombineGlobally(
+            beam.combiners.CountCombineFn()).without_defaults())
+
 
 def run(argv=None, save_main_session=True) -> PipelineResult:
   """Main entry point; defines and runs the wordcount pipeline."""
@@ -57,28 +63,40 @@ def run(argv=None, save_main_session=True) -> PipelineResult:
 
   p = beam.Pipeline(options=pipeline_options)
 
-  output = (p | beam.Create([{'age': 10}, {'age': 20}, {'age': 30}])
-     #| beam.CombineGlobally(AverageFn())
-     #| 'Serialize' >> beam.Map(json.dumps)
-     | beam.LogElements(prefix='before write ', with_window=False,level=logging.INFO) )
+  output = (
+      p | beam.Create([{
+          'age': 10
+      }, {
+          'age': 20
+      }, {
+          'age': 30
+      }])
+      #| beam.CombineGlobally(AverageFn())
+      #| 'Serialize' >> beam.Map(json.dumps)
+      | beam.LogElements(
+          prefix='before write ', with_window=False, level=logging.INFO))
   #OK in batch
-  output2 = output | 'Write to text' >> WriteToText(file_path_prefix="__output_batch__/ouput_WriteToText",file_name_suffix=".txt",shard_name_template='-U-SSSSS-of-NNNNN')   
-  output2 | 'LogElements after WriteToText' >> LogElements(prefix='after WriteToText ', with_window=False,level=logging.INFO) 
+  output2 = output | 'Write to text' >> WriteToText(
+      file_path_prefix="__output_batch__/ouput_WriteToText",
+      file_name_suffix=".txt",
+      shard_name_template='-U-SSSSS-of-NNNNN')
+  output2 | 'LogElements after WriteToText' >> LogElements(
+      prefix='after WriteToText ', with_window=False, level=logging.INFO)
 
   #OK in batch and stream
   # output3 = (output | 'Serialize' >> beam.Map(json.dumps)
-  #   | 'Write to files' >> WriteToFiles(path="__output_batch__/output_WriteToFiles")  
+  #   | 'Write to files' >> WriteToFiles(path="__output_batch__/output_WriteToFiles")
   # )
-  # output3 | 'LogElements after WriteToFiles' >> LogElements(prefix='after WriteToFiles ', with_window=False,level=logging.INFO) 
+  # output3 | 'LogElements after WriteToFiles' >> LogElements(prefix='after WriteToFiles ', with_window=False,level=logging.INFO)
 
   #KO - ValueError: GroupByKey cannot be applied to an unbounded PCollection with global windowing and a default trigger
   # output4 = output | 'Write' >> beam.io.WriteToParquet(file_path_prefix="__output_batch__/output_parquet",
   #       schema=
   #           pyarrow.schema(
   #               [('age', pyarrow.int64())]
-  #           ) 
+  #           )
   #   )
-  # output4 | 'LogElements after WriteToParquet' >> LogElements(prefix='after WriteToParquet ', with_window=False,level=logging.INFO) 
+  # output4 | 'LogElements after WriteToParquet' >> LogElements(prefix='after WriteToParquet ', with_window=False,level=logging.INFO)
   # output | 'Write' >> beam.io.WriteToParquet(file_path_prefix="output",
   #       schema=
   #           pyarrow.schema(
@@ -87,13 +105,12 @@ def run(argv=None, save_main_session=True) -> PipelineResult:
   #       record_batch_size = 10,
   #       num_shards=0
   #   )
-  
-     
 
   # Execute the pipeline and return the result.
   result = p.run()
   result.wait_until_finish()
   return result
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

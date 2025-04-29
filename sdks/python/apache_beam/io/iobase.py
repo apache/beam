@@ -146,6 +146,7 @@ class BoundedSource(SourceBase):
   implementations may invoke methods of ``BoundedSource`` objects through
   multi-threaded and/or reentrant execution modes.
   """
+
   def estimate_size(self) -> Optional[int]:
     """Estimates the size of source in bytes.
 
@@ -849,6 +850,7 @@ class Writer(object):
   See ``iobase.Sink`` for more detailed documentation about the process of
   writing to a sink.
   """
+
   def write(self, value):
     """Writes a value to the sink using the current writer.
     """
@@ -1125,6 +1127,7 @@ class Write(ptransform.PTransform):
 
 class WriteImpl(ptransform.PTransform):
   """Implements the writing of custom sinks."""
+
   def __init__(self, sink: Sink) -> None:
     super().__init__()
     self.sink = sink
@@ -1136,7 +1139,7 @@ class WriteImpl(ptransform.PTransform):
           lambda _, sink: sink.initialize_write(), self.sink)
     if getattr(self.sink, 'num_shards', 0):
       min_shards = self.sink.num_shards
-      
+
       if (pcoll.is_bounded):
         if min_shards == 1:
           keyed_pcoll = pcoll | core.Map(lambda x: (None, x))
@@ -1147,65 +1150,66 @@ class WriteImpl(ptransform.PTransform):
             | core.WindowInto(window.GlobalWindows())
             | core.GroupByKey()
             | 'WriteBundles' >> core.ParDo(
-                _WriteKeyedBundleDoFn(self.sink), AsSingleton(init_result_coll)))
-      else: #unbounded PCollection needes to be written per window
+                _WriteKeyedBundleDoFn(self.sink), AsSingleton(init_result_coll))
+        )
+      else:  #unbounded PCollection needes to be written per window
         if isinstance(pcoll.windowing.windowfn, window.GlobalWindows):
           widowed_pcoll = (
-            pcoll
-              | core.WindowInto(window.FixedWindows(self.sink.triggering_frequency),
-                                trigger=beam.transforms.trigger.AfterWatermark(),
-                                accumulation_mode=beam.transforms.trigger.AccumulationMode.DISCARDING,
-                                allowed_lateness=beam.utils.timestamp.Duration(seconds=0))
-          )
-        else: #keep user windowing
+              pcoll
+              | core.WindowInto(
+                  window.FixedWindows(self.sink.triggering_frequency),
+                  trigger=beam.transforms.trigger.AfterWatermark(),
+                  accumulation_mode=beam.transforms.trigger.AccumulationMode.
+                  DISCARDING,
+                  allowed_lateness=beam.utils.timestamp.Duration(seconds=0)))
+        else:  #keep user windowing
           widowed_pcoll = pcoll
         if self.sink.convert_fn is not None:
           widowed_pcoll = widowed_pcoll | core.ParDo(self.sink.convert_fn)
         if min_shards == 1:
           keyed_pcoll = widowed_pcoll | core.Map(lambda x: (None, x))
         else:
-          keyed_pcoll = widowed_pcoll | core.ParDo(_RoundRobinKeyFn(), count=min_shards)
+          keyed_pcoll = widowed_pcoll | core.ParDo(
+              _RoundRobinKeyFn(), count=min_shards)
         init_result_window_coll = (
-          keyed_pcoll
+            keyed_pcoll
             | 'Pair init' >> core.Map(lambda x: (None, x))
             | 'Pair init gbk' >> core.GroupByKey()
             | 'InitializeWindowedWrite' >> core.Map(
-              lambda _, sink: sink.initialize_write(), self.sink)
+                lambda _, sink: sink.initialize_write(), self.sink)
             #| 'LogElements init_result_window_coll' >> LogElements(prefix="init_result_window_coll :",with_window=True,with_timestamp=True,level=logging.INFO)
         )
-        
+
         write_result_coll = (
-          keyed_pcoll
+            keyed_pcoll
             | 'Group by random key' >> core.GroupByKey()
             #| 'LogElements before WriteWindowedBundles' >> LogElements(prefix="before WriteWindowedBundles :",with_window=True,with_timestamp=True,level=logging.INFO)
             | 'WriteWindowedBundles' >> core.ParDo(
-                _WriteWindowedBundleDoFn(sink=self.sink,per_key=True), 
+                _WriteWindowedBundleDoFn(sink=self.sink, per_key=True),
                 AsSingleton(init_result_window_coll))
             #| 'LogElements' >> LogElements(prefix="after WriteWindowedBundles :",with_window=True,with_timestamp=True,level=logging.INFO)
             | 'Pair' >> core.Map(lambda x: (None, x))
             | core.GroupByKey()
-            | 'Extract' >> core.Map(lambda x: x[1])
-        )
+            | 'Extract' >> core.Map(lambda x: x[1]))
         pre_finalized_write_result_coll = (
-          write_result_coll 
-          | 'PreFinalize' >> core.ParDo(
-                _PreFinalizeWindowedBundleDoFn(self.sink), AsSingleton(init_result_window_coll))
-        )
+            write_result_coll
+            | 'PreFinalize' >> core.ParDo(
+                _PreFinalizeWindowedBundleDoFn(self.sink),
+                AsSingleton(init_result_window_coll)))
         finalized_write_result_coll = (
-          pre_finalized_write_result_coll 
-          #| 'LogElements pre_finalized_write_result_coll' >> LogElements(prefix="pre_finalized_write_result_coll :",with_window=True,with_timestamp=True,level=logging.INFO)
-          | 'FinalizeWrite' >> core.FlatMap(
-              _finalize_write,
-              self.sink,
-              AsSingleton(init_result_window_coll),
-              AsSingleton(write_result_coll),
-              min_shards,
-              AsIter(pre_finalized_write_result_coll)
-            ).with_output_types(str)
-        )
+            pre_finalized_write_result_coll
+            #| 'LogElements pre_finalized_write_result_coll' >> LogElements(prefix="pre_finalized_write_result_coll :",with_window=True,with_timestamp=True,level=logging.INFO)
+            | 'FinalizeWrite' >> core.FlatMap(
+                _finalize_write,
+                self.sink,
+                AsSingleton(init_result_window_coll),
+                AsSingleton(write_result_coll),
+                min_shards,
+                AsIter(pre_finalized_write_result_coll)).with_output_types(str))
         return finalized_write_result_coll
     else:
-      _LOGGER.info("*** WriteImpl min_shards undef so it's 1, and we write per Bundle")
+      _LOGGER.info(
+          "*** WriteImpl min_shards undef so it's 1, and we write per Bundle")
       min_shards = 1
       if (pcoll.is_bounded):
         write_result_coll = (
@@ -1216,49 +1220,55 @@ class WriteImpl(ptransform.PTransform):
             | 'Pair' >> core.Map(lambda x: (None, x))
             | core.GroupByKey()
             | 'Extract' >> core.FlatMap(lambda x: x[1]))
-      else: #unbounded PCollection needes to be written per window
+      else:  #unbounded PCollection needes to be written per window
         widowed_pcoll = (
-          pcoll
-            | core.WindowInto(window.FixedWindows(self.sink.triggering_frequency),
-                              trigger=beam.transforms.trigger.AfterWatermark(),
-                              accumulation_mode=beam.transforms.trigger.AccumulationMode.DISCARDING,
-                              allowed_lateness=beam.utils.timestamp.Duration(seconds=0))
-        )
+            pcoll
+            | core.WindowInto(
+                window.FixedWindows(self.sink.triggering_frequency),
+                trigger=beam.transforms.trigger.AfterWatermark(),
+                accumulation_mode=beam.transforms.trigger.AccumulationMode.
+                DISCARDING,
+                allowed_lateness=beam.utils.timestamp.Duration(seconds=0)))
         init_result_window_coll = (
-          widowed_pcoll
+            widowed_pcoll
             | 'Pair init' >> core.Map(lambda x: (None, x))
             | 'Pair init gbk' >> core.GroupByKey()
             | 'InitializeWindowedWrite' >> core.Map(
-              lambda _, sink: sink.initialize_write(), self.sink)
-        )
+                lambda _, sink: sink.initialize_write(), self.sink))
         if self.sink.convert_fn is not None:
           widowed_pcoll = widowed_pcoll | core.ParDo(self.sink.convert_fn)
         write_result_coll = (
-          widowed_pcoll
+            widowed_pcoll
             | 'WriteWindowedBundles' >> core.ParDo(
-                _WriteWindowedBundleDoFn(self.sink), AsSingleton(init_result_window_coll))
-            | 'LogElements' >> LogElements(prefix="after WriteWindowedBundles :",with_window=True,with_timestamp=True,level=logging.INFO)
+                _WriteWindowedBundleDoFn(self.sink),
+                AsSingleton(init_result_window_coll))
+            | 'LogElements' >> LogElements(
+                prefix="after WriteWindowedBundles :",
+                with_window=True,
+                with_timestamp=True,
+                level=logging.INFO)
             | 'Pair' >> core.Map(lambda x: (None, x))
             | core.GroupByKey()
-            | 'Extract' >> core.Map(lambda x: x[1])
-        )
+            | 'Extract' >> core.Map(lambda x: x[1]))
         pre_finalized_write_result_coll = (
-          write_result_coll 
-          | 'PreFinalize' >> core.ParDo(
-                _PreFinalizeWindowedBundleDoFn(self.sink), AsSingleton(init_result_window_coll))
-        )
+            write_result_coll
+            | 'PreFinalize' >> core.ParDo(
+                _PreFinalizeWindowedBundleDoFn(self.sink),
+                AsSingleton(init_result_window_coll)))
         finalized_write_result_coll = (
-          pre_finalized_write_result_coll 
-          | 'LogElements 2' >> LogElements(prefix="before finalize :",with_window=True,with_timestamp=True,level=logging.INFO)
-          | 'FinalizeWrite' >> core.FlatMap(
-              _finalize_write,
-              self.sink,
-              AsSingleton(init_result_window_coll),
-              AsSingleton(write_result_coll),
-              min_shards,
-              AsIter(pre_finalized_write_result_coll)
-            ).with_output_types(str)
-        )
+            pre_finalized_write_result_coll
+            | 'LogElements 2' >> LogElements(
+                prefix="before finalize :",
+                with_window=True,
+                with_timestamp=True,
+                level=logging.INFO)
+            | 'FinalizeWrite' >> core.FlatMap(
+                _finalize_write,
+                self.sink,
+                AsSingleton(init_result_window_coll),
+                AsSingleton(write_result_coll),
+                min_shards,
+                AsIter(pre_finalized_write_result_coll)).with_output_types(str))
         return finalized_write_result_coll
     # PreFinalize should run before FinalizeWrite, and the two should not be
     # fused.
@@ -1270,21 +1280,25 @@ class WriteImpl(ptransform.PTransform):
               self.sink,
               AsSingleton(init_result_coll),
               AsIter(write_result_coll)))
-      return (do_once | 'FinalizeWrite' >> core.FlatMap(
-          _finalize_write,
-          self.sink,
-          AsSingleton(init_result_coll),
-          AsIter(write_result_coll),
-          min_shards,
-          AsSingleton(pre_finalize_coll)).with_output_types(str)
-          | 'LogElements after FinalizeWrite' >> LogElements(prefix='after FinalizeWrite ', with_window=False,level=logging.INFO) 
-      )
+      return (
+          do_once | 'FinalizeWrite' >> core.FlatMap(
+              _finalize_write,
+              self.sink,
+              AsSingleton(init_result_coll),
+              AsIter(write_result_coll),
+              min_shards,
+              AsSingleton(pre_finalize_coll)).with_output_types(str)
+          | 'LogElements after FinalizeWrite' >> LogElements(
+              prefix='after FinalizeWrite ',
+              with_window=False,
+              level=logging.INFO))
 
 
 class _WriteBundleDoFn(core.DoFn):
   """A DoFn for writing elements to an iobase.Writer.
   Opens a writer at the first element and closes the writer at finish_bundle().
   """
+
   def __init__(self, sink):
     self.sink = sink
 
@@ -1309,15 +1323,18 @@ class _WriteBundleDoFn(core.DoFn):
           self.writer.close(),
           window.GlobalWindow().max_timestamp(), [window.GlobalWindow()])
 
+
 class _PreFinalizeWindowedBundleDoFn(core.DoFn):
   """A DoFn for writing elements to an iobase.Writer.
   Opens a writer at the first element and closes the writer at finish_bundle().
   """
+
   def __init__(
       self,
       sink,
       destination_fn=None,
-      temp_directory=None,):
+      temp_directory=None,
+  ):
     self.sink = sink
     self._temp_directory = temp_directory
     self.destination_fn = destination_fn
@@ -1325,22 +1342,23 @@ class _PreFinalizeWindowedBundleDoFn(core.DoFn):
   def display_data(self):
     return {'sink_dd': self.sink}
 
-  def process(self, 
-      element, 
-      init_result, 
-      w=core.DoFn.WindowParam, 
+  def process(
+      self,
+      element,
+      init_result,
+      w=core.DoFn.WindowParam,
       pane=core.DoFn.PaneInfoParam):
-    self.sink.pre_finalize(init_result=init_result,writer_results=element,window=w)
+    self.sink.pre_finalize(
+        init_result=init_result, writer_results=element, window=w)
     yield element
+
 
 class _WriteWindowedBundleDoFn(core.DoFn):
   """A DoFn for writing elements to an iobase.Writer.
   Opens a writer at the first element and closes the writer at finish_bundle().
   """
-  def __init__(
-      self,
-      sink,
-      per_key=False):
+
+  def __init__(self, sink, per_key=False):
     self.sink = sink
     self.per_key = per_key
 
@@ -1352,26 +1370,28 @@ class _WriteWindowedBundleDoFn(core.DoFn):
     self.window = {}
     self.init_result = {}
 
-  def process(self, 
-      element, 
-      init_result, 
-      w=core.DoFn.WindowParam, 
+  def process(
+      self,
+      element,
+      init_result,
+      w=core.DoFn.WindowParam,
       pane=core.DoFn.PaneInfoParam):
 
     if self.per_key:
-      w_key = "%s_%s" % (w , element[0]) # key
+      w_key = "%s_%s" % (w, element[0])  # key
     else:
       w_key = w
 
-    if not w in self.writer :
+    if not w in self.writer:
       # We ignore UUID collisions here since they are extremely rare.
       self.window[w_key] = w
-      self.writer[w_key] = self.sink.open_writer(init_result, '%s_%s' % (w_key, uuid.uuid4()))
+      self.writer[w_key] = self.sink.open_writer(
+          init_result, '%s_%s' % (w_key, uuid.uuid4()))
       self.init_result[w_key] = init_result
       #_LOGGER.info("*** _WriteWindowedBundleDoFn writer %s", self.writer[w_key].temp_shard_path)
     if self.per_key:
       for e in element[1]:  # values
-        self.writer[w_key].write(e) # value
+        self.writer[w_key].write(e)  # value
     else:
       self.writer[w_key].write(element)
     if self.writer[w_key].at_capacity():
@@ -1384,16 +1404,19 @@ class _WriteWindowedBundleDoFn(core.DoFn):
       if writer is not None:
         closed = writer.temp_shard_path
         try:
-          closed = writer.close() # TODO : improve sink closing for streaming
+          closed = writer.close()  # TODO : improve sink closing for streaming
         except ValueError as exp:
-          _LOGGER.info("*** _WriteWindowedBundleDoFn finish_bundle closed ERROR %s",exp)
+          _LOGGER.info(
+              "*** _WriteWindowedBundleDoFn finish_bundle closed ERROR %s", exp)
         yield WindowedValue(
             closed,
             timestamp=w.start,
             windows=[w]  # TODO(pabloem) HOW DO WE GET THE PANE
         )
 
+
 class _WriteKeyedBundleDoFn(core.DoFn):
+
   def __init__(self, sink):
     self.sink = sink
 
@@ -1432,21 +1455,20 @@ def _finalize_write(
   outputs = sink.finalize_write(
       init_result, write_results + extra_shards, pre_finalize_results, w)
   outputs = list(outputs)
-  _LOGGER.info("*** _finalize_write outputs %s",outputs)
+  #_LOGGER.info("*** _finalize_write outputs %s",outputs)
   if outputs:
     if not isinstance(w, window.GlobalWindow):
       #handle windowed finalize
       yield (
-          window.TimestampedValue(v, 
-              timestamp=self.window.start,
-              windows=[w]
-            ) for v in outputs)
+          window.TimestampedValue(v, timestamp=self.window.start, windows=[w])
+          for v in outputs)
     else:
       return (
           window.TimestampedValue(v, timestamp.MAX_TIMESTAMP) for v in outputs)
 
 
 class _RoundRobinKeyFn(core.DoFn):
+
   def start_bundle(self):
     self.counter = None
 
@@ -1470,6 +1492,7 @@ class RestrictionTracker(object):
   * https://s.apache.org/splittable-do-fn
   * https://s.apache.org/splittable-do-fn-python-sdk
   """
+
   def current_restriction(self):
     """Returns the current restriction.
 
@@ -1604,6 +1627,7 @@ class WatermarkEstimator(object):
 
   Internal state must not be updated asynchronously.
   """
+
   def get_estimator_state(self):
     """Get current state of the WatermarkEstimator instance, which can be used
     to recreate the WatermarkEstimator when processing the restriction. See
@@ -1629,6 +1653,7 @@ class WatermarkEstimator(object):
 
 class RestrictionProgress(object):
   """Used to record the progress of a restriction."""
+
   def __init__(self, **kwargs):
     # Only accept keyword arguments.
     self._fraction = kwargs.pop('fraction', None)
@@ -1683,6 +1708,7 @@ class RestrictionProgress(object):
 
 class _SDFBoundedSourceRestriction(object):
   """ A restriction wraps SourceBundle and RangeTracker. """
+
   def __init__(self, source_bundle, range_tracker=None):
     self._source_bundle = source_bundle
     self._range_tracker = range_tracker
@@ -1746,6 +1772,7 @@ class _SDFBoundedSourceRestrictionTracker(RestrictionTracker):
 
   Delegated RangeTracker guarantees synchronization safety.
   """
+
   def __init__(self, restriction):
     if not isinstance(restriction, _SDFBoundedSourceRestriction):
       raise ValueError(
@@ -1782,6 +1809,7 @@ class _SDFBoundedSourceRestrictionTracker(RestrictionTracker):
 
 
 class _SDFBoundedSourceWrapperRestrictionCoder(coders.Coder):
+
   def decode(self, value):
     return _SDFBoundedSourceRestriction(SourceBundle(*pickler.loads(value)))
 
@@ -1800,6 +1828,7 @@ class _SDFBoundedSourceRestrictionProvider(core.RestrictionProvider):
   This restriction provider initializes restriction based on input
   element that is expected to be of BoundedSource type.
   """
+
   def __init__(self, desired_chunk_size=None, restriction_coder=None):
     self._desired_chunk_size = desired_chunk_size
     self._restriction_coder = (
@@ -1849,12 +1878,15 @@ class SDFBoundedSourceReader(PTransform):
 
   NOTE: This transform can only be used with beam_fn_api enabled.
   """
+
   def __init__(self, data_to_display=None):
     self._data_to_display = data_to_display or {}
     super().__init__()
 
   def _create_sdf_bounded_source_dofn(self):
+
     class SDFBoundedSourceDoFn(core.DoFn):
+
       def __init__(self, dd):
         self._dd = dd
 

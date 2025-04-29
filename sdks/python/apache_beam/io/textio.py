@@ -426,6 +426,7 @@ class _TextSource(filebasedsource.FileBasedSource):
 
 
 class _TextSourceWithFilename(_TextSource):
+
   def read_records(self, file_name, range_tracker):
     records = super().read_records(file_name, range_tracker)
     for record in records:
@@ -437,6 +438,7 @@ class _TextSourceWithFilename(_TextSource):
 
 class _TextSink(filebasedsink.FileBasedSink):
   """A sink to a GCS or local text file or files."""
+
   def __init__(
       self,
       file_path_prefix,
@@ -823,6 +825,7 @@ class ReadFromTextWithFilename(ReadFromText):
 class WriteToText(PTransform):
   """A :class:`~apache_beam.transforms.ptransform.PTransform` for writing to
   text files."""
+
   def __init__(
       self,
       file_path_prefix: str,
@@ -916,8 +919,10 @@ class WriteToText(PTransform):
     if not pcoll.is_bounded and self._sink.shard_name_template == filebasedsink.DEFAULT_SHARD_NAME_TEMPLATE:
       # for unbounded PColl, change the default shard_name_template, shard_name_format and shard_name_glob_format
       self._sink.shard_name_template = filebasedsink.DEFAULT_WINDOW_SHARD_NAME_TEMPLATE
-      self._sink.shard_name_format = self._sink._template_to_format(self._sink.shard_name_template)
-      self._sink.shard_name_glob_format = self._sink._template_to_glob_format(self._sink.shard_name_template)
+      self._sink.shard_name_format = self._sink._template_to_format(
+          self._sink.shard_name_template)
+      self._sink.shard_name_glob_format = self._sink._template_to_glob_format(
+          self._sink.shard_name_template)
     return pcoll | Write(self._sink)
 
 
@@ -925,6 +930,7 @@ try:
   import pandas
 
   def append_pandas_args(src, exclude):
+
     def append(dest):
       state = None
       skip = False

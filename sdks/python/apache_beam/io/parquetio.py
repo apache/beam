@@ -77,6 +77,7 @@ __all__ = [
 class _ArrowTableToRowDictionaries(DoFn):
   """ A DoFn that consumes an Arrow table and yields a python dictionary for
   each row in the table."""
+
   def process(self, table, with_filename=False):
     if with_filename:
       file_name = table[0]
@@ -95,6 +96,7 @@ class _ArrowTableToRowDictionaries(DoFn):
 
 class _RowDictionariesToArrowTable(DoFn):
   """ A DoFn that consumes python dictionarys and yields a pyarrow table."""
+
   def __init__(
       self,
       schema,
@@ -108,10 +110,7 @@ class _RowDictionariesToArrowTable(DoFn):
     self._record_batches_byte_size = 0
     self._window = None
 
-  def process(self, 
-      row,
-      w=DoFn.WindowParam, 
-      pane=DoFn.PaneInfoParam):
+  def process(self, row, w=DoFn.WindowParam, pane=DoFn.PaneInfoParam):
     self._window = w
     if len(self._buffer[0]) >= self._buffer_size:
       self._flush_buffer()
@@ -135,9 +134,10 @@ class _RowDictionariesToArrowTable(DoFn):
       else:
         # unbounded input
         yield WindowedValue(
-          table,
-          timestamp=self._window.end, #or it could be max of timestamp of the rows processed
-          windows=[self._window]  # TODO(pabloem) HOW DO WE GET THE PANE
+            table,
+            timestamp=self._window.
+            end,  #or it could be max of timestamp of the rows processed
+            windows=[self._window]  # TODO(pabloem) HOW DO WE GET THE PANE
         )
 
   def display_data(self):
@@ -169,6 +169,7 @@ class _RowDictionariesToArrowTable(DoFn):
 
 
 class _ArrowTableToBeamRows(DoFn):
+
   def __init__(self, beam_type):
     self._beam_type = beam_type
 
@@ -181,6 +182,7 @@ class _ArrowTableToBeamRows(DoFn):
 
 
 class _BeamRowsToArrowTable(DoFn):
+
   @DoFn.yields_elements
   def process_batch(self, element: pa.Table) -> Iterator[pa.Table]:
     yield element
@@ -190,6 +192,7 @@ class ReadFromParquetBatched(PTransform):
   """A :class:`~apache_beam.transforms.ptransform.PTransform` for reading
      Parquet files as a `PCollection` of `pyarrow.Table`. This `PTransform` is
      currently experimental. No backward-compatibility guarantees."""
+
   def __init__(
       self, file_pattern=None, min_bundle_size=0, validate=True, columns=None):
     """ Initializes :class:`~ReadFromParquetBatched`
@@ -247,6 +250,7 @@ class ReadFromParquetBatched(PTransform):
 
 class ReadFromParquet(PTransform):
   """A `PTransform` for reading Parquet files."""
+
   def __init__(
       self,
       file_pattern=None,
@@ -385,6 +389,7 @@ class ReadAllFromParquetBatched(PTransform):
 
 
 class ReadAllFromParquet(PTransform):
+
   def __init__(self, with_filename=False, **kwargs):
     self._with_filename = with_filename
     self._read_batches = ReadAllFromParquetBatched(
@@ -396,6 +401,7 @@ class ReadAllFromParquet(PTransform):
 
 
 class _ParquetUtils(object):
+
   @staticmethod
   def find_first_row_group_index(pf, start_offset):
     for i in range(_ParquetUtils.get_number_of_row_groups(pf)):
@@ -421,6 +427,7 @@ class _ParquetUtils(object):
 class _ParquetSource(filebasedsource.FileBasedSource):
   """A source for reading Parquet files.
   """
+
   def __init__(
       self, file_pattern, min_bundle_size=0, validate=False, columns=None):
     super().__init__(
@@ -479,6 +486,7 @@ _create_parquet_source = _ParquetSource
 class WriteToParquet(PTransform):
   """A ``PTransform`` for writing parquet files.
   """
+
   def __init__(
       self,
       file_path_prefix,
@@ -493,7 +501,7 @@ class WriteToParquet(PTransform):
       shard_name_template=None,
       mime_type='application/x-parquet',
       triggering_frequency=None,
-      ):
+  ):
     """Initialize a WriteToParquet transform.
 
     Writes parquet files from a :class:`~apache_beam.pvalue.PCollection` of
@@ -594,9 +602,11 @@ class WriteToParquet(PTransform):
     if not pcoll.is_bounded and self._sink.shard_name_template == filebasedsink.DEFAULT_SHARD_NAME_TEMPLATE:
       # for unbounded PColl, change the default shard_name_template, shard_name_format and shard_name_glob_format
       self._sink.shard_name_template = filebasedsink.DEFAULT_WINDOW_SHARD_NAME_TEMPLATE
-      self._sink.shard_name_format = self._sink._template_to_format(self._sink.shard_name_template)
-      self._sink.shard_name_glob_format = self._sink._template_to_glob_format(self._sink.shard_name_template)
-    
+      self._sink.shard_name_format = self._sink._template_to_format(
+          self._sink.shard_name_template)
+      self._sink.shard_name_glob_format = self._sink._template_to_glob_format(
+          self._sink.shard_name_template)
+
     if self._schema is None:
       try:
         beam_schema = schemas.schema_from_element_type(pcoll.element_type)
@@ -629,6 +639,7 @@ class WriteToParquetBatched(PTransform):
     This ``PTransform`` is currently experimental. No backward-compatibility
     guarantees.
   """
+
   def __init__(
       self,
       file_path_prefix,
@@ -640,8 +651,7 @@ class WriteToParquetBatched(PTransform):
       num_shards=0,
       shard_name_template=None,
       mime_type='application/x-parquet',
-      triggering_frequency=None
-  ):
+      triggering_frequency=None):
     """Initialize a WriteToParquetBatched transform.
 
     Writes parquet files from a :class:`~apache_beam.pvalue.PCollection` of
@@ -735,8 +745,10 @@ class WriteToParquetBatched(PTransform):
     if not pcoll.is_bounded and self._sink.shard_name_template == filebasedsink.DEFAULT_SHARD_NAME_TEMPLATE:
       # for unbounded PColl, change the default shard_name_template, shard_name_format and shard_name_glob_format
       self._sink.shard_name_template = filebasedsink.DEFAULT_WINDOW_SHARD_NAME_TEMPLATE
-      self._sink.shard_name_format = self._sink._template_to_format(self._sink.shard_name_template)
-      self._sink.shard_name_glob_format = self._sink._template_to_glob_format(self._sink.shard_name_template)
+      self._sink.shard_name_format = self._sink._template_to_format(
+          self._sink.shard_name_template)
+      self._sink.shard_name_glob_format = self._sink._template_to_glob_format(
+          self._sink.shard_name_template)
     return pcoll | Write(self._sink)
 
   def display_data(self):
@@ -771,6 +783,7 @@ def _create_parquet_sink(
 
 class _ParquetSink(filebasedsink.FileBasedSink):
   """A sink for parquet files from batches."""
+
   def __init__(
       self,
       file_path_prefix,

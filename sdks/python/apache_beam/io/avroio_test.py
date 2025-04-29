@@ -179,8 +179,8 @@ class AvroBase(object):
 
   @pytest.mark.xlang_sql_expansion_service
   @unittest.skipIf(
-      TestPipeline().get_pipeline_options().view_as(StandardOptions).runner is
-      None,
+      TestPipeline().get_pipeline_options().view_as(StandardOptions).runner
+      is None,
       "Must be run with a runner that supports staging java artifacts.")
   def test_avro_schema_to_beam_schema_with_nullable_atomic_fields(self):
     records = []
@@ -381,6 +381,7 @@ class AvroBase(object):
     self._run_avro_test(pattern, 100, True, expected_result)
 
   def test_dynamic_work_rebalancing_exhaustive(self):
+
     def compare_split_points(file_name):
       source = _FastAvroSource(file_name)
       splits = [
@@ -610,6 +611,7 @@ class AvroBase(object):
 
 
 class TestFastAvro(AvroBase, unittest.TestCase):
+
   def __init__(self, methodName='runTest'):
     super().__init__(methodName)
     self.SCHEMA = parse_schema(json.loads(self.SCHEMA_STRING))
@@ -631,45 +633,121 @@ class TestFastAvro(AvroBase, unittest.TestCase):
       self._temp_files.append(f.name)
     return f.name
 
+
 class GenerateEvent(beam.PTransform):
 
-    @staticmethod
-    def sample_data():
-        return GenerateEvent()
+  @staticmethod
+  def sample_data():
+    return GenerateEvent()
 
-    def expand(self, input):
-        elemlist = [{'age': 10}, {'age': 20}, {'age': 30}]
-        elem = elemlist
-        return (input
-                | TestStream()
-                    .add_elements(elements=elem, event_timestamp=datetime(2021, 3, 1, 0, 0, 1, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=elem, event_timestamp=datetime(2021, 3, 1, 0, 0, 2, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=elem, event_timestamp=datetime(2021, 3, 1, 0, 0, 3, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=elem, event_timestamp=datetime(2021, 3, 1, 0, 0, 4, 0, tzinfo=pytz.UTC).timestamp())
-                    .advance_watermark_to(datetime(2021, 3, 1, 0, 0, 5, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=elem, event_timestamp=datetime(2021, 3, 1, 0, 0, 5, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=elem, event_timestamp=datetime(2021, 3, 1, 0, 0, 6, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=elem, event_timestamp=datetime(2021, 3, 1, 0, 0, 7, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=elem, event_timestamp=datetime(2021, 3, 1, 0, 0, 8, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=elem, event_timestamp=datetime(2021, 3, 1, 0, 0, 9, 0, tzinfo=pytz.UTC).timestamp())
-                    .advance_watermark_to(datetime(2021, 3, 1, 0, 0, 10, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=elem, event_timestamp=datetime(2021, 3, 1, 0, 0, 10, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=elem, event_timestamp=datetime(2021, 3, 1, 0, 0, 11, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=elem, event_timestamp=datetime(2021, 3, 1, 0, 0, 12, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=elem, event_timestamp=datetime(2021, 3, 1, 0, 0, 13, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=elem, event_timestamp=datetime(2021, 3, 1, 0, 0, 14, 0, tzinfo=pytz.UTC).timestamp())
-                    .advance_watermark_to(datetime(2021, 3, 1, 0, 0, 15, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=elem, event_timestamp=datetime(2021, 3, 1, 0, 0, 15, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=elem, event_timestamp=datetime(2021, 3, 1, 0, 0, 16, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=elem, event_timestamp=datetime(2021, 3, 1, 0, 0, 17, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=elem, event_timestamp=datetime(2021, 3, 1, 0, 0, 18, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=elem, event_timestamp=datetime(2021, 3, 1, 0, 0, 19, 0, tzinfo=pytz.UTC).timestamp())
-                    .advance_watermark_to(datetime(2021, 3, 1, 0, 0, 20, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=elem, event_timestamp=datetime(2021, 3, 1, 0, 0, 20, 0, tzinfo=pytz.UTC).timestamp())
-                    .advance_watermark_to(datetime(2021, 3, 1, 0, 0, 25, 0, tzinfo=pytz.UTC).timestamp())
-                    .advance_watermark_to_infinity())
+  def expand(self, input):
+    elemlist = [{'age': 10}, {'age': 20}, {'age': 30}]
+    elem = elemlist
+    return (
+        input
+        | TestStream().add_elements(
+            elements=elem,
+            event_timestamp=datetime(
+                2021, 3, 1, 0, 0, 1, 0,
+                tzinfo=pytz.UTC).timestamp()).add_elements(
+                    elements=elem,
+                    event_timestamp=datetime(
+                        2021, 3, 1, 0, 0, 2, 0,
+                        tzinfo=pytz.UTC).timestamp()).add_elements(
+                            elements=elem,
+                            event_timestamp=datetime(
+                                2021, 3, 1, 0, 0, 3, 0,
+                                tzinfo=pytz.UTC).timestamp()).add_elements(
+                                    elements=elem,
+                                    event_timestamp=datetime(
+                                        2021, 3, 1, 0, 0, 4, 0,
+                                        tzinfo=pytz.UTC).timestamp()).
+        advance_watermark_to(
+            datetime(2021, 3, 1, 0, 0, 5, 0,
+                     tzinfo=pytz.UTC).timestamp()).add_elements(
+                         elements=elem,
+                         event_timestamp=datetime(
+                             2021, 3, 1, 0, 0, 5, 0,
+                             tzinfo=pytz.UTC).timestamp()).
+        add_elements(
+            elements=elem,
+            event_timestamp=datetime(
+                2021, 3, 1, 0, 0, 6,
+                0, tzinfo=pytz.UTC).timestamp()).add_elements(
+                    elements=elem,
+                    event_timestamp=datetime(
+                        2021, 3, 1, 0, 0, 7, 0,
+                        tzinfo=pytz.UTC).timestamp()).add_elements(
+                            elements=elem,
+                            event_timestamp=datetime(
+                                2021, 3, 1, 0, 0, 8, 0,
+                                tzinfo=pytz.UTC).timestamp()).add_elements(
+                                    elements=elem,
+                                    event_timestamp=datetime(
+                                        2021, 3, 1, 0, 0, 9, 0,
+                                        tzinfo=pytz.UTC).timestamp()).
+        advance_watermark_to(
+            datetime(2021, 3, 1, 0, 0, 10, 0,
+                     tzinfo=pytz.UTC).timestamp()).add_elements(
+                         elements=elem,
+                         event_timestamp=datetime(
+                             2021, 3, 1, 0, 0, 10, 0,
+                             tzinfo=pytz.UTC).timestamp()).add_elements(
+                                 elements=elem,
+                                 event_timestamp=datetime(
+                                     2021, 3, 1, 0, 0, 11, 0,
+                                     tzinfo=pytz.UTC).timestamp()).
+        add_elements(
+            elements=elem,
+            event_timestamp=datetime(
+                2021, 3, 1, 0, 0, 12, 0,
+                tzinfo=pytz.UTC).timestamp()).add_elements(
+                    elements=elem,
+                    event_timestamp=datetime(
+                        2021, 3, 1, 0, 0, 13, 0,
+                        tzinfo=pytz.UTC).timestamp()).add_elements(
+                            elements=elem,
+                            event_timestamp=datetime(
+                                2021, 3, 1, 0, 0, 14, 0,
+                                tzinfo=pytz.UTC).timestamp()).
+        advance_watermark_to(
+            datetime(2021, 3, 1, 0, 0, 15, 0,
+                     tzinfo=pytz.UTC).timestamp()).add_elements(
+                         elements=elem,
+                         event_timestamp=datetime(
+                             2021, 3, 1, 0, 0, 15, 0,
+                             tzinfo=pytz.UTC).timestamp()).add_elements(
+                                 elements=elem,
+                                 event_timestamp=datetime(
+                                     2021, 3, 1, 0, 0, 16, 0,
+                                     tzinfo=pytz.UTC).timestamp()).
+        add_elements(
+            elements=elem,
+            event_timestamp=datetime(
+                2021, 3, 1, 0, 0, 17, 0,
+                tzinfo=pytz.UTC).timestamp()).add_elements(
+                    elements=elem,
+                    event_timestamp=datetime(
+                        2021, 3, 1, 0, 0, 18, 0,
+                        tzinfo=pytz.UTC).timestamp()).add_elements(
+                            elements=elem,
+                            event_timestamp=datetime(
+                                2021, 3, 1, 0, 0, 19, 0,
+                                tzinfo=pytz.UTC).timestamp()).
+        advance_watermark_to(
+            datetime(2021, 3, 1, 0, 0, 20, 0,
+                     tzinfo=pytz.UTC).timestamp()).add_elements(
+                         elements=elem,
+                         event_timestamp=datetime(
+                             2021, 3, 1, 0, 0, 20, 0,
+                             tzinfo=pytz.UTC).timestamp()).advance_watermark_to(
+                                 datetime(
+                                     2021, 3, 1, 0, 0, 25, 0, tzinfo=pytz.UTC).
+                                 timestamp()).advance_watermark_to_infinity())
+
 
 class WriteStreamingTest(unittest.TestCase):
+
   def setUp(self):
     super().setUp()
     self.tempdir = tempfile.mkdtemp()
@@ -678,13 +756,13 @@ class WriteStreamingTest(unittest.TestCase):
     if os.path.exists(self.tempdir):
       shutil.rmtree(self.tempdir)
 
-  def test_write_streaming_2_shards_default_shard_name_template(self,num_shards = 2):
+  def test_write_streaming_2_shards_default_shard_name_template(
+      self, num_shards=2):
     with TestPipeline() as p:
-      output = (p | GenerateEvent.sample_data()
-      )
+      output = (p | GenerateEvent.sample_data())
       #AvroIO
       avroschema = {
-          #'doc': 'A dummy avro file', # a short description 
+          #'doc': 'A dummy avro file', # a short description
           'name': 'dummy', # your supposed to be file name with .avro extension 
           'type': 'record', # type of avro serilazation, there are more (see above docs) but as per me this will do most of the time
           'fields': [ # this defines actual keys & their types
@@ -692,34 +770,38 @@ class WriteStreamingTest(unittest.TestCase):
           ],
         }
       output2 = output | 'WriteToAvro' >> beam.io.WriteToAvro(
-            file_path_prefix=self.tempdir + "/ouput_WriteToAvro",
-            file_name_suffix=".avro" ,
-            num_shards=num_shards,
-            schema=avroschema 
-      )
-      output2 | 'LogElements after WriteToAvro' >> LogElements(prefix='after WriteToAvro ', with_window=True,level=logging.INFO) 
+          file_path_prefix=self.tempdir + "/ouput_WriteToAvro",
+          file_name_suffix=".avro",
+          num_shards=num_shards,
+          schema=avroschema)
+      output2 | 'LogElements after WriteToAvro' >> LogElements(
+          prefix='after WriteToAvro ', with_window=True, level=logging.INFO)
 
     # Regex to match the expected windowed file pattern
     # Example: /tmp/tmp_xyz/ouput_WriteToAvro-[1614556800.0, 1614556805.0)-00000-of-00002.avro
-    # It captures: window_interval, shard_num, total_shards 
+    # It captures: window_interval, shard_num, total_shards
     pattern_string = r'.*-\[(?P<window_start>[\d\.]+), (?P<window_end>[\d\.]+|Infinity)\)-(?P<shard_num>\d{5})-of-(?P<total_shards>\d{5})\.avro$'
     pattern = re.compile(pattern_string)
     file_names = []
     for file_name in glob.glob(self.tempdir + '/ouput_WriteToAvro*'):
       match = pattern.match(file_name)
-      self.assertIsNotNone(match, f"File name {file_name} did not match expected pattern.")
+      self.assertIsNotNone(
+          match, f"File name {file_name} did not match expected pattern.")
       if match:
         file_names.append(file_name)
     print("Found files matching expected pattern:", file_names)
-    self.assertEqual(len(file_names), num_shards, "expected %d files, but got: %d" % (num_shards,len(file_names)))
-  
-  def test_write_streaming_2_shards_custom_shard_name_template(self,num_shards = 2, shard_name_template = '-V-SSSSS-of-NNNNN'):
+    self.assertEqual(
+        len(file_names),
+        num_shards,
+        "expected %d files, but got: %d" % (num_shards, len(file_names)))
+
+  def test_write_streaming_2_shards_custom_shard_name_template(
+      self, num_shards=2, shard_name_template='-V-SSSSS-of-NNNNN'):
     with TestPipeline() as p:
-      output = (p | GenerateEvent.sample_data()
-      )
+      output = (p | GenerateEvent.sample_data())
       #AvroIO
       avroschema = {
-          #'doc': 'A dummy avro file', # a short description 
+          #'doc': 'A dummy avro file', # a short description
           'name': 'dummy', # your supposed to be file name with .avro extension 
           'type': 'record', # type of avro serilazation, there are more (see above docs) but as per me this will do most of the time
           'fields': [ # this defines actual keys & their types
@@ -731,34 +813,38 @@ class WriteStreamingTest(unittest.TestCase):
           file_name_suffix=".avro",
           shard_name_template=shard_name_template,
           num_shards=num_shards,
-          schema=avroschema
-        ) 
-      output2 | 'LogElements after WriteToAvro' >> LogElements(prefix='after WriteToAvro ', with_window=True,level=logging.INFO) 
+          schema=avroschema)
+      output2 | 'LogElements after WriteToAvro' >> LogElements(
+          prefix='after WriteToAvro ', with_window=True, level=logging.INFO)
 
     # Regex to match the expected windowed file pattern
     # Example: /tmp/tmp7akb3opk/ouput_WriteToAvro-[2021-03-01T00:00:00, 2021-03-01T00:01:00)-00000-of-00002.avro
     # It captures: window_interval, shard_num, total_shards
     pattern_string = r'.*-\[(?P<window_start>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}), (?P<window_end>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}|Infinity)\)-(?P<shard_num>\d{5})-of-(?P<total_shards>\d{5})\.avro$'
-    pattern = re.compile(pattern_string)  
+    pattern = re.compile(pattern_string)
     file_names = []
     for file_name in glob.glob(self.tempdir + '/ouput_WriteToAvro*'):
       match = pattern.match(file_name)
-      self.assertIsNotNone(match, f"File name {file_name} did not match expected pattern.")
+      self.assertIsNotNone(
+          match, f"File name {file_name} did not match expected pattern.")
       if match:
         file_names.append(file_name)
     print("Found files matching expected pattern:", file_names)
-    self.assertEqual(len(file_names), num_shards, "expected %d files, but got: %d" % (num_shards,len(file_names)))
+    self.assertEqual(
+        len(file_names),
+        num_shards,
+        "expected %d files, but got: %d" % (num_shards, len(file_names)))
 
-  def test_write_streaming_2_shards_custom_shard_name_template_5s_window(self,
-      num_shards = 2, 
-      shard_name_template = '-V-SSSSS-of-NNNNN', 
-      triggering_frequency = 5):
+  def test_write_streaming_2_shards_custom_shard_name_template_5s_window(
+      self,
+      num_shards=2,
+      shard_name_template='-V-SSSSS-of-NNNNN',
+      triggering_frequency=5):
     with TestPipeline() as p:
-      output = (p | GenerateEvent.sample_data()
-      )
+      output = (p | GenerateEvent.sample_data())
       #AvroIO
       avroschema = {
-          #'doc': 'A dummy avro file', # a short description 
+          #'doc': 'A dummy avro file', # a short description
           'name': 'dummy', # your supposed to be file name with .avro extension 
           'type': 'record', # type of avro serilazation, there are more (see above docs) but as per me this will do most of the time
           'fields': [ # this defines actual keys & their types
@@ -771,24 +857,29 @@ class WriteStreamingTest(unittest.TestCase):
           shard_name_template=shard_name_template,
           num_shards=num_shards,
           triggering_frequency=triggering_frequency,
-          schema=avroschema
-        ) 
-      output2 | 'LogElements after WriteToAvro' >> LogElements(prefix='after WriteToAvro ', with_window=True,level=logging.INFO) 
+          schema=avroschema)
+      output2 | 'LogElements after WriteToAvro' >> LogElements(
+          prefix='after WriteToAvro ', with_window=True, level=logging.INFO)
 
     # Regex to match the expected windowed file pattern
     # Example: /tmp/tmp7akb3opk/ouput_WriteToAvro-[2021-03-01T00:00:00, 2021-03-01T00:01:00)-00000-of-00002.avro
     # It captures: window_interval, shard_num, total_shards
     pattern_string = r'.*-\[(?P<window_start>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}), (?P<window_end>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}|Infinity)\)-(?P<shard_num>\d{5})-of-(?P<total_shards>\d{5})\.txt$'
-    pattern = re.compile(pattern_string)  
+    pattern = re.compile(pattern_string)
     file_names = []
     for file_name in glob.glob(self.tempdir + '/ouput_WriteToAvro*'):
       match = pattern.match(file_name)
-      self.assertIsNotNone(match, f"File name {file_name} did not match expected pattern.")
+      self.assertIsNotNone(
+          match, f"File name {file_name} did not match expected pattern.")
       if match:
         file_names.append(file_name)
     print("Found files matching expected pattern:", file_names)
     #with 5s window size, the input should be processed by 5 windows with 2 shards per window
-    self.assertEqual(len(file_names), 10, "expected %d files, but got: %d" % (num_shards,len(file_names)))
+    self.assertEqual(
+        len(file_names),
+        10,
+        "expected %d files, but got: %d" % (num_shards, len(file_names)))
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

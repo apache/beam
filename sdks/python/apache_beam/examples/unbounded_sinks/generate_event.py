@@ -23,43 +23,114 @@ import pyarrow
 
 class GenerateEvent(beam.PTransform):
 
-    @staticmethod
-    def sample_data():
-        return GenerateEvent()
+  @staticmethod
+  def sample_data():
+    return GenerateEvent()
 
-    def expand(self, input):
-        elemlist = [{'age': 10}, {'age': 20}, {'age': 30}]
-        my_schema = pyarrow.schema(
-                  [pyarrow.field('age', pyarrow.int64())],
-                  metadata = {"age":"the age int64"}
-              )
-        #elem = [pyarrow.Table.from_pylist(elemlist, schema=my_schema)]
-        elem = elemlist
-        return (input
-                | TestStream()
-                    .add_elements(elements=elem, event_timestamp=datetime(2021, 3, 1, 0, 0, 1, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=elem, event_timestamp=datetime(2021, 3, 1, 0, 0, 2, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=elem, event_timestamp=datetime(2021, 3, 1, 0, 0, 3, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=elem, event_timestamp=datetime(2021, 3, 1, 0, 0, 4, 0, tzinfo=pytz.UTC).timestamp())
-                    .advance_watermark_to(datetime(2021, 3, 1, 0, 0, 5, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=elem, event_timestamp=datetime(2021, 3, 1, 0, 0, 5, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=elem, event_timestamp=datetime(2021, 3, 1, 0, 0, 6, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=elem, event_timestamp=datetime(2021, 3, 1, 0, 0, 7, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=elem, event_timestamp=datetime(2021, 3, 1, 0, 0, 8, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=elem, event_timestamp=datetime(2021, 3, 1, 0, 0, 9, 0, tzinfo=pytz.UTC).timestamp())
-                    .advance_watermark_to(datetime(2021, 3, 1, 0, 0, 10, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=elem, event_timestamp=datetime(2021, 3, 1, 0, 0, 10, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=elem, event_timestamp=datetime(2021, 3, 1, 0, 0, 11, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=elem, event_timestamp=datetime(2021, 3, 1, 0, 0, 12, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=elem, event_timestamp=datetime(2021, 3, 1, 0, 0, 13, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=elem, event_timestamp=datetime(2021, 3, 1, 0, 0, 14, 0, tzinfo=pytz.UTC).timestamp())
-                    .advance_watermark_to(datetime(2021, 3, 1, 0, 0, 15, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=elem, event_timestamp=datetime(2021, 3, 1, 0, 0, 15, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=elem, event_timestamp=datetime(2021, 3, 1, 0, 0, 16, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=elem, event_timestamp=datetime(2021, 3, 1, 0, 0, 17, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=elem, event_timestamp=datetime(2021, 3, 1, 0, 0, 18, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=elem, event_timestamp=datetime(2021, 3, 1, 0, 0, 19, 0, tzinfo=pytz.UTC).timestamp())
-                    .advance_watermark_to(datetime(2021, 3, 1, 0, 0, 20, 0, tzinfo=pytz.UTC).timestamp())
-                    .add_elements(elements=elem, event_timestamp=datetime(2021, 3, 1, 0, 0, 20, 0, tzinfo=pytz.UTC).timestamp())
-                    .advance_watermark_to(datetime(2021, 3, 1, 0, 0, 25, 0, tzinfo=pytz.UTC).timestamp())
-                    .advance_watermark_to_infinity())
+  def expand(self, input):
+    elemlist = [{'age': 10}, {'age': 20}, {'age': 30}]
+    my_schema = pyarrow.schema([pyarrow.field('age', pyarrow.int64())],
+                               metadata={"age": "the age int64"})
+    #elem = [pyarrow.Table.from_pylist(elemlist, schema=my_schema)]
+    elem = elemlist
+    return (
+        input
+        | TestStream().add_elements(
+            elements=elem,
+            event_timestamp=datetime(
+                2021, 3, 1, 0, 0, 1, 0,
+                tzinfo=pytz.UTC).timestamp()).add_elements(
+                    elements=elem,
+                    event_timestamp=datetime(
+                        2021, 3, 1, 0, 0, 2, 0,
+                        tzinfo=pytz.UTC).timestamp()).add_elements(
+                            elements=elem,
+                            event_timestamp=datetime(
+                                2021, 3, 1, 0, 0, 3, 0,
+                                tzinfo=pytz.UTC).timestamp()).add_elements(
+                                    elements=elem,
+                                    event_timestamp=datetime(
+                                        2021, 3, 1, 0, 0, 4, 0,
+                                        tzinfo=pytz.UTC).timestamp()).
+        advance_watermark_to(
+            datetime(2021, 3, 1, 0, 0, 5, 0,
+                     tzinfo=pytz.UTC).timestamp()).add_elements(
+                         elements=elem,
+                         event_timestamp=datetime(
+                             2021, 3, 1, 0, 0, 5, 0,
+                             tzinfo=pytz.UTC).timestamp()).
+        add_elements(
+            elements=elem,
+            event_timestamp=datetime(
+                2021, 3, 1, 0, 0, 6,
+                0, tzinfo=pytz.UTC).timestamp()).add_elements(
+                    elements=elem,
+                    event_timestamp=datetime(
+                        2021, 3, 1, 0, 0, 7, 0,
+                        tzinfo=pytz.UTC).timestamp()).add_elements(
+                            elements=elem,
+                            event_timestamp=datetime(
+                                2021, 3, 1, 0, 0, 8, 0,
+                                tzinfo=pytz.UTC).timestamp()).add_elements(
+                                    elements=elem,
+                                    event_timestamp=datetime(
+                                        2021, 3, 1, 0, 0, 9, 0,
+                                        tzinfo=pytz.UTC).timestamp()).
+        advance_watermark_to(
+            datetime(2021, 3, 1, 0, 0, 10, 0,
+                     tzinfo=pytz.UTC).timestamp()).add_elements(
+                         elements=elem,
+                         event_timestamp=datetime(
+                             2021, 3, 1, 0, 0, 10, 0,
+                             tzinfo=pytz.UTC).timestamp()).add_elements(
+                                 elements=elem,
+                                 event_timestamp=datetime(
+                                     2021, 3, 1, 0, 0, 11, 0,
+                                     tzinfo=pytz.UTC).timestamp()).
+        add_elements(
+            elements=elem,
+            event_timestamp=datetime(
+                2021, 3, 1, 0, 0, 12, 0,
+                tzinfo=pytz.UTC).timestamp()).add_elements(
+                    elements=elem,
+                    event_timestamp=datetime(
+                        2021, 3, 1, 0, 0, 13, 0,
+                        tzinfo=pytz.UTC).timestamp()).add_elements(
+                            elements=elem,
+                            event_timestamp=datetime(
+                                2021, 3, 1, 0, 0, 14, 0,
+                                tzinfo=pytz.UTC).timestamp()).
+        advance_watermark_to(
+            datetime(2021, 3, 1, 0, 0, 15, 0,
+                     tzinfo=pytz.UTC).timestamp()).add_elements(
+                         elements=elem,
+                         event_timestamp=datetime(
+                             2021, 3, 1, 0, 0, 15, 0,
+                             tzinfo=pytz.UTC).timestamp()).add_elements(
+                                 elements=elem,
+                                 event_timestamp=datetime(
+                                     2021, 3, 1, 0, 0, 16, 0,
+                                     tzinfo=pytz.UTC).timestamp()).
+        add_elements(
+            elements=elem,
+            event_timestamp=datetime(
+                2021, 3, 1, 0, 0, 17, 0,
+                tzinfo=pytz.UTC).timestamp()).add_elements(
+                    elements=elem,
+                    event_timestamp=datetime(
+                        2021, 3, 1, 0, 0, 18, 0,
+                        tzinfo=pytz.UTC).timestamp()).add_elements(
+                            elements=elem,
+                            event_timestamp=datetime(
+                                2021, 3, 1, 0, 0, 19, 0,
+                                tzinfo=pytz.UTC).timestamp()).
+        advance_watermark_to(
+            datetime(2021, 3, 1, 0, 0, 20, 0,
+                     tzinfo=pytz.UTC).timestamp()).add_elements(
+                         elements=elem,
+                         event_timestamp=datetime(
+                             2021, 3, 1, 0, 0, 20, 0,
+                             tzinfo=pytz.UTC).timestamp()).advance_watermark_to(
+                                 datetime(
+                                     2021, 3, 1, 0, 0, 25, 0, tzinfo=pytz.UTC).
+                                 timestamp()).advance_watermark_to_infinity())
