@@ -173,8 +173,13 @@ class Pipeline(HasDisplayData):
     if options is not None:
       if isinstance(options, PipelineOptions):
         # Make a deep copy of options since they could be overwritten in later
-        # steps.
+        # steps. However, the 'runner' object within 'options' is excluded from
+        # the deep copy (it is shallow copied) due to potential issues with deep
+        # copying specific runner instances, such as FlumeRunner.
+        saved_runner = options.view_as(StandardOptions).runner
+        options.view_as(StandardOptions).runner = None
         self._options = copy.deepcopy(options)
+        self._options.view_as(StandardOptions).runner = saved_runner
       else:
         raise ValueError(
             'Parameter options, if specified, must be of type PipelineOptions. '
