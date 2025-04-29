@@ -171,6 +171,8 @@ public abstract class WindowedValue<T> {
    */
   public abstract <NewT> WindowedValue<NewT> withValue(NewT value);
 
+  public abstract WindowedValue<T> withElementMetadata(@Nullable ElementMetadata elementMetadata);
+
   /** Returns the value of this {@code WindowedValue}. */
   public abstract T getValue();
 
@@ -305,6 +307,11 @@ public abstract class WindowedValue<T> {
     }
 
     @Override
+    public WindowedValue<T> withElementMetadata(@Nullable ElementMetadata elementMetadata) {
+      return new ValueInGlobalWindow<>(getValue(), getPane(), elementMetadata);
+    }
+
+    @Override
     public Collection<? extends BoundedWindow> getWindows() {
       return GLOBAL_WINDOWS;
     }
@@ -383,6 +390,12 @@ public abstract class WindowedValue<T> {
     }
 
     @Override
+    public WindowedValue<T> withElementMetadata(@Nullable ElementMetadata elementMetadata) {
+      return new TimestampedValueInGlobalWindow<>(
+          getValue(), getTimestamp(), getPane(), elementMetadata);
+    }
+
+    @Override
     public Collection<? extends BoundedWindow> getWindows() {
       return GLOBAL_WINDOWS;
     }
@@ -454,6 +467,12 @@ public abstract class WindowedValue<T> {
     }
 
     @Override
+    public WindowedValue<T> withElementMetadata(@Nullable ElementMetadata elementMetadata) {
+      return new TimestampedValueInSingleWindow<>(
+          getValue(), getTimestamp(), getWindow(), getPane(), elementMetadata);
+    }
+
+    @Override
     public Collection<? extends BoundedWindow> getWindows() {
       return Collections.singletonList(window);
     }
@@ -519,6 +538,12 @@ public abstract class WindowedValue<T> {
     public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
       return new TimestampedValueInMultipleWindows<>(
           newValue, getTimestamp(), windows, getPane(), getElementMetadata());
+    }
+
+    @Override
+    public WindowedValue<T> withElementMetadata(@Nullable ElementMetadata elementMetadata) {
+      return new TimestampedValueInMultipleWindows<>(
+          getValue(), getTimestamp(), getWindows(), getPane(), elementMetadata);
     }
 
     @Override
