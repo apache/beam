@@ -14,7 +14,6 @@
 # limitations under the License.
 
 import logging
-import time
 from collections.abc import Iterable
 from collections.abc import Sequence
 from typing import Any
@@ -25,15 +24,12 @@ from typing import cast
 
 import apache_beam as beam
 import openai
-from apache_beam.io.components.adaptive_throttler import AdaptiveThrottler
-from apache_beam.metrics.metric import Metrics
 from apache_beam.ml.inference.base import ModelHandler, RemoteModelHandler
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.transforms.base import EmbeddingsManager
 from apache_beam.ml.transforms.base import _TextEmbeddingHandler
 from apache_beam.pvalue import PCollection
 from apache_beam.pvalue import Row
-from apache_beam.utils import retry
 from openai import APIError
 from openai import RateLimitError
 
@@ -42,7 +38,6 @@ __all__ = ["OpenAITextEmbeddings"]
 # Define a type variable for the output
 MLTransformOutputT = TypeVar('MLTransformOutputT')
 
-_MSEC_TO_SEC = 1000
 _BATCH_SIZE = 20  # OpenAI can handle larger batches than Vertex
 
 LOGGER = logging.getLogger("OpenAIEmbeddings")
@@ -207,3 +202,4 @@ class OpenAITextEmbeddings(EmbeddingsManager):
     return RunInference(
         model_handler=_TextEmbeddingHandler(self),
         inference_args=self.inference_args)
+    
