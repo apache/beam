@@ -25,7 +25,6 @@ from apache_beam.yaml import yaml_provider
 from apache_beam.yaml.yaml_provider import InlineProvider
 from apache_beam.yaml.yaml_transform import Scope
 from apache_beam.yaml.yaml_transform import chain_as_composite
-from apache_beam.yaml.yaml_transform import validate_against_schema
 from apache_beam.yaml.yaml_transform import ensure_errors_consumed
 from apache_beam.yaml.yaml_transform import ensure_transforms_have_types
 from apache_beam.yaml.yaml_transform import expand_composite_transform
@@ -39,6 +38,7 @@ from apache_beam.yaml.yaml_transform import preprocess
 from apache_beam.yaml.yaml_transform import preprocess_flattened_inputs
 from apache_beam.yaml.yaml_transform import preprocess_windowing
 from apache_beam.yaml.yaml_transform import push_windowing_to_roots
+from apache_beam.yaml.yaml_transform import validate_against_schema
 from apache_beam.yaml.yaml_utils import SafeLineLoader
 
 try:
