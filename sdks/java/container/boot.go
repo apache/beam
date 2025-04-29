@@ -229,7 +229,7 @@ func main() {
 			if heapDumpOption.GetBoolValue() {
 			  args = append(args, "-XX:+HeapDumpOnOutOfMemoryError",
 			                "-Dbeam.fn.heap_dump_dir="+filepath.Join(dir, "heapdumps"),
-			                "-XX:HeapDumpPath="+filepath.Join(dir, "heapdumps", heap_dump.hprof"))
+			                "-XX:HeapDumpPath="+filepath.Join(dir, "heapdumps", "heap_dump.hprof"))
 			}
 		}
 	}
