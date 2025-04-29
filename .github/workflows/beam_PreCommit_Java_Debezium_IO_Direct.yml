@@ -88,7 +88,7 @@ jobs:
         with:
           java-version: |
             17
-            8
+            11
       - name: run Debezium IO build task
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

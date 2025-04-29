@@ -225,6 +225,10 @@ class PipelineRunner(object):
               beam_runner_api_pb2.TimeDomain.PROCESSING_TIME):
             raise NotImplementedError(timer.time_domain)
 
+  def default_pickle_library_override(self):
+    """Default pickle library, can be overridden by runner implementation."""
+    return None
+
 
 # FIXME: replace with PipelineState(str, enum.Enum)
 class PipelineState(object):
