@@ -322,7 +322,7 @@ public final class PaneInfo {
 
   /** A Coder for encoding PaneInfo instances. */
   public static class PaneInfoCoder extends AtomicCoder<PaneInfo> {
-    private static byte ELEMENT_METADATA_MASK = (byte) 0x80;
+    private static final byte ELEMENT_METADATA_MASK = (byte) 0x80;
 
     private enum Encoding {
       FIRST,
