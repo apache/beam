@@ -688,6 +688,11 @@ project.tasks.register("generateExternalTransformsConfig") {
   dependsOn(":sdks:python:generateExternalTransformsConfig")
 }
 
+// Generates the Managed IO Beam web page
+project.tasks.register("generateManagedIOPage") {
+  dependsOn(":sdks:python:generateManagedIOPage")
+}
+
 // Configure the release plugin to do only local work; the release manager determines what, if
 // anything, to push. On failure, the release manager can reset the branch without pushing.
 release {
