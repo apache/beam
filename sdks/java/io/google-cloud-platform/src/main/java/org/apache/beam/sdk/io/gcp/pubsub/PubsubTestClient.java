@@ -305,12 +305,23 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
   private static void deactivate(Runnable runFinalChecks) {
     synchronized (STATE) {
       checkState(STATE.isActive, "No test still in flight");
-      runFinalChecks.run();
-      STATE.remainingExpectedOutgoingMessages = null;
-      STATE.remainingPendingIncomingMessages = null;
-      STATE.pendingAckIncomingMessages = null;
-      STATE.ackDeadline = null;
-      STATE.isActive = false;
+      try {
+        runFinalChecks.run();
+      } finally {
+        STATE.isPublish = false;
+        STATE.expectedTopic = null;
+        STATE.remainingExpectedOutgoingMessages = null;
+        STATE.remainingFailingOutgoingMessages = null;
+        STATE.clock = null;
+        STATE.expectedSubscription = null;
+        STATE.ackTimeoutSec = 0;
+        STATE.remainingPendingIncomingMessages = null;
+        STATE.pendingAckIncomingMessages = null;
+        STATE.ackDeadline = null;
+        STATE.expectedSchemaPath = null;
+        STATE.expectedSchema = null;
+        STATE.isActive = false;
+      }
     }
   }
 
