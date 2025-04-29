@@ -617,7 +617,8 @@ class SchemaAwareExternalTransformTest(unittest.TestCase):
 
   @mock.patch("apache_beam.transforms.external.ExternalTransform.service")
   @mock.patch("apache_beam.transforms.external.BeamJarExpansionService")
-  def test_managed_replacement_known_id(self, mock_service, mock_beam_jar_service):
+  def test_managed_replacement_known_id(
+      self, mock_service, mock_beam_jar_service):
     mock_service.return_value = self.MockDiscoveryService()
     mock_beam_jar_service.return_value = self.MockDiscoveryService()
 
