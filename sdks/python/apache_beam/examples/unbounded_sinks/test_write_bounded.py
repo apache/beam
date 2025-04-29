@@ -71,11 +71,9 @@ def run(argv=None, save_main_session=True) -> PipelineResult:
       }, {
           'age': 30
       }])
-      #| beam.CombineGlobally(AverageFn())
-      #| 'Serialize' >> beam.Map(json.dumps)
       | beam.LogElements(
           prefix='before write ', with_window=False, level=logging.INFO))
-  #OK in batch
+  #TextIO
   output2 = output | 'Write to text' >> WriteToText(
       file_path_prefix="__output_batch__/ouput_WriteToText",
       file_name_suffix=".txt",
@@ -83,28 +81,28 @@ def run(argv=None, save_main_session=True) -> PipelineResult:
   output2 | 'LogElements after WriteToText' >> LogElements(
       prefix='after WriteToText ', with_window=False, level=logging.INFO)
 
-  #OK in batch and stream
-  # output3 = (output | 'Serialize' >> beam.Map(json.dumps)
-  #   | 'Write to files' >> WriteToFiles(path="__output_batch__/output_WriteToFiles")
-  # )
-  # output3 | 'LogElements after WriteToFiles' >> LogElements(prefix='after WriteToFiles ', with_window=False,level=logging.INFO)
+  #FileIO
+  output3 = (output | 'Serialize' >> beam.Map(json.dumps)
+    | 'Write to files' >> WriteToFiles(path="__output_batch__/output_WriteToFiles")
+  )
+  output3 | 'LogElements after WriteToFiles' >> LogElements(prefix='after WriteToFiles ', with_window=False,level=logging.INFO)
 
-  #KO - ValueError: GroupByKey cannot be applied to an unbounded PCollection with global windowing and a default trigger
-  # output4 = output | 'Write' >> beam.io.WriteToParquet(file_path_prefix="__output_batch__/output_parquet",
-  #       schema=
-  #           pyarrow.schema(
-  #               [('age', pyarrow.int64())]
-  #           )
-  #   )
-  # output4 | 'LogElements after WriteToParquet' >> LogElements(prefix='after WriteToParquet ', with_window=False,level=logging.INFO)
-  # output | 'Write' >> beam.io.WriteToParquet(file_path_prefix="output",
-  #       schema=
-  #           pyarrow.schema(
-  #               [('cnt', pyarrow.int64()),('json', pyarrow.string())]
-  #           ),
-  #       record_batch_size = 10,
-  #       num_shards=0
-  #   )
+  #ParquetIO
+  output4 = output | 'Write' >> beam.io.WriteToParquet(file_path_prefix="__output_batch__/output_parquet",
+        schema=
+            pyarrow.schema(
+                [('age', pyarrow.int64())]
+            )
+    )
+  output4 | 'LogElements after WriteToParquet' >> LogElements(prefix='after WriteToParquet ', with_window=False,level=logging.INFO)
+  output | 'Write parquet' >> beam.io.WriteToParquet(file_path_prefix="__output_batch__/output_WriteToParquet",
+        schema=
+            pyarrow.schema(
+                [('age', pyarrow.int64())]
+            ),
+        record_batch_size = 10,
+        num_shards=0
+    )
 
   # Execute the pipeline and return the result.
   result = p.run()

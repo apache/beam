@@ -1177,17 +1177,14 @@ class WriteImpl(ptransform.PTransform):
             | 'Pair init gbk' >> core.GroupByKey()
             | 'InitializeWindowedWrite' >> core.Map(
                 lambda _, sink: sink.initialize_write(), self.sink)
-            #| 'LogElements init_result_window_coll' >> LogElements(prefix="init_result_window_coll :",with_window=True,with_timestamp=True,level=logging.INFO)
         )
 
         write_result_coll = (
             keyed_pcoll
             | 'Group by random key' >> core.GroupByKey()
-            #| 'LogElements before WriteWindowedBundles' >> LogElements(prefix="before WriteWindowedBundles :",with_window=True,with_timestamp=True,level=logging.INFO)
             | 'WriteWindowedBundles' >> core.ParDo(
                 _WriteWindowedBundleDoFn(sink=self.sink, per_key=True),
                 AsSingleton(init_result_window_coll))
-            #| 'LogElements' >> LogElements(prefix="after WriteWindowedBundles :",with_window=True,with_timestamp=True,level=logging.INFO)
             | 'Pair' >> core.Map(lambda x: (None, x))
             | core.GroupByKey()
             | 'Extract' >> core.Map(lambda x: x[1]))
@@ -1198,7 +1195,6 @@ class WriteImpl(ptransform.PTransform):
                 AsSingleton(init_result_window_coll)))
         finalized_write_result_coll = (
             pre_finalized_write_result_coll
-            #| 'LogElements pre_finalized_write_result_coll' >> LogElements(prefix="pre_finalized_write_result_coll :",with_window=True,with_timestamp=True,level=logging.INFO)
             | 'FinalizeWrite' >> core.FlatMap(
                 _finalize_write,
                 self.sink,
@@ -1242,11 +1238,6 @@ class WriteImpl(ptransform.PTransform):
             | 'WriteWindowedBundles' >> core.ParDo(
                 _WriteWindowedBundleDoFn(self.sink),
                 AsSingleton(init_result_window_coll))
-            | 'LogElements' >> LogElements(
-                prefix="after WriteWindowedBundles :",
-                with_window=True,
-                with_timestamp=True,
-                level=logging.INFO)
             | 'Pair' >> core.Map(lambda x: (None, x))
             | core.GroupByKey()
             | 'Extract' >> core.Map(lambda x: x[1]))
@@ -1257,11 +1248,6 @@ class WriteImpl(ptransform.PTransform):
                 AsSingleton(init_result_window_coll)))
         finalized_write_result_coll = (
             pre_finalized_write_result_coll
-            | 'LogElements 2' >> LogElements(
-                prefix="before finalize :",
-                with_window=True,
-                with_timestamp=True,
-                level=logging.INFO)
             | 'FinalizeWrite' >> core.FlatMap(
                 _finalize_write,
                 self.sink,
@@ -1288,10 +1274,7 @@ class WriteImpl(ptransform.PTransform):
               AsIter(write_result_coll),
               min_shards,
               AsSingleton(pre_finalize_coll)).with_output_types(str)
-          | 'LogElements after FinalizeWrite' >> LogElements(
-              prefix='after FinalizeWrite ',
-              with_window=False,
-              level=logging.INFO))
+      )
 
 
 class _WriteBundleDoFn(core.DoFn):
@@ -1455,17 +1438,8 @@ def _finalize_write(
   outputs = sink.finalize_write(
       init_result, write_results + extra_shards, pre_finalize_results, w)
   outputs = list(outputs)
-  #_LOGGER.info("*** _finalize_write outputs %s",outputs)
-  if outputs:
-    if not isinstance(w, window.GlobalWindow):
-      #handle windowed finalize
-      yield (
-          window.TimestampedValue(v, timestamp=self.window.start, windows=[w])
-          for v in outputs)
-    else:
-      return (
-          window.TimestampedValue(v, timestamp.MAX_TIMESTAMP) for v in outputs)
 
+  return (window.TimestampedValue(v, w.end) for v in outputs)
 
 class _RoundRobinKeyFn(core.DoFn):
 
