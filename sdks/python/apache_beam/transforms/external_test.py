@@ -616,8 +616,10 @@ class SchemaAwareExternalTransformTest(unittest.TestCase):
           **kwargs)
 
   @mock.patch("apache_beam.transforms.external.ExternalTransform.service")
-  def test_managed_replacement_known_id(self, mock_service):
+  @mock.patch("apache_beam.transforms.external.BeamJarExpansionService")
+  def test_managed_replacement_known_id(self, mock_service, mock_beam_jar_service):
     mock_service.return_value = self.MockDiscoveryService()
+    mock_beam_jar_service.return_value = self.MockDiscoveryService()
 
     identifier = "test_schematransform"
     kwargs = {"int_field": 0, "str_field": "str"}
