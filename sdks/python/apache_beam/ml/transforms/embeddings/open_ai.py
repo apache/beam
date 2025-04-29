@@ -27,7 +27,7 @@ import apache_beam as beam
 import openai
 from apache_beam.io.components.adaptive_throttler import AdaptiveThrottler
 from apache_beam.metrics.metric import Metrics
-from apache_beam.ml.inference.base import ModelHandler
+from apache_beam.ml.inference.base import ModelHandler, RemoteModelHandler
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.transforms.base import EmbeddingsManager
 from apache_beam.ml.transforms.base import _TextEmbeddingHandler
@@ -63,7 +63,7 @@ def _retry_on_appropriate_openai_error(exception):  # pylint: disable=line-too-l
   return isinstance(exception, (RateLimitError, APIError))
 
 
-class _OpenAITextEmbeddingHandler(ModelHandler):
+class _OpenAITextEmbeddingHandler(RemoteModelHandler):
   """
   Note: Intended for internal use and guarantees no backwards compatibility.
   """
@@ -76,6 +76,11 @@ class _OpenAITextEmbeddingHandler(ModelHandler):
       user: Optional[str] = None,
       batch_size: Optional[int] = None,
   ):
+    super().__init__(
+        namespace="OpenAITextEmbeddings",
+        num_retries=5,
+        throttle_delay_secs=5,
+        retry_filter=_retry_on_appropriate_openai_error)
     self.model_name = model_name
     self.api_key = api_key
     self.organization = organization
@@ -83,37 +88,48 @@ class _OpenAITextEmbeddingHandler(ModelHandler):
     self.user = user
     self.batch_size = batch_size or _BATCH_SIZE
 
-    # Configure AdaptiveThrottler and throttling metrics for client-side
-    # throttling behavior.
-    self.throttled_secs = Metrics.counter(
-        OpenAITextEmbeddings, "cumulativeThrottlingSeconds")
-    self.throttler = AdaptiveThrottler(
-        window_ms=1, bucket_ms=1, overload_ratio=2)
+  def create_client(self):
+    """Creates and returns an OpenAI client."""
+    if self.api_key:
+      client = openai.OpenAI(
+          api_key=self.api_key,
+          organization=self.organization,
+      )
+    else:
+      client = openai.OpenAI(organization=self.organization)
 
-  @retry.with_exponential_backoff(
-      num_retries=5, retry_filter=_retry_on_appropriate_openai_error)
-  def get_request(
-      self, text_batch: Sequence[str], model: Any, throttle_delay_secs: int):
-    while self.throttler.throttle_request(time.time() * _MSEC_TO_SEC):
-      LOGGER.info(
-          "Delaying request for %d seconds due to previous failures",
-          throttle_delay_secs)
-      time.sleep(throttle_delay_secs)
-      self.throttled_secs.inc(throttle_delay_secs)
+    return client
+
+  def request(
+      self,
+      batch: Sequence[str],
+      model: Any,
+      inference_args: Optional[dict[str, Any]] = None,
+  ) -> Iterable:
+    """Makes a request to OpenAI embedding API and returns embeddings."""
+    # Process in smaller batches if needed
+    if len(batch) > self.batch_size:
+      embeddings = []
+      for i in range(0, len(batch), self.batch_size):
+        text_batch = batch[i:i + self.batch_size]
+        # Use request() recursively for each smaller batch
+        embeddings_batch = self.request(text_batch, model, inference_args)
+        embeddings.extend(embeddings_batch)
+      return embeddings
+
+    # Prepare arguments for the API call
+    kwargs = {
+        "model": self.model_name,
+        "input": batch,
+    }
+    if self.dimensions:
+      kwargs["dimensions"] = cast(Any, self.dimensions)
+    if self.user:
+      kwargs["user"] = self.user
 
     try:
-      req_time = time.time()
-      kwargs = {
-          "model": self.model_name,
-          "input": text_batch,
-      }
-      if self.dimensions:
-        kwargs["dimensions"] = cast(Any, self.dimensions)
-      if self.user:
-        kwargs["user"] = self.user
-
+      # Make the API call
       response = model.embeddings.create(**kwargs)
-      self.throttler.successful_request(req_time * _MSEC_TO_SEC)
       return [item.embedding for item in response.data]
     except RateLimitError as e:
       LOGGER.warning("Request was rate limited by OpenAI API: %s", e)
@@ -126,33 +142,6 @@ class _OpenAITextEmbeddingHandler(ModelHandler):
     """Returns kwargs suitable for beam.BatchElements with appropriate batch size."""  # pylint: disable=line-too-long
     return {'max_batch_size': self.batch_size}
 
-  def run_inference(
-      self,
-      batch: Sequence[str],
-      model: Any,
-      inference_args: Optional[dict[str, Any]] = None,
-  ) -> Iterable:
-    embeddings = []
-    batch_size = self.batch_size
-    for i in range(0, len(batch), batch_size):
-      text_batch = batch[i:i + batch_size]
-      embeddings_batch = self.get_request(
-          text_batch=text_batch, model=model, throttle_delay_secs=5)
-      embeddings.extend(embeddings_batch)
-    return embeddings
-
-  def load_model(self):
-    if self.api_key:
-      client = openai.OpenAI(
-          api_key=self.api_key,
-          organization=self.organization,
-      )
-    else:
-      # Use environment variables or default configuration
-      client = openai.OpenAI(organization=self.organization)
-
-    return client
-
   def __repr__(self):
     return 'OpenAITextEmbeddings'
 
@@ -164,7 +153,8 @@ class OpenAITextEmbeddings(EmbeddingsManager):
   Example Usage::
 
       with pipeline as p:  # pylint: disable=line-too-long
-          text = p | "Create texts" >> beam.Create([{"text": "Hello world"}, {"text": "Beam ML"}])
+          text = p | "Create texts" >> beam.Create([{"text": "Hello world"}, 
+          {"text": "Beam ML"}])
           embeddings = text | OpenAITextEmbeddings(
               model_name="text-embedding-3-small",
               columns=["embedding_col"],
