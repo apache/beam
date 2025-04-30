@@ -166,6 +166,9 @@ public final class StreamingDataflowWorker {
   private static final String BEAM_FN_API_EXPERIMENT = "beam_fn_api";
   private static final String STREAMING_ENGINE_USE_JOB_SETTINGS_FOR_HEARTBEAT_POOL_EXPERIMENT =
       "streaming_engine_use_job_settings_for_heartbeat_pool";
+  // Experiment make the monitor within BoundedQueueExecutor fair
+  public static final String BOUNDED_QUEUE_EXECUTOR_USE_FAIR_MONITOR_EXPERIMENT =
+      "windmill_bounded_queue_executor_use_fair_monitor";
 
   private final WindmillStateCache stateCache;
   private final StreamingWorkerStatusPages statusPages;
@@ -796,13 +799,16 @@ public final class StreamingDataflowWorker {
   }
 
   private static BoundedQueueExecutor createWorkUnitExecutor(DataflowWorkerHarnessOptions options) {
+    boolean useFairMonitor =
+        DataflowRunner.hasExperiment(options, BOUNDED_QUEUE_EXECUTOR_USE_FAIR_MONITOR_EXPERIMENT);
     return new BoundedQueueExecutor(
         chooseMaxThreads(options),
         THREAD_EXPIRATION_TIME_SEC,
         TimeUnit.SECONDS,
         chooseMaxBundlesOutstanding(options),
         chooseMaxBytesOutstanding(options),
-        new ThreadFactoryBuilder().setNameFormat("DataflowWorkUnits-%d").setDaemon(true).build());
+        new ThreadFactoryBuilder().setNameFormat("DataflowWorkUnits-%d").setDaemon(true).build(),
+        useFairMonitor);
   }
 
   public static void main(String[] args) throws Exception {
@@ -938,6 +944,7 @@ public final class StreamingDataflowWorker {
 
   @FunctionalInterface
   private interface StreamingWorkerStatusReporterFactory {
+
     StreamingWorkerStatusReporter createStatusReporter(ThrottledTimeTracker throttledTimeTracker);
   }
 
@@ -961,6 +968,7 @@ public final class StreamingDataflowWorker {
 
     @AutoValue.Builder
     abstract static class Builder {
+
       abstract Builder setConfigFetcher(ComputationConfig.Fetcher value);
 
       abstract Builder setComputationStateCache(ComputationStateCache value);
