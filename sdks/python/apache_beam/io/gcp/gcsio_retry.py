@@ -23,6 +23,7 @@ import inspect
 import logging
 import math
 
+from itertools import tee
 from google.api_core import exceptions as api_exceptions
 from google.api_core import retry
 from google.cloud.storage.retry import DEFAULT_RETRY
@@ -54,9 +55,14 @@ class ThrottlingHandler(object):
         _LOGGER.warning('cannot inspect the caller stack frame')
         return
 
-      # next_sleep is one of the arguments in the caller
+      # sleep_iterator is one of the arguments in the caller
       # i.e. _retry_error_helper() in google/api_core/retry/retry_base.py
-      sleep_seconds = prev_frame.f_locals.get("next_sleep", 0)
+      sleep_iterator = prev_frame.f_locals.get("sleep_iterator", iter([]))
+      sleep_iterator, sleep_iterator_copy = tee(sleep_iterator)
+      try:
+        sleep_seconds = next(sleep_iterator_copy)
+      except StopIteration:
+        sleep_seconds = 0
       ThrottlingHandler._THROTTLED_SECS.inc(math.ceil(sleep_seconds))
 
 
