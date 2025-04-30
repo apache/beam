@@ -448,7 +448,10 @@ public class PubsubUnboundedSinkTest implements Serializable {
               null));
       data.add(str);
     }
+
+    // Randomly shuffle test input to highlight potential issues caused by order dependent logic.
     Collections.shuffle(data);
+
     try (PubsubTestClientFactory factory =
         PubsubTestClient.createFactoryForPublish(TOPIC, outgoing, ImmutableList.of())) {
       PubsubUnboundedSink sink =
