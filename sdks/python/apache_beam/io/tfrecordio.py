@@ -291,7 +291,7 @@ class _TFRecordSink(filebasedsink.FileBasedSink):
       num_shards,
       shard_name_template,
       compression_type,
-      triggering_frequency):
+      triggering_frequency=60):
     """Initialize a TFRecordSink. See WriteToTFRecord for details."""
 
     super().__init__(
@@ -353,7 +353,7 @@ class WriteToTFRecord(PTransform):
         num_shards,
         shard_name_template,
         compression_type,
-        triggering_frequency=60)
+        triggering_frequency)
 
   def expand(self, pcoll):
     if (not pcoll.is_bounded and self._sink.shard_name_template ==
