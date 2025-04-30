@@ -67,9 +67,9 @@ dependencies {
     testImplementation 'com.zaxxer:HikariCP:4.0.3'
 
     // Kafka connect dependencies
-    implementation "org.apache.kafka:connect-api:2.5.0"
-    implementation "org.apache.kafka:connect-json:2.5.0"
-    permitUnusedDeclared "org.apache.kafka:connect-json:2.5.0" // BEAM-11761
+    implementation "org.apache.kafka:connect-api:3.9.0"
+    implementation "org.apache.kafka:connect-json:3.9.0"
+    permitUnusedDeclared "org.apache.kafka:connect-json:3.9.0" // BEAM-11761
 
     // Debezium dependencies
     implementation group: 'io.debezium', name: 'debezium-core', version: '3.1.1.Final'
