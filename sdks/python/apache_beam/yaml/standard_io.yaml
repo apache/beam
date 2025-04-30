@@ -88,8 +88,8 @@
           # Following transforms may be replaced with equivalent managed transforms,
           # if the pipelines 'updateCompatibilityBeamVersion' match the provided
           # version.
-          'ReadFromKafka': '2.66.0'
-          'WriteToKafka': '2.66.0'
+          'ReadFromKafka': '2.65.0'
+          'WriteToKafka': '2.65.0'
 
 # PubSub
 - type: renaming
