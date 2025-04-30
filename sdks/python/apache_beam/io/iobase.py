@@ -35,7 +35,6 @@ import logging
 import math
 import random
 import uuid
-import apache_beam as beam
 from collections import namedtuple
 from typing import Any
 from typing import Iterator
@@ -43,6 +42,7 @@ from typing import Optional
 from typing import Tuple
 from typing import Union
 
+import apache_beam as beam
 from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam.coders.coders import _MemoizingPickleCoder
@@ -799,7 +799,7 @@ class Sink(HasDisplayData):
     """
     raise NotImplementedError
 
-  def finalize_write(self, init_result, writer_results, pre_finalize_result):
+  def finalize_write(self, init_result, writer_results, pre_finalize_result, w):
     """Finalizes the sink after all data is written to it.
 
     Given the result of initialization and an iterable of results from bundle
@@ -832,6 +832,7 @@ class Sink(HasDisplayData):
         will only contain the result of a single successful write for a given
         bundle.
       pre_finalize_result: the result of ``pre_finalize()`` invocation.
+      w: DoFn window
     """
     raise NotImplementedError
 
@@ -1427,9 +1428,9 @@ def _finalize_write(
         extra_shards.append(writer.close())
   outputs = sink.finalize_write(
       init_result, write_results + extra_shards, pre_finalize_results, w)
-  outputs = list(outputs)
 
-  return (window.TimestampedValue(v, w.end) for v in outputs)
+  if outputs:
+    return (window.TimestampedValue(v, w.end) for v in outputs)
 
 
 class _RoundRobinKeyFn(core.DoFn):

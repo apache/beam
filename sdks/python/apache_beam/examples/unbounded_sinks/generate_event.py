@@ -14,10 +14,12 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
+from datetime import datetime
+
+import pytz
+
 import apache_beam as beam
 from apache_beam.testing.test_stream import TestStream
-from datetime import datetime
-import pytz
 
 
 class GenerateEvent(beam.PTransform):

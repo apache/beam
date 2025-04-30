@@ -353,13 +353,6 @@ class FileBasedSink(iobase.Sink):
     ]
 
     if num_shards_to_finalize:
-      # _LOGGER.info(
-      #     'Starting finalize_write threads with num_shards: %d (skipped: %d), '
-      #     'batches: %d, num_threads: %d',
-      #     num_shards_to_finalize,
-      #     num_skipped,
-      #     len(source_file_batch),
-      #     num_threads)
       start_time = time.time()
 
       def _rename_batch(batch):

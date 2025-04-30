@@ -770,7 +770,7 @@ class WriteStreamingTest(unittest.TestCase):
           file_name_suffix=".avro",
           num_shards=num_shards,
           schema=avroschema)
-      output2 | 'LogElements after WriteToAvro' >> LogElements(
+      _ = output2 | 'LogElements after WriteToAvro' >> LogElements(
           prefix='after WriteToAvro ', with_window=True, level=logging.INFO)
 
     # Regex to match the expected windowed file pattern
@@ -813,7 +813,7 @@ class WriteStreamingTest(unittest.TestCase):
           shard_name_template=shard_name_template,
           num_shards=num_shards,
           schema=avroschema)
-      output2 | 'LogElements after WriteToAvro' >> LogElements(
+      _ = output2 | 'LogElements after WriteToAvro' >> LogElements(
           prefix='after WriteToAvro ', with_window=True, level=logging.INFO)
 
     # Regex to match the expected windowed file pattern
@@ -861,7 +861,7 @@ class WriteStreamingTest(unittest.TestCase):
           num_shards=num_shards,
           triggering_frequency=triggering_frequency,
           schema=avroschema)
-      output2 | 'LogElements after WriteToAvro' >> LogElements(
+      _ = output2 | 'LogElements after WriteToAvro' >> LogElements(
           prefix='after WriteToAvro ', with_window=True, level=logging.INFO)
 
     # Regex to match the expected windowed file pattern

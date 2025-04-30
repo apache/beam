@@ -20,21 +20,24 @@
 # python -m apache_beam.examples.unbounded_sinks.test_write
 # This file contains multiple examples of writing unbounded PCollection to files
 
-import apache_beam as beam
+
 import argparse
 import json
 import logging
+
 import pyarrow
+
+import apache_beam as beam
 from apache_beam.examples.unbounded_sinks.generate_event import GenerateEvent
-from apache_beam.transforms.window import FixedWindows
-from apache_beam.transforms.trigger import AccumulationMode
-from apache_beam.transforms.trigger import AfterWatermark
-from apache_beam.utils.timestamp import Duration
-from apache_beam.transforms.util import LogElements
 from apache_beam.io.fileio import WriteToFiles
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.runners.runner import PipelineResult
+from apache_beam.transforms.trigger import AccumulationMode
+from apache_beam.transforms.trigger import AfterWatermark
+from apache_beam.transforms.util import LogElements
+from apache_beam.transforms.window import FixedWindows
+from apache_beam.utils.timestamp import Duration
 
 
 class CountEvents(beam.PTransform):
@@ -53,7 +56,7 @@ class CountEvents(beam.PTransform):
 def run(argv=None, save_main_session=True) -> PipelineResult:
   """Main entry point; defines and runs the wordcount pipeline."""
   parser = argparse.ArgumentParser()
-  known_args, pipeline_args = parser.parse_known_args(argv)
+  _, pipeline_args = parser.parse_known_args(argv)
 
   # We use the save_main_session option because one or more DoFn's in this
   # workflow rely on global context (e.g., a module imported at module level).
@@ -71,11 +74,11 @@ def run(argv=None, save_main_session=True) -> PipelineResult:
       #shard_name_template='-V-SSSSS-of-NNNNN',
       num_shards=2,  #triggering_frequency=5,
   )
-  output2 | 'LogElements after WriteToText' >> LogElements(
+  _ = output2 | 'LogElements after WriteToText' >> LogElements(
       prefix='after WriteToText ', with_window=True, level=logging.INFO)
 
   #FileIO
-  output5 = (
+  _ = (
       output
       | 'FileIO window' >> beam.WindowInto(
           FixedWindows(5),
@@ -96,7 +99,7 @@ def run(argv=None, save_main_session=True) -> PipelineResult:
       num_shards=2,
       triggering_frequency=5,
       schema=pyschema)
-  output4a | 'LogElements after WriteToParquet' >> LogElements(
+  _ = output4a | 'LogElements after WriteToParquet' >> LogElements(
       prefix='after WriteToParquet 4a ', with_window=True, level=logging.INFO)
 
   output4aw = (
@@ -112,7 +115,7 @@ def run(argv=None, save_main_session=True) -> PipelineResult:
           file_name_suffix=".parquet",
           num_shards=2,
           schema=pyschema))
-  output4aw | 'LogElements after WriteToParquet windowed' >> LogElements(
+  _ = output4aw | 'LogElements after WriteToParquet windowed' >> LogElements(
       prefix='after WriteToParquet 4aw ', with_window=True, level=logging.INFO)
 
   output4b = (
@@ -126,7 +129,7 @@ def run(argv=None, save_main_session=True) -> PipelineResult:
           num_shards=2,
           triggering_frequency=5,
           schema=pyschema))
-  output4b | 'LogElements after WriteToParquetBatched' >> LogElements(
+  _ = output4b | 'LogElements after WriteToParquetBatched' >> LogElements(
       prefix='after WriteToParquetBatched 4b ',
       with_window=True,
       level=logging.INFO)
@@ -147,7 +150,7 @@ def run(argv=None, save_main_session=True) -> PipelineResult:
       num_shards=2,
       #triggering_frequency=5,
       schema=avroschema)
-  output5 | 'LogElements after WriteToAvro' >> LogElements(
+  _ = output5 | 'LogElements after WriteToAvro' >> LogElements(
       prefix='after WriteToAvro 5 ', with_window=True, level=logging.INFO)
 
   #TFrecordIO
@@ -160,7 +163,7 @@ def run(argv=None, save_main_session=True) -> PipelineResult:
           file_name_suffix=".tfrecord",
           num_shards=2,
           triggering_frequency=5))
-  output6 | 'LogElements after WriteToTFRecord' >> LogElements(
+  _ = output6 | 'LogElements after WriteToTFRecord' >> LogElements(
       prefix='after WriteToTFRecord 6 ', with_window=True, level=logging.INFO)
 
   # Execute the pipeline and return the result.

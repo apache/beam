@@ -19,21 +19,23 @@
 
 # python -m apache_beam.examples.unbounded_sinks.test_write
 
-import apache_beam as beam
 import argparse
 import json
 import logging
+
 import pyarrow
-from apache_beam.transforms.window import FixedWindows
-from apache_beam.transforms.trigger import AccumulationMode
-from apache_beam.transforms.trigger import AfterWatermark
-from apache_beam.utils.timestamp import Duration
-from apache_beam.transforms.util import LogElements
-from apache_beam.io.textio import WriteToText
+
+import apache_beam as beam
 from apache_beam.io.fileio import WriteToFiles
+from apache_beam.io.textio import WriteToText
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.runners.runner import PipelineResult
+from apache_beam.transforms.trigger import AccumulationMode
+from apache_beam.transforms.trigger import AfterWatermark
+from apache_beam.transforms.util import LogElements
+from apache_beam.transforms.window import FixedWindows
+from apache_beam.utils.timestamp import Duration
 
 
 class CountEvents(beam.PTransform):
@@ -52,7 +54,7 @@ class CountEvents(beam.PTransform):
 def run(argv=None, save_main_session=True) -> PipelineResult:
   """Main entry point; defines and runs the wordcount pipeline."""
   parser = argparse.ArgumentParser()
-  known_args, pipeline_args = parser.parse_known_args(argv)
+  _, pipeline_args = parser.parse_known_args(argv)
 
   # We use the save_main_session option because one or more DoFn's in this
   # workflow rely on global context (e.g., a module imported at module level).
@@ -76,7 +78,7 @@ def run(argv=None, save_main_session=True) -> PipelineResult:
       file_path_prefix="__output_batch__/ouput_WriteToText",
       file_name_suffix=".txt",
       shard_name_template='-U-SSSSS-of-NNNNN')
-  output2 | 'LogElements after WriteToText' >> LogElements(
+  _ = output2 | 'LogElements after WriteToText' >> LogElements(
       prefix='after WriteToText ', with_window=False, level=logging.INFO)
 
   #FileIO
@@ -84,16 +86,16 @@ def run(argv=None, save_main_session=True) -> PipelineResult:
       output | 'Serialize' >> beam.Map(json.dumps)
       | 'Write to files' >>
       WriteToFiles(path="__output_batch__/output_WriteToFiles"))
-  output3 | 'LogElements after WriteToFiles' >> LogElements(
+  _ = output3 | 'LogElements after WriteToFiles' >> LogElements(
       prefix='after WriteToFiles ', with_window=False, level=logging.INFO)
 
   #ParquetIO
   output4 = output | 'Write' >> beam.io.WriteToParquet(
       file_path_prefix="__output_batch__/output_parquet",
       schema=pyarrow.schema([('age', pyarrow.int64())]))
-  output4 | 'LogElements after WriteToParquet' >> LogElements(
+  _ = output4 | 'LogElements after WriteToParquet' >> LogElements(
       prefix='after WriteToParquet ', with_window=False, level=logging.INFO)
-  output | 'Write parquet' >> beam.io.WriteToParquet(
+  _ = output | 'Write parquet' >> beam.io.WriteToParquet(
       file_path_prefix="__output_batch__/output_WriteToParquet",
       schema=pyarrow.schema([('age', pyarrow.int64())]),
       record_batch_size=10,

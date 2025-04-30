@@ -16,20 +16,21 @@
 #
 # pytype: skip-file
 
-import json
 import glob
+import json
 import logging
 import os
-import pytz
 import re
 import shutil
 import tempfile
 import unittest
+from datetime import datetime
 from tempfile import TemporaryDirectory
 
 import hamcrest as hc
 import pandas
 import pytest
+import pytz
 from parameterized import param
 from parameterized import parameterized
 
@@ -54,7 +55,6 @@ from apache_beam.testing.util import equal_to
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 from apache_beam.transforms.util import LogElements
-from datetime import datetime
 
 try:
   import pyarrow as pa
@@ -789,7 +789,7 @@ class WriteStreamingTest(unittest.TestCase):
           file_name_suffix=".parquet",
           num_shards=num_shards,
           schema=pyschema)
-      output2 | 'LogElements after WriteToParquet' >> LogElements(
+      _ = output2 | 'LogElements after WriteToParquet' >> LogElements(
           prefix='after WriteToParquet ', with_window=True, level=logging.INFO)
 
     # Regex to match the expected windowed file pattern
@@ -826,7 +826,7 @@ class WriteStreamingTest(unittest.TestCase):
           shard_name_template=shard_name_template,
           num_shards=num_shards,
           schema=pyschema)
-      output2 | 'LogElements after WriteToParquet' >> LogElements(
+      _ = output2 | 'LogElements after WriteToParquet' >> LogElements(
           prefix='after WriteToParquet ', with_window=True, level=logging.INFO)
 
     # Regex to match the expected windowed file pattern
@@ -868,7 +868,7 @@ class WriteStreamingTest(unittest.TestCase):
           num_shards=num_shards,
           triggering_frequency=triggering_frequency,
           schema=pyschema)
-      output2 | 'LogElements after WriteToParquet' >> LogElements(
+      _ = output2 | 'LogElements after WriteToParquet' >> LogElements(
           prefix='after WriteToParquet ', with_window=True, level=logging.INFO)
 
     # Regex to match the expected windowed file pattern

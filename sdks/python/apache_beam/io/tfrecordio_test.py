@@ -25,15 +25,16 @@ import json
 import logging
 import os
 import pickle
-import pytz
 import random
 import re
 import shutil
 import tempfile
 import unittest
 import zlib
+from datetime import datetime
 
 import crcmod
+import pytz
 
 import apache_beam as beam
 from apache_beam import Create
@@ -50,7 +51,6 @@ from apache_beam.testing.test_utils import TempDir
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.util import LogElements
-from datetime import datetime
 
 try:
   import tensorflow.compat.v1 as tf  # pylint: disable=import-error
@@ -698,7 +698,7 @@ class WriteStreamingTest(unittest.TestCase):
           file_name_suffix=".tfrecord",
           num_shards=num_shards,
       )
-      output2 | 'LogElements after WriteToTFRecord' >> LogElements(
+      _ = output2 | 'LogElements after WriteToTFRecord' >> LogElements(
           prefix='after WriteToTFRecord ', with_window=True, level=logging.INFO)
 
     # Regex to match the expected windowed file pattern
@@ -737,7 +737,7 @@ class WriteStreamingTest(unittest.TestCase):
           shard_name_template=shard_name_template,
           num_shards=num_shards,
       )
-      output2 | 'LogElements after WriteToTFRecord' >> LogElements(
+      _ = output2 | 'LogElements after WriteToTFRecord' >> LogElements(
           prefix='after WriteToTFRecord ', with_window=True, level=logging.INFO)
 
     # Regex to match the expected windowed file pattern
@@ -781,7 +781,7 @@ class WriteStreamingTest(unittest.TestCase):
           num_shards=num_shards,
           triggering_frequency=triggering_frequency,
       )
-      output2 | 'LogElements after WriteToTFRecord' >> LogElements(
+      _ = output2 | 'LogElements after WriteToTFRecord' >> LogElements(
           prefix='after WriteToTFRecord ', with_window=True, level=logging.INFO)
 
     # Regex to match the expected windowed file pattern
