@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -447,6 +448,7 @@ public class PubsubUnboundedSinkTest implements Serializable {
               null));
       data.add(str);
     }
+    Collections.shuffle(data);
     try (PubsubTestClientFactory factory =
         PubsubTestClient.createFactoryForPublish(TOPIC, outgoing, ImmutableList.of())) {
       PubsubUnboundedSink sink =
