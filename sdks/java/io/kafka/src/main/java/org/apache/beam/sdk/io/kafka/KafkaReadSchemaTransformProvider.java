@@ -27,6 +27,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -99,6 +100,17 @@ public class KafkaReadSchemaTransformProvider
       @Override
       public Row apply(byte[] input) {
         return Row.withSchema(rawSchema).addValue(input).build();
+      }
+    };
+  }
+
+  public static SerializableFunction<byte[], Row> getRawStringToRowFunction(Schema stringSchema) {
+    return new SimpleFunction<byte[], Row>() {
+      @Override
+      public Row apply(byte[] input) {
+        return Row.withSchema(stringSchema)
+            .addValue(new String(input, StandardCharsets.UTF_8))
+            .build();
       }
     };
   }
@@ -193,6 +205,9 @@ public class KafkaReadSchemaTransformProvider
       if ("RAW".equals(format)) {
         beamSchema = Schema.builder().addField("payload", Schema.FieldType.BYTES).build();
         valueMapper = getRawBytesToRowFunction(beamSchema);
+      } else if ("STRING".equals(format)) {
+        beamSchema = Schema.builder().addField("payload", Schema.FieldType.STRING).build();
+        valueMapper = getRawStringToRowFunction(beamSchema);
       } else if ("PROTO".equals(format)) {
         String fileDescriptorPath = configuration.getFileDescriptorPath();
         String messageName = checkArgumentNotNull(configuration.getMessageName());

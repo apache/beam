@@ -17,12 +17,13 @@
  */
 package org.apache.beam.sdk.managed;
 
-import static org.apache.beam.sdk.managed.ManagedTransformConstants.CONFIG_NAME_OVERRIDES;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -216,13 +217,14 @@ public class ManagedSchemaTransformProvider
     // Build a config Row that will be used to build the underlying SchemaTransform.
     // If a mapping for the SchemaTransform exists, we use it to update parameter names to align
     // with the underlying SchemaTransform config schema
-    Map<String, String> namingOverride = CONFIG_NAME_OVERRIDES.get(config.getTransformIdentifier());
-    if (namingOverride != null && configMap != null) {
+    @Nullable Map<String, String> aliases = getAliases().get(config.getTransformIdentifier());
+    if (aliases != null && configMap != null) {
       Map<String, Object> remappedConfig = new HashMap<>();
       for (Map.Entry<String, Object> entry : configMap.entrySet()) {
         String paramName = entry.getKey();
-        if (namingOverride.containsKey(paramName)) {
-          paramName = namingOverride.get(paramName);
+        if (aliases.containsKey(paramName)) {
+          // replace alias with the actual field name
+          paramName = aliases.get(paramName);
         }
         remappedConfig.put(paramName, entry.getValue());
       }
@@ -265,6 +267,19 @@ public class ManagedSchemaTransformProvider
 
       throw new IllegalArgumentException(msg);
     }
+  }
+
+  public static Map<String, Map<String, String>> getAliases() {
+    InputStream inputStream =
+        checkStateNotNull(
+            checkStateNotNull(ManagedSchemaTransformProvider.class.getClassLoader())
+                .getResourceAsStream("config_aliases.yaml"));
+
+    Map<String, Map<String, String>> aliases = new HashMap<>();
+    for (Map.Entry<String, Object> entry : YamlUtils.loadFromStream(inputStream).entrySet()) {
+      aliases.put(entry.getKey(), (Map<String, String>) entry.getValue());
+    }
+    return aliases;
   }
 
   // We load providers separately, after construction, to prevent the

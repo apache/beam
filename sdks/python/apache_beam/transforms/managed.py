@@ -82,11 +82,14 @@ from apache_beam.transforms.external import SchemaAwareExternalTransform
 from apache_beam.transforms.ptransform import PTransform
 
 ICEBERG = "iceberg"
+# TODO(https://github.com/apache/beam/issues/34212): keep ICEBERG_CDC private
+#  until we vet it with integration tests
+_ICEBERG_CDC = "iceberg_cdc"
 KAFKA = "kafka"
 BIGQUERY = "bigquery"
 _MANAGED_IDENTIFIER = "beam:transform:managed:v1"
 _EXPANSION_SERVICE_JAR_TARGETS = {
-    "sdks:java:io:expansion-service:shadowJar": [KAFKA, ICEBERG],
+    "sdks:java:io:expansion-service:shadowJar": [KAFKA, ICEBERG, _ICEBERG_CDC],
     "sdks:java:io:google-cloud-platform:expansion-service:shadowJar": [
         BIGQUERY
     ]
@@ -99,6 +102,7 @@ class Read(PTransform):
   """Read using Managed Transforms"""
   _READ_TRANSFORMS = {
       ICEBERG: ManagedTransforms.Urns.ICEBERG_READ.urn,
+      _ICEBERG_CDC: ManagedTransforms.Urns.ICEBERG_CDC_READ.urn,
       KAFKA: ManagedTransforms.Urns.KAFKA_READ.urn,
       BIGQUERY: ManagedTransforms.Urns.BIGQUERY_READ.urn
   }

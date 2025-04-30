@@ -299,8 +299,15 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
 
   def test_flattened_side_input(self):
     # Blocked on support for transcoding
-    # https://jira.apache.org/jira/browse/BEAM-6523
+    # https://github.com/apache/beam/issues/19365
     super().test_flattened_side_input(with_transcoding=False)
+
+  def test_flatten_and_gbk(self):
+    # Blocked on support for transcoding
+    # https://github.com/apache/beam/issues/19365
+    # Also blocked on support of flatten and groupby sharing the same input
+    # https://github.com/apache/beam/issues/34647
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/34647")
 
   def test_metrics(self):
     super().test_metrics(check_gauge=False, check_bounded_trie=False)

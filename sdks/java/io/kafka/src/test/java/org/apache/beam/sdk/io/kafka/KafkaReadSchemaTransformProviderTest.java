@@ -18,22 +18,18 @@
 package org.apache.beam.sdk.io.kafka;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.ServiceLoader;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.managed.Managed;
-import org.apache.beam.sdk.managed.ManagedTransformConstants;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.utils.YamlUtils;
@@ -303,13 +299,13 @@ public class KafkaReadSchemaTransformProviderTest {
   public void testBuildTransformWithManaged() {
     List<String> configs =
         Arrays.asList(
-            "topic: topic_1\n" + "bootstrap_servers: some bootstrap\n" + "data_format: RAW",
+            "topic: topic_1\n" + "bootstrap_servers: some bootstrap\n" + "format: RAW",
             "topic: topic_2\n"
                 + "bootstrap_servers: some bootstrap\n"
                 + "schema: '{\"type\":\"record\",\"name\":\"my_record\",\"fields\":[{\"name\":\"bool\",\"type\":\"boolean\"}]}'",
             "topic: topic_3\n"
                 + "bootstrap_servers: some bootstrap\n"
-                + "data_format: PROTO\n"
+                + "format: PROTO\n"
                 + "schema: '"
                 + PROTO_SCHEMA
                 + "'\n"

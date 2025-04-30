@@ -102,6 +102,8 @@ ISORT_EXCLUDED=(
   "taxi.py"
   "tfdv_analyze_and_validate.py"
   "yaml/main.py"
+  "main_test.py"
+  "yaml_testing_test.py"
 )
 SKIP_PARAM=""
 for file in "${ISORT_EXCLUDED[@]}"; do

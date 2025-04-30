@@ -26,13 +26,10 @@ import dataclasses
 import inspect
 import logging
 import os
+from collections.abc import Callable
 from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import List
 from typing import Optional
 from typing import Protocol
-from typing import Type
 from typing import TypeVar
 from typing import Union
 from typing import overload
@@ -64,7 +61,7 @@ T = TypeVar('T', bound=type)
 BUILTIN_TYPES_IN_SPEC = (int, float, complex, str, bytes, bytearray)
 
 
-def _class_to_subspace(cls: Type) -> str:
+def _class_to_subspace(cls: type) -> str:
   """
   Search the class hierarchy to find the subspace: the closest ancestor class in
   the class's method resolution order (MRO) whose name is found in the accepted
@@ -103,20 +100,20 @@ class Spec():
   #: An optional dictionary of keyword arguments for the `__init__` method of
   #: the class. If None, when we materialize this Spec, we only return the
   #: class without instantiate any objects from it.
-  config: Optional[Dict[str, Any]] = dataclasses.field(default_factory=dict)
+  config: Optional[dict[str, Any]] = dataclasses.field(default_factory=dict)
 
 
 def _specifiable_from_spec_helper(v, _run_init):
   if isinstance(v, Spec):
     return Specifiable.from_spec(v, _run_init)
 
-  if isinstance(v, List):
+  if isinstance(v, list):
     return [_specifiable_from_spec_helper(e, _run_init) for e in v]
 
   # TODO: support spec treatment for more types
   if not isinstance(v, BUILTIN_TYPES_IN_SPEC):
     logging.warning(
-        "Type %s is not a recognized supported type for the"
+        "Type %s is not a recognized supported type for the "
         "specification. It will be included without conversion.",
         str(type(v)))
   return v
@@ -126,7 +123,7 @@ def _specifiable_to_spec_helper(v):
   if isinstance(v, Specifiable):
     return v.to_spec()
 
-  if isinstance(v, List):
+  if isinstance(v, list):
     return [_specifiable_to_spec_helper(e) for e in v]
 
   if inspect.isfunction(v):
@@ -142,7 +139,7 @@ def _specifiable_to_spec_helper(v):
   # TODO: support spec treatment for more types
   if not isinstance(v, BUILTIN_TYPES_IN_SPEC):
     logging.warning(
-        "Type %s is not a recognized supported type for the"
+        "Type %s is not a recognized supported type for the "
         "specification. It will be included without conversion.",
         str(type(v)))
   return v
@@ -172,7 +169,7 @@ class Specifiable(Protocol):
       raise ValueError(f"Spec type not found in {spec}")
 
     subspace = _spec_type_to_subspace(spec.type)
-    subclass: Type[Self] = _KNOWN_SPECIFIABLE[subspace].get(spec.type, None)
+    subclass: type[Self] = _KNOWN_SPECIFIABLE[subspace].get(spec.type, None)
 
     if subclass is None:
       raise ValueError(f"Unknown spec type '{spec.type}' in {spec}")
