@@ -38,7 +38,7 @@ __all__ = ["OpenAITextEmbeddings"]
 # Define a type variable for the output
 MLTransformOutputT = TypeVar('MLTransformOutputT')
 
-_BATCH_SIZE = 20  # OpenAI can handle larger batches than Vertex
+_BATCH_SIZE = 20
 
 LOGGER = logging.getLogger("OpenAIEmbeddings")
 
@@ -188,7 +188,7 @@ class OpenAITextEmbeddings(EmbeddingsManager):
     self.batch_size = batch_size
     super().__init__(columns=columns, **kwargs)
 
-  def get_model_handler(self) -> ModelHandler:
+  def get_model_handler(self) -> RemoteModelHandler:
     return _OpenAITextEmbeddingHandler(
         model_name=self.model_name,
         api_key=self.api_key,
