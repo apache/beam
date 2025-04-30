@@ -31,7 +31,7 @@
 
 ## I/Os
 
-* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Debezium IO upgraded to 3.1.1 requires Java 17 (Java) ([#34747](https://github.com/apache/beam/issues/34747)).
 
 ## New Features / Improvements
 
@@ -140,6 +140,7 @@ update_compatibility_version to a previous Beam version e.g. "2.64.0".
 * [Python] Reshuffle now correctly respects user-specified type hints, fixing a previous bug where it might use FastPrimitivesCoder wrongly. This change could break pipelines with incorrect type hints in Reshuffle. If you have issues after upgrading, temporarily set update_compatibility_version to a previous Beam version to use the old behavior. The recommended solution is to fix the type hints in your code. ([#33932](https://github.com/apache/beam/pull/33932))
 * [Java] SparkReceiver 2 has been moved to SparkReceiver 3 that supports Spark 3.x. ([#33574](https://github.com/apache/beam/pull/33574))
 * [Python] Correct parsing of `collections.abc.Sequence` type hints was added, which can lead to pipelines failing type hint checks that were previously passing erroneously. These issues will be most commonly seen trying to consume a PCollection with a `Sequence` type hint after a GroupByKey or a CoGroupByKey. ([#33999](https://github.com/apache/beam/pull/33999)).
+* Debezium IO (Java) has been upgraded from depending on version 1.3.1.Final of io.debezium to 3.1.1.Final. This may cause some breaking changes since the libraries do not maintain full compatibility ([#33526](https://github.com/apache/beam/issues/33526)).
 
 ## Bugfixes
 

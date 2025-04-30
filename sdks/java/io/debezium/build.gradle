@@ -18,6 +18,18 @@
 import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
+
+// the order is intended here
+// Overwrite javaVersion global property if corresponding project property specified
+if (project.hasProperty('java17Home')) {
+    javaVersion = "1.17"
+} else if (project.hasProperty('java21Home')) {
+    javaVersion = "1.21"
+} else if (JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0) {
+    // Otherwise, compile the project with java11 spec
+    javaVersion = "1.17"
+}
+
 applyJavaNature(
         automaticModuleName: 'org.apache.beam.sdk.io.debezium',
         mavenRepositories: [
@@ -60,9 +72,9 @@ dependencies {
     permitUnusedDeclared "org.apache.kafka:connect-json:2.5.0" // BEAM-11761
 
     // Debezium dependencies
-    implementation group: 'io.debezium', name: 'debezium-core', version: '1.3.1.Final'
-    testImplementation group: 'io.debezium', name: 'debezium-connector-mysql', version: '1.3.1.Final'
-    testImplementation group: 'io.debezium', name: 'debezium-connector-postgres', version: '1.3.1.Final'
+    implementation group: 'io.debezium', name: 'debezium-core', version: '3.1.1.Final'
+    testImplementation group: 'io.debezium', name: 'debezium-connector-mysql', version: '3.1.1.Final'
+    testImplementation group: 'io.debezium', name: 'debezium-connector-postgres', version: '3.1.1.Final'
 }
 
 test {
@@ -72,6 +84,23 @@ test {
     }
 }
 
+// Javadoc task configuration with toolchains:
+// The Javadoc task should also automatically use the selected toolchain's javadoc executable.
+// If it doesn't, or if specific options are needed for Java 17 javadoc:
+tasks.named('javadoc', Javadoc) {
+    logger.lifecycle("[BUILD_GRADLE] Debezium IO: Configuring javadoc task (PR2 with toolchain).")
+    // Javadoc options are usually inherited from BeamModulePlugin.
+    // If --release 17 with toolchain causes javadoc issues (e.g. with Xdoclint),
+    // you might need to add specific options.addStringOption here.
+    // Example: options.addStringOption('-Xdoclint:none', '') // Disable all linting
+}
+
+test {
+    testLogging {
+        outputs.upToDateWhen {false}
+        showStandardStreams = true
+    }
+}
 
 task integrationTest(type: Test, dependsOn: processTestResources) {
   group = "Verification"
@@ -90,13 +119,27 @@ task integrationTest(type: Test, dependsOn: processTestResources) {
   }
 }
 
-configurations.all (Configuration it) -> {
-  resolutionStrategy {
-    // Force protobuf 3 because debezium is currently incompatible with protobuf 4.
-    // TODO - remove this and upgrade the version of debezium once a proto-4 compatible version is available
-    // https://github.com/apache/beam/pull/33526 does some of this, but was abandoned because it still doesn't
-    // work with protobuf 4.
-    force "com.google.protobuf:protobuf-java:3.25.5"
-    force "com.google.protobuf:protobuf-java-util:3.25.5"
-  }
+
+// the order is intended here
+if (project.hasProperty('java17Home')) {
+    project.tasks.withType(JavaCompile) {
+        setJavaVerOptions(options, '17')
+    }
+    project.tasks.withType(Javadoc) {
+        executable = project.findProperty('java17Home') + '/bin/javadoc'
+    }
+} else if (project.hasProperty('java21Home')) {
+    project.tasks.withType(JavaCompile) {
+        setJavaVerOptions(options, '21')
+    }
+    project.tasks.withType(Javadoc) {
+        executable = project.findProperty('java21Home') + '/bin/javadoc'
+    }
+}
+
+// Module classes requires JDK > 8
+project.tasks.each {
+    it.onlyIf {project.hasProperty('java17Home') || project.hasProperty('java21Home')
+                || JavaVersion.VERSION_17.compareTo(JavaVersion.current()) <= 0
+    }
 }
