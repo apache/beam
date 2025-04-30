@@ -20,6 +20,8 @@ import json
 import logging
 import math
 import os
+import datetime
+
 import pytest
 import tempfile
 import unittest
@@ -433,6 +435,50 @@ class AvroBase(object):
     path = self._write_data()
     with TestPipeline() as p:
       assert_that(p | avroio.ReadFromAvro(path), equal_to(self.RECORDS))
+
+  def test_read_as_rows_logical_type_from_avro(self):
+    schema = {
+        "namespace": "example.avro",
+        "type": "record",
+        "name": "User",
+        "fields": [
+            {
+                "name": "name", "type": "string"
+            },
+            {
+                "name": "timestamp",
+                "type": {
+                    "type": "long", "logicalType": "timestamp-millis"
+                }
+            },
+        ],
+    }
+    records = [
+        {
+            "name": "Bryan",
+            "timestamp": datetime.datetime(
+                2003, 7, 14, 5, 14, 4, tzinfo=datetime.timezone.utc)
+        },
+        {
+            "name": "Bob",
+            "timestamp": datetime.datetime(
+                2024, 6, 3, 14, 14, 4, tzinfo=datetime.timezone.utc)
+        },
+    ]
+    expected_result = [
+        beam.Row(name="Bryan", timestamp=1058159644000),
+        beam.Row(name="Bob", timestamp=1717424044000),
+    ]
+    with tempfile.NamedTemporaryFile(delete=False,
+                                     prefix=tempfile.template,
+                                     mode='w+b') as f:
+      writer(f, schema, records, codec='null')
+    self._temp_files.append(f.name)
+
+    with TestPipeline() as p:
+      assert_that(
+          p | avroio.ReadFromAvro(f.name, as_rows=True),
+          equal_to(expected_result))
 
   def test_read_all_from_avro_single_file(self):
     path = self._write_data()
