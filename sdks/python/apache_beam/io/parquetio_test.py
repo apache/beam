@@ -29,7 +29,6 @@ from tempfile import TemporaryDirectory
 
 import hamcrest as hc
 import pandas
-import pyarrow
 import pytest
 from parameterized import param
 from parameterized import parameterized
@@ -72,7 +71,6 @@ ARROW_MAJOR_VERSION, _, _ = map(int, pa.__version__.split('.'))
 @unittest.skipIf(pa is None, "PyArrow is not installed.")
 @pytest.mark.uses_pyarrow
 class TestParquet(unittest.TestCase):
-
   def setUp(self):
     # Reducing the size of thread pools. Without this test execution may fail in
     # environments with limited amount of resources.
@@ -661,7 +659,6 @@ class TestParquet(unittest.TestCase):
 
 
 class GenerateEvent(beam.PTransform):
-
   @staticmethod
   def sample_data():
     return GenerateEvent()
@@ -773,7 +770,6 @@ class GenerateEvent(beam.PTransform):
 
 
 class WriteStreamingTest(unittest.TestCase):
-
   def setUp(self):
     super().setUp()
     self.tempdir = tempfile.mkdtemp()
@@ -787,7 +783,7 @@ class WriteStreamingTest(unittest.TestCase):
     with TestPipeline() as p:
       output = (p | GenerateEvent.sample_data())
       #ParquetIO
-      pyschema = pyarrow.schema([('age', pyarrow.int64())])
+      pyschema = pa.schema([('age', pa.int64())])
       output2 = output | 'WriteToParquet' >> beam.io.WriteToParquet(
           file_path_prefix=self.tempdir + "/ouput_WriteToParquet",
           file_name_suffix=".parquet",
@@ -797,9 +793,13 @@ class WriteStreamingTest(unittest.TestCase):
           prefix='after WriteToParquet ', with_window=True, level=logging.INFO)
 
     # Regex to match the expected windowed file pattern
-    # Example: /tmp/tmp_xyz/ouput_WriteToParquet-[1614556800.0, 1614556805.0)-00000-of-00002.parquet
+    # Example:
+    # ouput_WriteToParquet-[1614556800.0, 1614556805.0)-00000-of-00002.parquet
     # It captures: window_interval, shard_num, total_shards
-    pattern_string = r'.*-\[(?P<window_start>[\d\.]+), (?P<window_end>[\d\.]+|Infinity)\)-(?P<shard_num>\d{5})-of-(?P<total_shards>\d{5})\.parquet$'
+    pattern_string = (
+        r'.*-\[(?P<window_start>[\d\.]+), '
+        r'(?P<window_end>[\d\.]+|Infinity)\)-'
+        r'(?P<shard_num>\d{5})-of-(?P<total_shards>\d{5})\.parquet$')
     pattern = re.compile(pattern_string)
     file_names = []
     for file_name in glob.glob(self.tempdir + '/ouput_WriteToParquet*'):
@@ -819,7 +819,7 @@ class WriteStreamingTest(unittest.TestCase):
     with TestPipeline() as p:
       output = (p | GenerateEvent.sample_data())
       #ParquetIO
-      pyschema = pyarrow.schema([('age', pyarrow.int64())])
+      pyschema = pa.schema([('age', pa.int64())])
       output2 = output | 'WriteToParquet' >> beam.io.WriteToParquet(
           file_path_prefix=self.tempdir + "/ouput_WriteToParquet",
           file_name_suffix=".parquet",
@@ -830,9 +830,14 @@ class WriteStreamingTest(unittest.TestCase):
           prefix='after WriteToParquet ', with_window=True, level=logging.INFO)
 
     # Regex to match the expected windowed file pattern
-    # Example: /tmp/tmp7akb3opk/ouput_WriteToParquet-[2021-03-01T00:00:00, 2021-03-01T00:01:00)-00000-of-00002.parquet
+    # Example:
+    # ouput_WriteToParquet-[2021-03-01T00:00:00, 2021-03-01T00:01:00)-
+    #   00000-of-00002.parquet
     # It captures: window_interval, shard_num, total_shards
-    pattern_string = r'.*-\[(?P<window_start>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}), (?P<window_end>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}|Infinity)\)-(?P<shard_num>\d{5})-of-(?P<total_shards>\d{5})\.parquet$'
+    pattern_string = (
+        r'.*-\[(?P<window_start>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}), '
+        r'(?P<window_end>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}|Infinity)\)-'
+        r'(?P<shard_num>\d{5})-of-(?P<total_shards>\d{5})\.parquet$')
     pattern = re.compile(pattern_string)
     file_names = []
     for file_name in glob.glob(self.tempdir + '/ouput_WriteToParquet*'):
@@ -855,7 +860,7 @@ class WriteStreamingTest(unittest.TestCase):
     with TestPipeline() as p:
       output = (p | GenerateEvent.sample_data())
       #ParquetIO
-      pyschema = pyarrow.schema([('age', pyarrow.int64())])
+      pyschema = pa.schema([('age', pa.int64())])
       output2 = output | 'WriteToParquet' >> beam.io.WriteToParquet(
           file_path_prefix=self.tempdir + "/ouput_WriteToParquet",
           file_name_suffix=".parquet",
@@ -867,9 +872,14 @@ class WriteStreamingTest(unittest.TestCase):
           prefix='after WriteToParquet ', with_window=True, level=logging.INFO)
 
     # Regex to match the expected windowed file pattern
-    # Example: /tmp/tmp7akb3opk/ouput_WriteToParquet-[2021-03-01T00:00:00, 2021-03-01T00:01:00)-00000-of-00002.parquet
+    # Example:
+    # ouput_WriteToParquet-[2021-03-01T00:00:00, 2021-03-01T00:01:00)-
+    #   00000-of-00002.parquet
     # It captures: window_interval, shard_num, total_shards
-    pattern_string = r'.*-\[(?P<window_start>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}), (?P<window_end>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}|Infinity)\)-(?P<shard_num>\d{5})-of-(?P<total_shards>\d{5})\.parquet$'
+    pattern_string = (
+        r'.*-\[(?P<window_start>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}), '
+        r'(?P<window_end>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}|Infinity)\)-'
+        r'(?P<shard_num>\d{5})-of-(?P<total_shards>\d{5})\.parquet$')
     pattern = re.compile(pattern_string)
     file_names = []
     for file_name in glob.glob(self.tempdir + '/ouput_WriteToParquet*'):
@@ -879,7 +889,8 @@ class WriteStreamingTest(unittest.TestCase):
       if match:
         file_names.append(file_name)
     print("Found files matching expected pattern:", file_names)
-    #with 5s window size, the input should be processed by 5 windows with 2 shards per window
+    # for 5s window size, the input should be processed by 5 windows with
+    # 2 shards per window
     self.assertEqual(
         len(file_names),
         10,

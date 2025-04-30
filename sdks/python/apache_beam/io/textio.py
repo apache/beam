@@ -426,7 +426,6 @@ class _TextSource(filebasedsource.FileBasedSource):
 
 
 class _TextSourceWithFilename(_TextSource):
-
   def read_records(self, file_name, range_tracker):
     records = super().read_records(file_name, range_tracker)
     for record in records:
@@ -438,7 +437,6 @@ class _TextSourceWithFilename(_TextSource):
 
 class _TextSink(filebasedsink.FileBasedSink):
   """A sink to a GCS or local text file or files."""
-
   def __init__(
       self,
       file_path_prefix,
@@ -825,7 +823,6 @@ class ReadFromTextWithFilename(ReadFromText):
 class WriteToText(PTransform):
   """A :class:`~apache_beam.transforms.ptransform.PTransform` for writing to
   text files."""
-
   def __init__(
       self,
       file_path_prefix: str,
@@ -861,17 +858,20 @@ class WriteToText(PTransform):
         unless you require a specific number of output files.
       shard_name_template (str): A template string containing placeholders for
         the shard number and shard count. Currently only ``''``,
-        ``'-SSSSS-of-NNNNN'``, ``'-W-SSSSS-of-NNNNN'`` and ``'-V-SSSSS-of-NNNNN'``
-        are patterns accepted by the service.
+        ``'-SSSSS-of-NNNNN'``, ``'-W-SSSSS-of-NNNNN'`` and
+        ``'-V-SSSSS-of-NNNNN'`` are patterns accepted by the service.
         When constructing a filename for a particular shard number, the
         upper-case letters ``S`` and ``N`` are replaced with the ``0``-padded
         shard number and shard count respectively.  This argument can be ``''``
         in which case it behaves as if num_shards was set to 1 and only one file
         will be generated. The default pattern used is ``'-SSSSS-of-NNNNN'`` for
-        bounded PCollections and for ``'-W-SSSSS-of-NNNNN'`` unbounded PCollections.
-        W is used for windowed shard naming and is replaced with ``[window.start, window.end)``
+        bounded PCollections and for ``'-W-SSSSS-of-NNNNN'`` unbounded 
+        PCollections.
+        W is used for windowed shard naming and is replaced with 
+        ``[window.start, window.end)``
         V is used for windowed shard naming and is replaced with 
-        ``[window.start.to_utc_datetime().isoformat(), window.end.to_utc_datetime().isoformat()``
+        ``[window.start.to_utc_datetime().isoformat(), 
+        window.end.to_utc_datetime().isoformat()``
       coder (~apache_beam.coders.coders.Coder): Coder used to encode each line.
       compression_type (str): Used to handle compressed output files.
         Typical value is :class:`CompressionTypes.AUTO
@@ -916,9 +916,10 @@ class WriteToText(PTransform):
         triggering_frequency=triggering_frequency)
 
   def expand(self, pcoll):
-    if not pcoll.is_bounded and self._sink.shard_name_template == filebasedsink.DEFAULT_SHARD_NAME_TEMPLATE:
-      # for unbounded PColl, change the default shard_name_template, shard_name_format and shard_name_glob_format
-      self._sink.shard_name_template = filebasedsink.DEFAULT_WINDOW_SHARD_NAME_TEMPLATE
+    if (not pcoll.is_bounded and self._sink.shard_name_template ==
+        filebasedsink.DEFAULT_SHARD_NAME_TEMPLATE):
+      self._sink.shard_name_template = (
+          filebasedsink.DEFAULT_WINDOW_SHARD_NAME_TEMPLATE)
       self._sink.shard_name_format = self._sink._template_to_format(
           self._sink.shard_name_template)
       self._sink.shard_name_glob_format = self._sink._template_to_glob_format(
@@ -930,7 +931,6 @@ try:
   import pandas
 
   def append_pandas_args(src, exclude):
-
     def append(dest):
       state = None
       skip = False

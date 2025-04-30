@@ -44,8 +44,6 @@ Avro file.
 """
 # pytype: skip-file
 import os
-import pytz
-import re
 from functools import partial
 from typing import Any
 from typing import Callable
@@ -86,7 +84,6 @@ class ReadFromAvro(PTransform):
   that comply with the schema contained in the Avro file that contains those
   records.
   """
-
   def __init__(
       self,
       file_pattern=None,
@@ -289,7 +286,6 @@ class ReadAllFromAvroContinuously(ReadAllFromAvro):
 
 
 class _AvroUtils(object):
-
   @staticmethod
   def advance_file_past_next_sync_marker(f, sync_marker):
     buf_size = 10000
@@ -325,7 +321,6 @@ class _FastAvroSource(filebasedsource.FileBasedSource):
   TODO: remove ``_AvroSource`` in favor of using ``_FastAvroSource``
   everywhere once it has been more widely tested
   """
-
   def read_records(self, file_name, range_tracker):
     next_block_start = -1
 
@@ -359,8 +354,7 @@ class _FastAvroSource(filebasedsource.FileBasedSource):
       while range_tracker.try_claim(next_block_start):
         block = next(blocks)
         next_block_start = block.offset + block.size
-        for record in block:
-          yield record
+        yield from block
 
 
 _create_avro_source = _FastAvroSource
@@ -371,7 +365,6 @@ class WriteToAvro(beam.transforms.PTransform):
 
   If the input has a schema, a corresponding avro schema will be automatically
   generated and used to write the output records."""
-
   def __init__(
       self,
       file_path_prefix,
@@ -419,8 +412,14 @@ class WriteToAvro(beam.transforms.PTransform):
     """
     self._schema = schema
     self._sink_provider = lambda avro_schema: _create_avro_sink(
-        file_path_prefix, avro_schema, codec, file_name_suffix, num_shards,
-        shard_name_template, mime_type, triggering_frequency)
+        file_path_prefix,
+        avro_schema,
+        codec,
+        file_name_suffix,
+        num_shards,
+        shard_name_template,
+        mime_type,
+        triggering_frequency)
 
   def expand(self, pcoll):
     if self._schema:
@@ -437,9 +436,10 @@ class WriteToAvro(beam.transforms.PTransform):
       records = pcoll | beam.Map(
           beam_row_to_avro_dict(avro_schema, beam_schema))
     self._sink = self._sink_provider(avro_schema)
-    if not pcoll.is_bounded and self._sink.shard_name_template == filebasedsink.DEFAULT_SHARD_NAME_TEMPLATE:
-      # for unbounded PColl, change the default shard_name_template, shard_name_format and shard_name_glob_format
-      self._sink.shard_name_template = filebasedsink.DEFAULT_WINDOW_SHARD_NAME_TEMPLATE
+    if (not pcoll.is_bounded and self._sink.shard_name_template ==
+        filebasedsink.DEFAULT_SHARD_NAME_TEMPLATE):
+      self._sink.shard_name_template = (
+          filebasedsink.DEFAULT_WINDOW_SHARD_NAME_TEMPLATE)
       self._sink.shard_name_format = self._sink._template_to_format(
           self._sink.shard_name_template)
       self._sink.shard_name_glob_format = self._sink._template_to_glob_format(
@@ -478,7 +478,6 @@ def _create_avro_sink(
 
 class _BaseAvroSink(filebasedsink.FileBasedSink):
   """A base for a sink for avro files. """
-
   def __init__(
       self,
       file_path_prefix,
@@ -512,7 +511,6 @@ class _BaseAvroSink(filebasedsink.FileBasedSink):
 
 class _FastAvroSink(_BaseAvroSink):
   """A sink for avro files using FastAvro. """
-
   def __init__(
       self,
       file_path_prefix,

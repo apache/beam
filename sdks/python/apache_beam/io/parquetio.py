@@ -77,7 +77,6 @@ __all__ = [
 class _ArrowTableToRowDictionaries(DoFn):
   """ A DoFn that consumes an Arrow table and yields a python dictionary for
   each row in the table."""
-
   def process(self, table, with_filename=False):
     if with_filename:
       file_name = table[0]
@@ -96,7 +95,6 @@ class _ArrowTableToRowDictionaries(DoFn):
 
 class _RowDictionariesToArrowTable(DoFn):
   """ A DoFn that consumes python dictionarys and yields a pyarrow table."""
-
   def __init__(
       self,
       schema,
@@ -169,7 +167,6 @@ class _RowDictionariesToArrowTable(DoFn):
 
 
 class _ArrowTableToBeamRows(DoFn):
-
   def __init__(self, beam_type):
     self._beam_type = beam_type
 
@@ -182,7 +179,6 @@ class _ArrowTableToBeamRows(DoFn):
 
 
 class _BeamRowsToArrowTable(DoFn):
-
   @DoFn.yields_elements
   def process_batch(self, element: pa.Table) -> Iterator[pa.Table]:
     yield element
@@ -192,7 +188,6 @@ class ReadFromParquetBatched(PTransform):
   """A :class:`~apache_beam.transforms.ptransform.PTransform` for reading
      Parquet files as a `PCollection` of `pyarrow.Table`. This `PTransform` is
      currently experimental. No backward-compatibility guarantees."""
-
   def __init__(
       self, file_pattern=None, min_bundle_size=0, validate=True, columns=None):
     """ Initializes :class:`~ReadFromParquetBatched`
@@ -250,7 +245,6 @@ class ReadFromParquetBatched(PTransform):
 
 class ReadFromParquet(PTransform):
   """A `PTransform` for reading Parquet files."""
-
   def __init__(
       self,
       file_pattern=None,
@@ -389,7 +383,6 @@ class ReadAllFromParquetBatched(PTransform):
 
 
 class ReadAllFromParquet(PTransform):
-
   def __init__(self, with_filename=False, **kwargs):
     self._with_filename = with_filename
     self._read_batches = ReadAllFromParquetBatched(
@@ -401,7 +394,6 @@ class ReadAllFromParquet(PTransform):
 
 
 class _ParquetUtils(object):
-
   @staticmethod
   def find_first_row_group_index(pf, start_offset):
     for i in range(_ParquetUtils.get_number_of_row_groups(pf)):
@@ -427,7 +419,6 @@ class _ParquetUtils(object):
 class _ParquetSource(filebasedsource.FileBasedSource):
   """A source for reading Parquet files.
   """
-
   def __init__(
       self, file_pattern, min_bundle_size=0, validate=False, columns=None):
     super().__init__(
@@ -486,7 +477,6 @@ _create_parquet_source = _ParquetSource
 class WriteToParquet(PTransform):
   """A ``PTransform`` for writing parquet files.
   """
-
   def __init__(
       self,
       file_path_prefix,
@@ -599,9 +589,10 @@ class WriteToParquet(PTransform):
       )
 
   def expand(self, pcoll):
-    if not pcoll.is_bounded and self._sink.shard_name_template == filebasedsink.DEFAULT_SHARD_NAME_TEMPLATE:
-      # for unbounded PColl, change the default shard_name_template, shard_name_format and shard_name_glob_format
-      self._sink.shard_name_template = filebasedsink.DEFAULT_WINDOW_SHARD_NAME_TEMPLATE
+    if (not pcoll.is_bounded and self._sink.shard_name_template ==
+        filebasedsink.DEFAULT_SHARD_NAME_TEMPLATE):
+      self._sink.shard_name_template = (
+          filebasedsink.DEFAULT_WINDOW_SHARD_NAME_TEMPLATE)
       self._sink.shard_name_format = self._sink._template_to_format(
           self._sink.shard_name_template)
       self._sink.shard_name_glob_format = self._sink._template_to_glob_format(
@@ -639,7 +630,6 @@ class WriteToParquetBatched(PTransform):
     This ``PTransform`` is currently experimental. No backward-compatibility
     guarantees.
   """
-
   def __init__(
       self,
       file_path_prefix,
@@ -709,18 +699,20 @@ class WriteToParquetBatched(PTransform):
         the shard number and shard count. When constructing a filename for a
         particular shard number, the upper-case letters 'S' and 'N' are
         replaced with the 0-padded shard number and shard count respectively.
-        W is used for windowed shard naming and is replaced with ``[window.start, window.end)``
-        V is used for windowed shard naming and is replaced with 
-        ``[window.start.to_utc_datetime().isoformat(), window.end.to_utc_datetime().isoformat()``
+        W is used for windowed shard naming and is replaced with
+        ``[window.start, window.end)``
+        V is used for windowed shard naming and is replaced with
+        ``[window.start.to_utc_datetime().isoformat(), 
+        window.end.to_utc_datetime().isoformat()``
         This argument can be '' in which case it behaves as if num_shards was
         set to 1 and only one file will be generated. 
         The default pattern used is '-SSSSS-of-NNNNN' if None is passed as the 
         shard_name_template and the PCollection is bounded.
-        The default pattern used is '-W-SSSSS-of-NNNNN' if None is passed as the 
+        The default pattern used is '-W-SSSSS-of-NNNNN' if None is passed as the
         shard_name_template and the PCollection is unbounded.
       mime_type: The MIME type to use for the produced files, if the filesystem
         supports specifying MIME types.
-      triggering_frequency: (int) Every triggering_frequency duration, a window 
+      triggering_frequency: (int) Every triggering_frequency duration, a window
         will be triggered and all bundles in the window will be written.
 
     Returns:
@@ -742,9 +734,10 @@ class WriteToParquetBatched(PTransform):
       )
 
   def expand(self, pcoll):
-    if not pcoll.is_bounded and self._sink.shard_name_template == filebasedsink.DEFAULT_SHARD_NAME_TEMPLATE:
-      # for unbounded PColl, change the default shard_name_template, shard_name_format and shard_name_glob_format
-      self._sink.shard_name_template = filebasedsink.DEFAULT_WINDOW_SHARD_NAME_TEMPLATE
+    if (not pcoll.is_bounded and self._sink.shard_name_template ==
+        filebasedsink.DEFAULT_SHARD_NAME_TEMPLATE):
+      self._sink.shard_name_template = (
+          filebasedsink.DEFAULT_WINDOW_SHARD_NAME_TEMPLATE)
       self._sink.shard_name_format = self._sink._template_to_format(
           self._sink.shard_name_template)
       self._sink.shard_name_glob_format = self._sink._template_to_glob_format(
@@ -783,7 +776,6 @@ def _create_parquet_sink(
 
 class _ParquetSink(filebasedsink.FileBasedSink):
   """A sink for parquet files from batches."""
-
   def __init__(
       self,
       file_path_prefix,

@@ -85,7 +85,6 @@ class _TFRecordUtil(object):
 
   Note that masks and length are represented in LittleEndian order.
   """
-
   @classmethod
   def _masked_crc32c(cls, value, crc32c_fn=_default_crc32c_fn):
     """Compute a masked crc32c checksum for a value.
@@ -177,7 +176,6 @@ class _TFRecordSource(FileBasedSource):
   For detailed TFRecords format description see:
     https://www.tensorflow.org/versions/r1.11/api_guides/python/python_io#TFRecords_Format_Details
   """
-
   def __init__(self, file_pattern, coder, compression_type, validate):
     """Initialize a TFRecordSource.  See ReadFromTFRecord for details."""
     super().__init__(
@@ -214,7 +212,6 @@ def _create_tfrecordio_source(
 
 class ReadAllFromTFRecord(PTransform):
   """A ``PTransform`` for reading a ``PCollection`` of TFRecord files."""
-
   def __init__(
       self,
       coder=coders.BytesCoder(),
@@ -252,7 +249,6 @@ class ReadAllFromTFRecord(PTransform):
 
 class ReadFromTFRecord(PTransform):
   """Transform for reading TFRecord sources."""
-
   def __init__(
       self,
       file_pattern,
@@ -287,7 +283,6 @@ class _TFRecordSink(filebasedsink.FileBasedSink):
   For detailed TFRecord format description see:
     https://www.tensorflow.org/versions/r1.11/api_guides/python/python_io#TFRecords_Format_Details
   """
-
   def __init__(
       self,
       file_path_prefix,
@@ -315,7 +310,6 @@ class _TFRecordSink(filebasedsink.FileBasedSink):
 
 class WriteToTFRecord(PTransform):
   """Transform for writing to TFRecord sinks."""
-
   def __init__(
       self,
       file_path_prefix,
@@ -362,9 +356,10 @@ class WriteToTFRecord(PTransform):
         triggering_frequency)
 
   def expand(self, pcoll):
-    if not pcoll.is_bounded and self._sink.shard_name_template == filebasedsink.DEFAULT_SHARD_NAME_TEMPLATE:
-      # for unbounded PColl, change the default shard_name_template, shard_name_format and shard_name_glob_format
-      self._sink.shard_name_template = filebasedsink.DEFAULT_WINDOW_SHARD_NAME_TEMPLATE
+    if (not pcoll.is_bounded and self._sink.shard_name_template ==
+        filebasedsink.DEFAULT_SHARD_NAME_TEMPLATE):
+      self._sink.shard_name_template = (
+          filebasedsink.DEFAULT_WINDOW_SHARD_NAME_TEMPLATE)
       self._sink.shard_name_format = self._sink._template_to_format(
           self._sink.shard_name_template)
       self._sink.shard_name_glob_format = self._sink._template_to_glob_format(

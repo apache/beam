@@ -38,7 +38,7 @@ from apache_beam.transforms.display import DisplayDataItem
 
 DEFAULT_SHARD_NAME_TEMPLATE = '-SSSSS-of-NNNNN'
 DEFAULT_WINDOW_SHARD_NAME_TEMPLATE = '-W-SSSSS-of-NNNNN'
-DEFAULT_TRIGGERING_FREQUENCY = 60 
+DEFAULT_TRIGGERING_FREQUENCY = 60
 
 __all__ = ['FileBasedSink']
 
@@ -76,8 +76,7 @@ class FileBasedSink(iobase.Sink):
       max_bytes_per_shard=None,
       skip_if_empty=False,
       convert_fn=None,
-      triggering_frequency=None
-      ):
+      triggering_frequency=None):
     """
      Raises:
       TypeError: if file path parameters are not a :class:`str` or
@@ -217,11 +216,17 @@ class FileBasedSink(iobase.Sink):
     if w is None or isinstance(w, window.GlobalWindow):
       window_utc = None
     else:
-      window_utc = '['+w.start.to_utc_datetime().isoformat()+', '+w.end.to_utc_datetime().isoformat()+')'
+      window_utc = (
+          '[' + w.start.to_utc_datetime().isoformat() + ', ' +
+          w.end.to_utc_datetime().isoformat() + ')')
     return ''.join([
         self.file_path_prefix.get(),
-        self.shard_name_format %
-          dict(shard_num=shard_num, num_shards=num_shards, uuid=(uuid.uuid4()), window=w, window_utc=window_utc),
+        self.shard_name_format % dict(
+            shard_num=shard_num,
+            num_shards=num_shards,
+            uuid=(uuid.uuid4()),
+            window=w,
+            window_utc=window_utc),
         self.file_name_suffix.get()
     ])
 
@@ -230,10 +235,16 @@ class FileBasedSink(iobase.Sink):
     if w is None or isinstance(w, window.GlobalWindow):
       window_utc = None
     else:
-      window_utc = '['+w.start.to_utc_datetime().isoformat()+', '+w.end.to_utc_datetime().isoformat()+')'
+      window_utc = (
+          '[' + w.start.to_utc_datetime().isoformat() + ', ' +
+          w.end.to_utc_datetime().isoformat() + ')')
     return ''.join([
         self.file_path_prefix.get(),
-        self.shard_name_glob_format % dict(num_shards=num_shards, uuid=(uuid.uuid4()), window=w, window_utc=window_utc),
+        self.shard_name_glob_format % dict(
+            num_shards=num_shards,
+            uuid=(uuid.uuid4()),
+            window=w,
+            window_utc=window_utc),
         self.file_name_suffix.get()
     ])
 
@@ -252,7 +263,8 @@ class FileBasedSink(iobase.Sink):
           self.shard_name_glob_format)
       FileSystems.delete(dst_glob_files)
 
-  def _check_state_for_finalize_write(self, writer_results, num_shards, window=None):
+  def _check_state_for_finalize_write(
+      self, writer_results, num_shards, window=None):
     """Checks writer output files' states.
 
     Returns:
@@ -376,7 +388,6 @@ class FileBasedSink(iobase.Sink):
       if w is None or isinstance(w, window.GlobalWindow):
         # bounded input
         # Use a thread pool for renaming operations.
-        
         exception_batches = util.run_using_threadpool(
             _rename_batch,
             list(zip(source_file_batch, destination_file_batch)),
@@ -392,7 +403,6 @@ class FileBasedSink(iobase.Sink):
         yield from dst_files
       else:
         # unbounded input
-        #batch = list([source_file_batch, destination_file_batch])
         batch = list([src_files, dst_files])
         exception_batches = _rename_batch(batch)
 
@@ -420,10 +430,7 @@ class FileBasedSink(iobase.Sink):
     except IOError:
       # This error is not serious, we simply log it.
       _LOGGER.info('Unable to delete file: %s', init_result)
-    
-    # return dst_files
 
-  
   @staticmethod
   def _template_replace_window(shard_name_template):
     match = re.search('W+', shard_name_template)

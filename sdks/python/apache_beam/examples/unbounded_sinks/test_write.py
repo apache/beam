@@ -17,13 +17,14 @@
 # under the License.
 #
 
-# python -m apache_beam.examples.unbounded_sinks.test_write   --runner DirectRunner
+# python -m apache_beam.examples.unbounded_sinks.test_write
 # This file contains multiple examples of writing unbounded PCollection to files
 
-import apache_beam as beam, json, pyarrow
+import apache_beam as beam
 import argparse
+import json
 import logging
-import re
+import pyarrow
 from apache_beam.examples.unbounded_sinks.generate_event import GenerateEvent
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.trigger import AccumulationMode
@@ -37,7 +38,6 @@ from apache_beam.runners.runner import PipelineResult
 
 
 class CountEvents(beam.PTransform):
-
   def expand(self, events):
     return (
         events
@@ -62,12 +62,8 @@ def run(argv=None, save_main_session=True) -> PipelineResult:
 
   p = beam.Pipeline(options=pipeline_options)
 
-  output = (
-      p | GenerateEvent.sample_data()
-      #| 'Count' >> CountEvents()
-      #| 'Serialize' >> beam.Map(json.dumps)
-      #| beam.LogElements(prefix='before write ', with_window=False, with_timestamp=True,level=logging.INFO)
-  )
+  output = p | GenerateEvent.sample_data()
+
   #TextIO
   output2 = output | 'TextIO WriteToText' >> beam.io.WriteToText(
       file_path_prefix="__output__/ouput_WriteToText",
@@ -137,9 +133,9 @@ def run(argv=None, save_main_session=True) -> PipelineResult:
 
   #AvroIO
   avroschema = {
-      #'doc': 'A dummy avro file', # a short description
       'name': 'dummy', # your supposed to be file name with .avro extension 
-      'type': 'record', # type of avro serilazation, there are more (see above docs) but as per me this will do most of the time
+      'type': 'record', # type of avro serilazation, there are more (see above 
+                        # docs) but as per me this will do most of the time
       'fields': [ # this defines actual keys & their types
           {'name': 'age', 'type': 'int'},
       ],

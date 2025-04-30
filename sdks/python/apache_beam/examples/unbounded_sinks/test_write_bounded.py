@@ -17,14 +17,13 @@
 # under the License.
 #
 
-# python -m apache_beam.examples.unbounded_sinks.test_write   --runner DirectRunner
-# python -m apache_beam.examples.unbounded_sinks.test_write   --region us-central1 --project ai-poney --temp_location=gs://poney-us --runner DataflowRunne
+# python -m apache_beam.examples.unbounded_sinks.test_write
 
-import apache_beam as beam, json, pyarrow
+import apache_beam as beam
 import argparse
+import json
 import logging
-import re
-from apache_beam.examples.unbounded_sinks.generate_event import GenerateEvent
+import pyarrow
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.trigger import AccumulationMode
 from apache_beam.transforms.trigger import AfterWatermark
@@ -38,7 +37,6 @@ from apache_beam.runners.runner import PipelineResult
 
 
 class CountEvents(beam.PTransform):
-
   def expand(self, events):
     return (
         events
@@ -82,27 +80,24 @@ def run(argv=None, save_main_session=True) -> PipelineResult:
       prefix='after WriteToText ', with_window=False, level=logging.INFO)
 
   #FileIO
-  output3 = (output | 'Serialize' >> beam.Map(json.dumps)
-    | 'Write to files' >> WriteToFiles(path="__output_batch__/output_WriteToFiles")
-  )
-  output3 | 'LogElements after WriteToFiles' >> LogElements(prefix='after WriteToFiles ', with_window=False,level=logging.INFO)
+  output3 = (
+      output | 'Serialize' >> beam.Map(json.dumps)
+      | 'Write to files' >>
+      WriteToFiles(path="__output_batch__/output_WriteToFiles"))
+  output3 | 'LogElements after WriteToFiles' >> LogElements(
+      prefix='after WriteToFiles ', with_window=False, level=logging.INFO)
 
   #ParquetIO
-  output4 = output | 'Write' >> beam.io.WriteToParquet(file_path_prefix="__output_batch__/output_parquet",
-        schema=
-            pyarrow.schema(
-                [('age', pyarrow.int64())]
-            )
-    )
-  output4 | 'LogElements after WriteToParquet' >> LogElements(prefix='after WriteToParquet ', with_window=False,level=logging.INFO)
-  output | 'Write parquet' >> beam.io.WriteToParquet(file_path_prefix="__output_batch__/output_WriteToParquet",
-        schema=
-            pyarrow.schema(
-                [('age', pyarrow.int64())]
-            ),
-        record_batch_size = 10,
-        num_shards=0
-    )
+  output4 = output | 'Write' >> beam.io.WriteToParquet(
+      file_path_prefix="__output_batch__/output_parquet",
+      schema=pyarrow.schema([('age', pyarrow.int64())]))
+  output4 | 'LogElements after WriteToParquet' >> LogElements(
+      prefix='after WriteToParquet ', with_window=False, level=logging.INFO)
+  output | 'Write parquet' >> beam.io.WriteToParquet(
+      file_path_prefix="__output_batch__/output_WriteToParquet",
+      schema=pyarrow.schema([('age', pyarrow.int64())]),
+      record_batch_size=10,
+      num_shards=0)
 
   # Execute the pipeline and return the result.
   result = p.run()

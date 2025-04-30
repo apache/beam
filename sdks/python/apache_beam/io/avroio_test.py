@@ -179,8 +179,8 @@ class AvroBase(object):
 
   @pytest.mark.xlang_sql_expansion_service
   @unittest.skipIf(
-      TestPipeline().get_pipeline_options().view_as(StandardOptions).runner
-      is None,
+      TestPipeline().get_pipeline_options().view_as(StandardOptions).runner is
+      None,
       "Must be run with a runner that supports staging java artifacts.")
   def test_avro_schema_to_beam_schema_with_nullable_atomic_fields(self):
     records = []
@@ -381,7 +381,6 @@ class AvroBase(object):
     self._run_avro_test(pattern, 100, True, expected_result)
 
   def test_dynamic_work_rebalancing_exhaustive(self):
-
     def compare_split_points(file_name):
       source = _FastAvroSource(file_name)
       splits = [
@@ -611,7 +610,6 @@ class AvroBase(object):
 
 
 class TestFastAvro(AvroBase, unittest.TestCase):
-
   def __init__(self, methodName='runTest'):
     super().__init__(methodName)
     self.SCHEMA = parse_schema(json.loads(self.SCHEMA_STRING))
@@ -635,7 +633,6 @@ class TestFastAvro(AvroBase, unittest.TestCase):
 
 
 class GenerateEvent(beam.PTransform):
-
   @staticmethod
   def sample_data():
     return GenerateEvent()
@@ -747,7 +744,6 @@ class GenerateEvent(beam.PTransform):
 
 
 class WriteStreamingTest(unittest.TestCase):
-
   def setUp(self):
     super().setUp()
     self.tempdir = tempfile.mkdtemp()
@@ -762,9 +758,9 @@ class WriteStreamingTest(unittest.TestCase):
       output = (p | GenerateEvent.sample_data())
       #AvroIO
       avroschema = {
-          #'doc': 'A dummy avro file', # a short description
-          'name': 'dummy', # your supposed to be file name with .avro extension 
-          'type': 'record', # type of avro serilazation, there are more (see above docs) but as per me this will do most of the time
+          'name': 'dummy', # your supposed to be file name with .avro extension
+          'type': 'record', # type of avro serilazation, there are more (see
+                            # above docs)
           'fields': [ # this defines actual keys & their types
               {'name': 'age', 'type': 'int'},
           ],
@@ -778,9 +774,13 @@ class WriteStreamingTest(unittest.TestCase):
           prefix='after WriteToAvro ', with_window=True, level=logging.INFO)
 
     # Regex to match the expected windowed file pattern
-    # Example: /tmp/tmp_xyz/ouput_WriteToAvro-[1614556800.0, 1614556805.0)-00000-of-00002.avro
+    # Example:
+    #  ouput_WriteToAvro-[1614556800.0, 1614556805.0)-00000-of-00002.avro
     # It captures: window_interval, shard_num, total_shards
-    pattern_string = r'.*-\[(?P<window_start>[\d\.]+), (?P<window_end>[\d\.]+|Infinity)\)-(?P<shard_num>\d{5})-of-(?P<total_shards>\d{5})\.avro$'
+    pattern_string = (
+        r'.*-\[(?P<window_start>[\d\.]+), '
+        r'(?P<window_end>[\d\.]+|Infinity)\)-'
+        r'(?P<shard_num>\d{5})-of-(?P<total_shards>\d{5})\.avro$')
     pattern = re.compile(pattern_string)
     file_names = []
     for file_name in glob.glob(self.tempdir + '/ouput_WriteToAvro*'):
@@ -801,9 +801,8 @@ class WriteStreamingTest(unittest.TestCase):
       output = (p | GenerateEvent.sample_data())
       #AvroIO
       avroschema = {
-          #'doc': 'A dummy avro file', # a short description
-          'name': 'dummy', # your supposed to be file name with .avro extension 
-          'type': 'record', # type of avro serilazation, there are more (see above docs) but as per me this will do most of the time
+          'name': 'dummy', # your supposed to be file name with .avro extension
+          'type': 'record', # type of avro serilazation
           'fields': [ # this defines actual keys & their types
               {'name': 'age', 'type': 'int'},
           ],
@@ -818,9 +817,14 @@ class WriteStreamingTest(unittest.TestCase):
           prefix='after WriteToAvro ', with_window=True, level=logging.INFO)
 
     # Regex to match the expected windowed file pattern
-    # Example: /tmp/tmp7akb3opk/ouput_WriteToAvro-[2021-03-01T00:00:00, 2021-03-01T00:01:00)-00000-of-00002.avro
+    # Example:
+    # ouput_WriteToAvro-[2021-03-01T00:00:00, 2021-03-01T00:01:00)-
+    #   00000-of-00002.avro
     # It captures: window_interval, shard_num, total_shards
-    pattern_string = r'.*-\[(?P<window_start>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}), (?P<window_end>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}|Infinity)\)-(?P<shard_num>\d{5})-of-(?P<total_shards>\d{5})\.avro$'
+    pattern_string = (
+        r'.*-\[(?P<window_start>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}), '
+        r'(?P<window_end>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}|Infinity)\)-'
+        r'(?P<shard_num>\d{5})-of-(?P<total_shards>\d{5})\.avro$')
     pattern = re.compile(pattern_string)
     file_names = []
     for file_name in glob.glob(self.tempdir + '/ouput_WriteToAvro*'):
@@ -844,9 +848,8 @@ class WriteStreamingTest(unittest.TestCase):
       output = (p | GenerateEvent.sample_data())
       #AvroIO
       avroschema = {
-          #'doc': 'A dummy avro file', # a short description
           'name': 'dummy', # your supposed to be file name with .avro extension 
-          'type': 'record', # type of avro serilazation, there are more (see above docs) but as per me this will do most of the time
+          'type': 'record', # type of avro serilazation
           'fields': [ # this defines actual keys & their types
               {'name': 'age', 'type': 'int'},
           ],
@@ -862,9 +865,14 @@ class WriteStreamingTest(unittest.TestCase):
           prefix='after WriteToAvro ', with_window=True, level=logging.INFO)
 
     # Regex to match the expected windowed file pattern
-    # Example: /tmp/tmp7akb3opk/ouput_WriteToAvro-[2021-03-01T00:00:00, 2021-03-01T00:01:00)-00000-of-00002.avro
+    # Example:
+    #   ouput_WriteToAvro-[2021-03-01T00:00:00, 2021-03-01T00:01:00)-
+    #     00000-of-00002.avro
     # It captures: window_interval, shard_num, total_shards
-    pattern_string = r'.*-\[(?P<window_start>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}), (?P<window_end>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}|Infinity)\)-(?P<shard_num>\d{5})-of-(?P<total_shards>\d{5})\.txt$'
+    pattern_string = (
+        r'.*-\[(?P<window_start>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}), '
+        r'(?P<window_end>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}|Infinity)\)-'
+        r'(?P<shard_num>\d{5})-of-(?P<total_shards>\d{5})\.txt$')
     pattern = re.compile(pattern_string)
     file_names = []
     for file_name in glob.glob(self.tempdir + '/ouput_WriteToAvro*'):
@@ -874,7 +882,8 @@ class WriteStreamingTest(unittest.TestCase):
       if match:
         file_names.append(file_name)
     print("Found files matching expected pattern:", file_names)
-    #with 5s window size, the input should be processed by 5 windows with 2 shards per window
+    # for 5s window size, the input should be processed by 5 windows with
+    # 2 shards per window
     self.assertEqual(
         len(file_names),
         10,

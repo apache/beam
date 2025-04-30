@@ -59,7 +59,6 @@ from datetime import datetime
 
 
 class DummyCoder(coders.Coder):
-
   def encode(self, x):
     raise ValueError
 
@@ -1483,7 +1482,6 @@ class TextSourceTest(unittest.TestCase):
 
 
 class TextSinkTest(unittest.TestCase):
-
   def setUp(self):
     super().setUp()
     self.lines = [b'Line %d' % d for d in range(100)]
@@ -1752,7 +1750,6 @@ class TextSinkTest(unittest.TestCase):
 
 
 class CsvTest(unittest.TestCase):
-
   def test_csv_read_write(self):
     records = [beam.Row(a='str', b=ix) for ix in range(3)]
     with tempfile.TemporaryDirectory() as dest:
@@ -1811,7 +1808,6 @@ class CsvTest(unittest.TestCase):
 
 
 class JsonTest(unittest.TestCase):
-
   def test_json_read_write(self):
     records = [beam.Row(a='str', b=ix) for ix in range(3)]
     with tempfile.TemporaryDirectory() as dest:
@@ -1859,7 +1855,6 @@ class JsonTest(unittest.TestCase):
 
 
 class GenerateEvent(beam.PTransform):
-
   @staticmethod
   def sample_data():
     return GenerateEvent()
@@ -1971,7 +1966,6 @@ class GenerateEvent(beam.PTransform):
 
 
 class WriteStreamingTest(unittest.TestCase):
-
   def setUp(self):
     super().setUp()
     self.tempdir = tempfile.mkdtemp()
@@ -1994,9 +1988,13 @@ class WriteStreamingTest(unittest.TestCase):
           prefix='after WriteToText ', with_window=True, level=logging.INFO)
 
     # Regex to match the expected windowed file pattern
-    # Example: /tmp/tmp_xyz/ouput_WriteToText-[1614556800.0, 1614556805.0)-00000-of-00002.txt
+    # Example:
+    # ouput_WriteToText-[1614556800.0, 1614556805.0)-00000-of-00002.txt
     # It captures: window_interval, shard_num, total_shards
-    pattern_string = r'.*-\[(?P<window_start>[\d\.]+), (?P<window_end>[\d\.]+|Infinity)\)-(?P<shard_num>\d{5})-of-(?P<total_shards>\d{5})\.txt$'
+    pattern_string = (
+        r'.*-\[(?P<window_start>[\d\.]+), '
+        r'(?P<window_end>[\d\.]+|Infinity)\)-'
+        r'(?P<shard_num>\d{5})-of-(?P<total_shards>\d{5})\.txt$')
     pattern = re.compile(pattern_string)
     file_names = []
     for file_name in glob.glob(self.tempdir + '/ouput_WriteToText*'):
@@ -2026,9 +2024,14 @@ class WriteStreamingTest(unittest.TestCase):
           prefix='after WriteToText ', with_window=True, level=logging.INFO)
 
     # Regex to match the expected windowed file pattern
-    # Example: /tmp/tmp7akb3opk/ouput_WriteToText-[2021-03-01T00:00:00, 2021-03-01T00:01:00)-00000-of-00002.txt
+    # Example:
+    # ouput_WriteToText-[2021-03-01T00:00:00, 2021-03-01T00:01:00)-
+    #   00000-of-00002.txt
     # It captures: window_interval, shard_num, total_shards
-    pattern_string = r'.*-\[(?P<window_start>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}), (?P<window_end>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}|Infinity)\)-(?P<shard_num>\d{5})-of-(?P<total_shards>\d{5})\.txt$'
+    pattern_string = (
+        r'.*-\[(?P<window_start>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}), '
+        r'(?P<window_end>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}|Infinity)\)-'
+        r'(?P<shard_num>\d{5})-of-(?P<total_shards>\d{5})\.txt$')
     pattern = re.compile(pattern_string)
     file_names = []
     for file_name in glob.glob(self.tempdir + '/ouput_WriteToText*'):
@@ -2062,9 +2065,14 @@ class WriteStreamingTest(unittest.TestCase):
           prefix='after WriteToText ', with_window=True, level=logging.INFO)
 
     # Regex to match the expected windowed file pattern
-    # Example: /tmp/tmp7akb3opk/ouput_WriteToText-[2021-03-01T00:00:00, 2021-03-01T00:01:00)-00000-of-00002.txt
+    # Example:
+    # ouput_WriteToText-[2021-03-01T00:00:00, 2021-03-01T00:01:00)-
+    #   00000-of-00002.txt
     # It captures: window_interval, shard_num, total_shards
-    pattern_string = r'.*-\[(?P<window_start>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}), (?P<window_end>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}|Infinity)\)-(?P<shard_num>\d{5})-of-(?P<total_shards>\d{5})\.txt$'
+    pattern_string = (
+        r'.*-\[(?P<window_start>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}), '
+        r'(?P<window_end>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}|Infinity)\)-'
+        r'(?P<shard_num>\d{5})-of-(?P<total_shards>\d{5})\.txt$')
     pattern = re.compile(pattern_string)
     file_names = []
     for file_name in glob.glob(self.tempdir + '/ouput_WriteToText*'):
@@ -2074,7 +2082,8 @@ class WriteStreamingTest(unittest.TestCase):
       if match:
         file_names.append(file_name)
     print("Found files matching expected pattern:", file_names)
-    #with 5s window size, the input should be processed by 5 windows with 2 shards per window
+    # for 5s window size, the input should be processed by 5 windows with
+    # 2 shards per window
     self.assertEqual(
         len(file_names),
         10,

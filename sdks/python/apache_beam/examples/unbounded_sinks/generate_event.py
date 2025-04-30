@@ -18,20 +18,15 @@ import apache_beam as beam
 from apache_beam.testing.test_stream import TestStream
 from datetime import datetime
 import pytz
-import pyarrow
 
 
 class GenerateEvent(beam.PTransform):
-
   @staticmethod
   def sample_data():
     return GenerateEvent()
 
   def expand(self, input):
     elemlist = [{'age': 10}, {'age': 20}, {'age': 30}]
-    my_schema = pyarrow.schema([pyarrow.field('age', pyarrow.int64())],
-                               metadata={"age": "the age int64"})
-    #elem = [pyarrow.Table.from_pylist(elemlist, schema=my_schema)]
     elem = elemlist
     return (
         input
