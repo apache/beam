@@ -353,7 +353,7 @@ class WriteToTFRecord(PTransform):
         num_shards,
         shard_name_template,
         compression_type,
-        triggering_frequency)
+        triggering_frequency=60)
 
   def expand(self, pcoll):
     if (not pcoll.is_bounded and self._sink.shard_name_template ==

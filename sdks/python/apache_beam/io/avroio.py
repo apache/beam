@@ -459,7 +459,7 @@ def _create_avro_sink(
     num_shards,
     shard_name_template,
     mime_type,
-    triggering_frequency):
+    triggering_frequency=60):
   if "class 'avro.schema" in str(type(schema)):
     raise ValueError(
         'You are using Avro IO with fastavro (default with Beam on '
