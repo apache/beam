@@ -71,7 +71,8 @@ public class MemoryMonitorTest {
   @Test(timeout = 1000)
   public void detectGCThrashing() throws InterruptedException {
     // Update every 10ms, never shutdown VM.
-    MemoryMonitor monitor = MemoryMonitor.forTest(provider, 10, 0, false, 50.0, null, localDumpFolder);
+    MemoryMonitor monitor =
+        MemoryMonitor.forTest(provider, 10, 0, false, 50.0, null, localDumpFolder);
     Thread thread = new Thread(monitor);
     thread.start();
     monitor.waitForRunning();
@@ -96,7 +97,8 @@ public class MemoryMonitorTest {
 
   @Test
   public void heapDumpOnce() throws Exception {
-    MemoryMonitor monitor = MemoryMonitor.forTest(provider, 10, 0, false, 50.0, null, localDumpFolder);
+    MemoryMonitor monitor =
+        MemoryMonitor.forTest(provider, 10, 0, false, 50.0, null, localDumpFolder);
     File dump1 = monitor.dumpHeap();
     assertNotNull(dump1);
     assertTrue(dump1.exists());
@@ -115,7 +117,8 @@ public class MemoryMonitorTest {
 
   @Test
   public void heapDumpTwice() throws Exception {
-    MemoryMonitor monitor = MemoryMonitor.forTest(provider, 10, 0, false, 50.0, null, localDumpFolder);
+    MemoryMonitor monitor =
+        MemoryMonitor.forTest(provider, 10, 0, false, 50.0, null, localDumpFolder);
     File dump1 = monitor.dumpHeap();
     assertNotNull(dump1);
     assertTrue(dump1.exists());
@@ -147,7 +150,8 @@ public class MemoryMonitorTest {
 
   @Test
   public void uploadFileDisabled() throws Exception {
-    MemoryMonitor monitor = MemoryMonitor.forTest(provider, 10, 0, true, 50.0, null, localDumpFolder);
+    MemoryMonitor monitor =
+        MemoryMonitor.forTest(provider, 10, 0, true, 50.0, null, localDumpFolder);
 
     // Force the monitor to generate a local heap dump
     monitor.dumpHeap();
@@ -159,7 +163,8 @@ public class MemoryMonitorTest {
   @Test
   public void disableMemoryMonitor() throws Exception {
     // Update every 10ms, never shutdown VM.
-    MemoryMonitor monitor = MemoryMonitor.forTest(provider, 10, 0, false, 50.0, null, localDumpFolder);
+    MemoryMonitor monitor =
+        MemoryMonitor.forTest(provider, 10, 0, false, 50.0, null, localDumpFolder);
     Thread thread = new Thread(monitor);
     thread.start();
 

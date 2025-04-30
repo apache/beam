@@ -27,7 +27,6 @@ import static org.junit.Assume.assumeThat;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
