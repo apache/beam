@@ -79,14 +79,17 @@
 
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
 * [Python] Reshuffle now preserves PaneInfo, where previously PaneInfo was lost
-after reshuffle. To opt out of this change, set the
-update_compatibility_version to a previous Beam version e.g. "2.64.0".
+  after reshuffle. To opt out of this change, set the
+  update_compatibility_version to a previous Beam version e.g. "2.64.0".
 ([#34348](https://github.com/apache/beam/pull/34348))
 * [Python] BigQueryFileLoads now adds a Reshuffle before triggering load jobs.
-This fixes a bug where there can be data loss in a streaming pipeline if there
-is a pending load job during autoscaling. To opt out of this change, set the
-update_compatibility_version to a previous Beam version e.g. "2.64.0".
+  This fixes a bug where there can be data loss in a streaming pipeline if there
+  is a pending load job during autoscaling. To opt out of this change, set the
+  update_compatibility_version to a previous Beam version e.g. "2.64.0".
 ([#34657](https://github.com/apache/beam/pull/34657))
+* [YAML] Kafka source and sink will be automatically replaced with compatible managed transforms.
+  For older Beam versions, streaming update compatiblity can be maintained by specifying the pipeline
+  option `update_compatibility_version` ([#34767](https://github.com/apache/beam/issues/34767)).
 
 ## Deprecations
 
