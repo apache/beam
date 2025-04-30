@@ -22,9 +22,8 @@ import pickle
 import shutil
 import tempfile
 import unittest
+from collections.abc import Iterable
 from typing import Any
-from typing import Iterable
-from typing import Tuple
 
 import mock
 import numpy
@@ -281,7 +280,7 @@ class FakeNumpyModel():
     return [input_vector[0][0] * 10 - input_vector[0][1]]
 
 
-def _to_keyed_numpy_array(t: Tuple[Any, beam.Row]):
+def _to_keyed_numpy_array(t: tuple[Any, beam.Row]):
   """Converts an Apache Beam Row to a NumPy array."""
   return t[0], numpy.array(list(t[1]))
 

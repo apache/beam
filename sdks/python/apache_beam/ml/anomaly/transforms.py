@@ -17,12 +17,10 @@
 
 import dataclasses
 import uuid
+from collections.abc import Callable
+from collections.abc import Iterable
 from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import Iterable
 from typing import Optional
-from typing import Tuple
 from typing import TypeVar
 
 import apache_beam as beam
@@ -42,10 +40,10 @@ from apache_beam.transforms.userstate import ReadModifyWriteStateSpec
 
 KeyT = TypeVar('KeyT')
 TempKeyT = TypeVar('TempKeyT', bound=int)
-InputT = Tuple[KeyT, beam.Row]
-KeyedInputT = Tuple[KeyT, Tuple[TempKeyT, beam.Row]]
-KeyedOutputT = Tuple[KeyT, Tuple[TempKeyT, AnomalyResult]]
-OutputT = Tuple[KeyT, AnomalyResult]
+InputT = tuple[KeyT, beam.Row]
+KeyedInputT = tuple[KeyT, tuple[TempKeyT, beam.Row]]
+KeyedOutputT = tuple[KeyT, tuple[TempKeyT, AnomalyResult]]
+OutputT = tuple[KeyT, AnomalyResult]
 
 
 class _ScoreAndLearnDoFn(beam.DoFn):
@@ -60,7 +58,7 @@ class _ScoreAndLearnDoFn(beam.DoFn):
   def __init__(self, detector_spec: Spec):
     self._detector_spec = detector_spec
 
-    assert isinstance(self._detector_spec.config, Dict)
+    assert isinstance(self._detector_spec.config, dict)
     self._detector_spec.config["_run_init"] = True
 
   def score_and_learn(self, data):
@@ -180,7 +178,7 @@ class _StatelessThresholdDoFn(_BaseThresholdDoFn):
       creation of a stateful `ThresholdFn`.
   """
   def __init__(self, threshold_fn_spec: Spec):
-    assert isinstance(threshold_fn_spec.config, Dict)
+    assert isinstance(threshold_fn_spec.config, dict)
     threshold_fn_spec.config["_run_init"] = True
     self._threshold_fn = Specifiable.from_spec(threshold_fn_spec)
     assert isinstance(self._threshold_fn, ThresholdFn)
@@ -191,7 +189,7 @@ class _StatelessThresholdDoFn(_BaseThresholdDoFn):
     """Processes a batch of anomaly results using a stateless ThresholdFn.
 
     Args:
-      element (Tuple[Any, Tuple[Any, AnomalyResult]]): A tuple representing
+      element (tuple[Any, tuple[Any, AnomalyResult]]): A tuple representing
         an element in the Beam pipeline. It is expected to be in the format
         `(key1, (key2, AnomalyResult))`, where key1 is the original input key,
         and key2 is a disambiguating key for distinct data points.
@@ -199,7 +197,7 @@ class _StatelessThresholdDoFn(_BaseThresholdDoFn):
         in Beam DoFns.
 
     Yields:
-      Iterable[Tuple[Any, Tuple[Any, AnomalyResult]]]: An iterable containing
+      Iterable[tuple[Any, tuple[Any, AnomalyResult]]]: An iterable containing
         a single output element with the same structure as the input, but with
         the `AnomalyResult` having updated prediction labels based on the
         stateless `ThresholdFn`.
@@ -227,7 +225,7 @@ class _StatefulThresholdDoFn(_BaseThresholdDoFn):
   THRESHOLD_STATE_INDEX = ReadModifyWriteStateSpec('saved_tracker', DillCoder())
 
   def __init__(self, threshold_fn_spec: Spec):
-    assert isinstance(threshold_fn_spec.config, Dict)
+    assert isinstance(threshold_fn_spec.config, dict)
     threshold_fn_spec.config["_run_init"] = True
     threshold_fn = Specifiable.from_spec(threshold_fn_spec)
     assert isinstance(threshold_fn, ThresholdFn)
@@ -248,7 +246,7 @@ class _StatefulThresholdDoFn(_BaseThresholdDoFn):
     Beam for future elements.
 
     Args:
-      element (Tuple[Any, Tuple[Any, AnomalyResult]]): A tuple representing
+      element (tuple[Any, tuple[Any, AnomalyResult]]): A tuple representing
         an element in the Beam pipeline. It is expected to be in the format
         `(key1, (key2, AnomalyResult))`, where key1 is the original input key,
         and key2 is a disambiguating key for distinct data points.
@@ -259,7 +257,7 @@ class _StatefulThresholdDoFn(_BaseThresholdDoFn):
         in Beam DoFns.
 
     Yields:
-      Iterable[Tuple[Any, Tuple[Any, AnomalyResult]]]: An iterable containing
+      Iterable[tuple[Any, tuple[Any, AnomalyResult]]]: An iterable containing
         a single output element with the same structure as the input, but
         with the `AnomalyResult` having updated prediction labels based on
         the stateful `ThresholdFn`.
@@ -427,7 +425,7 @@ class RunOfflineDetector(beam.PTransform[beam.PCollection[KeyedInputT],
     self._offline_detector = offline_detector
 
   def _restore_and_convert(
-      self, elem: Tuple[Tuple[Any, Any, beam.Row], Any]) -> KeyedOutputT:
+      self, elem: tuple[tuple[Any, Any, beam.Row], Any]) -> KeyedOutputT:
     """Converts the model output to AnomalyResult.
 
     Args:
@@ -454,8 +452,8 @@ class RunOfflineDetector(beam.PTransform[beam.PCollection[KeyedInputT],
         ])
     return orig_key, (temp_key, result)
 
-  def _select_features(self, elem: Tuple[Any,
-                                         beam.Row]) -> Tuple[Any, beam.Row]:
+  def _select_features(self, elem: tuple[Any,
+                                         beam.Row]) -> tuple[Any, beam.Row]:
     assert self._offline_detector._features is not None
     k, v = elem
     row_dict = v._asdict()

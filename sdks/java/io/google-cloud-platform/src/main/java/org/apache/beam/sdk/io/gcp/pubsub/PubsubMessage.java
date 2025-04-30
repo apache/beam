@@ -112,6 +112,16 @@ public class PubsubMessage {
     return impl.getMessageId();
   }
 
+  public PubsubMessage withOrderingKey(@Nullable String orderingKey) {
+    return new PubsubMessage(
+        Impl.create(
+            impl.getTopic(),
+            impl.getPayload(),
+            impl.getAttributeMap(),
+            impl.getMessageId(),
+            orderingKey));
+  }
+
   /** Returns the ordering key of the message. */
   public @Nullable String getOrderingKey() {
     return impl.getOrderingKey();

@@ -32,6 +32,7 @@ import java.util.Set;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -304,12 +305,23 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
   private static void deactivate(Runnable runFinalChecks) {
     synchronized (STATE) {
       checkState(STATE.isActive, "No test still in flight");
-      runFinalChecks.run();
-      STATE.remainingExpectedOutgoingMessages = null;
-      STATE.remainingPendingIncomingMessages = null;
-      STATE.pendingAckIncomingMessages = null;
-      STATE.ackDeadline = null;
-      STATE.isActive = false;
+      try {
+        runFinalChecks.run();
+      } finally {
+        STATE.isPublish = false;
+        STATE.expectedTopic = null;
+        STATE.remainingExpectedOutgoingMessages = null;
+        STATE.remainingFailingOutgoingMessages = null;
+        STATE.clock = null;
+        STATE.expectedSubscription = null;
+        STATE.ackTimeoutSec = 0;
+        STATE.remainingPendingIncomingMessages = null;
+        STATE.pendingAckIncomingMessages = null;
+        STATE.ackDeadline = null;
+        STATE.expectedSchemaPath = null;
+        STATE.expectedSchema = null;
+        STATE.isActive = false;
+      }
     }
   }
 
@@ -461,7 +473,12 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
             topic,
             STATE.expectedTopic);
       }
+      @MonotonicNonNull String batchOrderingKey = null;
       for (OutgoingMessage outgoingMessage : outgoingMessages) {
+        if (batchOrderingKey == null) {
+          batchOrderingKey = outgoingMessage.getMessage().getOrderingKey();
+        }
+        checkState(outgoingMessage.getMessage().getOrderingKey().equals(batchOrderingKey));
         if (isDynamic) {
           checkState(outgoingMessage.topic().equals(topic.getPath()));
         } else {

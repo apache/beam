@@ -75,7 +75,16 @@ class ManagedIcebergIT(unittest.TestCase):
           | beam.managed.Read(beam.managed.ICEBERG, config=iceberg_config)
           | beam.Map(lambda row: row._asdict()))
 
+      output_dicts_skipped_config = (
+          read_pipeline
+          | beam.managed.Read(
+              beam.managed.ICEBERG,
+              config=iceberg_config,
+              skip_config_validation=True)
+          | beam.Map(lambda row: row._asdict()))
+
       assert_that(output_dicts, equal_to(expected_dicts))
+      assert_that(output_dicts_skipped_config, equal_to(expected_dicts))
 
 
 if __name__ == '__main__':

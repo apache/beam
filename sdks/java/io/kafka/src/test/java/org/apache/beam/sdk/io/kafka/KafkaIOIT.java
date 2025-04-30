@@ -326,7 +326,8 @@ public class KafkaIOIT {
                 .withKeySerializer(IntegerSerializer.class)
                 .withValueSerializer(StringSerializer.class));
 
-    wPipeline.run().waitUntilFinish(Duration.standardSeconds(10));
+    final PipelineResult wResult = wPipeline.run();
+    cancelIfTimeouted(wResult, wResult.waitUntilFinish(Duration.standardSeconds(10)));
 
     rPipeline
         .apply(
@@ -349,7 +350,9 @@ public class KafkaIOIT {
         .apply(ParDo.of(new CrashOnExtra(records.values())))
         .apply(ParDo.of(new LogFn()));
 
-    rPipeline.run().waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
+    final PipelineResult rResult = rPipeline.run();
+    cancelIfTimeouted(
+        rResult, rResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout())));
 
     for (String value : records.values()) {
       kafkaIOITExpectedLogs.verifyError(value);

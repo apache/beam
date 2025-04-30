@@ -30,6 +30,11 @@ from typing import TypeVar
 
 from apache_beam.typehints import typehints
 
+try:
+  from typing import is_typeddict
+except ImportError:
+  from typing_extensions import is_typeddict
+
 T = TypeVar('T')
 
 _LOGGER = logging.getLogger(__name__)
@@ -359,7 +364,10 @@ def convert_to_beam_type(typ):
     # to the correct type constraint in Beam
     # This is needed to fix https://github.com/apache/beam/issues/33356
     pass
-
+  elif is_typeddict(typ):
+    # Special-case for the TypedDict constructor, which is not actually a type,
+    # and therefore fails to be recognised as compatible with Dict or Mapping.
+    return typehints.Dict[str, typehints.Any]
   elif typ_module not in _CONVERTED_MODULES and not is_builtin(typ):
     # Only translate primitives and types from collections.abc and typing.
     return typ

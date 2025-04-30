@@ -69,6 +69,7 @@
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Upgraded GoogleAdsAPI to v19 for GoogleAdsIO (Java) ([#34497](https://github.com/apache/beam/pull/34497)). Changed PTransform method from version-specified (`v17()`) to `current()` for better backward compatibility in the future.
+* Added support for writing to Pubsub with ordering keys (Java) ([#21162](https://github.com/apache/beam/issues/21162))
 * Support for streaming writes for AvroIO, ParquetIO, TextIO, TFRecordIO
 
 ## New Features / Improvements
@@ -99,6 +100,7 @@ update_compatibility_version to a previous Beam version e.g. "2.64.0".
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Fixed read Beam rows from cross-lang transform (for example, ReadFromJdbc) involving negative 32-bit integers incorrectly decoded to large integers ([#34089](https://github.com/apache/beam/issues/34089))
 * (Java) Fixed SDF-based KafkaIO (ReadFromKafkaViaSDF) to properly handle custom deserializers that extend Deserializer<Row> interface([#34505](https://github.com/apache/beam/pull/34505))
+* [Python] `TypedDict` typehints are now compatible with `Mapping` and `Dict` type annotations.
 
 ## Security Fixes
 * Fixed [CVE-YYYY-NNNN](https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN) (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
