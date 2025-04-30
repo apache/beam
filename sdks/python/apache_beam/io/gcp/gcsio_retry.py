@@ -22,8 +22,8 @@ Throttling Handler for GCSIO
 import inspect
 import logging
 import math
-
 from itertools import tee
+
 from google.api_core import exceptions as api_exceptions
 from google.api_core import retry
 from google.cloud.storage.retry import DEFAULT_RETRY
