@@ -432,6 +432,7 @@ public final class TransformTranslator {
             ParDoTranslation.getSideInputMapping(context.getCurrentTransform());
 
         TupleTag<OutputT> mainOutputTag = transform.getMainOutputTag();
+        final boolean useStreamingSideInput = context.isStreamingSideInput();
         MultiDoFnFunction<InputT, OutputT> multiDoFnFunction =
             new MultiDoFnFunction<>(
                 metricsAccum,
@@ -447,7 +448,8 @@ public final class TransformTranslator {
                 stateful,
                 doFnSchemaInformation,
                 sideInputMapping,
-                useBoundedConcurrentOutput);
+                useBoundedConcurrentOutput,
+                useStreamingSideInput);
 
         if (stateful) {
           // Based on the fact that the signature is stateful, DoFnSignatures ensures
