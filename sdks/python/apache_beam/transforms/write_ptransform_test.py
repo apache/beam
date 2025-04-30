@@ -49,7 +49,7 @@ class _TestSink(iobase.Sink):
       init_result,
       writer_results,
       unused_pre_finalize_result,
-      unused_window):
+      unused_w):
     self.init_result_at_finalize = init_result
     self.write_results_at_finalize = writer_results
 
