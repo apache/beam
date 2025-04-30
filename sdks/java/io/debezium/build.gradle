@@ -19,7 +19,7 @@ import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
 
-// The order is intended here
+// The order is intended here - Debezium 3 requires Java 17, or later
 // Overwrite javaVersion global property if corresponding project property specified
 if (project.hasProperty('java17Home')) {
     javaVersion = "1.17"
@@ -100,4 +100,28 @@ task integrationTest(type: Test, dependsOn: processTestResources) {
 
   useJUnit {
   }
+}
+
+// The order is intended here - Debezium 3 requires Java 17, or later
+if (project.hasProperty('java17Home')) {
+    project.tasks.withType(JavaCompile) {
+        setJavaVerOptions(options, '17')
+    }
+    project.tasks.withType(Javadoc) {
+        executable = project.findProperty('java17Home') + '/bin/javadoc'
+    }
+} else if (project.hasProperty('java21Home')) {
+    project.tasks.withType(JavaCompile) {
+        setJavaVerOptions(options, '21')
+    }
+    project.tasks.withType(Javadoc) {
+        executable = project.findProperty('java21Home') + '/bin/javadoc'
+    }
+}
+
+// Module classes requires JDK > 8
+project.tasks.each {
+    it.onlyIf {project.hasProperty('java17Home') || project.hasProperty('java21Home')
+                || JavaVersion.VERSION_17.compareTo(JavaVersion.current()) <= 0
+    }
 }
