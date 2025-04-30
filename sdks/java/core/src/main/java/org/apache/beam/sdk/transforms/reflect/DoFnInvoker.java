@@ -42,6 +42,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Instant;
 
@@ -199,6 +200,9 @@ public interface DoFnInvoker<InputT, OutputT> {
     /** Provide a reference to the time domain for a timer firing. */
     TimeDomain timeDomain(DoFn<InputT, OutputT> doFn);
 
+    /** Provide the {@link ValueKind} of the element being processed. */
+    ValueKind valueKind(DoFn<InputT, OutputT> doFn);
+
     /** Provide a {@link OutputReceiver} for outputting to the default output. */
     OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn);
 
@@ -314,6 +318,12 @@ public interface DoFnInvoker<InputT, OutputT> {
     public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           String.format("TimeDomain unsupported in %s", getErrorContext()));
+    }
+
+    @Override
+    public ValueKind valueKind(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          String.format("ValueKind unsupported in %s", getErrorContext()));
     }
 
     @Override
@@ -496,6 +506,11 @@ public interface DoFnInvoker<InputT, OutputT> {
     @Override
     public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
       return delegate.timeDomain(doFn);
+    }
+
+    @Override
+    public ValueKind valueKind(DoFn<InputT, OutputT> doFn) {
+      return delegate.valueKind(doFn);
     }
 
     @Override

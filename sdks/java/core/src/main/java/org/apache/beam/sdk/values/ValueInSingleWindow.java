@@ -60,9 +60,17 @@ public abstract class ValueInSingleWindow<T> {
   /** Returns the pane of this {@code ValueInSingleWindow} in its window. */
   public abstract PaneInfo getPane();
 
+  /** Returns the value kind. */
+  public abstract ValueKind getValueKind();
+
   public static <T> ValueInSingleWindow<T> of(
       T value, Instant timestamp, BoundedWindow window, PaneInfo paneInfo) {
-    return new AutoValue_ValueInSingleWindow<>(value, timestamp, window, paneInfo);
+    return of(value, timestamp, window, paneInfo, ValueKind.INSERT);
+  }
+
+  public static <T> ValueInSingleWindow<T> of(
+      T value, Instant timestamp, BoundedWindow window, PaneInfo paneInfo, ValueKind kind) {
+    return new AutoValue_ValueInSingleWindow<>(value, timestamp, window, paneInfo, kind);
   }
 
   /** A coder for {@link ValueInSingleWindow}. */
@@ -110,7 +118,14 @@ public abstract class ValueInSingleWindow<T> {
       BoundedWindow window = windowCoder.decode(inStream);
       PaneInfo pane = PaneInfo.PaneInfoCoder.INSTANCE.decode(inStream);
       T value = valueCoder.decode(inStream, context);
-      return new AutoValue_ValueInSingleWindow<>(value, timestamp, window, pane);
+
+      ValueKind kind;
+      if (!pane.hasExtendedMetadata()) { // no extended metadata?
+        kind = ValueKind.INSERT;
+      } else {
+        kind = ValueKind.DELETE; // TODO: this is a placeholder for a non-INSERT kind to decode
+      }
+      return new AutoValue_ValueInSingleWindow<>(value, timestamp, window, pane, kind);
     }
 
     @Override

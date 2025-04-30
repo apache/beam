@@ -229,6 +229,10 @@ public final class PaneInfo {
     return timing;
   }
 
+  public boolean hasExtendedMetadata() {
+    return false; // TODO: use from Radek's PR
+  }
+
   /**
    * The zero-based index of this trigger firing that produced this pane.
    *

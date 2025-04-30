@@ -91,6 +91,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimeDomain
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerFamilyParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimestampParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ValueKindParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WatermarkEstimatorParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WatermarkEstimatorStateParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
@@ -127,6 +128,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   public static final String BUNDLE_FINALIZER_PARAMETER_METHOD = "bundleFinalizer";
   public static final String OUTPUT_ROW_RECEIVER_METHOD = "outputRowReceiver";
   public static final String TIME_DOMAIN_PARAMETER_METHOD = "timeDomain";
+  public static final String VALUE_KIND_PARAMETER_METHOD = "valueKind";
   public static final String OUTPUT_PARAMETER_METHOD = "outputReceiver";
   public static final String TAGGED_OUTPUT_PARAMETER_METHOD = "taggedOutputReceiver";
   public static final String ON_TIMER_CONTEXT_PARAMETER_METHOD = "onTimerContext";
@@ -965,6 +967,15 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
                 MethodInvocation.invoke(
                     getExtraContextFactoryMethodDescription(
                         TIME_DOMAIN_PARAMETER_METHOD, DoFn.class)));
+          }
+
+          @Override
+          public StackManipulation dispatch(ValueKindParameter p) {
+            return new StackManipulation.Compound(
+                pushDelegate,
+                MethodInvocation.invoke(
+                    getExtraContextFactoryMethodDescription(
+                        VALUE_KIND_PARAMETER_METHOD, DoFn.class)));
           }
 
           @Override

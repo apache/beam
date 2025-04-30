@@ -49,10 +49,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.UserCodeException;
-import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.apache.beam.sdk.values.*;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -282,6 +279,11 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
               throw new UnsupportedOperationException(
                   "Not expected to access TimeDomain from @ProcessElement");
+            }
+
+            @Override
+            public ValueKind valueKind(DoFn<InputT, OutputT> doFn) {
+              throw new UnsupportedOperationException("ValueKind parameters are not supported.");
             }
 
             @Override
@@ -583,6 +585,11 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     }
 
     @Override
+    public void outputWithKind(OutputT output, ValueKind kind) {
+      outputWithKind(mainOutputTag, output, kind);
+    }
+
+    @Override
     public void outputWindowedValue(
         OutputT output,
         Instant timestamp,
@@ -600,6 +607,14 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
       getMutableOutput(tag)
           .add(ValueInSingleWindow.of(output, timestamp, element.getWindow(), element.getPane()));
+    }
+
+    @Override
+    public <T> void outputWithKind(TupleTag<T> tag, T output, ValueKind kind) {
+      getMutableOutput(tag)
+          .add(
+              ValueInSingleWindow.of(
+                  output, element.getTimestamp(), element.getWindow(), element.getPane(), kind));
     }
 
     @Override

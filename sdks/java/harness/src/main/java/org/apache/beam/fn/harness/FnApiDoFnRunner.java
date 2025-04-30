@@ -111,11 +111,7 @@ import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.ParDoTranslation;
 import org.apache.beam.sdk.util.construction.RehydratedComponents;
 import org.apache.beam.sdk.util.construction.Timer;
-import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.sdk.values.*;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.util.Durations;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -2259,6 +2255,17 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
 
     @Override
+    public void outputWithKind(OutputT output, ValueKind kind) {
+      outputWindowedValue(
+          mainOutputTag,
+          output,
+          currentElement.getTimestamp(),
+          currentElement.getWindows(),
+          currentElement.getPane(),
+          kind);
+    }
+
+    @Override
     public void outputWindowedValue(
         OutputT output,
         Instant timestamp,
@@ -2283,12 +2290,33 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
 
     @Override
+    public <T> void outputWithKind(TupleTag<T> tag, T output, ValueKind kind) {
+      outputWindowedValue(
+          tag,
+          output,
+          currentElement.getTimestamp(),
+          currentElement.getWindows(),
+          currentElement.getPane(),
+          kind);
+    }
+
+    @Override
     public <T> void outputWindowedValue(
         TupleTag<T> tag,
         T output,
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo) {
+      outputWindowedValue(tag, output, timestamp, windows, paneInfo, ValueKind.INSERT);
+    }
+
+    public <T> void outputWindowedValue(
+        TupleTag<T> tag,
+        T output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        ValueKind kind) {
       // TODO(https://github.com/apache/beam/issues/29637): Check that timestamp is valid once all
       // runners can provide proper timestamps.
       FnDataReceiver<WindowedValue<T>> consumer =
@@ -2296,7 +2324,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       if (consumer == null) {
         throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
       }
-      outputTo(consumer, WindowedValue.of(output, timestamp, windows, paneInfo));
+      outputTo(consumer, WindowedValue.of(output, timestamp, windows, paneInfo, kind));
     }
 
     @Override
@@ -2444,6 +2472,42 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
 
     @Override
+    public void outputWithKind(OutputT output, ValueKind kind) {
+      double size =
+          doFnInvoker.invokeGetSize(
+              new DelegatingArgumentProvider<InputT, OutputT>(
+                  this, this.errorContextPrefix + "/GetSize") {
+                @Override
+                public Object restriction() {
+                  return output;
+                }
+
+                @Override
+                public Instant timestamp(DoFn<InputT, OutputT> doFn) {
+                  return currentElement.getTimestamp();
+                }
+
+                @Override
+                public RestrictionTracker<?, ?> restrictionTracker() {
+                  return doFnInvoker.invokeNewTracker(this);
+                }
+              });
+
+      outputTo(
+          mainOutputConsumer,
+          (WindowedValue<OutputT>)
+              WindowedValue.of(
+                  KV.of(
+                      KV.of(
+                          currentElement.getValue(), KV.of(output, currentWatermarkEstimatorState)),
+                      size),
+                  currentElement.getTimestamp(),
+                  currentWindow,
+                  currentElement.getPane(),
+                  kind));
+    }
+
+    @Override
     public void outputWindowedValue(
         OutputT output,
         Instant timestamp,
@@ -2485,6 +2549,14 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+      // Note that the OutputReceiver/RowOutputReceiver specifically will use the non-tag versions
+      // of these methods when producing output.
+      throw new UnsupportedOperationException(
+          String.format("Non-main output %s unsupported in %s", tag, errorContextPrefix));
+    }
+
+    @Override
+    public <T> void outputWithKind(TupleTag<T> tag, T output, ValueKind kind) {
       // Note that the OutputReceiver/RowOutputReceiver specifically will use the non-tag versions
       // of these methods when producing output.
       throw new UnsupportedOperationException(
@@ -2612,6 +2684,43 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
 
     @Override
+    public void outputWithKind(OutputT output, ValueKind kind) {
+      double size =
+          doFnInvoker.invokeGetSize(
+              new DelegatingArgumentProvider<InputT, OutputT>(
+                  this, errorContextPrefix + "/GetSize") {
+                @Override
+                public Object restriction() {
+                  return output;
+                }
+
+                @Override
+                public Instant timestamp(DoFn<InputT, OutputT> doFn) {
+                  return currentElement.getTimestamp();
+                }
+
+                @Override
+                public RestrictionTracker<?, ?> restrictionTracker() {
+                  return doFnInvoker.invokeNewTracker(this);
+                }
+              });
+
+      // Don't need to check timestamp since we can always output using the input timestamp.
+      outputTo(
+          mainOutputConsumer,
+          (WindowedValue<OutputT>)
+              WindowedValue.of(
+                  KV.of(
+                      KV.of(
+                          currentElement.getValue(), KV.of(output, currentWatermarkEstimatorState)),
+                      size),
+                  currentElement.getTimestamp(),
+                  currentElement.getWindows(),
+                  currentElement.getPane(),
+                  kind));
+    }
+
+    @Override
     public void outputWindowedValue(
         OutputT output,
         Instant timestamp,
@@ -2655,6 +2764,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
       // Note that the OutputReceiver/RowOutputReceiver specifically will use the non-tag versions
       // of these methods when producing output.
+      throw new UnsupportedOperationException(
+          String.format("Non-main output %s unsupported in %s", tag, errorContextPrefix));
+    }
+
+    @Override
+    public <T> void outputWithKind(TupleTag<T> tag, T output, ValueKind kind) {
       throw new UnsupportedOperationException(
           String.format("Non-main output %s unsupported in %s", tag, errorContextPrefix));
     }
@@ -2708,6 +2823,18 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
 
     @Override
+    public void outputWithKind(OutputT output, ValueKind kind) {
+      outputTo(
+          mainOutputConsumer,
+          WindowedValue.of(
+              output,
+              currentElement.getTimestamp(),
+              currentElement.getWindows(),
+              currentElement.getPane(),
+              kind));
+    }
+
+    @Override
     public void outputWindowedValue(
         OutputT output,
         Instant timestamp,
@@ -2729,6 +2856,23 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           consumer,
           WindowedValue.of(
               output, timestamp, currentElement.getWindows(), currentElement.getPane()));
+    }
+
+    @Override
+    public <T> void outputWithKind(TupleTag<T> tag, T output, ValueKind kind) {
+      FnDataReceiver<WindowedValue<T>> consumer =
+          (FnDataReceiver) localNameToConsumer.get(tag.getId());
+      if (consumer == null) {
+        throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
+      }
+      outputTo(
+          consumer,
+          WindowedValue.of(
+              output,
+              currentElement.getTimestamp(),
+              currentElement.getWindows(),
+              currentElement.getPane(),
+              kind));
     }
 
     @Override
@@ -2851,6 +2995,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access time domain outside of @ProcessTimer method.");
+    }
+
+    @Override
+    public ValueKind valueKind(DoFn<InputT, OutputT> doFn) {
+      return currentElement.getValueKind();
     }
 
     @Override
@@ -3090,6 +3239,18 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       }
 
       @Override
+      public void outputWithKind(OutputT output, ValueKind kind) {
+        outputTo(
+            mainOutputConsumer,
+            WindowedValue.of(
+                output,
+                currentTimer.getHoldTimestamp(),
+                currentWindow,
+                currentTimer.getPane(),
+                kind));
+      }
+
+      @Override
       public void outputWindowedValue(
           OutputT output,
           Instant timestamp,
@@ -3122,6 +3283,23 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         }
         outputTo(
             consumer, WindowedValue.of(output, timestamp, currentWindow, currentTimer.getPane()));
+      }
+
+      @Override
+      public <T> void outputWithKind(TupleTag<T> tag, T output, ValueKind kind) {
+        FnDataReceiver<WindowedValue<T>> consumer =
+            (FnDataReceiver) localNameToConsumer.get(tag.getId());
+        if (consumer == null) {
+          throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
+        }
+        outputTo(
+            consumer,
+            WindowedValue.of(
+                output,
+                currentTimer.getHoldTimestamp(),
+                currentWindow,
+                currentTimer.getPane(),
+                kind));
       }
 
       @Override
@@ -3386,6 +3564,18 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       }
 
       @Override
+      public void outputWithKind(OutputT output, ValueKind kind) {
+        outputTo(
+            mainOutputConsumer,
+            WindowedValue.of(
+                output,
+                currentTimer.getHoldTimestamp(),
+                currentWindow,
+                currentTimer.getPane(),
+                kind));
+      }
+
+      @Override
       public void outputWindowedValue(
           OutputT output,
           Instant timestamp,
@@ -3419,6 +3609,23 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         }
         outputTo(
             consumer, WindowedValue.of(output, timestamp, currentWindow, currentTimer.getPane()));
+      }
+
+      @Override
+      public <T> void outputWithKind(TupleTag<T> tag, T output, ValueKind kind) {
+        FnDataReceiver<WindowedValue<T>> consumer =
+            (FnDataReceiver) localNameToConsumer.get(tag.getId());
+        if (consumer == null) {
+          throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
+        }
+        outputTo(
+            consumer,
+            WindowedValue.of(
+                output,
+                currentTimer.getHoldTimestamp(),
+                currentWindow,
+                currentTimer.getPane(),
+                kind));
       }
 
       @Override

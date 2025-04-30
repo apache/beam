@@ -182,3 +182,11 @@ task wordCount(type:JavaExec) {
   systemProperties = System.getProperties()
   args = ["--output=/tmp/output.txt"]
 }
+
+task cdc(type:JavaExec) {
+  description "Run the CDC example"
+  mainClass = "org.apache.beam.examples.complete.CdcExample"
+  classpath = sourceSets.main.runtimeClasspath
+  systemProperties = System.getProperties()
+  args = ["--numIds=1"]
+}

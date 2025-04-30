@@ -50,6 +50,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Futures;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -394,6 +395,12 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     }
 
     @Override
+    public void outputWithKind(OutputT value, ValueKind kind) {
+      outputWindowedValue(
+          value, element.getTimestamp(), element.getWindows(), element.getPane(), kind);
+    }
+
+    @Override
     public void outputWindowedValue(
         OutputT value,
         Instant timestamp,
@@ -406,6 +413,19 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
       output.outputWindowedValue(value, timestamp, windows, paneInfo);
     }
 
+    public void outputWindowedValue(
+        OutputT value,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        ValueKind kind) {
+      noteOutput();
+      if (watermarkEstimator instanceof TimestampObservingWatermarkEstimator) {
+        ((TimestampObservingWatermarkEstimator) watermarkEstimator).observeTimestamp(timestamp);
+      }
+      output.outputWindowedValue(value, timestamp, windows, paneInfo, kind);
+    }
+
     @Override
     public <T> void output(TupleTag<T> tag, T value) {
       outputWithTimestamp(tag, value, element.getTimestamp());
@@ -414,6 +434,12 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     @Override
     public <T> void outputWithTimestamp(TupleTag<T> tag, T value, Instant timestamp) {
       outputWindowedValue(tag, value, timestamp, element.getWindows(), element.getPane());
+    }
+
+    @Override
+    public <T> void outputWithKind(TupleTag<T> tag, T value, ValueKind kind) {
+      outputWindowedValue(
+          tag, value, element.getTimestamp(), element.getWindows(), element.getPane(), kind);
     }
 
     @Override
@@ -428,6 +454,20 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
         ((TimestampObservingWatermarkEstimator) watermarkEstimator).observeTimestamp(timestamp);
       }
       output.outputWindowedValue(tag, value, timestamp, windows, paneInfo);
+    }
+
+    public <T> void outputWindowedValue(
+        TupleTag<T> tag,
+        T value,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        ValueKind kind) {
+      noteOutput();
+      if (watermarkEstimator instanceof TimestampObservingWatermarkEstimator) {
+        ((TimestampObservingWatermarkEstimator) watermarkEstimator).observeTimestamp(timestamp);
+      }
+      output.outputWindowedValue(tag, value, timestamp, windows, paneInfo, kind);
     }
 
     private void noteOutput() {

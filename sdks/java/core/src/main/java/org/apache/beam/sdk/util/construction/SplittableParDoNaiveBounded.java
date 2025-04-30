@@ -46,13 +46,8 @@ import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.*;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
-import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
@@ -516,6 +511,11 @@ public class SplittableParDoNaiveBounded {
       }
 
       @Override
+      public ValueKind valueKind(DoFn<InputT, OutputT> doFn) {
+        throw new UnsupportedOperationException("ValueKind parameters are not supported.");
+      }
+
+      @Override
       public String timerId(DoFn<InputT, OutputT> doFn) {
         throw new UnsupportedOperationException();
       }
@@ -531,6 +531,11 @@ public class SplittableParDoNaiveBounded {
           @Override
           public void outputWithTimestamp(OutputT output, Instant timestamp) {
             outerContext.outputWithTimestamp(output, timestamp);
+          }
+
+          @Override
+          public void outputWithKind(OutputT output, ValueKind kind) {
+            outerContext.outputWithKind(output, kind);
           }
 
           @Override
@@ -609,6 +614,11 @@ public class SplittableParDoNaiveBounded {
       }
 
       @Override
+      public void outputWithKind(OutputT output, ValueKind kind) {
+        outerContext.outputWithKind(output, kind);
+      }
+
+      @Override
       public void outputWindowedValue(
           OutputT output,
           Instant timestamp,
@@ -625,6 +635,11 @@ public class SplittableParDoNaiveBounded {
       @Override
       public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
         outerContext.outputWithTimestamp(tag, output, timestamp);
+      }
+
+      @Override
+      public <T> void outputWithKind(TupleTag<T> tag, T output, ValueKind kind) {
+        outerContext.outputWithKind(tag, output, kind);
       }
 
       @Override

@@ -1677,6 +1677,10 @@ message StandardProtocols {
     // Indicates whether the SDK supports ordered list state.
     ORDERED_LIST_STATE = 10
     [(beam_urn) = "beam:protocol:ordered_list_state:v1"];
+
+    // Indicates whether the SDK support "value kind" for CDC
+    VALUE_KIND = 11
+    [(beam_urn) = "beam:protocol:value_kind:v1"];
   }
 }
 

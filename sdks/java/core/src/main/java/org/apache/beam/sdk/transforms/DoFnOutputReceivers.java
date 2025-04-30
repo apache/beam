@@ -31,6 +31,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.ValueKind;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
@@ -98,6 +99,15 @@ public class DoFnOutputReceivers {
         context.outputWithTimestamp(outputTag, output, timestamp);
       } else {
         ((DoFn<?, T>.WindowedContext) context).outputWithTimestamp(output, timestamp);
+      }
+    }
+
+    @Override
+    public void outputWithKind(T output, ValueKind kind) {
+      if (outputTag != null) {
+        context.outputWithKind(outputTag, output, kind);
+      } else {
+        ((DoFn<?, T>.WindowedContext) context).outputWithKind(output, kind);
       }
     }
 

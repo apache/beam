@@ -50,6 +50,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
@@ -186,6 +187,9 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
      */
     public abstract void outputWithTimestamp(OutputT output, Instant timestamp);
 
+    /** Adds the given value with kind. */
+    public abstract void outputWithKind(OutputT output, ValueKind kind);
+
     /**
      * Adds the given element to the main output {@code PCollection}, with the given windowing
      * metadata.
@@ -257,6 +261,9 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
      * @see ParDo.SingleOutput#withOutputTags
      */
     public abstract <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp);
+
+    /** Adds the given value with kind. */
+    public abstract <T> void outputWithKind(TupleTag<T> tag, T output, ValueKind kind);
 
     /**
      * Adds the given element to the main output {@code PCollection}, with the given windowing
@@ -395,11 +402,26 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
 
     void outputWithTimestamp(T output, Instant timestamp);
 
+    default void outputWithKind(T output, ValueKind kind) {
+      throw new UnsupportedOperationException(
+          String.format("Not implemented: %s.outputWithKind", this.getClass().getName()));
+    }
+
     default void outputWindowedValue(
         T output,
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo) {
+      throw new UnsupportedOperationException(
+          String.format("Not implemented: %s.outputWindowedValue", this.getClass().getName()));
+    }
+
+    default void outputWindowedValueWithKind(
+        T output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        ValueKind valueKind) {
       throw new UnsupportedOperationException(
           String.format("Not implemented: %s.outputWindowedValue", this.getClass().getName()));
     }

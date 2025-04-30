@@ -29,6 +29,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.TriggerTranslation;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Instant;
 
@@ -99,7 +100,17 @@ public class GroupAlsoByWindowViaWindowSetNewDoFn<
           Instant timestamp,
           Collection<? extends BoundedWindow> windows,
           PaneInfo pane) {
-        outputManager.output(mainTag, WindowedValue.of(output, timestamp, windows, pane));
+        outputWindowedValue(mainTag, output, timestamp, windows, pane, ValueKind.INSERT);
+      }
+
+      @Override
+      public void outputWindowedValue(
+          KV<K, OutputT> output,
+          Instant timestamp,
+          Collection<? extends BoundedWindow> windows,
+          PaneInfo pane,
+          ValueKind kind) {
+        outputWindowedValue(mainTag, output, timestamp, windows, pane, kind);
       }
 
       @Override
@@ -110,6 +121,17 @@ public class GroupAlsoByWindowViaWindowSetNewDoFn<
           Collection<? extends BoundedWindow> windows,
           PaneInfo pane) {
         outputManager.output(tag, WindowedValue.of(output, timestamp, windows, pane));
+      }
+
+      @Override
+      public <AdditionalOutputT> void outputWindowedValue(
+          TupleTag<AdditionalOutputT> tag,
+          AdditionalOutputT output,
+          Instant timestamp,
+          Collection<? extends BoundedWindow> windows,
+          PaneInfo pane,
+          ValueKind kind) {
+        outputManager.output(tag, WindowedValue.of(output, timestamp, windows, pane, kind));
       }
     };
   }

@@ -51,6 +51,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -314,6 +315,8 @@ public abstract class DoFnSignature {
         return cases.dispatch((BundleFinalizerParameter) this);
       } else if (this instanceof KeyParameter) {
         return cases.dispatch((KeyParameter) this);
+      } else if (this instanceof ValueKindParameter) {
+        return cases.dispatch((ValueKindParameter) this);
       } else {
         throw new IllegalStateException(
             String.format(
@@ -337,6 +340,8 @@ public abstract class DoFnSignature {
       ResultT dispatch(TimestampParameter p);
 
       ResultT dispatch(TimeDomainParameter p);
+
+      ResultT dispatch(ValueKindParameter p);
 
       ResultT dispatch(OutputReceiverParameter p);
 
@@ -424,6 +429,11 @@ public abstract class DoFnSignature {
 
         @Override
         public ResultT dispatch(TimeDomainParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
+        public ResultT dispatch(ValueKindParameter p) {
           return dispatchDefault(p);
         }
 
@@ -516,6 +526,8 @@ public abstract class DoFnSignature {
         new AutoValue_DoFnSignature_Parameter_PaneInfoParameter();
     private static final TimeDomainParameter TIME_DOMAIN_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_TimeDomainParameter();
+    private static final ValueKindParameter VALUE_KIND_PARAMETER =
+        new AutoValue_DoFnSignature_Parameter_ValueKindParameter();
     private static final TaggedOutputReceiverParameter TAGGED_OUTPUT_RECEIVER_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_TaggedOutputReceiverParameter();
     private static final PipelineOptionsParameter PIPELINE_OPTIONS_PARAMETER =
@@ -576,6 +588,10 @@ public abstract class DoFnSignature {
 
     public static TimeDomainParameter timeDomainParameter() {
       return TIME_DOMAIN_PARAMETER;
+    }
+
+    public static ValueKindParameter valueKindParameter() {
+      return VALUE_KIND_PARAMETER;
     }
 
     public static OutputReceiverParameter outputReceiverParameter(boolean rowReceiver) {
@@ -768,6 +784,16 @@ public abstract class DoFnSignature {
     @AutoValue
     public abstract static class TimeDomainParameter extends Parameter {
       TimeDomainParameter() {}
+    }
+
+    /**
+     * Descriptor for a {@link Parameter} representing the {@link ValueKind} of an element.
+     *
+     * <p>All such descriptors are equal.
+     */
+    @AutoValue
+    public abstract static class ValueKindParameter extends Parameter {
+      ValueKindParameter() {}
     }
 
     /** Descriptor for a {@link Parameter} of type {@link DoFn.SideInput}. */

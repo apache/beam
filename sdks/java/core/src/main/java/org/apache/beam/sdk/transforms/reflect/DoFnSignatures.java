@@ -97,6 +97,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.TypeParameter;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -126,6 +127,7 @@ public class DoFnSignatures {
   private static final ImmutableList<Class<? extends Parameter>>
       ALLOWED_NON_SPLITTABLE_PROCESS_ELEMENT_PARAMETERS =
           ImmutableList.of(
+              Parameter.ValueKindParameter.class,
               Parameter.ProcessContextParameter.class,
               Parameter.ElementParameter.class,
               Parameter.SchemaElementParameter.class,
@@ -144,6 +146,7 @@ public class DoFnSignatures {
   private static final ImmutableList<Class<? extends Parameter>>
       ALLOWED_SPLITTABLE_PROCESS_ELEMENT_PARAMETERS =
           ImmutableList.of(
+              Parameter.ValueKindParameter.class,
               Parameter.WindowParameter.class,
               Parameter.PaneInfoParameter.class,
               Parameter.PipelineOptionsParameter.class,
@@ -1357,6 +1360,8 @@ public class DoFnSignatures {
       return Parameter.keyT(paramT);
     } else if (rawType.equals(TimeDomain.class)) {
       return Parameter.timeDomainParameter();
+    } else if (rawType.equals(ValueKind.class)) {
+      return Parameter.valueKindParameter();
     } else if (hasAnnotation(DoFn.SideInput.class, param.getAnnotations())) {
       String sideInputId = getSideInputId(param.getAnnotations());
       paramErrors.checkArgument(

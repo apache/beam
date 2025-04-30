@@ -41,6 +41,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheLoader;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -159,6 +160,18 @@ class SplittableProcessElementsEvaluatorFactory<
           }
 
           @Override
+          public void outputWindowedValue(
+              OutputT output,
+              Instant timestamp,
+              Collection<? extends BoundedWindow> windows,
+              PaneInfo pane,
+              ValueKind kind) {
+            outputManager.output(
+                transform.getMainOutputTag(),
+                WindowedValue.of(output, timestamp, windows, pane, kind));
+          }
+
+          @Override
           public <AdditionalOutputT> void outputWindowedValue(
               TupleTag<AdditionalOutputT> tag,
               AdditionalOutputT output,
@@ -166,6 +179,17 @@ class SplittableProcessElementsEvaluatorFactory<
               Collection<? extends BoundedWindow> windows,
               PaneInfo pane) {
             outputManager.output(tag, WindowedValue.of(output, timestamp, windows, pane));
+          }
+
+          @Override
+          public <AdditionalOutputT> void outputWindowedValue(
+              TupleTag<AdditionalOutputT> tag,
+              AdditionalOutputT output,
+              Instant timestamp,
+              Collection<? extends BoundedWindow> windows,
+              PaneInfo pane,
+              ValueKind kind) {
+            outputManager.output(tag, WindowedValue.of(output, timestamp, windows, pane, kind));
           }
         };
     SideInputReader sideInputReader =

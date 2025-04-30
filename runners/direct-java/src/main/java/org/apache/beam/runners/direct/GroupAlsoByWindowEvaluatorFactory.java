@@ -49,6 +49,7 @@ import org.apache.beam.sdk.util.construction.TriggerTranslation;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -258,12 +259,35 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     @Override
+    public void outputWindowedValue(
+        KV<K, Iterable<V>> output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo pane,
+        ValueKind kind) {
+      bundle.add(WindowedValue.of(output, timestamp, windows, pane, kind));
+    }
+
+    @Override
     public <AdditionalOutputT> void outputWindowedValue(
         TupleTag<AdditionalOutputT> tag,
         AdditionalOutputT output,
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo pane) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "%s should not use tagged outputs", DirectGroupAlsoByWindow.class.getSimpleName()));
+    }
+
+    @Override
+    public <AdditionalOutputT> void outputWindowedValue(
+        TupleTag<AdditionalOutputT> tag,
+        AdditionalOutputT output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo pane,
+        ValueKind kind) {
       throw new UnsupportedOperationException(
           String.format(
               "%s should not use tagged outputs", DirectGroupAlsoByWindow.class.getSimpleName()));

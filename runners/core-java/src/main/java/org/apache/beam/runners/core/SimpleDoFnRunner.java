@@ -55,10 +55,7 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.SystemDoFnInternal;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.sdk.values.*;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -418,12 +415,27 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public void outputWithKind(OutputT output, ValueKind kind) {
+      outputWindowedValue(
+          mainOutputTag, output, elem.getTimestamp(), elem.getWindows(), elem.getPane(), kind);
+    }
+
+    @Override
     public void outputWindowedValue(
         OutputT output,
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo) {
       outputWindowedValue(mainOutputTag, output, timestamp, windows, paneInfo);
+    }
+
+    public void outputWindowedValue(
+        OutputT output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        ValueKind kind) {
+      outputWindowedValue(mainOutputTag, output, timestamp, windows, paneInfo, kind);
     }
 
     @Override
@@ -440,6 +452,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public <T> void outputWithKind(TupleTag<T> tag, T output, ValueKind kind) {
+      outputWindowedValue(
+          tag, output, elem.getTimestamp(), elem.getWindows(), elem.getPane(), kind);
+    }
+
+    @Override
     public <T> void outputWindowedValue(
         TupleTag<T> tag,
         T output,
@@ -448,6 +466,17 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         PaneInfo paneInfo) {
       SimpleDoFnRunner.this.outputWindowedValue(
           tag, WindowedValue.of(output, timestamp, windows, paneInfo));
+    }
+
+    public <T> void outputWindowedValue(
+        TupleTag<T> tag,
+        T output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        ValueKind kind) {
+      SimpleDoFnRunner.this.outputWindowedValue(
+          tag, WindowedValue.of(output, timestamp, windows, paneInfo, kind));
     }
 
     @Override
@@ -527,6 +556,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access time domain outside of @ProcessTimer method.");
+    }
+
+    @Override
+    public ValueKind valueKind(DoFn<InputT, OutputT> doFn) {
+      return elem.getValueKind();
     }
 
     @Override
@@ -714,6 +748,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public ValueKind valueKind(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException("ValueKind parameters are not supported.");
+    }
+
+    @Override
     public KeyT key() {
       return key;
     }
@@ -858,6 +897,17 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public void outputWithKind(OutputT output, ValueKind kind) {
+      outputWithKind(mainOutputTag, output, kind);
+    }
+
+    @Override
+    public <T> void outputWithKind(TupleTag<T> tag, T output, ValueKind kind) {
+      outputWindowedValue(
+          tag, output, timestamp(), Collections.singleton(window()), PaneInfo.NO_FIRING, kind);
+    }
+
+    @Override
     public void outputWindowedValue(
         OutputT output,
         Instant timestamp,
@@ -889,6 +939,18 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       checkTimestamp(timestamp(), timestamp);
       SimpleDoFnRunner.this.outputWindowedValue(
           tag, WindowedValue.of(output, timestamp, windows, paneInfo));
+    }
+
+    public <T> void outputWindowedValue(
+        TupleTag<T> tag,
+        T output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        ValueKind kind) {
+      checkTimestamp(timestamp(), timestamp);
+      SimpleDoFnRunner.this.outputWindowedValue(
+          tag, WindowedValue.of(output, timestamp, windows, paneInfo, kind));
     }
 
     @Override
@@ -996,6 +1058,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public ValueKind valueKind(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException("ValueKind parameters are not supported.");
+    }
+
+    @Override
     public KeyT key() {
       return key;
     }
@@ -1087,12 +1154,35 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public void outputWithKind(OutputT output, ValueKind kind) {
+      outputWithKind(mainOutputTag, output, kind);
+    }
+
+    @Override
+    public <T> void outputWithKind(TupleTag<T> tag, T output, ValueKind kind) {
+      outputWindowedValue(
+          tag, output, timestamp, Collections.singleton(window), PaneInfo.NO_FIRING, kind);
+    }
+
+    @Override
     public void outputWindowedValue(
         OutputT output,
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo) {
       outputWindowedValue(mainOutputTag, output, timestamp, windows, paneInfo);
+    }
+
+    public <T> void outputWindowedValue(
+        TupleTag<T> tag,
+        T output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        ValueKind kind) {
+      checkTimestamp(this.timestamp, timestamp);
+      SimpleDoFnRunner.this.outputWindowedValue(
+          tag, WindowedValue.of(output, timestamp, windows, paneInfo, kind));
     }
 
     @Override
