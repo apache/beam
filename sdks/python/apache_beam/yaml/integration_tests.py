@@ -23,15 +23,18 @@ import glob
 import itertools
 import logging
 import os
+import sqlite3
 import unittest
 import uuid
 
 import mock
 import mysql.connector
 import psycopg2
-import pymssql
-import sqlite3
+import pytds
 import yaml
+from testcontainers.mssql import SqlServerContainer
+from testcontainers.mysql import MySqlContainer
+from testcontainers.postgres import PostgresContainer
 
 import apache_beam as beam
 from apache_beam.io import filesystems
@@ -42,9 +45,6 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.utils import python_callable
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml import yaml_transform
-from testcontainers.mssql import SqlServerContainer
-from testcontainers.mysql import MySqlContainer
-from testcontainers.postgres import PostgresContainer
 
 
 @contextlib.contextmanager
@@ -239,8 +239,9 @@ def temp_mysql_database():
       conn.commit()
 
       # Construct the JDBC url for connections later on by tests
-      jdbc_url = f"jdbc:mysql://{host}:{port}/{db_name}? + \
-        user={user}&password={password}"
+      jdbc_url = (
+          f"jdbc:mysql://{host}:{port}/{db_name}?"
+          f"user={user}&password={password}")
 
       yield jdbc_url
     except mysql.connector.Error as err:
@@ -277,16 +278,15 @@ def temp_postgres_database():
                       the PostgreSQL database during setup.
       Exception: Any other exception encountered during the setup process.
   """
-  # default port
-  port = 5432
+  default_port = 5432
 
   # Start the postgress container using testcontainers
-  with PostgresContainer(port=port) as postgres_container:
+  with PostgresContainer(port=default_port) as postgres_container:
     conn = cursor = None
     try:
       # Retrieve connection details from the running container
       host = postgres_container.get_container_host_ip()
-      port = postgres_container.get_exposed_port(port)
+      port = postgres_container.get_exposed_port(default_port)
       user = postgres_container.POSTGRES_USER
       password = postgres_container.POSTGRES_PASSWORD
       db_name = postgres_container.POSTGRES_DB
@@ -301,8 +301,9 @@ def temp_postgres_database():
       conn.commit()
 
       # Construct the JDBC url for connections later on by tests
-      jdbc_url = f"jdbc:postgresql://{host}:{port}/{db_name}? + \
-        user={user}&password={password}"
+      jdbc_url = (
+          f"jdbc:postgresql://{host}:{port}/{db_name}?"
+          f"user={user}&password={password}")
 
       yield jdbc_url
     except (psycopg2.Error, Exception) as err:
@@ -343,22 +344,21 @@ def temp_sqlserver_database():
                      the SQL Server database during setup.
       Exception: Any other exception encountered during the setup process.
   """
-  # Default port
-  port = 1433
+  default_port = 1433
 
   # Start the sql server using testcontainers
-  with SqlServerContainer(port=port) as sqlserver_container:
+  with SqlServerContainer(port=default_port) as sqlserver_container:
     conn = cursor = None
     try:
       # Retrieve connection details from the running container
       host = sqlserver_container.get_container_host_ip()
-      port = sqlserver_container.get_exposed_port(port)
+      port = int(sqlserver_container.get_exposed_port(default_port))
       user = sqlserver_container.SQLSERVER_USER
       password = sqlserver_container.SQLSERVER_PASSWORD
       db_name = sqlserver_container.SQLSERVER_DBNAME
 
       # Make connection to temp database
-      conn = pymssql.connect(
+      conn = pytds.connect(
           server=host,
           port=port,
           user=user,
@@ -373,15 +373,16 @@ def temp_sqlserver_database():
       # Construct the JDBC url for connections later on by tests
       # NOTE: encrypt=false and trustServerCertificate=true is generally
       # needed for test container connections without proper certificates setup
-      jdbc_url = f"jdbc:sqlserver://{host}:{port}; + \
-        databaseName={db_name}; + \
-        user={user}; + \
-        password={password}; + \
-        encrypt=false; + \
-        trustServerCertificate=true"
+      jdbc_url = (
+          f"jdbc:sqlserver://{host}:{port};"
+          f"databaseName={db_name};"
+          f"user={user};"
+          f"password={password};"
+          f"encrypt=true;"
+          f"trustServerCertificate=true")
 
       yield jdbc_url
-    except (pymssql.Error, Exception) as err:
+    except (pytds.Error, Exception) as err:
       logging.error("Error interacting with temporary SQL Server DB: %s", err)
       raise err
     finally:
