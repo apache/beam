@@ -323,7 +323,7 @@ def temp_sqlserver_database():
 
   This function utilizes the 'testcontainers' library to spin up a
   Microsoft SQL Server instance within a Docker container. It then connects
-  to this temporary database using 'pymssql', creates a predefined 'tmp_table',
+  to this temporary database using 'pytds', creates a predefined 'tmp_table',
   and yields a JDBC connection string suitable for use in tests.
 
   The Docker container and the database instance are automatically managed
@@ -340,14 +340,15 @@ def temp_sqlserver_database():
               trustServerCertificate=true"
 
   Raises:
-      pymssql.Error: If there's an error connecting to or interacting with
+      pytds.Error: If there's an error connecting to or interacting with
                      the SQL Server database during setup.
       Exception: Any other exception encountered during the setup process.
   """
   default_port = 1433
 
   # Start the sql server using testcontainers
-  with SqlServerContainer(port=default_port) as sqlserver_container:
+  with SqlServerContainer(port=default_port,
+                          dialect='mssql+pytds') as sqlserver_container:
     conn = cursor = None
     try:
       # Retrieve connection details from the running container
