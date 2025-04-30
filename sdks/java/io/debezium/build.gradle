@@ -42,7 +42,6 @@ provideIntegrationTestingDependencies()
 description = "Apache Beam :: SDKs :: Java :: IO :: Debezium"
 ext.summary = "Library to work with Debezium data."
 
-
 dependencies {
     implementation library.java.vendored_guava_32_1_2_jre
     implementation library.java.vendored_grpc_1_69_0
@@ -85,12 +84,6 @@ test {
     }
 }
 
-test {
-    testLogging {
-        outputs.upToDateWhen {false}
-        showStandardStreams = true
-    }
-}
 
 task integrationTest(type: Test, dependsOn: processTestResources) {
   group = "Verification"
