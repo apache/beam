@@ -163,9 +163,9 @@ class ReadFromAvro(PTransform):
     super().__init__()
     self._source = _FastAvroSource(
         file_pattern, min_bundle_size, validate=validate)
-    # Disable fastavro's automatic logical type conversion
-    fastavro.read.LOGICAL_READERS.clear()
     if as_rows:
+      # Disable fastavro's automatic logical timestamp type conversion
+      fastavro.read.LOGICAL_READERS['long-timestamp-millis'] = None
       path = FileSystems.match([file_pattern], [1])[0].metadata_list[0].path
       with FileSystems.open(path) as fin:
         avro_schema = fastavro.reader(fin).writer_schema
