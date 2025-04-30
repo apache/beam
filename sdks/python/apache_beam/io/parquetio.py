@@ -758,7 +758,7 @@ def _create_parquet_sink(
     num_shards,
     shard_name_template,
     mime_type,
-    triggering_frequency):
+    triggering_frequency=None):
   return \
     _ParquetSink(
         file_path_prefix,
