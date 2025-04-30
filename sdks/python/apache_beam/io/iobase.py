@@ -799,7 +799,8 @@ class Sink(HasDisplayData):
     """
     raise NotImplementedError
 
-  def finalize_write(self, init_result, writer_results, pre_finalize_result, w=None):
+  def finalize_write(
+      self, init_result, writer_results, pre_finalize_result, w=None):
     """Finalizes the sink after all data is written to it.
 
     Given the result of initialization and an iterable of results from bundle

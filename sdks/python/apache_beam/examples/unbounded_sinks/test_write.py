@@ -20,7 +20,6 @@
 # python -m apache_beam.examples.unbounded_sinks.test_write
 # This file contains multiple examples of writing unbounded PCollection to files
 
-
 import argparse
 import json
 import logging
