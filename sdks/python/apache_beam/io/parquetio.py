@@ -555,12 +555,21 @@ class WriteToParquet(PTransform):
         the performance of a pipeline.  Setting this value is not recommended
         unless you require a specific number of output files.
       shard_name_template: A template string containing placeholders for
-        the shard number and shard count. When constructing a filename for a
-        particular shard number, the upper-case letters 'S' and 'N' are
-        replaced with the 0-padded shard number and shard count respectively.
-        This argument can be '' in which case it behaves as if num_shards was
-        set to 1 and only one file will be generated. The default pattern used
-        is '-SSSSS-of-NNNNN' if None is passed as the shard_name_template.
+        the shard number and shard count. Currently only ``''``,
+        ``'-SSSSS-of-NNNNN'``, ``'-W-SSSSS-of-NNNNN'`` and
+        ``'-V-SSSSS-of-NNNNN'`` are patterns accepted by the service.
+        When constructing a filename for a particular shard number, the
+        upper-case letters ``S`` and ``N`` are replaced with the ``0``-padded
+        shard number and shard count respectively.  This argument can be ``''``
+        in which case it behaves as if num_shards was set to 1 and only one file
+        will be generated. The default pattern used is ``'-SSSSS-of-NNNNN'`` for
+        bounded PCollections and for ``'-W-SSSSS-of-NNNNN'`` unbounded 
+        PCollections.
+        W is used for windowed shard naming and is replaced with 
+        ``[window.start, window.end)``
+        V is used for windowed shard naming and is replaced with 
+        ``[window.start.to_utc_datetime().strftime("%Y-%m-%dT%H-%M-%S"), 
+        window.end.to_utc_datetime().strftime("%Y-%m-%dT%H-%M-%S")``
       mime_type: The MIME type to use for the produced files, if the filesystem
         supports specifying MIME types.
       triggering_frequency: (int) Every triggering_frequency duration, a window 

@@ -217,8 +217,8 @@ class FileBasedSink(iobase.Sink):
       window_utc = None
     else:
       window_utc = (
-          '[' + w.start.to_utc_datetime().isoformat() + ', ' +
-          w.end.to_utc_datetime().isoformat() + ')')
+          '[' + w.start.to_utc_datetime().strftime("%Y-%m-%dT%H-%M-%S") + ', ' +
+          w.end.to_utc_datetime().strftime("%Y-%m-%dT%H-%M-%S") + ')')
     return ''.join([
         self.file_path_prefix.get(),
         self.shard_name_format % dict(
@@ -236,8 +236,8 @@ class FileBasedSink(iobase.Sink):
       window_utc = None
     else:
       window_utc = (
-          '[' + w.start.to_utc_datetime().isoformat() + ', ' +
-          w.end.to_utc_datetime().isoformat() + ')')
+          '[' + w.start.to_utc_datetime().strftime("%Y-%m-%dT%H-%M-%S") + ', ' +
+          w.end.to_utc_datetime().strftime("%Y-%m-%dT%H-%M-%S") + ')')
     return ''.join([
         self.file_path_prefix.get(),
         self.shard_name_glob_format % dict(

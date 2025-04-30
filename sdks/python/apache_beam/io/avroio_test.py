@@ -818,12 +818,12 @@ class WriteStreamingTest(unittest.TestCase):
 
     # Regex to match the expected windowed file pattern
     # Example:
-    # ouput_WriteToAvro-[2021-03-01T00:00:00, 2021-03-01T00:01:00)-
+    # ouput_WriteToAvro-[2021-03-01T00-00-00, 2021-03-01T00-01-00)-
     #   00000-of-00002.avro
     # It captures: window_interval, shard_num, total_shards
     pattern_string = (
-        r'.*-\[(?P<window_start>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}), '
-        r'(?P<window_end>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}|Infinity)\)-'
+        r'.*-\[(?P<window_start>\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}), '
+        r'(?P<window_end>\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}|Infinity)\)-'
         r'(?P<shard_num>\d{5})-of-(?P<total_shards>\d{5})\.avro$')
     pattern = re.compile(pattern_string)
     file_names = []
@@ -866,12 +866,12 @@ class WriteStreamingTest(unittest.TestCase):
 
     # Regex to match the expected windowed file pattern
     # Example:
-    #   ouput_WriteToAvro-[2021-03-01T00:00:00, 2021-03-01T00:01:00)-
+    #   ouput_WriteToAvro-[2021-03-01T00-00-00, 2021-03-01T00-01-00)-
     #     00000-of-00002.avro
     # It captures: window_interval, shard_num, total_shards
     pattern_string = (
-        r'.*-\[(?P<window_start>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}), '
-        r'(?P<window_end>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}|Infinity)\)-'
+        r'.*-\[(?P<window_start>\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}), '
+        r'(?P<window_end>\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}|Infinity)\)-'
         r'(?P<shard_num>\d{5})-of-(?P<total_shards>\d{5})\.txt$')
     pattern = re.compile(pattern_string)
     file_names = []

@@ -870,8 +870,8 @@ class WriteToText(PTransform):
         W is used for windowed shard naming and is replaced with 
         ``[window.start, window.end)``
         V is used for windowed shard naming and is replaced with 
-        ``[window.start.to_utc_datetime().isoformat(), 
-        window.end.to_utc_datetime().isoformat()``
+        ``[window.start.to_utc_datetime().strftime("%Y-%m-%dT%H-%M-%S"), 
+        window.end.to_utc_datetime().strftime("%Y-%m-%dT%H-%M-%S")``
       coder (~apache_beam.coders.coders.Coder): Coder used to encode each line.
       compression_type (str): Used to handle compressed output files.
         Typical value is :class:`CompressionTypes.AUTO
