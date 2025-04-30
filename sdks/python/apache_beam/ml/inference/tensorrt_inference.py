@@ -21,13 +21,11 @@ from __future__ import annotations
 
 import logging
 import threading
+from collections.abc import Callable
+from collections.abc import Iterable
+from collections.abc import Sequence
 from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import Iterable
 from typing import Optional
-from typing import Sequence
-from typing import Tuple
 
 import numpy as np
 
@@ -175,14 +173,14 @@ class TensorRTEngine:
 
 
 TensorRTInferenceFn = Callable[
-    [Sequence[np.ndarray], TensorRTEngine, Optional[Dict[str, Any]]],
+    [Sequence[np.ndarray], TensorRTEngine, Optional[dict[str, Any]]],
     Iterable[PredictionResult]]
 
 
 def _default_tensorRT_inference_fn(
     batch: Sequence[np.ndarray],
     engine: TensorRTEngine,
-    inference_args: Optional[Dict[str,
+    inference_args: Optional[dict[str,
                                   Any]] = None) -> Iterable[PredictionResult]:
   from cuda import cuda
   (
@@ -292,7 +290,7 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
     engine = _load_engine(self.engine_path)
     return TensorRTEngine(engine)
 
-  def load_onnx(self) -> Tuple[trt.INetworkDefinition, trt.Builder]:
+  def load_onnx(self) -> tuple[trt.INetworkDefinition, trt.Builder]:
     """Loads and parses an onnx model for processing."""
     return _load_onnx(self.onnx_path)
 
@@ -307,7 +305,7 @@ class TensorRTEngineHandlerNumPy(ModelHandler[np.ndarray,
       self,
       batch: Sequence[np.ndarray],
       engine: TensorRTEngine,
-      inference_args: Optional[Dict[str, Any]] = None
+      inference_args: Optional[dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
     """
     Runs inferences on a batch of Tensors and returns an Iterable of

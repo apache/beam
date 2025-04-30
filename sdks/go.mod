@@ -30,8 +30,8 @@ require (
 	cloud.google.com/go/datastore v1.20.0
 	cloud.google.com/go/profiler v0.4.2
 	cloud.google.com/go/pubsub v1.49.0
-	cloud.google.com/go/spanner v1.79.0
-	cloud.google.com/go/storage v1.51.0
+	cloud.google.com/go/spanner v1.80.0
+	cloud.google.com/go/storage v1.52.0
 	github.com/aws/aws-sdk-go-v2 v1.36.3
 	github.com/aws/aws-sdk-go-v2/config v1.29.14
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.67
@@ -94,7 +94,7 @@ require (
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/ebitengine/purego v0.8.2 // indirect
 	github.com/envoyproxy/go-control-plane/envoy v1.32.4 // indirect
-	github.com/go-jose/go-jose/v4 v4.0.4 // indirect
+	github.com/go-jose/go-jose/v4 v4.0.5 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect

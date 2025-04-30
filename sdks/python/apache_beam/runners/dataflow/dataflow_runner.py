@@ -98,6 +98,9 @@ class DataflowRunner(PipelineRunner):
   def __init__(self, cache=None):
     self._default_environment = None
 
+  def default_pickle_library_override(self):
+    return 'cloudpickle'
+
   def is_fnapi_compatible(self):
     return False
 
