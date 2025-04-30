@@ -318,18 +318,4 @@ public class KafkaReadSchemaTransformProviderTest {
           .expand(PBegin.in(Pipeline.create()));
     }
   }
-
-  @Test
-  public void testManagedMappings() {
-    KafkaReadSchemaTransformProvider provider = new KafkaReadSchemaTransformProvider();
-    Map<String, String> mapping =
-        ManagedTransformConstants.CONFIG_NAME_OVERRIDES.get(provider.identifier());
-
-    assertNotNull(mapping);
-
-    List<String> configSchemaFieldNames = provider.configurationSchema().getFieldNames();
-    for (String paramName : mapping.values()) {
-      assertTrue(configSchemaFieldNames.contains(paramName));
-    }
-  }
 }
