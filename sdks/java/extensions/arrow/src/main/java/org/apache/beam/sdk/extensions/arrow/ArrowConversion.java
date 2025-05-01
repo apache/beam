@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.channels.Channels;
+import java.time.LocalDateTime;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -45,6 +46,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.joda.time.DateTime;
@@ -195,7 +197,10 @@ public class ArrowConversion {
                     if (type.getUnit() == TimeUnit.MILLISECOND
                         || type.getUnit() == TimeUnit.MICROSECOND) {
                       return FieldType.DATETIME;
-                    } else {
+                    } else if (type.getUnit() == TimeUnit.NANOSECOND) {
+                      return FieldType.logicalType(SqlTypes.DATETIME);
+                    }
+                    else {
                       throw new IllegalArgumentException(
                           "Unsupported timestamp unit: " + type.getUnit().name());
                     }
@@ -435,6 +440,8 @@ public class ArrowConversion {
             return Optional.of((epochMicros) -> new DateTime((long) epochMicros / 1000, tz));
           case MILLISECOND:
             return Optional.of((epochMills) -> new DateTime((long) epochMills, tz));
+            case NANOSECOND:
+            return Optional.of((epochMills) -> LocalDateTime.ofInstant(Instant) new LocalDateTime((long) epochMills, tz));
           default:
             throw new AssertionError("Encountered unrecognized TimeUnit: " + type.getUnit());
         }

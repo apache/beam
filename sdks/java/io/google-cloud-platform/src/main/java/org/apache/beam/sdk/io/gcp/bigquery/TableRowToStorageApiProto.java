@@ -1017,6 +1017,11 @@ public class TableRowToStorageApiProto {
               BigDecimal.valueOf(((Number) value).longValue()));
         }
         break;
+      case PICO_TIMESTAMP:
+//        value --> incoming from Beam to BigQuery;
+//        1. String --> formatter, convert to long
+//        2. Long ----> just return long
+//        3. LocalDateTime(s) --> convert to long
       case DATETIME:
         if (value instanceof String) {
           try {

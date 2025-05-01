@@ -178,8 +178,11 @@ public class BigQueryUtils {
 
   /**
    * Native BigQuery formatter for it's timestamp format, depending on the milliseconds stored in
-   * the column, the milli second part will be 6 to 1 or absent. Example {@code 2019-08-16
-   * 00:52:07[.123]|[.123456] UTC}
+   * the column, the milli second part will be 6 to 1 or absent.
+   * Example {@code 2019-08-16 00:52:07[.123]|[.123456] UTC}
+   *
+   * long --> picoseconds from epoch
+   * string (extend formatter) --> 2019-08-16 00:52:07.123_456_789_123
    */
   private static final DateTimeFormatter BIGQUERY_TIMESTAMP_PARSER;
 
