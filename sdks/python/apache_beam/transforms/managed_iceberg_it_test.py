@@ -77,7 +77,7 @@ class ManagedIcebergIT(unittest.TestCase):
 
       output_dicts_skipped_config = (
           read_pipeline
-          | beam.managed.Read(
+          | "ReadWithSkippedConfig" >> beam.managed.Read(
               beam.managed.ICEBERG,
               config=iceberg_config,
               skip_config_validation=True)
