@@ -17,11 +17,36 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.iceberg;
 
+import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
+import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig;
 
 public class IcebergTableProvider extends InMemoryMetaTableProvider {
+  private IcebergCatalogConfig catalogConfig = IcebergCatalogConfig.builder().build();
+
+  private IcebergTableProvider() {}
+
+  public static IcebergTableProvider create() {
+    return new IcebergTableProvider();
+  }
+
+  public IcebergTableProvider withCatalogProperties(Map<String, String> catalogProperties) {
+    catalogConfig = catalogConfig.toBuilder().setCatalogProperties(catalogProperties).build();
+    return this;
+  }
+
+  public IcebergTableProvider withHadoopConfProperties(Map<String, String> hadoopConfProperties) {
+    catalogConfig = catalogConfig.toBuilder().setConfigProperties(hadoopConfProperties).build();
+    return this;
+  }
+
+  public IcebergTableProvider withCatalogName(String name) {
+    catalogConfig = catalogConfig.toBuilder().setCatalogName(name).build();
+    return this;
+  }
+
   @Override
   public String getTableType() {
     return "iceberg";
@@ -29,6 +54,6 @@ public class IcebergTableProvider extends InMemoryMetaTableProvider {
 
   @Override
   public BeamSqlTable buildBeamSqlTable(Table table) {
-    return new IcebergTable(table);
+    return new IcebergTable(table, catalogConfig);
   }
 }

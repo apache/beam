@@ -30,6 +30,7 @@ import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.sql.TableUtils;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig;
 import org.apache.beam.sdk.schemas.Schema;
 import org.junit.Test;
 import org.testcontainers.shaded.com.fasterxml.jackson.databind.ObjectMapper;
@@ -37,7 +38,18 @@ import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
 
 /** UnitTest for {@link IcebergTableProvider}. */
 public class IcebergTableProviderTest {
-  private IcebergTableProvider provider = new IcebergTableProvider();
+  private final IcebergTableProvider provider =
+      IcebergTableProvider.create()
+          .withCatalogProperties(
+              ImmutableMap.of(
+                  "catalog-impl", "org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog",
+                  "io-impl", "org.apache.iceberg.gcp.gcs.GCSFileIO",
+                  "warehouse", "gs://bucket/warehouse"))
+          .withHadoopConfProperties(
+              ImmutableMap.of(
+                  "fs.gs.project.id", "apache-beam-testing",
+                  "foo", "bar"))
+          .withCatalogName("my_catalog");
 
   @Test
   public void testGetTableType() {
@@ -46,21 +58,7 @@ public class IcebergTableProviderTest {
 
   @Test
   public void testBuildBeamSqlTable() throws Exception {
-    ImmutableMap<String, Object> properties =
-        ImmutableMap.of(
-            CATALOG_PROPERTIES_FIELD,
-            ImmutableMap.of(
-                "catalog-impl", "org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog",
-                "io-impl", "org.apache.iceberg.gcp.gcs.GCSFileIO",
-                "warehouse", "gs://bucket/warehouse"),
-            HADOOP_CONFIG_PROPERTIES_FIELD,
-            ImmutableMap.of(
-                "fs.gs.project.id", "apache-beam-testing",
-                "foo", "bar"),
-            TRIGGERING_FREQUENCY_FIELD,
-            30,
-            CATALOG_NAME_FIELD,
-            "my_catalog");
+    ImmutableMap<String, Object> properties = ImmutableMap.of(TRIGGERING_FREQUENCY_FIELD, 30);
 
     ObjectMapper mapper = new ObjectMapper();
     String propertiesString = mapper.writeValueAsString(properties);
@@ -71,10 +69,12 @@ public class IcebergTableProviderTest {
     assertTrue(sqlTable instanceof IcebergTable);
 
     IcebergTable icebergTable = (IcebergTable) sqlTable;
+    IcebergCatalogConfig catalogConfig = icebergTable.catalogConfig;
     assertEquals("namespace.table", icebergTable.tableIdentifier);
-    assertEquals(properties.get(CATALOG_NAME_FIELD), icebergTable.catalogName);
-    assertEquals(properties.get(CATALOG_PROPERTIES_FIELD), icebergTable.catalogProps);
-    assertEquals(properties.get(HADOOP_CONFIG_PROPERTIES_FIELD), icebergTable.configProps);
+    assertEquals(properties.get(CATALOG_NAME_FIELD), catalogConfig.getCatalogName());
+    assertEquals(properties.get(CATALOG_PROPERTIES_FIELD), catalogConfig.getCatalogProperties());
+    assertEquals(
+        properties.get(HADOOP_CONFIG_PROPERTIES_FIELD), catalogConfig.getConfigProperties());
     assertEquals(properties.get(TRIGGERING_FREQUENCY_FIELD), icebergTable.triggeringFrequency);
   }
 

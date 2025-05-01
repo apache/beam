@@ -50,6 +50,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
 
 /** Integration tests for writing to Iceberg with Beam SQL. */
 @RunWith(JUnit4.class)
@@ -94,7 +95,16 @@ public class IcebergReadWriteIT {
 
   @Test
   public void testSqlWriteAndRead() throws IOException, InterruptedException {
-    BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(new IcebergTableProvider());
+    BeamSqlEnv sqlEnv =
+        BeamSqlEnv.inMemory(
+            IcebergTableProvider.create()
+                .withCatalogProperties(
+                    ImmutableMap.of(
+                        "catalog-impl", "org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog",
+                        "io-impl", "org.apache.iceberg.gcp.gcs.GCSFileIO",
+                        "warehouse", warehouse,
+                        "gcp_project", OPTIONS.getProject(),
+                        "gcp_region", "us-central1")));
     String tableIdentifier = DATASET + ".my_table";
 
     // 1) create beam table
@@ -113,18 +123,7 @@ public class IcebergReadWriteIT {
             + "TYPE 'iceberg' \n"
             + "LOCATION '"
             + tableIdentifier
-            + "'\n"
-            + "TBLPROPERTIES '{\"catalog_properties\": {"
-            + "\"catalog-impl\": \"org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog\","
-            + "\"io-impl\": \"org.apache.iceberg.gcp.gcs.GCSFileIO\","
-            + "\"warehouse\": \""
-            + warehouse
-            + "\","
-            + "\"gcp_project\": \""
-            + OPTIONS.getProject()
-            + "\","
-            + "\"gcp_region\": \"us-central1\""
-            + "}}'";
+            + "'";
     sqlEnv.executeDdl(createTableStatement);
 
     // 2) write to underlying Iceberg table

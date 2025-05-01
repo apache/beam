@@ -19,12 +19,11 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.iceberg;
 
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig;
 import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -43,28 +42,15 @@ class IcebergTable extends SchemaBaseBeamTable {
   static final String TRIGGERING_FREQUENCY_FIELD = "triggering_frequency_seconds";
 
   @VisibleForTesting final String tableIdentifier;
-  @VisibleForTesting @Nullable Map<String, String> catalogProps;
-  @VisibleForTesting @Nullable Map<String, String> configProps;
-  @VisibleForTesting @Nullable String catalogName;
+  @VisibleForTesting final IcebergCatalogConfig catalogConfig;
   @VisibleForTesting @Nullable Integer triggeringFrequency;
 
-  IcebergTable(Table table) {
+  IcebergTable(Table table, IcebergCatalogConfig catalogConfig) {
     super(table.getSchema());
     this.schema = table.getSchema();
     this.tableIdentifier = checkArgumentNotNull(table.getLocation());
+    this.catalogConfig = catalogConfig;
     ObjectNode properties = table.getProperties();
-    ObjectMapper objectMapper = new ObjectMapper();
-    if (properties.has(CATALOG_PROPERTIES_FIELD)) {
-      this.catalogProps =
-          objectMapper.convertValue(properties.get(CATALOG_PROPERTIES_FIELD), HashMap.class);
-    }
-    if (properties.has(HADOOP_CONFIG_PROPERTIES_FIELD)) {
-      this.configProps =
-          objectMapper.convertValue(properties.get(HADOOP_CONFIG_PROPERTIES_FIELD), HashMap.class);
-    }
-    if (properties.has(CATALOG_NAME_FIELD)) {
-      this.catalogName = properties.get(CATALOG_NAME_FIELD).asText();
-    }
     if (properties.has(TRIGGERING_FREQUENCY_FIELD)) {
       this.triggeringFrequency = properties.get(TRIGGERING_FREQUENCY_FIELD).asInt();
     }
@@ -88,18 +74,21 @@ class IcebergTable extends SchemaBaseBeamTable {
   }
 
   private Map<String, Object> getBaseConfig() {
-    ImmutableMap.Builder<String, Object> configBuilder = ImmutableMap.builder();
-    configBuilder.put("table", tableIdentifier);
-    if (catalogName != null) {
-      configBuilder.put(CATALOG_NAME_FIELD, catalogName);
+    ImmutableMap.Builder<String, Object> managedConfigBuilder = ImmutableMap.builder();
+    managedConfigBuilder.put("table", tableIdentifier);
+    @Nullable String name = catalogConfig.getCatalogName();
+    @Nullable Map<String, String> catalogProps = catalogConfig.getCatalogProperties();
+    @Nullable Map<String, String> hadoopConfProps = catalogConfig.getConfigProperties();
+    if (name != null) {
+      managedConfigBuilder.put(CATALOG_NAME_FIELD, name);
     }
     if (catalogProps != null) {
-      configBuilder.put(CATALOG_PROPERTIES_FIELD, catalogProps);
+      managedConfigBuilder.put(CATALOG_PROPERTIES_FIELD, catalogProps);
     }
-    if (configProps != null) {
-      configBuilder.put(HADOOP_CONFIG_PROPERTIES_FIELD, configProps);
+    if (hadoopConfProps != null) {
+      managedConfigBuilder.put(HADOOP_CONFIG_PROPERTIES_FIELD, hadoopConfProps);
     }
-    return configBuilder.build();
+    return managedConfigBuilder.build();
   }
 
   @Override
