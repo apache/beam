@@ -23,6 +23,8 @@ from apache_beam.dataframe import doctests
 from apache_beam.dataframe.frames import PD_VERSION
 from apache_beam.dataframe.pandas_top_level_functions import _is_top_level_function
 
+# pylint: skip-file
+
 
 @unittest.skipIf(
     sys.platform == 'win32', '[https://github.com/apache/beam/issues/20361]')

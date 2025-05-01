@@ -21,6 +21,7 @@ the DataflowMetrics class.
 """
 
 # pytype: skip-file
+# pylint: skip-file
 
 import types
 import unittest
