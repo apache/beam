@@ -42,6 +42,7 @@ dependencies {
   dockerDependency library.java.log4j2_to_slf4j
   dockerDependency project(path: ":sdks:java:harness", configuration: "shadow")
   dockerDependency library.java.jamm
+  dockerDependency library.java.opentelemetry_javaagent
 }
 
 goBuild {
