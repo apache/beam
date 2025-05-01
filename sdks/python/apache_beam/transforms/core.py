@@ -393,8 +393,8 @@ def get_function_args_defaults(f):
       parameter.POSITIONAL_ONLY, parameter.POSITIONAL_OR_KEYWORD
   ]
   args = [
-      name for name,
-      p in signature.parameters.items() if p.kind in _SUPPORTED_ARG_TYPES
+      name for name, p in signature.parameters.items()
+      if p.kind in _SUPPORTED_ARG_TYPES
   ]
   defaults = [
       p.default for p in signature.parameters.values()
@@ -801,12 +801,12 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
           self.process_batch) or typehints.decorators.IOTypeHints.empty()
 
       # Then we deconflict with the typehint from process, if it exists
-      if (process_batch_type_hints.output_types !=
-          typehints.decorators.IOTypeHints.empty().output_types):
-        if (process_type_hints.output_types !=
-            typehints.decorators.IOTypeHints.empty().output_types and
-            process_batch_type_hints.output_types !=
-            process_type_hints.output_types):
+      if (process_batch_type_hints.output_types
+          != typehints.decorators.IOTypeHints.empty().output_types):
+        if (process_type_hints.output_types
+            != typehints.decorators.IOTypeHints.empty().output_types and
+            process_batch_type_hints.output_types
+            != process_type_hints.output_types):
           raise TypeError(
               f"DoFn {self!r} yields element from both process and "
               "process_batch, but they have mismatched output typehints:\n"
@@ -1888,10 +1888,10 @@ class ParDo(PTransformWithSideInputs):
             # transformation is currently irreversible given how
             # remove_objects_from_args and insert_values_in_args
             # are currently implemented.
-            side_inputs={(SIDE_INPUT_PREFIX + '%s') % ix:
-                         si.to_runner_api(context)
-                         for ix,
-                         si in enumerate(self.side_inputs)}))
+            side_inputs={
+                (SIDE_INPUT_PREFIX + '%s') % ix: si.to_runner_api(context)
+                for ix, si in enumerate(self.side_inputs)
+            }))
 
   @staticmethod
   @PTransform.register_urn(
@@ -1909,8 +1909,8 @@ class ParDo(PTransformWithSideInputs):
     # to_runner_api_parameter above).
     indexed_side_inputs = [(
         get_sideinput_index(tag),
-        pvalue.AsSideInput.from_runner_api(si, context)) for tag,
-                           si in pardo_payload.side_inputs.items()]
+        pvalue.AsSideInput.from_runner_api(si, context))
+                           for tag, si in pardo_payload.side_inputs.items()]
     result.side_inputs = [si for _, si in sorted(indexed_side_inputs)]
     return result
 
@@ -3054,7 +3054,6 @@ class CombineValues(PTransformWithSideInputs):
 
 class CombineValuesDoFn(DoFn):
   """DoFn for performing per-key Combine transforms."""
-
   def __init__(
       self,
       input_pcoll_type,
@@ -3117,7 +3116,6 @@ class CombineValuesDoFn(DoFn):
 
 
 class _CombinePerKeyWithHotKeyFanout(PTransform):
-
   def __init__(
       self,
       combine_fn,  # type: CombineFn
@@ -3347,7 +3345,6 @@ class GroupBy(PTransform):
   The GroupBy operation can be made into an aggregating operation by invoking
   its `aggregate_field` method.
   """
-
   def __init__(
       self,
       *fields,  # type: typing.Union[str, typing.Callable]
@@ -3487,8 +3484,7 @@ class _GroupAndAggregate(PTransform):
             TupleCombineFn(
                 *[combine_fn for _, combine_fn, __ in self._aggregations]))
         | MapTuple(
-            lambda key,
-            value: _dynamic_named_tuple('Result', result_fields)
+            lambda key, value: _dynamic_named_tuple('Result', result_fields)
             (*(key + value))))
 
 
@@ -3505,7 +3501,6 @@ class Select(PTransform):
 
       pcoll | beam.Map(lambda x: beam.Row(a=x.a, b=foo(x)))
   """
-
   def __init__(
       self,
       *args,  # type: typing.Union[str, typing.Callable]
@@ -3529,8 +3524,10 @@ class Select(PTransform):
     return (
         _MaybePValueWithErrors(pcoll, self._exception_handling_args) | Map(
             lambda x: pvalue.Row(
-                **{name: expr(x)
-                   for name, expr in self._fields}))).as_result()
+                **{
+                    name: expr(x)
+                    for name, expr in self._fields
+                }))).as_result()
 
   def infer_output_type(self, input_type):
     def extract_return_type(expr):
@@ -3586,14 +3583,15 @@ class Partition(PTransformWithSideInputs):
 
 
 class Windowing(object):
-  def __init__(self,
-               windowfn,  # type: WindowFn
-               triggerfn=None,  # type: typing.Optional[TriggerFn]
-               accumulation_mode=None,  # type: typing.Optional[beam_runner_api_pb2.AccumulationMode.Enum.ValueType]
-               timestamp_combiner=None,  # type: typing.Optional[beam_runner_api_pb2.OutputTime.Enum.ValueType]
-               allowed_lateness=0, # type: typing.Union[int, float]
-               environment_id=None, # type: typing.Optional[str]
-               ):
+  def __init__(
+      self,
+      windowfn,  # type: WindowFn
+      triggerfn=None,  # type: typing.Optional[TriggerFn]
+      accumulation_mode=None,  # type: typing.Optional[beam_runner_api_pb2.AccumulationMode.Enum.ValueType]
+      timestamp_combiner=None,  # type: typing.Optional[beam_runner_api_pb2.OutputTime.Enum.ValueType]
+      allowed_lateness=0,  # type: typing.Union[int, float]
+      environment_id=None,  # type: typing.Optional[str]
+  ):
     """Class representing the window strategy.
 
     Args:

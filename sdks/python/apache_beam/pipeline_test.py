@@ -1441,11 +1441,11 @@ class RunnerApiTest(unittest.TestCase):
                 'e1': beam_runner_api_pb2.Environment(
                     dependencies=[file_artifact('a1', 'x', 'dest')]),
                 'e2': beam_runner_api_pb2.Environment(
-                    dependencies=[file_artifact('a2', 'x', 'dest')]),
-                # Different hash.
+                    dependencies=[file_artifact('a2', 'x', 'dest')
+                                  ]),  # Different hash.
                 'e3': beam_runner_api_pb2.Environment(
-                    dependencies=[file_artifact('a3', 'y', 'dest')]),
-                # Different destination.
+                    dependencies=[file_artifact('a3', 'y', 'dest')
+                                  ]),  # Different destination.
                 'e4': beam_runner_api_pb2.Environment(
                     dependencies=[file_artifact('a4', 'y', 'dest2')]),
                 # Multiple files with same hash and destinations.
@@ -1458,14 +1458,12 @@ class RunnerApiTest(unittest.TestCase):
                     dependencies=[
                         file_artifact('a2', 'x', 'dest'),
                         file_artifact('b2', 'xb', 'destB')
-                    ]),
-                # Overlapping, but not identical, files.
+                    ]),  # Overlapping, but not identical, files.
                 'e7': beam_runner_api_pb2.Environment(
                     dependencies=[
                         file_artifact('a1', 'x', 'dest'),
                         file_artifact('b2', 'y', 'destB')
-                    ]),
-                # Same files as first, but differing other properties.
+                    ]),  # Same files as first, but differing other properties.
                 'e0': beam_runner_api_pb2.Environment(
                     resource_hints={'hint': b'value'},
                     dependencies=[file_artifact('a1', 'x', 'dest')]),

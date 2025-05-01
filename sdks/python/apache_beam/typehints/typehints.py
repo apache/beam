@@ -708,8 +708,8 @@ class TupleHint(CompositeTypeHint):
       return (
           isinstance(sub, self.__class__) and
           len(sub.tuple_types) == len(self.tuple_types) and all(
-              is_consistent_with(sub_elem, elem) for sub_elem,
-              elem in zip(sub.tuple_types, self.tuple_types)))
+              is_consistent_with(sub_elem, elem)
+              for sub_elem, elem in zip(sub.tuple_types, self.tuple_types)))
 
     def type_check(self, tuple_instance):
       if not isinstance(tuple_instance, tuple):

@@ -783,8 +783,8 @@ class AnnotatingProvider(yaml_provider.InlineProvider):
   """
   def __init__(self, name, transform_names):
     super().__init__({
-        transform_name:
-        lambda: beam.Map(lambda x: (x if type(x) == tuple else ()) + (name, ))
+        transform_name: lambda: beam.Map(
+            lambda x: (x if type(x) == tuple else ()) + (name, ))
         for transform_name in transform_names.strip().split()
     })
     self._name = name
@@ -836,8 +836,7 @@ class ProviderAffinityTest(unittest.TestCase):
               'provider1',
               # All of the providers vend A, but since the input was produced
               # by provider1, we prefer to use that again.
-              'provider1',
-              # Similarly for C.
+              'provider1',  # Similarly for C.
               'provider1')]),
           label='StartWith1')
 
@@ -857,10 +856,8 @@ class ProviderAffinityTest(unittest.TestCase):
           result2,
           equal_to([(
               # provider2 was necessarily chosen for P2
-              'provider2',
-              # Unlike above, we choose provider2 to implement A.
-              'provider2',
-              # Likewise for C.
+              'provider2',  # Unlike above, we choose provider2 to implement A.
+              'provider2',  # Likewise for C.
               'provider2')]),
           label='StartWith2')
 

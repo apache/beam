@@ -171,8 +171,7 @@ def to_json(df, path, orient=None, *args, **kwargs):
 @frame_base.with_docs_from(pd)
 def read_html(path, *args, **kwargs):
   return _ReadFromPandas(
-      lambda *args,
-      **kwargs: pd.read_html(*args, **kwargs)[0],
+      lambda *args, **kwargs: pd.read_html(*args, **kwargs)[0],
       path,
       args,
       kwargs)
@@ -193,8 +192,8 @@ def to_html(df, path, *args, **kwargs):
 
 def _binary_reader(format):
   func = getattr(pd, 'read_%s' % format)
-  result = lambda path, *args, **kwargs: _ReadFromPandas(func, path, args,
-                                                         kwargs)
+  result = lambda path, *args, **kwargs: _ReadFromPandas(
+      func, path, args, kwargs)
   result.__name__ = f'read_{format}'
 
   return result
@@ -202,10 +201,8 @@ def _binary_reader(format):
 
 def _binary_writer(format):
   result = (
-      lambda df,
-      path,
-      *args,
-      **kwargs: _as_pc(df) | _WriteToPandas(f'to_{format}', path, args, kwargs))
+      lambda df, path, *args, **kwargs: _as_pc(df) | _WriteToPandas(
+          f'to_{format}', path, args, kwargs))
   result.__name__ = f'to_{format}'
   return result
 
@@ -294,9 +291,10 @@ class _ReadFromPandas(beam.PTransform):
         matches_pcoll.pipeline
         | 'DoOnce' >> beam.Create([None])
         | beam.Map(
-            lambda _,
-            paths: {path: ix
-                    for ix, path in enumerate(sorted(paths))},
+            lambda _, paths: {
+                path: ix
+                for ix, path in enumerate(sorted(paths))
+            },
             paths=beam.pvalue.AsList(
                 matches_pcoll | beam.Map(lambda match: match.path))))
 

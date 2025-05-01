@@ -75,8 +75,8 @@ def _compare_dataframe_predictions(a_in, b_in):
   example_equal = pandas.DataFrame.equals(a.example, b.example)
   if isinstance(a.inference, dict):
     return all(
-        math.floor(a) == math.floor(b) for a,
-        b in zip(a.inference.values(), b.inference.values())) and example_equal
+        math.floor(a) == math.floor(b) for a, b in zip(
+            a.inference.values(), b.inference.values())) and example_equal
   inference_equal = math.floor(a.inference) == math.floor(b.inference)
   return inference_equal and example_equal and keys_equal
 
