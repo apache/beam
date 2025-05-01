@@ -600,7 +600,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def checkerframework_version = "3.42.0"
     def classgraph_version = "4.8.162"
     def dbcp2_version = "2.9.0"
-    def errorprone_version = "2.10.0"
+    def errorprone_version = "2.38.0"
     // [bomupgrader] determined by: com.google.api:gax, consistent with: google_cloud_platform_libraries_bom
     def gax_version = "2.63.1"
     def google_ads_version = "33.0.0"
@@ -1485,7 +1485,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
         project.dependencies {
           errorprone("com.google.errorprone:error_prone_core:$errorprone_version")
-          errorprone("jp.skypencil.errorprone.slf4j:errorprone-slf4j:0.1.2")
+          errorprone("jp.skypencil.errorprone.slf4j:errorprone-slf4j:0.1.28")
           // At least JDk 9 compiler is required, however JDK 8 still can be used but with additional errorproneJavac
           // configuration. For more details please see https://github.com/tbroyer/gradle-errorprone-plugin#jdk-8-support
           if (JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) == 0) {
