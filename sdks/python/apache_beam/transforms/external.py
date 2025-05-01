@@ -462,8 +462,8 @@ class SchemaAwareExternalTransform(ptransform.PTransform):
         # construction.
         underlying_transform_id = (
             self._managed_replacement.underlying_transform_identifier)
-        if not (underlying_transform_id in
-                MANAGED_TRANSFORM_URN_TO_JAR_TARGET_MAPPING):
+        if not (underlying_transform_id
+                in MANAGED_TRANSFORM_URN_TO_JAR_TARGET_MAPPING):
           raise ValueError(
               'Could not find an expansion service jar for the managed ' +
               'transform ' + underlying_transform_id)

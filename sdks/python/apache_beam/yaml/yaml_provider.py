@@ -339,8 +339,7 @@ def beam_jar(
     version=beam_version,
     artifact_id=None):
   return ExternalJavaProvider(
-      urns,
-      lambda: subprocess_server.JavaJarServer.path_to_beam_jar(
+      urns, lambda: subprocess_server.JavaJarServer.path_to_beam_jar(
           gradle_target=gradle_target, version=version, artifact_id=artifact_id
       ),
       managed_replacement=managed_replacement)
@@ -378,8 +377,7 @@ class ExternalJavaProvider(ExternalProvider):
   def __init__(
       self, urns, jar_provider, managed_replacement=None, classpath=None):
     super().__init__(
-        urns,
-        lambda: external.JavaJarExpansionService(
+        urns, lambda: external.JavaJarExpansionService(
             jar_provider(), classpath=classpath),
         managed_replacement)
     self._jar_provider = jar_provider
