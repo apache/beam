@@ -2946,7 +2946,8 @@ public class StreamingDataflowWorkerTest {
             new ThreadFactoryBuilder()
                 .setNameFormat("DataflowWorkUnits-%d")
                 .setDaemon(true)
-                .build());
+                .build(),
+            /*useFairMonitor=*/ false);
 
     ComputationState computationState =
         new ComputationState(
@@ -3006,7 +3007,8 @@ public class StreamingDataflowWorkerTest {
             new ThreadFactoryBuilder()
                 .setNameFormat("DataflowWorkUnits-%d")
                 .setDaemon(true)
-                .build());
+                .build(),
+            /*useFairMonitor=*/ false);
 
     ComputationState computationState =
         new ComputationState(
@@ -3075,7 +3077,8 @@ public class StreamingDataflowWorkerTest {
             new ThreadFactoryBuilder()
                 .setNameFormat("DataflowWorkUnits-%d")
                 .setDaemon(true)
-                .build());
+                .build(),
+            /*useFairMonitor=*/ false);
 
     ComputationState computationState =
         new ComputationState(
@@ -3148,7 +3151,8 @@ public class StreamingDataflowWorkerTest {
             new ThreadFactoryBuilder()
                 .setNameFormat("DataflowWorkUnits-%d")
                 .setDaemon(true)
-                .build());
+                .build(),
+            /*useFairMonitor=*/ false);
 
     ComputationState computationState =
         new ComputationState(
