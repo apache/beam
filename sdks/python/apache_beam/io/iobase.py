@@ -1154,7 +1154,8 @@ class WriteImpl(ptransform.PTransform):
           pcoll
           | core.WindowInto(window.GlobalWindows())
           | 'WriteBundles' >> core.ParDo(
-              _WriteBundleDoFn(self.sink), AsSingleton(init_result_coll)))
+              _WriteBundleDoFn(self.sink), AsSingleton(init_result_coll))
+          | 'Pair' >> core.Map(lambda x: (None, x)))
 
       if pcoll.is_bounded or pcoll.windowing.is_default():
         pre_gbk_coll = write_result_coll_tmp
@@ -1169,7 +1170,7 @@ class WriteImpl(ptransform.PTransform):
             | 'RestoreWindow' >> core.WindowInto(pcoll.windowing))
 
       write_result_coll = (
-          pre_gbk_coll | 'Pair' >> core.Map(lambda x: (None, x))
+          pre_gbk_coll
           | core.GroupByKey()
           | 'Extract' >> core.FlatMap(lambda x: x[1]))
     # PreFinalize should run before FinalizeWrite, and the two should not be
