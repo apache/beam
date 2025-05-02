@@ -41,6 +41,7 @@ _MIN_SLEEP_ARG_SWITCH_VERSION = version.parse("2.25.0rc0")
 _LEGACY_SLEEP_ARG_NAME = "next_sleep"
 _CURRENT_SLEEP_ARG_NAME = "sleep_iterator"
 
+
 class ThrottlingHandler(object):
   _THROTTLED_SECS = Metrics.counter('gcsio', "cumulativeThrottlingSeconds")
 
