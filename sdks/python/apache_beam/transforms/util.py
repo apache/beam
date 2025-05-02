@@ -952,7 +952,7 @@ def reify_metadata_default_window(
   key, value = element
   if timestamp == window.MIN_TIMESTAMP:
     timestamp = None
-  return key, (value, timestamp, pane_info)
+  return key, (value, timestamp)
 
 
 def restore_metadata_default_window(element):
@@ -960,8 +960,8 @@ def restore_metadata_default_window(element):
   return [
       window.GlobalWindows.windowed_value(None).with_value((key, value))
       if timestamp is None else window.GlobalWindows.windowed_value(
-          value=(key, value), timestamp=timestamp, pane_info=pane_info)
-      for (value, timestamp, pane_info) in values
+          value=(key, value), timestamp=timestamp)
+      for (value, timestamp) in values
   ]
 
 
@@ -989,7 +989,7 @@ def _reify_restore_metadata(is_default_windowing):
 def _add_pre_map_gkb_types(pre_gbk_map, is_default_windowing):
   if is_default_windowing:
     return pre_gbk_map.with_input_types(tuple[K, V]).with_output_types(
-        tuple[K, tuple[V, Optional[Timestamp], windowed_value.PaneInfo]])
+        tuple[K, tuple[V, Optional[Timestamp]]])
   return pre_gbk_map.with_input_types(tuple[K, V]).with_output_types(
       tuple[K, TypedWindowedValue[V]])
 

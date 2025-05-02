@@ -1082,7 +1082,8 @@ class ReshuffleTest(unittest.TestCase):
       param(compat_version=None),
       param(compat_version="2.64.0"),
   ])
-  def test_reshuffle_default_window_preserves_metadata(self, compat_version):
+  def test_reshuffle_default_window_doesnt_preserve_paneinfo(
+      self, compat_version):
     """Tests that Reshuffle preserves timestamp, window, and pane info
     metadata."""
 
@@ -1107,17 +1108,7 @@ class ReshuffleTest(unittest.TestCase):
         index=1,
         nonspeculative_index=1)
 
-    expected_preserved = [
-        TestWindowedValue('a', MIN_TIMESTAMP, [GlobalWindow()], no_firing),
-        TestWindowedValue(
-            'b', timestamp.Timestamp(0), [GlobalWindow()], on_time_only),
-        TestWindowedValue(
-            'c', timestamp.Timestamp(33), [GlobalWindow()], late_firing),
-        TestWindowedValue(
-            'd', GlobalWindow().max_timestamp(), [GlobalWindow()], no_firing)
-    ]
-
-    expected_not_preserved = [
+    expected = [
         TestWindowedValue(
             'a', MIN_TIMESTAMP, [GlobalWindow()], PANE_INFO_UNKNOWN),
         TestWindowedValue(
@@ -1129,10 +1120,6 @@ class ReshuffleTest(unittest.TestCase):
             GlobalWindow().max_timestamp(), [GlobalWindow()],
             PANE_INFO_UNKNOWN)
     ]
-
-    expected = (
-        expected_preserved
-        if compat_version is None else expected_not_preserved)
 
     options = PipelineOptions(update_compatibility_version=compat_version)
     with TestPipeline(options=options) as pipeline:
