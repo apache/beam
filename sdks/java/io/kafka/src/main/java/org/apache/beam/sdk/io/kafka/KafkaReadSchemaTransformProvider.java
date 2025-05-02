@@ -35,6 +35,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+
+import io.confluent.kafka.serializers.KafkaAvroDeserializerConfig;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
@@ -132,6 +134,7 @@ public class KafkaReadSchemaTransformProvider
 
   static class KafkaReadSchemaTransform extends SchemaTransform {
     private final KafkaReadSchemaTransformConfiguration configuration;
+    private final String GOOGLE_MANAGED_SCHEMA_REGISTRY_PREFIX = "https://managedkafka.googleapis.com/";
 
     KafkaReadSchemaTransform(KafkaReadSchemaTransformConfiguration configuration) {
       this.configuration = configuration;
@@ -184,10 +187,27 @@ public class KafkaReadSchemaTransformProvider
                 .withConsumerFactoryFn(new ConsumerFactoryWithGcsTrustStores())
                 .withBootstrapServers(configuration.getBootstrapServers())
                 .withConsumerConfigUpdates(consumerConfigs)
-                .withKeyDeserializer(ByteArrayDeserializer.class)
-                .withValueDeserializer(
-                    ConfluentSchemaRegistryDeserializerProvider.of(
-                        confluentSchemaRegUrl, confluentSchemaRegSubject));
+                .withKeyDeserializer(ByteArrayDeserializer.class);
+        if (confluentSchemaRegUrl.contains(GOOGLE_MANAGED_SCHEMA_REGISTRY_PREFIX)) {
+          // Custom configs to authenticate with Google's Managed Schema Registry
+          Map<String, Object> configs = new HashMap<>();
+          configs.put(KafkaAvroDeserializerConfig.SCHEMA_REGISTRY_URL_CONFIG, confluentSchemaRegUrl);
+          configs.put(KafkaAvroDeserializerConfig.BEARER_AUTH_CREDENTIALS_SOURCE, "CUSTOM");
+          configs.put(
+              "bearer.auth.custom.provider.class",
+              "com.google.cloud.hosted.kafka.auth.GcpBearerAuthCredentialProvider");
+
+          kafkaRead =
+              kafkaRead.withValueDeserializer(
+                  ConfluentSchemaRegistryDeserializerProvider.of(
+                      confluentSchemaRegUrl, confluentSchemaRegSubject, null, configs));
+        } else {
+          kafkaRead =
+              kafkaRead.withValueDeserializer(
+                  ConfluentSchemaRegistryDeserializerProvider.of(
+                      confluentSchemaRegUrl, confluentSchemaRegSubject));
+        }
+
         Integer maxReadTimeSeconds = configuration.getMaxReadTimeSeconds();
         if (maxReadTimeSeconds != null) {
           kafkaRead = kafkaRead.withMaxReadTime(Duration.standardSeconds(maxReadTimeSeconds));
