@@ -23,7 +23,9 @@ import inspect
 import logging
 import math
 from itertools import tee
+from packaging import version
 
+from google.api_core import __version__ as _api_core_version
 from google.api_core import exceptions as api_exceptions
 from google.api_core import retry
 from google.cloud.storage.retry import DEFAULT_RETRY
@@ -35,10 +37,23 @@ from apache_beam.options.pipeline_options import GoogleCloudOptions
 _LOGGER = logging.getLogger(__name__)
 
 __all__ = ['DEFAULT_RETRY_WITH_THROTTLING_COUNTER']
-
+_MIN_SLEEP_ARG_SWITCH_VERSION = version.parse("2.25.0rc0")
+_LEGACY_SLEEP_ARG_NAME        = "next_sleep"
+_CURRENT_SLEEP_ARG_NAME       = "sleep_iterator"
 
 class ThrottlingHandler(object):
   _THROTTLED_SECS = Metrics.counter('gcsio', "cumulativeThrottlingSeconds")
+
+  def __init__(self):
+    # decide which arg name google-api-core uses
+    try:
+      core_ver = version.parse(_api_core_version)
+    except Exception:
+      core_ver = version.parse("0")
+    if core_ver < _MIN_SLEEP_ARG_SWITCH_VERSION:
+      self._sleep_arg = _LEGACY_SLEEP_ARG_NAME
+    else:
+      self._sleep_arg = _CURRENT_SLEEP_ARG_NAME
 
   def __call__(self, exc):
     if isinstance(exc, api_exceptions.TooManyRequests):
@@ -55,14 +70,19 @@ class ThrottlingHandler(object):
         _LOGGER.warning('cannot inspect the caller stack frame')
         return
 
-      # sleep_iterator is one of the arguments in the caller
-      # i.e. _retry_error_helper() in google/api_core/retry/retry_base.py
-      sleep_iterator = prev_frame.f_locals.get("sleep_iterator", iter([]))
-      sleep_iterator, sleep_iterator_copy = tee(sleep_iterator)
-      try:
-        sleep_seconds = next(sleep_iterator_copy)
-      except StopIteration:
-        sleep_seconds = 0
+      # Determine which retry helper argument to inspect in
+      # google/api_core/retry/retry_base.py’s _retry_error_helper():
+      #  - versions < 2.25.0rc0 use “next_sleep”
+      #  - versions ≥ 2.25.0rc0 use “sleep_iterator”
+      if self._sleep_arg == _LEGACY_SLEEP_ARG_NAME:
+        sleep_seconds = prev_frame.f_locals.get(self._sleep_arg, 0)
+      else:
+        sleep_iterator = prev_frame.f_locals.get(self._sleep_arg, iter([]))
+        sleep_iterator, sleep_iterator_copy = tee(sleep_iterator)
+        try:
+          sleep_seconds = next(sleep_iterator_copy)
+        except StopIteration:
+          sleep_seconds = 0
       ThrottlingHandler._THROTTLED_SECS.inc(math.ceil(sleep_seconds))
 
 
