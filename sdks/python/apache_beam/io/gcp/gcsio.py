@@ -468,10 +468,13 @@ class GcsIO(object):
     Args:
       path: GCS file path pattern in the form gs://<bucket>/<name>.
     """
-    bucket_name, blob_name = parse_gcs_path(path)
-    bucket = self.client.bucket(bucket_name)
-    blob = bucket.blob(blob_name)
-    return blob.exists(retry=self._storage_client_retry)
+    try:
+      bucket_name, blob_name = parse_gcs_path(path)
+      bucket = self.client.bucket(bucket_name)
+      blob = bucket.blob(blob_name)
+      return blob.exists(retry=self._storage_client_retry)
+    except:
+      return False
 
   def checksum(self, path):
     """Looks up the checksum of a GCS object.
