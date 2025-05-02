@@ -98,5 +98,5 @@ export class InspectableListItem extends React.Component<
     );
   }
 
-  private _updateRenderTimerId: number;
+  private _updateRenderTimerId: ReturnType<typeof setInterval>;
 }

@@ -209,7 +209,7 @@ export class Clusters extends React.Component<IClustersProps, IClustersState> {
                   style={{ backgroundColor: 'var(--mdc-theme-error)' }}
                   theme={['onError']}
                   mini
-                  onClick={e => {
+                  onClick={() => {
                     this.displayDialog(true, key, value['cluster_name']);
                   }}
                 />
@@ -234,7 +234,9 @@ export class Clusters extends React.Component<IClustersProps, IClustersState> {
             label="Default cluster"
             enhanced
             options={clusterNames}
-            onChange={e => this.setDefaultCluster(e.currentTarget.value)}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+              this.setDefaultCluster(e.currentTarget.value)
+            }
             value={this.state.defaultClusterId}
           />
           <Dialog
@@ -253,7 +255,7 @@ export class Clusters extends React.Component<IClustersProps, IClustersState> {
               </DialogButton>
               <DialogButton
                 action="accept"
-                onClick={e => {
+                onClick={() => {
                   this.deleteCluster(this.state.selectedId);
                 }}
               >
@@ -286,7 +288,7 @@ export class Clusters extends React.Component<IClustersProps, IClustersState> {
 
   private _inspectKernelCode: string;
   private _model: KernelModel;
-  private _queryKernelTimerId: number;
-  private _updateRenderTimerId: number;
-  private _updateSessionInfoTimerId: number;
+  private _queryKernelTimerId: ReturnType<typeof setInterval>;
+  private _updateRenderTimerId: ReturnType<typeof setInterval>;
+  private _updateSessionInfoTimerId: ReturnType<typeof setInterval>;
 }
