@@ -113,7 +113,8 @@ __all__ = [
     'WindowedValueCoder',
     'ParamWindowedValueCoder',
     'BigIntegerCoder',
-    'DecimalCoder'
+    'DecimalCoder',
+    'PaneInfoCoder'
 ]
 
 T = TypeVar('T')
@@ -1751,6 +1752,18 @@ class BigIntegerCoder(FastCoder):
 
   def __hash__(self):
     return hash(type(self))
+
+
+class PaneInfoCoder(FastCoder):
+  def _create_impl(self):
+    return coder_impl.PaneInfoCoderImpl()
+
+  def is_deterministic(self):
+    # type: () -> bool
+    return True
+
+  def to_type_hint(self):
+    return windowed_value.PaneInfo
 
 
 class DecimalCoder(FastCoder):
