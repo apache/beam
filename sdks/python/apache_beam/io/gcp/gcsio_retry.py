@@ -23,13 +23,13 @@ import inspect
 import logging
 import math
 from itertools import tee
-from packaging import version
 
 from google.api_core import __version__ as _api_core_version
 from google.api_core import exceptions as api_exceptions
 from google.api_core import retry
 from google.cloud.storage.retry import DEFAULT_RETRY
 from google.cloud.storage.retry import _should_retry  # pylint: disable=protected-access
+from packaging import version
 
 from apache_beam.metrics.metric import Metrics
 from apache_beam.options.pipeline_options import GoogleCloudOptions
@@ -38,8 +38,8 @@ _LOGGER = logging.getLogger(__name__)
 
 __all__ = ['DEFAULT_RETRY_WITH_THROTTLING_COUNTER']
 _MIN_SLEEP_ARG_SWITCH_VERSION = version.parse("2.25.0rc0")
-_LEGACY_SLEEP_ARG_NAME        = "next_sleep"
-_CURRENT_SLEEP_ARG_NAME       = "sleep_iterator"
+_LEGACY_SLEEP_ARG_NAME = "next_sleep"
+_CURRENT_SLEEP_ARG_NAME = "sleep_iterator"
 
 class ThrottlingHandler(object):
   _THROTTLED_SECS = Metrics.counter('gcsio', "cumulativeThrottlingSeconds")
