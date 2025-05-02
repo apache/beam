@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 
 import com.google.auto.service.AutoService;
+import io.confluent.kafka.serializers.KafkaAvroDeserializerConfig;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -132,6 +133,7 @@ public class KafkaReadSchemaTransformProvider
 
   static class KafkaReadSchemaTransform extends SchemaTransform {
     private final KafkaReadSchemaTransformConfiguration configuration;
+    private final String googleManagedSchemaRegistryPrefix = "https://managedkafka.googleapis.com/";
 
     KafkaReadSchemaTransform(KafkaReadSchemaTransformConfiguration configuration) {
       this.configuration = configuration;
@@ -178,16 +180,45 @@ public class KafkaReadSchemaTransformProvider
       if (confluentSchemaRegUrl != null) {
         final String confluentSchemaRegSubject =
             checkArgumentNotNull(configuration.getConfluentSchemaRegistrySubject());
-        KafkaIO.Read<byte[], GenericRecord> kafkaRead =
-            KafkaIO.<byte[], GenericRecord>read()
-                .withTopic(configuration.getTopic())
-                .withConsumerFactoryFn(new ConsumerFactoryWithGcsTrustStores())
-                .withBootstrapServers(configuration.getBootstrapServers())
-                .withConsumerConfigUpdates(consumerConfigs)
-                .withKeyDeserializer(ByteArrayDeserializer.class)
-                .withValueDeserializer(
-                    ConfluentSchemaRegistryDeserializerProvider.of(
-                        confluentSchemaRegUrl, confluentSchemaRegSubject));
+        KafkaIO.Read<byte[], GenericRecord> kafkaRead;
+
+        if (confluentSchemaRegUrl.contains(googleManagedSchemaRegistryPrefix)) {
+          // Custom configs to authenticate with Google's Managed Schema Registry
+          Map<String, Object> configs = new HashMap<>();
+          configs.put(
+              KafkaAvroDeserializerConfig.SCHEMA_REGISTRY_URL_CONFIG, confluentSchemaRegUrl);
+          configs.put(KafkaAvroDeserializerConfig.BEARER_AUTH_CREDENTIALS_SOURCE, "CUSTOM");
+          configs.put(
+              "bearer.auth.custom.provider.class",
+              "com.google.cloud.hosted.kafka.auth.GcpBearerAuthCredentialProvider");
+          LOG.info(
+              "Constructing read transform with Google Managed Schema Registry URL: {}",
+              confluentSchemaRegUrl);
+          kafkaRead =
+              KafkaIO.<byte[], GenericRecord>read()
+                  .withTopic(configuration.getTopic())
+                  .withConsumerFactoryFn(new ConsumerFactoryWithGcsTrustStores())
+                  .withBootstrapServers(configuration.getBootstrapServers())
+                  .withConsumerConfigUpdates(consumerConfigs)
+                  .withKeyDeserializer(ByteArrayDeserializer.class)
+                  .withValueDeserializer(
+                      ConfluentSchemaRegistryDeserializerProvider.of(
+                          confluentSchemaRegUrl, confluentSchemaRegSubject, null, configs));
+        } else {
+          LOG.info(
+              "Constructing read transform with Schema Registry URL: {}", confluentSchemaRegUrl);
+          kafkaRead =
+              KafkaIO.<byte[], GenericRecord>read()
+                  .withTopic(configuration.getTopic())
+                  .withConsumerFactoryFn(new ConsumerFactoryWithGcsTrustStores())
+                  .withBootstrapServers(configuration.getBootstrapServers())
+                  .withConsumerConfigUpdates(consumerConfigs)
+                  .withKeyDeserializer(ByteArrayDeserializer.class)
+                  .withValueDeserializer(
+                      ConfluentSchemaRegistryDeserializerProvider.of(
+                          confluentSchemaRegUrl, confluentSchemaRegSubject));
+        }
+
         Integer maxReadTimeSeconds = configuration.getMaxReadTimeSeconds();
         if (maxReadTimeSeconds != null) {
           kafkaRead = kafkaRead.withMaxReadTime(Duration.standardSeconds(maxReadTimeSeconds));
