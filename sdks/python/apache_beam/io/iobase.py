@@ -1136,22 +1136,42 @@ class WriteImpl(ptransform.PTransform):
         keyed_pcoll = pcoll | core.Map(lambda x: (None, x))
       else:
         keyed_pcoll = pcoll | core.ParDo(_RoundRobinKeyFn(), count=min_shards)
-      write_result_coll = (
-          keyed_pcoll
-          | core.WindowInto(window.GlobalWindows())
-          | core.GroupByKey()
-          | 'WriteBundles' >> core.ParDo(
-              _WriteKeyedBundleDoFn(self.sink), AsSingleton(init_result_coll)))
+      if not keyed_pcoll.is_bounded and not keyed_pcoll.windowing.is_default():
+        write_result_coll = (
+            keyed_pcoll
+            | core.GroupByKey()
+            | 'WriteBundles' >> core.ParDo(
+                _WriteKeyedBundleDoFn(self.sink), AsSingleton(init_result_coll))
+        )
+      else:
+        write_result_coll = (
+            keyed_pcoll
+            | core.WindowInto(window.GlobalWindows())
+            | core.GroupByKey()
+            | 'WriteBundles' >> core.ParDo(
+                _WriteKeyedBundleDoFn(self.sink), AsSingleton(init_result_coll))
+        )
     else:
       min_shards = 1
-      write_result_coll = (
-          pcoll
-          | core.WindowInto(window.GlobalWindows())
-          | 'WriteBundles' >> core.ParDo(
-              _WriteBundleDoFn(self.sink), AsSingleton(init_result_coll))
-          | 'Pair' >> core.Map(lambda x: (None, x))
-          | core.GroupByKey()
-          | 'Extract' >> core.FlatMap(lambda x: x[1]))
+      if not pcoll.is_bounded and not pcoll.windowing.is_default():
+        write_result_coll = (
+            pcoll
+            | 'ConvertToGlobalWindow' >> core.WindowInto(window.GlobalWindows())
+            | 'WriteBundles' >> core.ParDo(
+                _WriteBundleDoFn(self.sink), AsSingleton(init_result_coll))
+            | 'RestoreWindow' >> core.WindowInto(pcoll.windowing)
+            | 'Pair' >> core.Map(lambda x: (None, x))
+            | core.GroupByKey()
+            | 'Extract' >> core.FlatMap(lambda x: x[1]))
+      else:
+        write_result_coll = (
+            pcoll
+            | core.WindowInto(window.GlobalWindows())
+            | 'WriteBundles' >> core.ParDo(
+                _WriteBundleDoFn(self.sink), AsSingleton(init_result_coll))
+            | 'Pair' >> core.Map(lambda x: (None, x))
+            | core.GroupByKey()
+            | 'Extract' >> core.FlatMap(lambda x: x[1]))
     # PreFinalize should run before FinalizeWrite, and the two should not be
     # fused.
     pre_finalize_coll = (
@@ -1161,13 +1181,19 @@ class WriteImpl(ptransform.PTransform):
             self.sink,
             AsSingleton(init_result_coll),
             AsIter(write_result_coll)))
-    return do_once | 'FinalizeWrite' >> core.FlatMap(
-        _finalize_write,
-        self.sink,
-        AsSingleton(init_result_coll),
-        AsIter(write_result_coll),
-        min_shards,
-        AsSingleton(pre_finalize_coll)).with_output_types(str)
+    return (
+        do_once
+        # Add an identity mapping to temporary fix
+        # https://github.com/apache/beam/issues/25598
+        # Internal tracking issue id: 341696798
+        | core.Map(lambda x: x)
+        | 'FinalizeWrite' >> core.FlatMap(
+            _finalize_write,
+            self.sink,
+            AsSingleton(init_result_coll),
+            AsIter(write_result_coll),
+            min_shards,
+            AsSingleton(pre_finalize_coll)).with_output_types(str))
 
 
 class _WriteBundleDoFn(core.DoFn):
