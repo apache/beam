@@ -76,6 +76,7 @@
 ## New Features / Improvements
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* [YAML] WriteToTFRecord and ReadFromTFRecord Beam YAML support
 
 ## Breaking Changes
 
