@@ -1140,6 +1140,8 @@ class WriteImpl(ptransform.PTransform):
       if keyed_pcoll.is_bounded or keyed_pcoll.windowing.is_default():
         pre_gbk_coll = keyed_pcoll | core.WindowInto(window.GlobalWindows())
       else:
+        # GroupByKey cannot run on unbounded sources with global window, so we
+        # keep the original non-global window.
         pre_gbk_coll = keyed_pcoll
 
       write_result_coll = (
@@ -1157,6 +1159,11 @@ class WriteImpl(ptransform.PTransform):
       if pcoll.is_bounded or pcoll.windowing.is_default():
         pre_gbk_coll = write_result_coll_tmp
       else:
+        # GroupByKey cannot run on unbounded sources with global window, but
+        # `_WriteBundleDoFn` (especially its `finish_bundle` callback) needs
+        # global windowing.
+        # Above we change windowing to global windowing, and now we convert
+        # it back to the original windowing before GroupByKey.
         pre_gbk_coll = (
             write_result_coll_tmp
             | 'RestoreWindow' >> core.WindowInto(pcoll.windowing))
@@ -1179,6 +1186,7 @@ class WriteImpl(ptransform.PTransform):
         # Add an identity mapping to temporary fix the Runner v2 issue mentioned
         # in https://github.com/apache/beam/pull/30728#issuecomment-2496242764
         # Internal tracking issue id: 341696798
+        # TODO: remove this identity mapping once the internal bug is fixed.
         | core.Map(lambda x: x)
         | 'FinalizeWrite' >> core.FlatMap(
             _finalize_write,
