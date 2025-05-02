@@ -1,10 +1,10 @@
 {
   "commentedAboutFailingChecks": false,
   "reviewersAssignedForLabels": {
-    "java": "chamikaramj",
-    "build": "damccorm",
+    "java": "ahmedabu98",
+    "build": "Abacn",
     "io": "johnjcasey",
-    "kafka": "lostluck"
+    "kafka": "robertwb"
   },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
