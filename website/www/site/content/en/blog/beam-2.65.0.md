@@ -27,16 +27,18 @@ See the [download page](/get-started/downloads/#2650-2025-05-XX) for this releas
 
 For more information on changes in 2.65.0, check out the [detailed release notes](https://github.com/apache/beam/milestone/29?closed=1).
 
-## I/Os
+## Highlights
+
+### I/Os
 
 * Upgraded GoogleAdsAPI to v19 for GoogleAdsIO (Java) ([#34497](https://github.com/apache/beam/pull/34497)). Changed PTransform method from version-specified (`v17()`) to `current()` for better backward compatibility in the future.
 * Added support for writing to Pubsub with ordering keys (Java) ([#21162](https://github.com/apache/beam/issues/21162))
 
-## New Features / Improvements
+### New Features / Improvements
 
 * Added support for streaming side-inputs in the Spark Classic runner ([#18136](https://github.com/apache/beam/issues/18136)).
 
-## Breaking Changes
+### Breaking Changes
 
 * [Python] Reshuffle now preserves PaneInfo, where previously PaneInfo was lost
   after reshuffle. To opt out of this change, set the
@@ -51,22 +53,22 @@ For more information on changes in 2.65.0, check out the [detailed release notes
   For older Beam versions, streaming update compatiblity can be maintained by specifying the pipeline
   option `update_compatibility_version` ([#34767](https://github.com/apache/beam/issues/34767)).
 
-## Deprecations
+### Deprecations
 
 * Beam ZetaSQL is deprecated and will be removed no earlier than Beam 2.68.0 ([#34423](https://github.com/apache/beam/issues/34423)).
   Users are recommended to switch to [Calcite SQL](https://beam.apache.org/documentation/dsls/sql/calcite/overview/) dialect.
 
-## Bugfixes
+### Bugfixes
 
 * Fixed read Beam rows from cross-lang transform (for example, ReadFromJdbc) involving negative 32-bit integers incorrectly decoded to large integers ([#34089](https://github.com/apache/beam/issues/34089))
 * (Java) Fixed SDF-based KafkaIO (ReadFromKafkaViaSDF) to properly handle custom deserializers that extend Deserializer<Row> interface([#34505](https://github.com/apache/beam/pull/34505))
 * [Python] `TypedDict` typehints are now compatible with `Mapping` and `Dict` type annotations.
 
-## Security Fixes
+### Security Fixes
 
 * Fixed [CVE-2025-30065](https://www.cve.org/CVERecord?id=CVE-2025-30065) (Java) ([#34573](https://github.com/apache/beam/pull/34573))
 
-## Known Issues
+### Known Issues
 
 N/A
 
