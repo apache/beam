@@ -39,7 +39,6 @@ from apache_beam.transforms.window import FixedWindows
 #        --sdk_location=dist/apache_beam-2.65.0.dev0.tar.gz"
 
 
-
 class IOBaseITTest(unittest.TestCase):
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
@@ -52,7 +51,7 @@ class IOBaseITTest(unittest.TestCase):
 
     topic = 'projects/pubsub-public-data/topics/taxirides-realtime'
     unique_id = str(uuid.uuid4())
-    output_file = f'gs://apache-beam-testing-integration-testing/iobase/test-{unique_id}'
+    output_file = f'gs://apache-beam-testing-integration-testing/iobase/test-{unique_id}'  # pylint: disable=line-too-long
 
     p = beam.Pipeline(argv=args)
     # Read from Pub/Sub with fixed windowing
