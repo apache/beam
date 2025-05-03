@@ -220,7 +220,8 @@ public class Environments {
 
   private static Environment createExternalEnvironment(String externalServiceAddress) {
     // Create the payload builder. If the address is empty, the payload will be empty,
-    // acting as a placeholder for late binding (e.g., for LOOPBACK environment).
+    // acting as a placeholder for late binding. For example, in the LOOPBACK case,
+    // the address is populated by PortableRunner#run before this method is called.
     ExternalPayload.Builder payloadBuilder = ExternalPayload.newBuilder();
     if (!externalServiceAddress.isEmpty()) {
       payloadBuilder.setEndpoint(
