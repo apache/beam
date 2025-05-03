@@ -41,6 +41,7 @@ import org.apache.iceberg.expressions.Expression;
 import org.apache.iceberg.expressions.Expression.Operation;
 import org.apache.iceberg.expressions.Expressions;
 import org.apache.iceberg.util.NaNUtil;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class FilterUtils {
 
@@ -64,9 +65,18 @@ public class FilterUtils {
           .put(SqlKind.OR, Operation.OR)
           .build();
 
-  public static Expression convert(String filter) throws SqlParseException {
+  public static Expression convert(@Nullable String filter) {
+    if (filter == null) {
+      return Expressions.alwaysTrue();
+    }
+
     SqlParser parser = SqlParser.create(filter);
-    return convert(parser.parseExpression());
+    try {
+      SqlNode expression = parser.parseExpression();
+      return convert(expression);
+    } catch (SqlParseException exception) {
+      throw new RuntimeException("Encountered an error when parsing filter: " + filter, exception);
+    }
   }
 
   private static Expression convert(SqlNode expression) throws SqlParseException {

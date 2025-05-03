@@ -78,7 +78,8 @@ class CreateReadTasksDoFn
       }
 
       LOG.info("Planning to scan snapshot {}", toSnapshot);
-      IncrementalAppendScan scan = table.newIncrementalAppendScan().toSnapshot(toSnapshot);
+      IncrementalAppendScan scan =
+          table.newIncrementalAppendScan().toSnapshot(toSnapshot).filter(scanConfig.getFilter());
       if (fromSnapshot != null) {
         scan = scan.fromSnapshotExclusive(fromSnapshot);
       }

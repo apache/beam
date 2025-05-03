@@ -603,6 +603,8 @@ public class IcebergIO {
 
     abstract @Nullable Duration getPollInterval();
 
+    abstract @Nullable String getFilter();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -626,6 +628,8 @@ public class IcebergIO {
       abstract Builder setStreaming(@Nullable Boolean streaming);
 
       abstract Builder setPollInterval(@Nullable Duration triggeringFrequency);
+
+      abstract Builder setFilter(@Nullable String filter);
 
       abstract ReadRows build();
     }
@@ -666,6 +670,10 @@ public class IcebergIO {
       return toBuilder().setStartingStrategy(strategy).build();
     }
 
+    public ReadRows withFilter(@Nullable String filter) {
+      return toBuilder().setFilter(filter).build();
+    }
+
     @Override
     public PCollection<Row> expand(PBegin input) {
       TableIdentifier tableId =
@@ -687,6 +695,7 @@ public class IcebergIO {
               .setStreaming(getStreaming())
               .setPollInterval(getPollInterval())
               .setUseCdc(getUseCdc())
+              .setFilter(getFilter())
               .build();
       scanConfig.validate(table);
 
