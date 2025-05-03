@@ -17,7 +17,9 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.io.iceberg.IcebergUtils.icebergSchemaToBeamSchema;
 import static org.apache.beam.sdk.io.iceberg.TestFixtures.createRecord;
+import static org.apache.iceberg.types.Types.NestedField.required;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
@@ -26,6 +28,7 @@ import static org.junit.Assume.assumeTrue;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -204,7 +207,7 @@ public class IcebergIOReadTest {
     TableIdentifier tableId =
         TableIdentifier.of("default", "table" + Long.toString(UUID.randomUUID().hashCode(), 16));
     Table simpleTable = warehouse.createTable(tableId, TestFixtures.SCHEMA);
-    final Schema schema = IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
+    final Schema schema = icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
 
     List<List<Record>> expectedRecords = warehouse.commitData(simpleTable);
 
@@ -225,6 +228,58 @@ public class IcebergIOReadTest {
         .satisfies(
             (Iterable<Row> rows) -> {
               assertThat(rows, containsInAnyOrder(expectedRows.toArray()));
+              return null;
+            });
+
+    testPipeline.run();
+  }
+
+  @Test
+  public void testReadSchemaWithRandomlyOrderedIds() throws IOException {
+    TableIdentifier tableId = TableIdentifier.of("default", testName.getMethodName());
+    org.apache.iceberg.Schema nestedSchema =
+        new org.apache.iceberg.Schema(
+            required(3, "b.a", Types.IntegerType.get()),
+            required(4, "b.b", Types.StringType.get()));
+    org.apache.iceberg.Schema schema =
+        new org.apache.iceberg.Schema(
+            required(1, "a", Types.IntegerType.get()),
+            required(2, "b", Types.StructType.of(nestedSchema.columns())),
+            required(5, "c", Types.StringType.get()));
+
+    // hadoop catalog will re-order by breadth-first ordering
+    Table simpleTable = warehouse.createTable(tableId, schema);
+
+    // move the nested field up to mess with the id ordering
+    simpleTable.updateSchema().moveFirst("b").commit();
+    schema = simpleTable.schema();
+
+    Record nestedRec = org.apache.iceberg.data.GenericRecord.create(nestedSchema);
+    nestedRec.setField("b.a", 1);
+    nestedRec.setField("b.b", "str");
+    Record rec = org.apache.iceberg.data.GenericRecord.create(schema);
+    rec.setField("a", 1);
+    rec.setField("b", nestedRec);
+    rec.setField("c", "sss");
+
+    Row nestedRow =
+        Row.withSchema(icebergSchemaToBeamSchema(nestedSchema)).addValues(1, "str").build();
+    Row expectedRow =
+        Row.withSchema(icebergSchemaToBeamSchema(schema)).addValues(nestedRow, 1, "sss").build();
+
+    DataFile file = warehouse.writeRecords("file1.parquet", schema, Collections.singletonList(rec));
+    simpleTable.newFastAppend().appendFile(file).commit();
+
+    IcebergIO.ReadRows read = IcebergIO.readRows(catalogConfig()).from(tableId);
+    if (useIncrementalScan) {
+      read = read.withCdc().toSnapshot(simpleTable.currentSnapshot().snapshotId());
+    }
+    PCollection<Row> output = testPipeline.apply(read).apply(new PrintRow());
+
+    PAssert.that(output)
+        .satisfies(
+            (Iterable<Row> rows) -> {
+              assertThat(rows, containsInAnyOrder(expectedRow));
               return null;
             });
 
@@ -257,7 +312,7 @@ public class IcebergIOReadTest {
                 TestFixtures.FILE1SNAPSHOT1))
         .commit();
 
-    final Schema schema = IcebergUtils.icebergSchemaToBeamSchema(simpleTable.schema());
+    final Schema schema = icebergSchemaToBeamSchema(simpleTable.schema());
     final List<Row> expectedRows =
         Stream.of(TestFixtures.FILE1SNAPSHOT1_DATA)
             .flatMap(List::stream)
@@ -376,7 +431,7 @@ public class IcebergIOReadTest {
             .withMetrics(metrics)
             .build();
 
-    final Schema beamSchema = IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.NESTED_SCHEMA);
+    final Schema beamSchema = icebergSchemaToBeamSchema(TestFixtures.NESTED_SCHEMA);
 
     simpleTable.newFastAppend().appendFile(dataFile).commit();
 
@@ -447,7 +502,7 @@ public class IcebergIOReadTest {
     assumeTrue(useIncrementalScan);
     TableIdentifier tableId = TableIdentifier.of("default", testName.getMethodName());
     Table simpleTable = warehouse.createTable(tableId, TestFixtures.SCHEMA);
-    Schema schema = IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
+    Schema schema = icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
 
     List<List<Record>> expectedRecords = warehouse.commitData(simpleTable);
     if ((strategy == StartingStrategy.LATEST) || (streaming && strategy == null)) {
@@ -483,7 +538,7 @@ public class IcebergIOReadTest {
     assumeTrue(useIncrementalScan);
     TableIdentifier tableId = TableIdentifier.of("default", testName.getMethodName());
     Table simpleTable = warehouse.createTable(tableId, TestFixtures.SCHEMA);
-    Schema schema = IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
+    Schema schema = icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
 
     // only read data committed in the second and third snapshots
     List<List<Record>> expectedRecords = warehouse.commitData(simpleTable).subList(3, 9);

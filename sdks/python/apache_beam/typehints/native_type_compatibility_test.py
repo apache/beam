@@ -64,6 +64,11 @@ class _TestEnum(enum.Enum):
   BAR = enum.auto()
 
 
+class _TestTypedDict(typing.TypedDict):
+  foo: int
+  bar: str
+
+
 class NativeTypeCompatibilityTest(unittest.TestCase):
   def test_convert_to_beam_type(self):
     test_cases = [
@@ -262,7 +267,12 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
             'default dict',
             collections.defaultdict[str, int],
             typehints.Dict[str, int]),
+        ('typed dict', _TestTypedDict, typehints.Dict[str, typehints.Any]),
         ('count', collections.Counter[str, int], typehints.Dict[str, int]),
+        (
+            'single param counter',
+            collections.Counter[str],
+            typehints.Dict[str, int]),
         (
             'bare callable',
             collections.abc.Callable,

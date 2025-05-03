@@ -31,6 +31,7 @@ from collections import OrderedDict
 from collections import namedtuple
 
 import grpc
+import yaml
 
 from apache_beam import pvalue
 from apache_beam.coders import RowCoder
@@ -42,10 +43,12 @@ from apache_beam.portability.api import beam_expansion_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api import external_transforms_pb2
 from apache_beam.portability.api import schema_pb2
+from apache_beam.portability.common_urns import ManagedTransforms
 from apache_beam.runners import pipeline_context
 from apache_beam.runners.portability import artifact_service
 from apache_beam.transforms import environments
 from apache_beam.transforms import ptransform
+from apache_beam.transforms.util import is_compat_version_prior_to
 from apache_beam.typehints import WithTypeHints
 from apache_beam.typehints import native_type_compatibility
 from apache_beam.typehints import row_type
@@ -60,6 +63,25 @@ from apache_beam.utils import subprocess_server
 from apache_beam.utils import transform_service_launcher
 
 DEFAULT_EXPANSION_SERVICE = 'localhost:8097'
+
+MANAGED_SCHEMA_TRANSFORM_IDENTIFIER = "beam:transform:managed:v1"
+
+_IO_EXPANSION_SERVICE_JAR_TARGET = "sdks:java:io:expansion-service:shadowJar"
+
+_GCP_EXPANSION_SERVICE_JAR_TARGET = (
+    "sdks:java:io:google-cloud-platform:expansion-service:shadowJar")
+
+# A mapping from supported managed transforms URNs to expansion service jars
+# that include the corresponding transforms.
+MANAGED_TRANSFORM_URN_TO_JAR_TARGET_MAPPING = {
+    ManagedTransforms.Urns.ICEBERG_READ.urn: _IO_EXPANSION_SERVICE_JAR_TARGET,
+    ManagedTransforms.Urns.ICEBERG_WRITE.urn: _IO_EXPANSION_SERVICE_JAR_TARGET,
+    ManagedTransforms.Urns.ICEBERG_CDC_READ.urn: _IO_EXPANSION_SERVICE_JAR_TARGET,  # pylint: disable=line-too-long
+    ManagedTransforms.Urns.KAFKA_READ.urn: _IO_EXPANSION_SERVICE_JAR_TARGET,
+    ManagedTransforms.Urns.KAFKA_WRITE.urn: _IO_EXPANSION_SERVICE_JAR_TARGET,
+    ManagedTransforms.Urns.BIGQUERY_READ.urn: _GCP_EXPANSION_SERVICE_JAR_TARGET,
+    ManagedTransforms.Urns.BIGQUERY_WRITE.urn: _GCP_EXPANSION_SERVICE_JAR_TARGET
+}
 
 
 def convert_to_typing_type(type_):
@@ -378,6 +400,10 @@ SchemaTransformsConfig = namedtuple(
     'SchemaTransformsConfig',
     ['identifier', 'configuration_schema', 'inputs', 'outputs', 'description'])
 
+ManagedReplacement = namedtuple(
+    'ManagedReplacement',
+    ['underlying_transform_identifier', 'update_compatibility_version'])
+
 
 class SchemaAwareExternalTransform(ptransform.PTransform):
   """A proxy transform for SchemaTransforms implemented in external SDKs.
@@ -396,6 +422,12 @@ class SchemaAwareExternalTransform(ptransform.PTransform):
       the configuration.
   :param classpath: (Optional) A list paths to additional jars to place on the
       expansion service classpath.
+  :param managed_replacement: (Optional) a 'ManagedReplacement' namedtuple that
+      defines information needed to replace the transform with an equivalent
+      managed transform during the expansion. If an
+      'updateCompatibilityBeamVersion' pipeline option is provided, we will
+      only replace if the managed transform is update compatible with the
+      provided version.
   :kwargs: field name to value mapping for configuring the schema transform.
       keys map to the field names of the schema of the SchemaTransform
       (in-order).
@@ -406,10 +438,14 @@ class SchemaAwareExternalTransform(ptransform.PTransform):
       expansion_service,
       rearrange_based_on_discovery=False,
       classpath=None,
+      managed_replacement=None,
       **kwargs):
     self._expansion_service = expansion_service
     self._kwargs = kwargs
     self._classpath = classpath
+    if managed_replacement:
+      assert isinstance(managed_replacement, ManagedReplacement)
+    self._managed_replacement = managed_replacement
 
     _kwargs = kwargs
     if rearrange_based_on_discovery:
@@ -420,16 +456,55 @@ class SchemaAwareExternalTransform(ptransform.PTransform):
           named_tuple_to_schema(config.configuration_schema),
           **_kwargs)
 
+      if self._managed_replacement:
+        # We have to do the replacement at the expansion instead of at
+        # construction
+        # since we don't have access to the PipelineOptions object at the
+        # construction.
+        underlying_transform_id = (
+            self._managed_replacement.underlying_transform_identifier)
+        if not (underlying_transform_id in
+                MANAGED_TRANSFORM_URN_TO_JAR_TARGET_MAPPING):
+          raise ValueError(
+              'Could not find an expansion service jar for the managed ' +
+              'transform ' + underlying_transform_id)
+        managed_expansion_service_jar = (
+            MANAGED_TRANSFORM_URN_TO_JAR_TARGET_MAPPING
+        )[underlying_transform_id]
+        self._managed_expansion_service = BeamJarExpansionService(
+            managed_expansion_service_jar)
+        managed_config = SchemaAwareExternalTransform.discover_config(
+            self._managed_expansion_service,
+            MANAGED_SCHEMA_TRANSFORM_IDENTIFIER)
+
+        yaml_config = yaml.dump(kwargs)
+        self._managed_payload_builder = (
+            ExplicitSchemaTransformPayloadBuilder(
+                MANAGED_SCHEMA_TRANSFORM_IDENTIFIER,
+                named_tuple_to_schema(managed_config.configuration_schema),
+                transform_identifier=underlying_transform_id,
+                config=yaml_config))
     else:
       self._payload_builder = SchemaTransformPayloadBuilder(
           identifier, **_kwargs)
 
   def expand(self, pcolls):
     # Expand the transform using the expansion service.
+    payload_builder = self._payload_builder
+    expansion_service = self._expansion_service
+
+    if self._managed_replacement:
+      compat_version_prior_to_current = is_compat_version_prior_to(
+          pcolls.pipeline._options,
+          self._managed_replacement.update_compatibility_version)
+      if not compat_version_prior_to_current:
+        payload_builder = self._managed_payload_builder
+        expansion_service = self._managed_expansion_service
+
     return pcolls | self._payload_builder.identifier() >> ExternalTransform(
         common_urns.schematransform_based_expand.urn,
-        self._payload_builder,
-        self._expansion_service)
+        payload_builder,
+        expansion_service)
 
   @classmethod
   @functools.lru_cache
