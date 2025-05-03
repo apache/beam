@@ -367,13 +367,11 @@ class CodersTest(unittest.TestCase):
         coders.PaneInfoCoder(),
         *[
             windowed_value.PaneInfo(
-                  is_first=False,
-                  is_last=False,
-                  timing=windowed_value.PaneInfoTiming.EARLY,  # 0
-                  index=1,
-                  nonspeculative_index=-1
-              )
-            for y in range(0, 10)
+                is_first=y == 0,
+                is_last=y == 9,
+                timing=windowed_value.PaneInfoTiming.EARLY,
+                index=y,
+                nonspeculative_index=-1) for y in range(0, 10)
         ])
 
   def test_timestamp_coder(self):
