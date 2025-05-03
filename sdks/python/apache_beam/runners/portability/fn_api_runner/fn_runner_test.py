@@ -1077,7 +1077,8 @@ class FnApiRunnerTest(unittest.TestCase):
           p | beam.Create([12, 2, 1])
           | beam.Map(lambda t: window.TimestampedValue(t, t))
           | beam.WindowInto(beam.transforms.window.FixedWindows(2))
-          | beam.Reshuffle(), equal_to([12, 2, 1]))
+          | beam.Reshuffle(),
+          equal_to([12, 2, 1]))
 
   def test_flatten(self, with_transcoding=True):
     with self.create_pipeline() as p:
