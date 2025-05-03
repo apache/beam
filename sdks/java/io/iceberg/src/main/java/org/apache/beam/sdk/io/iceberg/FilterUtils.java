@@ -40,11 +40,11 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.iceberg.expressions.Expression;
 import org.apache.iceberg.expressions.Expression.Operation;
 import org.apache.iceberg.expressions.Expressions;
+import org.apache.iceberg.util.DateTimeUtil;
 import org.apache.iceberg.util.NaNUtil;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-public class FilterUtils {
-
+class FilterUtils {
   private static final Map<SqlKind, Operation> FILTERS =
       ImmutableMap.<SqlKind, Operation>builder()
           .put(SqlKind.IS_TRUE, Operation.TRUE)
@@ -65,7 +65,7 @@ public class FilterUtils {
           .put(SqlKind.OR, Operation.OR)
           .build();
 
-  public static Expression convert(@Nullable String filter) {
+  static Expression convert(@Nullable String filter) {
     if (filter == null) {
       return Expressions.alwaysTrue();
     }
@@ -244,13 +244,13 @@ public class FilterUtils {
         return literal.getValueAs(String.class);
       case DATE:
         Date sqlDate = literal.getValueAs(Date.class);
-        return sqlDate.toLocalDate();
+        return DateTimeUtil.daysFromDate(sqlDate.toLocalDate());
       case TIME:
         Time sqlTime = literal.getValueAs(Time.class);
-        return sqlTime.toLocalTime();
+        return DateTimeUtil.microsFromTime(sqlTime.toLocalTime());
       case TIMESTAMP:
         Timestamp ts = literal.getValueAs(Timestamp.class);
-        return ts.toLocalDateTime();
+        return DateTimeUtil.microsFromTimestamp(ts.toLocalDateTime());
       default:
         throw new IllegalArgumentException(
             String.format(
