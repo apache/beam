@@ -1766,6 +1766,12 @@ class PaneInfoCoder(FastCoder):
   def to_type_hint(self):
     return windowed_value.PaneInfo
 
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return hash(type(self))
+
 
 class DecimalCoder(FastCoder):
   def _create_impl(self):
