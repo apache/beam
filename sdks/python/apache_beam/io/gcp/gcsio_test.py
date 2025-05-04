@@ -91,17 +91,16 @@ class FakeGcsClient(object):
 
     # Define the exit logic
     def mock_exit_logic(exc_type, exc_val, exc_tb):
-        # Assign responses to the mock instance itself
-        # so they are available after the 'with' block.
-        mock_batch._responses = successful_responses
-        # Return None to indicate exception wasn't handled (standard behavior)
-        return None
+      # Assign responses to the mock instance itself
+      # so they are available after the 'with' block.
+      mock_batch._responses = successful_responses
+      # Return None to indicate exception wasn't handled (standard behavior)
+      return None
 
     # Configure the mock to behave like a context manager
     mock_batch.configure_mock(
         __enter__=mock.Mock(return_value=mock_batch),
-        __exit__=mock.Mock(side_effect=mock_exit_logic)
-    )
+        __exit__=mock.Mock(side_effect=mock_exit_logic))
 
     # The loop inside _batch_with_retry calls fn(request) for each item.
     # The real batch object might have methods like add() or similar,
