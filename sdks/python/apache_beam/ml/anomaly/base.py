@@ -21,9 +21,8 @@ Base classes for anomaly detection
 from __future__ import annotations
 
 import abc
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Iterable
-from typing import List
 from typing import Optional
 
 import apache_beam as beam
@@ -154,7 +153,7 @@ class AnomalyDetector(abc.ABC):
       threshold_criterion: Optional[ThresholdFn] = None,
       **kwargs):
     self._model_id = model_id if model_id is not None else getattr(
-        self, 'spec_type', 'unknown')
+        self, 'spec_type', lambda: "unknown")()
     self._features = features
     self._target = target
     self._threshold_criterion = threshold_criterion
@@ -186,7 +185,7 @@ class EnsembleAnomalyDetector(AnomalyDetector):
   """An abstract base class for an ensemble of anomaly (sub-)detectors.
 
   Args:
-    sub_detectors: A List of `AnomalyDetector` used in this ensemble model.
+    sub_detectors: A list of `AnomalyDetector` used in this ensemble model.
     aggregation_strategy: An optional `AggregationFn` to apply to the
       predictions from all sub-detectors and yield an aggregated result.
     model_id: Inherited from `AnomalyDetector`.
@@ -196,11 +195,11 @@ class EnsembleAnomalyDetector(AnomalyDetector):
   """
   def __init__(
       self,
-      sub_detectors: Optional[List[AnomalyDetector]] = None,
+      sub_detectors: Optional[list[AnomalyDetector]] = None,
       aggregation_strategy: Optional[AggregationFn] = None,
       **kwargs):
     if "model_id" not in kwargs or kwargs["model_id"] is None:
-      kwargs["model_id"] = getattr(self, 'spec_type', 'custom')
+      kwargs["model_id"] = getattr(self, 'spec_type', lambda: 'custom')()
 
     super().__init__(**kwargs)
 

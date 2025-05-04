@@ -538,6 +538,22 @@ class FnApiRunnerTest(unittest.TestCase):
                   equal_to([('a', 1), ('b', 2)] + third_element),
                   label='CheckFlattenOfSideInput')
 
+  def test_flatten_and_gbk(self, with_transcoding=True):
+    with self.create_pipeline() as p:
+      side1 = p | 'side1' >> beam.Create([('a', 1)])
+      if with_transcoding:
+        # Also test non-matching coder types (transcoding required)
+        second_element = [('another_type')]
+      else:
+        second_element = [('b', 2)]
+      side2 = p | 'side2' >> beam.Create(second_element)
+
+      flatten_out = (side1, side2) | beam.Flatten()
+      gbk_out = side1 | beam.GroupByKey()
+
+      assert_that(flatten_out, equal_to([('a', 1)] + second_element))
+      assert_that(gbk_out, equal_to([('a', [1])]))
+
   def test_gbk_side_input(self):
     with self.create_pipeline() as p:
       main = p | 'main' >> beam.Create([None])
@@ -1054,6 +1070,15 @@ class FnApiRunnerTest(unittest.TestCase):
     with self.create_pipeline() as p:
       assert_that(
           p | beam.Create([1, 2, 3]) | beam.Reshuffle(), equal_to([1, 2, 3]))
+
+  def test_reshuffle_after_custom_window(self):
+    with self.create_pipeline() as p:
+      assert_that(
+          p | beam.Create([12, 2, 1])
+          | beam.Map(lambda t: window.TimestampedValue(t, t))
+          | beam.WindowInto(beam.transforms.window.FixedWindows(2))
+          | beam.Reshuffle(),
+          equal_to([12, 2, 1]))
 
   def test_flatten(self, with_transcoding=True):
     with self.create_pipeline() as p:

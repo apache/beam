@@ -974,6 +974,37 @@ class VarIntCoderImpl(StreamCoderImpl):
     return get_varint_size(value)
 
 
+class VarInt32CoderImpl(StreamCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  A coder for int32 objects."""
+  def encode_to_stream(self, value, out, nested):
+    # type: (int, create_OutputStream, bool) -> None
+    out.write_var_int32(value)
+
+  def decode_from_stream(self, in_stream, nested):
+    # type: (create_InputStream, bool) -> int
+    return in_stream.read_var_int32()
+
+  def encode(self, value):
+    ivalue = value  # type cast
+    if 0 <= ivalue < len(small_ints):
+      return small_ints[ivalue]
+    return StreamCoderImpl.encode(self, value)
+
+  def decode(self, encoded):
+    if len(encoded) == 1:
+      i = ord(encoded)
+      if 0 <= i < 128:
+        return i
+    return StreamCoderImpl.decode(self, encoded)
+
+  def estimate_size(self, value, nested=False):
+    # type: (Any, bool) -> int
+    # Note that VarInts are encoded the same way regardless of nesting.
+    return get_varint_size(int(value) & 0xFFFFFFFF)
+
+
 class SingletonCoderImpl(CoderImpl):
   """For internal use only; no backwards-compatibility guarantees.
 

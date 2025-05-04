@@ -35,6 +35,11 @@ import (
 // leafCoders lists coder urns the runner knows how to manipulate.
 // In particular, ones that won't be a problem to parse, in general
 // because they have a known total size.
+//
+// Important: The 'leafCoders' and 'knownCompositeCoders' do not necessarily
+// cover all possible standard coder types.
+// For example, coderRow is neither a leaf coder nor a composite coder (so it
+// will have to be LP'd).
 var leafCoders = map[string]struct{}{
 	urns.CoderBytes:          {},
 	urns.CoderStringUTF8:     {},
@@ -48,6 +53,28 @@ var leafCoders = map[string]struct{}{
 
 func isLeafCoder(c *pipepb.Coder) bool {
 	_, ok := leafCoders[c.GetSpec().GetUrn()]
+	return ok
+}
+
+// knownCompositeCoders lists coder urns that we expect to see components in
+// their spec.
+var knownCompositeCoders = map[string]struct{}{
+	urns.CoderKV:                  {},
+	urns.CoderIterable:            {},
+	urns.CoderTimer:               {},
+	urns.CoderWindowedValue:       {},
+	urns.CoderParamWindowedValue:  {},
+	urns.CoderStateBackedIterable: {},
+	urns.CoderCustomWindow:        {},
+	urns.CoderShardedKey:          {},
+	urns.CoderNullable:            {},
+	// Exclude CoderLengthPrefix from the list. Even though it is a composite coder,
+	// we never need to introspect its component.
+	// urns.CoderLengthPrefix:     {},
+}
+
+func isKnownCompositeCoder(c *pipepb.Coder) bool {
+	_, ok := knownCompositeCoders[c.GetSpec().GetUrn()]
 	return ok
 }
 
@@ -123,10 +150,10 @@ func lpUnknownCoders(cID string, bundle, base map[string]*pipepb.Coder) (string,
 	}
 	// Add the original coder to the coders map.
 	bundle[cID] = c
-	// If we don't know this coder, and it has no sub components,
-	// we must LP it, and we return the LP'd version.
+	// If we don't know this coder, we must LP it, and we return the LP'd version.
 	leaf := isLeafCoder(c)
-	if len(c.GetComponentCoderIds()) == 0 && !leaf {
+	knownComposite := isKnownCompositeCoder(c)
+	if !leaf && !knownComposite {
 		lpc := &pipepb.Coder{
 			Spec: &pipepb.FunctionSpec{
 				Urn: urns.CoderLengthPrefix,
@@ -136,8 +163,7 @@ func lpUnknownCoders(cID string, bundle, base map[string]*pipepb.Coder) (string,
 		bundle[lpcID] = lpc
 		return lpcID, nil
 	}
-	// We know we have a composite, so if we count this as a leaf, move everything to
-	// the coders map.
+	// If it is a leaf, move its components (if any) to the coders map.
 	if leaf {
 		// Copy the components from the base.
 		for _, cc := range c.GetComponentCoderIds() {
@@ -145,6 +171,10 @@ func lpUnknownCoders(cID string, bundle, base map[string]*pipepb.Coder) (string,
 		}
 		return cID, nil
 	}
+
+	// Now we have a known composite.
+	// We may need to LP its components. If so, we make a new composite with the
+	// LP'd components.
 	var needNewComposite bool
 	var comps []string
 	for i, cc := range c.GetComponentCoderIds() {
@@ -166,6 +196,35 @@ func lpUnknownCoders(cID string, bundle, base map[string]*pipepb.Coder) (string,
 		return lpcID, nil
 	}
 	return cID, nil
+}
+
+// retrieveCoders recursively ensures that the coder along with all its direct
+// and indirect component coders, are present in the `bundle` map.
+// If a coder is already in `bundle`, it's skipped. Returns an error if any
+// required coder ID is not found.
+func retrieveCoders(cID string, bundle, base map[string]*pipepb.Coder) error {
+	// Look up the canonical location.
+	c, ok := base[cID]
+	if !ok {
+		// We messed up somewhere.
+		return fmt.Errorf("retrieveCoders: coder %q not present in base map", cID)
+	}
+
+	if _, ok := bundle[cID]; ok {
+		return nil
+	}
+	// Add the original coder to the coders map.
+	bundle[cID] = c
+
+	for i, cc := range c.GetComponentCoderIds() {
+		// now we need to retrieve the component coders as well
+		err := retrieveCoders(cc, bundle, base)
+		if err != nil {
+			return fmt.Errorf("retrieveCoders: couldn't handle component %d %q of %q %v:\n%w", i, cc, cID, prototext.Format(c), err)
+		}
+	}
+
+	return nil
 }
 
 // reconcileCoders ensures that the bundle coders are primed with initial coders from
@@ -220,6 +279,11 @@ func pullDecoderNoAlloc(c *pipepb.Coder, coders map[string]*pipepb.Coder) func(i
 			ioutilx.ReadN(r, int(l))
 		}
 	case urns.CoderNullable:
+		ccids := c.GetComponentCoderIds()
+		if len(ccids) != 1 {
+			panic(fmt.Sprintf("Nullable coder must have only one component: %s", prototext.Format(c)))
+		}
+		ed := pullDecoderNoAlloc(coders[ccids[0]], coders)
 		return func(r io.Reader) {
 			b, _ := ioutilx.ReadN(r, 1)
 			if len(b) == 0 {
@@ -230,8 +294,7 @@ func pullDecoderNoAlloc(c *pipepb.Coder, coders map[string]*pipepb.Coder) func(i
 			if prefix == 0 {
 				return
 			}
-			l, _ := coder.DecodeVarInt(r)
-			ioutilx.ReadN(r, int(l))
+			ed(r)
 		}
 	case urns.CoderVarInt:
 		return func(r io.Reader) {
@@ -247,6 +310,9 @@ func pullDecoderNoAlloc(c *pipepb.Coder, coders map[string]*pipepb.Coder) func(i
 		}
 	case urns.CoderIterable:
 		ccids := c.GetComponentCoderIds()
+		if len(ccids) != 1 {
+			panic(fmt.Sprintf("Iterable coder must have only one component: %s", prototext.Format(c)))
+		}
 		ed := pullDecoderNoAlloc(coders[ccids[0]], coders)
 		return func(r io.Reader) {
 			l, _ := coder.DecodeInt32(r)
@@ -254,7 +320,6 @@ func pullDecoderNoAlloc(c *pipepb.Coder, coders map[string]*pipepb.Coder) func(i
 				ed(r)
 			}
 		}
-
 	case urns.CoderKV:
 		ccids := c.GetComponentCoderIds()
 		if len(ccids) != 2 {
@@ -265,6 +330,17 @@ func pullDecoderNoAlloc(c *pipepb.Coder, coders map[string]*pipepb.Coder) func(i
 		return func(r io.Reader) {
 			kd(r)
 			vd(r)
+		}
+	case urns.CoderWindowedValue:
+		ccids := c.GetComponentCoderIds()
+		if len(ccids) != 2 {
+			panic(fmt.Sprintf("WindowedValue coder with more than 2 components: %s", prototext.Format(c)))
+		}
+		ed := pullDecoderNoAlloc(coders[ccids[0]], coders)
+		wd := pullDecoderNoAlloc(coders[ccids[1]], coders)
+		return func(r io.Reader) {
+			ed(r)
+			wd(r)
 		}
 	case urns.CoderRow:
 		panic(fmt.Sprintf("Runner forgot to LP this Row Coder. %v", prototext.Format(c)))

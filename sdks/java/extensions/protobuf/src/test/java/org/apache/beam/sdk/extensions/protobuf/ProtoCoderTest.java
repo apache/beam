@@ -170,6 +170,12 @@ public class ProtoCoderTest {
   }
 
   @Test
+  public void testEncodedTypeDescriptor() {
+    Coder<MessageA> coder = ProtoCoder.of(MessageA.class);
+    assertEquals(TypeDescriptor.of(MessageA.class), coder.getEncodedTypeDescriptor());
+  }
+
+  @Test
   public void testSerialVersionID() {
     long serialVersionID = ObjectStreamClass.lookup(ProtoCoder.class).getSerialVersionUID();
     assertEquals(-5043999806040629525L, serialVersionID);

@@ -505,20 +505,24 @@ class UnionHint(CompositeTypeHint):
   """
   class UnionConstraint(TypeConstraint):
     def __init__(self, union_types):
-      self.union_types = set(normalize(t) for t in union_types)
+      # Use a list instead of a set to make the pickle serialization
+      # deterministic.
+      self.union_types = list(set(normalize(t) for t in union_types))
+      # Sorting the type name strings simplifies unit tests.
+      self.union_types.sort(key=repr)
 
     def __eq__(self, other):
       return (
           isinstance(other, UnionHint.UnionConstraint) and
-          self.union_types == other.union_types)
+          # The union types represent a set even thought they are stored as a
+          # list.
+          set(self.union_types) == set(other.union_types))
 
     def __hash__(self):
       return 1 + sum(hash(t) for t in self.union_types)
 
     def __repr__(self):
-      # Sorting the type name strings simplifies unit tests.
-      return 'Union[%s]' % (
-          ', '.join(sorted(repr(t) for t in self.union_types)))
+      return 'Union[%s]' % (', '.join(repr(t) for t in self.union_types))
 
     def inner_types(self):
       for t in self.union_types:
@@ -550,7 +554,7 @@ class UnionHint(CompositeTypeHint):
           '%s type-constraint violated. Expected an instance of one of: %s, '
           'received %s instead.%s' % (
               repr(self),
-              tuple(sorted(repr(t) for t in self.union_types)),
+              tuple(repr(t) for t in self.union_types),
               instance.__class__.__name__,
               error_msg))
 
@@ -583,7 +587,7 @@ class UnionHint(CompositeTypeHint):
           t, error_msg_prefix='All parameters to a Union hint')
 
       if isinstance(t, self.UnionConstraint):
-        params |= t.union_types
+        params |= set(t.union_types)
       elif isinstance(t, DictConstraint):
         if dict_union is None:
           dict_union = t
@@ -1056,7 +1060,7 @@ class CollectionHint(CompositeTypeHint):
             for elem in sub.tuple_types)
       # TODO(https://github.com/apache/beam/issues/29135): allow for
       # consistency checks with Mapping types
-      elif isinstance(sub, DictConstraint):
+      elif isinstance(sub, (MappingTypeConstraint, DictConstraint)):
         return True
       elif not isinstance(sub, TypeConstraint):
         if getattr(sub, '__origin__', None) is not None and getattr(
@@ -1111,6 +1115,146 @@ class SequenceHint(CompositeTypeHint):
 ABCSequenceTypeConstraint = SequenceHint.ABCSequenceTypeConstraint
 
 
+class MappingHint(CompositeTypeHint):
+  """A Mapping type-hint.
+
+  Mapping[K, V] represents any mapping (dict-like object) where all keys are
+  of type K and all values are of type V. This is more general than Dict as it
+  supports any object implementing the Mapping ABC.
+
+  Examples of valid mappings include:
+  - dict
+  - collections.defaultdict
+  - collections.OrderedDict
+  - types.MappingProxyType
+  """
+  class MappingTypeConstraint(TypeConstraint):
+    def __init__(self, key_type, value_type):
+      self.key_type = normalize(key_type)
+      self.value_type = normalize(value_type)
+
+    def __repr__(self):
+      return 'Mapping[%s, %s]' % (repr(self.key_type), repr(self.value_type))
+
+    def __eq__(self, other):
+      return (
+          type(self) == type(other) and self.key_type == other.key_type and
+          self.value_type == other.value_type)
+
+    def __hash__(self):
+      return hash((type(self), self.key_type, self.value_type))
+
+    def _inner_types(self):
+      yield self.key_type
+      yield self.value_type
+
+    def _consistent_with_check_(self, sub):
+      if isinstance(sub, (self.__class__, DictConstraint)):
+        # A Dict is a Mapping of the same types
+        return (
+            is_consistent_with(sub.key_type, self.key_type) and
+            is_consistent_with(sub.value_type, self.value_type))
+      elif hasattr(sub, '__origin__'):
+        # Handle collection subtypes using ABC
+        if issubclass(sub.__origin__, abc.Mapping):
+          args = getattr(sub, '__args__', None)
+          if args and len(args) == 2:
+            return (
+                is_consistent_with(args[0], self.key_type) and
+                is_consistent_with(args[1], self.value_type))
+          return True
+      return False
+
+    def _raise_type_error(self, is_key, instance, inner_error_message=''):
+      type_desc = 'key' if is_key else 'value'
+      expected_type = self.key_type if is_key else self.value_type
+
+      if inner_error_message:
+        raise CompositeTypeHintError(
+            '%s hint %s-type constraint violated. All %ss should be of type '
+            '%s. Instead: %s' % (
+                repr(self),
+                type_desc,
+                type_desc,
+                repr(expected_type),
+                inner_error_message,
+            ))
+      else:
+        raise CompositeTypeHintError(
+            '%s hint %s-type constraint violated. All %ss should be of '
+            'type %s. Instead, %s is of type %s.' % (
+                repr(self),
+                type_desc,
+                type_desc,
+                repr(expected_type),
+                instance,
+                instance.__class__.__name__,
+            ))
+
+    def type_check(self, instance):
+      if not isinstance(instance, abc.Mapping):
+        raise CompositeTypeHintError(
+            'Mapping type-constraint violated. All passed instances must be of '
+            'type Mapping. %s is of type %s.' %
+            (instance, instance.__class__.__name__))
+
+      for key, value in instance.items():
+        try:
+          check_constraint(self.key_type, key)
+        except CompositeTypeHintError as e:
+          self._raise_type_error(True, key, str(e))
+        except SimpleTypeHintError:
+          self._raise_type_error(True, key)
+
+        try:
+          check_constraint(self.value_type, value)
+        except CompositeTypeHintError as e:
+          self._raise_type_error(False, value, str(e))
+        except SimpleTypeHintError:
+          self._raise_type_error(False, value)
+
+    def match_type_variables(self, concrete_type):
+      if isinstance(concrete_type, (MappingTypeConstraint, DictConstraint)):
+        bindings = {}
+        bindings.update(
+            match_type_variables(self.key_type, concrete_type.key_type))
+        bindings.update(
+            match_type_variables(self.value_type, concrete_type.value_type))
+        return bindings
+      return {}
+
+    def bind_type_variables(self, bindings):
+      bound_key_type = bind_type_variables(self.key_type, bindings)
+      bound_value_type = bind_type_variables(self.value_type, bindings)
+      if (bound_key_type, bound_value_type) == (self.key_type, self.value_type):
+        return self
+      return Mapping[bound_key_type, bound_value_type]
+
+  def __getitem__(self, type_params):
+    if not isinstance(type_params, tuple):
+      raise TypeError(
+          'Parameter to Mapping type-hint must be a tuple of types: '
+          'Mapping[.., ..].')
+
+    if len(type_params) != 2:
+      raise TypeError(
+          'Length of parameters to a Mapping type-hint must be exactly 2. '
+          'Passed parameters: %s, have a length of %s.' %
+          (type_params, len(type_params)))
+
+    key_type, value_type = type_params
+
+    validate_composite_type_param(
+        key_type, error_msg_prefix='Key-type parameter to a Mapping hint')
+    validate_composite_type_param(
+        value_type, error_msg_prefix='Value-type parameter to a Mapping hint')
+
+    return self.MappingTypeConstraint(key_type, value_type)
+
+
+MappingTypeConstraint = MappingHint.MappingTypeConstraint
+
+
 class IterableHint(CompositeTypeHint):
   """An Iterable type-hint.
 
@@ -1138,6 +1282,8 @@ class IterableHint(CompositeTypeHint):
         return all(
             is_consistent_with(elem, self.inner_type)
             for elem in sub.tuple_types)
+      elif isinstance(sub, MappingTypeConstraint):
+        return is_consistent_with(sub.key_type, self.inner_type)
       return False
 
   def __getitem__(self, type_param):
@@ -1292,6 +1438,7 @@ Set = SetHint()
 FrozenSet = FrozenSetHint()
 Collection = CollectionHint()
 Sequence = SequenceHint()
+Mapping = MappingHint()
 Iterable = IterableHint()
 Iterator = IteratorHint()
 Generator = GeneratorHint()
@@ -1315,7 +1462,7 @@ def normalize(x, none_as_type=False):
   elif x in _KNOWN_PRIMITIVE_TYPES:
     return _KNOWN_PRIMITIVE_TYPES[x]
   elif getattr(x, '__module__',
-               None) in ('typing', 'collections.abc') or getattr(
+               None) in ('typing', 'collections', 'collections.abc') or getattr(
                    x, '__origin__', None) in _KNOWN_PRIMITIVE_TYPES:
     beam_type = native_type_compatibility.convert_to_beam_type(x)
     if beam_type != x:
@@ -1369,6 +1516,8 @@ def is_consistent_with(sub, base):
   elif isinstance(sub, TypeConstraint):
     # Nothing but object lives above any type constraints.
     return base == object
+  elif getattr(base, '__module__', None) == 're':
+    return regex_consistency(sub, base)
   elif is_typing_generic(base):
     # Cannot check unsupported parameterized generic which will cause issubclass
     # to fail with an exception.
@@ -1376,8 +1525,31 @@ def is_consistent_with(sub, base):
   return issubclass(sub, base)
 
 
+def regex_consistency(sub, base) -> bool:
+  """Checks whether two regular expression (re) type hints are consistent
+  with each other.
+
+  Either the sub or base hint can be parameterized generics since the set of
+  possible parameters is restricted to str | bytes. A base hint without a
+  parameter is treated as re.Class[str|bytes] so any sub param with a matching
+  base class is consistent. On the flip side, a sub hint without a parameter is
+  treated as inconsistent with a parameterized base hint.
+  """
+  base_generic = getattr(base, '__origin__', None)
+  sub_class = getattr(sub, '__origin__', sub)
+  if base_generic:
+    if sub_class == sub:
+      # if the sub hint is not parameterized but the base hint is we
+      # auto-fail
+      return False
+    return issubclass(sub_class,
+                      base_generic) and (sub.__args__ == base.__args__)
+  else:
+    return issubclass(sub_class, base)
+
+
 def get_yielded_type(type_hint):
-  """Obtains the type of elements yielded by an iterable.
+  """Obtains the type of elements yielded by an iterable.s
 
   Note that "iterable" here means: can be iterated over in a for loop, excluding
   strings and dicts.

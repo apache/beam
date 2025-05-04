@@ -23,6 +23,8 @@ import com.google.cloud.spanner.Type;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableListMultimap;
@@ -207,10 +209,17 @@ public abstract class SpannerSchema implements Serializable {
           }
           if (spannerType.startsWith("ARRAY")) {
             // Substring "ARRAY<xxx>"
-            String spannerArrayType =
-                originalSpannerType.substring(6, originalSpannerType.length() - 1);
-            Type itemType = parseSpannerType(spannerArrayType, dialect);
-            return Type.array(itemType);
+            Pattern pattern = Pattern.compile("ARRAY<([^>(]+)>");
+            Matcher matcher = pattern.matcher(originalSpannerType);
+
+            if (matcher.find()) {
+              String spannerArrayType = matcher.group(1).trim();
+              Type itemType = parseSpannerType(spannerArrayType, dialect);
+              return Type.array(itemType);
+            } else {
+              // Handle the case where the regex doesn't match (invalid ARRAY type)
+              throw new IllegalArgumentException("Invalid ARRAY type: " + originalSpannerType);
+            }
           }
           if (spannerType.startsWith("PROTO")) {
             // Substring "PROTO<xxx>"

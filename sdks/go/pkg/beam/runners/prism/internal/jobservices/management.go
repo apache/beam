@@ -72,6 +72,13 @@ func (e *joinError) Error() string {
 	return string(b)
 }
 
+func getOnlyValue[K comparable, V any](in map[K]V) V {
+	for _, v := range in {
+		return v
+	}
+	panic("unreachable")
+}
+
 func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *jobpb.PrepareJobResponse, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -247,6 +254,16 @@ func (s *Server) Prepare(ctx context.Context, req *jobpb.PrepareJobRequest) (_ *
 			// Simply ignore the composite at this stage, since the runner does nothing with them.
 			if len(t.GetSpec().GetPayload()) == 0 {
 				continue
+			}
+			// Another type of "empty" composite transforms without subtransforms but with
+			// a non-empty payload and identical input/output pcollections
+			if len(t.GetInputs()) == 1 && len(t.GetOutputs()) == 1 {
+				inputID := getOnlyValue(t.GetInputs())
+				outputID := getOnlyValue(t.GetOutputs())
+				if inputID == outputID {
+					slog.Warn("empty transform, with payload and identical input and output pcollection", "urn", urn, "name", t.GetUniqueName(), "pcoll", inputID)
+					continue
+				}
 			}
 			// Otherwise fail.
 			slog.Warn("unknown transform, with payload", "urn", urn, "name", t.GetUniqueName(), "payload", t.GetSpec().GetPayload())

@@ -85,6 +85,12 @@ def validate_against_schema(pipeline, strictness):
     jsonschema.validate(pipeline, pipeline_schema(strictness))
   except jsonschema.ValidationError as exn:
     exn.message += f" around line {_closest_line(pipeline, exn.path)}"
+    # validation message for chain-type transform
+    if (exn.schema_path[-1] == 'not' and
+        exn.schema_path[-2] in ['input', 'output']):
+      exn.message = (
+          f"'{exn.schema_path[-2]}' should not be used "
+          "along with 'chain' type transforms. " + exn.message)
     raise exn
 
 
@@ -160,6 +166,9 @@ class LightweightScope(object):
             f'{SafeLineLoader.get_line(transform_name)}: {transform_name}')
       else:
         return only_element(candidates)
+
+  def get_transform_spec(self, transform_name_or_id):
+    return self._transforms_by_uuid[self.get_transform_id(transform_name_or_id)]
 
 
 class Scope(LightweightScope):
@@ -368,6 +377,9 @@ class Scope(LightweightScope):
         if pcoll in providers_by_input
     ]
     provider = self.best_provider(spec, input_providers)
+    extra_dependencies, spec = extract_extra_dependencies(spec)
+    if extra_dependencies:
+      provider = provider.with_extra_dependencies(frozenset(extra_dependencies))
 
     config = SafeLineLoader.strip_metadata(spec.get('config', {}))
     if not isinstance(config, dict):
@@ -390,7 +402,11 @@ class Scope(LightweightScope):
       # pylint: disable=undefined-loop-variable
       ptransform = maybe_with_resource_hints(
           provider.create_transform(
-              spec['type'], config, self.create_ptransform))
+              spec['type'],
+              config,
+              lambda config,
+              input_pcolls=input_pcolls: self.create_ptransform(
+                  config, input_pcolls)))
       # TODO(robertwb): Should we have a better API for adding annotations
       # than this?
       annotations = {
@@ -570,9 +586,10 @@ def chain_as_composite(spec):
     raise TypeError(
         f"Chain at {identify_object(spec)} missing transforms property.")
   has_explicit_outputs = 'output' in spec
-  composite_spec = normalize_inputs_outputs(tag_explicit_inputs(spec))
+  composite_spec = dict(normalize_inputs_outputs(tag_explicit_inputs(spec)))
   new_transforms = []
   for ix, transform in enumerate(composite_spec['transforms']):
+    transform = dict(transform)
     if any(io in transform for io in ('input', 'output')):
       if (ix == 0 and 'input' in transform and 'output' not in transform and
           is_explicitly_empty(transform['input'])):
@@ -706,6 +723,17 @@ def extract_name(spec):
     return spec
   else:
     return ''
+
+
+def extract_extra_dependencies(spec):
+  deps = spec.get('config', {}).get('dependencies', [])
+  if not deps:
+    return [], spec
+  if not isinstance(deps, list):
+    raise TypeError(f'Dependencies must be a list of strings, got {deps}')
+  return deps, dict(
+      spec,
+      config={k: v for k, v in spec['config'].items() if k != 'dependencies'})
 
 
 def push_windowing_to_roots(spec):
@@ -925,16 +953,17 @@ def ensure_config(spec):
   return spec
 
 
+def apply_phase(phase, spec):
+  spec = phase(spec)
+  if spec['type'] in {'composite', 'chain'} and 'transforms' in spec:
+    spec = dict(
+        spec, transforms=[apply_phase(phase, t) for t in spec['transforms']])
+  return spec
+
+
 def preprocess(spec, verbose=False, known_transforms=None):
   if verbose:
     pprint.pprint(spec)
-
-  def apply(phase, spec):
-    spec = phase(spec)
-    if spec['type'] in {'composite', 'chain'} and 'transforms' in spec:
-      spec = dict(
-          spec, transforms=[apply(phase, t) for t in spec['transforms']])
-    return spec
 
   if known_transforms:
     known_transforms = set(known_transforms).union(['chain', 'composite'])
@@ -998,7 +1027,7 @@ def preprocess(spec, verbose=False, known_transforms=None):
       # lift_config,
       ensure_config,
   ]:
-    spec = apply(phase, spec)
+    spec = apply_phase(phase, spec)
     if verbose:
       print('=' * 20, phase, '=' * 20)
       pprint.pprint(spec)

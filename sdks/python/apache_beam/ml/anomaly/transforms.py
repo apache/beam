@@ -17,11 +17,10 @@
 
 import dataclasses
 import uuid
-from typing import Callable
-from typing import Dict
-from typing import Iterable
+from collections.abc import Callable
+from collections.abc import Iterable
+from typing import Any
 from typing import Optional
-from typing import Tuple
 from typing import TypeVar
 
 import apache_beam as beam
@@ -33,16 +32,18 @@ from apache_beam.ml.anomaly.base import AnomalyPrediction
 from apache_beam.ml.anomaly.base import AnomalyResult
 from apache_beam.ml.anomaly.base import EnsembleAnomalyDetector
 from apache_beam.ml.anomaly.base import ThresholdFn
+from apache_beam.ml.anomaly.detectors.offline import OfflineDetector
 from apache_beam.ml.anomaly.specifiable import Spec
 from apache_beam.ml.anomaly.specifiable import Specifiable
+from apache_beam.ml.inference.base import RunInference
 from apache_beam.transforms.userstate import ReadModifyWriteStateSpec
 
 KeyT = TypeVar('KeyT')
 TempKeyT = TypeVar('TempKeyT', bound=int)
-InputT = Tuple[KeyT, beam.Row]
-KeyedInputT = Tuple[KeyT, Tuple[TempKeyT, beam.Row]]
-KeyedOutputT = Tuple[KeyT, Tuple[TempKeyT, AnomalyResult]]
-OutputT = Tuple[KeyT, AnomalyResult]
+InputT = tuple[KeyT, beam.Row]
+KeyedInputT = tuple[KeyT, tuple[TempKeyT, beam.Row]]
+KeyedOutputT = tuple[KeyT, tuple[TempKeyT, AnomalyResult]]
+OutputT = tuple[KeyT, AnomalyResult]
 
 
 class _ScoreAndLearnDoFn(beam.DoFn):
@@ -57,7 +58,7 @@ class _ScoreAndLearnDoFn(beam.DoFn):
   def __init__(self, detector_spec: Spec):
     self._detector_spec = detector_spec
 
-    assert isinstance(self._detector_spec.config, Dict)
+    assert isinstance(self._detector_spec.config, dict)
     self._detector_spec.config["_run_init"] = True
 
   def score_and_learn(self, data):
@@ -97,9 +98,11 @@ class _ScoreAndLearnDoFn(beam.DoFn):
     yield k1, (k2,
                AnomalyResult(
                    example=data,
-                   predictions=[AnomalyPrediction(
-                       model_id=self._underlying._model_id,
-                       score=self.score_and_learn(data))]))
+                   predictions=[
+                       AnomalyPrediction(
+                           model_id=self._underlying._model_id,
+                           score=self.score_and_learn(data))
+                   ]))
 
     model_state.write(self._underlying)
 
@@ -175,7 +178,7 @@ class _StatelessThresholdDoFn(_BaseThresholdDoFn):
       creation of a stateful `ThresholdFn`.
   """
   def __init__(self, threshold_fn_spec: Spec):
-    assert isinstance(threshold_fn_spec.config, Dict)
+    assert isinstance(threshold_fn_spec.config, dict)
     threshold_fn_spec.config["_run_init"] = True
     self._threshold_fn = Specifiable.from_spec(threshold_fn_spec)
     assert isinstance(self._threshold_fn, ThresholdFn)
@@ -186,7 +189,7 @@ class _StatelessThresholdDoFn(_BaseThresholdDoFn):
     """Processes a batch of anomaly results using a stateless ThresholdFn.
 
     Args:
-      element (Tuple[Any, Tuple[Any, AnomalyResult]]): A tuple representing
+      element (tuple[Any, tuple[Any, AnomalyResult]]): A tuple representing
         an element in the Beam pipeline. It is expected to be in the format
         `(key1, (key2, AnomalyResult))`, where key1 is the original input key,
         and key2 is a disambiguating key for distinct data points.
@@ -194,7 +197,7 @@ class _StatelessThresholdDoFn(_BaseThresholdDoFn):
         in Beam DoFns.
 
     Yields:
-      Iterable[Tuple[Any, Tuple[Any, AnomalyResult]]]: An iterable containing
+      Iterable[tuple[Any, tuple[Any, AnomalyResult]]]: An iterable containing
         a single output element with the same structure as the input, but with
         the `AnomalyResult` having updated prediction labels based on the
         stateless `ThresholdFn`.
@@ -222,7 +225,7 @@ class _StatefulThresholdDoFn(_BaseThresholdDoFn):
   THRESHOLD_STATE_INDEX = ReadModifyWriteStateSpec('saved_tracker', DillCoder())
 
   def __init__(self, threshold_fn_spec: Spec):
-    assert isinstance(threshold_fn_spec.config, Dict)
+    assert isinstance(threshold_fn_spec.config, dict)
     threshold_fn_spec.config["_run_init"] = True
     threshold_fn = Specifiable.from_spec(threshold_fn_spec)
     assert isinstance(threshold_fn, ThresholdFn)
@@ -243,7 +246,7 @@ class _StatefulThresholdDoFn(_BaseThresholdDoFn):
     Beam for future elements.
 
     Args:
-      element (Tuple[Any, Tuple[Any, AnomalyResult]]): A tuple representing
+      element (tuple[Any, tuple[Any, AnomalyResult]]): A tuple representing
         an element in the Beam pipeline. It is expected to be in the format
         `(key1, (key2, AnomalyResult))`, where key1 is the original input key,
         and key2 is a disambiguating key for distinct data points.
@@ -254,7 +257,7 @@ class _StatefulThresholdDoFn(_BaseThresholdDoFn):
         in Beam DoFns.
 
     Yields:
-      Iterable[Tuple[Any, Tuple[Any, AnomalyResult]]]: An iterable containing
+      Iterable[tuple[Any, tuple[Any, AnomalyResult]]]: An iterable containing
         a single output element with the same structure as the input, but
         with the `AnomalyResult` having updated prediction labels based on
         the stateful `ThresholdFn`.
@@ -325,7 +328,8 @@ class RunAggregationStrategy(beam.PTransform[beam.PCollection[KeyedOutputT],
     if self._aggregation_fn is None:
       # simply put predictions into an iterable (list)
       ret = (
-          post_gbk | beam.MapTuple(
+          post_gbk
+          | beam.MapTuple(
               lambda k,
               v: (
                   k[0],
@@ -353,7 +357,8 @@ class RunAggregationStrategy(beam.PTransform[beam.PCollection[KeyedOutputT],
     # We use (original_key, temp_key) as the key for GroupByKey() so that
     # scores from multiple detectors per data point are grouped.
     ret = (
-        post_gbk | beam.MapTuple(
+        post_gbk
+        | beam.MapTuple(
             lambda k,
             v,
             agg=aggregation_fn: (
@@ -406,6 +411,92 @@ class RunOneDetector(beam.PTransform[beam.PCollection[KeyedInputT],
     return ret
 
 
+class RunOfflineDetector(beam.PTransform[beam.PCollection[KeyedInputT],
+                                         beam.PCollection[KeyedOutputT]]):
+  """Runs a offline anomaly detector on a PCollection of data.
+
+  This PTransform applies a `OfflineDetector` to the input data, handling
+  custom input/output conversion and inference.
+
+  Args:
+    offline_detector: The `OfflineDetector` to run.
+  """
+  def __init__(self, offline_detector: OfflineDetector):
+    self._offline_detector = offline_detector
+
+  def _restore_and_convert(
+      self, elem: tuple[tuple[Any, Any, beam.Row], Any]) -> KeyedOutputT:
+    """Converts the model output to AnomalyResult.
+
+    Args:
+      elem: A tuple containing the combined key (original key, temp key, row)
+        and the output from RunInference.
+
+    Returns:
+      A tuple containing the keyed AnomalyResult.
+    """
+    (orig_key, temp_key, row), prediction = elem
+    assert isinstance(prediction, AnomalyPrediction), (
+      "Wrong model handler output type." +
+      f"Expected: 'AnomalyPrediction', but got '{type(prediction).__name__}'. " +  # pylint: disable=line-too-long
+      "Consider adding a post-processing function via `with_postprocess_fn` " +
+      f"to convert from '{type(prediction).__name__}' to 'AnomalyPrediction', " +  # pylint: disable=line-too-long
+      "or use `score_prediction_adapter` or `label_prediction_adapter` to " +
+      "perform the conversion.")
+
+    result = AnomalyResult(
+        example=row,
+        predictions=[
+            dataclasses.replace(
+                prediction, model_id=self._offline_detector._model_id)
+        ])
+    return orig_key, (temp_key, result)
+
+  def _select_features(self, elem: tuple[Any,
+                                         beam.Row]) -> tuple[Any, beam.Row]:
+    assert self._offline_detector._features is not None
+    k, v = elem
+    row_dict = v._asdict()
+    return (
+        k,
+        beam.Row(**{k: row_dict[k]
+                    for k in self._offline_detector._features}))
+
+  def expand(
+      self,
+      input: beam.PCollection[KeyedInputT]) -> beam.PCollection[KeyedOutputT]:
+    model_uuid = f"{self._offline_detector._model_id}:{uuid.uuid4().hex[:6]}"
+
+    # Call RunInference Transform with the keyed model handler
+    run_inference = RunInference(
+        self._offline_detector._keyed_model_handler,
+        **self._offline_detector._run_inference_args)
+
+    # ((orig_key, temp_key, beam.Row), beam.Row)
+    rekeyed_model_input = input | "Rekey" >> beam.Map(
+        lambda x: ((x[0], x[1][0], x[1][1]), x[1][1]))
+
+    if self._offline_detector._features is not None:
+      rekeyed_model_input = rekeyed_model_input | "Select Features" >> beam.Map(
+          self._select_features)
+
+    # ((orig_key, temp_key, beam.Row), AnomalyPrediction)
+    rekeyed_model_output = (
+        rekeyed_model_input
+        | f"Call RunInference ({model_uuid})" >> run_inference)
+
+    ret = (
+        rekeyed_model_output | "Restore keys and convert model output" >>
+        beam.Map(self._restore_and_convert))
+
+    if self._offline_detector._threshold_criterion:
+      ret = (
+          ret | f"Run Threshold Criterion ({model_uuid})" >>
+          RunThresholdCriterion(self._offline_detector._threshold_criterion))
+
+    return ret
+
+
 class RunEnsembleDetector(beam.PTransform[beam.PCollection[KeyedInputT],
                                           beam.PCollection[KeyedOutputT]]):
   """Runs an ensemble of anomaly detectors on a PCollection of data.
@@ -432,8 +523,14 @@ class RunEnsembleDetector(beam.PTransform[beam.PCollection[KeyedInputT],
     for idx, detector in enumerate(self._ensemble_detector._sub_detectors):
       if isinstance(detector, EnsembleAnomalyDetector):
         results.append(
-            input | f"Run Ensemble Detector at index {idx} ({model_uuid})" >>
+            input
+            | f"Run Ensemble Detector at index {idx} ({model_uuid})" >>
             RunEnsembleDetector(detector))
+      elif isinstance(detector, OfflineDetector):
+        results.append(
+            input
+            | f"Run Offline Detector at index {idx} ({model_uuid})" >>
+            RunOfflineDetector(detector))
       else:
         results.append(
             input
@@ -518,6 +615,8 @@ class AnomalyDetection(beam.PTransform[beam.PCollection[InputT],
 
     if isinstance(self._root_detector, EnsembleAnomalyDetector):
       keyed_output = (keyed_input | RunEnsembleDetector(self._root_detector))
+    elif isinstance(self._root_detector, OfflineDetector):
+      keyed_output = (keyed_input | RunOfflineDetector(self._root_detector))
     else:
       keyed_output = (keyed_input | RunOneDetector(self._root_detector))
 

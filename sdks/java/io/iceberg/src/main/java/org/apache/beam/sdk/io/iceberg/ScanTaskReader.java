@@ -17,26 +17,25 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.io.iceberg.IcebergUtils.icebergRecordToBeamRow;
+import static org.apache.beam.sdk.io.iceberg.IcebergUtils.icebergSchemaToBeamSchema;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
-import java.util.Collections;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Queue;
-import java.util.Set;
-import java.util.function.BiFunction;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.FileScanTask;
-import org.apache.iceberg.PartitionSpec;
-import org.apache.iceberg.Schema;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.avro.Avro;
+import org.apache.iceberg.data.GenericDeleteFilter;
 import org.apache.iceberg.data.IdentityPartitionConverters;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.data.avro.DataReader;
@@ -51,9 +50,6 @@ import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.mapping.NameMappingParser;
 import org.apache.iceberg.orc.ORC;
 import org.apache.iceberg.parquet.Parquet;
-import org.apache.iceberg.types.Type;
-import org.apache.iceberg.types.TypeUtil;
-import org.apache.iceberg.util.PartitionUtil;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,6 +59,7 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
 
   private final ScanTaskSource source;
   private final org.apache.iceberg.Schema project;
+  private final Schema beamSchema;
 
   transient @Nullable FileIO io;
   transient @Nullable InputFilesDecryptor decryptor;
@@ -72,7 +69,8 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
 
   public ScanTaskReader(ScanTaskSource source) {
     this.source = source;
-    this.project = IcebergUtils.beamSchemaToIcebergSchema(source.getSchema());
+    this.project = source.getSchema();
+    this.beamSchema = icebergSchemaToBeamSchema(source.getSchema());
   }
 
   @Override
@@ -127,7 +125,7 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
       DataFile file = fileTask.file();
       InputFile input = decryptor.getInputFile(fileTask);
       Map<Integer, ?> idToConstants =
-          constantsMap(fileTask, IdentityPartitionConverters::convertConstant, project);
+          ReadUtils.constantsMap(fileTask, IdentityPartitionConverters::convertConstant, project);
 
       CloseableIterable<Record> iterable;
       switch (file.format()) {
@@ -183,25 +181,13 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
         default:
           throw new UnsupportedOperationException("Cannot read format: " + file.format());
       }
-      currentIterator = iterable.iterator();
+      GenericDeleteFilter deleteFilter =
+          new GenericDeleteFilter(checkStateNotNull(io), fileTask, fileTask.schema(), project);
+      currentIterator = deleteFilter.filter(iterable).iterator();
 
     } while (true);
 
     return false;
-  }
-
-  private Map<Integer, ?> constantsMap(
-      FileScanTask task, BiFunction<Type, Object, Object> converter, Schema schema) {
-    PartitionSpec spec = task.spec();
-    Set<Integer> idColumns = spec.identitySourceIds();
-    Schema partitionSchema = TypeUtil.select(schema, idColumns);
-    boolean projectsIdentityPartitionColumns = !partitionSchema.columns().isEmpty();
-
-    if (projectsIdentityPartitionColumns) {
-      return PartitionUtil.constantsMap(task, converter);
-    } else {
-      return Collections.emptyMap();
-    }
   }
 
   @Override
@@ -209,7 +195,7 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
     if (current == null) {
       throw new NoSuchElementException();
     }
-    return IcebergUtils.icebergRecordToBeamRow(source.getSchema(), current);
+    return icebergRecordToBeamRow(beamSchema, current);
   }
 
   @Override

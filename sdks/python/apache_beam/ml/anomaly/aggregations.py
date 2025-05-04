@@ -18,9 +18,9 @@
 import collections
 import math
 import statistics
+from collections.abc import Callable
+from collections.abc import Iterable
 from typing import Any
-from typing import Callable
-from typing import Iterable
 from typing import Optional
 
 from apache_beam.ml.anomaly.base import DEFAULT_MISSING_LABEL

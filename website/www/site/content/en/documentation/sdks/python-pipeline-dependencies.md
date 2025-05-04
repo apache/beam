@@ -114,6 +114,7 @@ Often, your pipeline code spans multiple files. To run your project remotely, yo
           setup.py
           main.py
           my_package/
+            __init__.py
             my_pipeline_launcher.py
             my_custom_dofns_and_transforms.py
             other_utils_and_helpers.py
