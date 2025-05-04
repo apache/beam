@@ -6549,6 +6549,25 @@ _ = (p | 'Read per user' >> ReadPerUser()
 A common use case for state is to accumulate unique elements. `SetState` allows for accumulating an unordered set
 of elements.
 
+{{< highlight java >}}
+PCollection<KV<String, ValueT>> perUser = readPerUser();
+perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
+  @StateId("state") private final StateSpec<SetState<ValueT>> uniqueElements = StateSpecs.bag();
+
+  @ProcessElement public void process(
+    @Element KV<String, ValueT> element,
+    @StateId("state") SetState<ValueT> state) {
+    // Add the current element to the set state for this key.
+    state.add(element.getValue());
+    if (shouldFetch()) {
+      // Occasionally we fetch and process the values.
+      Iterable<ValueT> values = state.read();
+      processValues(values);
+      state.clear();  // Clear the state for this key.
+    }
+  }
+}));
+{{< /highlight >}}
 {{< highlight py >}}
 class SetStateDoFn(DoFn):
   UNIQUE_ELEMENTS = SetStateSpec('buffer', coders.VarIntCoder())
