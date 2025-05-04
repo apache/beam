@@ -6583,6 +6583,44 @@ _ = (p | 'Read per user' >> ReadPerUser()
        | 'Set state pardo' >> beam.ParDo(SetStateDoFn()))
 {{< /highlight >}}
 
+#### OrderListState
+
+`OrderListState` state that accumulate elements in an ordered List. 
+
+{{< highlight java >}}
+PCollection<KV<String, ValueT>> perUser = readPerUser();
+perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
+  @StateId("state") private final StateSpec<OrderedListState<ValueT>> uniqueElements = StateSpecs.bag();
+
+  @ProcessElement public void process(
+    @Element KV<String, ValueT> element,
+    @StateId("state") SetState<ValueT> state) {
+    // Add the current element to the set state for this key.
+    state.add(element.getValue());
+    if (shouldFetch()) {
+      // Occasionally we fetch and process the values.
+      Iterable<ValueT> values = state.read();
+      processValues(values);
+      state.clear();  // Clear the state for this key.
+    }
+  }
+}));
+{{< /highlight >}}
+{{< highlight py >}}
+class OrderedListStateDoFn(DoFn):
+  STATE_ELEMENTS = OrderedListStateSpec('buffer', coders.ListCoder())
+
+  def process(self, element_pair, state=DoFn.StateParam(STATE_ELEMENTS)):
+    state.add(element_pair[1])
+    if should_fetch():
+      elements = list(state.read())
+      process_values(elements)
+      state.clear()
+
+_ = (p | 'Read per user' >> ReadPerUser()
+       | 'Set state pardo' >> beam.ParDo(OrderedListStateDoFn()))
+{{< /highlight >}}
+
 ### 11.2. Deferred state reads {#deferred-state-reads}
 
 When a `DoFn` contains multiple state specifications, reading each one in order can be slow. Calling the `read()` function
