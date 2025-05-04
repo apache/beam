@@ -6544,6 +6544,26 @@ _ = (p | 'Read per user' >> ReadPerUser()
 {{< code_sample "sdks/go/examples/snippets/04transforms.go" bag_state >}}
 {{< /highlight >}}
 
+#### SetState
+
+A common use case for state is to accumulate unique elements. `SetState` allows for accumulating an unordered set
+of elements.
+
+{{< highlight py >}}
+class SetStateDoFn(DoFn):
+  UNIQUE_ELEMENTS = SetStateSpec('buffer', coders.VarIntCoder())
+
+  def process(self, element_pair, state=DoFn.StateParam(UNIQUE_ELEMENTS)):
+    state.add(element_pair[1])
+    if should_fetch():
+      unique_elements = list(state.read())
+      process_values(unique_elements)
+      state.clear()
+
+_ = (p | 'Read per user' >> ReadPerUser()
+       | 'Set state pardo' >> beam.ParDo(SetStateDoFn()))
+{{< /highlight >}}
+
 ### 11.2. Deferred state reads {#deferred-state-reads}
 
 When a `DoFn` contains multiple state specifications, reading each one in order can be slow. Calling the `read()` function
