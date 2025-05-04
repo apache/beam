@@ -6585,7 +6585,7 @@ _ = (p | 'Read per user' >> ReadPerUser()
 
 #### OrderListState
 
-`OrderListState` state that accumulate elements in an ordered List. 
+`OrderListState` state that accumulate elements in an ordered List.
 
 {{< highlight java >}}
 PCollection<KV<String, ValueT>> perUser = readPerUser();
