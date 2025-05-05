@@ -160,10 +160,6 @@ public abstract class IcebergScanConfig implements Serializable {
       return this.setTableIdentifier(tableIdentifier.toString());
     }
 
-    public Builder setFilter(@Nullable String filter) {
-      return setFilter(FilterUtils.convert(filter));
-    }
-
     public Builder setTableIdentifier(String... names) {
       return setTableIdentifier(TableIdentifier.of(names));
     }

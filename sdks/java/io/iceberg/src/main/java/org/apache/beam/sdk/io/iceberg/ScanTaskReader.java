@@ -43,6 +43,7 @@ import org.apache.iceberg.data.orc.GenericOrcReader;
 import org.apache.iceberg.data.parquet.GenericParquetReaders;
 import org.apache.iceberg.encryption.EncryptionManager;
 import org.apache.iceberg.encryption.InputFilesDecryptor;
+import org.apache.iceberg.expressions.Expression;
 import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.io.CloseableIterator;
 import org.apache.iceberg.io.FileIO;
@@ -59,6 +60,7 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
 
   private final ScanTaskSource source;
   private final org.apache.iceberg.Schema project;
+  private final @Nullable Expression filter;
   private final Schema beamSchema;
 
   transient @Nullable FileIO io;
@@ -70,6 +72,7 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
   public ScanTaskReader(ScanTaskSource source) {
     this.source = source;
     this.project = source.getSchema();
+    this.filter = source.getFilter();
     this.beamSchema = icebergSchemaToBeamSchema(source.getSchema());
   }
 
@@ -183,8 +186,12 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
       }
       GenericDeleteFilter deleteFilter =
           new GenericDeleteFilter(checkStateNotNull(io), fileTask, fileTask.schema(), project);
-      currentIterator = deleteFilter.filter(iterable).iterator();
-
+      iterable = deleteFilter.filter(iterable);
+      if (filter != null && filter.op() != Expression.Operation.TRUE) {
+        FilterUtils.FilterFunction filterFunction = FilterUtils.filterOn(filter, project);
+        iterable = CloseableIterable.filter(iterable, filterFunction::filter);
+      }
+      currentIterator = iterable.iterator();
     } while (true);
 
     return false;

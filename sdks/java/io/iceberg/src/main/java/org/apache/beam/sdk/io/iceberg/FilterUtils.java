@@ -18,13 +18,15 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.math.BigDecimal;
-import java.sql.Date;
-import java.sql.Time;
-import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlBasicCall;
@@ -32,25 +34,32 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlIdentifi
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlKind;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlLiteral;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlNodeList;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlOperator;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.parser.SqlParser;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.iceberg.Schema;
+import org.apache.iceberg.data.Record;
+import org.apache.iceberg.expressions.Evaluator;
 import org.apache.iceberg.expressions.Expression;
 import org.apache.iceberg.expressions.Expression.Operation;
 import org.apache.iceberg.expressions.Expressions;
+import org.apache.iceberg.types.Type.TypeID;
 import org.apache.iceberg.util.DateTimeUtil;
 import org.apache.iceberg.util.NaNUtil;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+/**
+ * Utilities that convert between a SQL filter expression and an Iceberg {@link Expression}. Uses
+ * Apache Calcite semantics.
+ *
+ * <p>Note: Only supports top-level fields (i.e. cannot reference nested fields).
+ */
 class FilterUtils {
   private static final Map<SqlKind, Operation> FILTERS =
       ImmutableMap.<SqlKind, Operation>builder()
-          .put(SqlKind.IS_TRUE, Operation.TRUE)
-          .put(SqlKind.IS_NOT_FALSE, Operation.TRUE)
-          .put(SqlKind.IS_FALSE, Operation.FALSE)
-          .put(SqlKind.IS_NOT_TRUE, Operation.FALSE)
           .put(SqlKind.IS_NULL, Operation.IS_NULL)
           .put(SqlKind.IS_NOT_NULL, Operation.NOT_NULL)
           .put(SqlKind.LESS_THAN, Operation.LT)
@@ -65,7 +74,23 @@ class FilterUtils {
           .put(SqlKind.OR, Operation.OR)
           .build();
 
-  static Expression convert(@Nullable String filter) {
+  static FilterFunction filterOn(Expression expression, Schema schema) {
+    return new FilterFunction(expression, schema);
+  }
+
+  static class FilterFunction {
+    private final Evaluator evaluator;
+
+    FilterFunction(Expression expression, Schema schema) {
+      this.evaluator = new Evaluator(schema.asStruct(), expression);
+    }
+
+    boolean filter(Record rec) {
+      return evaluator.eval(rec);
+    }
+  }
+
+  static Expression convert(@Nullable String filter, Schema schema) {
     if (filter == null) {
       return Expressions.alwaysTrue();
     }
@@ -73,14 +98,15 @@ class FilterUtils {
     SqlParser parser = SqlParser.create(filter);
     try {
       SqlNode expression = parser.parseExpression();
-      return convert(expression);
-    } catch (SqlParseException exception) {
-      throw new RuntimeException("Encountered an error when parsing filter: " + filter, exception);
+      return convert(expression, schema);
+    } catch (Exception exception) {
+      throw new RuntimeException(
+          String.format("Encountered an error when parsing filter: '%s'", filter), exception);
     }
   }
 
-  private static Expression convert(SqlNode expression) throws SqlParseException {
-    Preconditions.checkArgument(expression instanceof SqlBasicCall);
+  private static Expression convert(SqlNode expression, Schema schema) throws SqlParseException {
+    checkArgument(expression instanceof SqlBasicCall);
     SqlBasicCall call = (SqlBasicCall) expression;
 
     SqlOperator op = call.getOperator();
@@ -89,28 +115,27 @@ class FilterUtils {
     Operation operation =
         checkArgumentNotNull(
             FILTERS.get(kind),
-            "Unable to convert filter to Iceberg expression: %s",
+            "Unable to convert SQL operation '%s' in Iceberg expression: %s",
+            kind,
             expression.toString());
 
     switch (operation) {
-      case TRUE:
-        return Expressions.alwaysTrue();
-      case FALSE:
-        return Expressions.alwaysFalse();
       case IS_NULL:
-        return Expressions.isNull(getOnlyChild(call).toString());
+        return Expressions.isNull(getOnlyChildName(call));
       case NOT_NULL:
-        return Expressions.notNull(getOnlyChild(call).toString());
+        return Expressions.notNull(getOnlyChildName(call));
       case LT:
-        return convertFieldAndLiteral(Expressions::lessThan, Expressions::greaterThan, call);
+        return convertFieldAndLiteral(
+            Expressions::lessThan, Expressions::greaterThan, call, schema);
       case LT_EQ:
         return convertFieldAndLiteral(
-            Expressions::lessThanOrEqual, Expressions::greaterThanOrEqual, call);
+            Expressions::lessThanOrEqual, Expressions::greaterThanOrEqual, call, schema);
       case GT:
-        return convertFieldAndLiteral(Expressions::greaterThan, Expressions::lessThan, call);
+        return convertFieldAndLiteral(
+            Expressions::greaterThan, Expressions::lessThan, call, schema);
       case GT_EQ:
         return convertFieldAndLiteral(
-            Expressions::greaterThanOrEqual, Expressions::lessThanOrEqual, call);
+            Expressions::greaterThanOrEqual, Expressions::lessThanOrEqual, call, schema);
       case EQ:
         return convertFieldAndLiteral(
             (ref, lit) -> {
@@ -122,7 +147,8 @@ class FilterUtils {
                 return Expressions.equal(ref, lit);
               }
             },
-            call);
+            call,
+            schema);
       case NOT_EQ:
         return convertFieldAndLiteral(
             (ref, lit) -> {
@@ -134,32 +160,36 @@ class FilterUtils {
                 return Expressions.notEqual(ref, lit);
               }
             },
-            call);
+            call,
+            schema);
       case IN:
-        return convertFieldInLiteral(Expressions::in, call);
+        return convertFieldInLiteral(Operation.IN, call, schema);
       case NOT_IN:
-        return convertFieldInLiteral(Expressions::notIn, call);
+        return convertFieldInLiteral(Operation.NOT_IN, call, schema);
       case AND:
-        return convertLogicalExpr(Expressions::and, call);
+        return convertLogicalExpr(Expressions::and, call, schema);
       case OR:
-        return convertLogicalExpr(Expressions::or, call);
+        return convertLogicalExpr(Expressions::or, call, schema);
       default:
         throw new IllegalArgumentException(
             String.format("Unsupported operation '%s' in filter expression: %s", operation, call));
     }
   }
 
-  private static SqlNode getOnlyChild(SqlBasicCall call) {
-    Preconditions.checkArgument(
+  private static String getOnlyChildName(SqlBasicCall call) {
+    checkArgument(
         call.operandCount() == 1,
         "Expected only 1 operand but got %s in filter: %s",
         call.getOperandList(),
         call.toString());
-    return call.operand(0);
+    SqlNode ref = call.operand(0);
+    Preconditions.checkState(
+        ref instanceof SqlIdentifier, "Expected operand '%s' to be a reference.", ref);
+    return ((SqlIdentifier) ref).getSimple().toLowerCase();
   }
 
   private static SqlNode getLeftChild(SqlBasicCall call) {
-    Preconditions.checkArgument(
+    checkArgument(
         call.operandCount() == 2,
         "Expected 2 operands but got %s in filter: %s",
         call.getOperandList(),
@@ -168,7 +198,7 @@ class FilterUtils {
   }
 
   private static SqlNode getRightChild(SqlBasicCall call) {
-    Preconditions.checkArgument(
+    checkArgument(
         call.operandCount() == 2,
         "Expected 2 operands but got %s in filter: %s",
         call.getOperandList(),
@@ -177,61 +207,73 @@ class FilterUtils {
   }
 
   private static Expression convertLogicalExpr(
-      BiFunction<Expression, Expression, Expression> expr, SqlBasicCall call)
+      BiFunction<Expression, Expression, Expression> expr, SqlBasicCall call, Schema schema)
       throws SqlParseException {
     SqlNode left = getLeftChild(call);
     SqlNode right = getRightChild(call);
-    return expr.apply(convert(left), convert(right));
+    return expr.apply(convert(left, schema), convert(right, schema));
   }
 
-  private static Expression convertFieldInLiteral(
-      BiFunction<String, Object, Expression> expr, SqlBasicCall call) {
-    List<SqlNode> operands = call.getOperandList();
-    operands = operands.subList(1, operands.size());
+  private static Expression convertFieldInLiteral(Operation op, SqlBasicCall call, Schema schema) {
+    checkArgument(
+        call.operandCount() == 2,
+        "Expected only 2 operands but got %s: %s",
+        call.operandCount(),
+        call);
     SqlNode term = call.operand(0);
-    Preconditions.checkArgument(
-        term instanceof SqlIdentifier && operands.stream().allMatch(o -> o instanceof SqlLiteral));
-    String field = ((SqlIdentifier) term).getSimple();
+    SqlNode value = call.operand(1);
+    checkArgument(
+        term instanceof SqlIdentifier,
+        "Expected left hand side to be a field identifier but got " + term.getClass());
+    checkArgument(
+        value instanceof SqlNodeList,
+        "Expected right hand side to be a list but got " + value.getClass());
+    String field = ((SqlIdentifier) term).getSimple().toLowerCase();
+    List<SqlNode> list =
+        ((SqlNodeList) value)
+            .getList().stream().filter(Objects::nonNull).collect(Collectors.toList());
+    checkArgument(list.stream().allMatch(o -> o instanceof SqlLiteral));
     List<Object> values =
-        operands.stream()
-            .map(o -> convertLiteral((SqlLiteral) o, field))
+        list.stream()
+            .map(o -> convertLiteral((SqlLiteral) o, field, schema.findType(field).typeId()))
             .collect(Collectors.toList());
-    return expr.apply(field, values);
+    return op == Operation.IN ? Expressions.in(field, values) : Expressions.notIn(field, values);
   }
 
   private static Expression convertFieldAndLiteral(
-      BiFunction<String, Object, Expression> expr, SqlBasicCall call) {
-    return convertFieldAndLiteral(expr, expr, call);
+      BiFunction<String, Object, Expression> expr, SqlBasicCall call, Schema schema) {
+    return convertFieldAndLiteral(expr, expr, call, schema);
   }
 
   private static Expression convertFieldAndLiteral(
       BiFunction<String, Object, Expression> convertLR,
       BiFunction<String, Object, Expression> convertRL,
-      SqlBasicCall call) {
+      SqlBasicCall call,
+      Schema schema) {
     SqlNode left = getLeftChild(call);
     SqlNode right = getRightChild(call);
     if (left instanceof SqlIdentifier && right instanceof SqlLiteral) {
-      String field = ((SqlIdentifier) left).getSimple();
-      Object value = convertLiteral((SqlLiteral) right, field);
+      String field = ((SqlIdentifier) left).getSimple().toLowerCase();
+      TypeID type = schema.findType(field).typeId();
+      Object value = convertLiteral((SqlLiteral) right, field, type);
       return convertLR.apply(field, value);
     } else if (left instanceof SqlLiteral && right instanceof SqlIdentifier) {
-      String field = ((SqlIdentifier) right).getSimple();
-      Object value = convertLiteral((SqlLiteral) left, field);
+      String field = ((SqlIdentifier) right).getSimple().toLowerCase();
+      TypeID type = schema.findType(field).typeId();
+      Object value = convertLiteral((SqlLiteral) left, field, type);
       return convertRL.apply(field, value);
     } else {
       throw new IllegalArgumentException("Unsupported operands for expression: " + call);
     }
   }
 
-  private static Object convertLiteral(SqlLiteral literal, String field) {
-    switch (literal.getTypeName()) {
+  private static Object convertLiteral(SqlLiteral literal, String field, TypeID type) {
+    switch (type) {
       case BOOLEAN:
         return literal.getValueAs(Boolean.class);
-      case TINYINT:
-      case SMALLINT:
       case INTEGER:
         return literal.getValueAs(Integer.class);
-      case BIGINT:
+      case LONG:
         return literal.getValueAs(Long.class);
       case FLOAT:
         return literal.getValueAs(Float.class);
@@ -239,22 +281,20 @@ class FilterUtils {
         return literal.getValueAs(Double.class);
       case DECIMAL:
         return literal.getValueAs(BigDecimal.class);
-      case CHAR:
-      case VARCHAR:
+      case STRING:
         return literal.getValueAs(String.class);
       case DATE:
-        Date sqlDate = literal.getValueAs(Date.class);
-        return DateTimeUtil.daysFromDate(sqlDate.toLocalDate());
+        LocalDate date = LocalDate.parse(literal.getValueAs(String.class));
+        return DateTimeUtil.daysFromDate(date);
       case TIME:
-        Time sqlTime = literal.getValueAs(Time.class);
-        return DateTimeUtil.microsFromTime(sqlTime.toLocalTime());
+        LocalTime time = LocalTime.parse(literal.getValueAs(String.class));
+        return DateTimeUtil.microsFromTime(time);
       case TIMESTAMP:
-        Timestamp ts = literal.getValueAs(Timestamp.class);
-        return DateTimeUtil.microsFromTimestamp(ts.toLocalDateTime());
+        LocalDateTime dateTime = LocalDateTime.parse(literal.getValueAs(String.class));
+        return DateTimeUtil.microsFromTimestamp(dateTime);
       default:
         throw new IllegalArgumentException(
-            String.format(
-                "Unsupported literal type in field '%s': %s", field, literal.getTypeName()));
+            String.format("Unsupported filter type in field '%s': %s", field, type));
     }
   }
 }

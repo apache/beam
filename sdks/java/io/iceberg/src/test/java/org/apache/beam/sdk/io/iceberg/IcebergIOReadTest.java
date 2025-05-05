@@ -235,6 +235,40 @@ public class IcebergIOReadTest {
   }
 
   @Test
+  public void testScanWithFilter() throws Exception {
+    TableIdentifier tableId =
+        TableIdentifier.of("default", "table" + Long.toString(UUID.randomUUID().hashCode(), 16));
+    Table simpleTable = warehouse.createTable(tableId, TestFixtures.SCHEMA);
+    final Schema schema = icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
+
+    List<List<Record>> expectedRecords = warehouse.commitData(simpleTable);
+
+    IcebergIO.ReadRows read =
+        IcebergIO.readRows(catalogConfig()).from(tableId).withFilter("id < 10");
+
+    if (useIncrementalScan) {
+      read = read.withCdc().toSnapshot(simpleTable.currentSnapshot().snapshotId());
+    }
+    final List<Row> expectedRows =
+        expectedRecords.stream()
+            .flatMap(List::stream)
+            .map(record -> IcebergUtils.icebergRecordToBeamRow(schema, record))
+            .filter(row -> row.getInt64("id") < 10)
+            .collect(Collectors.toList());
+
+    PCollection<Row> output = testPipeline.apply(read).apply(new PrintRow());
+
+    PAssert.that(output)
+        .satisfies(
+            (Iterable<Row> rows) -> {
+              assertThat(rows, containsInAnyOrder(expectedRows.toArray()));
+              return null;
+            });
+
+    testPipeline.run();
+  }
+
+  @Test
   public void testReadSchemaWithRandomlyOrderedIds() throws IOException {
     TableIdentifier tableId = TableIdentifier.of("default", testName.getMethodName());
     org.apache.iceberg.Schema nestedSchema =

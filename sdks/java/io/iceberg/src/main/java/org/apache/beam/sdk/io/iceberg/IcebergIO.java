@@ -695,7 +695,7 @@ public class IcebergIO {
               .setStreaming(getStreaming())
               .setPollInterval(getPollInterval())
               .setUseCdc(getUseCdc())
-              .setFilter(getFilter())
+              .setFilter(FilterUtils.convert(getFilter(), table.schema()))
               .build();
       scanConfig.validate(table);
 
