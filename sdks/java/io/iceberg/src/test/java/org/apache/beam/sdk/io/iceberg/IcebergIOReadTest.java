@@ -244,7 +244,7 @@ public class IcebergIOReadTest {
     List<List<Record>> expectedRecords = warehouse.commitData(simpleTable);
 
     IcebergIO.ReadRows read =
-        IcebergIO.readRows(catalogConfig()).from(tableId).withFilter("id < 10");
+        IcebergIO.readRows(catalogConfig()).from(tableId).withFilter("\"id\" < 10");
 
     if (useIncrementalScan) {
       read = read.withCdc().toSnapshot(simpleTable.currentSnapshot().snapshotId());
