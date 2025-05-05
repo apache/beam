@@ -2,10 +2,10 @@
   "commentedAboutFailingChecks": false,
   "reviewersAssignedForLabels": {
     "java": "m-trieu",
-    "spanner": "nielm"
+    "spanner": "Abacn"
   },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
-  "committerAssigned": false
+  "committerAssigned": true
 }
