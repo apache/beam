@@ -147,6 +147,7 @@ class ProducerFn(DoFn):
     self._number_index = self._number_index + 1
     return i
 
+
 @unittest.skipIf(pa is None, "PyArrow is not installed.")
 class WriteStreamingIT(unittest.TestCase):
   def setUp(self):
@@ -164,22 +165,24 @@ class WriteStreamingIT(unittest.TestCase):
     p = beam.Pipeline(argv=args)
     pyschema = pa.schema([('age', pa.int64())])
 
-    _ = (p
-      | "generate impulse" >> PeriodicImpulse(
-            start_timestamp=
-              datetime(2021, 3, 1, 0, 0, 1, 0,tzinfo=pytz.UTC).timestamp(),
-            stop_timestamp=
-              datetime(2021, 3, 1, 0, 0, 20, 0,tzinfo=pytz.UTC).timestamp(),
-            fire_interval=1)
-      | "generate data" >> beam.Map(lambda t: {'age': t * 10})
-      | 'WriteToParquet' >> beam.io.WriteToParquet(
-        file_path_prefix=output_file,
-        file_name_suffix=".parquet",
-        num_shards=num_shards,
-        schema=pyschema)
+    _ = (
+        p
+        | "generate impulse" >> PeriodicImpulse(
+              start_timestamp=datetime(2021, 3, 1, 0, 0, 1, 0,
+                                       tzinfo=pytz.UTC).timestamp(),
+              stop_timestamp=datetime(2021, 3, 1, 0, 0, 20, 0,
+                                      tzinfo=pytz.UTC).timestamp(),
+              fire_interval=1)
+        | "generate data" >> beam.Map(lambda t: {'age': t * 10})
+        | 'WriteToParquet' >> beam.io.WriteToParquet(
+            file_path_prefix=output_file,
+            file_name_suffix=".parquet",
+            num_shards=num_shards,
+            schema=pyschema)
     )
     result = p.run()
     result.wait_until_finish(duration=600 * 1000)
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
