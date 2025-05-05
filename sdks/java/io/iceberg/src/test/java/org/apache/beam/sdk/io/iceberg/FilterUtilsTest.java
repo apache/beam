@@ -37,8 +37,6 @@ import static org.apache.iceberg.util.DateTimeUtil.microsFromTimestamp;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -50,7 +48,9 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.iceberg.AppendFiles;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.FileScanTask;
@@ -77,16 +77,16 @@ import org.junit.rules.TemporaryFolder;
 public class FilterUtilsTest {
   @Test
   public void testIsNull() {
-    TestCase.expecting(isNull("field_1"))
-        .fromFilter("field_1 IS NULL")
+    TestCase.expecting(isNull("fiELd_1"))
+        .fromFilter("\"fiELd_1\" IS NULL")
         .withFieldType(Types.IntegerType.get())
         .validate();
   }
 
   @Test
   public void testIsNotNull() {
-    TestCase.expecting(notNull("field_1"))
-        .fromFilter("field_1 IS NOT NULL")
+    TestCase.expecting(notNull("fiELd_1"))
+        .fromFilter("\"fiELd_1\" IS NOT NULL")
         .withFieldType(Types.IntegerType.get())
         .validate();
   }
@@ -95,31 +95,31 @@ public class FilterUtilsTest {
   public void testLessThan() {
     // integer
     TestCase.expecting(lessThan("field_1", 30))
-        .fromFilter("field_1 < 30")
+        .fromFilter("\"field_1\" < 30")
         .withFieldType(Types.IntegerType.get())
         .validate();
 
     // float
     TestCase.expecting(lessThan("field_1", 30.58f))
-        .fromFilter("field_1 < 30.58")
+        .fromFilter("\"field_1\" < 30.58")
         .withFieldType(Types.FloatType.get())
         .validate();
 
     // string
     TestCase.expecting(lessThan("field_1", "xyz"))
-        .fromFilter("field_1 < 'xyz'")
+        .fromFilter("\"field_1\" < 'xyz'")
         .withFieldType(Types.StringType.get())
         .validate();
 
     // date
     TestCase.expecting(lessThan("field_1", daysFromDate(LocalDate.parse("2025-05-03"))))
-        .fromFilter("field_1 < '2025-05-03'")
+        .fromFilter("\"field_1\" < '2025-05-03'")
         .withFieldType(Types.DateType.get())
         .validate();
 
     // time
     TestCase.expecting(lessThan("field_1", microsFromTime(LocalTime.parse("10:30:05.123"))))
-        .fromFilter("field_1 < '10:30:05.123'")
+        .fromFilter("\"field_1\" < '10:30:05.123'")
         .withFieldType(Types.TimeType.get())
         .validate();
 
@@ -127,7 +127,7 @@ public class FilterUtilsTest {
     TestCase.expecting(
             lessThan(
                 "field_1", microsFromTimestamp(LocalDateTime.parse("2025-05-03T10:30:05.123"))))
-        .fromFilter("field_1 < '2025-05-03T10:30:05.123'")
+        .fromFilter("\"field_1\" < '2025-05-03T10:30:05.123'")
         .withFieldType(Types.TimestampType.withoutZone())
         .validate();
   }
@@ -136,31 +136,31 @@ public class FilterUtilsTest {
   public void testLessThanOrEqual() {
     // integer
     TestCase.expecting(lessThanOrEqual("field_1", 30))
-        .fromFilter("field_1 <= 30")
+        .fromFilter("\"field_1\" <= 30")
         .withFieldType(Types.IntegerType.get())
         .validate();
 
     // float
     TestCase.expecting(lessThanOrEqual("field_1", 30.58f))
-        .fromFilter("field_1 <= 30.58")
+        .fromFilter("\"field_1\" <= 30.58")
         .withFieldType(Types.FloatType.get())
         .validate();
 
     // string
     TestCase.expecting(lessThanOrEqual("field_1", "xyz"))
-        .fromFilter("field_1 <= 'xyz'")
+        .fromFilter("\"field_1\" <= 'xyz'")
         .withFieldType(Types.StringType.get())
         .validate();
 
     // date
     TestCase.expecting(lessThanOrEqual("field_1", daysFromDate(LocalDate.parse("2025-05-03"))))
-        .fromFilter("field_1 <= '2025-05-03'")
+        .fromFilter("\"field_1\" <= '2025-05-03'")
         .withFieldType(Types.DateType.get())
         .validate();
 
     // time
     TestCase.expecting(lessThanOrEqual("field_1", microsFromTime(LocalTime.parse("10:30:05.123"))))
-        .fromFilter("field_1 <= '10:30:05.123'")
+        .fromFilter("\"field_1\" <= '10:30:05.123'")
         .withFieldType(Types.TimeType.get())
         .validate();
 
@@ -168,7 +168,7 @@ public class FilterUtilsTest {
     TestCase.expecting(
             lessThanOrEqual(
                 "field_1", microsFromTimestamp(LocalDateTime.parse("2025-05-03T10:30:05.123"))))
-        .fromFilter("field_1 <= '2025-05-03T10:30:05.123'")
+        .fromFilter("\"field_1\" <= '2025-05-03T10:30:05.123'")
         .withFieldType(Types.TimestampType.withoutZone())
         .validate();
   }
@@ -177,31 +177,31 @@ public class FilterUtilsTest {
   public void testGreaterThan() {
     // integer
     TestCase.expecting(greaterThan("field_1", 30))
-        .fromFilter("field_1 > 30")
+        .fromFilter("\"field_1\" > 30")
         .withFieldType(Types.IntegerType.get())
         .validate();
 
     // float
     TestCase.expecting(greaterThan("field_1", 30.58f))
-        .fromFilter("field_1 > 30.58")
+        .fromFilter("\"field_1\" > 30.58")
         .withFieldType(Types.FloatType.get())
         .validate();
 
     // string
     TestCase.expecting(greaterThan("field_1", "xyz"))
-        .fromFilter("field_1 > 'xyz'")
+        .fromFilter("\"field_1\" > 'xyz'")
         .withFieldType(Types.StringType.get())
         .validate();
 
     // date
     TestCase.expecting(greaterThan("field_1", daysFromDate(LocalDate.parse("2025-05-03"))))
-        .fromFilter("field_1 > '2025-05-03'")
+        .fromFilter("\"field_1\" > '2025-05-03'")
         .withFieldType(Types.DateType.get())
         .validate();
 
     // time
     TestCase.expecting(greaterThan("field_1", microsFromTime(LocalTime.parse("10:30:05.123"))))
-        .fromFilter("field_1 > '10:30:05.123'")
+        .fromFilter("\"field_1\" > '10:30:05.123'")
         .withFieldType(Types.TimeType.get())
         .validate();
 
@@ -209,7 +209,7 @@ public class FilterUtilsTest {
     TestCase.expecting(
             greaterThan(
                 "field_1", microsFromTimestamp(LocalDateTime.parse("2025-05-03T10:30:05.123"))))
-        .fromFilter("field_1 > '2025-05-03T10:30:05.123'")
+        .fromFilter("\"field_1\" > '2025-05-03T10:30:05.123'")
         .withFieldType(Types.TimestampType.withoutZone())
         .validate();
   }
@@ -218,32 +218,32 @@ public class FilterUtilsTest {
   public void testGreaterThanOrEqual() {
     // integer
     TestCase.expecting(greaterThanOrEqual("field_1", 30))
-        .fromFilter("field_1 >= 30")
+        .fromFilter("\"field_1\" >= 30")
         .withFieldType(Types.IntegerType.get())
         .validate();
 
     // float
     TestCase.expecting(greaterThanOrEqual("field_1", 30.58f))
-        .fromFilter("field_1 >= 30.58")
+        .fromFilter("\"field_1\" >= 30.58")
         .withFieldType(Types.FloatType.get())
         .validate();
 
     // string
     TestCase.expecting(greaterThanOrEqual("field_1", "xyz"))
-        .fromFilter("field_1 >= 'xyz'")
+        .fromFilter("\"field_1\" >= 'xyz'")
         .withFieldType(Types.StringType.get())
         .validate();
 
     // date
     TestCase.expecting(greaterThanOrEqual("field_1", daysFromDate(LocalDate.parse("2025-05-03"))))
-        .fromFilter("field_1 >= '2025-05-03'")
+        .fromFilter("\"field_1\" >= '2025-05-03'")
         .withFieldType(Types.DateType.get())
         .validate();
 
     // time
     TestCase.expecting(
             greaterThanOrEqual("field_1", microsFromTime(LocalTime.parse("10:30:05.123"))))
-        .fromFilter("field_1 >= '10:30:05.123'")
+        .fromFilter("\"field_1\" >= '10:30:05.123'")
         .withFieldType(Types.TimeType.get())
         .validate();
 
@@ -251,7 +251,7 @@ public class FilterUtilsTest {
     TestCase.expecting(
             greaterThanOrEqual(
                 "field_1", microsFromTimestamp(LocalDateTime.parse("2025-05-03T10:30:05.123"))))
-        .fromFilter("field_1 >= '2025-05-03T10:30:05.123'")
+        .fromFilter("\"field_1\" >= '2025-05-03T10:30:05.123'")
         .withFieldType(Types.TimestampType.withoutZone())
         .validate();
   }
@@ -260,38 +260,38 @@ public class FilterUtilsTest {
   public void testEquals() {
     // integer
     TestCase.expecting(equal("field_1", 30))
-        .fromFilter("field_1 = 30")
+        .fromFilter("\"field_1\" = 30")
         .withFieldType(Types.IntegerType.get())
         .validate();
 
     // float
     TestCase.expecting(equal("field_1", 30.58f))
-        .fromFilter("field_1 = 30.58")
+        .fromFilter("\"field_1\" = 30.58")
         .withFieldType(Types.FloatType.get())
         .validate();
 
     // string
     TestCase.expecting(equal("field_1", "xyz"))
-        .fromFilter("field_1 = 'xyz'")
+        .fromFilter("\"field_1\" = 'xyz'")
         .withFieldType(Types.StringType.get())
         .validate();
 
     // date
     TestCase.expecting(equal("field_1", daysFromDate(LocalDate.parse("2025-05-03"))))
-        .fromFilter("field_1 = '2025-05-03'")
+        .fromFilter("\"field_1\" = '2025-05-03'")
         .withFieldType(Types.DateType.get())
         .validate();
 
     // time
     TestCase.expecting(equal("field_1", microsFromTime(LocalTime.parse("10:30:05.123"))))
-        .fromFilter("field_1 = '10:30:05.123'")
+        .fromFilter("\"field_1\" = '10:30:05.123'")
         .withFieldType(Types.TimeType.get())
         .validate();
 
     // datetime
     TestCase.expecting(
             equal("field_1", microsFromTimestamp(LocalDateTime.parse("2025-05-03T10:30:05.123"))))
-        .fromFilter("field_1 = '2025-05-03T10:30:05.123'")
+        .fromFilter("\"field_1\" = '2025-05-03T10:30:05.123'")
         .withFieldType(Types.TimestampType.withoutZone())
         .validate();
   }
@@ -300,31 +300,31 @@ public class FilterUtilsTest {
   public void testNotEquals() {
     // integer
     TestCase.expecting(notEqual("field_1", 30))
-        .fromFilter("field_1 <> 30")
+        .fromFilter("\"field_1\" <> 30")
         .withFieldType(Types.IntegerType.get())
         .validate();
 
     // float
     TestCase.expecting(notEqual("field_1", 30.58f))
-        .fromFilter("field_1 <> 30.58")
+        .fromFilter("\"field_1\" <> 30.58")
         .withFieldType(Types.FloatType.get())
         .validate();
 
     // string
     TestCase.expecting(notEqual("field_1", "xyz"))
-        .fromFilter("field_1 <> 'xyz'")
+        .fromFilter("\"field_1\" <> 'xyz'")
         .withFieldType(Types.StringType.get())
         .validate();
 
     // date
     TestCase.expecting(notEqual("field_1", daysFromDate(LocalDate.parse("2025-05-03"))))
-        .fromFilter("field_1 <> '2025-05-03'")
+        .fromFilter("\"field_1\" <> '2025-05-03'")
         .withFieldType(Types.DateType.get())
         .validate();
 
     // time
     TestCase.expecting(notEqual("field_1", microsFromTime(LocalTime.parse("10:30:05.123"))))
-        .fromFilter("field_1 <> '10:30:05.123'")
+        .fromFilter("\"field_1\" <> '10:30:05.123'")
         .withFieldType(Types.TimeType.get())
         .validate();
 
@@ -332,7 +332,7 @@ public class FilterUtilsTest {
     TestCase.expecting(
             notEqual(
                 "field_1", microsFromTimestamp(LocalDateTime.parse("2025-05-03T10:30:05.123"))))
-        .fromFilter("field_1 <> '2025-05-03T10:30:05.123'")
+        .fromFilter("\"field_1\" <> '2025-05-03T10:30:05.123'")
         .withFieldType(Types.TimestampType.withoutZone())
         .validate();
   }
@@ -341,13 +341,13 @@ public class FilterUtilsTest {
   public void testIn() {
     // string
     TestCase.expecting(in("field_1", Arrays.asList("xyz", "abc", "123", "foo")))
-        .fromFilter("field_1 IN ('xyz', 'abc', '123', 'foo')")
+        .fromFilter("\"field_1\" IN ('xyz', 'abc', '123', 'foo')")
         .withFieldType(Types.StringType.get())
         .validate();
 
     // integer
     TestCase.expecting(in("field_1", Arrays.asList(1, 2, 3, 4, 5)))
-        .fromFilter("field_1 IN (1, 2, 3, 4, 5)")
+        .fromFilter("\"field_1\" IN (1, 2, 3, 4, 5)")
         .withFieldType(Types.IntegerType.get())
         .validate();
   }
@@ -356,13 +356,13 @@ public class FilterUtilsTest {
   public void testNotIn() {
     // string
     TestCase.expecting(notIn("field_1", Arrays.asList("xyz", "abc", "123", "foo")))
-        .fromFilter("field_1 NOT IN ('xyz', 'abc', '123', 'foo')")
+        .fromFilter("\"field_1\" NOT IN ('xyz', 'abc', '123', 'foo')")
         .withFieldType(Types.StringType.get())
         .validate();
 
     // integer
     TestCase.expecting(notIn("field_1", Arrays.asList(1, 2, 3, 4, 5)))
-        .fromFilter("field_1 NOT IN (1, 2, 3, 4, 5)")
+        .fromFilter("\"field_1\" NOT IN (1, 2, 3, 4, 5)")
         .withFieldType(Types.IntegerType.get())
         .validate();
   }
@@ -384,16 +384,16 @@ public class FilterUtilsTest {
                     IN),
                 NOT_IN))
         .fromFilter(
-            "field_1 IS NULL AND "
-                + "field_2 IS NOT NULL AND "
-                + "field_3 < 'xyz' AND "
-                + "field_4 <= 123 AND "
-                + "field_5 > 123.456 AND "
-                + "field_6 >= '2025-05-03' AND "
-                + "field_7 = '10:30:05.123' AND "
-                + "field_8 <> '2025-05-03T10:30:05.123' AND "
-                + "field_9 IN ('xyz', 'abc', '123', 'foo') AND "
-                + "field_10 NOT IN (1, 2, 3, 4, 5)")
+            "\"field_1\" IS NULL AND "
+                + "\"field_2\" IS NOT NULL AND "
+                + "\"field_3\" < 'xyz' AND "
+                + "\"field_4\" <= 123 AND "
+                + "\"field_5\" > 123.456 AND "
+                + "\"field_6\" >= '2025-05-03' AND "
+                + "\"field_7\" = '10:30:05.123' AND "
+                + "\"field_8\" <> '2025-05-03T10:30:05.123' AND "
+                + "\"field_9\" IN ('xyz', 'abc', '123', 'foo') AND "
+                + "\"field_10\" NOT IN (1, 2, 3, 4, 5)")
         .withSchema(SCHEMA)
         .validate();
   }
@@ -415,16 +415,16 @@ public class FilterUtilsTest {
                     IN),
                 NOT_IN))
         .fromFilter(
-            "field_1 IS NULL OR "
-                + "field_2 IS NOT NULL OR "
-                + "field_3 < 'xyz' OR "
-                + "field_4 <= 123 OR "
-                + "field_5 > 123.456 OR "
-                + "field_6 >= '2025-05-03' OR "
-                + "field_7 = '10:30:05.123' OR "
-                + "field_8 <> '2025-05-03T10:30:05.123' OR "
-                + "field_9 IN ('xyz', 'abc', '123', 'foo') OR "
-                + "field_10 NOT IN (1, 2, 3, 4, 5)")
+            "\"field_1\" IS NULL OR "
+                + "\"field_2\" IS NOT NULL OR "
+                + "\"field_3\" < 'xyz' OR "
+                + "\"field_4\" <= 123 OR "
+                + "\"field_5\" > 123.456 OR "
+                + "\"field_6\" >= '2025-05-03' OR "
+                + "\"field_7\" = '10:30:05.123' OR "
+                + "\"field_8\" <> '2025-05-03T10:30:05.123' OR "
+                + "\"field_9\" IN ('xyz', 'abc', '123', 'foo') OR "
+                + "\"field_10\" NOT IN (1, 2, 3, 4, 5)")
         .withSchema(SCHEMA)
         .validate();
   }
@@ -440,16 +440,16 @@ public class FilterUtilsTest {
                     and(EQUAL, NOT_EQUAL)),
                 and(IN, NOT_IN)))
         .fromFilter(
-            "field_1 IS NULL AND "
-                + "field_2 IS NOT NULL OR "
-                + "field_3 < 'xyz' AND "
-                + "field_4 <= 123 OR "
-                + "field_5 > 123.456 AND "
-                + "field_6 >= '2025-05-03' OR "
-                + "field_7 = '10:30:05.123' AND "
-                + "field_8 <> '2025-05-03T10:30:05.123' OR "
-                + "field_9 IN ('xyz', 'abc', '123', 'foo') AND "
-                + "field_10 NOT IN (1, 2, 3, 4, 5)")
+            "\"field_1\" IS NULL AND "
+                + "\"field_2\" IS NOT NULL OR "
+                + "\"field_3\" < 'xyz' AND "
+                + "\"field_4\" <= 123 OR "
+                + "\"field_5\" > 123.456 AND "
+                + "\"field_6\" >= '2025-05-03' OR "
+                + "\"field_7\" = '10:30:05.123' AND "
+                + "\"field_8\" <> '2025-05-03T10:30:05.123' OR "
+                + "\"field_9\" IN ('xyz', 'abc', '123', 'foo') AND "
+                + "\"field_10\" NOT IN (1, 2, 3, 4, 5)")
         .withSchema(SCHEMA)
         .validate();
   }
@@ -489,7 +489,8 @@ public class FilterUtilsTest {
     files.forEach(append::appendFile);
     append.commit();
 
-    TableScan scan = table.newScan().project(schema).filter(FilterUtils.convert("id < 58", schema));
+    TableScan scan =
+        table.newScan().project(schema).filter(FilterUtils.convert("\"id\" < 58", schema));
 
     Set<String> expectedFiles =
         ImmutableSet.of(

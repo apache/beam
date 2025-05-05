@@ -50,6 +50,7 @@ manual updates or user intervention required!)
         catalog_name (<code style="color: green">str</code>)<br>
         catalog_properties (<code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>)<br>
         config_properties (<code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>)<br>
+        filter (<code style="color: green">str</code>)<br>
         from_snapshot (<code style="color: #f54251">int64</code>)<br>
         from_timestamp (<code style="color: #f54251">int64</code>)<br>
         poll_interval_seconds (<code style="color: #f54251">int32</code>)<br>
@@ -69,6 +70,7 @@ manual updates or user intervention required!)
         catalog_name (<code style="color: green">str</code>)<br>
         catalog_properties (<code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>)<br>
         config_properties (<code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>)<br>
+        filter (<code style="color: green">str</code>)<br>
       </td>
       <td>
         <strong>table</strong> (<code style="color: green">str</code>)<br>
@@ -178,6 +180,17 @@ manual updates or user intervention required!)
       </td>
       <td>
         Properties passed to the Hadoop Configuration.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        filter
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        SQL-like predicate to filter data at scan time. Example: "id > 5 AND status = 'ACTIVE'". Uses Apache Calcite syntax: https://calcite.apache.org/docs/reference.html
       </td>
     </tr>
     <tr>
@@ -411,6 +424,17 @@ manual updates or user intervention required!)
       </td>
       <td>
         Properties passed to the Hadoop Configuration.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        filter
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        SQL-like predicate to filter data at scan time. Example: "id > 5 AND status = 'ACTIVE'". Uses Apache Calcite syntax: https://calcite.apache.org/docs/reference.html
       </td>
     </tr>
   </table>

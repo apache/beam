@@ -185,7 +185,7 @@ class FilterUtils {
     SqlNode ref = call.operand(0);
     Preconditions.checkState(
         ref instanceof SqlIdentifier, "Expected operand '%s' to be a reference.", ref);
-    return ((SqlIdentifier) ref).getSimple().toLowerCase();
+    return ((SqlIdentifier) ref).getSimple();
   }
 
   private static SqlNode getLeftChild(SqlBasicCall call) {
@@ -228,16 +228,17 @@ class FilterUtils {
     checkArgument(
         value instanceof SqlNodeList,
         "Expected right hand side to be a list but got " + value.getClass());
-    String field = ((SqlIdentifier) term).getSimple().toLowerCase();
+    String name = ((SqlIdentifier) term).getSimple();
+    TypeID type = schema.findType(name).typeId();
     List<SqlNode> list =
         ((SqlNodeList) value)
             .getList().stream().filter(Objects::nonNull).collect(Collectors.toList());
     checkArgument(list.stream().allMatch(o -> o instanceof SqlLiteral));
     List<Object> values =
         list.stream()
-            .map(o -> convertLiteral((SqlLiteral) o, field, schema.findType(field).typeId()))
+            .map(o -> convertLiteral((SqlLiteral) o, name, type))
             .collect(Collectors.toList());
-    return op == Operation.IN ? Expressions.in(field, values) : Expressions.notIn(field, values);
+    return op == Operation.IN ? Expressions.in(name, values) : Expressions.notIn(name, values);
   }
 
   private static Expression convertFieldAndLiteral(
@@ -253,15 +254,15 @@ class FilterUtils {
     SqlNode left = getLeftChild(call);
     SqlNode right = getRightChild(call);
     if (left instanceof SqlIdentifier && right instanceof SqlLiteral) {
-      String field = ((SqlIdentifier) left).getSimple().toLowerCase();
-      TypeID type = schema.findType(field).typeId();
-      Object value = convertLiteral((SqlLiteral) right, field, type);
-      return convertLR.apply(field, value);
+      String name = ((SqlIdentifier) left).getSimple();
+      TypeID type = schema.findType(name).typeId();
+      Object value = convertLiteral((SqlLiteral) right, name, type);
+      return convertLR.apply(name, value);
     } else if (left instanceof SqlLiteral && right instanceof SqlIdentifier) {
-      String field = ((SqlIdentifier) right).getSimple().toLowerCase();
-      TypeID type = schema.findType(field).typeId();
-      Object value = convertLiteral((SqlLiteral) left, field, type);
-      return convertRL.apply(field, value);
+      String name = ((SqlIdentifier) right).getSimple();
+      TypeID type = schema.findType(name).typeId();
+      Object value = convertLiteral((SqlLiteral) left, name, type);
+      return convertRL.apply(name, value);
     } else {
       throw new IllegalArgumentException("Unsupported operands for expression: " + call);
     }

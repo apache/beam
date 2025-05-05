@@ -122,7 +122,9 @@ public class IcebergReadSchemaTransformProvider
     @Nullable
     abstract Map<String, String> getConfigProperties();
 
-    @SchemaFieldDescription("SQL-like predicate to filter data at scan time. Example: \"id > 5 AND status = 'ACTIVE'\".")
+    @SchemaFieldDescription(
+        "SQL-like predicate to filter data at scan time. Example: \"id > 5 AND status = 'ACTIVE'\". "
+            + "Uses Apache Calcite syntax: https://calcite.apache.org/docs/reference.html")
     @Nullable
     abstract String getFilter();
 
