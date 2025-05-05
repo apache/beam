@@ -17,10 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client;
 
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
@@ -30,7 +26,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.Te
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.slf4j.Logger;
 
 /**
@@ -47,7 +42,6 @@ import org.slf4j.Logger;
 final class ResettableThrowingStreamObserver<T> {
   private final Supplier<TerminatingStreamObserver<T>> streamObserverFactory;
   private final Logger logger;
-  private final AsyncStreamCloser streamCloser;
 
   @GuardedBy("this")
   private @Nullable TerminatingStreamObserver<T> delegateStreamObserver;
@@ -68,7 +62,6 @@ final class ResettableThrowingStreamObserver<T> {
     this.streamObserverFactory = streamObserverFactory;
     this.logger = logger;
     this.delegateStreamObserver = null;
-    this.streamCloser = new AsyncStreamCloser();
   }
 
   private synchronized StreamObserver<T> delegate()
@@ -83,11 +76,6 @@ final class ResettableThrowingStreamObserver<T> {
     }
 
     return Preconditions.checkNotNull(delegateStreamObserver, "requestObserver cannot be null.");
-  }
-
-  /** Starts a background thread that will {@link #release()}ed StreamObservers. */
-  synchronized void startAsyncStreamCloser() {
-    streamCloser.start();
   }
 
   /** Creates a new delegate to use for future {@link StreamObserver} methods. */
@@ -158,15 +146,6 @@ final class ResettableThrowingStreamObserver<T> {
     isCurrentStreamClosed = true;
   }
 
-  /**
-   * Releases current stream to the {@link AsyncStreamCloser}, which will close the stream w/o
-   * blocking the calling thread. Marks the stream as closed until {@link #reset()} reopens it.
-   */
-  public synchronized void release() throws StreamClosedException, WindmillStreamShutdownException {
-    streamCloser.scheduleClosure(delegate());
-    isCurrentStreamClosed = true;
-  }
-
   synchronized boolean isClosed() {
     return isCurrentStreamClosed;
   }
@@ -178,78 +157,6 @@ final class ResettableThrowingStreamObserver<T> {
   static final class StreamClosedException extends Exception {
     StreamClosedException(String s) {
       super(s);
-    }
-  }
-
-  static final class InternalStreamTimeout extends Throwable {
-    private static final InternalStreamTimeout INSTANCE = new InternalStreamTimeout();
-
-    private InternalStreamTimeout() {}
-
-    static boolean isInternalTimeout(Throwable t) {
-      while (t != null) {
-        if (t == INSTANCE) {
-          return true;
-        }
-        t = t.getCause();
-      }
-      return false;
-    }
-  }
-
-  private final class AsyncStreamCloser {
-    private final BlockingQueue<StreamObserver<T>> streamsToClose;
-    private final ExecutorService streamCloserExecutor;
-
-    @GuardedBy("this")
-    private boolean started;
-
-    private AsyncStreamCloser() {
-      streamsToClose = new LinkedBlockingQueue<>();
-      streamCloserExecutor =
-          Executors.newSingleThreadExecutor(
-              new ThreadFactoryBuilder().setNameFormat("StreamCloserThread-%d").build());
-    }
-
-    private synchronized void start() {
-      if (!started) {
-        streamCloserExecutor.execute(
-            () -> {
-              while (!isPoisoned()) {
-                try {
-                  timeoutStream(streamsToClose.take());
-                } catch (InterruptedException e) {
-                  // Drain streamsToClose to prevent any dangling StreamObservers.
-                  streamsToClose.forEach(this::timeoutStream);
-                  break;
-                }
-              }
-            });
-        started = true;
-      }
-    }
-
-    private void timeoutStream(StreamObserver<T> streamObserver) {
-      try {
-        streamObserver.onError(InternalStreamTimeout.INSTANCE);
-      } catch (IllegalStateException onErrorException) {
-        // The delegate above was already terminated via onError or onComplete.
-        // Fallthrough since this is possibly due to queued onNext() calls that are being made from
-        // previously blocked threads.
-      } catch (RuntimeException onErrorException) {
-        logger.warn(
-            "Encountered unexpected error when timing out StreamObserver.", onErrorException);
-      }
-    }
-
-    private boolean isPoisoned() {
-      synchronized (ResettableThrowingStreamObserver.this) {
-        return isPoisoned;
-      }
-    }
-
-    private void scheduleClosure(StreamObserver<T> stream) {
-      streamsToClose.add(stream);
     }
   }
 }

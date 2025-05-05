@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client;
 
 import static org.apache.beam.runners.dataflow.worker.windmill.client.ResettableThrowingStreamObserver.*;
-import static org.apache.beam.runners.dataflow.worker.windmill.client.ResettableThrowingStreamObserver.InternalStreamTimeout.isInternalTimeout;
 
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.io.IOException;
@@ -33,6 +32,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverCancelledException;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
@@ -89,15 +89,21 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   private final Set<AbstractWindmillStream<?, ?>> streamRegistry;
   private final int logEveryNStreamFailures;
   private final String backendWorkerToken;
-  private final ResettableThrowingStreamObserver<RequestT> requestObserver;
   private final StreamDebugMetrics debugMetrics;
   private final AtomicBoolean isHealthCheckScheduled;
+  private final AsyncStreamCloser asyncStreamCloser;
+
+  private final Object restartLock = new Object();
+  private final Supplier<ResettableThrowingStreamObserver<RequestT>> streamFactory;
 
   @GuardedBy("this")
   protected boolean clientClosed;
 
   @GuardedBy("this")
   protected boolean isShutdown;
+
+  @GuardedBy("restartLock")
+  private ResettableThrowingStreamObserver<RequestT> requestObserver;
 
   @GuardedBy("this")
   private boolean started;
@@ -150,13 +156,16 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     this.sleeper = Sleeper.DEFAULT;
     this.debugMetrics = StreamDebugMetrics.create();
     this.streamTTL = streamTTL;
-    this.requestObserver =
-        new ResettableThrowingStreamObserver<>(
-            () ->
-                streamObserverFactory.from(
-                    clientFactory,
-                    new AbstractWindmillStream<RequestT, ResponseT>.ResponseObserver()),
-            logger);
+    this.streamFactory =
+        () ->
+            new ResettableThrowingStreamObserver<>(
+                () ->
+                    streamObserverFactory.from(
+                        clientFactory,
+                        new AbstractWindmillStream<RequestT, ResponseT>.ResponseObserver()),
+                logger);
+    this.requestObserver = streamFactory.get();
+    this.asyncStreamCloser = new AsyncStreamCloser(logger);
   }
 
   private static String createThreadName(
@@ -188,13 +197,19 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
       throws WindmillStreamShutdownException {
     debugMetrics.recordSend();
     try {
-      requestObserver.onNext(request);
+      requestObserver().onNext(request);
       return true;
     } catch (StreamClosedException e) {
       // Stream was broken, requests may be retried when stream is reopened.
     }
 
     return false;
+  }
+
+  private ResettableThrowingStreamObserver<RequestT> requestObserver() {
+    synchronized (restartLock) {
+      return requestObserver;
+    }
   }
 
   @Override
@@ -210,9 +225,6 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
 
     if (shouldStartStream) {
       startStream();
-      if (streamTTL.isValidTtl()) {
-        requestObserver.startAsyncStreamCloser();
-      }
     }
   }
 
@@ -224,7 +236,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
       try {
         synchronized (this) {
           debugMetrics.recordStart();
-          requestObserver.reset();
+          requestObserver().reset();
           onNewStream();
           if (clientClosed) {
             halfClose();
@@ -233,9 +245,13 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
             // pending restarts that have not run since they are used for preventing
             // DEADLINE_EXCEEDED.  Everytime the stream restarts, this deadline restarts so we want
             // the stream restart to run whenever we restart the stream + streamTTL.
-            scheduleRestart();
+            if (streamTTL.isValidTtl()) {
+              // Only runs once on initial call. Subsequent calls will either do nothing or throw a
+              // WindmillStreamShutdownException if called after asyncStreamCloser.shutdown().
+              asyncStreamCloser.start();
+              scheduleRestart();
+            }
           }
-          return;
         }
       } catch (WindmillStreamShutdownException e) {
         // shutdown() is responsible for cleaning up pending requests.
@@ -346,7 +362,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
         summaryMetrics.streamAge(),
         summaryMetrics.timeSinceLastSend(),
         summaryMetrics.timeSinceLastResponse(),
-        requestObserver.isClosed(),
+        requestObserver().isClosed(),
         summaryMetrics.shutdownTime().map(DateTime::toString).orElse(NOT_SHUTDOWN));
   }
 
@@ -362,7 +378,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     debugMetrics.recordHalfClose();
     clientClosed = true;
     try {
-      requestObserver.onCompleted();
+      requestObserver().onCompleted();
     } catch (StreamClosedException e) {
       logger.warn("Stream was previously closed.");
     } catch (WindmillStreamShutdownException e) {
@@ -372,47 +388,34 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     }
   }
 
-  /**
-   * Internally restart the stream to avoid {@link Status#DEADLINE_EXCEEDED} errors.
-   *
-   * @implNote Similar behavior to {@link #halfClose()}, except we allow callers to interact with
-   *     the stream after restarts.
-   */
-  private synchronized void restart() throws WindmillStreamShutdownException {
-    debugMetrics.recordRestartReason("Internal Timeout");
-    try {
-      requestObserver.release();
-      // Create a new stream to flush any pending requests and restart the deadline. If the stream
-      // is closed or shutdown, don't restart the stream here since a restart has already been
-      // scheduled.
-      startStream();
-    } catch (StreamClosedException e) {
-      // The stream was previously closed and has already been restarted.
-    }
-  }
-
   private synchronized void scheduleRestart() {
-    if (streamTTL.isValidTtl()) {
-      if (restartFuture != null) {
-        // Try to cancel the future w/o interruption since interruption in startStream() will
-        // trigger a stream shutdown.
-        restartFuture.cancel(false);
-      }
-      // Restart the stream at every streamTimeout interval. Don't use schedule w/
-      // scheduleWithFixedDelay or scheduleAtFixedRate since scheduleRestart() is called on every
-      // stream restart.
-      restartFuture =
-          restartExecutor.schedule(
-              () -> {
-                try {
-                  restart();
-                } catch (WindmillStreamShutdownException ignored) {
-                  // Ignore. This executor will be terminated once the stream is shutdown.
-                }
-              },
-              streamTTL.time(),
-              streamTTL.unit());
+    // Skips scheduling the restart if the streamTTL is invalid (i.e there is no TTL).
+    if (restartFuture != null) {
+      // Try to cancel the future w/o interruption since interruption in startStream() will
+      // trigger a stream shutdown.
+      restartFuture.cancel(false);
     }
+    // Restart the stream at every streamTimeout interval. Don't use schedule w/
+    // scheduleWithFixedDelay or scheduleAtFixedRate since scheduleRestart() is called on every
+    // stream restart.
+    restartFuture =
+        restartExecutor.schedule(
+            () -> {
+              // Internally restart the stream to avoid DEADLINE_EXCEEDED errors.
+              synchronized (restartLock) {
+                debugMetrics.recordRestartReason("Internal Timeout.");
+                // Try to hand off the requestObserver to be closed before creating a new
+                // requestObserver. If the stream closure cannot be scheduled, it means that this
+                // stream instance has been shutdown, do not restart internally.
+                if (asyncStreamCloser.tryScheduleForClosure(requestObserver)) {
+                  requestObserver = streamFactory.get();
+                  // active requestObserver has been reset, restart the stream.
+                  startStream();
+                }
+              }
+            },
+            streamTTL.time(),
+            streamTTL.unit());
   }
 
   @Override
@@ -434,7 +437,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   public final void shutdown() {
     // Don't lock on "this" before poisoning the request observer since otherwise the observer may
     // be blocking in send().
-    requestObserver.poison();
+    requestObserver().poison();
     synchronized (this) {
       if (!isShutdown) {
         isShutdown = true;
@@ -453,7 +456,8 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
       finishLatch.countDown();
       executor.shutdownNow();
       restartExecutor.shutdownNow();
-      requestObserver.poison();
+      requestObserver().poison();
+      asyncStreamCloser.shutdown();
       return true;
     }
 
@@ -480,13 +484,6 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     @Override
     public void onError(Throwable t) {
       if (maybeTearDownStream()) {
-        return;
-      }
-
-      // Ignore the error if it's an internal timeout as restart() already handles internal timeouts
-      // by restarting the underlying stream.
-      if (isInternalTimeout(t)) {
-        recordStreamStatus(OK_STATUS.withCause(t));
         return;
       }
 

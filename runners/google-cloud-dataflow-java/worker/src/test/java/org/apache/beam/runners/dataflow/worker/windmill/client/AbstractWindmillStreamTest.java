@@ -29,7 +29,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
 import org.apache.beam.sdk.util.FluentBackoff;
@@ -139,7 +138,7 @@ public class AbstractWindmillStreamTest {
 
   @Test
   public void testRestart_restartsAfterStreamTtl() {
-    AtomicReference<Throwable> internalStreamTimeout = new AtomicReference<>();
+    AtomicInteger timeouts = new AtomicInteger();
     Function<StreamObserver<Integer>, StreamObserver<Integer>> clientFactory =
         ignored ->
             new CallStreamObserver<Integer>() {
@@ -147,12 +146,12 @@ public class AbstractWindmillStreamTest {
               public void onNext(Integer integer) {}
 
               @Override
-              public void onError(Throwable throwable) {
-                internalStreamTimeout.set(throwable);
-              }
+              public void onError(Throwable throwable) {}
 
               @Override
-              public void onCompleted() {}
+              public void onCompleted() {
+                timeouts.incrementAndGet();
+              }
 
               @Override
               public boolean isReady() {
@@ -180,9 +179,7 @@ public class AbstractWindmillStreamTest {
     Uninterruptibles.sleepUninterruptibly(1000, TimeUnit.MILLISECONDS);
 
     assertThat(testStream.numStarts.get()).isAtLeast(2);
-    assertThat(internalStreamTimeout.get()).isNotNull();
-    assertThat(internalStreamTimeout.get())
-        .isInstanceOf(ResettableThrowingStreamObserver.InternalStreamTimeout.class);
+    assertThat(timeouts.get()).isAtLeast(2);
     testStream.shutdown();
   }
 

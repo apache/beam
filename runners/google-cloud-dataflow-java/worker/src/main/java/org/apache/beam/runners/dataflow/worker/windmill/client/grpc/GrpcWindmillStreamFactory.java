@@ -74,7 +74,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
 
   private static final long DEFAULT_STREAM_RPC_DEADLINE_SECONDS = 300;
 
-  // 15 minutes less than DIRECT_PATH_STREAM_DEADLINE to allow for drains.
+  // 15 minutes less than withDirectPathDeadline() to allow for drains.
   private static final WindmillStreamTTL DIRECT_PATH_STREAM_TIMEOUT =
       WindmillStreamTTL.create(45, TimeUnit.MINUTES);
 
@@ -128,9 +128,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
     this.streamIdGenerator = new AtomicLong();
   }
 
-  /**
-   * @implNote Used for {@link AutoBuilder} {@link Builder} class, do not call directly.
-   */
+  /** @implNote Used for {@link AutoBuilder} {@link Builder} class, do not call directly. */
   static GrpcWindmillStreamFactory create(
       JobHeader jobHeader,
       int logEveryNStreamFailures,
