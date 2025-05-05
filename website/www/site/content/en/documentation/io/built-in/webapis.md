@@ -163,7 +163,7 @@ class MyCaller<MyRequest, MyResponse> implements Caller<MyRequest, MyResponse> {
 {{< highlight py >}}
 // MyCaller invokes a Web API with MyRequest and returns the resulting MyResponse.
 class MyCaller(Caller):
-    
+
     def __call__(self, request: Request):
 
         // Do something with request and return the response.
@@ -199,7 +199,7 @@ Below shows an abbreviated snippet how the transform may work in your pipeline.
 
 {{< paragraph class="language-py" >}}
 Using [RequestResponseIO](https://beam.apache.org/releases/pydoc/current/apache_beam.io.requestresponse.html#apache_beam.io.requestresponse.RequestResponseIO)
-is as simple as shown below. As mentioned, it minimally requires the `Caller`. 
+is as simple as shown below. As mentioned, it minimally requires the `Caller`.
 
 Below shows an abbreviated snippet how the transform may work in your pipeline.
 {{< /paragraph >}}
@@ -237,7 +237,7 @@ advantage of this design for testing.
 {{< paragraph class="language-java" >}}
 As mentioned above, `RequestResponseIO` returns a
 [Result](https://beam.apache.org/releases/javadoc/current/org/apache/beam/io/requestresponse/Result.html)
-that bundles both the success and failure `PCollection`s resulting from your `Caller`. 
+that bundles both the success and failure `PCollection`s resulting from your `Caller`.
 {{< /paragraph >}}
 This section provides a little more detail about handling failures and specifics on API call repeats with backoff.
 
@@ -264,7 +264,7 @@ below **without** converting the records first to a
 
 
 {{< paragraph class="language-py" >}}
-I/O errors are retried by the PTransform if the Caller is raising certain errors.  
+I/O errors are retried by the PTransform if the Caller is raising certain errors.
 {{< /paragraph >}}
 
 #### API call repeats and backoff
@@ -288,7 +288,7 @@ After a threshold number of retries, the error is emitted into the failure `PCol
 {{< paragraph class="language-py" >}}
 Prior to raising an exception, the transform performs a retry **for certain errors**
 using a prescribed exponential backoff. Your `Caller` must raise specific errors, to signal the transform
-to perform the retry with backoff. 
+to perform the retry with backoff.
 
 `RequestResponseIO` will attempt a retry with backoff when `Caller` raises:
 * UserCodeQuotaException
@@ -419,7 +419,7 @@ class HttpImageClient implements Caller<KV<String, ImageRequest>, KV<String, Ima
 {{< highlight py >}}
 class HttpImageClient(Caller):
 
-    def __call__(self, request: ImageRequest): 
+    def __call__(self, request: ImageRequest):
         response = requests.get(ImageRequest.url);
         return ImageResponse(request.mime_type, response.content)
     }
@@ -605,7 +605,7 @@ interface has only two methods, setup and teardown.
 
 
 {{< paragraph class="language-py" >}}
-`RequestResponseIO` can handle such setup and teardown scenarios by overwriting context manager dunder methods 
+`RequestResponseIO` can handle such setup and teardown scenarios by overwriting context manager dunder methods
 __enter__ and __exit__ on the Caller.
 {{< /paragraph >}}
 
@@ -760,7 +760,7 @@ providing an implementation of both the `Caller` and `SetupTeardown` interfaces.
 
 {{< paragraph class="language-py" >}}
 Finally, we apply the `PCollection` of `ImageResponse`s to `RequestResponseIO`, instantiated using the
-`genai.Client`, defined above. 
+`genai.Client`, defined above.
 {{< /paragraph >}}
 
 The full end-to-end pipeline is shown below.
