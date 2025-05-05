@@ -276,10 +276,7 @@ class GcsIO(object):
         # Delete them in batches.
         results = self.delete_batch(paths_to_delete)
         # Log any errors encountered during batch deletion.
-        errors = [
-            f'{path}: {err}' for path,
-            err in results if err is not None
-        ]
+        errors = [f'{path}: {err}' for path, err in results if err is not None]
         if errors:
           _LOGGER.warning(
               'Failed to delete some objects during recursive delete of %s: %s',
