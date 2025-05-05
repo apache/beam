@@ -64,6 +64,7 @@ from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.typehints import typehints
 from apache_beam.utils import proto_utils
+from apache_beam.utils import windowed_value
 
 if TYPE_CHECKING:
   from apache_beam.coders.typecoders import CoderRegistry
@@ -113,7 +114,8 @@ __all__ = [
     'WindowedValueCoder',
     'ParamWindowedValueCoder',
     'BigIntegerCoder',
-    'DecimalCoder'
+    'DecimalCoder',
+    'PaneInfoCoder'
 ]
 
 T = TypeVar('T')
@@ -1745,6 +1747,24 @@ class BigIntegerCoder(FastCoder):
 
   def to_type_hint(self):
     return int
+
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return hash(type(self))
+
+
+class PaneInfoCoder(FastCoder):
+  def _create_impl(self):
+    return coder_impl.PaneInfoCoderImpl()
+
+  def is_deterministic(self):
+    # type: () -> bool
+    return True
+
+  def to_type_hint(self):
+    return windowed_value.PaneInfo
 
   def __eq__(self, other):
     return type(self) == type(other)
