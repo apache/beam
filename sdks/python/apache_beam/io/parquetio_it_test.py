@@ -16,7 +16,6 @@
 #
 # pytype: skip-file
 
-import json
 import logging
 import string
 import unittest
@@ -168,18 +167,17 @@ class WriteStreamingIT(unittest.TestCase):
     _ = (
         p
         | "generate impulse" >> PeriodicImpulse(
-              start_timestamp=datetime(2021, 3, 1, 0, 0, 1, 0,
-                                       tzinfo=pytz.UTC).timestamp(),
-              stop_timestamp=datetime(2021, 3, 1, 0, 0, 20, 0,
-                                      tzinfo=pytz.UTC).timestamp(),
-              fire_interval=1)
+            start_timestamp=datetime(2021, 3, 1, 0, 0, 1, 0,
+                                     tzinfo=pytz.UTC).timestamp(),
+            stop_timestamp=datetime(2021, 3, 1, 0, 0, 20, 0,
+                                    tzinfo=pytz.UTC).timestamp(),
+            fire_interval=1)
         | "generate data" >> beam.Map(lambda t: {'age': t * 10})
         | 'WriteToParquet' >> beam.io.WriteToParquet(
             file_path_prefix=output_file,
             file_name_suffix=".parquet",
             num_shards=num_shards,
-            schema=pyschema)
-    )
+            schema=pyschema))
     result = p.run()
     result.wait_until_finish(duration=600 * 1000)
 
