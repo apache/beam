@@ -94,12 +94,13 @@ public class BigQuerySinkMetrics {
         LabeledMetricNameUtils.MetricNameBuilder.baseNameBuilder(RPC_REQUESTS);
     nameBuilder.addLabel(RPC_METHOD, method.toString());
     nameBuilder.addLabel(RPC_STATUS_LABEL, rpcStatus);
+    nameBuilder.addMetricLabel(MonitoringInfoConstants.Labels.PER_WORKER_METRIC, "true");
     if (BigQuerySinkMetrics.supportMetricsDeletion) {
       nameBuilder.addLabel(TABLE_ID_LABEL, tableId);
     }
 
     MetricName metricName = nameBuilder.build(METRICS_NAMESPACE);
-    return new DelegatingCounter(metricName, false, true);
+    return new DelegatingCounter(metricName, false);
   }
 
   /**
@@ -155,6 +156,7 @@ public class BigQuerySinkMetrics {
     LabeledMetricNameUtils.MetricNameBuilder nameBuilder =
         LabeledMetricNameUtils.MetricNameBuilder.baseNameBuilder(APPEND_ROWS_ROW_STATUS);
     nameBuilder.addLabel(ROW_STATUS, rowStatus.toString());
+    nameBuilder.addMetricLabel(MonitoringInfoConstants.Labels.PER_WORKER_METRIC, "true");
     nameBuilder.addLabel(RPC_STATUS_LABEL, rpcStatus);
     if (BigQuerySinkMetrics.supportMetricsDeletion) {
       nameBuilder.addLabel(TABLE_ID_LABEL, tableId);
@@ -162,7 +164,7 @@ public class BigQuerySinkMetrics {
 
     MetricName metricName = nameBuilder.build(METRICS_NAMESPACE);
 
-    return new DelegatingCounter(metricName, false, true);
+    return new DelegatingCounter(metricName, false);
   }
 
   /**
@@ -174,9 +176,10 @@ public class BigQuerySinkMetrics {
     LabeledMetricNameUtils.MetricNameBuilder nameBuilder =
         LabeledMetricNameUtils.MetricNameBuilder.baseNameBuilder(THROTTLED_TIME);
     nameBuilder.addLabel(RPC_METHOD, method.toString());
+    nameBuilder.addMetricLabel(MonitoringInfoConstants.Labels.PER_WORKER_METRIC, "true");
     MetricName metricName = nameBuilder.build(METRICS_NAMESPACE);
     // for specific method
-    Counter fineCounter = new DelegatingCounter(metricName, false, true);
+    Counter fineCounter = new DelegatingCounter(metricName, false);
     // for overall throttling time, used by runner for scaling decision
     Counter coarseCounter = BigQueryServicesImpl.StorageClientImpl.THROTTLING_MSECS;
     return new NestedCounter(

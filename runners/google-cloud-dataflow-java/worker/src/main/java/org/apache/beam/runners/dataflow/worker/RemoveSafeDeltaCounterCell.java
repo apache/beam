@@ -35,7 +35,7 @@ public class RemoveSafeDeltaCounterCell implements Counter, MetricCell<Long> {
   private final MetricName metricName;
   /**
    * This class does not own {@code countersMap} and only operates on a single key in the map
-   * specified by {@code metricName}. These opeations include the {@link Counter} interface along
+   * specified by {@code metricName}. These operations include the {@link Counter} interface along
    * with the {@code deleteIfZero} method.
    */
   private final ConcurrentHashMap<MetricName, AtomicLong> countersMap;
