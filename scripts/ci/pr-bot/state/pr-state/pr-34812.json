@@ -1,11 +1,11 @@
 {
   "commentedAboutFailingChecks": false,
   "reviewersAssignedForLabels": {
-    "java": "robertwb",
+    "java": "m-trieu",
     "spanner": "nielm"
   },
   "nextAction": "Reviewers",
-  "stopReviewerNotifications": true,
+  "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
   "committerAssigned": false
 }
