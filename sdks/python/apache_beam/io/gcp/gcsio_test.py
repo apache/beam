@@ -94,8 +94,6 @@ class FakeGcsClient(object):
       # Assign responses to the mock instance itself
       # so they are available after the 'with' block.
       mock_batch._responses = successful_responses
-      # Return None to indicate exception wasn't handled (standard behavior)
-      return None
 
     # Configure the mock to behave like a context manager
     mock_batch.configure_mock(
