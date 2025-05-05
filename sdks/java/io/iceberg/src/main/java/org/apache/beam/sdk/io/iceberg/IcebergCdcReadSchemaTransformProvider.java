@@ -178,7 +178,7 @@ public class IcebergCdcReadSchemaTransformProvider
         "The interval at which to poll for new snapshots. Defaults to 60 seconds.")
     abstract @Nullable Integer getPollIntervalSeconds();
 
-    @SchemaFieldDescription("SQL-like filter to apply when scanning for files.")
+    @SchemaFieldDescription("SQL-like predicate to filter data at scan time. Example: \"id > 5 AND status = 'ACTIVE'\".")
     @Nullable
     abstract String getFilter();
 
