@@ -13837,6 +13837,101 @@ bags larger than available memory.&lt;/p>
 &lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;h4 id="setstate">SetState&lt;/h4>
+&lt;p>A common use case for state is to accumulate unique elements. &lt;code>SetState&lt;/code> allows for accumulating an unordered set
+of elements.&lt;/p>
+&lt;p>
+&lt;div class='language-java snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="line">&lt;span class="cl">&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">KV&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">ValueT&lt;/span>&lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">perUser&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">readPerUser&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">perUser&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">ParDo&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="n">DoFn&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">KV&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">ValueT&lt;/span>&lt;span class="o">&amp;gt;,&lt;/span> &lt;span class="n">OutputT&lt;/span>&lt;span class="o">&amp;gt;()&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nd">@StateId&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;state&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="kd">private&lt;/span> &lt;span class="kd">final&lt;/span> &lt;span class="n">StateSpec&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">SetState&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">ValueT&lt;/span>&lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">uniqueElements&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">StateSpecs&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">bag&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nd">@ProcessElement&lt;/span> &lt;span class="kd">public&lt;/span> &lt;span class="kt">void&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nd">@Element&lt;/span> &lt;span class="n">KV&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">ValueT&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">element&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nd">@StateId&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;state&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="n">SetState&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">ValueT&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">state&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// Add the current element to the set state for this key.
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="n">state&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">add&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">element&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getValue&lt;/span>&lt;span class="o">());&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="o">(&lt;/span>&lt;span class="n">shouldFetch&lt;/span>&lt;span class="o">())&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// Occasionally we fetch and process the values.
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="n">Iterable&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">ValueT&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">values&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">state&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">read&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">processValues&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">values&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">state&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">clear&lt;/span>&lt;span class="o">();&lt;/span> &lt;span class="c1">// Clear the state for this key.
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="o">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="o">}));&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class='language-py snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="line">&lt;span class="cl">&lt;span class="k">class&lt;/span> &lt;span class="nc">SetStateDoFn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">UNIQUE_ELEMENTS&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">SetStateSpec&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;buffer&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">coders&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">VarIntCoder&lt;/span>&lt;span class="p">())&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">element_pair&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">state&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">StateParam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">UNIQUE_ELEMENTS&lt;/span>&lt;span class="p">)):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">state&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">add&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">element_pair&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">])&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="n">should_fetch&lt;/span>&lt;span class="p">():&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">unique_elements&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nb">list&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">state&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">read&lt;/span>&lt;span class="p">())&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">process_values&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">unique_elements&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">state&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">clear&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">_&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">p&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Read per user&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">ReadPerUser&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Set state pardo&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">SetStateDoFn&lt;/span>&lt;span class="p">()))&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/p>
+&lt;h4 id="orderliststate">OrderListState&lt;/h4>
+&lt;p>&lt;code>OrderListState&lt;/code> state that accumulate elements in an ordered List.&lt;/p>
+&lt;p>
+&lt;div class='language-java snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="line">&lt;span class="cl">&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">KV&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">ValueT&lt;/span>&lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">perUser&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">readPerUser&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">perUser&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">ParDo&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="n">DoFn&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">KV&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">ValueT&lt;/span>&lt;span class="o">&amp;gt;,&lt;/span> &lt;span class="n">OutputT&lt;/span>&lt;span class="o">&amp;gt;()&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nd">@StateId&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;state&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="kd">private&lt;/span> &lt;span class="kd">final&lt;/span> &lt;span class="n">StateSpec&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">OrderedListState&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">ValueT&lt;/span>&lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">uniqueElements&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">StateSpecs&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">bag&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nd">@ProcessElement&lt;/span> &lt;span class="kd">public&lt;/span> &lt;span class="kt">void&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="o">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nd">@Element&lt;/span> &lt;span class="n">KV&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">ValueT&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">element&lt;/span>&lt;span class="o">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nd">@StateId&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;state&amp;#34;&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="n">SetState&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">ValueT&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">state&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// Add the current element to the set state for this key.
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="n">state&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">add&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">element&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">getValue&lt;/span>&lt;span class="o">());&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="o">(&lt;/span>&lt;span class="n">shouldFetch&lt;/span>&lt;span class="o">())&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// Occasionally we fetch and process the values.
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="n">Iterable&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">ValueT&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">values&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">state&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">read&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">processValues&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">values&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">state&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">clear&lt;/span>&lt;span class="o">();&lt;/span> &lt;span class="c1">// Clear the state for this key.
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="o">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="o">}));&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;div class='language-py snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="line">&lt;span class="cl">&lt;span class="k">class&lt;/span> &lt;span class="nc">OrderedListStateDoFn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">STATE_ELEMENTS&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">OrderedListStateSpec&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;buffer&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">coders&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ListCoder&lt;/span>&lt;span class="p">())&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">element_pair&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">state&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">StateParam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">STATE_ELEMENTS&lt;/span>&lt;span class="p">)):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">state&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">add&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">element_pair&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">])&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="n">should_fetch&lt;/span>&lt;span class="p">():&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">elements&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nb">list&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">state&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">read&lt;/span>&lt;span class="p">())&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">process_values&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">elements&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">state&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">clear&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">_&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">p&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Read per user&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">ReadPerUser&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Set state pardo&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">OrderedListStateDoFn&lt;/span>&lt;span class="p">()))&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/p>
 &lt;h3 id="deferred-state-reads">11.2. Deferred state reads&lt;/h3>
 &lt;p>When a &lt;code>DoFn&lt;/code> contains multiple state specifications, reading each one in order can be slow. Calling the &lt;code>read()&lt;/code> function
 on a state can cause the runner to perform a blocking read. Performing multiple blocking reads in sequence adds latency

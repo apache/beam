@@ -5983,6 +5983,76 @@ java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCou
 &lt;/div>
 &lt;/div>
 &lt;/p>
+&lt;p>For Windows PowerShell:&lt;/p>
+&lt;p>
+&lt;div class='runner-direct snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre tabindex="0">&lt;code class="language-direct" data-lang="direct">.\gradlew clean execute -D mainClass=org.apache.beam.examples.WordCount \
+--args=&amp;#34;--inputFile=sample.txt --output=counts&amp;#34;&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class='runner-flink snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre tabindex="0">&lt;code class="language-flink" data-lang="flink">TODO: document Flink on Gradle: https://github.com/apache/beam/issues/21498&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class='runner-flinkCluster snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre tabindex="0">&lt;code class="language-flinkCluster" data-lang="flinkCluster">TODO: document FlinkCluster on Gradle: https://github.com/apache/beam/issues/21499&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class='runner-spark snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre tabindex="0">&lt;code class="language-spark" data-lang="spark">TODO: document Spark on Gradle: https://github.com/apache/beam/issues/21502&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class='runner-dataflow snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre tabindex="0">&lt;code class="language-dataflow" data-lang="dataflow">.\gradlew clean execute -DmainClass=org.apache.beam.examples.WordCount \
+--args=&amp;#34;--project=&amp;lt;your-gcp-project&amp;gt; --inputFile=gs://apache-beam-samples/shakespeare/* \
+--output=gs://&amp;lt;your-gcs-bucket&amp;gt;/counts --runner=DataflowRunner&amp;#34; -Pdataflow-runner&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class='runner-samza snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre tabindex="0">&lt;code class="language-samza" data-lang="samza">TODO: document Samza on Gradle: https://github.com/apache/beam/issues/21500&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class='runner-nemo snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre tabindex="0">&lt;code class="language-nemo" data-lang="nemo">TODO: document Nemo on Gradle: https://github.com/apache/beam/issues/21503&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;div class='runner-jet snippet'>
+&lt;div class="notebook-skip code-snippet">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre tabindex="0">&lt;code class="language-jet" data-lang="jet">TODO: document Jet on Gradle: https://github.com/apache/beam/issues/21501&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;/p>
 &lt;h2 id="inspect-the-results">Inspect the results&lt;/h2>
 &lt;p>After the pipeline has completed, you can view the output. There might be
 multiple output files prefixed by &lt;code>count&lt;/code>. The number of output files is decided
