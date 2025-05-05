@@ -529,7 +529,7 @@ To run an integration test on the Direct Runner, use the following command:
 ```shell
 python -m pytest -o log_cli=True -o log_level=Info \
   apache_beam/ml/inference/pytorch_inference_it_test.py::PyTorchInference \
-  --test-pipeline-options='--runner=TestDirectRunner’
+  --test-pipeline-options='--runner=TestDirectRunner'
 ```
 
 If you're preparing a PR, for test-suites to run in PostCommit Python, add tests paths under [`batchTests`](https://github.com/apache/beam/blob/2012107a0fa2bb3fedf1b5aedcb49445534b2dad/sdks/python/test-suites/direct/common.gradle#L44) in the `common.gradle` file.
@@ -552,7 +552,7 @@ To run an integration test on the Dataflow Runner, follow these steps:
   --test-pipeline-options='--runner=TestDataflowRunner --project=<project>
                            --temp_location=gs://<bucket>/tmp
                            --sdk_location=dist/apache-beam-2.35.0.dev0.tar.gz
-                           --region=us-central1’
+                           --region=us-central1'
   ```
 
 3. If you're preparing a PR, to include integration tests in the Python PostCommit test
@@ -579,7 +579,7 @@ python -m pytest  -o log_cli=True -o log_level=Info \
   --test-pipeline-options='--runner=TestDataflowRunner --project=<project>
                            --temp_location=gs://<bucket>/tmp
                            --sdk_container_image=us.gcr.io/apache-beam-testing/beam-sdk/beam:dev
-                           --region=us-central1’
+                           --region=us-central1'
 ```
 
 #### Specify additional test dependencies
@@ -595,7 +595,7 @@ python -m pytest  -o log_cli=True -o log_level=Info \
                            --temp_location=gs://<bucket>/tmp
                            --sdk_location=us.gcr.io/apache-beam-testing/beam-sdk/beam:dev
                            --region=us-central1
-                           –requirements_file=requirements.txt’
+                           –requirements_file=requirements.txt'
 ```
 
 If you're using the Dataflow runner, use [custom containers](https://cloud.google.com/dataflow/docs/guides/using-custom-containers).
