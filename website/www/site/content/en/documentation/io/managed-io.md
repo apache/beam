@@ -277,7 +277,7 @@ manual updates or user intervention required!)
         <code style="color: green">str</code>
       </td>
       <td>
-        Identifier of the Iceberg table.
+        A fully-qualified table identifier. You may also provide a template to write to multiple dynamic destinations, for example: `dataset.my_{col1}_{col2.nested}_table`.
       </td>
     </tr>
     <tr>
