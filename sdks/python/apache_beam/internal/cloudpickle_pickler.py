@@ -119,8 +119,8 @@ def dumps(
     # TODO: Add support once https://github.com/cloudpipe/cloudpickle/pull/563
     # is merged in.
     _LOGGER.warning(
-        'Ignoring unsupported option: enable_best_effort_determinism. This has only implemented for dill.'
-    )
+        'Ignoring unsupported option: enable_best_effort_determinism. '
+        'This has only been implemented for dill.')
   with _pickle_lock:
     with io.BytesIO() as file:
       pickler = cloudpickle.CloudPickler(file)

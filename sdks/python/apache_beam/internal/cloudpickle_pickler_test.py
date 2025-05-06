@@ -218,7 +218,7 @@ self.assertEqual(DataClass(datum='abc'), loads(dumps(DataClass(datum='abc'))))
       dumps(123, enable_best_effort_determinism=True)
       self.assertIn(
           'Ignoring unsupported option: enable_best_effort_determinism',
-          l.output)
+          '\n'.join(l.output))
 
 
 if __name__ == '__main__':
