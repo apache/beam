@@ -18,11 +18,12 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.hadoop.util.Sets.newHashSet;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -253,10 +254,10 @@ public abstract class IcebergScanConfig implements Serializable {
       String param;
       if (keep != null) {
         param = "keep";
-        fieldsSpecified = new HashSet<>(keep);
+        fieldsSpecified = newHashSet(checkNotNull(keep));
       } else { // drop != null
         param = "drop";
-        fieldsSpecified = new HashSet<>(drop);
+        fieldsSpecified = newHashSet(checkNotNull(drop));
       }
       table.schema().columns().forEach(nf -> fieldsSpecified.remove(nf.name()));
 
