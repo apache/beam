@@ -115,6 +115,10 @@
   after reshuffle. To opt out of this change, set the
   update_compatibility_version to a previous Beam version e.g. "2.64.0".
 ([#34348](https://github.com/apache/beam/pull/34348))
+* [Python] PaneInfo is encoded by PaneInfoCoder, where previously PaneInfo was
+  encoded with FastPrimitivesCoder falling back to PickleCoder. This only
+  affects cases where PaneInfo is directly stored as an element.
+  ([#34824](https://github.com/apache/beam/pull/34824))
 * [Python] BigQueryFileLoads now adds a Reshuffle before triggering load jobs.
   This fixes a bug where there can be data loss in a streaming pipeline if there
   is a pending load job during autoscaling. To opt out of this change, set the
