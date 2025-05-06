@@ -1126,8 +1126,8 @@ class BeamModulePlugin implements Plugin<Project> {
           project.javaVersion = '21'
         } else {
           throw new GradleException(
-                  "requireJavaVersion has to be supported LTS version greater than the default Java version. Actual: " +
-                          configuration.requireJavaVersion
+          "requireJavaVersion has to be supported LTS version greater than the default Java version. Actual: " +
+          configuration.requireJavaVersion
           )
         }
         requireJavaVersion = configuration.requireJavaVersion
@@ -1138,17 +1138,17 @@ class BeamModulePlugin implements Plugin<Project> {
         // If compiled on older SDK, compile with JDK configured with compatible javaXXHome
         // The order is intended here
         if (requireJavaVersion.compareTo(JavaVersion.VERSION_11) <= 0 &&
-                project.hasProperty('java11Home')) {
+        project.hasProperty('java11Home')) {
           forkJavaVersion = '11'
         } else if (requireJavaVersion.compareTo(JavaVersion.VERSION_17) <= 0 &&
-                project.hasProperty('java17Home')) {
+        project.hasProperty('java17Home')) {
           forkJavaVersion = '17'
         } else if (requireJavaVersion.compareTo(JavaVersion.VERSION_21) <= 0 &&
-                project.hasProperty('java21Home')) {
+        project.hasProperty('java21Home')) {
           forkJavaVersion = '21'
         } else {
           logger.config("Module ${project.name} disabled. To enable, either " +
-                  "compile on newer Java version or pass java${project.javaVersion}Home project property")
+              "compile on newer Java version or pass java${project.javaVersion}Home project property")
           forkJavaVersion = ''
         }
       }
@@ -1595,14 +1595,14 @@ class BeamModulePlugin implements Plugin<Project> {
         // As we want to add '-Xlint:-deprecation' we intentionally remove '-Xlint:deprecation' from compilerArgs here,
         // as intellij is adding this, see https://youtrack.jetbrains.com/issue/IDEA-196615
         options.compilerArgs -= [
-                "-Xlint:deprecation",
+          "-Xlint:deprecation",
         ]
         options.compilerArgs += ([
-                '-parameters',
-                '-Xlint:all',
-                '-Werror'
+          '-parameters',
+          '-Xlint:all',
+          '-Werror'
         ]
-                + (defaultLintSuppressions + configuration.disableLintWarnings).collect { "-Xlint:-${it}" })
+        + (defaultLintSuppressions + configuration.disableLintWarnings).collect { "-Xlint:-${it}" })
       }
 
       if (forkJavaVersion) {
