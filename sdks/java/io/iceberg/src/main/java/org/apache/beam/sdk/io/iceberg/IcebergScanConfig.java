@@ -18,11 +18,11 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -31,7 +31,6 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.expressions.Expression;
@@ -249,15 +248,21 @@ public abstract class IcebergScanConfig implements Serializable {
     if (keep != null || drop != null) {
       checkArgument(
           keep == null || drop == null, error("only one of 'keep' or 'drop' can be set."));
-      Set<String> fieldsSpecified = Sets.newHashSet(checkNotNull(drop != null ? drop : keep));
+
+      Set<String> fieldsSpecified;
+      String param;
+      if (keep != null) {
+        param = "keep";
+        fieldsSpecified = new HashSet<>(keep);
+      } else { // drop != null
+        param = "drop";
+        fieldsSpecified = new HashSet<>(drop);
+      }
       table.schema().columns().forEach(nf -> fieldsSpecified.remove(nf.name()));
 
       checkArgument(
           fieldsSpecified.isEmpty(),
-          error(
-              String.format(
-                  "'%s' specifies unknown field(s): %s",
-                  drop != null ? "drop" : "keep", fieldsSpecified)));
+          error(String.format("'%s' specifies unknown field(s): %s", param, fieldsSpecified)));
     }
 
     // TODO(#34168, ahmedabu98): fill these gaps for the existing batch source
