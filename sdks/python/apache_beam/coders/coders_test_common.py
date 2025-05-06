@@ -362,6 +362,18 @@ class CodersTest(unittest.TestCase):
         coders.TupleCoder((coders.IntervalWindowCoder(), )),
         (window.IntervalWindow(0, 10), ))
 
+  def test_paneinfo_window_coder(self):
+    self.check_coder(
+        coders.PaneInfoCoder(),
+        *[
+            windowed_value.PaneInfo(
+                is_first=y == 0,
+                is_last=y == 9,
+                timing=windowed_value.PaneInfoTiming.EARLY,
+                index=y,
+                nonspeculative_index=-1) for y in range(0, 10)
+        ])
+
   def test_timestamp_coder(self):
     self.check_coder(
         coders.TimestampCoder(),
@@ -539,6 +551,7 @@ class CodersTest(unittest.TestCase):
   def test_param_windowed_value_coder(self):
     from apache_beam.transforms.window import IntervalWindow
     from apache_beam.utils.windowed_value import PaneInfo
+    # pylint: disable=too-many-function-args
     wv = windowed_value.create(
         b'',
         # Milliseconds to microseconds
