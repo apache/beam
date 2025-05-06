@@ -26,8 +26,6 @@ import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig;
 public class IcebergTableProvider extends InMemoryMetaTableProvider {
   private IcebergCatalogConfig catalogConfig = IcebergCatalogConfig.builder().build();
 
-  private IcebergTableProvider() {}
-
   public static IcebergTableProvider create() {
     return new IcebergTableProvider();
   }

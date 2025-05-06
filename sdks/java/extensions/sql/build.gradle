@@ -76,7 +76,7 @@ dependencies {
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(":sdks:java:managed")
   implementation project(":sdks:java:io:iceberg")
-  implementation project(":sdks:java:io:iceberg:bqms")
+  runtimeOnly project(":sdks:java:io:iceberg:bqms")
   implementation project(":sdks:java:extensions:avro")
   implementation project(":sdks:java:extensions:join-library")
   permitUnusedDeclared project(":sdks:java:extensions:join-library") // BEAM-11761

@@ -113,4 +113,8 @@ public class InMemoryMetaStore implements MetaStore {
   Map<String, TableProvider> getProviders() {
     return providers;
   }
+
+  public boolean hasProviderForType(String type) {
+    return getProviders().containsKey(type);
+  }
 }
