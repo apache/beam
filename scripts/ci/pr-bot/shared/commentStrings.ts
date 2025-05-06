@@ -28,7 +28,7 @@ export function assignCommitter(committer: string): string {
 
 export function assignReviewer(labelToReviewerMapping: any): string {
   let commentString =
-    "Assigning reviewers. If you would like to opt out of this review, comment `assign to next reviewer`:\n\n";
+    "Assigning reviewers:\n\n";
 
   for (let label in labelToReviewerMapping) {
     let reviewer = labelToReviewerMapping[label];
@@ -38,6 +38,8 @@ export function assignReviewer(labelToReviewerMapping: any): string {
       commentString += `R: @${reviewer} for label ${label}.\n`;
     }
   }
+
+  commentString += "Note: If you would like to opt out of this review, comment `assign to next reviewer`.\n"
 
   commentString += `
 Available commands:
