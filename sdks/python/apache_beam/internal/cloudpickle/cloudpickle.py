@@ -61,6 +61,7 @@ import copyreg
 import dataclasses
 import dis
 from enum import Enum
+import hashlib
 import io
 import itertools
 import logging
@@ -73,7 +74,6 @@ import sys
 import threading
 import types
 import typing
-import uuid
 import warnings
 import weakref
 
@@ -107,11 +107,61 @@ if PYPY:
 _extract_code_globals_cache = weakref.WeakKeyDictionary()
 
 
+def _generate_deterministic_id(obj):
+  """Generate a deterministic ID based on object definition."""
+
+  components = []
+
+  # Handle different types of objects
+  if isinstance(obj, typing.TypeVar):
+    # For TypeVar objects, use their specific attributes
+    components.append(f"TypeVar:{obj.__name__}")
+    if obj.__bound__ is not None:
+      components.append(f"bound:{obj.__bound__}")
+    if obj.__constraints__:
+      for constraint in obj.__constraints__:
+        components.append(f"constraint:{constraint}")
+    components.append(f"covariant:{obj.__covariant__}")
+    components.append(f"contravariant:{obj.__contravariant__}")
+  else:
+    # For regular classes
+    components.append(f"Class:{obj.__name__}")
+
+    # Add metaclass if available
+    try:
+      metaclass = type(obj)
+      components.append(f"metaclass:{metaclass.__name__}")
+    except:
+      pass
+
+    # Add base classes if available
+    try:
+      for base in obj.__bases__:
+        components.append(f"base:{base.__module__}.{base.__name__}")
+    except:
+      pass
+
+    # Add key attributes from the class dictionary if available
+    try:
+      for key in sorted(obj.__dict__.keys()):
+        if not key.startswith('__') and not callable(obj.__dict__[key]):
+          try:
+            components.append(f"attr:{key}:{str(obj.__dict__[key])}")
+          except:
+            components.append(f"attr:{key}")
+    except:
+      pass
+
+  # Join all components and hash them
+  class_repr = "|".join(components)
+  return hashlib.sha256(class_repr.encode()).hexdigest()
+
+
 def _get_or_create_tracker_id(class_def):
   with _DYNAMIC_CLASS_TRACKER_LOCK:
     class_tracker_id = _DYNAMIC_CLASS_TRACKER_BY_CLASS.get(class_def)
     if class_tracker_id is None:
-      class_tracker_id = uuid.uuid4().hex
+      class_tracker_id = _generate_deterministic_id(class_def)
       _DYNAMIC_CLASS_TRACKER_BY_CLASS[class_def] = class_tracker_id
       _DYNAMIC_CLASS_TRACKER_BY_ID[class_tracker_id] = class_def
   return class_tracker_id
