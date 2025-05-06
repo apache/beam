@@ -42,7 +42,7 @@ configurations.runtimeClasspath {
   // in 9.4.57.v20241919.  Higher major versions are not allowed due to
   // incompability with hadoop 3.4.1.
   resolutionStrategy.eachDependency { details ->
-    if (details.requested.group == 'org.eclipse.jetty') {
+    if (details.requested.group.startsWith('org.eclipse.jetty')) {
       details.useVersion('9.4.57.v20241219')
     }
   }
