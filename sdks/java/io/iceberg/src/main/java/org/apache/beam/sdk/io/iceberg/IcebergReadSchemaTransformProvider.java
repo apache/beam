@@ -93,7 +93,9 @@ public class IcebergReadSchemaTransformProvider
               .getPipeline()
               .apply(
                   IcebergIO.readRows(configuration.getIcebergCatalog())
-                      .from(TableIdentifier.parse(configuration.getTable())));
+                      .from(TableIdentifier.parse(configuration.getTable()))
+                      .keeping(configuration.getKeep())
+                      .dropping(configuration.getDrop()));
 
       return PCollectionRowTuple.of(OUTPUT_TAG, output);
     }
@@ -121,6 +123,14 @@ public class IcebergReadSchemaTransformProvider
     @Nullable
     abstract Map<String, String> getConfigProperties();
 
+    @SchemaFieldDescription(
+        "A subset of column names to read exclusively. If null or empty, all columns will be read.")
+    abstract @Nullable List<String> getKeep();
+
+    @SchemaFieldDescription(
+        "A subset of column names to exclude from reading. If null or empty, all columns will be read.")
+    abstract @Nullable List<String> getDrop();
+
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setTable(String table);
@@ -130,6 +140,10 @@ public class IcebergReadSchemaTransformProvider
       abstract Builder setCatalogProperties(Map<String, String> catalogProperties);
 
       abstract Builder setConfigProperties(Map<String, String> confProperties);
+
+      abstract Builder setKeep(List<String> keep);
+
+      abstract Builder setDrop(List<String> drop);
 
       abstract Configuration build();
     }
