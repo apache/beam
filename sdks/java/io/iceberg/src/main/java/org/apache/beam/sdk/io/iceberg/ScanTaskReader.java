@@ -43,6 +43,7 @@ import org.apache.iceberg.data.orc.GenericOrcReader;
 import org.apache.iceberg.data.parquet.GenericParquetReaders;
 import org.apache.iceberg.encryption.EncryptionManager;
 import org.apache.iceberg.encryption.InputFilesDecryptor;
+import org.apache.iceberg.expressions.Evaluator;
 import org.apache.iceberg.expressions.Expression;
 import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.io.CloseableIterator;
@@ -188,8 +189,8 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
           new GenericDeleteFilter(checkStateNotNull(io), fileTask, fileTask.schema(), project);
       iterable = deleteFilter.filter(iterable);
       if (filter != null && filter.op() != Expression.Operation.TRUE) {
-        FilterUtils.FilterFunction filterFunction = FilterUtils.filterOn(filter, project);
-        iterable = CloseableIterable.filter(iterable, filterFunction::filter);
+        Evaluator evaluator = new Evaluator(project.asStruct(), filter);
+        iterable = CloseableIterable.filter(iterable, evaluator::eval);
       }
       currentIterator = iterable.iterator();
     } while (true);

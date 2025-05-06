@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.iceberg;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
-import org.apache.beam.sdk.io.iceberg.FilterUtils.FilterFunction;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -31,6 +30,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.data.Record;
+import org.apache.iceberg.expressions.Evaluator;
 import org.apache.iceberg.expressions.Expression;
 import org.apache.iceberg.io.CloseableIterable;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -80,8 +80,8 @@ class ReadFromTasks extends DoFn<KV<ReadTaskDescriptor, ReadTask>, Row> {
       try (CloseableIterable<Record> fullIterable = ReadUtils.createReader(task, table)) {
         CloseableIterable<Record> reader = fullIterable;
         if (filter != null && filter.op() != Expression.Operation.TRUE) {
-          FilterFunction filterFunc = FilterUtils.filterOn(filter, table.schema());
-          reader = CloseableIterable.filter(reader, filterFunc::filter);
+          Evaluator evaluator = new Evaluator(table.schema().asStruct(), filter);
+          reader = CloseableIterable.filter(reader, evaluator::eval);
         }
 
         for (Record record : reader) {

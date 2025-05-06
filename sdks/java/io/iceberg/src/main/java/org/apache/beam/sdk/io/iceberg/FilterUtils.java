@@ -41,8 +41,6 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.parser.SqlP
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.Schema;
-import org.apache.iceberg.data.Record;
-import org.apache.iceberg.expressions.Evaluator;
 import org.apache.iceberg.expressions.Expression;
 import org.apache.iceberg.expressions.Expression.Operation;
 import org.apache.iceberg.expressions.Expressions;
@@ -73,22 +71,6 @@ class FilterUtils {
           .put(SqlKind.AND, Operation.AND)
           .put(SqlKind.OR, Operation.OR)
           .build();
-
-  static FilterFunction filterOn(Expression expression, Schema schema) {
-    return new FilterFunction(expression, schema);
-  }
-
-  static class FilterFunction {
-    private final Evaluator evaluator;
-
-    FilterFunction(Expression expression, Schema schema) {
-      this.evaluator = new Evaluator(schema.asStruct(), expression);
-    }
-
-    boolean filter(Record rec) {
-      return evaluator.eval(rec);
-    }
-  }
 
   static Expression convert(@Nullable String filter, Schema schema) {
     if (filter == null) {
