@@ -94,6 +94,17 @@ public class StateFetchingIterators {
         valueCoder);
   }
 
+  /**
+   * This adapter handles using the continuation token to provide iteration over all the elements
+   * returned by the Beam Fn State API using the supplied state client, state request for the first
+   * chunk of the state stream, and a value decoder, without caching support.
+   *
+   * @param beamFnStateClient A client for handling state requests.
+   * @param stateRequestForFirstChunk A fully populated state request for the first (and possibly
+   *     only) chunk of a state stream. This state request will be populated with a continuation
+   *     token to request further chunks of the stream if required.
+   * @param valueCoder A coder for decoding the state stream.
+   */
   public static <T> UncachedStateIterable<T> readAllAndDecodeStartingFrom(
       BeamFnStateClient beamFnStateClient,
       StateRequest stateRequestForFirstChunk,
@@ -101,7 +112,7 @@ public class StateFetchingIterators {
     return new UncachedStateIterable<>(beamFnStateClient, stateRequestForFirstChunk, valueCoder);
   }
 
-  static class UncachedStateIterable<T> extends PrefetchableIterables.Default<T> {
+  private static class UncachedStateIterable<T> extends PrefetchableIterables.Default<T> {
     private final BeamFnStateClient beamFnStateClient;
     private final StateRequest stateRequestForFirstChunk;
     private final Coder<T> valueCoder;
@@ -124,14 +135,14 @@ public class StateFetchingIterators {
 
     private static class DecodingIterator<T> extends AbstractIterator<T>
         implements PrefetchableIterator<T> {
-      PrefetchableIterator<ByteString> chunkIterator;
-      InputStream currentChunk;
-      Coder<T> valueCoder;
+      private final PrefetchableIterator<ByteString> chunkIterator;
+      private final Coder<T> valueCoder;
+      private InputStream currentChunk;
 
       public DecodingIterator(PrefetchableIterator<ByteString> chunkIterator, Coder<T> valueCoder) {
         this.chunkIterator = chunkIterator;
-        this.currentChunk = ByteString.EMPTY.newInput();
         this.valueCoder = valueCoder;
+        this.currentChunk = ByteString.EMPTY.newInput();
       }
 
       @Override
@@ -157,6 +168,8 @@ public class StateFetchingIterators {
         try {
           return currentChunk.available() > 0 || chunkIterator.isReady();
         } catch (IOException exn) {
+          // Should never get here as ByteString.newInput() returns InputStreams
+          // that don't do actual IO operations.
           throw new IllegalStateException(exn);
         }
       }
