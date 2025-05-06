@@ -5,7 +5,7 @@
     "spanner": "Abacn"
   },
   "nextAction": "Reviewers",
-  "stopReviewerNotifications": false,
+  "stopReviewerNotifications": true,
   "remindAfterTestsPass": [],
   "committerAssigned": true
 }
