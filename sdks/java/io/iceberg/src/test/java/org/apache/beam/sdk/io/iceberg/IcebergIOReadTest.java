@@ -208,6 +208,46 @@ public class IcebergIOReadTest {
   }
 
   @Test
+  public void testFailWhenDropAndKeepAreSet() {
+    TableIdentifier tableId = TableIdentifier.of("default", testName.getMethodName());
+    warehouse.createTable(tableId, TestFixtures.SCHEMA);
+    IcebergIO.ReadRows read =
+        IcebergIO.readRows(catalogConfig())
+            .from(tableId)
+            .keeping(asList("a"))
+            .dropping(asList("b"))
+            .withPollInterval(Duration.standardSeconds(5));
+
+    if (useIncrementalScan) {
+      read = read.withCdc();
+    }
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Invalid source configuration: only one of 'keep' or 'drop' can be set");
+    read.expand(PBegin.in(testPipeline));
+  }
+
+  @Test
+  public void testFailWhenFilteringUnknownFields() {
+    TableIdentifier tableId = TableIdentifier.of("default", testName.getMethodName());
+    warehouse.createTable(tableId, TestFixtures.SCHEMA);
+    IcebergIO.ReadRows read =
+        IcebergIO.readRows(catalogConfig())
+            .from(tableId)
+            .keeping(asList("id", "unknown"))
+            .withPollInterval(Duration.standardSeconds(5));
+
+    if (useIncrementalScan) {
+      read = read.withCdc();
+    }
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(
+        "Invalid source configuration: 'keep' specifies unknown field(s): [unknown]");
+    read.expand(PBegin.in(testPipeline));
+  }
+
+  @Test
   public void testProjectedSchema() {
     org.apache.iceberg.Schema original =
         new org.apache.iceberg.Schema(
@@ -285,23 +325,25 @@ public class IcebergIOReadTest {
 
     // test keep fields
     read = read.keeping(singletonList("id"));
-    PCollection<Row> outputKeep = testPipeline.apply(read).apply(new PrintRow());
+    PCollection<Row> outputKeep =
+        testPipeline.apply("keep", read).apply("print keep", new PrintRow());
     RowFilter keepFilter = new RowFilter(schema).keep(singletonList("id"));
     PAssert.that(outputKeep)
         .satisfies(
             (Iterable<Row> rows) -> {
-              assertThat(rows, containsInAnyOrder(keepFilter.filter(originalRows)));
+              assertThat(rows, containsInAnyOrder(keepFilter.filter(originalRows).toArray()));
               return null;
             });
 
     // test drop fields
     read = read.keeping(null).dropping(singletonList("id"));
-    PCollection<Row> outputDrop = testPipeline.apply(read).apply(new PrintRow());
+    PCollection<Row> outputDrop =
+        testPipeline.apply("drop", read).apply("print drop", new PrintRow());
     RowFilter dropFilter = new RowFilter(schema).drop(singletonList("id"));
     PAssert.that(outputDrop)
         .satisfies(
             (Iterable<Row> rows) -> {
-              assertThat(rows, containsInAnyOrder(dropFilter.filter(originalRows)));
+              assertThat(rows, containsInAnyOrder(dropFilter.filter(originalRows).toArray()));
               return null;
             });
 

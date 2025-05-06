@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
@@ -30,6 +31,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.expressions.Expression;
@@ -242,9 +244,22 @@ public abstract class IcebergScanConfig implements Serializable {
   abstract Builder toBuilder();
 
   void validate(Table table) {
-    checkArgument(
-        getKeepFields() == null || getDropFields() == null,
-        error("only one of 'keep' or 'drop' can be set."));
+    @Nullable List<String> keep = getKeepFields();
+    @Nullable List<String> drop = getDropFields();
+    if (keep != null || drop != null) {
+      checkArgument(
+          keep == null || drop == null, error("only one of 'keep' or 'drop' can be set."));
+      Set<String> fieldsSpecified = Sets.newHashSet(checkNotNull(drop != null ? drop : keep));
+      table.schema().columns().forEach(nf -> fieldsSpecified.remove(nf.name()));
+
+      checkArgument(
+          fieldsSpecified.isEmpty(),
+          error(
+              String.format(
+                  "'%s' specifies unknown field(s): %s",
+                  drop != null ? "drop" : "keep", fieldsSpecified)));
+    }
+
     // TODO(#34168, ahmedabu98): fill these gaps for the existing batch source
     if (!getUseCdc()) {
       List<String> invalidOptions = new ArrayList<>();
