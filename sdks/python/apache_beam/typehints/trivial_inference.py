@@ -448,7 +448,10 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
           # Args to double-fast opcodes are bit manipulated, correct the arg
           # for printing + avoid the out-of-index
           if dis.opname[op] == 'LOAD_FAST_LOAD_FAST':
-            print('(' + co.co_varnames[arg >> 4] + ', ' + co.co_varnames[arg & 15] + ')', end=' ')
+            print(
+                '(' + co.co_varnames[arg >> 4] + ', ' +
+                co.co_varnames[arg & 15] + ')',
+                end=' ')
           elif dis.opname[op] == 'STORE_FAST_LOAD_FAST':
             print('(' + co.co_varnames[arg & 15] + ')', end=' ')
           elif dis.opname[op] == 'STORE_FAST_STORE_FAST':
@@ -597,7 +600,7 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
                   zip(fields,
                       Const.unwrap_all(state.stack[-pop_count + 1:-1]))))
         else:
-            return_type = Any
+          return_type = Any
       else:
         # Handle comprehensions always having an arg of 0 for CALL
         # See https://github.com/python/cpython/issues/102403 for context.

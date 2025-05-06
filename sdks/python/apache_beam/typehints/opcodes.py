@@ -602,8 +602,9 @@ def set_function_attribute(state, arg):
   closure = None
   if arg & 0x08:
     closure = tuple((lambda _: lambda: _)(t).__closure__[0]
-                      for t in state.stack[attr].tuple_types)
-  new_func = types.FunctionType(func.code, func.globals, name=func.name, closure=closure)
+                    for t in state.stack[attr].tuple_types)
+  new_func = types.FunctionType(
+      func.code, func.globals, name=func.name, closure=closure)
   state.stack.append(Const(new_func))
 
 
