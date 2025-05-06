@@ -22,6 +22,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -414,6 +415,40 @@ public class AvroCoderTest {
 
     CoderProperties.coderDecodeEncodeEqual(coder, AVRO_SPECIFIC_RECORD);
     CoderProperties.coderDecodeEncodeEqual(coderWithSchema, AVRO_SPECIFIC_RECORD);
+  }
+
+  @Test
+  public void testCoderCached() {
+    Schema schema = AVRO_SPECIFIC_RECORD.getSchema();
+    TypeDescriptor<TestAvro> typeDescriptor = TypeDescriptor.of(TestAvro.class);
+    Class<TestAvro> clazz = TestAvro.class;
+    boolean useReflectApi = false;
+    AvroDatumFactory<TestAvro> datumFactory = new AvroDatumFactory.ReflectDatumFactory<>(clazz);
+
+    assertSame(AvroCoder.of(clazz), AvroCoder.of(clazz));
+    assertSame(AvroCoder.of(clazz, useReflectApi), AvroCoder.of(clazz, useReflectApi));
+    assertSame(AvroCoder.of(typeDescriptor), AvroCoder.of(typeDescriptor));
+    assertSame(
+        AvroCoder.of(typeDescriptor, useReflectApi), AvroCoder.of(typeDescriptor, useReflectApi));
+    assertSame(AvroCoder.of(clazz, schema), AvroCoder.of(clazz, schema));
+    assertSame(
+        AvroCoder.of(clazz, schema, useReflectApi), AvroCoder.of(clazz, schema, useReflectApi));
+    assertSame(AvroCoder.of(datumFactory, schema), AvroCoder.of(datumFactory, schema));
+
+    assertSame(AvroCoder.specific(clazz), AvroCoder.specific(clazz));
+    assertSame(AvroCoder.specific(typeDescriptor), AvroCoder.specific(typeDescriptor));
+    assertSame(AvroCoder.specific(clazz, schema), AvroCoder.specific(clazz, schema));
+
+    assertSame(AvroCoder.reflect(clazz), AvroCoder.reflect(clazz));
+    assertSame(AvroCoder.reflect(typeDescriptor), AvroCoder.reflect(typeDescriptor));
+    assertSame(AvroCoder.reflect(clazz, schema), AvroCoder.reflect(clazz, schema));
+  }
+
+  @Test
+  public void testAvroGenericCoderSame() {
+    Schema schema = AVRO_SPECIFIC_RECORD.getSchema();
+    assertSame(AvroCoder.of(schema), AvroCoder.of(schema));
+    assertSame(AvroCoder.generic(schema), AvroCoder.generic(schema));
   }
 
   @Test
