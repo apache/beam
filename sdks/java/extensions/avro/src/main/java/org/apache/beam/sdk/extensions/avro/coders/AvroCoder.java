@@ -114,7 +114,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class AvroCoder<T> extends CustomCoder<T> {
 
   private static final Cache<AvroCoderCacheKey, AvroCoder<?>> AVRO_CODER_CACHE =
-      CacheBuilder.newBuilder().build();
+      CacheBuilder.newBuilder().weakValues().build();
 
   /**
    * Returns an {@link AvroCoder} instance for the Avro schema. The implicit type is GenericRecord.
@@ -147,7 +147,11 @@ public class AvroCoder<T> extends CustomCoder<T> {
    */
   public static <T> AvroCoder<T> specific(Class<T> type, Schema schema) {
     return fromCacheOrCreate(
-        type, schema, () -> new AvroCoder<>(AvroDatumFactory.specific(type), schema));
+        type,
+        schema,
+        AvroCoderType.SPECIFIC,
+        null,
+        () -> new AvroCoder<>(AvroDatumFactory.specific(type), schema));
   }
 
   /**
@@ -174,7 +178,11 @@ public class AvroCoder<T> extends CustomCoder<T> {
    */
   public static <T> AvroCoder<T> reflect(Class<T> type, Schema schema) {
     return fromCacheOrCreate(
-        type, schema, () -> new AvroCoder<>(AvroDatumFactory.reflect(type), schema));
+        type,
+        schema,
+        AvroCoderType.REFLECT,
+        null,
+        () -> new AvroCoder<>(AvroDatumFactory.reflect(type), schema));
   }
 
   /**
@@ -253,14 +261,20 @@ public class AvroCoder<T> extends CustomCoder<T> {
    */
   public static <T> AvroCoder<T> of(AvroDatumFactory<T> datumFactory, Schema schema) {
     Class<T> type = datumFactory.getType();
-    return fromCacheOrCreate(type, schema, () -> new AvroCoder<>(datumFactory, schema));
+    return fromCacheOrCreate(
+        type, schema, null, datumFactory, () -> new AvroCoder<>(datumFactory, schema));
   }
 
   private static <T> AvroCoder<T> fromCacheOrCreate(
-      Class<T> type, Schema schema, Callable<AvroCoder<T>> avroCoderCreator) {
+      Class<T> type,
+      Schema schema,
+      @Nullable AvroCoderType avroCoderType,
+      @Nullable AvroDatumFactory<T> datumFactory,
+      Callable<AvroCoder<T>> avroCoderCreator) {
     try {
       return (AvroCoder<T>)
-          AVRO_CODER_CACHE.get(new AvroCoderCacheKey(type, schema), avroCoderCreator);
+          AVRO_CODER_CACHE.get(
+              new AvroCoderCacheKey(type, schema, avroCoderType, datumFactory), avroCoderCreator);
     } catch (ExecutionException e) {
       throw new RuntimeException(e);
     }
@@ -854,13 +868,35 @@ public class AvroCoder<T> extends CustomCoder<T> {
     this.writer = this.datumFactory.apply(this.schemaSupplier.get());
   }
 
+  enum AvroCoderType {
+    SPECIFIC,
+    REFLECT,
+    CUSTOM;
+  }
+
   static class AvroCoderCacheKey {
     private final Class<?> type;
     private final Schema schema;
+    private final @Nullable AvroCoderType avroCoderType;
+    private final @Nullable AvroDatumFactory<?> avroDatumFactory;
 
-    public AvroCoderCacheKey(Class<?> type, Schema schema) {
+    AvroCoderCacheKey(
+        Class<?> type,
+        Schema schema,
+        AvroCoderType avroCoderType,
+        AvroDatumFactory<?> avroDatumFactory) {
       this.type = type;
       this.schema = schema;
+      this.avroCoderType = avroCoderType;
+      this.avroDatumFactory = avroDatumFactory;
+    }
+
+    public static AvroCoderCacheKey specific(Class<?> type, Schema schema) {
+      return new AvroCoderCacheKey(type, schema, AvroCoderType.SPECIFIC, null);
+    }
+
+    public static AvroCoderCacheKey reflect(Class<?> type, Schema schema) {
+      return new AvroCoderCacheKey(type, schema, AvroCoderType.REFLECT, null);
     }
 
     @Override
@@ -869,12 +905,15 @@ public class AvroCoder<T> extends CustomCoder<T> {
         return false;
       }
       AvroCoderCacheKey that = (AvroCoderCacheKey) o;
-      return Objects.equals(type, that.type) && Objects.equals(schema, that.schema);
+      return Objects.equals(type, that.type)
+          && Objects.equals(schema, that.schema)
+          && Objects.equals(avroCoderType, that.avroCoderType)
+          && Objects.equals(avroDatumFactory, that.avroDatumFactory);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(type, schema);
+      return Objects.hash(type, schema, avroCoderType, avroDatumFactory);
     }
   }
 }
