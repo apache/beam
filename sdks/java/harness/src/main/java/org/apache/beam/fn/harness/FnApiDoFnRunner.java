@@ -151,7 +151,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       Factory factory = new Factory();
       return ImmutableMap.<String, PTransformRunnerFactory>builder()
           .put(PTransformTranslation.PAR_DO_TRANSFORM_URN, factory)
-          .put(PTransformTranslation.SPLITTABLE_PAIR_WITH_RESTRICTION_URN, factory)
           .put(PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN, factory)
           .put(PTransformTranslation.SPLITTABLE_TRUNCATE_SIZED_RESTRICTION_URN, factory)
           .put(
@@ -377,7 +376,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         case PTransformTranslation.PAR_DO_TRANSFORM_URN:
           mainOutputTag = (TupleTag) ParDoTranslation.getMainOutputTag(parDoPayload);
           break;
-        case PTransformTranslation.SPLITTABLE_PAIR_WITH_RESTRICTION_URN:
         case PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN:
         case PTransformTranslation.SPLITTABLE_TRUNCATE_SIZED_RESTRICTION_URN:
           mainOutputTag =
@@ -500,8 +498,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       case PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN:
         addStartFunction.accept(this::startBundle);
         break;
-      case PTransformTranslation.SPLITTABLE_PAIR_WITH_RESTRICTION_URN:
-        // startBundle should not be invoked
       case PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN:
         // startBundle should not be invoked
       case PTransformTranslation.SPLITTABLE_TRUNCATE_SIZED_RESTRICTION_URN:
@@ -524,18 +520,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           this.processContext = new WindowObservingProcessBundleContext();
         } else {
           mainInputConsumer = this::processElementForParDo;
-          this.processContext = new NonWindowObservingProcessBundleContext();
-        }
-        break;
-      case PTransformTranslation.SPLITTABLE_PAIR_WITH_RESTRICTION_URN:
-        if (doFnSignature.getInitialRestriction().observesWindow()
-            || (doFnSignature.getInitialWatermarkEstimatorState() != null
-                && doFnSignature.getInitialWatermarkEstimatorState().observesWindow())
-            || !sideInputMapping.isEmpty()) {
-          mainInputConsumer = this::processElementForWindowObservingPairWithRestriction;
-          this.processContext = new WindowObservingProcessBundleContext();
-        } else {
-          mainInputConsumer = this::processElementForPairWithRestriction;
           this.processContext = new NonWindowObservingProcessBundleContext();
         }
         break;
@@ -669,8 +653,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       case PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN:
         addFinishFunction.accept(this::finishBundle);
         break;
-      case PTransformTranslation.SPLITTABLE_PAIR_WITH_RESTRICTION_URN:
-        // finishBundle should not be invoked
       case PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN:
         // finishBundle should not be invoked
       case PTransformTranslation.SPLITTABLE_TRUNCATE_SIZED_RESTRICTION_URN:
@@ -815,57 +797,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       currentElement = null;
       currentWindow = null;
     }
-  }
-
-  private void processElementForPairWithRestriction(WindowedValue<InputT> elem) {
-    currentElement = elem;
-    try {
-      currentRestriction = doFnInvoker.invokeGetInitialRestriction(processContext);
-      outputTo(
-          mainOutputConsumer,
-          (WindowedValue)
-              elem.withValue(
-                  KV.of(
-                      elem.getValue(),
-                      KV.of(
-                          currentRestriction,
-                          doFnInvoker.invokeGetInitialWatermarkEstimatorState(processContext)))));
-    } finally {
-      currentElement = null;
-      currentRestriction = null;
-    }
-
-    this.stateAccessor.finalizeState();
-  }
-
-  private void processElementForWindowObservingPairWithRestriction(WindowedValue<InputT> elem) {
-    currentElement = elem;
-    try {
-      Iterator<BoundedWindow> windowIterator =
-          (Iterator<BoundedWindow>) elem.getWindows().iterator();
-      while (windowIterator.hasNext()) {
-        currentWindow = windowIterator.next();
-        currentRestriction = doFnInvoker.invokeGetInitialRestriction(processContext);
-        outputTo(
-            mainOutputConsumer,
-            (WindowedValue)
-                WindowedValue.of(
-                    KV.of(
-                        elem.getValue(),
-                        KV.of(
-                            currentRestriction,
-                            doFnInvoker.invokeGetInitialWatermarkEstimatorState(processContext))),
-                    currentElement.getTimestamp(),
-                    currentWindow,
-                    currentElement.getPane()));
-      }
-    } finally {
-      currentElement = null;
-      currentWindow = null;
-      currentRestriction = null;
-    }
-
-    this.stateAccessor.finalizeState();
   }
 
   private void processElementForSplitRestriction(
