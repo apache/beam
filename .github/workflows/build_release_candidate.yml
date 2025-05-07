@@ -417,7 +417,6 @@ jobs:
 
   build_and_stage_prism:
     if: ${{ fromJson(github.event.inputs.STAGE).prism == 'yes'}}
-    needs: [publish_java_artifacts] # Enforce ordering to avoid svn conflicts
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
