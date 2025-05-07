@@ -62,6 +62,7 @@ class _OpenAITextEmbeddingHandler(RemoteModelHandler):
   """
   Note: Intended for internal use and guarantees no backwards compatibility.
   """
+
   def __init__(
       self,
       model_name: str,
@@ -117,7 +118,7 @@ class _OpenAITextEmbeddingHandler(RemoteModelHandler):
     return [item.embedding for item in response.data]
 
   def batch_elements_kwargs(self) -> dict[str, Any]:
-    """Returns kwargs suitable for beam.BatchElements with appropriate batch size."""
+    """Return kwargs suitable for BatchElements with appropriate batch size"""
     return {'max_batch_size': self.max_batch_size}
 
   def __repr__(self):
@@ -125,6 +126,7 @@ class _OpenAITextEmbeddingHandler(RemoteModelHandler):
 
 
 class OpenAITextEmbeddings(EmbeddingsManager):
+
   @beam.typehints.with_output_types(PCollection[Union[MLTransformOutputT, Row]])
   def __init__(
       self,
@@ -147,7 +149,7 @@ class OpenAITextEmbeddings(EmbeddingsManager):
       organization: OpenAI organization ID
       dimensions: Specific embedding dimensions to use (if model supports it)
       user: End-user identifier for tracking and rate limit calculations
-      max_batch_size: Maximum batch size for requests to OpenAI API (default: 20)
+      max_batch_size: Maximum batch size for requests to OpenAI API
     """
     self.model_name = model_name
     self.api_key = api_key
