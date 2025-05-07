@@ -20,7 +20,6 @@ from typing import Any
 from typing import Optional
 from typing import TypeVar
 from typing import Union
-from typing import cast
 
 import apache_beam as beam
 import openai
@@ -38,12 +37,13 @@ __all__ = ["OpenAITextEmbeddings"]
 # Define a type variable for the output
 MLTransformOutputT = TypeVar('MLTransformOutputT')
 
-_BATCH_SIZE = 20
+# Default batch size for OpenAI API requests
+_DEFAULT_BATCH_SIZE = 20
 
 LOGGER = logging.getLogger("OpenAIEmbeddings")
 
 
-def _retry_on_appropriate_openai_error(exception):  # pylint: disable=line-too-long
+def _retry_on_appropriate_openai_error(exception):
   """
   Retry filter that returns True for rate limit (429) or server (5xx) errors.
 
@@ -69,7 +69,7 @@ class _OpenAITextEmbeddingHandler(RemoteModelHandler):
       organization: Optional[str] = None,
       dimensions: Optional[int] = None,
       user: Optional[str] = None,
-      batch_size: Optional[int] = None,
+      max_batch_size: Optional[int] = None,
   ):
     super().__init__(
         namespace="OpenAITextEmbeddings",
@@ -81,7 +81,7 @@ class _OpenAITextEmbeddingHandler(RemoteModelHandler):
     self.organization = organization
     self.dimensions = dimensions
     self.user = user
-    self.batch_size = batch_size or _BATCH_SIZE
+    self.max_batch_size = max_batch_size or _DEFAULT_BATCH_SIZE
 
   def create_client(self):
     """Creates and returns an OpenAI client."""
@@ -102,61 +102,30 @@ class _OpenAITextEmbeddingHandler(RemoteModelHandler):
       inference_args: Optional[dict[str, Any]] = None,
   ) -> Iterable:
     """Makes a request to OpenAI embedding API and returns embeddings."""
-    # Process in smaller batches if needed
-    if len(batch) > self.batch_size:
-      embeddings = []
-      for i in range(0, len(batch), self.batch_size):
-        text_batch = batch[i:i + self.batch_size]
-        # Use request() recursively for each smaller batch
-        embeddings_batch = self.request(text_batch, model, inference_args)
-        embeddings.extend(embeddings_batch)
-      return embeddings
-
     # Prepare arguments for the API call
     kwargs = {
         "model": self.model_name,
         "input": batch,
     }
     if self.dimensions:
-      kwargs["dimensions"] = cast(Any, self.dimensions)
+      kwargs["dimensions"] = self.dimensions
     if self.user:
       kwargs["user"] = self.user
 
-    try:
-      # Make the API call
-      response = model.embeddings.create(**kwargs)
-      return [item.embedding for item in response.data]
-    except RateLimitError as e:
-      LOGGER.warning("Request was rate limited by OpenAI API: %s", e)
-      raise
-    except Exception as e:
-      LOGGER.error("Unexpected exception raised as part of request: %s", e)
-      raise
+    # Make the API call - let RemoteModelHandler handle retries and exceptions
+    response = model.embeddings.create(**kwargs)
+    return [item.embedding for item in response.data]
 
   def batch_elements_kwargs(self) -> dict[str, Any]:
-    """Returns kwargs suitable for beam.BatchElements with appropriate batch size."""  # pylint: disable=line-too-long
-    return {'max_batch_size': self.batch_size}
+    """Returns kwargs suitable for beam.BatchElements with appropriate batch size."""
+    return {'max_batch_size': self.max_batch_size}
 
   def __repr__(self):
     return 'OpenAITextEmbeddings'
 
 
 class OpenAITextEmbeddings(EmbeddingsManager):
-  """
-  A PTransform that uses OpenAI's API to generate embeddings from text inputs.
-
-  Example Usage::
-
-      with pipeline as p:  # pylint: disable=line-too-long
-          text = p | "Create texts" >> beam.Create([{"text": "Hello world"}, 
-          {"text": "Beam ML"}])
-          embeddings = text | OpenAITextEmbeddings(
-              model_name="text-embedding-3-small",
-              columns=["embedding_col"],
-              api_key=api_key
-          )
-  """
-  @beam.typehints.with_output_types(PCollection[Union[MLTransformOutputT, Row]])  # pylint: disable=line-too-long
+  @beam.typehints.with_output_types(PCollection[Union[MLTransformOutputT, Row]])
   def __init__(
       self,
       model_name: str,
@@ -165,7 +134,7 @@ class OpenAITextEmbeddings(EmbeddingsManager):
       organization: Optional[str] = None,
       dimensions: Optional[int] = None,
       user: Optional[str] = None,
-      batch_size: Optional[int] = None,
+      max_batch_size: Optional[int] = None,
       **kwargs):
     """
     Embedding Config for OpenAI Text Embedding models.
@@ -178,14 +147,14 @@ class OpenAITextEmbeddings(EmbeddingsManager):
       organization: OpenAI organization ID
       dimensions: Specific embedding dimensions to use (if model supports it)
       user: End-user identifier for tracking and rate limit calculations
-      batch_size: Maximum batch size for requests to OpenAI API (default: 20)
+      max_batch_size: Maximum batch size for requests to OpenAI API (default: 20)
     """
     self.model_name = model_name
     self.api_key = api_key
     self.organization = organization
     self.dimensions = dimensions
     self.user = user
-    self.batch_size = batch_size
+    self.max_batch_size = max_batch_size
     super().__init__(columns=columns, **kwargs)
 
   def get_model_handler(self) -> RemoteModelHandler:
@@ -195,7 +164,7 @@ class OpenAITextEmbeddings(EmbeddingsManager):
         organization=self.organization,
         dimensions=self.dimensions,
         user=self.user,
-        batch_size=self.batch_size,
+        max_batch_size=self.max_batch_size,
     )
 
   def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
