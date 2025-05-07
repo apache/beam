@@ -30,7 +30,10 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.data.Record;
+import org.apache.iceberg.expressions.Evaluator;
+import org.apache.iceberg.expressions.Expression;
 import org.apache.iceberg.io.CloseableIterable;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Bounded read implementation.
@@ -63,6 +66,7 @@ class ReadFromTasks extends DoFn<KV<ReadTaskDescriptor, ReadTask>, Row> {
       throws IOException, ExecutionException, InterruptedException {
     ReadTask readTask = element.getValue();
     Table table = TableCache.get(scanConfig.getTableIdentifier());
+    @Nullable Expression filter = scanConfig.getFilter();
 
     List<FileScanTask> fileScanTasks = readTask.getFileScanTasks();
 
@@ -73,7 +77,13 @@ class ReadFromTasks extends DoFn<KV<ReadTaskDescriptor, ReadTask>, Row> {
         return;
       }
       FileScanTask task = fileScanTasks.get((int) l);
-      try (CloseableIterable<Record> reader = ReadUtils.createReader(task, table)) {
+      try (CloseableIterable<Record> fullIterable = ReadUtils.createReader(task, table)) {
+        CloseableIterable<Record> reader = fullIterable;
+        if (filter != null && filter.op() != Expression.Operation.TRUE) {
+          Evaluator evaluator = new Evaluator(table.schema().asStruct(), filter);
+          reader = CloseableIterable.filter(reader, evaluator::eval);
+        }
+
         for (Record record : reader) {
           Row row = IcebergUtils.icebergRecordToBeamRow(scanConfig.getSchema(), record);
           out.output(row);

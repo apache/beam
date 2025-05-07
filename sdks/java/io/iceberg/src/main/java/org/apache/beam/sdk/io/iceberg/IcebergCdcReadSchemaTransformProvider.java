@@ -115,7 +115,8 @@ public class IcebergCdcReadSchemaTransformProvider
               .fromTimestamp(configuration.getFromTimestamp())
               .toTimestamp(configuration.getToTimestamp())
               .withStartingStrategy(strategy)
-              .streaming(configuration.getStreaming());
+              .streaming(configuration.getStreaming())
+              .withFilter(configuration.getFilter());
 
       @Nullable Integer pollIntervalSeconds = configuration.getPollIntervalSeconds();
       if (pollIntervalSeconds != null) {
@@ -177,6 +178,12 @@ public class IcebergCdcReadSchemaTransformProvider
         "The interval at which to poll for new snapshots. Defaults to 60 seconds.")
     abstract @Nullable Integer getPollIntervalSeconds();
 
+    @SchemaFieldDescription(
+        "SQL-like predicate to filter data at scan time. Example: \"id > 5 AND status = 'ACTIVE'\". "
+            + "Uses Apache Calcite syntax: https://calcite.apache.org/docs/reference.html")
+    @Nullable
+    abstract String getFilter();
+
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setTable(String table);
@@ -200,6 +207,8 @@ public class IcebergCdcReadSchemaTransformProvider
       abstract Builder setPollIntervalSeconds(Integer pollInterval);
 
       abstract Builder setStreaming(Boolean streaming);
+
+      abstract Builder setFilter(String filter);
 
       abstract Configuration build();
     }
