@@ -89,6 +89,7 @@ _DOCUMENTATION_DESTINATION = os.path.join(
 
 
 def generate_managed_doc(output_location):
+  from apache_beam.transforms.external import MANAGED_TRANSFORM_URN_TO_JAR_TARGET_MAPPING
   from apache_beam.transforms.external import BeamJarExpansionService
   from apache_beam.transforms.external_transform_provider import ExternalTransform
   from apache_beam.transforms.external_transform_provider import ExternalTransformProvider
@@ -99,13 +100,16 @@ def generate_managed_doc(output_location):
   with open(_MANAGED_CONFIG_ALIASES) as f:
     all_config_aliases: dict = yaml.safe_load(f)
 
-  services_and_names = managed._EXPANSION_SERVICE_JAR_TARGETS
+  # Creating a unique list of expansion service jars.
+  expansion_service_jar_targets = list(
+    dict.fromkeys(MANAGED_TRANSFORM_URN_TO_JAR_TARGET_MAPPING.values()))
+
   read_names_and_identifiers = managed.Read._READ_TRANSFORMS
   write_names_and_identifiers = managed.Write._WRITE_TRANSFORMS
 
   all_transforms = {}
 
-  for gradle_target in services_and_names.keys():
+  for gradle_target in expansion_service_jar_targets:
     provider = ExternalTransformProvider(BeamJarExpansionService(gradle_target))
     discovered: Dict[str, ExternalTransform] = provider.get_all()
 

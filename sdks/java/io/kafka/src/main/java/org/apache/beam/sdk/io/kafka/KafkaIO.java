@@ -744,6 +744,9 @@ public class KafkaIO {
     @Pure
     public abstract long getConsumerPollingTimeout();
 
+    @Pure
+    public abstract @Nullable Boolean getLogTopicVerification();
+
     abstract Builder<K, V> toBuilder();
 
     @AutoValue.Builder
@@ -809,6 +812,8 @@ public class KafkaIO {
       }
 
       abstract Builder<K, V> setConsumerPollingTimeout(long consumerPollingTimeout);
+
+      abstract Builder<K, V> setLogTopicVerification(@Nullable Boolean logTopicVerification);
 
       abstract Read<K, V> build();
 
@@ -1483,6 +1488,10 @@ public class KafkaIO {
               "org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required;"));
     }
 
+    public Read<K, V> withTopicVerificationLogging(boolean logTopicVerification) {
+      return toBuilder().setLogTopicVerification(logTopicVerification).build();
+    }
+
     /** Returns a {@link PTransform} for PCollection of {@link KV}, dropping Kafka metatdata. */
     public PTransform<PBegin, PCollection<KV<K, V>>> withoutMetadata() {
       return new TypedWithoutMetadata<>(this);
@@ -1874,6 +1883,7 @@ public class KafkaIO {
         this.topicPattern = read.getTopicPattern();
         this.startReadTime = read.getStartReadTime();
         this.stopReadTime = read.getStopReadTime();
+        this.logTopicVerification = read.getLogTopicVerification();
       }
 
       private final SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
@@ -1890,6 +1900,7 @@ public class KafkaIO {
       @VisibleForTesting final @Nullable List<String> topics;
 
       private final @Nullable Pattern topicPattern;
+      private final @Nullable Boolean logTopicVerification;
 
       @ProcessElement
       public void processElement(OutputReceiver<KafkaSourceDescriptor> receiver) {
@@ -1910,7 +1921,22 @@ public class KafkaIO {
               }
             } else {
               for (String topic : topics) {
-                for (PartitionInfo p : consumer.partitionsFor(topic)) {
+                List<PartitionInfo> partitionInfoList = consumer.partitionsFor(topic);
+                if (logTopicVerification == null || !logTopicVerification) {
+                  checkState(
+                      partitionInfoList != null && !partitionInfoList.isEmpty(),
+                      "Could not find any partitions info for topic "
+                          + topic
+                          + ". Please check Kafka configuration and make sure "
+                          + "that provided topics exist.");
+                } else {
+                  LOG.warn(
+                      "Could not find any partitions info for topic {}. Please check Kafka configuration "
+                          + "and make sure that the provided topics exist.",
+                      topic);
+                }
+
+                for (PartitionInfo p : partitionInfoList) {
                   partitions.add(new TopicPartition(p.topic(), p.partition()));
                 }
               }

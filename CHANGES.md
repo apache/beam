@@ -58,7 +58,11 @@
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
 
-# [2.65.0] - Unreleased
+# [2.66.0] - Unreleased
+
+## Beam 3.0.0 Development Highlights
+
+* New highly anticipated feature ([X](https://github.com/apache/beam/issues/X)) to address Milestone Y ([#Y](https://github.com/apache/beam/issues/Y)).
 
 ## Highlights
 
@@ -68,46 +72,80 @@
 ## I/Os
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
-* Upgraded GoogleAdsAPI to v19 for GoogleAdsIO (Java) ([#34497](https://github.com/apache/beam/pull/34497)). Changed PTransform method from version-specified (`v17()`) to `current()` for better backward compatibility in the future.
 
 ## New Features / Improvements
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* [YAML] WriteToTFRecord and ReadFromTFRecord Beam YAML support
 
 ## Breaking Changes
 
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
-* [Python] Reshuffle now preserves PaneInfo, where previously PaneInfo was lost
-after reshuffle. To opt out of this change, set the
-update_compatibility_version to a previous Beam version e.g. "2.64.0".
-([#34348](https://github.com/apache/beam/pull/34348))
-* [Python] BigQueryFileLoads now adds a Reshuffle before triggering load jobs.
-This fixes a bug where there can be data loss in a streaming pipeline if there
-is a pending load job during autoscaling. To opt out of this change, set the
-update_compatibility_version to a previous Beam version e.g. "2.64.0".
-([#34657](https://github.com/apache/beam/pull/34657))
 
 ## Deprecations
 
 * X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
-* Beam ZetaSQL is deprecated and will be removed no earlier than Beam 2.68.0 ([#34423](https://github.com/apache/beam/issues/34423)).
-  Users are recommended to switch to [Calcite SQL](https://beam.apache.org/documentation/dsls/sql/calcite/overview/) dialect.
 
 ## Bugfixes
 
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
-* Fixed read Beam rows from cross-lang transform (for example, ReadFromJdbc) involving negative 32-bit integers incorrectly decoded to large integers ([#34089](https://github.com/apache/beam/issues/34089))
-* (Java) Fixed SDF-based KafkaIO (ReadFromKafkaViaSDF) to properly handle custom deserializers that extend Deserializer<Row> interface([#34505](https://github.com/apache/beam/pull/34505))
-* [Python] `TypedDict` typehints are now compatible with `Mapping` and `Dict` type annotations.
 
 ## Security Fixes
 * Fixed [CVE-YYYY-NNNN](https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN) (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
-* Fixed [CVE-2025-30065](https://www.cve.org/CVERecord?id=CVE-2025-30065) (Java) ([#34573](https://github.com/apache/beam/pull/34573))
 
 ## Known Issues
 
 [comment]: # ( When updating known issues after release, make sure also update website blog in website/www/site/content/blog.)
 * ([#X](https://github.com/apache/beam/issues/X)).
+
+# [2.65.0] - Unreleased
+
+## I/Os
+
+* Upgraded GoogleAdsAPI to v19 for GoogleAdsIO (Java) ([#34497](https://github.com/apache/beam/pull/34497)). Changed PTransform method from version-specified (`v17()`) to `current()` for better backward compatibility in the future.
+* Added support for writing to Pubsub with ordering keys (Java) ([#21162](https://github.com/apache/beam/issues/21162))
+
+## New Features / Improvements
+
+* Added support for streaming side-inputs in the Spark Classic runner ([#18136](https://github.com/apache/beam/issues/18136)).
+
+## Breaking Changes
+
+* [Python] Reshuffle now preserves PaneInfo, where previously PaneInfo was lost
+  after reshuffle. To opt out of this change, set the
+  update_compatibility_version to a previous Beam version e.g. "2.64.0".
+([#34348](https://github.com/apache/beam/pull/34348))
+* [Python] PaneInfo is encoded by PaneInfoCoder, where previously PaneInfo was
+  encoded with FastPrimitivesCoder falling back to PickleCoder. This only
+  affects cases where PaneInfo is directly stored as an element.
+  ([#34824](https://github.com/apache/beam/pull/34824))
+* [Python] BigQueryFileLoads now adds a Reshuffle before triggering load jobs.
+  This fixes a bug where there can be data loss in a streaming pipeline if there
+  is a pending load job during autoscaling. To opt out of this change, set the
+  update_compatibility_version to a previous Beam version e.g. "2.64.0".
+([#34657](https://github.com/apache/beam/pull/34657))
+* [YAML] Kafka source and sink will be automatically replaced with compatible managed transforms.
+  For older Beam versions, streaming update compatiblity can be maintained by specifying the pipeline
+  option `update_compatibility_version` ([#34767](https://github.com/apache/beam/issues/34767)).
+
+## Deprecations
+
+* Beam ZetaSQL is deprecated and will be removed no earlier than Beam 2.68.0 ([#34423](https://github.com/apache/beam/issues/34423)).
+  Users are recommended to switch to [Calcite SQL](https://beam.apache.org/documentation/dsls/sql/calcite/overview/) dialect.
+
+## Bugfixes
+
+* Fixed read Beam rows from cross-lang transform (for example, ReadFromJdbc) involving negative 32-bit integers incorrectly decoded to large integers ([#34089](https://github.com/apache/beam/issues/34089))
+* (Java) Fixed SDF-based KafkaIO (ReadFromKafkaViaSDF) to properly handle custom deserializers that extend Deserializer<Row> interface([#34505](https://github.com/apache/beam/pull/34505))
+* [Python] `TypedDict` typehints are now compatible with `Mapping` and `Dict` type annotations.
+
+## Security Fixes
+
+* Fixed [CVE-2025-30065](https://www.cve.org/CVERecord?id=CVE-2025-30065) (Java) ([#34573](https://github.com/apache/beam/pull/34573))
+
+## Known Issues
+
+N/A
 
 # [2.64.0] - 2025-03-31
 

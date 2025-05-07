@@ -184,7 +184,8 @@ public class StatefulStreamingParDoEvaluator<KeyT, ValueT, OutputT>
                         doFnSchemaInformation,
                         sideInputMapping,
                         watermarks,
-                        sourceIds)));
+                        sourceIds,
+                        context.isStreamingSideInput())));
 
     all =
         processedPairDStream.flatMapToPair(

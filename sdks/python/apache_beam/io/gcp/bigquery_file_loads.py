@@ -1166,7 +1166,10 @@ class BigQueryBatchFileLoads(beam.PTransform):
     else:
       # Loads can happen in parallel.
       finished_temp_tables_load_job_ids_list_pc = (
-          finished_temp_tables_load_job_ids_pc | beam.Map(lambda x: [x]))
+          finished_temp_tables_load_job_ids_pc
+          # This name is to ensure update compat.
+          | "Map(<lambda at bigquery_file_loads.py:1157>)" >>
+          beam.Map(lambda x: [x]))
 
     copy_job_outputs = (
         finished_temp_tables_load_job_ids_list_pc
