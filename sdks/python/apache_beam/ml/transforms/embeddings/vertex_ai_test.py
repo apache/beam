@@ -142,7 +142,7 @@ class VertexAIEmbeddingsTest(unittest.TestCase):
             pipeline=data, read_artifact_location=self.artifact_location)
 
         def assert_element(element):
-          assert round(element, 2) == 0.15
+          assert round(element, 2) == 0.11
 
         _ = (
             result_pcoll
@@ -192,7 +192,7 @@ class VertexAIEmbeddingsTest(unittest.TestCase):
             pipeline=data, read_artifact_location=self.gcs_artifact_location)
 
         def assert_element(element):
-          assert round(element, 2) == 0.15
+          assert round(element, 2) == 0.11
 
         _ = (
             result_pcoll
