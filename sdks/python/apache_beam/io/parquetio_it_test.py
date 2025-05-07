@@ -177,6 +177,7 @@ class WriteStreamingIT(unittest.TestCase):
             file_path_prefix=output_file,
             file_name_suffix=".parquet",
             num_shards=num_shards,
+            triggering_frequency=60,
             schema=pyschema))
     result = p.run()
     result.wait_until_finish(duration=600 * 1000)

@@ -574,6 +574,7 @@ class WriteToParquet(PTransform):
         supports specifying MIME types.
       triggering_frequency: (int) Every triggering_frequency duration, a window 
         will be triggered and all bundles in the window will be written.
+        If set it overrides user windowing. Mandatory for GlobalWindow.
 
     Returns:
       A WriteToParquet transform usable for writing.

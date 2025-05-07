@@ -38,7 +38,7 @@ from apache_beam.transforms.display import DisplayDataItem
 
 DEFAULT_SHARD_NAME_TEMPLATE = '-SSSSS-of-NNNNN'
 DEFAULT_WINDOW_SHARD_NAME_TEMPLATE = '-W-SSSSS-of-NNNNN'
-DEFAULT_TRIGGERING_FREQUENCY = 60
+DEFAULT_TRIGGERING_FREQUENCY = 0
 
 __all__ = ['FileBasedSink']
 

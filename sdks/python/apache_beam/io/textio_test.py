@@ -1984,7 +1984,7 @@ class WriteStreamingTest(unittest.TestCase):
           file_path_prefix=self.tempdir + "/ouput_WriteToText",
           file_name_suffix=".txt",
           num_shards=num_shards,
-      )
+          triggering_frequency=60)
       _ = output2 | 'LogElements after WriteToText' >> LogElements(
           prefix='after WriteToText ', with_window=True, level=logging.INFO)
 
@@ -2010,6 +2010,169 @@ class WriteStreamingTest(unittest.TestCase):
         num_shards,
         "expected %d files, but got: %d" % (num_shards, len(file_names)))
 
+  def test_write_streaming_2_shards_default_shard_name_template_windowed_pcoll(
+      self, num_shards=2):
+    with TestPipeline() as p:
+      output = (
+          p | GenerateEvent.sample_data()
+          | 'User windowing' >> beam.transforms.core.WindowInto(
+              beam.transforms.window.FixedWindows(10),
+              trigger=beam.transforms.trigger.AfterWatermark(),
+              accumulation_mode=beam.transforms.trigger.AccumulationMode.
+              DISCARDING,
+              allowed_lateness=beam.utils.timestamp.Duration(seconds=0)))
+      #TextIO
+      output2 = output | 'TextIO WriteToText' >> beam.io.WriteToText(
+          file_path_prefix=self.tempdir + "/ouput_WriteToText",
+          file_name_suffix=".txt",
+          num_shards=num_shards,
+      )
+      _ = output2 | 'LogElements after WriteToText' >> LogElements(
+          prefix='after WriteToText ', with_window=True, level=logging.INFO)
+
+    # Regex to match the expected windowed file pattern
+    # Example:
+    # ouput_WriteToText-[1614556800.0, 1614556805.0)-00000-of-00002.txt
+    # It captures: window_interval, shard_num, total_shards
+    pattern_string = (
+        r'.*-\[(?P<window_start>[\d\.]+), '
+        r'(?P<window_end>[\d\.]+|Infinity)\)-'
+        r'(?P<shard_num>\d{5})-of-(?P<total_shards>\d{5})\.txt$')
+    pattern = re.compile(pattern_string)
+    file_names = []
+    for file_name in glob.glob(self.tempdir + '/ouput_WriteToText*'):
+      match = pattern.match(file_name)
+      self.assertIsNotNone(
+          match, f"File name {file_name} did not match expected pattern.")
+      if match:
+        file_names.append(file_name)
+    print("Found files matching expected pattern:", file_names)
+    self.assertEqual(
+        len(file_names),
+        num_shards*3, #25s of data covered by 3 10s windows
+        "expected %d files, but got: %d" % (num_shards*3, len(file_names)))
+
+  def test_write_streaming_undef_shards_default_shard_name_template_windowed_pcoll(  # pylint: disable=line-too-long
+      self):
+    with TestPipeline() as p:
+      output = (
+          p | GenerateEvent.sample_data()
+          | 'User windowing' >> beam.transforms.core.WindowInto(
+              beam.transforms.window.FixedWindows(10),
+              trigger=beam.transforms.trigger.AfterWatermark(),
+              accumulation_mode=beam.transforms.trigger.AccumulationMode.
+              DISCARDING,
+              allowed_lateness=beam.utils.timestamp.Duration(seconds=0)))
+      #TextIO
+      output2 = output | 'TextIO WriteToText' >> beam.io.WriteToText(
+          file_path_prefix=self.tempdir + "/ouput_WriteToText",
+          file_name_suffix=".txt",
+          num_shards=0,
+      )
+      _ = output2 | 'LogElements after WriteToText' >> LogElements(
+          prefix='after WriteToText ', with_window=True, level=logging.INFO)
+
+    # Regex to match the expected windowed file pattern
+    # Example:
+    # ouput_WriteToText-[1614556800.0, 1614556805.0)-00000-of-00002.txt
+    # It captures: window_interval, shard_num, total_shards
+    pattern_string = (
+        r'.*-\[(?P<window_start>[\d\.]+), '
+        r'(?P<window_end>[\d\.]+|Infinity)\)-'
+        r'(?P<shard_num>\d{5})-of-(?P<total_shards>\d{5})\.txt$')
+    pattern = re.compile(pattern_string)
+    file_names = []
+    for file_name in glob.glob(self.tempdir + '/ouput_WriteToText*'):
+      match = pattern.match(file_name)
+      self.assertIsNotNone(
+          match, f"File name {file_name} did not match expected pattern.")
+      if match:
+        file_names.append(file_name)
+    print("Found files matching expected pattern:", file_names)
+    self.assertGreaterEqual(
+        len(file_names),
+        1*3, #25s of data covered by 3 10s windows
+        "expected %d files, but got: %d" % (1*3, len(file_names)))
+
+  def test_write_streaming_undef_shards_default_shard_name_template_windowed_pcoll_and_trig_freq(  # pylint: disable=line-too-long
+      self):
+    with TestPipeline() as p:
+      output = (
+          p | GenerateEvent.sample_data()
+          | 'User windowing' >> beam.transforms.core.WindowInto(
+              beam.transforms.window.FixedWindows(60),
+              trigger=beam.transforms.trigger.AfterWatermark(),
+              accumulation_mode=beam.transforms.trigger.AccumulationMode.
+              DISCARDING,
+              allowed_lateness=beam.utils.timestamp.Duration(seconds=0)))
+      #TextIO
+      output2 = output | 'TextIO WriteToText' >> beam.io.WriteToText(
+          file_path_prefix=self.tempdir + "/ouput_WriteToText",
+          file_name_suffix=".txt",
+          num_shards=0,
+          triggering_frequency=10,
+      )
+      _ = output2 | 'LogElements after WriteToText' >> LogElements(
+          prefix='after WriteToText ', with_window=True, level=logging.INFO)
+
+    # Regex to match the expected windowed file pattern
+    # Example:
+    # ouput_WriteToText-[1614556800.0, 1614556805.0)-00000-of-00002.txt
+    # It captures: window_interval, shard_num, total_shards
+    pattern_string = (
+        r'.*-\[(?P<window_start>[\d\.]+), '
+        r'(?P<window_end>[\d\.]+|Infinity)\)-'
+        r'(?P<shard_num>\d{5})-of-(?P<total_shards>\d{5})\.txt$')
+    pattern = re.compile(pattern_string)
+    file_names = []
+    for file_name in glob.glob(self.tempdir + '/ouput_WriteToText*'):
+      match = pattern.match(file_name)
+      self.assertIsNotNone(
+          match, f"File name {file_name} did not match expected pattern.")
+      if match:
+        file_names.append(file_name)
+    print("Found files matching expected pattern:", file_names)
+    self.assertGreaterEqual(
+        len(file_names),
+        1*3, #25s of data covered by 3 10s windows
+        "expected %d files, but got: %d" % (1*3, len(file_names)))
+
+  def test_write_streaming_undef_shards_default_shard_name_template_global_window_pcoll(  # pylint: disable=line-too-long
+      self):
+    with TestPipeline() as p:
+      output = (p | GenerateEvent.sample_data())
+      #TextIO
+      output2 = output | 'TextIO WriteToText' >> beam.io.WriteToText(
+          file_path_prefix=self.tempdir + "/ouput_WriteToText",
+          file_name_suffix=".txt",
+          num_shards=0, #0 means undef nb of shards, same as omitted/default
+          triggering_frequency=60,
+      )
+      _ = output2 | 'LogElements after WriteToText' >> LogElements(
+          prefix='after WriteToText ', with_window=True, level=logging.INFO)
+
+    # Regex to match the expected windowed file pattern
+    # Example:
+    # ouput_WriteToText-[1614556800.0, 1614556805.0)-00000-of-00002.txt
+    # It captures: window_interval, shard_num, total_shards
+    pattern_string = (
+        r'.*-\[(?P<window_start>[\d\.]+), '
+        r'(?P<window_end>[\d\.]+|Infinity)\)-'
+        r'(?P<shard_num>\d{5})-of-(?P<total_shards>\d{5})\.txt$')
+    pattern = re.compile(pattern_string)
+    file_names = []
+    for file_name in glob.glob(self.tempdir + '/ouput_WriteToText*'):
+      match = pattern.match(file_name)
+      self.assertIsNotNone(
+          match, f"File name {file_name} did not match expected pattern.")
+      if match:
+        file_names.append(file_name)
+    print("Found files matching expected pattern:", file_names)
+    self.assertGreaterEqual(
+        len(file_names),
+        1*3, #25s of data covered by 3 10s windows
+        "expected %d files, but got: %d" % (1*3, len(file_names)))
+
   def test_write_streaming_2_shards_custom_shard_name_template(
       self, num_shards=2, shard_name_template='-V-SSSSS-of-NNNNN'):
     with TestPipeline() as p:
@@ -2020,6 +2183,7 @@ class WriteStreamingTest(unittest.TestCase):
           file_name_suffix=".txt",
           shard_name_template=shard_name_template,
           num_shards=num_shards,
+          triggering_frequency=60,
       )
       _ = output2 | 'LogElements after WriteToText' >> LogElements(
           prefix='after WriteToText ', with_window=True, level=logging.INFO)

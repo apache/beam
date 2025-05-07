@@ -452,7 +452,7 @@ class _TextSink(filebasedsink.FileBasedSink):
       max_records_per_shard=None,
       max_bytes_per_shard=None,
       skip_if_empty=False,
-      triggering_frequency=60):
+      triggering_frequency=None):
     """Initialize a _TextSink.
 
     Args:
@@ -469,13 +469,23 @@ class _TextSink(filebasedsink.FileBasedSink):
         Constraining the number of shards is likely to reduce
         the performance of a pipeline.  Setting this value is not recommended
         unless you require a specific number of output files.
+        In streaming if not set, the service will write a file per bundle.
       shard_name_template: A template string containing placeholders for
-        the shard number and shard count. When constructing a filename for a
-        particular shard number, the upper-case letters 'S' and 'N' are
-        replaced with the 0-padded shard number and shard count respectively.
-        This argument can be '' in which case it behaves as if num_shards was
-        set to 1 and only one file will be generated. The default pattern used
-        is '-SSSSS-of-NNNNN' if None is passed as the shard_name_template.
+        the shard number and shard count. Currently only ``''``,
+        ``'-SSSSS-of-NNNNN'``, ``'-W-SSSSS-of-NNNNN'`` and
+        ``'-V-SSSSS-of-NNNNN'`` are patterns accepted by the service.
+        When constructing a filename for a particular shard number, the
+        upper-case letters ``S`` and ``N`` are replaced with the ``0``-padded
+        shard number and shard count respectively.  This argument can be ``''``
+        in which case it behaves as if num_shards was set to 1 and only one file
+        will be generated. The default pattern used is ``'-SSSSS-of-NNNNN'`` for
+        bounded PCollections and for ``'-W-SSSSS-of-NNNNN'`` unbounded 
+        PCollections.
+        W is used for windowed shard naming and is replaced with 
+        ``[window.start, window.end)``
+        V is used for windowed shard naming and is replaced with 
+        ``[window.start.to_utc_datetime().strftime("%Y-%m-%dT%H-%M-%S"), 
+        window.end.to_utc_datetime().strftime("%Y-%m-%dT%H-%M-%S")``
       coder: Coder used to encode each line.
       compression_type: Used to handle compressed output files. Typical value
         is CompressionTypes.AUTO, in which case the final file path's
@@ -497,6 +507,8 @@ class _TextSink(filebasedsink.FileBasedSink):
       skip_if_empty: Don't write any shards if the PCollection is empty.
       triggering_frequency: (int) Every triggering_frequency duration, a window 
         will be triggered and all bundles in the window will be written.
+        If set it overrides user windowing. Mandatory for GlobalWindow.
+
 
     Returns:
       A _TextSink object usable for writing.

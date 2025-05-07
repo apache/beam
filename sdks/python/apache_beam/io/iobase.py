@@ -1152,16 +1152,33 @@ class WriteImpl(ptransform.PTransform):
         )
       else:  #unbounded PCollection needes to be written per window
         if isinstance(pcoll.windowing.windowfn, window.GlobalWindows):
+          if (self.sink.triggering_frequency is None or
+              self.sink.triggering_frequency == 0):
+            raise ValueError(
+                'To write a GlobalWindow PCollection, triggering_frequency must'
+                ' be set and be greater than 0')
           widowed_pcoll = (
-              pcoll
+              pcoll  #TODO GroupIntoBatches and trigger indef per freq
               | core.WindowInto(
                   window.FixedWindows(self.sink.triggering_frequency),
                   trigger=beam.transforms.trigger.AfterWatermark(),
                   accumulation_mode=beam.transforms.trigger.AccumulationMode.
                   DISCARDING,
                   allowed_lateness=beam.utils.timestamp.Duration(seconds=0)))
-        else:  #keep user windowing
-          widowed_pcoll = pcoll
+        else:
+          #keep user windowing, unless triggering_frequency has been specified
+          if (self.sink.triggering_frequency is not None and
+              self.sink.triggering_frequency > 0):
+            widowed_pcoll = (
+                pcoll  #TODO GroupIntoBatches and trigger indef per freq
+                | core.WindowInto(
+                    window.FixedWindows(self.sink.triggering_frequency),
+                    trigger=beam.transforms.trigger.AfterWatermark(),
+                    accumulation_mode=beam.transforms.trigger.AccumulationMode.
+                    DISCARDING,
+                    allowed_lateness=beam.utils.timestamp.Duration(seconds=0)))
+          else:  #keep user windowing
+            widowed_pcoll = pcoll
         if self.sink.convert_fn is not None:
           widowed_pcoll = widowed_pcoll | core.ParDo(self.sink.convert_fn)
         if min_shards == 1:
@@ -1214,14 +1231,34 @@ class WriteImpl(ptransform.PTransform):
             | core.GroupByKey()
             | 'Extract' >> core.FlatMap(lambda x: x[1]))
       else:  #unbounded PCollection needes to be written per window
-        widowed_pcoll = (
-            pcoll
-            | core.WindowInto(
-                window.FixedWindows(self.sink.triggering_frequency),
-                trigger=beam.transforms.trigger.AfterWatermark(),
-                accumulation_mode=beam.transforms.trigger.AccumulationMode.
-                DISCARDING,
-                allowed_lateness=beam.utils.timestamp.Duration(seconds=0)))
+        if isinstance(pcoll.windowing.windowfn, window.GlobalWindows):
+          if (self.sink.triggering_frequency is None or
+              self.sink.triggering_frequency == 0):
+            raise ValueError(
+                'To write a GlobalWindow PCollection, triggering_frequency must'
+                ' be set and be greater than 0')
+          widowed_pcoll = (
+              pcoll  #TODO GroupIntoBatches and trigger indef per freq
+              | core.WindowInto(
+                  window.FixedWindows(self.sink.triggering_frequency),
+                  trigger=beam.transforms.trigger.AfterWatermark(),
+                  accumulation_mode=beam.transforms.trigger.AccumulationMode.
+                  DISCARDING,
+                  allowed_lateness=beam.utils.timestamp.Duration(seconds=0)))
+        else:
+          #keep user windowing, unless triggering_frequency has been specified
+          if (self.sink.triggering_frequency is not None and
+              self.sink.triggering_frequency > 0):
+            widowed_pcoll = (
+                pcoll  #TODO GroupIntoBatches and trigger indef per freq
+                | core.WindowInto(
+                    window.FixedWindows(self.sink.triggering_frequency),
+                    trigger=beam.transforms.trigger.AfterWatermark(),
+                    accumulation_mode=beam.transforms.trigger.AccumulationMode.
+                    DISCARDING,
+                    allowed_lateness=beam.utils.timestamp.Duration(seconds=0)))
+          else:  #keep user windowing
+            widowed_pcoll = pcoll
         init_result_window_coll = (
             widowed_pcoll
             | 'Pair init' >> core.Map(lambda x: (None, x))
@@ -1352,7 +1389,6 @@ class _WriteWindowedBundleDoFn(core.DoFn):
       init_result,
       w=core.DoFn.WindowParam,
       pane=core.DoFn.PaneInfoParam):
-
     if self.per_key:
       w_key = "%s_%s" % (w, element[0])  # key
     else:

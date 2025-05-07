@@ -393,6 +393,7 @@ class WriteToAvro(beam.transforms.PTransform):
         Constraining the number of shards is likely to reduce
         the performance of a pipeline.  Setting this value is not recommended
         unless you require a specific number of output files.
+        In streaming if not set, the service will write a file per bundle.
       shard_name_template: A template string containing placeholders for
         the shard number and shard count. Currently only ``''``,
         ``'-SSSSS-of-NNNNN'``, ``'-W-SSSSS-of-NNNNN'`` and
@@ -415,6 +416,7 @@ class WriteToAvro(beam.transforms.PTransform):
         and no longer has an effect. Do not use.
       triggering_frequency: (int) Every triggering_frequency duration, a window 
         will be triggered and all bundles in the window will be written.
+        If set it overrides user windowing. Mandatory for GlobalWindow.
 
     Returns:
       A WriteToAvro transform usable for writing.

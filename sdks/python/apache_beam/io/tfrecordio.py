@@ -329,6 +329,7 @@ class WriteToTFRecord(PTransform):
       file_name_suffix: Suffix for the files written.
       num_shards: The number of files (shards) used for output. If not set, the
         default value will be used.
+        In streaming if not set, the service will write a file per bundle.
       shard_name_template: A template string containing placeholders for
         the shard number and shard count. Currently only ``''``,
         ``'-SSSSS-of-NNNNN'``, ``'-W-SSSSS-of-NNNNN'`` and
@@ -350,6 +351,7 @@ class WriteToTFRecord(PTransform):
           be used to detect the compression.
       triggering_frequency: (int) Every triggering_frequency duration, a window 
         will be triggered and all bundles in the window will be written.
+        If set it overrides user windowing. Mandatory for GlobalWindow.
 
     Returns:
       A WriteToTFRecord transform object.

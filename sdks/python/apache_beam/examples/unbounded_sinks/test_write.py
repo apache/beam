@@ -71,7 +71,8 @@ def run(argv=None, save_main_session=True) -> PipelineResult:
       file_path_prefix="__output__/ouput_WriteToText",
       file_name_suffix=".txt",
       #shard_name_template='-V-SSSSS-of-NNNNN',
-      num_shards=2,  #triggering_frequency=5,
+      num_shards=2,
+      triggering_frequency=5,
   )
   _ = output2 | 'LogElements after WriteToText' >> LogElements(
       prefix='after WriteToText ', with_window=True, level=logging.INFO)
