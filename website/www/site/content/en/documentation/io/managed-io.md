@@ -35,7 +35,7 @@ manual updates or user intervention required!)
 ## Supported SDKs
 
 The Managed API is directly accessible through the
-[Java](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/managed/Managed.html)
+[Java](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.managed.html)
 and
 [Python](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.managed.html)
 SDKs.
@@ -62,10 +62,8 @@ and Beam SQL is invoked via the Managed API under the hood.
         catalog_name (<code style="color: green">str</code>)<br>
         catalog_properties (<code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>)<br>
         config_properties (<code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>)<br>
-        drop (<code>list[<span style="color: green;">str</span>]</code>)<br>
         from_snapshot (<code style="color: #f54251">int64</code>)<br>
         from_timestamp (<code style="color: #f54251">int64</code>)<br>
-        keep (<code>list[<span style="color: green;">str</span>]</code>)<br>
         poll_interval_seconds (<code style="color: #f54251">int32</code>)<br>
         starting_strategy (<code style="color: green">str</code>)<br>
         streaming (<code style="color: orange">boolean</code>)<br>
@@ -83,8 +81,6 @@ and Beam SQL is invoked via the Managed API under the hood.
         catalog_name (<code style="color: green">str</code>)<br>
         catalog_properties (<code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>)<br>
         config_properties (<code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>)<br>
-        drop (<code>list[<span style="color: green;">str</span>]</code>)<br>
-        keep (<code>list[<span style="color: green;">str</span>]</code>)<br>
       </td>
       <td>
         <strong>table</strong> (<code style="color: green">str</code>)<br>
@@ -198,17 +194,6 @@ and Beam SQL is invoked via the Managed API under the hood.
     </tr>
     <tr>
       <td>
-        drop
-      </td>
-      <td>
-        <code>list[<span style="color: green;">str</span>]</code>
-      </td>
-      <td>
-        A subset of column names to exclude from reading. If null or empty, all columns will be read.
-      </td>
-    </tr>
-    <tr>
-      <td>
         from_snapshot
       </td>
       <td>
@@ -227,17 +212,6 @@ and Beam SQL is invoked via the Managed API under the hood.
       </td>
       <td>
         Starts reading from the first snapshot (inclusive) that was created after this timestamp (in milliseconds).
-      </td>
-    </tr>
-    <tr>
-      <td>
-        keep
-      </td>
-      <td>
-        <code>list[<span style="color: green;">str</span>]</code>
-      </td>
-      <td>
-        A subset of column names to read exclusively. If null or empty, all columns will be read.
       </td>
     </tr>
     <tr>
@@ -449,28 +423,6 @@ and Beam SQL is invoked via the Managed API under the hood.
       </td>
       <td>
         Properties passed to the Hadoop Configuration.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        drop
-      </td>
-      <td>
-        <code>list[<span style="color: green;">str</span>]</code>
-      </td>
-      <td>
-        A subset of column names to exclude from reading. If null or empty, all columns will be read.
-      </td>
-    </tr>
-    <tr>
-      <td>
-        keep
-      </td>
-      <td>
-        <code>list[<span style="color: green;">str</span>]</code>
-      </td>
-      <td>
-        A subset of column names to read exclusively. If null or empty, all columns will be read.
       </td>
     </tr>
   </table>
