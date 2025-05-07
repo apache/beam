@@ -119,7 +119,7 @@ def dumps(
     raise NotImplementedError('This option has only been implemeneted for dill')
   with _pickle_lock:
     with io.BytesIO() as file:
-      pickler = cloudpickle.CloudPickler(file)
+      pickler = cloudpickle.PurePythonPickler(file)
       try:
         pickler.dispatch_table[type(flags.FLAGS)] = _pickle_absl_flags
       except NameError:

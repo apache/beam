@@ -9,6 +9,7 @@ __all__ = [  # noqa
     "__version__",
     "Pickler",
     "CloudPickler",
+    "PurePythonPickler",
     "dumps",
     "loads",
     "dump",
