@@ -39,9 +39,10 @@ export function assignReviewer(labelToReviewerMapping: any): string {
     }
   }
 
-  commentString += "Note: If you would like to opt out of this review, comment `assign to next reviewer`.\n"
-
   commentString += `
+
+Note: If you would like to opt out of this review, comment \`assign to next reviewer\`.
+
 Available commands:
 - \`stop reviewer notifications\` - opt out of the automated review tooling
 - \`remind me after tests pass\` - tag the comment author after tests pass
