@@ -18,7 +18,8 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
@@ -29,10 +30,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException;
@@ -41,16 +40,13 @@ import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.inprocess.InProcessChannelBuilder;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.inprocess.InProcessServerBuilder;
-import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.ServerCallStreamObserver;
-import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.testing.GrpcCleanupRule;
-import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.util.MutableHandlerRegistry;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
+import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ErrorCollector;
 import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -65,34 +61,34 @@ public class GrpcGetDataStreamTest {
           .setProjectId("test_project")
           .build();
 
+  @Rule public final ErrorCollector errorCollector = new ErrorCollector();
   @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
-  private final MutableHandlerRegistry serviceRegistry = new MutableHandlerRegistry();
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
+  private final FakeWindmillGrpcService fakeService = new FakeWindmillGrpcService(errorCollector);
   private ManagedChannel inProcessChannel;
+  private Server inProcessServer;
 
   @Before
   public void setUp() throws IOException {
-    Server server =
-        InProcessServerBuilder.forName(FAKE_SERVER_NAME)
-            .fallbackHandlerRegistry(serviceRegistry)
-            .directExecutor()
-            .build()
-            .start();
-
+    inProcessServer =
+        grpcCleanup.register(
+            InProcessServerBuilder.forName(FAKE_SERVER_NAME)
+                .addService(fakeService)
+                .directExecutor()
+                .build()
+                .start());
     inProcessChannel =
         grpcCleanup.register(
             InProcessChannelBuilder.forName(FAKE_SERVER_NAME).directExecutor().build());
-    grpcCleanup.register(server);
-    grpcCleanup.register(inProcessChannel);
   }
 
   @After
   public void cleanUp() {
+    inProcessServer.shutdownNow();
     inProcessChannel.shutdownNow();
   }
 
-  private GrpcGetDataStream createGetDataStream(GetDataStreamTestStub testStub) {
-    serviceRegistry.addService(testStub);
+  private GrpcGetDataStream createGetDataStream() {
     GrpcGetDataStream getDataStream =
         (GrpcGetDataStream)
             GrpcWindmillStreamFactory.of(TEST_JOB_HEADER)
@@ -104,53 +100,51 @@ public class GrpcGetDataStreamTest {
   }
 
   @Test
-  public void testRequestKeyedData() {
-    GetDataStreamTestStub testStub =
-        new GetDataStreamTestStub(new TestGetDataStreamRequestObserver());
-    GrpcGetDataStream getDataStream = createGetDataStream(testStub);
+  public void testRequestKeyedData() throws InterruptedException {
+    GrpcGetDataStream getDataStream = createGetDataStream();
+    FakeWindmillGrpcService.GetDataStreamInfo streamInfo = waitForConnectionAndConsumeHeader();
+
     // These will block until they are successfully sent.
+    Windmill.KeyedGetDataRequest keyedGetDataRequest =
+        Windmill.KeyedGetDataRequest.newBuilder()
+            .setKey(ByteString.EMPTY)
+            .setShardingKey(1)
+            .setCacheToken(1)
+            .setWorkToken(1)
+            .build();
+
     CompletableFuture<Windmill.KeyedGetDataResponse> sendFuture =
         CompletableFuture.supplyAsync(
             () -> {
               try {
-                return getDataStream.requestKeyedData(
-                    "computationId",
-                    Windmill.KeyedGetDataRequest.newBuilder()
-                        .setKey(ByteString.EMPTY)
-                        .setShardingKey(1)
-                        .setCacheToken(1)
-                        .setWorkToken(1)
-                        .build());
+                return getDataStream.requestKeyedData("computationId", keyedGetDataRequest);
               } catch (WindmillStreamShutdownException e) {
                 throw new RuntimeException(e);
               }
             });
 
-    // Sleep a bit to allow future to run.
-    Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
+    Windmill.StreamingGetDataRequest request = streamInfo.requests.take();
+    assertThat(request.getRequestIdList()).containsExactly(1L);
+    assertEquals(keyedGetDataRequest, request.getStateRequest(0).getRequests(0));
 
-    Windmill.KeyedGetDataResponse response =
+    Windmill.KeyedGetDataResponse keyedGetDataResponse =
         Windmill.KeyedGetDataResponse.newBuilder()
             .setShardingKey(1)
             .setKey(ByteString.EMPTY)
             .build();
 
-    testStub.injectResponse(
+    streamInfo.responseObserver.onNext(
         Windmill.StreamingGetDataResponse.newBuilder()
             .addRequestId(1)
-            .addSerializedResponse(response.toByteString())
-            .setRemainingBytesForResponse(0)
+            .addSerializedResponse(keyedGetDataResponse.toByteString())
             .build());
 
-    assertThat(sendFuture.join()).isEqualTo(response);
+    assertThat(sendFuture.join()).isEqualTo(keyedGetDataResponse);
   }
 
   @Test
-  @Ignore("https://github.com/apache/beam/issues/28957")
   public void testRequestKeyedData_sendOnShutdownStreamThrowsWindmillStreamShutdownException() {
-    GetDataStreamTestStub testStub =
-        new GetDataStreamTestStub(new TestGetDataStreamRequestObserver());
-    GrpcGetDataStream getDataStream = createGetDataStream(testStub);
+    GrpcGetDataStream getDataStream = createGetDataStream();
     int numSendThreads = 5;
     ExecutorService getDataStreamSenders = Executors.newFixedThreadPool(numSendThreads);
     CountDownLatch waitForSendAttempt = new CountDownLatch(1);
@@ -210,48 +204,100 @@ public class GrpcGetDataStreamTest {
     }
   }
 
-  private static class TestGetDataStreamRequestObserver
-      implements StreamObserver<Windmill.StreamingGetDataRequest> {
-    private @Nullable StreamObserver<Windmill.StreamingGetDataResponse> responseObserver;
+  @Test
+  public void testRequestKeyedData_reconnectOnStreamError() throws InterruptedException {
+    GrpcGetDataStream getDataStream = createGetDataStream();
+    FakeWindmillGrpcService.GetDataStreamInfo streamInfo = waitForConnectionAndConsumeHeader();
 
-    @Override
-    public void onNext(Windmill.StreamingGetDataRequest streamingGetDataRequest) {}
+    // These will block until they are successfully sent.
+    Windmill.KeyedGetDataRequest keyedGetDataRequest =
+        Windmill.KeyedGetDataRequest.newBuilder()
+            .setKey(ByteString.EMPTY)
+            .setShardingKey(1)
+            .setCacheToken(1)
+            .setWorkToken(1)
+            .build();
 
-    @Override
-    public void onError(Throwable throwable) {}
+    CompletableFuture<Windmill.KeyedGetDataResponse> sendFuture =
+        CompletableFuture.supplyAsync(
+            () -> {
+              try {
+                return getDataStream.requestKeyedData("computationId", keyedGetDataRequest);
+              } catch (WindmillStreamShutdownException e) {
+                throw new RuntimeException(e);
+              }
+            });
 
-    @Override
-    public void onCompleted() {
-      if (responseObserver != null) {
-        responseObserver.onCompleted();
-      }
-    }
+    Windmill.StreamingGetDataRequest request = streamInfo.requests.take();
+    assertThat(request.getRequestIdList()).containsExactly(1L);
+    assertEquals(keyedGetDataRequest, request.getStateRequest(0).getRequests(0));
+
+    // Simulate an error on the grpc stream, this should trigger a retry of the request internal to
+    // the stream.
+    streamInfo.responseObserver.onError(new IOException("test error"));
+
+    streamInfo = waitForConnectionAndConsumeHeader();
+    request = streamInfo.requests.take();
+    assertThat(request.getRequestIdList()).containsExactly(1L);
+    assertEquals(keyedGetDataRequest, request.getStateRequest(0).getRequests(0));
+
+    getDataStream.shutdown();
+    assertThrows(RuntimeException.class, sendFuture::join);
   }
 
-  private static class GetDataStreamTestStub
-      extends CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1ImplBase {
-    private final TestGetDataStreamRequestObserver requestObserver;
-    private @Nullable StreamObserver<Windmill.StreamingGetDataResponse> responseObserver;
+  @Test
+  public void testRequestKeyedData_reconnectOnStreamErrorAfterHalfClose()
+      throws InterruptedException, ExecutionException {
+    GrpcGetDataStream getDataStream = createGetDataStream();
+    FakeWindmillGrpcService.GetDataStreamInfo streamInfo = waitForConnectionAndConsumeHeader();
 
-    private GetDataStreamTestStub(TestGetDataStreamRequestObserver requestObserver) {
-      this.requestObserver = requestObserver;
-    }
+    // These will block until they are successfully sent.
+    Windmill.KeyedGetDataRequest keyedGetDataRequest =
+        Windmill.KeyedGetDataRequest.newBuilder()
+            .setKey(ByteString.EMPTY)
+            .setShardingKey(1)
+            .setCacheToken(1)
+            .setWorkToken(1)
+            .build();
 
-    @Override
-    public StreamObserver<Windmill.StreamingGetDataRequest> getDataStream(
-        StreamObserver<Windmill.StreamingGetDataResponse> responseObserver) {
-      if (this.responseObserver == null) {
-        ((ServerCallStreamObserver<Windmill.StreamingGetDataResponse>) responseObserver)
-            .setOnCancelHandler(() -> {});
-        this.responseObserver = responseObserver;
-        requestObserver.responseObserver = this.responseObserver;
-      }
+    CompletableFuture<Windmill.KeyedGetDataResponse> sendFuture =
+        CompletableFuture.supplyAsync(
+            () -> {
+              try {
+                return getDataStream.requestKeyedData("computationId", keyedGetDataRequest);
+              } catch (WindmillStreamShutdownException e) {
+                throw new RuntimeException(e);
+              }
+            });
 
-      return requestObserver;
-    }
+    Windmill.StreamingGetDataRequest request = streamInfo.requests.take();
+    assertThat(request.getRequestIdList()).containsExactly(1L);
+    assertEquals(keyedGetDataRequest, request.getStateRequest(0).getRequests(0));
 
-    private void injectResponse(Windmill.StreamingGetDataResponse getDataResponse) {
-      checkNotNull(responseObserver).onNext(getDataResponse);
+    // Close the stream.
+    getDataStream.halfClose();
+    assertNull(streamInfo.onDone.get());
+
+    // Simulate an error on the grpc stream, this should trigger an error on all
+    // existing requests but no new connection since we half-closed and nothing left after
+    // responding with errors.
+    fakeService.expectNoMoreStreams();
+    streamInfo.responseObserver.onError(new IOException("test error"));
+    assertThrows(RuntimeException.class, sendFuture::join);
+
+    getDataStream.shutdown();
+  }
+
+  private FakeWindmillGrpcService.GetDataStreamInfo waitForConnectionAndConsumeHeader() {
+    try {
+      FakeWindmillGrpcService.GetDataStreamInfo info = fakeService.waitForConnectedGetDataStream();
+      Windmill.StreamingGetDataRequest request = info.requests.take();
+      errorCollector.checkThat(request.getHeader(), Matchers.is(TEST_JOB_HEADER));
+      assertEquals(0, request.getRequestIdCount());
+      assertEquals(0, request.getComputationHeartbeatRequestCount());
+      return info;
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
     }
   }
 }

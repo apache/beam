@@ -482,7 +482,6 @@ public class GrpcWindmillServerTest {
   }
 
   @Test
-  @SuppressWarnings("FutureReturnValueIgnored")
   public void testStreamingGetData() throws Exception {
     // This server responds to GetDataRequests with responses that mirror the requests.
     serviceRegistry.addService(
@@ -623,7 +622,7 @@ public class GrpcWindmillServerTest {
     for (int i = 0; i < 100; ++i) {
       final String key = "key" + i;
       final String s = i % 5 == 0 ? largeString(i) : "tag";
-      executor.submit(
+      executor.execute(
           () -> {
             try {
               errorCollector.checkThat(
