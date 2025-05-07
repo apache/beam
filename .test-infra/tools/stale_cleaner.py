@@ -50,6 +50,10 @@ DEFAULT_PROJECT_ID = "apache-beam-testing"
 DEFAULT_BUCKET_NAME = "apache-beam-testing-pabloem"
 
 class GoogleCloudResource:
+    """
+    GoogleCloudResource is a class used to store the GCP resource information of name and type
+    including the creation date and last check date.
+    """
     def __init__(self, resource_name, resource_type, creation_date=None, last_update_date=None, clock=None) -> None:
         self.resource_name = resource_name
         self.resource_type = resource_type
