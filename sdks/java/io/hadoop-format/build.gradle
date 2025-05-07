@@ -123,11 +123,6 @@ hadoopVersions.each {kv ->
 
 // Hadoop dependencies require old version of Guava (BEAM-11626)
 configurations.all (Configuration it) -> {
-  // error-prone requires newer guava, don't override for annotation processing
-  // https://github.com/google/error-prone/issues/2745
-  if (it.name == "annotationProcessor" || it.name =="testAnnotationProcessor") {
-    return
-  }
   resolutionStrategy {
     force 'com.google.guava:guava:25.1-jre'
   }
