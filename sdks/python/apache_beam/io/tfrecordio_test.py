@@ -691,6 +691,12 @@ class WriteStreamingTest(unittest.TestCase):
       output = (
           p
           | GenerateEvent.sample_data()
+          | 'User windowing' >> beam.transforms.core.WindowInto(
+              beam.transforms.window.FixedWindows(60),
+              trigger=beam.transforms.trigger.AfterWatermark(),
+              accumulation_mode=beam.transforms.trigger.AccumulationMode.
+              DISCARDING,
+              allowed_lateness=beam.utils.timestamp.Duration(seconds=0))
           | "encode" >> beam.Map(lambda s: json.dumps(s).encode('utf-8')))
       #TFrecordIO
       output2 = output | 'WriteToTFRecord' >> beam.io.WriteToTFRecord(
@@ -736,6 +742,7 @@ class WriteStreamingTest(unittest.TestCase):
           file_name_suffix=".tfrecord",
           shard_name_template=shard_name_template,
           num_shards=num_shards,
+          triggering_frequency=60,
       )
       _ = output2 | 'LogElements after WriteToTFRecord' >> LogElements(
           prefix='after WriteToTFRecord ', with_window=True, level=logging.INFO)
