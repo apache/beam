@@ -57,15 +57,15 @@ class GoogleCloudResource:
     def __init__(self, resource_name, resource_type, creation_date=None, last_update_date=None, clock=None) -> None:
         self.resource_name = resource_name
         self.resource_type = resource_type
-        self._clock = clock or datetime.datetime.now() # Get current time or use another one for testing
+        clock = clock or datetime.datetime.now() # Get current time or use another one for testing
         self.creation_date = creation_date or clock # Date of first appearance of the resource
         self.last_update = creation_date or clock # Date of last existence check
 
     def __str__(self) -> str:
         return f"{self.resource_name}"
 
-    def update(self) -> None:
-        self.last_update_date = datetime.datetime.now()
+    def update(self, clock=None) -> None:
+        self.last_update_date = datetime.datetime.now() if clock is None else clock
 
     def time_alive(self) -> datetime.timedelta:
         return datetime.datetime.now() - self.creation_date
