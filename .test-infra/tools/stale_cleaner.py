@@ -50,11 +50,6 @@ DEFAULT_PROJECT_ID = "apache-beam-testing"
 DEFAULT_BUCKET_NAME = "apache-beam-testing-pabloem"
 
 class GoogleCloudResource:
-    resource_name = ""
-    resource_type = ""
-    creation_date = datetime.datetime.now()
-    last_update_date = datetime.datetime.now()
-
     def __init__(self, resource_name, resource_type, creation_date=datetime.datetime.now(), last_update_date=datetime.datetime.now()) -> None:
         self.resource_name = resource_name
         self.resource_type = resource_type
