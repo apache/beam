@@ -53,6 +53,7 @@ import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumReader;
+import org.apache.avro.io.DatumWriter;
 import org.apache.avro.reflect.AvroName;
 import org.apache.avro.reflect.AvroSchema;
 import org.apache.avro.reflect.ReflectData;
@@ -428,6 +429,18 @@ public class AvroCoderTest {
     AvroDatumFactory<TestAvro> reflectFactory2 = new AvroDatumFactory.ReflectDatumFactory<>(clazz);
     AvroDatumFactory<TestAvro> specificDatumFactory =
         new AvroDatumFactory.SpecificDatumFactory<>(clazz);
+    AvroDatumFactory<TestAvro> customDatumFactory =
+        new AvroDatumFactory<TestAvro>(TestAvro.class) {
+          @Override
+          public DatumWriter<TestAvro> apply(Schema writer) {
+            return null;
+          }
+
+          @Override
+          public DatumReader<TestAvro> apply(Schema writer, Schema reader) {
+            return null;
+          }
+        };
 
     // Test that the AvroCoder caches the coder for the same class/type descriptor/schema/datum
     // factory/useReflectApi
@@ -450,6 +463,10 @@ public class AvroCoderTest {
     assertNotSame(
         AvroCoder.of(reflectFactory1, schema), AvroCoder.of(specificDatumFactory, schema));
 
+    // for custom datum factories (neither specific nor reflect) we don't use the cache
+    assertNotSame(
+        AvroCoder.of(customDatumFactory, schema), AvroCoder.of(customDatumFactory, schema));
+
     // Test that the AvroCoder caches the coder when using a specific datum factory
     assertSame(AvroCoder.specific(clazz), AvroCoder.specific(clazz));
     assertSame(AvroCoder.specific(typeDescriptor), AvroCoder.specific(typeDescriptor));
@@ -469,6 +486,19 @@ public class AvroCoderTest {
     Schema schema = AVRO_SPECIFIC_RECORD.getSchema();
     assertSame(AvroCoder.of(schema), AvroCoder.of(schema));
     assertSame(AvroCoder.generic(schema), AvroCoder.generic(schema));
+  }
+
+  @Test
+  public void testAvroCoderCacheUsedWhenCoderDeserialized() {
+    AvroCoder<TestAvro> coder = AvroCoder.of(TestAvro.class);
+    AvroCoder<TestAvro> deserializedCoder1 = SerializableUtils.clone(coder);
+    AvroCoder<TestAvro> deserializedCoder2 = SerializableUtils.clone(coder);
+
+    assertSame(coder.reader, deserializedCoder1.reader);
+    assertSame(coder.writer, deserializedCoder1.writer);
+
+    assertSame(coder.reader, deserializedCoder2.reader);
+    assertSame(coder.writer, deserializedCoder2.writer);
   }
 
   @Test
