@@ -394,8 +394,8 @@ public class AvroCoder<T> extends CustomCoder<T> {
   private final EmptyOnDeserializationThreadLocal<BinaryEncoder> encoder;
 
   // reader and writer are initialized in the constructor and on deserialization.
-  transient DatumWriter<T> writer;
-  transient DatumReader<T> reader;
+  private transient DatumWriter<T> writer;
+  private transient DatumReader<T> reader;
 
   protected AvroCoder(Class<T> type, Schema schema) {
     this(type, schema, false);
@@ -427,6 +427,16 @@ public class AvroCoder<T> extends CustomCoder<T> {
   /** Returns the datum factory used for encoding/decoding. */
   public AvroDatumFactory<T> getDatumFactory() {
     return datumFactory;
+  }
+
+  /** Returns the DatumWriter used for encoding. */
+  public DatumWriter<T> getWriter() {
+    return writer;
+  }
+
+  /** Returns the DatumReader used for decoding. */
+  public DatumReader<T> getReader() {
+    return reader;
   }
 
   /**
@@ -863,21 +873,21 @@ public class AvroCoder<T> extends CustomCoder<T> {
 
   private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
     in.defaultReadObject();
-    Optional<AvroCoderType> opt = AvroCoderType.fromDatumFactory(this.datumFactory);
-    if (!opt.isPresent()) {
-      initializeAvroDatumReaderAndWriter();
-    } else {
-      AvroCoderCacheKey avroCoderCacheKey =
-          new AvroCoderCacheKey(
-              this.typeDescriptor.getRawType(), this.schemaSupplier.get(), opt.get());
+    Optional<AvroCoder<T>> cachedCoder =
+        AvroCoderType.fromDatumFactory(this.datumFactory)
+            .map(
+                avroCoderType ->
+                    new AvroCoderCacheKey(
+                        this.typeDescriptor.getRawType(), this.schemaSupplier.get(), avroCoderType))
+            .map(
+                avroCoderCacheKey ->
+                    (AvroCoder<T>) AVRO_CODER_CACHE.getIfPresent(avroCoderCacheKey));
 
-      AvroCoder<T> cachedCoder = (AvroCoder<T>) AVRO_CODER_CACHE.getIfPresent(avroCoderCacheKey);
-      if (cachedCoder == null) {
-        initializeAvroDatumReaderAndWriter();
-      } else {
-        this.reader = cachedCoder.reader;
-        this.writer = cachedCoder.writer;
-      }
+    if (cachedCoder.isPresent()) {
+      this.reader = cachedCoder.get().reader;
+      this.writer = cachedCoder.get().writer;
+    } else {
+      initializeAvroDatumReaderAndWriter();
     }
   }
 
