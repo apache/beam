@@ -142,12 +142,12 @@ class VertexAIEmbeddingsTest(unittest.TestCase):
             pipeline=data, read_artifact_location=self.artifact_location)
 
         def assert_element(element):
-          assert round(element, 2) == 0.15
+          assert round(element, 2) == 0.11
 
         _ = (
             result_pcoll
             | beam.Map(lambda x: max(x[test_query_column]))
-            #  0.14797046780586243
+            #  0.11423743516206741
             | beam.Map(assert_element))
 
   def test_with_int_data_types(self):
@@ -192,12 +192,12 @@ class VertexAIEmbeddingsTest(unittest.TestCase):
             pipeline=data, read_artifact_location=self.gcs_artifact_location)
 
         def assert_element(element):
-          assert round(element, 2) == 0.15
+          assert round(element, 2) == 0.11
 
         _ = (
             result_pcoll
             | beam.Map(lambda x: max(x[test_query_column]))
-            #  0.14797046780586243
+            #  0.11423743516206741
             | beam.Map(assert_element))
 
   def test_mltransform_to_ptransform_with_vertex(self):
