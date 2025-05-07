@@ -143,7 +143,8 @@ public class GrpcDirectGetWorkStreamTest {
                 .build()
                 .createDirectGetWorkStream(
                     WindmillConnection.builder()
-                        .setStub(CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel))
+                        .setStubSupplier(
+                            () -> CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel))
                         .build(),
                     Windmill.GetWorkRequest.newBuilder()
                         .setClientId(TEST_JOB_HEADER.getClientId())
@@ -401,7 +402,7 @@ public class GrpcDirectGetWorkStreamTest {
 
   @Test
   public void testConsumedWorkItems_itemsSplitAcrossResponses() throws InterruptedException {
-    int expectedRequests = 2;
+    int expectedRequests = 3;
     CountDownLatch waitForRequests = new CountDownLatch(expectedRequests);
     TestGetWorkRequestObserver requestObserver = new TestGetWorkRequestObserver(waitForRequests);
     GetWorkStreamTestStub testStub = new GetWorkStreamTestStub(requestObserver);

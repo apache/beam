@@ -40,6 +40,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.apache.avro.Conversions;
 import org.apache.avro.LogicalTypes;
@@ -400,13 +401,14 @@ public class AvroGenericRecordToStorageApiProtoTest {
               .set("uuidValue", uuid.toString())
               .build();
 
+      org.joda.time.LocalTime localTime = org.joda.time.LocalTime.fromMillisOfDay(42_000L);
       jodaTimeLogicalTypesRecord =
           new GenericRecordBuilder(LOGICAL_TYPES_SCHEMA)
               .set("numericValue", numeric)
               .set("bigNumericValue", bigNumeric)
               .set("dateValue", new org.joda.time.LocalDate(1970, 1, 1).plusDays(42))
-              .set("timeMicrosValue", org.joda.time.LocalTime.fromMillisOfDay(42_000L))
-              .set("timeMillisValue", org.joda.time.LocalTime.fromMillisOfDay(42_000L))
+              .set("timeMicrosValue", localTime)
+              .set("timeMillisValue", localTime)
               .set("timestampMicrosValue", org.joda.time.Instant.ofEpochSecond(42L))
               .set("timestampMillisValue", org.joda.time.Instant.ofEpochSecond(42L))
               .set(
@@ -423,8 +425,14 @@ public class AvroGenericRecordToStorageApiProtoTest {
               .set("numericValue", numeric)
               .set("bigNumericValue", bigNumeric)
               .set("dateValue", java.time.LocalDate.ofEpochDay(42L))
-              .set("timeMicrosValue", java.time.LocalTime.ofSecondOfDay(42L))
-              .set("timeMillisValue", java.time.LocalTime.ofSecondOfDay(42L))
+              .set(
+                  "timeMicrosValue",
+                  java.time.LocalTime.ofNanoOfDay(
+                      TimeUnit.MILLISECONDS.toNanos(localTime.getMillisOfDay())))
+              .set(
+                  "timeMillisValue",
+                  java.time.LocalTime.ofNanoOfDay(
+                      TimeUnit.MILLISECONDS.toNanos(localTime.getMillisOfDay())))
               .set("timestampMicrosValue", java.time.Instant.ofEpochSecond(42L))
               .set("timestampMillisValue", java.time.Instant.ofEpochSecond(42L))
               .set(
@@ -456,8 +464,8 @@ public class AvroGenericRecordToStorageApiProtoTest {
               .put("numericvalue", numericBytes)
               .put("bignumericvalue", bigNumericBytes)
               .put("datevalue", 42)
-              .put("timemicrosvalue", 42_000_000L)
-              .put("timemillisvalue", 42_000_000L)
+              .put("timemicrosvalue", CivilTimeEncoder.encodePacked64TimeMicros(localTime))
+              .put("timemillisvalue", CivilTimeEncoder.encodePacked64TimeMicros(localTime))
               .put("timestampmicrosvalue", 42_000_000L)
               .put("timestampmillisvalue", 42_000_000L)
               .put("localtimestampmicrosvalue", 42_000_000L)

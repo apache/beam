@@ -41,6 +41,7 @@ from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.pvalue import AsSingleton
 from apache_beam.pvalue import TaggedOutput
+from apache_beam.runners.runner import PipelineRunner
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -155,6 +156,21 @@ class PipelineTest(unittest.TestCase):
       pcoll2 = pipeline | 'label2' >> Create(iter((4, 5, 6)))
       pcoll3 = pcoll2 | 'do' >> FlatMap(lambda x: [x + 10])
       assert_that(pcoll3, equal_to([14, 15, 16]), label='pcoll3')
+
+  @mock.patch('logging.info')
+  def test_runner_overrides_default_pickler(self, mock_info):
+    with mock.patch.object(PipelineRunner,
+                           'default_pickle_library_override') as mock_fn:
+      mock_fn.return_value = 'dill'
+      with TestPipeline() as pipeline:
+        pcoll = pipeline | 'label1' >> Create([1, 2, 3])
+        assert_that(pcoll, equal_to([1, 2, 3]))
+
+        from apache_beam.internal import pickler
+        from apache_beam.internal import dill_pickler
+        self.assertIs(pickler.desired_pickle_lib, dill_pickler)
+    mock_info.assert_any_call(
+        'Runner defaulting to pickling library: %s.', 'dill')
 
   def test_flatmap_builtin(self):
     with TestPipeline() as pipeline:
@@ -279,7 +295,7 @@ class PipelineTest(unittest.TestCase):
     with Pipeline(runner='DirectRunner',
                   options=PipelineOptions(["--no_wait_until_finish"])) as p:
       _ = p | beam.Create(['test'])
-    mock_info.assert_called_once_with(
+    mock_info.assert_any_call(
         'Job execution continues without waiting for completion. '
         'Use "wait_until_finish" in PipelineResult to block until finished.')
     p.result.wait_until_finish()
@@ -287,9 +303,19 @@ class PipelineTest(unittest.TestCase):
   def test_auto_unique_labels(self):
 
     opts = PipelineOptions(["--auto_unique_labels"])
-    with mock.patch.object(uuid, 'uuid4') as mock_uuid_gen:
-      mock_uuids = [mock.Mock(hex='UUID01XXX'), mock.Mock(hex='UUID02XXX')]
-      mock_uuid_gen.side_effect = mock_uuids
+
+    mock_uuids = [mock.Mock(hex='UUID01XXX'), mock.Mock(hex='UUID02XXX')]
+    mock_uuid_gen = mock.Mock(side_effect=mock_uuids)
+
+    original_generate_unique_label = Pipeline._generate_unique_label
+
+    def patched_generate_unique_label(self, transform):
+      with mock.patch.object(uuid, 'uuid4', return_value=mock_uuid_gen()):
+        return original_generate_unique_label(self, transform)
+
+    with mock.patch.object(Pipeline,
+                           '_generate_unique_label',
+                           patched_generate_unique_label):
       with TestPipeline(options=opts) as pipeline:
         pcoll = pipeline | 'pcoll' >> Create([1, 2, 3])
 

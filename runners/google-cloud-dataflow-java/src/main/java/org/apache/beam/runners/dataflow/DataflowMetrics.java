@@ -113,7 +113,8 @@ class DataflowMetrics extends MetricResults {
       jobMetrics = getJobMetrics();
     } catch (IOException e) {
       LOG.warn("Unable to query job metrics.\n");
-      return MetricQueryResults.create(counters, distributions, gauges, stringSets, boundedTries);
+      return MetricQueryResults.create(
+          counters, distributions, gauges, stringSets, boundedTries, Collections.emptyList());
     }
     metricUpdates = firstNonNull(jobMetrics.getMetrics(), Collections.emptyList());
     return populateMetricQueryResults(metricUpdates, filter);
@@ -410,7 +411,8 @@ class DataflowMetrics extends MetricResults {
           extractor.getDistributionResults(),
           extractor.getGaugeResults(),
           extractor.getStringSetResults(),
-          extractor.getBoundedTrieResults());
+          extractor.getBoundedTrieResults(),
+          Collections.emptyList());
     }
   }
 }

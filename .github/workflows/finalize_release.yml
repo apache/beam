@@ -175,5 +175,5 @@ jobs:
       - name: Commit and Push to master branch files with Next Version
         run: |
           git add .asf.yaml
-          git commit -m "Moving to ${NEXT_VERSION_IN_BASE_BRANCH}-SNAPSHOT on master branch."
+          git commit -m "Adding ${POST_RELEASE_BRANCH} to protected branches in .asf.yaml"
           git push origin ${MASTER_BRANCH}

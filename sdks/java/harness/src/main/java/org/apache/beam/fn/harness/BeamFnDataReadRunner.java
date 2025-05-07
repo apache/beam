@@ -50,6 +50,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.CoderTranslation;
 import org.apache.beam.sdk.util.construction.RehydratedComponents;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,7 +60,6 @@ import org.slf4j.LoggerFactory;
  * receivers in a specified output map.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class BeamFnDataReadRunner<OutputT> {
@@ -77,12 +77,16 @@ public class BeamFnDataReadRunner<OutputT> {
   }
 
   /** A factory for {@link BeamFnDataReadRunner}s. */
-  static class Factory<OutputT> implements PTransformRunnerFactory<BeamFnDataReadRunner<OutputT>> {
+  static class Factory implements PTransformRunnerFactory {
 
     @Override
-    public BeamFnDataReadRunner<OutputT> createRunnerForPTransform(Context context)
-        throws IOException {
+    public void addRunnerForPTransform(Context context) throws IOException {
+      addReadRunnerForPTransform(context);
+    }
 
+    @VisibleForTesting
+    <OutputT> BeamFnDataReadRunner<OutputT> addReadRunnerForPTransform(Context context)
+        throws IOException {
       FnDataReceiver<WindowedValue<OutputT>> consumer =
           context.getPCollectionConsumer(
               getOnlyElement(context.getPTransform().getOutputsMap().values()));
@@ -102,6 +106,7 @@ public class BeamFnDataReadRunner<OutputT> {
           runner.apiServiceDescriptor, runner.coder, runner::forwardElementToConsumer);
       context.addFinishBundleFunction(runner::blockTillReadFinishes);
       context.addResetFunction(runner::reset);
+      context.addChannelRoot(runner);
       return runner;
     }
   }

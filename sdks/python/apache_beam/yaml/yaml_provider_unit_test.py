@@ -185,14 +185,12 @@ class YamlDefinedProider(unittest.TestCase):
             properties:
               n: {type: integer}
           body:
-            type: chain
-            transforms:
-              - type: MapToFields
-                config:
-                  language: python
-                  append: true
-                  fields:
-                    power: "element**{{n}}"
+            type: MapToFields
+            config:
+              language: python
+              append: true
+              fields:
+                power: "element**{{n}}"
     '''
 
     pipeline = '''
@@ -259,6 +257,48 @@ class YamlDefinedProider(unittest.TestCase):
           providers=yaml_provider.parse_providers(
               '', yaml.load(providers, Loader=SafeLineLoader)))
       assert_that(result | beam.Map(lambda x: x.value), equal_to([120]))
+
+
+class PythonProviderDepsTest(unittest.TestCase):
+  def test_env_package_sensitive(self):
+    self.assertNotEqual(
+        yaml_provider.PypiExpansionService._key('base', ['pkg1']),
+        yaml_provider.PypiExpansionService._key('base', ['pkg2']))
+
+  def test_env_base_sensitive(self):
+    self.assertNotEqual(
+        yaml_provider.PypiExpansionService._key('base1', ['pkg']),
+        yaml_provider.PypiExpansionService._key('base2', ['pkg']))
+
+  def test_env_order_invariant(self):
+    self.assertEqual(
+        yaml_provider.PypiExpansionService._key('base', ['pkg1', 'pkg2']),
+        yaml_provider.PypiExpansionService._key('base', ['pkg2', 'pkg1']))
+
+  def test_env_path_invariant(self):
+    with tempfile.TemporaryDirectory() as tmpdir:
+      os.mkdir(os.path.join(tmpdir, 'a'))
+      pkgA = os.path.join(tmpdir, 'a', 'pkg.tgz')
+      os.mkdir(os.path.join(tmpdir, 'b'))
+      pkgB = os.path.join(tmpdir, 'b', 'pkg.tgz')
+      with open(pkgA, 'w') as fout:
+        fout.write('content')
+      with open(pkgB, 'w') as fout:
+        fout.write('content')
+      self.assertEqual(
+          yaml_provider.PypiExpansionService._key('base', [pkgA]),
+          yaml_provider.PypiExpansionService._key('base', [pkgB]))
+
+  def test_env_content_sensitive(self):
+    with tempfile.TemporaryDirectory() as tmpdir:
+      pkg = os.path.join(tmpdir, 'pkg.tgz')
+      with open(pkg, 'w') as fout:
+        fout.write('content')
+      before = yaml_provider.PypiExpansionService._key('base', [pkg])
+      with open(pkg, 'w') as fout:
+        fout.write('new content')
+      after = yaml_provider.PypiExpansionService._key('base', [pkg])
+      self.assertNotEqual(before, after)
 
 
 if __name__ == '__main__':

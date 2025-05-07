@@ -160,7 +160,7 @@ jobs:
       matrix:
         job_name: [beam_PreCommit_Java]
         job_phrase: [Run Java PreCommit]
-    timeout-minutes: 120
+    timeout-minutes: 180
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
@@ -177,6 +177,9 @@ jobs:
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
+        with:
+          python-version: default
+          disable-cache: true
       - name: run Java PreCommit script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

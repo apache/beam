@@ -19,6 +19,7 @@ package org.apache.beam.runners.spark.translation;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -61,6 +62,7 @@ public class EvaluationContext {
   private final Map<PValue, Dataset> datasets = new LinkedHashMap<>();
   private final Map<PValue, Dataset> pcollections = new LinkedHashMap<>();
   private final Set<Dataset> leaves = new LinkedHashSet<>();
+  private final Map<PCollection<?>, Integer> pCollectionConsumptionMap = new HashMap<>();
   private final Map<PValue, Object> pobjects = new LinkedHashMap<>();
   private AppliedPTransform<?, ?, ?> currentTransform;
   private final SparkPCollectionView pviews = new SparkPCollectionView();
@@ -69,6 +71,7 @@ public class EvaluationContext {
       new HashMap<>();
   private final PipelineOptions options;
   private final SerializablePipelineOptions serializableOptions;
+  private boolean streamingSideInput = false;
 
   public EvaluationContext(JavaSparkContext jsc, Pipeline pipeline, PipelineOptions options) {
     this.jsc = jsc;
@@ -307,6 +310,45 @@ public class EvaluationContext {
     return groupByKeyCandidatesForMemoryOptimizedTranslation.containsKey(transform);
   }
 
+  /**
+   * Reports that given {@link PCollection} is consumed by a {@link PTransform} in the pipeline.
+   *
+   * @see #isLeaf(PCollection)
+   */
+  public void reportPCollectionConsumed(PCollection<?> pCollection) {
+    int count = this.pCollectionConsumptionMap.getOrDefault(pCollection, 0);
+    this.pCollectionConsumptionMap.put(pCollection, count + 1);
+  }
+
+  /**
+   * Reports that given {@link PCollection} is consumed by a {@link PTransform} in the pipeline.
+   *
+   * @see #isLeaf(PCollection)
+   */
+  public void reportPCollectionProduced(PCollection<?> pCollection) {
+    this.pCollectionConsumptionMap.computeIfAbsent(pCollection, k -> 0);
+  }
+
+  /**
+   * Get the map of {@link PCollection} to the number of {@link PTransform} consuming it.
+   *
+   * @return
+   */
+  public Map<PCollection<?>, Integer> getPCollectionConsumptionMap() {
+    return Collections.unmodifiableMap(pCollectionConsumptionMap);
+  }
+
+  /**
+   * Check if given {@link PCollection} is a leaf or not. {@link PCollection} is a leaf when there
+   * is no other {@link PTransform} consuming it / depending on it.
+   *
+   * @param pCollection to be checked if it is a leaf
+   * @return true if pCollection is leaf; otherwise false
+   */
+  public boolean isLeaf(PCollection<?> pCollection) {
+    return this.pCollectionConsumptionMap.get(pCollection) == 0;
+  }
+
   <T> Iterable<WindowedValue<T>> getWindowedValues(PCollection<T> pcollection) {
     @SuppressWarnings("unchecked")
     BoundedDataset<T> boundedDataset = (BoundedDataset<T>) datasets.get(pcollection);
@@ -316,5 +358,32 @@ public class EvaluationContext {
 
   public String storageLevel() {
     return serializableOptions.get().as(SparkPipelineOptions.class).getStorageLevel();
+  }
+
+  /**
+   * Checks if any of the side inputs in the pipeline are streaming side inputs.
+   *
+   * <p>If at least one of the side inputs is a streaming side input, this method returns true. When
+   * streaming side inputs are present, the {@link
+   * org.apache.beam.runners.spark.util.CachedSideInputReader} will not be used.
+   *
+   * @return true if any of the side inputs in the pipeline are streaming side inputs, false
+   *     otherwise
+   */
+  public boolean isStreamingSideInput() {
+    return streamingSideInput;
+  }
+
+  /**
+   * Marks that the pipeline contains at least one streaming side input.
+   *
+   * <p>When this method is called, it sets the streamingSideInput flag to true, indicating that the
+   * {@link org.apache.beam.runners.spark.util.CachedSideInputReader} should not be used for
+   * processing side inputs.
+   */
+  public void useStreamingSideInput() {
+    if (!this.streamingSideInput) {
+      this.streamingSideInput = true;
+    }
   }
 }

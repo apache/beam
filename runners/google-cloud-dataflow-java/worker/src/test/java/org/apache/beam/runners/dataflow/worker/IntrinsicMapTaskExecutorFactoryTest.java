@@ -20,7 +20,6 @@ package org.apache.beam.runners.dataflow.worker;
 import static org.apache.beam.runners.dataflow.util.Structs.addString;
 import static org.apache.beam.runners.dataflow.worker.DataflowOutputCounter.getElementCounterName;
 import static org.apache.beam.runners.dataflow.worker.DataflowOutputCounter.getMeanByteCounterName;
-import static org.apache.beam.runners.dataflow.worker.DataflowOutputCounter.getObjectCounterName;
 import static org.apache.beam.runners.dataflow.worker.counters.CounterName.named;
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
 import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
@@ -30,9 +29,9 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
-import static org.mockito.Matchers.anyBoolean;
-import static org.mockito.Matchers.anyLong;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
@@ -242,8 +241,6 @@ public class IntrinsicMapTaskExecutorFactoryTest {
     for (String outputName : outputNames) {
       verify(updateExtractor)
           .longSum(eq(named(getElementCounterName(outputName))), anyBoolean(), anyLong());
-      verify(updateExtractor)
-          .longSum(eq(named(getObjectCounterName(outputName))), anyBoolean(), anyLong());
       verify(updateExtractor)
           .longMean(
               eq(named(getMeanByteCounterName(outputName))),

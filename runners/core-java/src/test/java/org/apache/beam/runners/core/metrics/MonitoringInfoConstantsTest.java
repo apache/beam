@@ -18,10 +18,15 @@
 package org.apache.beam.runners.core.metrics;
 
 import static org.apache.beam.runners.core.metrics.MonitoringInfoConstants.extractUrn;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoConstants.isPerWorkerMetric;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpecs;
+import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ArrayListMultimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
 import org.hamcrest.Matchers;
@@ -46,5 +51,18 @@ public class MonitoringInfoConstantsTest {
       }
     }
     assertThat(urnToEnum.entries(), Matchers.empty());
+  }
+
+  @Test
+  public void testIsPerWorkerMetric() {
+    MetricName metricName =
+        MetricName.named("IO", "name1", ImmutableMap.of("PER_WORKER_METRIC", "true"));
+    assertTrue(isPerWorkerMetric(metricName));
+
+    metricName = MetricName.named("IO", "name1", ImmutableMap.of("PER_WORKER_METRIC", "false"));
+    assertFalse(isPerWorkerMetric(metricName));
+
+    metricName = MetricName.named("IO", "name1", ImmutableMap.of());
+    assertFalse(isPerWorkerMetric(metricName));
   }
 }

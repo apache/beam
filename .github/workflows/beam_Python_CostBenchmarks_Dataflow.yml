@@ -92,6 +92,7 @@ jobs:
             -PloadTest.mainClass=apache_beam.testing.benchmarks.wordcount.wordcount \
             -Prunner=DataflowRunner \
             -PpythonVersion=3.10 \
+            -PloadTest.requirementsTxtFile=apache_beam/testing/benchmarks/wordcount/requirements.txt \
             '-PloadTest.args=${{ env.beam_Python_Cost_Benchmarks_Dataflow_test_arguments_1 }} --job_name=benchmark-tests-wordcount-python-${{env.NOW_UTC}} --output_file=gs://temp-storage-for-end-to-end-tests/wordcount/result_wordcount-${{env.NOW_UTC}}.txt' \
       - name: Run Tensorflow MNIST Image Classification on Dataflow
         uses: ./.github/actions/gradle-command-self-hosted-action

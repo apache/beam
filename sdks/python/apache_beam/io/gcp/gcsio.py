@@ -125,14 +125,21 @@ def create_storage_client(pipeline_options, use_credentials=True):
     from google.api_core import client_info
     beam_client_info = client_info.ClientInfo(
         user_agent="apache-beam/%s (GPN:Beam)" % beam_version.__version__)
+
+    extra_headers = {
+        "x-goog-custom-audit-job": google_cloud_options.job_name
+        if google_cloud_options.job_name else "UNKNOWN"
+    }
+
+    # Note: Custom audit entries with "job" key will overwrite the default above
+    if google_cloud_options.gcs_custom_audit_entries is not None:
+      extra_headers.update(google_cloud_options.gcs_custom_audit_entries)
+
     return storage.Client(
         credentials=credentials.get_google_auth_credentials(),
         project=google_cloud_options.project,
         client_info=beam_client_info,
-        extra_headers={
-            "x-goog-custom-audit-job": google_cloud_options.job_name
-            if google_cloud_options.job_name else "UNKNOWN"
-        })
+        extra_headers=extra_headers)
   else:
     return storage.Client.create_anonymous_client()
 
@@ -258,10 +265,23 @@ class GcsIO(object):
     bucket_name, blob_name = parse_gcs_path(path)
     bucket = self.client.bucket(bucket_name)
     if recursive:
-      # List and delete all blobs under the prefix.
-      blobs = bucket.list_blobs(prefix=blob_name)
-      for blob in blobs:
-        self._delete_blob(bucket, blob.name)
+      # List all blobs under the prefix.
+      blobs_to_delete = bucket.list_blobs(
+          prefix=blob_name, retry=self._storage_client_retry)
+      # Collect full paths for batch deletion.
+      paths_to_delete = [
+          f'gs://{bucket_name}/{blob.name}' for blob in blobs_to_delete
+      ]
+      if paths_to_delete:
+        # Delete them in batches.
+        results = self.delete_batch(paths_to_delete)
+        # Log any errors encountered during batch deletion.
+        errors = [f'{path}: {err}' for path, err in results if err is not None]
+        if errors:
+          _LOGGER.warning(
+              'Failed to delete some objects during recursive delete of %s: %s',
+              path,
+              ', '.join(errors))
     else:
       # Delete only the specific blob.
       self._delete_blob(bucket, blob_name)

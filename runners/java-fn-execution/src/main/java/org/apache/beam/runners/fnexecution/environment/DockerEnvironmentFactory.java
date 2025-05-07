@@ -125,6 +125,11 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
     String containerId = null;
     InstructionRequestHandler instructionHandler = null;
     try {
+      LOG.info(
+          "Running Docker command: image={}, opts={}, args={}",
+          containerImage,
+          dockerOptsBuilder.build(),
+          argsBuilder.build());
       containerId = docker.runImage(containerImage, dockerOptsBuilder.build(), argsBuilder.build());
       LOG.debug("Created Docker Container with Container ID {}", containerId);
       // Wait on a client from the gRPC server.

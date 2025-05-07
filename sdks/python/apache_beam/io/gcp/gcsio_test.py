@@ -30,6 +30,7 @@ from apache_beam import version as beam_version
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.metrics.metricbase import MetricName
+from apache_beam.pipeline import PipelineOptions
 from apache_beam.runners.worker import statesampler
 from apache_beam.utils import counters
 
@@ -74,8 +75,38 @@ class FakeGcsClient(object):
     else:
       return self.create_bucket(name)
 
-  def batch(self):
-    pass
+  def batch(self, raise_exception=True):
+    # Return a mock object configured to act as a context manager
+    # and provide the necessary _responses attribute after __exit__.
+    # test_delete performs 3 deletions.
+    num_expected_responses = 3
+    mock_batch = mock.Mock()
+
+    # Configure the mock responses (assuming success for test_delete)
+    # These need to be available *after* the 'with' block finishes.
+    # We'll store them temporarily and assign in __exit__.
+    successful_responses = [
+        mock.Mock(status_code=204) for _ in range(num_expected_responses)
+    ]
+
+    # Define the exit logic
+    def mock_exit_logic(exc_type, exc_val, exc_tb):
+      # Assign responses to the mock instance itself
+      # so they are available after the 'with' block.
+      mock_batch._responses = successful_responses
+
+    # Configure the mock to behave like a context manager
+    mock_batch.configure_mock(
+        __enter__=mock.Mock(return_value=mock_batch),
+        __exit__=mock.Mock(side_effect=mock_exit_logic))
+
+    # The loop inside _batch_with_retry calls fn(request) for each item.
+    # The real batch object might have methods like add() or similar,
+    # but the core logic in gcsio.py calls the passed function `fn` directly
+    # within the `with` block. So, no specific action methods seem needed
+    # on the mock_batch itself for this test case.
+
+    return mock_batch
 
   def add_file(self, bucket, blob, contents):
     folder = self.lookup_bucket(bucket)
@@ -712,7 +743,13 @@ class TestGCSIO(unittest.TestCase):
     mock_get_service_credentials.return_value = _ApitoolsCredentialsAdapter(
         _make_credentials("test-project"))
 
-    gcs = gcsio.GcsIO(pipeline_options={"job_name": "test-job-name"})
+    options = PipelineOptions([
+        "--job_name=test-job-name",
+        "--gcs_custom_audit_entry=user=test-user-id",
+        "--gcs_custom_audit_entries={\"id\": \"1234\", \"status\": \"ok\"}"
+    ])
+
+    gcs = gcsio.GcsIO(pipeline_options=options)
     # no HTTP request when initializing GcsIO
     mock_do_request.assert_not_called()
 
@@ -732,6 +769,9 @@ class TestGCSIO(unittest.TestCase):
     beam_user_agent = "apache-beam/%s (GPN:Beam)" % beam_version.__version__
     self.assertIn(beam_user_agent, actual_headers['User-Agent'])
     self.assertEqual(actual_headers['x-goog-custom-audit-job'], 'test-job-name')
+    self.assertEqual(actual_headers['x-goog-custom-audit-user'], 'test-user-id')
+    self.assertEqual(actual_headers['x-goog-custom-audit-id'], '1234')
+    self.assertEqual(actual_headers['x-goog-custom-audit-status'], 'ok')
 
   @mock.patch('google.cloud._http.JSONConnection._do_request')
   @mock.patch('apache_beam.internal.gcp.auth.get_service_credentials')

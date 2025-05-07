@@ -19,6 +19,7 @@ package org.apache.beam.sdk.schemas.utils;
 
 import static org.apache.beam.sdk.values.Row.toRow;
 
+import java.io.InputStream;
 import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.List;
@@ -188,5 +189,9 @@ public class YamlUtils {
       return Collections.emptyMap();
     }
     return new Yaml().load(yaml);
+  }
+
+  public static Map<String, Object> loadFromStream(InputStream inputStream) {
+    return new Yaml().load(inputStream);
   }
 }
