@@ -15,24 +15,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.spark.translation;
+package org.apache.beam.sdk.util;
 
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.spark.api.java.function.Function;
+import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.values.OutputBuilder;
+import org.apache.beam.sdk.values.TupleTag;
 
 /**
- * Simple {@link Function} to bring the windowing information into the value from the implicit
- * background representation of the {@link PCollection}.
+ * An object that vends new {@link OutputBuilder} instances. It encapsulates:
+ *
+ * <ul>
+ *   <li>The element metadata context, such as the currently-in-process element.
+ *   <li>The destinations where the vended {@link OutputBuilder} can be sent.
+ * </ul>
  */
-public class ReifyTimestampsAndWindowsFunction<K, V>
-    implements Function<WindowedValue<KV<K, V>>, KV<K, WindowedValue<V>>> {
-  @Override
-  public KV<K, WindowedValue<V>> call(WindowedValue<KV<K, V>> elem) throws Exception {
-    return KV.of(
-        elem.getValue().getKey(),
-        WindowedValue.of(
-            elem.getValue().getValue(), elem.getTimestamp(), elem.getWindows(), elem.getPaneInfo()));
-  }
+@Internal
+@FunctionalInterface
+public interface OutputBuilderSupplier {
+  /** Outputs a value with windowing information to a tagged output. */
+  <OutputT> OutputBuilder<OutputT> builder(TupleTag<OutputT> tag);
 }

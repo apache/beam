@@ -23,7 +23,7 @@ import java.util.Iterator;
 import java.util.List;
 import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly.GroupAlsoByWindow;
 import org.apache.beam.runners.core.InMemoryTimerInternals;
-import org.apache.beam.runners.core.OutputWindowedValue;
+import org.apache.beam.sdk.util.ValueWithMetadataReceiver;
 import org.apache.beam.runners.core.ReduceFnRunner;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
@@ -79,7 +79,7 @@ class SparkGroupAlsoByWindowViaOutputBufferFn<K, InputT, W extends BoundedWindow
     timerInternals.advanceProcessingTime(Instant.now());
     timerInternals.advanceSynchronizedProcessingTime(Instant.now());
     StateInternals stateInternals = stateInternalsFactory.stateInternalsForKey(key);
-    GABWOutputWindowedValue<K, InputT> outputter = new GABWOutputWindowedValue<>();
+    GABWValueWithMetadataReceiver<K, InputT> outputter = new GABWValueWithMetadataReceiver<>();
 
     ReduceFnRunner<K, InputT, Iterable<InputT>, W> reduceFnRunner =
         new ReduceFnRunner<>(
@@ -136,8 +136,8 @@ class SparkGroupAlsoByWindowViaOutputBufferFn<K, InputT, W extends BoundedWindow
     }
   }
 
-  private static class GABWOutputWindowedValue<K, V>
-      implements OutputWindowedValue<KV<K, Iterable<V>>> {
+  private static class GABWValueWithMetadataReceiver<K, V>
+      implements ValueWithMetadataReceiver<KV<K, Iterable<V>>> {
     private final List<WindowedValue<KV<K, Iterable<V>>>> outputs = new ArrayList<>();
 
     @Override

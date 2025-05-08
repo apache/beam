@@ -159,7 +159,7 @@ class SideInputContainer {
       // the value had never been set, so we set it and are done.
       return;
     }
-    PaneInfo newPane = windowValues.iterator().next().getPane();
+    PaneInfo newPane = windowValues.iterator().next().getPaneInfo();
 
     Iterable<? extends WindowedValue<?>> existingValues;
     long existingPane;
@@ -168,7 +168,7 @@ class SideInputContainer {
       existingPane =
           Iterables.isEmpty(existingValues)
               ? -1L
-              : existingValues.iterator().next().getPane().getIndex();
+              : existingValues.iterator().next().getPaneInfo().getIndex();
     } while (newPane.getIndex() > existingPane
         && !contents.compareAndSet(existingValues, windowValues));
   }

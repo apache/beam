@@ -162,7 +162,7 @@ public class SortingFlinkCombineRunner<K, InputT, AccumT, OutputT, W extends Bou
           elements.set(
               j,
               WindowedValue.of(
-                  value.getValue(), value.getTimestamp(), currentWindow, value.getPane()));
+                  value.getValue(), value.getTimestamp(), currentWindow, value.getPaneInfo()));
         }
         currentStart = i;
         currentWindow = nextWindow;
@@ -175,7 +175,7 @@ public class SortingFlinkCombineRunner<K, InputT, AccumT, OutputT, W extends Bou
         elements.set(
             j,
             WindowedValue.of(
-                value.getValue(), value.getTimestamp(), currentWindow, value.getPane()));
+                value.getValue(), value.getTimestamp(), currentWindow, value.getPaneInfo()));
       }
     }
   }

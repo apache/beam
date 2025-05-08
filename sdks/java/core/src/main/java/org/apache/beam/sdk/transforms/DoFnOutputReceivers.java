@@ -20,7 +20,6 @@ package org.apache.beam.sdk.transforms;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
-import java.util.Collection;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
@@ -28,11 +27,13 @@ import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.ValueWithMetadataReceiver;
+import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.OutputBuilder;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.ValueWithMetadata;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.Instant;
 
 /** Common {@link OutputReceiver} and {@link MultiOutputReceiver} classes. */
 @Internal
@@ -40,40 +41,54 @@ import org.joda.time.Instant;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class DoFnOutputReceivers {
+
   private static class RowOutputReceiver<T> implements OutputReceiver<Row> {
-    WindowedContextOutputReceiver<T> outputReceiver;
+    private final @Nullable TupleTag<T> tag;
+    private final DoFn<?, ?>.WindowedContext context;
     SchemaCoder<T> schemaCoder;
 
-    public RowOutputReceiver(
+    private RowOutputReceiver(
         DoFn<?, ?>.WindowedContext context,
         @Nullable TupleTag<T> outputTag,
         SchemaCoder<T> schemaCoder) {
-      outputReceiver = new WindowedContextOutputReceiver<>(context, outputTag);
-      this.schemaCoder = checkNotNull(schemaCoder);
+      this.schemaCoder = schemaCoder;
+      this.context = context;
+      this.tag = outputTag;
     }
 
     @Override
-    public void output(Row output) {
-      outputReceiver.output(schemaCoder.getFromRowFunction().apply(output));
-    }
+    public OutputBuilder<Row> builder(Row value) {
+      if (tag == null) {
+        return WindowedValue.builder(
+            rowWithMetadata -> {
+              ((DoFn<?, T>.WindowedContext) context)
+                  .outputWindowedValue(
+                      schemaCoder.getFromRowFunction().apply(rowWithMetadata.getValue()),
+                      rowWithMetadata.getTimestamp(),
+                      rowWithMetadata.getWindows(),
+                      rowWithMetadata.getPaneInfo());
+            });
 
-    @Override
-    public void outputWithTimestamp(Row output, Instant timestamp) {
-      outputReceiver.outputWithTimestamp(schemaCoder.getFromRowFunction().apply(output), timestamp);
-    }
-
-    @Override
-    public void outputWindowedValue(
-        Row output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo paneInfo) {
-      outputReceiver.outputWindowedValue(
-          schemaCoder.getFromRowFunction().apply(output), timestamp, windows, paneInfo);
+      } else {
+        return WindowedValue.builder(
+            rowWithMetadata -> {
+              context.outputWindowedValue(
+                  tag,
+                  schemaCoder.getFromRowFunction().apply(rowWithMetadata.getValue()),
+                  rowWithMetadata.getTimestamp(),
+                  rowWithMetadata.getWindows(),
+                  rowWithMetadata.getPaneInfo());
+            });
+      }
     }
   }
 
-  private static class WindowedContextOutputReceiver<T> implements OutputReceiver<T> {
+  /**
+   * OutputReceiver that delegates all its core functionality to DoFn.WindowedContext which predates
+   * OutputReceiver and has most of the same methods.
+   */
+  private static class WindowedContextOutputReceiver<T>
+      implements OutputReceiver<T>, ValueWithMetadataReceiver<T> {
     DoFn<?, ?>.WindowedContext context;
     @Nullable TupleTag<T> outputTag;
 
@@ -84,34 +99,26 @@ public class DoFnOutputReceivers {
     }
 
     @Override
-    public void output(T output) {
-      if (outputTag != null) {
-        context.output(outputTag, output);
-      } else {
-        ((DoFn<?, T>.WindowedContext) context).output(output);
-      }
+    public OutputBuilder<T> builder(T value) {
+      return WindowedValue.builder(this).setValue(value);
     }
 
     @Override
-    public void outputWithTimestamp(T output, Instant timestamp) {
+    public void output(ValueWithMetadata<T> valueWithMetadata) {
       if (outputTag != null) {
-        context.outputWithTimestamp(outputTag, output, timestamp);
-      } else {
-        ((DoFn<?, T>.WindowedContext) context).outputWithTimestamp(output, timestamp);
-      }
-    }
-
-    @Override
-    public void outputWindowedValue(
-        T output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo paneInfo) {
-      if (outputTag != null) {
-        context.outputWindowedValue(outputTag, output, timestamp, windows, paneInfo);
+        context.outputWindowedValue(
+            outputTag,
+            valueWithMetadata.getValue(),
+            valueWithMetadata.getTimestamp(),
+            valueWithMetadata.getWindows(),
+            valueWithMetadata.getPaneInfo());
       } else {
         ((DoFn<?, T>.WindowedContext) context)
-            .outputWindowedValue(output, timestamp, windows, paneInfo);
+            .outputWindowedValue(
+                valueWithMetadata.getValue(),
+                valueWithMetadata.getTimestamp(),
+                valueWithMetadata.getWindows(),
+                valueWithMetadata.getPaneInfo());
       }
     }
   }
@@ -178,4 +185,30 @@ public class DoFnOutputReceivers {
       SchemaCoder<T> schemaCoder) {
     return new RowOutputReceiver<>(context, outputTag, schemaCoder);
   }
+
+  // TODO(https://github.com/apache/beam/issues/18203): Remove this when FinishBundle has added
+  // support for an {@link OutputReceiver}
+  public static class OutputReceiverForFinishBundle<OutputT> implements OutputReceiver<OutputT> {
+
+    private final DoFn<?, OutputT>.FinishBundleContext c;
+
+    public static <OutputT> OutputReceiverForFinishBundle<OutputT> forFinishBundleContext(
+        DoFn<?, OutputT>.FinishBundleContext c) {
+      return new OutputReceiverForFinishBundle<>(c);
+    }
+
+    OutputReceiverForFinishBundle(DoFn<?, OutputT>.FinishBundleContext c) {
+      this.c = c;
+    }
+
+    @Override
+    public OutputBuilder<OutputT> builder(OutputT value) {
+      return WindowedValue.builder(
+          builder -> {
+            for (BoundedWindow window : builder.getWindows()) {
+              c.output(builder.getValue(), builder.getTimestamp(), window);
+            }
+          });
+    }
+  } // container class only for static creation of various OutputReceivers
 }

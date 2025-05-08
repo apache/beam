@@ -28,7 +28,7 @@ import java.util.Map;
 import org.apache.beam.runners.core.GroupAlsoByWindowsAggregators;
 import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly.GroupAlsoByWindow;
 import org.apache.beam.runners.core.LateDataUtils;
-import org.apache.beam.runners.core.OutputWindowedValue;
+import org.apache.beam.sdk.util.ValueWithMetadataReceiver;
 import org.apache.beam.runners.core.ReduceFnRunner;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.TimerInternals;
@@ -101,7 +101,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
       LoggerFactory.getLogger(SparkGroupAlsoByWindowViaWindowSet.class);
 
   private static class OutputWindowedValueHolder<K, V>
-      implements OutputWindowedValue<KV<K, Iterable<V>>> {
+      implements ValueWithMetadataReceiver<KV<K, Iterable<V>>> {
     private final List<WindowedValue<KV<K, Iterable<V>>>> windowedValues = new ArrayList<>();
 
     @Override

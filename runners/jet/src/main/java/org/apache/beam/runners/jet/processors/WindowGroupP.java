@@ -37,7 +37,6 @@ import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.InMemoryTimerInternals;
 import org.apache.beam.runners.core.LateDataUtils;
 import org.apache.beam.runners.core.NullSideInputReader;
-import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.ReduceFnRunner;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.TimerInternals;
@@ -51,6 +50,7 @@ import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.ValueWithMetadataReceiver;
 import org.apache.beam.sdk.util.WindowTracing;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.TriggerTranslation;
@@ -134,7 +134,7 @@ public class WindowGroupP<K, V> extends AbstractProcessor {
                         value,
                         windowedValue.getTimestamp(),
                         windowedValue.getWindows(),
-                        windowedValue.getPane());
+                        windowedValue.getPaneInfo());
                 keyManagers
                     .computeIfAbsent(keyBytes, x -> new KeyManager(key))
                     .processElement(updatedWindowedValue);
@@ -226,7 +226,7 @@ public class WindowGroupP<K, V> extends AbstractProcessor {
                       TriggerTranslation.toProto(windowingStrategy.getTrigger()))),
               stateInternals,
               timerInternals,
-              new OutputWindowedValue<KV<K, Iterable<V>>>() {
+              new ValueWithMetadataReceiver<KV<K, Iterable<V>>>() {
                 @Override
                 public void outputWindowedValue(
                     KV<K, Iterable<V>> output,

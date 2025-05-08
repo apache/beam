@@ -23,14 +23,12 @@ import edu.iu.dsc.tws.api.tset.fn.RecordCollector;
 import java.io.IOException;
 import java.io.ObjectStreamException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Logger;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.InMemoryTimerInternals;
-import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.ReduceFnRunner;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.SystemReduceFn;
@@ -41,7 +39,7 @@ import org.apache.beam.runners.core.triggers.TriggerStateMachines;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.ValueWithMetadataReceiver;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.Environments;
 import org.apache.beam.sdk.util.construction.RehydratedComponents;
@@ -49,6 +47,7 @@ import org.apache.beam.sdk.util.construction.SdkComponents;
 import org.apache.beam.sdk.util.construction.TriggerTranslation;
 import org.apache.beam.sdk.util.construction.WindowingStrategyTranslation;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.OutputBuilder;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.InvalidProtocolBufferException;
@@ -106,7 +105,7 @@ public class GroupByWindowFunction<K, V, W extends BoundedWindow>
       timerInternals.advanceProcessingTime(Instant.now());
       timerInternals.advanceSynchronizedProcessingTime(Instant.now());
       StateInternals stateInternals = InMemoryStateInternals.forKey(key);
-      GABWOutputWindowedValue<K, V> outputter = new GABWOutputWindowedValue<>();
+      GABWValueWithMetadataReceiver<K, V> outputter = new GABWValueWithMetadataReceiver<>();
 
       ReduceFnRunner<K, V, Iterable<V>, W> reduceFnRunner =
           new ReduceFnRunner<>(
@@ -172,26 +171,18 @@ public class GroupByWindowFunction<K, V, W extends BoundedWindow>
     initTransient();
   }
 
-  private static class GABWOutputWindowedValue<K, V>
-      implements OutputWindowedValue<KV<K, Iterable<V>>> {
+  private static class GABWValueWithMetadataReceiver<K, V>
+      implements ValueWithMetadataReceiver<KV<K, Iterable<V>>> {
     private final List<WindowedValue<KV<K, Iterable<V>>>> outputs = new ArrayList<>();
 
     @Override
-    public void outputWindowedValue(
-        KV<K, Iterable<V>> output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo pane) {
-      outputs.add(WindowedValue.of(output, timestamp, windows, pane));
+    public void output(ValueWithMetadata<OutputT> output) {
+      outputs.add(WindowedValue.fromOutputBuilder(output));
     }
 
     @Override
-    public <AdditionalOutputT> void outputWindowedValue(
-        TupleTag<AdditionalOutputT> tag,
-        AdditionalOutputT output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo pane) {
+    public <AdditionalOutputT> void output(
+        TupleTag<AdditionalOutputT> tag, OutputBuilder<AdditionalOutputT, ?> output) {
       throw new UnsupportedOperationException("GroupAlsoByWindow should not use tagged outputs.");
     }
 

@@ -25,7 +25,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.GroupAlsoByWindowsAggregators;
 import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly;
 import org.apache.beam.runners.core.KeyedWorkItem;
-import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.ReduceFnRunner;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.TimerInternals;
@@ -43,6 +42,7 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.ValueWithMetadataReceiver;
 import org.apache.beam.sdk.util.WindowTracing;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.TriggerTranslation;
@@ -179,7 +179,7 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
                   TriggerStateMachines.stateMachineForTrigger(runnerApiTrigger)),
               stateInternals,
               timerInternals,
-              new OutputWindowedValueToBundle<>(bundle),
+              new ValueWithMetadataReceiverToBundle<>(bundle),
               new UnsupportedSideInputReader(DirectGroupAlsoByWindow.class.getSimpleName()),
               reduceFn,
               options);
@@ -240,11 +240,11 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
     }
   }
 
-  private static class OutputWindowedValueToBundle<K, V>
-      implements OutputWindowedValue<KV<K, Iterable<V>>> {
+  private static class ValueWithMetadataReceiverToBundle<K, V>
+      implements ValueWithMetadataReceiver<KV<K, Iterable<V>>> {
     private final UncommittedBundle<KV<K, Iterable<V>>> bundle;
 
-    private OutputWindowedValueToBundle(UncommittedBundle<KV<K, Iterable<V>>> bundle) {
+    private ValueWithMetadataReceiverToBundle(UncommittedBundle<KV<K, Iterable<V>>> bundle) {
       this.bundle = bundle;
     }
 

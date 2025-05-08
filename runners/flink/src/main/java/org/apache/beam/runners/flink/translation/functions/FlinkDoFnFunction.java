@@ -223,7 +223,7 @@ public class FlinkDoFnFunction<InputT, OutputT> extends AbstractRichFunction
                   new RawUnionValue(0 /* single output */, output.getValue()),
                   output.getTimestamp(),
                   output.getWindows(),
-                  output.getPane()));
+                  output.getPaneInfo()));
     }
   }
 
@@ -256,7 +256,7 @@ public class FlinkDoFnFunction<InputT, OutputT> extends AbstractRichFunction
                   new RawUnionValue(outputMap.get(tag), output.getValue()),
                   output.getTimestamp(),
                   output.getWindows(),
-                  output.getPane()));
+                  output.getPaneInfo()));
     }
   }
 }

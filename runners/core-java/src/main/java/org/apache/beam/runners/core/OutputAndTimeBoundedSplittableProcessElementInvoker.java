@@ -45,6 +45,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.TimestampObservingWatermark
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.ValueWithMetadataReceiver;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -72,7 +73,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
         InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT> {
   private final DoFn<InputT, OutputT> fn;
   private final PipelineOptions pipelineOptions;
-  private final OutputWindowedValue<OutputT> output;
+  private final ValueWithMetadataReceiver<OutputT> output;
   private final SideInputReader sideInputReader;
   private final ScheduledExecutorService executor;
   private final int maxNumOutputs;
@@ -98,7 +99,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
   public OutputAndTimeBoundedSplittableProcessElementInvoker(
       DoFn<InputT, OutputT> fn,
       PipelineOptions pipelineOptions,
-      OutputWindowedValue<OutputT> output,
+      ValueWithMetadataReceiver<OutputT> output,
       SideInputReader sideInputReader,
       ScheduledExecutorService executor,
       int maxNumOutputs,
@@ -375,7 +376,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
 
     @Override
     public PaneInfo pane() {
-      return element.getPane();
+      return element.getPaneInfo();
     }
 
     @Override
@@ -390,7 +391,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
 
     @Override
     public void outputWithTimestamp(OutputT value, Instant timestamp) {
-      outputWindowedValue(value, timestamp, element.getWindows(), element.getPane());
+      outputWindowedValue(value, timestamp, element.getWindows(), element.getPaneInfo());
     }
 
     @Override
@@ -403,7 +404,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
       if (watermarkEstimator instanceof TimestampObservingWatermarkEstimator) {
         ((TimestampObservingWatermarkEstimator) watermarkEstimator).observeTimestamp(timestamp);
       }
-      output.outputWindowedValue(value, timestamp, windows, paneInfo);
+      output.output(WindowedValue.of(value, timestamp, windows, paneInfo));
     }
 
     @Override
@@ -413,7 +414,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
 
     @Override
     public <T> void outputWithTimestamp(TupleTag<T> tag, T value, Instant timestamp) {
-      outputWindowedValue(tag, value, timestamp, element.getWindows(), element.getPane());
+      outputWindowedValue(tag, value, timestamp, element.getWindows(), element.getPaneInfo());
     }
 
     @Override

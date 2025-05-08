@@ -35,7 +35,6 @@ import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItemCoder;
 import org.apache.beam.runners.core.OutputAndTimeBoundedSplittableProcessElementInvoker;
-import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.SimpleDoFnRunner;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessFn;
@@ -53,6 +52,7 @@ import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.DoFnInfo;
+import org.apache.beam.sdk.util.ValueWithMetadataReceiver;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -153,7 +153,7 @@ class SplittableProcessFnFactory {
           new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
               processFn.getFn(),
               options,
-              new OutputWindowedValue<OutputT>() {
+              new ValueWithMetadataReceiver<OutputT>() {
                 @Override
                 public void outputWindowedValue(
                     OutputT output,

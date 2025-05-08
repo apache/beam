@@ -91,7 +91,7 @@ class WindowEvaluatorFactory implements TransformEvaluatorFactory {
         Collection<? extends BoundedWindow> windows = assignWindows(windowFn, element);
         outputBundle.add(
             WindowedValue.of(
-                element.getValue(), element.getTimestamp(), windows, element.getPane()));
+                element.getValue(), element.getTimestamp(), windows, element.getPaneInfo()));
       }
     }
 

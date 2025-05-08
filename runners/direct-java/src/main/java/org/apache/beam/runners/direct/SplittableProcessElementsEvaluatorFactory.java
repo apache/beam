@@ -26,7 +26,6 @@ import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.OutputAndTimeBoundedSplittableProcessElementInvoker;
-import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.ProcessFnRunner;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessElements;
@@ -36,6 +35,7 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.ValueWithMetadataReceiver;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -144,8 +144,8 @@ class SplittableProcessElementsEvaluatorFactory<
     processFn.setStateInternalsFactory(key -> stepContext.stateInternals());
     processFn.setTimerInternalsFactory(key -> stepContext.timerInternals());
 
-    OutputWindowedValue<OutputT> outputWindowedValue =
-        new OutputWindowedValue<OutputT>() {
+    ValueWithMetadataReceiver<OutputT> valueWithMetadataReceiver =
+        new ValueWithMetadataReceiver<OutputT>() {
           private final OutputManager outputManager = pde.getOutputManager();
 
           @Override
@@ -175,7 +175,7 @@ class SplittableProcessElementsEvaluatorFactory<
         new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
             transform.getFn(),
             options,
-            outputWindowedValue,
+            valueWithMetadataReceiver,
             sideInputReader,
             ses,
             // Setting small values here to stimulate frequent checkpointing and better exercise

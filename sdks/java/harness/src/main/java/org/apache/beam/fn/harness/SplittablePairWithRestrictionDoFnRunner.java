@@ -207,7 +207,7 @@ public class SplittablePairWithRestrictionDoFnRunner<
                 KV.of(elem.getValue(), KV.of(currentRestriction, watermarkEstimatorState)),
                 elem.getTimestamp(),
                 boundedWindow,
-                elem.getPane()));
+                elem.getPaneInfo()));
       }
     } finally {
       mutableArgumentProvider.currentElement = null;
@@ -272,7 +272,7 @@ public class SplittablePairWithRestrictionDoFnRunner<
 
     @Override
     public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
-      return getCurrentElementOrFail().getPane();
+      return getCurrentElementOrFail().getPaneInfo();
     }
 
     @Override

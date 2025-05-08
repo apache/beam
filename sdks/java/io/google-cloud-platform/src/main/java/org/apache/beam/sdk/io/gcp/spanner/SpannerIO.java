@@ -100,6 +100,7 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFnOutputReceivers;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -142,7 +143,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterab
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.UnsignedBytes;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
-import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1989,7 +1989,8 @@ public class SpannerIO {
 
     @FinishBundle
     public synchronized void finishBundle(FinishBundleContext c) throws Exception {
-      sortAndOutputBatches(new OutputReceiverForFinishBundle(c));
+      sortAndOutputBatches(
+          DoFnOutputReceivers.OutputReceiverForFinishBundle.forFinishBundleContext(c));
     }
 
     private synchronized void sortAndOutputBatches(OutputReceiver<Iterable<MutationGroup>> out)
@@ -2108,28 +2109,6 @@ public class SpannerIO {
       @Override
       public int compareTo(MutationGroupContainer o) {
         return UnsignedBytes.lexicographicalComparator().compare(this.encodedKey, o.encodedKey);
-      }
-    }
-
-    // TODO(https://github.com/apache/beam/issues/18203): Remove this when FinishBundle has added
-    // support for an {@link OutputReceiver}
-    private static class OutputReceiverForFinishBundle
-        implements OutputReceiver<Iterable<MutationGroup>> {
-
-      private final FinishBundleContext c;
-
-      OutputReceiverForFinishBundle(FinishBundleContext c) {
-        this.c = c;
-      }
-
-      @Override
-      public void output(Iterable<MutationGroup> output) {
-        outputWithTimestamp(output, Instant.now());
-      }
-
-      @Override
-      public void outputWithTimestamp(Iterable<MutationGroup> output, Instant timestamp) {
-        c.output(output, timestamp, GlobalWindow.INSTANCE);
       }
     }
   }

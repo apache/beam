@@ -74,7 +74,7 @@ public class ViewP extends AbstractProcessor {
       values.merge(
           window,
           new TimestampAndValues(
-              windowedValue.getPane(), windowedValue.getTimestamp(), windowedValue.getValue()),
+              windowedValue.getPaneInfo(), windowedValue.getTimestamp(), windowedValue.getValue()),
           (o, n) -> o.merge(timestampCombiner, n));
     }
 

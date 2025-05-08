@@ -15,24 +15,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.spark.translation;
+package org.apache.beam.sdk.testing;
 
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.spark.api.java.function.Function;
+import org.apache.beam.sdk.values.OutputBuilder;
 
 /**
- * Simple {@link Function} to bring the windowing information into the value from the implicit
- * background representation of the {@link PCollection}.
+ * An implement of {@link DoFn.OutputReceiver} that naively collects all output values.
+ *
+ * <p>Because this API is crude and not designed to be very general, it is for internal use only and
+ * will be changed arbitrarily.
  */
-public class ReifyTimestampsAndWindowsFunction<K, V>
-    implements Function<WindowedValue<KV<K, V>>, KV<K, WindowedValue<V>>> {
+@Internal
+public class TestOutputReceiver<T> implements DoFn.OutputReceiver<T> {
+  private final List<T> records = new ArrayList<>();
+
   @Override
-  public KV<K, WindowedValue<V>> call(WindowedValue<KV<K, V>> elem) throws Exception {
-    return KV.of(
-        elem.getValue().getKey(),
-        WindowedValue.of(
-            elem.getValue().getValue(), elem.getTimestamp(), elem.getWindows(), elem.getPaneInfo()));
+  public OutputBuilder<T> builder(T value) {
+    return WindowedValue.builder(valueWithMetadata -> records.add(valueWithMetadata.getValue()));
+  }
+
+  public List<T> getOutputs() {
+    return records;
   }
 }
