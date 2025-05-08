@@ -18,12 +18,20 @@
 package org.apache.beam.sdk.util;
 
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.OutputBuilder;
+import org.apache.beam.sdk.values.TupleTag;
 
-/** An encapsulated method of output that can output a value with all of its metadata. */
+/**
+ * An object that vends new {@link OutputBuilder} instances. It encapsulates:
+ *
+ * <ul>
+ *   <li>The element metadata context, such as the currently-in-process element.
+ *   <li>The destinations where the vended {@link OutputBuilder} can be sent.
+ * </ul>
+ */
 @Internal
 @FunctionalInterface
-public interface WindowedValueReceiver<OutputT> {
-  /** Outputs a value with windowing information. */
-  void output(WindowedValue<OutputT> output) throws Exception;
+public interface OutputBuilderSupplier {
+  /** Outputs a value with windowing information to a tagged output. */
+  <OutputT> OutputBuilder<OutputT> builder(TupleTag<OutputT> tag);
 }
