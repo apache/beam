@@ -241,8 +241,8 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
         }
         byte[] rawId = null;
 
-        if (data.getCurrentRecordId() != null) {
-          rawId = data.getCurrentRecordId().getBytes(StandardCharsets.UTF_8);
+        if (data.getRecordId() != null) {
+          rawId = data.getRecordId().getBytes(StandardCharsets.UTF_8);
         } else {
           rawId = context.getCurrentRecordId();
         }
@@ -253,8 +253,8 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
         id = ByteString.copyFrom(rawId);
 
         byte[] rawOffset = null;
-        if (data.getCurrentRecordOffset() != null) {
-          rawOffset = Longs.toByteArray(data.getCurrentRecordOffset());
+        if (data.getRecordOffset() != null) {
+          rawOffset = Longs.toByteArray(data.getRecordOffset());
         } else {
           rawOffset = context.getCurrentRecordOffset();
         }
