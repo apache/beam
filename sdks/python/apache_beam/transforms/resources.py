@@ -138,7 +138,6 @@ class ResourceHint:
       raise ValueError("Unrecognized unit.")
     multiplier = units[suffix]
     value = value[:-len(suffix)]
-
     return str(round(float(value) * multiplier)).encode('ascii')
 
   @staticmethod
@@ -231,17 +230,25 @@ def parse_resource_hints(hints: dict[Any, Any]) -> dict[str, bytes]:
 
 def resource_hints_from_options(
     options: Optional[PipelineOptions]) -> dict[str, bytes]:
+
   if options is None:
     return {}
   hints = {}
+
   option_specified_hints = options.view_as(StandardOptions).resource_hints
+
+  if isinstance(option_specified_hints, dict):
+    return parse_resource_hints(option_specified_hints)
+
   for hint in option_specified_hints:
     if '=' in hint:
       k, v = hint.split('=', maxsplit=1)
       hints[k] = v
+    elif ':' in hint:
+      k, v = hint.split(':', maxsplit=1)
+      hints[k] = v
     else:
       hints[hint] = None
-
   return parse_resource_hints(hints)
 
 
