@@ -355,8 +355,7 @@ public final class GrpcWindmillServer extends WindmillServerStub {
   @Override
   public GetDataStream getDataStream() {
     GetDataStream getDataStream =
-        windmillStreamFactory.createGetDataStream(
-            dispatcherClient.getWindmillServiceStub());
+        windmillStreamFactory.createGetDataStream(dispatcherClient.getWindmillServiceStub());
     getDataStream.start();
     return getDataStream;
   }
@@ -368,8 +367,7 @@ public final class GrpcWindmillServer extends WindmillServerStub {
   @Override
   public CommitWorkStream commitWorkStream() {
     CommitWorkStream commitWorkStream =
-        windmillStreamFactory.createCommitWorkStream(
-            dispatcherClient.getWindmillServiceStub());
+        windmillStreamFactory.createCommitWorkStream(dispatcherClient.getWindmillServiceStub());
     commitWorkStream.start();
     return commitWorkStream;
   }

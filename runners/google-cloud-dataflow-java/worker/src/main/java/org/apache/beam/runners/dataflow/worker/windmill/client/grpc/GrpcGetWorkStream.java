@@ -197,7 +197,6 @@ final class GrpcGetWorkStream
     }
   }
 
-
   @Override
   public void setBudget(GetWorkBudget newBudget) {
     // no-op

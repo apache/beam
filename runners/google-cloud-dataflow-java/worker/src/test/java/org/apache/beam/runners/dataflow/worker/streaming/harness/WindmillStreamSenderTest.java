@@ -146,10 +146,8 @@ public class WindmillStreamSenderTest {
             any(),
             eq(workItemScheduler));
 
-    verify(streamFactory, times(1))
-        .createDirectGetDataStream(eq(connection));
-    verify(streamFactory, times(1))
-        .createDirectCommitWorkStream(eq(connection));
+    verify(streamFactory, times(1)).createDirectGetDataStream(eq(connection));
+    verify(streamFactory, times(1)).createDirectCommitWorkStream(eq(connection));
   }
 
   @Test
@@ -182,10 +180,8 @@ public class WindmillStreamSenderTest {
             any(),
             eq(workItemScheduler));
 
-    verify(streamFactory, times(1))
-        .createDirectGetDataStream(eq(connection));
-    verify(streamFactory, times(1))
-        .createDirectCommitWorkStream(eq(connection));
+    verify(streamFactory, times(1)).createDirectGetDataStream(eq(connection));
+    verify(streamFactory, times(1)).createDirectCommitWorkStream(eq(connection));
   }
 
   @Test
@@ -208,8 +204,7 @@ public class WindmillStreamSenderTest {
             eq(workItemScheduler)))
         .thenReturn(mockGetWorkStream);
 
-    when(mockStreamFactory.createDirectGetDataStream(eq(connection)))
-        .thenReturn(mockGetDataStream);
+    when(mockStreamFactory.createDirectGetDataStream(eq(connection))).thenReturn(mockGetDataStream);
     when(mockStreamFactory.createDirectCommitWorkStream(eq(connection)))
         .thenReturn(mockCommitWorkStream);
 
@@ -246,8 +241,7 @@ public class WindmillStreamSenderTest {
             eq(workItemScheduler)))
         .thenReturn(mockGetWorkStream);
 
-    when(mockStreamFactory.createDirectGetDataStream(eq(connection)))
-        .thenReturn(mockGetDataStream);
+    when(mockStreamFactory.createDirectGetDataStream(eq(connection))).thenReturn(mockGetDataStream);
     when(mockStreamFactory.createDirectCommitWorkStream(eq(connection)))
         .thenReturn(mockCommitWorkStream);
 

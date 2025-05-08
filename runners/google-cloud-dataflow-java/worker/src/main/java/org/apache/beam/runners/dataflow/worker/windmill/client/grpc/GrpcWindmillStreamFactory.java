@@ -239,8 +239,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         workItemScheduler);
   }
 
-  public GetDataStream createGetDataStream(
-      CloudWindmillServiceV1Alpha1Stub stub) {
+  public GetDataStream createGetDataStream(CloudWindmillServiceV1Alpha1Stub stub) {
     return GrpcGetDataStream.create(
         NO_BACKEND_WORKER_TOKEN,
         responseObserver -> withDefaultDeadline(stub).getDataStream(responseObserver),
@@ -255,8 +254,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         processHeartbeatResponses);
   }
 
-  public GetDataStream createDirectGetDataStream(
-      WindmillConnection connection) {
+  public GetDataStream createDirectGetDataStream(WindmillConnection connection) {
     return GrpcGetDataStream.create(
         connection.backendWorkerToken(),
         responseObserver -> connection.currentStub().getDataStream(responseObserver),
@@ -271,8 +269,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         processHeartbeatResponses);
   }
 
-  public CommitWorkStream createCommitWorkStream(
-      CloudWindmillServiceV1Alpha1Stub stub) {
+  public CommitWorkStream createCommitWorkStream(CloudWindmillServiceV1Alpha1Stub stub) {
     return GrpcCommitWorkStream.create(
         NO_BACKEND_WORKER_TOKEN,
         responseObserver -> withDefaultDeadline(stub).commitWorkStream(responseObserver),
@@ -285,8 +282,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         streamingRpcBatchLimit);
   }
 
-  public CommitWorkStream createDirectCommitWorkStream(
-      WindmillConnection connection) {
+  public CommitWorkStream createDirectCommitWorkStream(WindmillConnection connection) {
     return GrpcCommitWorkStream.create(
         connection.backendWorkerToken(),
         responseObserver -> connection.currentStub().commitWorkStream(responseObserver),

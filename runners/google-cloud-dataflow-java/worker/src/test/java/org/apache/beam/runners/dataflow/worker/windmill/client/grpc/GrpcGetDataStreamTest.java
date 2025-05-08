@@ -98,8 +98,7 @@ public class GrpcGetDataStreamTest {
             GrpcWindmillStreamFactory.of(TEST_JOB_HEADER)
                 .setSendKeyedGetDataRequests(false)
                 .build()
-                .createGetDataStream(
-                    CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel));
+                .createGetDataStream(CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel));
     getDataStream.start();
     return getDataStream;
   }

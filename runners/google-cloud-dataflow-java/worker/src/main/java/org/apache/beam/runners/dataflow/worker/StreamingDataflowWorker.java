@@ -491,18 +491,18 @@ public final class StreamingDataflowWorker {
             () -> Optional.ofNullable(memoryMonitor.tryToDumpHeap()),
             clock);
     StreamingWorkerStatusReporter workerStatusReporter =
-            StreamingWorkerStatusReporter.builder()
-                .setDataflowServiceClient(dataflowServiceClient)
-                .setAllStageInfo(stageInfo::values)
-                .setFailureTracker(failureTracker)
-                .setStreamingCounters(streamingCounters)
-                .setMemoryMonitor(memoryMonitor)
-                .setWorkExecutor(workExecutor)
-                .setWindmillHarnessUpdateReportingPeriodMillis(
-                    options.getWindmillHarnessUpdateReportingPeriod().getMillis())
-                .setPerWorkerMetricsUpdateReportingPeriodMillis(
-                    options.getPerWorkerMetricsUpdateReportingPeriodMillis())
-                .build();
+        StreamingWorkerStatusReporter.builder()
+            .setDataflowServiceClient(dataflowServiceClient)
+            .setAllStageInfo(stageInfo::values)
+            .setFailureTracker(failureTracker)
+            .setStreamingCounters(streamingCounters)
+            .setMemoryMonitor(memoryMonitor)
+            .setWorkExecutor(workExecutor)
+            .setWindmillHarnessUpdateReportingPeriodMillis(
+                options.getWindmillHarnessUpdateReportingPeriod().getMillis())
+            .setPerWorkerMetricsUpdateReportingPeriodMillis(
+                options.getPerWorkerMetricsUpdateReportingPeriodMillis())
+            .build();
 
     return new StreamingDataflowWorker(
         windmillServer,
@@ -717,20 +717,20 @@ public final class StreamingDataflowWorker {
             clock,
             localRetryTimeoutMs);
     StreamingWorkerStatusReporter workerStatusReporter =
-            StreamingWorkerStatusReporter.builder()
-                .setPublishCounters(publishCounters)
-                .setDataflowServiceClient(workUnitClient)
-                .setAllStageInfo(stageInfo::values)
-                .setFailureTracker(failureTracker)
-                .setStreamingCounters(streamingCounters)
-                .setMemoryMonitor(memoryMonitor)
-                .setWorkExecutor(workExecutor)
-                .setExecutorFactory(executorSupplier)
-                .setWindmillHarnessUpdateReportingPeriodMillis(
-                    options.getWindmillHarnessUpdateReportingPeriod().getMillis())
-                .setPerWorkerMetricsUpdateReportingPeriodMillis(
-                    options.getPerWorkerMetricsUpdateReportingPeriodMillis())
-                .build();
+        StreamingWorkerStatusReporter.builder()
+            .setPublishCounters(publishCounters)
+            .setDataflowServiceClient(workUnitClient)
+            .setAllStageInfo(stageInfo::values)
+            .setFailureTracker(failureTracker)
+            .setStreamingCounters(streamingCounters)
+            .setMemoryMonitor(memoryMonitor)
+            .setWorkExecutor(workExecutor)
+            .setExecutorFactory(executorSupplier)
+            .setWindmillHarnessUpdateReportingPeriodMillis(
+                options.getWindmillHarnessUpdateReportingPeriod().getMillis())
+            .setPerWorkerMetricsUpdateReportingPeriodMillis(
+                options.getPerWorkerMetricsUpdateReportingPeriodMillis())
+            .build();
 
     GrpcWindmillStreamFactory.Builder windmillStreamFactory =
         createGrpcwindmillStreamFactoryBuilder(options, 1)

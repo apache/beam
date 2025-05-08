@@ -189,9 +189,7 @@ public class GrpcDirectGetWorkStreamTest {
     CountDownLatch waitForRequests = new CountDownLatch(expectedRequests);
     TestGetWorkRequestObserver requestObserver = new TestGetWorkRequestObserver(waitForRequests);
     GetWorkStreamTestStub testStub = new GetWorkStreamTestStub(requestObserver);
-    stream =
-        createGetWorkStream(
-            testStub, GetWorkBudget.noBudget(), NO_OP_WORK_ITEM_SCHEDULER);
+    stream = createGetWorkStream(testStub, GetWorkBudget.noBudget(), NO_OP_WORK_ITEM_SCHEDULER);
     GetWorkBudget newBudget = GetWorkBudget.builder().setItems(10).setBytes(10).build();
     stream.setBudget(newBudget);
 
@@ -212,9 +210,7 @@ public class GrpcDirectGetWorkStreamTest {
     TestGetWorkRequestObserver requestObserver = new TestGetWorkRequestObserver(waitForRequests);
     GetWorkStreamTestStub testStub = new GetWorkStreamTestStub(requestObserver);
     GetWorkBudget initialBudget = GetWorkBudget.builder().setItems(10).setBytes(10).build();
-    stream =
-        createGetWorkStream(
-            testStub, initialBudget, NO_OP_WORK_ITEM_SCHEDULER);
+    stream = createGetWorkStream(testStub, initialBudget, NO_OP_WORK_ITEM_SCHEDULER);
     GetWorkBudget newBudget = GetWorkBudget.builder().setItems(100).setBytes(100).build();
     stream.setBudget(newBudget);
     GetWorkBudget diff = newBudget.subtract(initialBudget);
@@ -237,9 +233,7 @@ public class GrpcDirectGetWorkStreamTest {
     GetWorkStreamTestStub testStub = new GetWorkStreamTestStub(requestObserver);
     GetWorkBudget initialBudget =
         GetWorkBudget.builder().setItems(Long.MAX_VALUE).setBytes(Long.MAX_VALUE).build();
-    stream =
-        createGetWorkStream(
-            testStub, initialBudget, NO_OP_WORK_ITEM_SCHEDULER);
+    stream = createGetWorkStream(testStub, initialBudget, NO_OP_WORK_ITEM_SCHEDULER);
     stream.setBudget(GetWorkBudget.builder().setItems(10).setBytes(10).build());
 
     assertTrue(waitForRequests.await(5, TimeUnit.SECONDS));
@@ -256,9 +250,7 @@ public class GrpcDirectGetWorkStreamTest {
     CountDownLatch waitForRequests = new CountDownLatch(expectedRequests);
     TestGetWorkRequestObserver requestObserver = new TestGetWorkRequestObserver(waitForRequests);
     GetWorkStreamTestStub testStub = new GetWorkStreamTestStub(requestObserver);
-    stream =
-        createGetWorkStream(
-            testStub, GetWorkBudget.noBudget(), NO_OP_WORK_ITEM_SCHEDULER);
+    stream = createGetWorkStream(testStub, GetWorkBudget.noBudget(), NO_OP_WORK_ITEM_SCHEDULER);
     stream.shutdown();
     stream.setBudget(
         GetWorkBudget.builder().setItems(Long.MAX_VALUE).setBytes(Long.MAX_VALUE).build());

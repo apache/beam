@@ -267,7 +267,6 @@ final class GrpcDirectGetWorkStream
         computationId, getDataClient, workCommitter::commit, heartbeatSender, backendWorkerToken());
   }
 
-
   @Override
   public void setBudget(GetWorkBudget newBudget) {
     GetWorkBudget extension = budgetTracker.consumeAndComputeBudgetUpdate(newBudget);

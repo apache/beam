@@ -85,8 +85,6 @@ import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Deadline;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.MethodDescriptor;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.StatusRuntimeException;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.inprocess.InProcessChannelBuilder;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.inprocess.InProcessServerBuilder;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;

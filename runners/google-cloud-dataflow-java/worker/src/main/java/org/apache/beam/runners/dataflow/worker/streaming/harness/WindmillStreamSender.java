@@ -81,12 +81,8 @@ final class WindmillStreamSender implements GetWorkBudgetSpender, StreamSender {
 
     // Stream instances connect/reconnect internally, so we can reuse the same instance through the
     // entire lifecycle of WindmillStreamSender.
-    this.getDataStream =
-        streamingEngineStreamFactory.createDirectGetDataStream(
-            connection);
-    this.commitWorkStream =
-        streamingEngineStreamFactory.createDirectCommitWorkStream(
-            connection);
+    this.getDataStream = streamingEngineStreamFactory.createDirectGetDataStream(connection);
+    this.commitWorkStream = streamingEngineStreamFactory.createDirectCommitWorkStream(connection);
     this.workCommitter = workCommitterFactory.apply(commitWorkStream);
     this.getWorkStream =
         streamingEngineStreamFactory.createDirectGetWorkStream(

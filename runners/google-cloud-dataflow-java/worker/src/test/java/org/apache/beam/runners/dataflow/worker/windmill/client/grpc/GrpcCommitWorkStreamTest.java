@@ -104,8 +104,7 @@ public class GrpcCommitWorkStreamTest {
         (GrpcCommitWorkStream)
             GrpcWindmillStreamFactory.of(TEST_JOB_HEADER)
                 .build()
-                .createCommitWorkStream(
-                    CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel));
+                .createCommitWorkStream(CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel));
     commitWorkStream.start();
     return commitWorkStream;
   }

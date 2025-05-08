@@ -212,8 +212,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
     Preconditions.checkState(!started, "FanOutStreamingEngineWorkerHarness cannot start twice.");
     getWorkerMetadataStream =
         streamFactory.createGetWorkerMetadataStream(
-            dispatcherClient::getWindmillMetadataServiceStubBlocking,
-            this::consumeWorkerMetadata);
+            dispatcherClient::getWindmillMetadataServiceStubBlocking, this::consumeWorkerMetadata);
     getWorkerMetadataStream.start();
     started = true;
   }
@@ -406,8 +405,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
         .orElseGet(
             () ->
                 new GlobalDataStreamSender(
-                    streamFactory.createGetDataStream(
-                        createWindmillStub(keyedEndpoint.getValue()),
+                    streamFactory.createGetDataStream(createWindmillStub(keyedEndpoint.getValue())),
                     keyedEndpoint.getValue()));
   }
 
