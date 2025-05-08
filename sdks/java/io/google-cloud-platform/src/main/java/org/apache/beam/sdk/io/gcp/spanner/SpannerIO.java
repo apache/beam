@@ -113,6 +113,7 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.Wait;
 import org.apache.beam.sdk.transforms.WithTimestamps;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
@@ -120,6 +121,7 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Sleeper;
+import org.apache.beam.sdk.values.OutputBuilder;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
@@ -132,6 +134,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Stopwatch;
@@ -2144,20 +2147,24 @@ public class SpannerIO {
     private static class OutputReceiverForFinishBundle
         implements OutputReceiver<Iterable<MutationGroup>> {
 
-      private final FinishBundleContext c;
+      private final WindowedValues.Builder<Iterable<MutationGroup>> outputTemplate;
 
       OutputReceiverForFinishBundle(FinishBundleContext c) {
-        this.c = c;
+        this.outputTemplate =
+            WindowedValues.<Iterable<MutationGroup>>builder()
+                .setTimestamp(Instant.now())
+                .setWindow(GlobalWindow.INSTANCE)
+                .setReceiver(
+                    wv -> {
+                      for (BoundedWindow window : wv.getWindows()) {
+                        c.output(wv.getValue(), wv.getTimestamp(), window);
+                      }
+                    });
       }
 
       @Override
-      public void output(Iterable<MutationGroup> output) {
-        outputWithTimestamp(output, Instant.now());
-      }
-
-      @Override
-      public void outputWithTimestamp(Iterable<MutationGroup> output, Instant timestamp) {
-        c.output(output, timestamp, GlobalWindow.INSTANCE);
+      public OutputBuilder<Iterable<MutationGroup>> builder(Iterable<MutationGroup> value) {
+        return WindowedValues.builder(outputTemplate).setValue(value);
       }
     }
   }
