@@ -33,6 +33,9 @@ applyJavaNature(
 configurations.runtimeClasspath {
   // Pin kafka-clients version due to <3.4.0 missing auth callback classes.
   resolutionStrategy.force 'org.apache.kafka:kafka-clients:3.9.0'
+
+  // Pin org.apache.parquet:parquet-avro to a non-vulnerable version compatible.
+  resolutionStrategy.force 'org.apache.parquet:parquet-avro:1.15.1'
 }
 
 shadowJar {
