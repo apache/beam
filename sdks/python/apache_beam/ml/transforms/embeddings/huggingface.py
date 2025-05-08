@@ -215,10 +215,10 @@ class InferenceAPIEmbeddings(EmbeddingsManager):
       self,
       hf_token: Optional[str],
       columns: list[str],
-      model_name: Optional[str] = None, # example: "sentence-transformers/all-MiniLM-l6-v2" # pylint: disable=line-too-long
+      model_name: Optional[str] = None,  # example: "sentence-transformers/all-MiniLM-l6-v2" # pylint: disable=line-too-long
       api_url: Optional[str] = None,
       **kwargs,
-      ):
+  ):
     super().__init__(columns=columns, **kwargs)
     self._authorization_token = {"Authorization": f"Bearer {hf_token}"}
     self._model_name = model_name

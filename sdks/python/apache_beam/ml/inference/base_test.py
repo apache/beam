@@ -772,9 +772,8 @@ class RunInferenceBaseTest(unittest.TestCase):
     with TestPipeline() as pipeline:
       examples = [1, 5, 3, 10]
       keyed_examples = [(i, example) for i, example in enumerate(examples)]
-      expected = [
-          (i, ((example * 2) + 1) * 2) for i, example in enumerate(examples)
-      ]
+      expected = [(i, ((example * 2) + 1) * 2)
+                  for i, example in enumerate(examples)]
       pcoll = pipeline | 'start' >> beam.Create(keyed_examples)
       actual = pcoll | base.RunInference(
           base.KeyedModelHandler(FakeModelHandler()).with_preprocess_fn(
@@ -792,9 +791,8 @@ class RunInferenceBaseTest(unittest.TestCase):
       examples = [1, 5, 3, 10]
       keyed_examples = [(i, example) for i, example in enumerate(examples)]
       expected = [((2 * example) + 1) * 2 for example in examples]
-      keyed_expected = [
-          (i, ((2 * example) + 1) * 2) for i, example in enumerate(examples)
-      ]
+      keyed_expected = [(i, ((2 * example) + 1) * 2)
+                        for i, example in enumerate(examples)]
       model_handler = base.MaybeKeyedModelHandler(FakeModelHandler())
 
       pcoll = pipeline | 'Unkeyed' >> beam.Create(examples)

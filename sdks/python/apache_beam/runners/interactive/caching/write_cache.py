@@ -75,9 +75,8 @@ class WriteCache:
 
     # Copy cache writing subgraph from the template to the pipeline proto.
     for pcoll_id in template.components.pcollections:
-      if (pcoll_id in self._pipeline.components.pcollections or
-          pcoll_id in write_input_placeholder.ignorable_components.pcollections
-          ):
+      if (pcoll_id in self._pipeline.components.pcollections or pcoll_id
+          in write_input_placeholder.ignorable_components.pcollections):
         continue
       self._pipeline.components.pcollections[pcoll_id].CopyFrom(
           template.components.pcollections[pcoll_id])
@@ -88,10 +87,10 @@ class WriteCache:
       self._pipeline.components.coders[coder_id].CopyFrom(
           template.components.coders[coder_id])
     for windowing_strategy_id in template.components.windowing_strategies:
-      if (windowing_strategy_id in
-          self._pipeline.components.windowing_strategies or
-          windowing_strategy_id in
-          write_input_placeholder.ignorable_components.windowing_strategies):
+      if (windowing_strategy_id
+          in self._pipeline.components.windowing_strategies or
+          windowing_strategy_id
+          in write_input_placeholder.ignorable_components.windowing_strategies):
         continue
       self._pipeline.components.windowing_strategies[
           windowing_strategy_id].CopyFrom(
@@ -106,8 +105,8 @@ class WriteCache:
           template.components.transforms[transform_id])
     for top_level_transform in template.components.transforms[
         template_root_transform_id].subtransforms:
-      if (top_level_transform in
-          write_input_placeholder.ignorable_components.transforms):
+      if (top_level_transform
+          in write_input_placeholder.ignorable_components.transforms):
         continue
       self._pipeline.components.transforms[
           root_transform_id].subtransforms.append(top_level_transform)

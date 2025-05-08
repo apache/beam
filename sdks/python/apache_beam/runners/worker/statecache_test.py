@@ -269,11 +269,13 @@ class StateCacheTest(unittest.TestCase):
       output["time"] = time.time_ns()
 
     t1_output = {}
-    t1 = threading.Thread(target=load_key, args=(t1_output, ))
+    t1 = threading.Thread(
+        target=load_key, args=(t1_output, ))
     t1.start()
 
     t2_output = {}
-    t2 = threading.Thread(target=load_key, args=(t2_output, ))
+    t2 = threading.Thread(
+        target=load_key, args=(t2_output, ))
     t2.start()
 
     # Wait for both threads to start
@@ -311,7 +313,8 @@ class StateCacheTest(unittest.TestCase):
       output["value"] = cache.get("key", wait_for_event)
 
     t1_output = {}
-    t1 = threading.Thread(target=load_key, args=(t1_output, ))
+    t1 = threading.Thread(
+        target=load_key, args=(t1_output, ))
     t1.start()
 
     # Wait for the load to start, update the key, and then let the load finish
@@ -366,19 +369,21 @@ class StateCacheTest(unittest.TestCase):
     built-in objects.
     """
     primitive_test_objects = [
-        1,                    # int
-        2.0,                  # float
-        1+1j,                 # complex
-        True,                 # bool
-        'hello,world',        # str
-        b'\00\01\02',         # bytes
+        1,  # int
+        2.0,  # float
+        1 + 1j,  # complex
+        True,  # bool
+        'hello,world',  # str
+        b'\00\01\02',  # bytes
     ]
 
     collection_test_objects = [
-        [3, 4, 5],            # list
-        (6, 7),               # tuple
-        {'a', 'b', 'c'},      # set
-        {'k': 8, 'l': 9},     # dict
+        [3, 4, 5],  # list
+        (6, 7),  # tuple
+        {'a', 'b', 'c'},  # set
+        {
+            'k': 8, 'l': 9
+        },  # dict
     ]
 
     for obj in primitive_test_objects:

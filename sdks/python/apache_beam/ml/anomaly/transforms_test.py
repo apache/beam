@@ -155,8 +155,8 @@ class TestAnomalyDetection(unittest.TestCase):
           result,
           equal_to([(
               input[0], AnomalyResult(example=input[1], predictions=[decision]))
-                    for input,
-                    decision in zip(self._input, zscore_x1_expected)],
+                    for input, decision in zip(self._input, zscore_x1_expected)
+                    ],
                    _keyed_result_is_equal_to))
 
   def test_multiple_detectors_without_aggregation(self):
@@ -228,9 +228,7 @@ class TestAnomalyDetection(unittest.TestCase):
               input[0],
               AnomalyResult(
                   example=input[1], predictions=[decision1, decision2]))
-                    for input,
-                    decision1,
-                    decision2 in zip(
+                    for input, decision1, decision2 in zip(
                         self._input, zscore_x1_expected, zscore_x2_expected)],
                    _keyed_result_is_equal_to))
 
@@ -267,8 +265,7 @@ class TestAnomalyDetection(unittest.TestCase):
           equal_to([(
               input[0],
               AnomalyResult(example=input[1], predictions=[prediction]))
-                    for input,
-                    prediction in zip(self._input, aggregated)]))
+                    for input, prediction in zip(self._input, aggregated)]))
 
 
 class FakeNumpyModel():
@@ -391,8 +388,7 @@ class TestOfflineDetector(unittest.TestCase):
           equal_to([(
               input[0],
               AnomalyResult(example=input[1], predictions=[prediction]))
-                    for input,
-                    prediction in zip(input, expected_predictions)]))
+                    for input, prediction in zip(input, expected_predictions)]))
 
   def test_run_inference_args(self):
     model_handler = SklearnModelHandlerNumpy(model_uri="unused")

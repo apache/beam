@@ -404,8 +404,7 @@ class Scope(LightweightScope):
           provider.create_transform(
               spec['type'],
               config,
-              lambda config,
-              input_pcolls=input_pcolls: self.create_ptransform(
+              lambda config, input_pcolls=input_pcolls: self.create_ptransform(
                   config, input_pcolls)))
       # TODO(robertwb): Should we have a better API for adding annotations
       # than this?
@@ -935,8 +934,10 @@ def lift_config(spec):
   if 'config' not in spec:
     common_params = 'name', 'type', 'input', 'output', 'transforms'
     return {
-        'config': {k: v
-                   for (k, v) in spec.items() if k not in common_params},
+        'config': {
+            k: v
+            for (k, v) in spec.items() if k not in common_params
+        },
         **{
             k: v
             for (k, v) in spec.items()  #

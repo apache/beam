@@ -676,21 +676,21 @@ class _TupleCombineFnBase(core.CombineFn):
       if len(accumulators_batch) == 1:
         break
       result = [
-          c.merge_accumulators(a, *args, **kwargs) for c,
-          a in zip(self._combiners, zip(*accumulators_batch))
+          c.merge_accumulators(a, *args, **kwargs)
+          for c, a in zip(self._combiners, zip(*accumulators_batch))
       ]
     return result
 
   def compact(self, accumulator, *args, **kwargs):
     return [
-        c.compact(a, *args, **kwargs) for c,
-        a in zip(self._combiners, accumulator)
+        c.compact(a, *args, **kwargs)
+        for c, a in zip(self._combiners, accumulator)
     ]
 
   def extract_output(self, accumulator, *args, **kwargs):
     return tuple(
-        c.extract_output(a, *args, **kwargs) for c,
-        a in zip(self._combiners, accumulator))
+        c.extract_output(a, *args, **kwargs)
+        for c, a in zip(self._combiners, accumulator))
 
   def teardown(self, *args, **kwargs):
     for c in reversed(self._combiners):
@@ -706,9 +706,8 @@ class TupleCombineFn(_TupleCombineFnBase):
   """
   def add_input(self, accumulator, element, *args, **kwargs):
     return [
-        c.add_input(a, e, *args, **kwargs) for c,
-        a,
-        e in zip(self._combiners, accumulator, element)
+        c.add_input(a, e, *args, **kwargs)
+        for c, a, e in zip(self._combiners, accumulator, element)
     ]
 
   def with_common_input(self):
@@ -724,8 +723,8 @@ class SingleInputTupleCombineFn(_TupleCombineFnBase):
   """
   def add_input(self, accumulator, element, *args, **kwargs):
     return [
-        c.add_input(a, element, *args, **kwargs) for c,
-        a in zip(self._combiners, accumulator)
+        c.add_input(a, element, *args, **kwargs)
+        for c, a in zip(self._combiners, accumulator)
     ]
 
 

@@ -208,8 +208,8 @@ class _DataframeExpressionsTransform(transforms.PTransform):
                   | 'SumSizes' >> beam.CombineGlobally(sum)
                   | 'NumPartitions' >> beam.Map(
                       lambda size: max(
-                          MIN_PARTITIONS,
-                          min(MAX_PARTITIONS, size // TARGET_PARTITION_SIZE))))
+                          MIN_PARTITIONS, min(
+                              MAX_PARTITIONS, size // TARGET_PARTITION_SIZE))))
 
           partition_fn = self.stage.partitioning.partition_fn
 
@@ -247,8 +247,8 @@ class _DataframeExpressionsTransform(transforms.PTransform):
         def evaluate(partition, stage=self.stage, **side_inputs):
           def lookup(expr):
             # Use proxy if there's no data in this partition
-            return expr.proxy(
-            ).iloc[:0] if partition[expr._id] is None else partition[expr._id]
+            return expr.proxy().iloc[:0] if partition[
+                expr._id] is None else partition[expr._id]
 
           session = expressions.Session(
               dict([(expr, lookup(expr)) for expr in tabular_inputs] +
@@ -420,8 +420,10 @@ class _DataframeExpressionsTransform(transforms.PTransform):
 
     @_memoize
     def stage_to_result(stage):
-      return {expr._id: expr_to_pcoll(expr)
-              for expr in stage.inputs} | ComputeStage(stage)
+      return {
+          expr._id: expr_to_pcoll(expr)
+          for expr in stage.inputs
+      } | ComputeStage(stage)
 
     @_memoize
     def expr_to_pcoll(expr):

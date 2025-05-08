@@ -330,14 +330,10 @@ class RunAggregationStrategy(beam.PTransform[beam.PCollection[KeyedOutputT],
       ret = (
           post_gbk
           | beam.MapTuple(
-              lambda k,
-              v: (
-                  k[0],
-                  (
-                      k[1],
-                      AnomalyResult(
-                          example=v[0].example,
-                          predictions=[
+              lambda k, v: (
+                  k[0], (
+                      k[1], AnomalyResult(
+                          example=v[0].example, predictions=[
                               prediction for result in v
                               for prediction in result.predictions
                           ])))))
@@ -359,15 +355,10 @@ class RunAggregationStrategy(beam.PTransform[beam.PCollection[KeyedOutputT],
     ret = (
         post_gbk
         | beam.MapTuple(
-            lambda k,
-            v,
-            agg=aggregation_fn: (
-                k[0],
-                (
-                    k[1],
-                    AnomalyResult(
-                        example=v[0].example,
-                        predictions=[
+            lambda k, v, agg=aggregation_fn: (
+                k[0], (
+                    k[1], AnomalyResult(
+                        example=v[0].example, predictions=[
                             agg.apply([
                                 prediction for result in v
                                 for prediction in result.predictions

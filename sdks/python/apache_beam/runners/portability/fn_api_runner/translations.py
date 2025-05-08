@@ -332,8 +332,7 @@ class Stage(object):
                 beam_runner_api_pb2.ExecutableStagePayload.TimerId(
                     transform_id=transform_id, local_name=tag))
           main_inputs.update(
-              pcoll_id for tag,
-              pcoll_id in transform.inputs.items()
+              pcoll_id for tag, pcoll_id in transform.inputs.items()
               if tag not in payload.side_inputs)
         else:
           main_inputs.update(transform.inputs.values())
@@ -341,8 +340,8 @@ class Stage(object):
 
       main_input_id = only_element(main_inputs - all_outputs)
       named_inputs = dict({
-          '%s:%s' % (side.transform_id, side.local_name):
-          stage_components.transforms[side.transform_id].inputs[side.local_name]
+          '%s:%s' % (side.transform_id, side.local_name): stage_components.
+          transforms[side.transform_id].inputs[side.local_name]
           for side in side_inputs
       },
                           main_input=main_input_id)
@@ -367,8 +366,7 @@ class Stage(object):
           inputs=named_inputs,
           outputs={
               'output_%d' % ix: pcoll
-              for ix,
-              pcoll in enumerate(external_outputs)
+              for ix, pcoll in enumerate(external_outputs)
           },
       )
 
@@ -523,8 +521,8 @@ class TransformContext(object):
       # have the runner treat it as opaque bytes.
       return coder_id, self.bytes_coder_id
     elif (coder.spec.urn == common_urns.coders.WINDOWED_VALUE.urn and
-          self.components.coders[coder.component_coder_ids[1]].spec.urn not in
-          self._known_coder_urns):
+          self.components.coders[coder.component_coder_ids[1]].spec.urn
+          not in self._known_coder_urns):
       # A WindowedValue coder with an unknown window type.
       # This needs to be encoded in such a way that we still have access to its
       # timestmap.
@@ -663,8 +661,7 @@ def pipeline_from_stages(
   roots = {}  # type: Dict[str, Any]
   parents = {
       child: parent
-      for parent,
-      proto in pipeline_proto.components.transforms.items()
+      for parent, proto in pipeline_proto.components.transforms.items()
       for child in proto.subtransforms
   }
 
@@ -802,8 +799,7 @@ def standard_optimize_phases():
       pack_combiners,
       lift_combiners,
       expand_sdf,
-      fix_flatten_coders,
-      # sink_flattens,
+      fix_flatten_coders,  # sink_flattens,
       greedily_fuse,
       read_to_impulse,
       extract_impulse_stages,
@@ -1053,8 +1049,8 @@ def pack_per_key_combiners(stages, context, can_pack=lambda s: True):
     def process(self, element):
       key, values = element
       return [
-          core.pvalue.TaggedOutput(tag, (key, value)) for tag,
-          value in zip(self._tags, values)
+          core.pvalue.TaggedOutput(tag, (key, value))
+          for tag, value in zip(self._tags, values)
       ]
 
   def _get_fallback_coder_id():
@@ -1092,8 +1088,8 @@ def pack_per_key_combiners(stages, context, can_pack=lambda s: True):
   # and group eligible CombinePerKey stages by parent and environment.
   def get_stage_key(stage):
     if (len(stage.transforms) == 1 and can_pack(stage.name) and
-        stage.environment is not None and python_urns.PACKED_COMBINE_FN in
-        context.components.environments[stage.environment].capabilities):
+        stage.environment is not None and python_urns.PACKED_COMBINE_FN
+        in context.components.environments[stage.environment].capabilities):
       transform = only_transform(stage.transforms)
       if (transform.spec.urn == common_urns.composites.COMBINE_PER_KEY.urn and
           len(transform.inputs) == 1 and len(transform.outputs) == 1):
@@ -1108,10 +1104,12 @@ def pack_per_key_combiners(stages, context, can_pack=lambda s: True):
   for stage in ineligible_stages:
     yield stage
 
-  grouped_packable_stages = [(stage_key, subgrouped_stages) for stage_key,
-                             grouped_stages in grouped_eligible_stages.items()
-                             for subgrouped_stages in _group_stages_with_limit(
-                                 grouped_stages, _get_limit)]
+  grouped_packable_stages = [
+      (stage_key, subgrouped_stages)
+      for stage_key, grouped_stages in grouped_eligible_stages.items()
+      for subgrouped_stages in _group_stages_with_limit(
+          grouped_stages, _get_limit)
+  ]
 
   for stage_key, packable_stages in grouped_packable_stages:
     input_pcoll_id, _ = stage_key
@@ -2041,7 +2039,8 @@ def sort_stages(stages, pipeline_context):
 
   producers = {
       pcoll: stage
-      for stage in all_stages for t in stage.transforms
+      for stage in all_stages
+      for t in stage.transforms
       for pcoll in t.outputs.values()
   }
 
