@@ -57,8 +57,9 @@ public class AbstractWindmillStreamTest {
   }
 
   private TestStream newStream(
-      Function<StreamObserver<Integer>, StreamObserver<Integer>> clientFactory) {
-    return new TestStream(clientFactory, streamRegistry, streamObserverFactory);
+      Function<StreamObserver<Integer>, StreamObserver<Integer>> clientFactory,
+      WindmillStreamTTL ttl) {
+    return new TestStream(clientFactory, streamRegistry, streamObserverFactory, ttl);
   }
 
   @Test
@@ -67,7 +68,7 @@ public class AbstractWindmillStreamTest {
     Function<StreamObserver<Integer>, StreamObserver<Integer>> clientFactory =
         ignored -> callStreamObserver;
 
-    TestStream testStream = newStream(clientFactory);
+    TestStream testStream = newStream(clientFactory, WindmillStreamTTL.noTtl());
     testStream.start();
     ExecutorService sendExecutor = Executors.newSingleThreadExecutor();
     Future<WindmillStreamShutdownException> sendFuture =
@@ -93,7 +94,7 @@ public class AbstractWindmillStreamTest {
     Function<StreamObserver<Integer>, StreamObserver<Integer>> clientFactory =
         ignored -> callStreamObserver;
 
-    TestStream testStream = newStream(clientFactory);
+    TestStream testStream = newStream(clientFactory, WindmillStreamTTL.noTtl());
     testStream.start();
     Instant reportingThreshold = Instant.now().minus(Duration.millis(1));
 
@@ -109,7 +110,7 @@ public class AbstractWindmillStreamTest {
     Function<StreamObserver<Integer>, StreamObserver<Integer>> clientFactory =
         ignored -> callStreamObserver;
 
-    TestStream testStream = newStream(clientFactory);
+    TestStream testStream = newStream(clientFactory, WindmillStreamTTL.noTtl());
     testStream.start();
 
     try {
@@ -135,6 +136,53 @@ public class AbstractWindmillStreamTest {
     testStream.shutdown();
   }
 
+  @Test
+  public void testRestart_restartsAfterStreamTtl() {
+    AtomicInteger timeouts = new AtomicInteger();
+    Function<StreamObserver<Integer>, StreamObserver<Integer>> clientFactory =
+        ignored ->
+            new CallStreamObserver<Integer>() {
+              @Override
+              public void onNext(Integer integer) {}
+
+              @Override
+              public void onError(Throwable throwable) {}
+
+              @Override
+              public void onCompleted() {
+                timeouts.incrementAndGet();
+              }
+
+              @Override
+              public boolean isReady() {
+                return false;
+              }
+
+              @Override
+              public void setOnReadyHandler(Runnable runnable) {}
+
+              @Override
+              public void disableAutoInboundFlowControl() {}
+
+              @Override
+              public void request(int i) {}
+
+              @Override
+              public void setMessageCompression(boolean b) {}
+            };
+
+    TestStream testStream =
+        newStream(clientFactory, WindmillStreamTTL.create(100, TimeUnit.MILLISECONDS));
+    testStream.start();
+
+    // Sleep a bit to see trigger some restarts. 1000ms is 10x the streamTTL of 100ms.
+    Uninterruptibles.sleepUninterruptibly(1000, TimeUnit.MILLISECONDS);
+
+    assertThat(testStream.numStarts.get()).isAtLeast(2);
+    assertThat(timeouts.get()).isAtLeast(2);
+    testStream.shutdown();
+  }
+
   private static class TestStream extends AbstractWindmillStream<Integer, Integer> {
     private static final Logger LOG = LoggerFactory.getLogger(AbstractWindmillStreamTest.class);
 
@@ -144,7 +192,8 @@ public class AbstractWindmillStreamTest {
     private TestStream(
         Function<StreamObserver<Integer>, StreamObserver<Integer>> clientFactory,
         Set<AbstractWindmillStream<?, ?>> streamRegistry,
-        StreamObserverFactory streamObserverFactory) {
+        StreamObserverFactory streamObserverFactory,
+        WindmillStreamTTL ttl) {
       super(
           LoggerFactory.getLogger(AbstractWindmillStreamTest.class),
           "Test",
@@ -153,7 +202,8 @@ public class AbstractWindmillStreamTest {
           streamObserverFactory,
           streamRegistry,
           1,
-          "Test");
+          "Test",
+          ttl);
     }
 
     @Override

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client;
 
+import static org.apache.beam.runners.dataflow.worker.windmill.client.ResettableThrowingStreamObserver.*;
+
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -25,9 +27,12 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverCancelledException;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
@@ -77,14 +82,19 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
 
   private final Logger logger;
   private final ExecutorService executor;
+  private final WindmillStreamTTL streamTTL;
+  private final ScheduledExecutorService restartExecutor;
   private final BackOff backoff;
   private final CountDownLatch finishLatch;
   private final Set<AbstractWindmillStream<?, ?>> streamRegistry;
   private final int logEveryNStreamFailures;
   private final String backendWorkerToken;
-  private final ResettableThrowingStreamObserver<RequestT> requestObserver;
   private final StreamDebugMetrics debugMetrics;
   private final AtomicBoolean isHealthCheckScheduled;
+  private final AsyncStreamCloser asyncStreamCloser;
+
+  private final Object restartLock = new Object();
+  private final Supplier<ResettableThrowingStreamObserver<RequestT>> streamFactory;
 
   @GuardedBy("this")
   protected boolean clientClosed;
@@ -92,8 +102,14 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   @GuardedBy("this")
   protected boolean isShutdown;
 
+  @GuardedBy("restartLock")
+  private ResettableThrowingStreamObserver<RequestT> requestObserver;
+
   @GuardedBy("this")
   private boolean started;
+
+  @GuardedBy("this")
+  private ScheduledFuture<?> restartFuture = null;
 
   protected AbstractWindmillStream(
       Logger logger,
@@ -103,13 +119,30 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
       StreamObserverFactory streamObserverFactory,
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
       int logEveryNStreamFailures,
-      String backendWorkerToken) {
+      String backendWorkerToken,
+      WindmillStreamTTL streamTTL) {
     this.backendWorkerToken = backendWorkerToken;
     this.executor =
         Executors.newSingleThreadExecutor(
             new ThreadFactoryBuilder()
                 .setDaemon(true)
-                .setNameFormat(createThreadName(debugStreamType, backendWorkerToken))
+                .setNameFormat(
+                    createThreadName(debugStreamType, backendWorkerToken, "WindmillStream"))
+                .build());
+    this.restartExecutor =
+        // Exceptions thrown on this thread will not crash the user worker process.
+        Executors.newSingleThreadScheduledExecutor(
+            new ThreadFactoryBuilder()
+                .setNameFormat(
+                    createThreadName(
+                        debugStreamType, backendWorkerToken, "WindmillStreamRestarter"))
+                // We need to explicitly log the error since it may be swallowed.
+                .setUncaughtExceptionHandler(
+                    (t, e) ->
+                        logger.error(
+                            "{} failed due to uncaught exception during execution. ",
+                            t.getName(),
+                            e))
                 .build());
     this.backoff = backoff;
     this.streamRegistry = streamRegistry;
@@ -120,21 +153,26 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     this.isHealthCheckScheduled = new AtomicBoolean(false);
     this.finishLatch = new CountDownLatch(1);
     this.logger = logger;
-    this.requestObserver =
-        new ResettableThrowingStreamObserver<>(
-            () ->
-                streamObserverFactory.from(
-                    clientFactory,
-                    new AbstractWindmillStream<RequestT, ResponseT>.ResponseObserver()),
-            logger);
     this.sleeper = Sleeper.DEFAULT;
     this.debugMetrics = StreamDebugMetrics.create();
+    this.streamTTL = streamTTL;
+    this.streamFactory =
+        () ->
+            new ResettableThrowingStreamObserver<>(
+                () ->
+                    streamObserverFactory.from(
+                        clientFactory,
+                        new AbstractWindmillStream<RequestT, ResponseT>.ResponseObserver()),
+                logger);
+    this.requestObserver = streamFactory.get();
+    this.asyncStreamCloser = new AsyncStreamCloser(logger);
   }
 
-  private static String createThreadName(String streamType, String backendWorkerToken) {
+  private static String createThreadName(
+      String threadType, String streamType, String backendWorkerToken) {
     return !backendWorkerToken.isEmpty()
-        ? String.format("%s-%s-WindmillStream-thread", streamType, backendWorkerToken)
-        : String.format("%s-WindmillStream-thread", streamType);
+        ? String.format("%s-%s-%s-thread", streamType, backendWorkerToken, threadType)
+        : String.format("%s-%s-thread", streamType, threadType);
   }
 
   /** Called on each response from the server. */
@@ -159,16 +197,23 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
       throws WindmillStreamShutdownException {
     debugMetrics.recordSend();
     try {
-      requestObserver.onNext(request);
+      requestObserver().onNext(request);
       return true;
-    } catch (ResettableThrowingStreamObserver.StreamClosedException e) {
+    } catch (StreamClosedException e) {
       // Stream was broken, requests may be retried when stream is reopened.
     }
 
     return false;
   }
 
+  private ResettableThrowingStreamObserver<RequestT> requestObserver() {
+    synchronized (restartLock) {
+      return requestObserver;
+    }
+  }
+
   @Override
+  @SuppressWarnings("FutureReturnValueIgnored")
   public final void start() {
     boolean shouldStartStream = false;
     synchronized (this) {
@@ -191,12 +236,22 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
       try {
         synchronized (this) {
           debugMetrics.recordStart();
-          requestObserver.reset();
+          requestObserver().reset();
           onNewStream();
           if (clientClosed) {
             halfClose();
+          } else {
+            // If the stream is alive, schedule a future restart. We also attempt to cancel any
+            // pending restarts that have not run since they are used for preventing
+            // DEADLINE_EXCEEDED.  Everytime the stream restarts, this deadline restarts so we want
+            // the stream restart to run whenever we restart the stream + streamTTL.
+            if (streamTTL.isValidTtl()) {
+              // Only runs once on initial call. Subsequent calls will either do nothing or throw a
+              // WindmillStreamShutdownException if called after asyncStreamCloser.shutdown().
+              asyncStreamCloser.start();
+              scheduleRestart();
+            }
           }
-          return;
         }
       } catch (WindmillStreamShutdownException e) {
         // shutdown() is responsible for cleaning up pending requests.
@@ -307,7 +362,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
         summaryMetrics.streamAge(),
         summaryMetrics.timeSinceLastSend(),
         summaryMetrics.timeSinceLastResponse(),
-        requestObserver.isClosed(),
+        requestObserver().isClosed(),
         summaryMetrics.shutdownTime().map(DateTime::toString).orElse(NOT_SHUTDOWN));
   }
 
@@ -323,14 +378,44 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     debugMetrics.recordHalfClose();
     clientClosed = true;
     try {
-      requestObserver.onCompleted();
-    } catch (ResettableThrowingStreamObserver.StreamClosedException e) {
+      requestObserver().onCompleted();
+    } catch (StreamClosedException e) {
       logger.warn("Stream was previously closed.");
     } catch (WindmillStreamShutdownException e) {
       logger.warn("Stream was previously shutdown.");
     } catch (IllegalStateException e) {
       logger.warn("Unexpected error when trying to close stream", e);
     }
+  }
+
+  private synchronized void scheduleRestart() {
+    // Skips scheduling the restart if the streamTTL is invalid (i.e there is no TTL).
+    if (restartFuture != null) {
+      // Try to cancel the future w/o interruption since interruption in startStream() will
+      // trigger a stream shutdown.
+      restartFuture.cancel(false);
+    }
+    // Restart the stream at every streamTimeout interval. Don't use schedule w/
+    // scheduleWithFixedDelay or scheduleAtFixedRate since scheduleRestart() is called on every
+    // stream restart.
+    restartFuture =
+        restartExecutor.schedule(
+            () -> {
+              // Internally restart the stream to avoid DEADLINE_EXCEEDED errors.
+              synchronized (restartLock) {
+                debugMetrics.recordRestartReason("Internal Timeout.");
+                // Try to hand off the requestObserver to be closed before creating a new
+                // requestObserver. If the stream closure cannot be scheduled, it means that this
+                // stream instance has been shutdown, do not restart internally.
+                if (asyncStreamCloser.tryScheduleForClosure(requestObserver)) {
+                  requestObserver = streamFactory.get();
+                  // active requestObserver has been reset, restart the stream.
+                  startStream();
+                }
+              }
+            },
+            streamTTL.time(),
+            streamTTL.unit());
   }
 
   @Override
@@ -352,7 +437,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   public final void shutdown() {
     // Don't lock on "this" before poisoning the request observer since otherwise the observer may
     // be blocking in send().
-    requestObserver.poison();
+    requestObserver().poison();
     synchronized (this) {
       if (!isShutdown) {
         isShutdown = true;
@@ -366,14 +451,21 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
 
   /** Returns true if the stream was torn down and should not be restarted internally. */
   private synchronized boolean maybeTearDownStream() {
-    if (isShutdown || (clientClosed && !hasPendingRequests())) {
+    if (isShutdown || isStreamDrained()) {
       streamRegistry.remove(AbstractWindmillStream.this);
       finishLatch.countDown();
       executor.shutdownNow();
+      restartExecutor.shutdownNow();
+      requestObserver().poison();
+      asyncStreamCloser.shutdown();
       return true;
     }
 
     return false;
+  }
+
+  private synchronized boolean isStreamDrained() {
+    return clientClosed && !hasPendingRequests();
   }
 
   private class ResponseObserver implements StreamObserver<ResponseT> {
