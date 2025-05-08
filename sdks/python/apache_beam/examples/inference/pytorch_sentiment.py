@@ -204,7 +204,7 @@ def run_load_pipeline(known_args, pipeline_args):
             RateLimitDoFn(rate_per_sec=known_args.rate_limit)))
 
   _ = (
-    lines
+      lines
       | 'ToBytes' >> beam.Map(lambda line: line.encode('utf-8'))
       |
       'PublishToPubSub' >> beam.io.WriteToPubSub(topic=known_args.pubsub_topic))
