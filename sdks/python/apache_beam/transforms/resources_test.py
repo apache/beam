@@ -21,13 +21,13 @@ from parameterized import param
 from parameterized import parameterized
 
 from apache_beam import PTransform
-from apache_beam.transforms.resources import ResourceHint
-from apache_beam.options.pipeline_options import PipelineOptions, StandardOptions
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.transforms.resources import ResourceHint
 
 
 class ResourcesTest(unittest.TestCase):
-
   @parameterized.expand([
       param(
           name='min_ram',
