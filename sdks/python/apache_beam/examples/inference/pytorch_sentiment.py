@@ -194,20 +194,20 @@ def run_load_pipeline(known_args, pipeline_args):
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline = beam.Pipeline(options=pipeline_options)
   lines = (
-    pipeline
-    | 'ReadGCSFile' >> beam.io.ReadFromText(known_args.input)
-    | 'FilterEmpty' >> beam.Filter(lambda line: line.strip())
-  )
+      pipeline
+      | 'ReadGCSFile' >> beam.io.ReadFromText(known_args.input)
+      | 'FilterEmpty' >> beam.Filter(lambda line: line.strip()))
   if known_args.rate_limit:
     lines = (
-      lines
-      | 'RateLimit' >> beam.ParDo(RateLimitDoFn(rate_per_sec=known_args.rate_limit)))
+        lines
+        | 'RateLimit' >> beam.ParDo(
+            RateLimitDoFn(rate_per_sec=known_args.rate_limit)))
 
   _ = (
     lines
-    | 'ToBytes' >> beam.Map(lambda line: line.encode('utf-8'))
-    |
-    'PublishToPubSub' >> beam.io.WriteToPubSub(topic=known_args.pubsub_topic))
+      | 'ToBytes' >> beam.Map(lambda line: line.encode('utf-8'))
+      |
+      'PublishToPubSub' >> beam.io.WriteToPubSub(topic=known_args.pubsub_topic))
   return pipeline.run()
 
 
@@ -222,10 +222,9 @@ def run(
 
   if known_args.mode == 'streaming':
     threading.Thread(
-        target=lambda: (
-            time.sleep(100), run_load_pipeline(known_args, pipeline_args)),
-        daemon=True
-    ).start()
+        target=lambda:
+        (time.sleep(100), run_load_pipeline(known_args, pipeline_args)),
+        daemon=True).start()
 
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
