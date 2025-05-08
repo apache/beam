@@ -29,7 +29,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
-import org.apache.beam.sdk.extensions.sql.meta.provider.iceberg.IcebergReadWriteIT;
 import org.apache.beam.sdk.extensions.sql.meta.provider.iceberg.IcebergTableProvider;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
@@ -77,7 +76,7 @@ public class PubsubToIcebergIT implements Serializable {
         String.format(
             "%s%s/%s",
             TestPipeline.testingPipelineOptions().getTempLocation(),
-            IcebergReadWriteIT.class.getSimpleName(),
+            PubsubToIcebergIT.class.getSimpleName(),
             UUID.randomUUID());
     BQ_CLIENT.createNewDataset(OPTIONS.getProject(), DATASET);
   }

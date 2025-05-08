@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.iceberg;
 
+import static java.util.Arrays.asList;
 import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithUTCTimeZone;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.BOOLEAN;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.DOUBLE;
@@ -24,13 +25,15 @@ import static org.apache.beam.sdk.schemas.Schema.FieldType.FLOAT;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.INT32;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.INT64;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.STRING;
+import static org.apache.beam.sdk.schemas.Schema.FieldType.array;
+import static org.apache.beam.sdk.schemas.Schema.FieldType.row;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 
 import com.google.api.services.bigquery.model.TableRow;
 import java.io.IOException;
-import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
@@ -55,6 +58,11 @@ import org.junit.runners.JUnit4;
 /** Integration tests for writing to Iceberg with Beam SQL. */
 @RunWith(JUnit4.class)
 public class IcebergReadWriteIT {
+  private static final Schema NESTED_SCHEMA =
+      Schema.builder()
+          .addNullableArrayField("c_arr_struct_arr", STRING)
+          .addNullableInt32Field("c_arr_struct_integer")
+          .build();
   private static final Schema SOURCE_SCHEMA =
       Schema.builder()
           .addNullableField("c_bigint", INT64)
@@ -65,7 +73,8 @@ public class IcebergReadWriteIT {
           .addNullableField("c_timestamp", CalciteUtils.TIMESTAMP)
           .addNullableField("c_varchar", STRING)
           .addNullableField("c_char", STRING)
-          .addNullableField("c_arr", Schema.FieldType.array(STRING))
+          .addNullableField("c_arr", array(STRING))
+          .addNullableField("c_arr_struct", array(row(NESTED_SCHEMA)))
           .build();
 
   @Rule public transient TestPipeline writePipeline = TestPipeline.create();
@@ -118,7 +127,8 @@ public class IcebergReadWriteIT {
             + "   c_timestamp TIMESTAMP, \n"
             + "   c_varchar VARCHAR, \n "
             + "   c_char CHAR, \n"
-            + "   c_arr ARRAY<VARCHAR> \n"
+            + "   c_arr ARRAY<VARCHAR>, \n"
+            + "   c_arr_struct ARRAY<ROW<c_arr_struct_arr ARRAY<VARCHAR>, c_arr_struct_integer INTEGER>> \n"
             + ") \n"
             + "TYPE 'iceberg' \n"
             + "LOCATION '"
@@ -137,7 +147,11 @@ public class IcebergReadWriteIT {
             + "TIMESTAMP '2018-05-28 20:17:40.123', "
             + "'varchar', "
             + "'char', "
-            + "ARRAY['123', '456']"
+            + "ARRAY['123', '456'], "
+            + "ARRAY["
+            + "ROW(ARRAY['abc', 'xyz'], 123), "
+            + "ROW(ARRAY['foo', 'bar'], 456), "
+            + "ROW(ARRAY['cat', 'dog'], 789)]"
             + ")";
     sqlEnv.parseQuery(insertStatement);
     BeamSqlRelUtils.toPCollection(writePipeline, sqlEnv.parseQuery(insertStatement));
@@ -159,7 +173,11 @@ public class IcebergReadWriteIT {
                 parseTimestampWithUTCTimeZone("2018-05-28 20:17:40.123"),
                 "varchar",
                 "char",
-                Arrays.asList("123", "456"))
+                asList("123", "456"),
+                asList(
+                    nestedRow(asList("abc", "xyz"), 123),
+                    nestedRow(asList("foo", "bar"), 456),
+                    nestedRow(asList("cat", "dog"), 789)))
             .build();
     assertEquals(expectedRow, beamRow);
 
@@ -170,5 +188,10 @@ public class IcebergReadWriteIT {
     PAssert.that(output).containsInAnyOrder(expectedRow);
     PipelineResult.State state = readPipeline.run().waitUntilFinish();
     assertThat(state, equalTo(PipelineResult.State.DONE));
+  }
+
+  private Row nestedRow(List<String> arr, Integer intVal) {
+    System.out.println(arr);
+    return Row.withSchema(NESTED_SCHEMA).addValues(arr, intVal).build();
   }
 }
