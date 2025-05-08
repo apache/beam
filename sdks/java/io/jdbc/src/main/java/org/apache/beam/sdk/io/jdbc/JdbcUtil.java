@@ -75,6 +75,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Files;
+import org.apache.commons.dbcp2.BasicDataSource;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
@@ -83,20 +84,25 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Provides utility functions for working with {@link JdbcIO}. */
-class JdbcUtil {
+public class JdbcUtil {
 
   private static final Logger LOG = LoggerFactory.getLogger(JdbcUtil.class);
+
+  public static final String MYSQL = "mysql";
+  public static final String POSTGRES = "postgres";
+  public static final String ORACLE = "oracle";
+  public static final String MSSQL = "mssql";
 
   static final Map<String, String> JDBC_DRIVER_MAP =
       new HashMap<>(
           ImmutableMap.of(
-              "mysql",
+              MYSQL,
               "com.mysql.cj.jdbc.Driver",
-              "postgres",
+              POSTGRES,
               "org.postgresql.Driver",
-              "oracle",
+              ORACLE,
               "oracle.jdbc.driver.OracleDriver",
-              "mssql",
+              MSSQL,
               "com.microsoft.sqlserver.jdbc.SQLServerDriver"));
 
   @VisibleForTesting
@@ -106,7 +112,8 @@ class JdbcUtil {
 
   /** Utility method to save jar files locally in the worker. */
   static URL[] saveFilesLocally(String driverJars) {
-    List<String> listOfJarPaths = Splitter.on(',').trimResults().splitToList(driverJars);
+    List<String> listOfJarPaths =
+        Splitter.on(',').trimResults().omitEmptyStrings().splitToList(driverJars);
 
     final String destRoot = Files.createTempDir().getAbsolutePath();
     List<URL> driverJarUrls = new ArrayList<>();
@@ -673,14 +680,29 @@ class JdbcUtil {
   /** Jdbc fully qualified name components. */
   @AutoValue
   abstract static class FQNComponents {
+
+    static final String DEFAULT_SCHEMA = "default";
+
     abstract String getScheme();
 
     abstract Iterable<String> getSegments();
 
-    void reportLineage(Lineage lineage, @Nullable String table) {
+    void reportLineage(Lineage lineage, @Nullable KV<@Nullable String, String> tableWithSchema) {
       ImmutableList.Builder<String> builder = ImmutableList.<String>builder().addAll(getSegments());
-      if (table != null && !table.isEmpty()) {
-        builder.add(table);
+      if (tableWithSchema != null) {
+        if (tableWithSchema.getKey() != null && !tableWithSchema.getKey().isEmpty()) {
+          builder.add(tableWithSchema.getKey());
+        } else {
+          // Every database engine has the default schema or search path if user hasn't provided
+          // one. The name
+          // is specific to db engine. For PostgreSQL it is public, for MSSQL it is dbo.
+          // Users can have custom default scheme for the benefit of the user but dataflow is unable
+          // to determine that.
+          builder.add(DEFAULT_SCHEMA);
+        }
+        if (!tableWithSchema.getValue().isEmpty()) {
+          builder.add(tableWithSchema.getValue());
+        }
       }
       lineage.add(getScheme(), builder.build());
     }
@@ -692,24 +714,41 @@ class JdbcUtil {
       String maybeSqlInstance;
       String url;
       try {
-        Class<?> hikariClass = Class.forName("com.zaxxer.hikari.HikariDataSource");
-        if (!hikariClass.isInstance(dataSource)) {
-          return null;
-        }
-        Method getProperties = hikariClass.getMethod("getDataSourceProperties");
-        Properties properties = (Properties) getProperties.invoke(dataSource);
-        if (properties == null) {
-          return null;
-        }
-        maybeSqlInstance = properties.getProperty("cloudSqlInstance");
-        if (maybeSqlInstance == null) {
-          // not a cloudSqlInstance
-          return null;
-        }
-        Method getUrl = hikariClass.getMethod("getJdbcUrl");
-        url = (String) getUrl.invoke(dataSource);
-        if (url == null) {
-          return null;
+        if (dataSource instanceof BasicDataSource) {
+          // try default data source implementation
+          BasicDataSource source = (BasicDataSource) dataSource;
+          Method getProperties = source.getClass().getDeclaredMethod("getConnectionProperties");
+          getProperties.setAccessible(true);
+          Properties properties = (Properties) getProperties.invoke(dataSource);
+          if (properties == null) {
+            return null;
+          }
+          maybeSqlInstance = properties.getProperty("cloudSqlInstance");
+          if (maybeSqlInstance == null) {
+            // not a cloudSqlInstance
+            return null;
+          }
+          url = source.getUrl();
+        } else { // try recommended as per best practice
+          Class<?> hikariClass = Class.forName("com.zaxxer.hikari.HikariDataSource");
+          if (!hikariClass.isInstance(dataSource)) {
+            return null;
+          }
+          Method getProperties = hikariClass.getMethod("getDataSourceProperties");
+          Properties properties = (Properties) getProperties.invoke(dataSource);
+          if (properties == null) {
+            return null;
+          }
+          maybeSqlInstance = properties.getProperty("cloudSqlInstance");
+          if (maybeSqlInstance == null) {
+            // not a cloudSqlInstance
+            return null;
+          }
+          Method getUrl = hikariClass.getMethod("getJdbcUrl");
+          url = (String) getUrl.invoke(dataSource);
+          if (url == null) {
+            return null;
+          }
         }
       } catch (ClassNotFoundException
           | InvocationTargetException
@@ -787,41 +826,66 @@ class JdbcUtil {
     }
   }
 
+  private static final Pattern TABLE_PATTERN =
+      Pattern.compile(
+          "(\\[?`?(?<schemaName>[^\\s\\[\\]`]+)\\]?`?\\.)?\\[?`?(?<tableName>[^\\s\\[\\]`]+)\\]?`?",
+          Pattern.CASE_INSENSITIVE);
+
   private static final Pattern READ_STATEMENT_PATTERN =
       Pattern.compile(
-          "SELECT\\s+.+?\\s+FROM\\s+\\[?(?<tableName>[^\\s\\[\\]]+)\\]?", Pattern.CASE_INSENSITIVE);
+          "SELECT\\s+.+?\\s+FROM\\s+(\\[?`?(?<schemaName>[^\\s\\[\\]`]+)\\]?`?\\.)?\\[?`?(?<tableName>[^\\s\\[\\]`]+)\\]?`?",
+          Pattern.CASE_INSENSITIVE);
 
   private static final Pattern WRITE_STATEMENT_PATTERN =
       Pattern.compile(
-          "INSERT\\s+INTO\\s+\\[?(?<tableName>[^\\s\\[\\]]+)\\]?", Pattern.CASE_INSENSITIVE);
+          "INSERT\\s+INTO\\s+(\\[?`?(?<schemaName>[^\\s\\[\\]`]+)\\]?`?\\.)?\\[?(?<tableName>[^\\s\\[\\]]+)\\]?",
+          Pattern.CASE_INSENSITIVE);
 
-  /** Extract table name a SELECT statement. Return empty string if fail to extract. */
-  static String extractTableFromReadQuery(@Nullable String query) {
+  /** Extract schema and table name a SELECT statement. Return null if fail to extract. */
+  static @Nullable KV<@Nullable String, String> extractTableFromReadQuery(@Nullable String query) {
     if (query == null) {
-      return "";
+      return null;
     }
     Matcher matchRead = READ_STATEMENT_PATTERN.matcher(query);
     if (matchRead.find()) {
-      String matched = matchRead.group("tableName");
-      if (matched != null) {
-        return matched;
+      String matchedTable = matchRead.group("tableName");
+      String matchedSchema = matchRead.group("schemaName");
+      System.out.println(matchedSchema);
+      if (matchedTable != null) {
+        return KV.of(matchedSchema, matchedTable);
       }
     }
-    return "";
+    return null;
+  }
+
+  static @Nullable KV<@Nullable String, String> extractTableFromTable(@Nullable String table) {
+    if (table == null) {
+      return null;
+    }
+    Matcher matchRead = TABLE_PATTERN.matcher(table);
+    if (matchRead.find()) {
+      String matchedTable = matchRead.group("tableName");
+      String matchedSchema = matchRead.group("schemaName");
+      if (matchedTable != null) {
+        return KV.of(matchedSchema, matchedTable);
+      }
+    }
+    return null;
   }
 
   /** Extract table name from an INSERT statement. Return empty string if fail to extract. */
-  static String extractTableFromWriteQuery(@Nullable String query) {
+  static @Nullable KV<@Nullable String, String> extractTableFromWriteQuery(@Nullable String query) {
     if (query == null) {
-      return "";
+      return null;
     }
     Matcher matchRead = WRITE_STATEMENT_PATTERN.matcher(query);
     if (matchRead.find()) {
-      String matched = matchRead.group("tableName");
-      if (matched != null) {
-        return matched;
+      String matchedTable = matchRead.group("tableName");
+      String matchedSchema = matchRead.group("schemaName");
+      if (matchedTable != null) {
+        return KV.of(matchedSchema, matchedTable);
       }
     }
-    return "";
+    return null;
   }
 }

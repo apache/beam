@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.toJsonString;
 import static org.apache.beam.sdk.io.gcp.bigquery.WriteTables.ResultCoder.INSTANCE;
+import static org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryFileLoadsSchemaTransformProvider.BigQueryFileLoadsSchemaTransform;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
@@ -32,6 +33,7 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -117,11 +119,13 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.SchemaUpdateOption;
 import org.apache.beam.sdk.io.gcp.bigquery.WritePartition.ResultCoder;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteRename.TempTableCleanupFn;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteTables.Result;
+import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryFileLoadsSchemaTransformProvider;
 import org.apache.beam.sdk.io.gcp.testing.FakeBigQueryServices;
 import org.apache.beam.sdk.io.gcp.testing.FakeDatasetService;
 import org.apache.beam.sdk.io.gcp.testing.FakeJobService;
 import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.schemas.JavaFieldSchema;
 import org.apache.beam.sdk.schemas.Schema;
@@ -312,11 +316,17 @@ public class BigQueryIOWriteTest implements Serializable {
   public void testWriteEmptyPCollection() throws Exception {
     assumeTrue(!useStreaming);
     assumeTrue(!useStorageApi);
+    writeEmptyPCollection();
+    checkNotNull(
+        fakeDatasetService.getTable(
+            BigQueryHelpers.parseTableSpec("project-id:dataset-id.table-id")));
+  }
+
+  void writeEmptyPCollection() {
     TableSchema schema =
         new TableSchema()
             .setFields(
                 ImmutableList.of(new TableFieldSchema().setName("number").setType("INTEGER")));
-
     p.apply(Create.empty(TableRowJsonCoder.of()))
         .apply(
             BigQueryIO.writeTableRows()
@@ -327,14 +337,27 @@ public class BigQueryIOWriteTest implements Serializable {
                 .withSchema(schema)
                 .withoutValidation());
     p.run();
+  }
 
-    checkNotNull(
+  @Test
+  public void testWriteEmptyPCollectionGroupFilesFileLoad() throws Exception {
+    assumeFalse(useStorageApi || useStorageApiApproximate || useStreaming);
+    p.getOptions().as(BigQueryOptions.class).setGroupFilesFileLoad(true);
+    writeEmptyPCollection();
+    assertNull(
         fakeDatasetService.getTable(
             BigQueryHelpers.parseTableSpec("project-id:dataset-id.table-id")));
   }
 
   @Test
   public void testWriteDynamicDestinations() throws Exception {
+    writeDynamicDestinations(false, false);
+  }
+
+  @Test
+  public void testWriteDynamicDestinationsGroupFilesFileLoad() throws Exception {
+    assumeFalse(useStorageApi || useStorageApiApproximate || useStreaming);
+    p.getOptions().as(BigQueryOptions.class).setGroupFilesFileLoad(true);
     writeDynamicDestinations(false, false);
   }
 
@@ -816,6 +839,25 @@ public class BigQueryIOWriteTest implements Serializable {
     // For each table destination, it's expected to create two load jobs based on the triggering
     // frequency and processing time intervals.
     assertEquals(2 * numTables, fakeDatasetService.getInsertCount());
+  }
+
+  @Test
+  public void testFileLoadSchemaTransformUsesAvroFormat() {
+    // ensure we are writing with the more performant avro format
+    assumeTrue(!useStreaming);
+    assumeTrue(!useStorageApi);
+    BigQueryFileLoadsSchemaTransformProvider provider =
+        new BigQueryFileLoadsSchemaTransformProvider();
+    Row configuration =
+        Row.withSchema(provider.configurationSchema())
+            .withFieldValue("table", "some-table")
+            .build();
+    BigQueryFileLoadsSchemaTransform schemaTransform =
+        (BigQueryFileLoadsSchemaTransform) provider.from(configuration);
+    BigQueryIO.Write<Row> write =
+        schemaTransform.toWrite(Schema.of(), PipelineOptionsFactory.create());
+    assertNull(write.getFormatFunction());
+    assertNotNull(write.getAvroRowWriterFactory());
   }
 
   @Test
@@ -2254,6 +2296,40 @@ public class BigQueryIOWriteTest implements Serializable {
                 .withAutoSchemaUpdate(true)
                 .withTestServices(fakeBqServices)
                 .withoutValidation());
+    p.run();
+  }
+
+  @Test
+  public void testBigLakeConfigurationFailsForNonStorageApiWrites() {
+    assumeTrue(!useStorageApi);
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(
+        "bigLakeConfiguration is only supported when using STORAGE_WRITE_API or STORAGE_API_AT_LEAST_ONCE");
+
+    p.apply(Create.empty(TableRowJsonCoder.of()))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to("project-id:dataset-id.table")
+                .withBigLakeConfiguration(
+                    ImmutableMap.of(
+                        "connectionId", "some-connection",
+                        "storageUri", "gs://bucket"))
+                .withTestServices(fakeBqServices));
+    p.run();
+  }
+
+  @Test
+  public void testBigLakeConfigurationFailsForMissingProperties() {
+    assumeTrue(useStorageApi);
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("bigLakeConfiguration must contain keys 'connectionId' and 'storageUri'");
+
+    p.apply(Create.empty(TableRowJsonCoder.of()))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to("project-id:dataset-id.table")
+                .withBigLakeConfiguration(ImmutableMap.of("connectionId", "some-connection"))
+                .withTestServices(fakeBqServices));
     p.run();
   }
 
@@ -4101,15 +4177,17 @@ public class BigQueryIOWriteTest implements Serializable {
     assumeTrue(useStorageApi);
     assumeTrue(useStorageApiApproximate);
 
-    TableSchema tableSchema =
-        new TableSchema()
-            .setFields(
-                ImmutableList.of(
-                    new TableFieldSchema().setName("key1").setType("STRING"),
-                    new TableFieldSchema().setName("key2").setType("STRING"),
-                    new TableFieldSchema().setName("value").setType("STRING"),
-                    new TableFieldSchema().setName("updateType").setType("STRING"),
-                    new TableFieldSchema().setName("sqn").setType("STRING")));
+    org.apache.avro.Schema avroSchema =
+        SchemaBuilder.record("TestRecord")
+            .fields()
+            .optionalString("key1")
+            .optionalString("key2")
+            .optionalString("value")
+            .optionalString("updateType")
+            .requiredString("sqn")
+            .endRecord();
+
+    TableSchema tableSchema = BigQueryAvroUtils.fromGenericAvroSchema(avroSchema);
 
     Table fakeTable = new Table();
     TableReference ref =
@@ -4121,16 +4199,6 @@ public class BigQueryIOWriteTest implements Serializable {
     fakeTable.setTableReference(ref);
     fakeDatasetService.createTable(fakeTable);
     fakeDatasetService.setPrimaryKey(ref, Lists.newArrayList("key1", "key2"));
-
-    org.apache.avro.Schema avroSchema =
-        SchemaBuilder.record("TestRecord")
-            .fields()
-            .optionalString("key1")
-            .optionalString("key2")
-            .optionalString("value")
-            .optionalString("updateType")
-            .requiredString("sqn")
-            .endRecord();
 
     List<GenericRecord> items =
         Lists.newArrayList(
@@ -4241,15 +4309,16 @@ public class BigQueryIOWriteTest implements Serializable {
     assumeTrue(useStorageApi);
     assumeTrue(useStorageApiApproximate);
 
-    TableSchema tableSchema =
-        new TableSchema()
-            .setFields(
-                ImmutableList.of(
-                    new TableFieldSchema().setName("key1").setType("STRING"),
-                    new TableFieldSchema().setName("key2").setType("STRING"),
-                    new TableFieldSchema().setName("value").setType("STRING"),
-                    new TableFieldSchema().setName("updateType").setType("STRING"),
-                    new TableFieldSchema().setName("sqn").setType("STRING")));
+    Schema beamSchema =
+        Schema.builder()
+            .addNullableStringField("key1")
+            .addNullableStringField("key2")
+            .addNullableStringField("value")
+            .addNullableStringField("updateType")
+            .addNullableStringField("sqn")
+            .build();
+
+    TableSchema tableSchema = BigQueryUtils.toTableSchema(beamSchema);
 
     Table fakeTable = new Table();
     TableReference ref =
@@ -4261,15 +4330,6 @@ public class BigQueryIOWriteTest implements Serializable {
     fakeTable.setTableReference(ref);
     fakeDatasetService.createTable(fakeTable);
     fakeDatasetService.setPrimaryKey(ref, Lists.newArrayList("key1", "key2"));
-
-    Schema beamSchema =
-        Schema.builder()
-            .addNullableStringField("key1")
-            .addNullableStringField("key2")
-            .addNullableStringField("value")
-            .addNullableStringField("updateType")
-            .addNullableStringField("sqn")
-            .build();
 
     List<Row> items =
         Lists.newArrayList(

@@ -23,6 +23,7 @@ import com.google.api.gax.rpc.StatusCode;
 import com.google.rpc.Code;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
@@ -45,6 +46,7 @@ import org.apache.beam.sdk.util.MovingFunction;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Ints;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -1067,6 +1069,11 @@ final class RpcQosImpl implements RpcQos {
     @Override
     public String getName() {
       return name;
+    }
+
+    @Override
+    public Map<String, String> getLabels() {
+      return ImmutableMap.<String, String>of();
     }
   }
 }

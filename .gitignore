@@ -16,6 +16,8 @@ sdks/**/vendor/**/*
 runners/**/vendor/**/*
 **/.gradletasknamecache
 **/generated/*
+/go.mod
+/go.sum
 
 # Ignore sources generated into the main tree
 **/src/main/generated/**

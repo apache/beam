@@ -17,8 +17,9 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.work;
 
-import java.util.Collection;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
@@ -30,5 +31,6 @@ public interface WorkItemReceiver {
       @Nullable Instant inputDataWatermark,
       @Nullable Instant synchronizedProcessingTime,
       Windmill.WorkItem workItem,
-      Collection<Windmill.LatencyAttribution> getWorkStreamLatencies);
+      long serializedWorkItemSize,
+      ImmutableList<LatencyAttribution> getWorkStreamLatencies);
 }

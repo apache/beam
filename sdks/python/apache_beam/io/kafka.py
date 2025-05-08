@@ -64,6 +64,13 @@
         append_args=["--experiments=use_deprecated_read"]
     )
 
+  To use the legacy mode using Dataflow runner, the `use_unbounded_sdf_wrapper`
+  flag should be specified within the IO expansion service. For example,
+
+    kafka.default_io_expansion_service(
+        append_args=["--experiments=use_unbounded_sdf_wrapper"]
+    )
+
   *Option 2: specify a custom expansion service*
 
   In this option, you startup your own expansion service and provide that as

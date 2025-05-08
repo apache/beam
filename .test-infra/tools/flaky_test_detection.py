@@ -72,6 +72,13 @@ def get_workflow_issues(issues):
     return workflows
 
 
+def ensure_labels_exist(repo, labels):
+    existing_labels = {label.name for label in repo.get_labels()}
+    for label in labels:
+        if label not in existing_labels:
+            repo.create_label(name=label, color="ededed")
+
+
 def create_github_issue(repo, alert):
     github_workflow_failing_runs_url = f"https://github.com/{GIT_ORG}/beam/actions/{alert.workflow_filename}?query=is%3Afailure+branch%3Amaster"
     title = f"The {alert.workflow_name} job is flaky"
@@ -92,6 +99,7 @@ def create_github_issue(repo, alert):
     if READ_ONLY == "true":
         print("READ_ONLY is true, not creating issue")
     else:
+        ensure_labels_exist(repo, labels)
         repo.create_issue(title=title, body=body, labels=labels)
 
 

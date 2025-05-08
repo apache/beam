@@ -131,3 +131,4 @@ When you use Apache Beam as one of the building blocks in your project, these or
 * [ML model evaluation](/documentation/ml/model-evaluation/)
 * [RunInference public codelab](https://colab.sandbox.google.com/github/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_basic.ipynb)
 * [RunInference notebooks](https://github.com/apache/beam/tree/master/examples/notebooks/beam-ml)
+* [Beam ML dependency management](/documentation/ml/ml-dependency-extras)

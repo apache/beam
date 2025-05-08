@@ -45,7 +45,7 @@ dependencies {
     permitUnusedDeclared library.java.postgres // BEAM-11761
     implementation project(path: ":model:pipeline", configuration: "shadow")
     implementation project(path: ":sdks:java:core", configuration: "shadow")
-    implementation library.java.vendored_grpc_1_60_1
+    implementation library.java.vendored_grpc_1_69_0
     implementation library.java.vendored_guava_32_1_2_jre
     // Stage default drivers for JdbcIO schema transforms
     implementation 'mysql:mysql-connector-java:8.0.22'
@@ -54,6 +54,8 @@ dependencies {
     permitUnusedDeclared 'com.oracle.database.jdbc:ojdbc8:23.2.0.0' // BEAM-11761
     implementation 'com.microsoft.sqlserver:mssql-jdbc:12.2.0.jre11'
     permitUnusedDeclared 'com.microsoft.sqlserver:mssql-jdbc:12.2.0.jre11' // BEAM-11761
+    implementation 'com.google.cloud:alloydb-jdbc-connector:1.2.0'
+    permitUnusedDeclared 'com.google.cloud:alloydb-jdbc-connector:1.2.0'
     testImplementation library.java.junit
     testImplementation library.java.mockito_core
 }

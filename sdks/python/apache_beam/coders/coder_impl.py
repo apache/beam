@@ -974,6 +974,37 @@ class VarIntCoderImpl(StreamCoderImpl):
     return get_varint_size(value)
 
 
+class VarInt32CoderImpl(StreamCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  A coder for int32 objects."""
+  def encode_to_stream(self, value, out, nested):
+    # type: (int, create_OutputStream, bool) -> None
+    out.write_var_int32(value)
+
+  def decode_from_stream(self, in_stream, nested):
+    # type: (create_InputStream, bool) -> int
+    return in_stream.read_var_int32()
+
+  def encode(self, value):
+    ivalue = value  # type cast
+    if 0 <= ivalue < len(small_ints):
+      return small_ints[ivalue]
+    return StreamCoderImpl.encode(self, value)
+
+  def decode(self, encoded):
+    if len(encoded) == 1:
+      i = ord(encoded)
+      if 0 <= i < 128:
+        return i
+    return StreamCoderImpl.decode(self, encoded)
+
+  def estimate_size(self, value, nested=False):
+    # type: (Any, bool) -> int
+    # Note that VarInts are encoded the same way regardless of nesting.
+    return get_varint_size(int(value) & 0xFFFFFFFF)
+
+
 class SingletonCoderImpl(CoderImpl):
   """For internal use only; no backwards-compatibility guarantees.
 
@@ -1419,6 +1450,37 @@ class PaneInfoCoderImpl(StreamCoderImpl):
       size += get_varint_size(value.index)
       size += get_varint_size(value.nonspeculative_index)
     return size
+
+
+class _OrderedUnionCoderImpl(StreamCoderImpl):
+  def __init__(self, coder_impl_types, fallback_coder_impl):
+    assert len(coder_impl_types) < 128
+    self._types, self._coder_impls = zip(*coder_impl_types)
+    self._fallback_coder_impl = fallback_coder_impl
+
+  def encode_to_stream(self, value, out, nested):
+    value_t = type(value)
+    for (ix, t) in enumerate(self._types):
+      if value_t is t:
+        out.write_byte(ix)
+        c = self._coder_impls[ix]  # for typing
+        c.encode_to_stream(value, out, nested)
+        break
+    else:
+      if self._fallback_coder_impl is None:
+        raise ValueError("No fallback.")
+      out.write_byte(0xFF)
+      self._fallback_coder_impl.encode_to_stream(value, out, nested)
+
+  def decode_from_stream(self, in_stream, nested):
+    ix = in_stream.read_byte()
+    if ix == 0xFF:
+      if self._fallback_coder_impl is None:
+        raise ValueError("No fallback.")
+      return self._fallback_coder_impl.decode_from_stream(in_stream, nested)
+    else:
+      c = self._coder_impls[ix]  # for typing
+      return c.decode_from_stream(in_stream, nested)
 
 
 class WindowedValueCoderImpl(StreamCoderImpl):

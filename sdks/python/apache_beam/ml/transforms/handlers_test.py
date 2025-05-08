@@ -20,9 +20,9 @@ import os
 import shutil
 import sys
 import tempfile
-import typing
 import unittest
 import uuid
+from collections.abc import Sequence
 from typing import NamedTuple
 from typing import Union
 
@@ -276,9 +276,9 @@ class TFTProcessHandlerTest(unittest.TestCase):
         schema_utils.schema_from_feature_spec(raw_data_feature_spec))
 
     expected_transformed_data_schema = {
-        'x': typing.Sequence[np.float32],
-        'y': typing.Sequence[np.float32],
-        'z': typing.Sequence[bytes]
+        'x': Sequence[np.float32],
+        'y': Sequence[np.float32],
+        'z': Sequence[bytes]
     }
 
     actual_transformed_data_schema = (

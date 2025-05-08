@@ -16,8 +16,6 @@
 # limitations under the License.
 #
 
-# pytype: skip-file
-
 # This pipline creates a series of {plant: description} key pairs, matches all
 # elements to a valid regex, filters out non-matching entries, then logs the
 # output.
@@ -46,14 +44,14 @@ pipeline:
               def regex_filter(row):
                 match = re.match("(?P<icon>[^\s,]+), *(\w+), *(\w+)", row.plant)
                 return match.group(0) if match else match
-                
+
     # Filters out None values produced by values that don't match regex
     - type: Filter
       config:
         language: python
         keep: plant
     - type: LogForTesting
-      
+
 # Expected:
 #  Row(plant='🍓, Strawberry, perennial')
 #  Row(plant='🥕, Carrot, biennial')

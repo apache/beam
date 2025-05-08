@@ -148,7 +148,7 @@ page at http://checkstyle.sourceforge.net/config.html -->
       <property name="id" value="ForbidGrpcVendoredGuava"/>
       <property name="format" value="(\sorg\.apache\.beam\.vendor\.grpc\.(.*)\.com\.google\.common\.(?!testing))|(\sorg\.apache\.beam\.vendor\.grpc\.(.*)\.com\.google\.thirdparty)"/>
       <property name="severity" value="error"/>
-      <property name="message" value="You are using raw guava, please use vendored guava classes."/>
+      <property name="message" value="You are using guava from within vendored grpc, please use Beam's vendored guava classes."/>
     </module>
 
     <!-- Forbid deprecated Assert.assertThat. -->

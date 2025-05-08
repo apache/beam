@@ -65,10 +65,18 @@ public class Metrics {
     private static final AtomicReference<@Nullable MetricsFlag> INSTANCE = new AtomicReference<>();
     final boolean counterDisabled;
     final boolean stringSetDisabled;
+    final boolean boundedTrieDisabled;
+    final boolean lineageRollupEnabled;
 
-    private MetricsFlag(boolean counterDisabled, boolean stringSetDisabled) {
+    private MetricsFlag(
+        boolean counterDisabled,
+        boolean stringSetDisabled,
+        boolean boundedTrieDisabled,
+        boolean lineageRollupEnabled) {
       this.counterDisabled = counterDisabled;
       this.stringSetDisabled = stringSetDisabled;
+      this.boundedTrieDisabled = boundedTrieDisabled;
+      this.lineageRollupEnabled = lineageRollupEnabled;
     }
 
     static boolean counterDisabled() {
@@ -79,6 +87,16 @@ public class Metrics {
     static boolean stringSetDisabled() {
       MetricsFlag flag = INSTANCE.get();
       return flag != null && flag.stringSetDisabled;
+    }
+
+    static boolean boundedTrieDisabled() {
+      MetricsFlag flag = INSTANCE.get();
+      return flag != null && flag.boundedTrieDisabled;
+    }
+
+    static boolean lineageRollupEnabled() {
+      MetricsFlag flag = INSTANCE.get();
+      return flag != null && flag.lineageRollupEnabled;
     }
   }
 
@@ -101,7 +119,19 @@ public class Metrics {
       if (stringSetDisabled) {
         LOG.info("StringSet metrics are disabled");
       }
-      MetricsFlag.INSTANCE.compareAndSet(null, new MetricsFlag(counterDisabled, stringSetDisabled));
+      boolean boundedTrieDisabled =
+          ExperimentalOptions.hasExperiment(exp, "disableBoundedTrieMetrics");
+      if (boundedTrieDisabled) {
+        LOG.info("BoundedTrie metrics are disabled");
+      }
+      boolean lineageRollupEnabled = ExperimentalOptions.hasExperiment(exp, "enableLineageRollup");
+      if (lineageRollupEnabled) {
+        LOG.info("Lineage Rollup is enabled. Will use BoundedTrie to track lineage.");
+      }
+      MetricsFlag.INSTANCE.compareAndSet(
+          null,
+          new MetricsFlag(
+              counterDisabled, stringSetDisabled, boundedTrieDisabled, lineageRollupEnabled));
     }
   }
 
@@ -150,6 +180,14 @@ public class Metrics {
     return new DelegatingGauge(MetricName.named(namespace, name));
   }
 
+  /**
+   * Create a metric that can have its new value set, and is aggregated by taking the last reported
+   * value.
+   */
+  public static Gauge gauge(MetricName metricName) {
+    return new DelegatingGauge(metricName);
+  }
+
   /** Create a metric that accumulates and reports set of unique string values. */
   public static StringSet stringSet(String namespace, String name) {
     return new DelegatingStringSet(MetricName.named(namespace, name));
@@ -158,6 +196,22 @@ public class Metrics {
   /** Create a metric that accumulates and reports set of unique string values. */
   public static StringSet stringSet(Class<?> namespace, String name) {
     return new DelegatingStringSet(MetricName.named(namespace, name));
+  }
+
+  /**
+   * Create a metric that accumulates and reports set of unique string values bounded to a max
+   * limit.
+   */
+  public static BoundedTrie boundedTrie(Class<?> namespace, String name) {
+    return new DelegatingBoundedTrie(MetricName.named(namespace, name));
+  }
+
+  /**
+   * Create a metric that accumulates and reports set of unique string values bounded to a max
+   * limit.
+   */
+  public static BoundedTrie boundedTrie(String namespace, String name) {
+    return new DelegatingBoundedTrie(MetricName.named(namespace, name));
   }
 
   /*
@@ -251,6 +305,34 @@ public class Metrics {
     @Override
     public MetricName getName() {
       return name;
+    }
+  }
+
+  /**
+   * Implementation of {@link BoundedTrie} that delegates to the instance for the current context.
+   */
+  private static class DelegatingBoundedTrie implements Metric, BoundedTrie, Serializable {
+    private final MetricName name;
+
+    private DelegatingBoundedTrie(MetricName name) {
+      this.name = name;
+    }
+
+    @Override
+    public MetricName getName() {
+      return name;
+    }
+
+    @Override
+    public void add(Iterable<String> values) {
+      // If BoundedTrie metrics are disabled explicitly then do not emit them.
+      if (MetricsFlag.boundedTrieDisabled()) {
+        return;
+      }
+      MetricsContainer container = MetricsEnvironment.getCurrentContainer();
+      if (container != null) {
+        container.getBoundedTrie(name).add(values);
+      }
     }
   }
 }

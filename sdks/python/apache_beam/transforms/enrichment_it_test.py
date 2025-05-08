@@ -16,9 +16,7 @@
 #
 import time
 import unittest
-from typing import List
 from typing import NamedTuple
-from typing import Tuple
 from typing import Union
 
 import pytest
@@ -61,7 +59,7 @@ class SampleHTTPEnrichment(EnrichmentSourceHandler[Request, beam.Row]):
   def __call__(self, request: Request, *args, **kwargs):
     """Overrides ``Caller``'s call method invoking the
     ``EchoServiceGrpc``'s HTTP handler with an `dict`, returning
-    either a successful ``Tuple[dict,dict]`` or throwing either a
+    either a successful ``tuple[dict,dict]`` or throwing either a
     ``UserCodeExecutionException``, ``UserCodeTimeoutException``,
     or a ``UserCodeQuotaException``.
     """
@@ -93,7 +91,7 @@ class SampleHTTPEnrichment(EnrichmentSourceHandler[Request, beam.Row]):
 class ValidateFields(beam.DoFn):
   """ValidateFields validates if a PCollection of `beam.Row`
   has certain fields."""
-  def __init__(self, n_fields: int, fields: List[str]):
+  def __init__(self, n_fields: int, fields: list[str]):
     self.n_fields = n_fields
     self._fields = fields
 
@@ -124,7 +122,7 @@ class TestEnrichment(unittest.TestCase):
 
   @classmethod
   def _get_client_and_options(
-      cls) -> Tuple[SampleHTTPEnrichment, EchoITOptions]:
+      cls) -> tuple[SampleHTTPEnrichment, EchoITOptions]:
     assert cls.options is not None
     assert cls.client is not None
     return cls.client, cls.options

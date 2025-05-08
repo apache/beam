@@ -192,14 +192,17 @@ public class AssignWindowsRunnerTest implements Serializable {
                                     .build()
                                     .toByteString()))
                     .build())
-            .pCollections(Collections.singletonMap("input", pCollection))
-            .coders(Collections.singletonMap("coder-id", coder))
+            .components(
+                RunnerApi.Components.newBuilder()
+                    .putAllPcollections(Collections.singletonMap("input", pCollection))
+                    .putAllCoders(Collections.singletonMap("coder-id", coder))
+                    .build())
             .build();
     Collection<WindowedValue<?>> outputs = new ArrayList<>();
     context.addPCollectionConsumer("output", outputs::add);
 
     MapFnRunners.forWindowedValueMapFnFactory(new AssignWindowsMapFnFactory<>())
-        .createRunnerForPTransform(context);
+        .addRunnerForPTransform(context);
 
     WindowedValue<Integer> value =
         WindowedValue.of(

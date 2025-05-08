@@ -17,11 +17,15 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
+import org.apache.beam.sdk.metrics.DelegatingGauge;
 import org.apache.beam.sdk.metrics.DelegatingHistogram;
+import org.apache.beam.sdk.metrics.Gauge;
 import org.apache.beam.sdk.metrics.Histogram;
 import org.apache.beam.sdk.metrics.LabeledMetricNameUtils;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.util.HistogramData;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Helper class to create per worker metrics for Kafka Sink stages.
@@ -40,6 +44,7 @@ public class KafkaSinkMetrics {
 
   // Base Metric names
   private static final String RPC_LATENCY = "RpcLatency";
+  private static final String ESTIMATED_BACKLOG_SIZE = "EstimatedBacklogSize";
 
   // Kafka Consumer Method names
   enum RpcMethod {
@@ -49,11 +54,12 @@ public class KafkaSinkMetrics {
   // Metric labels
   private static final String TOPIC_LABEL = "topic_name";
   private static final String RPC_METHOD = "rpc_method";
+  private static final String PARTITION_ID = "partition_id";
 
   /**
-   * Creates an Histogram metric to record RPC latency. Metric will have name.
+   * Creates a {@link Histogram} metric to record RPC latency with the name
    *
-   * <p>'RpcLatency*rpc_method:{method};topic_name:{topic};'
+   * <p>'RpcLatency*rpc_method:{method};topic_name:{topic};'.
    *
    * @param method Kafka method associated with this metric.
    * @param topic Kafka topic associated with this metric.
@@ -65,10 +71,44 @@ public class KafkaSinkMetrics {
     nameBuilder.addLabel(RPC_METHOD, method.toString());
     nameBuilder.addLabel(TOPIC_LABEL, topic);
 
+    nameBuilder.addMetricLabel("PER_WORKER_METRIC", "true");
     MetricName metricName = nameBuilder.build(METRICS_NAMESPACE);
-    HistogramData.BucketType buckets = HistogramData.ExponentialBuckets.of(1, 17);
 
-    return new DelegatingHistogram(metricName, buckets, false, true);
+    HistogramData.BucketType buckets = HistogramData.ExponentialBuckets.of(1, 17);
+    return new DelegatingHistogram(metricName, buckets, false);
+  }
+
+  /**
+   * Creates a {@link Gauge} metric to record per partition backlog with the name
+   *
+   * <p>'name'.
+   *
+   * @param name MetricName for the KafkaSink.
+   * @return Counter.
+   */
+  public static Gauge createBacklogGauge(MetricName name) {
+    // TODO(#34195): Unify metrics collection path.
+    // Currently KafkaSink metrics only supports aggregated per worker metrics.
+    Preconditions.checkState(isPerWorkerMetric(name));
+    return new DelegatingGauge(name, false);
+  }
+
+  /**
+   * Creates an MetricName based on topic name and partition id.
+   *
+   * <p>'EstimatedBacklogSize*topic_name:{topic};partition_id:{partitionId};'
+   *
+   * @param topic Kafka topic associated with this metric.
+   * @param partitionId partition id associated with this metric.
+   * @return MetricName.
+   */
+  public static MetricName getMetricGaugeName(String topic, int partitionId) {
+    LabeledMetricNameUtils.MetricNameBuilder nameBuilder =
+        LabeledMetricNameUtils.MetricNameBuilder.baseNameBuilder(ESTIMATED_BACKLOG_SIZE);
+    nameBuilder.addLabel(PARTITION_ID, String.valueOf(partitionId));
+    nameBuilder.addLabel(TOPIC_LABEL, topic);
+    nameBuilder.addMetricLabel("PER_WORKER_METRIC", "true");
+    return nameBuilder.build(METRICS_NAMESPACE);
   }
 
   /**
@@ -85,5 +125,13 @@ public class KafkaSinkMetrics {
 
   public static void setSupportKafkaMetrics(boolean supportKafkaMetrics) {
     KafkaSinkMetrics.supportKafkaMetrics = supportKafkaMetrics;
+  }
+
+  private static boolean isPerWorkerMetric(MetricName metricName) {
+    @Nullable String value = metricName.getLabels().get("PER_WORKER_METRIC");
+    if (value != null && value.equals("true")) {
+      return true;
+    }
+    return false;
   }
 }

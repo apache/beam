@@ -19,9 +19,9 @@
 
 # pytype: skip-file
 
-import sys
 import typing
 import unittest
+from typing import Tuple
 
 import apache_beam as beam
 from apache_beam import pvalue
@@ -874,12 +874,7 @@ class CustomTransformTest(unittest.TestCase):
 class AnnotationsTest(unittest.TestCase):
   def test_pardo_wrapper_builtin_method(self):
     th = beam.ParDo(str.strip).get_type_hints()
-    if sys.version_info < (3, 7):
-      self.assertEqual(th.input_types, ((str, ), {}))
-    else:
-      # Python 3.7+ has annotations for CPython builtins
-      # (_MethodDescriptorType).
-      self.assertEqual(th.input_types, ((str, typehints.Any), {}))
+    self.assertEqual(th.input_types, ((str, typehints.Any), {}))
     self.assertEqual(th.output_types, ((typehints.Any, ), {}))
 
   def test_pardo_wrapper_builtin_type(self):
@@ -1003,6 +998,23 @@ class AnnotationsTest(unittest.TestCase):
     th = beam.Filter(filter_fn).get_type_hints()
     self.assertEqual(th.input_types, ((int, ), {}))
     self.assertEqual(th.output_types, ((int, ), {}))
+
+
+class TestFlatMapTuple(unittest.TestCase):
+  def test_flatmaptuple(self):
+    # Regression test. See
+    # https://github.com/apache/beam/issues/33014
+
+    def identity(x: Tuple[str, int]) -> Tuple[str, int]:
+      return x
+
+    with beam.Pipeline() as p:
+      # Just checking that this doesn't raise an exception.
+      (
+          p
+          | "Generate input" >> beam.Create([('P1', [2])])
+          | "Flat" >> beam.FlatMapTuple(lambda k, vs: [(k, v) for v in vs])
+          | "Identity" >> beam.Map(identity))
 
 
 if __name__ == '__main__':

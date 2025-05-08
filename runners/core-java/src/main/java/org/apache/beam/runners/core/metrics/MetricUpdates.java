@@ -21,6 +21,7 @@ import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.Collections;
 import org.apache.beam.sdk.metrics.MetricKey;
+import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 
 /** Representation of multiple metric updates. */
@@ -31,6 +32,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterab
 public abstract class MetricUpdates {
   public static final MetricUpdates EMPTY =
       MetricUpdates.create(
+          Collections.emptyList(),
+          Collections.emptyList(),
           Collections.emptyList(),
           Collections.emptyList(),
           Collections.emptyList(),
@@ -66,14 +69,26 @@ public abstract class MetricUpdates {
   /** All the sets updates. */
   public abstract Iterable<MetricUpdate<StringSetData>> stringSetUpdates();
 
+  public abstract Iterable<MetricUpdate<BoundedTrieData>> boundedTrieUpdates();
+
+  /** All the histogram updates. */
+  public abstract Iterable<MetricUpdate<HistogramData>> histogramsUpdates();
+
   /** Create a new {@link MetricUpdates} bundle. */
   public static MetricUpdates create(
       Iterable<MetricUpdate<Long>> counterUpdates,
       Iterable<MetricUpdate<DistributionData>> distributionUpdates,
       Iterable<MetricUpdate<GaugeData>> gaugeUpdates,
-      Iterable<MetricUpdate<StringSetData>> stringSetUpdates) {
+      Iterable<MetricUpdate<StringSetData>> stringSetUpdates,
+      Iterable<MetricUpdate<BoundedTrieData>> boundedTrieUpdates,
+      Iterable<MetricUpdate<HistogramData>> histogramsUpdates) {
     return new AutoValue_MetricUpdates(
-        counterUpdates, distributionUpdates, gaugeUpdates, stringSetUpdates);
+        counterUpdates,
+        distributionUpdates,
+        gaugeUpdates,
+        stringSetUpdates,
+        boundedTrieUpdates,
+        histogramsUpdates);
   }
 
   /** Returns true if there are no updates in this MetricUpdates object. */
@@ -81,6 +96,8 @@ public abstract class MetricUpdates {
     return Iterables.isEmpty(counterUpdates())
         && Iterables.isEmpty(distributionUpdates())
         && Iterables.isEmpty(gaugeUpdates())
-        && Iterables.isEmpty(stringSetUpdates());
+        && Iterables.isEmpty(stringSetUpdates())
+        && Iterables.isEmpty(boundedTrieUpdates())
+        && Iterables.isEmpty(histogramsUpdates());
   }
 }

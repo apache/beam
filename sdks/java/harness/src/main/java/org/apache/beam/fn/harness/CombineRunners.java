@@ -43,10 +43,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterab
 
 /** Executes different components of Combine PTransforms. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "nullness",
-  "keyfor"
-}) // TODO(https://github.com/apache/beam/issues/20497)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class CombineRunners {
 
   /** A registrar which provides a factory to handle combine component PTransforms. */
@@ -129,23 +127,24 @@ public class CombineRunners {
 
   /** A factory for {@link PrecombineRunner}s. */
   @VisibleForTesting
-  public static class PrecombineFactory<KeyT, InputT, AccumT>
-      implements PTransformRunnerFactory<PrecombineRunner<KeyT, InputT, AccumT>> {
+  public static class PrecombineFactory implements PTransformRunnerFactory {
 
     @Override
-    public PrecombineRunner<KeyT, InputT, AccumT> createRunnerForPTransform(Context context)
-        throws IOException {
+    public void addRunnerForPTransform(Context context) throws IOException {
+      addPrecombineRunner(context);
+    }
+
+    private <KeyT, InputT, AccumT> void addPrecombineRunner(Context context) throws IOException {
       // Get objects needed to create the runner.
       RehydratedComponents rehydratedComponents =
-          RehydratedComponents.forComponents(
-              RunnerApi.Components.newBuilder()
-                  .putAllCoders(context.getCoders())
-                  .putAllWindowingStrategies(context.getWindowingStrategies())
-                  .build());
+          RehydratedComponents.forComponents(context.getComponents());
       String mainInputTag =
           Iterables.getOnlyElement(context.getPTransform().getInputsMap().keySet());
       RunnerApi.PCollection mainInput =
-          context.getPCollections().get(context.getPTransform().getInputsOrThrow(mainInputTag));
+          context
+              .getComponents()
+              .getPcollectionsMap()
+              .get(context.getPTransform().getInputsOrThrow(mainInputTag));
 
       // Input coder may sometimes be WindowedValueCoder depending on runner, instead of the
       // expected KvCoder.
@@ -194,8 +193,6 @@ public class CombineRunners {
           (FnDataReceiver)
               (FnDataReceiver<WindowedValue<KV<KeyT, InputT>>>) runner::processElement);
       context.addFinishBundleFunction(runner::finishBundle);
-
-      return runner;
     }
   }
 

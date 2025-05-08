@@ -27,7 +27,6 @@ import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.StateBackedIterable.StateBackedIterableTranslationContext;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
-import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortWrite;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -42,7 +41,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  * <p>Can be re-used serially across {@link BeamFnApi.ProcessBundleRequest}s.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class BeamFnDataWriteRunner<InputT> {
@@ -58,19 +56,20 @@ public class BeamFnDataWriteRunner<InputT> {
   }
 
   /** A factory for {@link BeamFnDataWriteRunner}s. */
-  static class Factory<InputT> implements PTransformRunnerFactory<BeamFnDataWriteRunner> {
+  static class Factory implements PTransformRunnerFactory {
 
     @Override
-    public BeamFnDataWriteRunner createRunnerForPTransform(Context context) throws IOException {
+    public void addRunnerForPTransform(Context context) throws IOException {
+      addWriteRunner(context);
+    }
 
+    private <InputT> void addWriteRunner(Context context) throws IOException {
       RemoteGrpcPort port = RemoteGrpcPortWrite.fromPTransform(context.getPTransform()).getPort();
-      RehydratedComponents components =
-          RehydratedComponents.forComponents(
-              Components.newBuilder().putAllCoders(context.getCoders()).build());
+      RehydratedComponents components = RehydratedComponents.forComponents(context.getComponents());
       Coder<WindowedValue<InputT>> coder =
           (Coder<WindowedValue<InputT>>)
               CoderTranslation.fromProto(
-                  context.getCoders().get(port.getCoderId()),
+                  context.getComponents().getCodersMap().get(port.getCoderId()),
                   components,
                   new StateBackedIterableTranslationContext() {
                     @Override
@@ -91,8 +90,6 @@ public class BeamFnDataWriteRunner<InputT> {
       context.addPCollectionConsumer(
           getOnlyElement(context.getPTransform().getInputsMap().values()),
           context.addOutgoingDataEndpoint(port.getApiServiceDescriptor(), coder));
-
-      return new BeamFnDataWriteRunner();
     }
   }
 }

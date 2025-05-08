@@ -68,7 +68,7 @@ dependencies {
     // handle redirected packages from it
     implementation project(path: it.key, configuration: it.value)
   }
-  shadow library.java.vendored_grpc_1_60_1
+  shadow library.java.vendored_grpc_1_69_0
   shadow library.java.joda_time
   shadow library.java.slf4j_api
   shadow library.java.jackson_databind
@@ -87,7 +87,7 @@ dependencies {
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesRunner project(path: project.path, configuration: "shadow")
   validatesRunner project(path: project.path, configuration: "shadowTest")
-  permitUnusedDeclared library.java.vendored_grpc_1_60_1
+  permitUnusedDeclared library.java.vendored_grpc_1_69_0
   permitUnusedDeclared project(":runners:java-fn-execution")
   permitUnusedDeclared project(":sdks:java:extensions:avro")
   examplesJavaIntegrationTest project(project.path)

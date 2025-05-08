@@ -71,14 +71,17 @@ public class MapFnRunnersTest {
     PTransformRunnerFactoryTestContext context =
         PTransformRunnerFactoryTestContext.builder(EXPECTED_ID, EXPECTED_PTRANSFORM)
             .processBundleInstructionId("57")
-            .pCollections(Collections.singletonMap("inputPC", INPUT_PCOLLECTION))
-            .coders(Collections.singletonMap("coder-id", valueCoder))
+            .components(
+                RunnerApi.Components.newBuilder()
+                    .putAllPcollections(Collections.singletonMap("inputPC", INPUT_PCOLLECTION))
+                    .putAllCoders(Collections.singletonMap("coder-id", valueCoder))
+                    .build())
             .build();
     List<WindowedValue<?>> outputConsumer = new ArrayList<>();
     context.addPCollectionConsumer("outputPC", outputConsumer::add);
 
     ValueMapFnFactory<String, String> factory = (ptId, pt) -> String::toUpperCase;
-    MapFnRunners.forValueMapFnFactory(factory).createRunnerForPTransform(context);
+    MapFnRunners.forValueMapFnFactory(factory).addRunnerForPTransform(context);
 
     assertThat(context.getStartBundleFunctions(), empty());
     assertThat(context.getFinishBundleFunctions(), empty());
@@ -97,13 +100,16 @@ public class MapFnRunnersTest {
     PTransformRunnerFactoryTestContext context =
         PTransformRunnerFactoryTestContext.builder(EXPECTED_ID, EXPECTED_PTRANSFORM)
             .processBundleInstructionId("57")
-            .pCollections(Collections.singletonMap("inputPC", INPUT_PCOLLECTION))
-            .coders(Collections.singletonMap("coder-id", valueCoder))
+            .components(
+                RunnerApi.Components.newBuilder()
+                    .putAllPcollections(Collections.singletonMap("inputPC", INPUT_PCOLLECTION))
+                    .putAllCoders(Collections.singletonMap("coder-id", valueCoder))
+                    .build())
             .build();
     List<WindowedValue<?>> outputConsumer = new ArrayList<>();
     context.addPCollectionConsumer("outputPC", outputConsumer::add);
     MapFnRunners.forWindowedValueMapFnFactory(this::createMapFunctionForPTransform)
-        .createRunnerForPTransform(context);
+        .addRunnerForPTransform(context);
 
     assertThat(context.getStartBundleFunctions(), empty());
     assertThat(context.getFinishBundleFunctions(), empty());
@@ -122,14 +128,17 @@ public class MapFnRunnersTest {
     PTransformRunnerFactoryTestContext context =
         PTransformRunnerFactoryTestContext.builder(EXPECTED_ID, EXPECTED_PTRANSFORM)
             .processBundleInstructionId("57")
-            .pCollections(Collections.singletonMap("inputPC", INPUT_PCOLLECTION))
-            .coders(Collections.singletonMap("coder-id", valueCoder))
+            .components(
+                RunnerApi.Components.newBuilder()
+                    .putAllPcollections(Collections.singletonMap("inputPC", INPUT_PCOLLECTION))
+                    .putAllCoders(Collections.singletonMap("coder-id", valueCoder))
+                    .build())
             .build();
     List<WindowedValue<?>> outputConsumer = new ArrayList<>();
     context.addPCollectionConsumer("outputPC", outputConsumer::add);
 
     MapFnRunners.forWindowedValueMapFnFactory(this::createMapFunctionForPTransform)
-        .createRunnerForPTransform(context);
+        .addRunnerForPTransform(context);
 
     assertThat(context.getStartBundleFunctions(), empty());
     assertThat(context.getFinishBundleFunctions(), empty());

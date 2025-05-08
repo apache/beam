@@ -49,5 +49,8 @@ task runExpansionService (type: JavaExec) {
 }
 
 shadowJar {
+    manifest {
+        attributes(["Multi-Release": true])
+    }
   outputs.upToDateWhen { false }
 }

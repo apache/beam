@@ -38,6 +38,7 @@ import (
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/diagnostics"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/gcs"
 	"golang.org/x/sync/singleflight"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -143,6 +144,8 @@ func MainWithOptions(ctx context.Context, loggingEndpoint, controlEndpoint strin
 
 	sideCache := statecache.SideInputCache{}
 	sideCache.Init(cacheSize)
+
+	gcs.SetRequesterBillingProject(billingProject)
 
 	ctrl := &control{
 		lookupDesc:           lookupDesc,

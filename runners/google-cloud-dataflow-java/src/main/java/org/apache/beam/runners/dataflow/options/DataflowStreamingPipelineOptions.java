@@ -136,6 +136,12 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
 
   void setUseSeparateWindmillHeartbeatStreams(Boolean value);
 
+  @Description("If true, GetWorkStreams will request multiple work items in a response chunk.")
+  @Default.Boolean(true)
+  boolean getWindmillRequestBatchedGetWorkResponse();
+
+  void setWindmillRequestBatchedGetWorkResponse(boolean value);
+
   @Description("The number of streams to use for GetData requests.")
   @Default.Integer(1)
   int getWindmillGetDataStreamCount();

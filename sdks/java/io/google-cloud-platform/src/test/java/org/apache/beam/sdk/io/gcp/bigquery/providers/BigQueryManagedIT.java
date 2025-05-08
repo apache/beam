@@ -96,8 +96,8 @@ public class BigQueryManagedIT {
   @Test
   public void testBatchFileLoadsWriteRead() {
     String table =
-        String.format("%s:%s.%s", PROJECT, BIG_QUERY_DATASET_ID, testName.getMethodName());
-    Map<String, Object> config = ImmutableMap.of("table", table);
+        String.format("%s.%s.%s", PROJECT, BIG_QUERY_DATASET_ID, testName.getMethodName());
+    Map<String, Object> writeConfig = ImmutableMap.of("table", table);
 
     // file loads requires a GCS temp location
     String tempLocation = writePipeline.getOptions().as(TestPipelineOptions.class).getTempRoot();
@@ -105,13 +105,15 @@ public class BigQueryManagedIT {
 
     // batch write
     PCollectionRowTuple.of("input", getInput(writePipeline, false))
-        .apply(Managed.write(Managed.BIGQUERY).withConfig(config));
+        .apply(Managed.write(Managed.BIGQUERY).withConfig(writeConfig));
     writePipeline.run().waitUntilFinish();
 
+    Map<String, Object> readConfig =
+        ImmutableMap.of("query", String.format("SELECT * FROM `%s`", table));
     // read and validate
     PCollection<Row> outputRows =
         readPipeline
-            .apply(Managed.read(Managed.BIGQUERY).withConfig(config))
+            .apply(Managed.read(Managed.BIGQUERY).withConfig(readConfig))
             .getSinglePCollection();
     PAssert.that(outputRows).containsInAnyOrder(ROWS);
     readPipeline.run().waitUntilFinish();

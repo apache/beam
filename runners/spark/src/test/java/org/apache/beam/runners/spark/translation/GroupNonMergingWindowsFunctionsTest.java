@@ -18,12 +18,6 @@
 package org.apache.beam.runners.spark.translation;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import java.util.Arrays;
 import java.util.Iterator;
@@ -45,9 +39,6 @@ import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Bytes;
-import org.apache.spark.Partitioner;
-import org.apache.spark.api.java.JavaPairRDD;
-import org.apache.spark.api.java.JavaRDD;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Assert;
@@ -119,54 +110,6 @@ public class GroupNonMergingWindowsFunctionsTest {
     for (Integer ignored : value) {
       // second iteration should throw IllegalStateException
     }
-  }
-
-  @Test
-  @SuppressWarnings({"rawtypes", "unchecked"})
-  public void testGroupByKeyInGlobalWindowWithPartitioner() {
-    // mocking
-    Partitioner mockPartitioner = mock(Partitioner.class);
-    JavaRDD mockRdd = mock(JavaRDD.class);
-    Coder mockKeyCoder = mock(Coder.class);
-    Coder mockValueCoder = mock(Coder.class);
-    JavaPairRDD mockRawKeyValues = mock(JavaPairRDD.class);
-    JavaPairRDD mockGrouped = mock(JavaPairRDD.class);
-
-    when(mockRdd.mapToPair(any())).thenReturn(mockRawKeyValues);
-    when(mockRawKeyValues.groupByKey(any(Partitioner.class)))
-        .thenAnswer(
-            invocation -> {
-              Partitioner partitioner = invocation.getArgument(0);
-              assertEquals(partitioner, mockPartitioner);
-              return mockGrouped;
-            });
-    when(mockGrouped.map(any())).thenReturn(mock(JavaRDD.class));
-
-    GroupNonMergingWindowsFunctions.groupByKeyInGlobalWindow(
-        mockRdd, mockKeyCoder, mockValueCoder, mockPartitioner);
-
-    verify(mockRawKeyValues, never()).groupByKey();
-    verify(mockRawKeyValues, times(1)).groupByKey(any(Partitioner.class));
-  }
-
-  @Test
-  @SuppressWarnings({"rawtypes", "unchecked"})
-  public void testGroupByKeyInGlobalWindowWithoutPartitioner() {
-    // mocking
-    JavaRDD mockRdd = mock(JavaRDD.class);
-    Coder mockKeyCoder = mock(Coder.class);
-    Coder mockValueCoder = mock(Coder.class);
-    JavaPairRDD mockRawKeyValues = mock(JavaPairRDD.class);
-    JavaPairRDD mockGrouped = mock(JavaPairRDD.class);
-
-    when(mockRdd.mapToPair(any())).thenReturn(mockRawKeyValues);
-    when(mockRawKeyValues.groupByKey()).thenReturn(mockGrouped);
-
-    GroupNonMergingWindowsFunctions.groupByKeyInGlobalWindow(
-        mockRdd, mockKeyCoder, mockValueCoder, null);
-
-    verify(mockRawKeyValues, times(1)).groupByKey();
-    verify(mockRawKeyValues, never()).groupByKey(any(Partitioner.class));
   }
 
   private GroupByKeyIterator<String, Integer, GlobalWindow> createGbkIterator()

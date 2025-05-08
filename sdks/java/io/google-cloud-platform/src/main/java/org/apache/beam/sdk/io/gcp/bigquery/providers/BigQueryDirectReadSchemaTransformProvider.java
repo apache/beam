@@ -233,7 +233,7 @@ public class BigQueryDirectReadSchemaTransformProvider
           read = read.withSelectedFields(configuration.getSelectedFields());
         }
       } else {
-        read = read.fromQuery(configuration.getQuery());
+        read = read.fromQuery(configuration.getQuery()).usingStandardSql();
       }
       if (!Strings.isNullOrEmpty(configuration.getKmsKey())) {
         read = read.withKmsKey(configuration.getKmsKey());

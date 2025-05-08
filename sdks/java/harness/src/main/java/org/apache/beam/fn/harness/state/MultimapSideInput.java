@@ -35,7 +35,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.Materializations.MultimapView;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 
 /**
  * An implementation of a multimap side input that utilizes the Beam Fn State API to fetch values.
@@ -115,7 +115,9 @@ public class MultimapSideInput<K, V> implements MultimapView<K, V> {
             try {
               Iterator<KV<K, Iterable<V>>> entries =
                   StateFetchingIterators.readAllAndDecodeStartingFrom(
-                          Caches.subCache(cache, "ValuesForKey", encodedKey),
+                          // TOOD(https://github.com/apache/beam/issues/34149):
+                          // Use the shared cache.
+                          Caches.noop(),
                           beamFnStateClient,
                           bulkReadRequest,
                           KvCoder.of(keyCoder, IterableCoder.of(valueCoder)))

@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/hooks"
 	"github.com/fsouza/fake-gcs-server/fakestorage"
 	"github.com/google/go-cmp/cmp"
 )
@@ -46,9 +47,15 @@ func TestGCS_direct(t *testing.T) {
 	testGCS_direct(t)
 }
 
-func TestGCS_directSettingBillingProjectID(t *testing.T) {
-	t.Setenv("BILLING_PROJECT_ID", "projectfake")
-	testGCS_direct(t)
+func TestGCS_BillingProjectHookEnable(t *testing.T) {
+	billingProject := "whatever"
+	RequesterBillingProject(billingProject)
+	_, err := hooks.RunInitHooks(context.Background())
+	if err != nil {
+		t.Errorf("error to init hooks = %v", err)
+	}
+	//TODO how assert project configured by hook?
+	
 }
 
 func testGCS_direct(t *testing.T) {

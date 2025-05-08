@@ -428,6 +428,30 @@ class StagerTest(unittest.TestCase):
     with open(tarball_path) as f:
       self.assertEqual(f.read(), 'Package content.')
 
+  def test_files_to_stage(self):
+    staging_dir = self.make_temp_dir()
+    source_dir = self.make_temp_dir()
+
+    foo_ca = os.path.join(source_dir, 'foo.ca')
+    self.create_temp_file(foo_ca, 'ca content')
+    test_txt = os.path.join(source_dir, 'test.txt')
+    self.create_temp_file(test_txt, 'test content')
+    files_to_stage = [foo_ca, test_txt]
+    options = PipelineOptions()
+    self.update_options(options)
+    options.view_as(SetupOptions).files_to_stage = files_to_stage
+
+    self.assertEqual(
+        ['foo.ca', 'test.txt', stager.SUBMISSION_ENV_DEPENDENCIES_FILE],
+        self.stager.create_and_stage_job_resources(
+            options, staging_location=staging_dir)[1])
+    foo = os.path.join(staging_dir, 'foo.ca')
+    with open(foo) as f:
+      self.assertEqual(f.read(), 'ca content')
+    txt = os.path.join(staging_dir, 'test.txt')
+    with open(txt) as f:
+      self.assertEqual(f.read(), 'test content')
+
   def test_sdk_location_local_source_file(self):
     staging_dir = self.make_temp_dir()
     sdk_directory = self.make_temp_dir()

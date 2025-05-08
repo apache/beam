@@ -36,7 +36,7 @@ import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
 import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.util.Weighted;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Equivalence;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
@@ -79,15 +79,17 @@ public class WindmillStateCache implements StatusDataProvider {
 
   WindmillStateCache(long sizeMb, boolean supportMapViaMultimap) {
     this.workerCacheBytes = sizeMb * MEGABYTES;
+    int stateCacheConcurrencyLevel =
+        Math.max(STATE_CACHE_CONCURRENCY_LEVEL, Runtime.getRuntime().availableProcessors());
     this.stateCache =
         CacheBuilder.newBuilder()
             .maximumWeight(workerCacheBytes)
             .recordStats()
             .weigher(Weighers.weightedKeysAndValues())
-            .concurrencyLevel(STATE_CACHE_CONCURRENCY_LEVEL)
+            .concurrencyLevel(stateCacheConcurrencyLevel)
             .build();
     this.keyIndex =
-        new MapMaker().weakValues().concurrencyLevel(STATE_CACHE_CONCURRENCY_LEVEL).makeMap();
+        new MapMaker().weakValues().concurrencyLevel(stateCacheConcurrencyLevel).makeMap();
     this.supportMapViaMultimap = supportMapViaMultimap;
   }
 

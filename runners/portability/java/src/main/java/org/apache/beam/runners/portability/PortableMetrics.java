@@ -17,24 +17,29 @@
  */
 package org.apache.beam.runners.portability;
 
+import static org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns.BOUNDED_TRIE_TYPE;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns.DISTRIBUTION_INT64_TYPE;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns.LATEST_INT64_TYPE;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns.SET_STRING_TYPE;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns.SUM_INT64_TYPE;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeBoundedTrie;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeInt64Counter;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeInt64Distribution;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeInt64Gauge;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeStringSet;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.pipeline.v1.MetricsApi;
+import org.apache.beam.runners.core.metrics.BoundedTrieData;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.GaugeData;
 import org.apache.beam.runners.core.metrics.StringSetData;
+import org.apache.beam.sdk.metrics.BoundedTrieResult;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricFiltering;
@@ -58,16 +63,19 @@ public class PortableMetrics extends MetricResults {
   private Iterable<MetricResult<DistributionResult>> distributions;
   private Iterable<MetricResult<GaugeResult>> gauges;
   private Iterable<MetricResult<StringSetResult>> stringSets;
+  private Iterable<MetricResult<BoundedTrieResult>> boundedTries;
 
   private PortableMetrics(
       Iterable<MetricResult<Long>> counters,
       Iterable<MetricResult<DistributionResult>> distributions,
       Iterable<MetricResult<GaugeResult>> gauges,
-      Iterable<MetricResult<StringSetResult>> stringSets) {
+      Iterable<MetricResult<StringSetResult>> stringSets,
+      Iterable<MetricResult<BoundedTrieResult>> boundedTries) {
     this.counters = counters;
     this.distributions = distributions;
     this.gauges = gauges;
     this.stringSets = stringSets;
+    this.boundedTries = boundedTries;
   }
 
   public static PortableMetrics of(JobApi.MetricResults jobMetrics) {
@@ -84,7 +92,11 @@ public class PortableMetrics extends MetricResults {
             (distribution) -> MetricFiltering.matches(filter, distribution.getKey())),
         Iterables.filter(this.gauges, (gauge) -> MetricFiltering.matches(filter, gauge.getKey())),
         Iterables.filter(
-            this.stringSets, (stringSet) -> MetricFiltering.matches(filter, stringSet.getKey())));
+            this.stringSets, (stringSet) -> MetricFiltering.matches(filter, stringSet.getKey())),
+        Iterables.filter(
+            this.boundedTries,
+            (boundedTries) -> MetricFiltering.matches(filter, boundedTries.getKey())),
+        Collections.emptyList());
   }
 
   private static PortableMetrics convertMonitoringInfosToMetricResults(
@@ -101,8 +113,14 @@ public class PortableMetrics extends MetricResults {
         extractGaugeMetricsFromJobMetrics(monitoringInfoList);
     Iterable<MetricResult<StringSetResult>> stringSetFromMetrics =
         extractStringSetMetricsFromJobMetrics(monitoringInfoList);
+    Iterable<MetricResult<BoundedTrieResult>> boundedTrieFromMetrics =
+        extractBoundedTrieMetricsFromJobMetrics(monitoringInfoList);
     return new PortableMetrics(
-        countersFromJobMetrics, distributionsFromMetrics, gaugesFromMetrics, stringSetFromMetrics);
+        countersFromJobMetrics,
+        distributionsFromMetrics,
+        gaugesFromMetrics,
+        stringSetFromMetrics,
+        boundedTrieFromMetrics);
   }
 
   private static Iterable<MetricResult<DistributionResult>>
@@ -145,6 +163,15 @@ public class PortableMetrics extends MetricResults {
         .collect(Collectors.toList());
   }
 
+  private static Iterable<MetricResult<BoundedTrieResult>> extractBoundedTrieMetricsFromJobMetrics(
+      List<MetricsApi.MonitoringInfo> monitoringInfoList) {
+    return monitoringInfoList.stream()
+        .filter(item -> BOUNDED_TRIE_TYPE.equals(item.getType()))
+        .filter(item -> item.getLabelsMap().get(NAMESPACE_LABEL) != null)
+        .map(PortableMetrics::convertBoundedTrieMonitoringInfoToBoundedTrie)
+        .collect(Collectors.toList());
+  }
+
   private static MetricResult<StringSetResult> convertStringSetMonitoringInfoToStringSet(
       MetricsApi.MonitoringInfo monitoringInfo) {
     Map<String, String> labelsMap = monitoringInfo.getLabelsMap();
@@ -155,6 +182,19 @@ public class PortableMetrics extends MetricResults {
 
     StringSetData data = decodeStringSet(monitoringInfo.getPayload());
     StringSetResult result = StringSetResult.create(data.stringSet());
+    return MetricResult.create(key, false, result);
+  }
+
+  private static MetricResult<BoundedTrieResult> convertBoundedTrieMonitoringInfoToBoundedTrie(
+      MetricsApi.MonitoringInfo monitoringInfo) {
+    Map<String, String> labelsMap = monitoringInfo.getLabelsMap();
+    MetricKey key =
+        MetricKey.create(
+            labelsMap.get(STEP_NAME_LABEL),
+            MetricName.named(labelsMap.get(NAMESPACE_LABEL), labelsMap.get(METRIC_NAME_LABEL)));
+
+    BoundedTrieData data = decodeBoundedTrie(monitoringInfo.getPayload());
+    BoundedTrieResult result = BoundedTrieResult.create(data.extractResult().getResult());
     return MetricResult.create(key, false, result);
   }
 

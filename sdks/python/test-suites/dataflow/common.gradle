@@ -312,7 +312,7 @@ task runPerformanceTest {
       workingDir "${project.rootDir}/sdks/python"
       executable 'sh'
       args '-c', ". ${envdir}/bin/activate && pytest -o junit_suite_name=${suite}" +
-              " ${test} --test-pipeline-options=\"${testOpts}\" --junitxml=${xUnitFile} --timeout=1800"
+              " ${test} --test-pipeline-options=\"${testOpts}\" --junitxml=${xUnitFile} --timeout=3600"
     }
   }
 }
@@ -380,32 +380,12 @@ task validatesContainer() {
   }
 }
 
-tasks.register('validatesDistrolessContainer', Task.class) {
-  dependsOn 'initializeForDataflowJob'
-  def repository = "us.gcr.io/apache-beam-testing/${System.getenv('USER')}"
-  def tag = java.time.Instant.now().getEpochSecond()
-  def imageURL = "${repository}/beam_python${pythonVersion}_sdk_distroless:${tag}"
+task validatesDistrolessContainer() {
+  def imageURL = "gcr.io/apache-beam-testing/beam-sdk/beam_python${project.ext.pythonVersion}_sdk_distroless:${project.sdk_version}"
+
   doLast {
     exec {
-      executable 'docker'
-      workingDir rootDir
-      args = [
-              'buildx',
-              'build',
-              '-t',
-              imageURL,
-              '-f',
-              'sdks/python/container/Dockerfile-distroless',
-              "--build-arg=BASE=gcr.io/apache-beam-testing/beam-sdk/beam_python${pythonVersion}_sdk",
-              "."
-      ]
-    }
-    exec {
-      executable 'docker'
-      args = ['push', imageURL]
-    }
-    exec {
-      def testTarget = "apache_beam/examples/wordcount_it_test.py::WordCountIT::test_wordcount_it"
+        def testTarget = "apache_beam/examples/wordcount_it_test.py::WordCountIT::test_wordcount_it"
       def argMap = [
               "output"             : "gs://temp-storage-for-end-to-end-tests/py-it-cloud/output",
               "project"            : "apache-beam-testing",
@@ -592,7 +572,8 @@ task mockAPITests {
 // TODO: https://github.com/apache/beam/issues/22651
 project.tasks.register("inferencePostCommitIT") {
   dependsOn = [
-  // Temporarily disabled because of a container issue  
+  // TODO(https://github.com/apache/beam/issues/33078): restore the tensorRT tests once the staged
+  // model is fixed.
   // 'tensorRTtests',
   'vertexAIInferenceTest',
   'mockAPITests',

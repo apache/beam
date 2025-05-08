@@ -17,8 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers;
 
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.Internal;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Internal;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 
 @Internal
 public interface TerminatingStreamObserver<T> extends StreamObserver<T> {

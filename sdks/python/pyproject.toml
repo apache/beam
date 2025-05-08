@@ -26,7 +26,7 @@ requires = [
     # Avoid https://github.com/pypa/virtualenv/issues/2006
     "distlib==0.3.7",
     # Numpy headers
-    "numpy>=1.14.3,<2.2.0", # Update setup.py as well.
+    "numpy>=1.14.3,<2.3.0", # Update setup.py as well.
     # having cython here will create wheels that are platform dependent.
     "cython>=3.0,<4",
     ## deps for generating external transform wrappers:

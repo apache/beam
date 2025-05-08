@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.util;
 
-import com.google.api.services.dataflow.model.DataflowHistogramValue;
 import com.google.auto.value.AutoValue;
 import com.google.auto.value.extension.memoized.Memoized;
 import java.io.Serializable;
@@ -25,6 +24,10 @@ import java.math.RoundingMode;
 import java.util.Arrays;
 import java.util.Objects;
 import javax.annotation.concurrent.GuardedBy;
+import org.apache.beam.model.pipeline.v1.MetricsApi.HistogramValue;
+import org.apache.beam.model.pipeline.v1.MetricsApi.HistogramValue.BucketOptions;
+import org.apache.beam.model.pipeline.v1.MetricsApi.HistogramValue.BucketOptions.Base2Exponent;
+import org.apache.beam.model.pipeline.v1.MetricsApi.HistogramValue.BucketOptions.Linear;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.math.DoubleMath;
@@ -78,13 +81,14 @@ public class HistogramData implements Serializable {
   }
 
   /**
-   * Create a histogram from DataflowHistogramValue proto.
+   * Create a histogram from HistogramValue proto.
    *
-   * @param histogramProto DataflowHistogramValue proto used to populate stats for the histogram.
+   * @param histogramProto HistogramValue proto used to populate stats for the histogram.
    */
-  public HistogramData(DataflowHistogramValue histogramProto) {
+  public HistogramData(HistogramValue histogramProto) {
     int numBuckets;
-    if (histogramProto.getBucketOptions().getLinear() != null) {
+    if (histogramProto.getBucketOptions().hasLinear()) {
+      System.out.println("xxx its linear");
       double start = histogramProto.getBucketOptions().getLinear().getStart();
       double width = histogramProto.getBucketOptions().getLinear().getWidth();
       numBuckets = histogramProto.getBucketOptions().getLinear().getNumberOfBuckets();
@@ -92,19 +96,20 @@ public class HistogramData implements Serializable {
       this.buckets = new long[bucketType.getNumBuckets()];
 
       int idx = 0;
-      for (long val : histogramProto.getBucketCounts()) {
+      for (long val : histogramProto.getBucketCountsList()) {
         this.buckets[idx] = val;
         this.numBoundedBucketRecords += val;
         idx++;
       }
     } else {
+      System.out.println("xxx its exp");
       // Assume it's a exponential histogram if its not linear
       int scale = histogramProto.getBucketOptions().getExponential().getScale();
       numBuckets = histogramProto.getBucketOptions().getExponential().getNumberOfBuckets();
       this.bucketType = ExponentialBuckets.of(scale, numBuckets);
       this.buckets = new long[bucketType.getNumBuckets()];
       int idx = 0;
-      for (long val : histogramProto.getBucketCounts()) {
+      for (long val : histogramProto.getBucketCountsList()) {
         this.buckets[idx] = val;
         this.numBoundedBucketRecords += val;
         idx++;
@@ -245,6 +250,10 @@ public class HistogramData implements Serializable {
     return other;
   }
 
+  public synchronized long[] getBucketCount() {
+    return buckets;
+  }
+
   public synchronized void record(double value) {
     double rangeTo = bucketType.getRangeTo();
     double rangeFrom = bucketType.getRangeFrom();
@@ -278,6 +287,64 @@ public class HistogramData implements Serializable {
     sumOfSquaredDeviations += (value - mean) * (value - oldMean);
   }
 
+  public static class HistogramParsingException extends RuntimeException {
+    public HistogramParsingException(String message) {
+      super(message);
+    }
+  }
+
+  /** Converts this {@link HistogramData} to its proto {@link HistogramValue}. */
+  public synchronized HistogramValue toProto() {
+    HistogramValue.Builder builder = HistogramValue.newBuilder();
+    // try {
+    int numberOfBuckets = this.getBucketType().getNumBuckets();
+
+    if (this.getBucketType() instanceof HistogramData.LinearBuckets) {
+      System.out.println("xxx linear buckets");
+      HistogramData.LinearBuckets buckets = (HistogramData.LinearBuckets) this.getBucketType();
+      Linear.Builder linearBuilder = Linear.newBuilder();
+      linearBuilder.setNumberOfBuckets(numberOfBuckets);
+      linearBuilder.setWidth(buckets.getWidth());
+      linearBuilder.setStart(buckets.getStart());
+      Linear linearOptions = linearBuilder.build();
+
+      BucketOptions.Builder bucketBuilder = BucketOptions.newBuilder();
+      bucketBuilder.setLinear(linearOptions);
+      builder.setBucketOptions(bucketBuilder.build());
+
+    } else if (this.getBucketType() instanceof HistogramData.ExponentialBuckets) {
+      System.out.println("xxx exp buckets");
+      HistogramData.ExponentialBuckets buckets =
+          (HistogramData.ExponentialBuckets) this.getBucketType();
+
+      Base2Exponent.Builder base2ExpBuilder = Base2Exponent.newBuilder();
+      base2ExpBuilder.setNumberOfBuckets(numberOfBuckets);
+      base2ExpBuilder.setScale(buckets.getScale());
+      Base2Exponent exponentialOptions = base2ExpBuilder.build();
+
+      BucketOptions.Builder bucketBuilder = BucketOptions.newBuilder();
+      bucketBuilder.setExponential(exponentialOptions);
+      builder.setBucketOptions(bucketBuilder.build());
+    } else {
+      throw new HistogramParsingException(
+          "Unable to encode Int64 Histogram, bucket is not recognized");
+    }
+
+    builder.setCount(this.getTotalCount());
+
+    for (long val : this.getBucketCount()) {
+      builder.addBucketCounts(val);
+    }
+    System.out.println("xxxx " + builder.toString());
+    return builder.build();
+  }
+
+  // /** Creates a {@link HistogramData} instance from its proto {@link HistogramValue}. */
+  // public static HistogramData fromProto(HistogramValue proto) {
+  //   HistgramValue value = new HistgramValue();
+  //   return new HistogramValue(proto);
+  // }
+
   /**
    * Increment the {@code numTopRecords} and update {@code topRecordsSum} when a new overflow value
    * is recorded. This function should only be called when a Histogram is recording a value greater
@@ -306,6 +373,17 @@ public class HistogramData implements Serializable {
     return numBoundedBucketRecords + numTopRecords + numBottomRecords;
   }
 
+  public HistogramData extractResult() {
+    HistogramData other = new HistogramData(this.getBucketType());
+    other.update(this);
+    return other;
+  }
+
+  public HistogramData combine(HistogramData value) {
+    this.update(value);
+    return this;
+  }
+
   public synchronized String getPercentileString(String elemType, String unit) {
     return String.format(
         "Total number of %s: %s, P99: %.0f %s, P90: %.0f %s, P50: %.0f %s",
@@ -329,10 +407,6 @@ public class HistogramData implements Serializable {
 
   public synchronized long getTopBucketCount() {
     return numTopRecords;
-  }
-
-  public synchronized long[] getBucketCount() {
-    return buckets;
   }
 
   public synchronized double getTopBucketMean() {

@@ -28,6 +28,7 @@ import (
 
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/worker"
 	"google.golang.org/grpc"
 )
 
@@ -60,6 +61,8 @@ type Server struct {
 
 	// Artifact hack
 	artifacts map[string][]byte
+
+	mw *worker.MultiplexW
 }
 
 // NewServer acquires the indicated port.
@@ -82,6 +85,9 @@ func NewServer(port int, execute func(*Job)) *Server {
 	jobpb.RegisterJobServiceServer(s.server, s)
 	jobpb.RegisterArtifactStagingServiceServer(s.server, s)
 	jobpb.RegisterArtifactRetrievalServiceServer(s.server, s)
+
+	s.mw = worker.NewMultiplexW(lis, s.server, s.logger)
+
 	return s
 }
 

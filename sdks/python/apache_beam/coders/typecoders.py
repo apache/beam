@@ -73,6 +73,7 @@ from typing import Type
 
 from apache_beam.coders import coders
 from apache_beam.typehints import typehints
+from apache_beam.utils import windowed_value
 
 __all__ = ['registry']
 
@@ -92,8 +93,11 @@ class CoderRegistry(object):
     self._register_coder_internal(bytes, coders.BytesCoder)
     self._register_coder_internal(bool, coders.BooleanCoder)
     self._register_coder_internal(str, coders.StrUtf8Coder)
+    self._register_coder_internal(windowed_value.PaneInfo, coders.PaneInfoCoder)
     self._register_coder_internal(typehints.TupleConstraint, coders.TupleCoder)
     self._register_coder_internal(typehints.DictConstraint, coders.MapCoder)
+    self._register_coder_internal(
+        typehints.WindowedTypeConstraint, coders.WindowedValueCoder)
     # Default fallback coders applied in that order until the first matching
     # coder found.
     default_fallback_coders = [

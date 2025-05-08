@@ -368,8 +368,13 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
               .setName(source.readStream.getName())
               .setFraction((float) fraction)
               .build();
-
-      SplitReadStreamResponse splitResponse = storageClient.splitReadStream(splitRequest);
+      SplitReadStreamResponse splitResponse;
+      try {
+        splitResponse = storageClient.splitReadStream(splitRequest);
+      } catch (Exception e) {
+        LOG.warn("Skip split read stream due to failed request: ", e);
+        return null;
+      }
       if (!splitResponse.hasPrimaryStream() || !splitResponse.hasRemainderStream()) {
         // No more splits are possible!
         impossibleSplitPointCalls.inc();

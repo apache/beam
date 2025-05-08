@@ -25,6 +25,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.LongAdder;
 import org.apache.beam.runners.dataflow.worker.counters.Counter.AtomicCounterValue;
 import org.apache.beam.runners.dataflow.worker.counters.Counter.CounterUpdateExtractor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -380,15 +381,22 @@ public class CounterFactory {
   }
 
   /** Implements a {@link Counter} for tracking the sum of long values. */
-  public static class LongSumCounterValue extends LongCounterValue {
+  public static class LongSumCounterValue extends BaseCounterValue<Long, Long> {
+    private final LongAdder aggregate = new LongAdder();
+
+    @Override
+    public Long getAggregate() {
+      return aggregate.sum();
+    }
+
     @Override
     public void addValue(Long value) {
-      aggregate.addAndGet(value);
+      aggregate.add(value);
     }
 
     @Override
     public Long getAndReset() {
-      return aggregate.getAndSet(0);
+      return aggregate.sumThenReset();
     }
 
     @Override

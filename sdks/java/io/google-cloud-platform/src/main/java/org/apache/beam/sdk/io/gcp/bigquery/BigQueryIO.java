@@ -54,6 +54,7 @@ import com.google.protobuf.Message;
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -585,8 +586,14 @@ public class BigQueryIO {
   /** Regular expression that matches Dataset IDs. */
   private static final String DATASET_REGEXP = "[-\\w.]{1,1024}";
 
-  /** Regular expression that matches Table IDs. */
-  private static final String TABLE_REGEXP = "[-\\w$@ ]{1,1024}";
+  /**
+   * Regular expression that matches BigQuery Table IDs. Supports Unicode characters in categories:
+   * - L (letter) - M (mark) - N (number) As well as: - Underscore (_) - Dash (-) - Dollar sign ($)
+   * - At sign (@) - Space
+   *
+   * <p>The pattern requires 1-1024 characters matching these categories.
+   */
+  private static final String TABLE_REGEXP = "[-_\\p{L}\\p{N}\\p{M}$@ ]{1,1024}";
 
   /**
    * Matches table specifications in the form {@code "[project_id]:[dataset_id].[table_id]"} or
@@ -628,6 +635,9 @@ public class BigQueryIO {
 
   private static final SerializableFunction<TableSchema, org.apache.avro.Schema>
       DEFAULT_AVRO_SCHEMA_FACTORY = BigQueryAvroUtils::toGenericAvroSchema;
+
+  static final String CONNECTION_ID = "connectionId";
+  static final String STORAGE_URI = "storageUri";
 
   /**
    * @deprecated Use {@link #read(SerializableFunction)} or {@link #readTableRows} instead. {@link
@@ -2372,6 +2382,8 @@ public class BigQueryIO {
     /** Table description. Default is empty. */
     abstract @Nullable String getTableDescription();
 
+    abstract @Nullable Map<String, String> getBigLakeConfiguration();
+
     /** An option to indicate if table validation is desired. Default is true. */
     abstract boolean getValidate();
 
@@ -2483,6 +2495,8 @@ public class BigQueryIO {
       abstract Builder<T> setSchemaUpdateOptions(Set<SchemaUpdateOption> schemaUpdateOptions);
 
       abstract Builder<T> setTableDescription(String tableDescription);
+
+      abstract Builder<T> setBigLakeConfiguration(Map<String, String> bigLakeConfiguration);
 
       abstract Builder<T> setValidate(boolean validate);
 
@@ -2910,6 +2924,30 @@ public class BigQueryIO {
     }
 
     /**
+     * Specifies a configuration to create BigLake tables. The following options are available:
+     *
+     * <ul>
+     *   <li>connectionId (REQUIRED): the name of your cloud resource connection.
+     *   <li>storageUri (REQUIRED): the path to your GCS folder where data will be written to. This
+     *       sink will create sub-folders for each project, dataset, and table destination. Example:
+     *       if you specify a storageUri of {@code "gs://foo/bar"} and writing to table {@code
+     *       "my_project.my_dataset.my_table"}, your data will be written under {@code
+     *       "gs://foo/bar/my_project/my_dataset/my_table/"}
+     *   <li>fileFormat (OPTIONAL): defaults to {@code "parquet"}
+     *   <li>tableFormat (OPTIONAL): defaults to {@code "iceberg"}
+     * </ul>
+     *
+     * <p><b>NOTE:</b> This is only supported with the Storage Write API methods.
+     *
+     * @see <a href="https://cloud.google.com/bigquery/docs/iceberg-tables#api">BigQuery Tables for
+     *     Apache Iceberg documentation</a>
+     */
+    public Write<T> withBigLakeConfiguration(Map<String, String> bigLakeConfiguration) {
+      checkArgument(bigLakeConfiguration != null, "bigLakeConfiguration can not be null");
+      return toBuilder().setBigLakeConfiguration(bigLakeConfiguration).build();
+    }
+
+    /**
      * Specifies a policy for handling failed inserts.
      *
      * <p>Currently this only is allowed when writing an unbounded collection to BigQuery. Bounded
@@ -3008,9 +3046,14 @@ public class BigQueryIO {
     }
 
     /**
-     * Control how many parallel streams are used when using Storage API writes. Applicable only for
-     * streaming pipelines, and when {@link #withTriggeringFrequency} is also set. To let runner
-     * determine the sharding at runtime, set this to zero, or {@link #withAutoSharding()} instead.
+     * Control how many parallel streams are used when using Storage API writes.
+     *
+     * <p>For streaming pipelines, and when {@link #withTriggeringFrequency} is also set. To let
+     * runner determine the sharding at runtime, set this to zero, or {@link #withAutoSharding()}
+     * instead.
+     *
+     * <p>For batch pipelines, it inserts a redistribute. To not reshufle and keep the pipeline
+     * parallelism as is, set this to zero.
      */
     public Write<T> withNumStorageWriteApiStreams(int numStorageWriteApiStreams) {
       return toBuilder().setNumStorageWriteApiStreams(numStorageWriteApiStreams).build();
@@ -3454,8 +3497,21 @@ public class BigQueryIO {
         checkArgument(
             !getAutoSchemaUpdate(),
             "withAutoSchemaUpdate only supported when using STORAGE_WRITE_API or STORAGE_API_AT_LEAST_ONCE.");
-      } else if (getWriteDisposition() == WriteDisposition.WRITE_TRUNCATE) {
-        LOG.error("The Storage API sink does not support the WRITE_TRUNCATE write disposition.");
+        checkArgument(
+            getBigLakeConfiguration() == null,
+            "bigLakeConfiguration is only supported when using STORAGE_WRITE_API or STORAGE_API_AT_LEAST_ONCE.");
+      } else {
+        if (getWriteDisposition() == WriteDisposition.WRITE_TRUNCATE) {
+          LOG.error("The Storage API sink does not support the WRITE_TRUNCATE write disposition.");
+        }
+        if (getBigLakeConfiguration() != null) {
+          checkArgument(
+              Arrays.stream(new String[] {CONNECTION_ID, STORAGE_URI})
+                  .allMatch(getBigLakeConfiguration()::containsKey),
+              String.format(
+                  "bigLakeConfiguration must contain keys '%s' and '%s'",
+                  CONNECTION_ID, STORAGE_URI));
+        }
       }
       if (getRowMutationInformationFn() != null) {
         checkArgument(
@@ -3905,6 +3961,7 @@ public class BigQueryIO {
                 getPropagateSuccessfulStorageApiWritesPredicate(),
                 getRowMutationInformationFn() != null,
                 getDefaultMissingValueInterpretation(),
+                getBigLakeConfiguration(),
                 getBadRecordRouter(),
                 getBadRecordErrorHandler());
         return input.apply("StorageApiLoads", storageApiLoads);

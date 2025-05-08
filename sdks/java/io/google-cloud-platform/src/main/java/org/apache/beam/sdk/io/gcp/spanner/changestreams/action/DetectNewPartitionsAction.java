@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.cache.WatermarkCache;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.PartitionMetadataMapper;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
@@ -50,6 +51,7 @@ public class DetectNewPartitionsAction {
 
   private final PartitionMetadataDao dao;
   private final PartitionMetadataMapper mapper;
+  private final WatermarkCache cache;
   private final ChangeStreamMetrics metrics;
   private final Duration resumeDuration;
 
@@ -57,10 +59,12 @@ public class DetectNewPartitionsAction {
   public DetectNewPartitionsAction(
       PartitionMetadataDao dao,
       PartitionMetadataMapper mapper,
+      WatermarkCache cache,
       ChangeStreamMetrics metrics,
       Duration resumeDuration) {
     this.dao = dao;
     this.mapper = mapper;
+    this.cache = cache;
     this.metrics = metrics;
     this.resumeDuration = resumeDuration;
   }
@@ -98,7 +102,7 @@ public class DetectNewPartitionsAction {
 
     final Timestamp readTimestamp = tracker.currentRestriction().getFrom();
     // Updates the current watermark as the min of the watermarks from all existing partitions
-    final Timestamp minWatermark = dao.getUnfinishedMinWatermark();
+    final Timestamp minWatermark = cache.getUnfinishedMinWatermark();
 
     if (minWatermark != null) {
       return processPartitions(tracker, receiver, watermarkEstimator, minWatermark, readTimestamp);

@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -40,6 +41,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudge
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudgetSpender;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.FixedStreamHeartbeatSender;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 /**
@@ -58,6 +60,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurren
 @ThreadSafe
 final class WindmillStreamSender implements GetWorkBudgetSpender, StreamSender {
   private static final String STREAM_STARTER_THREAD_NAME = "StartWindmillStreamThread-%d";
+  private static final int TERMINATION_TIMEOUT_SECONDS = 5;
   private final AtomicBoolean started;
   private final AtomicReference<GetWorkBudget> getWorkBudget;
   private final GetWorkStream getWorkStream;
@@ -142,11 +145,26 @@ final class WindmillStreamSender implements GetWorkBudgetSpender, StreamSender {
 
   @Override
   public synchronized void close() {
-    streamStarter.shutdownNow();
+    streamStarter.shutdown();
     getWorkStream.shutdown();
     getDataStream.shutdown();
     workCommitter.stop();
     commitWorkStream.shutdown();
+    try {
+      if (!Preconditions.checkNotNull(streamStarter)
+          .awaitTermination(TERMINATION_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+        streamStarter.shutdownNow();
+      }
+      Preconditions.checkNotNull(getWorkStream)
+          .awaitTermination(TERMINATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+      Preconditions.checkNotNull(getDataStream)
+          .awaitTermination(TERMINATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+      Preconditions.checkNotNull(commitWorkStream)
+          .awaitTermination(TERMINATION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new RuntimeException("Interrupted while waiting for streams to terminate", e);
+    }
   }
 
   @Override

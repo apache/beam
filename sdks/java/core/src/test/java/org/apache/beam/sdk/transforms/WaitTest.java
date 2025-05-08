@@ -22,12 +22,22 @@ import static org.junit.Assert.assertFalse;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
+import java.util.stream.LongStream;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.schemas.JavaFieldSchema;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
+import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
+import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -38,9 +48,15 @@ import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -79,6 +95,22 @@ public class WaitTest implements Serializable {
           .add("element", element)
           .add("watermarkUpdate", watermarkUpdate)
           .toString();
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(processingTime, element, watermarkUpdate);
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      if (!(other instanceof Event)) {
+        return false;
+      }
+      Event<?> otherEvent = (Event<?>) other;
+      return Objects.equals(processingTime, otherEvent.processingTime)
+          && Objects.equals(watermarkUpdate, otherEvent.watermarkUpdate)
+          && Objects.equals(element, otherEvent.element);
     }
   }
 
@@ -208,6 +240,141 @@ public class WaitTest implements Serializable {
         FixedWindows.of(Duration.standardSeconds(1)),
         10 /* numSignalElements */,
         FixedWindows.of(Duration.standardSeconds(1)));
+  }
+
+  private static final Set<Long> PROCESSED_LONGS = Sets.newConcurrentHashSet();
+  private static final Set<Long> VERIFIED_LONGS = Sets.newConcurrentHashSet();
+
+  @DefaultSchema(JavaFieldSchema.class)
+  static class WindowExpirationValue {
+    public final @Nullable Instant watermarkAdvance;
+    public final long value;
+
+    @SchemaCreate
+    public WindowExpirationValue(@Nullable Instant watermarkAdvance, long value) {
+      this.watermarkAdvance = watermarkAdvance;
+      this.value = value;
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      if (!(other instanceof WindowExpirationValue)) {
+        return false;
+      }
+      WindowExpirationValue otherValue = (WindowExpirationValue) other;
+      return Objects.equals(watermarkAdvance, otherValue.watermarkAdvance)
+          && value == otherValue.value;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(watermarkAdvance, value);
+    }
+  }
+
+  @Test
+  @Category({NeedsRunner.class, UsesTestStream.class})
+  public void testWindowExpiration() throws NoSuchSchemaException {
+    PROCESSED_LONGS.clear();
+    VERIFIED_LONGS.clear();
+
+    SchemaCoder<WindowExpirationValue> schemaCoder =
+        p.getSchemaRegistry().getSchemaCoder(WindowExpirationValue.class);
+    List<Long> allLongs = LongStream.range(0, 200).boxed().collect(Collectors.toList());
+    TestStream.Builder<WindowExpirationValue> streamBuilder =
+        TestStream.create(schemaCoder).advanceWatermarkTo(Instant.EPOCH);
+    for (long i : allLongs) {
+      if (i > 0 && (i % 2) == 0) {
+        Instant watermarkValue = Instant.ofEpochMilli(i * 1000);
+        streamBuilder = streamBuilder.advanceWatermarkTo(watermarkValue);
+        streamBuilder =
+            streamBuilder.addElements(
+                TimestampedValue.of(
+                    new WindowExpirationValue(watermarkValue, -1), Instant.ofEpochSecond(i)));
+      }
+      streamBuilder =
+          streamBuilder.addElements(
+              TimestampedValue.of(new WindowExpirationValue(null, i), Instant.ofEpochSecond(i)));
+    }
+    Instant watermarkValue = Instant.ofEpochMilli(200 * 1000);
+    streamBuilder = streamBuilder.advanceWatermarkTo(watermarkValue);
+    streamBuilder =
+        streamBuilder.addElements(
+            TimestampedValue.of(
+                new WindowExpirationValue(watermarkValue, -1), Instant.ofEpochSecond(200)));
+
+    PCollection<WindowExpirationValue> longs = p.apply(streamBuilder.advanceWatermarkToInfinity());
+
+    TupleTag<Long> signalOutputTag = new TupleTag<>();
+    TupleTag<Long> verifiedOutputTag = new TupleTag<>();
+    // Keeps track of values processed.
+    PCollectionTuple pCollectionTuple =
+        longs.apply(
+            ParDo.of(
+                    new DoFn<WindowExpirationValue, Long>() {
+                      @ProcessElement
+                      public void process(
+                          @Element WindowExpirationValue element, MultiOutputReceiver o) {
+                        if (element.watermarkAdvance != null) {
+                          // Since TestStream is synchronous, we can assume that the Wait has
+                          // released the previous
+                          // window. Each window contains two elements, so verify that these two
+                          // elements have been
+                          // verified by the ParDo following the Wait.
+                          long elementUpperBound = element.watermarkAdvance.getMillis() / 1000;
+                          // This means the watermark has advanced. We expect the previous window to
+                          // have been verified.
+                          OutputReceiver<Long> verified = o.get(verifiedOutputTag);
+                          if (VERIFIED_LONGS.contains(elementUpperBound - 1)) {
+                            verified.output(elementUpperBound - 1);
+                          }
+                          if (VERIFIED_LONGS.contains(elementUpperBound - 2)) {
+                            verified.output(elementUpperBound - 2);
+                          }
+                        }
+                        PROCESSED_LONGS.add(element.value);
+                        o.get(signalOutputTag).output(element.value);
+                      }
+                    })
+                .withOutputTags(signalOutputTag, TupleTagList.of(verifiedOutputTag)));
+    pCollectionTuple.get(verifiedOutputTag).setCoder(VarLongCoder.of());
+
+    FixedWindows fixedWindows = FixedWindows.of(Duration.standardSeconds(2));
+    PCollection<Long> verifiedInts =
+        longs
+            .apply(
+                "flatmap",
+                FlatMapElements.into(TypeDescriptors.longs())
+                    .via(
+                        value ->
+                            value.watermarkAdvance == null
+                                ? Collections.singletonList(value.value)
+                                : Collections.emptyList()))
+            .apply("w1", Window.<Long>into(fixedWindows).withAllowedLateness(Duration.ZERO))
+            .apply(
+                Wait.on(
+                    pCollectionTuple
+                        .get(signalOutputTag)
+                        .apply(
+                            "w2",
+                            Window.<Long>into(fixedWindows).withAllowedLateness(Duration.ZERO))))
+            .apply(
+                "verify",
+                ParDo.of(
+                    new DoFn<Long, Long>() {
+                      @ProcessElement
+                      public void process(@Element Long element, OutputReceiver<Long> o) {
+                        if (PROCESSED_LONGS.contains(element)) {
+                          VERIFIED_LONGS.add(element);
+                          o.output(element);
+                        }
+                      }
+                    }));
+    PAssert.that(verifiedInts).containsInAnyOrder(Iterables.toArray(allLongs, Long.class));
+
+    PAssert.that(pCollectionTuple.get(verifiedOutputTag))
+        .containsInAnyOrder(Iterables.toArray(allLongs, Long.class));
+    p.run();
   }
 
   /**

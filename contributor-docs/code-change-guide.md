@@ -37,6 +37,8 @@ The guide contains the following sections:
   for Python development, running unit and integration tests, and running a pipeline
   with modified Beam code.
 
+For instructions regarding testing code changes for Go SDK, please see the Go SDK's [README file](https://github.com/apache/beam/tree/master/sdks/go).
+
 ## Repository structure
 
 The Apache Beam GitHub repository (Beam repo) is, for the most part, a "mono repo".
@@ -375,6 +377,9 @@ Follow these steps for Maven projects.
       <id>Maven-Snapshot</id>
       <name>maven snapshot repository</name>
       <url>https://repository.apache.org/content/groups/snapshots/</url>
+      <releases>
+        <enabled>false</enabled>
+      </releases>
     </repository>
     ```
 
@@ -390,6 +395,8 @@ Follow these steps for Gradle projects.
 
     ```groovy
     repositories {
+    mavenCentral()
+    mavenLocal()
     maven { url "https://repository.apache.org/content/groups/snapshots" }
     }
     ```
@@ -423,18 +430,19 @@ If you're using Dataflow Runner v2 and `sdks/java/harness` or its dependencies (
 1. Use the following command to build the SDK harness container:
 
     ```shell
-    ./gradlew :sdks:java:container:java8:docker # java8, java11, java17, etc
-  docker tag apache/beam_java8_sdk:2.49.0.dev \
-    "us.gcr.io/apache-beam-testing/beam_java11_sdk:2.49.0-custom"  # change to your container registry
-  docker push "us.gcr.io/apache-beam-testing/beam_java11_sdk:2.49.0-custom"
+    ./gradlew :sdks:java:harness:publishToMavenLocal -Ppublishing
     ```
 
-2. Run the pipeline with the following options:
+2. add `org.apache.beam:beam-sdks-java-harness:2.XX.0-SNAPSHOT` as your project dependency. e.g. for Gradle project, add
+    ```
+    implementation("org.apache.beam:beam-sdks-java-harness:2.XX.0-SNAPSHOT")
+    ```
 
-  ```
-  --experiments=use_runner_v2 \
-  --sdkContainerImage="us.gcr.io/apache-beam-testing/beam_java11_sdk:2.49.0-custom"
-  ```
+3. Run the pipeline with the following options:
+
+    ```
+    --experiments=use_runner_v2,use_staged_dataflow_worker_jar
+    ```
 
 #### Snapshot Version Containers
 
@@ -447,7 +455,7 @@ This SNAPSHOT version will use the final containers published on [DockerHub](htt
 
 Certain runners may override this snapshot behavior; for example, the Dataflow runner overrides all SNAPSHOT containers into a [single registry](https://console.cloud.google.com/gcr/images/cloud-dataflow/GLOBAL/v1beta3). The same downtime will still be incurred, however, when switching to the final container
 
-## Python guide
+## Python development guide
 
 The Beam Python SDK is distributed as a single wheel, which is more straightforward than the Java SDK.
 
@@ -463,16 +471,19 @@ These instructions explain how to configure your console (shell) for Python deve
 
 2. Use the following commands to set up and activate the virtual environment:
 
-  1. `pyenv virtualenv 3.X ENV_NAME`
-  2. `pyenv activate ENV_NAME`
+    1. `pyenv virtualenv 3.X ENV_NAME`
+    2. `pyenv activate ENV_NAME`
 
 3. Install the `apache_beam` package in editable mode:
-  `pip install -e .[gcp, test]`
+   ```
+   cd sdks/python
+   pip install -e .[gcp, test]
+   ```
 
 4. For development that uses an SDK container image, do the following:
 
-  1. Install Docker Desktop.
-  2. Install Go.
+    1. Install Docker Desktop.
+    2. Install Go.
 
 5. If you're going to submit PRs, use the following command to precommit the hook for Python code changes (nobody likes lint failures!!):
 
@@ -518,7 +529,7 @@ To run an integration test on the Direct Runner, use the following command:
 ```shell
 python -m pytest -o log_cli=True -o log_level=Info \
   apache_beam/ml/inference/pytorch_inference_it_test.py::PyTorchInference \
-  --test-pipeline-options='--runner=TestDirectRunner’
+  --test-pipeline-options='--runner=TestDirectRunner'
 ```
 
 If you're preparing a PR, for test-suites to run in PostCommit Python, add tests paths under [`batchTests`](https://github.com/apache/beam/blob/2012107a0fa2bb3fedf1b5aedcb49445534b2dad/sdks/python/test-suites/direct/common.gradle#L44) in the `common.gradle` file.
@@ -541,7 +552,7 @@ To run an integration test on the Dataflow Runner, follow these steps:
   --test-pipeline-options='--runner=TestDataflowRunner --project=<project>
                            --temp_location=gs://<bucket>/tmp
                            --sdk_location=dist/apache-beam-2.35.0.dev0.tar.gz
-                           --region=us-central1’
+                           --region=us-central1'
   ```
 
 3. If you're preparing a PR, to include integration tests in the Python PostCommit test
@@ -568,7 +579,7 @@ python -m pytest  -o log_cli=True -o log_level=Info \
   --test-pipeline-options='--runner=TestDataflowRunner --project=<project>
                            --temp_location=gs://<bucket>/tmp
                            --sdk_container_image=us.gcr.io/apache-beam-testing/beam-sdk/beam:dev
-                           --region=us-central1’
+                           --region=us-central1'
 ```
 
 #### Specify additional test dependencies
@@ -584,7 +595,7 @@ python -m pytest  -o log_cli=True -o log_level=Info \
                            --temp_location=gs://<bucket>/tmp
                            --sdk_location=us.gcr.io/apache-beam-testing/beam-sdk/beam:dev
                            --region=us-central1
-                           –requirements_file=requirements.txt’
+                           –requirements_file=requirements.txt'
 ```
 
 If you're using the Dataflow runner, use [custom containers](https://cloud.google.com/dataflow/docs/guides/using-custom-containers).
@@ -626,7 +637,10 @@ Tips for using the Dataflow runner:
 
 ### Common Issues
 
-* If you run into some strange errors such as `java.lang.NoClassDefFoundError`, run `./gradlew clean` first
+* If you run into some strange errors such as `java.lang.NoClassDefFoundError` or errors related to proto changes, try these:
+  * run `./gradlew clean`
+  * remove the gradle cache, e.g., `rm -fr ~/.gradle` and `rm -fr <beam-repo-dir>/.gradle`
+  * remove the `build` directory at the repo root
 * To run one single Java test with gradle, use `--tests` to filter, for example, `./gradlew :it:google-cloud-platform:WordCountIntegrationTest --tests "org.apache.beam.it.gcp.WordCountIT.testWordCountDataflow"`
 
 ### Directories of snapshot builds

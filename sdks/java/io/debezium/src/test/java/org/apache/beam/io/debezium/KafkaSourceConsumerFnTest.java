@@ -17,11 +17,15 @@
  */
 package org.apache.beam.io.debezium;
 
+import com.google.common.testing.EqualsTester;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.io.debezium.KafkaSourceConsumerFn.OffsetHolder;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -30,6 +34,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.kafka.common.config.AbstractConfig;
@@ -50,6 +55,7 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class KafkaSourceConsumerFnTest implements Serializable {
+
   @Test
   public void testKafkaSourceConsumerFn() {
     Map<String, String> config =
@@ -105,7 +111,55 @@ public class KafkaSourceConsumerFnTest implements Serializable {
     pipeline.run().waitUntilFinish();
     Assert.assertEquals(1, CounterTask.getCountTasks());
   }
-}
+
+  @Test
+  public void testKafkaOffsetHolderEquality() {
+    EqualsTester tester = new EqualsTester();
+
+    HashMap<String, Integer> map = new HashMap<>();
+    map.put("a", 1);
+    map.put("b", 2);
+    ArrayList<byte[]> list = new ArrayList<>();
+    list.add("abc".getBytes(StandardCharsets.US_ASCII));
+    list.add(new byte[0]);
+    tester.addEqualityGroup(
+        new OffsetHolder(
+            ImmutableMap.of("a", 1, "b", 2),
+            ImmutableList.of("abc".getBytes(StandardCharsets.US_ASCII), new byte[0]),
+            1,
+            null,
+            -1L),
+        new OffsetHolder(map, list, 1, null, -1L),
+        new OffsetHolder(map, list, 1, null, -1L),
+        new OffsetHolder(map, list, 1));
+    tester.addEqualityGroup(new OffsetHolder(null, null, null, null, null));
+    tester.addEqualityGroup(
+        new OffsetHolder(
+            ImmutableMap.of("a", 1),
+            ImmutableList.of("abc".getBytes(StandardCharsets.US_ASCII)),
+            1));
+    tester.addEqualityGroup(
+        new OffsetHolder(
+            ImmutableMap.of("a", 1),
+            ImmutableList.of("abc".getBytes(StandardCharsets.US_ASCII)),
+            2));
+    tester.addEqualityGroup(
+        new OffsetHolder(
+            ImmutableMap.of("a", 1),
+            ImmutableList.of("abc".getBytes(StandardCharsets.US_ASCII)),
+            1,
+            2,
+            null));
+    tester.addEqualityGroup(
+        new OffsetHolder(
+            ImmutableMap.of("a", 1),
+            ImmutableList.of("abc".getBytes(StandardCharsets.US_ASCII)),
+            1,
+            3,
+            null));
+    tester.testEquals();
+  }
+};
 
 class CounterSourceConnector extends SourceConnector {
   public static class CounterSourceConnectorConfig extends AbstractConfig {
