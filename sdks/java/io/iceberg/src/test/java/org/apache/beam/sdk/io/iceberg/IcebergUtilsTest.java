@@ -447,32 +447,32 @@ public class IcebergUtilsTest {
     }
   }
 
-  static Schema NESTED_BEAM_SCHEMA =
+  static final Schema NESTED_BEAM_SCHEMA =
       Schema.builder()
           .addArrayField("str_list", Schema.FieldType.STRING)
           .addInt32Field("int")
           .build();
-  static Schema ROW_LIST_BEAM_SCHEMA =
+  static final Schema ROW_LIST_BEAM_SCHEMA =
       Schema.builder()
           .addArrayField("list", Schema.FieldType.row(NESTED_BEAM_SCHEMA))
           .addBooleanField("bool")
           .build();
-  static Schema ROW_MAP_BEAM_SCHEMA =
+  static final Schema ROW_MAP_BEAM_SCHEMA =
       Schema.builder()
           .addMapField("map", Schema.FieldType.STRING, Schema.FieldType.row(NESTED_BEAM_SCHEMA))
           .build();
-  static org.apache.iceberg.Schema NESTED_ICEBERG_SCHEMA =
+  static final org.apache.iceberg.Schema NESTED_ICEBERG_SCHEMA =
       new org.apache.iceberg.Schema(
           required(4, "str_list", Types.ListType.ofRequired(6, Types.StringType.get())),
           required(5, "int", Types.IntegerType.get()));
-  static org.apache.iceberg.Schema RECORD_LIST_ICEBERG_SCHEMA =
+  static final org.apache.iceberg.Schema RECORD_LIST_ICEBERG_SCHEMA =
       new org.apache.iceberg.Schema(
           required(
               1,
               "list",
               Types.ListType.ofRequired(3, Types.StructType.of(NESTED_ICEBERG_SCHEMA.columns()))),
           required(2, "bool", Types.BooleanType.get()));
-  static org.apache.iceberg.Schema RECORD_MAP_ICEBERG_SCHEMA =
+  static final org.apache.iceberg.Schema RECORD_MAP_ICEBERG_SCHEMA =
       new org.apache.iceberg.Schema(
           required(
               1,
