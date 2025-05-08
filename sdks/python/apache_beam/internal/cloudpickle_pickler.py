@@ -30,6 +30,7 @@ dump_session and load_session are no-ops.
 import base64
 import bz2
 import io
+import logging
 import sys
 import threading
 import zlib
@@ -79,6 +80,7 @@ EnumDescriptor = _get_proto_enum_descriptor_class()
 _pickle_lock = threading.RLock()
 RLOCK_TYPE = type(_pickle_lock)
 LOCK_TYPE = type(threading.Lock())
+_LOGGER = logging.getLogger(__name__)
 
 
 def _reconstruct_enum_descriptor(full_name):
@@ -116,7 +118,9 @@ def dumps(
   if enable_best_effort_determinism:
     # TODO: Add support once https://github.com/cloudpipe/cloudpickle/pull/563
     # is merged in.
-    raise NotImplementedError('This option has only been implemeneted for dill')
+    _LOGGER.warning(
+        'Ignoring unsupported option: enable_best_effort_determinism. '
+        'This has only been implemented for dill.')
   with _pickle_lock:
     with io.BytesIO() as file:
       pickler = cloudpickle.CloudPickler(file)
