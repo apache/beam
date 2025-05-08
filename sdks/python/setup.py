@@ -417,7 +417,7 @@ if __name__ == '__main__':
               'scikit-learn>=0.20.0',
               'setuptools',
               'sqlalchemy>=1.3,<3.0',
-              'psycopg2-binary>=2.8.5,<3.0.0,!=2.9.10',
+              'psycopg2-binary>=2.8.5,<3.0.0',
               'testcontainers[mysql]>=3.0.3,<4.0.0',
               'cryptography>=41.0.2',
               'hypothesis>5.0.0,<7.0.0',
