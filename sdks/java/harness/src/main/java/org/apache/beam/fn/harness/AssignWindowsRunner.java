@@ -21,7 +21,6 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
-import java.util.Collection;
 import java.util.Map;
 import org.apache.beam.fn.harness.MapFnRunners.WindowedValueMapFnFactory;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
@@ -92,7 +91,7 @@ class AssignWindowsRunner<T, W extends BoundedWindow> {
   WindowedValue<T> assignWindows(WindowedValue<T> input) throws Exception {
     // TODO: https://github.com/apache/beam/issues/18870 consider allocating only once and updating
     // the current value per call.
-    WindowFn<T, W>.AssignContext ctxt =
+    WindowFn<T, W>.AssignContext assignContext =
         windowFn.new AssignContext() {
           @Override
           public T element() {
@@ -109,7 +108,7 @@ class AssignWindowsRunner<T, W extends BoundedWindow> {
             return Iterables.getOnlyElement(input.getWindows());
           }
         };
-    Collection<W> windows = windowFn.assignWindows(ctxt);
-    return WindowedValues.of(input.getValue(), input.getTimestamp(), windows, input.getPaneInfo());
+
+    return WindowedValues.builder(input).setWindows(windowFn.assignWindows(assignContext)).build();
   }
 }
