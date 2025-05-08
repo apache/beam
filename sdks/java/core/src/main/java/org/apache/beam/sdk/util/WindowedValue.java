@@ -17,9 +17,11 @@
  */
 package org.apache.beam.sdk.util;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.auto.value.AutoBuilder;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -46,8 +48,11 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
+import org.apache.beam.sdk.values.OutputBuilder;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
@@ -59,16 +64,92 @@ import org.joda.time.Instant;
 @Internal
 public abstract class WindowedValue<T> {
 
+  public interface Outputter<T> {
+    void output(Builder<T> outputBuilder);
+  }
+
+  /** Create a typical {@link OutputBuilder} that */
+  public static <T> OutputBuilder<T> builder(Outputter<T> outputter) {
+    return new AutoBuilder_WindowedValue_Builder<T>().setOutputter(outputter);
+  }
+
+  // HACK: this should not be public but for temporary ease of demonstration in FnApiDoFnRunner
+  @AutoBuilder(callMethod = "of", ofClass = WindowedValue.class)
+  public abstract static class Builder<T> implements OutputBuilder<T> {
+
+    private @MonotonicNonNull Outputter<T> outputter;
+
+    @Override
+    public abstract OutputBuilder<T> setValue(T value);
+
+    @Override
+    public abstract OutputBuilder<T> setTimestamp(Instant timestamp);
+
+    @Override
+    public abstract OutputBuilder<T> setWindows(Collection<? extends BoundedWindow> windows);
+
+    @Override
+    public abstract OutputBuilder<T> setPaneInfo(PaneInfo pane);
+
+    @Override
+    public OutputBuilder<T> setWindow(BoundedWindow window) {
+      return setWindows(Collections.singleton(window));
+    }
+
+    public Builder<T> setOutputter(Outputter<T> outputter) {
+      this.outputter = outputter;
+      return this;
+    }
+
+    abstract WindowedValue<T> autoBuild();
+
+    @Override
+    public void output() {
+      checkStateNotNull(outputter, "Cannot output until Outputter set").output(this);
+    }
+
+    @Override
+    public abstract T getValue();
+
+    @Override
+    public abstract Instant getTimestamp();
+
+    @Override
+    public abstract Collection<? extends BoundedWindow> getWindows();
+
+    @Override
+    public abstract PaneInfo getPaneInfo();
+
+    public WindowedValue<T> build() {
+      if (getWindows().size() > 1) {
+        return autoBuild();
+      }
+
+      BoundedWindow window = Iterables.getOnlyElement(getWindows());
+
+      if (!GlobalWindow.INSTANCE.equals(window)) {
+        return new TimestampedValueInSingleWindow<>(
+            getValue(), getTimestamp(), window, getPaneInfo());
+      }
+
+      if (BoundedWindow.TIMESTAMP_MIN_VALUE.equals(getTimestamp())) {
+        return new ValueInGlobalWindow<>(getValue(), getPaneInfo());
+      }
+
+      return new TimestampedValueInGlobalWindow<>(getValue(), getTimestamp(), getPaneInfo());
+    };
+  }
+
   /** Returns a {@code WindowedValue} with the given value, timestamp, and windows. */
   public static <T> WindowedValue<T> of(
-      T value, Instant timestamp, Collection<? extends BoundedWindow> windows, PaneInfo pane) {
-    checkArgument(pane != null, "WindowedValue requires PaneInfo, but it was null");
+      T value, Instant timestamp, Collection<? extends BoundedWindow> windows, PaneInfo paneInfo) {
+    checkArgument(paneInfo != null, "WindowedValue requires PaneInfo, but it was null");
     checkArgument(windows.size() > 0, "WindowedValue requires windows, but there were none");
 
     if (windows.size() == 1) {
-      return of(value, timestamp, windows.iterator().next(), pane);
+      return of(value, timestamp, windows.iterator().next(), paneInfo);
     } else {
-      return new TimestampedValueInMultipleWindows<>(value, timestamp, windows, pane);
+      return new TimestampedValueInMultipleWindows<>(value, timestamp, windows, paneInfo);
     }
   }
 
