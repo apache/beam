@@ -22,9 +22,10 @@ import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
 import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 
 public class IcebergTableProvider extends InMemoryMetaTableProvider {
-  private IcebergCatalogConfig catalogConfig = IcebergCatalogConfig.builder().build();
+  @VisibleForTesting IcebergCatalogConfig catalogConfig = IcebergCatalogConfig.builder().build();
 
   public static IcebergTableProvider create() {
     return new IcebergTableProvider();

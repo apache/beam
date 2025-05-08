@@ -151,7 +151,7 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
     }
     // register user-specified providers
     for (Map.Entry<String, TableProvider> entry : tableProviderMap().entrySet()) {
-      if (!metaTableProvider.hasProviderForType(entry.getKey())) {
+      if (!metaTableProvider.hasProvider(entry.getValue())) {
         metaTableProvider.registerProvider(entry.getValue());
       }
     }

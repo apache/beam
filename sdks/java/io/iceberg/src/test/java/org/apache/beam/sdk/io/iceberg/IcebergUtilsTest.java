@@ -482,7 +482,7 @@ public class IcebergUtilsTest {
                   3,
                   Types.StringType.get(),
                   Types.StructType.of(NESTED_ICEBERG_SCHEMA.columns()))));
-  static Record RECORD_LIST_OF_RECORDS =
+  static final Record RECORD_LIST_OF_RECORDS =
       GenericRecord.create(RECORD_LIST_ICEBERG_SCHEMA)
           .copy(
               ImmutableMap.of(
@@ -498,7 +498,7 @@ public class IcebergUtilsTest {
                                   "str_list", Arrays.asList("x", "y", "z"), "int", 789))),
                   "bool",
                   true));
-  static Row ROW_LIST_OF_ROWS =
+  static final Row ROW_LIST_OF_ROWS =
       Row.withSchema(ROW_LIST_BEAM_SCHEMA)
           .addValues(
               Arrays.asList(
@@ -510,7 +510,7 @@ public class IcebergUtilsTest {
                       .build()),
               true)
           .build();
-  static Record RECORD_MAP_OF_RECORDS =
+  static final Record RECORD_MAP_OF_RECORDS =
       GenericRecord.create(RECORD_MAP_ICEBERG_SCHEMA)
           .copy(
               ImmutableMap.of(
@@ -526,7 +526,7 @@ public class IcebergUtilsTest {
                           .copy(
                               ImmutableMap.of(
                                   "str_list", Arrays.asList("x", "y", "z"), "int", 789)))));
-  static Row ROW_MAP_OF_ROWS =
+  static final Row ROW_MAP_OF_ROWS =
       Row.withSchema(ROW_MAP_BEAM_SCHEMA)
           .addValues(
               ImmutableMap.of(

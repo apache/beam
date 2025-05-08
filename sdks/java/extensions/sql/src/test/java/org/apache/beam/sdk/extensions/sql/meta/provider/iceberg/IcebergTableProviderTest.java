@@ -17,9 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.iceberg;
 
-import static org.apache.beam.sdk.extensions.sql.meta.provider.iceberg.IcebergTable.CATALOG_NAME_FIELD;
-import static org.apache.beam.sdk.extensions.sql.meta.provider.iceberg.IcebergTable.CATALOG_PROPERTIES_FIELD;
-import static org.apache.beam.sdk.extensions.sql.meta.provider.iceberg.IcebergTable.HADOOP_CONFIG_PROPERTIES_FIELD;
 import static org.apache.beam.sdk.extensions.sql.meta.provider.iceberg.IcebergTable.TRIGGERING_FREQUENCY_FIELD;
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.junit.Assert.assertEquals;
@@ -30,7 +27,6 @@ import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.sql.TableUtils;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
-import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.calcite.v1_28_0.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -69,13 +65,8 @@ public class IcebergTableProviderTest {
     assertTrue(sqlTable instanceof IcebergTable);
 
     IcebergTable icebergTable = (IcebergTable) sqlTable;
-    IcebergCatalogConfig catalogConfig = icebergTable.catalogConfig;
     assertEquals("namespace.table", icebergTable.tableIdentifier);
-    assertEquals(properties.get(CATALOG_NAME_FIELD), catalogConfig.getCatalogName());
-    assertEquals(properties.get(CATALOG_PROPERTIES_FIELD), catalogConfig.getCatalogProperties());
-    assertEquals(
-        properties.get(HADOOP_CONFIG_PROPERTIES_FIELD), catalogConfig.getConfigProperties());
-    assertEquals(properties.get(TRIGGERING_FREQUENCY_FIELD), icebergTable.triggeringFrequency);
+    assertEquals(provider.catalogConfig, icebergTable.catalogConfig);
   }
 
   private static Table fakeTableWithProperties(String name, String properties) {

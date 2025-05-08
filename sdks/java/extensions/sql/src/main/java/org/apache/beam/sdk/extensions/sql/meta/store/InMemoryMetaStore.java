@@ -114,7 +114,7 @@ public class InMemoryMetaStore implements MetaStore {
     return providers;
   }
 
-  public boolean hasProviderForType(String type) {
-    return getProviders().containsKey(type);
+  public boolean hasProvider(TableProvider provider) {
+    return providers.containsKey(provider.getTableType());
   }
 }
