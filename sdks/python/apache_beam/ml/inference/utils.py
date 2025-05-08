@@ -54,8 +54,8 @@ def _convert_to_result(
         dict(zip(predictions.keys(), v)) for v in zip(*predictions.values())
     ]
     return [
-        PredictionResult(x, y, model_id) for x,
-        y in zip(batch, predictions_per_tensor)
+        PredictionResult(x, y, model_id)
+        for x, y in zip(batch, predictions_per_tensor)
     ]
   return [PredictionResult(x, y, model_id) for x, y in zip(batch, predictions)]
 

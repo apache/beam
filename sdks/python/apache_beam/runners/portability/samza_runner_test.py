@@ -186,6 +186,9 @@ class SamzaRunnerTest(portable_runner_test.PortableRunnerTest):
   def test_custom_window_type(self):
     raise unittest.SkipTest("https://github.com/apache/beam/issues/21049")
 
+  def test_reshuffle_after_custom_window(self):
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/34831")
+
 
 if __name__ == '__main__':
   # Run the tests.

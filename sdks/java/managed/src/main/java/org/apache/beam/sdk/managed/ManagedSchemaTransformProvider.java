@@ -26,19 +26,15 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
-import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.MatchResult;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
@@ -102,11 +98,6 @@ public class ManagedSchemaTransformProvider
     @SchemaFieldDescription("YAML string config used to build the underlying SchemaTransform.")
     public abstract @Nullable String getConfig();
 
-    @SchemaFieldDescription(
-        "Skips configuration validation. If unset, the pipeline will fail at construction "
-            + "time if the configuration includes unknown fields or missing required fields.")
-    public abstract @Nullable Boolean getSkipConfigValidation();
-
     @AutoValue.Builder
     public abstract static class Builder {
       public abstract Builder setTransformIdentifier(String identifier);
@@ -114,8 +105,6 @@ public class ManagedSchemaTransformProvider
       public abstract Builder setConfigUrl(@Nullable String configUrl);
 
       public abstract Builder setConfig(@Nullable String yamlConfig);
-
-      public abstract Builder setSkipConfigValidation(@Nullable Boolean skip);
 
       public abstract ManagedConfig build();
     }
@@ -165,21 +154,28 @@ public class ManagedSchemaTransformProvider
 
   static class ManagedSchemaTransform extends SchemaTransform {
     private final ManagedConfig managedConfig;
+    private final Row underlyingRowConfig;
     private final SchemaTransformProvider underlyingTransformProvider;
 
     ManagedSchemaTransform(
         ManagedConfig managedConfig, SchemaTransformProvider underlyingTransformProvider) {
+      // parse config before expansion to check if it matches underlying transform's config schema
+      Schema transformConfigSchema = underlyingTransformProvider.configurationSchema();
+      Row underlyingRowConfig;
+      try {
+        underlyingRowConfig = getRowConfig(managedConfig, transformConfigSchema);
+      } catch (Exception e) {
+        throw new IllegalArgumentException(
+            "Encountered an error when retrieving a configuration", e);
+      }
+
+      this.underlyingRowConfig = underlyingRowConfig;
       this.underlyingTransformProvider = underlyingTransformProvider;
       this.managedConfig = managedConfig;
     }
 
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
-      Row underlyingRowConfig =
-          getRowConfig(
-              managedConfig,
-              underlyingTransformProvider.configurationSchema(),
-              input.getPipeline().getOptions());
       LOG.debug(
           "Building transform \"{}\" with configuration: {}",
           underlyingTransformProvider.identifier(),
@@ -188,7 +184,6 @@ public class ManagedSchemaTransformProvider
       return input.apply(underlyingTransformProvider.from(underlyingRowConfig));
     }
 
-    @VisibleForTesting
     public ManagedConfig getManagedConfig() {
       return this.managedConfig;
     }
@@ -211,8 +206,7 @@ public class ManagedSchemaTransformProvider
   // May return an empty row (perhaps the underlying transform doesn't have any required
   // parameters)
   @VisibleForTesting
-  static Row getRowConfig(
-      ManagedConfig config, Schema transformConfigSchema, PipelineOptions options) {
+  static Row getRowConfig(ManagedConfig config, Schema transformSchema) {
     Map<String, Object> configMap = config.resolveUnderlyingConfig();
     // Build a config Row that will be used to build the underlying SchemaTransform.
     // If a mapping for the SchemaTransform exists, we use it to update parameter names to align
@@ -231,42 +225,7 @@ public class ManagedSchemaTransformProvider
       configMap = remappedConfig;
     }
 
-    @Nullable Boolean skipValidation = config.getSkipConfigValidation();
-    if (skipValidation == null || !skipValidation) {
-      validateUserConfig(
-          config.getTransformIdentifier(),
-          new HashSet<>(configMap.keySet()),
-          transformConfigSchema);
-    }
-
-    return YamlUtils.toBeamRow(configMap, transformConfigSchema, false);
-  }
-
-  static void validateUserConfig(
-      String transformId, Set<String> userParams, Schema transformConfigSchema) {
-    List<String> missingRequiredFields = new ArrayList<>();
-    for (Schema.Field field : transformConfigSchema.getFields()) {
-      boolean inUserConfig = userParams.remove(field.getName());
-      if (!field.getType().getNullable() && !inUserConfig) {
-        missingRequiredFields.add(field.getName());
-      }
-    }
-
-    if (!missingRequiredFields.isEmpty() || !userParams.isEmpty()) {
-      String msg = "Invalid config for transform '" + transformId + "':";
-      if (!missingRequiredFields.isEmpty()) {
-        msg += " Missing required fields: " + missingRequiredFields + ".";
-      }
-      if (!userParams.isEmpty()) {
-        msg +=
-            " Contains unknown fields: "
-                + userParams
-                + ". If you'd still like to pass "
-                + "these fields, use '.skipConfigValidation()'";
-      }
-
-      throw new IllegalArgumentException(msg);
-    }
+    return YamlUtils.toBeamRow(configMap, transformSchema, false);
   }
 
   public static Map<String, Map<String, String>> getAliases() {

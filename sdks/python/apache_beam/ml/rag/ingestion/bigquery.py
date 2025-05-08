@@ -68,8 +68,7 @@ class BigQueryVectorWriterConfig(VectorDatabaseWriteConfig):
       self,
       write_config: Dict[str, Any],
       *,  # Force keyword arguments
-      schema_config: Optional[SchemaConfig] = None
-      ):
+      schema_config: Optional[SchemaConfig] = None):
     """Configuration for writing vectors to BigQuery using managed transforms.
     
     Supports both default schema (id, embedding, content, metadata columns) and
@@ -129,11 +128,9 @@ def _default_chunk_to_dict_fn(chunk: Chunk):
       'id': chunk.id,
       'embedding': chunk.embedding.dense_embedding,
       'content': chunk.content.text,
-      'metadata': [
-          {
-              "key": k, "value": str(v)
-          } for k, v in chunk.metadata.items()
-      ]
+      'metadata': [{
+          "key": k, "value": str(v)
+      } for k, v in chunk.metadata.items()]
   }
 
 

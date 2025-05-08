@@ -81,7 +81,7 @@ public class MapFnRunnersTest {
     context.addPCollectionConsumer("outputPC", outputConsumer::add);
 
     ValueMapFnFactory<String, String> factory = (ptId, pt) -> String::toUpperCase;
-    MapFnRunners.forValueMapFnFactory(factory).createRunnerForPTransform(context);
+    MapFnRunners.forValueMapFnFactory(factory).addRunnerForPTransform(context);
 
     assertThat(context.getStartBundleFunctions(), empty());
     assertThat(context.getFinishBundleFunctions(), empty());
@@ -109,7 +109,7 @@ public class MapFnRunnersTest {
     List<WindowedValue<?>> outputConsumer = new ArrayList<>();
     context.addPCollectionConsumer("outputPC", outputConsumer::add);
     MapFnRunners.forWindowedValueMapFnFactory(this::createMapFunctionForPTransform)
-        .createRunnerForPTransform(context);
+        .addRunnerForPTransform(context);
 
     assertThat(context.getStartBundleFunctions(), empty());
     assertThat(context.getFinishBundleFunctions(), empty());
@@ -138,7 +138,7 @@ public class MapFnRunnersTest {
     context.addPCollectionConsumer("outputPC", outputConsumer::add);
 
     MapFnRunners.forWindowedValueMapFnFactory(this::createMapFunctionForPTransform)
-        .createRunnerForPTransform(context);
+        .addRunnerForPTransform(context);
 
     assertThat(context.getStartBundleFunctions(), empty());
     assertThat(context.getFinishBundleFunctions(), empty());

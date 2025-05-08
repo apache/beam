@@ -998,8 +998,8 @@ class SnippetsTest(unittest.TestCase):
     ]
     # [END model_group_by_key_cogroupbykey_tuple_formatted_outputs]
     expected_results = [
-        '%s; %s; %s' % (name, info['emails'], info['phones']) for name,
-        info in results
+        '%s; %s; %s' % (name, info['emails'], info['phones'])
+        for name, info in results
     ]
     self.assertEqual(expected_results, formatted_results)
     self.assertEqual(formatted_results, self.get_output(result_path))
@@ -1441,12 +1441,13 @@ class SlowlyChangingSideInputsTest(unittest.TestCase):
         for j in range(count):
           f.write('f' + idstr + 'a' + str(j) + '\n')
 
-    sample_main_input_elements = ([first_ts - 2, # no output due to no SI
-                                   first_ts + 1,  # First window
-                                   first_ts + 8,  # Second window
-                                   first_ts + 15,  # Third window
-                                   first_ts + 22,  # Fourth window
-                                   ])
+    sample_main_input_elements = ([
+        first_ts - 2,  # no output due to no SI
+        first_ts + 1,  # First window
+        first_ts + 8,  # Second window
+        first_ts + 15,  # Third window
+        first_ts + 22,  # Fourth window
+    ])
 
     pipeline, pipeline_result = snippets.side_input_slow_update(
       src_file_pattern, first_ts, last_ts, interval,

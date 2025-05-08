@@ -280,7 +280,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
           outputPCollectionId,
           (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
 
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
+      new FnApiDoFnRunner.Factory<>().addRunnerForPTransform(context);
 
       Iterables.getOnlyElement(context.getStartBundleFunctions()).run();
       mainOutputValues.clear();
@@ -448,7 +448,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
           additionalPCollectionId,
           (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) additionalOutputValues::add);
 
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
+      new FnApiDoFnRunner.Factory<>().addRunnerForPTransform(context);
 
       Iterables.getOnlyElement(context.getStartBundleFunctions()).run();
       mainOutputValues.clear();
@@ -555,7 +555,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
           additionalPCollectionId,
           (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) additionalOutputValues::add);
 
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
+      new FnApiDoFnRunner.Factory<>().addRunnerForPTransform(context);
 
       Iterables.getOnlyElement(context.getStartBundleFunctions()).run();
       mainOutputValues.clear();
@@ -694,7 +694,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
           Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
           (FnDataReceiver) (FnDataReceiver<WindowedValue<Iterable<String>>>) mainOutputValues::add);
 
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
+      new FnApiDoFnRunner.Factory<>().addRunnerForPTransform(context);
 
       Iterables.getOnlyElement(context.getStartBundleFunctions()).run();
       mainOutputValues.clear();
@@ -800,7 +800,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
           Iterables.getOnlyElement(pTransform.getOutputsMap().values()),
           (FnDataReceiver) (FnDataReceiver<WindowedValue<Iterable<String>>>) mainOutputValues::add);
 
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
+      new FnApiDoFnRunner.Factory<>().addRunnerForPTransform(context);
 
       Iterables.getOnlyElement(context.getStartBundleFunctions()).run();
       mainOutputValues.clear();
@@ -976,7 +976,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
           outputPCollectionId,
           (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
 
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
+      new FnApiDoFnRunner.Factory<>().addRunnerForPTransform(context);
 
       Iterables.getOnlyElement(context.getStartBundleFunctions()).run();
       mainOutputValues.clear();
@@ -1715,7 +1715,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
           outputPCollectionId,
           (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
 
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
+      new FnApiDoFnRunner.Factory<>().addRunnerForPTransform(context);
 
       Iterables.getOnlyElement(context.getStartBundleFunctions()).run();
       mainOutputValues.clear();
@@ -2009,7 +2009,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
           outputPCollectionId,
           (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
 
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
+      new FnApiDoFnRunner.Factory<>().addRunnerForPTransform(context);
 
       Iterables.getOnlyElement(context.getStartBundleFunctions()).run();
       mainOutputValues.clear();
@@ -2223,7 +2223,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
           outputPCollectionId,
           (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
 
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
+      new FnApiDoFnRunner.Factory<>().addRunnerForPTransform(context);
 
       Iterables.getOnlyElement(context.getStartBundleFunctions()).run();
       mainOutputValues.clear();
@@ -2420,7 +2420,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
           outputPCollectionId,
           (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
 
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
+      new FnApiDoFnRunner.Factory<>().addRunnerForPTransform(context);
 
       Iterables.getOnlyElement(context.getStartBundleFunctions()).run();
       mainOutputValues.clear();
@@ -2838,7 +2838,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       List<WindowedValue<KV<String, OffsetRange>>> mainOutputValues = new ArrayList<>();
       context.addPCollectionConsumer(outputPCollectionId, ((List) mainOutputValues)::add);
 
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
+      new FnApiDoFnRunner.Factory<>().addRunnerForPTransform(context);
 
       assertTrue(context.getStartBundleFunctions().isEmpty());
       mainOutputValues.clear();
@@ -2926,7 +2926,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       List<WindowedValue<KV<String, OffsetRange>>> mainOutputValues = new ArrayList<>();
       context.addPCollectionConsumer(outputPCollectionId, ((List) mainOutputValues)::add);
 
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
+      new FnApiDoFnRunner.Factory<>().addRunnerForPTransform(context);
 
       assertTrue(context.getStartBundleFunctions().isEmpty());
       mainOutputValues.clear();
@@ -3040,7 +3040,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       List<WindowedValue<KV<String, OffsetRange>>> mainOutputValues = new ArrayList<>();
       context.addPCollectionConsumer(outputPCollectionId, ((List) mainOutputValues)::add);
 
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
+      new FnApiDoFnRunner.Factory<>().addRunnerForPTransform(context);
 
       assertTrue(context.getStartBundleFunctions().isEmpty());
       mainOutputValues.clear();
@@ -3143,7 +3143,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
               DoubleCoder.of());
       context.addPCollectionConsumer(outputPCollectionId, ((List) mainOutputValues)::add);
 
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
+      new FnApiDoFnRunner.Factory<>().addRunnerForPTransform(context);
 
       assertTrue(context.getStartBundleFunctions().isEmpty());
       mainOutputValues.clear();
@@ -3245,7 +3245,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
               DoubleCoder.of());
       context.addPCollectionConsumer(outputPCollectionId, ((List) mainOutputValues)::add);
 
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
+      new FnApiDoFnRunner.Factory<>().addRunnerForPTransform(context);
 
       assertTrue(context.getStartBundleFunctions().isEmpty());
       mainOutputValues.clear();
@@ -3389,7 +3389,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
               DoubleCoder.of());
       context.addPCollectionConsumer(outputPCollectionId, ((List) mainOutputValues)::add);
 
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
+      new FnApiDoFnRunner.Factory<>().addRunnerForPTransform(context);
 
       assertTrue(context.getStartBundleFunctions().isEmpty());
       mainOutputValues.clear();
@@ -3592,7 +3592,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       context.addPCollectionConsumer(
           outputPCollectionId, (FnDataReceiver) new SplittableFnDataReceiver(mainOutputValues));
 
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
+      new FnApiDoFnRunner.Factory<>().addRunnerForPTransform(context);
       FnDataReceiver<WindowedValue<?>> mainInput =
           context.getPCollectionConsumer(inputPCollectionId);
       assertThat(mainInput, instanceOf(HandlesSplits.class));
@@ -3743,7 +3743,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       context.addPCollectionConsumer(
           outputPCollectionId, (FnDataReceiver) new SplittableFnDataReceiver(mainOutputValues));
 
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
+      new FnApiDoFnRunner.Factory<>().addRunnerForPTransform(context);
       FnDataReceiver<WindowedValue<?>> mainInput =
           context.getPCollectionConsumer(inputPCollectionId);
       assertThat(mainInput, instanceOf(HandlesSplits.class));
@@ -3806,7 +3806,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       context.addPCollectionConsumer(
           outputPCollectionId, (FnDataReceiver) new SplittableFnDataReceiver(mainOutputValues));
 
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
+      new FnApiDoFnRunner.Factory<>().addRunnerForPTransform(context);
 
       assertTrue(context.getStartBundleFunctions().isEmpty());
       mainOutputValues.clear();
@@ -3908,7 +3908,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       context.addPCollectionConsumer(
           outputPCollectionId, (FnDataReceiver) new SplittableFnDataReceiver(mainOutputValues));
 
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
+      new FnApiDoFnRunner.Factory<>().addRunnerForPTransform(context);
 
       assertTrue(context.getStartBundleFunctions().isEmpty());
       mainOutputValues.clear();
@@ -4030,7 +4030,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       context.addPCollectionConsumer(
           outputPCollectionId, (FnDataReceiver) new SplittableFnDataReceiver(mainOutputValues));
 
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
+      new FnApiDoFnRunner.Factory<>().addRunnerForPTransform(context);
 
       assertTrue(context.getStartBundleFunctions().isEmpty());
       mainOutputValues.clear();
@@ -4158,7 +4158,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       context.addPCollectionConsumer(
           outputPCollectionId, (FnDataReceiver) new OutputFnDataReceiver(mainOutputValues));
 
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
+      new FnApiDoFnRunner.Factory<>().addRunnerForPTransform(context);
 
       mainOutputValues.clear();
       FnDataReceiver<WindowedValue<?>> mainInput =
@@ -4220,7 +4220,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       context.addPCollectionConsumer(
           outputPCollectionId, (FnDataReceiver) new OutputFnDataReceiver(mainOutputValues));
 
-      new FnApiDoFnRunner.Factory<>().createRunnerForPTransform(context);
+      new FnApiDoFnRunner.Factory<>().addRunnerForPTransform(context);
 
       mainOutputValues.clear();
 

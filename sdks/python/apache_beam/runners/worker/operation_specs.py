@@ -56,25 +56,14 @@ def worker_printable_fields(workerproto):
       '%s=%s' % (name, value)
       # _asdict is the only way and cannot subclass this generated class
       # pylint: disable=protected-access
-      for name,
-      value in workerproto._asdict().items()
+      for name, value in workerproto._asdict().items()
       # want to output value 0 but not None nor []
       if (value or value == 0) and name not in (
-          'coder',
-          'coders',
-          'output_coders',
-          'elements',
-          'combine_fn',
-          'serialized_fn',
-          'window_fn',
-          'append_trailing_newlines',
-          'strip_trailing_newlines',
-          'compression_type',
-          'context',
-          'start_shuffle_position',
-          'end_shuffle_position',
-          'shuffle_reader_config',
-          'shuffle_writer_config')
+          'coder', 'coders', 'output_coders', 'elements', 'combine_fn',
+          'serialized_fn', 'window_fn', 'append_trailing_newlines',
+          'strip_trailing_newlines', 'compression_type', 'context',
+          'start_shuffle_position', 'end_shuffle_position',
+          'shuffle_reader_config', 'shuffle_writer_config')
   ]
 
 

@@ -317,8 +317,8 @@ def infer_return_type(c, input_types, debug=False, depth=5):
       from apache_beam.typehints import opcodes
       return opcodes._getattr(input_types[0], input_types[1].value)
     elif isinstance(c, python_callable.PythonCallableWithSource):
-      # TODO(BEAM-24755): This can be removed once support for
-      # inference across *args and **kwargs is implemented.
+      # TODO(https://github.com/apache/beam/issues/24755): This can be removed
+      # once support for inference across *args and **kwargs is implemented.
       return infer_return_type(c._callable, input_types, debug, depth)
     else:
       return Any
@@ -546,8 +546,8 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
         # See https://github.com/python/cpython/issues/102403 for context.
         if (pop_count == 1 and last_real_opname == 'GET_ITER' and
             len(state.stack) > 1 and isinstance(state.stack[-2], Const) and
-            getattr(state.stack[-2].value, '__name__', None) in (
-                '<listcomp>', '<dictcomp>', '<setcomp>', '<genexpr>')):
+            getattr(state.stack[-2].value, '__name__', None)
+            in ('<listcomp>', '<dictcomp>', '<setcomp>', '<genexpr>')):
           pop_count += 1
         if depth <= 0 or pop_count > len(state.stack):
           return_type = Any

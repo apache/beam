@@ -424,6 +424,24 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   }
 
   @Test
+  public void testReadAndKeepSomeFields() throws Exception {
+    Table table = catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA);
+
+    List<Row> expectedRows = populateTable(table);
+
+    List<String> fieldsToKeep = Arrays.asList("row", "str", "modulo_5", "nullable_long");
+    RowFilter rowFilter = new RowFilter(BEAM_SCHEMA).keep(fieldsToKeep);
+
+    Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
+    config.put("keep", fieldsToKeep);
+
+    PCollection<Row> rows =
+        pipeline.apply(Managed.read(ICEBERG).withConfig(config)).getSinglePCollection();
+    PAssert.that(rows).containsInAnyOrder(rowFilter.filter(expectedRows));
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
   public void testStreamingRead() throws Exception {
     Table table = catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA);
 
@@ -438,6 +456,28 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
     assertThat(rows.isBounded(), equalTo(UNBOUNDED));
     PAssert.that(rows).containsInAnyOrder(expectedRows);
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testStreamingReadAndDropSomeFields() throws Exception {
+    Table table = catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA);
+
+    List<Row> expectedRows = populateTable(table);
+
+    List<String> fieldsToDrop = Arrays.asList("row", "str", "modulo_5", "nullable_long");
+    RowFilter rowFilter = new RowFilter(BEAM_SCHEMA).drop(fieldsToDrop);
+
+    Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
+    config.put("streaming", true);
+    config.put("to_snapshot", table.currentSnapshot().snapshotId());
+    config.put("drop", fieldsToDrop);
+
+    PCollection<Row> rows =
+        pipeline.apply(Managed.read(ICEBERG_CDC).withConfig(config)).getSinglePCollection();
+
+    assertThat(rows.isBounded(), equalTo(UNBOUNDED));
+    PAssert.that(rows).containsInAnyOrder(rowFilter.filter(expectedRows));
     pipeline.run().waitUntilFinish();
   }
 
