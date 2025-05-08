@@ -202,7 +202,7 @@ looks:
           title: AvgThroughputBytesPerSec by Version
         - id: YdD9SMWCDNJ7wCY4WZwyd2Jt9Ts38FY2
           title: AvgThroughputElementsPerSec by Version
-  pytorchbertsentiment:
+  pytorchbertsentimentstreaming:
     write:
       folder: 82
       cost:
@@ -217,4 +217,20 @@ looks:
         - id: YpwpPBYhPdsGqqM7YH4SCMhk7m5CX5Kw
           title: AvgThroughputBytesPerSec by Version
         - id: ZvpwR8FqmsXZR3Bywj6QG6wBSF2dPDyG
+          title: AvgThroughputElementsPerSec by Version
+  pytorchbertsentimentbatch:
+    write:
+      folder: 85
+      cost:
+        - id: Tkkbgk4xCpV3SQPZmYmK4Shn8VhRQDyy
+          title: RunTime and EstimatedCost
+      date:
+        - id: gbNRPrMXP3rq8YDyvvfkTVYZR84KWKFv
+          title: AvgThroughputBytesPerSec by Date
+        - id: Wkt629BgJdpxTF9ChmjJpwVSBc8BwxnD
+          title: AvgThroughputElementsPerSec by Date
+      version:
+        - id: jWYjJFq6B7dSP6TjbypcfH5VycGHH6sC
+          title: AvgThroughputBytesPerSec by Version
+        - id: 8QhvYBRjYK29sS4HpK7CRJ42JKNFgvcg
           title: AvgThroughputElementsPerSec by Version

@@ -18,12 +18,13 @@ with DistilBERT model.
 It reads input lines from a Pub/Sub topic (populated from a GCS file),
 performs sentiment classification using a DistilBERT model via RunInference,
 and writes results to BigQuery.
-Resources like Pub/Sub topic/subscription and BigQuery table cleanup are
-handled programmatically.
+Resources like Pub/Sub topic/subscription cleanup is handled programmatically.
 """
 
 import argparse
 import logging
+import threading
+import time
 from collections.abc import Iterable
 
 from google.cloud import pubsub_v1
@@ -73,6 +74,15 @@ def tokenize_text(text: str,
   return text, {k: torch.squeeze(v) for k, v in tokenized.items()}
 
 
+class RateLimitDoFn(beam.DoFn):
+  def __init__(self, rate_per_sec: float):
+    self.delay = 1.0 / rate_per_sec
+
+  def process(self, element):
+    time.sleep(self.delay)
+    yield element
+
+
 def parse_known_args(argv):
   """Parses command-line arguments for pipeline execution."""
   parser = argparse.ArgumentParser()
@@ -100,6 +110,13 @@ def parse_known_args(argv):
       help='Pub/Sub subscription to read from')
   parser.add_argument(
       '--project', default='apache-beam-testing', help='GCP project ID')
+  parser.add_argument(
+      '--mode', default='streaming', choices=['streaming', 'batch'])
+  parser.add_argument(
+      '--rate_limit',
+      type=float,
+      default=None,
+      help='Elements per second to send to Pub/Sub')
   return parser.parse_known_args(argv)
 
 
@@ -156,47 +173,99 @@ def cleanup_pubsub_resources(
     print(f"Failed to delete topic: {e}")
 
 
+def override_or_add(args, flag, value):
+  if flag in args:
+    idx = args.index(flag)
+    args[idx + 1] = str(value)
+  else:
+    args.extend([flag, str(value)])
+
+
+def run_load_pipeline(known_args, pipeline_args):
+  """Load data pipeline: read lines from GCS file and send to Pub/Sub."""
+
+  override_or_add(pipeline_args, '--device', 'CPU')
+  override_or_add(pipeline_args, '--num_workers', '5')
+  override_or_add(pipeline_args, '--max_num_workers', '10')
+  override_or_add(
+      pipeline_args, '--job_name', f"sentiment-load-pubsub-{int(time.time())}")
+  override_or_add(pipeline_args, '--project', known_args.project)
+
+  pipeline_options = PipelineOptions(pipeline_args)
+  pipeline = beam.Pipeline(options=pipeline_options)
+  lines = (
+    pipeline
+    | 'ReadGCSFile' >> beam.io.ReadFromText(known_args.input)
+    | 'FilterEmpty' >> beam.Filter(lambda line: line.strip())
+  )
+  if known_args.rate_limit:
+    lines = (
+      lines
+      | 'RateLimit' >> beam.ParDo(RateLimitDoFn(rate_per_sec=known_args.rate_limit)))
+
+  _ = (
+    lines
+    | 'ToBytes' >> beam.Map(lambda line: line.encode('utf-8'))
+    |
+    'PublishToPubSub' >> beam.io.WriteToPubSub(topic=known_args.pubsub_topic))
+  return pipeline.run()
+
+
 def run(
     argv=None, save_main_session=True, test_pipeline=None) -> PipelineResult:
   known_args, pipeline_args = parse_known_args(argv)
-  pipeline_options = PipelineOptions(pipeline_args)
-  pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
-  pipeline_options.view_as(StandardOptions).streaming = True
 
-  model_handler = PytorchModelHandlerKeyedTensor(
-      model_class=DistilBertForSequenceClassification,
-      model_params={'config': DistilBertConfig(num_labels=2)},
-      state_dict_path=known_args.model_state_dict_path)
   ensure_pubsub_resources(
       project=known_args.project,
       topic_path=known_args.pubsub_topic,
       subscription_path=known_args.pubsub_subscription)
 
+  if known_args.mode == 'streaming':
+    threading.Thread(
+        target=lambda: (
+            time.sleep(100), run_load_pipeline(known_args, pipeline_args)),
+        daemon=True
+    ).start()
+
+  pipeline_options = PipelineOptions(pipeline_args)
+  pipeline_options.view_as(SetupOptions).save_main_session = save_main_session
+  method = beam.io.WriteToBigQuery.Method.FILE_LOADS
+  pipeline_options.view_as(StandardOptions).streaming = False
+  if known_args.mode == 'streaming':
+    method = beam.io.WriteToBigQuery.Method.STREAMING_INSERTS
+    pipeline_options.view_as(StandardOptions).streaming = True
+
+  model_handler = PytorchModelHandlerKeyedTensor(
+      model_class=DistilBertForSequenceClassification,
+      model_params={'config': DistilBertConfig(num_labels=2)},
+      state_dict_path=known_args.model_state_dict_path,
+      device='GPU')
+
   tokenizer = DistilBertTokenizerFast.from_pretrained(known_args.model_path)
 
   pipeline = test_pipeline or beam.Pipeline(options=pipeline_options)
 
-  # 1. Load data pipeline: read lines from GCS file and send to Pub/Sub
-  _ = (
-      pipeline
-      | 'ReadGCSFile' >> beam.io.ReadFromText(known_args.input)
-      | 'FilterEmpty' >> beam.Filter(lambda line: line.strip())
-      | 'ToBytes' >> beam.Map(lambda line: line.encode('utf-8'))
-      |
-      'PublishToPubSub' >> beam.io.WriteToPubSub(topic=known_args.pubsub_topic))
+  # Main pipeline: read, process, write result to BigQuery output table
+  if known_args.mode == 'batch':
+    input = (
+        pipeline
+        | 'ReadGCSFile' >> beam.io.ReadFromText(known_args.input)
+        | 'FilterEmpty' >> beam.Filter(lambda line: line.strip()))
+  else:
+    input = (
+        pipeline
+        | 'ReadFromPubSub' >>
+        beam.io.ReadFromPubSub(subscription=known_args.pubsub_subscription)
+        | 'DecodeText' >> beam.Map(lambda x: x.decode('utf-8'))
+        | 'WindowedOutput' >> beam.WindowInto(
+            beam.window.FixedWindows(60),
+            trigger=beam.trigger.AfterProcessingTime(30),
+            accumulation_mode=beam.trigger.AccumulationMode.DISCARDING,
+            allowed_lateness=0))
 
-  # 2. Main Streaming pipeline: read from PubSub subscription, process, write
-  # result to BigQuery output table
   _ = (
-      pipeline
-      | 'ReadFromPubSub' >>
-      beam.io.ReadFromPubSub(subscription=known_args.pubsub_subscription)
-      | 'DecodeText' >> beam.Map(lambda x: x.decode('utf-8'))
+      input
       | 'Tokenize' >> beam.Map(lambda text: tokenize_text(text, tokenizer))
-      | 'WindowedOutput' >> beam.WindowInto(
-          beam.window.FixedWindows(60),
-          trigger=beam.trigger.AfterProcessingTime(30),
-          accumulation_mode=beam.trigger.AccumulationMode.DISCARDING)
       | 'RunInference' >> RunInference(KeyedModelHandler(model_handler))
       | 'PostProcess' >> beam.ParDo(SentimentPostProcessor(tokenizer))
       | 'WriteToBigQuery' >> beam.io.WriteToBigQuery(
@@ -204,7 +273,7 @@ def run(
           schema='text:STRING, sentiment:STRING, confidence:FLOAT',
           write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
           create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-          method=beam.io.WriteToBigQuery.Method.STREAMING_INSERTS))
+          method=method))
 
   result = pipeline.run()
   result.wait_until_finish(duration=1800000)  # 30 min

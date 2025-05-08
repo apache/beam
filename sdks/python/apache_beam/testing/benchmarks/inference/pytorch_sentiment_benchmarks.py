@@ -18,7 +18,7 @@
 
 import logging
 
-from apache_beam.examples.inference import pytorch_sentiment_streaming
+from apache_beam.examples.inference import pytorch_sentiment
 from apache_beam.testing.load_tests.dataflow_cost_benchmark import DataflowCostBenchmark
 
 
@@ -32,7 +32,7 @@ class PytorchSentimentBenchmarkTest(DataflowCostBenchmark):
   def test(self):
     extra_opts = {}
     extra_opts['input'] = self.pipeline.get_option('input_file')
-    self.result = pytorch_sentiment_streaming.run(
+    self.result = pytorch_sentiment.run(
         self.pipeline.get_full_options_as_args(**extra_opts),
         test_pipeline=self.pipeline)
 

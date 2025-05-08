@@ -45,10 +45,11 @@ See the following pages for performance measures recorded when running various B
 
 ## Streaming
 
-- [PyTorch Sentiment Analysis DistilBERT base](/performance/pytorchbertsentiment)
+- [PyTorch Sentiment Analysis Streaming DistilBERT base](/performance/pytorchbertsentimentstreaming)
 
 ## Batch
 
+- [PyTorch Sentiment Analysis Batch DistilBERT base](/performance/pytorchbertsentimentbatch)
 - [PyTorch Language Modeling BERT base](/performance/pytorchbertbase)
 - [PyTorch Language Modeling BERT large](/performance/pytorchbertlarge)
 - [PyTorch Vision Classification Resnet 101](/performance/pytorchresnet101)
