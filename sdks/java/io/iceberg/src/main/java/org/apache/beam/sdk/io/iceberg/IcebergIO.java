@@ -31,7 +31,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
@@ -82,117 +81,8 @@ import org.joda.time.Duration;
  *
  * <h2>Configuration Options</h2>
  *
- * <table border="1" cellspacing="2">
- *   <tr>
- *     <td> <b>Parameter</b> </td> <td> <b>Type</b> </td> <td> <b>Description</b> </td>
- *   </tr>
- *   <tr>
- *     <td> {@code table} </td> <td> {@code str} </td> <td> Required. A fully-qualified table identifier. You may also provide a
- *     template to use dynamic destinations (see the `Dynamic Destinations` section below for details). </td>
- *   </tr>
- *   <tr>
- *     <td> {@code catalog_name} </td> <td> {@code str} </td> <td> The name of the catalog. Defaults to {@code apache-beam-<VERSION>}. </td>
- *   </tr>
- *   <tr>
- *     <td> {@code catalog_properties} </td> <td> {@code map<str, str>} </td> <td> A map of properties to be used when
- *     constructing the Iceberg catalog. Required properties will depend on what catalog you are using, but
- *     <a href="https://iceberg.apache.org/docs/latest/configuration/#catalog-properties">this list</a>
- *     is a good starting point. </td>
- *   </tr>
- *   <tr>
- *     <td> {@code config_properties} </td> <td> {@code map<str, str>} </td> <td> A map of properties
- *     to instantiate the catalog's Hadoop {@link Configuration}. Required properties will depend on your catalog
- *     implementation, but <a href="https://iceberg.apache.org/docs/latest/configuration/#hadoop-configuration">this list</a>
- *     is a good starting point.
- *   </tr>
- * </table>
- *
- * <h3>Sink-only Options</h3>
- *
- * <table border="1" cellspacing="1">
- *   <tr>
- *     <td> <b>Parameter</b> </td> <td> <b>Type</b> </td> <td> <b>Description</b> </td>
- *   </tr>
- *   <tr>
- *     <td> {@code triggering_frequency_seconds} </td>
- *     <td> {@code int} </td>
- *     <td>Required for streaming writes. Roughly every
- *       {@code triggering_frequency_seconds} duration, the sink will write records to data files and produce a table snapshot.
- *       Generally, a higher value will produce fewer, larger data files.
- *     </td>
- *   </tr>
- *   <tr>
- *       <td>{@code drop}</td> <td>{@code list<str>}</td> <td>A list of fields to drop before writing to table(s).</td>
- *   </tr>
- *   <tr>
- *       <td>{@code keep}</td> <td>{@code list<str>}</td> <td>A list of fields to keep, dropping the rest before writing to table(s).</td>
- *   </tr>
- *   <tr>
- *       <td>{@code only}</td> <td>{@code str}</td> <td>A nested record field that should be the only thing written to table(s).</td>
- *   </tr>
- * </table>
- *
- * <h3>Source-only Options</h3>
- *
- * <h4>ICEBERG_CDC Source options</h4>
- *
- * <table border="1" cellspacing="1">
- *   <tr>
- *     <td> <b>Parameter</b> </td> <td> <b>Type</b> </td> <td> <b>Description</b> </td>
- *   </tr>
- *   <tr>
- *     <td> {@code streaming} </td>
- *     <td> {@code boolean} </td>
- *     <td>
- *       Enables streaming reads. The source will continuously poll for snapshots forever.
- *     </td>
- *   </tr>
- *   <tr>
- *     <td> {@code poll_interval_seconds} </td>
- *     <td> {@code int} </td>
- *     <td>
- *       The interval at which to scan the table for new snapshots. Defaults to 60 seconds. Only applicable for streaming reads.
- *     </td>
- *   </tr>
- *   <tr>
- *     <td> {@code from_snapshot} </td>
- *     <td> {@code long} </td>
- *     <td> Starts reading from this snapshot ID (inclusive).
- *     </td>
- *   </tr>
- *   <tr>
- *     <td> {@code to_snapshot} </td>
- *     <td> {@code long} </td>
- *     <td> Reads up to this snapshot ID (inclusive). By default, batch reads will read up to the latest snapshot (inclusive),
- *     while streaming reads will continue polling for new snapshots forever.
- *     </td>
- *   </tr>
- *   <tr>
- *     <td> {@code from_timestamp} </td>
- *     <td> {@code long} </td>
- *     <td> Starts reading from the earliest snapshot (inclusive) created after this timestamp (in milliseconds).
- *     </td>
- *   </tr>
- *   <tr>
- *     <td> {@code to_timestamp} </td>
- *     <td> {@code long} </td>
- *     <td> Reads up to the latest snapshot (inclusive) created before this timestamp (in milliseconds). By default, batch reads will read up to the latest snapshot (inclusive),
- *       while streaming reads will continue polling for new snapshots forever.
- *     </td>
- *   </tr>
- *   <tr>
- *     <td> {@code starting_strategy} </td>
- *     <td> {@code str} </td>
- *     <td>
- *       The source's starting strategy. Valid options are:
- *       <ul>
- *           <li>{@code earliest}: starts reading from the earliest snapshot</li>
- *           <li>{@code latest}: starts reading from the latest snapshot</li>
- *       </ul>
- *       <p>Defaults to {@code earliest} for batch, and {@code latest} for streaming.
- *     </td>
- *   </tr>
- * </table>
+ * Please check the <a href="https://beam.apache.org/documentation/io/managed-io/">Managed IO
+ * configuration page</a>
  *
  * <h3>Beam Rows</h3>
  *
