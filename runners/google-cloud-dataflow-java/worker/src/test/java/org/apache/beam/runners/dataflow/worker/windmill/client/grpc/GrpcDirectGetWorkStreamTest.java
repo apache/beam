@@ -42,7 +42,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillConnection;
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
-import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemScheduler;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
@@ -134,7 +133,6 @@ public class GrpcDirectGetWorkStreamTest {
   private GrpcDirectGetWorkStream createGetWorkStream(
       GetWorkStreamTestStub testStub,
       GetWorkBudget initialGetWorkBudget,
-      ThrottleTimer throttleTimer,
       WorkItemScheduler workItemScheduler) {
     serviceRegistry.addService(testStub);
     GrpcDirectGetWorkStream getWorkStream =
@@ -154,7 +152,6 @@ public class GrpcDirectGetWorkStreamTest {
                         .setMaxItems(initialGetWorkBudget.items())
                         .setMaxBytes(initialGetWorkBudget.bytes())
                         .build(),
-                    throttleTimer,
                     mock(HeartbeatSender.class),
                     mock(GetDataClient.class),
                     mock(WorkCommitter.class),
@@ -194,7 +191,7 @@ public class GrpcDirectGetWorkStreamTest {
     GetWorkStreamTestStub testStub = new GetWorkStreamTestStub(requestObserver);
     stream =
         createGetWorkStream(
-            testStub, GetWorkBudget.noBudget(), new ThrottleTimer(), NO_OP_WORK_ITEM_SCHEDULER);
+            testStub, GetWorkBudget.noBudget(), NO_OP_WORK_ITEM_SCHEDULER);
     GetWorkBudget newBudget = GetWorkBudget.builder().setItems(10).setBytes(10).build();
     stream.setBudget(newBudget);
 
@@ -217,7 +214,7 @@ public class GrpcDirectGetWorkStreamTest {
     GetWorkBudget initialBudget = GetWorkBudget.builder().setItems(10).setBytes(10).build();
     stream =
         createGetWorkStream(
-            testStub, initialBudget, new ThrottleTimer(), NO_OP_WORK_ITEM_SCHEDULER);
+            testStub, initialBudget, NO_OP_WORK_ITEM_SCHEDULER);
     GetWorkBudget newBudget = GetWorkBudget.builder().setItems(100).setBytes(100).build();
     stream.setBudget(newBudget);
     GetWorkBudget diff = newBudget.subtract(initialBudget);
@@ -242,7 +239,7 @@ public class GrpcDirectGetWorkStreamTest {
         GetWorkBudget.builder().setItems(Long.MAX_VALUE).setBytes(Long.MAX_VALUE).build();
     stream =
         createGetWorkStream(
-            testStub, initialBudget, new ThrottleTimer(), NO_OP_WORK_ITEM_SCHEDULER);
+            testStub, initialBudget, NO_OP_WORK_ITEM_SCHEDULER);
     stream.setBudget(GetWorkBudget.builder().setItems(10).setBytes(10).build());
 
     assertTrue(waitForRequests.await(5, TimeUnit.SECONDS));
@@ -261,7 +258,7 @@ public class GrpcDirectGetWorkStreamTest {
     GetWorkStreamTestStub testStub = new GetWorkStreamTestStub(requestObserver);
     stream =
         createGetWorkStream(
-            testStub, GetWorkBudget.noBudget(), new ThrottleTimer(), NO_OP_WORK_ITEM_SCHEDULER);
+            testStub, GetWorkBudget.noBudget(), NO_OP_WORK_ITEM_SCHEDULER);
     stream.shutdown();
     stream.setBudget(
         GetWorkBudget.builder().setItems(Long.MAX_VALUE).setBytes(Long.MAX_VALUE).build());
@@ -286,7 +283,6 @@ public class GrpcDirectGetWorkStreamTest {
         createGetWorkStream(
             testStub,
             initialBudget,
-            new ThrottleTimer(),
             (work,
                 serializedWorkItemSize,
                 watermarks,
@@ -335,7 +331,6 @@ public class GrpcDirectGetWorkStreamTest {
         createGetWorkStream(
             testStub,
             initialBudget,
-            new ThrottleTimer(),
             (work, serializedWorkItemSize, watermarks, processingContext, getWorkStreamLatencies) ->
                 scheduledWorkItems.add(work));
     Windmill.WorkItem workItem =
@@ -370,7 +365,6 @@ public class GrpcDirectGetWorkStreamTest {
         createGetWorkStream(
             testStub,
             initialBudget,
-            new ThrottleTimer(),
             (work,
                 serializedWorkItemSize,
                 watermarks,
@@ -412,7 +406,6 @@ public class GrpcDirectGetWorkStreamTest {
         createGetWorkStream(
             testStub,
             initialBudget,
-            new ThrottleTimer(),
             (work,
                 serializedWorkItemSize,
                 watermarks,
@@ -462,21 +455,6 @@ public class GrpcDirectGetWorkStreamTest {
     assertTrue(waitForRequests.await(5, TimeUnit.SECONDS));
 
     assertThat(scheduledWorkItems).containsExactly(workItem1, workItem2, workItem3);
-  }
-
-  @Test
-  public void testOnResponse_stopsThrottling() {
-    ThrottleTimer throttleTimer = new ThrottleTimer();
-    TestGetWorkRequestObserver requestObserver =
-        new TestGetWorkRequestObserver(new CountDownLatch(1));
-    GetWorkStreamTestStub testStub = new GetWorkStreamTestStub(requestObserver);
-    stream =
-        createGetWorkStream(
-            testStub, GetWorkBudget.noBudget(), throttleTimer, NO_OP_WORK_ITEM_SCHEDULER);
-    stream.startThrottleTimer();
-    assertTrue(throttleTimer.throttled());
-    testStub.injectResponse(Windmill.StreamingGetWorkResponseChunk.getDefaultInstance());
-    assertFalse(throttleTimer.throttled());
   }
 
   private static class GetWorkStreamTestStub
