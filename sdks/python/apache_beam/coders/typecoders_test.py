@@ -148,12 +148,11 @@ class TypeCodersTest(unittest.TestCase):
     self.assertEqual(expected_coder, real_coder)
     for i in range(10):
       pane_info = windowed_value.PaneInfo(
-          is_first=i==0,
-          is_last=i==9,
+          is_first=i == 0,
+          is_last=i == 9,
           timing=windowed_value.PaneInfoTiming.EARLY,  # 0
           index=i,
-          nonspeculative_index=-1
-      )
+          nonspeculative_index=-1)
 
       encoded = real_coder.encode(pane_info)
 
