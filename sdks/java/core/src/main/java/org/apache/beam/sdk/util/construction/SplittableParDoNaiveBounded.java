@@ -46,7 +46,9 @@ import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.OutputBuilder;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -524,22 +526,15 @@ public class SplittableParDoNaiveBounded {
       public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
         return new OutputReceiver<OutputT>() {
           @Override
-          public void output(OutputT output) {
-            outerContext.output(output);
-          }
-
-          @Override
-          public void outputWithTimestamp(OutputT output, Instant timestamp) {
-            outerContext.outputWithTimestamp(output, timestamp);
-          }
-
-          @Override
-          public void outputWindowedValue(
-              OutputT output,
-              Instant timestamp,
-              Collection<? extends BoundedWindow> windows,
-              PaneInfo paneInfo) {
-            outerContext.outputWindowedValue(output, timestamp, windows, paneInfo);
+          public OutputBuilder<OutputT> builder(OutputT value) {
+            return WindowedValues.<OutputT>builder(
+                    outputBuilder ->
+                        outerContext.outputWindowedValue(
+                            outputBuilder.getValue(),
+                            outputBuilder.getTimestamp(),
+                            outputBuilder.getWindows(),
+                            outputBuilder.getPane()))
+                .setValue(value);
           }
         };
       }
@@ -551,22 +546,16 @@ public class SplittableParDoNaiveBounded {
           public <T> OutputReceiver<T> get(TupleTag<T> tag) {
             return new OutputReceiver<T>() {
               @Override
-              public void output(T output) {
-                outerContext.output(tag, output);
-              }
-
-              @Override
-              public void outputWithTimestamp(T output, Instant timestamp) {
-                outerContext.outputWithTimestamp(tag, output, timestamp);
-              }
-
-              @Override
-              public void outputWindowedValue(
-                  T output,
-                  Instant timestamp,
-                  Collection<? extends BoundedWindow> windows,
-                  PaneInfo paneInfo) {
-                outerContext.outputWindowedValue(tag, output, timestamp, windows, paneInfo);
+              public OutputBuilder<T> builder(T value) {
+                return WindowedValues.<T>builder(
+                        outputBuilder ->
+                            outerContext.outputWindowedValue(
+                                tag,
+                                outputBuilder.getValue(),
+                                outputBuilder.getTimestamp(),
+                                outputBuilder.getWindows(),
+                                outputBuilder.getPane()))
+                    .setValue(value);
               }
             };
           }
