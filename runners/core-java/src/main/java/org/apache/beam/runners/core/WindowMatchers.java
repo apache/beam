@@ -104,6 +104,15 @@ public class WindowMatchers {
   }
 
   public static <T> Matcher<WindowedValue<? extends T>> isSingleWindowedValue(
+      T value, BoundedWindow window) {
+    return WindowMatchers.isSingleWindowedValue(
+        Matchers.equalTo(value),
+        Matchers.anything(),
+        Matchers.equalTo(window),
+        Matchers.anything());
+  }
+
+  public static <T> Matcher<WindowedValue<? extends T>> isSingleWindowedValue(
       Matcher<T> valueMatcher, long timestamp, long windowStart, long windowEnd) {
     IntervalWindow intervalWindow =
         new IntervalWindow(new Instant(windowStart), new Instant(windowEnd));
@@ -168,6 +177,10 @@ public class WindowMatchers {
         mismatchDescription.appendValue(item.getPaneInfo());
       }
     };
+  }
+
+  public static <T> Matcher<WindowedValue<? extends T>> isValueInGlobalWindow(T value) {
+    return isSingleWindowedValue(value, GlobalWindow.INSTANCE);
   }
 
   public static <T> Matcher<WindowedValue<? extends T>> isValueInGlobalWindow(

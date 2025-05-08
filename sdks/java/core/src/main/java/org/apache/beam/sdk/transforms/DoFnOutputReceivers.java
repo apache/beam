@@ -21,117 +21,146 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
-import java.util.Collection;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.OutputBuilderSupplier;
+import org.apache.beam.sdk.util.WindowedValueReceiver;
+import org.apache.beam.sdk.values.OutputBuilder;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.Instant;
 
 /** Common {@link OutputReceiver} and {@link MultiOutputReceiver} classes. */
 @Internal
 public class DoFnOutputReceivers {
+
   private static class RowOutputReceiver<T> implements OutputReceiver<Row> {
-    WindowedContextOutputReceiver<T> outputReceiver;
+    private final @Nullable TupleTag<T> tag;
+    private final DoFn<?, ?>.WindowedContext context;
+    private final OutputBuilderSupplier builderSupplier;
     SchemaCoder<T> schemaCoder;
 
-    public RowOutputReceiver(
+    private RowOutputReceiver(
         DoFn<?, ?>.WindowedContext context,
+        OutputBuilderSupplier builderSupplier,
         @Nullable TupleTag<T> outputTag,
         SchemaCoder<T> schemaCoder) {
-      outputReceiver = new WindowedContextOutputReceiver<>(context, outputTag);
-      this.schemaCoder = checkNotNull(schemaCoder);
+      this.context = context;
+      this.builderSupplier = builderSupplier;
+      this.tag = outputTag;
+      this.schemaCoder = schemaCoder;
     }
 
     @Override
-    public void output(Row output) {
-      outputReceiver.output(schemaCoder.getFromRowFunction().apply(output));
-    }
+    public OutputBuilder<Row> builder(Row value) {
+      // assigning to final variable allows static analysis to know it
+      // will not change between now and when receiver is invoked
+      final TupleTag<T> tag = this.tag;
+      if (tag == null) {
+        return builderSupplier
+            .builder(value)
+            .setValue(value)
+            .setReceiver(
+                rowWithMetadata -> {
+                  ((DoFn<?, T>.WindowedContext) context)
+                      .outputWindowedValue(
+                          schemaCoder.getFromRowFunction().apply(rowWithMetadata.getValue()),
+                          rowWithMetadata.getTimestamp(),
+                          rowWithMetadata.getWindows(),
+                          rowWithMetadata.getPaneInfo());
+                });
 
-    @Override
-    public void outputWithTimestamp(Row output, Instant timestamp) {
-      outputReceiver.outputWithTimestamp(schemaCoder.getFromRowFunction().apply(output), timestamp);
-    }
-
-    @Override
-    public void outputWindowedValue(
-        Row output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo paneInfo) {
-      outputReceiver.outputWindowedValue(
-          schemaCoder.getFromRowFunction().apply(output), timestamp, windows, paneInfo);
+      } else {
+        checkStateNotNull(tag);
+        return builderSupplier
+            .builder(value)
+            .setReceiver(
+                rowWithMetadata -> {
+                  context.outputWindowedValue(
+                      tag,
+                      schemaCoder.getFromRowFunction().apply(rowWithMetadata.getValue()),
+                      rowWithMetadata.getTimestamp(),
+                      rowWithMetadata.getWindows(),
+                      rowWithMetadata.getPaneInfo());
+                });
+      }
     }
   }
 
-  private static class WindowedContextOutputReceiver<T> implements OutputReceiver<T> {
+  /**
+   * OutputReceiver that delegates all its core functionality to DoFn.WindowedContext which predates
+   * OutputReceiver and has most of the same methods.
+   */
+  private static class WindowedContextOutputReceiver<T>
+      implements OutputReceiver<T>, WindowedValueReceiver<T> {
+    private final OutputBuilderSupplier builderSupplier;
     DoFn<?, ?>.WindowedContext context;
     @Nullable TupleTag<T> outputTag;
 
     public WindowedContextOutputReceiver(
-        DoFn<?, ?>.WindowedContext context, @Nullable TupleTag<T> outputTag) {
+        DoFn<?, ?>.WindowedContext context,
+        OutputBuilderSupplier builderSupplier,
+        @Nullable TupleTag<T> outputTag) {
       this.context = context;
+      this.builderSupplier = builderSupplier;
       this.outputTag = outputTag;
     }
 
     @Override
-    public void output(T output) {
-      if (outputTag != null) {
-        context.output(outputTag, output);
-      } else {
-        ((DoFn<?, T>.WindowedContext) context).output(output);
-      }
+    public OutputBuilder<T> builder(T value) {
+      return WindowedValues.builder(builderSupplier.builder(value)).setReceiver(this);
     }
 
     @Override
-    public void outputWithTimestamp(T output, Instant timestamp) {
+    public void output(WindowedValue<T> windowedValue) {
       if (outputTag != null) {
-        context.outputWithTimestamp(outputTag, output, timestamp);
-      } else {
-        ((DoFn<?, T>.WindowedContext) context).outputWithTimestamp(output, timestamp);
-      }
-    }
-
-    @Override
-    public void outputWindowedValue(
-        T output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo paneInfo) {
-      if (outputTag != null) {
-        context.outputWindowedValue(outputTag, output, timestamp, windows, paneInfo);
+        context.outputWindowedValue(
+            outputTag,
+            windowedValue.getValue(),
+            windowedValue.getTimestamp(),
+            windowedValue.getWindows(),
+            windowedValue.getPaneInfo());
       } else {
         ((DoFn<?, T>.WindowedContext) context)
-            .outputWindowedValue(output, timestamp, windows, paneInfo);
+            .outputWindowedValue(
+                windowedValue.getValue(),
+                windowedValue.getTimestamp(),
+                windowedValue.getWindows(),
+                windowedValue.getPaneInfo());
       }
     }
   }
 
   private static class WindowedContextMultiOutputReceiver implements MultiOutputReceiver {
-    DoFn<?, ?>.WindowedContext context;
+    private final OutputBuilderSupplier builderSupplier;
+    private final DoFn<?, ?>.WindowedContext context;
     @Nullable Map<TupleTag<?>, Coder<?>> outputCoders;
 
     public WindowedContextMultiOutputReceiver(
-        DoFn<?, ?>.WindowedContext context, @Nullable Map<TupleTag<?>, Coder<?>> outputCoders) {
+        DoFn<?, ?>.WindowedContext context,
+        OutputBuilderSupplier builderSupplier,
+        @Nullable Map<TupleTag<?>, Coder<?>> outputCoders) {
       this.context = context;
+      this.builderSupplier = builderSupplier;
       this.outputCoders = outputCoders;
     }
 
     // This exists for backwards compatibility with the Dataflow runner, and will be removed.
-    public WindowedContextMultiOutputReceiver(DoFn<?, ?>.WindowedContext context) {
+    public WindowedContextMultiOutputReceiver(
+        DoFn<?, ?>.WindowedContext context, OutputBuilderSupplier builderSupplier) {
       this.context = context;
+      this.builderSupplier = builderSupplier;
     }
 
     @Override
     public <T> OutputReceiver<T> get(TupleTag<T> tag) {
-      return DoFnOutputReceivers.windowedReceiver(context, tag);
+      return DoFnOutputReceivers.windowedReceiver(context, builderSupplier, tag);
     }
 
     @Override
@@ -141,20 +170,25 @@ public class DoFnOutputReceivers {
       checkState(
           outputCoder instanceof SchemaCoder,
           "Output with tag " + tag + " must have a schema in order to call getRowReceiver");
-      return DoFnOutputReceivers.rowReceiver(context, tag, (SchemaCoder<T>) outputCoder);
+      return DoFnOutputReceivers.rowReceiver(
+          context, builderSupplier, tag, (SchemaCoder<T>) outputCoder);
     }
   }
 
   /** Returns a {@link OutputReceiver} that delegates to a {@link DoFn.WindowedContext}. */
   public static <T> OutputReceiver<T> windowedReceiver(
-      DoFn<?, ?>.WindowedContext context, @Nullable TupleTag<T> outputTag) {
-    return new WindowedContextOutputReceiver<>(context, outputTag);
+      DoFn<?, ?>.WindowedContext context,
+      OutputBuilderSupplier builderSupplier,
+      @Nullable TupleTag<T> outputTag) {
+    return new WindowedContextOutputReceiver<>(context, builderSupplier, outputTag);
   }
 
   /** Returns a {@link MultiOutputReceiver} that delegates to a {@link DoFn.WindowedContext}. */
   public static MultiOutputReceiver windowedMultiReceiver(
-      DoFn<?, ?>.WindowedContext context, @Nullable Map<TupleTag<?>, Coder<?>> outputCoders) {
-    return new WindowedContextMultiOutputReceiver(context, outputCoders);
+      DoFn<?, ?>.WindowedContext context,
+      OutputBuilderSupplier builderSupplier,
+      @Nullable Map<TupleTag<?>, Coder<?>> outputCoders) {
+    return new WindowedContextMultiOutputReceiver(context, builderSupplier, outputCoders);
   }
 
   /**
@@ -162,8 +196,9 @@ public class DoFnOutputReceivers {
    *
    * <p>This exists for backwards-compatibility with the Dataflow runner, and will be removed.
    */
-  public static MultiOutputReceiver windowedMultiReceiver(DoFn<?, ?>.WindowedContext context) {
-    return new WindowedContextMultiOutputReceiver(context);
+  public static MultiOutputReceiver windowedMultiReceiver(
+      DoFn<?, ?>.WindowedContext context, OutputBuilderSupplier builderSupplier) {
+    return new WindowedContextMultiOutputReceiver(context, builderSupplier);
   }
 
   /**
@@ -172,8 +207,9 @@ public class DoFnOutputReceivers {
    */
   public static <T> OutputReceiver<Row> rowReceiver(
       DoFn<?, ?>.WindowedContext context,
+      OutputBuilderSupplier builderSupplier,
       @Nullable TupleTag<T> outputTag,
       SchemaCoder<T> schemaCoder) {
-    return new RowOutputReceiver<>(context, outputTag, schemaCoder);
+    return new RowOutputReceiver<>(context, builderSupplier, outputTag, schemaCoder);
   }
 }

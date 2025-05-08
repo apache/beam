@@ -19,11 +19,19 @@ package org.apache.beam.sdk.util;
 
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 
-/** An encapsulated method of output that can output a value with all of its metadata. */
+/** Implementations of {@link OutputBuilderSupplier}. */
 @Internal
-@FunctionalInterface
-public interface WindowedValueReceiver<OutputT> {
-  /** Outputs a value with windowing information. */
-  void output(WindowedValue<OutputT> output) throws Exception;
+public class OutputBuilderSuppliers {
+  private OutputBuilderSuppliers() {}
+
+  public static OutputBuilderSupplier supplierForElement(WindowedValue<?> templateValue) {
+    return new OutputBuilderSupplier() {
+      @Override
+      public <T> WindowedValues.Builder<T> builder(T value) {
+        return WindowedValues.builder(templateValue).withValue(value);
+      }
+    };
+  }
 }
