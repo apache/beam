@@ -35,7 +35,7 @@ manual updates or user intervention required!)
 ## Supported SDKs
 
 The Managed API is directly accessible through the
-[Java](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.managed.html)
+[Java](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/managed/Managed.html)
 and
 [Python](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.managed.html)
 SDKs.
