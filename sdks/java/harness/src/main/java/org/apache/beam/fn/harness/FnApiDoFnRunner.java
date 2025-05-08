@@ -33,22 +33,17 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableSet;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import org.apache.beam.fn.harness.control.BundleProgressReporter;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
-import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.FnApiStateAccessor;
 import org.apache.beam.fn.harness.state.FnApiTimerBundleTracker;
 import org.apache.beam.fn.harness.state.FnApiTimerBundleTracker.Modifications;
 import org.apache.beam.fn.harness.state.FnApiTimerBundleTracker.TimerInfo;
-import org.apache.beam.fn.harness.state.SideInputSpec;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleApplication;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.DelayedBundleApplication;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -106,7 +101,6 @@ import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
-import org.apache.beam.sdk.util.construction.PCollectionViewTranslation;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.ParDoTranslation;
 import org.apache.beam.sdk.util.construction.RehydratedComponents;
@@ -140,7 +134,8 @@ import org.joda.time.format.PeriodFormat;
 @SuppressWarnings({
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
-public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimatorStateT, OutputT> {
+public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimatorStateT, OutputT>
+    implements FnApiStateAccessor.MutatingStateContext<Object, BoundedWindow> {
   /** A registrar which provides a factory to handle Java {@link DoFn}s. */
   @AutoService(PTransformRunnerFactory.Registrar.class)
   public static class Registrar implements PTransformRunnerFactory.Registrar {
@@ -161,20 +156,14 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       implements PTransformRunnerFactory {
 
     @Override
-    public final void addRunnerForPTransform(Context context) {
+    public final void addRunnerForPTransform(Context context) throws IOException {
 
       FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimatorStateT, OutputT> runner =
           new FnApiDoFnRunner<>(
               context.getPipelineOptions(),
-              context.getRunnerCapabilities(),
               context.getShortIdMap(),
-              context.getBeamFnStateClient(),
               context.getPTransformId(),
               context.getPTransform(),
-              context.getProcessBundleInstructionIdSupplier(),
-              context.getCacheTokensSupplier(),
-              context.getBundleCacheSupplier(),
-              context.getProcessWideCache(),
               context.getComponents(),
               context::addStartBundleFunction,
               context::addFinishBundleFunction,
@@ -185,7 +174,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               context::addOutgoingTimersEndpoint,
               context::addBundleProgressReporter,
               context.getSplitListener(),
-              context.getBundleFinalizer());
+              context.getBundleFinalizer(),
+              FnApiStateAccessor.Factory.factoryForPTransformContext(context));
 
       for (Map.Entry<String, KV<TimeDomain, Coder<Timer<Object>>>> entry :
           runner.timerFamilyInfos.entrySet()) {
@@ -208,17 +198,13 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private final PipelineOptions pipelineOptions;
   private final String pTransformId;
   private final PTransform pTransform;
-  private final RehydratedComponents rehydratedComponents;
   private final DoFn<InputT, OutputT> doFn;
   private final DoFnSignature doFnSignature;
   private final TupleTag<OutputT> mainOutputTag;
   private final Coder<?> inputCoder;
 
-  private final Coder<?> keyCoder;
   private final SchemaCoder<OutputT> mainOutputSchemaCoder;
   private final Coder<? extends BoundedWindow> windowCoder;
-  private final WindowingStrategy<InputT, ?> windowingStrategy;
-  private final Map<TupleTag<?>, SideInputSpec> tagToSideInputSpecMap;
   private final Map<TupleTag<?>, Coder<?>> outputCoders;
   private final Map<String, KV<TimeDomain, Coder<Timer<Object>>>> timerFamilyInfos;
   private final ParDoPayload parDoPayload;
@@ -337,15 +323,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
   FnApiDoFnRunner(
       PipelineOptions pipelineOptions,
-      Set<String> runnerCapabilities,
       ShortIdMap shortIds,
-      BeamFnStateClient beamFnStateClient,
       String pTransformId,
       PTransform pTransform,
-      Supplier<String> processBundleInstructionId,
-      Supplier<List<BeamFnApi.ProcessBundleRequest.CacheToken>> cacheTokens,
-      Supplier<Cache<?, ?>> bundleCache,
-      Cache<?, ?> processWideCache,
       RunnerApi.Components components,
       Consumer<ThrowingRunnable> addStartFunction,
       Consumer<ThrowingRunnable> addFinishFunction,
@@ -357,14 +337,14 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           getOutgoingTimersConsumer,
       Consumer<BundleProgressReporter> addBundleProgressReporter,
       BundleSplitListener splitListener,
-      BundleFinalizer bundleFinalizer) {
+      BundleFinalizer bundleFinalizer,
+      FnApiStateAccessor.Factory<Object> stateAccessorFactory) {
     this.pipelineOptions = pipelineOptions;
     this.pTransformId = pTransformId;
     this.pTransform = pTransform;
-    ImmutableMap.Builder<TupleTag<?>, SideInputSpec> tagToSideInputSpecMapBuilder =
-        ImmutableMap.builder();
+    Coder<?> keyCoder;
     try {
-      rehydratedComponents =
+      RehydratedComponents rehydratedComponents =
           RehydratedComponents.forComponents(components).withPipeline(Pipeline.create());
       parDoPayload = ParDoPayload.parseFrom(pTransform.getSpec().getPayload());
       doFn = (DoFn) ParDoTranslation.getDoFn(parDoPayload);
@@ -397,12 +377,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         inputCoder = maybeWindowedValueInputCoder;
       }
       if (inputCoder instanceof KvCoder) {
-        this.keyCoder = ((KvCoder) inputCoder).getKeyCoder();
+        keyCoder = ((KvCoder) inputCoder).getKeyCoder();
       } else {
-        this.keyCoder = null;
+        keyCoder = null;
       }
 
-      windowingStrategy =
+      WindowingStrategy<InputT, ?> windowingStrategy =
           (WindowingStrategy)
               rehydratedComponents.getWindowingStrategy(mainInput.getWindowingStrategyId());
       windowCoder = windowingStrategy.getWindowFn().windowCoder();
@@ -422,29 +402,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       mainOutputSchemaCoder =
           (outputCoder instanceof SchemaCoder) ? (SchemaCoder<OutputT>) outputCoder : null;
 
-      // Build the map from tag id to side input specification
-      for (Map.Entry<String, RunnerApi.SideInput> entry :
-          parDoPayload.getSideInputsMap().entrySet()) {
-        String sideInputTag = entry.getKey();
-        RunnerApi.SideInput sideInput = entry.getValue();
-        PCollection sideInputPCollection =
-            components.getPcollectionsMap().get(pTransform.getInputsOrThrow(sideInputTag));
-        WindowingStrategy sideInputWindowingStrategy =
-            rehydratedComponents.getWindowingStrategy(
-                sideInputPCollection.getWindowingStrategyId());
-        tagToSideInputSpecMapBuilder.put(
-            new TupleTag<>(entry.getKey()),
-            SideInputSpec.create(
-                sideInput.getAccessPattern().getUrn(),
-                rehydratedComponents.getCoder(sideInputPCollection.getCoderId()),
-                sideInputWindowingStrategy.getWindowFn().windowCoder(),
-                PCollectionViewTranslation.viewFnFromProto(entry.getValue().getViewFn()),
-                PCollectionViewTranslation.windowMappingFnFromProto(
-                    entry.getValue().getWindowMappingFn())));
-      }
-
       ImmutableMap.Builder<String, KV<TimeDomain, Coder<Timer<Object>>>> timerFamilyInfosBuilder =
           ImmutableMap.builder();
+
       // Extract out relevant TimerFamilySpec information in preparation for execution.
       for (Map.Entry<String, TimerFamilySpec> entry :
           parDoPayload.getTimerFamilySpecsMap().entrySet()) {
@@ -476,7 +436,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           entry.getKey(), getPCollectionConsumer.apply(entry.getValue()));
     }
     localNameToConsumer = localNameToConsumerBuilder.build();
-    tagToSideInputSpecMap = tagToSideInputSpecMapBuilder.build();
     this.splitListener = splitListener;
     this.bundleFinalizer = bundleFinalizer;
     this.onTimerContext = new OnTimerContext();
@@ -716,21 +675,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         // no-op
     }
 
-    this.stateAccessor =
-        new FnApiStateAccessor(
-            pipelineOptions,
-            runnerCapabilities,
-            pTransformId,
-            processBundleInstructionId,
-            cacheTokens,
-            bundleCache,
-            processWideCache,
-            tagToSideInputSpecMap,
-            beamFnStateClient,
-            keyCoder,
-            windowCoder,
-            this::getCurrentKey,
-            () -> currentWindow);
+    this.stateAccessor = stateAccessorFactory.create(this);
 
     // Register as a consumer for each timer.
     this.outboundTimerReceivers = new HashMap<>();
@@ -752,7 +697,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
   }
 
-  private Object getCurrentKey() {
+  @Override
+  public Object getCurrentKey() {
     if (currentKey != null) {
       return currentKey;
     }
@@ -767,6 +713,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       return currentTimer.getUserKey();
     }
     return null;
+  }
+
+  @Override
+  public BoundedWindow getCurrentWindow() {
+    return this.currentWindow;
   }
 
   private void startBundle() {
