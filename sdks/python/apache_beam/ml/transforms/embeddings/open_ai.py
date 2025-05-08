@@ -62,7 +62,6 @@ class _OpenAITextEmbeddingHandler(RemoteModelHandler):
   """
   Note: Intended for internal use and guarantees no backwards compatibility.
   """
-
   def __init__(
       self,
       model_name: str,
@@ -109,7 +108,7 @@ class _OpenAITextEmbeddingHandler(RemoteModelHandler):
         "input": batch,
     }
     if self.dimensions:
-      kwargs["dimensions"] = self.dimensions
+      kwargs["dimensions"] = [str(self.dimensions)]
     if self.user:
       kwargs["user"] = self.user
 
@@ -126,7 +125,6 @@ class _OpenAITextEmbeddingHandler(RemoteModelHandler):
 
 
 class OpenAITextEmbeddings(EmbeddingsManager):
-
   @beam.typehints.with_output_types(PCollection[Union[MLTransformOutputT, Row]])
   def __init__(
       self,
