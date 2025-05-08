@@ -65,7 +65,10 @@ import org.slf4j.LoggerFactory;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SplittableDoFnOperator<InputT, OutputT, RestrictionT>
-    extends DoFnOperator<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> {
+    extends DoFnOperator<
+        KeyedWorkItem<byte[], KV<InputT, RestrictionT>>,
+        KeyedWorkItem<byte[], KV<InputT, RestrictionT>>,
+        OutputT> {
 
   private static final Logger LOG = LoggerFactory.getLogger(SplittableDoFnOperator.class);
 

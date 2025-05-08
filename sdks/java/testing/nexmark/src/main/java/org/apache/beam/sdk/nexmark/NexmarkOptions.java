@@ -414,10 +414,7 @@ public interface NexmarkOptions
 
   void setRunningTimeMinutes(Long value);
 
-  @Description(
-      "Specify 'sql' to use Calcite SQL queries "
-          + "or 'zetasql' to use ZetaSQL queries."
-          + "Otherwise Java transforms will be used")
+  @Description("Specify 'sql' to use Calcite SQL queries. Otherwise Java transforms will be used")
   @Nullable
   String getQueryLanguage();
 

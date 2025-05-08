@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
 import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.runners.core.ElementByteSizeObservable;
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterBackedElementByteSizeObserver;
@@ -25,6 +26,7 @@ import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory.CounterMean;
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** An {@link ElementCounter} that counts output objects, bytes, and mean bytes. */
@@ -32,12 +34,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class OutputObjectAndByteCounter implements ElementCounter {
+
   // Might be null, e.g., undeclared outputs will not have an
   // elementByteSizeObservable.
   private final ElementByteSizeObservable<Object> elementByteSizeObservable;
   private final CounterFactory counterFactory;
-
-  private Random randomGenerator = new Random();
 
   // Lowest sampling probability: 0.001%.
   private static final int SAMPLING_TOKEN_UPPER_BOUND = 1000000;
@@ -163,12 +164,12 @@ public class OutputObjectAndByteCounter implements ElementCounter {
     // samplingCutoff / samplingTokenUpperBound. This algorithm may be refined
     // later.
     samplingToken = Math.min(samplingToken + 1, samplingTokenUpperBound);
-    return randomGenerator.nextInt(samplingToken) < SAMPLING_CUTOFF;
+    return getRandom().nextInt(samplingToken) < SAMPLING_CUTOFF;
   }
 
-  public OutputObjectAndByteCounter setRandom(Random random) {
-    this.randomGenerator = random;
-    return this;
+  @VisibleForTesting
+  protected Random getRandom() {
+    return ThreadLocalRandom.current();
   }
 
   private CounterName getCounterName(String name) {

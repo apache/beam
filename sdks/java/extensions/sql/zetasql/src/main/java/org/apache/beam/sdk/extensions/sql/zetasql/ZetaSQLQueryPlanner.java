@@ -89,6 +89,8 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
    * reflectively.
    */
   public ZetaSQLQueryPlanner(JdbcConnection jdbcConnection, Collection<RuleSet> ruleSets) {
+    LOG.warn(
+        "Beam ZetaSQL has been deprecated. See https://github.com/apache/beam/issues/34423 for details.");
     plannerImpl =
         new ZetaSQLPlannerImpl(
             defaultConfig(jdbcConnection, modifyRuleSetsForZetaSql(ruleSets, DEFAULT_CALC)));

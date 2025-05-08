@@ -28,6 +28,7 @@ import org.apache.beam.sdk.metrics.SinkMetrics;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter;
 import org.apache.beam.sdk.util.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
@@ -164,6 +165,11 @@ class KafkaWriter<K, V> extends DoFn<ProducerRecord<K, V>, Void> {
       this.producerConfig.put(
           ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, spec.getValueSerializer());
     }
+  }
+
+  @VisibleForTesting
+  WriteRecords<K, V> getSpec() {
+    return spec;
   }
 
   private synchronized void checkForFailures() throws IOException {

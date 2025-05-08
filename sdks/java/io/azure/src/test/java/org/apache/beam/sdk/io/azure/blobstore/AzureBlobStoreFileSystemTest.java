@@ -354,6 +354,6 @@ public class AzureBlobStoreFileSystemTest {
     AzfsResourceId path = AzfsResourceId.fromUri(uri);
     Lineage mockLineage = mock(Lineage.class);
     azureBlobStoreFileSystem.reportLineage(path, mockLineage);
-    verify(mockLineage, times(1)).add("abs", expected);
+    verify(mockLineage, times(1)).add("abs", expected, "/");
   }
 }

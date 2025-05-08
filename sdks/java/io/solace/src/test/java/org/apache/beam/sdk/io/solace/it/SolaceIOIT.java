@@ -108,6 +108,7 @@ public class SolaceIOIT {
                 .from(Queue.fromName(queueName))
                 .withDeduplicateRecords(true)
                 .withMaxNumConnections(1)
+                .withDeduplicateRecords(true)
                 .withSempClientFactory(
                     BasicAuthSempClientFactory.builder()
                         .host("http://localhost:" + solaceContainerManager.sempPortMapped)

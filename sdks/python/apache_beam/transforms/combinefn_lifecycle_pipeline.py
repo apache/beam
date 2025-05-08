@@ -18,8 +18,6 @@
 # pytype: skip-file
 
 import math
-from typing import Set
-from typing import Tuple
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import TypeOptions
@@ -36,7 +34,7 @@ from apache_beam.typehints import with_output_types
 @with_input_types(int)
 @with_output_types(int)
 class CallSequenceEnforcingCombineFn(beam.CombineFn):
-  instances: Set['CallSequenceEnforcingCombineFn'] = set()
+  instances: set['CallSequenceEnforcingCombineFn'] = set()
 
   def __init__(self):
     super().__init__()
@@ -81,8 +79,8 @@ class CallSequenceEnforcingCombineFn(beam.CombineFn):
     self._teardown_called = True
 
 
-@with_input_types(Tuple[None, str])
-@with_output_types(Tuple[int, str])
+@with_input_types(tuple[None, str])
+@with_output_types(tuple[int, str])
 class IndexAssigningDoFn(beam.DoFn):
   state_param = beam.DoFn.StateParam(
       userstate.CombiningValueStateSpec(

@@ -19,12 +19,11 @@
 
 import enum
 import sys
+from collections.abc import Callable
+from collections.abc import Iterable
+from collections.abc import Sequence
 from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import Iterable
 from typing import Optional
-from typing import Sequence
 from typing import Union
 
 import numpy
@@ -43,7 +42,7 @@ __all__ = [
 TensorInferenceFn = Callable[[
     tf.Module,
     Sequence[Union[numpy.ndarray, tf.Tensor]],
-    Dict[str, Any],
+    dict[str, Any],
     Optional[str]
 ],
                              Iterable[PredictionResult]]
@@ -79,7 +78,7 @@ def _load_model_from_weights(create_model_fn, weights_path):
 def default_numpy_inference_fn(
     model: tf.Module,
     batch: Sequence[numpy.ndarray],
-    inference_args: Dict[str, Any],
+    inference_args: dict[str, Any],
     model_id: Optional[str] = None) -> Iterable[PredictionResult]:
   vectorized_batch = numpy.stack(batch, axis=0)
   predictions = model(vectorized_batch, **inference_args)
@@ -89,7 +88,7 @@ def default_numpy_inference_fn(
 def default_tensor_inference_fn(
     model: tf.Module,
     batch: Sequence[tf.Tensor],
-    inference_args: Dict[str, Any],
+    inference_args: dict[str, Any],
     model_id: Optional[str] = None) -> Iterable[PredictionResult]:
   vectorized_batch = tf.stack(batch, axis=0)
   predictions = model(vectorized_batch, **inference_args)
@@ -105,7 +104,7 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
       model_type: ModelType = ModelType.SAVED_MODEL,
       create_model_fn: Optional[Callable] = None,
       *,
-      load_model_args: Optional[Dict[str, Any]] = None,
+      load_model_args: Optional[dict[str, Any]] = None,
       custom_weights: str = "",
       inference_fn: TensorInferenceFn = default_numpy_inference_fn,
       min_batch_size: Optional[int] = None,
@@ -183,7 +182,7 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
       self,
       batch: Sequence[numpy.ndarray],
       model: tf.Module,
-      inference_args: Optional[Dict[str, Any]] = None
+      inference_args: Optional[dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
     """
     Runs inferences on a batch of numpy array and returns an Iterable of
@@ -220,7 +219,7 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
     """
     return 'BeamML_TF_Numpy'
 
-  def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
+  def validate_inference_args(self, inference_args: Optional[dict[str, Any]]):
     pass
 
   def batch_elements_kwargs(self):
@@ -241,7 +240,7 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
       model_type: ModelType = ModelType.SAVED_MODEL,
       create_model_fn: Optional[Callable] = None,
       *,
-      load_model_args: Optional[Dict[str, Any]] = None,
+      load_model_args: Optional[dict[str, Any]] = None,
       custom_weights: str = "",
       inference_fn: TensorInferenceFn = default_tensor_inference_fn,
       min_batch_size: Optional[int] = None,
@@ -323,7 +322,7 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
       self,
       batch: Sequence[tf.Tensor],
       model: tf.Module,
-      inference_args: Optional[Dict[str, Any]] = None
+      inference_args: Optional[dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
     """
     Runs inferences on a batch of tf.Tensor and returns an Iterable of
@@ -361,7 +360,7 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
     """
     return 'BeamML_TF_Tensor'
 
-  def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
+  def validate_inference_args(self, inference_args: Optional[dict[str, Any]]):
     pass
 
   def batch_elements_kwargs(self):

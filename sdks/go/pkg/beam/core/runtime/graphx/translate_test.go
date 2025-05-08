@@ -296,22 +296,22 @@ func (fn *splitPickFn) ProcessElement(_ *testRT, a int, small, big func(int)) {
 }
 
 func TestCreateEnvironment(t *testing.T) {
-	t.Run("process", func(t *testing.T) {
-		const wantEnv = "process"
+	t.Run("processBadConfig", func(t *testing.T) {
 		urn := graphx.URNEnvProcess
-		got, err := graphx.CreateEnvironment(context.Background(), urn, func(_ context.Context) string { return wantEnv })
+		got, err := graphx.CreateEnvironment(context.Background(), urn, func(_ context.Context) string { return "not a real json" })
 		if err == nil {
-			t.Errorf("CreateEnvironment(%v) = %v error, want error since it's unsupported", urn, err)
+			t.Errorf("CreateEnvironment(%v) = %v error, want error since parsing should fail", urn, err)
 		}
 		want := (*pipepb.Environment)(nil)
 		if !proto.Equal(got, want) {
-			t.Errorf("CreateEnvironment(%v) = %v, want %v since it's unsupported", urn, got, want)
+			t.Errorf("CreateEnvironment(%v) = %v, want %v since creation should have failed", urn, got, want)
 		}
 	})
 	tests := []struct {
-		name    string
-		urn     string
-		payload func(name string) []byte
+		name           string
+		configOverride string
+		urn            string
+		payload        func(name string) []byte
 	}{
 		{
 			name: "external",
@@ -331,12 +331,25 @@ func TestCreateEnvironment(t *testing.T) {
 					ContainerImage: name,
 				})
 			},
+		}, {
+			name:           "process",
+			configOverride: "{ \"command\": \"process\" }",
+			urn:            graphx.URNEnvProcess,
+			payload: func(name string) []byte {
+				return protox.MustEncode(&pipepb.ProcessPayload{
+					Command: name,
+				})
+			},
 		},
 	}
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			got, err := graphx.CreateEnvironment(context.Background(), test.urn, func(_ context.Context) string { return test.name })
+			config := test.name
+			if test.configOverride != "" {
+				config = test.configOverride
+			}
+			got, err := graphx.CreateEnvironment(context.Background(), test.urn, func(_ context.Context) string { return config })
 			if err != nil {
 				t.Errorf("CreateEnvironment(%v) = %v error, want nil", test.urn, err)
 			}

@@ -128,6 +128,7 @@ html_theme = 'sphinx_rtd_theme'
 project = 'Apache Beam'
 version = beam_version.__version__
 release = version
+copyright = '%Y, Apache Beam'
 
 autoclass_content = 'both'
 autodoc_inherit_docstrings = False

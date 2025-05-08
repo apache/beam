@@ -39,18 +39,19 @@ echo "Copying already-fetched licenses from ${EXISTING_LICENSE_DIR} to ${DOWNLOA
 if [ -d "$DOWNLOAD_DIR" ]; then rm -rf "$DOWNLOAD_DIR" ; fi
 mkdir -p "$DOWNLOAD_DIR"
 cp -r "${EXISTING_LICENSE_DIR}"/*.jar "${DOWNLOAD_DIR}"
-
-$PYTHON -m venv --clear ${ENV_DIR} && . ${ENV_DIR}/bin/activate
-pip install --retries 10 --upgrade pip setuptools wheel
+python -m venv --clear ${ENV_DIR}  --without-pip --system-site-packages
+. ${ENV_DIR}/bin/activate
+python -m pip install --retries 10 --upgrade pip setuptools wheel
 
 # install packages
-pip install --retries 10 -r ${SCRIPT_DIR}/requirement.txt
+python -m pip install --retries 10 -r ${SCRIPT_DIR}/requirement.txt
 
 # pull licenses, notices and source code
 FLAGS="--license_index=${INDEX_FILE} \
        --output_dir=${DOWNLOAD_DIR} \
        --dep_url_yaml=${SCRIPT_DIR}/dep_urls_java.yaml \
-       --manual_license_path=${SCRIPT_DIR}/manual_licenses"
+       --manual_license_path=${SCRIPT_DIR}/manual_licenses \
+       --use_license_cache"
 
 echo "Executing python ${SCRIPT_DIR}/pull_licenses_java.py $FLAGS"
 python "${SCRIPT_DIR}/pull_licenses_java.py" $FLAGS

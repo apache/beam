@@ -22,17 +22,26 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import com.solacesystems.jcsmp.BytesXMLMessage;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.Queue;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.io.solace.broker.SempClient;
 import org.apache.beam.sdk.io.solace.broker.SessionService;
+import org.apache.beam.sdk.io.solace.broker.SessionServiceFactory;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalNotification;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -46,48 +55,92 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
   private final UnboundedSolaceSource<T> currentSource;
   private final WatermarkPolicy<T> watermarkPolicy;
   private final SempClient sempClient;
+  private final UUID readerUuid;
+  private final SessionServiceFactory sessionServiceFactory;
   private @Nullable BytesXMLMessage solaceOriginalRecord;
   private @Nullable T solaceMappedRecord;
-  private @Nullable SessionService sessionService;
-  AtomicBoolean active = new AtomicBoolean(true);
 
   /**
-   * Queue to place advanced messages before {@link #getCheckpointMark()} be called non-concurrent
-   * queue, should only be accessed by the reader thread A given {@link UnboundedReader} object will
-   * only be accessed by a single thread at once.
+   * Queue to place advanced messages before {@link #getCheckpointMark()} is called. CAUTION:
+   * Accessed by both reader and checkpointing threads.
    */
-  private final java.util.Queue<BytesXMLMessage> elementsToCheckpoint = new ArrayDeque<>();
+  private final Queue<BytesXMLMessage> safeToAckMessages = new ConcurrentLinkedQueue<>();
+
+  /**
+   * Queue for messages that were ingested in the {@link #advance()} method, but not sent yet to a
+   * {@link SolaceCheckpointMark}.
+   */
+  private final Queue<BytesXMLMessage> receivedMessages = new ArrayDeque<>();
+
+  private static final Cache<UUID, SessionService> sessionServiceCache;
+  private static final ScheduledExecutorService cleanUpThread = Executors.newScheduledThreadPool(1);
+
+  static {
+    Duration cacheExpirationTimeout = Duration.ofMinutes(1);
+    sessionServiceCache =
+        CacheBuilder.newBuilder()
+            .expireAfterAccess(cacheExpirationTimeout)
+            .removalListener(
+                (RemovalNotification<UUID, SessionService> notification) -> {
+                  LOG.info(
+                      "SolaceIO.Read: Closing session for the reader with uuid {} as it has been idle for over {}.",
+                      notification.getKey(),
+                      cacheExpirationTimeout);
+                  SessionService sessionService = notification.getValue();
+                  if (sessionService != null) {
+                    sessionService.close();
+                  }
+                })
+            .build();
+
+    startCleanUpThread();
+  }
+
+  @SuppressWarnings("FutureReturnValueIgnored")
+  private static void startCleanUpThread() {
+    cleanUpThread.scheduleAtFixedRate(sessionServiceCache::cleanUp, 1, 1, TimeUnit.MINUTES);
+  }
 
   public UnboundedSolaceReader(UnboundedSolaceSource<T> currentSource) {
     this.currentSource = currentSource;
     this.watermarkPolicy =
         WatermarkPolicy.create(
             currentSource.getTimestampFn(), currentSource.getWatermarkIdleDurationThreshold());
-    this.sessionService = currentSource.getSessionServiceFactory().create();
+    this.sessionServiceFactory = currentSource.getSessionServiceFactory();
     this.sempClient = currentSource.getSempClientFactory().create();
+    this.readerUuid = UUID.randomUUID();
+  }
+
+  private SessionService getSessionService() {
+    try {
+      return sessionServiceCache.get(
+          readerUuid,
+          () -> {
+            LOG.info("SolaceIO.Read: creating a new session for reader with uuid {}.", readerUuid);
+            SessionService sessionService = sessionServiceFactory.create();
+            sessionService.connect();
+            sessionService.getReceiver().start();
+            return sessionService;
+          });
+    } catch (ExecutionException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Override
   public boolean start() {
-    populateSession();
-    checkNotNull(sessionService).getReceiver().start();
+    // Create and initialize SessionService with Receiver
+    getSessionService();
     return advance();
-  }
-
-  public void populateSession() {
-    if (sessionService == null) {
-      sessionService = getCurrentSource().getSessionServiceFactory().create();
-    }
-    if (sessionService.isClosed()) {
-      checkNotNull(sessionService).connect();
-    }
   }
 
   @Override
   public boolean advance() {
+    finalizeReadyMessages();
+
     BytesXMLMessage receivedXmlMessage;
     try {
-      receivedXmlMessage = checkNotNull(sessionService).getReceiver().receive();
+      receivedXmlMessage = getSessionService().getReceiver().receive();
     } catch (IOException e) {
       LOG.warn("SolaceIO.Read: Exception when pulling messages from the broker.", e);
       return false;
@@ -96,23 +149,40 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
     if (receivedXmlMessage == null) {
       return false;
     }
-    elementsToCheckpoint.add(receivedXmlMessage);
     solaceOriginalRecord = receivedXmlMessage;
     solaceMappedRecord = getCurrentSource().getParseFn().apply(receivedXmlMessage);
-    watermarkPolicy.update(solaceMappedRecord);
+    receivedMessages.add(receivedXmlMessage);
+
     return true;
   }
 
   @Override
   public void close() {
-    active.set(false);
-    checkNotNull(sessionService).close();
+    finalizeReadyMessages();
+    sessionServiceCache.invalidate(readerUuid);
+  }
+
+  public void finalizeReadyMessages() {
+    BytesXMLMessage msg;
+    while ((msg = safeToAckMessages.poll()) != null) {
+      try {
+        msg.ackMessage();
+      } catch (IllegalStateException e) {
+        LOG.error(
+            "SolaceIO.Read: failed to acknowledge the message with applicationMessageId={}, ackMessageId={}. Returning the message to queue to retry.",
+            msg.getApplicationMessageId(),
+            msg.getAckMessageId(),
+            e);
+        safeToAckMessages.add(msg); // In case the error was transient, might succeed later
+        break; // Commit is only best effort
+      }
+    }
   }
 
   @Override
   public Instant getWatermark() {
     // should be only used by a test receiver
-    if (checkNotNull(sessionService).getReceiver().isEOF()) {
+    if (getSessionService().getReceiver().isEOF()) {
       return BoundedWindow.TIMESTAMP_MAX_VALUE;
     }
     return watermarkPolicy.getWatermark();
@@ -120,14 +190,9 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
 
   @Override
   public UnboundedSource.CheckpointMark getCheckpointMark() {
-    List<BytesXMLMessage> ackQueue = new ArrayList<>();
-    while (!elementsToCheckpoint.isEmpty()) {
-      BytesXMLMessage msg = elementsToCheckpoint.poll();
-      if (msg != null) {
-        ackQueue.add(msg);
-      }
-    }
-    return new SolaceCheckpointMark(active, ackQueue);
+    safeToAckMessages.addAll(receivedMessages);
+    receivedMessages.clear();
+    return new SolaceCheckpointMark(safeToAckMessages);
   }
 
   @Override

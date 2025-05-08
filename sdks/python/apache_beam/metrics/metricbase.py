@@ -43,6 +43,7 @@ __all__ = [
     'Distribution',
     'Gauge',
     'StringSet',
+    'BoundedTrie',
     'Histogram',
     'MetricName'
 ]
@@ -146,6 +147,14 @@ class Gauge(Metric):
 
 class StringSet(Metric):
   """StringSet Metric interface.
+
+  Reports set of unique string values during pipeline execution.."""
+  def add(self, value):
+    raise NotImplementedError
+
+
+class BoundedTrie(Metric):
+  """BoundedTrie Metric interface.
 
   Reports set of unique string values during pipeline execution.."""
   def add(self, value):

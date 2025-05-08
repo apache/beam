@@ -42,9 +42,11 @@ public class LabeledMetricNameUtils {
    */
   public static class MetricNameBuilder {
     private final StringBuilder labeledNameBuilder;
+    private final ImmutableMap.Builder<String, String> metricLabelsBuilder;
 
     private MetricNameBuilder(String baseName) {
       this.labeledNameBuilder = new StringBuilder(baseName + METRIC_NAME_DELIMITER);
+      this.metricLabelsBuilder = new ImmutableMap.Builder<String, String>();
     }
 
     public static MetricNameBuilder baseNameBuilder(String baseName) {
@@ -63,8 +65,17 @@ public class LabeledMetricNameUtils {
           .append(LABEL_DELIMITER);
     }
 
+    /**
+     * Add a metric label KV pair to the metric. This is not concatenated as a part of the name, but
+     * merely for adding attributes to the metric.
+     */
+    public void addMetricLabel(String key, String value) {
+      this.metricLabelsBuilder.put(key, value);
+    }
+
     public MetricName build(String metricNamespace) {
-      return MetricName.named(metricNamespace, labeledNameBuilder.toString());
+      return MetricName.named(
+          metricNamespace, labeledNameBuilder.toString(), this.metricLabelsBuilder.build());
     }
   }
 
@@ -79,8 +90,7 @@ public class LabeledMetricNameUtils {
     }
 
     public static ParsedMetricName create(String baseName) {
-      ImmutableMap<String, String> emptyMap = ImmutableMap.of();
-      return new AutoValue_LabeledMetricNameUtils_ParsedMetricName(baseName, emptyMap);
+      return new AutoValue_LabeledMetricNameUtils_ParsedMetricName(baseName, ImmutableMap.of());
     }
   }
 

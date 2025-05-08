@@ -309,7 +309,7 @@ public abstract class WorkProgressUpdater {
       LOG.info("Cancelling workitem execution: {}", workString(), e);
       worker.abort();
     } catch (Throwable e) {
-      LOG.warn("Error reporting workitem progress update to Dataflow service: ", e);
+      LOG.error("Error reporting workitem progress update to Dataflow service: ", e);
     }
   }
 

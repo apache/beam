@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.fn.stream;
 
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 
 /**
  * A {@link StreamObserver} which provides synchronous access access to an underlying {@link

@@ -132,7 +132,8 @@ public class CreateTables<DestinationT, ElementT>
                     createDisposition,
                     dynamicDestinations.getDestinationCoder(),
                     kmsKey,
-                    bqServices);
+                    bqServices,
+                    null);
               });
 
       context.output(KV.of(tableDestination, context.element().getValue()));

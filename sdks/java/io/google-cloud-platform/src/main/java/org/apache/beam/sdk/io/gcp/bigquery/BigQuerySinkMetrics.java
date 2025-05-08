@@ -21,6 +21,7 @@ import io.grpc.Status;
 import java.time.Instant;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.NestedCounter;
 import org.apache.beam.sdk.io.gcp.bigquery.RetryManager.Operation.Context;
 import org.apache.beam.sdk.metrics.Counter;
@@ -113,6 +114,7 @@ public class BigQuerySinkMetrics {
     LabeledMetricNameUtils.MetricNameBuilder nameBuilder =
         LabeledMetricNameUtils.MetricNameBuilder.baseNameBuilder(RPC_LATENCY);
     nameBuilder.addLabel(RPC_METHOD, method.toString());
+    nameBuilder.addMetricLabel(MonitoringInfoConstants.Labels.PER_WORKER_METRIC, "true");
     MetricName metricName = nameBuilder.build(METRICS_NAMESPACE);
 
     // Create Exponential histogram buckets with the following parameters:
@@ -120,7 +122,7 @@ public class BigQuerySinkMetrics {
     // 17 buckets, so the max latency of that can be stored is (2^17 millis ~= 130 seconds).
     HistogramData.BucketType buckets = HistogramData.ExponentialBuckets.of(0, 17);
 
-    return new DelegatingHistogram(metricName, buckets, false, true);
+    return new DelegatingHistogram(metricName, buckets, false);
   }
 
   /**

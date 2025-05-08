@@ -72,6 +72,14 @@ public class StringSetCell implements StringSet, MetricCell<StringSetData> {
     return setValue.get();
   }
 
+  // Used by Streaming metric container to extract deltas since streaming metrics are
+  // reported as deltas rather than cumulative as in batch.
+  // For delta we take the current value then reset the cell to empty so the next call only see
+  // delta/updates from last call.
+  public StringSetData getAndReset() {
+    return setValue.getAndUpdate(unused -> StringSetData.empty());
+  }
+
   @Override
   public MetricName getName() {
     return name;

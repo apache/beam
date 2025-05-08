@@ -21,6 +21,11 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.YearMonth;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +36,7 @@ import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalNotification;
@@ -38,14 +44,17 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.ManifestFile;
+import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.data.InternalRecordWrapper;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.exceptions.AlreadyExistsException;
 import org.apache.iceberg.exceptions.NoSuchTableException;
+import org.apache.iceberg.transforms.Transforms;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -84,20 +93,28 @@ class RecordWriterManager implements AutoCloseable {
     private final IcebergDestination icebergDestination;
     private final PartitionSpec spec;
     private final org.apache.iceberg.Schema schema;
-    private final PartitionKey partitionKey;
+    // used to determine the partition to which a record belongs
+    // must not be directly used to create a writer
+    private final PartitionKey routingPartitionKey;
     private final Table table;
     private final String stateToken = UUID.randomUUID().toString();
     final Cache<PartitionKey, RecordWriter> writers;
     private final List<SerializableDataFile> dataFiles = Lists.newArrayList();
     @VisibleForTesting final Map<PartitionKey, Integer> writerCounts = Maps.newHashMap();
+    private final Map<String, PartitionField> partitionFieldMap = Maps.newHashMap();
     private final List<Exception> exceptions = Lists.newArrayList();
+    private final InternalRecordWrapper wrapper; // wrapper that facilitates partitioning
 
     DestinationState(IcebergDestination icebergDestination, Table table) {
       this.icebergDestination = icebergDestination;
       this.schema = table.schema();
       this.spec = table.spec();
-      this.partitionKey = new PartitionKey(spec, schema);
+      this.routingPartitionKey = new PartitionKey(spec, schema);
+      this.wrapper = new InternalRecordWrapper(schema.asStruct());
       this.table = table;
+      for (PartitionField partitionField : spec.fields()) {
+        partitionFieldMap.put(partitionField.name(), partitionField);
+      }
 
       // build a cache of RecordWriters.
       // writers will expire after 1 min of idle time.
@@ -123,7 +140,9 @@ class RecordWriterManager implements AutoCloseable {
                       throw rethrow;
                     }
                     openWriters--;
-                    dataFiles.add(SerializableDataFile.from(recordWriter.getDataFile(), pk));
+                    String partitionPath = getPartitionDataPath(pk.toPath(), partitionFieldMap);
+                    dataFiles.add(
+                        SerializableDataFile.from(recordWriter.getDataFile(), partitionPath));
                   })
               .build();
     }
@@ -136,12 +155,13 @@ class RecordWriterManager implements AutoCloseable {
      * can't create a new writer, the {@link Record} is rejected and {@code false} is returned.
      */
     boolean write(Record record) {
-      partitionKey.partition(record);
+      routingPartitionKey.partition(wrapper.wrap(record));
 
-      if (!writers.asMap().containsKey(partitionKey) && openWriters >= maxNumWriters) {
+      @Nullable RecordWriter writer = writers.getIfPresent(routingPartitionKey);
+      if (writer == null && openWriters >= maxNumWriters) {
         return false;
       }
-      RecordWriter writer = fetchWriterForPartition(partitionKey);
+      writer = fetchWriterForPartition(routingPartitionKey, writer);
       writer.write(record);
       return true;
     }
@@ -151,14 +171,15 @@ class RecordWriterManager implements AutoCloseable {
      * no {@link RecordWriter} exists or if it has reached the maximum limit of bytes written, a new
      * one is created and returned.
      */
-    private RecordWriter fetchWriterForPartition(PartitionKey partitionKey) {
-      RecordWriter recordWriter = writers.getIfPresent(partitionKey);
-
+    private RecordWriter fetchWriterForPartition(
+        PartitionKey partitionKey, @Nullable RecordWriter recordWriter) {
       if (recordWriter == null || recordWriter.bytesWritten() > maxFileSize) {
+        // each writer must have its own PartitionKey object
+        PartitionKey copy = partitionKey.copy();
         // calling invalidate for a non-existent key is a safe operation
-        writers.invalidate(partitionKey);
-        recordWriter = createWriter(partitionKey);
-        writers.put(partitionKey, recordWriter);
+        writers.invalidate(copy);
+        recordWriter = createWriter(copy);
+        writers.put(copy, recordWriter);
       }
       return recordWriter;
     }
@@ -186,6 +207,39 @@ class RecordWriterManager implements AutoCloseable {
       }
     }
   }
+
+  /**
+   * Returns an equivalent partition path that is made up of partition data. Needed to reconstruct a
+   * {@link DataFile}.
+   */
+  @VisibleForTesting
+  static String getPartitionDataPath(
+      String partitionPath, Map<String, PartitionField> partitionFieldMap) {
+    if (partitionPath.isEmpty() || partitionFieldMap.isEmpty()) {
+      return partitionPath;
+    }
+    List<String> resolved = new ArrayList<>();
+    for (String partition : Splitter.on('/').splitToList(partitionPath)) {
+      List<String> nameAndValue = Splitter.on('=').splitToList(partition);
+      String name = nameAndValue.get(0);
+      String value = nameAndValue.get(1);
+      String transformName =
+          Preconditions.checkArgumentNotNull(partitionFieldMap.get(name)).transform().toString();
+      if (Transforms.month().toString().equals(transformName)) {
+        int month = YearMonth.parse(value).getMonthValue();
+        value = String.valueOf(month);
+      } else if (Transforms.hour().toString().equals(transformName)) {
+        long hour = ChronoUnit.HOURS.between(EPOCH, LocalDateTime.parse(value, HOUR_FORMATTER));
+        value = String.valueOf(hour);
+      }
+      resolved.add(name + "=" + value);
+    }
+    return String.join("/", resolved);
+  }
+
+  private static final DateTimeFormatter HOUR_FORMATTER =
+      DateTimeFormatter.ofPattern("yyyy-MM-dd-HH");
+  private static final LocalDateTime EPOCH = LocalDateTime.ofEpochSecond(0, 0, ZoneOffset.UTC);
 
   private final Catalog catalog;
   private final String filePrefix;

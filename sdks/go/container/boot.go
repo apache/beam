@@ -28,6 +28,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/apache/beam/sdks/v2/go/container/pool"
 	"github.com/apache/beam/sdks/v2/go/container/tools"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/artifact"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
@@ -44,6 +45,7 @@ import (
 var (
 	// Contract: https://s.apache.org/beam-fn-api-container-contract.
 
+	workerPool        = flag.Bool("worker_pool", false, "Run as worker pool (optional).")
 	id                = flag.String("id", "", "Local identifier (required).")
 	loggingEndpoint   = flag.String("logging_endpoint", "", "Local logging endpoint for FnHarness (required).")
 	artifactEndpoint  = flag.String("artifact_endpoint", "", "Local artifact endpoint for FnHarness (required).")
@@ -56,6 +58,7 @@ const (
 	cloudProfilingJobName           = "CLOUD_PROF_JOB_NAME"
 	cloudProfilingJobID             = "CLOUD_PROF_JOB_ID"
 	enableGoogleCloudProfilerOption = "enable_google_cloud_profiler"
+	workerPoolIdEnv                 = "BEAM_GO_WORKER_POOL_ID"
 )
 
 func configureGoogleCloudProfilerEnvVars(ctx context.Context, logger *tools.Logger, metadata map[string]string) error {
@@ -78,6 +81,30 @@ func configureGoogleCloudProfilerEnvVars(ctx context.Context, logger *tools.Logg
 
 func main() {
 	flag.Parse()
+
+	if *workerPool {
+		workerPoolId := fmt.Sprintf("%d", os.Getpid())
+		bin, err := os.Executable()
+		if err != nil {
+			log.Fatalf("Error starting worker pool, couldn't find boot loader path: %v", err)
+		}
+
+		os.Setenv(workerPoolIdEnv, workerPoolId)
+		log.Printf("Starting worker pool %v: Go %v binary: %vv", workerPoolId, ":50000", bin)
+
+		ctx := context.Background()
+		server, err := pool.New(ctx, 50000, bin)
+		if err != nil {
+			log.Fatalf("Error starting worker pool: %v", err)
+		}
+		defer server.Stop(ctx)
+		if err := server.ServeAndWait(); err != nil {
+			log.Fatalf("Error with worker pool: %v", err)
+		}
+		log.Print("Go SDK worker pool exited.")
+		os.Exit(0)
+	}
+
 	if *id == "" {
 		log.Fatal("No id provided.")
 	}
@@ -126,7 +153,13 @@ func main() {
 
 	// (3) The persist dir may be on a noexec volume, so we must
 	// copy the binary to a different location to execute.
-	const prog = "/bin/worker"
+	tmpPrefix, err := os.MkdirTemp("/tmp/", "bin*")
+	if err != nil {
+		logger.Fatalf(ctx, "Failed to copy worker binary: %v", err)
+	}
+
+	prog := tmpPrefix + "/worker"
+	logger.Printf(ctx, "From: %q To:%q", filepath.Join(dir, name), prog)
 	if err := copyExe(filepath.Join(dir, name), prog); err != nil {
 		logger.Fatalf(ctx, "Failed to copy worker binary: %v", err)
 	}
@@ -232,6 +265,11 @@ func copyExe(from, to string) error {
 		return err
 	}
 	defer src.Close()
+
+	// Ensure that the folder path exists locally.
+	if err := os.MkdirAll(filepath.Dir(to), 0755); err != nil {
+		return err
+	}
 
 	dst, err := os.OpenFile(to, os.O_WRONLY|os.O_CREATE, 0755)
 	if err != nil {

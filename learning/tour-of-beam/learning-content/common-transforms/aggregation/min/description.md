@@ -41,11 +41,11 @@ func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
 ```
 {{end}}
 {{if (eq .Sdk "java")}}
-You can find the global minimum value from the `PCollection` by using `Min.doublesGlobally()`
+You can find the global minimum value from the `PCollection` by using `Min.integersGlobally()`
 
 ```
 PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
-PCollection<Double> min = input.apply(Min.doublesGlobally());
+PCollection<Integer> min = input.apply(Min.integersGlobally());
 ```
 
 Output
@@ -165,7 +165,7 @@ PCollection<KV<Integer, Integer>> output = applyTransform(input);
 
 ```
 static PCollection<KV<Integer, Integer>> applyTransform(PCollection<KV<Integer, Integer>> input) {
-        return input.apply(Sum.integersPerKey());
+        return input.apply(Min.integersPerKey());
     }
 ```
 {{end}}

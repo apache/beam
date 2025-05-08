@@ -15,10 +15,9 @@
 # limitations under the License.
 #
 import logging
+from collections.abc import Callable
 from datetime import timedelta
 from typing import Any
-from typing import Callable
-from typing import Dict
 from typing import Optional
 from typing import TypeVar
 from typing import Union
@@ -44,7 +43,7 @@ __all__ = [
 InputT = TypeVar('InputT')
 OutputT = TypeVar('OutputT')
 
-JoinFn = Callable[[Dict[str, Any], Dict[str, Any]], beam.Row]
+JoinFn = Callable[[dict[str, Any], dict[str, Any]], beam.Row]
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -56,14 +55,14 @@ def has_valid_redis_address(host: str, port: int) -> bool:
   return False
 
 
-def cross_join(left: Dict[str, Any], right: Dict[str, Any]) -> beam.Row:
+def cross_join(left: dict[str, Any], right: dict[str, Any]) -> beam.Row:
   """performs a cross join on two `dict` objects.
 
     Joins the columns of the right row onto the left row.
 
     Args:
-      left (Dict[str, Any]): input request dictionary.
-      right (Dict[str, Any]): response dictionary from the API.
+      left (dict[str, Any]): input request dictionary.
+      right (dict[str, Any]): response dictionary from the API.
 
     Returns:
       `beam.Row` containing the merged columns.
@@ -133,16 +132,22 @@ class Enrichment(beam.PTransform[beam.PCollection[InputT],
   def __init__(
       self,
       source_handler: EnrichmentSourceHandler,
-      join_fn: JoinFn = cross_join,
+      join_fn: Optional[JoinFn] = None,
       timeout: Optional[float] = DEFAULT_TIMEOUT_SECS,
       repeater: Repeater = ExponentialBackOffRepeater(),
-      throttler: PreCallThrottler = DefaultThrottler()):
+      throttler: PreCallThrottler = DefaultThrottler(),
+      use_custom_types: bool = False):
     self._cache = None
     self._source_handler = source_handler
-    self._join_fn = join_fn
+    self._join_fn = (
+        join_fn if join_fn else source_handler.join_fn if hasattr(
+            source_handler, 'join_fn') else cross_join)
     self._timeout = timeout
     self._repeater = repeater
     self._throttler = throttler
+    self._use_custom_types = (
+        source_handler.use_custom_types if hasattr(
+            source_handler, 'use_custom_types') else use_custom_types)
 
   def expand(self,
              input_row: beam.PCollection[InputT]) -> beam.PCollection[OutputT]:
@@ -165,8 +170,9 @@ class Enrichment(beam.PTransform[beam.PCollection[InputT],
     # EnrichmentSourceHandler returns a tuple of (request,response).
     return (
         fetched_data
-        | "enrichment_join" >>
-        beam.Map(lambda x: self._join_fn(x[0]._asdict(), x[1]._asdict())))
+        | "enrichment_join" >> beam.Map(
+            lambda x: self._join_fn(x[0]._asdict(), x[1]._asdict())
+            if not self._use_custom_types else self._join_fn(x[0], x[1])))
 
   def with_redis_cache(
       self,

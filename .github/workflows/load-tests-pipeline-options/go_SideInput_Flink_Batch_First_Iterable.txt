@@ -16,7 +16,7 @@
 
 --influx_namespace=flink
 --influx_measurement=go_batch_sideinput_1
---input_options=''{\"num_records\":400000,\"key_size\":100,\"value_size\":900}''
+--input_options=''{\"num_records\":20000,\"key_size\":100,\"value_size\":900}''
 --access_percentage=1
 --parallelism=10
 --endpoint=localhost:8099

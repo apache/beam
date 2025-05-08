@@ -27,7 +27,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -41,14 +40,15 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.runners.flink.adapter.FlinkKey;
 import org.apache.beam.runners.flink.translation.functions.FlinkExecutableStageContextFactory;
 import org.apache.beam.runners.flink.translation.functions.ImpulseSourceFunction;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.wrappers.SourceInputFormat;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.ExecutableStageDoFnOperator;
-import org.apache.beam.runners.flink.translation.wrappers.streaming.KvToByteBufferKeySelector;
-import org.apache.beam.runners.flink.translation.wrappers.streaming.SdfByteBufferKeySelector;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.KvToFlinkKeyKeySelector;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.SdfFlinkKeyKeySelector;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.SingletonKeyedWorkItemCoder;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.WindowDoFnOperator;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.WorkItemKeySelector;
@@ -98,7 +98,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashMultiset;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -430,24 +430,11 @@ public class FlinkStreamingPortablePipelineTranslator
     WindowedValue.FullWindowedValueCoder<KeyedWorkItem<K, V>> windowedWorkItemCoder =
         WindowedValue.getFullCoder(workItemCoder, windowingStrategy.getWindowFn().windowCoder());
 
-    CoderTypeInformation<WindowedValue<KeyedWorkItem<K, V>>> workItemTypeInfo =
-        new CoderTypeInformation<>(windowedWorkItemCoder, context.getPipelineOptions());
-
-    DataStream<WindowedValue<KeyedWorkItem<K, V>>> workItemStream =
-        inputDataStream
-            .flatMap(
-                new FlinkStreamingTransformTranslators.ToKeyedWorkItem<>(
-                    context.getPipelineOptions()))
-            .returns(workItemTypeInfo)
-            .name("ToKeyedWorkItem");
-
     WorkItemKeySelector<K, V> keySelector =
-        new WorkItemKeySelector<>(
-            inputElementCoder.getKeyCoder(),
-            new SerializablePipelineOptions(context.getPipelineOptions()));
+        new WorkItemKeySelector<>(inputElementCoder.getKeyCoder());
 
-    KeyedStream<WindowedValue<KeyedWorkItem<K, V>>, ByteBuffer> keyedWorkItemStream =
-        workItemStream.keyBy(keySelector);
+    KeyedStream<WindowedValue<KV<K, V>>, FlinkKey> keyedWorkItemStream =
+        inputDataStream.keyBy(new KvToFlinkKeyKeySelector(inputElementCoder.getKeyCoder()));
 
     SystemReduceFn<K, V, Iterable<V>, Iterable<V>, BoundedWindow> reduceFn =
         SystemReduceFn.buffering(inputElementCoder.getValueCoder());
@@ -841,9 +828,7 @@ public class FlinkStreamingPortablePipelineTranslator
       }
       if (stateful) {
         keyCoder = ((KvCoder) valueCoder).getKeyCoder();
-        keySelector =
-            new KvToByteBufferKeySelector(
-                keyCoder, new SerializablePipelineOptions(context.getPipelineOptions()));
+        keySelector = new KvToFlinkKeyKeySelector(keyCoder);
       } else {
         // For an SDF, we know that the input element should be
         // KV<KV<element, KV<restriction, watermarkState>>, size>. We are going to use the element
@@ -857,9 +842,7 @@ public class FlinkStreamingPortablePipelineTranslator
                   valueCoder.getClass().getSimpleName()));
         }
         keyCoder = ((KvCoder) ((KvCoder) valueCoder).getKeyCoder()).getKeyCoder();
-        keySelector =
-            new SdfByteBufferKeySelector(
-                keyCoder, new SerializablePipelineOptions(context.getPipelineOptions()));
+        keySelector = new SdfFlinkKeyKeySelector(keyCoder);
       }
       inputDataStream = inputDataStream.keyBy(keySelector);
     }
@@ -872,7 +855,7 @@ public class FlinkStreamingPortablePipelineTranslator
             tagsToIds,
             new SerializablePipelineOptions(context.getPipelineOptions()));
 
-    DoFnOperator<InputT, OutputT> doFnOperator =
+    DoFnOperator<InputT, InputT, OutputT> doFnOperator =
         new ExecutableStageDoFnOperator<>(
             transform.getUniqueName(),
             windowedInputCoder,

@@ -29,5 +29,5 @@ cdef class LCGenerator(object):
   cpdef void seed_jdk(self, libc.stdint.uint64_t seed)
   cpdef libc.stdint.int32_t next_int(self)
   cpdef libc.stdint.uint32_t next_uint(self)
-  cpdef bytes rand_bytes(self, int length)
+  cpdef bytes randbytes(self, int length)
   cpdef double random_sample(self)

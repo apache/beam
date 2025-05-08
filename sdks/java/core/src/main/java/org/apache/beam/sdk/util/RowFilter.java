@@ -22,11 +22,13 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -212,6 +214,11 @@ public class RowFilter implements Serializable {
     return Preconditions.checkNotNull(copyWithNewSchema(row, outputSchema()));
   }
 
+  /** Applies {@link #filter(Row)} to each Row in a list. */
+  public List<Row> filter(List<Row> rows) {
+    return rows.stream().map(this::filter).collect(Collectors.toList());
+  }
+
   /** Returns the output {@link Row}'s {@link Schema}. */
   public Schema outputSchema() {
     return transformedSchema != null ? transformedSchema : rowSchema;
@@ -374,6 +381,14 @@ public class RowFilter implements Serializable {
         newFieldsList.set(newFieldsList.indexOf(fieldToRemove), modifiedField);
       }
     }
+
+    // re-order based on original schema's ordering
+    Map<String, Integer> indexMap = new HashMap<>();
+    for (int i = 0; i < schema.getFieldCount(); i++) {
+      indexMap.put(schema.getField(i).getName(), i);
+    }
+    newFieldsList.sort(Comparator.comparingInt(f -> checkStateNotNull(indexMap.get(f.getName()))));
+
     return new Schema(newFieldsList);
   }
 
@@ -415,6 +430,13 @@ public class RowFilter implements Serializable {
       }
       newFieldsList.add(fieldToKeep);
     }
+
+    // re-order based on original schema's ordering
+    Map<String, Integer> indexMap = new HashMap<>();
+    for (int i = 0; i < schema.getFieldCount(); i++) {
+      indexMap.put(schema.getField(i).getName(), i);
+    }
+    newFieldsList.sort(Comparator.comparingInt(f -> checkStateNotNull(indexMap.get(f.getName()))));
 
     return new Schema(newFieldsList);
   }

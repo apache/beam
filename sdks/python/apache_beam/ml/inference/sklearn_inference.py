@@ -18,12 +18,11 @@
 import enum
 import pickle
 import sys
+from collections.abc import Callable
+from collections.abc import Iterable
+from collections.abc import Sequence
 from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import Iterable
 from typing import Optional
-from typing import Sequence
 
 import numpy
 import pandas
@@ -46,7 +45,7 @@ __all__ = [
 ]
 
 NumpyInferenceFn = Callable[
-    [BaseEstimator, Sequence[numpy.ndarray], Optional[Dict[str, Any]]], Any]
+    [BaseEstimator, Sequence[numpy.ndarray], Optional[dict[str, Any]]], Any]
 
 
 class ModelFileType(enum.Enum):
@@ -73,7 +72,7 @@ def _load_model(model_uri, file_type):
 def _default_numpy_inference_fn(
     model: BaseEstimator,
     batch: Sequence[numpy.ndarray],
-    inference_args: Optional[Dict[str, Any]] = None) -> Any:
+    inference_args: Optional[dict[str, Any]] = None) -> Any:
   # vectorize data for better performance
   vectorized_batch = numpy.stack(batch, axis=0)
   return model.predict(vectorized_batch)
@@ -150,7 +149,7 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
       self,
       batch: Sequence[numpy.ndarray],
       model: BaseEstimator,
-      inference_args: Optional[Dict[str, Any]] = None
+      inference_args: Optional[dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
     """Runs inferences on a batch of numpy arrays.
 
@@ -198,13 +197,13 @@ class SklearnModelHandlerNumpy(ModelHandler[numpy.ndarray,
 
 
 PandasInferenceFn = Callable[
-    [BaseEstimator, Sequence[pandas.DataFrame], Optional[Dict[str, Any]]], Any]
+    [BaseEstimator, Sequence[pandas.DataFrame], Optional[dict[str, Any]]], Any]
 
 
 def _default_pandas_inference_fn(
     model: BaseEstimator,
     batch: Sequence[pandas.DataFrame],
-    inference_args: Optional[Dict[str, Any]] = None) -> Any:
+    inference_args: Optional[dict[str, Any]] = None) -> Any:
   # vectorize data for better performance
   vectorized_batch = pandas.concat(batch, axis=0)
   predictions = model.predict(vectorized_batch)
@@ -288,7 +287,7 @@ class SklearnModelHandlerPandas(ModelHandler[pandas.DataFrame,
       self,
       batch: Sequence[pandas.DataFrame],
       model: BaseEstimator,
-      inference_args: Optional[Dict[str, Any]] = None
+      inference_args: Optional[dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
     """
     Runs inferences on a batch of pandas dataframes.

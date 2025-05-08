@@ -208,6 +208,11 @@ func ms2duration(d int64) time.Duration {
 	return time.Duration(d) * time.Millisecond
 }
 
+// encodeFn encodes a graph.Fn into a v1pb.Fn proto message.
+// All string fields in the DoFn struct must be UTF-8 compliant. The vet runner
+// (--beam_strict) will detect any non-UTF8 strings that would fail during JSON serialization.
+// The check will be skipped for subtypes that implement the MarshalJSON and
+// UnmarshalJSON interface methods.
 func encodeFn(u *graph.Fn) (*v1pb.Fn, error) {
 	switch {
 	case u.DynFn != nil:

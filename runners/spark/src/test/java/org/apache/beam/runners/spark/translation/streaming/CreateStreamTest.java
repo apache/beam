@@ -527,7 +527,7 @@ public class CreateStreamTest implements Serializable {
     }
   }
 
-  private static PipelineOptions streamingOptions() {
+  static PipelineOptions streamingOptions() {
     PipelineOptions options = TestPipeline.testingPipelineOptions();
     options.as(TestSparkPipelineOptions.class).setStreaming(true);
     return options;

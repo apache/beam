@@ -26,7 +26,6 @@ import base64
 import datetime
 import html
 import logging
-import warnings
 from datetime import timedelta
 from typing import Optional
 
@@ -351,11 +350,7 @@ class PCollectionVisualization(object):
     ]
     # String-ify the dictionaries for display because elements of type dict
     # cannot be ordered.
-    with warnings.catch_warnings():
-      # TODO(yathu) switch to use DataFrame.map when dropped pandas<2.1 support
-      warnings.filterwarnings(
-          "ignore", message="DataFrame.applymap has been deprecated")
-      data = data.applymap(lambda x: str(x) if isinstance(x, dict) else x)
+    data = data.map(lambda x: str(x) if isinstance(x, dict) else x)
 
     if updating_pv:
       # Only updates when data is not empty. Otherwise, consider it a bad
@@ -420,7 +415,7 @@ class PCollectionVisualization(object):
     format_window_info_in_dataframe(data)
     # Convert the dataframe into rows, each row looks like
     # [column_1_val, column_2_val, ...].
-    rows = data.applymap(lambda x: str(x)).to_dict('split')['data']
+    rows = data.map(lambda x: str(x)).to_dict('split')['data']
     # Convert each row into dict where keys are column index in the datatable
     # to be rendered and values are data from the dataframe. Column index 0 is
     # left out to hold the int index (not part of the data) from dataframe.

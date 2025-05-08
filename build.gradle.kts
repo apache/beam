@@ -44,6 +44,7 @@ tasks.rat {
 
     "**/package-list",
     "**/test.avsc",
+    "**/logical-types.avsc",
     "**/user.avsc",
     "**/test/resources/**/*.txt",
     "**/test/resources/**/*.csv",
@@ -94,6 +95,10 @@ tasks.rat {
 
     // Ignore CPython LICENSE file
     "LICENSE.python",
+
+    // Ignore vendored cloudpickle files
+    "sdks/python/apache_beam/internal/cloudpickle/**",
+    "LICENCE.cloudpickle",
 
     // Json doesn't support comments.
     "**/*.json",
@@ -244,6 +249,8 @@ tasks.register("javaPreCommit") {
   dependsOn(":beam-validate-runner:build")
   dependsOn(":examples:java:build")
   dependsOn(":examples:java:preCommit")
+  dependsOn(":examples:java:sql:build")
+  dependsOn(":examples:java:sql:preCommit")
   dependsOn(":examples:java:twitter:build")
   dependsOn(":examples:java:twitter:preCommit")
   dependsOn(":examples:multi-language:build")
@@ -296,6 +303,7 @@ tasks.register("javaPreCommit") {
   dependsOn(":sdks:java:extensions:sketching:build")
   dependsOn(":sdks:java:extensions:sorter:build")
   dependsOn(":sdks:java:extensions:timeseries:build")
+  dependsOn(":sdks:java:extensions:yaml:build")
   dependsOn(":sdks:java:extensions:zetasketch:build")
   dependsOn(":sdks:java:harness:build")
   dependsOn(":sdks:java:harness:jmh:build")
@@ -304,7 +312,8 @@ tasks.register("javaPreCommit") {
   dependsOn(":sdks:java:io:contextualtextio:build")
   dependsOn(":sdks:java:io:expansion-service:build")
   dependsOn(":sdks:java:io:file-based-io-tests:build")
-  dependsOn(":sdks:java:io:sparkreceiver:2:build")
+  dependsOn(":sdks:java:io:kafka:jmh:build")
+  dependsOn(":sdks:java:io:sparkreceiver:3:build")
   dependsOn(":sdks:java:io:synthetic:build")
   dependsOn(":sdks:java:io:xml:build")
   dependsOn(":sdks:java:javadoc:allJavadoc")
@@ -374,7 +383,6 @@ tasks.register("sqlPreCommit") {
   dependsOn(":sdks:java:extensions:sql:jdbc:build")
   dependsOn(":sdks:java:extensions:sql:jdbc:preCommit")
   dependsOn(":sdks:java:extensions:sql:perf-tests:build")
-  dependsOn(":sdks:java:extensions:sql:shell:build")
   dependsOn(":sdks:java:extensions:sql:udf-test-provider:build")
   dependsOn(":sdks:java:extensions:sql:udf:build")
   dependsOn(":sdks:java:extensions:sql:zetasql:build")
@@ -598,10 +606,14 @@ tasks.register("pushAllRunnersDockerImages") {
 tasks.register("pushAllSdkDockerImages") {
   // Enforce ordering to allow the prune step to happen between runs.
   // This will ensure we don't use up too much space (especially in CI environments)
-  mustRunAfter(":pushAllRunnersDockerImages")
+  if (!project.hasProperty("skip-runner-images")) {
+    mustRunAfter(":pushAllRunnersDockerImages")
+  }
 
   dependsOn(":sdks:java:container:pushAll")
-  dependsOn(":sdks:python:container:pushAll")
+  if (!project.hasProperty("skip-python-images")) {
+    dependsOn(":sdks:python:container:pushAll")
+  }
   dependsOn(":sdks:go:container:pushAll")
   dependsOn(":sdks:typescript:container:pushAll")
 
@@ -618,7 +630,9 @@ tasks.register("pushAllSdkDockerImages") {
 tasks.register("pushAllXlangDockerImages") {
   // Enforce ordering to allow the prune step to happen between runs.
   // This will ensure we don't use up too much space (especially in CI environments)
-  mustRunAfter(":pushAllSdkDockerImages")
+  if (!project.hasProperty("skip-sdk-images")) {
+    mustRunAfter(":pushAllSdkDockerImages")
+  }
 
   dependsOn(":sdks:java:expansion-service:container:docker")
   dependsOn(":sdks:java:transform-service:controller-container:docker")
@@ -635,9 +649,15 @@ tasks.register("pushAllXlangDockerImages") {
 }
 
 tasks.register("pushAllDockerImages") {
-  dependsOn(":pushAllRunnersDockerImages")
-  dependsOn(":pushAllSdkDockerImages")
-  dependsOn(":pushAllXlangDockerImages")
+  if (!project.hasProperty("skip-runner-images")) {
+    dependsOn(":pushAllRunnersDockerImages")
+  }
+  if (!project.hasProperty("skip-sdk-images")) {
+    dependsOn(":pushAllSdkDockerImages")
+  }
+  if (!project.hasProperty("skip-xlang-images")) {
+    dependsOn(":pushAllXlangDockerImages")
+  }
 }
 
 // Use this task to validate the environment set up for Go, Python and Java
@@ -647,9 +667,30 @@ tasks.register("checkSetup") {
   dependsOn(":examples:java:wordCount")
 }
 
+// if not disabled make spotlessApply dependency of compileJava and compileTestJava
+val disableSpotlessCheck: String by project
+val isSpotlessDisabled = (project.hasProperty("disableSpotlessCheck") &&
+        disableSpotlessCheck == "true") || project.hasProperty("disableSpotlessApply")
+if (!isSpotlessDisabled) {
+  subprojects {
+    afterEvaluate {
+      tasks.findByName("spotlessApply")?.let {
+        listOf("compileJava", "compileTestJava").forEach {
+          t -> tasks.findByName(t)?.let { f -> f.dependsOn("spotlessApply") }
+        }
+      }
+    }
+  }
+}
+
 // Generates external transform config
 project.tasks.register("generateExternalTransformsConfig") {
   dependsOn(":sdks:python:generateExternalTransformsConfig")
+}
+
+// Generates the Managed IO Beam web page
+project.tasks.register("generateManagedIOPage") {
+  dependsOn(":sdks:python:generateManagedIOPage")
 }
 
 // Configure the release plugin to do only local work; the release manager determines what, if

@@ -51,6 +51,7 @@
     # Available through apache_beam.transforms.managed.[Read/Write]
     - 'beam:schematransform:org.apache.beam:iceberg_write:v1'
     - 'beam:schematransform:org.apache.beam:iceberg_read:v1'
+    - 'beam:schematransform:org.apache.beam:iceberg_cdc_read:v1'
 
 # TODO(ahmedabu98): Enable this service in a future PR
 #- gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'

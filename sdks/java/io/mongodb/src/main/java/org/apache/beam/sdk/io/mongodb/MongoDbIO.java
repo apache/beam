@@ -39,6 +39,7 @@ import com.mongodb.client.model.UpdateOneModel;
 import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.WriteModel;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -140,6 +141,11 @@ import org.slf4j.LoggerFactory;
 public class MongoDbIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(MongoDbIO.class);
+
+  public static final String ERROR_MSG_QUERY_FN =
+      " class is not supported. "
+          + "Please provide one of the predefined classes in the MongoDbIO package "
+          + "such as FindQuery or AggregationQuery.";
 
   /** Read data from MongoDB. */
   public static Read read() {
@@ -312,9 +318,16 @@ public class MongoDbIO {
       return builder().setBucketAuto(bucketAuto).build();
     }
 
-    /** Sets a queryFn. */
+    /**
+     * Sets a queryFn. The provided queryFn must be one of the predefined classes in the MongoDbIO
+     * package such as {@link FindQuery#FindQuery} or {@link AggregationQuery#AggregationQuery}.
+     */
     public Read withQueryFn(
         SerializableFunction<MongoCollection<Document>, MongoCursor<Document>> queryBuilderFn) {
+      checkArgument(
+          Arrays.asList(AutoValue_FindQuery.class, AutoValue_AggregationQuery.class)
+              .contains(queryBuilderFn.getClass()),
+          String.format("[%s]" + ERROR_MSG_QUERY_FN, queryBuilderFn.getClass().getName()));
       return builder().setQueryFn(queryBuilderFn).build();
     }
 

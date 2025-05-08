@@ -538,6 +538,22 @@ class FnApiRunnerTest(unittest.TestCase):
                   equal_to([('a', 1), ('b', 2)] + third_element),
                   label='CheckFlattenOfSideInput')
 
+  def test_flatten_and_gbk(self, with_transcoding=True):
+    with self.create_pipeline() as p:
+      side1 = p | 'side1' >> beam.Create([('a', 1)])
+      if with_transcoding:
+        # Also test non-matching coder types (transcoding required)
+        second_element = [('another_type')]
+      else:
+        second_element = [('b', 2)]
+      side2 = p | 'side2' >> beam.Create(second_element)
+
+      flatten_out = (side1, side2) | beam.Flatten()
+      gbk_out = side1 | beam.GroupByKey()
+
+      assert_that(flatten_out, equal_to([('a', 1)] + second_element))
+      assert_that(gbk_out, equal_to([('a', [1])]))
+
   def test_gbk_side_input(self):
     with self.create_pipeline() as p:
       main = p | 'main' >> beam.Create([None])
@@ -776,7 +792,8 @@ class FnApiRunnerTest(unittest.TestCase):
           state.clear()
           yield buffer
         else:
-          timer.set(ts + 1)
+          # Set the timer to fire within it's window.
+          timer.set(ts + (1 - timestamp.Duration(micros=1000)))
 
       @userstate.on_timer(timer_spec)
       def process_timer(self, state=beam.DoFn.StateParam(state_spec)):
@@ -790,8 +807,10 @@ class FnApiRunnerTest(unittest.TestCase):
       # Acutal should be a grouping of the inputs into batches of size
       # at most buffer_size, but the actual batching is nondeterministic
       # based on ordering and trigger firing timing.
-      self.assertEqual(sorted(sum((list(b) for b in actual), [])), elements)
-      self.assertEqual(max(len(list(buffer)) for buffer in actual), buffer_size)
+      self.assertEqual(
+          sorted(sum((list(b) for b in actual), [])), elements, actual)
+      self.assertEqual(
+          max(len(list(buffer)) for buffer in actual), buffer_size, actual)
       if windowed:
         # Elements were assigned to windows based on their parity.
         # Assert that each grouping consists of elements belonging to the
@@ -1052,6 +1071,15 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(
           p | beam.Create([1, 2, 3]) | beam.Reshuffle(), equal_to([1, 2, 3]))
 
+  def test_reshuffle_after_custom_window(self):
+    with self.create_pipeline() as p:
+      assert_that(
+          p | beam.Create([12, 2, 1])
+          | beam.Map(lambda t: window.TimestampedValue(t, t))
+          | beam.WindowInto(beam.transforms.window.FixedWindows(2))
+          | beam.Reshuffle(),
+          equal_to([12, 2, 1]))
+
   def test_flatten(self, with_transcoding=True):
     with self.create_pipeline() as p:
       if with_transcoding:
@@ -1077,6 +1105,27 @@ class FnApiRunnerTest(unittest.TestCase):
           | beam.Create([('a', 1), ('a', 2), ('b', 3)])
           | beam.CombinePerKey(beam.combiners.MeanCombineFn()))
       assert_that(res, equal_to([('a', 1.5), ('b', 3.0)]))
+
+  def test_windowed_combine_per_key(self):
+    with self.create_pipeline() as p:
+      input = (
+          p | beam.Create([12, 2, 1])
+          | beam.Map(lambda t: window.TimestampedValue(('k', t), t)))
+
+      fixed = input | 'Fixed' >> (
+          beam.WindowInto(beam.transforms.window.FixedWindows(10))
+          | beam.CombinePerKey(beam.combiners.MeanCombineFn()))
+      assert_that(fixed, equal_to([('k', 1.5), ('k', 12)]))
+
+      sliding = input | 'Sliding' >> (
+          beam.WindowInto(beam.transforms.window.SlidingWindows(20, 10))
+          | beam.CombinePerKey(beam.combiners.MeanCombineFn()))
+      assert_that(sliding, equal_to([('k', 1.5), ('k', 5.0), ('k', 12)]))
+
+      sessions = input | 'Sessions' >> (
+          beam.WindowInto(beam.transforms.window.Sessions(5))
+          | beam.CombinePerKey(beam.combiners.MeanCombineFn()))
+      assert_that(sessions, equal_to([('k', 1.5), ('k', 12)]))
 
   def test_read(self):
     # Can't use NamedTemporaryFile as a context
@@ -1206,13 +1255,14 @@ class FnApiRunnerTest(unittest.TestCase):
       pcoll_b = p | 'b' >> beam.Create(['b'])
       assert_that((pcoll_a, pcoll_b) | First(), equal_to(['a']))
 
-  def test_metrics(self, check_gauge=True):
+  def test_metrics(self, check_gauge=True, check_bounded_trie=False):
     p = self.create_pipeline()
 
     counter = beam.metrics.Metrics.counter('ns', 'counter')
     distribution = beam.metrics.Metrics.distribution('ns', 'distribution')
     gauge = beam.metrics.Metrics.gauge('ns', 'gauge')
     string_set = beam.metrics.Metrics.string_set('ns', 'string_set')
+    bounded_trie = beam.metrics.Metrics.bounded_trie('ns', 'bounded_trie')
 
     elements = ['a', 'zzz']
     pcoll = p | beam.Create(elements)
@@ -1222,6 +1272,7 @@ class FnApiRunnerTest(unittest.TestCase):
     pcoll | 'dist' >> beam.FlatMap(lambda x: distribution.update(len(x)))
     pcoll | 'gauge' >> beam.FlatMap(lambda x: gauge.set(3))
     pcoll | 'string_set' >> beam.FlatMap(lambda x: string_set.add(x))
+    pcoll | 'bounded_trie' >> beam.FlatMap(lambda x: bounded_trie.add(tuple(x)))
 
     res = p.run()
     res.wait_until_finish()
@@ -1244,6 +1295,14 @@ class FnApiRunnerTest(unittest.TestCase):
     str_set, = res.metrics().query(beam.metrics.MetricsFilter()
                                   .with_name('string_set'))['string_sets']
     self.assertEqual(str_set.committed, set(elements))
+
+    if check_bounded_trie:
+      bounded_trie, = res.metrics().query(beam.metrics.MetricsFilter()
+                                    .with_name('bounded_trie'))['bounded_tries']
+      self.assertEqual(bounded_trie.committed.size(), 2)
+      for element in elements:
+        self.assertTrue(
+            bounded_trie.committed.contains(tuple(element)), element)
 
   def test_callbacks_with_exception(self):
     elements_list = ['1', '2']

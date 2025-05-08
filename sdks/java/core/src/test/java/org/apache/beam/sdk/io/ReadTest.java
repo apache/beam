@@ -66,6 +66,7 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -179,12 +180,7 @@ public class ReadTest implements Serializable {
     // read is default.
     ExperimentalOptions.addExperiment(
         pipeline.getOptions().as(ExperimentalOptions.class), "use_sdf_read");
-    // Force the pipeline to run with one thread to ensure the reader will be reused on one DoFn
-    // instance.
-    // We are not able to use DirectOptions because of circular dependency.
-    pipeline
-        .runWithAdditionalOptionArgs(ImmutableList.of("--targetParallelism=1"))
-        .waitUntilFinish();
+    pipeline.run().waitUntilFinish();
   }
 
   @Test
@@ -348,10 +344,12 @@ public class ReadTest implements Serializable {
 
   private static class ExpectCacheReader extends UnboundedReader<Long> {
     private long current;
+    private boolean started;
     private ExpectCacheUnboundedSource source;
 
     ExpectCacheReader(ExpectCacheUnboundedSource source, CounterMark checkpointMark) {
       this.source = source;
+      this.started = false;
       if (checkpointMark == null) {
         current = 0L;
       } else {
@@ -361,11 +359,14 @@ public class ReadTest implements Serializable {
 
     @Override
     public boolean start() throws IOException {
+      Preconditions.checkState(!started);
+      started = true;
       return advance();
     }
 
     @Override
     public boolean advance() throws IOException {
+      Preconditions.checkState(started);
       current += 1;
       if (current > source.numElements) {
         return false;

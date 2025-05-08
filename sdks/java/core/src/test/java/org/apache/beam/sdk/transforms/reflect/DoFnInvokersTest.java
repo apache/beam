@@ -29,8 +29,8 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Matchers.same;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -86,7 +86,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.AdditionalAnswers;
-import org.mockito.Matchers;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -122,17 +122,19 @@ public class DoFnInvokersTest {
     when(mockArgumentProvider.window()).thenReturn(mockWindow);
     // when(mockArgumentProvider.paneInfo(Matchers.<DoFn>any()))
     //     .thenReturn(mockPaneInfo);
-    when(mockArgumentProvider.element(Matchers.<DoFn>any())).thenReturn(mockElement);
-    when(mockArgumentProvider.timestamp(Matchers.<DoFn>any())).thenReturn(mockTimestamp);
-    when(mockArgumentProvider.outputReceiver(Matchers.<DoFn>any())).thenReturn(mockOutputReceiver);
-    when(mockArgumentProvider.taggedOutputReceiver(Matchers.<DoFn>any()))
+    when(mockArgumentProvider.element(ArgumentMatchers.<DoFn>any())).thenReturn(mockElement);
+    when(mockArgumentProvider.timestamp(ArgumentMatchers.<DoFn>any())).thenReturn(mockTimestamp);
+    when(mockArgumentProvider.outputReceiver(ArgumentMatchers.<DoFn>any()))
+        .thenReturn(mockOutputReceiver);
+    when(mockArgumentProvider.taggedOutputReceiver(ArgumentMatchers.<DoFn>any()))
         .thenReturn(mockMultiOutputReceiver);
     when(mockArgumentProvider.pipelineOptions()).thenReturn(mockOptions);
-    when(mockArgumentProvider.startBundleContext(Matchers.<DoFn>any()))
+    when(mockArgumentProvider.startBundleContext(ArgumentMatchers.<DoFn>any()))
         .thenReturn(mockStartBundleContext);
-    when(mockArgumentProvider.finishBundleContext(Matchers.<DoFn>any()))
+    when(mockArgumentProvider.finishBundleContext(ArgumentMatchers.<DoFn>any()))
         .thenReturn(mockFinishBundleContext);
-    when(mockArgumentProvider.processContext(Matchers.<DoFn>any())).thenReturn(mockProcessContext);
+    when(mockArgumentProvider.processContext(ArgumentMatchers.<DoFn>any()))
+        .thenReturn(mockProcessContext);
   }
 
   private DoFn.ProcessContinuation invokeProcessElement(DoFn<String, String> fn) {

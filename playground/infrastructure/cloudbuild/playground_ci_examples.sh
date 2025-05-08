@@ -80,11 +80,11 @@ fi
 if [ -z "$HOME" ]; then
     export HOME="/builder/home"
 fi
-export STEP=CI 
+export STEP=CI
 export SDK_CONFIG="$BEAM_ROOT_DIR/playground/sdks.yaml"
 export BEAM_EXAMPLE_CATEGORIES="$BEAM_ROOT_DIR/playground/categories.yaml"
 export GRADLE_VERSION=7.5.1
-export GO_VERSION=1.23
+export GO_VERSION=1.24
 
 LogOutput "Installing python java8 and dependencies"
 apt-get update > /dev/null
@@ -140,7 +140,7 @@ LogOutput "git checkout $COMMIT"
 git checkout $COMMIT
 if [ $? -ne 0 ]; then
    LogOutput "Can't checkout to $COMMIT. Exiting script"
-   exit 1 
+   exit 1
 fi
 
 diff_log=$(git diff --name-only $DIFF_BASE...$COMMIT)
@@ -154,7 +154,7 @@ for sdk in $SDKS
 do
     eval "ci_${sdk}_passed"='False'
     example_has_changed="UNKNOWN"
-    LogOutput "------------------Starting checker.py for SDK_${sdk^^}------------------"    
+    LogOutput "------------------Starting checker.py for SDK_${sdk^^}------------------"
     cd $BEAM_ROOT_DIR/playground/infrastructure
     python3 checker.py \
     --verbose \

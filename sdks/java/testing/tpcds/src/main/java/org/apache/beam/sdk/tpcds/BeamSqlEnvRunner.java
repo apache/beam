@@ -80,7 +80,7 @@ public class BeamSqlEnvRunner {
 
   /**
    * Register all tables into BeamSqlEnv, set their schemas, and set the locations where their
-   * corresponding data are stored. Currently this method is not supported by ZetaSQL planner.
+   * corresponding data are stored. ZetaSQL planner is not supported.
    */
   @SuppressWarnings("unused")
   private static void registerAllTablesByBeamSqlEnv(BeamSqlEnv env, String dataSize)

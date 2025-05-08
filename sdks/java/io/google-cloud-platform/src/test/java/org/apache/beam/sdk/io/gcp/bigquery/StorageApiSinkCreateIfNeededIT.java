@@ -17,23 +17,32 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.CONNECTION_ID;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.STORAGE_URI;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertEquals;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.api.services.storage.model.Objects;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
+import org.apache.beam.sdk.extensions.gcp.util.GcsUtil;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.junit.AfterClass;
@@ -57,11 +66,16 @@ public class StorageApiSinkCreateIfNeededIT {
 
   private static final Logger LOG = LoggerFactory.getLogger(StorageApiSinkCreateIfNeededIT.class);
 
-  private static final BigqueryClient BQ_CLIENT = new BigqueryClient("StorageApiSinkFailedRowsIT");
+  private static final BigqueryClient BQ_CLIENT =
+      new BigqueryClient("StorageApiSinkCreateIfNeededIT");
   private static final String PROJECT =
       TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
   private static final String BIG_QUERY_DATASET_ID =
-      "storage_api_sink_failed_rows" + System.nanoTime();
+      "storage_api_sink_create_tables_" + System.nanoTime();
+  private static final String TEST_CONNECTION_ID =
+      "projects/apache-beam-testing/locations/us/connections/apache-beam-testing-storageapi-biglake-nodelete";
+  private static final String TEST_STORAGE_URI =
+      "gs://apache-beam-testing-bq-biglake/" + StorageApiSinkCreateIfNeededIT.class.getSimpleName();
   private static final List<TableFieldSchema> FIELDS =
       ImmutableList.<TableFieldSchema>builder()
           .add(new TableFieldSchema().setType("STRING").setName("str"))
@@ -96,19 +110,55 @@ public class StorageApiSinkCreateIfNeededIT {
 
     String table = "table" + System.nanoTime();
     String tableSpecBase = PROJECT + "." + BIG_QUERY_DATASET_ID + "." + table;
-    runPipeline(getMethod(), tableSpecBase, inputs);
-    assertTablesCreated(tableSpecBase, 100);
+    runPipeline(getMethod(), tableSpecBase, inputs, null);
+    assertTablesCreated(tableSpecBase, 100, true);
   }
 
-  private void assertTablesCreated(String tableSpecPrefix, int expectedRows)
+  @Test
+  public void testCreateBigLakeTables() throws IOException, InterruptedException {
+    int numTables = 5;
+    List<TableRow> inputs =
+        LongStream.range(0, numTables)
+            .mapToObj(l -> new TableRow().set("str", "foo").set("tablenum", l))
+            .collect(Collectors.toList());
+
+    String table = "iceberg_table_" + System.nanoTime() + "_";
+    String tableSpecBase = PROJECT + "." + BIG_QUERY_DATASET_ID + "." + table;
+    Map<String, String> bigLakeConfiguration =
+        ImmutableMap.of(
+            CONNECTION_ID, TEST_CONNECTION_ID,
+            STORAGE_URI, TEST_STORAGE_URI);
+    runPipeline(getMethod(), tableSpecBase, inputs, bigLakeConfiguration);
+    assertTablesCreated(tableSpecBase, numTables, false);
+    assertIcebergTablesCreated(table, numTables);
+  }
+
+  private void assertIcebergTablesCreated(String tablePrefix, int expectedRows)
       throws IOException, InterruptedException {
+    GcsUtil gcsUtil = TestPipeline.testingPipelineOptions().as(GcsOptions.class).getGcsUtil();
+
+    Objects objects =
+        gcsUtil.listObjects(
+            "apache-beam-testing-bq-biglake",
+            String.format(
+                "%s/%s/%s/%s",
+                getClass().getSimpleName(), PROJECT, BIG_QUERY_DATASET_ID, tablePrefix),
+            null);
+
+    assertEquals(expectedRows, objects.getItems().size());
+  }
+
+  private void assertTablesCreated(String tableSpecPrefix, int expectedRows, boolean useWildCard)
+      throws IOException, InterruptedException {
+    String query = String.format("SELECT COUNT(*) FROM `%s`", tableSpecPrefix + "*");
+    if (!useWildCard) {
+      query = String.format("SELECT (SELECT COUNT(*) FROM `%s`)", tableSpecPrefix + 0);
+      for (int i = 1; i < expectedRows; i++) {
+        query += String.format(" + (SELECT COUNT(*) FROM `%s`)", tableSpecPrefix + i);
+      }
+    }
     TableRow queryResponse =
-        Iterables.getOnlyElement(
-            BQ_CLIENT.queryUnflattened(
-                String.format("SELECT COUNT(*) FROM `%s`", tableSpecPrefix + "*"),
-                PROJECT,
-                true,
-                true));
+        Iterables.getOnlyElement(BQ_CLIENT.queryUnflattened(query, PROJECT, true, true));
     int numRowsWritten = Integer.parseInt((String) queryResponse.get("f0_"));
     if (useAtLeastOnce) {
       assertThat(numRowsWritten, Matchers.greaterThanOrEqualTo(expectedRows));
@@ -118,7 +168,10 @@ public class StorageApiSinkCreateIfNeededIT {
   }
 
   private static void runPipeline(
-      BigQueryIO.Write.Method method, String tableSpecBase, Iterable<TableRow> tableRows) {
+      BigQueryIO.Write.Method method,
+      String tableSpecBase,
+      Iterable<TableRow> tableRows,
+      @Nullable Map<String, String> bigLakeConfiguration) {
     Pipeline p = Pipeline.create();
 
     BigQueryIO.Write<TableRow> write =
@@ -130,6 +183,9 @@ public class StorageApiSinkCreateIfNeededIT {
     if (method == BigQueryIO.Write.Method.STORAGE_WRITE_API) {
       write = write.withNumStorageWriteApiStreams(1);
       write = write.withTriggeringFrequency(Duration.standardSeconds(1));
+    }
+    if (bigLakeConfiguration != null) {
+      write = write.withBigLakeConfiguration(bigLakeConfiguration);
     }
     PCollection<TableRow> input = p.apply("Create test cases", Create.of(tableRows));
     input = input.setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED);

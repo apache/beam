@@ -122,17 +122,6 @@ public class JdbcWriteSchemaTransformProviderTest {
               .build()
               .validate();
         });
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> {
-          JdbcWriteSchemaTransformProvider.JdbcWriteSchemaTransformConfiguration.builder()
-              .setJdbcUrl("JdbcUrl")
-              .setLocation("Location")
-              .setDriverClassName("ClassName")
-              .setJdbcType((String) JDBC_DRIVER_MAP.keySet().toArray()[0])
-              .build()
-              .validate();
-        });
   }
 
   @Test
@@ -175,6 +164,7 @@ public class JdbcWriteSchemaTransformProviderTest {
                     .setDriverClassName(DATA_SOURCE_CONFIGURATION.getDriverClassName().get())
                     .setJdbcUrl(DATA_SOURCE_CONFIGURATION.getUrl().get())
                     .setLocation(writeTableName)
+                    .setBatchSize(1L)
                     .build()));
     pipeline.run();
     DatabaseTestHelper.assertRowCount(DATA_SOURCE, writeTableName, 2);

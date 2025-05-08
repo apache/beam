@@ -49,7 +49,6 @@ import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.io.FileIO;
-import org.apache.iceberg.io.OutputFile;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -83,7 +82,7 @@ class AppendFilesToTables
         .apply(
             "Append metadata updates to tables",
             ParDo.of(new AppendFilesToTablesDoFn(catalogConfig, manifestFilePrefix)))
-        .setCoder(KvCoder.of(StringUtf8Coder.of(), SnapshotInfo.CODER));
+        .setCoder(KvCoder.of(StringUtf8Coder.of(), SnapshotInfo.getCoder()));
   }
 
   private static class AppendFilesToTablesDoFn
@@ -129,12 +128,11 @@ class AppendFilesToTables
         BoundedWindow window)
         throws IOException {
       String tableStringIdentifier = element.getKey();
+      Table table = getCatalog().loadTable(TableIdentifier.parse(element.getKey()));
       Iterable<FileWriteResult> fileWriteResults = element.getValue();
-      if (!fileWriteResults.iterator().hasNext()) {
+      if (shouldSkip(table, fileWriteResults)) {
         return;
       }
-
-      Table table = getCatalog().loadTable(TableIdentifier.parse(element.getKey()));
 
       // vast majority of the time, we will simply append data files.
       // in the rare case we get a batch that contains multiple partition specs, we will group
@@ -188,8 +186,10 @@ class AppendFilesToTables
         int specId = entry.getKey();
         List<DataFile> files = entry.getValue();
         PartitionSpec spec = Preconditions.checkStateNotNull(specs.get(specId));
-        ManifestWriter<DataFile> writer =
-            createManifestWriter(table.location(), uuid, spec, table.io());
+        ManifestWriter<DataFile> writer;
+        try (FileIO io = table.io()) {
+          writer = createManifestWriter(table.location(), uuid, spec, io);
+        }
         for (DataFile file : files) {
           writer.add(file);
           committedDataFileByteSize.update(file.fileSizeInBytes());
@@ -208,8 +208,37 @@ class AppendFilesToTables
               String.format(
                   "%s/metadata/%s-%s-%s.manifest",
                   tableLocation, manifestFilePrefix, uuid, spec.specId()));
-      OutputFile outputFile = io.newOutputFile(location);
-      return ManifestFiles.write(spec, outputFile);
+      return ManifestFiles.write(spec, io.newOutputFile(location));
+    }
+
+    // If the process call fails immediately after a successful commit, it gets retried with
+    // the same data, possibly leading to data duplication.
+    // To mitigate, we skip the current batch of files if it matches the most recently committed
+    // batch.
+    //
+    // TODO(ahmedabu98): This does not cover concurrent writes from other pipelines, where the
+    //  "last successful snapshot" might reflect commits from other sources. Ideally, we would make
+    //  this stateful, but that is update incompatible.
+    // TODO(ahmedabu98): add load test pipelines with intentional periodic crashing
+    private boolean shouldSkip(Table table, Iterable<FileWriteResult> fileWriteResults) {
+      if (table.currentSnapshot() == null) {
+        return false;
+      }
+      if (!fileWriteResults.iterator().hasNext()) {
+        return true;
+      }
+
+      // Check if the current batch is identical to the most recently committed batch.
+      // Upstream GBK means we always get the same batch of files on retry,
+      // so a single overlapping file means the whole batch is identical.
+      String sampleCommittedDataFilePath =
+          table.currentSnapshot().addedDataFiles(table.io()).iterator().next().path().toString();
+      for (FileWriteResult result : fileWriteResults) {
+        if (result.getSerializableDataFile().getPath().equals(sampleCommittedDataFilePath)) {
+          return true;
+        }
+      }
+      return false;
     }
   }
 }

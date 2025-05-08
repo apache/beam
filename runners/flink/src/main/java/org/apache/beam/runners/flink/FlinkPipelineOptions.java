@@ -262,7 +262,7 @@ public interface FlinkPipelineOptions
       if (options.as(StreamingOptions.class).isStreaming()) {
         return 1000L;
       } else {
-        return 1000000L;
+        return 5000L;
       }
     }
   }
@@ -381,6 +381,13 @@ public interface FlinkPipelineOptions
   Boolean getEnableStableInputDrain();
 
   void setEnableStableInputDrain(Boolean enableStableInputDrain);
+
+  @Description(
+      "Set a slot sharing group for all bounded sources. This is required when using Datastream to have the same scheduling behaviour as the Dataset API.")
+  @Default.Boolean(true)
+  Boolean getForceSlotSharingGroup();
+
+  void setForceSlotSharingGroup(Boolean enableStableInputDrain);
 
   static FlinkPipelineOptions defaults() {
     return PipelineOptionsFactory.as(FlinkPipelineOptions.class);

@@ -1,0 +1,92 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+fixtures:
+  - name: TEMP_DIR
+    type: "tempfile.TemporaryDirectory"
+
+pipelines:
+  # MLTransform with write_artifact_location
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - {num: 0, text: 'To be or not to be'}
+              - {num: 2, text: 'I think, therefore I am'}
+              - {num: 5, text: 'The only thing we have to fear is fear itself'}
+              - {num: 8, text: 'Be the change you wish to see in the world'}
+        - type: MLTransform
+          config:
+            write_artifact_location: "{TEMP_DIR}"
+            transforms:
+              - type: ScaleTo01
+                config:
+                  columns: [num]
+              - type: ScaleByMinMax
+                config:
+                  columns: [num]
+                  min_value: 0
+                  max_value: 100
+        - type: MapToFields
+          config:
+            language: python
+            fields:
+              num_scaled:
+                callable: 'lambda x: x.num[0]'
+        - type: AssertEqual
+          config:
+            elements:
+              - {num_scaled: 0.0}
+              - {num_scaled: 25.0}
+              - {num_scaled: 62.5}
+              - {num_scaled: 100.0}
+    options:
+      yaml_experimental_features: ['ML']
+
+  # MLTransform with read_artifact_location based on previous 
+  # write_artifact_location
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - {num: 0, text: 'To be or not to be'}
+              - {num: 2, text: 'I think, therefore I am'}
+              - {num: 5, text: 'The only thing we have to fear is fear itself'}
+              - {num: 8, text: 'Be the change you wish to see in the world'}
+        - type: MLTransform
+          config:
+            read_artifact_location: "{TEMP_DIR}"
+        - type: MapToFields
+          config:
+            language: python
+            fields:
+              num_scaled:
+                callable: 'lambda x: x.num[0]'
+        - type: AssertEqual
+          config:
+            elements:
+              - {num_scaled: 0.0}
+              - {num_scaled: 25.0}
+              - {num_scaled: 62.5}
+              - {num_scaled: 100.0}
+    options:
+      yaml_experimental_features: ['ML']
+

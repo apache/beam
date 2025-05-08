@@ -62,6 +62,7 @@ META_DATA_ALL_NAME = 'Dicom_io_it_test_data.json'
 META_DATA_REFINED_NAME = 'Dicom_io_it_test_refined_data.json'
 NUM_INSTANCE = 18
 RAND_LEN = 15
+SCOPES = ['https://www.googleapis.com/auth/cloud-platform']
 
 
 def random_string_generator(length):
@@ -72,7 +73,7 @@ def random_string_generator(length):
 
 def create_dicom_store(project_id, dataset_id, region, dicom_store_id):
   # Create a an empty DICOM store
-  credential, _ = default()
+  credential, _ = default(SCOPES)
   session = requests.AuthorizedSession(credential)
   api_endpoint = "{}/projects/{}/locations/{}".format(
       HEALTHCARE_BASE_URL, project_id, region)
@@ -88,7 +89,7 @@ def create_dicom_store(project_id, dataset_id, region, dicom_store_id):
 
 def delete_dicom_store(project_id, dataset_id, region, dicom_store_id):
   # Delete an existing DICOM store
-  credential, _ = default()
+  credential, _ = default(SCOPES)
   session = requests.AuthorizedSession(credential)
   api_endpoint = "{}/projects/{}/locations/{}".format(
       HEALTHCARE_BASE_URL, project_id, region)
@@ -108,7 +109,7 @@ def get_gcs_file_http(file_name):
   api_endpoint = "{}/b/{}/o/{}?alt=media".format(
       GCS_BASE_URL, BUCKET_NAME, file_name)
 
-  credential, _ = default()
+  credential, _ = default(SCOPES)
   session = requests.AuthorizedSession(credential)
 
   response = session.get(api_endpoint)
@@ -209,8 +210,10 @@ class DICOMIoIntegrationTest(unittest.TestCase):
           results, equal_to(expected_output), label='store first assert')
 
     # Check the metadata using client
+    credential, _ = default(SCOPES)
     result, status_code = DicomApiHttpClient().qido_search(
-      self.project, REGION, DATA_SET_ID, self.temp_dicom_store, 'instances'
+      self.project, REGION, DATA_SET_ID,
+      self.temp_dicom_store, 'instances', credential=credential
     )
 
     self.assertEqual(status_code, 200)

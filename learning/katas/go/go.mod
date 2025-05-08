@@ -19,7 +19,7 @@ go 1.14
 
 require (
 	github.com/apache/beam/sdks/v2 v2.40.0
-	github.com/google/go-cmp v0.5.8
-	golang.org/x/net v0.23.0 // indirect
+	github.com/google/go-cmp v0.6.0
+	golang.org/x/net v0.38.0 // indirect
 	google.golang.org/genproto v0.0.0-20220815135757-37a418bb8959 // indirect
 )

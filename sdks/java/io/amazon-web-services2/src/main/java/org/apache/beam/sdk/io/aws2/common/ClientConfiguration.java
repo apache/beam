@@ -77,6 +77,13 @@ public abstract class ClientConfiguration implements Serializable {
   }
 
   /**
+   * Optional flag to skip certificate verification. Should only be overriden for test scenarios. If
+   * set, this overwrites the default in {@link AwsOptions#skipCertificateVerification()}.
+   */
+  @JsonProperty
+  public abstract @Nullable @Pure Boolean skipCertificateVerification();
+
+  /**
    * Optional service endpoint to use AWS compatible services instead, e.g. for testing. If set,
    * this overwrites the default in {@link AwsOptions#getEndpoint()}.
    */
@@ -155,6 +162,13 @@ public abstract class ClientConfiguration implements Serializable {
       retry.accept(builder);
       return retry(builder.build());
     }
+
+    /**
+     * Optional flag to skip certificate verification. Should only be overriden for test scenarios.
+     * If set, this overwrites the default in {@link AwsOptions#skipCertificateVerification()}.
+     */
+    @JsonProperty
+    public abstract Builder skipCertificateVerification(boolean skipCertificateVerification);
 
     abstract Builder regionId(String region);
 

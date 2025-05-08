@@ -43,7 +43,7 @@ public abstract class KafkaReadSchemaTransformConfiguration {
 
   public static final Set<String> VALID_START_OFFSET_VALUES = Sets.newHashSet("earliest", "latest");
 
-  public static final String VALID_FORMATS_STR = "RAW,AVRO,JSON,PROTO";
+  public static final String VALID_FORMATS_STR = "RAW,STRING,AVRO,JSON,PROTO";
   public static final Set<String> VALID_DATA_FORMATS =
       Sets.newHashSet(VALID_FORMATS_STR.split(","));
 

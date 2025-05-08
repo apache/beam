@@ -110,6 +110,16 @@ public interface SdkHarnessOptions extends PipelineOptions, MemoryMonitorOptions
 
   void setLogMdc(boolean value);
 
+  /** This option controls whether logging will be redirected through the FnApi. */
+  @Description(
+      "Controls whether logging will be redirected through the FnApi. In normal usage, setting "
+          + "this to a non-default value will cause log messages to be dropped.")
+  @Default.Boolean(true)
+  @Hidden
+  boolean getEnableLogViaFnApi();
+
+  void setEnableLogViaFnApi(boolean enableLogViaFnApi);
+
   /**
    * Size (in MB) of each grouping table used to pre-combine elements. Larger values may reduce the
    * amount of data shuffled. If unset, defaults to 100 MB.
@@ -339,13 +349,15 @@ public interface SdkHarnessOptions extends PipelineOptions, MemoryMonitorOptions
   }
 
   /**
-   * Open modules needed for reflection that access JDK internals with Java 9+
+   * Open modules needed for reflection that access JDK internals with Java 9+.
    *
    * <p>With JDK 16+, <a href="#{https://openjdk.java.net/jeps/403}">JDK internals are strongly
    * encapsulated</a> and can result in an InaccessibleObjectException being thrown if a tool or
    * library uses reflection that access JDK internals. If you see these errors in your worker logs,
-   * you can pass in modules to open using the format module/package=target-module(,target-module)*
-   * to allow access to the library. E.g. java.base/java.lang=jamm
+   * you can pass in modules to open using the format {@code
+   * module/package=target-module[,module2/package2=another-target-module]} to allow access to the
+   * library. E.g. {@code --jdkAddOpenModules=java.base/java.lang=jamm}. This will set {@code
+   * --add-opens} JVM flag in SDK Harness invocation.
    *
    * <p>You may see warnings that jamm, a library used to more accurately size objects, is unable to
    * make a private field accessible. To resolve the warning, open the specified module/package to
@@ -355,6 +367,17 @@ public interface SdkHarnessOptions extends PipelineOptions, MemoryMonitorOptions
   List<String> getJdkAddOpenModules();
 
   void setJdkAddOpenModules(List<String> options);
+
+  /**
+   * Add modules to the default root set with Java 11+.
+   *
+   * <p>Set {@code --add-modules} JVM flag in SDK Harness invocation. E.g. {@code
+   * --jdkAddModules=module1,module2}.
+   */
+  @Description("Add modules to the default root set with Java 11+.")
+  List<String> getJdkAddRootModules();
+
+  void setJdkAddRootModules(List<String> options);
 
   /**
    * Configure log manager's default log level and log level overrides from the sdk harness options,

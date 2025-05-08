@@ -57,6 +57,7 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -82,6 +83,8 @@ public class MongoDbIOTest {
   private static int port;
 
   @Rule public final TestPipeline pipeline = TestPipeline.create();
+
+  @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   @BeforeClass
   public static void beforeClass() throws Exception {
@@ -420,6 +423,20 @@ public class MongoDbIOTest {
     Document out = database.getCollection(collectionName).find(new Document("_id", 1)).first();
     assertEquals("Updated", out.get("scientist"));
     assertEquals("India", out.get("country"));
+  }
+
+  @Test
+  public void testUnknownQueryFnClass() throws IllegalArgumentException {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(
+        "[org.apache.beam.sdk.io.mongodb.AutoValue_FindQueryTest]" + MongoDbIO.ERROR_MSG_QUERY_FN);
+
+    pipeline.apply(
+        MongoDbIO.read()
+            .withUri("mongodb://localhost:" + port)
+            .withDatabase(DATABASE_NAME)
+            .withCollection(COLLECTION_NAME)
+            .withQueryFn(FindQueryTest.create().withFilters(Filters.eq("scientist", "Einstein"))));
   }
 
   private static List<Document> createDocuments(final int n, boolean addId) {

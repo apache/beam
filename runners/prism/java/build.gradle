@@ -86,46 +86,28 @@ def sickbayTests = [
     'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testCommittedStringSetMetrics',
     'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testCommittedGaugeMetrics',
 
-    // Triggers / Accumulation modes not yet implemented in prism.
+    // ProcessingTime triggers not yet implemented in Prism.
     // https://github.com/apache/beam/issues/31438
-    'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testGlobalCombineWithDefaultsAndTriggers',
-    'org.apache.beam.sdk.transforms.CombineTest$BasicTests.testHotKeyCombiningWithAccumulationMode',
-    'org.apache.beam.sdk.transforms.windowing.WindowTest.testNoWindowFnDoesNotReassignWindows',
     'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
     'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testCombiningAccumulatingProcessingTime',
     'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerEarly',
-    'org.apache.beam.sdk.transforms.ParDoTest$BundleInvariantsTests.testWatermarkUpdateMidBundle',
-    'org.apache.beam.sdk.transforms.ViewTest.testTriggeredLatestSingleton',
-    // Requires Allowed Lateness, among others.
-    'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerSetWithinAllowedLateness',
-    'org.apache.beam.sdk.testing.TestStreamTest.testFirstElementLate',
-    'org.apache.beam.sdk.testing.TestStreamTest.testDiscardingMode',
-    'org.apache.beam.sdk.testing.TestStreamTest.testEarlyPanesOfWindow',
-    'org.apache.beam.sdk.testing.TestStreamTest.testElementsAtAlmostPositiveInfinity',
-    'org.apache.beam.sdk.testing.TestStreamTest.testLateDataAccumulating',
-    'org.apache.beam.sdk.testing.TestStreamTest.testMultipleStreams',
     'org.apache.beam.sdk.testing.TestStreamTest.testProcessingTimeTrigger',
+    'org.apache.beam.sdk.testing.TestStreamTest.testLateDataAccumulating', // Uses processing time trigger for early firings.
 
-    // Coding error somehow: short write: reached end of stream after reading 5 bytes; 98 bytes expected
+    // Triggered Side Inputs not yet implemented in Prism.
+    // https://github.com/apache/beam/issues/31438
+    'org.apache.beam.sdk.transforms.ViewTest.testTriggeredLatestSingleton',
+
+    // Prism doesn't support multiple TestStreams.
+    'org.apache.beam.sdk.testing.TestStreamTest.testMultipleStreams',
+    // Sometimes fails missing a final 'AFTER'. Otherwise, Hangs in ElementManager.FailBundle due to a held stageState lock.
     'org.apache.beam.sdk.testing.TestStreamTest.testMultiStage',
 
-    // Prism not firing sessions correctly (seems to be merging inapppropriately)
-    'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testSessionsCombine',
-    'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testSessionsCombineWithContext',
-
-    // Java side dying during execution.
-    // https://github.com/apache/beam/issues/32930
-    'org.apache.beam.sdk.transforms.FlattenTest.testFlattenMultipleCoders',
-    // Stream corruption error java side: failed:java.io.StreamCorruptedException: invalid stream header: 206E6F74
-    // Likely due to prism't coder changes.
-    'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2',
-
-    // java.lang.IllegalStateException: Output with tag Tag<output> must have a schema in order to call getRowReceiver
-    // Ultimately because getRoeReceiver code path SDK side isn't friendly to LengthPrefix wrapping of row coders.
-    // https://github.com/apache/beam/issues/32931
-    'org.apache.beam.sdk.transforms.ParDoSchemaTest.testReadAndWrite',
-    'org.apache.beam.sdk.transforms.ParDoSchemaTest.testReadAndWriteMultiOutput',
-    'org.apache.beam.sdk.transforms.ParDoSchemaTest.testReadAndWriteWithSchemaRegistry',
+    // GroupIntoBatchesTest tests that fail:
+    // Teststream has bad KV encodings due to using an outer context.
+    'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testInStreamingMode',
+    // ShardedKey not yet implemented.
+    'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testWithShardedKeyInGlobalWindow',
 
     // Technically these tests "succeed"
     // the test is just complaining that an AssertionException isn't a RuntimeException
@@ -143,9 +125,6 @@ def sickbayTests = [
     'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindows',
     'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindowsKeyedCollection',
     'org.apache.beam.sdk.transforms.windowing.WindowTest.testMergingCustomWindowsWithoutCustomWindowTypes',
-    'org.apache.beam.sdk.transforms.windowing.WindowingTest.testMergingWindowing',
-    'org.apache.beam.sdk.transforms.windowing.WindowingTest.testNonPartitioningWindowing',
-    'org.apache.beam.sdk.transforms.GroupByKeyTest$WindowTests.testGroupByKeyMergingWindows',
 
     // Possibly a different error being hidden behind the main error.
     // org.apache.beam.sdk.util.WindowedValue$ValueInGlobalWindow cannot be cast to class java.lang.String
@@ -154,11 +133,10 @@ def sickbayTests = [
     // TODO(https://github.com/apache/beam/issues/31231)
     'org.apache.beam.sdk.transforms.RedistributeTest.testRedistributePreservesMetadata',
 
-    // Prism isn't handling Java's side input views properly.
+    // Prism isn't handling Java's side input views properly, likely related to triggered side inputs.
     // https://github.com/apache/beam/issues/32932
     // java.lang.IllegalArgumentException: PCollection with more than one element accessed as a singleton view.
     // Consider using Combine.globally().asSingleton() to combine the PCollection into a single value
-    'org.apache.beam.sdk.transforms.ViewTest.testDiscardingNonSingletonSideInput',
     // java.util.NoSuchElementException: Empty PCollection accessed as a singleton view.
     'org.apache.beam.sdk.transforms.ViewTest.testDiscardingNonSingletonSideInput',
     // ava.lang.IllegalArgumentException: Duplicate values for a
@@ -171,26 +149,8 @@ def sickbayTests = [
     // java.lang.IllegalStateException: java.io.EOFException
     'org.apache.beam.sdk.transforms.ViewTest.testSideInputWithNestedIterables',
 
-    // Requires Time Sorted Input
-    'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testRequiresTimeSortedInput',
-    'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testRequiresTimeSortedInputWithTestStream',
-    'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testRequiresTimeSortedInputWithLateDataAndAllowedLateness',
-    'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testTwoRequiresTimeSortedInputWithLateData',
-    'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testRequiresTimeSortedInputWithLateData',
-
-    // Timer race condition/ordering issue in Prism.
-    'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testTwoTimersSettingEachOtherWithCreateAsInputUnbounded',
-
-    // Missing output due to timer skew.
+    // Missing output due to processing time timer skew.
     'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testProcessElementSkew',
-
-    // TestStream + BundleFinalization.
-    // Tests seem to assume individual element bundles from test stream, but prism will aggregate them, preventing
-    // a subsequent firing. Tests ultimately hang until timeout.
-    // Either a test problem, or a misunderstanding of how test stream must work problem in prism.
-    // Biased to test problem, due to how they are constructed.
-    'org.apache.beam.sdk.transforms.ParDoTest$BundleFinalizationTests.testBundleFinalization',
-    'org.apache.beam.sdk.transforms.ParDoTest$BundleFinalizationTests.testBundleFinalizationWithSideInputs',
 
     // Filtered by PortableRunner tests.
     // Teardown not called in exceptions
@@ -230,21 +190,18 @@ def createPrismValidatesRunnerTask = { name, environmentType ->
       excludeCategories 'org.apache.beam.sdk.testing.UsesExternalService'
       excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
 
-      // Not yet implemented in Prism
-      // https://github.com/apache/beam/issues/32211
-      excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
-      // https://github.com/apache/beam/issues/32929
-      excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
+      // Not supported in Portable Java SDK yet.
+      // https://github.com/apache/beam/issues?q=is%3Aissue+is%3Aopen+MultimapState
+      excludeCategories 'org.apache.beam.sdk.testing.UsesMultimapState'
 
-       // Not supported in Portable Java SDK yet.
-       // https://github.com/apache/beam/issues?q=is%3Aissue+is%3Aopen+MultimapState
-       excludeCategories 'org.apache.beam.sdk.testing.UsesMultimapState'
+      // Processing time with TestStream is unreliable without being able to control
+      // SDK side time portably. Ignore these tests.
+      excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'
+
+      // Not yet supported in Prism.
+      excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedTrieMetrics'
     }
     filter {
-      // Hangs forever with prism. Put here instead of sickbay to allow sickbay runs to terminate.
-      // https://github.com/apache/beam/issues/32222
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$TimerTests.testEventTimeTimerOrderingWithCreate'
-
       for (String test : sickbayTests) {
           excludeTestsMatching test
       }

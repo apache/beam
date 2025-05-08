@@ -17,17 +17,23 @@
  */
 package org.apache.beam.runners.core.metrics;
 
+import static org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns.BOUNDED_TRIE_TYPE;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns.DISTRIBUTION_INT64_TYPE;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns.HISTOGRAM_TYPE;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns.LATEST_INT64_TYPE;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns.SET_STRING_TYPE;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns.SUM_INT64_TYPE;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeBoundedTrie;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeInt64Counter;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeInt64Distribution;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeInt64Gauge;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeInt64Histogram;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeStringSet;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeBoundedTrie;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Counter;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Distribution;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Gauge;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Histogram;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeStringSet;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
@@ -44,13 +50,14 @@ import java.util.function.Function;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.sdk.metrics.Distribution;
+import org.apache.beam.sdk.metrics.Histogram;
 import org.apache.beam.sdk.metrics.Metric;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -93,6 +100,9 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
   private MetricsMap<KV<MetricName, HistogramData.BucketType>, HistogramCell> histograms =
       new MetricsMap<>(HistogramCell::new);
 
+  private MetricsMap<MetricName, BoundedTrieCell> boundedTries =
+      new MetricsMap<>(BoundedTrieCell::new);
+
   private MetricsContainerImpl(@Nullable String stepName, boolean isProcessWide) {
     this.stepName = stepName;
     this.isProcessWide = isProcessWide;
@@ -129,6 +139,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     gauges.forEachValue(GaugeCell::reset);
     histograms.forEachValue(HistogramCell::reset);
     stringSets.forEachValue(StringSetCell::reset);
+    boundedTries.forEachValue(BoundedTrieCell::reset);
   }
 
   /**
@@ -216,6 +227,27 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     return stringSets.tryGet(metricName);
   }
 
+  /**
+   * Return a {@code BoundedTrieCell} named {@code metricName}. If it doesn't exist, create a {@code
+   * Metric} with the specified name.
+   */
+  @Override
+  public BoundedTrieCell getBoundedTrie(MetricName metricName) {
+    return boundedTries.get(metricName);
+  }
+
+  /**
+   * Return a {@code BoundedTrieCell} named {@code metricName}. If it doesn't exist, return {@code
+   * null}.
+   */
+  public @Nullable BoundedTrieCell tryGetBoundedTrie(MetricName metricName) {
+    return boundedTries.tryGet(metricName);
+  }
+
+  public MetricsMap<KV<MetricName, HistogramData.BucketType>, HistogramCell> getHistogram() {
+    return histograms;
+  }
+
   private <UpdateT, CellT extends MetricCell<UpdateT>>
       ImmutableList<MetricUpdate<UpdateT>> extractUpdates(MetricsMap<MetricName, CellT> cells) {
     ImmutableList.Builder<MetricUpdate<UpdateT>> updates = ImmutableList.builder();
@@ -224,6 +256,22 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
           if (value.getDirty().beforeCommit()) {
             updates.add(
                 MetricUpdate.create(MetricKey.create(stepName, key), value.getCumulative()));
+          }
+        });
+    return updates.build();
+  }
+
+  // Needs a separate update since its constructor is different
+  private <UpdateT, CellT extends MetricCell<UpdateT>>
+      ImmutableList<MetricUpdate<UpdateT>> extractHistogramUpdates(
+          MetricsMap<KV<MetricName, HistogramData.BucketType>, CellT> cells) {
+    ImmutableList.Builder<MetricUpdate<UpdateT>> updates = ImmutableList.builder();
+    cells.forEach(
+        (key, value) -> {
+          if (value.getDirty().beforeCommit()) {
+            updates.add(
+                MetricUpdate.create(
+                    MetricKey.create(stepName, key.getKey()), value.getCumulative()));
           }
         });
     return updates.build();
@@ -238,7 +286,9 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
         extractUpdates(counters),
         extractUpdates(distributions),
         extractUpdates(gauges),
-        extractUpdates(stringSets));
+        extractUpdates(stringSets),
+        extractUpdates(boundedTries),
+        extractHistogramUpdates(histograms));
   }
 
   /** @return The MonitoringInfo metadata from the metric. */
@@ -268,7 +318,26 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
           .setLabel(MonitoringInfoConstants.Labels.NAME, metricKey.metricName().getName())
           .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, metricKey.stepName());
     }
+
+    // Add any metricKey labels to the monitoringInfoLabels.
+    if (!metricName.getLabels().isEmpty()) {
+      builder.setLabels(metricName.getLabels());
+    }
     return builder;
+  }
+
+  /**
+   * @param metricUpdate
+   * @return The MonitoringInfo generated from the histogram metricUpdate.
+   */
+  private @Nullable MonitoringInfo histogramUpdateToMonitoringInfo(
+      MetricUpdate<HistogramData> metricUpdate) {
+    SimpleMonitoringInfoBuilder builder = histogramToMonitoringMetadata(metricUpdate.getKey());
+    if (builder == null) {
+      return null;
+    }
+    builder.setInt64HistogramValue(metricUpdate.getUpdate());
+    return builder.build();
   }
 
   /** @return The MonitoringInfo metadata from the counter metric. */
@@ -342,6 +411,23 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
         MonitoringInfoConstants.Urns.USER_SET_STRING);
   }
 
+  /** @return The MonitoringInfo metadata from the string set metric. */
+  private @Nullable SimpleMonitoringInfoBuilder boundedTrieToMonitoringMetadata(
+      MetricKey metricKey) {
+    return metricToMonitoringMetadata(
+        metricKey,
+        MonitoringInfoConstants.TypeUrns.BOUNDED_TRIE_TYPE,
+        MonitoringInfoConstants.Urns.USER_BOUNDED_TRIE);
+  }
+
+  /** @return The MonitoringInfo metadata from the histogram metric. */
+  private @Nullable SimpleMonitoringInfoBuilder histogramToMonitoringMetadata(MetricKey metricKey) {
+    return metricToMonitoringMetadata(
+        metricKey,
+        MonitoringInfoConstants.TypeUrns.HISTOGRAM_TYPE,
+        MonitoringInfoConstants.Urns.USER_HISTOGRAM);
+  }
+
   /**
    * @param metricUpdate
    * @return The MonitoringInfo generated from the string set metricUpdate.
@@ -353,6 +439,20 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
       return null;
     }
     builder.setStringSetValue(metricUpdate.getUpdate());
+    return builder.build();
+  }
+
+  /**
+   * @param metricUpdate
+   * @return The MonitoringInfo generated from the string set metricUpdate.
+   */
+  private @Nullable MonitoringInfo boundedTrieUpdateToMonitoringInfo(
+      MetricUpdate<BoundedTrieData> metricUpdate) {
+    SimpleMonitoringInfoBuilder builder = boundedTrieToMonitoringMetadata(metricUpdate.getKey());
+    if (builder == null) {
+      return null;
+    }
+    builder.setBoundedTrieValue(metricUpdate.getUpdate());
     return builder.build();
   }
 
@@ -390,6 +490,20 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
         monitoringInfos.add(mi);
       }
     }
+    for (MetricUpdate<BoundedTrieData> metricUpdate : metricUpdates.boundedTrieUpdates()) {
+      MonitoringInfo mi = boundedTrieUpdateToMonitoringInfo(metricUpdate);
+      if (mi != null) {
+        monitoringInfos.add(mi);
+      }
+    }
+
+    for (MetricUpdate<HistogramData> metricUpdate : metricUpdates.histogramsUpdates()) {
+      MonitoringInfo mi = histogramUpdateToMonitoringInfo(metricUpdate);
+      if (mi != null) {
+        monitoringInfos.add(mi);
+      }
+    }
+
     return monitoringInfos;
   }
 
@@ -432,6 +546,26 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
             }
           }
         });
+    boundedTries.forEach(
+        (metricName, boundedTrieCell) -> {
+          if (boundedTrieCell.getDirty().beforeCommit()) {
+            String shortId =
+                getShortId(metricName, this::boundedTrieToMonitoringMetadata, shortIds);
+            if (shortId != null) {
+              builder.put(shortId, encodeBoundedTrie(boundedTrieCell.getCumulative()));
+            }
+          }
+        });
+    histograms.forEach(
+        (metricName, histogramCell) -> {
+          if (histogramCell.getDirty().beforeCommit()) {
+            String shortId =
+                getShortId(metricName.getKey(), this::histogramToMonitoringMetadata, shortIds);
+            if (shortId != null) {
+              builder.put(shortId, encodeInt64Histogram(histogramCell.getCumulative()));
+            }
+          }
+        });
     return builder.build();
   }
 
@@ -467,6 +601,11 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     distributions.forEachValue(distribution -> distribution.getDirty().afterCommit());
     gauges.forEachValue(gauge -> gauge.getDirty().afterCommit());
     stringSets.forEachValue(sSets -> sSets.getDirty().afterCommit());
+    boundedTries.forEachValue(bTrie -> bTrie.getDirty().afterCommit());
+    histograms.forEachValue(
+        histogram -> {
+          histogram.getDirty().afterCommit();
+        });
   }
 
   private <UserT extends Metric, UpdateT, CellT extends MetricCell<UpdateT>>
@@ -480,6 +619,18 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     return updates.build();
   }
 
+  private <UserT extends Metric, UpdateT, CellT extends MetricCell<UpdateT>>
+      ImmutableList<MetricUpdate<UpdateT>> extractHistogramCumulatives(
+          MetricsMap<KV<MetricName, HistogramData.BucketType>, CellT> cells) {
+    ImmutableList.Builder<MetricUpdate<UpdateT>> updates = ImmutableList.builder();
+    cells.forEach(
+        (key, value) -> {
+          UpdateT update = checkNotNull(value.getCumulative());
+          updates.add(MetricUpdate.create(MetricKey.create(stepName, key.getKey()), update));
+        });
+    return updates.build();
+  }
+
   /**
    * Return the {@link MetricUpdates} representing the cumulative values of all metrics in this
    * container.
@@ -489,7 +640,9 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
         extractCumulatives(counters),
         extractCumulatives(distributions),
         extractCumulatives(gauges),
-        extractCumulatives(stringSets));
+        extractCumulatives(stringSets),
+        extractCumulatives(boundedTries),
+        extractHistogramCumulatives(histograms));
   }
 
   /** Update values of this {@link MetricsContainerImpl} by merging the value of another cell. */
@@ -499,6 +652,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     updateGauges(gauges, other.gauges);
     updateHistograms(histograms, other.histograms);
     updateStringSets(stringSets, other.stringSets);
+    updateBoundedTrie(boundedTries, other.boundedTries);
   }
 
   private void updateForSumInt64Type(MonitoringInfo monitoringInfo) {
@@ -510,7 +664,6 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
   private void updateForDistributionInt64Type(MonitoringInfo monitoringInfo) {
     MetricName metricName = MonitoringInfoMetricName.of(monitoringInfo);
     Distribution distribution = getDistribution(metricName);
-
     DistributionData data = decodeInt64Distribution(monitoringInfo.getPayload());
     distribution.update(data.sum(), data.count(), data.min(), data.max());
   }
@@ -525,6 +678,20 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     MetricName metricName = MonitoringInfoMetricName.of(monitoringInfo);
     StringSetCell stringSet = getStringSet(metricName);
     stringSet.update(decodeStringSet(monitoringInfo.getPayload()));
+  }
+
+  private void updateForBoundedTrieType(MonitoringInfo monitoringInfo) {
+    MetricName metricName = MonitoringInfoMetricName.of(monitoringInfo);
+    BoundedTrieCell boundedTrie = getBoundedTrie(metricName);
+    boundedTrie.update(decodeBoundedTrie(monitoringInfo.getPayload()));
+  }
+
+  private void updateForHistogramInt64(MonitoringInfo monitoringInfo) {
+    MetricName metricName = MonitoringInfoMetricName.of(monitoringInfo);
+    HistogramData.BucketType buckets = HistogramData.ExponentialBuckets.of(1, 17);
+    Histogram histogram = getHistogram(metricName, buckets);
+    HistogramData data = decodeInt64Histogram(monitoringInfo.getPayload());
+    histogram.update(data);
   }
 
   /** Update values of this {@link MetricsContainerImpl} by reading from {@code monitoringInfos}. */
@@ -551,6 +718,13 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
           updateForStringSetType(monitoringInfo);
           break;
 
+        case BOUNDED_TRIE_TYPE:
+          updateForBoundedTrieType(monitoringInfo);
+          break;
+
+        case HISTOGRAM_TYPE:
+          updateForHistogramInt64(monitoringInfo); // use type, and not urn info
+          break;
         default:
           LOG.warn("Unsupported metric type {}", monitoringInfo.getType());
       }
@@ -585,6 +759,12 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     updates.forEach((key, value) -> current.get(key).update(value.getCumulative()));
   }
 
+  private void updateBoundedTrie(
+      MetricsMap<MetricName, BoundedTrieCell> current,
+      MetricsMap<MetricName, BoundedTrieCell> updates) {
+    updates.forEach((key, value) -> current.get(key).update(value.getCumulative()));
+  }
+
   @Override
   public boolean equals(@Nullable Object object) {
     if (object instanceof MetricsContainerImpl) {
@@ -593,14 +773,17 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
           && Objects.equals(counters, metricsContainerImpl.counters)
           && Objects.equals(distributions, metricsContainerImpl.distributions)
           && Objects.equals(gauges, metricsContainerImpl.gauges)
-          && Objects.equals(stringSets, metricsContainerImpl.stringSets);
+          && Objects.equals(stringSets, metricsContainerImpl.stringSets)
+          && Objects.equals(boundedTries, metricsContainerImpl.boundedTries)
+          && Objects.equals(histograms, metricsContainerImpl.histograms);
     }
     return false;
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(stepName, counters, distributions, gauges, stringSets);
+    return Objects.hash(
+        stepName, counters, distributions, gauges, stringSets, boundedTries, histograms);
   }
 
   /**
@@ -682,6 +865,16 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
       message.append(data.stringSet().toString());
       message.append("\n");
     }
+    for (Map.Entry<MetricName, BoundedTrieCell> cell : boundedTries.entries()) {
+      if (!matchMetric(cell.getKey(), allowedMetricUrns)) {
+        continue;
+      }
+      message.append(cell.getKey().toString());
+      message.append(" = ");
+      BoundedTrieData data = cell.getValue().getCumulative();
+      message.append(data.toString());
+      message.append("\n");
+    }
     return message.toString();
   }
 
@@ -690,7 +883,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
    * this function is to print the changes made to the metrics within a window of time. The
    * difference between the counter and histogram bucket counters are calculated between curr and
    * prev. The most recent value are used for gauges. Distribution metrics are dropped (As there is
-   * meaningful way to calculate the delta). Returns curr if prev is null.
+   * a meaningful way to calculate the delta). Returns curr if prev is null.
    */
   public static MetricsContainerImpl deltaContainer(
       @Nullable MetricsContainerImpl prev, MetricsContainerImpl curr) {
@@ -722,9 +915,14 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
       deltaValueCell.incTopBucketCount(
           currValue.getTopBucketCount() - prevValue.getTopBucketCount());
     }
+
     for (Map.Entry<MetricName, StringSetCell> cell : curr.stringSets.entries()) {
       // Simply take the most recent value for stringSets, no need to count deltas.
       deltaContainer.stringSets.get(cell.getKey()).update(cell.getValue().getCumulative());
+    }
+    for (Map.Entry<MetricName, BoundedTrieCell> cell : curr.boundedTries.entries()) {
+      // Simply take the most recent value for boundedTries, no need to count deltas.
+      deltaContainer.boundedTries.get(cell.getKey()).update(cell.getValue().getCumulative());
     }
     return deltaContainer;
   }

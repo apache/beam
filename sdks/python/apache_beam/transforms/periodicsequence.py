@@ -182,7 +182,7 @@ class PeriodicImpulse(PTransform):
     '''
     :param start_timestamp: Timestamp for first element.
     :param stop_timestamp: Timestamp after which no elements will be output.
-    :param fire_interval: Interval at which to output elements.
+    :param fire_interval: Interval in seconds at which to output elements.
     :param apply_windowing: Whether each element should be assigned to
       individual window. If false, all elements will reside in global window.
     '''

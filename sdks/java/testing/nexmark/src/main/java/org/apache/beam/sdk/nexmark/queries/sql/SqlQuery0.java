@@ -24,7 +24,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.impl.CalciteQueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner;
-import org.apache.beam.sdk.extensions.sql.zetasql.ZetaSQLQueryPlanner;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.nexmark.model.Bid;
@@ -59,10 +58,6 @@ public class SqlQuery0 extends NexmarkQueryTransform<Bid> {
   private SqlQuery0(Class<? extends QueryPlanner> plannerClass) {
     super("SqlQuery0");
     this.plannerClass = plannerClass;
-  }
-
-  public static SqlQuery0 zetaSqlQuery0() {
-    return new SqlQuery0(ZetaSQLQueryPlanner.class);
   }
 
   public static SqlQuery0 calciteSqlQuery0() {

@@ -44,7 +44,7 @@ cdef class LCGenerator(object):
     self.seed(self._seed)
     return <libc.stdint.uint32_t>(self._seed >> (self._bits - 32))
 
-  cpdef bytes rand_bytes(self, int length):
+  cpdef bytes randbytes(self, int length):
     cdef libc.stdint.int32_t ints = (length + 3) // 4
     cdef char* data = <char*>libc.stdlib.malloc(ints * 4)
     cdef libc.stdint.uint32_t value

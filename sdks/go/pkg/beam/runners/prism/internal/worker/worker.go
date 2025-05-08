@@ -23,11 +23,9 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"math"
 	"net"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
@@ -38,6 +36,7 @@ import (
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/engine"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -55,19 +54,18 @@ type W struct {
 	fnpb.UnimplementedBeamFnLoggingServer
 	fnpb.UnimplementedProvisionServiceServer
 
+	parentPool *MultiplexW
+
 	ID, Env string
 
 	JobKey, ArtifactEndpoint string
 	EnvPb                    *pipepb.Environment
 	PipelineOptions          *structpb.Struct
 
-	// Server management
-	lis    net.Listener
-	server *grpc.Server
-
 	// These are the ID sources
 	inst               uint64
 	connected, stopped atomic.Bool
+	StoppedChan        chan struct{} // Channel to Broadcast stopped state.
 
 	InstReqs chan *fnpb.InstructionRequest
 	DataReqs chan *fnpb.Elements
@@ -81,44 +79,8 @@ type controlResponder interface {
 	Respond(*fnpb.InstructionResponse)
 }
 
-// New starts the worker server components of FnAPI Execution.
-func New(id, env string) *W {
-	lis, err := net.Listen("tcp", ":0")
-	if err != nil {
-		panic(fmt.Sprintf("failed to listen: %v", err))
-	}
-	opts := []grpc.ServerOption{
-		grpc.MaxRecvMsgSize(math.MaxInt32),
-	}
-	wk := &W{
-		ID:     id,
-		Env:    env,
-		lis:    lis,
-		server: grpc.NewServer(opts...),
-
-		InstReqs: make(chan *fnpb.InstructionRequest, 10),
-		DataReqs: make(chan *fnpb.Elements, 10),
-
-		activeInstructions: make(map[string]controlResponder),
-		Descriptors:        make(map[string]*fnpb.ProcessBundleDescriptor),
-	}
-	slog.Debug("Serving Worker components", slog.String("endpoint", wk.Endpoint()))
-	fnpb.RegisterBeamFnControlServer(wk.server, wk)
-	fnpb.RegisterBeamFnDataServer(wk.server, wk)
-	fnpb.RegisterBeamFnLoggingServer(wk.server, wk)
-	fnpb.RegisterBeamFnStateServer(wk.server, wk)
-	fnpb.RegisterProvisionServiceServer(wk.server, wk)
-	return wk
-}
-
 func (wk *W) Endpoint() string {
-	_, port, _ := net.SplitHostPort(wk.lis.Addr().String())
-	return fmt.Sprintf("localhost:%v", port)
-}
-
-// Serve serves on the started listener. Blocks.
-func (wk *W) Serve() {
-	wk.server.Serve(wk.lis)
+	return wk.parentPool.endpoint
 }
 
 func (wk *W) String() string {
@@ -132,22 +94,27 @@ func (wk *W) LogValue() slog.Value {
 	)
 }
 
+// shutdown safely closes channels, and can be called in the event of SDK crashes.
+//
+// Splitting this logic from the GRPC server Stop is necessary, since a worker
+// crash would be handled in a streaming RPC context, which will block GRPC
+// stop calls.
+func (wk *W) shutdown() {
+	// If this is the first call to "stop" this worker, also close the channels.
+	if wk.stopped.CompareAndSwap(false, true) {
+		slog.Debug("shutdown", "worker", wk, "firstTime", true)
+		close(wk.StoppedChan)
+		close(wk.InstReqs)
+		close(wk.DataReqs)
+	} else {
+		slog.Debug("shutdown", "worker", wk, "firstTime", false)
+	}
+}
+
 // Stop the GRPC server.
 func (wk *W) Stop() {
-	slog.Debug("stopping", "worker", wk)
-	wk.stopped.Store(true)
-	close(wk.InstReqs)
-	close(wk.DataReqs)
-
-	// Give the SDK side 5 seconds to gracefully stop, before
-	// hard stopping all RPCs.
-	tim := time.AfterFunc(5*time.Second, func() {
-		wk.server.Stop()
-	})
-	wk.server.GracefulStop()
-	tim.Stop()
-
-	wk.lis.Close()
+	wk.shutdown()
+	wk.parentPool.delete(wk)
 	slog.Debug("stopped", "worker", wk)
 }
 
@@ -331,17 +298,21 @@ func (wk *W) Control(ctrl fnpb.BeamFnControl_ControlServer) error {
 		case <-ctrl.Context().Done():
 			wk.mu.Lock()
 			// Fail extant instructions
-			slog.Debug("SDK Disconnected", "worker", wk, "ctx_error", ctrl.Context().Err(), "outstanding_instructions", len(wk.activeInstructions))
+			err := context.Cause(ctrl.Context())
+			slog.Debug("SDK Disconnected", "worker", wk, "ctx_error", err, "outstanding_instructions", len(wk.activeInstructions))
 
-			msg := fmt.Sprintf("SDK worker disconnected: %v, %v active instructions", wk.String(), len(wk.activeInstructions))
+			msg := fmt.Sprintf("SDK worker disconnected: %v, %v active instructions, error: %v", wk.String(), len(wk.activeInstructions), err)
 			for instID, b := range wk.activeInstructions {
 				b.Respond(&fnpb.InstructionResponse{
 					InstructionId: instID,
 					Error:         msg,
 				})
 			}
+			// Soft shutdown to prevent GRPC shutdown from being blocked by this
+			// streaming call.
+			wk.shutdown()
 			wk.mu.Unlock()
-			return context.Cause(ctrl.Context())
+			return err
 		case err := <-done:
 			if err != nil {
 				slog.Warn("Control done", "error", err, "worker", wk)
@@ -534,6 +505,11 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 				case *fnpb.StateKey_MultimapKeysUserState_:
 					mmkey := key.GetMultimapKeysUserState()
 					data = b.OutputData.GetMultimapKeysState(engine.LinkID{Transform: mmkey.GetTransformId(), Local: mmkey.GetUserStateId()}, mmkey.GetWindow(), mmkey.GetKey())
+				case *fnpb.StateKey_OrderedListUserState_:
+					olkey := key.GetOrderedListUserState()
+					data = b.OutputData.GetOrderedListState(
+						engine.LinkID{Transform: olkey.GetTransformId(), Local: olkey.GetUserStateId()},
+						olkey.GetWindow(), olkey.GetKey(), olkey.GetRange().GetStart(), olkey.GetRange().GetEnd())
 				default:
 					panic(fmt.Sprintf("unsupported StateKey Get type: %T: %v", key.GetType(), prototext.Format(key)))
 				}
@@ -558,6 +534,11 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 				case *fnpb.StateKey_MultimapUserState_:
 					mmkey := key.GetMultimapUserState()
 					b.OutputData.AppendMultimapState(engine.LinkID{Transform: mmkey.GetTransformId(), Local: mmkey.GetUserStateId()}, mmkey.GetWindow(), mmkey.GetKey(), mmkey.GetMapKey(), req.GetAppend().GetData())
+				case *fnpb.StateKey_OrderedListUserState_:
+					olkey := key.GetOrderedListUserState()
+					b.OutputData.AppendOrderedListState(
+						engine.LinkID{Transform: olkey.GetTransformId(), Local: olkey.GetUserStateId()},
+						olkey.GetWindow(), olkey.GetKey(), req.GetAppend().GetData())
 				default:
 					panic(fmt.Sprintf("unsupported StateKey Append type: %T: %v", key.GetType(), prototext.Format(key)))
 				}
@@ -581,6 +562,10 @@ func (wk *W) State(state fnpb.BeamFnState_StateServer) error {
 				case *fnpb.StateKey_MultimapKeysUserState_:
 					mmkey := key.GetMultimapUserState()
 					b.OutputData.ClearMultimapKeysState(engine.LinkID{Transform: mmkey.GetTransformId(), Local: mmkey.GetUserStateId()}, mmkey.GetWindow(), mmkey.GetKey())
+				case *fnpb.StateKey_OrderedListUserState_:
+					olkey := key.GetOrderedListUserState()
+					b.OutputData.ClearOrderedListState(engine.LinkID{Transform: olkey.GetTransformId(), Local: olkey.GetUserStateId()},
+						olkey.GetWindow(), olkey.GetKey(), olkey.GetRange().GetStart(), olkey.GetRange().GetEnd())
 				default:
 					panic(fmt.Sprintf("unsupported StateKey Clear type: %T: %v", key.GetType(), prototext.Format(key)))
 				}
@@ -639,9 +624,22 @@ func (wk *W) sendInstruction(ctx context.Context, req *fnpb.InstructionRequest) 
 	if wk.Stopped() {
 		return nil
 	}
-	wk.InstReqs <- req
+	select {
+	case <-wk.StoppedChan:
+		return &fnpb.InstructionResponse{
+			InstructionId: progInst,
+			Error:         "worker stopped before send",
+		}
+	case wk.InstReqs <- req:
+		// desired outcome
+	}
 
 	select {
+	case <-wk.StoppedChan:
+		return &fnpb.InstructionResponse{
+			InstructionId: progInst,
+			Error:         "worker stopped before receive",
+		}
 	case <-ctx.Done():
 		return &fnpb.InstructionResponse{
 			InstructionId: progInst,
@@ -662,4 +660,132 @@ func (wk *W) MonitoringMetadata(ctx context.Context, unknownIDs []string) *fnpb.
 			},
 		},
 	}).GetMonitoringInfos()
+}
+
+// MultiplexW forwards FnAPI gRPC requests to W it manages in an in-memory pool.
+type MultiplexW struct {
+	fnpb.UnimplementedBeamFnControlServer
+	fnpb.UnimplementedBeamFnDataServer
+	fnpb.UnimplementedBeamFnStateServer
+	fnpb.UnimplementedBeamFnLoggingServer
+	fnpb.UnimplementedProvisionServiceServer
+
+	mu       sync.Mutex
+	endpoint string
+	logger   *slog.Logger
+	pool     map[string]*W
+}
+
+// NewMultiplexW instantiates a new FnAPI server for multiplexing FnAPI requests to a W.
+func NewMultiplexW(lis net.Listener, g *grpc.Server, logger *slog.Logger) *MultiplexW {
+	_, p, _ := net.SplitHostPort(lis.Addr().String())
+	mw := &MultiplexW{
+		endpoint: "localhost:" + p,
+		logger:   logger,
+		pool:     make(map[string]*W),
+	}
+
+	fnpb.RegisterBeamFnControlServer(g, mw)
+	fnpb.RegisterBeamFnDataServer(g, mw)
+	fnpb.RegisterBeamFnLoggingServer(g, mw)
+	fnpb.RegisterBeamFnStateServer(g, mw)
+	fnpb.RegisterProvisionServiceServer(g, mw)
+
+	return mw
+}
+
+// MakeWorker creates and registers a W, assigning id and env to W.ID and W.Env, respectively, associating W.ID
+// to *W for later lookup. MultiplexW expects FnAPI gRPC requests to contain a matching 'worker_id' in its context
+// metadata. A gRPC client should use the grpcx.WriteWorkerID helper method prior to sending the request.
+func (mw *MultiplexW) MakeWorker(id, env string) *W {
+	mw.mu.Lock()
+	defer mw.mu.Unlock()
+	w := &W{
+		ID:  id,
+		Env: env,
+
+		InstReqs:    make(chan *fnpb.InstructionRequest, 10),
+		DataReqs:    make(chan *fnpb.Elements, 10),
+		StoppedChan: make(chan struct{}),
+
+		activeInstructions: make(map[string]controlResponder),
+		Descriptors:        make(map[string]*fnpb.ProcessBundleDescriptor),
+		parentPool:         mw,
+	}
+	mw.pool[id] = w
+	return w
+}
+
+func (mw *MultiplexW) GetProvisionInfo(ctx context.Context, req *fnpb.GetProvisionInfoRequest) (*fnpb.GetProvisionInfoResponse, error) {
+	return handleUnary(mw, ctx, req, (*W).GetProvisionInfo)
+}
+
+func (mw *MultiplexW) Logging(stream fnpb.BeamFnLogging_LoggingServer) error {
+	return handleStream(mw, stream.Context(), stream, (*W).Logging)
+}
+
+func (mw *MultiplexW) GetProcessBundleDescriptor(ctx context.Context, req *fnpb.GetProcessBundleDescriptorRequest) (*fnpb.ProcessBundleDescriptor, error) {
+	return handleUnary(mw, ctx, req, (*W).GetProcessBundleDescriptor)
+}
+
+func (mw *MultiplexW) Control(ctrl fnpb.BeamFnControl_ControlServer) error {
+	return handleStream(mw, ctrl.Context(), ctrl, (*W).Control)
+}
+
+func (mw *MultiplexW) Data(data fnpb.BeamFnData_DataServer) error {
+	return handleStream(mw, data.Context(), data, (*W).Data)
+}
+
+func (mw *MultiplexW) State(state fnpb.BeamFnState_StateServer) error {
+	return handleStream(mw, state.Context(), state, (*W).State)
+}
+
+func (mw *MultiplexW) MonitoringMetadata(ctx context.Context, unknownIDs []string) *fnpb.MonitoringInfosMetadataResponse {
+	mw.mu.Lock()
+	defer mw.mu.Unlock()
+	w, err := mw.workerFromMetadataCtx(ctx)
+	if err != nil {
+		mw.logger.Error(err.Error())
+		return nil
+	}
+	return w.MonitoringMetadata(ctx, unknownIDs)
+}
+
+func (mw *MultiplexW) workerFromMetadataCtx(ctx context.Context) (*W, error) {
+	mw.mu.Lock()
+	defer mw.mu.Unlock()
+	id, err := grpcx.ReadWorkerID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if id == "" {
+		return nil, fmt.Errorf("worker_id read from context metadata is an empty string")
+	}
+	w, ok := mw.pool[id]
+	if !ok {
+		return nil, fmt.Errorf("worker_id: '%s' read from context metadata but not registered in worker pool", id)
+	}
+	return w, nil
+}
+
+func (mw *MultiplexW) delete(w *W) {
+	mw.mu.Lock()
+	defer mw.mu.Unlock()
+	delete(mw.pool, w.ID)
+}
+
+func handleUnary[Request any, Response any, Method func(*W, context.Context, *Request) (*Response, error)](mw *MultiplexW, ctx context.Context, req *Request, m Method) (*Response, error) {
+	w, err := mw.workerFromMetadataCtx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return m(w, ctx, req)
+}
+
+func handleStream[Stream any, Method func(*W, Stream) error](mw *MultiplexW, ctx context.Context, stream Stream, m Method) error {
+	w, err := mw.workerFromMetadataCtx(ctx)
+	if err != nil {
+		return err
+	}
+	return m(w, stream)
 }

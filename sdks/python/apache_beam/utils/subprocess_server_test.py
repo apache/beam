@@ -53,6 +53,11 @@ class JavaJarServerTest(unittest.TestCase):
             appendix='A',
             version='VERSION',
             artifact_id='beam-sdks-java-fake'))
+    self.assertEqual(
+        'https://repository.apache.org/content/groups/staging/org/apache/beam/'
+        'beam-sdks-java-fake/2.99.9/beam-sdks-java-fake-2.99.9.jar',
+        subprocess_server.JavaJarServer.path_to_beam_jar(
+            ':sdks:java:fake:fatJar', version='2.99.9rc2'))
 
   def test_gradle_jar_dev(self):
     with self.assertRaisesRegex(

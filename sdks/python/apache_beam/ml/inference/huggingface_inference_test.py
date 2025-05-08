@@ -20,11 +20,10 @@
 import shutil
 import tempfile
 import unittest
+from collections.abc import Iterable
+from collections.abc import Sequence
 from typing import Any
-from typing import Dict
-from typing import Iterable
 from typing import Optional
-from typing import Sequence
 from typing import Union
 
 import pytest
@@ -49,7 +48,7 @@ def fake_inference_fn_tensor(
     batch: Sequence[Union[tf.Tensor, torch.Tensor]],
     model: Union[AutoModel, TFAutoModel],
     device,
-    inference_args: Dict[str, Any],
+    inference_args: dict[str, Any],
     model_id: Optional[str] = None) -> Iterable[PredictionResult]:
   predictions = model.predict(batch, **inference_args)
   return utils._convert_to_result(batch, predictions, model_id)

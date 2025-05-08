@@ -37,7 +37,8 @@ public abstract class OrderedProcessingStatus {
       long numberOfReceivedEvents,
       long resultCount,
       long duplicateCount,
-      boolean lastEventReceived) {
+      boolean lastEventReceived,
+      @Nullable ContiguousSequenceRange lastContiguousRange) {
     return new AutoValue_OrderedProcessingStatus.Builder()
         .setLastProcessedSequence(lastProcessedSequence)
         .setNumberOfBufferedEvents(numberOfBufferedEvents)
@@ -48,6 +49,7 @@ public abstract class OrderedProcessingStatus {
         .setDuplicateCount(duplicateCount)
         .setResultCount(resultCount)
         .setStatusDate(Instant.now())
+        .setLastContiguousSequenceRange(lastContiguousRange)
         .build();
   }
 
@@ -92,6 +94,9 @@ public abstract class OrderedProcessingStatus {
    * @return Timestamp of when the status was produced. It is not related to the event's timestamp.
    */
   public abstract Instant getStatusDate();
+
+  @Nullable
+  public abstract ContiguousSequenceRange getLastContiguousSequenceRange();
 
   @Override
   public final boolean equals(@Nullable Object obj) {
@@ -145,6 +150,8 @@ public abstract class OrderedProcessingStatus {
     public abstract Builder setLastEventReceived(boolean value);
 
     public abstract Builder setStatusDate(Instant value);
+
+    public abstract Builder setLastContiguousSequenceRange(@Nullable ContiguousSequenceRange value);
 
     public abstract OrderedProcessingStatus build();
   }

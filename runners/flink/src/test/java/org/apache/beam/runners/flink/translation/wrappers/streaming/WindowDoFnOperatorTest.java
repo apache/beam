@@ -34,6 +34,7 @@ import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
+import org.apache.beam.runners.flink.adapter.FlinkKey;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator.MultiOutputOutputManagerFactory;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -52,7 +53,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.flink.api.java.functions.KeySelector;
-import org.apache.flink.api.java.typeutils.GenericTypeInfo;
+import org.apache.flink.api.java.typeutils.ValueTypeInfo;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
@@ -73,8 +74,8 @@ public class WindowDoFnOperatorTest {
   public void testRestore() throws Exception {
     // test harness
     KeyedOneInputStreamOperatorTestHarness<
-            ByteBuffer, WindowedValue<KeyedWorkItem<Long, Long>>, WindowedValue<KV<Long, Long>>>
-        testHarness = createTestHarness(getWindowDoFnOperator());
+            FlinkKey, WindowedValue<KV<Long, Long>>, WindowedValue<KV<Long, Long>>>
+        testHarness = createTestHarness(getWindowDoFnOperator(true));
     testHarness.open();
 
     // process elements
@@ -92,7 +93,7 @@ public class WindowDoFnOperatorTest {
     testHarness.close();
 
     // restore from the snapshot
-    testHarness = createTestHarness(getWindowDoFnOperator());
+    testHarness = createTestHarness(getWindowDoFnOperator(true));
     testHarness.initializeState(snapshot);
     testHarness.open();
 
@@ -123,14 +124,14 @@ public class WindowDoFnOperatorTest {
   @Test
   public void testTimerCleanupOfPendingTimerList() throws Exception {
     // test harness
-    WindowDoFnOperator<Long, Long, Long> windowDoFnOperator = getWindowDoFnOperator();
+    WindowDoFnOperator<Long, Long, Long> windowDoFnOperator = getWindowDoFnOperator(true);
     KeyedOneInputStreamOperatorTestHarness<
-            ByteBuffer, WindowedValue<KeyedWorkItem<Long, Long>>, WindowedValue<KV<Long, Long>>>
+            FlinkKey, WindowedValue<KV<Long, Long>>, WindowedValue<KV<Long, Long>>>
         testHarness = createTestHarness(windowDoFnOperator);
     testHarness.open();
 
-    DoFnOperator<KeyedWorkItem<Long, Long>, KV<Long, Long>>.FlinkTimerInternals timerInternals =
-        windowDoFnOperator.timerInternals;
+    DoFnOperator<KV<Long, Long>, KeyedWorkItem<Long, Long>, KV<Long, Long>>.FlinkTimerInternals
+        timerInternals = windowDoFnOperator.timerInternals;
 
     // process elements
     IntervalWindow window = new IntervalWindow(new Instant(0), Duration.millis(100));
@@ -195,7 +196,7 @@ public class WindowDoFnOperatorTest {
     testHarness.close();
   }
 
-  private WindowDoFnOperator<Long, Long, Long> getWindowDoFnOperator() {
+  private WindowDoFnOperator<Long, Long, Long> getWindowDoFnOperator(boolean streaming) {
     WindowingStrategy<Object, IntervalWindow> windowingStrategy =
         WindowingStrategy.of(FixedWindows.of(standardMinutes(1)));
 
@@ -217,6 +218,9 @@ public class WindowDoFnOperatorTest {
     FullWindowedValueCoder<KV<Long, Long>> outputCoder =
         WindowedValue.getFullCoder(KvCoder.of(VarLongCoder.of(), VarLongCoder.of()), windowCoder);
 
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    options.setStreaming(streaming);
+
     return new WindowDoFnOperator<Long, Long, Long>(
         reduceFn,
         "stepName",
@@ -224,31 +228,28 @@ public class WindowDoFnOperatorTest {
         outputTag,
         emptyList(),
         new MultiOutputOutputManagerFactory<>(
-            outputTag,
-            outputCoder,
-            new SerializablePipelineOptions(FlinkPipelineOptions.defaults())),
+            outputTag, outputCoder, new SerializablePipelineOptions(options)),
         windowingStrategy,
         emptyMap(),
         emptyList(),
-        FlinkPipelineOptions.defaults(),
+        options,
         VarLongCoder.of(),
-        new WorkItemKeySelector(
-            VarLongCoder.of(), new SerializablePipelineOptions(FlinkPipelineOptions.defaults())));
+        new WorkItemKeySelector(VarLongCoder.of()));
   }
 
   private KeyedOneInputStreamOperatorTestHarness<
-          ByteBuffer, WindowedValue<KeyedWorkItem<Long, Long>>, WindowedValue<KV<Long, Long>>>
+          FlinkKey, WindowedValue<KV<Long, Long>>, WindowedValue<KV<Long, Long>>>
       createTestHarness(WindowDoFnOperator<Long, Long, Long> windowDoFnOperator) throws Exception {
     return new KeyedOneInputStreamOperatorTestHarness<>(
         windowDoFnOperator,
-        (KeySelector<WindowedValue<KeyedWorkItem<Long, Long>>, ByteBuffer>)
+        (KeySelector<WindowedValue<KV<Long, Long>>, FlinkKey>)
             o -> {
               try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-                VarLongCoder.of().encode(o.getValue().key(), baos);
-                return ByteBuffer.wrap(baos.toByteArray());
+                VarLongCoder.of().encode(o.getValue().getKey(), baos);
+                return FlinkKey.of(ByteBuffer.wrap(baos.toByteArray()));
               }
             },
-        new GenericTypeInfo<>(ByteBuffer.class));
+        ValueTypeInfo.of(FlinkKey.class));
   }
 
   private static class Item {
@@ -262,11 +263,9 @@ public class WindowDoFnOperatorTest {
     private long timestamp;
     private IntervalWindow window;
 
-    StreamRecord<WindowedValue<KeyedWorkItem<Long, Long>>> toStreamRecord() {
-      WindowedValue<Long> item = WindowedValue.of(value, new Instant(timestamp), window, NO_FIRING);
-      WindowedValue<KeyedWorkItem<Long, Long>> keyedItem =
-          WindowedValue.of(
-              new SingletonKeyedWorkItem<>(key, item), new Instant(timestamp), window, NO_FIRING);
+    StreamRecord<WindowedValue<KV<Long, Long>>> toStreamRecord() {
+      WindowedValue<KV<Long, Long>> keyedItem =
+          WindowedValue.of(KV.of(key, value), new Instant(timestamp), window, NO_FIRING);
       return new StreamRecord<>(keyedItem);
     }
 

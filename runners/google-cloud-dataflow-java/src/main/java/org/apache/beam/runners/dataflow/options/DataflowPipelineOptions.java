@@ -105,6 +105,19 @@ public interface DataflowPipelineOptions
           + "Must either be local or Cloud Storage.")
   String getTemplateLocation();
 
+  /**
+   * Sets the Cloud Storage path where the Dataflow template will be stored. Required for creating
+   * Flex Templates or Classic Templates.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+   * options.setTemplateLocation("gs://your-bucket/templates/my-template");
+   * }</pre>
+   *
+   * @param value Cloud Storage path for storing the Dataflow template.
+   */
   void setTemplateLocation(String value);
 
   /**
@@ -181,10 +194,8 @@ public interface DataflowPipelineOptions
   enum FlexResourceSchedulingGoal {
     /** No goal specified. */
     UNSPECIFIED,
-
     /** Optimize for lower execution time. */
     SPEED_OPTIMIZED,
-
     /** Optimize for lower cost. */
     COST_OPTIMIZED,
   }
@@ -198,6 +209,7 @@ public interface DataflowPipelineOptions
 
   /** Returns a default staging location under {@link GcpOptions#getGcpTempLocation}. */
   class StagingLocationFactory implements DefaultValueFactory<String> {
+
     private static final Logger LOG = LoggerFactory.getLogger(StagingLocationFactory.class);
 
     @Override

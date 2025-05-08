@@ -395,7 +395,12 @@ class InteractiveBeamClustersTest(unittest.TestCase):
     # Pipeline association is cleaned up.
     self.assertNotIn(p, self.clusters.pipelines)
     self.assertNotIn(p, dcm.pipelines)
-    self.assertEqual(options.view_as(FlinkRunnerOptions).flink_master, '[auto]')
+    # The internal option in the pipeline is overwritten.
+    self.assertEqual(
+        p.options.view_as(FlinkRunnerOptions).flink_master, '[auto]')
+    # The original option is unchanged.
+    self.assertEqual(
+        options.view_as(FlinkRunnerOptions).flink_master, meta.master_url)
     # The cluster is unknown now.
     self.assertNotIn(meta, self.clusters.dataproc_cluster_managers)
     self.assertNotIn(meta.master_url, self.clusters.master_urls)
@@ -423,10 +428,17 @@ class InteractiveBeamClustersTest(unittest.TestCase):
     # Pipeline association of p is cleaned up.
     self.assertNotIn(p, self.clusters.pipelines)
     self.assertNotIn(p, dcm.pipelines)
-    self.assertEqual(options.view_as(FlinkRunnerOptions).flink_master, '[auto]')
+    # The internal option in the pipeline is overwritten.
+    self.assertEqual(
+        p.options.view_as(FlinkRunnerOptions).flink_master, '[auto]')
+    # The original option is unchanged.
+    self.assertEqual(
+        options.view_as(FlinkRunnerOptions).flink_master, meta.master_url)
     # Pipeline association of p2 still presents.
     self.assertIn(p2, self.clusters.pipelines)
     self.assertIn(p2, dcm.pipelines)
+    self.assertEqual(
+        p2.options.view_as(FlinkRunnerOptions).flink_master, meta.master_url)
     self.assertEqual(
         options2.view_as(FlinkRunnerOptions).flink_master, meta.master_url)
     # The cluster is still known.

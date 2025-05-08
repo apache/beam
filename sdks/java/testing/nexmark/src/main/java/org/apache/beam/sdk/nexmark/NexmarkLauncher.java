@@ -19,6 +19,7 @@ package org.apache.beam.sdk.nexmark;
 
 import static org.apache.beam.sdk.nexmark.NexmarkQueryName.PORTABILITY_BATCH;
 import static org.apache.beam.sdk.nexmark.NexmarkUtils.PubSubMode.COMBINED;
+import static org.apache.beam.sdk.nexmark.queries.sql.SqlQueryUtils.createSqlQueries;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
@@ -82,12 +83,6 @@ import org.apache.beam.sdk.nexmark.queries.Query9;
 import org.apache.beam.sdk.nexmark.queries.Query9Model;
 import org.apache.beam.sdk.nexmark.queries.SessionSideInputJoin;
 import org.apache.beam.sdk.nexmark.queries.SessionSideInputJoinModel;
-import org.apache.beam.sdk.nexmark.queries.sql.SqlBoundedSideInputJoin;
-import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery0;
-import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery1;
-import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery2;
-import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery3;
-import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery7;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -124,9 +119,6 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
 
   /** Command line parameter value for query language. */
   private static final String SQL = "sql";
-
-  /** Command line parameter value for zetasql language. */
-  private static final String ZETA_SQL = "zetasql";
 
   /** Minimum number of samples needed for 'stead-state' rate calculation. */
   private static final int MIN_SAMPLES = 9;
@@ -1254,10 +1246,6 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     return SQL.equalsIgnoreCase(options.getQueryLanguage());
   }
 
-  private boolean isZetaSql() {
-    return ZETA_SQL.equalsIgnoreCase(options.getQueryLanguage());
-  }
-
   private NexmarkQueryModel getNexmarkQueryModel() {
     return models.get(configuration.query);
   }
@@ -1267,7 +1255,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
   }
 
   private Map<NexmarkQueryName, NexmarkQueryModel> createQueryModels() {
-    return (isSql() || isZetaSql()) ? createSqlQueryModels() : createJavaQueryModels();
+    return isSql() ? createSqlQueryModels() : createJavaQueryModels();
   }
 
   private Map<NexmarkQueryName, NexmarkQueryModel> createSqlQueryModels() {
@@ -1294,9 +1282,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
   private Map<NexmarkQueryName, NexmarkQuery> createQueries() {
     Map<NexmarkQueryName, NexmarkQuery> defaultQueries;
     if (isSql()) {
-      defaultQueries = createSqlQueries();
-    } else if (isZetaSql()) {
-      defaultQueries = createZetaSqlQueries();
+      defaultQueries = createSqlQueries(configuration);
     } else {
       defaultQueries = createJavaQueries();
     }
@@ -1315,60 +1301,6 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
       }
     }
     return skipQueries;
-  }
-
-  private Map<NexmarkQueryName, NexmarkQuery> createSqlQueries() {
-    return ImmutableMap.<NexmarkQueryName, NexmarkQuery>builder()
-        .put(
-            NexmarkQueryName.PASSTHROUGH,
-            new NexmarkQuery(configuration, SqlQuery0.calciteSqlQuery0()))
-        .put(NexmarkQueryName.CURRENCY_CONVERSION, new NexmarkQuery(configuration, new SqlQuery1()))
-        .put(
-            NexmarkQueryName.SELECTION,
-            new NexmarkQuery(configuration, SqlQuery2.calciteSqlQuery2(configuration.auctionSkip)))
-        .put(
-            NexmarkQueryName.LOCAL_ITEM_SUGGESTION,
-            new NexmarkQuery(configuration, SqlQuery3.calciteSqlQuery3(configuration)))
-
-        // SqlQuery5 is disabled for now, uses non-equi-joins,
-        // never worked right, was giving incorrect results.
-        // Gets rejected after PR/8301, causing failures.
-        //
-        // See:
-        //   https://github.com/apache/beam/issues/19541
-        //   https://github.com/apache/beam/pull/8301
-        //   https://github.com/apache/beam/pull/8422#issuecomment-487676350
-        //
-        //        .put(
-        //            NexmarkQueryName.HOT_ITEMS,
-        //            new NexmarkQuery(configuration, new SqlQuery5(configuration)))
-        .put(
-            NexmarkQueryName.HIGHEST_BID,
-            new NexmarkQuery(configuration, new SqlQuery7(configuration)))
-        .put(
-            NexmarkQueryName.BOUNDED_SIDE_INPUT_JOIN,
-            new NexmarkQuery(
-                configuration,
-                SqlBoundedSideInputJoin.calciteSqlBoundedSideInputJoin(configuration)))
-        .build();
-  }
-
-  private Map<NexmarkQueryName, NexmarkQuery> createZetaSqlQueries() {
-    return ImmutableMap.<NexmarkQueryName, NexmarkQuery>builder()
-        .put(
-            NexmarkQueryName.PASSTHROUGH,
-            new NexmarkQuery(configuration, SqlQuery0.zetaSqlQuery0()))
-        .put(
-            NexmarkQueryName.SELECTION,
-            new NexmarkQuery(configuration, SqlQuery2.zetaSqlQuery2(configuration.auctionSkip)))
-        .put(
-            NexmarkQueryName.LOCAL_ITEM_SUGGESTION,
-            new NexmarkQuery(configuration, SqlQuery3.zetaSqlQuery3(configuration)))
-        .put(
-            NexmarkQueryName.BOUNDED_SIDE_INPUT_JOIN,
-            new NexmarkQuery(
-                configuration, SqlBoundedSideInputJoin.zetaSqlBoundedSideInputJoin(configuration)))
-        .build();
   }
 
   private Map<NexmarkQueryName, NexmarkQuery> createJavaQueries() {

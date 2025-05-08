@@ -26,9 +26,12 @@ import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.runners.spark.SparkCommonPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.SparkSessionRule;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SerializableMatcher;
@@ -48,20 +51,36 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+import org.junit.runners.Parameterized;
 
 /** Test class for beam to spark {@link ParDo} translation. */
-@RunWith(JUnit4.class)
+@RunWith(Parameterized.class)
 public class GroupByKeyTest implements Serializable {
   @ClassRule public static final SparkSessionRule SESSION = new SparkSessionRule();
+
+  @Parameterized.Parameter public boolean preferGroupByKeyToHandleHugeValues;
+
+  @Parameterized.Parameters(name = "Test with preferGroupByKeyToHandleHugeValues={0}")
+  public static Collection<Object[]> preferGroupByKeyToHandleHugeValues() {
+    return Arrays.asList(new Object[][] {{true}, {false}});
+  }
 
   @Rule
   public transient TestPipeline pipeline =
       TestPipeline.fromOptions(SESSION.createPipelineOptions());
+
+  @Before
+  public void updatePipelineOptions() {
+    pipeline
+        .getOptions()
+        .as(SparkCommonPipelineOptions.class)
+        .setPreferGroupByKeyToHandleHugeValues(preferGroupByKeyToHandleHugeValues);
+  }
 
   @Test
   public void testGroupByKeyPreservesWindowing() {

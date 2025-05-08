@@ -67,7 +67,7 @@ import org.apache.beam.sdk.util.construction.TransformUpgrader;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -393,6 +393,7 @@ public class BigQueryIOTranslation {
             .addNullableByteArrayField("write_disposition")
             .addNullableArrayField("schema_update_options", FieldType.BYTES)
             .addNullableStringField("table_description")
+            .addNullableMapField("biglake_configuration", FieldType.STRING, FieldType.STRING)
             .addNullableBooleanField("validate")
             .addNullableByteArrayField("bigquery_services")
             .addNullableInt32Field("max_files_per_bundle")
@@ -509,6 +510,9 @@ public class BigQueryIOTranslation {
       }
       if (transform.getTableDescription() != null) {
         fieldValues.put("table_description", transform.getTableDescription());
+      }
+      if (transform.getBigLakeConfiguration() != null) {
+        fieldValues.put("biglake_configuration", transform.getBigLakeConfiguration());
       }
       fieldValues.put("validate", transform.getValidate());
       if (transform.getBigQueryServices() != null) {
@@ -718,6 +722,10 @@ public class BigQueryIOTranslation {
         String tableDescription = configRow.getString("table_description");
         if (tableDescription != null) {
           builder = builder.setTableDescription(tableDescription);
+        }
+        Map<String, String> biglakeConfiguration = configRow.getMap("biglake_configuration");
+        if (biglakeConfiguration != null) {
+          builder = builder.setBigLakeConfiguration(biglakeConfiguration);
         }
         Boolean validate = configRow.getBoolean("validate");
         if (validate != null) {

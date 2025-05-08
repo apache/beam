@@ -270,7 +270,7 @@ PIPELINE_OPTS=${PIPELINE_OPTS//\"/\\\"}
 echo ">>> RUNNING integration tests with pipeline options: $PIPELINE_OPTS"
 echo ">>>   pytest options: $TEST_OPTS"
 echo ">>>   collect markers: $COLLECT_MARKERS"
-ARGS="-o junit_suite_name=$SUITE -o log_cli=true -o log_level=INFO --junitxml=pytest_$SUITE.xml $TEST_OPTS"
+ARGS="-v -rs -o junit_suite_name=$SUITE -o log_cli=true -o log_level=INFO --junitxml=pytest_$SUITE.xml $TEST_OPTS"
 # Handle markers as an independent argument from $TEST_OPTS to prevent errors in space separated flags
 if [ -z "$COLLECT_MARKERS" ]; then
   pytest $ARGS --test-pipeline-options="$PIPELINE_OPTS"

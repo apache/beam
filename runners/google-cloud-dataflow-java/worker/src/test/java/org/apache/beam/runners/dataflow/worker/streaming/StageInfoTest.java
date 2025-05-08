@@ -62,7 +62,7 @@ public class StageInfoTest {
             .getName();
 
     HistogramData.BucketType linearBuckets = HistogramData.LinearBuckets.of(0, 10.0, 10);
-    metricsContainer.getPerWorkerHistogram(name, linearBuckets).update(10.0);
+    metricsContainer.getHistogram(name, linearBuckets).update(10.0);
 
     stageInfo.extractPerWorkerMetricValues();
     assertThat(stageInfo.throttledMsecs().getAggregate(), equalTo(0L));

@@ -21,11 +21,11 @@ from concurrent.futures import ThreadPoolExecutor
 
 import grpc
 
-from apache_beam.portability.api import beam_runner_api_pb2_grpc
+from apache_beam.portability.api import beam_interactive_api_pb2_grpc
 
 
 class TestStreamServiceController(
-    beam_runner_api_pb2_grpc.TestStreamServiceServicer):
+    beam_interactive_api_pb2_grpc.TestStreamServiceServicer):
   """A server that streams TestStreamPayload.Events from a single EventRequest.
 
   This server is used as a way for TestStreams to receive events from file.
@@ -42,7 +42,7 @@ class TestStreamServiceController(
       port = self._server.add_insecure_port('localhost:0')
       self.endpoint = 'localhost:{}'.format(port)
 
-    beam_runner_api_pb2_grpc.add_TestStreamServiceServicer_to_server(
+    beam_interactive_api_pb2_grpc.add_TestStreamServiceServicer_to_server(
         self, self._server)
     self._reader = reader
     self._exception_handler = exception_handler

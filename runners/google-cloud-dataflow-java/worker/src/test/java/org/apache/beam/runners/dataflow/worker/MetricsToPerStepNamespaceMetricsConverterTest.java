@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.equalTo;
 
 import com.google.api.services.dataflow.model.Base2Exponent;
 import com.google.api.services.dataflow.model.BucketOptions;
+import com.google.api.services.dataflow.model.DataflowGaugeValue;
 import com.google.api.services.dataflow.model.DataflowHistogramValue;
 import com.google.api.services.dataflow.model.Linear;
 import com.google.api.services.dataflow.model.MetricValue;
@@ -82,10 +83,11 @@ public class MetricsToPerStepNamespaceMetricsConverterTest {
   }
 
   @Test
-  public void testConvert_successfulyConvertCounters() {
+  public void testConvert_successfullyConvertCounters() {
     String step = "testStepName";
     Map<MetricName, LockFreeHistogram.Snapshot> emptyHistograms = new HashMap<>();
     Map<MetricName, Long> counters = new HashMap<MetricName, Long>();
+    Map<MetricName, Long> emptyGauges = new HashMap<MetricName, Long>();
     Map<MetricName, LabeledMetricNameUtils.ParsedMetricName> parsedMetricNames = new HashMap<>();
 
     MetricName bigQueryMetric1 = MetricName.named("BigQuerySink", "metric1");
@@ -99,7 +101,7 @@ public class MetricsToPerStepNamespaceMetricsConverterTest {
 
     Collection<PerStepNamespaceMetrics> conversionResult =
         MetricsToPerStepNamespaceMetricsConverter.convert(
-            step, counters, emptyHistograms, parsedMetricNames);
+            step, counters, emptyGauges, emptyHistograms, parsedMetricNames);
 
     MetricValue expectedVal1 =
         new MetricValue().setMetric("metric1").setValueInt64(5L).setMetricLabels(new HashMap<>());
@@ -133,6 +135,7 @@ public class MetricsToPerStepNamespaceMetricsConverterTest {
     Map<MetricName, LabeledMetricNameUtils.ParsedMetricName> parsedMetricNames = new HashMap<>();
 
     Map<MetricName, Long> counters = new HashMap<>();
+    Map<MetricName, Long> emptyGauges = new HashMap<MetricName, Long>();
     MetricName invalidName1 = MetricName.named("BigQuerySink", "**");
     counters.put(invalidName1, 5L);
 
@@ -144,7 +147,30 @@ public class MetricsToPerStepNamespaceMetricsConverterTest {
 
     Collection<PerStepNamespaceMetrics> conversionResult =
         MetricsToPerStepNamespaceMetricsConverter.convert(
-            "testStep", counters, histograms, parsedMetricNames);
+            "testStep", counters, emptyGauges, histograms, parsedMetricNames);
+    assertThat(conversionResult.size(), equalTo(0));
+    assertThat(parsedMetricNames.size(), equalTo(0));
+  }
+
+  @Test
+  public void testConvert_skipInvalidMetricNameSpaces() {
+    Map<MetricName, LabeledMetricNameUtils.ParsedMetricName> parsedMetricNames = new HashMap<>();
+
+    Map<MetricName, Long> counters = new HashMap<>();
+    Map<MetricName, Long> emptyGauges = new HashMap<MetricName, Long>();
+    MetricName invalidNameSpace1 = MetricName.named("Unsupported", "baseLabel1");
+    counters.put(invalidNameSpace1, 5L);
+
+    Map<MetricName, LockFreeHistogram.Snapshot> histograms = new HashMap<>();
+    MetricName invalidNameSpace2 = MetricName.named("Unsupported", "baseLabel2");
+    LockFreeHistogram nonEmptyLinearHistogram =
+        new LockFreeHistogram(invalidNameSpace2, lienarBuckets);
+    nonEmptyLinearHistogram.update(-5.0);
+    histograms.put(invalidNameSpace2, nonEmptyLinearHistogram.getSnapshotAndReset().get());
+
+    Collection<PerStepNamespaceMetrics> conversionResult =
+        MetricsToPerStepNamespaceMetricsConverter.convert(
+            "testStep", counters, emptyGauges, histograms, parsedMetricNames);
     assertThat(conversionResult.size(), equalTo(0));
     assertThat(parsedMetricNames.size(), equalTo(0));
   }
@@ -152,7 +178,7 @@ public class MetricsToPerStepNamespaceMetricsConverterTest {
   @Test
   public void testConvert_successfulConvertHistograms() {
     Map<MetricName, LabeledMetricNameUtils.ParsedMetricName> parsedMetricNames = new HashMap<>();
-
+    Map<MetricName, Long> emptyGauges = new HashMap<MetricName, Long>();
     Map<MetricName, LockFreeHistogram.Snapshot> histograms = new HashMap<>();
     MetricName bigQueryMetric1 = MetricName.named("BigQuerySink", "baseLabel");
     MetricName bigQueryMetric2 =
@@ -181,7 +207,7 @@ public class MetricsToPerStepNamespaceMetricsConverterTest {
     Map<MetricName, Long> emptyCounters = new HashMap<>();
     Collection<PerStepNamespaceMetrics> conversionResult =
         MetricsToPerStepNamespaceMetricsConverter.convert(
-            step, emptyCounters, histograms, parsedMetricNames);
+            step, emptyCounters, emptyGauges, histograms, parsedMetricNames);
 
     // Expected value 1
     List<Long> bucketCounts1 = ImmutableList.of(0L, 1L, 1L, 1L);
@@ -271,7 +297,7 @@ public class MetricsToPerStepNamespaceMetricsConverterTest {
 
     Collection<PerStepNamespaceMetrics> conversionResult =
         MetricsToPerStepNamespaceMetricsConverter.convert(
-            step, emptyCounters, histograms, parsedMetricNames);
+            step, emptyCounters, emptyCounters, histograms, parsedMetricNames);
     assertThat(conversionResult.size(), equalTo(0));
     assertThat(parsedMetricNames.size(), equalTo(0));
   }
@@ -280,6 +306,7 @@ public class MetricsToPerStepNamespaceMetricsConverterTest {
   public void testConvert_convertCountersAndHistograms() {
     String step = "testStep";
     Map<MetricName, Long> counters = new HashMap<>();
+    Map<MetricName, Long> emptyGauges = new HashMap<>();
     Map<MetricName, LockFreeHistogram.Snapshot> histograms = new HashMap<>();
     Map<MetricName, LabeledMetricNameUtils.ParsedMetricName> parsedMetricNames = new HashMap<>();
 
@@ -293,7 +320,7 @@ public class MetricsToPerStepNamespaceMetricsConverterTest {
 
     Collection<PerStepNamespaceMetrics> conversionResult =
         MetricsToPerStepNamespaceMetricsConverter.convert(
-            step, counters, histograms, parsedMetricNames);
+            step, counters, emptyGauges, histograms, parsedMetricNames);
 
     // Expected counter MetricValue
     Map<String, String> counterLabelMap = new HashMap<>();
@@ -344,5 +371,77 @@ public class MetricsToPerStepNamespaceMetricsConverterTest {
     assertThat(
         parsedMetricNames,
         IsMapContaining.hasEntry(histogramMetricName, parsedHistogramMetricName));
+  }
+
+  @Test
+  public void testConvert_successfullyConvertGauges() {
+    String step = "testStepName";
+    Map<MetricName, LockFreeHistogram.Snapshot> emptyHistograms = new HashMap<>();
+    Map<MetricName, Long> counters = new HashMap<MetricName, Long>();
+    Map<MetricName, Long> gauges = new HashMap<MetricName, Long>();
+    Map<MetricName, LabeledMetricNameUtils.ParsedMetricName> parsedMetricNames = new HashMap<>();
+
+    MetricName KafkaMetric1 = MetricName.named("KafkaSink", "metric1");
+    MetricName KafkaMetric2 = MetricName.named("KafkaSink", "metric2*label1:val1;label2:val2;");
+    MetricName KafkaMetric3 = MetricName.named("KafkaSink", "metric3");
+
+    gauges.put(KafkaMetric1, 5L);
+    gauges.put(KafkaMetric2, 10L);
+    gauges.put(KafkaMetric3, 0L);
+
+    Collection<PerStepNamespaceMetrics> conversionResult =
+        MetricsToPerStepNamespaceMetricsConverter.convert(
+            step, counters, gauges, emptyHistograms, parsedMetricNames);
+
+    DataflowGaugeValue gaugeValue1 = new DataflowGaugeValue();
+    gaugeValue1.setValue(5L);
+
+    DataflowGaugeValue gaugeValue2 = new DataflowGaugeValue();
+    gaugeValue2.setValue(10L);
+
+    DataflowGaugeValue gaugeValue3 = new DataflowGaugeValue();
+    gaugeValue3.setValue(0L); // zero valued
+
+    MetricValue expectedVal1 =
+        new MetricValue()
+            .setMetric("metric1")
+            .setValueGauge64(gaugeValue1)
+            .setMetricLabels(new HashMap<>());
+
+    Map<String, String> val2LabelMap = new HashMap<>();
+    val2LabelMap.put("label1", "val1");
+    val2LabelMap.put("label2", "val2");
+    MetricValue expectedVal2 =
+        new MetricValue()
+            .setMetric("metric2")
+            .setValueGauge64(gaugeValue2)
+            .setMetricLabels(val2LabelMap);
+
+    MetricValue expectedVal3 =
+        new MetricValue()
+            .setMetric("metric3")
+            .setValueGauge64(gaugeValue3)
+            .setMetricLabels(new HashMap<>());
+
+    assertThat(conversionResult.size(), equalTo(1));
+    PerStepNamespaceMetrics perStepNamespaceMetrics = conversionResult.iterator().next();
+
+    assertThat(perStepNamespaceMetrics.getOriginalStep(), equalTo(step));
+    assertThat(perStepNamespaceMetrics.getMetricsNamespace(), equalTo("KafkaSink"));
+    assertThat(perStepNamespaceMetrics.getMetricValues().size(), equalTo(3));
+    assertThat(
+        perStepNamespaceMetrics.getMetricValues(),
+        containsInAnyOrder(expectedVal1, expectedVal2, expectedVal3));
+
+    LabeledMetricNameUtils.ParsedMetricName parsedKafkaMetric1 =
+        LabeledMetricNameUtils.parseMetricName(KafkaMetric1.getName()).get();
+    LabeledMetricNameUtils.ParsedMetricName parsedKafkaMetric2 =
+        LabeledMetricNameUtils.parseMetricName(KafkaMetric2.getName()).get();
+    LabeledMetricNameUtils.ParsedMetricName parsedKafkaMetric3 =
+        LabeledMetricNameUtils.parseMetricName(KafkaMetric3.getName()).get();
+    assertThat(parsedMetricNames.size(), equalTo(3));
+    assertThat(parsedMetricNames, IsMapContaining.hasEntry(KafkaMetric1, parsedKafkaMetric1));
+    assertThat(parsedMetricNames, IsMapContaining.hasEntry(KafkaMetric2, parsedKafkaMetric2));
+    assertThat(parsedMetricNames, IsMapContaining.hasEntry(KafkaMetric3, parsedKafkaMetric3));
   }
 }

@@ -56,7 +56,7 @@ public class Convert {
   }
 
   /**
-   * Convert a {@link PCollection}{@literal <Row>} into a {@link PCollection}{@literal <Row>}.
+   * Convert a {@link PCollection}{@literal <Row>} into a {@link PCollection}{@literal <OutputT>}.
    *
    * <p>The output schema will be inferred using the schema registry. A schema must be registered
    * for this type, or the conversion will fail.

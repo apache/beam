@@ -24,8 +24,7 @@ import java.util.function.Function;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationHeartbeatResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.HeartbeatResponse;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ArrayListMultimap;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /**
  * Processes {@link ComputationHeartbeatResponse}(s). Marks {@link Work} that is invalid from
@@ -34,6 +33,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multim
 @Internal
 public final class WorkHeartbeatResponseProcessor
     implements Consumer<List<ComputationHeartbeatResponse>> {
+
   /** Fetches a {@link ComputationState} for a computationId. */
   private final Function<String, Optional<ComputationState>> computationStateFetcher;
 
@@ -46,23 +46,23 @@ public final class WorkHeartbeatResponseProcessor
   @Override
   public void accept(List<ComputationHeartbeatResponse> responses) {
     for (ComputationHeartbeatResponse computationHeartbeatResponse : responses) {
-      // Maps sharding key to (work token, cache token) for work that should be marked failed.
-      Multimap<Long, WorkId> failedWork = ArrayListMultimap.create();
+      ImmutableList.Builder<WorkIdWithShardingKey> failedWorkBuilder = ImmutableList.builder();
       for (HeartbeatResponse heartbeatResponse :
           computationHeartbeatResponse.getHeartbeatResponsesList()) {
         if (heartbeatResponse.getFailed()) {
-          failedWork.put(
-              heartbeatResponse.getShardingKey(),
+          WorkId workId =
               WorkId.builder()
                   .setWorkToken(heartbeatResponse.getWorkToken())
                   .setCacheToken(heartbeatResponse.getCacheToken())
-                  .build());
+                  .build();
+          failedWorkBuilder.add(
+              WorkIdWithShardingKey.create(heartbeatResponse.getShardingKey(), workId));
         }
       }
 
       computationStateFetcher
           .apply(computationHeartbeatResponse.getComputationId())
-          .ifPresent(state -> state.failWork(failedWork));
+          .ifPresent(state -> state.failWork(failedWorkBuilder.build()));
     }
   }
 }

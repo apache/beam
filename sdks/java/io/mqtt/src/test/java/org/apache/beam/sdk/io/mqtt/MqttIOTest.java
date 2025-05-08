@@ -216,7 +216,7 @@ public class MqttIOTest {
             .withConnectionConfiguration(
                 MqttIO.ConnectionConfiguration.create("tcp://localhost:" + port, wildcardTopic))
             .withMaxNumRecords(10)
-            .withMaxReadTime(Duration.standardSeconds(5));
+            .withMaxReadTime(Duration.standardSeconds(10));
 
     final PCollection<MqttRecord> output = pipeline.apply(mqttReaderWithMetadata);
     PAssert.that(output)
@@ -243,6 +243,8 @@ public class MqttIOTest {
             () -> {
               try {
                 doConnect(connection -> !connection.getConnectionId().isEmpty());
+                // Sleep two seconds, to give enough time for client to be ready to accept messages
+                Thread.sleep(2 * 1000);
                 for (int i = 0; i < 5; i++) {
                   publishConnection.publish(
                       topic1,

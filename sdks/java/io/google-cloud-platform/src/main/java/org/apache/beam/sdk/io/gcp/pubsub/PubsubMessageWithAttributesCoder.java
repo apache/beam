@@ -29,7 +29,12 @@ import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
-/** A coder for PubsubMessage including attributes. */
+/**
+ * A coder for PubsubMessage including attributes.
+ *
+ * <p>Maintainers should prefer {@link PubsubMessageSchemaCoder} over this coder when adding
+ * features to {@link PubsubIO}.
+ */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })

@@ -19,7 +19,7 @@ package org.apache.beam.runners.fnexecution.control;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyZeroInteractions;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.FinalizeBundleRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
@@ -41,11 +41,11 @@ public class BundleFinalizationHandlersTest {
     InMemoryFinalizer finalizer = BundleFinalizationHandlers.inMemoryFinalizer(mockHandler);
 
     finalizer.finalizeAllOutstandingBundles();
-    verifyZeroInteractions(mockHandler);
+    verifyNoInteractions(mockHandler);
 
     finalizer.requestsFinalization("A");
     finalizer.requestsFinalization("B");
-    verifyZeroInteractions(mockHandler);
+    verifyNoInteractions(mockHandler);
 
     finalizer.finalizeAllOutstandingBundles();
     verify(mockHandler).handle(requestFor("A"));

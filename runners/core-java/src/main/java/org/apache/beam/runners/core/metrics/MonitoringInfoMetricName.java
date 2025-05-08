@@ -80,6 +80,7 @@ public class MonitoringInfoMetricName extends MetricName {
   }
 
   /** @return The labels associated with this MonitoringInfo. */
+  @Override
   public Map<String, String> getLabels() {
     return this.labels;
   }

@@ -1153,7 +1153,7 @@ class SnippetsTest(unittest.TestCase):
           pcollection | WindowInto(
               FixedWindows(1 * 60),
               trigger=AfterWatermark(late=AfterProcessingTime(10 * 60)),
-              allowed_lateness=10,
+              allowed_lateness=2 * 24 * 60 * 60,
               accumulation_mode=AccumulationMode.DISCARDING)
           # [END model_composite_triggers]
           | 'group' >> beam.GroupByKey()
@@ -1465,6 +1465,18 @@ class SlowlyChangingSideInputsTest(unittest.TestCase):
     finally:
       for i in range(-1, 10, 1):
         os.unlink(src_file_pattern + str(first_ts + interval * i))
+
+
+class ValueProviderInfoTest(unittest.TestCase):
+  """Tests for accessing value provider info after run."""
+  def test_accessing_valueprovider_info_after_run(self):
+    with self.assertLogs(level='INFO') as log_capture:
+      snippets.accessing_valueprovider_info_after_run()
+    expected_log_message = "The string value is"
+    self.assertTrue(
+        any(expected_log_message in log for log in log_capture.output),
+        f"Expected log message '{expected_log_message}' not found in logs: "
+        f"{log_capture.output}")
 
 
 if __name__ == '__main__':

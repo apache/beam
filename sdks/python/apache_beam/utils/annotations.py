@@ -64,6 +64,22 @@ from functools import partial
 from functools import wraps
 
 
+def _add_deprecation_notice_to_docstring(docstring, message):
+  """Adds a deprecation notice to a docstring.
+
+  Args:
+    docstring: The original docstring (can be None or empty).
+    message: The deprecation message to add.
+
+  Returns:
+    The modified docstring.
+  """
+  if docstring:
+    return f"{docstring}\n\n.. deprecated:: {message}"
+  else:
+    return f".. deprecated:: {message}"
+
+
 class BeamDeprecationWarning(DeprecationWarning):
   """Beam-specific deprecation warnings."""
 
@@ -149,6 +165,10 @@ def annotate(label, since, current, extra_message, custom_message=None):
         return old_new(cls, *args, **kwargs)
 
       fnc.__new__ = staticmethod(wrapped_new)
+      if label == 'deprecated':
+        fnc.__doc__ = _add_deprecation_notice_to_docstring(
+            fnc.__doc__,
+            warning_message.message.replace('%name%', fnc.__name__))
       return fnc
     else:
 
@@ -158,6 +178,10 @@ def annotate(label, since, current, extra_message, custom_message=None):
         warning_message.emit_warning(fnc.__name__)
         return fnc(*args, **kwargs)
 
+      if label == 'deprecated':
+        inner.__doc__ = _add_deprecation_notice_to_docstring(
+            fnc.__doc__,
+            warning_message.message.replace('%name%', fnc.__name__))
       return inner
 
   return _annotate

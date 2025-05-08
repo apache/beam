@@ -16,7 +16,7 @@
 
 --influx_namespace=flink
 --influx_measurement=go_batch_combine_2
---input_options=''{\"num_records\":5000000,\"key_size\":10,\"value_size\":90}''
+--input_options=''{\"num_records\":25000,\"key_size\":10,\"value_size\":90}''
 --fanout=4
 --top_count=20
 --parallelism=16

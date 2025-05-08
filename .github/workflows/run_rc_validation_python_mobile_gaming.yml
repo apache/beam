@@ -1,0 +1,548 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+name: Run Python Mobile Gaming RC Validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      RELEASE_VER:
+        description: 'Beam Release Version (e.g., 2.64.0)'
+        required: true
+        default: '2.64.0'
+      RC_NUM:
+        description: 'Release Candidate number (e.g., 1)'
+        required: true
+        default: '1'
+      APACHE_CONTENTS_REPO:
+        description: 'Apache Staging Repository URL for Java Injector (e.g., https://repository.apache.org/content/repositories/orgapachebeam-1234)'
+        required: true
+      CLEANUP_BQ_RESOURCES:
+        description: 'Whether to delete the BigQuery dataset after the test run (true/false)'
+        required: false
+        type: boolean
+        default: true
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.inputs.RELEASE_VER }}-${{ github.event.inputs.RC_NUM }}'
+  cancel-in-progress: true
+
+# Setting explicit permissions for the action
+permissions:
+  actions: write
+  pull-requests: write # Needed for setup-action potentially
+  checks: write
+  contents: read # Needs read to checkout the code
+  deployments: read
+  id-token: write # Required for GCP Workload Identity Federation
+  issues: write
+  discussions: read
+  packages: read
+  pages: read
+  repository-projects: read
+  security-events: read
+  statuses: read
+
+env: # Workflow level env vars if needed, specific ones are below
+  GCP_PROJECT_ID: 'apache-beam-testing'
+  GCS_BUCKET: 'gs://rc-validation-migration-tests'
+
+jobs:
+  run_python_mobile_gaming_rc_validation:
+    name: Run Python Mobile Gaming RC Validation (${{ github.event.inputs.RELEASE_VER }} RC${{ github.event.inputs.RC_NUM }})
+    runs-on: [self-hosted, ubuntu-20.04, main]
+    timeout-minutes: 360
+    env: # Job-level env vars inherit workflow level and define job-specific ones
+      DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
+      GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
+      GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+      RUN_ID_SUFFIX: ${{ github.run_id }}_${{ github.run_attempt }}
+      BQ_DATASET: mobilegaming_py_rc_${{ github.run_id }}_${{ github.run_attempt }}
+      PUBSUB_TOPIC: mobilegaming_py_rc_${{ github.run_id }}_${{ github.run_attempt }}
+      GCE_REGION: 'us-central1'
+      APACHE_REPO_URL: ${{ github.event.inputs.APACHE_CONTENTS_REPO }}
+      RELEASE_VERSION: ${{ github.event.inputs.RELEASE_VER }}
+      RC_NUM: ${{ github.event.inputs.RC_NUM }}
+      RC_TAG: "v${{github.event.inputs.RELEASE_VER}}-RC${{github.event.inputs.RC_NUM}}"
+      PYTHON_VERSION: '3.9'
+      BEAM_PYTHON_SDK_TAR_GZ: apache_beam-${{ github.event.inputs.RELEASE_VER }}.tar.gz
+      BEAM_SOURCE_ZIP: apache-beam-${{ github.event.inputs.RELEASE_VER }}-source-release.zip
+      APACHE_DIST_URL_BASE: https://dist.apache.org/repos/dist/dev/beam/${{ github.event.inputs.RELEASE_VER }}
+      GAME_STATS_WINDOW_DURATION: 20
+      SUBMISSION_TIMEOUT_SECONDS: 120 # Timeout for the python submission script itself
+      # --- Define the validation function with enhanced debugging (FIXED QUOTING) ---
+
+    steps:
+      - name: Checkout code at RC tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RC_TAG }}
+
+      - name: Download validate_table.sh from master branch
+        run: |
+          curl -o ./scripts/tools/validate_table.sh https://raw.githubusercontent.com/apache/beam/master/scripts/tools/validate_table.sh
+          chmod +x ./scripts/tools/validate_table.sh
+
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
+        with:
+          java-version: 11
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update --yes
+          sudo apt-get install -y wget unzip coreutils procps grep sed
+        shell: bash
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Download RC Artifacts
+        run: |
+          echo "Downloading from ${{ env.APACHE_DIST_URL_BASE }}"
+          wget ${{ env.APACHE_DIST_URL_BASE }}/python/${{ env.BEAM_PYTHON_SDK_TAR_GZ }}
+          wget ${{ env.APACHE_DIST_URL_BASE }}/python/${{ env.BEAM_PYTHON_SDK_TAR_GZ }}.sha512
+          wget ${{ env.APACHE_DIST_URL_BASE }}/${{ env.BEAM_SOURCE_ZIP }}
+          wget ${{ env.APACHE_DIST_URL_BASE }}/${{ env.BEAM_SOURCE_ZIP }}.sha512
+        shell: bash
+
+      - name: Verify Hashes
+        run: |
+          echo "Verifying sha512 checksums..."
+          sha512sum -c ${{ env.BEAM_PYTHON_SDK_TAR_GZ }}.sha512
+          sha512sum -c ${{ env.BEAM_SOURCE_ZIP }}.sha512
+        shell: bash
+
+      - name: Setup Python Virtual Environment
+        run: |
+          echo "Setting up Python virtual environment..."
+          python -m venv beam_env
+          source beam_env/bin/activate
+          pip install --upgrade pip setuptools wheel build
+          echo "Virtual environment ready."
+        shell: bash
+
+      - name: Build Python SDK from Source
+        run: |
+          echo "Building Python SDK sdist..."
+          source beam_env/bin/activate
+          unzip ${{ env.BEAM_SOURCE_ZIP }}
+          mkdir -p beam-${{ env.RELEASE_VERSION }}/website/www/site/content/en/documentation/sdks
+          sudo mkdir -p /website/www/site/content/en/documentation/sdks
+          cd beam-${{ env.RELEASE_VERSION }}/sdks/python
+          python -m build --sdist
+        shell: bash
+
+      - name: Install Python SDK
+        run: |
+          echo "Installing built Python SDK: apache_beam-${{ env.RELEASE_VERSION }}.tar.gz"
+          source beam_env/bin/activate
+          pip install beam-${{ env.RELEASE_VERSION }}/sdks/python/dist/apache_beam-${{ env.RELEASE_VERSION }}.tar.gz
+          pip install beam-${{ env.RELEASE_VERSION }}/sdks/python/dist/apache_beam-${{ env.RELEASE_VERSION }}.tar.gz[gcp]
+          echo "SDK installed."
+          pip freeze # Log installed packages
+        shell: bash
+
+      # ================== GCP Resource Setup ==================
+      - name: Create BigQuery Dataset
+        run: |
+          echo "Creating BigQuery dataset: ${{ env.BQ_DATASET }} in project ${{ env.GCP_PROJECT_ID }}"
+          bq mk --project_id=${{ env.GCP_PROJECT_ID }} ${{ env.BQ_DATASET }}
+        shell: bash
+
+      - name: Create GCS Bucket (if needed - reusing input bucket)
+        run: |
+          echo "Ensuring GCS Bucket exists: ${{ env.GCS_BUCKET }} in project ${{ env.GCP_PROJECT_ID }}"
+          gsutil mb -p ${{ env.GCP_PROJECT_ID }} ${{ env.GCS_BUCKET }} || echo "Bucket ${{ env.GCS_BUCKET }} likely already exists."
+        shell: bash
+
+      - name: Create PubSub Topic
+        run: |
+          echo "Creating PubSub topic: ${{ env.PUBSUB_TOPIC }} in project ${{ env.GCP_PROJECT_ID }}"
+          gcloud pubsub topics create --project=${{ env.GCP_PROJECT_ID }} ${{ env.PUBSUB_TOPIC }}
+        shell: bash
+
+      # ================== Java Data Injector ==================
+      - name: Configure Maven Settings for Injector
+        run: |
+          mkdir -p ~/.m2
+          cat <<EOF > ~/.m2/settings.xml
+          <settings>
+            <profiles>
+              <profile>
+                <id>release-repo</id>
+                <activation>
+                  <activeByDefault>true</activeByDefault>
+                </activation>
+                <repositories>
+                  <repository>
+                    <id>Release ${{ env.RELEASE_VERSION }} RC${{ env.RC_NUM }}</id>
+                    <name>Release ${{ env.RELEASE_VERSION }} RC${{ env.RC_NUM }}</name>
+                    <url>${{ env.APACHE_REPO_URL }}</url>
+                  </repository>
+                </repositories>
+              </profile>
+            </profiles>
+          </settings>
+          EOF
+          echo "Maven settings.xml configured for Java Injector."
+        shell: bash
+
+      - name: Run Java Injector in Background
+        run: |
+          echo "Running Java Injector in Background..."
+          # Generate project from archetype
+          mvn archetype:generate \
+              -DarchetypeGroupId=org.apache.beam \
+              -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
+              -DarchetypeVersion=${{ env.RELEASE_VERSION }} \
+              -DgroupId=org.example \
+              -DartifactId=injector-temp \
+              -Dversion="0.1" \
+              -Dpackage=org.apache.beam.examples \
+              -DinteractiveMode=false \
+              -DarchetypeCatalog=internal \
+              -Dmaven.wagon.http.retryHandler.count=3 \
+              -Dmaven.wagon.httpconnectionManager.ttlSeconds=25
+
+          cd injector-temp
+          # Compile and run, redirecting output to avoid polluting workflow logs
+          mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.complete.game.injector.Injector \
+            -Dexec.args="${{ env.GCP_PROJECT_ID }} ${{ env.PUBSUB_TOPIC }} none" \
+            -Dmaven.wagon.http.retryHandler.count=3 \
+            -Dmaven.wagon.httpconnectionManager.ttlSeconds=25 > ../injector_run.log 2>&1 &
+
+          INJECTOR_PID=$!
+          echo "Java Injector started in background with PID: ${INJECTOR_PID}"
+          echo ${INJECTOR_PID} > ../injector.pid
+
+          cd ..
+          # Give injector a moment to start fully
+          sleep 15
+          echo "Checking if injector process $INJECTOR_PID is running..."
+          if ps -p $INJECTOR_PID > /dev/null; then
+             echo "Injector process $INJECTOR_PID confirmed running."
+          else
+             echo "ERROR: Injector process $INJECTOR_PID failed to start or exited prematurely."
+             echo "--- Injector Log ---"
+             cat injector_run.log || echo "Injector log not found."
+             echo "--- End Injector Log ---"
+             exit 1
+          fi
+        shell: bash
+
+      # ================== Leaderboard Tests ==================
+      - name: Run Leaderboard (Direct Runner) in Background
+        run: |
+          echo "Running Leaderboard with DirectRunner in Background..."
+          source beam_env/bin/activate
+          python -m apache_beam.examples.complete.game.leader_board \
+            --project=${{ env.GCP_PROJECT_ID }} \
+            --topic projects/${{ env.GCP_PROJECT_ID }}/topics/${{ env.PUBSUB_TOPIC }} \
+            --dataset ${{ env.BQ_DATASET }} &
+
+          LB_DIRECT_PID=$!
+          echo "Leaderboard (Direct Runner) started in background with PID: ${LB_DIRECT_PID}"
+          echo ${LB_DIRECT_PID} > leaderboard_direct.pid
+        shell: bash
+
+      - name: Validate Leaderboard Results (Direct Runner)
+        run: |
+          source beam_env/bin/activate
+          echo "Validating BigQuery results for Leaderboard (DirectRunner)..."
+          sleep 90
+          ./scripts/tools/validate_table.sh "leader_board_users" || exit 1
+          ./scripts/tools/validate_table.sh "leader_board_teams" || exit 1
+          echo "Leaderboard (Direct Runner) BQ validation finished successfully."
+        shell: bash
+
+      - name: Kill Leaderboard Direct Runner Process
+        if: always()
+        run: |
+          if [ -f leaderboard_direct.pid ]; then
+            LB_DIRECT_PID=$(cat leaderboard_direct.pid)
+            echo "Attempting to kill Leaderboard Direct Runner process with PID: $LB_DIRECT_PID"
+            kill -9 $LB_DIRECT_PID || echo "Leaderboard Direct Runner process $LB_DIRECT_PID already stopped or not found."
+            rm leaderboard_direct.pid
+          else
+            echo "leaderboard_direct.pid not found, cannot kill process."
+          fi
+        shell: bash
+
+      - name: Run Leaderboard (Dataflow Runner), Wait, Extract ID, Cleanup Submitter
+        id: submit_lb_df # Give step an ID to reference its outcome if needed
+        run: |
+          echo "Running Leaderboard with DataflowRunner in Background..."
+          source beam_env/bin/activate
+          python -m apache_beam.examples.complete.game.leader_board \
+            --project=${{ env.GCP_PROJECT_ID }} \
+            --region=${{ env.GCE_REGION }} \
+            --topic projects/${{ env.GCP_PROJECT_ID }}/topics/${{ env.PUBSUB_TOPIC }} \
+            --dataset ${{ env.BQ_DATASET }} \
+            --runner DataflowRunner \
+            --temp_location=${{ env.GCS_BUCKET }}/temp/leaderboard/ \
+            --sdk_location=apache_beam-${{ env.RELEASE_VERSION }}.tar.gz \
+            > leaderboard_dataflow_submit.log 2>&1 &
+
+          LB_DF_PID=$!
+          echo "Leaderboard (Dataflow Runner) submission process started in background with PID: ${LB_DF_PID}"
+          echo ${LB_DF_PID} > leaderboard_dataflow_submit.pid
+
+          echo "Waiting up to ${{ env.SUBMISSION_TIMEOUT_SECONDS }} seconds for Dataflow job submission process (PID: ${LB_DF_PID}) to potentially complete..."
+          sleep ${{ env.SUBMISSION_TIMEOUT_SECONDS }}
+
+          echo "Proceeding with Job ID extraction..."
+          # Try extracting Job ID using common patterns
+          JOB_ID=$(grep -oP 'Dataflow Job ID: \K\S+' leaderboard_dataflow_submit.log || grep -oP "job_id='?\K[^' >]+" leaderboard_dataflow_submit.log || grep -oP "id: '?\"?\K[^'\" >]+" leaderboard_dataflow_submit.log | head -n 1)
+
+          if [[ -n "$JOB_ID" ]]; then
+            echo "Extracted Leaderboard Dataflow Job ID: $JOB_ID"
+            echo "$JOB_ID" > leaderboard_dataflow_jobid.txt
+          else
+            echo "WARNING: Could not extract Leaderboard Dataflow Job ID after ${{ env.SUBMISSION_TIMEOUT_SECONDS }}s wait. Log content:"
+            echo "--- Leaderboard Dataflow submission log START ---"
+            cat leaderboard_dataflow_submit.log || echo "Log file not found."
+            echo "--- Leaderboard Dataflow submission log END ---"
+          fi
+
+          # Check if the submission process is still running and kill it if necessary
+          if [ -f leaderboard_dataflow_submit.pid ] && ps -p $LB_DF_PID > /dev/null; then
+             echo "Submission process (PID: $LB_DF_PID) is still running after ${{ env.SUBMISSION_TIMEOUT_SECONDS }}s. Attempting to kill it."
+             kill -9 $LB_DF_PID || echo "Failed to kill process $LB_DF_PID."
+          else
+             echo "Submission process (PID: $LB_DF_PID) has already finished or PID file is missing."
+          fi
+          # Clean up PID file regardless
+          if [ -f leaderboard_dataflow_submit.pid ]; then
+              rm leaderboard_dataflow_submit.pid
+          fi
+
+          echo "Leaderboard (Dataflow Runner) submission step finished processing."
+        shell: bash
+
+      - name: Validate Leaderboard Results (Dataflow Runner)
+        run: |
+          if [ ! -f leaderboard_dataflow_jobid.txt ]; then
+             echo "Skipping Leaderboard Dataflow validation as Job ID was not extracted."
+             exit 0 # Exit step successfully to allow cancellation/cleanup
+          fi
+          source beam_env/bin/activate
+          echo "Validating BigQuery results for Leaderboard (DataflowRunner)..."
+          sleep 240
+          ./scripts/tools/validate_table.sh "leader_board_users" 15 || exit 1 # Use 15s retry delay
+          ./scripts/tools/validate_table.sh "leader_board_teams" 15 || exit 1 # Use 15s retry delay
+          echo "Leaderboard (Dataflow Runner) BQ validation finished successfully."
+        shell: bash
+
+      - name: Cancel Leaderboard Dataflow Job
+        if: always() # Run even if validation failed, to attempt cleanup
+        run: |
+          if [ -f leaderboard_dataflow_jobid.txt ]; then
+            JOB_ID=$(cat leaderboard_dataflow_jobid.txt)
+            if [[ -n "$JOB_ID" ]]; then
+              echo "Attempting to cancel Leaderboard Dataflow job: $JOB_ID in region ${{ env.GCE_REGION }}"
+              gcloud dataflow jobs cancel "$JOB_ID" --region=${{ env.GCE_REGION }} --project=${{ env.GCP_PROJECT_ID }} || echo "Failed to cancel Leaderboard Dataflow job $JOB_ID (maybe it finished or was already cancelled)."
+            else
+              echo "Leaderboard Dataflow Job ID file exists but is empty."
+            fi
+            # Keep the job ID file removal in the final cleanup section in case other steps need it?
+            # rm leaderboard_dataflow_jobid.txt # Or remove it here? Let's keep final cleanup consistent.
+          else
+            echo "leaderboard_dataflow_jobid.txt not found, cannot cancel job (it might have failed before ID extraction)."
+          fi
+        shell: bash
+
+      # ================== GameStats Tests ==================
+      - name: Run GameStats (Direct Runner) in Background
+        run: |
+          echo "Running GameStats with DirectRunner in Background..."
+          source beam_env/bin/activate
+          python -m apache_beam.examples.complete.game.game_stats \
+            --project=${{ env.GCP_PROJECT_ID }} \
+            --topic projects/${{ env.GCP_PROJECT_ID }}/topics/${{ env.PUBSUB_TOPIC }} \
+            --dataset ${{ env.BQ_DATASET }} \
+            --fixed_window_duration ${{ env.GAME_STATS_WINDOW_DURATION }} &
+
+          GS_DIRECT_PID=$!
+          echo "GameStats (Direct Runner) started in background with PID: ${GS_DIRECT_PID}"
+          echo ${GS_DIRECT_PID} > gamestats_direct.pid
+        shell: bash
+
+      - name: Validate GameStats Results (Direct Runner)
+        run: |
+          source beam_env/bin/activate
+          echo "Validating BigQuery results for GameStats (DirectRunner)..."
+          echo "* Sleeping for 25mins"
+          sleep 25m
+          ./scripts/tools/validate_table.sh "game_stats_teams" || exit 1
+          ./scripts/tools/validate_table.sh "game_stats_sessions" || exit 1
+          echo "GameStats (Direct Runner) BQ validation finished successfully."
+        shell: bash
+
+      - name: Kill GameStats Direct Runner Process
+        if: always()
+        run: |
+          if [ -f gamestats_direct.pid ]; then
+            GS_DIRECT_PID=$(cat gamestats_direct.pid)
+            echo "Attempting to kill GameStats Direct Runner process with PID: $GS_DIRECT_PID"
+            kill -9 $GS_DIRECT_PID || echo "GameStats Direct Runner process $GS_DIRECT_PID already stopped or not found."
+            rm gamestats_direct.pid
+          else
+            echo "gamestats_direct.pid not found, cannot kill process."
+          fi
+        shell: bash
+
+      - name: Run GameStats (Dataflow Runner), Wait, Extract ID, Cleanup Submitter
+        id: submit_gs_df
+        run: |
+          echo "Running GameStats with DataflowRunner in Background..."
+          source beam_env/bin/activate
+          python -m apache_beam.examples.complete.game.game_stats \
+            --project=${{ env.GCP_PROJECT_ID }} \
+            --region=${{ env.GCE_REGION }} \
+            --topic projects/${{ env.GCP_PROJECT_ID }}/topics/${{ env.PUBSUB_TOPIC }} \
+            --dataset ${{ env.BQ_DATASET }} \
+            --runner DataflowRunner \
+            --temp_location=${{ env.GCS_BUCKET }}/temp/gamestats/ \
+            --sdk_location=apache_beam-${{ env.RELEASE_VERSION }}.tar.gz \
+            --fixed_window_duration ${{ env.GAME_STATS_WINDOW_DURATION }} \
+            > gamestats_dataflow_submit.log 2>&1 &
+
+          GS_DF_PID=$!
+          echo "GameStats (Dataflow Runner) submission process started in background with PID: ${GS_DF_PID}"
+          echo ${GS_DF_PID} > gamestats_dataflow_submit.pid
+
+          echo "Waiting up to ${{ env.SUBMISSION_TIMEOUT_SECONDS }} seconds for Dataflow job submission process (PID: ${GS_DF_PID}) to potentially complete..."
+          sleep ${{ env.SUBMISSION_TIMEOUT_SECONDS }}
+
+          echo "Proceeding with Job ID extraction..."
+          # Try extracting Job ID using common patterns
+          JOB_ID=$(grep -oP 'Dataflow Job ID: \K\S+' gamestats_dataflow_submit.log || grep -oP "job_id='?\K[^' >]+" gamestats_dataflow_submit.log || grep -oP "id: '?\"?\K[^'\" >]+" gamestats_dataflow_submit.log | head -n 1)
+
+          if [[ -n "$JOB_ID" ]]; then
+            echo "Extracted GameStats Dataflow Job ID: $JOB_ID"
+            echo "$JOB_ID" > gamestats_dataflow_jobid.txt
+          else
+            echo "WARNING: Could not extract GameStats Dataflow Job ID after ${{ env.SUBMISSION_TIMEOUT_SECONDS }}s wait. Log content:"
+            echo "--- GameStats Dataflow submission log START ---"
+            cat gamestats_dataflow_submit.log || echo "Log file not found."
+            echo "--- GameStats Dataflow submission log END ---"
+          fi
+
+          # Check if the submission process is still running and kill it if necessary
+          if [ -f gamestats_dataflow_submit.pid ] && ps -p $GS_DF_PID > /dev/null; then
+             echo "Submission process (PID: $GS_DF_PID) is still running after ${{ env.SUBMISSION_TIMEOUT_SECONDS }}s. Attempting to kill it."
+             kill -9 $GS_DF_PID || echo "Failed to kill process $GS_DF_PID."
+          else
+             echo "Submission process (PID: $GS_DF_PID) has already finished or PID file is missing."
+          fi
+          # Clean up PID file regardless
+          if [ -f gamestats_dataflow_submit.pid ]; then
+              rm gamestats_dataflow_submit.pid
+          fi
+
+          echo "GameStats (Dataflow Runner) submission step finished processing."
+        shell: bash
+
+      - name: Validate GameStats Results (Dataflow Runner)
+        run: |
+          if [ ! -f gamestats_dataflow_jobid.txt ]; then
+             echo "Skipping GameStats Dataflow validation as Job ID was not extracted."
+             exit 0 # Exit step successfully to allow cleanup
+          fi
+          source beam_env/bin/activate
+          echo "Validating BigQuery results for GameStats (DataflowRunner)..."
+          echo "* Sleeping for 25mins"
+          sleep 25m
+          ./scripts/tools/validate_table.sh "game_stats_teams" 15 || exit 1 # Use 15s retry delay
+          ./scripts/tools/validate_table.sh "game_stats_sessions" 15 || exit 1 # Use 15s retry delay
+          echo "GameStats (Dataflow Runner) BQ validation finished successfully."
+        shell: bash
+
+      # ================== Cleanup ==================
+      # Kill background processes first
+      - name: Kill Java Injector Process
+        if: always()
+        run: |
+          if [ -f injector.pid ]; then
+            INJECTOR_PID=$(cat injector.pid)
+            echo "Attempting to kill Java Injector process with PID: $INJECTOR_PID"
+            kill $INJECTOR_PID || echo "Injector process $INJECTOR_PID may have already stopped or was not found."
+            sleep 5
+            if ps -p $INJECTOR_PID > /dev/null; then
+               echo "Process $INJECTOR_PID still running, sending SIGKILL."
+               kill -9 $INJECTOR_PID || echo "Failed to SIGKILL process $INJECTOR_PID."
+            else
+               echo "Process $INJECTOR_PID terminated or was not running."
+            fi
+            rm injector.pid
+          else
+            echo "injector.pid not found, cannot kill process."
+          fi
+        shell: bash
+
+      # Cancel Remaining Dataflow job
+      - name: Cancel GameStats Dataflow Job
+        if: always()
+        run: |
+          if [ -f gamestats_dataflow_jobid.txt ]; then
+            JOB_ID=$(cat gamestats_dataflow_jobid.txt)
+            if [[ -n "$JOB_ID" ]]; then
+              echo "Attempting to cancel GameStats Dataflow job: $JOB_ID in region ${{ env.GCE_REGION }}"
+              gcloud dataflow jobs cancel "$JOB_ID" --region=${{ env.GCE_REGION }} --project=${{ env.GCP_PROJECT_ID }} || echo "Failed to cancel GameStats Dataflow job $JOB_ID (maybe it finished or was already cancelled)."
+            else
+              echo "GameStats Dataflow Job ID file exists but is empty."
+            fi
+            # Remove the file here after attempting cancel
+            rm gamestats_dataflow_jobid.txt
+          else
+            echo "gamestats_dataflow_jobid.txt not found, cannot cancel job (it might have failed before ID extraction)."
+          fi
+        shell: bash
+
+      # Cleanup GCP resources
+      - name: Cleanup BigQuery Dataset
+        if: always() && github.event.inputs.CLEANUP_BQ_RESOURCES == 'true'
+        run: |
+          echo "Deleting BigQuery dataset: ${{ env.BQ_DATASET }} in project ${{ env.GCP_PROJECT_ID }}"
+          bq rm --project_id=${{ env.GCP_PROJECT_ID }} -f -r ${{ env.BQ_DATASET }} || echo "Failed to delete BQ dataset ${{ env.BQ_DATASET }}, continuing..."
+        shell: bash
+
+      - name: Cleanup GCS Bucket Objects and Logs
+        if: always()
+        run: |
+          echo "Deleting objects in GCS Bucket: ${{ env.GCS_BUCKET }}/temp/"
+          gsutil -m rm -r "${{ env.GCS_BUCKET }}/temp/leaderboard/**" || echo "Failed to delete objects in GCS leaderboard temp folder."
+          gsutil -m rm -r "${{ env.GCS_BUCKET }}/temp/gamestats/**" || echo "Failed to delete objects in GCS gamestats temp folder."
+          echo "Removing local log and jobid files..."
+          rm -f leaderboard_dataflow_submit.log gamestats_dataflow_submit.log injector_run.log
+          rm -f leaderboard_dataflow_jobid.txt # Remove Leaderboard jobid file here
+          # gamestats_dataflow_jobid.txt is removed in its cancellation step above
+        shell: bash
+
+      - name: Cleanup PubSub Topic
+        if: always()
+        run: |
+          echo "Deleting PubSub topic: ${{ env.PUBSUB_TOPIC }} in project ${{ env.GCP_PROJECT_ID }}"
+          gcloud pubsub topics delete --project=${{ env.GCP_PROJECT_ID }} ${{ env.PUBSUB_TOPIC }} --quiet || echo "Failed to delete PubSub topic ${{ env.PUBSUB_TOPIC }}, continuing..."
+        shell: bash

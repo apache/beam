@@ -19,12 +19,15 @@ import (
 	"io"
 	"reflect"
 	"testing"
+	"unicode"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 func makeInput(vs ...any) []MainInput {
@@ -153,35 +156,19 @@ func equalList(a, b []FullValue) bool {
 }
 
 func equal(a, b FullValue) bool {
-	if a.Timestamp != b.Timestamp {
-		return false
-	}
-	if (a.Elm == nil) != (b.Elm == nil) {
-		return false
-	}
-	if (a.Elm2 == nil) != (b.Elm2 == nil) {
-		return false
-	}
+	ignoreUnexportedFields := cmp.FilterPath(func(p cmp.Path) bool {
+		sf, ok := p.Index(-1).(cmp.StructField)
+		if !ok {
+			return false
+		}
+		return !unicode.IsUpper(rune(sf.Name()[0]))
+	}, cmp.Ignore())
 
-	if a.Elm != nil {
-		if !reflect.DeepEqual(a.Elm, b.Elm) {
-			return false
-		}
+	compareOptions := []cmp.Option{
+		cmpopts.IgnoreFields(FullValue{}, "Continuation", "Pane"),
+		ignoreUnexportedFields,
 	}
-	if a.Elm2 != nil {
-		if !reflect.DeepEqual(a.Elm2, b.Elm2) {
-			return false
-		}
-	}
-	if len(a.Windows) != len(b.Windows) {
-		return false
-	}
-	for i, w := range a.Windows {
-		if !w.Equals(b.Windows[i]) {
-			return false
-		}
-	}
-	return true
+	return cmp.Equal(a, b, compareOptions...)
 }
 
 // Conversion tests.

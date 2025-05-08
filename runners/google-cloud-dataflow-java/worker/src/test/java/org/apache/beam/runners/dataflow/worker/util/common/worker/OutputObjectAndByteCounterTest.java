@@ -92,13 +92,19 @@ public class OutputObjectAndByteCounterTest {
   }
 
   private OutputObjectAndByteCounter makeCounter(String name, int samplingPeriod, int seed) {
-    return new OutputObjectAndByteCounter(
+    OutputObjectAndByteCounter outputObjectAndByteCounter =
+        new OutputObjectAndByteCounter(
             new ElementByteSizeObservableCoder<>(StringUtf8Coder.of()),
             counterSet,
-            NameContextsForTests.nameContextForTest())
-        .setSamplingPeriod(samplingPeriod)
-        .setRandom(new Random(seed))
-        .countBytes(name);
+            NameContextsForTests.nameContextForTest()) {
+          private final Random random = new Random(seed);
+
+          @Override
+          protected Random getRandom() {
+            return random;
+          }
+        };
+    return outputObjectAndByteCounter.setSamplingPeriod(samplingPeriod).countBytes(name);
   }
 
   @Test

@@ -33,7 +33,7 @@ def hadoopVersions = [
     "2102": "2.10.2",
     "324": "3.2.4",
     "336": "3.3.6",
-    "341": "3.4.1",
+    // "341": "3.4.1", // tests already exercised on the default version
 ]
 
 hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}

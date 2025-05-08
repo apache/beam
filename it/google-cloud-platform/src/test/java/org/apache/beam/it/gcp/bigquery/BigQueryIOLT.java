@@ -79,8 +79,17 @@ import org.junit.Test;
  *
  * <p>Example trigger command for specific test running on Dataflow runner:
  *
+ * <p><b>Maven</b>
+ *
  * <pre>
  * mvn test -pl it/google-cloud-platform -am -Dtest="BigQueryIOLT#testAvroFileLoadsWriteThenRead" \
+ * -Dconfiguration=medium -Dproject=[gcpProject] -DartifactBucket=[temp bucket] -DfailIfNoTests=false
+ * </pre>
+ *
+ * <p><b>Gradle</b>
+ *
+ * <pre>
+ * ./gradlew :it:google-cloud-platform:BigQueryPerformanceTest --tests='BigQueryIOLT.testAvroFileLoadsWriteThenRead' \
  * -Dconfiguration=medium -Dproject=[gcpProject] -DartifactBucket=[temp bucket] -DfailIfNoTests=false
  * </pre>
  *
@@ -172,11 +181,11 @@ public final class BigQueryIOLT extends IOLoadTestBase {
                   Configuration.class), // 1 MB
               "medium",
               Configuration.fromJsonString(
-                  "{\"numRecords\":10000000,\"valueSizeBytes\":1000,\"pipelineTimeout\":20,\"runner\":\"DataflowRunner\"}",
+                  "{\"numRecords\":10000000,\"valueSizeBytes\":1000,\"pipelineTimeout\":20,\"runner\":\"DataflowRunner\",\"workerMachineType\":\"e2-standard-2\",\"experiments\":\"disable_runner_v2\",\"numWorkers\":\"1\",\"maxNumWorkers\":\"1\"}",
                   Configuration.class), // 10 GB
               "large",
               Configuration.fromJsonString(
-                  "{\"numRecords\":100000000,\"valueSizeBytes\":1000,\"pipelineTimeout\":80,\"runner\":\"DataflowRunner\"}",
+                  "{\"numRecords\":100000000,\"valueSizeBytes\":1000,\"pipelineTimeout\":80,\"runner\":\"DataflowRunner\",\"workerMachineType\":\"e2-standard-2\",\"experiments\":\"disable_runner_v2\",\"numWorkers\":\"1\",\"maxNumWorkers\":\"1\",\"numStorageWriteApiStreams\":4,\"storageWriteApiTriggeringFrequencySec\":20}",
                   Configuration.class) // 100 GB
               );
     } catch (IOException e) {
@@ -230,16 +239,19 @@ public final class BigQueryIOLT extends IOLoadTestBase {
         writeIO =
             BigQueryIO.<byte[]>write()
                 .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE)
+                .withNumStorageWriteApiStreams(
+                    configuration.numStorageWriteApiStreams) // control the number of streams
                 .withAvroFormatFunction(
                     new AvroFormatFn(
                         configuration.numColumns,
                         !("STORAGE_WRITE_API".equalsIgnoreCase(configuration.writeMethod))));
-
         break;
       case JSON:
         writeIO =
             BigQueryIO.<byte[]>write()
                 .withSuccessfulInsertsPropagation(false)
+                .withNumStorageWriteApiStreams(
+                    configuration.numStorageWriteApiStreams) // control the number of streams
                 .withFormatFunction(new JsonFormatFn(configuration.numColumns));
         break;
     }
@@ -268,6 +280,10 @@ public final class BigQueryIOLT extends IOLoadTestBase {
             .setSdk(PipelineLauncher.Sdk.JAVA)
             .setPipeline(writePipeline)
             .addParameter("runner", configuration.runner)
+            .addParameter("workerMachineType", configuration.workerMachineType)
+            .addParameter("experiments", configuration.experiments)
+            .addParameter("numWorkers", configuration.numWorkers)
+            .addParameter("maxNumWorkers", configuration.maxNumWorkers)
             .build();
 
     PipelineLauncher.LaunchInfo launchInfo = pipelineLauncher.launch(project, region, options);
@@ -304,6 +320,10 @@ public final class BigQueryIOLT extends IOLoadTestBase {
             .setSdk(PipelineLauncher.Sdk.JAVA)
             .setPipeline(readPipeline)
             .addParameter("runner", configuration.runner)
+            .addParameter("workerMachineType", configuration.workerMachineType)
+            .addParameter("experiments", configuration.experiments)
+            .addParameter("numWorkers", configuration.numWorkers)
+            .addParameter("maxNumWorkers", configuration.maxNumWorkers)
             .build();
 
     PipelineLauncher.LaunchInfo launchInfo = pipelineLauncher.launch(project, region, options);
@@ -445,11 +465,35 @@ public final class BigQueryIOLT extends IOLoadTestBase {
     /** Runner specified to run the pipeline. */
     @JsonProperty public String runner = "DirectRunner";
 
+    /** Worker machine type specified to run the pipeline with Dataflow Runner. */
+    @JsonProperty public String workerMachineType = "";
+
+    /** Experiments specified to run the pipeline. */
+    @JsonProperty public String experiments = "";
+
+    /** Number of workers to start the pipeline. Must be a positive value. */
+    @JsonProperty public String numWorkers = "1";
+
+    /** Maximum umber of workers for the pipeline. Must be a positive value. */
+    @JsonProperty public String maxNumWorkers = "1";
+
     /** BigQuery read method: DEFAULT/DIRECT_READ/EXPORT. */
     @JsonProperty public String readMethod = "DEFAULT";
 
     /** BigQuery write method: DEFAULT/FILE_LOADS/STREAMING_INSERTS/STORAGE_WRITE_API. */
     @JsonProperty public String writeMethod = "DEFAULT";
+
+    /**
+     * BigQuery number of streams for write method STORAGE_WRITE_API. 0 let's the runner determine
+     * the number of streams. Remark : max limit for open connections per hour is 10K streams.
+     */
+    @JsonProperty public int numStorageWriteApiStreams = 0;
+
+    /**
+     * BigQuery triggering frequency in second in combination with the number of streams for write
+     * method STORAGE_WRITE_API.
+     */
+    @JsonProperty public int storageWriteApiTriggeringFrequencySec = 20;
 
     /** BigQuery write format: AVRO/JSON. */
     @JsonProperty public String writeFormat = "AVRO";

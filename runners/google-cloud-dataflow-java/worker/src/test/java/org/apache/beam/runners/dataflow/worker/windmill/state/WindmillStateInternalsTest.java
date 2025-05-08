@@ -23,7 +23,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
@@ -81,7 +81,7 @@ import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -2174,13 +2174,13 @@ public class WindmillStateInternalsTest {
     orderedListState.add(helloElement);
     assertThat(orderedListState.read(), Matchers.containsInAnyOrder(helloElement));
     // Shouldn't need to read from windmill for this.
-    Mockito.verifyZeroInteractions(mockReader);
+    Mockito.verifyNoInteractions(mockReader);
 
     assertThat(
         orderedListState.readRange(Instant.ofEpochSecond(1), Instant.ofEpochSecond(2)),
         Matchers.containsInAnyOrder(helloElement));
     // Shouldn't need to read from windmill for this.
-    Mockito.verifyZeroInteractions(mockReader);
+    Mockito.verifyNoInteractions(mockReader);
 
     // Shouldn't need to read from windmill for this.
     assertThat(
@@ -2189,7 +2189,7 @@ public class WindmillStateInternalsTest {
     assertThat(
         orderedListState.readRange(Instant.EPOCH, Instant.ofEpochSecond(1)),
         Matchers.emptyIterable());
-    Mockito.verifyZeroInteractions(mockReader);
+    Mockito.verifyNoInteractions(mockReader);
   }
 
   @Test
@@ -2604,7 +2604,7 @@ public class WindmillStateInternalsTest {
     assertThat(orderedList.read(), Matchers.emptyIterable());
 
     // Shouldn't need to read from windmill for this.
-    Mockito.verifyZeroInteractions(mockReader);
+    Mockito.verifyNoInteractions(mockReader);
   }
 
   @Test
@@ -2640,7 +2640,7 @@ public class WindmillStateInternalsTest {
     assertThat(bag.read(), Matchers.containsInAnyOrder("hello"));
 
     // Shouldn't need to read from windmill for this.
-    Mockito.verifyZeroInteractions(mockReader);
+    Mockito.verifyNoInteractions(mockReader);
   }
 
   @Test
@@ -2763,7 +2763,7 @@ public class WindmillStateInternalsTest {
     assertThat(bag.read(), Matchers.emptyIterable());
 
     // Shouldn't need to read from windmill for this.
-    Mockito.verifyZeroInteractions(mockReader);
+    Mockito.verifyNoInteractions(mockReader);
   }
 
   @Test
@@ -2804,7 +2804,7 @@ public class WindmillStateInternalsTest {
     assertThat(value.read(), Matchers.equalTo(13));
 
     // Shouldn't need to read from windmill for this because we immediately cleared..
-    Mockito.verifyZeroInteractions(mockReader);
+    Mockito.verifyNoInteractions(mockReader);
   }
 
   @Test
@@ -2876,9 +2876,9 @@ public class WindmillStateInternalsTest {
 
     Mockito.when(
             mockReader.bagFuture(
-                org.mockito.Matchers.any(),
-                org.mockito.Matchers.any(),
-                org.mockito.Matchers.<Coder<int[]>>any()))
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.<Coder<int[]>>any()))
         .thenReturn(Futures.immediateFuture(ImmutableList.of(new int[] {40}, new int[] {60})));
 
     GroupingState<Integer, Integer> value = underTest.state(NAMESPACE, COMBINING_ADDR);
@@ -2939,7 +2939,7 @@ public class WindmillStateInternalsTest {
     assertThat(value.isEmpty().read(), Matchers.is(false));
 
     // Shouldn't need to read from windmill for this.
-    Mockito.verifyZeroInteractions(mockReader);
+    Mockito.verifyNoInteractions(mockReader);
   }
 
   @Test
@@ -3224,7 +3224,7 @@ public class WindmillStateInternalsTest {
     assertThat(bag.read(), Matchers.nullValue());
 
     // Shouldn't need to read from windmill for this.
-    Mockito.verifyZeroInteractions(mockReader);
+    Mockito.verifyNoInteractions(mockReader);
   }
 
   @Test
@@ -3330,7 +3330,7 @@ public class WindmillStateInternalsTest {
     assertNull(value.read());
 
     // Shouldn't need to read from windmill for this.
-    Mockito.verifyZeroInteractions(mockReader);
+    Mockito.verifyNoInteractions(mockReader);
   }
 
   @Test

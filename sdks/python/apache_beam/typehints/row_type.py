@@ -198,7 +198,10 @@ class RowTypeConstraint(typehints.TypeConstraint):
         '%s=%s' % (name, repr(t)) for name, t in self._fields)
 
   def get_type_for(self, name):
-    return dict(self._fields)[name]
+    try:
+      return dict(self._fields)[name]
+    except KeyError:
+      return typehints.Any
 
 
 class GeneratedClassRowTypeConstraint(RowTypeConstraint):

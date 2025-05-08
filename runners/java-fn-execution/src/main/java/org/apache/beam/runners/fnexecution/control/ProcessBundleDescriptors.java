@@ -58,7 +58,7 @@ import org.apache.beam.sdk.util.construction.graph.SideInputReference;
 import org.apache.beam.sdk.util.construction.graph.TimerReference;
 import org.apache.beam.sdk.util.construction.graph.UserStateReference;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableTable;

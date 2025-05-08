@@ -17,13 +17,12 @@
 
 import sys
 from abc import ABC
+from collections.abc import Callable
+from collections.abc import Iterable
+from collections.abc import Mapping
+from collections.abc import Sequence
 from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import Iterable
-from typing import Mapping
 from typing import Optional
-from typing import Sequence
 from typing import Union
 
 import numpy
@@ -50,7 +49,7 @@ __all__ = [
 XGBoostInferenceFn = Callable[[
     Sequence[object],
     Union[xgboost.Booster, xgboost.XGBModel],
-    Optional[Dict[str, Any]]
+    Optional[dict[str, Any]]
 ],
                               Iterable[PredictionResult]]
 
@@ -58,7 +57,7 @@ XGBoostInferenceFn = Callable[[
 def default_xgboost_inference_fn(
     batch: Sequence[object],
     model: Union[xgboost.Booster, xgboost.XGBModel],
-    inference_args: Optional[Dict[str,
+    inference_args: Optional[dict[str,
                                   Any]] = None) -> Iterable[PredictionResult]:
   inference_args = {} if not inference_args else inference_args
 
@@ -177,7 +176,7 @@ class XGBoostModelHandlerNumpy(XGBoostModelHandler[numpy.ndarray,
       self,
       batch: Sequence[numpy.ndarray],
       model: Union[xgboost.Booster, xgboost.XGBModel],
-      inference_args: Optional[Dict[str, Any]] = None
+      inference_args: Optional[dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
     """Runs inferences on a batch of 2d numpy arrays.
 
@@ -229,7 +228,7 @@ class XGBoostModelHandlerPandas(XGBoostModelHandler[pandas.DataFrame,
       self,
       batch: Sequence[pandas.DataFrame],
       model: Union[xgboost.Booster, xgboost.XGBModel],
-      inference_args: Optional[Dict[str, Any]] = None
+      inference_args: Optional[dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
     """Runs inferences on a batch of pandas dataframes.
 
@@ -281,7 +280,7 @@ class XGBoostModelHandlerSciPy(XGBoostModelHandler[scipy.sparse.csr_matrix,
       self,
       batch: Sequence[scipy.sparse.csr_matrix],
       model: Union[xgboost.Booster, xgboost.XGBModel],
-      inference_args: Optional[Dict[str, Any]] = None
+      inference_args: Optional[dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
     """Runs inferences on a batch of SciPy sparse matrices.
 
@@ -333,7 +332,7 @@ class XGBoostModelHandlerDatatable(XGBoostModelHandler[datatable.Frame,
       self,
       batch: Sequence[datatable.Frame],
       model: Union[xgboost.Booster, xgboost.XGBModel],
-      inference_args: Optional[Dict[str, Any]] = None
+      inference_args: Optional[dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
     """Runs inferences on a batch of datatable dataframe.
 

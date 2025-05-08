@@ -17,10 +17,13 @@
  */
 package org.apache.beam.sdk.util;
 
+import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.UnsafeByteOperations;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.UnsafeByteOperations;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 
 /**
@@ -32,7 +35,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Precondit
  * manner. This differs from {@link ByteString.Output} which synchronizes its writes.
  */
 @NotThreadSafe
-public final class ByteStringOutputStream extends OutputStream {
+public final class ByteStringOutputStream extends OutputStream implements Appendable {
 
   // This constant was chosen based upon Protobufs ByteString#CONCATENATE_BY_COPY which
   // isn't public to prevent copying the bytes again when concatenating ByteStrings instead
@@ -201,6 +204,28 @@ public final class ByteStringOutputStream extends OutputStream {
    */
   public int size() {
     return result.size() + bufferPos;
+  }
+
+  @Override
+  public Appendable append(@Nullable CharSequence csq) throws IOException {
+    write(Preconditions.checkNotNull(csq).toString().getBytes(StandardCharsets.UTF_8));
+    return this;
+  }
+
+  @Override
+  public Appendable append(@Nullable CharSequence csq, int start, int end) throws IOException {
+    write(
+        Preconditions.checkNotNull(csq)
+            .subSequence(start, end)
+            .toString()
+            .getBytes(StandardCharsets.UTF_8));
+    return this;
+  }
+
+  @Override
+  public Appendable append(char c) throws IOException {
+    write(String.valueOf(c).getBytes(StandardCharsets.UTF_8));
+    return this;
   }
 
   @Override

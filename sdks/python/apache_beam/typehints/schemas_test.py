@@ -30,7 +30,6 @@ from typing import NamedTuple
 from typing import Optional
 from typing import Sequence
 
-import cloudpickle
 import dill
 import numpy as np
 from hypothesis import given
@@ -38,6 +37,7 @@ from hypothesis import settings
 from parameterized import parameterized
 from parameterized import parameterized_class
 
+from apache_beam.internal.cloudpickle import cloudpickle
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import row_type

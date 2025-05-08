@@ -478,6 +478,44 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
 
       assert_that(jobs, equal_to([job_reference]), label='CheckJobs')
 
+  @parameterized.expand([
+      param(compat_version=None),
+      param(compat_version="2.64.0"),
+  ])
+  def test_reshuffle_before_load(self, compat_version):
+    destination = 'project1:dataset1.table1'
+
+    job_reference = bigquery_api.JobReference()
+    job_reference.projectId = 'project1'
+    job_reference.jobId = 'job_name1'
+    result_job = bigquery_api.Job()
+    result_job.jobReference = job_reference
+
+    mock_job = mock.Mock()
+    mock_job.status.state = 'DONE'
+    mock_job.status.errorResult = None
+    mock_job.jobReference = job_reference
+
+    bq_client = mock.Mock()
+    bq_client.jobs.Get.return_value = mock_job
+
+    bq_client.jobs.Insert.return_value = result_job
+
+    transform = bqfl.BigQueryBatchFileLoads(
+        destination,
+        custom_gcs_temp_location=self._new_tempdir(),
+        test_client=bq_client,
+        validate=False,
+        temp_file_format=bigquery_tools.FileFormat.JSON)
+
+    options = PipelineOptions(update_compatibility_version=compat_version)
+    # Need to test this with the DirectRunner to avoid serializing mocks
+    with TestPipeline('DirectRunner', options=options) as p:
+      _ = p | beam.Create(_ELEMENTS) | transform
+
+    reshuffle_before_load = compat_version is None
+    assert transform.reshuffle_before_load == reshuffle_before_load
+
   def test_load_job_id_used(self):
     job_reference = bigquery_api.JobReference()
     job_reference.projectId = 'loadJobProject'
@@ -774,11 +812,16 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     self.assertEqual(mock_call_process.call_count, 1)
 
   @parameterized.expand([
-      param(is_streaming=False, with_auto_sharding=False),
-      param(is_streaming=True, with_auto_sharding=False),
-      param(is_streaming=True, with_auto_sharding=True),
+      param(is_streaming=False, with_auto_sharding=False, compat_version=None),
+      param(is_streaming=True, with_auto_sharding=False, compat_version=None),
+      param(is_streaming=True, with_auto_sharding=True, compat_version=None),
+      param(
+          is_streaming=True, with_auto_sharding=False, compat_version="2.64.0"),
+      param(
+          is_streaming=True, with_auto_sharding=True, compat_version="2.64.0"),
   ])
-  def test_triggering_frequency(self, is_streaming, with_auto_sharding):
+  def test_triggering_frequency(
+      self, is_streaming, with_auto_sharding, compat_version):
     destination = 'project1:dataset1.table1'
 
     job_reference = bigquery_api.JobReference()
@@ -820,7 +863,9 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
         with_auto_sharding=with_auto_sharding)
 
     # Need to test this with the DirectRunner to avoid serializing mocks
-    test_options = PipelineOptions(flags=['--allow_unsafe_triggers'])
+    test_options = PipelineOptions(
+        flags=['--allow_unsafe_triggers'],
+        update_compatibility_version=compat_version)
     test_options.view_as(StandardOptions).streaming = is_streaming
     with TestPipeline(runner='BundleBasedDirectRunner',
                       options=test_options) as p:

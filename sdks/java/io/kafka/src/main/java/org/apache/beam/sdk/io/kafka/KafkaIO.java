@@ -718,6 +718,9 @@ public class KafkaIO {
     public abstract int getRedistributeNumKeys();
 
     @Pure
+    public abstract @Nullable Boolean getOffsetDeduplication();
+
+    @Pure
     public abstract @Nullable Duration getWatchTopicPartitionDuration();
 
     @Pure
@@ -740,6 +743,9 @@ public class KafkaIO {
 
     @Pure
     public abstract long getConsumerPollingTimeout();
+
+    @Pure
+    public abstract @Nullable Boolean getLogTopicVerification();
 
     abstract Builder<K, V> toBuilder();
 
@@ -782,6 +788,8 @@ public class KafkaIO {
 
       abstract Builder<K, V> setRedistributeNumKeys(int redistributeNumKeys);
 
+      abstract Builder<K, V> setOffsetDeduplication(Boolean offsetDeduplication);
+
       abstract Builder<K, V> setTimestampPolicyFactory(
           TimestampPolicyFactory<K, V> timestampPolicyFactory);
 
@@ -804,6 +812,8 @@ public class KafkaIO {
       }
 
       abstract Builder<K, V> setConsumerPollingTimeout(long consumerPollingTimeout);
+
+      abstract Builder<K, V> setLogTopicVerification(@Nullable Boolean logTopicVerification);
 
       abstract Read<K, V> build();
 
@@ -886,11 +896,16 @@ public class KafkaIO {
           if (config.allowDuplicates != null) {
             builder.setAllowDuplicates(config.allowDuplicates);
           }
-
+          if (config.redistribute
+              && (config.allowDuplicates == null || !config.allowDuplicates)
+              && config.offsetDeduplication != null) {
+            builder.setOffsetDeduplication(config.offsetDeduplication);
+          }
         } else {
           builder.setRedistributed(false);
           builder.setRedistributeNumKeys(0);
           builder.setAllowDuplicates(false);
+          builder.setOffsetDeduplication(false);
         }
       }
 
@@ -959,6 +974,7 @@ public class KafkaIO {
         private Integer redistributeNumKeys;
         private Boolean redistribute;
         private Boolean allowDuplicates;
+        private Boolean offsetDeduplication;
 
         public void setConsumerConfig(Map<String, String> consumerConfig) {
           this.consumerConfig = consumerConfig;
@@ -1015,6 +1031,10 @@ public class KafkaIO {
         public void setAllowDuplicates(Boolean allowDuplicates) {
           this.allowDuplicates = allowDuplicates;
         }
+
+        public void setOffsetDeduplication(Boolean offsetDeduplication) {
+          this.offsetDeduplication = offsetDeduplication;
+        }
       }
     }
 
@@ -1066,24 +1086,19 @@ public class KafkaIO {
      * Sets redistribute transform that hints to the runner to try to redistribute the work evenly.
      */
     public Read<K, V> withRedistribute() {
-      if (getRedistributeNumKeys() == 0 && isRedistributed()) {
-        LOG.warn("This will create a key per record, which is sub-optimal for most use cases.");
-      }
       return toBuilder().setRedistributed(true).build();
     }
 
     public Read<K, V> withAllowDuplicates(Boolean allowDuplicates) {
-      if (!isAllowDuplicates()) {
-        LOG.warn("Setting this value without setting withRedistribute() will have no effect.");
-      }
       return toBuilder().setAllowDuplicates(allowDuplicates).build();
     }
 
     public Read<K, V> withRedistributeNumKeys(int redistributeNumKeys) {
-      checkState(
-          isRedistributed(),
-          "withRedistributeNumKeys is ignored if withRedistribute() is not enabled on the transform.");
       return toBuilder().setRedistributeNumKeys(redistributeNumKeys).build();
+    }
+
+    public Read<K, V> withOffsetDeduplication(Boolean offsetDeduplication) {
+      return toBuilder().setOffsetDeduplication(offsetDeduplication).build();
     }
 
     /**
@@ -1473,6 +1488,10 @@ public class KafkaIO {
               "org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required;"));
     }
 
+    public Read<K, V> withTopicVerificationLogging(boolean logTopicVerification) {
+      return toBuilder().setLogTopicVerification(logTopicVerification).build();
+    }
+
     /** Returns a {@link PTransform} for PCollection of {@link KV}, dropping Kafka metatdata. */
     public PTransform<PBegin, PCollection<KV<K, V>>> withoutMetadata() {
       return new TypedWithoutMetadata<>(this);
@@ -1541,6 +1560,9 @@ public class KafkaIO {
               ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG);
         }
       }
+
+      checkRedistributeConfiguration();
+
       warnAboutUnsafeConfigurations(input);
 
       // Infer key/value coders if not specified explicitly
@@ -1571,6 +1593,26 @@ public class KafkaIO {
         return input.apply(new ReadFromKafkaViaUnbounded<>(this, keyCoder, valueCoder));
       }
       return input.apply(new ReadFromKafkaViaSDF<>(this, keyCoder, valueCoder));
+    }
+
+    private void checkRedistributeConfiguration() {
+      if (getRedistributeNumKeys() == 0 && isRedistributed()) {
+        LOG.warn(
+            "withRedistribute without withRedistributeNumKeys will create a key per record, which is sub-optimal for most use cases.");
+      }
+      if (isAllowDuplicates()) {
+        LOG.warn("Setting this value without setting withRedistribute() will have no effect.");
+      }
+      if (getRedistributeNumKeys() > 0) {
+        checkState(
+            isRedistributed(),
+            "withRedistributeNumKeys is ignored if withRedistribute() is not enabled on the transform.");
+      }
+      if (getOffsetDeduplication() != null && getOffsetDeduplication()) {
+        checkState(
+            isRedistributed() && !isAllowDuplicates(),
+            "withOffsetDeduplication should only be used with withRedistribute and withAllowDuplicates(false).");
+      }
     }
 
     private void warnAboutUnsafeConfigurations(PBegin input) {
@@ -1751,8 +1793,10 @@ public class KafkaIO {
                 .withConsumerConfigOverrides(kafkaRead.getConsumerConfig())
                 .withOffsetConsumerConfigOverrides(kafkaRead.getOffsetConsumerConfig())
                 .withConsumerFactoryFn(kafkaRead.getConsumerFactoryFn())
-                .withKeyDeserializerProvider(kafkaRead.getKeyDeserializerProvider())
-                .withValueDeserializerProvider(kafkaRead.getValueDeserializerProvider())
+                .withKeyDeserializerProviderAndCoder(
+                    kafkaRead.getKeyDeserializerProvider(), keyCoder)
+                .withValueDeserializerProviderAndCoder(
+                    kafkaRead.getValueDeserializerProvider(), valueCoder)
                 .withManualWatermarkEstimator()
                 .withTimestampPolicyFactory(kafkaRead.getTimestampPolicyFactory())
                 .withCheckStopReadingFn(kafkaRead.getCheckStopReadingFn())
@@ -1839,6 +1883,7 @@ public class KafkaIO {
         this.topicPattern = read.getTopicPattern();
         this.startReadTime = read.getStartReadTime();
         this.stopReadTime = read.getStopReadTime();
+        this.logTopicVerification = read.getLogTopicVerification();
       }
 
       private final SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
@@ -1855,6 +1900,7 @@ public class KafkaIO {
       @VisibleForTesting final @Nullable List<String> topics;
 
       private final @Nullable Pattern topicPattern;
+      private final @Nullable Boolean logTopicVerification;
 
       @ProcessElement
       public void processElement(OutputReceiver<KafkaSourceDescriptor> receiver) {
@@ -1875,7 +1921,22 @@ public class KafkaIO {
               }
             } else {
               for (String topic : topics) {
-                for (PartitionInfo p : consumer.partitionsFor(topic)) {
+                List<PartitionInfo> partitionInfoList = consumer.partitionsFor(topic);
+                if (logTopicVerification == null || !logTopicVerification) {
+                  checkState(
+                      partitionInfoList != null && !partitionInfoList.isEmpty(),
+                      "Could not find any partitions info for topic "
+                          + topic
+                          + ". Please check Kafka configuration and make sure "
+                          + "that provided topics exist.");
+                } else {
+                  LOG.warn(
+                      "Could not find any partitions info for topic {}. Please check Kafka configuration "
+                          + "and make sure that the provided topics exist.",
+                      topic);
+                }
+
+                for (PartitionInfo p : partitionInfoList) {
                   partitions.add(new TopicPartition(p.topic(), p.partition()));
                 }
               }
@@ -2322,16 +2383,6 @@ public class KafkaIO {
           ImmutableMap.of(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers));
     }
 
-    public ReadSourceDescriptors<K, V> withKeyDeserializerProvider(
-        @Nullable DeserializerProvider<K> deserializerProvider) {
-      return toBuilder().setKeyDeserializerProvider(deserializerProvider).build();
-    }
-
-    public ReadSourceDescriptors<K, V> withValueDeserializerProvider(
-        @Nullable DeserializerProvider<V> deserializerProvider) {
-      return toBuilder().setValueDeserializerProvider(deserializerProvider).build();
-    }
-
     /**
      * Sets a Kafka {@link Deserializer} to interpret key bytes read from Kafka.
      *
@@ -2343,6 +2394,31 @@ public class KafkaIO {
     public ReadSourceDescriptors<K, V> withKeyDeserializer(
         Class<? extends Deserializer<K>> keyDeserializer) {
       return withKeyDeserializerProvider(LocalDeserializerProvider.of(keyDeserializer));
+    }
+
+    /**
+     * Sets a Kafka {@link Deserializer} for interpreting key bytes read from Kafka along with a
+     * {@link Coder} for helping the Beam runner materialize key objects at runtime if necessary.
+     *
+     * <p>Use this method to override the coder inference performed within {@link
+     * #withKeyDeserializer(Class)}.
+     */
+    public ReadSourceDescriptors<K, V> withKeyDeserializerAndCoder(
+        Class<? extends Deserializer<K>> keyDeserializer, Coder<K> keyCoder) {
+      return withKeyDeserializer(keyDeserializer).toBuilder().setKeyCoder(keyCoder).build();
+    }
+
+    public ReadSourceDescriptors<K, V> withKeyDeserializerProvider(
+        @Nullable DeserializerProvider<K> deserializerProvider) {
+      return toBuilder().setKeyDeserializerProvider(deserializerProvider).build();
+    }
+
+    public ReadSourceDescriptors<K, V> withKeyDeserializerProviderAndCoder(
+        @Nullable DeserializerProvider<K> deserializerProvider, Coder<K> keyCoder) {
+      return toBuilder()
+          .setKeyDeserializerProvider(deserializerProvider)
+          .setKeyCoder(keyCoder)
+          .build();
     }
 
     /**
@@ -2359,18 +2435,6 @@ public class KafkaIO {
     }
 
     /**
-     * Sets a Kafka {@link Deserializer} for interpreting key bytes read from Kafka along with a
-     * {@link Coder} for helping the Beam runner materialize key objects at runtime if necessary.
-     *
-     * <p>Use this method to override the coder inference performed within {@link
-     * #withKeyDeserializer(Class)}.
-     */
-    public ReadSourceDescriptors<K, V> withKeyDeserializerAndCoder(
-        Class<? extends Deserializer<K>> keyDeserializer, Coder<K> keyCoder) {
-      return withKeyDeserializer(keyDeserializer).toBuilder().setKeyCoder(keyCoder).build();
-    }
-
-    /**
      * Sets a Kafka {@link Deserializer} for interpreting value bytes read from Kafka along with a
      * {@link Coder} for helping the Beam runner materialize value objects at runtime if necessary.
      *
@@ -2380,6 +2444,19 @@ public class KafkaIO {
     public ReadSourceDescriptors<K, V> withValueDeserializerAndCoder(
         Class<? extends Deserializer<V>> valueDeserializer, Coder<V> valueCoder) {
       return withValueDeserializer(valueDeserializer).toBuilder().setValueCoder(valueCoder).build();
+    }
+
+    public ReadSourceDescriptors<K, V> withValueDeserializerProvider(
+        @Nullable DeserializerProvider<V> deserializerProvider) {
+      return toBuilder().setValueDeserializerProvider(deserializerProvider).build();
+    }
+
+    public ReadSourceDescriptors<K, V> withValueDeserializerProviderAndCoder(
+        @Nullable DeserializerProvider<V> deserializerProvider, Coder<V> valueCoder) {
+      return toBuilder()
+          .setValueDeserializerProvider(deserializerProvider)
+          .setValueCoder(valueCoder)
+          .build();
     }
 
     /**

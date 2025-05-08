@@ -23,6 +23,8 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Google Ads"
 ext.summary = "IO to read from Google Ads"
 
 dependencies {
+  implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
+
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(path: ":sdks:java:extensions:google-cloud-platform-core")
   implementation library.java.jackson_annotations
@@ -31,8 +33,8 @@ dependencies {
   implementation library.java.google_auth_library_oauth2_http
   implementation library.java.protobuf_java
   implementation library.java.protobuf_java_util
-  implementation library.java.google_ads
-  implementation library.java.google_ads_stubs
+  implementation "com.google.api-ads:google-ads:36.0.0"
+  implementation "com.google.api-ads:google-ads-stubs-v19:36.0.0"
   implementation library.java.joda_time
   implementation library.java.vendored_guava_32_1_2_jre
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")

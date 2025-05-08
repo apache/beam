@@ -2364,6 +2364,16 @@ class AggregationTest(_AbstractFrameTest):
     self._run_test(lambda s: s.agg('std'), s)
     self._run_test(lambda s: s.std(), s)
 
+  def test_df_agg_operations_on_columns(self):
+    self._run_test(
+        lambda df: df.groupby('group').agg(
+            mean_foo=('foo', lambda x: np.mean(x)),
+            median_bar=('bar', lambda x: np.median(x)),
+            sum_baz=('baz', 'sum'),
+            count_bool=('bool', 'count'),
+        ),
+        GROUPBY_DF)
+
   def test_std_mostly_na_with_ddof(self):
     df = pd.DataFrame({
         'one': [i if i % 8 == 0 else np.nan for i in range(8)],

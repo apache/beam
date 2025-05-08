@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
+
 import java.io.Serializable;
 import java.util.List;
 import java.util.Optional;
@@ -33,6 +35,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
  */
 @DefaultCoder(AvroCoder.class)
 public class KafkaCheckpointMark implements UnboundedSource.CheckpointMark {
+  private static final long OFFSET_DEDUP_PARTITIONS_PER_SPLIT = 1;
 
   private List<PartitionMark> partitions;
 
@@ -64,6 +67,23 @@ public class KafkaCheckpointMark implements UnboundedSource.CheckpointMark {
   @Override
   public String toString() {
     return "KafkaCheckpointMark{partitions=" + Joiner.on(",").join(partitions) + '}';
+  }
+
+  @Override
+  public byte[] getOffsetLimit() {
+    if (!reader.isPresent()) {
+      throw new RuntimeException(
+          "KafkaCheckpointMark reader is not present while calling getOffsetLimit().");
+    }
+    if (!reader.get().offsetBasedDeduplicationSupported()) {
+      throw new RuntimeException(
+          "Unexpected getOffsetLimit() called while KafkaUnboundedReader not configured for offset deduplication.");
+    }
+
+    // KafkaUnboundedSource.split() must produce a 1:1 partition to split ratio.
+    checkState(partitions.size() == OFFSET_DEDUP_PARTITIONS_PER_SPLIT);
+    PartitionMark partition = partitions.get(/* index= */ 0);
+    return KafkaIOUtils.OffsetBasedDeduplication.encodeOffset(partition.getNextOffset());
   }
 
   /**

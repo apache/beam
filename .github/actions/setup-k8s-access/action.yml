@@ -68,7 +68,7 @@ runs:
     run: |
       kubectl config set-context --current --namespace=${{ steps.replace_namespace.outputs.TEST_NAMESPACE }}
   - name: Post cleanup
-    uses: pyTooling/Actions/with-post-step@v0.4.6
+    uses: pyTooling/Actions/with-post-step@v4.2.2
     with:
       main: echo "Post Cleanup"
       post: |

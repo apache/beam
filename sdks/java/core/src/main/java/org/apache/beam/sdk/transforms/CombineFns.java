@@ -675,6 +675,19 @@ public class CombineFns {
     }
 
     @Override
+    public long getEncodedElementByteSize(Object[] values) throws Exception {
+      if (values.length == 0) {
+        return 0;
+      }
+      long size = 0;
+      for (int i = 0; i < values.length; ++i) {
+        Coder<Object> objectCoder = coders.get(i);
+        size += Coder.getEncodedElementByteSizeUsingCoder(objectCoder, values[i]);
+      }
+      return size;
+    }
+
+    @Override
     public Object[] decode(InputStream inStream) throws CoderException, IOException {
       return decode(inStream, Context.NESTED);
     }

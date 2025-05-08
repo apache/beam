@@ -260,7 +260,8 @@ abstract class ProcessorDoFn<
                     processingState.getEventsReceived(),
                     processingState.getResultCount(),
                     processingState.getDuplicates(),
-                    processingState.isLastEventReceived())),
+                    processingState.isLastEventReceived(),
+                    processingState.getLastContiguousRange())),
             statusTimestamp);
   }
 

@@ -50,8 +50,8 @@ import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.util.ZipFiles;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
@@ -219,20 +219,17 @@ public class Environments {
   }
 
   private static Environment createExternalEnvironment(String externalServiceAddress) {
-    if (externalServiceAddress.isEmpty()) {
-      throw new IllegalArgumentException(
-          String.format(
-              "External service address must not be empty (set it using '--environmentOptions=%s=...'?).",
-              externalServiceAddressOption));
+    // Create the payload builder. If the address is empty, the payload will be empty,
+    // acting as a placeholder for late binding. For example, in the LOOPBACK case,
+    // the address is populated by PortableRunner#run before this method is called.
+    ExternalPayload.Builder payloadBuilder = ExternalPayload.newBuilder();
+    if (!externalServiceAddress.isEmpty()) {
+      payloadBuilder.setEndpoint(
+          ApiServiceDescriptor.newBuilder().setUrl(externalServiceAddress).build());
     }
     return Environment.newBuilder()
         .setUrn(BeamUrns.getUrn(StandardEnvironments.Environments.EXTERNAL))
-        .setPayload(
-            ExternalPayload.newBuilder()
-                .setEndpoint(
-                    ApiServiceDescriptor.newBuilder().setUrl(externalServiceAddress).build())
-                .build()
-                .toByteString())
+        .setPayload(payloadBuilder.build().toByteString())
         .build();
   }
 

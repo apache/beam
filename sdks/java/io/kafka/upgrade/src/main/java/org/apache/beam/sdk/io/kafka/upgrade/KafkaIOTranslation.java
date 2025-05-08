@@ -54,7 +54,7 @@ import org.apache.beam.sdk.util.construction.SdkComponents;
 import org.apache.beam.sdk.util.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.sdk.util.construction.TransformUpgrader;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.kafka.clients.consumer.Consumer;
@@ -101,6 +101,7 @@ public class KafkaIOTranslation {
             .addBooleanField("redistribute")
             .addBooleanField("allows_duplicates")
             .addNullableInt32Field("redistribute_num_keys")
+            .addNullableBooleanField("offset_deduplication")
             .addNullableLogicalTypeField("watch_topic_partition_duration", new NanosDuration())
             .addByteArrayField("timestamp_policy_factory")
             .addNullableMapField("offset_consumer_config", FieldType.STRING, FieldType.BYTES)
@@ -108,6 +109,7 @@ public class KafkaIOTranslation {
             .addNullableByteArrayField("value_deserializer_provider")
             .addNullableByteArrayField("check_stop_reading_fn")
             .addNullableInt64Field("consumer_polling_timeout")
+            .addNullableBooleanField("log_topic_verification")
             .build();
 
     @Override
@@ -217,10 +219,16 @@ public class KafkaIOTranslation {
             "Upgrading KafkaIO read transforms that have `withBadRecordErrorHandler` property set"
                 + " is not supported yet.");
       }
+      if (transform.getLogTopicVerification() != null) {
+        fieldValues.put("log_topic_verification", transform.getLogTopicVerification());
+      }
 
       fieldValues.put("redistribute", transform.isRedistributed());
       fieldValues.put("redistribute_num_keys", transform.getRedistributeNumKeys());
       fieldValues.put("allows_duplicates", transform.isAllowDuplicates());
+      if (transform.getOffsetDeduplication() != null) {
+        fieldValues.put("offset_deduplication", transform.getOffsetDeduplication());
+      }
       return Row.withSchema(schema).withFieldValues(fieldValues).build();
     }
 
@@ -347,6 +355,12 @@ public class KafkaIOTranslation {
             if (allowDuplicates != null && allowDuplicates) {
               transform = transform.withAllowDuplicates(allowDuplicates);
             }
+          }
+        }
+        if (TransformUpgrader.compareVersions(updateCompatibilityBeamVersion, "2.63.0") >= 0) {
+          @Nullable Boolean offsetDeduplication = configRow.getValue("offset_deduplication");
+          if (offsetDeduplication != null) {
+            transform = transform.withOffsetDeduplication(offsetDeduplication);
           }
         }
         Duration maxReadTime = configRow.getValue("max_read_time");

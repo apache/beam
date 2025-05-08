@@ -18,20 +18,16 @@
 package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.sdk.io.kafka.KafkaWriteSchemaTransformProvider.getRowToRawBytesFunction;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 
 import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.protobuf.ProtoByteUtils;
 import org.apache.beam.sdk.io.kafka.KafkaWriteSchemaTransformProvider.KafkaWriteSchemaTransform.ErrorCounterFn;
 import org.apache.beam.sdk.managed.Managed;
-import org.apache.beam.sdk.managed.ManagedTransformConstants;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
 import org.apache.beam.sdk.schemas.utils.JsonUtils;
@@ -206,14 +202,15 @@ public class KafkaWriteSchemaTransformProviderTest {
   public void testBuildTransformWithManaged() {
     List<String> configs =
         Arrays.asList(
-            "topic: topic_1\n" + "bootstrap_servers: some bootstrap\n" + "data_format: RAW",
+            "topic: topic_1\n" + "bootstrap_servers: some bootstrap\n" + "format: RAW",
             "topic: topic_2\n"
                 + "bootstrap_servers: some bootstrap\n"
                 + "producer_config_updates: {\"foo\": \"bar\"}\n"
-                + "data_format: AVRO",
+                + "format: AVRO\n"
+                + "schema: '{}'",
             "topic: topic_3\n"
                 + "bootstrap_servers: some bootstrap\n"
-                + "data_format: PROTO\n"
+                + "format: PROTO\n"
                 + "schema: '"
                 + PROTO_SCHEMA
                 + "'\n"
@@ -226,19 +223,6 @@ public class KafkaWriteSchemaTransformProviderTest {
           .expand(
               Pipeline.create()
                   .apply(Create.empty(Schema.builder().addByteArrayField("bytes").build())));
-    }
-  }
-
-  @Test
-  public void testManagedMappings() {
-    KafkaWriteSchemaTransformProvider provider = new KafkaWriteSchemaTransformProvider();
-    Map<String, String> mapping = ManagedTransformConstants.MAPPINGS.get(provider.identifier());
-
-    assertNotNull(mapping);
-
-    List<String> configSchemaFieldNames = provider.configurationSchema().getFieldNames();
-    for (String paramName : mapping.values()) {
-      assertTrue(configSchemaFieldNames.contains(paramName));
     }
   }
 }

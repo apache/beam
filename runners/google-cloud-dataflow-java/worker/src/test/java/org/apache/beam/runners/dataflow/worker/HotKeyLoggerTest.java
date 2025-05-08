@@ -28,12 +28,9 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-import org.slf4j.LoggerFactory;
+import org.junit.runners.JUnit4;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({HotKeyLoggerTest.class, LoggerFactory.class})
+@RunWith(JUnit4.class)
 public class HotKeyLoggerTest {
   @Rule public ExpectedLogs expectedLogs = ExpectedLogs.none(HotKeyLogger.class);
 

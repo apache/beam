@@ -51,6 +51,26 @@ class ResourcesTest(unittest.TestCase):
           val='4',
           urn='beam:resources:cpu_count:v1',
           bytestr=b'4'),
+      param(
+          name='max_active_bundles_per_worker',
+          val='2',
+          urn='beam:resources:max_active_bundles_per_worker:v1',
+          bytestr=b'2'),
+      param(
+          name='max_active_bundle_per_worker',
+          val='20',
+          urn='beam:resources:max_active_bundles_per_worker:v1',
+          bytestr=b'20'),
+      param(
+          name='MaxActiveBundlePerWorker',
+          val='30',
+          urn='beam:resources:max_active_bundles_per_worker:v1',
+          bytestr=b'30'),
+      param(
+          name='MaxActiveBundlesPerWorker',
+          val='3',
+          urn='beam:resources:max_active_bundles_per_worker:v1',
+          bytestr=b'3'),
   ])
   def test_known_resource_hints(self, name, val, urn, bytestr):
     t = PTransform()

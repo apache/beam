@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
-import java.util.Collection;
 import java.util.Map;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -32,11 +31,6 @@ import org.apache.kafka.common.serialization.Deserializer;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.expression.Expression;
-import org.springframework.expression.ExpressionParser;
-import org.springframework.expression.spel.SpelParserConfiguration;
-import org.springframework.expression.spel.standard.SpelExpressionParser;
-import org.springframework.expression.spel.support.StandardEvaluationContext;
 
 /**
  * ConsumerSpEL to handle multiple of versions of Consumer API between Kafka 0.9 and 2.1.0 onwards.
@@ -46,16 +40,6 @@ import org.springframework.expression.spel.support.StandardEvaluationContext;
 class ConsumerSpEL {
 
   private static final Logger LOG = LoggerFactory.getLogger(ConsumerSpEL.class);
-
-  private static final SpelParserConfiguration config = new SpelParserConfiguration(true, true);
-  private static final ExpressionParser parser = new SpelExpressionParser(config);
-
-  // This method changed from accepting varargs to accepting a Collection.
-  private static final Expression seek2endExpression =
-      parser.parseExpression("#consumer.seekToEnd(#tp)");
-  // This method changed from accepting a List to accepting a Collection.
-  private static final Expression assignExpression =
-      parser.parseExpression("#consumer.assign(#tp)");
 
   private static boolean hasRecordTimestamp;
   private static boolean hasHeaders;
@@ -107,21 +91,6 @@ class ConsumerSpEL {
     } catch (NoSuchMethodException | SecurityException e) {
       LOG.debug("Deserializer interface does not support Kafka headers");
     }
-  }
-
-  public static void evaluateSeek2End(Consumer<?, ?> consumer, TopicPartition topicPartition) {
-    StandardEvaluationContext mapContext = new StandardEvaluationContext();
-    mapContext.setVariable("consumer", consumer);
-    mapContext.setVariable("tp", topicPartition);
-    seek2endExpression.getValue(mapContext);
-  }
-
-  public static void evaluateAssign(
-      Consumer<?, ?> consumer, Collection<TopicPartition> topicPartitions) {
-    StandardEvaluationContext mapContext = new StandardEvaluationContext();
-    mapContext.setVariable("consumer", consumer);
-    mapContext.setVariable("tp", topicPartitions);
-    assignExpression.getValue(mapContext);
   }
 
   public static long getRecordTimestamp(ConsumerRecord<byte[], byte[]> rawRecord) {

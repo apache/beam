@@ -28,11 +28,8 @@ public class DelegatingHistogram implements Metric, Histogram, Serializable {
   private final MetricName name;
   private final HistogramData.BucketType bucketType;
   private final boolean processWideContainer;
-  private final boolean perWorkerHistogram;
 
   /**
-   * Create a {@code DelegatingHistogram} with {@code perWorkerHistogram} set to false.
-   *
    * @param name Metric name for this metric.
    * @param bucketType Histogram bucketing strategy.
    * @param processWideContainer Whether this Counter is stored in the ProcessWide container or the
@@ -40,25 +37,9 @@ public class DelegatingHistogram implements Metric, Histogram, Serializable {
    */
   public DelegatingHistogram(
       MetricName name, HistogramData.BucketType bucketType, boolean processWideContainer) {
-    this(name, bucketType, processWideContainer, false);
-  }
-
-  /**
-   * @param name Metric name for this metric.
-   * @param bucketType Histogram bucketing strategy.
-   * @param processWideContainer Whether this Counter is stored in the ProcessWide container or the
-   *     current thread's container.
-   * @param perWorkerHistogram Whether this Histogram refers to a perWorker metric or not.
-   */
-  public DelegatingHistogram(
-      MetricName name,
-      HistogramData.BucketType bucketType,
-      boolean processWideContainer,
-      boolean perWorkerHistogram) {
     this.name = name;
     this.bucketType = bucketType;
     this.processWideContainer = processWideContainer;
-    this.perWorkerHistogram = perWorkerHistogram;
   }
 
   private Optional<Histogram> getHistogram() {
@@ -69,11 +50,7 @@ public class DelegatingHistogram implements Metric, Histogram, Serializable {
     if (container == null) {
       return Optional.empty();
     }
-    if (perWorkerHistogram) {
-      return Optional.of(container.getPerWorkerHistogram(name, bucketType));
-    } else {
-      return Optional.of(container.getHistogram(name, bucketType));
-    }
+    return Optional.of(container.getHistogram(name, bucketType));
   }
 
   @Override

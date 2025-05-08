@@ -298,7 +298,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
         newWindmillEndpoints,
         activeMetadataVersion,
         newWindmillEndpoints.version());
-    closeStreamsNotIn(newWindmillEndpoints);
+    closeStreamsNotIn(newWindmillEndpoints).join();
     ImmutableMap<Endpoint, WindmillStreamSender> newStreams =
         createAndStartNewStreams(newWindmillEndpoints.windmillEndpoints()).join();
     StreamingEngineBackends newBackends =

@@ -34,6 +34,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,7 +80,7 @@ class GlobalSequencesProcessorDoFn<
   @SuppressWarnings("unused")
   private final TimerSpec statusEmissionTimer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
-  private final PCollectionView<ContiguousSequenceRange> latestContiguousRangeSideInput;
+  private final PCollectionView<Iterable<ContiguousSequenceRange>> latestContiguousRangeSideInput;
 
   private final Duration maxLateness;
 
@@ -94,7 +95,7 @@ class GlobalSequencesProcessorDoFn<
       TupleTag<KV<EventKeyT, KV<Long, UnprocessedEvent<EventT>>>> unprocessedEventTupleTag,
       boolean produceStatusUpdateOnEveryEvent,
       long maxNumberOfResultsToProduce,
-      PCollectionView<ContiguousSequenceRange> latestContiguousRangeSideInput,
+      PCollectionView<Iterable<ContiguousSequenceRange>> latestContiguousRangeSideInput,
       Duration maxLateness) {
     super(
         eventExaminer,
@@ -127,6 +128,7 @@ class GlobalSequencesProcessorDoFn<
   public void processElement(
       ProcessContext context,
       @Element KV<EventKeyT, KV<Long, EventT>> eventAndSequence,
+      @Timestamp Instant elementTimestamp,
       @StateId(BUFFERED_EVENTS) OrderedListState<EventT> bufferedEventsProxy,
       @AlwaysFetched @StateId(PROCESSING_STATE)
           ValueState<ProcessingState<EventKeyT>> processingStateProxy,
@@ -136,7 +138,8 @@ class GlobalSequencesProcessorDoFn<
       MultiOutputReceiver outputReceiver,
       BoundedWindow window) {
 
-    ContiguousSequenceRange lastContiguousRange = context.sideInput(latestContiguousRangeSideInput);
+    ContiguousSequenceRange lastContiguousRange =
+        ContiguousSequenceRange.largestRange(context.sideInput(latestContiguousRangeSideInput));
 
     EventT event = eventAndSequence.getValue().getValue();
     EventKeyT key = eventAndSequence.getKey();
@@ -164,7 +167,7 @@ class GlobalSequencesProcessorDoFn<
       // sequence.
       processingStateProxy.write(processingState);
 
-      setBatchEmissionTimerIfNeeded(batchEmissionTimer, processingState);
+      setBatchEmissionTimerIfNeeded(batchEmissionTimer, processingState, elementTimestamp);
 
       return;
     }
@@ -193,15 +196,33 @@ class GlobalSequencesProcessorDoFn<
         outputReceiver,
         window.maxTimestamp());
 
-    setBatchEmissionTimerIfNeeded(batchEmissionTimer, processingState);
+    setBatchEmissionTimerIfNeeded(batchEmissionTimer, processingState, elementTimestamp);
   }
 
   private void setBatchEmissionTimerIfNeeded(
-      Timer batchEmissionTimer, ProcessingState<EventKeyT> processingState) {
+      Timer batchEmissionTimer,
+      ProcessingState<EventKeyT> processingState,
+      Instant elementTimestamp) {
     ContiguousSequenceRange lastCompleteGlobalSequence = processingState.getLastContiguousRange();
     if (lastCompleteGlobalSequence != null
         && processingState.thereAreGloballySequencedEventsToBeProcessed()) {
-      batchEmissionTimer.set(lastCompleteGlobalSequence.getTimestamp().plus(maxLateness));
+      Instant maxTimeToWait = lastCompleteGlobalSequence.getTimestamp().plus(maxLateness);
+      Instant timerTime =
+          maxTimeToWait.isAfter(elementTimestamp)
+              ? maxTimeToWait
+              : elementTimestamp.plus(Duration.millis(1));
+
+      if (LOG.isTraceEnabled()) {
+        LOG.trace(
+            "Setting batch emission timer to: "
+                + timerTime
+                + ", max time of the range: "
+                + lastCompleteGlobalSequence.getTimestamp()
+                + ", element time: "
+                + elementTimestamp);
+      }
+
+      batchEmissionTimer.set(timerTime);
     }
   }
 
@@ -213,7 +234,12 @@ class GlobalSequencesProcessorDoFn<
           ValueState<ProcessingState<EventKeyT>> processingStatusState,
       @AlwaysFetched @StateId(MUTABLE_STATE) ValueState<StateT> mutableStateState,
       @TimerId(BATCH_EMISSION_TIMER) Timer batchEmissionTimer,
+      @Key EventKeyT key,
       MultiOutputReceiver outputReceiver) {
+
+    if (LOG.isTraceEnabled()) {
+      LOG.trace("Running batch processing for: " + key);
+    }
 
     // At this point everything in the buffered state is ready to be processed up to the latest
     // global sequence.
@@ -235,10 +261,6 @@ class GlobalSequencesProcessorDoFn<
     if (earliestBufferedSequence == null) {
       LOG.warn("Earliest buffered sequence is null.");
       return;
-    }
-
-    if (LOG.isTraceEnabled()) {
-      LOG.trace("Emission timer: " + processingState);
     }
 
     this.numberOfResultsBeforeBundleStart = processingState.getResultCount();
@@ -272,5 +294,10 @@ class GlobalSequencesProcessorDoFn<
 
     processStatusTimerEvent(
         outputReceiver, statusEmissionTimer, windowClosedState, processingStateState);
+  }
+
+  @OnWindowExpiration
+  public void onWindowExpiration(@StateId(WINDOW_CLOSED) ValueState<Boolean> windowClosedState) {
+    windowClosedState.write(true);
   }
 }

@@ -52,7 +52,7 @@ dependencies {
   implementation library.java.aws_java_sdk2_http_client_spi, excludeNetty
   implementation library.java.aws_java_sdk2_apache_client, excludeNetty
   implementation library.java.aws_java_sdk2_netty_client, excludeNetty
-  implementation("software.amazon.kinesis:amazon-kinesis-client:2.4.8") {
+  implementation("software.amazon.kinesis:amazon-kinesis-client:3.0.1") {
     // Note: The KCL client isn't used. However, unfortunately, some model classes of KCL leak into the
     // KinesisIO API (KinesisClientRecord, InitialPositionInStream). Additionally, KinesisIO
     // internally uses KCL utils to generate aggregated messages and de-aggregate them.

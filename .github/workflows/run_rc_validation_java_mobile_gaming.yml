@@ -1,0 +1,145 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+name: Run Java Mobile Gaming RC Validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      RELEASE_VER:
+        description: 'Beam Release Version (e.g., 2.64.0)'
+        required: true
+        default: '2.64.0'
+      RC_NUM:
+        description: 'Release Candidate number (e.g., 1)'
+        required: true
+        default: '1'
+      APACHE_CONTENTS_REPO:
+        description: 'Apache Staging Repository URL (e.g., https://repository.apache.org/content/repositories/orgapachebeam-1234)'
+        required: true
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.inputs.RELEASE_VER }}-${{ github.event.inputs.RC_NUM }}'
+  cancel-in-progress: true
+
+# Setting explicit permissions for the action
+permissions:
+  actions: write
+  pull-requests: write # Needed for setup-action potentially
+  checks: write
+  contents: read # Needs read to checkout the code
+  deployments: read
+  id-token: write # Required for GCP Workload Identity Federation
+  issues: write
+  discussions: read
+  packages: read
+  pages: read
+  repository-projects: read
+  security-events: read
+  statuses: read
+
+env:
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
+  GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
+  GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  # Define unique names for resources based on run ID to avoid collisions
+  RUN_ID_SUFFIX: ${{ github.run_id }}_${{ github.run_attempt }}
+  BQ_DATASET: mobilegaming_java_rc_${{ github.run_id }}_${{ github.run_attempt }}
+  PUBSUB_TOPIC: mobilegaming_java_rc_${{ github.run_id }}_${{ github.run_attempt }}
+  # Set GCP Project ID and Bucket as constants
+  GCP_PROJECT_ID: 'apache-beam-testing'
+  GCS_BUCKET_NAME: 'gs://rc-validation-migration-tests'
+  APACHE_REPO_URL: ${{ github.event.inputs.APACHE_CONTENTS_REPO }}
+  RELEASE_VERSION: ${{ github.event.inputs.RELEASE_VER }}
+  RC_TAG: "v${{github.event.inputs.RELEASE_VER}}-RC${{github.event.inputs.RC_NUM}}"
+
+jobs:
+  run_java_mobile_gaming_rc_validation:
+    name: Run Java Mobile Gaming RC Validation (${{ github.event.inputs.RELEASE_VER }} RC${{ github.event.inputs.RC_NUM }})
+    runs-on: [self-hosted, ubuntu-20.04, main]
+    timeout-minutes: 120 # Adjust timeout as needed
+    steps:
+      - name: Extract GCS Bucket Name
+        run: echo "GCS_BUCKET_NAME=$(echo ${{ github.event.inputs.GCS_BUCKET }} | sed 's/^gs:\/\///')" >> $GITHUB_ENV
+      
+      - name: Checkout code at RC tag
+        uses: actions/checkout@v4
+        with:
+          ref: v${{ github.event.inputs.RELEASE_VER }}-RC${{ github.event.inputs.RC_NUM }}
+
+      # Standard setup actions (consider if setup-action is needed or if manual setup is sufficient)
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
+        with:
+          java-version: 11
+
+      # Setup GCP resources
+      - name: Create BigQuery Dataset
+        run: |
+          echo "Creating BigQuery dataset: ${{ env.BQ_DATASET }} in project ${{ env.GCP_PROJECT_ID }}"
+          bq mk --project_id=${{ env.GCP_PROJECT_ID }} ${{ env.BQ_DATASET }}
+        shell: bash
+      - name: Create PubSub Topic
+        run: |
+          echo "Creating PubSub topic: ${{ env.PUBSUB_TOPIC }} in project ${{ env.GCP_PROJECT_ID }}"
+          gcloud pubsub topics create --project=${{ env.GCP_PROJECT_ID }} ${{ env.PUBSUB_TOPIC }}
+        shell: bash
+  
+      # Run the Mobile Gaming example test using Gradle
+      - name: Run MobileGaming Java Dataflow Test
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :runners:google-cloud-dataflow-java:runMobileGamingJavaDataflow
+          arguments: |
+            -Prepourl=${{ env.APACHE_REPO_URL }} \
+            -Pver=${{ env.RELEASE_VERSION }} \
+            -PgcpProject=${{ env.GCP_PROJECT_ID }} \
+            -PgcsBucket=${{ env.GCS_BUCKET_NAME }} \
+            -PbqDataset=${{ env.BQ_DATASET }} \
+            -PpubsubTopic=${{ env.PUBSUB_TOPIC }} \
+
+      # Cleanup GCP resources (always run)
+      - name: Cleanup BigQuery Dataset
+        if: always()
+        run: |
+          echo "Deleting BigQuery dataset: ${{ env.BQ_DATASET }} in project ${{ env.GCP_PROJECT_ID }}"
+          bq rm --project_id=${{ env.GCP_PROJECT_ID }} -f -r ${{ env.BQ_DATASET }} || echo "Failed to delete BQ dataset ${{ env.BQ_DATASET }}, continuing..."
+        shell: bash
+      - name: Cleanup PubSub Topic
+        if: always()
+        run: |
+          echo "Deleting PubSub topic: ${{ env.PUBSUB_TOPIC }} in project ${{ env.GCP_PROJECT_ID }}"
+          gcloud pubsub topics delete --project=${{ env.GCP_PROJECT_ID }} ${{ env.PUBSUB_TOPIC }} --quiet || echo "Failed to delete PubSub topic ${{ env.PUBSUB_TOPIC }}, continuing..."
+        shell: bash
+
+      # Reporting (Optional: Keep if test results are generated)
+      - name: Archive JUnit Test Results
+        uses: actions/upload-artifact@v4
+        if: failure() # Upload only on failure
+        with:
+          name: JUnit Test Results (Java MobileGaming RC)
+          path: "**/build/reports/tests/"
+          retention-days: 7
+      - name: Publish JUnit Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always() # Publish results regardless of status
+        with:
+          commit: '${{ env.RC_TAG }}' # Use RC tag for commit reference
+          files: '**/build/test-results/**/*.xml'
+          check_name: "Java MobileGaming RC Test Results (${{ env.RELEASE_VERSION }} RC${{ github.event.inputs.RC_NUM }})"
+          large_files: true

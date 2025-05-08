@@ -86,7 +86,7 @@ starts_with_b = input | beam.Filter(lambda x: x.startswith('B'))
 
 You can find the full code of this example in the playground window, which you can run and experiment with.
 
-Accepts a `PCollection` consisting of strings. Without modification, it returns a new "PCollection". In this case, one `PCollection` includes elements in uppercase. The other `PCollection' stores inverted elements.
+Accepts a `PCollection` consisting of strings. Without modification, it returns a new `PCollection`. In this case, one `PCollection` includes elements in uppercase. The other `PCollection` stores inverted elements.
 
 You can use a different method of branching. Since `applyTransforms` performs 2 conversions, it takes a lot of time. It is possible to convert `PCollection` separately.
 {{if (eq .Sdk "go")}}

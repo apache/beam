@@ -1082,7 +1082,7 @@ public class S3FileSystemTest {
     S3ResourceId path = S3ResourceId.fromUri(uri);
     Lineage mockLineage = mock(Lineage.class);
     s3FileSystem.reportLineage(path, mockLineage);
-    verify(mockLineage, times(1)).add("s3", expected);
+    verify(mockLineage, times(1)).add("s3", expected, "/");
   }
 
   /** A mockito argument matcher to implement equality on GetHeadObjectRequest. */

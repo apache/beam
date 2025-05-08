@@ -25,13 +25,11 @@ import sys
 import threading
 import time
 import uuid
+from collections.abc import Iterable
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
-from typing import Dict
-from typing import Iterable
 from typing import Optional
-from typing import Sequence
-from typing import Tuple
 
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import ModelHandler
@@ -66,7 +64,7 @@ class OpenAIChatMessage():
   content: str
 
 
-def start_process(cmd) -> Tuple[subprocess.Popen, int]:
+def start_process(cmd) -> tuple[subprocess.Popen, int]:
   port, = subprocess_server.pick_port(None)
   cmd = [arg.replace('{{PORT}}', str(port)) for arg in cmd]  # pylint: disable=not-an-iterable
   logging.info("Starting service with %s", str(cmd).replace("',", "'"))
@@ -107,7 +105,7 @@ def getAsyncVLLMClient(port) -> AsyncOpenAI:
 
 
 class _VLLMModelServer():
-  def __init__(self, model_name: str, vllm_server_kwargs: Dict[str, str]):
+  def __init__(self, model_name: str, vllm_server_kwargs: dict[str, str]):
     self._model_name = model_name
     self._vllm_server_kwargs = vllm_server_kwargs
     self._server_started = False
@@ -169,7 +167,7 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
   def __init__(
       self,
       model_name: str,
-      vllm_server_kwargs: Optional[Dict[str, str]] = None):
+      vllm_server_kwargs: Optional[dict[str, str]] = None):
     """Implementation of the ModelHandler interface for vLLM using text as
     input.
 
@@ -190,7 +188,7 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
         https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#extra-parameters-for-completions-api
     """
     self._model_name = model_name
-    self._vllm_server_kwargs: Dict[str, str] = vllm_server_kwargs or {}
+    self._vllm_server_kwargs: dict[str, str] = vllm_server_kwargs or {}
     self._env_vars = {}
 
   def load_model(self) -> _VLLMModelServer:
@@ -200,7 +198,7 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
       self,
       batch: Sequence[str],
       model: _VLLMModelServer,
-      inference_args: Optional[Dict[str, Any]] = None
+      inference_args: Optional[dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
     client = getAsyncVLLMClient(model.get_server_port())
     inference_args = inference_args or {}
@@ -228,7 +226,7 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
       self,
       batch: Sequence[str],
       model: _VLLMModelServer,
-      inference_args: Optional[Dict[str, Any]] = None
+      inference_args: Optional[dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
     """Runs inferences on a batch of text strings.
 
@@ -253,7 +251,7 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
       self,
       model_name: str,
       chat_template_path: Optional[str] = None,
-      vllm_server_kwargs: Optional[Dict[str, str]] = None):
+      vllm_server_kwargs: Optional[dict[str, str]] = None):
     """ Implementation of the ModelHandler interface for vLLM using previous
     messages as input.
 
@@ -279,7 +277,7 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
         https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#extra-parameters-for-chat-api
     """
     self._model_name = model_name
-    self._vllm_server_kwargs: Dict[str, str] = vllm_server_kwargs or {}
+    self._vllm_server_kwargs: dict[str, str] = vllm_server_kwargs or {}
     self._env_vars = {}
     self._chat_template_path = chat_template_path
     self._chat_file = f'template-{uuid.uuid4().hex}.jinja'
@@ -301,7 +299,7 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
       self,
       batch: Sequence[Sequence[OpenAIChatMessage]],
       model: _VLLMModelServer,
-      inference_args: Optional[Dict[str, Any]] = None
+      inference_args: Optional[dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
     client = getAsyncVLLMClient(model.get_server_port())
     inference_args = inference_args or {}
@@ -332,7 +330,7 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
       self,
       batch: Sequence[Sequence[OpenAIChatMessage]],
       model: _VLLMModelServer,
-      inference_args: Optional[Dict[str, Any]] = None
+      inference_args: Optional[dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
     """Runs inferences on a batch of text strings.
 

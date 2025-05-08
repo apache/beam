@@ -66,11 +66,8 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
-import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardRunnerProtocols;
-import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
 import org.apache.beam.runners.core.metrics.ShortIdMap;
 import org.apache.beam.sdk.fn.data.BeamFnDataInboundObserver;
@@ -90,8 +87,8 @@ import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.util.construction.BeamUrns;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.Timer;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
@@ -124,10 +121,8 @@ import org.slf4j.LoggerFactory;
  * barrier</a> for further details.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "nullness",
-  "keyfor"
-}) // TODO(https://github.com/apache/beam/issues/20497)
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class ProcessBundleHandler {
 
   // TODO: What should the initial set of URNs be?
@@ -227,7 +222,7 @@ public class ProcessBundleHandler {
     this.dataSampler = dataSampler;
   }
 
-  private void createRunnerAndConsumersForPTransformRecursively(
+  private void addRunnerAndConsumersForPTransformRecursively(
       BeamFnStateClient beamFnStateClient,
       BeamFnDataClient queueingClient,
       String pTransformId,
@@ -236,6 +231,7 @@ public class ProcessBundleHandler {
       Supplier<List<CacheToken>> cacheTokens,
       Supplier<Cache<?, ?>> bundleCache,
       ProcessBundleDescriptor processBundleDescriptor,
+      RunnerApi.Components components,
       SetMultimap<String, String> pCollectionIdsToConsumingPTransforms,
       PCollectionConsumerRegistry pCollectionConsumerRegistry,
       Set<String> processedPTransformIds,
@@ -248,7 +244,7 @@ public class ProcessBundleHandler {
       Consumer<BundleProgressReporter> addBundleProgressReporter,
       BundleSplitListener splitListener,
       BundleFinalizer bundleFinalizer,
-      Collection<BeamFnDataReadRunner> channelRoots,
+      Collection<BeamFnDataReadRunner<?>> channelRoots,
       Map<ApiServiceDescriptor, BeamFnDataOutboundAggregator> outboundAggregatorMap,
       Set<String> runnerCapabilities)
       throws IOException {
@@ -259,7 +255,7 @@ public class ProcessBundleHandler {
     for (String pCollectionId : pTransform.getOutputsMap().values()) {
 
       for (String consumingPTransformId : pCollectionIdsToConsumingPTransforms.get(pCollectionId)) {
-        createRunnerAndConsumersForPTransformRecursively(
+        addRunnerAndConsumersForPTransformRecursively(
             beamFnStateClient,
             queueingClient,
             consumingPTransformId,
@@ -268,6 +264,7 @@ public class ProcessBundleHandler {
             cacheTokens,
             bundleCache,
             processBundleDescriptor,
+            components,
             pCollectionIdsToConsumingPTransforms,
             pCollectionConsumerRegistry,
             processedPTransformIds,
@@ -302,196 +299,187 @@ public class ProcessBundleHandler {
 
     // Skip reprocessing processed pTransforms.
     if (!processedPTransformIds.contains(pTransformId)) {
-      Object runner =
-          urnToPTransformRunnerFactoryMap
-              .getOrDefault(pTransform.getSpec().getUrn(), defaultPTransformRunnerFactory)
-              .createRunnerForPTransform(
-                  new Context() {
-                    @Override
-                    public PipelineOptions getPipelineOptions() {
-                      return options;
-                    }
+      urnToPTransformRunnerFactoryMap
+          .getOrDefault(pTransform.getSpec().getUrn(), defaultPTransformRunnerFactory)
+          .addRunnerForPTransform(
+              new Context() {
+                @Override
+                public PipelineOptions getPipelineOptions() {
+                  return options;
+                }
 
-                    @Override
-                    public ShortIdMap getShortIdMap() {
-                      return shortIds;
-                    }
+                @Override
+                public ShortIdMap getShortIdMap() {
+                  return shortIds;
+                }
 
-                    @Override
-                    public BeamFnDataClient getBeamFnDataClient() {
-                      return queueingClient;
-                    }
+                @Override
+                public BeamFnDataClient getBeamFnDataClient() {
+                  return queueingClient;
+                }
 
-                    @Override
-                    public BeamFnStateClient getBeamFnStateClient() {
-                      return beamFnStateClient;
-                    }
+                @Override
+                public BeamFnStateClient getBeamFnStateClient() {
+                  return beamFnStateClient;
+                }
 
-                    @Override
-                    public String getPTransformId() {
-                      return pTransformId;
-                    }
+                @Override
+                public String getPTransformId() {
+                  return pTransformId;
+                }
 
-                    @Override
-                    public PTransform getPTransform() {
-                      return pTransform;
-                    }
+                @Override
+                public PTransform getPTransform() {
+                  return pTransform;
+                }
 
-                    @Override
-                    public Supplier<String> getProcessBundleInstructionIdSupplier() {
-                      return processBundleInstructionId;
-                    }
+                @Override
+                public Supplier<String> getProcessBundleInstructionIdSupplier() {
+                  return processBundleInstructionId;
+                }
 
-                    @Override
-                    public Supplier<List<CacheToken>> getCacheTokensSupplier() {
-                      return cacheTokens;
-                    }
+                @Override
+                public Supplier<List<CacheToken>> getCacheTokensSupplier() {
+                  return cacheTokens;
+                }
 
-                    @Override
-                    public Supplier<Cache<?, ?>> getBundleCacheSupplier() {
-                      return bundleCache;
-                    }
+                @Override
+                public Supplier<Cache<?, ?>> getBundleCacheSupplier() {
+                  return bundleCache;
+                }
 
-                    @Override
-                    public Cache<?, ?> getProcessWideCache() {
-                      return processWideCache;
-                    }
+                @Override
+                public Cache<?, ?> getProcessWideCache() {
+                  return processWideCache;
+                }
 
-                    @Override
-                    public Map<String, PCollection> getPCollections() {
-                      return processBundleDescriptor.getPcollectionsMap();
-                    }
+                @Override
+                public RunnerApi.Components getComponents() {
+                  return components;
+                }
 
-                    @Override
-                    public Map<String, Coder> getCoders() {
-                      return processBundleDescriptor.getCodersMap();
-                    }
+                @Override
+                public Set<String> getRunnerCapabilities() {
+                  return runnerCapabilities;
+                }
 
-                    @Override
-                    public Map<String, WindowingStrategy> getWindowingStrategies() {
-                      return processBundleDescriptor.getWindowingStrategiesMap();
-                    }
+                @Override
+                public <T> void addPCollectionConsumer(
+                    String pCollectionId, FnDataReceiver<WindowedValue<T>> consumer) {
+                  pCollectionConsumerRegistry.register(
+                      pCollectionId, pTransformId, pTransform.getUniqueName(), consumer);
+                }
 
-                    @Override
-                    public Set<String> getRunnerCapabilities() {
-                      return runnerCapabilities;
-                    }
+                @Override
+                public <T> FnDataReceiver<T> addOutgoingDataEndpoint(
+                    ApiServiceDescriptor apiServiceDescriptor,
+                    org.apache.beam.sdk.coders.Coder<T> coder) {
+                  BeamFnDataOutboundAggregator aggregator =
+                      outboundAggregatorMap.computeIfAbsent(
+                          apiServiceDescriptor,
+                          asd ->
+                              queueingClient.createOutboundAggregator(
+                                  asd,
+                                  processBundleInstructionId,
+                                  runnerCapabilities.contains(
+                                      BeamUrns.getUrn(
+                                          StandardRunnerProtocols.Enum
+                                              .CONTROL_RESPONSE_ELEMENTS_EMBEDDING))));
+                  return aggregator.registerOutputDataLocation(pTransformId, coder);
+                }
 
-                    @Override
-                    public <T> void addPCollectionConsumer(
-                        String pCollectionId, FnDataReceiver<WindowedValue<T>> consumer) {
-                      pCollectionConsumerRegistry.register(
-                          pCollectionId, pTransformId, pTransform.getUniqueName(), consumer);
-                    }
+                @Override
+                public <T> FnDataReceiver<Timer<T>> addOutgoingTimersEndpoint(
+                    String timerFamilyId, org.apache.beam.sdk.coders.Coder<Timer<T>> coder) {
+                  BeamFnDataOutboundAggregator aggregator;
+                  if (!processBundleDescriptor.hasTimerApiServiceDescriptor()) {
+                    throw new IllegalStateException(
+                        String.format(
+                            "Timers are unsupported because the "
+                                + "ProcessBundleRequest %s does not provide a timer ApiServiceDescriptor.",
+                            processBundleInstructionId.get()));
+                  }
+                  aggregator =
+                      outboundAggregatorMap.computeIfAbsent(
+                          processBundleDescriptor.getTimerApiServiceDescriptor(),
+                          asd ->
+                              queueingClient.createOutboundAggregator(
+                                  asd,
+                                  processBundleInstructionId,
+                                  runnerCapabilities.contains(
+                                      BeamUrns.getUrn(
+                                          StandardRunnerProtocols.Enum
+                                              .CONTROL_RESPONSE_ELEMENTS_EMBEDDING))));
+                  return aggregator.registerOutputTimersLocation(
+                      pTransformId, timerFamilyId, coder);
+                }
 
-                    @Override
-                    public <T> FnDataReceiver<T> addOutgoingDataEndpoint(
-                        ApiServiceDescriptor apiServiceDescriptor,
-                        org.apache.beam.sdk.coders.Coder<T> coder) {
-                      BeamFnDataOutboundAggregator aggregator =
-                          outboundAggregatorMap.computeIfAbsent(
-                              apiServiceDescriptor,
-                              asd ->
-                                  queueingClient.createOutboundAggregator(
-                                      asd,
-                                      processBundleInstructionId,
-                                      runnerCapabilities.contains(
-                                          BeamUrns.getUrn(
-                                              StandardRunnerProtocols.Enum
-                                                  .CONTROL_RESPONSE_ELEMENTS_EMBEDDING))));
-                      return aggregator.registerOutputDataLocation(pTransformId, coder);
-                    }
+                @Override
+                public FnDataReceiver<?> getPCollectionConsumer(String pCollectionId) {
+                  return pCollectionConsumerRegistry.getMultiplexingConsumer(pCollectionId);
+                }
 
-                    @Override
-                    public <T> FnDataReceiver<Timer<T>> addOutgoingTimersEndpoint(
-                        String timerFamilyId, org.apache.beam.sdk.coders.Coder<Timer<T>> coder) {
-                      BeamFnDataOutboundAggregator aggregator;
-                      if (!processBundleDescriptor.hasTimerApiServiceDescriptor()) {
-                        throw new IllegalStateException(
-                            String.format(
-                                "Timers are unsupported because the "
-                                    + "ProcessBundleRequest %s does not provide a timer ApiServiceDescriptor.",
-                                processBundleInstructionId.get()));
-                      }
-                      aggregator =
-                          outboundAggregatorMap.computeIfAbsent(
-                              processBundleDescriptor.getTimerApiServiceDescriptor(),
-                              asd ->
-                                  queueingClient.createOutboundAggregator(
-                                      asd,
-                                      processBundleInstructionId,
-                                      runnerCapabilities.contains(
-                                          BeamUrns.getUrn(
-                                              StandardRunnerProtocols.Enum
-                                                  .CONTROL_RESPONSE_ELEMENTS_EMBEDDING))));
-                      return aggregator.registerOutputTimersLocation(
-                          pTransformId, timerFamilyId, coder);
-                    }
+                @Override
+                public void addStartBundleFunction(ThrowingRunnable startFunction) {
+                  startFunctionRegistry.register(
+                      pTransformId, pTransform.getUniqueName(), startFunction);
+                }
 
-                    @Override
-                    public FnDataReceiver<?> getPCollectionConsumer(String pCollectionId) {
-                      return pCollectionConsumerRegistry.getMultiplexingConsumer(pCollectionId);
-                    }
+                @Override
+                public void addFinishBundleFunction(ThrowingRunnable finishFunction) {
+                  finishFunctionRegistry.register(
+                      pTransformId, pTransform.getUniqueName(), finishFunction);
+                }
 
-                    @Override
-                    public void addStartBundleFunction(ThrowingRunnable startFunction) {
-                      startFunctionRegistry.register(
-                          pTransformId, pTransform.getUniqueName(), startFunction);
-                    }
+                @Override
+                public <T> void addIncomingDataEndpoint(
+                    ApiServiceDescriptor apiServiceDescriptor,
+                    org.apache.beam.sdk.coders.Coder<T> coder,
+                    FnDataReceiver<T> receiver) {
+                  addDataEndpoint.accept(
+                      apiServiceDescriptor, DataEndpoint.create(pTransformId, coder, receiver));
+                }
 
-                    @Override
-                    public void addFinishBundleFunction(ThrowingRunnable finishFunction) {
-                      finishFunctionRegistry.register(
-                          pTransformId, pTransform.getUniqueName(), finishFunction);
-                    }
+                @Override
+                public <T> void addIncomingTimerEndpoint(
+                    String timerFamilyId,
+                    org.apache.beam.sdk.coders.Coder<Timer<T>> coder,
+                    FnDataReceiver<Timer<T>> receiver) {
+                  addTimerEndpoint.accept(
+                      TimerEndpoint.create(pTransformId, timerFamilyId, coder, receiver));
+                }
 
-                    @Override
-                    public <T> void addIncomingDataEndpoint(
-                        ApiServiceDescriptor apiServiceDescriptor,
-                        org.apache.beam.sdk.coders.Coder<T> coder,
-                        FnDataReceiver<T> receiver) {
-                      addDataEndpoint.accept(
-                          apiServiceDescriptor, DataEndpoint.create(pTransformId, coder, receiver));
-                    }
+                @Override
+                public void addResetFunction(ThrowingRunnable resetFunction) {
+                  addResetFunction.accept(resetFunction);
+                }
 
-                    @Override
-                    public <T> void addIncomingTimerEndpoint(
-                        String timerFamilyId,
-                        org.apache.beam.sdk.coders.Coder<Timer<T>> coder,
-                        FnDataReceiver<Timer<T>> receiver) {
-                      addTimerEndpoint.accept(
-                          TimerEndpoint.create(pTransformId, timerFamilyId, coder, receiver));
-                    }
+                @Override
+                public <T> void addChannelRoot(BeamFnDataReadRunner<T> beamFnDataReadRunner) {
+                  channelRoots.add(beamFnDataReadRunner);
+                }
 
-                    @Override
-                    public void addResetFunction(ThrowingRunnable resetFunction) {
-                      addResetFunction.accept(resetFunction);
-                    }
+                @Override
+                public void addTearDownFunction(ThrowingRunnable tearDownFunction) {
+                  addTearDownFunction.accept(tearDownFunction);
+                }
 
-                    @Override
-                    public void addTearDownFunction(ThrowingRunnable tearDownFunction) {
-                      addTearDownFunction.accept(tearDownFunction);
-                    }
+                @Override
+                public void addBundleProgressReporter(
+                    BundleProgressReporter bundleProgressReporter) {
+                  addBundleProgressReporter.accept(bundleProgressReporter);
+                }
 
-                    @Override
-                    public void addBundleProgressReporter(
-                        BundleProgressReporter bundleProgressReporter) {
-                      addBundleProgressReporter.accept(bundleProgressReporter);
-                    }
+                @Override
+                public BundleSplitListener getSplitListener() {
+                  return splitListener;
+                }
 
-                    @Override
-                    public BundleSplitListener getSplitListener() {
-                      return splitListener;
-                    }
-
-                    @Override
-                    public BundleFinalizer getBundleFinalizer() {
-                      return bundleFinalizer;
-                    }
-                  });
-      if (runner instanceof BeamFnDataReadRunner) {
-        channelRoots.add((BeamFnDataReadRunner) runner);
-      }
+                @Override
+                public BundleFinalizer getBundleFinalizer() {
+                  return bundleFinalizer;
+                }
+              });
       processedPTransformIds.add(pTransformId);
     }
   }
@@ -536,7 +524,9 @@ public class ProcessBundleHandler {
             boolean inputFinished =
                 bundleProcessor
                     .getInboundObserver()
-                    .multiplexElements(request.getProcessBundle().getElements());
+                    .multiplexElements(
+                        request.getProcessBundle().getElements().getDataList().iterator(),
+                        request.getProcessBundle().getElements().getTimersList().iterator());
             if (!inputFinished) {
               throw new RuntimeException(
                   "Elements embedded in ProcessBundleRequest do not contain stream terminators for "
@@ -748,7 +738,7 @@ public class ProcessBundleHandler {
           .setProcessBundleSplit(BeamFnApi.ProcessBundleSplitResponse.getDefaultInstance());
     }
 
-    for (BeamFnDataReadRunner channelRoot : bundleProcessor.getChannelRoots()) {
+    for (BeamFnDataReadRunner<?> channelRoot : bundleProcessor.getChannelRoots()) {
       channelRoot.trySplit(request.getProcessBundleSplit(), response);
     }
     return BeamFnApi.InstructionResponse.newBuilder().setProcessBundleSplit(response);
@@ -867,7 +857,14 @@ public class ProcessBundleHandler {
         continue;
       }
 
-      createRunnerAndConsumersForPTransformRecursively(
+      RunnerApi.Components components =
+          RunnerApi.Components.newBuilder()
+              .putAllCoders(bundleDescriptor.getCodersMap())
+              .putAllPcollections(bundleDescriptor.getPcollectionsMap())
+              .putAllWindowingStrategies(bundleDescriptor.getWindowingStrategiesMap())
+              .build();
+
+      addRunnerAndConsumersForPTransformRecursively(
           beamFnStateClient,
           beamFnDataClient,
           entry.getKey(),
@@ -876,6 +873,7 @@ public class ProcessBundleHandler {
           bundleProcessor::getCacheTokens,
           bundleProcessor::getBundleCache,
           bundleDescriptor,
+          components,
           pCollectionIdsToConsumingPTransforms,
           pCollectionConsumerRegistry,
           processedPTransformIds,
@@ -1026,7 +1024,6 @@ public class ProcessBundleHandler {
   /** A container for the reusable information used to process a bundle. */
   @AutoValue
   @AutoValue.CopyAnnotations
-  @SuppressWarnings({"rawtypes"})
   public abstract static class BundleProcessor {
     public static BundleProcessor create(
         Cache<Object, Object> processWideCache,
@@ -1103,7 +1100,7 @@ public class ProcessBundleHandler {
 
     abstract Collection<CallbackRegistration> getBundleFinalizationCallbackRegistrations();
 
-    abstract Collection<BeamFnDataReadRunner> getChannelRoots();
+    abstract Collection<BeamFnDataReadRunner<?>> getChannelRoots();
 
     abstract Map<ApiServiceDescriptor, BeamFnDataOutboundAggregator> getOutboundAggregators();
 
@@ -1280,7 +1277,7 @@ public class ProcessBundleHandler {
 
   abstract static class HandleStateCallsForBundle implements AutoCloseable, BeamFnStateClient {}
 
-  private static class UnknownPTransformRunnerFactory implements PTransformRunnerFactory<Object> {
+  private static class UnknownPTransformRunnerFactory implements PTransformRunnerFactory {
     private final Set<String> knownUrns;
 
     private UnknownPTransformRunnerFactory(Set<String> knownUrns) {
@@ -1288,7 +1285,7 @@ public class ProcessBundleHandler {
     }
 
     @Override
-    public Object createRunnerForPTransform(Context context) {
+    public void addRunnerForPTransform(Context context) {
       String message =
           String.format(
               "No factory registered for %s, known factories %s",

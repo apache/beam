@@ -32,13 +32,12 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
-import org.apache.beam.fn.harness.Cache;
 import org.apache.beam.fn.harness.Caches;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -109,75 +108,6 @@ public class StateBackedIterableTest {
       assertEquals(expected, Lists.newArrayList(iterable));
       assertEquals(expected, Lists.newArrayList(iterable));
       assertEquals(expected, Lists.newArrayList(iterable));
-    }
-
-    @Test
-    public void testReiterationCached() throws Exception {
-      FakeBeamFnStateClient fakeBeamFnStateClient =
-          new FakeBeamFnStateClient(
-              StringUtf8Coder.of(),
-              ImmutableMap.of(
-                  key("nonEmptySuffix"), asList("C", "D", "E", "F", "G", "H", "I", "J", "K"),
-                  key("emptySuffix"), asList()));
-
-      StateBackedIterable<String> iterable =
-          new StateBackedIterable<>(
-              Caches.eternal(),
-              fakeBeamFnStateClient,
-              "instruction",
-              key(suffixKey),
-              StringUtf8Coder.of(),
-              prefix);
-
-      // Ensure that the load is lazy
-      assertEquals(0, fakeBeamFnStateClient.getCallCount());
-      assertEquals(expected, Lists.newArrayList(iterable));
-      // We expect future reiterations to not perform any loads
-      int callCount = fakeBeamFnStateClient.getCallCount();
-      assertEquals(expected, Lists.newArrayList(iterable));
-      assertEquals(expected, Lists.newArrayList(iterable));
-      assertEquals(callCount, fakeBeamFnStateClient.getCallCount());
-    }
-
-    @Test
-    public void testCacheKeyIsUnique() throws Exception {
-      // Share a cache for multiple iterables leads to distinct keys being used.
-      Cache cache = Caches.eternal();
-      FakeBeamFnStateClient fakeBeamFnStateClient =
-          new FakeBeamFnStateClient(
-              StringUtf8Coder.of(),
-              ImmutableMap.of(
-                  key("nonEmptySuffix"), asList("C", "D", "E", "F", "G", "H", "I", "J", "K"),
-                  key("emptySuffix"), asList(),
-                  key("otherIterable"), asList("Z")));
-
-      StateBackedIterable<String> otherIterable =
-          new StateBackedIterable<>(
-              cache,
-              fakeBeamFnStateClient,
-              "instruction",
-              key("otherIterable"),
-              StringUtf8Coder.of(),
-              Collections.emptyList());
-      // Ensure that the load is lazy
-      assertEquals(0, fakeBeamFnStateClient.getCallCount());
-      assertEquals(asList("Z"), Lists.newArrayList(otherIterable));
-
-      StateBackedIterable<String> iterable =
-          new StateBackedIterable<>(
-              cache,
-              fakeBeamFnStateClient,
-              "instruction",
-              key(suffixKey),
-              StringUtf8Coder.of(),
-              prefix);
-
-      assertEquals(expected, Lists.newArrayList(iterable));
-      // We expect future reiterations to not perform any loads
-      int callCount = fakeBeamFnStateClient.getCallCount();
-      assertEquals(expected, Lists.newArrayList(iterable));
-      assertEquals(expected, Lists.newArrayList(iterable));
-      assertEquals(callCount, fakeBeamFnStateClient.getCallCount());
     }
 
     @Test
@@ -269,7 +199,9 @@ public class StateBackedIterableTest {
               .sum();
       observer.advance();
       // 5 comes from size and hasNext (see IterableLikeCoder)
-      assertEquals(iterateBytes + 5, observer.total);
+      // observer receives scaled, StringUtf8Coder is not cheap so sampling may produce value that
+      // is off
+      assertEquals((float) iterateBytes + 5, (float) observer.total, 3);
     }
   }
 

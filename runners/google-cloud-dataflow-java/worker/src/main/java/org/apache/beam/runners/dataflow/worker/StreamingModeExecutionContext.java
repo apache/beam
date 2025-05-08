@@ -71,7 +71,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
@@ -101,6 +101,7 @@ import org.slf4j.LoggerFactory;
 @NotThreadSafe
 @Internal
 public class StreamingModeExecutionContext extends DataflowExecutionContext<StepContext> {
+
   private static final Logger LOG = LoggerFactory.getLogger(StreamingModeExecutionContext.class);
 
   private final String computationId;
@@ -191,7 +192,28 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   }
 
   public boolean workIsFailed() {
-    return Optional.ofNullable(work).map(Work::isFailed).orElse(false);
+    return work != null && work.isFailed();
+  }
+
+  public boolean offsetBasedDeduplicationSupported() {
+    return activeReader != null
+        && activeReader.getCurrentSource().offsetBasedDeduplicationSupported();
+  }
+
+  public byte[] getCurrentRecordId() {
+    if (!offsetBasedDeduplicationSupported()) {
+      throw new RuntimeException(
+          "Unexpected getCurrentRecordId() while offset-based deduplication is not enabled.");
+    }
+    return activeReader.getCurrentRecordId();
+  }
+
+  public byte[] getCurrentRecordOffset() {
+    if (!offsetBasedDeduplicationSupported()) {
+      throw new RuntimeException(
+          "Unexpected getCurrentRecordOffset() while offset-based deduplication is not enabled.");
+    }
+    return activeReader.getCurrentRecordOffset();
   }
 
   public void start(
@@ -439,6 +461,13 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
           throw new RuntimeException("Exception while encoding checkpoint", e);
         }
         sourceStateBuilder.setState(stream.toByteString());
+        if (activeReader.getCurrentSource().offsetBasedDeduplicationSupported()) {
+          byte[] offsetLimit = checkpointMark.getOffsetLimit();
+          if (offsetLimit.length == 0) {
+            throw new RuntimeException("Checkpoint offset limit must be non-empty.");
+          }
+          sourceStateBuilder.setOffsetLimit(ByteString.copyFrom(offsetLimit));
+        }
       }
       outputBuilder.setSourceWatermark(WindmillTimeUtils.harnessToWindmillTimestamp(watermark));
 
@@ -553,6 +582,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
   }
 
   private static class ScopedReadStateSupplier implements Supplier<Closeable> {
+
     private final ExecutionState readState;
     private final @Nullable ExecutionStateTracker stateTracker;
 

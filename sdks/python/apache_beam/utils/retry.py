@@ -274,7 +274,9 @@ def with_exponential_backoff(
   The decorator is intended to be used on callables that make HTTP or RPC
   requests that can temporarily timeout or have transient errors. For instance
   the make_http_request() call below will be retried 16 times with exponential
-  backoff and fuzzing of the delay interval (default settings).
+  backoff and fuzzing of the delay interval (default settings). The callable
+  should return values directly instead of yielding them, as generators are not
+  evaluated within the try-catch block and will not be retried on exception.
 
   from apache_beam.utils import retry
   # ...

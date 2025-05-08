@@ -19,11 +19,11 @@
 
 type: edu
 files:
-- name: src/org/apache/beam/learning/katas/coretransforms/sideoutput/Task.java
-  visible: true
-  placeholders:
-  - offset: 2528
-    length: 406
-    placeholder_text: TODO()
-- name: test/org/apache/beam/learning/katas/coretransforms/sideoutput/TaskTest.java
-  visible: false
+  - name: src/org/apache/beam/learning/katas/coretransforms/sideoutput/Task.java
+    visible: true
+    placeholders:
+      - offset: 2614
+        length: 406
+        placeholder_text: TODO()
+  - name: test/org/apache/beam/learning/katas/coretransforms/sideoutput/TaskTest.java
+    visible: false

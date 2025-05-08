@@ -22,7 +22,9 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import com.google.auto.value.AutoValue;
 import com.google.auto.value.extension.memoized.Memoized;
 import java.io.Serializable;
+import java.util.Map;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 /**
  * The name of a metric consists of a {@link #getNamespace} and a {@link #getName}. The {@link
@@ -39,6 +41,9 @@ public abstract class MetricName implements Serializable {
   /** The name of this metric. */
   public abstract String getName();
 
+  /** Associated labels for the metric. */
+  public abstract Map<String, String> getLabels();
+
   @Override
   @Memoized
   public String toString() {
@@ -48,12 +53,24 @@ public abstract class MetricName implements Serializable {
   public static MetricName named(String namespace, String name) {
     checkArgument(!Strings.isNullOrEmpty(namespace), "Metric namespace must be non-empty");
     checkArgument(!Strings.isNullOrEmpty(name), "Metric name must be non-empty");
-    return new AutoValue_MetricName(namespace, name);
+    return new AutoValue_MetricName(namespace, name, ImmutableMap.of());
+  }
+
+  public static MetricName named(String namespace, String name, Map<String, String> labels) {
+    checkArgument(!Strings.isNullOrEmpty(namespace), "Metric namespace must be non-empty");
+    checkArgument(!Strings.isNullOrEmpty(name), "Metric name must be non-empty");
+    return new AutoValue_MetricName(namespace, name, ImmutableMap.copyOf(labels));
   }
 
   public static MetricName named(Class<?> namespace, String name) {
     checkArgument(namespace != null, "Metric namespace must be non-null");
     checkArgument(!Strings.isNullOrEmpty(name), "Metric name must be non-empty");
-    return new AutoValue_MetricName(namespace.getName(), name);
+    return new AutoValue_MetricName(namespace.getName(), name, ImmutableMap.of());
+  }
+
+  public static MetricName named(Class<?> namespace, String name, Map<String, String> labels) {
+    checkArgument(namespace != null, "Metric namespace must be non-null");
+    checkArgument(!Strings.isNullOrEmpty(name), "Metric name must be non-empty");
+    return new AutoValue_MetricName(namespace.getName(), name, ImmutableMap.copyOf(labels));
   }
 }

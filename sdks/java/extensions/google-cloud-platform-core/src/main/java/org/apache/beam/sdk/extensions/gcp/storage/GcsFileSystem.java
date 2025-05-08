@@ -229,7 +229,7 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
       if (level != LineageLevel.TOP_LEVEL && !path.getObject().isEmpty()) {
         segments.add(path.getObject());
       }
-      lineage.add("gcs", segments.build());
+      lineage.add("gcs", segments.build(), "/");
     } else {
       LOG.warn("Report Lineage on relative path {} is unsupported", path.getObject());
     }

@@ -44,8 +44,8 @@ from apache_beam.metrics.metric import Lineage
 from apache_beam.options import value_provider as vp
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.transforms import trigger
+from apache_beam.transforms import util
 from apache_beam.transforms.display import DisplayDataItem
-from apache_beam.transforms.util import GroupIntoBatches
 from apache_beam.transforms.window import GlobalWindows
 
 # Protect against environments where bigquery library is not available.
@@ -1062,7 +1062,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
         destination_data_kv_pc
         |
         'ToHashableTableRef' >> beam.Map(bigquery_tools.to_hashable_table_ref)
-        | 'WithAutoSharding' >> GroupIntoBatches.WithShardedKey(
+        | 'WithAutoSharding' >> util.GroupIntoBatches.WithShardedKey(
             batch_size=_FILE_TRIGGERING_RECORD_COUNT,
             max_buffering_duration_secs=_FILE_TRIGGERING_BATCHING_DURATION_SECS,
             clock=clock)
@@ -1101,6 +1101,18 @@ class BigQueryBatchFileLoads(beam.PTransform):
          of the load jobs would fail but not other. If any of them fails, then
          copy jobs are not triggered.
     """
+    self.reshuffle_before_load = not util.is_compat_version_prior_to(
+        p.options, "2.65.0")
+    if self.reshuffle_before_load:
+      # Ensure that TriggerLoadJob retry inputs are deterministic by breaking
+      # fusion for inputs.
+      partitions_using_temp_tables = (
+          partitions_using_temp_tables
+          | "ReshuffleBeforeLoadWithTempTables" >> beam.Reshuffle())
+      partitions_direct_to_destination = (
+          partitions_direct_to_destination
+          | "ReshuffleBeforeLoadWithoutTempTables" >> beam.Reshuffle())
+
     # Load data using temp tables
     trigger_loads_outputs = (
         partitions_using_temp_tables
@@ -1154,7 +1166,10 @@ class BigQueryBatchFileLoads(beam.PTransform):
     else:
       # Loads can happen in parallel.
       finished_temp_tables_load_job_ids_list_pc = (
-          finished_temp_tables_load_job_ids_pc | beam.Map(lambda x: [x]))
+          finished_temp_tables_load_job_ids_pc
+          # This name is to ensure update compat.
+          | "Map(<lambda at bigquery_file_loads.py:1157>)" >>
+          beam.Map(lambda x: [x]))
 
     copy_job_outputs = (
         finished_temp_tables_load_job_ids_list_pc

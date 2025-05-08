@@ -72,6 +72,14 @@ class StopOnExitJobServer(JobServer):
     self._lock = threading.Lock()
     self._job_server = job_server
     self._started = False
+    # save original signal handler
+    self._original_sigint_handler = signal.getsignal(signal.SIGINT)
+
+  def _sigint_handler(self, sig, frame):
+    self.stop()
+    if callable(self._original_sigint_handler):
+      # call original signal handler to handle sigint gracefully
+      self._original_sigint_handler(sig, frame)
 
   def start(self):
     with self._lock:
@@ -79,7 +87,7 @@ class StopOnExitJobServer(JobServer):
         self._endpoint = self._job_server.start()
         self._started = True
         atexit.register(self.stop)
-        signal.signal(signal.SIGINT, self.stop)
+        signal.signal(signal.SIGINT, self._sigint_handler)
     return self._endpoint
 
   def stop(self):

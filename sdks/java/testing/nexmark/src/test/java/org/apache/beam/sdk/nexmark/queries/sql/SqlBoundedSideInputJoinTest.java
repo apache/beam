@@ -220,12 +220,4 @@ public class SqlBoundedSideInputJoinTest {
       return SqlBoundedSideInputJoin.calciteSqlBoundedSideInputJoin(configuration);
     }
   }
-
-  @RunWith(JUnit4.class)
-  public static class SqlBoundedSideInputJoinTestZetaSql extends SqlBoundedSideInputJoinTestCases {
-    @Override
-    protected SqlBoundedSideInputJoin getQuery(NexmarkConfiguration configuration) {
-      return SqlBoundedSideInputJoin.zetaSqlBoundedSideInputJoin(configuration);
-    }
-  }
 }

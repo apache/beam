@@ -44,6 +44,9 @@ from typing import Tuple
 
 import dill
 
+from apache_beam.internal.set_pickler import save_frozenset
+from apache_beam.internal.set_pickler import save_set
+
 settings = {'dill_byref': None}
 
 patch_save_code = sys.version_info >= (3, 10) and dill.__version__ == "0.3.1.1"
@@ -376,9 +379,18 @@ if 'save_module' in dir(dill.dill):
 logging.getLogger('dill').setLevel(logging.WARN)
 
 
-def dumps(o, enable_trace=True, use_zlib=False) -> bytes:
+def dumps(
+    o,
+    enable_trace=True,
+    use_zlib=False,
+    enable_best_effort_determinism=False) -> bytes:
   """For internal use only; no backwards-compatibility guarantees."""
   with _pickle_lock:
+    if enable_best_effort_determinism:
+      old_save_set = dill.dill.Pickler.dispatch[set]
+      old_save_frozenset = dill.dill.Pickler.dispatch[frozenset]
+      dill.dill.pickle(set, save_set)
+      dill.dill.pickle(frozenset, save_frozenset)
     try:
       s = dill.dumps(o, byref=settings['dill_byref'])
     except Exception:  # pylint: disable=broad-except
@@ -389,6 +401,9 @@ def dumps(o, enable_trace=True, use_zlib=False) -> bytes:
         raise
     finally:
       dill.dill._trace(False)  # pylint: disable=protected-access
+      if enable_best_effort_determinism:
+        dill.dill.pickle(set, old_save_set)
+        dill.dill.pickle(frozenset, old_save_frozenset)
 
   # Compress as compactly as possible (compresslevel=9) to decrease peak memory
   # usage (of multiple in-memory copies) and to avoid hitting protocol buffer
