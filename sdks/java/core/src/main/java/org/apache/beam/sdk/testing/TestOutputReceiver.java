@@ -15,15 +15,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.testing;
 
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.values.OutputBuilder;
+import org.apache.beam.sdk.values.WindowedValues;
 
-/** An encapsulated method of output that can output a value with all of its metadata. */
+/**
+ * An implementation of {@link DoFn.OutputReceiver} that naively collects all output values.
+ *
+ * <p>Because this API is crude and not designed to be very general, it is for internal use only and
+ * will be changed arbitrarily.
+ */
 @Internal
-@FunctionalInterface
-public interface WindowedValueReceiver<OutputT> {
-  /** Outputs a value with windowing information. */
-  void output(WindowedValue<OutputT> output) throws Exception;
+public class TestOutputReceiver<T> implements DoFn.OutputReceiver<T> {
+  private final List<T> records = new ArrayList<>();
+
+  @Override
+  public OutputBuilder<T> builder(T value) {
+    return WindowedValues.<T>builder()
+        .setReceiver(windowedValue -> records.add(windowedValue.getValue()));
+  }
+
+  public List<T> getOutputs() {
+    return records;
+  }
 }
