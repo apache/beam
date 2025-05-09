@@ -612,7 +612,7 @@ class AnomalyDetection(beam.PTransform[beam.PCollection[KeyedInputT
     if isinstance(input.element_type, TupleConstraint):
       keyed_input = input
     else:
-      # add a None key if the input is unkeyed.
+      # Add a None key if the input is unkeyed.
       keyed_input = input | beam.WithKeys(None)
 
     add_temp_key_fn: Callable[[KeyedInputT], NestedKeyedInputT]
@@ -622,7 +622,8 @@ class AnomalyDetection(beam.PTransform[beam.PCollection[KeyedInputT
       run_detector = RunEnsembleDetector(self._root_detector)
     else:
       # If there is only one non-ensemble detector, temp key can be the same
-      # because we don't need it to identify each input.
+      # because we don't need it to identify each input during result
+      # aggregation.
       add_temp_key_fn = lambda e: (e[0], ("", e[1]))
       if isinstance(self._root_detector, OfflineDetector):
         run_detector = RunOfflineDetector(self._root_detector)
@@ -634,7 +635,7 @@ class AnomalyDetection(beam.PTransform[beam.PCollection[KeyedInputT
 
     nested_keyed_output = nested_keyed_input | run_detector
 
-    # remove the temporary key and simplify the output.
+    # Remove the temporary key and simplify the output.
     remove_temp_key_fn: Callable[[NestedKeyedOutputT], KeyedOutputT] \
         = lambda e: (e[0], e[1][1])
     keyed_output = nested_keyed_output | "Remove temp key" >> beam.Map(
@@ -643,7 +644,7 @@ class AnomalyDetection(beam.PTransform[beam.PCollection[KeyedInputT
     if isinstance(input.element_type, TupleConstraint):
       ret = keyed_output
     else:
-      # remove the None key if the input is unkeyed.
+      # Remove the None key if the input is unkeyed.
       ret = keyed_output | beam.Values()
 
     return ret
