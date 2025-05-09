@@ -20,8 +20,7 @@
 #    with a previous one. They are stored in a bucket in the Google Cloud Storage.
 #
 import datetime
-import pickle
-from collections import defaultdict
+import json
 from google.cloud import pubsub_v1, storage
 
 # Resource types
@@ -29,17 +28,9 @@ PUBSUB_TOPIC_RESOURCE = "pubsub_topic"
 
 # Storage constants
 STORAGE_PREFIX = "stale_cleaner/"
-WORKING_SUFFIX = "-working"
-DELETED_SUFFIX = "-deleted"
-
-# File paths
-WORKING_RESOURCES_TEMP_FILE = "/tmp/working_resources.bin"
-LAST_WORKING_RESOURCES_TEMP_FILE = "/tmp/last_working_resources.bin"
-DELETED_RESOURCES_TEMP_FILE = "/tmp/deleted_resources.bin"
-LAST_DELETED_RESOURCES_TEMP_FILE = "/tmp/last_deleted_resources.bin"
 
 # Project constants
-PROJECT_PATH_PREFIX = "projects/"
+PROJECT_PATH_PREFIX = "projects/" # Prefix for the project path in GCP *This is not the project id*
 
 # Time constants (in seconds)
 DEFAULT_PUBSUB_TOPIC_THRESHOLD = 86400  # 1 day
@@ -54,205 +45,224 @@ class GoogleCloudResource:
     GoogleCloudResource is a class used to store the GCP resource information of name and type
     including the creation date and last check date.
     """
-    def __init__(self, resource_name, resource_type, creation_date=None, last_update_date=None, clock=None) -> None:
+    def __init__(self, resource_name: str, creation_date: datetime.datetime = None,
+                    last_update_date: datetime.datetime = None, clock: datetime.datetime = None) -> None:
         self.resource_name = resource_name
-        self.resource_type = resource_type
         clock = clock or datetime.datetime.now() # Get current time or use another one for testing
         self.creation_date = creation_date or clock # Date of first appearance of the resource
-        self.last_update = creation_date or clock # Date of last existence check
+        self.last_update_date = last_update_date or clock # Date of last existence check
 
     def __str__(self) -> str:
         return f"{self.resource_name}"
 
-    def update(self, clock=None) -> None:
+    def to_dict(self) -> dict:
+        """
+        Convert the resource to a dictionary.
+        """
+        return {
+            "resource_name": self.resource_name,
+            "creation_date": self.creation_date.isoformat(),
+            "last_update_date": self.last_update_date.isoformat()
+        }
+
+    def update(self, clock: datetime.datetime = None) -> None:
         self.last_update_date = datetime.datetime.now() if clock is None else clock
 
-    def time_alive(self) -> datetime.timedelta:
-        return datetime.datetime.now() - self.creation_date
+    def time_alive(self, clock: datetime.datetime = None) -> int:
+        """
+        Get the time since the resource was created (in seconds).
+        """
+        clock = clock or datetime.datetime.now()
+        return (clock - self.creation_date).total_seconds()
 
 class StaleCleaner:
     """
     StaleCleaner is a class that is used to detect stale resources in the Google Cloud Platform.
     It is used to detect resources that are no longer needed and delete them.
 
-    The update process goes through the following steps:
+    Methods:
 
-    1. Get the resources that exist right now
-    2. Get the resources that were working the last time this script was run
-    3. Get the resources that were already deleted the last time this script was run
-    4. Go through the working resource list comparing the working list with the new list
-        5. If no longer exists, add it to the deleted dictionary
-        6. If it exists, update the last update date
-        7. If the resource did not existed before, add it to the working dictionary
-    8. Delete the resources that are no longer alive (Not implemented yet)
-    9. Add all the new resources to the working dictionary
-    10. Save the working and deleted resources to the google bucket
+    refresh():
+        Load all data with the current datetime
+
+    stale_resources():
+        Dict of _stale_ resources that should be deleted
+
+    fresh_resources():
+        Dict of resources that are NOT stale
+
+    def delete_stale(dry_run=True):
+        Delete all stale resources (dry_run by default)
     """
 
     # Create a new StaleCleaner object
-    def __init__(self, project_id, bucket_name, prefixes=None, time_threshold=DEFAULT_TIME_THRESHOLD) -> None:
+    def __init__(self, project_id: str, resource_type: str, bucket_name: str,
+                    prefixes: list = None, time_threshold: int = DEFAULT_TIME_THRESHOLD) -> None:
         self.project_id = project_id
         self.project_path = f"{PROJECT_PATH_PREFIX}{project_id}"
+        self.resource_type = resource_type
         self.bucket_name = bucket_name
         self.prefixes = prefixes or []
         self.time_threshold = time_threshold
 
-    # Dictionary of resources that exists right now, this needs to be created for each resource type
-    def get_now_resources(self) -> defaultdict:
+    def __delete_resource(self, resource_name: str) -> None:
+        """
+        Different for each resource type. Delete the resource from GCP.
+        """
         pass
 
-    # Get working dictionary of resources from google bucket
-    def get_working_resources(self) -> defaultdict:
+    def __active_resources(self, clock: datetime.datetime = None) -> dict:
+        """
+        Different for each resource type. Get the active resources from GCP as a dictionary.
+        The dictionary is a dict of GoogleCloudResource objects.
+        The key is the resource name and the value is the GoogleCloudResource object.
+        The clock is for testing purposes. It gives the resources a specific creation date.
+        """
+        pass
+
+    def __write_resources(self, resources: dict) -> None:
+        """
+        Write existing resources to the google bucket.
+        """
         storage_client = storage.Client()
         bucket = storage_client.bucket(self.bucket_name)
-        blobs = bucket.list_blobs(prefix=STORAGE_PREFIX)
+        blob = bucket.blob(f"{STORAGE_PREFIX}{self.resource_type}.json")
 
-        working_filtered_blobs = [blob for blob in blobs if f"{self.resource_type}{WORKING_SUFFIX}" in blob.name]
-        if working_filtered_blobs:
-            last_working_blob = max(working_filtered_blobs, key=lambda b: b.time_created)
-        else :
-            last_working_blob = None
+        resource_dict = {k: v.to_dict() for k, v in resources.items()}
+        blob_json = json.dumps(resource_dict, indent=4)
 
-        # Get the resource dictionary from the blob, if it exists, else create an empty dictionary
-        if last_working_blob is not None:
-            # Download the last resources from the blob
-            last_working_blob.download_to_filename(LAST_WORKING_RESOURCES_TEMP_FILE)
-            with open(LAST_WORKING_RESOURCES_TEMP_FILE, "rb") as f:
-                # Load the last resources from the blob
-                working_resource_dict = pickle.load(f)
-        else:
-            working_resource_dict = defaultdict(GoogleCloudResource)
+        blob.upload_from_string(blob_json, content_type="application/json")
+        print(f"Resources written to {self.bucket_name}/{STORAGE_PREFIX}{self.resource_type}.json")
 
-        return working_resource_dict
-
-    # Get deleted resources from google bucket
-    def get_deleted_resources(self) -> defaultdict:
+    def __stored_resources(self) -> dict:
+        """
+        Get the stored resources from the google bucket.
+        """
         storage_client = storage.Client()
         bucket = storage_client.bucket(self.bucket_name)
-        blobs = bucket.list_blobs(prefix=STORAGE_PREFIX)
+        blob = bucket.blob(f"{STORAGE_PREFIX}{self.resource_type}.json")
 
-        # Get the deleted resources dictionary from the blob, if it exists, else create an empty dictionary
-        deleted_filtered_blobs = [blob for blob in blobs if f"{self.resource_type}{DELETED_SUFFIX}" in blob.name]
-        if deleted_filtered_blobs:
-            last_deleted_blob = max(deleted_filtered_blobs, key=lambda b: b.time_created)
-        else:
-            last_deleted_blob = None
+        if not blob.exists():
+            print(f"Blob {self.bucket_name}/{STORAGE_PREFIX}{self.resource_type}.json does not exist.")
+            return {}
 
-        # Get the resource dictionary from the blob, if it exists, else create an empty dictionary
-        if last_deleted_blob is not None:
-            # Download the last resources from the blob
-            last_deleted_blob.download_to_filename(LAST_DELETED_RESOURCES_TEMP_FILE)
-            with open(LAST_DELETED_RESOURCES_TEMP_FILE, "rb") as f:
-                # Load the last resources from the blob
-                deleted_resource_dict = pickle.load(f)
-        else:
-            deleted_resource_dict = defaultdict(GoogleCloudResource)
+        blob_string = blob.download_as_text()
+        blob_dict = json.loads(blob_string)
 
-        return deleted_resource_dict
+        # Convert the dictionary to a dict of GoogleCloudResource objects
+        resources = {}
+        for k, v in blob_dict.items():
+            resources[k] = GoogleCloudResource(
+                resource_name=v["resource_name"],
+                creation_date=datetime.datetime.fromisoformat(v["creation_date"]),
+                last_update_date=datetime.datetime.fromisoformat(v["last_update_date"])
+            )
+        return resources
 
-    # Get the resources that are older than the threshold (in seconds)
-    def get_old_resources(self) -> defaultdict:
-        # Traverse the working resources and get the ones that are older than the threshold
-        working_resource_dict = self.get_working_resources()
-        old_resource_dict = defaultdict(GoogleCloudResource)
+    def refresh(self, clock: datetime.datetime = None) -> None:
+        """
+        Refresh the resources time and save them to the google bucket.
+        The process goes through the following steps:
+            1. Get the resources that exist in the GCP
+            2. Get the resources that were working the last time this script was run
+            3. Delete from the stored resources the ones that are no longer alive
+            4. Add the new resources to the working dictionary
+            5. Save the working resources to the google bucket
+        """
+        clock = clock or datetime.datetime.now()
+        stored_resources = self.__stored_resources()
+        active_resources = self.__active_resources(clock=clock)
 
-        time_threshold_delta = datetime.timedelta(seconds=self.time_threshold)
-        for resource_name, resource_obj in working_resource_dict.items():
-            if resource_obj.time_alive() > time_threshold_delta:
-                old_resource_dict[resource_name] = resource_obj
-
-        return old_resource_dict
-
-    # Set the working dictionary of resources in the google bucket
-    def set_working_resources(self, working_resource_dict) -> None:
-        storage_client = storage.Client()
-        bucket = storage_client.bucket(self.bucket_name)
-
-        with open(WORKING_RESOURCES_TEMP_FILE, "wb") as f:
-            pickle.dump(working_resource_dict, f)
-        blob = bucket.blob(f"{STORAGE_PREFIX}{self.resource_type}{WORKING_SUFFIX}")
-        blob.upload_from_filename(WORKING_RESOURCES_TEMP_FILE)
-
-    # Set the deleted dictionary of resources in the google bucket
-    def set_deleted_resources(self, deleted_resource_dict) -> None:
-        storage_client = storage.Client()
-        bucket = storage_client.bucket(self.bucket_name)
-
-        with open(DELETED_RESOURCES_TEMP_FILE, "wb") as f:
-            pickle.dump(deleted_resource_dict, f)
-        blob = bucket.blob(f"{STORAGE_PREFIX}{self.resource_type}{DELETED_SUFFIX}")
-        blob.upload_from_filename(DELETED_RESOURCES_TEMP_FILE)
-
-    # Save the new project state
-    def update(self) -> None:
-        # Get working resource list
-        now_resources_dict = self.get_now_resources()
-        working_resource_dict = self.get_working_resources()
-        deleted_resource_dict = self.get_deleted_resources()
-
-        working_resources_to_delete = []
-
-        # Go through the working resource list comparing the working list with the new list
-        for resource_name, resource_obj in working_resource_dict.items():
-            # If no longer exists, add it to the deleted dictionary
-            if resource_name not in now_resources_dict:
-                deleted_resource_dict[resource_name] = resource_obj
-                working_resources_to_delete.append(resource_name)
-            # If it exists, update the last update date
+        for k, v in list(stored_resources.items()):
+            if k not in active_resources:
+                print(f"Resource {k} is no longer alive. Deleting it from the stored resources.")
+                del stored_resources[k]
             else:
-                working_resource_dict[resource_name].update()
-                now_resources_dict.pop(resource_name)
+                stored_resources[k].update(clock=clock)
 
-        # Delete the resources that are no longer alive
-        for resource_name in working_resources_to_delete:
-            working_resource_dict.pop(resource_name)
+        for k, v in active_resources.items():
+            if k not in stored_resources:
+                stored_resources[k] = v
 
-        # Add all the new resources to the working dictionary
-        for resource_name, resource_obj in now_resources_dict.items():
-            working_resource_dict[resource_name] = resource_obj
+        self.__write_resources(stored_resources)
 
-        # Save the working and deleted resources
-        self.set_working_resources(working_resource_dict)
-        self.set_deleted_resources(deleted_resource_dict)
+    def stale_resources(self, clock: datetime.datetime = None) -> dict:
+        """
+        Get the stale resources that should be deleted.
+        The process goes through the following steps:
+            1. Get the stored resources
+            2. Compare the time since the creation date of the resource with the time threshold
+            3. If the time since the creation date is greater than the time threshold, add it to the stale resources
+        """
+        clock = clock or datetime.datetime.now()
+        stored_resources = self.__stored_resources()
+        stale_resources = {}
 
-# Create a new PubSub topic cleaner
+        for k, v in stored_resources.items():
+            if v.time_alive(clock=clock) > self.time_threshold:
+                stale_resources[k] = v
+
+        return stale_resources
+
+    def fresh_resources(self, clock: datetime.datetime = None) -> dict:
+        """
+        Get the fresh resources that are not stale.
+        The process goes through the following steps:
+            1. Get the stored resources
+            2. Compare the time since the creation date of the resource with the time threshold
+            3. If the time since the creation date is less than the time threshold, add it to the fresh resources
+        """
+        clock = clock or datetime.datetime.now()
+        stored_resources = self.__stored_resources()
+        fresh_resources = {}
+
+        for k, v in stored_resources.items():
+            if v.time_alive(clock=clock) <= self.time_threshold:
+                fresh_resources[k] = v
+
+        return fresh_resources
+
+    def delete_stale(self, clock: datetime.datetime = None, dry_run: bool = True) -> None:
+        """
+        Delete the stale resources.
+        The process goes through the following steps:
+            1. Get the stale resources
+            2. Check if they still exist in GCP
+            3. If they exist, delete them
+            4. If dry_run is True, do not delete them, just print the names
+        """
+        clock = clock or datetime.datetime.now()
+        stale_resources = self.stale_resources(clock=clock)
+
+        for k, v in stale_resources.items():
+            if v.time_alive(clock=clock) > self.time_threshold:
+                print(f"Resource {k} is stale and should be deleted.")
+                if not dry_run:
+                    self.__delete_resource(k)
+                else:
+                    print(f"Resource {k} would be deleted.")
+
+# PubSub topic cleaner
 class PubSubTopicCleaner(StaleCleaner):
-    def __init__(self, project_id, bucket_name, prefixes=None, time_threshold=DEFAULT_PUBSUB_TOPIC_THRESHOLD) -> None:
-        super().__init__(project_id, bucket_name, prefixes, time_threshold)
+    def __init__(self, project_id: str, bucket_name: str,
+                    prefixes: list = None, time_threshold: int = DEFAULT_PUBSUB_TOPIC_THRESHOLD) -> None:
+        super().__init__(project_id, PUBSUB_TOPIC_RESOURCE, bucket_name, prefixes, time_threshold)
         self.client = pubsub_v1.PublisherClient()
-        self.resource_type = PUBSUB_TOPIC_RESOURCE
 
-    def get_now_resources(self) -> defaultdict:
-        d = defaultdict(GoogleCloudResource)
+    def __active_resources(self, clock: datetime.datetime = None) -> dict:
+        d = {}
         for topic in self.client.list_topics(request={"project": self.project_path}):
             # Only include topics that match any of the specified prefixes
             topic_name = topic.name.split('/')[-1]
             if not self.prefixes or any(topic_name.startswith(prefix) for prefix in self.prefixes):
-                d[topic.name] = GoogleCloudResource(topic.name, self.resource_type)
+                # We asume the topic is created now
+                d[topic.name] = GoogleCloudResource(
+                    resource_name=topic.name,
+                    clock=clock
+                )
         return d
 
-# Local testing
-if __name__ == "__main__":
-    cleaner = PubSubTopicCleaner(DEFAULT_PROJECT_ID, DEFAULT_BUCKET_NAME)
-    cleaner.update()
-
-    print("Resources that exist right now")
-    d = cleaner.get_now_resources()
-    for k, v in d.items():
-        print(f"{k} -> {v.time_alive()}")
-
-    print("Resources that were working the last time this script was run")
-    d = cleaner.get_working_resources()
-    for k, v in d.items():
-        print(f"{k} -> {v.time_alive()}")
-
-    print("Resources that were already deleted the last time this script was run")
-    d = cleaner.get_deleted_resources()
-    for k, v in d.items():
-        print(f"{k} -> {v.time_alive()}")
-
-    print(f"Resources that are older than {cleaner.time_threshold} seconds")
-    d = cleaner.get_old_resources()
-    for k, v in d.items():
-        print(f"{k} -> {v.time_alive()}")
-
+    def __delete_resource(self, resource_name: str) -> None:
+        topic_name = resource_name.split('/')[-1]
+        print(f"Deleting PubSub topic {topic_name}")
+        self.client.delete_topic(name=resource_name)
