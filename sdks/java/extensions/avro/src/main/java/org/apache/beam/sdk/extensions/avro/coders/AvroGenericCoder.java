@@ -27,7 +27,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBui
 /** AvroCoder specialisation for GenericRecord, needed for cross-language transforms. */
 public class AvroGenericCoder extends AvroCoder<GenericRecord> {
   private static final Cache<Schema, AvroGenericCoder> AVRO_GENERIC_CODER_CACHE =
-      CacheBuilder.newBuilder().build();
+      CacheBuilder.newBuilder().weakValues().build();
 
   AvroGenericCoder(Schema schema) {
     super(AvroDatumFactory.GenericDatumFactory.INSTANCE, schema);
