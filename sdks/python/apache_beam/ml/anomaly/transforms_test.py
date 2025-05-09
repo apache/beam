@@ -179,44 +179,39 @@ class TestAnomalyDetection(unittest.TestCase):
 
     keyed_zscore_x1_expected = [
         (input[0], AnomalyResult(example=input[1], predictions=[decision]))
-        for input,
-        decision in zip(keyed_input, zscore_x1_expected_predictions)
+        for input, decision in zip(keyed_input, zscore_x1_expected_predictions)
     ]
 
     unkeyed_zscore_x1_expected = [
-        AnomalyResult(example=input, predictions=[decision]) for input,
-        decision in zip(unkeyed_input, zscore_x1_expected_predictions)
+        AnomalyResult(example=input, predictions=[decision])
+        for input, decision in zip(
+            unkeyed_input, zscore_x1_expected_predictions)
     ]
 
     keyed_ensemble_expected = [(
         input[0],
         AnomalyResult(example=input[1], predictions=[decision1, decision2]))
-                               for input,
-                               decision1,
-                               decision2 in zip(
-                                   keyed_input,
-                                   zscore_x1_expected_predictions,
+                               for input, decision1, decision2 in zip(
+                                   keyed_input, zscore_x1_expected_predictions,
                                    zscore_x2_expected_predictions)]
 
     unkeyed_ensemble_expected = [
         AnomalyResult(example=input, predictions=[decision1, decision2])
-        for input,
-        decision1,
-        decision2 in zip(
-            unkeyed_input,
-            zscore_x1_expected_predictions,
+        for input, decision1, decision2 in zip(
+            unkeyed_input, zscore_x1_expected_predictions,
             zscore_x2_expected_predictions)
     ]
 
     keyed_ensemble_agg_expected = [
         (input[0], AnomalyResult(example=input[1], predictions=[prediction]))
-        for input,
-        prediction in zip(keyed_input, aggregated_expected_predictions)
+        for input, prediction in zip(
+            keyed_input, aggregated_expected_predictions)
     ]
 
     unkeyed_ensemble_agg_expected = [
-        AnomalyResult(example=input, predictions=[prediction]) for input,
-        prediction in zip(unkeyed_input, aggregated_expected_predictions)
+        AnomalyResult(example=input, predictions=[prediction])
+        for input, prediction in zip(
+            unkeyed_input, aggregated_expected_predictions)
     ]
 
   @parameterized.expand([
@@ -224,12 +219,11 @@ class TestAnomalyDetection(unittest.TestCase):
       (TestData.unkeyed_input, TestData.unkeyed_zscore_x1_expected),
   ])
   def test_one_detector(self, input, expected):
-    is_keyed = True if isinstance(input[0], tuple) else False
     detector = ZScore(features=["x1"], model_id="zscore_x1")
     with TestPipeline() as p:
       result = (p | beam.Create(input) | AnomalyDetection(detector))
 
-      if is_keyed:
+      if isinstance(input[0], tuple):
         assert_that(result, equal_to(expected, _keyed_result_is_equal_to))
       else:
         assert_that(result, equal_to(expected, _unkeyed_result_is_equal_to))
@@ -239,7 +233,6 @@ class TestAnomalyDetection(unittest.TestCase):
       (TestData.unkeyed_input, TestData.unkeyed_ensemble_expected),
   ])
   def test_multiple_detectors_without_aggregation(self, input, expected):
-    is_keyed = True if isinstance(input[0], tuple) else False
     sub_detectors = []
     sub_detectors.append(ZScore(features=["x1"], model_id="zscore_x1"))
     sub_detectors.append(
@@ -253,7 +246,7 @@ class TestAnomalyDetection(unittest.TestCase):
           p | beam.Create(input)
           | AnomalyDetection(EnsembleAnomalyDetector(sub_detectors)))
 
-      if is_keyed:
+      if isinstance(input[0], tuple):
         assert_that(result, equal_to(expected, _keyed_result_is_equal_to))
       else:
         assert_that(result, equal_to(expected, _unkeyed_result_is_equal_to))
@@ -263,7 +256,6 @@ class TestAnomalyDetection(unittest.TestCase):
       (TestData.unkeyed_input, TestData.unkeyed_ensemble_agg_expected),
   ])
   def test_multiple_sub_detectors_with_aggregation(self, input, expected):
-    is_keyed = True if isinstance(input[0], tuple) else False
     sub_detectors = []
     sub_detectors.append(ZScore(features=["x1"], model_id="zscore_x1"))
     sub_detectors.append(
@@ -279,7 +271,7 @@ class TestAnomalyDetection(unittest.TestCase):
               EnsembleAnomalyDetector(
                   sub_detectors, aggregation_strategy=AnyVote())))
 
-      if is_keyed:
+      if isinstance(input[0], tuple):
         assert_that(result, equal_to(expected, _keyed_result_is_equal_to))
       else:
         assert_that(result, equal_to(expected, _unkeyed_result_is_equal_to))
@@ -333,13 +325,12 @@ class TestOfflineDetector(unittest.TestCase):
 
     keyed_expected = [
         (input[0], AnomalyResult(example=input[1], predictions=[prediction]))
-        for input,
-        prediction in zip(keyed_input, expected_predictions)
+        for input, prediction in zip(keyed_input, expected_predictions)
     ]
 
     unkeyed_expected = [
-        AnomalyResult(example=input, predictions=[prediction]) for input,
-        prediction in zip(unkeyed_input, expected_predictions)
+        AnomalyResult(example=input, predictions=[prediction])
+        for input, prediction in zip(unkeyed_input, expected_predictions)
     ]
 
   def setUp(self):
@@ -365,7 +356,6 @@ class TestOfflineDetector(unittest.TestCase):
       (TestData.unkeyed_input, TestData.unkeyed_expected),
   ])
   def test_default_inference_fn(self, input, expected):
-    is_keyed = True if isinstance(input[0], tuple) else False
     temp_file_name = self.tmpdir + os.sep + 'pickled_file'
     with open(temp_file_name, 'wb') as file:
       pickle.dump(FakeNumpyModel(), file)
@@ -415,7 +405,7 @@ class TestOfflineDetector(unittest.TestCase):
     with TestPipeline() as p:
       result = (p | beam.Create(input) | AnomalyDetection(detector_new))
 
-      if is_keyed:
+      if isinstance(input[0], tuple):
         assert_that(result, equal_to(expected, _keyed_result_is_equal_to))
       else:
         assert_that(result, equal_to(expected, _unkeyed_result_is_equal_to))

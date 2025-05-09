@@ -22,6 +22,7 @@ from collections.abc import Iterable
 from typing import Any
 from typing import Optional
 from typing import TypeVar
+from typing import Union
 
 import apache_beam as beam
 from apache_beam.coders import DillCoder
@@ -555,9 +556,10 @@ class RunEnsembleDetector(beam.PTransform[beam.PCollection[NestedKeyedInputT],
     return ret
 
 
-class AnomalyDetection(beam.PTransform[beam.PCollection[KeyedInputT
-                                                        | NestedKeyedInputT],
-                                       beam.PCollection[KeyedOutputT]]):
+class AnomalyDetection(beam.PTransform[beam.PCollection[Union[InputT,
+                                                              KeyedInputT]],
+                                       beam.PCollection[Union[OutputT,
+                                                              KeyedOutputT]]]):
   """Performs anomaly detection on a PCollection of data.
 
   This PTransform applies an `AnomalyDetector` or `EnsembleAnomalyDetector` to
@@ -584,8 +586,8 @@ class AnomalyDetection(beam.PTransform[beam.PCollection[KeyedInputT
 
   def expand(
       self,
-      input: beam.PCollection[InputT | KeyedInputT],
-  ) -> beam.PCollection[OutputT | KeyedOutputT]:
+      input: beam.PCollection[Union[InputT, KeyedInputT]],
+  ) -> beam.PCollection[Union[OutputT, KeyedOutputT]]:
 
     # Add a temporary unique key per data point to facilitate grouping the
     # outputs from multiple anomaly detectors for the same data point.
