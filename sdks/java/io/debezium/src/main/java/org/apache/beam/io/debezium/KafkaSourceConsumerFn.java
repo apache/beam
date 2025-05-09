@@ -22,9 +22,9 @@ import static org.apache.beam.io.debezium.KafkaConnectUtils.debeziumRecordInstan
 import io.debezium.document.Document;
 import io.debezium.document.DocumentReader;
 import io.debezium.document.DocumentWriter;
-import io.debezium.relational.history.AbstractDatabaseHistory;
-import io.debezium.relational.history.DatabaseHistoryException;
+import io.debezium.relational.history.AbstractSchemaHistory;
 import io.debezium.relational.history.HistoryRecord;
+import io.debezium.relational.history.SchemaHistoryException;
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
@@ -474,7 +474,7 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
     }
   }
 
-  public static class DebeziumSDFDatabaseHistory extends AbstractDatabaseHistory {
+  public static class DebeziumSDFDatabaseHistory extends AbstractSchemaHistory {
     private List<byte[]> history;
 
     public DebeziumSDFDatabaseHistory() {
@@ -497,7 +497,7 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
     }
 
     @Override
-    protected void storeRecord(HistoryRecord record) throws DatabaseHistoryException {
+    protected void storeRecord(HistoryRecord record) throws SchemaHistoryException {
       LOG.debug("------------- Adding history! {}", record);
 
       history.add(DocumentWriter.defaultWriter().writeAsBytes(record.document()));
