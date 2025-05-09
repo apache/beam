@@ -671,22 +671,18 @@ BigQueryIO uses Write API in the following situations:
 
 {{< paragraph class="language-java" wrap="span" >}}
 * When you apply a BigQueryIO write transform to an unbounded `PCollection`.
-* When you specify streaming inserts as the insertion method using
+* When you specify Write API as the ingestion method using
   `BigQueryIO.write().withMethod(STORAGE_API_AT_LEAST_ONCE)`.
 {{< /paragraph >}}
 
 {{< paragraph class="language-py" wrap="span" >}}
 * When you apply a BigQueryIO write transform to an unbounded `PCollection`.
-* When you specify streaming inserts as the insertion method using
-  `WriteToBigQuery(method='STREAMING_INSERTS')`.
+* When you specify Write API as the ingestion method using
+  `WriteToBigQuery(method='STORAGE_API_AT_LEAST_ONCE')`.
 {{< /paragraph >}}
 
 {{< paragraph class="language-java" wrap="span">}}
-***Note:*** Streaming inserts by default enables BigQuery [best-effort deduplication mechanism](https://cloud.google.com/bigquery/streaming-data-into-bigquery#dataconsistency).
-You can disable that by setting `ignoreInsertIds`. The [quota limitations](https://cloud.google.com/bigquery/quotas#streaming_inserts)
-are different when deduplication is enabled vs. disabled.
-
-Streaming inserts applies a default sharding for each table destination. You can
+The ingestion applies a default sharding for each table destination. You can
 use `withAutoSharding` (starting 2.28.0 release) to enable dynamic sharding and
 the number of shards may be determined and changed at runtime. The sharding
 behavior depends on the runners.
@@ -694,11 +690,7 @@ behavior depends on the runners.
 {{< /paragraph >}}
 
 {{< paragraph class="language-py" wrap="span">}}
-***Note:*** Streaming inserts by default enables BigQuery [best-effort deduplication mechanism](https://cloud.google.com/bigquery/streaming-data-into-bigquery#disabling_best_effort_de-duplication).
-You can disable that by setting `ignore_insert_ids=True`. The [quota limitations](https://cloud.google.com/bigquery/quotas#streaming_inserts)
-are different when deduplication is enabled vs. disabled.
-
-Streaming inserts applies a default sharding for each table destination. You can
+The ingestion applies a default sharding for each table destination. You can
 set `with_auto_sharding=True` (starting 2.29.0 release) to enable dynamic
 sharding. The number of shards may be determined and changed at runtime. The
 sharding behavior depends on the runners.
