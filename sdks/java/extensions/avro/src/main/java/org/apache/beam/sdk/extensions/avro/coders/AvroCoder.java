@@ -393,9 +393,17 @@ public class AvroCoder<T> extends CustomCoder<T> {
   private final EmptyOnDeserializationThreadLocal<BinaryDecoder> decoder;
   private final EmptyOnDeserializationThreadLocal<BinaryEncoder> encoder;
 
-  // reader and writer are initialized in the constructor and on deserialization.
-  private transient DatumWriter<T> writer;
-  private transient DatumReader<T> reader;
+  // writer and reader are unused but kept for serialization update compatibility.
+  @SuppressWarnings("unused")
+  private final EmptyOnDeserializationThreadLocal<DatumWriter<T>> writer = null;
+
+  @SuppressWarnings("unused")
+  private final EmptyOnDeserializationThreadLocal<DatumReader<T>> reader = null;
+
+  // datumReader and datumWriter are initialized in the constructor and
+  // on deserialization (see readObject).
+  private transient DatumWriter<T> datumWriter;
+  private transient DatumReader<T> datumReader;
 
   protected AvroCoder(Class<T> type, Schema schema) {
     this(type, schema, false);
@@ -430,13 +438,13 @@ public class AvroCoder<T> extends CustomCoder<T> {
   }
 
   /** Returns the DatumWriter used for encoding. */
-  public DatumWriter<T> getWriter() {
-    return writer;
+  public DatumWriter<T> getDatumWriter() {
+    return datumWriter;
   }
 
   /** Returns the DatumReader used for decoding. */
-  public DatumReader<T> getReader() {
-    return reader;
+  public DatumReader<T> getDatumReader() {
+    return datumReader;
   }
 
   /**
@@ -455,7 +463,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
     BinaryEncoder encoderInstance = ENCODER_FACTORY.directBinaryEncoder(outStream, encoder.get());
     // Save the potentially-new instance for reuse later.
     encoder.set(encoderInstance);
-    writer.write(value, encoderInstance);
+    datumWriter.write(value, encoderInstance);
     // Direct binary encoder does not buffer any data and need not be flushed.
   }
 
@@ -465,7 +473,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
     BinaryDecoder decoderInstance = DECODER_FACTORY.directBinaryDecoder(inStream, decoder.get());
     // Save the potentially-new instance for later.
     decoder.set(decoderInstance);
-    return reader.read(null, decoderInstance);
+    return datumReader.read(null, decoderInstance);
   }
 
   /**
@@ -884,16 +892,17 @@ public class AvroCoder<T> extends CustomCoder<T> {
                     (AvroCoder<T>) AVRO_CODER_CACHE.getIfPresent(avroCoderCacheKey));
 
     if (cachedCoder.isPresent()) {
-      this.reader = cachedCoder.get().reader;
-      this.writer = cachedCoder.get().writer;
+      this.datumReader = cachedCoder.get().datumReader;
+      this.datumWriter = cachedCoder.get().datumWriter;
     } else {
       initializeAvroDatumReaderAndWriter();
     }
   }
 
   private void initializeAvroDatumReaderAndWriter() {
-    this.reader = this.datumFactory.apply(this.schemaSupplier.get(), this.schemaSupplier.get());
-    this.writer = this.datumFactory.apply(this.schemaSupplier.get());
+    this.datumReader =
+        this.datumFactory.apply(this.schemaSupplier.get(), this.schemaSupplier.get());
+    this.datumWriter = this.datumFactory.apply(this.schemaSupplier.get());
   }
 
   enum AvroCoderType {

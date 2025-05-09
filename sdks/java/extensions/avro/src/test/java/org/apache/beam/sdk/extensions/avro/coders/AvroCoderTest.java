@@ -494,11 +494,11 @@ public class AvroCoderTest {
     AvroCoder<TestAvro> deserializedCoder1 = SerializableUtils.clone(coder);
     AvroCoder<TestAvro> deserializedCoder2 = SerializableUtils.clone(coder);
 
-    assertSame(coder.getReader(), deserializedCoder1.getReader());
-    assertSame(coder.getWriter(), deserializedCoder1.getWriter());
+    assertSame(coder.getDatumReader(), deserializedCoder1.getDatumReader());
+    assertSame(coder.getDatumWriter(), deserializedCoder1.getDatumWriter());
 
-    assertSame(coder.getReader(), deserializedCoder2.getReader());
-    assertSame(coder.getWriter(), deserializedCoder2.getWriter());
+    assertSame(coder.getDatumReader(), deserializedCoder2.getDatumReader());
+    assertSame(coder.getDatumWriter(), deserializedCoder2.getDatumWriter());
   }
 
   @Test
