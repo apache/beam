@@ -614,8 +614,8 @@ class AnomalyDetection(beam.PTransform[beam.PCollection[Union[InputT,
     if isinstance(input.element_type, TupleConstraint):
       keyed_input = input
     else:
-      # Add a None key if the input is unkeyed.
-      keyed_input = input | beam.WithKeys(None)
+      # Add a default key 0 if the input is unkeyed.
+      keyed_input = input | beam.WithKeys(0)
 
     add_temp_key_fn: Callable[[KeyedInputT], NestedKeyedInputT]
     run_detector: beam.PTransform
@@ -646,7 +646,7 @@ class AnomalyDetection(beam.PTransform[beam.PCollection[Union[InputT,
     if isinstance(input.element_type, TupleConstraint):
       ret = keyed_output
     else:
-      # Remove the None key if the input is unkeyed.
+      # Remove the default key if the input is unkeyed.
       ret = keyed_output | beam.Values()
 
     return ret
