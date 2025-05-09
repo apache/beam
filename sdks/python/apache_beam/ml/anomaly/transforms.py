@@ -618,7 +618,7 @@ class AnomalyDetection(beam.PTransform[beam.PCollection[Union[InputT,
       keyed_input = input | beam.WithKeys(None)
 
     add_temp_key_fn: Callable[[KeyedInputT], NestedKeyedInputT]
-
+    run_detector: beam.PTransform
     if isinstance(self._root_detector, EnsembleAnomalyDetector):
       add_temp_key_fn = lambda e: (e[0], (str(uuid.uuid1()), e[1]))
       run_detector = RunEnsembleDetector(self._root_detector)
