@@ -40,7 +40,7 @@ from apache_beam.transforms.userstate import ReadModifyWriteStateSpec
 from apache_beam.typehints.typehints import TupleConstraint
 
 KeyT = TypeVar('KeyT')
-TempKeyT = TypeVar('TempKeyT', bound=int)
+TempKeyT = TypeVar('TempKeyT', bound=str)
 InputT = beam.Row
 OutputT = AnomalyResult
 KeyedInputT = tuple[KeyT, beam.Row]
