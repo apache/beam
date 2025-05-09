@@ -138,9 +138,7 @@ import org.joda.time.format.PeriodFormat;
  * differently.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
-  "keyfor"
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimatorStateT, OutputT> {
   /** A registrar which provides a factory to handle Java {@link DoFn}s. */
