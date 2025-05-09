@@ -667,12 +667,12 @@ You can set `with_auto_sharding=True` to enable dynamic sharding (starting
 The sharding behavior depends on the runners.
 {{< /paragraph >}}
 
-BigQueryIO uses streaming inserts in the following situations:
+BigQueryIO uses Write API in the following situations:
 
 {{< paragraph class="language-java" wrap="span" >}}
 * When you apply a BigQueryIO write transform to an unbounded `PCollection`.
 * When you specify streaming inserts as the insertion method using
-  `BigQueryIO.write().withMethod(STREAMING_INSERTS)`.
+  `BigQueryIO.write().withMethod(STORAGE_API_AT_LEAST_ONCE)`.
 {{< /paragraph >}}
 
 {{< paragraph class="language-py" wrap="span" >}}
