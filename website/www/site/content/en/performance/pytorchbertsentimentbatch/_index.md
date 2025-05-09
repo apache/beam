@@ -1,5 +1,5 @@
 ---
-title: "Pytorch Vision Classification with Resnet 101 Performance"
+title: "PyTorch Language Modeling BERT base Performance"
 ---
 
 <!--
@@ -16,25 +16,25 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Pytorch Vision Classification with Resnet 101 Performance
+# PyTorch Sentiment Analysis Batch DistilBERT base Performance
 
-**Model**: PyTorch Vision Classification — ResNet-101
+**Model**: PyTorch Sentiment Analysis — DistilBERT (base-uncased)
 **Accelerator**: CPU only
-**Host**: 75 × n1-standard-2 (2 vCPUs, 7.5 GB RAM)
+**Host**: 20 × n1-standard-2 (2 vCPUs, 7.5 GB RAM)
 
-The following graphs show various metrics when running Pytorch Vision Classification with Resnet 101 pipeline.
+The following graphs show various metrics when running PyTorch Sentiment Analysis Batch using Hugging Face DistilBERT base uncased model pipeline.
 See the [glossary](/performance/glossary) for definitions.
 
-Full pipeline implementation is available [here](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/pytorch_image_classification.py).
+Full pipeline implementation is available [here](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/pytorch_sentiment_streaming.py).
 
 ## What is the estimated cost to run the pipeline?
 
-{{< performance_looks io="pytorchresnet101" read_or_write="write" section="cost" >}}
+{{< performance_looks io="pytorchbertsentimentbatch" read_or_write="write" section="cost" >}}
 
 ## How has various metrics changed when running the pipeline for different Beam SDK versions?
 
-{{< performance_looks io="pytorchresnet101" read_or_write="write" section="version" >}}
+{{< performance_looks io="pytorchbertsentimentbatch" read_or_write="write" section="version" >}}
 
 ## How has various metrics changed over time when running the pipeline?
 
-{{< performance_looks io="pytorchresnet101" read_or_write="write" section="date" >}}
+{{< performance_looks io="pytorchbertsentimentbatch" read_or_write="write" section="date" >}}
