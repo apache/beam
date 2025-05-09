@@ -51,6 +51,47 @@ def enrichment_with_bigtable():
   # [END enrichment_with_bigtable]
 
 
+def enrichment_with_cloudsql():
+  # [START enrichment_with_cloudsql]
+  import apache_beam as beam
+  from apache_beam.transforms.enrichment import Enrichment
+  from apache_beam.transforms.enrichment_handlers.cloudsql import (
+      CloudSQLEnrichmentHandler, DatabaseTypeAdapter)
+  import os
+
+  database_type_adapter = DatabaseTypeAdapter[os.environ.get("SQL_DB_TYPE")]
+  database_address = os.environ.get("SQL_DB_ADDRESS")
+  database_user = os.environ.get("SQL_DB_USER")
+  database_password = os.environ.get("SQL_DB_PASSWORD")
+  database_id = os.environ.get("SQL_DB_ID")
+  table_id = "products"
+  where_clause_template = "product_id = {}"
+  where_clause_fields = ["product_id"]
+
+  data = [
+      beam.Row(product_id=1, name='A'),
+      beam.Row(product_id=2, name='B'),
+      beam.Row(product_id=3, name='C'),
+  ]
+
+  cloudsql_handler = CloudSQLEnrichmentHandler(
+      database_type_adapter=database_type_adapter,
+      database_address=database_address,
+      database_user=database_user,
+      database_password=database_password,
+      database_id=database_id,
+      table_id=table_id,
+      where_clause_template=where_clause_template,
+      where_clause_fields=where_clause_fields)
+  with beam.Pipeline() as p:
+    _ = (
+        p
+        | "Create" >> beam.Create(data)
+        | "Enrich W/ CloudSQL" >> Enrichment(cloudsql_handler)
+        | "Print" >> beam.Map(print))
+  # [END enrichment_with_cloudsql]
+
+
 def enrichment_with_vertex_ai():
   # [START enrichment_with_vertex_ai]
   import apache_beam as beam
