@@ -104,7 +104,7 @@ UNKNOWN_MIME_TYPE = 'application/octet-stream'
 # Timeout for a BQ streaming insert RPC. Set to a maximum of 2 minutes.
 BQ_STREAMING_INSERT_TIMEOUT_SEC = 120
 
-_PROJECT_PATTERN = r'[a-z][a-z0-9-]*[a-z0-9]'
+_PROJECT_PATTERN = r'([a-z0-9.-]+:)?[a-z][a-z0-9-]*[a-z0-9]'
 _DATASET_PATTERN = r'\w{1,1024}'
 _TABLE_PATTERN = r'[\p{L}\p{M}\p{N}\p{Pc}\p{Pd}\p{Zs}$]{1,1024}'
 
@@ -283,7 +283,7 @@ def parse_table_reference(table, dataset=None, project=None):
     if not match:
       raise ValueError(
           'Expected a table reference (PROJECT:DATASET.TABLE or '
-          'DATASET.TABLE or PROJECT.DATASET.TABLE) instead of %s.' % table)
+          'DATASET.TABLE) instead of %s.' % table)
     table_reference.projectId = match.group('project')
     table_reference.datasetId = match.group('dataset')
     table_reference.tableId = match.group('table')
