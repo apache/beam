@@ -32,7 +32,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.Ge
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GetWorkResponseChunkAssembler.AssembledWorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
-import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemReceiver;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.sdk.util.BackOff;
@@ -53,7 +52,6 @@ final class GrpcGetWorkStream
 
   private final GetWorkRequest request;
   private final WorkItemReceiver receiver;
-  private final ThrottleTimer getWorkThrottleTimer;
   private final Map<Long, GetWorkResponseChunkAssembler> workItemAssemblers;
   private final AtomicLong inflightMessages;
   private final AtomicLong inflightBytes;
@@ -71,7 +69,6 @@ final class GrpcGetWorkStream
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
       int logEveryNStreamFailures,
       boolean requestBatchedGetWorkResponse,
-      ThrottleTimer getWorkThrottleTimer,
       WorkItemReceiver receiver) {
     super(
         LOG,
@@ -83,7 +80,6 @@ final class GrpcGetWorkStream
         logEveryNStreamFailures,
         backendWorkerToken);
     this.request = request;
-    this.getWorkThrottleTimer = getWorkThrottleTimer;
     this.receiver = receiver;
     this.workItemAssemblers = new ConcurrentHashMap<>();
     this.inflightMessages = new AtomicLong();
@@ -103,7 +99,6 @@ final class GrpcGetWorkStream
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
       int logEveryNStreamFailures,
       boolean requestBatchedGetWorkResponse,
-      ThrottleTimer getWorkThrottleTimer,
       WorkItemReceiver receiver) {
     return new GrpcGetWorkStream(
         backendWorkerToken,
@@ -114,7 +109,6 @@ final class GrpcGetWorkStream
         streamRegistry,
         logEveryNStreamFailures,
         requestBatchedGetWorkResponse,
-        getWorkThrottleTimer,
         receiver);
   }
 
@@ -172,7 +166,6 @@ final class GrpcGetWorkStream
 
   @Override
   protected void onResponse(StreamingGetWorkResponseChunk chunk) {
-    getWorkThrottleTimer.stop();
     workItemAssemblers
         .computeIfAbsent(chunk.getStreamId(), unused -> new GetWorkResponseChunkAssembler())
         .append(chunk)
@@ -202,11 +195,6 @@ final class GrpcGetWorkStream
       inflightBytes.getAndAdd(moreBytes);
       sendRequestExtension(moreItems, moreBytes);
     }
-  }
-
-  @Override
-  protected void startThrottleTimer() {
-    getWorkThrottleTimer.start();
   }
 
   @Override

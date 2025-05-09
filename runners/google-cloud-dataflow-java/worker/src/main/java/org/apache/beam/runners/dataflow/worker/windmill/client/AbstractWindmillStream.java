@@ -146,13 +146,6 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   /** Returns whether there are any pending requests that should be retried on a stream break. */
   protected abstract boolean hasPendingRequests();
 
-  /**
-   * Called when the client side stream is throttled due to resource exhausted errors. Will be
-   * called for each resource exhausted error not just the first. onResponse() must stop throttling
-   * on receipt of the first good message.
-   */
-  protected abstract void startThrottleTimer();
-
   /** Try to send a request to the server. Returns true if the request was successfully sent. */
   @CanIgnoreReturnValue
   protected final synchronized boolean trySend(RequestT request)
@@ -397,11 +390,6 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
 
       Status errorStatus = Status.fromThrowable(t);
       recordStreamStatus(errorStatus);
-
-      // If the stream was stopped due to a resource exhausted error then we are throttled.
-      if (errorStatus.getCode() == Status.Code.RESOURCE_EXHAUSTED) {
-        startThrottleTimer();
-      }
 
       try {
         long sleep = backoff.nextBackOffMillis();
