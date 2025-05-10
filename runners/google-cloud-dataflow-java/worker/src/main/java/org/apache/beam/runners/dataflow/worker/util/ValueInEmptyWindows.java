@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.Objects;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.ElementMetadata;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -39,14 +40,25 @@ import org.joda.time.Instant;
  */
 public class ValueInEmptyWindows<T> extends WindowedValue<T> {
   private final T value;
+  private final @Nullable ElementMetadata elementMetadata;
 
   public ValueInEmptyWindows(T value) {
+    this(value, null);
+  }
+
+  public ValueInEmptyWindows(T value, @Nullable ElementMetadata elementMetadata) {
     this.value = value;
+    this.elementMetadata = elementMetadata;
   }
 
   @Override
   public PaneInfo getPane() {
     return PaneInfo.NO_FIRING;
+  }
+
+  @Override
+  public @Nullable ElementMetadata getElementMetadata() {
+    return elementMetadata;
   }
 
   @Override
@@ -57,6 +69,11 @@ public class ValueInEmptyWindows<T> extends WindowedValue<T> {
   @Override
   public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
     return new ValueInEmptyWindows<>(newValue);
+  }
+
+  @Override
+  public WindowedValue<T> withElementMetadata(@Nullable ElementMetadata elementMetadata) {
+    return new ValueInEmptyWindows<>(this.getValue(), elementMetadata);
   }
 
   @Override
