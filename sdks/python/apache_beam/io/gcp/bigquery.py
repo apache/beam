@@ -2744,7 +2744,8 @@ class ReadFromBigQuery(PTransform):
       :data:`True` for most scenarios in order to catch errors as early as
       possible (pipeline construction instead of pipeline execution). It
       should be :data:`False` if the table is created during pipeline
-      execution by a previous step.
+      execution by a previous step. Set this to :data:`False`
+      if the BigQuery export method is slow due to checking file existence.
     coder (~apache_beam.coders.coders.Coder): The coder for the table
       rows. If :data:`None`, then the default coder is
       _JsonToDictCoder, which will interpret every row as a JSON
@@ -3033,7 +3034,8 @@ class ReadAllFromBigQuery(PTransform):
       bucket where the extracted table should be written as a string. If
       :data:`None`, then the temp_location parameter is used.
     validate (bool): If :data:`True`, various checks will be done when source
-      gets initialized (e.g., is table present?).
+      gets initialized (e.g., is table present?). Set this to :data:`False`
+      if the BigQuery export method is slow due to checking file existence.
     kms_key (str): Experimental. Optional Cloud KMS key name for use when
       creating new temporary tables.
    """
