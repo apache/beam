@@ -1,10 +1,10 @@
 {
   "commentedAboutFailingChecks": false,
   "reviewersAssignedForLabels": {
-    "go": "shunping"
+    "go": "jrmccluskey"
   },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
-  "committerAssigned": false
+  "committerAssigned": true
 }
