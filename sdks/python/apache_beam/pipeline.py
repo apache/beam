@@ -17,11 +17,10 @@
 
 """Pipeline, the top-level Beam object.
 
-A pipeline holds a DAG of data transforms. Conceptually the nodes of the DAG
-are transforms (:class:`~apache_beam.transforms.ptransform.PTransform` objects)
-and the edges are values (mostly :class:`~apache_beam.pvalue.PCollection`
-objects). The transforms take as inputs one or more PValues and output one or
-more :class:`~apache_beam.pvalue.PValue` s.
+A pipeline holds a DAG of PValues and their transforms. Conceptually the 
+:class:`~apache_beam.pvalue.PValue` s are the DAG's nodes and 
+the :class:`~apache_beam.transforms.ptransform.PTransform` s computing 
+the :class:`~apache_beam.pvalue.PValue` s are the edges.
 
 The pipeline offers functionality to traverse the graph.  The actual operation
 to be executed for each node visited is specified through a runner object.
