@@ -43,6 +43,15 @@ func TestGCS_FilesystemNew(t *testing.T) {
 }
 
 func TestGCS_direct(t *testing.T) {
+	testGCS_direct(t)
+}
+
+func TestGCS_directSettingBillingProjectID(t *testing.T) {
+	t.Setenv("BILLING_PROJECT_ID", "projectfake")
+	testGCS_direct(t)
+}
+
+func testGCS_direct(t *testing.T) {
 	ctx := context.Background()
 	dirPath := "gs://beamgogcsfilesystemtest"
 	filePath := dirPath + "/file.txt"
