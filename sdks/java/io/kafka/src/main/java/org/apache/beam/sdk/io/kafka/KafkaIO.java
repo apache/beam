@@ -72,6 +72,7 @@ import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.schemas.transforms.Convert;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.Impulse;
@@ -1843,11 +1844,37 @@ public class KafkaIO {
                       kafkaRead.getStartReadTime(),
                       kafkaRead.getStopReadTime()));
         } else {
-          output =
+          // Use Impulse for backwards compatibility with previous released versions.
+          String requestedVersionString =
               input
                   .getPipeline()
-                  .apply(Impulse.create())
-                  .apply(ParDo.of(new GenerateKafkaSourceDescriptor(kafkaRead)));
+                  .getOptions()
+                  .as(StreamingOptions.class)
+                  .getUpdateCompatibilityVersion();
+          boolean useImpulse = false;
+          if (requestedVersionString != null) {
+            List<String> requestedVersion = Arrays.asList(requestedVersionString.split("\\."));
+            List<String> targetVersion = Arrays.asList("2", "66", "0");
+
+            if (Comparators.lexicographical(Comparator.<String>naturalOrder())
+                    .compare(requestedVersion, targetVersion)
+                < 0) {
+              useImpulse = true;
+            }
+          }
+          if (useImpulse) {
+            output =
+                input
+                    .getPipeline()
+                    .apply(Impulse.create())
+                    .apply(ParDo.of(new GenerateKafkaSourceDescriptor(kafkaRead)));
+          } else {
+            output =
+                input
+                    .getPipeline()
+                    .apply(Create.of(new byte[0]).withCoder(ByteArrayCoder.of()))
+                    .apply(ParDo.of(new GenerateKafkaSourceDescriptor(kafkaRead)));
+          }
         }
         if (kafkaRead.isRedistributed()) {
           PCollection<KafkaRecord<K, V>> pcol =
