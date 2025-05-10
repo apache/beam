@@ -60,12 +60,14 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.NameUtils;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.sdk.util.construction.ParDoTranslation.ParDoLike;
 import org.apache.beam.sdk.util.construction.ParDoTranslation.ParDoLikeTimerFamilySpecs;
 import org.apache.beam.sdk.util.construction.ReadTranslation.BoundedReadPayloadTranslator;
 import org.apache.beam.sdk.util.construction.ReadTranslation.UnboundedReadPayloadTranslator;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.OutputBuilder;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -662,13 +664,10 @@ public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorSt
                     DoFn<InputT, RestrictionT> doFn) {
                   return new OutputReceiver<RestrictionT>() {
                     @Override
-                    public void output(RestrictionT part) {
-                      c.output(KV.of(c.element().getKey(), part));
-                    }
-
-                    @Override
-                    public void outputWithTimestamp(RestrictionT part, Instant timestamp) {
-                      throw new UnsupportedOperationException();
+                    public OutputBuilder<RestrictionT> builder() {
+                      return WindowedValue.builder(
+                          outputBuilder ->
+                              c.output(KV.of(c.element().getKey(), outputBuilder.getValue())));
                     }
                   };
                 }
