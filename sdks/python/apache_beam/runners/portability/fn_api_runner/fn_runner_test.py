@@ -318,12 +318,27 @@ class FnApiRunnerTest(unittest.TestCase):
           | beam.WindowInto(window.SlidingWindows(size=5, period=3))
           | beam.ParDo(PerWindowDoFn()))
 
-      assert_that(res, equal_to([               0*-3, 1*-3, # [-3, 2)
-                                 0*0, 1*0, 2*0, 3* 0, 4* 0, # [ 0, 5)
-                                 3*3, 4*3, 5*3, 6* 3, 7* 3, # [ 3, 8)
-                                 6*6, 7*6, 8*6, 9* 6,       # [ 6, 11)
-                                 9*9                        # [ 9, 14)
-                                 ]))
+      assert_that(
+          res,
+          equal_to([
+              0 * -3,
+              1 * -3,  # [-3, 2)
+              0 * 0,
+              1 * 0,
+              2 * 0,
+              3 * 0,
+              4 * 0,  # [ 0, 5)
+              3 * 3,
+              4 * 3,
+              5 * 3,
+              6 * 3,
+              7 * 3,  # [ 3, 8)
+              6 * 6,
+              7 * 6,
+              8 * 6,
+              9 * 6,  # [ 6, 11)
+              9 * 9  # [ 9, 14)
+          ]))
 
   def test_batch_to_element_pardo(self):
     class ArraySumDoFn(beam.DoFn):
@@ -581,15 +596,12 @@ class FnApiRunnerTest(unittest.TestCase):
       side = p | 'side' >> beam.Create([('a', 1), ('b', 2), ('a', 3)])
       assert_that(
           main | 'first map' >> beam.Map(
-              lambda k,
-              d,
-              l: (k, sorted(d[k]), sorted([e[1] for e in l])),
+              lambda k, d, l: (k, sorted(d[k]), sorted([e[1] for e in l])),
               beam.pvalue.AsMultiMap(side),
               beam.pvalue.AsList(side))
           | 'second map' >> beam.Map(
-              lambda k,
-              d,
-              l: (k[0], sorted(d[k[0]]), sorted([e[1] for e in l])),
+              lambda k, d, l:
+              (k[0], sorted(d[k[0]]), sorted([e[1] for e in l])),
               beam.pvalue.AsMultiMap(side),
               beam.pvalue.AsList(side)),
           equal_to([('a', [1, 3], [1, 2, 3]), ('b', [2], [1, 2, 3])]))
@@ -1191,8 +1203,7 @@ class FnApiRunnerTest(unittest.TestCase):
       side_input_res = (
           big
           | beam.Map(
-              lambda x,
-              side: (x[0], side.count(x[0])),
+              lambda x, side: (x[0], side.count(x[0])),
               beam.pvalue.AsList(big | beam.Map(lambda x: x[0]))))
       assert_that(
           side_input_res,
@@ -1783,14 +1794,8 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
         | beam.GroupByKey()
         | 'm_out' >> beam.FlatMap(
             lambda x: [
-                1,
-                2,
-                3,
-                4,
-                5,
-                beam.pvalue.TaggedOutput('once', x),
-                beam.pvalue.TaggedOutput('twice', x),
-                beam.pvalue.TaggedOutput('twice', x)
+                1, 2, 3, 4, 5, beam.pvalue.TaggedOutput('once', x), beam.pvalue.
+                TaggedOutput('twice', x), beam.pvalue.TaggedOutput('twice', x)
             ]))
 
     res = p.run()

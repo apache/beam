@@ -18,11 +18,15 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.hadoop.util.Sets.newHashSet;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.iceberg.IcebergIO.ReadRows.StartingStrategy;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -31,6 +35,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.expressions.Expression;
+import org.apache.iceberg.types.Types;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
@@ -65,6 +70,24 @@ public abstract class IcebergScanConfig implements Serializable {
 
   @Pure
   public abstract Schema getSchema();
+
+  @VisibleForTesting
+  static org.apache.iceberg.Schema resolveSchema(
+      org.apache.iceberg.Schema schema, @Nullable List<String> keep, @Nullable List<String> drop) {
+    if (keep != null && !keep.isEmpty()) {
+      schema = schema.select(keep);
+    } else if (drop != null && !drop.isEmpty()) {
+      Set<String> fields =
+          schema.columns().stream().map(Types.NestedField::name).collect(Collectors.toSet());
+      drop.forEach(fields::remove);
+      schema = schema.select(fields);
+    }
+    return schema;
+  }
+
+  public org.apache.iceberg.Schema getProjectedSchema() {
+    return resolveSchema(getTable().schema(), getKeepFields(), getDropFields());
+  }
 
   @Pure
   public abstract @Nullable Expression getFilter();
@@ -122,6 +145,12 @@ public abstract class IcebergScanConfig implements Serializable {
 
   @Pure
   public abstract @Nullable String getBranch();
+
+  @Pure
+  public abstract @Nullable List<String> getKeepFields();
+
+  @Pure
+  public abstract @Nullable List<String> getDropFields();
 
   @Pure
   public static Builder builder() {
@@ -204,6 +233,10 @@ public abstract class IcebergScanConfig implements Serializable {
 
     public abstract Builder setBranch(@Nullable String branch);
 
+    public abstract Builder setKeepFields(@Nullable List<String> fields);
+
+    public abstract Builder setDropFields(@Nullable List<String> fields);
+
     public abstract IcebergScanConfig build();
   }
 
@@ -211,6 +244,28 @@ public abstract class IcebergScanConfig implements Serializable {
   abstract Builder toBuilder();
 
   void validate(Table table) {
+    @Nullable List<String> keep = getKeepFields();
+    @Nullable List<String> drop = getDropFields();
+    if (keep != null || drop != null) {
+      checkArgument(
+          keep == null || drop == null, error("only one of 'keep' or 'drop' can be set."));
+
+      Set<String> fieldsSpecified;
+      String param;
+      if (keep != null) {
+        param = "keep";
+        fieldsSpecified = newHashSet(checkNotNull(keep));
+      } else { // drop != null
+        param = "drop";
+        fieldsSpecified = newHashSet(checkNotNull(drop));
+      }
+      table.schema().columns().forEach(nf -> fieldsSpecified.remove(nf.name()));
+
+      checkArgument(
+          fieldsSpecified.isEmpty(),
+          error(String.format("'%s' specifies unknown field(s): %s", param, fieldsSpecified)));
+    }
+
     // TODO(#34168, ahmedabu98): fill these gaps for the existing batch source
     if (!getUseCdc()) {
       List<String> invalidOptions = new ArrayList<>();

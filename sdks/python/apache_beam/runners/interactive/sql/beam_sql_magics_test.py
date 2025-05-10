@@ -76,10 +76,7 @@ class BeamSqlMagicsTest(unittest.TestCase):
 
     with patch('apache_beam.runners.interactive.sql.beam_sql_magics.'
                'unreify_from_cache',
-               lambda pipeline,
-               cache_key,
-               cache_manager,
-               element_type: target):
+               lambda pipeline, cache_key, cache_manager, element_type: target):
       processed_query, sql_source, chain = _build_query_components(
           query, found, 'output')
       expected_query = 'SELECT * FROM PCOLLECTION where a=1'
@@ -97,12 +94,10 @@ class BeamSqlMagicsTest(unittest.TestCase):
     query = 'SELECT * FROM pcoll_1 JOIN pcoll_2 USING (a)'
     found = {'pcoll_1': pcoll_1, 'pcoll_2': pcoll_2}
 
-    with patch('apache_beam.runners.interactive.sql.beam_sql_magics.'
-               'unreify_from_cache',
-               lambda pipeline,
-               cache_key,
-               cache_manager,
-               element_type: pcoll_1):
+    with patch(
+        'apache_beam.runners.interactive.sql.beam_sql_magics.'
+        'unreify_from_cache',
+        lambda pipeline, cache_key, cache_manager, element_type: pcoll_1):
       processed_query, sql_source, chain = _build_query_components(
           query, found, 'output')
 
@@ -124,10 +119,7 @@ class BeamSqlMagicsTest(unittest.TestCase):
     found = {'pcoll': pcoll}
 
     with patch('apache_beam.runners.interactive.sql.beam_sql_magics.'
-               'pcolls_from_streaming_cache',
-               lambda a,
-               b,
-               c: found):
+               'pcolls_from_streaming_cache', lambda a, b, c: found):
       _, sql_source, chain = _build_query_components(query, found, 'output')
       self.assertIs(sql_source, pcoll)
       self.assertIn('pcoll', chain.current.source)
@@ -141,9 +133,7 @@ class BeamSqlMagicsTest(unittest.TestCase):
     ie.current_env().set_cache_manager(cache_manager, p_cache_output)
     ib.watch(locals())
     with patch('apache_beam.runners.interactive.display.pcoll_visualization.'
-               'visualize_computed_pcoll',
-               lambda a,
-               b: None):
+               'visualize_computed_pcoll', lambda a, b: None):
       cache_output('pcoll_co', pcoll_co)
       self.assertIn(pcoll_co, ie.current_env().computed_pcollections)
       self.assertTrue(

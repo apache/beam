@@ -70,7 +70,7 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
   public ScanTaskReader(ScanTaskSource source) {
     this.source = source;
     this.project = source.getSchema();
-    this.beamSchema = icebergSchemaToBeamSchema(source.getSchema());
+    this.beamSchema = icebergSchemaToBeamSchema(project);
   }
 
   @Override

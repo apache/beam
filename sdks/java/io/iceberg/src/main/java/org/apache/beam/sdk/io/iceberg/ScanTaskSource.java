@@ -56,7 +56,7 @@ class ScanTaskSource extends BoundedSource<Row> {
 
   @Pure
   Schema getSchema() {
-    return getTable().schema();
+    return scanConfig.getProjectedSchema();
   }
 
   @Override

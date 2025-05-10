@@ -234,8 +234,7 @@ def transform_docs(transform_base, transforms, providers, extra_docs=''):
       longest(
           lambda t: longest(
               lambda p: add_transform_links(
-                  t, p.description(t), providers.keys()),
-              providers[t]),
+                  t, p.description(t), providers.keys()), providers[t]),
           transforms).replace('::\n', '\n\n    :::yaml\n'),
       '',
       extra_docs,
