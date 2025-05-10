@@ -3078,6 +3078,7 @@ class ReadAllFromBigQuery(PTransform):
         _BigQueryReadSplit(
             options=pcoll.pipeline.options,
             gcs_location=self.gcs_location,
+            validate=self.validate,
             bigquery_job_labels=self.bigquery_job_labels,
             job_name=job_name,
             step_name=step_name,
