@@ -17,9 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.model;
 
-import java.util.HashSet;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
-
 /**
  * Utility class to determine initial partition constants and methods.
  *
@@ -33,8 +30,6 @@ public class InitialPartition {
    * recognised by Cloud Spanner.
    */
   public static final String PARTITION_TOKEN = "Parent0";
-  /** The empty set representing the initial partition parent tokens. */
-  public static final HashSet<String> PARENT_TOKENS = Sets.newHashSet();
 
   /**
    * Verifies if the given partition token is the initial partition.
