@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "@octokit/rest": "^18.12.0",
+    "@octokit/rest": "^21.1.1",
     "nodemailer": "^6.7.5"
   }
 }
