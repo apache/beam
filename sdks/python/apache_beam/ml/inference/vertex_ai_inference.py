@@ -14,20 +14,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
+import json
 import logging
 from collections.abc import Iterable
 from collections.abc import Mapping
 from collections.abc import Sequence
 from typing import Any
 from typing import Optional
+from typing import Dict
 
 from google.api_core.exceptions import ServerError
 from google.api_core.exceptions import TooManyRequests
+from google.api_core.exceptions import GoogleAPICallError
 from google.cloud import aiplatform
 
 from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import PredictionResult
+import numpy as np
+MSEC_TO_SEC = 1000
 from apache_beam.ml.inference.base import RemoteModelHandler
 
 LOGGER = logging.getLogger("VertexAIModelHandlerJSON")
@@ -212,3 +216,183 @@ class VertexAIModelHandlerJSON(RemoteModelHandler[Any,
 
   def batch_elements_kwargs(self) -> Mapping[str, Any]:
     return self._batching_kwargs
+
+class VertexAITritonModelHandler(RemoteModelHandler[Any, PredictionResult, aiplatform.Endpoint]):
+    def __init__(
+        self,
+        endpoint_id: str,
+        project: str,
+        location: str,
+        input_name: str,
+        datatype: str,
+        experiment: Optional[str] = None,
+        network: Optional[str] = None,
+        private: bool = False,
+        min_batch_size: Optional[int] = None,
+        max_batch_size: Optional[int] = None,
+        max_batch_duration_secs: Optional[int] = None,
+        **kwargs
+    ):
+        """
+        Initialize the handler for Triton Inference Server on Vertex AI.
+
+        Args:
+            endpoint_id: Vertex AI endpoint ID.
+            project: GCP project name.
+            location: GCP location.
+            input_name: Name of the input tensor for Triton.
+            datatype: Data type of the input (e.g., 'FP32', 'BYTES').
+            experiment: Optional experiment label.
+            network: Optional VPC network for private endpoints.
+            private: Whether the endpoint is private.
+            min_batch_size: Minimum batch size for batching.
+            max_batch_size: Maximum batch size for batching.
+            max_batch_duration_secs: Max buffering time for batches.
+            **kwargs: Additional arguments passed to the base class.
+        """
+        self.input_name = input_name
+        self.datatype = datatype
+        self._batching_kwargs = {}
+        if min_batch_size is not None:
+            self._batching_kwargs["min_batch_size"] = min_batch_size
+        if max_batch_size is not None:
+            self._batching_kwargs["max_batch_size"] = max_batch_size
+        if max_batch_duration_secs is not None:
+            self._batching_kwargs["max_batch_duration_secs"] = max_batch_duration_secs
+
+        if private and network is None:
+            raise ValueError("A VPC network must be provided for a private endpoint.")
+
+        aiplatform.init(
+            project=project,
+            location=location,
+            experiment=experiment,
+            network=network
+        )
+        self.project = project
+        self.endpoint_name = endpoint_id
+        self.location = location
+        self.is_private = private
+
+        self.endpoint = self._retrieve_endpoint(  
+            self.endpoint_name, self.project, self.location, self.is_private
+        )
+
+        super().__init__(
+            namespace='VertexAITritonModelHandler',
+            retry_filter=_retry_on_appropriate_gcp_error,
+            **kwargs
+        )
+    def create_client(self) -> aiplatform.Endpoint:
+        """
+        Create the client for inference.
+
+        Returns:
+            aiplatform.Endpoint object.
+        """
+        return self.endpoint
+    
+    def _retrieve_endpoint(
+        self, endpoint_id: str, project: str, location: str,
+        is_private: bool) -> aiplatform.Endpoint:
+        """Retrieves an AI Platform endpoint object. Includes liveness check."""
+        
+        endpoint_class = aiplatform.Endpoint
+        log_msg = f"Treating endpoint {endpoint_id} as public"
+        if is_private:
+            endpoint_class = aiplatform.PrivateEndpoint
+            log_msg = f"Treating endpoint {endpoint_id} as private"
+
+        LOGGER.debug(log_msg)
+        endpoint = endpoint_class(
+            endpoint_name=endpoint_id, project=project, location=location)
+        try:
+            mod_list = endpoint.list_models()
+            LOGGER.debug("Endpoint %s list_models() response: %s", endpoint.name, mod_list)
+        except Exception as e:
+            raise ValueError(
+                f"Failed to contact endpoint {endpoint.name} or endpoint is invalid. "
+                f"Error: {e}") from e
+
+        if not mod_list:
+            raise ValueError(f"Endpoint {endpoint.name} has no models deployed to it "
+                             f"(according to Vertex AI).")
+        return endpoint
+
+
+    def request(
+        self,
+        batch: Sequence[Any],
+        model: aiplatform.Endpoint,
+        inference_args: Optional[Dict[str, Any]] = None
+    ) -> Iterable[PredictionResult]:
+        """
+        Send a prediction request to the Triton endpoint.
+
+        Args:
+            batch: Sequence of inputs.
+            model: Vertex AI endpoint object.
+            inference_args: Optional inference arguments (ignored for Triton).
+
+        Returns:
+            Iterable of PredictionResult objects.
+
+        Raises:
+            ValueError: If input type is unsupported or response lacks outputs.
+        """
+      
+        if self.datatype == "BYTES":
+            if not all(isinstance(x, str) for x in batch):
+                raise ValueError("For BYTES datatype, batch must be a list of strings")
+            batch_shape = [len(batch)]
+            data = batch
+        else:
+            first_instance = batch[0]
+            if np.isscalar(first_instance):
+                batch_shape = [len(batch)]
+                data = [float(x) for x in batch]
+            elif isinstance(first_instance, (list, np.ndarray)):
+                instance_shape = np.array(first_instance).shape
+                batch_shape = (len(batch),) + instance_shape
+                data = np.array(batch).flatten().tolist()
+            else:
+                raise ValueError("Unsupported input type")
+        client_options = {"api_endpoint": f"{self.location}-aiplatform.googleapis.com"}
+        prediction_client = aiplatform.gapic.PredictionServiceClient(client_options=client_options)
+        endpoint = endpoint = (
+          f"projects/{self.project}/locations/{self.location}/endpoints/"
+          f"{self.endpoint_name}"
+        )
+        triton_request = {
+            "inputs": [
+                {
+                    "name": self.input_name,
+                    "shape": list(batch_shape),
+                    "datatype": self.datatype,
+                    "data": data,
+                }
+            ]
+        }
+
+        request_body = json.dumps(triton_request).encode('utf-8')
+        response = prediction_client.raw_predict(
+        endpoint=endpoint,
+        http_body=request_body
+        )
+        
+        response_json = json.loads(response.raw_response.data.decode('utf-8'))
+        outputs = response_json.get('outputs', [])
+        if not outputs:
+            raise ValueError("No outputs in response")
+        output_data = outputs[0]['data']
+        predictions = output_data  
+
+        return utils._convert_to_result(batch, predictions, model.deployed_model_id)
+    
+    def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
+        pass
+    
+    def batch_elements_kwargs(self) -> Mapping[str, Any]:
+        return self._batching_kwargs
+    
+
