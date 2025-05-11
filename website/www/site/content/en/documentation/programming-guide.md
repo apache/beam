@@ -1184,6 +1184,45 @@ func init() {
 
 </span>
 
+{{< paragraph class="language-python">}}
+Proper Use of return vs yield in Python Functions.
+In Python, functions can return results either all at once (return) or lazily one at a time (yield). The right choice depends on your use case, especially when dealing with large datasets or streaming scenarios.
+{{< /paragraph >}}
+
+
+{{< highlight python >}}
+# Returning a single string instead of a sequence
+def get_lines_wrong():
+    return "Line 1"  # Not iterable in the way most expect
+
+# Returning a list of strings
+def get_lines_as_list():
+    return ["Line 1", "Line 2", "Line 3"]  # Eager, but valid
+
+# Yielding each line one at a time
+def get_lines_generator():
+    with open("data.txt") as f:
+        for line in f:
+            yield line.strip()  # Lazy and memory-efficient
+
+{{< /highlight >}}
+
+
+<span class="language-python">
+
+> **Note:** 
+>
+> - **Returning a single element (e.g., `return element`) is incorrect**  
+>   The `process` method in Beam must return an *iterable* of elements. Returning a single value like an integer or string (e.g., `return element`) leads to a runtime error (`TypeError: 'int' object is not iterable`). Always ensure your return type is iterable.
+>
+> - **Returning a list (e.g., `return [element1, element2]`) is valid but eager**  
+>   This method is syntactically correct and works for small numbers of outputs. However, it builds the entire list in memory before returning it, which can increase memory consumption and impact performance for large data sets.
+>
+> - **Using `yield` (e.g., `yield element`) is preferred for scalability**  
+>   Using `yield` turns the method into a generator function. This enables lazy evaluation, where each element is processed and emitted one at a time. It’s more memory-efficient and better suited for large pipelines or streaming workloads.
+</span>
+
+
 A given `DoFn` instance generally gets invoked one or more times to process some
 arbitrary bundle of elements. However, Beam doesn't guarantee an exact number of
 invocations; it may be invoked multiple times on a given worker node to account
