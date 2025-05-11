@@ -210,6 +210,14 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
 
     return options
 
+  def test_batch_rebatch_pardos(self):
+    if self.environment_type == 'DOCKER':
+      pytest.skip(
+          "Skipping test_batch_rebatch_pardos for DOCKER environment in FlinkRunnerTest "
+          "as warnings are not propagated back when Python SDK is run in Docker."
+      )
+    super().test_batch_rebatch_pardos()
+
   # Can't read host files from within docker, read a "local" file there.
   def test_read(self):
     print('name:', __name__)
