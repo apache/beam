@@ -4,7 +4,7 @@
     "python": "liferoad",
     "website": "damccorm"
   },
-  "nextAction": "Author",
+  "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
   "committerAssigned": false
