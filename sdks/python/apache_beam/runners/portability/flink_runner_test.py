@@ -229,6 +229,11 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
     raise unittest.SkipTest("BEAM-4781")
 
   def test_external_transform(self):
+    if self.environment_type == 'PROCESS':
+      self.skipTest(
+          "Skipping external transform test in PROCESS mode due to "
+          "https://github.com/apache/beam/issues/19461 (Flink expansion service incompatibility)."
+      )
     with self.create_pipeline() as p:
       res = (
           p
@@ -238,6 +243,11 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
       assert_that(res, equal_to([i for i in range(1, 10)]))
 
   def test_expand_kafka_read(self):
+    if self.environment_type == 'PROCESS':
+      self.skipTest(
+          "Skipping Kafka read test in PROCESS mode due to "
+          "https://github.com/apache/beam/issues/19461 (Flink expansion service incompatibility)."
+      )
     # We expect to fail here because we do not have a Kafka cluster handy.
     # Nevertheless, we check that the transform is expanded by the
     # ExpansionService and that the pipeline fails during execution.
@@ -272,6 +282,11 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
         'failed due to:\n%s' % str(ctx.exception))
 
   def test_expand_kafka_write(self):
+    if self.environment_type == 'PROCESS':
+      self.skipTest(
+          "Skipping Kafka write test in PROCESS mode due to "
+          "https://github.com/apache/beam/issues/19461 (Flink expansion service incompatibility)."
+      )
     # We just test the expansion but do not execute.
     # pylint: disable=expression-not-assigned
     (
@@ -292,6 +307,11 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
             expansion_service=self.get_expansion_service()))
 
   def test_sql(self):
+    if self.environment_type == 'PROCESS':
+      self.skipTest(
+          "Skipping SQL test in PROCESS mode due to "
+          "https://github.com/apache/beam/issues/19461 (Flink expansion service incompatibility)."
+      )
     with self.create_pipeline() as p:
       output = (
           p
