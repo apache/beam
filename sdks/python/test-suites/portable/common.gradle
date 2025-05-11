@@ -65,19 +65,21 @@ def flinkWordCountTestDockerTaskName = "flinkWordCountTestDocker"
 def flinkWordCountJobServerJarPath = "${rootDir}/runners/flink/${latestFlinkVersion}/job-server/build/libs/beam-runners-flink-${latestFlinkVersion}-job-server-${project.version}.jar"
 // Options to be passed to the tox environment, and subsequently to the Python script.
 // These options will configure the FlinkRunner.
-def flinkWordCountOptions = "--runner=FlinkRunner --flink_job_server_jar=${flinkWordCountJobServerJarPath} --environment_type=DOCKER"
+def flinkWordCountOptions = [
+    "--runner=FlinkRunner",
+    "--flink_job_server_jar=${flinkWordCountJobServerJarPath}",
+    "--environment_type=DOCKER"
+]
 
 // Define the Gradle task using the toxTask helper (should be an extension on the current project)
-// def flinkWordCountTestDocker = toxTask(flinkWordCountTestDockerTaskName, 'flink-wordcount-test', flinkWordCountOptions)
-tasks.register(flinkWordCountTestDockerTaskName) {
+def flinkWordCountTestDocker = toxTask(flinkWordCountTestDockerTaskName, 'flink-wordcount-test', flinkWordCountOptions)
+flinkWordCountTestDocker.configure {
   description = "Runs a Python WordCount pipeline using FlinkRunner with DOCKER environment for Flink ${latestFlinkVersion}."
   group = "Verification" // Standard group for test tasks
   // Ensure the Flink job server JAR is built before this task runs.
   dependsOn ":runners:flink:${latestFlinkVersion}:job-server:shadowJar"
   // Dependency for Java SDK container, often needed for external transforms or other Java interactions.
-  // Call getSupportedJavaVersion directly inside configure, similar to createFlinkRunnerTestTask.
   def javaSuffix = project.ext.currentJavaVersion
-  println "Java Suffix in flinkWordCountTestDocker: ${javaSuffix}" // Debug print
   dependsOn ":sdks:java:container:${javaSuffix}:docker"
   // Dependency for the Python SDK container image.
   dependsOn pythonContainerTask
