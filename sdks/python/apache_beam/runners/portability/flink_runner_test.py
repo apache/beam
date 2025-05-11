@@ -162,6 +162,7 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
     try:
       return [
           'java',
+          '-XX:-UseContainerSupport',
           '-Dorg.slf4j.simpleLogger.defaultLogLevel=warn',
           '-jar',
           cls.flink_job_server_jar,
