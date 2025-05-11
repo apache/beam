@@ -66,15 +66,16 @@ def flinkWordCountJobServerJarPath = "${rootDir}/runners/flink/${latestFlinkVers
 // Options to be passed to the tox environment, and subsequently to the Python script.
 // These options will configure the FlinkRunner.
 def flinkWordCountOptions = [
-    "--runner=FlinkRunner",
+    "--runner=PortableRunner",
     "--flink_job_server_jar=${flinkWordCountJobServerJarPath}",
-    "--environment_type=DOCKER"
+    "--environment_type=DOCKER",
+    "--environment_config=${project.docker_image_default_repo_root}/${project.docker_image_default_repo_prefix}python${project.ext.pythonVersion}_sdk:${project.sdk_version}"
 ]
 
 // Define the Gradle task using the toxTask helper (should be an extension on the current project)
 def flinkWordCountTestDocker = toxTask(flinkWordCountTestDockerTaskName, 'flink-wordcount-test', flinkWordCountOptions)
 flinkWordCountTestDocker.configure {
-  description = "Runs a Python WordCount pipeline using FlinkRunner with DOCKER environment for Flink ${latestFlinkVersion}."
+  description = "Runs a Python WordCount pipeline using PortableRunner with DOCKER environment for Flink ${latestFlinkVersion}."
   group = "Verification" // Standard group for test tasks
   // Ensure the Flink job server JAR is built before this task runs.
   dependsOn ":runners:flink:${latestFlinkVersion}:job-server:shadowJar"

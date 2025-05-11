@@ -19,15 +19,19 @@
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
+import sys
 
 def run():
+  print("--- wordcount_flink_test.py: run() started ---", file=sys.stderr)
+  print(f"--- wordcount_flink_test.py: PipelineOptions: {sys.argv}", file=sys.stderr)
   options = PipelineOptions()
   with beam.Pipeline(options=options) as p:
     (p | 'Create' >> beam.Create(['hello world', 'beam fun', 'hello beam'])
        | 'Split' >> beam.FlatMap(lambda x: x.split())
        | 'PairWithOne' >> beam.Map(lambda x: (x, 1))
        | 'GroupAndSum' >> beam.CombinePerKey(sum)
-       | 'Print' >> beam.Map(print))
+       | 'Print' >> beam.Map(lambda x: print(f"--- RESULT: {x} ---", file=sys.stderr)))
+  print("--- wordcount_flink_test.py: run() finished ---", file=sys.stderr)
 
 if __name__ == '__main__':
   run()
