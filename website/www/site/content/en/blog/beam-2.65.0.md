@@ -1,6 +1,6 @@
 ---
 title:  "Apache Beam 2.65.0"
-date:   2025-05-XX 15:00:00 -0500
+date:   2025-05-12 15:00:00 -0500
 categories:
   - blog
   - release
@@ -21,7 +21,7 @@ limitations under the License.
 
 We are happy to present the new 2.65.0 release of Beam.
 This release includes both improvements and new functionality.
-See the [download page](/get-started/downloads/#2650-2025-05-XX) for this release.
+See the [download page](/get-started/downloads/#2650-2025-05-12) for this release.
 
 <!--more-->
 
@@ -40,6 +40,10 @@ For more information on changes in 2.65.0, check out the [detailed release notes
 
 ### Breaking Changes
 
+* [Python] Cloudpickle is set as the default `pickle_library`, where previously
+  dill was the default in [#34695](https://github.com/apache/beam/pull/34695).
+  For known issues, reporting new issues, and understanding cloudpickle
+  behavior refer to [#34903](https://github.com/apache/beam/issues/34903).
 * [Python] Reshuffle now preserves PaneInfo, where previously PaneInfo was lost
   after reshuffle. To opt out of this change, set the
   update_compatibility_version to a previous Beam version e.g. "2.64.0".
@@ -56,6 +60,7 @@ For more information on changes in 2.65.0, check out the [detailed release notes
 * [YAML] Kafka source and sink will be automatically replaced with compatible managed transforms.
   For older Beam versions, streaming update compatiblity can be maintained by specifying the pipeline
   option `update_compatibility_version` ([#34767](https://github.com/apache/beam/issues/34767)).
+
 
 ### Deprecations
 
