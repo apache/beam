@@ -210,7 +210,6 @@ def createPrismRunnerTestTask(String workerType) {
   task.configure {
     dependsOn ":runners:prism:build"
     // The Java SDK worker is required to execute external transforms.
-    def suffix = getSupportedJavaVersion()
     dependsOn ":sdks:java:container:java${project.javaVersion}:docker"
     if (workerType == 'DOCKER') {
       dependsOn pythonContainerTask
