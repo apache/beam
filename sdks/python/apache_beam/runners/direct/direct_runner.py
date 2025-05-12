@@ -130,6 +130,12 @@ class SwitchingDirectRunner(PipelineRunner):
           self.supported_by_prism_runner = False
         if isinstance(transform, beam.ParDo):
           dofn = transform.dofn
+
+          # https://github.com/apache/beam/issues/34549
+          # Remote once we can support local materialization
+          if (hasattr(dofn, 'is_materialize_values_do_fn')
+              and dofn.is_materialize_values_do_fn):
+            self.supported_by_prism_runner = False
           # It's uncertain if the Prism Runner supports execution of CombineFns
           # with deferred side inputs.
           if isinstance(dofn, CombineValuesDoFn):
