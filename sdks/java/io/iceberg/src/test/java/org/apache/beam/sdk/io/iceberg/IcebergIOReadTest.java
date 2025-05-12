@@ -22,6 +22,7 @@ import static java.util.Collections.singletonList;
 import static org.apache.beam.sdk.io.iceberg.IcebergScanConfig.resolveSchema;
 import static org.apache.beam.sdk.io.iceberg.IcebergUtils.icebergSchemaToBeamSchema;
 import static org.apache.beam.sdk.io.iceberg.TestFixtures.createRecord;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.iceberg.types.Types.NestedField.required;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -33,6 +34,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -360,7 +362,10 @@ public class IcebergIOReadTest {
     List<List<Record>> expectedRecords = warehouse.commitData(simpleTable);
 
     IcebergIO.ReadRows read =
-        IcebergIO.readRows(catalogConfig()).from(tableId).withFilter("\"id\" < 10");
+        IcebergIO.readRows(catalogConfig())
+            .from(tableId)
+            .withFilter(
+                "\"id\" < 10 AND \"id\" >= 2 AND  \"data\" <> 'clammy' AND \"data\" <> 'brainy'");
 
     if (useIncrementalScan) {
       read = read.withCdc().toSnapshot(simpleTable.currentSnapshot().snapshotId());
@@ -369,7 +374,15 @@ public class IcebergIOReadTest {
         expectedRecords.stream()
             .flatMap(List::stream)
             .map(record -> IcebergUtils.icebergRecordToBeamRow(schema, record))
-            .filter(row -> row.getInt64("id") < 10)
+            .filter(
+                row -> {
+                  long id = checkStateNotNull(row.getInt64("id"));
+                  String data = checkStateNotNull(row.getString("data"));
+                  return id < 10
+                      && id >= 2
+                      && !Objects.equals(data, "clammy")
+                      && !Objects.equals(data, "brainy");
+                })
             .collect(Collectors.toList());
 
     PCollection<Row> output = testPipeline.apply(read).apply(new PrintRow());

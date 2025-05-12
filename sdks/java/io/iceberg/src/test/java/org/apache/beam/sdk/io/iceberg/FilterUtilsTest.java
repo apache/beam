@@ -577,7 +577,6 @@ public class FilterUtilsTest {
           required(10, "field_10", Types.IntegerType.get()));
 
   private static void checkEquals(Expression expectedExpr, Expression actualExpr) {
-    System.out.printf("e: %s\n\na: %s%n-----------%n", expectedExpr, actualExpr);
     if (expectedExpr instanceof UnboundPredicate) {
       assertTrue(actualExpr instanceof UnboundPredicate);
     } else if (expectedExpr instanceof And) {

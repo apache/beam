@@ -29,8 +29,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.iceberg.CombinedScanTask;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Table;
-import org.apache.iceberg.expressions.Expression;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
 
 /**
@@ -62,9 +60,8 @@ class ScanTaskSource extends BoundedSource<Row> {
   }
 
   @Pure
-  @Nullable
-  Expression getFilter() {
-    return scanConfig.getFilter();
+  IcebergScanConfig getScanConfig() {
+    return scanConfig;
   }
 
   @Override
