@@ -1186,40 +1186,86 @@ func init() {
 
 {{< paragraph class="language-python">}}
 Proper Use of return vs yield in Python Functions.
-In Python, functions can return results either all at once (return) or lazily one at a time (yield). The right choice depends on your use case, especially when dealing with large datasets or streaming scenarios.
 {{< /paragraph >}}
-
 
 {{< highlight python >}}
 # Returning a single string instead of a sequence
-def get_lines_wrong():
-    return "Line 1"  # Not iterable in the way most expect
+class ReturnIndividualElement(beam.DoFn):
+    def process(self, element):
+        return element  
+
+with beam.Pipeline() as pipeline:
+    (
+        pipeline
+        | "CreateExamples" >> beam.Create(["foo"])
+        | "MapIncorrect" >> beam.ParDo(ReturnIndividualElement())
+        | "Print" >> beam.Map(print)
+    )
+  # prints:
+  # f
+  # o
+  # o
 
 # Returning a list of strings
-def get_lines_as_list():
-    return ["Line 1", "Line 2", "Line 3"]  # Eager, but valid
+class ReturnWordsFn(beam.DoFn):
+    def process(self, element):
+        # Split the sentence and return all words longer than 2 characters as a list
+        return [word for word in element.split() if len(word) > 2]
+
+with beam.Pipeline() as pipeline:
+    (
+        pipeline
+        | "CreateSentences_Return" >> beam.Create([  # Create a collection of sentences
+            "Apache Beam is powerful",               # Sentence 1
+            "Try it now"                             # Sentence 2
+        ])
+        | "SplitWithReturn" >> beam.ParDo(ReturnWordsFn())  # Apply the custom DoFn to split words
+        | "PrintWords_Return" >> beam.Map(print)  # Print each List of words
+    )
+  # prints:
+  # ['Apache', 'Beam', 'powerful']
+  # ['Try', 'now']
 
 # Yielding each line one at a time
-def get_lines_generator():
-    with open("data.txt") as f:
-        for line in f:
-            yield line.strip()  # Lazy and memory-efficient
+class YieldWordsFn(beam.DoFn):
+    def process(self, element):
+        # Splitting the sentence and yielding words that have more than 2 characters
+        for word in element.split():
+            if len(word) > 2:
+                yield word 
 
+with beam.Pipeline() as pipeline:
+    (
+        pipeline
+        | "CreateSentences_Yield" >> beam.Create([  # Create a collection of sentences
+            "Apache Beam is powerful",              # Sentence 1
+            "Try it now"                            # Sentence 2
+        ])
+        | "SplitWithYield" >> beam.ParDo(YieldWordsFn())  # Apply the custom DoFn to split words
+        | "PrintWords_Yield" >> beam.Map(print)  # Print each word
+    )
+  # prints:
+  # Apache
+  # Beam
+  # powerful
+  # Try
+  # now
 {{< /highlight >}}
-
 
 <span class="language-python">
 
 > **Note:** 
 >
-> - **Returning a single element (e.g., `return element`) is incorrect**  
+- **Returning a single element (e.g., `return element`) is incorrect**  
 >   The `process` method in Beam must return an *iterable* of elements. Returning a single value like an integer or string (e.g., `return element`) leads to a runtime error (`TypeError: 'int' object is not iterable`). Always ensure your return type is iterable.
->
-> - **Returning a list (e.g., `return [element1, element2]`) is valid but eager**  
->   This method is syntactically correct and works for small numbers of outputs. However, it builds the entire list in memory before returning it, which can increase memory consumption and impact performance for large data sets.
->
-> - **Using `yield` (e.g., `yield element`) is preferred for scalability**  
->   Using `yield` turns the method into a generator function. This enables lazy evaluation, where each element is processed and emitted one at a time. It’s more memory-efficient and better suited for large pipelines or streaming workloads.
+
+- **Returning a list (e.g., `return [element1, element2]`) is valid**  
+>   This approach works well when emitting multiple outputs from a single call and is easy to read for small datasets.
+
+- **Using `yield` (e.g., `yield element`) is also valid**  
+>   This approach can be useful for generating multiple outputs more flexibly, especially in cases where conditional logic or loops are involved.
+
+
 </span>
 
 
