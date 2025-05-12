@@ -254,7 +254,7 @@ tasks.register("validatesRunnerSickbay", Test) {
 }
 
 task ulrDockerValidatesRunner {
-  dependsOn createUlrValidatesRunnerTask("ulrDockerValidatesRunnerTests", "DOCKER", ":sdks:java:container:${project.ext.currentJavaVersion}:docker")
+  dependsOn createUlrValidatesRunnerTask("ulrDockerValidatesRunnerTests", "DOCKER", ":sdks:java:container:${project.javaVersion}:docker")
 }
 
 task ulrLoopbackValidatesRunner {
