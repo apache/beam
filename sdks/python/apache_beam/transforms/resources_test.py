@@ -21,6 +21,9 @@ from parameterized import param
 from parameterized import parameterized
 
 from apache_beam import PTransform
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.transforms.resources import ResourceHint
 
 
@@ -88,6 +91,26 @@ class ResourcesTest(unittest.TestCase):
     t = PTransform()
     with self.assertRaises(ValueError):
       _ = t.with_resource_hints(**{name: val})
+
+  def test_resource_hints_from_options(self):
+    options = PipelineOptions()
+    standard_options = options.view_as(StandardOptions)
+    standard_options.resource_hints = {
+        "min_ram": "16GB",
+        "accelerator": "gpu",
+        "cpu_count": "4",
+        "max_active_bundles_per_worker": "2"
+    }
+
+    p = TestPipeline(options=options)
+    self.assertEqual(
+        p._root_transform().resource_hints,
+        {
+            'beam:resources:min_ram_bytes:v1': b'16000000000',
+            'beam:resources:accelerator:v1': b'gpu',
+            'beam:resources:cpu_count:v1': b'4',
+            'beam:resources:max_active_bundles_per_worker:v1': b'2'
+        })
 
 
 if __name__ == '__main__':
