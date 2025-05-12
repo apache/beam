@@ -95,8 +95,9 @@ jobs:
         with:
           gradle-command: :sdks:java:testing:load-tests:run
           arguments: |
-            -PtestJavaVersion=${{ matrix.java_version }} \
-            -Pjava${{ matrix.java_version }}Home=$JAVA_HOME_${{ matrix.java_version }}_X64 \
+            -PjavaVersion=${{ matrix.java_version }} \
+            -Porg.gradle.java.installations.auto-detect=false \
+            -Porg.gradle.java.installations.paths=$JAVA_HOME_${{ matrix.java_version }}_X64 \
             -PloadTest.mainClass=org.apache.beam.sdk.loadtests.CoGroupByKeyLoadTest \
             -Prunner=:runners:google-cloud-dataflow-java \
             '-PloadTest.args=${{ env.beam_LoadTests_Java_CoGBK_Dataflow_V2_Streaming_JavaVersions_test_arguments_1 }} --appName=load_tests_Java${{ matrix.java_version }}_Dataflow_V2_streaming_CoGBK_1' \
@@ -105,8 +106,9 @@ jobs:
         with:
           gradle-command: :sdks:java:testing:load-tests:run
           arguments: |
-            -PtestJavaVersion=${{ matrix.java_version }} \
-            -Pjava${{ matrix.java_version }}Home=$JAVA_HOME_${{ matrix.java_version }}_X64 \
+            -PjavaVersion=${{ matrix.java_version }} \
+            -Porg.gradle.java.installations.auto-detect=false \
+            -Porg.gradle.java.installations.paths=$JAVA_HOME_${{ matrix.java_version }}_X64 \
             -PloadTest.mainClass=org.apache.beam.sdk.loadtests.CoGroupByKeyLoadTest \
             -Prunner=:runners:google-cloud-dataflow-java \
             '-PloadTest.args=${{ env.beam_LoadTests_Java_CoGBK_Dataflow_V2_Streaming_JavaVersions_test_arguments_2 }} --appName=load_tests_Java${{ matrix.java_version }}_Dataflow_V2_streaming_CoGBK_2' \
@@ -115,8 +117,9 @@ jobs:
         with:
           gradle-command: :sdks:java:testing:load-tests:run
           arguments: |
-            -PtestJavaVersion=${{ matrix.java_version }} \
-            -Pjava${{ matrix.java_version }}Home=$JAVA_HOME_${{ matrix.java_version }}_X64 \
+            -PjavaVersion=${{ matrix.java_version }} \
+            -Porg.gradle.java.installations.auto-detect=false \
+            -Porg.gradle.java.installations.paths=$JAVA_HOME_${{ matrix.java_version }}_X64 \
             -PloadTest.mainClass=org.apache.beam.sdk.loadtests.CoGroupByKeyLoadTest \
             -Prunner=:runners:google-cloud-dataflow-java \
             '-PloadTest.args=${{ env.beam_LoadTests_Java_CoGBK_Dataflow_V2_Streaming_JavaVersions_test_arguments_3 }} --appName=load_tests_Java${{ matrix.java_version }}_Dataflow_V2_streaming_CoGBK_3' \
@@ -125,8 +128,9 @@ jobs:
         with:
           gradle-command: :sdks:java:testing:load-tests:run
           arguments: |
-            -PtestJavaVersion=${{ matrix.java_version }} \
-            -Pjava${{ matrix.java_version }}Home=$JAVA_HOME_${{ matrix.java_version }}_X64 \
+            -PjavaVersion=${{ matrix.java_version }} \
+            -Porg.gradle.java.installations.auto-detect=false \
+            -Porg.gradle.java.installations.paths=$JAVA_HOME_${{ matrix.java_version }}_X64 \
             -PloadTest.mainClass=org.apache.beam.sdk.loadtests.CoGroupByKeyLoadTest \
             -Prunner=:runners:google-cloud-dataflow-java \
             '-PloadTest.args=${{ env.beam_LoadTests_Java_CoGBK_Dataflow_V2_Streaming_JavaVersions_test_arguments_4 }} --appName=load_tests_Java${{ matrix.java_version }}_Dataflow_V2_streaming_CoGBK_4'

@@ -111,8 +111,9 @@ jobs:
         with:
           gradle-command: :sdks:java:testing:nexmark:run
           arguments: |
-            -PtestJavaVersion=${{ matrix.java_version }} \
-            -Pjava${{ matrix.java_version }}Home=$JAVA_HOME_${{ matrix.java_version }}_X64 \
+            -PjavaVersion=${{ matrix.java_version }} \
+            -Porg.gradle.java.installations.auto-detect=false \
+            -Porg.gradle.java.installations.paths=$JAVA_HOME_${{ matrix.java_version }}_X64 \
             -Pnexmark.runner.version=V2 \
             -Pnexmark.runner=:runners:google-cloud-dataflow-java \
             '${{ env.GRADLE_COMMAND_ARGUMENTS }}--influxTags={"runnerVersion":"V2","javaVersion":"${{ matrix.java_version }}"}--streaming=${{ matrix.streaming }}'

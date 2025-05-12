@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-import static org.apache.beam.gradle.BeamModulePlugin.getSupportedJavaVersion
 
 import groovy.json.JsonOutput
 
@@ -282,10 +281,9 @@ def createRunnerV2ValidatesRunnerTest = { Map args ->
 tasks.register('examplesJavaRunnerV2IntegrationTestDistroless', Test.class) {
   group = "verification"
   dependsOn 'buildAndPushDistrolessContainerImage'
-  def javaVer = project.findProperty('testJavaVersion')
   def repository = "us.gcr.io/apache-beam-testing/${System.getenv('USER')}"
   def tag = project.findProperty('dockerTag')
-  def imageURL = "${repository}/beam_${javaVer}_sdk_distroless:${tag}"
+  def imageURL = "${repository}/beam_${project.javaVersion}_sdk_distroless:${tag}"
   def pipelineOptions = [
           "--runner=TestDataflowRunner",
           "--project=${gcpProject}",
@@ -305,39 +303,36 @@ tasks.register('examplesJavaRunnerV2IntegrationTestDistroless', Test.class) {
   useJUnit { }
 }
 
-tasks.register('buildAndPushDistrolessContainerImage', Task.class) {
-  // Only Java 17 and 21 are supported.
-  // See https://github.com/GoogleContainerTools/distroless/tree/main/java#image-contents.
-  def allowed = ["java17", "java21"]
-  doLast {
-    def javaVer = project.findProperty('testJavaVersion')
-    if (!allowed.contains(javaVer)) {
-      throw new GradleException("testJavaVersion must be one of ${allowed}, got: ${javaVer}")
-    }
-    if (!project.hasProperty('dockerTag')) {
-      throw new GradleException("dockerTag is missing but required")
-    }
-    def repository = "us.gcr.io/apache-beam-testing/${System.getenv('USER')}"
-    def tag = project.findProperty('dockerTag')
-    def imageURL = "${repository}/beam_${javaVer}_sdk_distroless:${tag}"
-    exec {
-      executable 'docker'
-      workingDir rootDir
-      args = [
-              'buildx',
-              'build',
-              '-t',
-              imageURL,
-              '-f',
-              'sdks/java/container/Dockerfile-distroless',
-              "--build-arg=BEAM_BASE=gcr.io/apache-beam-testing/beam-sdk/beam_${javaVer}_sdk",
-              "--build-arg=DISTROLESS_BASE=gcr.io/distroless/${javaVer}-debian12",
-              '.'
-      ]
-    }
-    exec {
-      executable 'docker'
-      args = ['push', imageURL]
+// Only Java 17 and 21 are supported.
+// See https://github.com/GoogleContainerTools/distroless/tree/main/java#image-contents.
+if (JavaLanguageVersion.of(project.javaVersion) in [17, 21]) {
+  tasks.register('buildAndPushDistrolessContainerImage', Task.class) {
+    doLast {
+      if (!project.hasProperty('dockerTag')) {
+        throw new GradleException("dockerTag is missing but required")
+      }
+      def repository = "us.gcr.io/apache-beam-testing/${System.getenv('USER')}"
+      def tag = project.findProperty('dockerTag')
+      def imageURL = "${repository}/beam_java${project.javaVersion}_sdk_distroless:${tag}"
+      exec {
+        executable 'docker'
+        workingDir rootDir
+        args = [
+                'buildx',
+                'build',
+                '-t',
+                imageURL,
+                '-f',
+                'sdks/java/container/Dockerfile-distroless',
+                "--build-arg=BEAM_BASE=gcr.io/apache-beam-testing/beam-sdk/beam_${project.javaVersion}_sdk",
+                "--build-arg=DISTROLESS_BASE=gcr.io/distroless/${project.javaVersion}-debian12",
+                '.'
+        ]
+      }
+      exec {
+        executable 'docker'
+        args = ['push', imageURL]
+      }
     }
   }
 }
@@ -347,13 +342,9 @@ tasks.register('buildAndPushDistrolessContainerImage', Task.class) {
 // task directly ('dependsOn buildAndPushDockerJavaContainer'). This ensures the correct
 // task ordering such that the registry doesn't get cleaned up prior to task completion.
 def buildAndPushDockerJavaContainer = tasks.register("buildAndPushDockerJavaContainer") {
-  def javaVer = getSupportedJavaVersion()
-  if(project.hasProperty('testJavaVersion')) {
-    javaVer = "java${project.getProperty('testJavaVersion')}"
-  }
-  dependsOn ":sdks:java:container:${javaVer}:docker"
+  dependsOn ":sdks:java:container:java${project.javaVersion}:docker"
   def defaultDockerImageName = containerImageName(
-          name: "${project.docker_image_default_repo_prefix}${javaVer}_sdk",
+          name: "${project.docker_image_default_repo_prefix}java${project.javaVersion}_sdk",
           root: "apache",
           tag: project.sdk_version)
   doLast {
@@ -728,9 +719,7 @@ task examplesJavaRunnerV2PreCommit(type: Test) {
 task examplesJavaRunnerV2IntegrationTest(type: Test) {
   group = "Verification"
   dependsOn buildAndPushDockerJavaContainer
-  if (project.hasProperty("testJavaVersion")) {
-    dependsOn ":sdks:java:testing:test-utils:verifyJavaVersion${project.property("testJavaVersion")}"
-  }
+  dependsOn ":sdks:java:testing:test-utils:verifyJavaVersion${project.javaVersion}"
 
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson(runnerV2PipelineOptions)
 
@@ -840,13 +829,9 @@ task GCSUpload(type: JavaExec) {
 }
 
 def buildAndPushDistrolessDockerJavaContainer = tasks.register("buildAndPushDistrolessDockerJavaContainer") {
-  def javaVer = getSupportedJavaVersion()
-  if(project.hasProperty('testJavaVersion')) {
-    javaVer = "java${project.getProperty('testJavaVersion')}"
-  }
-  dependsOn ":sdks:java:container:distroless:${javaVer}:docker"
+  dependsOn ":sdks:java:container:distroless:java${project.javaVersion}:docker"
   def defaultDockerImageName = containerImageName(
-          name: "${project.docker_image_default_repo_prefix}${javaVer}_sdk_distroless",
+          name: "${project.docker_image_default_repo_prefix}java${project.javaVersion}_sdk_distroless",
           root: "apache",
           tag: project.sdk_version)
   doLast {

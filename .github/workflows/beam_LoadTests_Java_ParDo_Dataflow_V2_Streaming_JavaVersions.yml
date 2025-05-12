@@ -98,8 +98,9 @@ jobs:
             -PloadTest.mainClass=org.apache.beam.sdk.loadtests.ParDoLoadTest \
             -Prunner=:runners:google-cloud-dataflow-java \
             -Prunner.version=V2 \
-            -PtestJavaVersion=${{ matrix.java_version }} \
-            -Pjava${{ matrix.java_version }}Home=$JAVA_HOME_${{ matrix.java_version }}_X64 \
+            -PjavaVersion=${{ matrix.java_version }} \
+            -Porg.gradle.java.installations.auto-detect=false \
+            -Porg.gradle.java.installations.paths=$JAVA_HOME_${{ matrix.java_version }}_X64 \
             '-PloadTest.args=${{ env.beam_LoadTests_Java_ParDo_Dataflow_V2_Streaming_JavaVersions_test_arguments_1 }} --appName=load_tests_Java${{ matrix.java_version }}_Dataflow_V2_streaming_ParDo_1' \
       - name: run ParDo Dataflow V2 Streaming Java Load Test 2 (200 times)
         uses: ./.github/actions/gradle-command-self-hosted-action
@@ -109,8 +110,9 @@ jobs:
             -PloadTest.mainClass=org.apache.beam.sdk.loadtests.ParDoLoadTest \
             -Prunner=:runners:google-cloud-dataflow-java \
             -Prunner.version=V2 \
-            -PtestJavaVersion=${{ matrix.java_version }} \
-            -Pjava${{ matrix.java_version }}Home=$JAVA_HOME_${{ matrix.java_version }}_X64 \
+            -PjavaVersion=${{ matrix.java_version }} \
+            -Porg.gradle.java.installations.auto-detect=false \
+            -Porg.gradle.java.installations.paths=$JAVA_HOME_${{ matrix.java_version }}_X64 \
             '-PloadTest.args=${{ env.beam_LoadTests_Java_ParDo_Dataflow_V2_Streaming_JavaVersions_test_arguments_2 }} --appName=load_tests_Java${{ matrix.java_version }}_Dataflow_V2_streaming_ParDo_2' \
       - name: run ParDo Dataflow V2 Streaming Java Load Test 3 (10 counters)
         uses: ./.github/actions/gradle-command-self-hosted-action
@@ -120,8 +122,9 @@ jobs:
             -PloadTest.mainClass=org.apache.beam.sdk.loadtests.ParDoLoadTest \
             -Prunner=:runners:google-cloud-dataflow-java \
             -Prunner.version=V2 \
-            -PtestJavaVersion=${{ matrix.java_version }} \
-            -Pjava${{ matrix.java_version }}Home=$JAVA_HOME_${{ matrix.java_version }}_X64 \
+            -PjavaVersion=${{ matrix.java_version }} \
+            -Porg.gradle.java.installations.auto-detect=false \
+            -Porg.gradle.java.installations.paths=$JAVA_HOME_${{ matrix.java_version }}_X64 \
             '-PloadTest.args=${{ env.beam_LoadTests_Java_ParDo_Dataflow_V2_Streaming_JavaVersions_test_arguments_3 }} --appName=load_tests_Java${{ matrix.java_version }}_Dataflow_V2_streaming_ParDo_3' \
       - name: run ParDo Dataflow V2 Streaming Java Load Test 4 (100 counters)
         uses: ./.github/actions/gradle-command-self-hosted-action
@@ -131,6 +134,7 @@ jobs:
             -PloadTest.mainClass=org.apache.beam.sdk.loadtests.ParDoLoadTest \
             -Prunner=:runners:google-cloud-dataflow-java \
             -Prunner.version=V2 \
-            -PtestJavaVersion=${{ matrix.java_version }} \
-            -Pjava${{ matrix.java_version }}Home=$JAVA_HOME_${{ matrix.java_version }}_X64 \
+            -PjavaVersion=${{ matrix.java_version }} \
+            -Porg.gradle.java.installations.auto-detect=false \
+            -Porg.gradle.java.installations.paths=$JAVA_HOME_${{ matrix.java_version }}_X64 \
             '-PloadTest.args=${{ env.beam_LoadTests_Java_ParDo_Dataflow_V2_Streaming_JavaVersions_test_arguments_4 }} --appName=load_tests_Java${{ matrix.java_version }}_Dataflow_V2_streaming_ParDo_4'

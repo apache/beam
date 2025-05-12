@@ -156,7 +156,9 @@ export DOCKER_ROOT=<Docker root>
 
 docker push $DOCKER_ROOT/beam_python3.9_sdk:latest
 
-./gradlew :sdks:java:container:java11:docker -Pdocker-repository-root=$DOCKER_ROOT -Pdocker-tag=latest -Pjava11Home=$JAVA_HOME
+./gradlew :sdks:java:container:java11:docker -Pdocker-repository-root=$DOCKER_ROOT -Pdocker-tag=latest \
+-Porg.gradle.java.installations.auto-detect=false \
+-Porg.gradle.java.installations.paths=$JAVA_HOME
 
 docker push $DOCKER_ROOT/beam_java11_sdk:latest
 ```

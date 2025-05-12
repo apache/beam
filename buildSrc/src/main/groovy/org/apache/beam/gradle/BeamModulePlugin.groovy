@@ -44,6 +44,7 @@ import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.javadoc.Javadoc
 import org.gradle.api.tasks.testing.Test
 import org.gradle.api.tasks.PathSensitivity
+import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.testing.jacoco.tasks.JacocoReport
 
 
@@ -179,6 +180,11 @@ class BeamModulePlugin implements Plugin<Project> {
      * The set of additional maven repositories that should be added into published POM file.
      */
     List<Map> mavenRepositories = []
+
+    /**
+     * The minimum supported language version to target for compilation
+     */
+    int minimumLanguageVersion = 8
   }
 
   /** A class defining the set of configurable properties accepted by applyPortabilityNature. */
@@ -445,53 +451,6 @@ class BeamModulePlugin implements Plugin<Project> {
     return 'beam' + p.path.replace(':', '-')
   }
 
-  static def getSupportedJavaVersion() {
-    if (JavaVersion.current() == JavaVersion.VERSION_1_8) {
-      return 'java8'
-    } else if (JavaVersion.current() == JavaVersion.VERSION_11) {
-      return 'java11'
-    } else if (JavaVersion.current() == JavaVersion.VERSION_17) {
-      return 'java17'
-    } else if (JavaVersion.current() == JavaVersion.VERSION_21) {
-      return 'java21'
-    } else {
-      String exceptionMessage = "Your Java version is unsupported. You need Java version of 8, 11, 17 or 21 to get started, but your Java version is: " + JavaVersion.current();
-      throw new GradleException(exceptionMessage)
-    }
-  }
-
-  /*
-   * Set compile args for compiling and running in different java version by modifying the compiler args in place.
-   *
-   * Replace `-source X` and `-target X` or `--release X` options if already existed in compilerArgs.
-   */
-  static def setCompileAndRuntimeJavaVersion(List<String> compilerArgs, String ver) {
-    boolean foundS = false, foundT = false
-    int foundR = -1
-    logger.fine("set java ver ${ver} to compiler args")
-    for (int i = 0; i < compilerArgs.size()-1; ++i) {
-      if (compilerArgs.get(i) == '-source') {
-        foundS = true
-        compilerArgs.set(i+1, ver)
-      } else if (compilerArgs.get(i) == '-target')  {
-        foundT = true
-        compilerArgs.set(i+1, ver)
-      } else if (compilerArgs.get(i) == '--release') {
-        foundR = i
-      }
-    }
-    if (foundR != -1) {
-      compilerArgs.removeAt(foundR + 1)
-      compilerArgs.removeAt(foundR)
-    }
-    if (!foundS) {
-      compilerArgs.addAll('-source', ver)
-    }
-    if (!foundT) {
-      compilerArgs.addAll('-target', ver)
-    }
-  }
-
   void apply(Project project) {
 
     /** ***********************************************************************************************/
@@ -542,8 +501,6 @@ class BeamModulePlugin implements Plugin<Project> {
     // See: https://github.com/dorongold/gradle-task-tree
     project.apply plugin: "com.dorongold.task-tree"
     project.taskTree { noRepeat = true }
-
-    project.ext.currentJavaVersion = getSupportedJavaVersion()
 
     project.ext.allFlinkVersions = project.flink_versions.split(',')
     project.ext.latestFlinkVersion = project.ext.allFlinkVersions.last()
@@ -938,64 +895,6 @@ class BeamModulePlugin implements Plugin<Project> {
           + suffix)
     }
 
-    def errorProneAddModuleOpts = [
-      "--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
-      "--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED",
-      "--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED",
-      "--add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED",
-      "--add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED",
-      "--add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED",
-      "--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
-      "--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED",
-      "--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED",
-      "--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED"
-    ]
-
-    // set compiler options for java version overrides to compile with a different java version
-    project.ext.setJavaVerOptions = { CompileOptions options, String ver ->
-      if (ver == '8') {
-        def java8Home = project.findProperty("java8Home")
-        options.fork = true
-        options.forkOptions.javaHome = java8Home as File
-        options.compilerArgs += ['-Xlint:-path']
-      } else if (ver == '11') {
-        def java11Home = project.findProperty("java11Home")
-        options.fork = true
-        options.forkOptions.javaHome = java11Home as File
-        options.compilerArgs += ['-Xlint:-path']
-      } else if (ver == '17') {
-        def java17Home = project.findProperty("java17Home")
-        options.fork = true
-        options.forkOptions.javaHome = java17Home as File
-        options.compilerArgs += ['-Xlint:-path']
-        // Error prone requires some packages to be exported/opened for Java 17
-        // Disabling checks since this property is only used for tests
-        // https://github.com/tbroyer/gradle-errorprone-plugin#jdk-16-support
-        options.errorprone.errorproneArgs.add("-XepDisableAllChecks")
-        // The -J prefix is needed to workaround https://github.com/gradle/gradle/issues/22747
-        options.forkOptions.jvmArgs += errorProneAddModuleOpts.collect { '-J' + it }
-      } else if (ver == '21') {
-        def java21Home = project.findProperty("java21Home")
-        options.fork = true
-        options.forkOptions.javaHome = java21Home as File
-        options.compilerArgs += [
-          '-Xlint:-path',
-          '-Xlint:-this-escape'
-        ]
-        // Error prone requires some packages to be exported/opened for Java 17+
-        // Disabling checks since this property is only used for tests
-        options.errorprone.errorproneArgs.add("-XepDisableAllChecks")
-        options.forkOptions.jvmArgs += errorProneAddModuleOpts.collect { '-J' + it }
-        // TODO(https://github.com/apache/beam/issues/28963)
-        // upgrade checkerFramework to enable it in Java 21
-        project.checkerFramework {
-          skipCheckerFramework = true
-        }
-      } else {
-        throw new GradleException("Unknown Java Version ${ver} for setting additional java options")
-      }
-    }
-
     project.ext.repositories = {
       maven {
         name "testPublicationLocal"
@@ -1087,8 +986,6 @@ class BeamModulePlugin implements Plugin<Project> {
         project.archivesBaseName = configuration.archivesBaseName
       }
 
-      project.apply plugin: "java"
-
       // We create a testRuntimeMigration configuration here to extend
       // testImplementation, testRuntimeOnly, and default (similar to what
       // testRuntime did).
@@ -1105,11 +1002,6 @@ class BeamModulePlugin implements Plugin<Project> {
         runtimeOnly.extendsFrom(provided)
       }
 
-      // Configure the Java compiler source language and target compatibility levels. Also ensure that
-      // we configure the Java compiler to use UTF-8.
-      project.sourceCompatibility = project.javaVersion
-      project.targetCompatibility = project.javaVersion
-
       def defaultLintSuppressions = [
         'options',
         'cast',
@@ -1123,37 +1015,120 @@ class BeamModulePlugin implements Plugin<Project> {
         'unchecked',
         'varargs',
       ]
-      // Java21 introduced new lint "this-escape", violated by generated srcs
-      // TODO(yathu) remove this once generated code (antlr) no longer trigger this warning
-      if (JavaVersion.current().compareTo(JavaVersion.VERSION_21) >= 0) {
-        defaultLintSuppressions += ['this-escape']
+
+      project.apply plugin: "java"
+
+      project.java {
+        toolchain {
+          languageVersion = JavaLanguageVersion.of(project.javaVersion)
+        }
       }
 
+      // Enable errorprone static analysis
+      project.apply plugin: 'net.ltgt.errorprone'
+
+      project.dependencies {
+        errorprone "com.google.errorprone:error_prone_core:$errorprone_version:with-dependencies"
+        errorprone "jp.skypencil.errorprone.slf4j:errorprone-slf4j:0.1.2"
+      }
+
+      project.configurations.errorprone { resolutionStrategy.force "com.google.errorprone:error_prone_core:$errorprone_version:with-dependencies" }
+
       project.tasks.withType(JavaCompile).configureEach {
+        // Ensure that we configure the Java compiler to use UTF-8.
         options.encoding = "UTF-8"
-        // Use -source 8 -target 8 when targeting Java 8 and running on JDK > 8
-        //
-        // Consider migrating compilation and testing to use JDK 9+ and setting '--release 8' as
-        // the default allowing 'applyJavaNature' to override it for the few modules that need JDK 9+
-        // artifacts. See https://stackoverflow.com/a/43103038/4368200 for additional details.
-        if (JavaVersion.VERSION_1_8.compareTo(JavaVersion.toVersion(project.javaVersion)) == 0
-        && JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0) {
-          options.compilerArgs += ['--release', '8']
-          // TODO(https://github.com/apache/beam/issues/23901): Fix
-          // optimizerOuterThis breakage
-          options.compilerArgs += ['-XDoptimizeOuterThis=false']
-        }
+        // Configure the Java compiler source language and target compatibility levels.
+        sourceCompatibility = targetCompatibility = JavaVersion.toVersion(configuration.minimumLanguageVersion)
+
         // As we want to add '-Xlint:-deprecation' we intentionally remove '-Xlint:deprecation' from compilerArgs here,
         // as intellij is adding this, see https://youtrack.jetbrains.com/issue/IDEA-196615
         options.compilerArgs -= [
           "-Xlint:deprecation",
         ]
-        options.compilerArgs += ([
+        options.compilerArgs += [
           '-parameters',
           '-Xlint:all',
           '-Werror'
         ]
-        + (defaultLintSuppressions + configuration.disableLintWarnings).collect { "-Xlint:-${it}" })
+        options.compilerArgs += defaultLintSuppressions.collect { "-Xlint:-${it}" }
+        options.compilerArgs += configuration.disableLintWarnings.collect { "-Xlint:-${it}" }
+
+        options.errorprone {
+          disableWarningsInGeneratedCode = true
+          excludedPaths = '(.*/)?(build/generated-src|build/generated.*avro-java|build/generated)/.*'
+          
+          // TODO(https://github.com/apache/beam/issues/20955): Enable errorprone checks
+          disable 'AutoValueImmutableFields',
+                  'AutoValueSubclassLeaked',
+                  'BadImport',
+                  'BadInstanceof',
+                  'BigDecimalEquals',
+                  'ComparableType',
+                  'DoNotMockAutoValue',
+                  'EmptyBlockTag',
+                  'EmptyCatch',
+                  'EqualsGetClass',
+                  'EqualsUnsafeCast',
+                  'EscapedEntity',
+                  'ExtendsAutoValue',
+                  'InlineFormatString',
+                  'InlineMeSuggester',
+                  'InvalidBlockTag',
+                  'InvalidInlineTag',
+                  'InvalidLink',
+                  'InvalidParam',
+                  'InvalidThrows',
+                  'JavaTimeDefaultTimeZone',
+                  'JavaUtilDate',
+                  'JodaConstructors',
+                  'MalformedInlineTag',
+                  'MissingSummary',
+                  'MixedMutabilityReturnType',
+                  'PreferJavaTimeOverload',
+                  'MutablePublicArray',
+                  'NonCanonicalType',
+                  'ProtectedMembersInFinalClass',
+                  'Slf4jFormatShouldBeConst',
+                  'Slf4jSignOnlyFormat',
+                  'StaticAssignmentInConstructor',
+                  'ThreadPriorityCheck',
+                  'TimeUnitConversionChecker',
+                  'UndefinedEquals',
+                  'UnescapedEntity',
+                  'UnnecessaryLambda',
+                  'UnnecessaryMethodReference',
+                  'UnnecessaryParentheses',
+                  'UnrecognisedJavadocTag',
+                  'UnsafeReflectiveConstructionCast',
+                  'UseCorrectAssertInTests',
+                  // Sometimes a static logger is preferred, which is the convention
+                  // currently used in beam. See docs:
+                  // https://github.com/KengoTODA/findbugs-slf4j#slf4j_logger_should_be_non_static
+                  'Slf4jLoggerShouldBeNonStatic'
+        }
+      }
+
+      if (JavaLanguageVersion.of(project.javaVersion).canCompileOrRun(9)) {
+        // Use -release 8 when targeting Java 8 and running on JDK > 8
+        //
+        // Consider migrating compilation and testing to use JDK 9+ and setting '--release 8' as
+        // the default allowing 'applyJavaNature' to override it for the few modules that need JDK 9+
+        // artifacts. See https://stackoverflow.com/a/43103038/4368200 for additional details.
+        project.tasks.withType(JavaCompile).configureEach {
+          // TODO(https://github.com/apache/beam/issues/23901): Fix
+          // optimizerOuterThis breakage
+          options.compilerArgs << '-XDoptimizeOuterThis=false'
+          // Takes precedence over sourceCompatibility and targetCompatibility
+          options.release = configuration.minimumLanguageVersion
+        }
+      }
+
+      if (JavaLanguageVersion.of(project.javaVersion).canCompileOrRun(21)) {
+        project.tasks.withType(JavaCompile).configureEach {
+          // Java21 introduced new lint "this-escape", violated by generated srcs
+          // TODO(yathu) remove this once generated code (antlr) no longer trigger this warning
+          options.compilerArgs << '-Xlint:-this-escape'
+        }
       }
 
       project.tasks.withType(Jar).configureEach {
@@ -1180,6 +1155,16 @@ class BeamModulePlugin implements Plugin<Project> {
         maxHeapSize = '2g'
       }
 
+      if (JavaLanguageVersion.of(project.javaVersion).canCompileOrRun(17)) {
+        project.tasks.withType(Test).configureEach {
+          jvmArgs += [
+            "--add-opens=java.base/java.nio=ALL-UNNAMED",
+            "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+            "--add-opens=java.base/sun.nio.cs=ALL-UNNAMED",
+          ]
+        }
+      }
+
       List<String> skipDefRegexes = []
       skipDefRegexes << "AutoValue_.*"
       skipDefRegexes << "AutoOneOf_.*"
@@ -1202,8 +1187,7 @@ class BeamModulePlugin implements Plugin<Project> {
         ]
 
         // Only skip checkerframework if explicitly requested
-        skipCheckerFramework = project.hasProperty('enableCheckerFramework') &&
-            !parseBooleanProperty(project, 'enableCheckerFramework')
+        skipCheckerFramework = !parseBooleanProperty(project, 'enableCheckerFramework')
 
         // Always exclude checkerframework on tests. It's slow, and it often
         // raises erroneous error because we don't have checker annotations for
@@ -1473,109 +1457,6 @@ class BeamModulePlugin implements Plugin<Project> {
         project.tasks.analyzeClassesDependencies.enabled = false
         project.tasks.analyzeTestClassesDependencies.enabled = false
         project.tasks.analyzeDependencies.enabled = false
-      }
-
-      // errorprone requires java9+ compiler. It can be used with Java8 but then sets a java9+ errorproneJavac.
-      // However, the redirect ignores any task that forks and defines either a javaHome or an executable,
-      // see https://github.com/tbroyer/gradle-errorprone-plugin#jdk-8-support
-      // which means errorprone cannot run when gradle runs on Java11+ but serve `-testJavaVersion=8 -Pjava8Home` options
-      if (!(project.findProperty('testJavaVersion') == '8')) {
-        // Enable errorprone static analysis
-        project.apply plugin: 'net.ltgt.errorprone'
-
-        project.dependencies {
-          errorprone("com.google.errorprone:error_prone_core:$errorprone_version")
-          errorprone("jp.skypencil.errorprone.slf4j:errorprone-slf4j:0.1.2")
-          // At least JDk 9 compiler is required, however JDK 8 still can be used but with additional errorproneJavac
-          // configuration. For more details please see https://github.com/tbroyer/gradle-errorprone-plugin#jdk-8-support
-          if (JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) == 0) {
-            errorproneJavac("com.google.errorprone:javac:9+181-r4173-1")
-          }
-        }
-
-        project.configurations.errorprone { resolutionStrategy.force "com.google.errorprone:error_prone_core:$errorprone_version" }
-
-        project.tasks.withType(JavaCompile) {
-          options.errorprone.disableWarningsInGeneratedCode = true
-          options.errorprone.excludedPaths = '(.*/)?(build/generated-src|build/generated.*avro-java|build/generated)/.*'
-
-          // Error Prone requires some packages to be exported/opened on Java versions that support modules,
-          // i.e. Java 9 and up. The flags became mandatory in Java 17 with JEP-403.
-          // The -J prefix is not needed if forkOptions.javaHome is unset,
-          // see http://github.com/gradle/gradle/issues/22747
-          if (JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0
-          && options.forkOptions.javaHome == null) {
-            options.fork = true
-            options.forkOptions.jvmArgs += errorProneAddModuleOpts
-          }
-
-          // TODO(https://github.com/apache/beam/issues/20955): Enable errorprone checks
-          options.errorprone.errorproneArgs.add("-Xep:AutoValueImmutableFields:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:AutoValueSubclassLeaked:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:BadImport:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:BadInstanceof:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:BigDecimalEquals:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:ComparableType:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:DoNotMockAutoValue:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:EmptyBlockTag:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:EmptyCatch:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:EqualsGetClass:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:EqualsUnsafeCast:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:EscapedEntity:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:ExtendsAutoValue:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:InlineFormatString:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:InlineMeSuggester:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:InvalidBlockTag:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:InvalidInlineTag:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:InvalidLink:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:InvalidParam:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:InvalidThrows:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:JavaTimeDefaultTimeZone:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:JavaUtilDate:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:JodaConstructors:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:MalformedInlineTag:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:MissingSummary:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:MixedMutabilityReturnType:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:PreferJavaTimeOverload:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:MutablePublicArray:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:NonCanonicalType:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:ProtectedMembersInFinalClass:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:Slf4jFormatShouldBeConst:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:Slf4jSignOnlyFormat:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:StaticAssignmentInConstructor:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:ThreadPriorityCheck:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:TimeUnitConversionChecker:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:UndefinedEquals:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:UnescapedEntity:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:UnnecessaryLambda:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:UnnecessaryMethodReference:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:UnnecessaryParentheses:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:UnrecognisedJavadocTag:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:UnsafeReflectiveConstructionCast:OFF")
-          options.errorprone.errorproneArgs.add("-Xep:UseCorrectAssertInTests:OFF")
-
-          // Sometimes a static logger is preferred, which is the convention
-          // currently used in beam. See docs:
-          // https://github.com/KengoTODA/findbugs-slf4j#slf4j_logger_should_be_non_static
-          options.errorprone.errorproneArgs.add("-Xep:Slf4jLoggerShouldBeNonStatic:OFF")
-        }
-      }
-
-      // if specified test java version, modify the compile and runtime versions accordingly
-      if (['8', '11', '17', '21'].contains(project.findProperty('testJavaVersion'))) {
-        String ver = project.getProperty('testJavaVersion')
-        def testJavaHome = project.getProperty("java${ver}Home")
-
-        // redirect java compiler to specified version for compileTestJava only
-        project.tasks.compileTestJava {
-          setCompileAndRuntimeJavaVersion(options.compilerArgs, ver)
-          project.ext.setJavaVerOptions(options, ver)
-        }
-        // redirect java runtime to specified version for running tests
-        project.tasks.withType(Test).configureEach {
-          useJUnit()
-          executable = "${testJavaHome}/bin/java"
-        }
       }
 
       if (configuration.shadowClosure) {
@@ -2585,9 +2466,7 @@ class BeamModulePlugin implements Plugin<Project> {
         // see https://issues.apache.org/jira/browse/BEAM-6698
         maxHeapSize = '4g'
         if (config.environment == PortableValidatesRunnerConfiguration.Environment.DOCKER) {
-          def ver = project.findProperty('testJavaVersion')
-          def javaContainerSuffix = ver ? "java$ver" : getSupportedJavaVersion()
-          dependsOn ":sdks:java:container:${javaContainerSuffix}:docker"
+          dependsOn ":sdks:java:container:java${project.javaVersion}:docker"
         }
       }
     }
@@ -2612,7 +2491,6 @@ class BeamModulePlugin implements Plugin<Project> {
 
       def pythonDir = project.project(":sdks:python").projectDir
       def usesDataflowRunner = config.pythonPipelineOptions.contains("--runner=TestDataflowRunner") || config.pythonPipelineOptions.contains("--runner=DataflowRunner")
-      def javaContainerSuffix = getSupportedJavaVersion()
 
       // Sets up, collects, and runs Python pipeline tests
       project.tasks.register(config.name+"PythonUsingJava") {
@@ -2623,7 +2501,7 @@ class BeamModulePlugin implements Plugin<Project> {
         for (path in config.expansionProjectPaths) {
           dependsOn project.project(path).shadowJar.getPath()
         }
-        dependsOn ":sdks:java:container:$javaContainerSuffix:docker"
+        dependsOn ":sdks:java:container:java${project.javaVersion}:docker"
         dependsOn "installGcpTest"
         if (usesDataflowRunner) {
           dependsOn ":sdks:python:test-suites:dataflow:py${project.ext.pythonVersion.replace('.', '')}:initializeForDataflowJob"
@@ -2692,9 +2570,8 @@ class BeamModulePlugin implements Plugin<Project> {
       ]
       def serviceArgs = project.project(':sdks:python').mapToArgString(expansionServiceOpts)
       def pythonContainerSuffix = project.project(':sdks:python').pythonVersion.replace('.', '')
-      def javaContainerSuffix = getSupportedJavaVersion()
       def setupTask = project.tasks.register(config.name+"Setup", Exec) {
-        dependsOn ':sdks:java:container:'+javaContainerSuffix+':docker'
+        dependsOn ":sdks:java:container:java${project.javaVersion}:docker"
         dependsOn ':sdks:python:container:py'+pythonContainerSuffix+':docker'
         dependsOn ':sdks:java:testing:expansion-service:buildTestExpansionServiceJar'
         dependsOn ":sdks:python:installGcpTest"
@@ -2865,7 +2742,6 @@ class BeamModulePlugin implements Plugin<Project> {
       ]
       def serviceArgs = project.project(':sdks:python').mapToArgString(transformServiceOpts)
       def pythonContainerSuffix = project.project(':sdks:python').pythonVersion.replace('.', '')
-      def javaContainerSuffix = getSupportedJavaVersion()
 
       // Transform service delivers transforms that refer to SDK harness containers with following sufixes.
       def transformServiceJavaContainerSuffix = 'java11'
@@ -2873,7 +2749,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
       def setupTask = project.tasks.register(config.name+"Setup", Exec) {
         // Containers for main SDKs when running tests.
-        dependsOn ':sdks:java:container:'+javaContainerSuffix+':docker'
+        dependsOn ":sdks:java:container:java${project.javaVersion}:docker"
         dependsOn ':sdks:python:container:py'+pythonContainerSuffix+':docker'
         // Containers for external SDKs used through the transform service.
         dependsOn ':sdks:java:container:'+transformServiceJavaContainerSuffix+':docker'
@@ -2954,13 +2830,6 @@ class BeamModulePlugin implements Plugin<Project> {
       // we use the hash value.
       project.ext.envdir = "${project.rootProject.buildDir}/gradleenv/${project.path.hashCode()}"
       def pythonRootDir = "${project.rootDir}/sdks/python"
-
-      // Python interpreter version for virtualenv setup and test run. This value can be
-      // set from commandline with -PpythonVersion, or in build script of certain project.
-      // If none of them applied, version set here will be used as default value.
-      // TODO(BEAM-12000): Move default value to Py3.9.
-      project.ext.pythonVersion = project.hasProperty('pythonVersion') ?
-          project.pythonVersion : '3.9'
 
       def setupVirtualenv = project.tasks.register('setupVirtualenv')  {
         doLast {

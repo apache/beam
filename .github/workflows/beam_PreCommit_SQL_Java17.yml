@@ -94,9 +94,10 @@ jobs:
           arguments: |
             -PdisableSpotlessCheck=true \
             -PdisableCheckStyle=true \
-            -PtestJavaVersion=17 \
+            -PjavaVersion=17 \
             -PskipCheckerFramework \
-            -Pjava17Home=$JAVA_HOME_17_X64 \
+            -Porg.gradle.java.installations.auto-detect=false \
+            -Porg.gradle.java.installations.paths=$JAVA_HOME_17_X64 \
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v4
         if: ${{ !success() }}

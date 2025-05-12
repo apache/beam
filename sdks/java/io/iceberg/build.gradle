@@ -1,4 +1,5 @@
 import groovy.json.JsonOutput
+import org.gradle.jvm.toolchain.JavaLanguageVersion
 
 import java.util.stream.Collectors
 
@@ -130,9 +131,12 @@ hadoopVersions.each { kv ->
 
 def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
 def gcpTempLocation = project.findProperty('gcpTempLocation') ?: 'gs://managed-iceberg-integration-tests/temp'
-def usingJava8 = (project.findProperty('testJavaVersion') == '8' || JavaVersion.current().equals(JavaVersion.VERSION_1_8))
 
 task integrationTest(type: Test) {
+    javaLauncher = javaToolchains.launcherFor {
+        languageVersion = JavaLanguageVersion.of(11)
+    }
+
     group = "Verification"
     systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
         "--project=${gcpProject}",
@@ -143,10 +147,6 @@ task integrationTest(type: Test) {
     outputs.upToDateWhen { false }
 
     include '**/*IT.class'
-    // BQ metastore catalog doesn't support java 8
-    if (usingJava8) {
-        exclude '**/BigQueryMetastoreCatalogIT.class'
-    }
 
     maxParallelForks 1
     classpath = sourceSets.test.runtimeClasspath
@@ -154,6 +154,10 @@ task integrationTest(type: Test) {
 }
 
 task dataflowIntegrationTest(type: Test) {
+    javaLauncher = javaToolchains.launcherFor {
+        languageVersion = JavaLanguageVersion.of(11)
+    }
+
     group = "Verification"
     def args = [
             "--runner=DataflowRunner",
@@ -178,12 +182,6 @@ task dataflowIntegrationTest(type: Test) {
         includeTestsMatching 'org.apache.beam.sdk.io.iceberg.catalog.BigQueryMetastoreCatalogIT.testWriteRead'
         includeTestsMatching 'org.apache.beam.sdk.io.iceberg.catalog.BigQueryMetastoreCatalogIT.testReadWriteStreaming'
         includeTestsMatching 'org.apache.beam.sdk.io.iceberg.catalog.BigQueryMetastoreCatalogIT.testStreamToPartitionedDynamicDestinations'
-    }
-
-    doLast {
-        if (usingJava8) {
-            throw new StopExecutionException("BigQueryMetastoreCatalog doesn't support Java 8");
-        }
     }
 
     maxParallelForks 4

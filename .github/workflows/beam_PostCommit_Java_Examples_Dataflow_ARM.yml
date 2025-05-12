@@ -97,8 +97,9 @@ jobs:
             gradle-command: :runners:google-cloud-dataflow-java:arm:examplesJavaRunnerV2IntegrationTestARM
             max-workers: 12
             arguments: |
-                -PtestJavaVersion=${{ matrix.java_version }} \
-                -Pjava${{ matrix.java_version }}Home=$JAVA_HOME_${{ matrix.java_version }}_X64 \
+                -PjavaVersion=${{ matrix.java_version }} \
+                -Porg.gradle.java.installations.auto-detect=false \
+                -Porg.gradle.java.installations.paths=$JAVA_HOME_${{ matrix.java_version }}_X64 \
                 -Pcontainer-architecture-list=arm64,amd64 \
                 -Ppush-containers \
                 -Pdocker-repository-root=us.gcr.io/apache-beam-testing/github-actions \

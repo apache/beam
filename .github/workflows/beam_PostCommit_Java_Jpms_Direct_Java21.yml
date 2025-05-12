@@ -83,8 +83,9 @@ jobs:
         gradle-command: :sdks:java:testing:jpms-tests:directRunnerIntegrationTest
         arguments:
           -PskipCheckerFramework
-          -PtestJavaVersion=21
-          -Pjava21Home=$JAVA_HOME_21_X64
+          -PjavaVersion=21
+          -Porg.gradle.java.installations.auto-detect=false \
+          -Porg.gradle.java.installations.paths=$JAVA_HOME_21_X64
     - name: Archive JUnit Test Results
       uses: actions/upload-artifact@v4
       if: ${{ !success() }}

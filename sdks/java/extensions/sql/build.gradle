@@ -244,11 +244,7 @@ task preCommit {
   dependsOn build
   dependsOn runBasicExample
   dependsOn runPojoExample
-
-  if (project.hasProperty("testJavaVersion")) {
-    var testVer = project.property("testJavaVersion")
-    dependsOn(":sdks:java:testing:test-utils:verifyJavaVersion$testVer")
-  }
+  dependsOn(":sdks:java:testing:test-utils:verifyJavaVersion${project.javaVersion}")
 }
 
 task postCommit {

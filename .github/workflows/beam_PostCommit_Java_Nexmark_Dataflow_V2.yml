@@ -111,8 +111,9 @@ jobs:
         with:
           gradle-command: :sdks:java:testing:nexmark:run
           arguments: |
-            -PtestJavaVersion=8 \
-            -Pjava8Home=$JAVA_HOME_8_X64 \
+            -PjavaVersion=8 \
+            -Porg.gradle.java.installations.auto-detect=false \
+            -Porg.gradle.java.installations.paths=$JAVA_HOME_8_X64 \
             -Pnexmark.runner.version=V2 \
             -Pnexmark.runner=:runners:google-cloud-dataflow-java \
             '${{ env.GRADLE_COMMAND_ARGUMENTS }}--streaming=${{ matrix.streaming }}'

@@ -17,6 +17,7 @@
  */
 
 import groovy.json.JsonOutput
+import org.gradle.jvm.toolchain.JavaLanguageVersion
 
 plugins { id 'org.apache.beam.module'
     id 'org.jetbrains.kotlin.jvm' version '1.6.10'
@@ -123,16 +124,12 @@ task preCommit() {
   }
 }
 
-compileKotlin {
-    kotlinOptions {
-        jvmTarget = project.javaVersion
-    }
+kotlin {
+  jvmToolchain {
+    languageVersion = JavaLanguageVersion.of(project.javaVersion)
+  }
 }
-compileTestKotlin {
-    kotlinOptions {
-        jvmTarget = project.javaVersion
-    }
-}
+
 repositories {
   mavenCentral()
 }

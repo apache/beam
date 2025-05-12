@@ -124,6 +124,7 @@ class NexmarkBuilder {
         rootBuildScriptDir(commonJobProperties.checkoutDir)
         tasks(':sdks:java:testing:nexmark:run')
         commonJobProperties.setGradleSwitches(delegate)
+        switches("-PjavaVersion=8")
         switches("-Pnexmark.runner=${runner.getDependencyBySDK(sdk)}")
         switches("-Pnexmark.args=\"${parseOptions(options)}\"")
         if (jobSpecificSwitches != null) {
@@ -145,8 +146,7 @@ class NexmarkBuilder {
         rootBuildScriptDir(commonJobProperties.checkoutDir)
         tasks(':sdks:java:testing:nexmark:run')
         commonJobProperties.setGradleSwitches(delegate)
-        switches("-PtestJavaVersion=11")
-        switches("-Pjava11Home=${commonJobProperties.JAVA_11_HOME}")
+        switches("-PjavaVersion=11")
         switches("-Pnexmark.runner=${runner.getDependencyBySDK(sdk)}")
         switches("-Pnexmark.args=\"${parseOptions(options)}\"")
         if (jobSpecificSwitches != null) {
@@ -168,8 +168,29 @@ class NexmarkBuilder {
         rootBuildScriptDir(commonJobProperties.checkoutDir)
         tasks(':sdks:java:testing:nexmark:run')
         commonJobProperties.setGradleSwitches(delegate)
-        switches("-PtestJavaVersion=17")
-        switches("-Pjava17Home=${commonJobProperties.JAVA_17_HOME}")
+        switches("-PjavaVersion=17")
+        switches("-Pnexmark.runner=${runner.getDependencyBySDK(sdk)}")
+        switches("-Pnexmark.args=\"${parseOptions(options)}\"")
+        if (jobSpecificSwitches != null) {
+          jobSpecificSwitches.each {
+            switches(it)
+          }
+        }
+      }
+    }
+  }
+
+    static void java21Suite(context, String title, Runner runner, SDK sdk, Map<String, Object> options, List<String> jobSpecificSwitches) {
+    InfluxDBCredentialsHelper.useCredentials(context)
+    context.steps {
+      shell("echo \"*** RUN ${title} with Java 21***\"")
+
+      // Run with Java 17
+      gradle {
+        rootBuildScriptDir(commonJobProperties.checkoutDir)
+        tasks(':sdks:java:testing:nexmark:run')
+        commonJobProperties.setGradleSwitches(delegate)
+        switches("-PjavaVersion=21")
         switches("-Pnexmark.runner=${runner.getDependencyBySDK(sdk)}")
         switches("-Pnexmark.args=\"${parseOptions(options)}\"")
         if (jobSpecificSwitches != null) {

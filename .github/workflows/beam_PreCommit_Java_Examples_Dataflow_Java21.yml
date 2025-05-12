@@ -116,9 +116,10 @@ jobs:
         arguments: |
           -PdisableSpotlessCheck=true \
           -PdisableCheckStyle=true \
-          -PtestJavaVersion=21 \
+          -PjavaVersion=21 \
           -PskipCheckerFramework \
-          -Pjava21Home=$JAVA_HOME_21_X64 \
+          -Porg.gradle.java.installations.auto-detect=false \
+          -Porg.gradle.java.installations.paths=$JAVA_HOME_21_X64 \
         max-workers: 12
     - name: Archive JUnit Test Results
       uses: actions/upload-artifact@v4

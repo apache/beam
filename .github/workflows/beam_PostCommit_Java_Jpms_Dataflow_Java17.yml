@@ -82,8 +82,9 @@ jobs:
           gradle-command: :sdks:java:testing:jpms-tests:dataflowRunnerIntegrationTest
           arguments:
             -PskipCheckerFramework
-            -PtestJavaVersion=17
-            -Pjava17Home=$JAVA_HOME_17_X64
+            -PjavaVersion=17
+            -Porg.gradle.java.installations.auto-detect=false \
+            -Porg.gradle.java.installations.paths=$JAVA_HOME_17_X64
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v4
         if: ${{ !success() }}
