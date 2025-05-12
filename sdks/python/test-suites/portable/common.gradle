@@ -1,5 +1,3 @@
-import static org.apache.beam.gradle.BeamModulePlugin.getSupportedJavaVersion
-
 import org.apache.tools.ant.taskdefs.condition.Os
 
 /*
@@ -41,8 +39,7 @@ def createFlinkRunnerTestTask(String workerType) {
   task.configure {
     dependsOn ":runners:flink:${latestFlinkVersion}:job-server:shadowJar"
     // The Java SDK worker is required to execute external transforms.
-    def suffix = getSupportedJavaVersion()
-    dependsOn ":sdks:java:container:${suffix}:docker"
+    dependsOn ":sdks:java:container:java${project.javaVersion}:docker"
     if (workerType == 'DOCKER') {
       dependsOn pythonContainerTask
     } else if (workerType == 'PROCESS') {
@@ -214,7 +211,7 @@ def createPrismRunnerTestTask(String workerType) {
     dependsOn ":runners:prism:build"
     // The Java SDK worker is required to execute external transforms.
     def suffix = getSupportedJavaVersion()
-    dependsOn ":sdks:java:container:${suffix}:docker"
+    dependsOn ":sdks:java:container:java${project.javaVersion}:docker"
     if (workerType == 'DOCKER') {
       dependsOn pythonContainerTask
     } else if (workerType == 'PROCESS') {
