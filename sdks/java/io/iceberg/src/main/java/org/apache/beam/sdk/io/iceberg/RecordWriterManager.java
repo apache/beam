@@ -324,8 +324,6 @@ class RecordWriterManager implements AutoCloseable {
             });
 
     Record icebergRecord = IcebergUtils.beamRowToIcebergRecord(destinationState.schema, row);
-    System.out.println("beam row: " + row);
-    System.out.println("ice record: " + icebergRecord);
     return destinationState.write(icebergRecord);
   }
 
