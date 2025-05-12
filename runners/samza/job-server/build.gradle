@@ -192,19 +192,6 @@ def portableValidatesRunnerTask(String name, boolean docker) {
 
 project.ext.validatesPortableRunnerDocker = portableValidatesRunnerTask("Docker", true)
 project.ext.validatesPortableRunnerEmbedded = portableValidatesRunnerTask("Embedded", false)
-// TODO(https://github.com/apache/beam/issues/32208) move to Java11 after bump to Samza 1.8
-// Also .github/workflows/beam_PostCommit_Java_PVR_Samza.yml
-tasks.named('validatesPortableRunnerDocker', Test) {
-  javaLauncher = javaToolchains.launcherFor {
-    languageVersion = JavaLanguageVersion.of(8)
-  }
-  dependsOn ":sdks:java:container:java8:docker"
-}
-tasks.named('validatesPortableRunnerEmbedded', Test) {
-  javaLauncher = javaToolchains.launcherFor {
-    languageVersion = JavaLanguageVersion.of(8)
-  }
-}
 
 tasks.register("validatesPortableRunner") {
     dependsOn validatesPortableRunnerDocker
