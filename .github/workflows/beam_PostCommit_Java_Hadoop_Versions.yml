@@ -73,17 +73,13 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
+          # TODO(https://github.com/apache/beam/issues/32189) remove when embedded hive supports Java11
+          # Also change sdks/java/io/hcatalog/build.gradle
           java-version: 8
       - name: run javaHadoopVersionsTest script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :javaHadoopVersionsTest
-      # TODO(https://github.com/apache/beam/issues/32189) remove when embedded hive supports Java11
-      # Also change sdks/java/io/hcatalog/build.gradle
-      - name: run java8HadoopVersionsTest script
-        uses: ./.github/actions/gradle-command-self-hosted-action
-        with:
-          gradle-command: :sdks:java:io:hcatalog:hadoopVersionsTest
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v4
         if: ${{ !success() }}

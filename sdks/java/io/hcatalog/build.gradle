@@ -100,14 +100,16 @@ task hadoopVersionsTest(group: "Verification") {
 
 hadoopVersions.each { kv ->
   tasks.create(name: "hadoopVersion${kv.key}Test", type: Test, group: "Verification") {
+    description = "Runs HCatalog tests with Hadoop version $kv.value"
+    classpath = configurations."hadoopVersion$kv.key" + sourceSets.test.runtimeClasspath
+    include '**/*Test.class'
+  }
+}
+
+tasks.withType(Test).configureEach {
     // TODO(https://github.com/apache/beam/issues/32189) remove when embedded hive supports Java11
     // Also change .github/workflows/beam_PostCommit_Java_Hadoop_Versions.yml
     javaLauncher = javaToolchains.launcherFor {
       languageVersion = JavaLanguageVersion.of(8)
     }
-
-    description = "Runs HCatalog tests with Hadoop version $kv.value"
-    classpath = configurations."hadoopVersion$kv.key" + sourceSets.test.runtimeClasspath
-    include '**/*Test.class'
-  }
 }
