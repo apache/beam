@@ -2831,6 +2831,13 @@ class BeamModulePlugin implements Plugin<Project> {
       project.ext.envdir = "${project.rootProject.buildDir}/gradleenv/${project.path.hashCode()}"
       def pythonRootDir = "${project.rootDir}/sdks/python"
 
+      // Python interpreter version for virtualenv setup and test run. This value can be
+      // set from commandline with -PpythonVersion, or in build script of certain project.
+      // If none of them applied, version set here will be used as default value.
+      // TODO(BEAM-12000): Move default value to Py3.9.
+      project.ext.pythonVersion = project.hasProperty('pythonVersion') ?
+          project.pythonVersion : '3.9'
+
       def setupVirtualenv = project.tasks.register('setupVirtualenv')  {
         doLast {
           def virtualenvCmd = [
