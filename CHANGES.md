@@ -99,7 +99,7 @@
 [comment]: # ( When updating known issues after release, make sure also update website blog in website/www/site/content/blog.)
 * ([#X](https://github.com/apache/beam/issues/X)).
 
-# [2.65.0] - Unreleased
+# [2.65.0] - 2025-05-12
 
 ## I/Os
 
