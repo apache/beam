@@ -1257,7 +1257,7 @@ with beam.Pipeline() as pipeline:
 > **Note:** 
 >
 - **Returning a single element (e.g., `return element`) is incorrect**  
->   The `process` method in Beam must return an *iterable* of elements. Returning a single value like an integer or string (e.g., `return element`) leads to a runtime error (`TypeError: 'int' object is not iterable`). Always ensure your return type is iterable.
+>   The `process` method in Beam must return an *iterable* of elements. Returning a single value like an integer or string (e.g., `return element`) leads to a runtime error (`TypeError: 'int' object is not iterable`) or incorrect results since the return value will be treated as an iterable. Always ensure your return type is iterable.
 
 - **Returning a list (e.g., `return [element1, element2]`) is valid**  
 >   This approach works well when emitting multiple outputs from a single call and is easy to read for small datasets.
