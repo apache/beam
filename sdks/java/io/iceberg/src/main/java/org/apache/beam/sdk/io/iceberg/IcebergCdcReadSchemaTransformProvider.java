@@ -116,6 +116,8 @@ public class IcebergCdcReadSchemaTransformProvider
               .toTimestamp(configuration.getToTimestamp())
               .withStartingStrategy(strategy)
               .streaming(configuration.getStreaming())
+              .keeping(configuration.getKeep())
+              .dropping(configuration.getDrop())
               .withFilter(configuration.getFilter());
 
       @Nullable Integer pollIntervalSeconds = configuration.getPollIntervalSeconds();
@@ -184,6 +186,14 @@ public class IcebergCdcReadSchemaTransformProvider
     @Nullable
     abstract String getFilter();
 
+    @SchemaFieldDescription(
+        "A subset of column names to read exclusively. If null or empty, all columns will be read.")
+    abstract @Nullable List<String> getKeep();
+
+    @SchemaFieldDescription(
+        "A subset of column names to exclude from reading. If null or empty, all columns will be read.")
+    abstract @Nullable List<String> getDrop();
+
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setTable(String table);
@@ -207,6 +217,10 @@ public class IcebergCdcReadSchemaTransformProvider
       abstract Builder setPollIntervalSeconds(Integer pollInterval);
 
       abstract Builder setStreaming(Boolean streaming);
+
+      abstract Builder setKeep(List<String> keep);
+
+      abstract Builder setDrop(List<String> drop);
 
       abstract Builder setFilter(String filter);
 

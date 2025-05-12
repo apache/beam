@@ -34,7 +34,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Al
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverCancelledException;
-import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Server;
@@ -105,9 +104,7 @@ public class GrpcCommitWorkStreamTest {
         (GrpcCommitWorkStream)
             GrpcWindmillStreamFactory.of(TEST_JOB_HEADER)
                 .build()
-                .createCommitWorkStream(
-                    CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel),
-                    new ThrottleTimer());
+                .createCommitWorkStream(CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel));
     commitWorkStream.start();
     return commitWorkStream;
   }

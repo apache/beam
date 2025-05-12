@@ -48,8 +48,8 @@ coders.registry.register_coder(Shopper, coders.RowCoder)
 
 @pytest.mark.xlang_sql_expansion_service
 @unittest.skipIf(
-    TestPipeline().get_pipeline_options().view_as(StandardOptions).runner is
-    None,
+    TestPipeline().get_pipeline_options().view_as(StandardOptions).runner
+    is None,
     "Must be run with a runner that supports staging java artifacts.")
 class SqlTransformTest(unittest.TestCase):
   """Tests that exercise the cross-language SqlTransform (implemented in java).

@@ -542,8 +542,7 @@ class TestFunctionAsArgument(unittest.TestCase):
                     type=
                     f"<lambda at {os.path.basename(__file__)}:{my_lambda_func.__code__.co_firstlineno}>",  # pylint: disable=line-too-long
                     config=None)
-            }
-        ))
+            }))
 
     w_2 = Specifiable.from_spec(w_spec)
     self.assertEqual(w_2.run_func(5, 3), 2)

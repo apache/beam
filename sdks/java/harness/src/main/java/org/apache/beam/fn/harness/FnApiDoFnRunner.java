@@ -161,12 +161,10 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   }
 
   static class Factory<InputT, RestrictionT, PositionT, WatermarkEstimatorStateT, OutputT>
-      implements PTransformRunnerFactory<
-          FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimatorStateT, OutputT>> {
+      implements PTransformRunnerFactory {
 
     @Override
-    public final FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimatorStateT, OutputT>
-        createRunnerForPTransform(Context context) {
+    public final void addRunnerForPTransform(Context context) {
 
       FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimatorStateT, OutputT> runner =
           new FnApiDoFnRunner<>(
@@ -205,7 +203,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               localName, coder, timer -> runner.processTimer(localName, timeDomain, timer));
         }
       }
-      return runner;
     }
   }
 
