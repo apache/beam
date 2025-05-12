@@ -261,9 +261,8 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
       }
 
       String prefix = CUSTOM_AUDIT_ENTRY_TMPL.substring(0, CUSTOM_AUDIT_ENTRY_TMPL.indexOf('%'));
-      String formattedKey = key.startsWith(prefix)
-          ? key
-          : String.format(CUSTOM_AUDIT_ENTRY_TMPL, key);
+      String formattedKey =
+          key.startsWith(prefix) ? key : String.format(CUSTOM_AUDIT_ENTRY_TMPL, key);
       String oldValue = super.put(formattedKey, value);
 
       if (exceedsEntryLimit()) {
