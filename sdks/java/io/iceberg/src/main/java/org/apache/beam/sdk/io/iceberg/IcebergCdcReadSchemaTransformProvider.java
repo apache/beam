@@ -115,7 +115,9 @@ public class IcebergCdcReadSchemaTransformProvider
               .fromTimestamp(configuration.getFromTimestamp())
               .toTimestamp(configuration.getToTimestamp())
               .withStartingStrategy(strategy)
-              .streaming(configuration.getStreaming());
+              .streaming(configuration.getStreaming())
+              .keeping(configuration.getKeep())
+              .dropping(configuration.getDrop());
 
       @Nullable Integer pollIntervalSeconds = configuration.getPollIntervalSeconds();
       if (pollIntervalSeconds != null) {
@@ -177,6 +179,14 @@ public class IcebergCdcReadSchemaTransformProvider
         "The interval at which to poll for new snapshots. Defaults to 60 seconds.")
     abstract @Nullable Integer getPollIntervalSeconds();
 
+    @SchemaFieldDescription(
+        "A subset of column names to read exclusively. If null or empty, all columns will be read.")
+    abstract @Nullable List<String> getKeep();
+
+    @SchemaFieldDescription(
+        "A subset of column names to exclude from reading. If null or empty, all columns will be read.")
+    abstract @Nullable List<String> getDrop();
+
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setTable(String table);
@@ -200,6 +210,10 @@ public class IcebergCdcReadSchemaTransformProvider
       abstract Builder setPollIntervalSeconds(Integer pollInterval);
 
       abstract Builder setStreaming(Boolean streaming);
+
+      abstract Builder setKeep(List<String> keep);
+
+      abstract Builder setDrop(List<String> drop);
 
       abstract Configuration build();
     }

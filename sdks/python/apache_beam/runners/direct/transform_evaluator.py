@@ -354,8 +354,7 @@ class _BoundedReadEvaluator(_TransformEvaluator):
       return self._split_list_into_bundles(
           output_pcollection,
           read_result,
-          _BoundedReadEvaluator.MAX_ELEMENT_PER_BUNDLE,
-          lambda _: 1)
+          _BoundedReadEvaluator.MAX_ELEMENT_PER_BUNDLE, lambda _: 1)
 
     if isinstance(self._source, io.iobase.BoundedSource):
       # Getting a RangeTracker for the default range of the source and reading

@@ -181,8 +181,7 @@ class Specifiable(Protocol):
 
     kwargs = {
         k: _specifiable_from_spec_helper(v, _run_init)
-        for k,
-        v in spec.config.items()
+        for k, v in spec.config.items()
     }
 
     if _run_init:

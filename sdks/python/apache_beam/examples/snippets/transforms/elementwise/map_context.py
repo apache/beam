@@ -71,9 +71,8 @@ def map_context(test=None):
         ],
                                             reshuffle=False)
         | 'Strip header' >> beam.Map(
-            lambda text,
-            a=beam.DoFn.SetupContextParam(random_nonce),
-            b=beam.DoFn.BundleContextParam(random_nonce): f"{text} {a} {b}")
+            lambda text, a=beam.DoFn.SetupContextParam(random_nonce), b=beam.
+            DoFn.BundleContextParam(random_nonce): f"{text} {a} {b}")
         | beam.Map(print))
     # [END map_context]
     if test:

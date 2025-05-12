@@ -37,8 +37,8 @@ NUM_RECORDS = 1
 @unittest.skipIf(
     PostgresContainer is None, 'testcontainers package is not installed')
 @unittest.skipIf(
-    TestPipeline().get_pipeline_options().view_as(StandardOptions).runner is
-    None,
+    TestPipeline().get_pipeline_options().view_as(StandardOptions).runner
+    is None,
     'Do not run this test on precommit suites.')
 class CrossLanguageDebeziumIOTest(unittest.TestCase):
   def setUp(self):

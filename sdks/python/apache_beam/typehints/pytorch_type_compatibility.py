@@ -136,7 +136,8 @@ class PytorchTypeHint():
         raise ValueError
     else:
       dtype = value
-      return self.PytorchTypeConstraint(dtype, shape=(N, ))
+      return self.PytorchTypeConstraint(
+          dtype, shape=(N, ))
 
 
 PytorchTensor = PytorchTypeHint()

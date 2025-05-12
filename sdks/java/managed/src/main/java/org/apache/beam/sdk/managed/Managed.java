@@ -46,7 +46,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  * <h3>Available transforms</h3>
  *
  * <p>This API currently supports two operations: {@link Managed#read} and {@link Managed#write}.
- * Each one enumerates the available transforms in a {@code TRANSFORMS} map.
+ * Please check the <a href="https://beam.apache.org/documentation/io/managed-io/">Managed IO
+ * configuration page</a> to see available transforms and config options.
  *
  * <h3>Building a Managed turnkey transform</h3>
  *

@@ -17,18 +17,20 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static java.util.Arrays.asList;
+import static java.util.Collections.singletonList;
+import static org.apache.beam.sdk.io.iceberg.IcebergScanConfig.resolveSchema;
 import static org.apache.beam.sdk.io.iceberg.IcebergUtils.icebergSchemaToBeamSchema;
 import static org.apache.beam.sdk.io.iceberg.TestFixtures.createRecord;
 import static org.apache.iceberg.types.Types.NestedField.required;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -43,6 +45,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.util.RowFilter;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -71,6 +74,8 @@ import org.apache.iceberg.mapping.NameMapping;
 import org.apache.iceberg.mapping.NameMappingParser;
 import org.apache.iceberg.parquet.ParquetUtil;
 import org.apache.iceberg.types.Types;
+import org.apache.iceberg.types.Types.StringType;
+import org.apache.iceberg.types.Types.StructType;
 import org.apache.parquet.avro.AvroParquetWriter;
 import org.apache.parquet.hadoop.ParquetWriter;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -103,7 +108,7 @@ public class IcebergIOReadTest {
 
   @Parameters
   public static Iterable<Object[]> data() {
-    return Arrays.asList(new Object[][] {{false}, {true}});
+    return asList(new Object[][] {{false}, {true}});
   }
 
   // TODO(#34168, ahmedabu98): Update tests when we close feature gaps between regular and cdc
@@ -203,6 +208,69 @@ public class IcebergIOReadTest {
   }
 
   @Test
+  public void testFailWhenDropAndKeepAreSet() {
+    TableIdentifier tableId = TableIdentifier.of("default", testName.getMethodName());
+    warehouse.createTable(tableId, TestFixtures.SCHEMA);
+    IcebergIO.ReadRows read =
+        IcebergIO.readRows(catalogConfig())
+            .from(tableId)
+            .keeping(asList("a"))
+            .dropping(asList("b"))
+            .withPollInterval(Duration.standardSeconds(5));
+
+    if (useIncrementalScan) {
+      read = read.withCdc();
+    }
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Invalid source configuration: only one of 'keep' or 'drop' can be set");
+    read.expand(PBegin.in(testPipeline));
+  }
+
+  @Test
+  public void testFailWhenFilteringUnknownFields() {
+    TableIdentifier tableId = TableIdentifier.of("default", testName.getMethodName());
+    warehouse.createTable(tableId, TestFixtures.SCHEMA);
+    IcebergIO.ReadRows read =
+        IcebergIO.readRows(catalogConfig())
+            .from(tableId)
+            .keeping(asList("id", "unknown"))
+            .withPollInterval(Duration.standardSeconds(5));
+
+    if (useIncrementalScan) {
+      read = read.withCdc();
+    }
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(
+        "Invalid source configuration: 'keep' specifies unknown field(s): [unknown]");
+    read.expand(PBegin.in(testPipeline));
+  }
+
+  @Test
+  public void testProjectedSchema() {
+    org.apache.iceberg.Schema original =
+        new org.apache.iceberg.Schema(
+            required(1, "a", StringType.get()),
+            required(2, "b", StructType.of(required(5, "b.a", StringType.get()))),
+            required(3, "c", StringType.get()),
+            required(4, "d", StringType.get()));
+
+    org.apache.iceberg.Schema projectDrop = resolveSchema(original, null, asList("a", "c"));
+    org.apache.iceberg.Schema expectedDrop =
+        new org.apache.iceberg.Schema(
+            required(2, "b", StructType.of(required(5, "b.a", StringType.get()))),
+            required(4, "d", StringType.get()));
+    assertTrue(projectDrop.sameSchema(expectedDrop));
+
+    org.apache.iceberg.Schema projectKeep = resolveSchema(original, asList("a", "c"), null);
+    org.apache.iceberg.Schema expectedKeep =
+        new org.apache.iceberg.Schema(
+            required(1, "a", StringType.get()), required(3, "c", StringType.get()));
+    assertTrue(projectKeep.sameSchema(expectedKeep));
+  }
+
+  @Test
   public void testSimpleScan() throws Exception {
     TableIdentifier tableId =
         TableIdentifier.of("default", "table" + Long.toString(UUID.randomUUID().hashCode(), 16));
@@ -235,17 +303,64 @@ public class IcebergIOReadTest {
   }
 
   @Test
+  public void testScanSelectedFields() throws Exception {
+    TableIdentifier tableId =
+        TableIdentifier.of("default", "table" + Long.toString(UUID.randomUUID().hashCode(), 16));
+    Table simpleTable = warehouse.createTable(tableId, TestFixtures.SCHEMA);
+    final Schema schema = icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
+
+    List<List<Record>> expectedRecords = warehouse.commitData(simpleTable);
+
+    IcebergIO.ReadRows read = IcebergIO.readRows(catalogConfig()).from(tableId);
+
+    if (useIncrementalScan) {
+      read = read.withCdc().toSnapshot(simpleTable.currentSnapshot().snapshotId());
+    }
+
+    final List<Row> originalRows =
+        expectedRecords.stream()
+            .flatMap(List::stream)
+            .map(record -> IcebergUtils.icebergRecordToBeamRow(schema, record))
+            .collect(Collectors.toList());
+
+    // test keep fields
+    read = read.keeping(singletonList("id"));
+    PCollection<Row> outputKeep =
+        testPipeline.apply("keep", read).apply("print keep", new PrintRow());
+    RowFilter keepFilter = new RowFilter(schema).keep(singletonList("id"));
+    PAssert.that(outputKeep)
+        .satisfies(
+            (Iterable<Row> rows) -> {
+              assertThat(rows, containsInAnyOrder(keepFilter.filter(originalRows).toArray()));
+              return null;
+            });
+
+    // test drop fields
+    read = read.keeping(null).dropping(singletonList("id"));
+    PCollection<Row> outputDrop =
+        testPipeline.apply("drop", read).apply("print drop", new PrintRow());
+    RowFilter dropFilter = new RowFilter(schema).drop(singletonList("id"));
+    PAssert.that(outputDrop)
+        .satisfies(
+            (Iterable<Row> rows) -> {
+              assertThat(rows, containsInAnyOrder(dropFilter.filter(originalRows).toArray()));
+              return null;
+            });
+
+    testPipeline.run();
+  }
+
+  @Test
   public void testReadSchemaWithRandomlyOrderedIds() throws IOException {
     TableIdentifier tableId = TableIdentifier.of("default", testName.getMethodName());
     org.apache.iceberg.Schema nestedSchema =
         new org.apache.iceberg.Schema(
-            required(3, "b.a", Types.IntegerType.get()),
-            required(4, "b.b", Types.StringType.get()));
+            required(3, "b.a", Types.IntegerType.get()), required(4, "b.b", StringType.get()));
     org.apache.iceberg.Schema schema =
         new org.apache.iceberg.Schema(
             required(1, "a", Types.IntegerType.get()),
-            required(2, "b", Types.StructType.of(nestedSchema.columns())),
-            required(5, "c", Types.StringType.get()));
+            required(2, "b", StructType.of(nestedSchema.columns())),
+            required(5, "c", StringType.get()));
 
     // hadoop catalog will re-order by breadth-first ordering
     Table simpleTable = warehouse.createTable(tableId, schema);
@@ -267,7 +382,7 @@ public class IcebergIOReadTest {
     Row expectedRow =
         Row.withSchema(icebergSchemaToBeamSchema(schema)).addValues(nestedRow, 1, "sss").build();
 
-    DataFile file = warehouse.writeRecords("file1.parquet", schema, Collections.singletonList(rec));
+    DataFile file = warehouse.writeRecords("file1.parquet", schema, singletonList(rec));
     simpleTable.newFastAppend().appendFile(file).commit();
 
     IcebergIO.ReadRows read = IcebergIO.readRows(catalogConfig()).from(tableId);
@@ -294,7 +409,7 @@ public class IcebergIOReadTest {
 
     String identityColumnName = "identity";
     String identityColumnValue = "some-value";
-    simpleTable.updateSchema().addColumn(identityColumnName, Types.StringType.get()).commit();
+    simpleTable.updateSchema().addColumn(identityColumnName, StringType.get()).commit();
     simpleTable.updateSpec().addField(identityColumnName).commit();
 
     PartitionSpec spec = simpleTable.spec();
@@ -591,7 +706,7 @@ public class IcebergIOReadTest {
   }
 
   @SuppressWarnings("unchecked")
-  public static Record icebergGenericRecord(Types.StructType type, Map<String, Object> values) {
+  public static Record icebergGenericRecord(StructType type, Map<String, Object> values) {
     org.apache.iceberg.data.GenericRecord record =
         org.apache.iceberg.data.GenericRecord.create(type);
     for (Types.NestedField field : type.fields()) {

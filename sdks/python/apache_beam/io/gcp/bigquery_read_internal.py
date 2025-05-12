@@ -195,6 +195,7 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
       self,
       options: PipelineOptions,
       gcs_location: Union[str, ValueProvider] = None,
+      validate: bool = False,
       use_json_exports: bool = False,
       bigquery_job_labels: Dict[str, str] = None,
       step_name: str = None,
@@ -205,6 +206,7 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
       temp_dataset: Union[str, DatasetReference] = None,
       query_priority: Optional[str] = None):
     self.options = options
+    self.validate = validate
     self.use_json_exports = use_json_exports
     self.gcs_location = gcs_location
     self.bigquery_job_labels = bigquery_job_labels or {}
@@ -285,14 +287,15 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
 
   def _create_source(self, path, schema):
     if not self.use_json_exports:
-      return _create_avro_source(path)
+      return _create_avro_source(path, validate=self.validate)
     else:
       return _TextSource(
           path,
           min_bundle_size=0,
           compression_type=CompressionTypes.UNCOMPRESSED,
           strip_trailing_newlines=True,
-          coder=_JsonToDictCoder(schema))
+          coder=_JsonToDictCoder(schema),
+          validate=self.validate)
 
   def _setup_temporary_dataset(
       self,

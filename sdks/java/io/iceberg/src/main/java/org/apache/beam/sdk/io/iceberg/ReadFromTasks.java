@@ -23,6 +23,7 @@ import java.util.concurrent.ExecutionException;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.values.KV;
@@ -73,9 +74,11 @@ class ReadFromTasks extends DoFn<KV<ReadTaskDescriptor, ReadTask>, Row> {
         return;
       }
       FileScanTask task = fileScanTasks.get((int) l);
-      try (CloseableIterable<Record> reader = ReadUtils.createReader(task, table)) {
+      org.apache.iceberg.Schema projected = scanConfig.getProjectedSchema();
+      Schema beamSchema = IcebergUtils.icebergSchemaToBeamSchema(projected);
+      try (CloseableIterable<Record> reader = ReadUtils.createReader(task, table, projected)) {
         for (Record record : reader) {
-          Row row = IcebergUtils.icebergRecordToBeamRow(scanConfig.getSchema(), record);
+          Row row = IcebergUtils.icebergRecordToBeamRow(beamSchema, record);
           out.output(row);
         }
       }

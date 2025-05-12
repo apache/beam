@@ -81,6 +81,7 @@
 ## Breaking Changes
 
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+* Yapf version upgraded to 0.43.0 for formatting (Python) ([#34801](https://github.com/apache/beam/pull/34801/)).
 
 ## Deprecations
 
@@ -111,6 +112,10 @@
 
 ## Breaking Changes
 
+* [Python] Cloudpickle is set as the default `pickle_library`, where previously
+  dill was the default in [#34695](https://github.com/apache/beam/pull/34695).
+  For known issues, reporting new issues, and understanding cloudpickle
+  behavior refer to [#34903](https://github.com/apache/beam/issues/34903).
 * [Python] Reshuffle now preserves PaneInfo, where previously PaneInfo was lost
   after reshuffle. To opt out of this change, set the
   update_compatibility_version to a previous Beam version e.g. "2.64.0".

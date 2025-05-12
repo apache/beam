@@ -182,7 +182,9 @@ class BeamModulePlugin implements Plugin<Project> {
     List<Map> mavenRepositories = []
 
     /**
-     * The minimum supported language version to target for compilation
+     * The minimum supported language version to target for compilation. Only override when an
+     * optional project requires language features that are not present for the current default
+     * language version targeted by Beam since this setting also affects the class file version.
      */
     int minimumLanguageVersion = 8
   }
@@ -1672,8 +1674,21 @@ class BeamModulePlugin implements Plugin<Project> {
       project.ext.includeInJavaBom = configuration.publish
       project.ext.exportJavadoc = configuration.exportJavadoc
 
-      if ((isRelease(project) || project.hasProperty('publishing')) &&
-      configuration.publish) {
+      boolean publishEnabledByCommand = isRelease(project) || project.hasProperty('publishing')
+      if (forkJavaVersion == '') {
+        // project needs newer version and not served.
+        // If not publishing ,disable the project. Otherwise, fail the build
+        def msg = "project ${project.name} needs newer Java version to compile. Consider set -Pjava${project.javaVersion}Home"
+        if (publishEnabledByCommand) {
+          throw new GradleException("Publish enabled but " + msg + ".")
+        } else {
+          logger.config(msg + " if needed.")
+          project.tasks.each {
+            it.enabled = false
+          }
+        }
+      }
+      if (publishEnabledByCommand && configuration.publish) {
         project.apply plugin: "maven-publish"
 
         // plugin to support repository authentication via ~/.m2/settings.xml

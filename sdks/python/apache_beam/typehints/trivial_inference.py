@@ -546,8 +546,8 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
         # See https://github.com/python/cpython/issues/102403 for context.
         if (pop_count == 1 and last_real_opname == 'GET_ITER' and
             len(state.stack) > 1 and isinstance(state.stack[-2], Const) and
-            getattr(state.stack[-2].value, '__name__', None) in (
-                '<listcomp>', '<dictcomp>', '<setcomp>', '<genexpr>')):
+            getattr(state.stack[-2].value, '__name__', None)
+            in ('<listcomp>', '<dictcomp>', '<setcomp>', '<genexpr>')):
           pop_count += 1
         if depth <= 0 or pop_count > len(state.stack):
           return_type = Any

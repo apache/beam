@@ -1157,8 +1157,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
       # https://github.com/apache/beam/issues/24535.
       finished_temp_tables_load_job_ids_list_pc = (
           finished_temp_tables_load_job_ids_pc | beam.MapTuple(
-              lambda destination,
-              job_reference: (
+              lambda destination, job_reference: (
                   bigquery_tools.parse_table_reference(destination).tableId,
                   (destination, job_reference)))
           | beam.GroupByKey()
@@ -1249,8 +1248,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
         singleton_pc
         | "SchemaModJobNamePrefix" >> beam.Map(
             lambda _: _generate_job_name(
-                job_name,
-                bigquery_tools.BigQueryJobTypes.LOAD,
+                job_name, bigquery_tools.BigQueryJobTypes.LOAD,
                 'SCHEMA_MOD_STEP')))
 
     copy_job_name_pcv = pvalue.AsSingleton(
