@@ -39,7 +39,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommi
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GetWorkResponseChunkAssembler.AssembledWorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
-import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemScheduler;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
@@ -74,7 +73,6 @@ final class GrpcDirectGetWorkStream
   private final GetWorkBudgetTracker budgetTracker;
   private final GetWorkRequest requestHeader;
   private final WorkItemScheduler workItemScheduler;
-  private final ThrottleTimer getWorkThrottleTimer;
   private final HeartbeatSender heartbeatSender;
   private final WorkCommitter workCommitter;
   private final GetDataClient getDataClient;
@@ -103,7 +101,6 @@ final class GrpcDirectGetWorkStream
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
       int logEveryNStreamFailures,
       boolean requestBatchedGetWorkResponse,
-      ThrottleTimer getWorkThrottleTimer,
       HeartbeatSender heartbeatSender,
       GetDataClient getDataClient,
       WorkCommitter workCommitter,
@@ -118,7 +115,6 @@ final class GrpcDirectGetWorkStream
         logEveryNStreamFailures,
         backendWorkerToken);
     this.requestHeader = requestHeader;
-    this.getWorkThrottleTimer = getWorkThrottleTimer;
     this.workItemScheduler = workItemScheduler;
     this.workItemAssemblers = new ConcurrentHashMap<>();
     this.heartbeatSender = heartbeatSender;
@@ -146,7 +142,6 @@ final class GrpcDirectGetWorkStream
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
       int logEveryNStreamFailures,
       boolean requestBatchedGetWorkResponse,
-      ThrottleTimer getWorkThrottleTimer,
       HeartbeatSender heartbeatSender,
       GetDataClient getDataClient,
       WorkCommitter workCommitter,
@@ -160,7 +155,6 @@ final class GrpcDirectGetWorkStream
         streamRegistry,
         logEveryNStreamFailures,
         requestBatchedGetWorkResponse,
-        getWorkThrottleTimer,
         heartbeatSender,
         getDataClient,
         workCommitter,
@@ -247,7 +241,6 @@ final class GrpcDirectGetWorkStream
 
   @Override
   protected void onResponse(StreamingGetWorkResponseChunk chunk) {
-    getWorkThrottleTimer.stop();
     workItemAssemblers
         .computeIfAbsent(chunk.getStreamId(), unused -> new GetWorkResponseChunkAssembler())
         .append(chunk)
@@ -272,11 +265,6 @@ final class GrpcDirectGetWorkStream
   private Work.ProcessingContext createProcessingContext(String computationId) {
     return Work.createProcessingContext(
         computationId, getDataClient, workCommitter::commit, heartbeatSender, backendWorkerToken());
-  }
-
-  @Override
-  protected void startThrottleTimer() {
-    getWorkThrottleTimer.start();
   }
 
   @Override
