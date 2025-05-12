@@ -77,13 +77,11 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: |
-            ${{ matrix.java_version }}
-            11
+          java-version: ${{ matrix.java_version }}
       - name: run jar Java${{ matrix.java_version }} script
         run: |
           ./gradlew :runners:direct-java:shadowJar :runners:direct-java:shadowTestJar \
-          -Dorg.gradle.java.home=$JAVA_HOME_${{ matrix.java_version }}_X64
+          -PjavaVersion=${{ matrix.java_version }} \
       - name: run validatesRunner Java${{ matrix.java_version }} script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -93,7 +91,7 @@ jobs:
             -x shadowTestJar \
             -x compileJava \
             -x compileTestJava \
-            -Dorg.gradle.java.home=$JAVA_HOME_${{ matrix.java_version }}_X64 \
+            -PjavaVersion=${{ matrix.java_version }} \
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v4
         if: ${{ !success() }}

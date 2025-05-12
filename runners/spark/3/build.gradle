@@ -80,6 +80,12 @@ sparkVersions.each { kv ->
   }
 
   tasks.register("sparkVersion${kv.key}Test", Test) {
+    // TODO(https://github.com/apache/beam/issues/32207) Run test with Java11
+    // Also change .github/workflows/beam_PreCommit_Java_Spark3_Versions.yml
+    javaLauncher = javaToolchains.launcherFor {
+      languageVersion = JavaLanguageVersion.of(8)
+    }
+
     group = "Verification"
     description = "Verifies code compatibility with Spark $kv.value"
     classpath = configurations."sparkVersion$kv.key" + sourceSets.test.runtimeClasspath

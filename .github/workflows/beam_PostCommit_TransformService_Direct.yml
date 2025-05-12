@@ -84,8 +84,6 @@ jobs:
           gradle-command: :sdks:python:test-suites:direct:xlang:transformServicePythonUsingJava
           arguments: |
             -PjavaVersion=11 \
-            -Porg.gradle.java.installations.auto-detect=false \
-            -Porg.gradle.java.installations.paths=$JAVA_HOME_11_X64 \
             -PpythonVersion=${{ matrix.python_version }} \
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v4

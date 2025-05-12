@@ -80,9 +80,7 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: |
-            ${{ matrix.java_version != '11' && matrix.java_version || '' }}
-            11
+          java-version: ${{ matrix.java_version }}
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
       - name: GCloud Docker credential helper
@@ -98,8 +96,6 @@ jobs:
             max-workers: 12
             arguments: |
                 -PjavaVersion=${{ matrix.java_version }} \
-                -Porg.gradle.java.installations.auto-detect=false \
-                -Porg.gradle.java.installations.paths=$JAVA_HOME_${{ matrix.java_version }}_X64 \
                 -Pcontainer-architecture-list=arm64,amd64 \
                 -Ppush-containers \
                 -Pdocker-repository-root=us.gcr.io/apache-beam-testing/github-actions \

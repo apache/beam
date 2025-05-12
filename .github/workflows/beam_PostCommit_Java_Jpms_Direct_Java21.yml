@@ -74,9 +74,7 @@ jobs:
       uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
-        java-version: |
-          21
-          8
+        java-version: 21
     - name: run PostCommit Java Jpms Direct Java21 script
       uses: ./.github/actions/gradle-command-self-hosted-action
       with:
@@ -84,8 +82,6 @@ jobs:
         arguments:
           -PskipCheckerFramework
           -PjavaVersion=21
-          -Porg.gradle.java.installations.auto-detect=false \
-          -Porg.gradle.java.installations.paths=$JAVA_HOME_21_X64
     - name: Archive JUnit Test Results
       uses: actions/upload-artifact@v4
       if: ${{ !success() }}

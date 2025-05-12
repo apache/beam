@@ -98,9 +98,7 @@ jobs:
     - name: Setup environment
       uses: ./.github/actions/setup-environment-action
       with:
-        java-version: |
-          21
-          8
+        java-version: 21
     - name: Clean
       uses: ./.github/actions/gradle-command-self-hosted-action
       with:
@@ -118,8 +116,6 @@ jobs:
           -PdisableCheckStyle=true \
           -PjavaVersion=21 \
           -PskipCheckerFramework \
-          -Porg.gradle.java.installations.auto-detect=false \
-          -Porg.gradle.java.installations.paths=$JAVA_HOME_21_X64 \
         max-workers: 12
     - name: Archive JUnit Test Results
       uses: actions/upload-artifact@v4

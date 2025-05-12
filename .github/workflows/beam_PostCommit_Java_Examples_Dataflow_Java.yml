@@ -77,13 +77,12 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: |
-            ${{ matrix.java_version }}
-            11
+          java-version: ${{ matrix.java_version }}
       - name: run java${{ matrix.java_version }}PostCommit script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :runners:google-cloud-dataflow-java:examples:java${{ matrix.java_version }}PostCommit
+          arguments: -PjavaVersion=${{ matrix.java_version }}
           max-workers: 12
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v4

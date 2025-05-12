@@ -25,7 +25,7 @@ inputs:
   java-version:
     required: false
     description: 'Install Java version'
-    default: ''
+    default: 'default'
   go-version:
     required: false
     description: 'Install Go version'
@@ -70,11 +70,16 @@ runs:
           tox-${{ runner.os }}-py${{ inputs.python-version == 'default' && '39' || inputs.python-version }}-
 
     - name: Install Java
-      if: ${{ inputs.java-version != '' }}
+      if: ${{ inputs.java-version != 'default' && '11' }}
       uses: actions/setup-java@v3
       with:
         distribution: 'temurin'
-        java-version: ${{ inputs.java-version == 'default' && '11' || inputs.java-version }}
+        java-version: ${{ inputs.java-version }}
+    - name: Install Java 11 as default for Gradle and build targets
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'temurin'
+        java-version: '11'
     - name: Setup Gradle
       uses: gradle/gradle-build-action@v2
       with:

@@ -86,9 +86,7 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: |
-            17
-            11
+          java-version: 17
       - name: run Debezium IO build task
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -97,8 +95,6 @@ jobs:
             -PdisableSpotlessCheck=true \
             -PdisableCheckStyle=true \
             -PjavaVersion=17 \
-            -Porg.gradle.java.installations.auto-detect=false \
-            -Porg.gradle.java.installations.paths=$JAVA_HOME_17_X64 \
       - name: run Debezium IO additional tasks
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -109,8 +105,6 @@ jobs:
             -PdisableSpotlessCheck=true \
             -PdisableCheckStyle=true \
             -PjavaVersion=17 \
-            -Porg.gradle.java.installations.auto-detect=false \
-            -Porg.gradle.java.installations.paths=$JAVA_HOME_17_X64 \
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v4
         if: ${{ !success() }}
