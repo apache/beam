@@ -180,7 +180,7 @@ class NexmarkBuilder {
     }
   }
 
-    static void java21Suite(context, String title, Runner runner, SDK sdk, Map<String, Object> options, List<String> jobSpecificSwitches) {
+  static void java21Suite(context, String title, Runner runner, SDK sdk, Map<String, Object> options, List<String> jobSpecificSwitches) {
     InfluxDBCredentialsHelper.useCredentials(context)
     context.steps {
       shell("echo \"*** RUN ${title} with Java 21***\"")
