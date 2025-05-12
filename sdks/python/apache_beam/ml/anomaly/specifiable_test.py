@@ -20,7 +20,6 @@ import dataclasses
 import logging
 import os
 import unittest
-from typing import List
 from typing import Optional
 
 from parameterized import parameterized
@@ -167,7 +166,7 @@ class TestSpecifiable(unittest.TestCase):
     @dataclasses.dataclass
     class ShoppingCart():
       user_id: str
-      entries: List[Entry]
+      entries: list[Entry]
 
     orange = Product("orange", 1.0)
 
@@ -543,8 +542,7 @@ class TestFunctionAsArgument(unittest.TestCase):
                     type=
                     f"<lambda at {os.path.basename(__file__)}:{my_lambda_func.__code__.co_firstlineno}>",  # pylint: disable=line-too-long
                     config=None)
-            }
-        ))
+            }))
 
     w_2 = Specifiable.from_spec(w_spec)
     self.assertEqual(w_2.run_func(5, 3), 2)

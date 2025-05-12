@@ -62,7 +62,8 @@ public class WorkFailureProcessorTest {
             new ThreadFactoryBuilder()
                 .setNameFormat("DataflowWorkUnits-%d")
                 .setDaemon(true)
-                .build());
+                .build(),
+            /*useFairMonitor=*/ false);
 
     return WorkFailureProcessor.forTesting(workExecutor, failureTracker, Optional::empty, clock, 0);
   }

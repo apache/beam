@@ -219,20 +219,17 @@ public class Environments {
   }
 
   private static Environment createExternalEnvironment(String externalServiceAddress) {
-    if (externalServiceAddress.isEmpty()) {
-      throw new IllegalArgumentException(
-          String.format(
-              "External service address must not be empty (set it using '--environmentOptions=%s=...'?).",
-              externalServiceAddressOption));
+    // Create the payload builder. If the address is empty, the payload will be empty,
+    // acting as a placeholder for late binding. For example, in the LOOPBACK case,
+    // the address is populated by PortableRunner#run before this method is called.
+    ExternalPayload.Builder payloadBuilder = ExternalPayload.newBuilder();
+    if (!externalServiceAddress.isEmpty()) {
+      payloadBuilder.setEndpoint(
+          ApiServiceDescriptor.newBuilder().setUrl(externalServiceAddress).build());
     }
     return Environment.newBuilder()
         .setUrn(BeamUrns.getUrn(StandardEnvironments.Environments.EXTERNAL))
-        .setPayload(
-            ExternalPayload.newBuilder()
-                .setEndpoint(
-                    ApiServiceDescriptor.newBuilder().setUrl(externalServiceAddress).build())
-                .build()
-                .toByteString())
+        .setPayload(payloadBuilder.build().toByteString())
         .build();
   }
 

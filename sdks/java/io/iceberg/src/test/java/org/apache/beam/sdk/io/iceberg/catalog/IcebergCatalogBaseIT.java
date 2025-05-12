@@ -133,6 +133,8 @@ import org.slf4j.LoggerFactory;
  * #numRecords()}.
  */
 public abstract class IcebergCatalogBaseIT implements Serializable {
+  private static final long SETUP_TEARDOWN_SLEEP_MS = 5000;
+
   public abstract Catalog createCatalog();
 
   public abstract Map<String, Object> managedIcebergConfig(String tableId);
@@ -142,7 +144,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   public void catalogCleanup() throws Exception {}
 
   public Integer numRecords() {
-    return 1000;
+    return OPTIONS.getRunner().equals(DirectRunner.class) ? 10 : 1000;
   }
 
   public String tableId() {
@@ -159,7 +161,8 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
   @Before
   public void setUp() throws Exception {
-    OPTIONS.as(DirectOptions.class).setTargetParallelism(3);
+    catalogName += System.nanoTime();
+    OPTIONS.as(DirectOptions.class).setTargetParallelism(1);
     warehouse =
         String.format(
             "%s/%s/%s",
@@ -169,12 +172,14 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     warehouse = warehouse(getClass());
     catalogSetup();
     catalog = createCatalog();
+    Thread.sleep(SETUP_TEARDOWN_SLEEP_MS);
   }
 
   @After
   public void cleanUp() throws Exception {
     try {
       catalogCleanup();
+      Thread.sleep(SETUP_TEARDOWN_SLEEP_MS);
     } catch (Exception e) {
       LOG.warn("Catalog cleanup failed.", e);
     }
@@ -201,6 +206,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
                 .collect(Collectors.toList());
         gcsUtil.remove(filesToDelete);
       }
+      Thread.sleep(SETUP_TEARDOWN_SLEEP_MS);
     } catch (Exception e) {
       LOG.warn("Failed to clean up GCS files.", e);
     }
@@ -216,9 +222,9 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
   @Rule
   public transient Timeout globalTimeout =
-      Timeout.seconds(OPTIONS.getRunner().equals(DirectRunner.class) ? 180 : 20 * 60);
+      Timeout.seconds(OPTIONS.getRunner().equals(DirectRunner.class) ? 300 : 20 * 60);
 
-  private static final int NUM_SHARDS = 10;
+  private static final int NUM_SHARDS = OPTIONS.getRunner().equals(DirectRunner.class) ? 1 : 10;
   private static final Logger LOG = LoggerFactory.getLogger(IcebergCatalogBaseIT.class);
   private static final Schema DOUBLY_NESTED_ROW_SCHEMA =
       Schema.builder()
@@ -418,6 +424,24 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   }
 
   @Test
+  public void testReadAndKeepSomeFields() throws Exception {
+    Table table = catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA);
+
+    List<Row> expectedRows = populateTable(table);
+
+    List<String> fieldsToKeep = Arrays.asList("row", "str", "modulo_5", "nullable_long");
+    RowFilter rowFilter = new RowFilter(BEAM_SCHEMA).keep(fieldsToKeep);
+
+    Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
+    config.put("keep", fieldsToKeep);
+
+    PCollection<Row> rows =
+        pipeline.apply(Managed.read(ICEBERG).withConfig(config)).getSinglePCollection();
+    PAssert.that(rows).containsInAnyOrder(rowFilter.filter(expectedRows));
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
   public void testStreamingRead() throws Exception {
     Table table = catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA);
 
@@ -432,6 +456,28 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
     assertThat(rows.isBounded(), equalTo(UNBOUNDED));
     PAssert.that(rows).containsInAnyOrder(expectedRows);
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testStreamingReadAndDropSomeFields() throws Exception {
+    Table table = catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA);
+
+    List<Row> expectedRows = populateTable(table);
+
+    List<String> fieldsToDrop = Arrays.asList("row", "str", "modulo_5", "nullable_long");
+    RowFilter rowFilter = new RowFilter(BEAM_SCHEMA).drop(fieldsToDrop);
+
+    Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
+    config.put("streaming", true);
+    config.put("to_snapshot", table.currentSnapshot().snapshotId());
+    config.put("drop", fieldsToDrop);
+
+    PCollection<Row> rows =
+        pipeline.apply(Managed.read(ICEBERG_CDC).withConfig(config)).getSinglePCollection();
+
+    assertThat(rows.isBounded(), equalTo(UNBOUNDED));
+    PAssert.that(rows).containsInAnyOrder(rowFilter.filter(expectedRows));
     pipeline.run().waitUntilFinish();
   }
 

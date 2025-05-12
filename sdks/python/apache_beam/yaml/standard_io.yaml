@@ -84,6 +84,12 @@
         'WriteToKafka': 'beam:schematransform:org.apache.beam:kafka_write:v1'
       config:
         gradle_target: 'sdks:java:io:expansion-service:shadowJar'
+        managed_replacement:
+          # Following transforms may be replaced with equivalent managed transforms,
+          # if the pipelines 'updateCompatibilityBeamVersion' match the provided
+          # version.
+          'ReadFromKafka': '2.65.0'
+          'WriteToKafka': '2.65.0'
 
 # PubSub
 - type: renaming
@@ -123,7 +129,7 @@
       config:
         gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'
 
-# TODO(yaml): Tests are assuming python providers are before java ones, hence 
+# TODO(yaml): Tests are assuming python providers are before java ones, hence
 # the order below.  This should be fixed in the future.
 
 # Python Providers
@@ -231,7 +237,7 @@
         query: 'read_query'
         table: 'location'
         partition_column : 'partition_column'
-        partitions: 'partitions'
+        num_partitions: 'num_partitions'
         type: 'jdbc_type'
         username: 'username'
       'WriteToJdbc':

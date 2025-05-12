@@ -93,7 +93,7 @@ class VertexAITextEmbeddingsTest(unittest.TestCase):
             content=Content(text="Another example."))
     ]
 
-    embedder = VertexAITextEmbeddings(model_name="textembedding-gecko@002")
+    embedder = VertexAITextEmbeddings(model_name="text-embedding-005")
 
     with TestPipeline() as p:
       embeddings = (

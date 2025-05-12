@@ -109,18 +109,6 @@ def sickbayTests = [
     // ShardedKey not yet implemented.
     'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testWithShardedKeyInGlobalWindow',
 
-    // Java side dying during execution.
-    // Stream corruption error java side: failed:java.io.StreamCorruptedException: invalid stream header: 206E6F74
-    // Likely due to prism't coder changes.
-    'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2',
-
-    // java.lang.IllegalStateException: Output with tag Tag<output> must have a schema in order to call getRowReceiver
-    // Ultimately because getRoeReceiver code path SDK side isn't friendly to LengthPrefix wrapping of row coders.
-    // https://github.com/apache/beam/issues/32931
-    'org.apache.beam.sdk.transforms.ParDoSchemaTest.testReadAndWrite',
-    'org.apache.beam.sdk.transforms.ParDoSchemaTest.testReadAndWriteMultiOutput',
-    'org.apache.beam.sdk.transforms.ParDoSchemaTest.testReadAndWriteWithSchemaRegistry',
-
     // Technically these tests "succeed"
     // the test is just complaining that an AssertionException isn't a RuntimeException
     //

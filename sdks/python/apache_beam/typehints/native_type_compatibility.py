@@ -30,6 +30,11 @@ from typing import TypeVar
 
 from apache_beam.typehints import typehints
 
+try:
+  from typing import is_typeddict
+except ImportError:
+  from typing_extensions import is_typeddict
+
 T = TypeVar('T')
 
 _LOGGER = logging.getLogger(__name__)
@@ -359,12 +364,15 @@ def convert_to_beam_type(typ):
     # to the correct type constraint in Beam
     # This is needed to fix https://github.com/apache/beam/issues/33356
     pass
-
+  elif is_typeddict(typ):
+    # Special-case for the TypedDict constructor, which is not actually a type,
+    # and therefore fails to be recognised as compatible with Dict or Mapping.
+    return typehints.Dict[str, typehints.Any]
   elif typ_module not in _CONVERTED_MODULES and not is_builtin(typ):
     # Only translate primitives and types from collections.abc and typing.
     return typ
   if (typ_module == 'collections.abc' and
-      typ.__origin__ not in _CONVERTED_COLLECTIONS):
+      getattr(typ, '__origin__', typ) not in _CONVERTED_COLLECTIONS):
     # TODO(https://github.com/apache/beam/issues/29135):
     # Support more collections types
     return typ
@@ -452,6 +460,14 @@ def convert_to_beam_type(typ):
       args = (typehints.TypeVariable('T'), ) * arity
   elif matched_entry.arity == -1:
     arity = len_args
+  # Counters are special dict types that are implicitly parameterized to
+  # [T, int], so we fix cases where they only have one argument to match
+  # a more traditional dict hint.
+  elif len_args == 1 and _safe_issubclass(getattr(typ, '__origin__', typ),
+                                          collections.Counter):
+    args = (args[0], int)
+    len_args = 2
+    arity = matched_entry.arity
   else:
     arity = matched_entry.arity
     if len_args != arity:

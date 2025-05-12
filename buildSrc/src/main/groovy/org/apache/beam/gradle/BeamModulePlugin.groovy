@@ -179,6 +179,15 @@ class BeamModulePlugin implements Plugin<Project> {
      * The set of additional maven repositories that should be added into published POM file.
      */
     List<Map> mavenRepositories = []
+
+    /**
+     * Set minimal Java version needed to compile the module.
+     *
+     * <p>Valid values are LTS versions greater than the lowest supported
+     * Java version. Used when newer Java byte code version required than Beam's
+     * byte code compatibility version.
+     */
+    JavaVersion requireJavaVersion = null
   }
 
   /** A class defining the set of configurable properties accepted by applyPortabilityNature. */
@@ -1106,7 +1115,44 @@ class BeamModulePlugin implements Plugin<Project> {
       }
 
       // Configure the Java compiler source language and target compatibility levels. Also ensure that
-      // we configure the Java compiler to use UTF-8.
+      def requireJavaVersion = JavaVersion.toVersion(project.javaVersion)
+      if (configuration.requireJavaVersion != null) {
+        // Overwrite project.javaVersion if requested.
+        if (JavaVersion.VERSION_11.equals(configuration.requireJavaVersion)) {
+          project.javaVersion = '11'
+        } else if (JavaVersion.VERSION_17.equals(configuration.requireJavaVersion)) {
+          project.javaVersion = '17'
+        } else if (JavaVersion.VERSION_21.equals(configuration.requireJavaVersion)) {
+          project.javaVersion = '21'
+        } else {
+          throw new GradleException(
+          "requireJavaVersion has to be supported LTS version greater than the default Java version. Actual: " +
+          configuration.requireJavaVersion
+          )
+        }
+        requireJavaVersion = configuration.requireJavaVersion
+      }
+
+      String forkJavaVersion = null
+      if (requireJavaVersion.compareTo(JavaVersion.current()) > 0) {
+        // If compiled on older SDK, compile with JDK configured with compatible javaXXHome
+        // The order is intended here
+        if (requireJavaVersion.compareTo(JavaVersion.VERSION_11) <= 0 &&
+        project.hasProperty('java11Home')) {
+          forkJavaVersion = '11'
+        } else if (requireJavaVersion.compareTo(JavaVersion.VERSION_17) <= 0 &&
+        project.hasProperty('java17Home')) {
+          forkJavaVersion = '17'
+        } else if (requireJavaVersion.compareTo(JavaVersion.VERSION_21) <= 0 &&
+        project.hasProperty('java21Home')) {
+          forkJavaVersion = '21'
+        } else {
+          logger.config("Module ${project.name} disabled. To enable, either " +
+              "compile on newer Java version or pass java${project.javaVersion}Home project property")
+          forkJavaVersion = ''
+        }
+      }
+
       project.sourceCompatibility = project.javaVersion
       project.targetCompatibility = project.javaVersion
 
@@ -1127,37 +1173,6 @@ class BeamModulePlugin implements Plugin<Project> {
       // TODO(yathu) remove this once generated code (antlr) no longer trigger this warning
       if (JavaVersion.current().compareTo(JavaVersion.VERSION_21) >= 0) {
         defaultLintSuppressions += ['this-escape']
-      }
-
-      project.tasks.withType(JavaCompile).configureEach {
-        options.encoding = "UTF-8"
-        // Use -source 8 -target 8 when targeting Java 8 and running on JDK > 8
-        //
-        // Consider migrating compilation and testing to use JDK 9+ and setting '--release 8' as
-        // the default allowing 'applyJavaNature' to override it for the few modules that need JDK 9+
-        // artifacts. See https://stackoverflow.com/a/43103038/4368200 for additional details.
-        if (JavaVersion.VERSION_1_8.compareTo(JavaVersion.toVersion(project.javaVersion)) == 0
-        && JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0) {
-          options.compilerArgs += ['--release', '8']
-          // TODO(https://github.com/apache/beam/issues/23901): Fix
-          // optimizerOuterThis breakage
-          options.compilerArgs += ['-XDoptimizeOuterThis=false']
-        }
-        // As we want to add '-Xlint:-deprecation' we intentionally remove '-Xlint:deprecation' from compilerArgs here,
-        // as intellij is adding this, see https://youtrack.jetbrains.com/issue/IDEA-196615
-        options.compilerArgs -= [
-          "-Xlint:deprecation",
-        ]
-        options.compilerArgs += ([
-          '-parameters',
-          '-Xlint:all',
-          '-Werror'
-        ]
-        + (defaultLintSuppressions + configuration.disableLintWarnings).collect { "-Xlint:-${it}" })
-      }
-
-      project.tasks.withType(Jar).configureEach {
-        preserveFileTimestamps(false)
       }
 
       // Configure the default test tasks set of tests executed
@@ -1561,6 +1576,45 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
 
+      // Handle compile Java versions
+      project.tasks.withType(JavaCompile).configureEach {
+        // we configure the Java compiler to use UTF-8.
+        options.encoding = "UTF-8"
+        // If compiled on newer JDK, set byte code compatibility
+        if (requireJavaVersion.compareTo(JavaVersion.current()) < 0) {
+          def compatVersion = project.javaVersion == '1.8' ? '8' : project.javaVersion
+          options.compilerArgs += ['--release', compatVersion]
+          // TODO(https://github.com/apache/beam/issues/23901): Fix
+          // optimizerOuterThis breakage
+          options.compilerArgs += ['-XDoptimizeOuterThis=false']
+        } else if (forkJavaVersion) {
+          // If compiled on older SDK, compile with JDK configured with compatible javaXXHome
+          setCompileAndRuntimeJavaVersion(options.compilerArgs, requireJavaVersion as String)
+          project.ext.setJavaVerOptions(options, forkJavaVersion)
+        }
+        // As we want to add '-Xlint:-deprecation' we intentionally remove '-Xlint:deprecation' from compilerArgs here,
+        // as intellij is adding this, see https://youtrack.jetbrains.com/issue/IDEA-196615
+        options.compilerArgs -= [
+          "-Xlint:deprecation",
+        ]
+        options.compilerArgs += ([
+          '-parameters',
+          '-Xlint:all',
+          '-Werror'
+        ]
+        + (defaultLintSuppressions + configuration.disableLintWarnings).collect { "-Xlint:-${it}" })
+      }
+
+      if (forkJavaVersion) {
+        project.tasks.withType(Javadoc) {
+          executable = project.findProperty('java' + forkJavaVersion + 'Home') + '/bin/javadoc'
+        }
+      }
+
+      project.tasks.withType(Jar).configureEach {
+        preserveFileTimestamps(false)
+      }
+
       // if specified test java version, modify the compile and runtime versions accordingly
       if (['8', '11', '17', '21'].contains(project.findProperty('testJavaVersion'))) {
         String ver = project.getProperty('testJavaVersion')
@@ -1791,8 +1845,21 @@ class BeamModulePlugin implements Plugin<Project> {
       project.ext.includeInJavaBom = configuration.publish
       project.ext.exportJavadoc = configuration.exportJavadoc
 
-      if ((isRelease(project) || project.hasProperty('publishing')) &&
-      configuration.publish) {
+      boolean publishEnabledByCommand = isRelease(project) || project.hasProperty('publishing')
+      if (forkJavaVersion == '') {
+        // project needs newer version and not served.
+        // If not publishing ,disable the project. Otherwise, fail the build
+        def msg = "project ${project.name} needs newer Java version to compile. Consider set -Pjava${project.javaVersion}Home"
+        if (publishEnabledByCommand) {
+          throw new GradleException("Publish enabled but " + msg + ".")
+        } else {
+          logger.config(msg + " if needed.")
+          project.tasks.each {
+            it.enabled = false
+          }
+        }
+      }
+      if (publishEnabledByCommand && configuration.publish) {
         project.apply plugin: "maven-publish"
 
         // plugin to support repository authentication via ~/.m2/settings.xml
@@ -2980,8 +3047,9 @@ class BeamModulePlugin implements Plugin<Project> {
             // TODO: https://github.com/apache/beam/issues/29022
             // pip 23.3 is failing due to Hash mismatch between expected SHA of the packaged and actual SHA.
             // until it is resolved on pip's side, don't use pip's cache.
+            // pip 25.1 casues :sdks:python:installGcpTest stuck. Pin to 25.0.1 for now.
             args '-c', ". ${project.ext.envdir}/bin/activate && " +
-                "pip install --pre --retries 10 --upgrade pip --no-cache-dir && " +
+                "pip install --pre --retries 10 --upgrade pip==25.0.1 --no-cache-dir && " +
                 "pip install --pre --retries 10 --upgrade tox --no-cache-dir"
           }
         }
@@ -3021,9 +3089,15 @@ class BeamModulePlugin implements Plugin<Project> {
         dependsOn ':sdks:python:sdist'
         doLast {
           def distTarBall = "${pythonRootDir}/build/apache-beam.tar.gz"
+          def packages = "gcp,test,aws,azure,dataframe"
+          def extra = project.findProperty('beamPythonExtra')
+          if (extra) {
+            packages += ",${extra}"
+          }
+
           project.exec {
             executable 'sh'
-            args '-c', ". ${project.ext.envdir}/bin/activate && pip install --pre --retries 10 ${distTarBall}[gcp,test,aws,azure,dataframe]"
+            args '-c', ". ${project.ext.envdir}/bin/activate && pip install --pre --retries 10 ${distTarBall}[${packages}]"
           }
         }
       }

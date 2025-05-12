@@ -78,8 +78,8 @@ def write_to_text(pcoll, path: str):
   """
   try:
     field_names = [
-        name for name,
-        _ in schemas.named_fields_from_element_type(pcoll.element_type)
+        name for name, _ in schemas.named_fields_from_element_type(
+            pcoll.element_type)
     ]
   except Exception as exn:
     raise ValueError(
@@ -644,8 +644,8 @@ def write_to_tfrecord(
   """
   try:
     field_names = [
-        name for name,
-        _ in schemas.named_fields_from_element_type(pcoll.element_type)
+        name for name, _ in schemas.named_fields_from_element_type(
+            pcoll.element_type)
     ]
   except Exception as exn:
     raise ValueError(

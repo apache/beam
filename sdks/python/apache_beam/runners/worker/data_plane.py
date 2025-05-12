@@ -135,7 +135,7 @@ class SizeBasedBufferingClosableOutputStream(ClosableOutputStream):
       close_callback=None,  # type: Optional[Callable[[bytes], None]]
       flush_callback=None,  # type: Optional[Callable[[bytes], None]]
       size_flush_threshold=_DEFAULT_SIZE_FLUSH_THRESHOLD,  # type: int
-      large_buffer_warn_threshold_bytes = 512 << 20  # type: int
+      large_buffer_warn_threshold_bytes=512 << 20  # type: int
   ):
     super().__init__(close_callback)
     self._flush_callback = flush_callback
@@ -233,7 +233,6 @@ class TimeBasedBufferingClosableOutputStream(
 
 class PeriodicThread(threading.Thread):
   """Call a function periodically with the specified number of seconds"""
-
   def __init__(
       self,
       interval,  # type: float
@@ -726,7 +725,6 @@ class _GrpcDataChannel(DataChannel):
 
 class GrpcClientDataChannel(_GrpcDataChannel):
   """A DataChannel wrapping the client side of a BeamFnData connection."""
-
   def __init__(
       self,
       data_stub,  # type: beam_fn_api_pb2_grpc.BeamFnDataStub
@@ -795,7 +793,6 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
 
   Caches the created channels by ``data descriptor url``.
   """
-
   def __init__(
       self,
       credentials=None,  # type: Any

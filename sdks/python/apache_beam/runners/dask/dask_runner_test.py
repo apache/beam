@@ -310,16 +310,13 @@ class DaskRunnerRunPipelineTest(unittest.TestCase):
       assert_that(
           main
           | "first map" >> beam.Map(
-              lambda k,
-              d,
-              l: (k, sorted(d[k]), sorted([e[1] for e in l])),
+              lambda k, d, l: (k, sorted(d[k]), sorted([e[1] for e in l])),
               beam.pvalue.AsMultiMap(side),
               beam.pvalue.AsList(side),
           )
           | "second map" >> beam.Map(
-              lambda k,
-              d,
-              l: (k[0], sorted(d[k[0]]), sorted([e[1] for e in l])),
+              lambda k, d, l:
+              (k[0], sorted(d[k[0]]), sorted([e[1] for e in l])),
               beam.pvalue.AsMultiMap(side),
               beam.pvalue.AsList(side),
           ),

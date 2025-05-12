@@ -198,6 +198,35 @@ func lpUnknownCoders(cID string, bundle, base map[string]*pipepb.Coder) (string,
 	return cID, nil
 }
 
+// retrieveCoders recursively ensures that the coder along with all its direct
+// and indirect component coders, are present in the `bundle` map.
+// If a coder is already in `bundle`, it's skipped. Returns an error if any
+// required coder ID is not found.
+func retrieveCoders(cID string, bundle, base map[string]*pipepb.Coder) error {
+	// Look up the canonical location.
+	c, ok := base[cID]
+	if !ok {
+		// We messed up somewhere.
+		return fmt.Errorf("retrieveCoders: coder %q not present in base map", cID)
+	}
+
+	if _, ok := bundle[cID]; ok {
+		return nil
+	}
+	// Add the original coder to the coders map.
+	bundle[cID] = c
+
+	for i, cc := range c.GetComponentCoderIds() {
+		// now we need to retrieve the component coders as well
+		err := retrieveCoders(cc, bundle, base)
+		if err != nil {
+			return fmt.Errorf("retrieveCoders: couldn't handle component %d %q of %q %v:\n%w", i, cc, cID, prototext.Format(c), err)
+		}
+	}
+
+	return nil
+}
+
 // reconcileCoders ensures that the bundle coders are primed with initial coders from
 // the base pipeline components.
 func reconcileCoders(bundle, base map[string]*pipepb.Coder) {
@@ -301,6 +330,17 @@ func pullDecoderNoAlloc(c *pipepb.Coder, coders map[string]*pipepb.Coder) func(i
 		return func(r io.Reader) {
 			kd(r)
 			vd(r)
+		}
+	case urns.CoderWindowedValue:
+		ccids := c.GetComponentCoderIds()
+		if len(ccids) != 2 {
+			panic(fmt.Sprintf("WindowedValue coder with more than 2 components: %s", prototext.Format(c)))
+		}
+		ed := pullDecoderNoAlloc(coders[ccids[0]], coders)
+		wd := pullDecoderNoAlloc(coders[ccids[1]], coders)
+		return func(r io.Reader) {
+			ed(r)
+			wd(r)
 		}
 	case urns.CoderRow:
 		panic(fmt.Sprintf("Runner forgot to LP this Row Coder. %v", prototext.Format(c)))

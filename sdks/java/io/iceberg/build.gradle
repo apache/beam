@@ -148,7 +148,7 @@ task integrationTest(type: Test) {
         exclude '**/BigQueryMetastoreCatalogIT.class'
     }
 
-    maxParallelForks 4
+    maxParallelForks 1
     classpath = sourceSets.test.runtimeClasspath
     testClassesDirs = sourceSets.test.output.classesDirs
 }

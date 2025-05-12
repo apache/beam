@@ -22,6 +22,8 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -51,6 +53,7 @@ import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumReader;
+import org.apache.avro.io.DatumWriter;
 import org.apache.avro.reflect.AvroName;
 import org.apache.avro.reflect.AvroSchema;
 import org.apache.avro.reflect.ReflectData;
@@ -414,6 +417,95 @@ public class AvroCoderTest {
 
     CoderProperties.coderDecodeEncodeEqual(coder, AVRO_SPECIFIC_RECORD);
     CoderProperties.coderDecodeEncodeEqual(coderWithSchema, AVRO_SPECIFIC_RECORD);
+  }
+
+  @Test
+  public void testCoderCached() {
+    final Schema avroSchema = AVRO_SPECIFIC_RECORD.getSchema();
+    final TypeDescriptor<TestAvro> typeDescriptor = TypeDescriptor.of(TestAvro.class);
+    final Class<TestAvro> testAvroClass = TestAvro.class;
+
+    AvroDatumFactory<TestAvro> reflectFactory1 =
+        new AvroDatumFactory.ReflectDatumFactory<>(testAvroClass);
+    AvroDatumFactory<TestAvro> reflectFactory2 =
+        new AvroDatumFactory.ReflectDatumFactory<>(testAvroClass);
+    AvroDatumFactory<TestAvro> specificDatumFactory =
+        new AvroDatumFactory.SpecificDatumFactory<>(testAvroClass);
+    AvroDatumFactory<TestAvro> customDatumFactory =
+        new AvroDatumFactory<TestAvro>(TestAvro.class) {
+          @Override
+          public DatumWriter<TestAvro> apply(Schema writer) {
+            return null;
+          }
+
+          @Override
+          public DatumReader<TestAvro> apply(Schema writer, Schema reader) {
+            return null;
+          }
+        };
+
+    // Test that the AvroCoder caches the coder for the same class/type descriptor/schema/datum
+    // factory/useReflectApi
+    assertSame(AvroCoder.of(testAvroClass), AvroCoder.of(testAvroClass));
+    assertSame(AvroCoder.of(testAvroClass, false), AvroCoder.of(testAvroClass, false));
+    assertNotSame(AvroCoder.of(testAvroClass, false), AvroCoder.of(testAvroClass, true));
+    assertSame(AvroCoder.of(typeDescriptor), AvroCoder.of(typeDescriptor));
+    assertSame(AvroCoder.of(typeDescriptor, false), AvroCoder.of(typeDescriptor, false));
+    assertSame(AvroCoder.of(testAvroClass, avroSchema), AvroCoder.of(testAvroClass, avroSchema));
+    assertSame(
+        AvroCoder.of(testAvroClass, avroSchema, false),
+        AvroCoder.of(testAvroClass, avroSchema, false));
+
+    // Test that the AvroCoder caches the coder when providing a datum factory
+    assertSame(
+        AvroCoder.of(reflectFactory1, avroSchema), AvroCoder.of(reflectFactory1, avroSchema));
+    assertSame(
+        AvroCoder.of(reflectFactory1, avroSchema), AvroCoder.of(reflectFactory2, avroSchema));
+
+    // ensure that when providing datum factories of different types,
+    // the previously cached coder is not used
+    assertNotSame(
+        AvroCoder.of(reflectFactory1, avroSchema), AvroCoder.of(specificDatumFactory, avroSchema));
+
+    // for custom datum factories (neither specific nor reflect) we don't use the cache
+    assertNotSame(
+        AvroCoder.of(customDatumFactory, avroSchema), AvroCoder.of(customDatumFactory, avroSchema));
+
+    // Test that the AvroCoder caches the coder when using a specific datum factory
+    assertSame(AvroCoder.specific(testAvroClass), AvroCoder.specific(testAvroClass));
+    assertSame(AvroCoder.specific(typeDescriptor), AvroCoder.specific(typeDescriptor));
+    assertSame(
+        AvroCoder.specific(testAvroClass, avroSchema),
+        AvroCoder.specific(testAvroClass, avroSchema));
+
+    // Test that the AvroCoder caches the coder when using a reflect datum factory
+    assertSame(AvroCoder.reflect(testAvroClass), AvroCoder.reflect(testAvroClass));
+    assertSame(AvroCoder.reflect(typeDescriptor), AvroCoder.reflect(typeDescriptor));
+    assertSame(
+        AvroCoder.reflect(testAvroClass, avroSchema), AvroCoder.reflect(testAvroClass, avroSchema));
+
+    // Test that the AvroCoder does not cache the coder when using different datum factories
+    assertNotSame(AvroCoder.specific(testAvroClass), AvroCoder.reflect(testAvroClass));
+  }
+
+  @Test
+  public void testAvroGenericCoderSame() {
+    Schema schema = AVRO_SPECIFIC_RECORD.getSchema();
+    assertSame(AvroCoder.of(schema), AvroCoder.of(schema));
+    assertSame(AvroCoder.generic(schema), AvroCoder.generic(schema));
+  }
+
+  @Test
+  public void testAvroCoderCacheUsedWhenCoderDeserialized() {
+    AvroCoder<TestAvro> coder = AvroCoder.of(TestAvro.class);
+    AvroCoder<TestAvro> deserializedCoder1 = SerializableUtils.clone(coder);
+    AvroCoder<TestAvro> deserializedCoder2 = SerializableUtils.clone(coder);
+
+    assertSame(coder.getDatumReader(), deserializedCoder1.getDatumReader());
+    assertSame(coder.getDatumWriter(), deserializedCoder1.getDatumWriter());
+
+    assertSame(coder.getDatumReader(), deserializedCoder2.getDatumReader());
+    assertSame(coder.getDatumWriter(), deserializedCoder2.getDatumWriter());
   }
 
   @Test
