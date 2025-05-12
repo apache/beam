@@ -283,7 +283,7 @@ tasks.register('examplesJavaRunnerV2IntegrationTestDistroless', Test.class) {
   dependsOn 'buildAndPushDistrolessContainerImage'
   def repository = "us.gcr.io/apache-beam-testing/${System.getenv('USER')}"
   def tag = project.findProperty('dockerTag')
-  def imageURL = "${repository}/beam_${project.javaVersion}_sdk_distroless:${tag}"
+  def imageURL = "${repository}/beam_java${project.javaVersion}_sdk_distroless:${tag}"
   def pipelineOptions = [
           "--runner=TestDataflowRunner",
           "--project=${gcpProject}",
@@ -324,8 +324,8 @@ if (JavaLanguageVersion.of(project.javaVersion) in [17, 21]) {
                 imageURL,
                 '-f',
                 'sdks/java/container/Dockerfile-distroless',
-                "--build-arg=BEAM_BASE=gcr.io/apache-beam-testing/beam-sdk/beam_${project.javaVersion}_sdk",
-                "--build-arg=DISTROLESS_BASE=gcr.io/distroless/${project.javaVersion}-debian12",
+                "--build-arg=BEAM_BASE=gcr.io/apache-beam-testing/beam-sdk/beam_java${project.javaVersion}_sdk",
+                "--build-arg=DISTROLESS_BASE=gcr.io/distroless/java${project.javaVersion}-debian12",
                 '.'
         ]
       }
