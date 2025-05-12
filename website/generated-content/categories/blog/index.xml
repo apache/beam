@@ -1,4 +1,72 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – blog</title><link>/categories/blog/</link><description>Recent content in blog on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Mon, 31 Mar 2025 10:30:00 -0500</lastBuildDate><atom:link href="/categories/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.64.0</title><link>/blog/beam-2.64.0/</link><pubDate>Mon, 31 Mar 2025 10:30:00 -0500</pubDate><guid>/blog/beam-2.64.0/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – blog</title><link>/categories/blog/</link><description>Recent content in blog on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Mon, 12 May 2025 15:00:00 -0500</lastBuildDate><atom:link href="/categories/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.65.0</title><link>/blog/beam-2.65.0/</link><pubDate>Mon, 12 May 2025 15:00:00 -0500</pubDate><guid>/blog/beam-2.65.0/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.65.0 release of Beam.
+This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/#2650-2025-05-12">download page&lt;/a> for this release.&lt;/p>
+&lt;p>For more information on changes in 2.65.0, check out the &lt;a href="https://github.com/apache/beam/milestone/29?closed=1">detailed release notes&lt;/a>.&lt;/p>
+&lt;h2 id="highlights">Highlights&lt;/h2>
+&lt;h3 id="ios">I/Os&lt;/h3>
+&lt;ul>
+&lt;li>Upgraded GoogleAdsAPI to v19 for GoogleAdsIO (Java) (&lt;a href="https://github.com/apache/beam/pull/34497">#34497&lt;/a>). Changed PTransform method from version-specified (&lt;code>v17()&lt;/code>) to &lt;code>current()&lt;/code> for better backward compatibility in the future.&lt;/li>
+&lt;li>Added support for writing to Pubsub with ordering keys (Java) (&lt;a href="https://github.com/apache/beam/issues/21162">#21162&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h3 id="new-features--improvements">New Features / Improvements&lt;/h3>
+&lt;ul>
+&lt;li>Added support for streaming side-inputs in the Spark Classic runner (&lt;a href="https://github.com/apache/beam/issues/18136">#18136&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="breaking-changes">Breaking Changes&lt;/h3>
+&lt;ul>
+&lt;li>[Python] Cloudpickle is set as the default &lt;code>pickle_library&lt;/code>, where previously
+dill was the default in &lt;a href="https://github.com/apache/beam/pull/34695">#34695&lt;/a>.
+For known issues, reporting new issues, and understanding cloudpickle
+behavior refer to &lt;a href="https://github.com/apache/beam/issues/34903">#34903&lt;/a>.&lt;/li>
+&lt;li>[Python] Reshuffle now preserves PaneInfo, where previously PaneInfo was lost
+after reshuffle. To opt out of this change, set the
+update_compatibility_version to a previous Beam version e.g. &amp;ldquo;2.64.0&amp;rdquo;.
+(&lt;a href="https://github.com/apache/beam/pull/34348">#34348&lt;/a>).&lt;/li>
+&lt;li>[Python] PaneInfo is encoded by PaneInfoCoder, where previously PaneInfo was
+encoded with FastPrimitivesCoder falling back to PickleCoder. This only
+affects cases where PaneInfo is directly stored as an element.
+(&lt;a href="https://github.com/apache/beam/pull/34824">#34824&lt;/a>).&lt;/li>
+&lt;li>[Python] BigQueryFileLoads now adds a Reshuffle before triggering load jobs.
+This fixes a bug where there can be data loss in a streaming pipeline if there
+is a pending load job during autoscaling. To opt out of this change, set the
+update_compatibility_version to a previous Beam version e.g. &amp;ldquo;2.64.0&amp;rdquo;.
+(&lt;a href="https://github.com/apache/beam/pull/34657">#34657&lt;/a>)&lt;/li>
+&lt;li>[YAML] Kafka source and sink will be automatically replaced with compatible managed transforms.
+For older Beam versions, streaming update compatiblity can be maintained by specifying the pipeline
+option &lt;code>update_compatibility_version&lt;/code> (&lt;a href="https://github.com/apache/beam/issues/34767">#34767&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="deprecations">Deprecations&lt;/h3>
+&lt;ul>
+&lt;li>Beam ZetaSQL is deprecated and will be removed no earlier than Beam 2.68.0 (&lt;a href="https://github.com/apache/beam/issues/34423">#34423&lt;/a>).
+Users are recommended to switch to &lt;a href="https://beam.apache.org/documentation/dsls/sql/calcite/overview/">Calcite SQL&lt;/a> dialect.&lt;/li>
+&lt;/ul>
+&lt;h3 id="bugfixes">Bugfixes&lt;/h3>
+&lt;ul>
+&lt;li>Fixed read Beam rows from cross-lang transform (for example, ReadFromJdbc) involving negative 32-bit integers incorrectly decoded to large integers (&lt;a href="https://github.com/apache/beam/issues/34089">#34089&lt;/a>)&lt;/li>
+&lt;li>(Java) Fixed SDF-based KafkaIO (ReadFromKafkaViaSDF) to properly handle custom deserializers that extend Deserializer&lt;Row> interface(&lt;a href="https://github.com/apache/beam/pull/34505">#34505&lt;/a>)&lt;/li>
+&lt;li>[Python] &lt;code>TypedDict&lt;/code> typehints are now compatible with &lt;code>Mapping&lt;/code> and &lt;code>Dict&lt;/code> type annotations.&lt;/li>
+&lt;/ul>
+&lt;h3 id="security-fixes">Security Fixes&lt;/h3>
+&lt;ul>
+&lt;li>Fixed &lt;a href="https://www.cve.org/CVERecord?id=CVE-2025-30065">CVE-2025-30065&lt;/a> (Java) (&lt;a href="https://github.com/apache/beam/pull/34573">#34573&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h3 id="known-issues">Known Issues&lt;/h3>
+&lt;p>N/A&lt;/p>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the 2.65.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>Aaron Trelstad, Adrian Stoll, Ahmed Abualsaud, akashorabek, Arun Pandian, Bentsi Leviav, Bryan Dang, Celeste Zeng, Chamikara Jayalath, claudevdm, Danny McCormick, Derrick Williams, Ozzie Fernandez, Gabija Balvociute, Gayatri Kate, illoise, Jack McCluskey, Jan Lukavský, Jinho Lee, Justin Bandoro, Kenneth Knowles, XQ Hu, Luke Tsekouras, Martin Trieu, Matthew Suozzo, Naireen Hussain, Niel Markwick, Radosław Stankiewicz, Razvan Culea, Robert Bradshaw, Robert Burke, RuiLong J., Sam Whittle, Sarthak, Shubham Jaiswal, Shunping Huang, Steven van Rossum, Suvrat Acharya, &lt;a href="mailto:sveyrie@luminatedata.com">sveyrie@luminatedata.com&lt;/a>, Talat Uyarer, TanuSharma2511, Tobias Kaymak, Tom Stepp, Valentyn Tymofieiev, twosom, Vitaly Terentyev, wollowizard, Yi Hu, Yifan Ye, Zilin Du&lt;/p></description></item><item><title>Blog: Apache Beam 2.64.0</title><link>/blog/beam-2.64.0/</link><pubDate>Mon, 31 Mar 2025 10:30:00 -0500</pubDate><guid>/blog/beam-2.64.0/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -7168,58 +7236,4 @@ Valentyn Tymofieiev
 Victor
 Victor Chen
 Vitaly Ivanov
-Yichi Zhang&lt;/p></description></item><item><title>Blog: Upcoming Events for Beam in 2022</title><link>/blog/upcoming-events-for-beam-in-2022/</link><pubDate>Mon, 28 Feb 2022 00:00:01 -0800</pubDate><guid>/blog/upcoming-events-for-beam-in-2022/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are so excited to announce the upcoming Beam events for this year! We believe that events are an important mechanism to foster the community around Apache Beam as an Open Source Project. Our events are focused on a developer experience by giving spaces for the community to connect, facilitate collaboration, and enable knowledge sharing.&lt;/p>
-&lt;p>Here is an overview of some upcoming events and ways for everyone to help foster additional community growth:&lt;/p>
-&lt;h2 id="beam-summit">Beam Summit&lt;/h2>
-&lt;p>The &lt;strong>&lt;a href="https://2022.beamsummit.org/">Beam Summit 2022&lt;/a>&lt;/strong> is approaching! The event will be in a hybrid in-person and virtual format from Austin, TX on July 18-20, 2022. The conference will include three full days of lightning talks, roadmap updates, use cases, demos, and workshops for Beam users of all levels. This is a great opportunity to collaborate, share ideas, and work together in the improvement of the project.&lt;/p>
-&lt;p>Check out talks from prior editions of Beam Summit &lt;strong>&lt;a href="https://www.youtube.com/watch?v=jses0W4Zalc&amp;amp;list=PL4dEBWmGSIU8vLWF56shrSuTsLXvO6Ex3">here&lt;/a>&lt;/strong>!&lt;/p>
-&lt;h3 id="the-experience">The Experience&lt;/h3>
-&lt;p>We are so excited to see some of you in person again and the rest of the community online! The &lt;strong>&lt;a href="https://2022.beamsummit.org/team/">Beam Summit Steering Committee&lt;/a>&lt;/strong> in partnership with an event production company is working hard to ensure that we provide the community with the best possible experience, no matter which format you choose to attend in.&lt;/p>
-&lt;p>If you have any ideas on how we can make this year’s event better, please &lt;strong>&lt;a href="mailto:contact@beamsummit.org">reach out to us&lt;/a>&lt;/strong>!&lt;/p>
-&lt;h3 id="ways-to-help--participate">Ways to Help &amp;amp; Participate&lt;/h3>
-&lt;ol>
-&lt;li>&lt;strong>&lt;a href="https://sessionize.com/beam-summit-2022">Submit a proposal&lt;/a>&lt;/strong> to talk! The deadline for submissions is &lt;em>March 15th&lt;/em>.&lt;/li>
-&lt;li>&lt;strong>&lt;a href="https://2022.beamsummit.org/tickets/">Register&lt;/a>&lt;/strong> to join as an attendee in person or online.&lt;/li>
-&lt;li>Consider sponsoring the event. If your company is interested in engaging with members of the community, please check out the &lt;strong>&lt;a href="https://2022.beamsummit.org/sponsors/">sponsoring prospectus&lt;/a>.&lt;/strong>&lt;/li>
-&lt;li>Help us get the word out. Please make sure to let your colleagues and friends know about the Beam Summit.&lt;/li>
-&lt;/ol>
-&lt;p>Don’t forget to follow our Beam Summit &lt;strong>&lt;a href="https://twitter.com/BeamSummit?ref_src=twsrc%5Egoogle%7Ctwcamp%5Eserp%7Ctwgr%5Eauthor">Twitter&lt;/a>&lt;/strong> and &lt;strong>&lt;a href="https://www.linkedin.com/company/beam-summit/?viewAsMember=true">LinkedIn&lt;/a>&lt;/strong> pages to receive event updates!&lt;/p>
-&lt;h2 id="beam-college">Beam College&lt;/h2>
-&lt;p>&lt;strong>&lt;a href="https://beamcollege.dev/">Beam College 2022&lt;/a>&lt;/strong> is around the corner for the second season of training! The event will be hosted virtually from May 10-13, 2022. The training is focused on providing more hands-on experience around end-to-end code samples in an interactive environment, and helping attendees see the applications of concepts covered in other venues, such as the Beam Summit.&lt;/p>
-&lt;p>Check out talks from prior editions of Beam College &lt;strong>&lt;a href="https://www.youtube.com/playlist?list=PLjYq1UNvv2UcrfapfgKrnLXtYpkvHmpIh">here&lt;/a>&lt;/strong>!&lt;/p>
-&lt;p>This year, the training will consist of learning modules such as:&lt;/p>
-&lt;ul>
-&lt;li>The Data movement ecosystem and distributed processing the Beam way&lt;/li>
-&lt;li>Scaling, productionalizing, and developing your Beam pipelines&lt;/li>
-&lt;li>Use Cases&lt;/li>
-&lt;li>Beam ML Use Cases&lt;/li>
-&lt;/ul>
-&lt;p>Be sure to check out our &lt;strong>&lt;a href="https://beamcollege.dev/">website&lt;/a>&lt;/strong> as we continue updating the schedule and follow our &lt;strong>&lt;a href="https://twitter.com/beam_college?ref_src=twsrc%5Egoogle%7Ctwcamp%5Eserp%7Ctwgr%5Eauthor">Twitter&lt;/a>&lt;/strong> and &lt;strong>&lt;a href="https://www.linkedin.com/showcase/beam-college/">LinkedIn&lt;/a>&lt;/strong> pages to receive event updates!&lt;/p>
-&lt;h3 id="ways-to-help--participate-1">Ways to Help &amp;amp; Participate&lt;/h3>
-&lt;ol>
-&lt;li>Interested in instructing? Submit a &lt;strong>&lt;a href="https://docs.google.com/forms/d/e/1FAIpQLSct6RCrKtgsvxlgngKUGwKoB_iOKihXi1OadKyBQIsi00p3cQ/viewform?usp=sf_link">proposal&lt;/a>&lt;/strong>! The deadline is: &lt;em>February 28th.&lt;/em>&lt;/li>
-&lt;li>Enroll in Beam College. Registration is now open on the &lt;strong>&lt;a href="https://beamcollege.dev/step/2022/">registration page&lt;/a>&lt;/strong>.&lt;/li>
-&lt;li>Consider partnering with the event. If your company is interested in helping to promote the event and being a part of the branding, please fill out this &lt;strong>form&lt;/strong>.&lt;/li>
-&lt;li>Help us get the word out by letting your network know about this exciting opportunity to help users uplevel data processing skills, solve complex data applications, and optimize data pipelines!&lt;/li>
-&lt;/ol>
-&lt;h2 id="beam-meetups">Beam Meetups&lt;/h2>
-&lt;p>In partnership with an event production company, Beam will be hosting an average of one virtual Meetup per month. These Meetups will be relaxed presentations on topics or demos followed by a Q&amp;amp;A session. The objective of our virtual meetups is to give the community an update on the most recent Beam features launched within the past six months. These meetups are free and open to the public.&lt;/p>
-&lt;p>Check out recordings from previous Meetups &lt;strong>&lt;a href="https://www.youtube.com/watch?v=8fNEs7SbefM&amp;amp;list=PL4dEBWmGSIU-cQSpYP7R1lSC6e2K_pTf1">here&lt;/a>&lt;/strong>!&lt;/p>
-&lt;h3 id="ways-to-help--participate-2">Ways to Help &amp;amp; Participate&lt;/h3>
-&lt;ol>
-&lt;li>Are you interested in sharing a feature launch or sharing a step-by-step use case for Beam? Submit a &lt;strong>&lt;a href="https://docs.google.com/forms/d/e/1FAIpQLScFg7fmOFc7fTvnJL_dmdhia4HDesW4HYxJsDeulnsHzIzqCg/viewform">talk idea&lt;/a>&lt;/strong>!&lt;/li>
-&lt;li>Register for the events. Registration is now open on the &lt;strong>&lt;a href="https://clowder.space/projects/apache-beam/">registration page&lt;/a>&lt;/strong>.&lt;/li>
-&lt;li>Help us get the word out by spreading the word throughout the community to enable more knowledge sharing and collaboration!&lt;/li>
-&lt;/ol></description></item></channel></rss>
+Yichi Zhang&lt;/p></description></item></channel></rss>

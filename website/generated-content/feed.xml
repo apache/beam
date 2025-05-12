@@ -1,4 +1,72 @@
-<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Apache Beam 2.64.0</title><description>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Apache Beam 2.65.0</title><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.65.0 release of Beam.
+This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/#2650-2025-05-12">download page&lt;/a> for this release.&lt;/p>
+&lt;p>For more information on changes in 2.65.0, check out the &lt;a href="https://github.com/apache/beam/milestone/29?closed=1">detailed release notes&lt;/a>.&lt;/p>
+&lt;h2 id="highlights">Highlights&lt;/h2>
+&lt;h3 id="ios">I/Os&lt;/h3>
+&lt;ul>
+&lt;li>Upgraded GoogleAdsAPI to v19 for GoogleAdsIO (Java) (&lt;a href="https://github.com/apache/beam/pull/34497">#34497&lt;/a>). Changed PTransform method from version-specified (&lt;code>v17()&lt;/code>) to &lt;code>current()&lt;/code> for better backward compatibility in the future.&lt;/li>
+&lt;li>Added support for writing to Pubsub with ordering keys (Java) (&lt;a href="https://github.com/apache/beam/issues/21162">#21162&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h3 id="new-features--improvements">New Features / Improvements&lt;/h3>
+&lt;ul>
+&lt;li>Added support for streaming side-inputs in the Spark Classic runner (&lt;a href="https://github.com/apache/beam/issues/18136">#18136&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="breaking-changes">Breaking Changes&lt;/h3>
+&lt;ul>
+&lt;li>[Python] Cloudpickle is set as the default &lt;code>pickle_library&lt;/code>, where previously
+dill was the default in &lt;a href="https://github.com/apache/beam/pull/34695">#34695&lt;/a>.
+For known issues, reporting new issues, and understanding cloudpickle
+behavior refer to &lt;a href="https://github.com/apache/beam/issues/34903">#34903&lt;/a>.&lt;/li>
+&lt;li>[Python] Reshuffle now preserves PaneInfo, where previously PaneInfo was lost
+after reshuffle. To opt out of this change, set the
+update_compatibility_version to a previous Beam version e.g. &amp;ldquo;2.64.0&amp;rdquo;.
+(&lt;a href="https://github.com/apache/beam/pull/34348">#34348&lt;/a>).&lt;/li>
+&lt;li>[Python] PaneInfo is encoded by PaneInfoCoder, where previously PaneInfo was
+encoded with FastPrimitivesCoder falling back to PickleCoder. This only
+affects cases where PaneInfo is directly stored as an element.
+(&lt;a href="https://github.com/apache/beam/pull/34824">#34824&lt;/a>).&lt;/li>
+&lt;li>[Python] BigQueryFileLoads now adds a Reshuffle before triggering load jobs.
+This fixes a bug where there can be data loss in a streaming pipeline if there
+is a pending load job during autoscaling. To opt out of this change, set the
+update_compatibility_version to a previous Beam version e.g. &amp;ldquo;2.64.0&amp;rdquo;.
+(&lt;a href="https://github.com/apache/beam/pull/34657">#34657&lt;/a>)&lt;/li>
+&lt;li>[YAML] Kafka source and sink will be automatically replaced with compatible managed transforms.
+For older Beam versions, streaming update compatiblity can be maintained by specifying the pipeline
+option &lt;code>update_compatibility_version&lt;/code> (&lt;a href="https://github.com/apache/beam/issues/34767">#34767&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="deprecations">Deprecations&lt;/h3>
+&lt;ul>
+&lt;li>Beam ZetaSQL is deprecated and will be removed no earlier than Beam 2.68.0 (&lt;a href="https://github.com/apache/beam/issues/34423">#34423&lt;/a>).
+Users are recommended to switch to &lt;a href="https://beam.apache.org/documentation/dsls/sql/calcite/overview/">Calcite SQL&lt;/a> dialect.&lt;/li>
+&lt;/ul>
+&lt;h3 id="bugfixes">Bugfixes&lt;/h3>
+&lt;ul>
+&lt;li>Fixed read Beam rows from cross-lang transform (for example, ReadFromJdbc) involving negative 32-bit integers incorrectly decoded to large integers (&lt;a href="https://github.com/apache/beam/issues/34089">#34089&lt;/a>)&lt;/li>
+&lt;li>(Java) Fixed SDF-based KafkaIO (ReadFromKafkaViaSDF) to properly handle custom deserializers that extend Deserializer&lt;Row> interface(&lt;a href="https://github.com/apache/beam/pull/34505">#34505&lt;/a>)&lt;/li>
+&lt;li>[Python] &lt;code>TypedDict&lt;/code> typehints are now compatible with &lt;code>Mapping&lt;/code> and &lt;code>Dict&lt;/code> type annotations.&lt;/li>
+&lt;/ul>
+&lt;h3 id="security-fixes">Security Fixes&lt;/h3>
+&lt;ul>
+&lt;li>Fixed &lt;a href="https://www.cve.org/CVERecord?id=CVE-2025-30065">CVE-2025-30065&lt;/a> (Java) (&lt;a href="https://github.com/apache/beam/pull/34573">#34573&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h3 id="known-issues">Known Issues&lt;/h3>
+&lt;p>N/A&lt;/p>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the 2.65.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>Aaron Trelstad, Adrian Stoll, Ahmed Abualsaud, akashorabek, Arun Pandian, Bentsi Leviav, Bryan Dang, Celeste Zeng, Chamikara Jayalath, claudevdm, Danny McCormick, Derrick Williams, Ozzie Fernandez, Gabija Balvociute, Gayatri Kate, illoise, Jack McCluskey, Jan Lukavský, Jinho Lee, Justin Bandoro, Kenneth Knowles, XQ Hu, Luke Tsekouras, Martin Trieu, Matthew Suozzo, Naireen Hussain, Niel Markwick, Radosław Stankiewicz, Razvan Culea, Robert Bradshaw, Robert Burke, RuiLong J., Sam Whittle, Sarthak, Shubham Jaiswal, Shunping Huang, Steven van Rossum, Suvrat Acharya, &lt;a href="mailto:sveyrie@luminatedata.com">sveyrie@luminatedata.com&lt;/a>, Talat Uyarer, TanuSharma2511, Tobias Kaymak, Tom Stepp, Valentyn Tymofieiev, twosom, Vitaly Terentyev, wollowizard, Yi Hu, Yifan Ye, Zilin Du&lt;/p></description><link>/blog/beam-2.65.0/</link><pubDate>Mon, 12 May 2025 15:00:00 -0500</pubDate><guid>/blog/beam-2.65.0/</guid><category>blog</category><category>release</category></item><item><title>Apache Beam 2.64.0</title><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -1001,32 +1069,4 @@ OrderedListState, OnWindowExpiry (eg. GroupIntoBatches), CustomWindows, MergingW
 &lt;p>For the most up to date list of known issues, see &lt;a href="https://github.com/apache/beam/blob/master/CHANGES.md">https://github.com/apache/beam/blob/master/CHANGES.md&lt;/a>&lt;/p>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
 &lt;p>According to git shortlog, the following people contributed to the 2.59.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Ahmed Abualsaud,Ahmet Altay,Andrew Crites,atask-g,Axel Magnuson,Ayush Pandey,Bartosz Zablocki,Chamikara Jayalath,cutiepie-10,Damon,Danny McCormick,dependabot[bot],Eddie Phillips,Francis O&amp;rsquo;Hara,Hyeonho Kim,Israel Herraiz,Jack McCluskey,Jaehyeon Kim,Jan Lukavský,Jeff Kinard,Jeffrey Kinard,jonathan-lemos,jrmccluskey,Kirill Berezin,Kiruphasankaran Nataraj,lahariguduru,liferoad,lostluck,Maciej Szwaja,Manit Gupta,Mark Zitnik,martin trieu,Naireen Hussain,Prerit Chandok,Radosław Stankiewicz,Rebecca Szper,Robert Bradshaw,Robert Burke,ron-gal,Sam Whittle,Sergei Lilichenko,Shunping Huang,Svetak Sundhar,Thiago Nunes,Timothy Itodo,tvalentyn,twosom,Vatsal,Vitaly Terentyev,Vlado Djerek,Yifan Ye,Yi Hu&lt;/p></description><link>/blog/beam-2.59.0/</link><pubDate>Wed, 11 Sep 2024 13:00:00 -0800</pubDate><guid>/blog/beam-2.59.0/</guid><category>blog</category><category>release</category></item><item><title>Apache Beam 2.58.1</title><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are happy to present the new 2.58.1 release of Beam.
-This release includes both improvements and new functionality.
-See the &lt;a href="/get-started/downloads/#2580-2024-08-06">download page&lt;/a> for this release.&lt;/p>
-&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
-&lt;ul>
-&lt;li>Fixed issue where KafkaIO Records read with &lt;code>ReadFromKafkaViaSDF&lt;/code> are redistributed and may contain duplicates regardless of the configuration. This affects Java pipelines with Dataflow v2 runner and xlang pipelines reading from Kafka, (&lt;a href="https://github.com/apache/beam/issues/32196">#32196&lt;/a>)&lt;/li>
-&lt;/ul>
-&lt;h2 id="known-issues">Known Issues&lt;/h2>
-&lt;ul>
-&lt;li>Large Dataflow graphs using runner v2, or pipelines explicitly enabling the &lt;code>upload_graph&lt;/code> experiment, will fail at construction time (&lt;a href="https://github.com/apache/beam/issues/32159">#32159&lt;/a>).&lt;/li>
-&lt;li>Python pipelines that run with 2.53.0-2.58.0 SDKs and read data from GCS might be affected by a data corruption issue (&lt;a href="https://github.com/apache/beam/issues/32169">#32169&lt;/a>). The issue will be fixed in 2.59.0 (&lt;a href="https://github.com/apache/beam/pull/32135">#32135&lt;/a>). To work around this, update the google-cloud-storage package to version 2.18.2 or newer.&lt;/li>
-&lt;/ul>
-&lt;p>For the most up to date list of known issues, see &lt;a href="https://github.com/apache/beam/blob/master/CHANGES.md">https://github.com/apache/beam/blob/master/CHANGES.md&lt;/a>&lt;/p>
-&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to git shortlog, the following people contributed to the 2.58.1 release. Thank you to all contributors!&lt;/p>
-&lt;p>Danny McCormick&lt;/p>
-&lt;p>Sam Whittle&lt;/p></description><link>/blog/beam-2.58.1/</link><pubDate>Thu, 15 Aug 2024 13:00:00 -0800</pubDate><guid>/blog/beam-2.58.1/</guid><category>blog</category><category>release</category></item></channel></rss>
+&lt;p>Ahmed Abualsaud,Ahmet Altay,Andrew Crites,atask-g,Axel Magnuson,Ayush Pandey,Bartosz Zablocki,Chamikara Jayalath,cutiepie-10,Damon,Danny McCormick,dependabot[bot],Eddie Phillips,Francis O&amp;rsquo;Hara,Hyeonho Kim,Israel Herraiz,Jack McCluskey,Jaehyeon Kim,Jan Lukavský,Jeff Kinard,Jeffrey Kinard,jonathan-lemos,jrmccluskey,Kirill Berezin,Kiruphasankaran Nataraj,lahariguduru,liferoad,lostluck,Maciej Szwaja,Manit Gupta,Mark Zitnik,martin trieu,Naireen Hussain,Prerit Chandok,Radosław Stankiewicz,Rebecca Szper,Robert Bradshaw,Robert Burke,ron-gal,Sam Whittle,Sergei Lilichenko,Shunping Huang,Svetak Sundhar,Thiago Nunes,Timothy Itodo,tvalentyn,twosom,Vatsal,Vitaly Terentyev,Vlado Djerek,Yifan Ye,Yi Hu&lt;/p></description><link>/blog/beam-2.59.0/</link><pubDate>Wed, 11 Sep 2024 13:00:00 -0800</pubDate><guid>/blog/beam-2.59.0/</guid><category>blog</category><category>release</category></item></channel></rss>
