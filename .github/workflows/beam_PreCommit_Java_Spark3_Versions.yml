@@ -87,10 +87,6 @@ jobs:
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
-        with:
-          # TODO(https://github.com/apache/beam/issues/32207) Run test with Java11
-          # Also change runners/spark/3/build.gradle
-          java-version: 8
       - name: run sparkVersionsTest script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
