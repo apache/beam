@@ -211,6 +211,6 @@ public abstract class RestrictionTracker<RestrictionT, PositionT> {
       return new AutoValue_RestrictionTracker_TruncateResult(restriction);
     }
 
-    public abstract @Nullable RestrictionT getTruncatedRestriction();
+    public abstract RestrictionT getTruncatedRestriction();
   }
 }
