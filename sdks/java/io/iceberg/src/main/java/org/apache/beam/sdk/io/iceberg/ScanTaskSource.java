@@ -59,6 +59,11 @@ class ScanTaskSource extends BoundedSource<Row> {
     return scanConfig.getProjectedSchema();
   }
 
+  @Pure
+  IcebergScanConfig getScanConfig() {
+    return scanConfig;
+  }
+
   @Override
   public List<? extends BoundedSource<Row>> split(
       long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
