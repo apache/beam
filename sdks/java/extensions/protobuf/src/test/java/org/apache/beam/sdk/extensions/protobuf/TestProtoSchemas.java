@@ -44,6 +44,7 @@ import org.apache.beam.sdk.extensions.protobuf.Proto2SchemaMessages.RequiredPrim
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.MapPrimitive;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.Nested;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.NonContiguousOneOf;
+import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.NullablePrimitive;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.OneOf;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.OuterOneOf;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.Primitive;
@@ -109,6 +110,47 @@ class TestProtoSchemas {
                       SCHEMA_OPTION_META_TYPE_NAME,
                       FieldType.STRING,
                       "proto3_schema_messages.Primitive"))
+          .build();
+
+  static final Schema NULLABLE_PRIMITIVE_SCHEMA =
+      Schema.builder()
+          .addField(withFieldNumber("primitive_double", FieldType.DOUBLE, 1).withNullable(true))
+          .addField(withFieldNumber("primitive_float", FieldType.FLOAT, 2).withNullable(true))
+          .addField(withFieldNumber("primitive_int32", FieldType.INT32, 3).withNullable(true))
+          .addField(withFieldNumber("primitive_int64", FieldType.INT64, 4).withNullable(true))
+          .addField(
+              withFieldNumber("primitive_uint32", FieldType.logicalType(new UInt32()), 5)
+                  .withNullable(true))
+          .addField(
+              withFieldNumber("primitive_uint64", FieldType.logicalType(new UInt64()), 6)
+                  .withNullable(true))
+          .addField(
+              withFieldNumber("primitive_sint32", FieldType.logicalType(new SInt32()), 7)
+                  .withNullable(true))
+          .addField(
+              withFieldNumber("primitive_sint64", FieldType.logicalType(new SInt64()), 8)
+                  .withNullable(true))
+          .addField(
+              withFieldNumber("primitive_fixed32", FieldType.logicalType(new Fixed32()), 9)
+                  .withNullable(true))
+          .addField(
+              withFieldNumber("primitive_fixed64", FieldType.logicalType(new Fixed64()), 10)
+                  .withNullable(true))
+          .addField(
+              withFieldNumber("primitive_sfixed32", FieldType.logicalType(new SFixed32()), 11)
+                  .withNullable(true))
+          .addField(
+              withFieldNumber("primitive_sfixed64", FieldType.logicalType(new SFixed64()), 12)
+                  .withNullable(true))
+          .addField(withFieldNumber("primitive_bool", FieldType.BOOLEAN, 13).withNullable(true))
+          .addField(withFieldNumber("primitive_string", FieldType.STRING, 14).withNullable(true))
+          .addField(withFieldNumber("primitive_bytes", FieldType.BYTES, 15).withNullable(true))
+          .setOptions(
+              Schema.Options.builder()
+                  .setOption(
+                      SCHEMA_OPTION_META_TYPE_NAME,
+                      FieldType.STRING,
+                      "proto3_schema_messages.NullablePrimitive"))
           .build();
 
   static final Schema OPTIONAL_PRIMITIVE_SCHEMA =
@@ -180,6 +222,10 @@ class TestProtoSchemas {
           .setPrimitiveString("horsey")
           .setPrimitiveBytes(ByteString.copyFrom(BYTE_ARRAY))
           .build();
+
+  static final NullablePrimitive NULLABLE_PRIMITIVE_PROTO = NullablePrimitive.newBuilder().build();
+
+  static final Row NULLABLE_PRIMITIVE_ROW = Row.nullRow(NULLABLE_PRIMITIVE_SCHEMA);
 
   // A sample instance of the  row.
   static final Row OPTIONAL_PRIMITIVE_ROW =
