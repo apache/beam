@@ -45,6 +45,6 @@ runs:
          -PjavaVersion=11 \
          -Porg.gradle.java.installations.auto-detect=false \
          -Porg.gradle.java.installations.auto-download=false \
-         -Porg.gradle.java.installations.paths=${JAVA_HOME_11_ARM64:+$JAVA_HOME_11_ARM64,}${JAVA_HOME_17_ARM64:+$JAVA_HOME_17_ARM64,}${JAVA_HOME_21_ARM64:+$JAVA_HOME_21_ARM64,}${JAVA_HOME_8_X64:+$JAVA_HOME_8_X64,}${JAVA_HOME_11_X64:+$JAVA_HOME_11_X64,}${JAVA_HOME_17_X64:+$JAVA_HOME_17_X64,}${JAVA_HOME_21_X64:+$JAVA_HOME_21_X64,} \
+         -Porg.gradle.java.installations.fromEnv=JAVA_HOME_11_ARM64,JAVA_HOME_17_ARM64,JAVA_HOME_21_ARM64,JAVA_HOME_8_X64,JAVA_HOME_11_X64,JAVA_HOME_17_X64,JAVA_HOME_21_X64 \
          -Dorg.gradle.jvmargs=-Xms2g -Dorg.gradle.jvmargs=-Xmx6g -Dorg.gradle.vfs.watch=false -Pdocker-pull-licenses \
         ${{ inputs.arguments }}
