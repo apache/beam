@@ -518,6 +518,7 @@ def markdown_to_html(title, markdown_content, header=''):
   return f'''
             <html>
               <head>
+                <meta charset="UTF-8">
                 <title>{title}</title>
                 <style>
                 {pygments_style}
