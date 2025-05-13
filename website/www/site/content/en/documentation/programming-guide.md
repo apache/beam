@@ -1205,7 +1205,18 @@ with beam.Pipeline() as pipeline:
   # f
   # o
   # o
+{{< /highlight >}}
 
+<span class="language-python">
+
+> **Returning a single element (e.g., `return element`) is incorrect**  
+> The `process` method in Beam must return an *iterable* of elements. Returning a single value like an integer or string 
+> (e.g., `return element`) leads to a runtime error (`TypeError: 'int' object is not iterable`) or incorrect results since the return value 
+> will be treated as an iterable. Always ensure your return type is iterable.
+
+</span>
+
+{{< highlight python >}}
 # Returning a list of strings
 class ReturnWordsFn(beam.DoFn):
     def process(self, element):
@@ -1225,7 +1236,16 @@ with beam.Pipeline() as pipeline:
   # prints:
   # ['Apache', 'Beam', 'powerful']
   # ['Try', 'now']
+{{< /highlight >}}
 
+<span class="language-python">
+
+> **Returning a list (e.g., `return [element1, element2]`) is valid**  
+> This approach works well when emitting multiple outputs from a single call and is easy to read for small datasets.
+
+</span>
+
+{{< highlight python >}}
 # Yielding each line one at a time
 class YieldWordsFn(beam.DoFn):
     def process(self, element):
@@ -1254,20 +1274,10 @@ with beam.Pipeline() as pipeline:
 
 <span class="language-python">
 
-> **Note:** 
->
-- **Returning a single element (e.g., `return element`) is incorrect**  
->   The `process` method in Beam must return an *iterable* of elements. Returning a single value like an integer or string (e.g., `return element`) leads to a runtime error (`TypeError: 'int' object is not iterable`) or incorrect results since the return value will be treated as an iterable. Always ensure your return type is iterable.
-
-- **Returning a list (e.g., `return [element1, element2]`) is valid**  
->   This approach works well when emitting multiple outputs from a single call and is easy to read for small datasets.
-
-- **Using `yield` (e.g., `yield element`) is also valid**  
->   This approach can be useful for generating multiple outputs more flexibly, especially in cases where conditional logic or loops are involved.
-
+> **Using `yield` (e.g., `yield element`) is also valid**  
+> This approach can be useful for generating multiple outputs more flexibly, especially in cases where conditional logic or loops are involved.
 
 </span>
-
 
 A given `DoFn` instance generally gets invoked one or more times to process some
 arbitrary bundle of elements. However, Beam doesn't guarantee an exact number of
