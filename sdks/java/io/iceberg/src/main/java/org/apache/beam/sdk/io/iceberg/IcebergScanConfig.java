@@ -103,7 +103,7 @@ public abstract class IcebergScanConfig implements Serializable {
     return cachedEvaluator;
   }
 
-  private @Nullable Evaluator cachedEvaluator;
+  private transient @Nullable Evaluator cachedEvaluator;
 
   @Pure
   public abstract @Nullable Expression getFilter();
