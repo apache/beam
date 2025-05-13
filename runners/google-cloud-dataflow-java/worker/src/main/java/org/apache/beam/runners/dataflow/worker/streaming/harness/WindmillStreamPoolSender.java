@@ -44,6 +44,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSe
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,7 +54,7 @@ import org.slf4j.LoggerFactory;
  */
 @Internal
 @ThreadSafe
-public final class WindmillStreamPoolSender implements WindmillStreamSender {
+public final class WindmillStreamPoolSender implements StreamSender, WindmillStreamSender {
   private static final Logger LOG = LoggerFactory.getLogger(WindmillStreamPoolSender.class);
   private static final int GET_WORK_STREAM_TIMEOUT_MINUTES = 3;
   private final AtomicReference<GetWorkBudget> getWorkBudget;
@@ -68,8 +69,8 @@ public final class WindmillStreamPoolSender implements WindmillStreamSender {
   private final Runnable waitForResources;
   private final Function<String, Optional<ComputationState>> computationStateFetcher;
   private final ExecutorService workProviderExecutor;
-  private final AtomicBoolean started;
-  private GetWorkStream getWorkStream;
+  private final AtomicBoolean isRunning;
+  private @Nullable GetWorkStream getWorkStream;
 
   private WindmillStreamPoolSender(
       WindmillConnection connection,
@@ -82,7 +83,7 @@ public final class WindmillStreamPoolSender implements WindmillStreamSender {
       StreamingWorkScheduler streamingWorkScheduler,
       Runnable waitForResources,
       Function<String, Optional<ComputationState>> computationStateFetcher) {
-    this.started = new AtomicBoolean(false);
+    this.isRunning = new AtomicBoolean(false);
     this.connection = connection;
     this.getWorkRequest = getWorkRequest;
     this.getWorkBudget = getWorkBudget;
@@ -101,40 +102,6 @@ public final class WindmillStreamPoolSender implements WindmillStreamSender {
                 .setPriority(Thread.MIN_PRIORITY)
                 .setNameFormat("DispatchThread")
                 .build());
-    WorkItemReceiver workItemReceiver =
-        (computationId,
-            inputDataWatermark,
-            synchronizedProcessingTime,
-            workItem,
-            serializedWorkItemSize,
-            getWorkStreamLatencies) ->
-            this.computationStateFetcher
-                .apply(computationId)
-                .ifPresent(
-                    computationState -> {
-                      this.waitForResources.run();
-                      this.streamingWorkScheduler.scheduleWork(
-                          computationState,
-                          workItem,
-                          serializedWorkItemSize,
-                          Watermarks.builder()
-                              .setInputDataWatermark(Preconditions.checkNotNull(inputDataWatermark))
-                              .setSynchronizedProcessingTime(synchronizedProcessingTime)
-                              .setOutputDataWatermark(workItem.getOutputDataWatermark())
-                              .build(),
-                          Work.createProcessingContext(
-                              computationId,
-                              this.getDataClient,
-                              workCommitter::commit,
-                              this.heartbeatSender),
-                          getWorkStreamLatencies);
-                    });
-    this.getWorkStream =
-        streamingEngineStreamFactory.createGetWorkStream(
-            connection.stub(),
-            getWorkRequest,
-            streamingEngineThrottleTimers.getWorkThrottleTimer(),
-            workItemReceiver);
   }
 
   public static WindmillStreamPoolSender create(
@@ -162,7 +129,7 @@ public final class WindmillStreamPoolSender implements WindmillStreamSender {
   }
 
   private void dispatchLoop() {
-    while (started.get()) {
+    while (isRunning.get()) {
       this.getWorkStream =
           streamingEngineStreamFactory.createGetWorkStream(
               connection.stub(),
@@ -175,9 +142,12 @@ public final class WindmillStreamPoolSender implements WindmillStreamSender {
         // If at any point the server closes the stream, we will reconnect immediately;
         // otherwise
         // we half-close the stream after some time and create a new one.
-        if (!this.getWorkStream.awaitTermination(
-            GET_WORK_STREAM_TIMEOUT_MINUTES, TimeUnit.MINUTES)) {
-          this.getWorkStream.halfClose();
+        if (this.getWorkStream != null
+            && !this.getWorkStream.awaitTermination(
+                GET_WORK_STREAM_TIMEOUT_MINUTES, TimeUnit.MINUTES)) {
+          if (this.getWorkStream != null) {
+            this.getWorkStream.halfClose();
+          }
         }
       } catch (InterruptedException e) {
         // Continue processing
@@ -218,7 +188,7 @@ public final class WindmillStreamPoolSender implements WindmillStreamSender {
   @SuppressWarnings("ReturnValueIgnored")
   @Override
   public synchronized void start() {
-    if (!started.get()) {
+    if (!isRunning.get()) {
       checkState(
           !workProviderExecutor.isShutdown(),
           "WindmillStreamPoolSender has already been shutdown.");
@@ -230,17 +200,17 @@ public final class WindmillStreamPoolSender implements WindmillStreamSender {
             LOG.info("Dispatch done");
           });
 
-      started.set(true);
+      isRunning.set(true);
     }
   }
 
   @Override
   public synchronized void close() {
-    if (started.get()) {
+    if (isRunning.get() && this.getWorkStream != null) {
       getWorkStream.shutdown();
       workProviderExecutor.shutdownNow();
       workCommitter.stop();
-      started.set(false);
+      isRunning.set(false);
     }
   }
 
@@ -248,7 +218,7 @@ public final class WindmillStreamPoolSender implements WindmillStreamSender {
   public synchronized void setBudget(long items, long bytes) {
     GetWorkBudget budget = GetWorkBudget.builder().setItems(items).setBytes(bytes).build();
     getWorkBudget.set(budget);
-    if (started.get()) {
+    if (isRunning.get() && this.getWorkStream != null) {
       getWorkStream.setBudget(budget);
     }
   }

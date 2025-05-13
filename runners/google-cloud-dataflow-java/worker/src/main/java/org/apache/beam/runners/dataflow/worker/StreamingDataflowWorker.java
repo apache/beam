@@ -408,7 +408,7 @@ public final class StreamingDataflowWorker {
     LOG.debug("LocalWindmillHostport: {}", options.getLocalWindmillHostport());
   }
 
-  private GetDataClient createGetDataClient(
+  private static GetDataClient createGetDataClient(
       DataflowWorkerHarnessOptions options,
       WindmillServerStub windmillServer,
       ThrottlingGetDataMetricTracker getDataMetricTracker,
@@ -422,19 +422,18 @@ public final class StreamingDataflowWorker {
     }
   }
 
-  private WorkCommitter createWorkCommitter(
+  private static WorkCommitter createWorkCommitter(
       DataflowWorkerHarnessOptions options,
       WindmillServerStub windmillServer,
       int numCommitThreads,
       Consumer<CompleteCommit> onCommitComplete) {
-    WeightedSemaphore<Commit> maxCommitByteSemaphore = Commits.maxCommitByteSemaphore();
     if (options.isEnableStreamingEngine()) {
       return StreamingEngineWorkCommitter.builder()
           .setCommitWorkStreamFactory(
               WindmillStreamPool.create(
                       numCommitThreads, COMMIT_STREAM_TIMEOUT, windmillServer::commitWorkStream)
                   ::getCloseableStream)
-          .setCommitByteSemaphore(maxCommitByteSemaphore)
+          .setCommitByteSemaphore(Commits.maxCommitByteSemaphore())
           .setNumCommitSenders(numCommitThreads)
           .setOnCommitComplete(onCommitComplete)
           .build();

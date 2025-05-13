@@ -282,7 +282,6 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
   }
 
   private void consumeWorkerMetadata(WindmillEndpoints windmillEndpoints) {
-    LOG.info("DEBUG LOG: consumeWorkerMetadata called with endpoints: {}", windmillEndpoints);
     synchronized (metadataLock) {
       // Only process versions greater than what we currently have to prevent double processing of
       // metadata. workerMetadataConsumer is single-threaded so we maintain ordering.
@@ -350,9 +349,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
             .map(
                 entry ->
                     CompletableFuture.runAsync(
-                        () ->
-                            closeStreamSender(
-                                entry.getKey(), (WindmillStreamSender) entry.getValue()),
+                        () -> closeStreamSender(entry.getKey(), (StreamSender) entry.getValue()),
                         windmillStreamManager));
 
     Set<Endpoint> newGlobalDataEndpoints =
@@ -363,7 +360,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
             .map(
                 sender ->
                     CompletableFuture.runAsync(
-                        () -> closeStreamSender(sender.endpoint(), (WindmillStreamSender) sender),
+                        () -> closeStreamSender(sender.endpoint(), (StreamSender) sender),
                         windmillStreamManager));
 
     return CompletableFuture.allOf(
@@ -371,7 +368,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
             .toArray(CompletableFuture[]::new));
   }
 
-  private void closeStreamSender(Endpoint endpoint, WindmillStreamSender sender) {
+  private void closeStreamSender(Endpoint endpoint, StreamSender sender) {
     LOG.debug("Closing streams to endpoint={}, sender={}", endpoint, sender);
     try {
       sender.close();
@@ -462,8 +459,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
 
   private WindmillStreamSender createAndStartWindmillStreamSender(
       Endpoint endpoint, EndpointType enpointType) {
-    WindmillStreamSender windmillStreamSender;
-    windmillStreamSender =
+    WindmillStreamSender windmillStreamSender =
         enpointType == EndpointType.DIRECTPATH
             ? WindmillDirectStreamSender.create(
                 WindmillConnection.from(endpoint, this::createWindmillStub),
