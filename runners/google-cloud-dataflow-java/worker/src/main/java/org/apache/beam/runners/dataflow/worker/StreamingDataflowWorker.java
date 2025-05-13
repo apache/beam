@@ -411,7 +411,7 @@ public final class StreamingDataflowWorker {
     LOG.debug("LocalWindmillHostport: {}", options.getLocalWindmillHostport());
   }
 
-  private GetDataClient createGetDataClient(
+  private static GetDataClient createGetDataClient(
       DataflowWorkerHarnessOptions options,
       WindmillServerStub windmillServer,
       ThrottlingGetDataMetricTracker getDataMetricTracker,

@@ -24,7 +24,7 @@ import org.apache.beam.sdk.annotations.Internal;
 
 @Internal
 @ThreadSafe
-final class GlobalDataStreamSender implements WindmillStreamSender {
+final class GlobalDataStreamSender implements StreamSender {
   private final Endpoint endpoint;
   private final GetDataStream delegate;
   private volatile boolean started;
@@ -56,28 +56,6 @@ final class GlobalDataStreamSender implements WindmillStreamSender {
   @Override
   public void close() {
     delegate.shutdown();
-  }
-
-  @Override
-  public void start() {
-    throw new UnsupportedOperationException("start() not supported for GlobalDataStreamSender");
-  }
-
-  @Override
-  public void setBudget(long items, long bytes) {
-    throw new UnsupportedOperationException("setBudget() not supported for GlobalDataStreamSender");
-  }
-
-  @Override
-  public long getAndResetThrottleTime() {
-    throw new UnsupportedOperationException(
-        "getAndResetThrottleTime() not supported for GlobalDataStreamSender");
-  }
-
-  @Override
-  public long getCurrentActiveCommitBytes() {
-    throw new UnsupportedOperationException(
-        "getCurrentActiveCommitBytes() not supported for GlobalDataStreamSender");
   }
 
   Endpoint endpoint() {
