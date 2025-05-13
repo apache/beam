@@ -110,6 +110,10 @@ class SwitchingDirectRunner(PipelineRunner):
               if timer.time_domain == TimeDomain.REAL_TIME:
                 self.supported_by_fnapi_runner = False
 
+      def visit_value(self, value, producer_node):
+        if not value.is_bounded:
+          self.supported_by_fnapi_runner = False
+
     class _PrismRunnerSupportVisitor(PipelineVisitor):
       """Visitor determining if a Pipeline can be run on the PrismRunner."""
       def accept(self, pipeline):
@@ -167,7 +171,8 @@ class SwitchingDirectRunner(PipelineRunner):
         pr = runner.run_pipeline(pipeline, options)
         # This is non-blocking, so if the state is *already* finished, something
         # probably failed on job submission.
-        if pr.state.is_terminal() and pr.state != PipelineState.DONE:
+        if (PipelineState.is_terminal(pr.state) and
+            pr.state != PipelineState.DONE):
           _LOGGER.info(
               'Pipeline failed on PrismRunner, falling back toDirectRunner.')
           runner = BundleBasedDirectRunner()
