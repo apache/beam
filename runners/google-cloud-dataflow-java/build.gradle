@@ -303,36 +303,38 @@ tasks.register('examplesJavaRunnerV2IntegrationTestDistroless', Test.class) {
   useJUnit { }
 }
 
-// Only Java 17 and 21 are supported.
-// See https://github.com/GoogleContainerTools/distroless/tree/main/java#image-contents.
-if (JavaLanguageVersion.of(project.javaVersion) in [17, 21]) {
-  tasks.register('buildAndPushDistrolessContainerImage', Task.class) {
-    doLast {
-      if (!project.hasProperty('dockerTag')) {
-        throw new GradleException("dockerTag is missing but required")
-      }
-      def repository = "us.gcr.io/apache-beam-testing/${System.getenv('USER')}"
-      def tag = project.findProperty('dockerTag')
-      def imageURL = "${repository}/beam_java${project.javaVersion}_sdk_distroless:${tag}"
-      exec {
-        executable 'docker'
-        workingDir rootDir
-        args = [
-                'buildx',
-                'build',
-                '-t',
-                imageURL,
-                '-f',
-                'sdks/java/container/Dockerfile-distroless',
-                "--build-arg=BEAM_BASE=gcr.io/apache-beam-testing/beam-sdk/beam_java${project.javaVersion}_sdk",
-                "--build-arg=DISTROLESS_BASE=gcr.io/distroless/java${project.javaVersion}-debian12",
-                '.'
-        ]
-      }
-      exec {
-        executable 'docker'
-        args = ['push', imageURL]
-      }
+tasks.register('buildAndPushDistrolessContainerImage', Task.class) {
+  onlyIf('javaVersion is a supported LTS release for distroless') {
+    // Only Java 17 and 21 are supported.
+    // See https://github.com/GoogleContainerTools/distroless/tree/main/java#image-contents.
+    JavaLanguageVersion.of(project.javaVersion) in [17, 21]
+  }
+
+  doLast {
+    if (!project.hasProperty('dockerTag')) {
+      throw new GradleException("dockerTag is missing but required")
+    }
+    def repository = "us.gcr.io/apache-beam-testing/${System.getenv('USER')}"
+    def tag = project.findProperty('dockerTag')
+    def imageURL = "${repository}/beam_java${project.javaVersion}_sdk_distroless:${tag}"
+    exec {
+      executable 'docker'
+      workingDir rootDir
+      args = [
+              'buildx',
+              'build',
+              '-t',
+              imageURL,
+              '-f',
+              'sdks/java/container/Dockerfile-distroless',
+              "--build-arg=BEAM_BASE=gcr.io/apache-beam-testing/beam-sdk/beam_java${project.javaVersion}_sdk",
+              "--build-arg=DISTROLESS_BASE=gcr.io/distroless/java${project.javaVersion}-debian12",
+              '.'
+      ]
+    }
+    exec {
+      executable 'docker'
+      args = ['push', imageURL]
     }
   }
 }
