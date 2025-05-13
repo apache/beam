@@ -159,14 +159,6 @@ dataframe_dependency = [
     'pandas>=1.4.3,!=1.5.0,!=1.5.1,<2.3',
 ]
 
-# psycopg2-binary did not release a MacOS Python 3.9 arm64 wheel for 2.9.10 for
-# some reason, so we'll handle that distinction here.
-if sys.platform == 'darwin' and (sys.version_info.major,
-                                 sys.version_info.minor) == (3, 9):
-  psycopg2_dependency = ['psycopg2-binary>=2.8.5,<3.0.0,!=2.9.10']
-else:
-  psycopg2_dependency = ['psycopg2-binary>=2.8.5,<3.0.0']
-
 
 def find_by_ext(root_dir, ext):
   for root, _, files in os.walk(root_dir):
@@ -428,11 +420,13 @@ if __name__ == '__main__':
               'scikit-learn>=0.20.0',
               'setuptools',
               'sqlalchemy>=1.3,<3.0',
+              'psycopg2-binary>=2.8.5,<2.9.10; python_version <= "3.9"',
+              'psycopg2-binary>=2.8.5,<3.0; python_version >= "3.10"',
               'testcontainers[mysql]>=3.0.3,<4.0.0',
               'cryptography>=41.0.2',
               'hypothesis>5.0.0,<7.0.0',
               'virtualenv-clone>=0.5,<1.0',
-          ] + psycopg2_dependency,
+          ],
           'gcp': [
               'cachetools>=3.1.0,<6',
               'google-api-core>=2.0.0,<3',
