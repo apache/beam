@@ -42,7 +42,7 @@ class ReadFn<T> extends DoFn<Read<T>, T> {
   private static final Logger LOG = LoggerFactory.getLogger(ReadFn.class);
 
   @ProcessElement
-  public void processElement(@Element Read<T> read, OutputReceiver<T> receiver) {
+  public void processElement(@Element Read<T> read, OutputReceiver<T> receiver) throws Exception {
     try {
       Session session = ConnectionManager.getSession(read);
       Mapper<T> mapper = read.mapperFactoryFn().apply(session);
@@ -89,6 +89,7 @@ class ReadFn<T> extends DoFn<Read<T>, T> {
       }
     } catch (Exception ex) {
       LOG.error("error", ex);
+      throw ex;
     }
   }
 
@@ -107,7 +108,7 @@ class ReadFn<T> extends DoFn<Read<T>, T> {
     String finalHighQuery =
         (spec.query() == null)
             ? buildInitialQuery(spec, true) + highestClause
-            : spec.query() + getJoinerClause(spec.query().get()) + highestClause;
+            : spec.query().get() + getJoinerClause(spec.query().get()) + highestClause;
     LOG.debug("CassandraIO generated a wrapAround query : {}", finalHighQuery);
     return finalHighQuery;
   }
@@ -117,7 +118,7 @@ class ReadFn<T> extends DoFn<Read<T>, T> {
     String finalLowQuery =
         (spec.query() == null)
             ? buildInitialQuery(spec, true) + lowestClause
-            : spec.query() + getJoinerClause(spec.query().get()) + lowestClause;
+            : spec.query().get() + getJoinerClause(spec.query().get()) + lowestClause;
     LOG.debug("CassandraIO generated a wrapAround query : {}", finalLowQuery);
     return finalLowQuery;
   }
