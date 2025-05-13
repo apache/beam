@@ -25,13 +25,13 @@ import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NESTED_RO
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NESTED_SCHEMA;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NONCONTIGUOUS_ONEOF_PROTO;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NONCONTIGUOUS_ONEOF_ROW;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NULLABLE_PRIMITIVE_PROTO;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NULLABLE_PRIMITIVE_ROW;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NULLABLE_PRIMITIVE_SCHEMA;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NULL_MAP_PRIMITIVE_PROTO;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NULL_MAP_PRIMITIVE_ROW;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NULL_REPEATED_PROTO;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NULL_REPEATED_ROW;
-import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NULLABLE_PRIMITIVE_PROTO;
-import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NULLABLE_PRIMITIVE_ROW;
-import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NULLABLE_PRIMITIVE_SCHEMA;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.ONEOF_PROTO_BOOL;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.ONEOF_PROTO_INT32;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.ONEOF_PROTO_PRIMITIVE;
