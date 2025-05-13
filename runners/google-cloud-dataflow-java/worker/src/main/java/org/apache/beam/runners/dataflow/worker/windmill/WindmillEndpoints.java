@@ -73,11 +73,7 @@ public abstract class WindmillEndpoints {
                 endpointProto ->
                     Endpoint.from(endpointProto, workerMetadataResponseProto.getExternalEndpoint()))
             .collect(toImmutableSet());
-    // EndpointType endpointType =
-    //     Arrays.stream(EndpointType.values())
-    //         .filter(e -> e.name().equals(workerMetadataResponseProto.getEndpointType().name()))
-    //         .findFirst()
-    //         .orElse(EndpointType.UNKNOWN);
+
     return WindmillEndpoints.builder()
         .setVersion(workerMetadataResponseProto.getMetadataVersion())
         .setGlobalDataEndpoints(globalDataServers)
@@ -164,13 +160,6 @@ public abstract class WindmillEndpoints {
   public abstract ImmutableSet<Endpoint> windmillEndpoints();
 
   public abstract EndpointType endpointType();
-
-  // public enum EndpointType {
-  //   UNKNOWN,
-  //   CLOUDPATH,
-  //   BORG,
-  //   DIRECTPATH
-  // }
 
   /**
    * Representation of an endpoint in {@link Windmill.WorkerMetadataResponse.Endpoint} proto with
