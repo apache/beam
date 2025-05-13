@@ -421,7 +421,10 @@ class PerWindowInvokerSplitTest(unittest.TestCase):
             expected_primary_split,
             expected_primary_windows,
         ))
-    hc.assert_that(residuals, hc.contains_inanyorder(expected_residual_split, ))
+    hc.assert_that(
+        residuals, hc.contains_inanyorder(
+            expected_residual_split,
+        ))
     self.assertEqual(stop_index, 3)
 
   def test_window_observing_split_on_first_window_fallback(self):

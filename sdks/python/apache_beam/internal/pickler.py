@@ -33,15 +33,22 @@ from apache_beam.internal import dill_pickler
 
 USE_CLOUDPICKLE = 'cloudpickle'
 USE_DILL = 'dill'
-DEFAULT_PICKLE_LIB = USE_DILL
 
-desired_pickle_lib = dill_pickler
+DEFAULT_PICKLE_LIB = USE_CLOUDPICKLE
+desired_pickle_lib = cloudpickle_pickler
 
 
-def dumps(o, enable_trace=True, use_zlib=False) -> bytes:
+def dumps(
+    o,
+    enable_trace=True,
+    use_zlib=False,
+    enable_best_effort_determinism=False) -> bytes:
 
   return desired_pickle_lib.dumps(
-      o, enable_trace=enable_trace, use_zlib=use_zlib)
+      o,
+      enable_trace=enable_trace,
+      use_zlib=use_zlib,
+      enable_best_effort_determinism=enable_best_effort_determinism)
 
 
 def loads(encoded, enable_trace=True, use_zlib=False):

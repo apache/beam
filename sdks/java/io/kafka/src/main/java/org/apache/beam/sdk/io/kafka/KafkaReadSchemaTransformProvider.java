@@ -196,7 +196,7 @@ public class KafkaReadSchemaTransformProvider
         PCollection<GenericRecord> kafkaValues =
             input.getPipeline().apply(kafkaRead.withoutMetadata()).apply(Values.create());
 
-        assert kafkaValues.getCoder().getClass() == AvroCoder.class;
+        assert kafkaValues.getCoder() instanceof AvroCoder;
         AvroCoder<GenericRecord> coder = (AvroCoder<GenericRecord>) kafkaValues.getCoder();
         kafkaValues = kafkaValues.setCoder(AvroUtils.schemaCoder(coder.getSchema()));
         return PCollectionRowTuple.of("output", kafkaValues.apply(Convert.toRows()));

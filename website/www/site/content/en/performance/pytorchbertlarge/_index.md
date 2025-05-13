@@ -18,8 +18,14 @@ limitations under the License.
 
 # PyTorch Language Modeling BERT base Performance
 
+**Model**: PyTorch Language Modeling — BERT (large-uncased)
+**Accelerator**: CPU only
+**Host**: 250 × n1-standard-2 (2 vCPUs, 7.5 GB RAM)
+
 The following graphs show various metrics when running Pytorch Language Modeling using Hugging Face bert-large-uncased model pipeline.
 See the [glossary](/performance/glossary) for definitions.
+
+Full pipeline implementation is available [here](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/pytorch_language_modeling.py).
 
 ## What is the estimated cost to run the pipeline?
 

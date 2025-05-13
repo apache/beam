@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.flink;
 
-import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.sdk.util.construction.resources.PipelineResources.detectClassPathResourcesToStage;
 
 import java.util.UUID;
@@ -32,10 +31,14 @@ import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ListeningExecutorService;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Job Invoker for the {@link FlinkRunner}. */
+@SuppressWarnings({
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+})
 public class FlinkJobInvoker extends JobInvoker {
   private static final Logger LOG = LoggerFactory.getLogger(FlinkJobInvoker.class);
 
@@ -54,7 +57,7 @@ public class FlinkJobInvoker extends JobInvoker {
   protected JobInvocation invokeWithExecutor(
       RunnerApi.Pipeline pipeline,
       Struct options,
-      String retrievalToken,
+      @Nullable String retrievalToken,
       ListeningExecutorService executorService) {
 
     // TODO: How to make Java/Python agree on names of keys and their values?
@@ -71,21 +74,19 @@ public class FlinkJobInvoker extends JobInvoker {
 
     PortablePipelineOptions portableOptions = flinkOptions.as(PortablePipelineOptions.class);
 
-    ClassLoader thisClassLoader =
-        checkStateNotNull(
-            FlinkJobInvoker.class.getClassLoader(),
-            "FlinkJobInvoker class loader is null - this means it was loaded by the bootstrap classloader, which should be impossible");
-
     PortablePipelineRunner pipelineRunner;
     if (Strings.isNullOrEmpty(portableOptions.getOutputExecutablePath())) {
       pipelineRunner =
           new FlinkPipelineRunner(
               flinkOptions,
               serverConfig.getFlinkConfDir(),
-              detectClassPathResourcesToStage(thisClassLoader, flinkOptions));
+              detectClassPathResourcesToStage(
+                  FlinkJobInvoker.class.getClassLoader(), flinkOptions));
     } else {
       pipelineRunner = new PortablePipelineJarCreator(FlinkPipelineRunner.class);
     }
+
+    flinkOptions.setRunner(null);
 
     LOG.info("Invoking job {} with pipeline runner {}", invocationId, pipelineRunner);
     return createJobInvocation(

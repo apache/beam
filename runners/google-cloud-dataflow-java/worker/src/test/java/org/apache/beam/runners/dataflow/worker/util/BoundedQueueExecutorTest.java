@@ -24,6 +24,8 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -41,14 +43,21 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+import org.junit.runners.Parameterized;
 
 /** Unit tests for {@link org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor}. */
-@RunWith(JUnit4.class)
+@RunWith(Parameterized.class)
 // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of errorprone is
 // released (2.11.0)
 @SuppressWarnings("unused")
 public class BoundedQueueExecutorTest {
+
+  @Parameterized.Parameter public boolean useFairMonitor;
+
+  @Parameterized.Parameters(name = "useFairMonitor = {0}")
+  public static Collection<Object[]> useFairMonitor() {
+    return Arrays.asList(new Object[][] {{false}, {true}});
+  }
 
   private static final long MAXIMUM_BYTES_OUTSTANDING = 10000000;
   private static final int DEFAULT_MAX_THREADS = 2;
@@ -101,7 +110,8 @@ public class BoundedQueueExecutorTest {
             new ThreadFactoryBuilder()
                 .setNameFormat("DataflowWorkUnits-%d")
                 .setDaemon(true)
-                .build());
+                .build(),
+            useFairMonitor);
   }
 
   @Test
@@ -162,9 +172,10 @@ public class BoundedQueueExecutorTest {
 
     // Stop m1 so there are available bytes for m2 to run.
     processStop1.countDown();
+    // m2 should be able to start execution
     processStart2.await();
-    // m2 started.
-    assertEquals(Thread.State.TERMINATED, m2Runner.getState());
+    // ensure that the execute() call scheduling m2 returns even if the completion of m2 is blocked.
+    m2Runner.join();
     processStop2.countDown();
     executor.shutdown();
   }

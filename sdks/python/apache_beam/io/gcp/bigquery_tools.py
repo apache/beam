@@ -1282,8 +1282,8 @@ class BigQueryWrapper(object):
     # can happen during retries on failures.
     # TODO(silviuc): Must add support to writing TableRow's instead of dicts.
     insert_ids = [
-        str(self.unique_row_id) if not insert_ids else insert_ids[i] for i,
-        _ in enumerate(rows)
+        str(self.unique_row_id) if not insert_ids else insert_ids[i]
+        for i, _ in enumerate(rows)
     ]
     rows = [
         fast_json_loads(fast_json_dumps(r, default=default_encoder))

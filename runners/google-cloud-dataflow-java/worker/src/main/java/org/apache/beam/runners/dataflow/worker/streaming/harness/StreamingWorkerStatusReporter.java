@@ -52,7 +52,6 @@ import org.apache.beam.runners.dataflow.worker.logging.DataflowWorkerLoggingMDC;
 import org.apache.beam.runners.dataflow.worker.streaming.StageInfo;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
-import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottledTimeTracker;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.FailureTracker;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -80,7 +79,6 @@ public final class StreamingWorkerStatusReporter {
   private final int initialMaxThreadCount;
   private final int initialMaxBundlesOutstanding;
   private final WorkUnitClient dataflowServiceClient;
-  private final ThrottledTimeTracker windmillQuotaThrottleTime;
   private final Supplier<Collection<StageInfo>> allStageInfo;
   private final FailureTracker failureTracker;
   private final StreamingCounters streamingCounters;
@@ -102,7 +100,6 @@ public final class StreamingWorkerStatusReporter {
   StreamingWorkerStatusReporter(
       boolean publishCounters,
       WorkUnitClient dataflowServiceClient,
-      ThrottledTimeTracker windmillQuotaThrottleTime,
       Supplier<Collection<StageInfo>> allStageInfo,
       FailureTracker failureTracker,
       StreamingCounters streamingCounters,
@@ -113,7 +110,6 @@ public final class StreamingWorkerStatusReporter {
       long perWorkerMetricsUpdateReportingPeriodMillis) {
     this.publishCounters = publishCounters;
     this.dataflowServiceClient = dataflowServiceClient;
-    this.windmillQuotaThrottleTime = windmillQuotaThrottleTime;
     this.allStageInfo = allStageInfo;
     this.failureTracker = failureTracker;
     this.streamingCounters = streamingCounters;
@@ -253,10 +249,6 @@ public final class StreamingWorkerStatusReporter {
   /** Sends counter updates to Dataflow backend. */
   private void sendWorkerUpdatesToDataflowService(
       CounterSet deltaCounters, CounterSet cumulativeCounters) throws IOException {
-    // Throttle time is tracked by the windmillServer but is reported to DFE here.
-    streamingCounters
-        .windmillQuotaThrottling()
-        .addValue(windmillQuotaThrottleTime.getAndResetThrottleTime());
     if (memoryMonitor.isThrashing()) {
       streamingCounters.memoryThrashing().addValue(1);
     }
@@ -462,8 +454,6 @@ public final class StreamingWorkerStatusReporter {
     Builder setPublishCounters(boolean publishCounters);
 
     Builder setDataflowServiceClient(WorkUnitClient dataflowServiceClient);
-
-    Builder setWindmillQuotaThrottleTime(ThrottledTimeTracker windmillQuotaThrottledTimeTracker);
 
     Builder setAllStageInfo(Supplier<Collection<StageInfo>> allStageInfo);
 

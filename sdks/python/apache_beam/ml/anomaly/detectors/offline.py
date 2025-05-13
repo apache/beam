@@ -16,13 +16,20 @@
 #
 
 from typing import Any
-from typing import Dict
 from typing import Optional
+from typing import SupportsFloat
+from typing import SupportsInt
+from typing import TypeVar
 
 import apache_beam as beam
 from apache_beam.ml.anomaly.base import AnomalyDetector
+from apache_beam.ml.anomaly.base import AnomalyPrediction
 from apache_beam.ml.anomaly.specifiable import specifiable
 from apache_beam.ml.inference.base import KeyedModelHandler
+from apache_beam.ml.inference.base import PredictionResult
+from apache_beam.ml.inference.base import PredictionT
+
+KeyT = TypeVar('KeyT')
 
 
 @specifiable
@@ -31,15 +38,67 @@ class OfflineDetector(AnomalyDetector):
 
   Args:
     keyed_model_handler: The model handler to use for inference.
-      Requires a `KeyModelHandler[Any, Row, float, Any]` instance.
+      Requires a `KeyModelHandler[Any, Row, PredictionT, Any]` instance.
     run_inference_args: Optional arguments to pass to RunInference
     **kwargs: Additional keyword arguments to pass to the base
       AnomalyDetector class.
   """
+  @staticmethod
+  def score_prediction_adapter(
+      keyed_prediction: tuple[KeyT, PredictionResult]
+  ) -> tuple[KeyT, AnomalyPrediction]:
+    """Extracts a float score from `PredictionResult.inference` and wraps it.
+
+    Takes a keyed `PredictionResult` from common ModelHandler output, assumes
+    its `inference` attribute is a float-convertible score, and returns the key
+    paired with an `AnomalyPrediction` containing that float score.
+
+    Args:
+      keyed_prediction: tuple of `(key, PredictionResult)`. `PredictionResult`
+        must have an `inference` attribute supporting float conversion.
+
+    Returns:
+      tuple of `(key, AnomalyPrediction)` with the extracted score.
+
+    Raises:
+      AssertionError: If `PredictionResult.inference` doesn't support float().
+    """
+
+    key, prediction = keyed_prediction
+    score = prediction.inference
+    assert isinstance(score, SupportsFloat)
+    return key, AnomalyPrediction(score=float(score))
+
+  @staticmethod
+  def label_prediction_adapter(
+      keyed_prediction: tuple[KeyT, PredictionResult]
+  ) -> tuple[KeyT, AnomalyPrediction]:
+    """Extracts an integer label from `PredictionResult.inference` and wraps it.
+
+    Takes a keyed `PredictionResult`, assumes its `inference` attribute is an
+    integer-convertible label, and returns the key paired with an
+    `AnomalyPrediction` containing that integer label.
+
+    Args:
+      keyed_prediction: tuple of `(key, PredictionResult)`. `PredictionResult`
+        must have an `inference` attribute supporting int conversion.
+
+    Returns:
+      tuple of `(key, AnomalyPrediction)` with the extracted label.
+
+    Raises:
+      AssertionError: If `PredictionResult.inference` doesn't support int().
+    """
+
+    key, prediction = keyed_prediction
+    label = prediction.inference
+    assert isinstance(label, SupportsInt)
+    return key, AnomalyPrediction(label=int(label))
+
   def __init__(
       self,
-      keyed_model_handler: KeyedModelHandler[Any, beam.Row, float, Any],
-      run_inference_args: Optional[Dict[str, Any]] = None,
+      keyed_model_handler: KeyedModelHandler[Any, beam.Row, PredictionT, Any],
+      run_inference_args: Optional[dict[str, Any]] = None,
       **kwargs):
     super().__init__(**kwargs)
 

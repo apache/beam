@@ -34,6 +34,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableProperties;
@@ -67,7 +68,7 @@ public class ReadUtils {
           "parquet.read.support.class",
           "parquet.crypto.factory.class");
 
-  static ParquetReader<Record> createReader(FileScanTask task, Table table) {
+  static ParquetReader<Record> createReader(FileScanTask task, Table table, Schema schema) {
     String filePath = task.file().path().toString();
     InputFile inputFile;
     try (FileIO io = table.io()) {
@@ -100,11 +101,11 @@ public class ReadUtils {
 
     return new ParquetReader<>(
         inputFile,
-        table.schema(),
+        schema,
         optionsBuilder.build(),
         // TODO(ahmedabu98): Implement a Parquet-to-Beam Row reader, bypassing conversion to Iceberg
         // Record
-        fileSchema -> GenericParquetReaders.buildReader(table.schema(), fileSchema, idToConstants),
+        fileSchema -> GenericParquetReaders.buildReader(schema, fileSchema, idToConstants),
         mapping,
         task.residual(),
         false,

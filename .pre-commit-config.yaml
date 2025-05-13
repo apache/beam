@@ -11,10 +11,10 @@
 # limitations under the License.
 
 repos:
-  - repo: https://github.com/pre-commit/mirrors-yapf
+  - repo: https://github.com/google/yapf
     # this rev is a release tag in the repo above and corresponds with a yapf
     # version. make sure this matches the version of yapf in tox.ini.
-    rev: v0.29.0
+    rev: v0.43.0
     hooks:
       - id: yapf
         files: ^sdks/python/apache_beam/

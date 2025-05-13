@@ -15,18 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.windmill.client.throttling;
 
-import org.apache.beam.sdk.annotations.Internal;
-
-/**
- * Tracks time spent in a throttled state due to {@code Status.RESOURCE_EXHAUSTED} errors returned
- * from gRPC calls.
- */
-@Internal
-@FunctionalInterface
-public interface ThrottledTimeTracker {
-
-  /** Returns the combined total of all throttle times and resets those times to 0. */
-  long getAndResetThrottleTime();
-}
+/** Extensions for invoking Beam YAML transforms from the Beam Java SDK. */
+package org.apache.beam.sdk.extensions.yaml;

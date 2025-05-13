@@ -46,6 +46,7 @@ import traceback
 import warnings
 from copy import copy
 from datetime import datetime
+from datetime import timezone
 
 from apitools.base.py import encoding
 from apitools.base.py import exceptions
@@ -229,8 +230,8 @@ class Environment(object):
       container_image = dataflow.SdkHarnessContainerImage()
       container_image.containerImage = container_image_url
       container_image.useSingleCorePerContainer = (
-          common_urns.protocols.MULTI_CORE_BUNDLE_PROCESSING.urn not in
-          environment.capabilities)
+          common_urns.protocols.MULTI_CORE_BUNDLE_PROCESSING.urn
+          not in environment.capabilities)
       container_image.environmentId = id
       for capability in environment.capabilities:
         container_image.capabilities.append(capability)
@@ -363,7 +364,7 @@ class Job(object):
     are removed. If necessary, the user_name is truncated to shorten
     the job name to 63 characters."""
     user_name = re.sub('[^-a-z0-9]', '', user_name.lower())
-    date_component = datetime.utcnow().strftime('%m%d%H%M%S-%f')
+    date_component = datetime.now(timezone.utc).strftime('%m%d%H%M%S-%f')
     app_user_name = 'beamapp-{}'.format(user_name)
     # append 8 random alphanumeric characters to avoid collisions.
     random_component = ''.join(
@@ -467,7 +468,7 @@ class Job(object):
 
     # Client Request ID
     self.proto.clientRequestId = '{}-{}'.format(
-        datetime.utcnow().strftime('%Y%m%d%H%M%S%f'),
+        datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S%f'),
         random.randrange(9000) + 1000)
 
     self.base64_str_re = re.compile(r'^[A-Za-z0-9+/]*=*$')
@@ -1058,10 +1059,9 @@ class DataflowApplicationClient(object):
           pageToken=token)
       response = self._client.projects_locations_jobs.List(request)
       for job in response.jobs:
-        if (job.name == job_name and job.currentState in [
-            dataflow.Job.CurrentStateValueValuesEnum.JOB_STATE_RUNNING,
-            dataflow.Job.CurrentStateValueValuesEnum.JOB_STATE_DRAINING
-        ]):
+        if (job.name == job_name and job.currentState
+            in [dataflow.Job.CurrentStateValueValuesEnum.JOB_STATE_RUNNING,
+                dataflow.Job.CurrentStateValueValuesEnum.JOB_STATE_DRAINING]):
           return job.id
       token = response.nextPageToken
       if token is None:
@@ -1219,9 +1219,8 @@ def get_response_encoding():
 
 
 def _verify_interpreter_version_is_supported(pipeline_options):
-  if ('%s.%s' %
-      (sys.version_info[0],
-       sys.version_info[1]) in _PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW):
+  if ('%s.%s' % (sys.version_info[0], sys.version_info[1])
+      in _PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW):
     return
 
   if 'dev' in beam_version.__version__:
