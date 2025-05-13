@@ -77,11 +77,13 @@
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * [YAML] WriteToTFRecord and ReadFromTFRecord Beam YAML support
+* Python: Added JupyterLab 4.x extension compatibility for enhanced notebook integration ([#34495](https://github.com/apache/beam/pull/34495)).
 
 ## Breaking Changes
 
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
 * Yapf version upgraded to 0.43.0 for formatting (Python) ([#34801](https://github.com/apache/beam/pull/34801/)).
+* Python: Added JupyterLab 4.x extension compatibility for enhanced notebook integration ([#34495](https://github.com/apache/beam/pull/34495)).
 
 ## Deprecations
 
@@ -99,7 +101,7 @@
 [comment]: # ( When updating known issues after release, make sure also update website blog in website/www/site/content/blog.)
 * ([#X](https://github.com/apache/beam/issues/X)).
 
-# [2.65.0] - Unreleased
+# [2.65.0] - 2025-05-12
 
 ## I/Os
 
@@ -112,6 +114,10 @@
 
 ## Breaking Changes
 
+* [Python] Cloudpickle is set as the default `pickle_library`, where previously
+  dill was the default in [#34695](https://github.com/apache/beam/pull/34695).
+  For known issues, reporting new issues, and understanding cloudpickle
+  behavior refer to [#34903](https://github.com/apache/beam/issues/34903).
 * [Python] Reshuffle now preserves PaneInfo, where previously PaneInfo was lost
   after reshuffle. To opt out of this change, set the
   update_compatibility_version to a previous Beam version e.g. "2.64.0".

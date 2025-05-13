@@ -18,8 +18,15 @@ limitations under the License.
 
 # TensorFlow MNIST Image Classification Performance
 
-The following graphs show various metrics when running TensorFlow MNIST Image Classification pipeline.
+**Model**: TensorFlow Image Classification — MNIST
+**Accelerator**: CPU only
+**Host**: 1 × n1-standard-2 (2 vCPUs, 7.5 GB RAM)
+
+The following graphs show performance metrics for a lightweight MNIST digit classification pipeline using TensorFlow and Apache Beam in batch mode.
+This benchmark is primarily used to validate pipeline correctness and estimate minimal inference cost.
 See the [glossary](/performance/glossary) for definitions.
+
+Full pipeline implementation is available [here](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/tensorflow_mnist_classification.py).
 
 ## What is the estimated cost to run the pipeline?
 

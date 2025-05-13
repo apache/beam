@@ -90,7 +90,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.Channe
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.IsolationChannel;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactoryFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactoryFactoryImpl;
-import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottledTimeTracker;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudgetDistributors;
@@ -196,7 +195,7 @@ public final class StreamingDataflowWorker {
       DataflowWorkerHarnessOptions options,
       HotKeyLogger hotKeyLogger,
       Supplier<Instant> clock,
-      StreamingWorkerStatusReporterFactory streamingWorkerStatusReporterFactory,
+      StreamingWorkerStatusReporter streamingWorkerStatusReporter,
       FailureTracker failureTracker,
       WorkFailureProcessor workFailureProcessor,
       StreamingCounters streamingCounters,
@@ -356,13 +355,11 @@ public final class StreamingDataflowWorker {
               .setComputationStateFetcher(this.computationStateCache::get)
               .setWaitForResources(() -> memoryMonitor.waitForResources("GetWork"))
               .setHeartbeatSender(heartbeatSender)
-              .setThrottledTimeTracker(windmillServer::getAndResetThrottleTime)
               .setGetWorkSender(getWorkSender)
               .build();
     }
 
-    this.workerStatusReporter =
-        streamingWorkerStatusReporterFactory.createStatusReporter(streamingWorkerHarness);
+    this.workerStatusReporter = streamingWorkerStatusReporter;
     this.activeWorkRefresher =
         new ActiveWorkRefresher(
             clock,
@@ -493,21 +490,19 @@ public final class StreamingDataflowWorker {
             failureTracker,
             () -> Optional.ofNullable(memoryMonitor.tryToDumpHeap()),
             clock);
-    StreamingWorkerStatusReporterFactory workerStatusReporterFactory =
-        throttleTimeSupplier ->
-            StreamingWorkerStatusReporter.builder()
-                .setDataflowServiceClient(dataflowServiceClient)
-                .setWindmillQuotaThrottleTime(throttleTimeSupplier)
-                .setAllStageInfo(stageInfo::values)
-                .setFailureTracker(failureTracker)
-                .setStreamingCounters(streamingCounters)
-                .setMemoryMonitor(memoryMonitor)
-                .setWorkExecutor(workExecutor)
-                .setWindmillHarnessUpdateReportingPeriodMillis(
-                    options.getWindmillHarnessUpdateReportingPeriod().getMillis())
-                .setPerWorkerMetricsUpdateReportingPeriodMillis(
-                    options.getPerWorkerMetricsUpdateReportingPeriodMillis())
-                .build();
+    StreamingWorkerStatusReporter workerStatusReporter =
+        StreamingWorkerStatusReporter.builder()
+            .setDataflowServiceClient(dataflowServiceClient)
+            .setAllStageInfo(stageInfo::values)
+            .setFailureTracker(failureTracker)
+            .setStreamingCounters(streamingCounters)
+            .setMemoryMonitor(memoryMonitor)
+            .setWorkExecutor(workExecutor)
+            .setWindmillHarnessUpdateReportingPeriodMillis(
+                options.getWindmillHarnessUpdateReportingPeriod().getMillis())
+            .setPerWorkerMetricsUpdateReportingPeriodMillis(
+                options.getPerWorkerMetricsUpdateReportingPeriodMillis())
+            .build();
 
     return new StreamingDataflowWorker(
         windmillServer,
@@ -520,7 +515,7 @@ public final class StreamingDataflowWorker {
         options,
         new HotKeyLogger(),
         clock,
-        workerStatusReporterFactory,
+        workerStatusReporter,
         failureTracker,
         workFailureProcessor,
         streamingCounters,
@@ -721,23 +716,21 @@ public final class StreamingDataflowWorker {
             () -> Optional.ofNullable(memoryMonitor.tryToDumpHeap()),
             clock,
             localRetryTimeoutMs);
-    StreamingWorkerStatusReporterFactory workerStatusReporterFactory =
-        throttleTimeSupplier ->
-            StreamingWorkerStatusReporter.builder()
-                .setPublishCounters(publishCounters)
-                .setDataflowServiceClient(workUnitClient)
-                .setWindmillQuotaThrottleTime(throttleTimeSupplier)
-                .setAllStageInfo(stageInfo::values)
-                .setFailureTracker(failureTracker)
-                .setStreamingCounters(streamingCounters)
-                .setMemoryMonitor(memoryMonitor)
-                .setWorkExecutor(workExecutor)
-                .setExecutorFactory(executorSupplier)
-                .setWindmillHarnessUpdateReportingPeriodMillis(
-                    options.getWindmillHarnessUpdateReportingPeriod().getMillis())
-                .setPerWorkerMetricsUpdateReportingPeriodMillis(
-                    options.getPerWorkerMetricsUpdateReportingPeriodMillis())
-                .build();
+    StreamingWorkerStatusReporter workerStatusReporter =
+        StreamingWorkerStatusReporter.builder()
+            .setPublishCounters(publishCounters)
+            .setDataflowServiceClient(workUnitClient)
+            .setAllStageInfo(stageInfo::values)
+            .setFailureTracker(failureTracker)
+            .setStreamingCounters(streamingCounters)
+            .setMemoryMonitor(memoryMonitor)
+            .setWorkExecutor(workExecutor)
+            .setExecutorFactory(executorSupplier)
+            .setWindmillHarnessUpdateReportingPeriodMillis(
+                options.getWindmillHarnessUpdateReportingPeriod().getMillis())
+            .setPerWorkerMetricsUpdateReportingPeriodMillis(
+                options.getPerWorkerMetricsUpdateReportingPeriodMillis())
+            .build();
 
     GrpcWindmillStreamFactory.Builder windmillStreamFactory =
         createGrpcwindmillStreamFactoryBuilder(options, 1)
@@ -755,7 +748,7 @@ public final class StreamingDataflowWorker {
         options,
         hotKeyLogger,
         clock,
-        workerStatusReporterFactory,
+        workerStatusReporter,
         failureTracker,
         workFailureProcessor,
         streamingCounters,
@@ -940,12 +933,6 @@ public final class StreamingDataflowWorker {
             state ->
                 state.completeWorkAndScheduleNextWorkForKey(
                     completeCommit.shardedKey(), completeCommit.workId()));
-  }
-
-  @FunctionalInterface
-  private interface StreamingWorkerStatusReporterFactory {
-
-    StreamingWorkerStatusReporter createStatusReporter(ThrottledTimeTracker throttledTimeTracker);
   }
 
   @AutoValue
