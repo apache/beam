@@ -478,6 +478,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
     config.put("streaming", true);
     config.put("to_snapshot", table.currentSnapshot().snapshotId());
+    config.put("filter", "\"bool_field\" = TRUE AND (\"int_field\" < 350 OR \"modulo_5\" = 2)");
 
     PCollection<Row> rows =
         pipeline.apply(Managed.read(ICEBERG_CDC).withConfig(config)).getSinglePCollection();
