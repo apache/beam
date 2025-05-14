@@ -23,6 +23,7 @@ import glob
 import itertools
 import logging
 import os
+import sqlalchemy
 import sqlite3
 import unittest
 import uuid
@@ -229,14 +230,12 @@ def temp_mysql_database():
       password = mysql_container.MYSQL_PASSWORD
       db_name = mysql_container.MYSQL_DATABASE
 
-      # Make connection to temp database
-      conn = mysql.connector.connect(
-          host=host, port=port, user=user, password=password, database=db_name)
-      cursor = conn.cursor()
-
-      # Create temp table for tests
-      cursor.execute("CREATE TABLE tmp_table (value INTEGER, `rank` INTEGER);")
-      conn.commit()
+      # Make connection to temp database and create tmp table
+      engine = sqlalchemy.create_engine(mysql_container.get_connection_url())
+      with engine.begin() as connection:
+        connection.execute(
+            sqlalchemy.text(
+                "CREATE TABLE tmp_table (value INTEGER, `rank` INTEGER);"))
 
       # Construct the JDBC url for connections later on by tests
       jdbc_url = (
@@ -291,14 +290,12 @@ def temp_postgres_database():
       password = postgres_container.POSTGRES_PASSWORD
       db_name = postgres_container.POSTGRES_DB
 
-      # Make connection to temp database
-      conn = psycopg2.connect(
-          host=host, port=port, user=user, password=password, database=db_name)
-      cursor = conn.cursor()
-
-      # Create a temp table for tests
-      cursor.execute("CREATE TABLE tmp_table (value INTEGER, rank INTEGER);")
-      conn.commit()
+      # Make connection to temp database and create tmp table
+      engine = sqlalchemy.create_engine(postgres_container.get_connection_url())
+      with engine.begin() as connection:
+        connection.execute(
+            sqlalchemy.text(
+                "CREATE TABLE tmp_table (value INTEGER, rank INTEGER);"))
 
       # Construct the JDBC url for connections later on by tests
       jdbc_url = (
@@ -358,18 +355,13 @@ def temp_sqlserver_database():
       password = sqlserver_container.SQLSERVER_PASSWORD
       db_name = sqlserver_container.SQLSERVER_DBNAME
 
-      # Make connection to temp database
-      conn = pytds.connect(
-          server=host,
-          port=port,
-          user=user,
-          password=password,
-          database=db_name)
-      cursor = conn.cursor()
-
-      # Create a temp table for tests
-      cursor.execute("CREATE TABLE tmp_table (value INTEGER, rank INTEGER);")
-      conn.commit()
+      # Make connection to temp database and create tmp table
+      engine = sqlalchemy.create_engine(
+          sqlserver_container.get_connection_url())
+      with engine.begin() as connection:
+        connection.execute(
+            sqlalchemy.text(
+                "CREATE TABLE tmp_table (value INTEGER, rank INTEGER);"))
 
       # Construct the JDBC url for connections later on by tests
       # NOTE: encrypt=false and trustServerCertificate=true is generally
