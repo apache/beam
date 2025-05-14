@@ -30,20 +30,22 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 /** Creates gRPC channels based on the current {@link StreamingGlobalConfig}. */
 @Internal
 @ThreadSafe
-public final class ConfigAwareChannelFactory implements WindmillChannelFactory {
+public class ConfigAwareChannelFactory implements WindmillChannelFactory {
   private final int windmillServiceRpcChannelAliveTimeoutSec;
+  private final boolean isIsolationChannelsEnabledByDefault;
   @MonotonicNonNull private StreamingGlobalConfig currentConfig = null;
 
-  public ConfigAwareChannelFactory(int windmillServiceRpcChannelAliveTimeoutSec) {
+  public ConfigAwareChannelFactory(
+      int windmillServiceRpcChannelAliveTimeoutSec, boolean isIsolationChannelsEnabledByDefault) {
     this.windmillServiceRpcChannelAliveTimeoutSec = windmillServiceRpcChannelAliveTimeoutSec;
+    this.isIsolationChannelsEnabledByDefault = isIsolationChannelsEnabledByDefault;
   }
 
   @Override
   public synchronized ManagedChannel create(
       Windmill.UserWorkerGrpcFlowControlSettings flowControlSettings,
       WindmillServiceAddress serviceAddress) {
-    return currentConfig != null
-            && currentConfig.userWorkerJobSettings().getUseWindmillIsolatedChannels()
+    return isIsolationChannelsEnabled()
         // IsolationChannel will create and manage separate RPC channels to the same
         // serviceAddress via calling the channelFactory, else just directly return
         // the RPC channel.
@@ -59,10 +61,18 @@ public final class ConfigAwareChannelFactory implements WindmillChannelFactory {
             flowControlSettings);
   }
 
-  public synchronized boolean tryConsumeJobConfig(StreamingGlobalConfig config) {
-    if (currentConfig == null
-        || config.userWorkerJobSettings().getUseWindmillIsolatedChannels()
-            != currentConfig.userWorkerJobSettings().getUseWindmillIsolatedChannels()) {
+  private synchronized boolean isIsolationChannelsEnabled() {
+    return currentConfig == null
+        ? isIsolationChannelsEnabledByDefault
+        : currentConfig.userWorkerJobSettings().getUseWindmillIsolatedChannels();
+  }
+
+  /**
+   * Returns true if the config has changed such that previously created channels should be
+   * recreated.
+   */
+  public final synchronized boolean tryConsumeJobConfig(StreamingGlobalConfig config) {
+    if (!config.equals(currentConfig)) {
       currentConfig = config;
       return true;
     }

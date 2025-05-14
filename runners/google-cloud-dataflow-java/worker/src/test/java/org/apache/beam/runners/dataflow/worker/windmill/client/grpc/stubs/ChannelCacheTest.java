@@ -47,8 +47,9 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class ChannelCacheTest {
+  private final ConfigAwareChannelFactory configAwareChannelFactory =
+      new ConfigAwareChannelFactory(1);
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
-
   private ChannelCache cache;
 
   private static ChannelCache newCache(
