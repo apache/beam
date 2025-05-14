@@ -22,25 +22,12 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.function.Supplier;
-import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.FnApiStateAccessor;
-import org.apache.beam.fn.harness.state.SideInputSpec;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi;
-import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
-import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
@@ -51,20 +38,15 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.construction.PCollectionViewTranslation;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.ParDoTranslation;
-import org.apache.beam.sdk.util.construction.RehydratedComponents;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
@@ -80,7 +62,10 @@ import org.joda.time.Instant;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class SplittablePairWithRestrictionDoFnRunner<
-    InputT, WindowT extends BoundedWindow, RestrictionT, WatermarkEstimatorStateT, OutputT> {
+        InputT, RestrictionT, WatermarkEstimatorStateT, OutputT>
+    implements FnApiStateAccessor.MutatingStateContext<Void, BoundedWindow> {
+  private final boolean observesWindow;
+
   /** A registrar which provides a factory to handle Java {@link DoFn}s. */
   @AutoService(PTransformRunnerFactory.Registrar.class)
   public static class Registrar implements PTransformRunnerFactory.Registrar {
@@ -94,24 +79,26 @@ public class SplittablePairWithRestrictionDoFnRunner<
   }
 
   static class Factory implements PTransformRunnerFactory {
-
     @Override
     public final void addRunnerForPTransform(Context context) throws IOException {
-      // The constructor itself registers consumption
-      new SplittablePairWithRestrictionDoFnRunner<>(
-          context.getPipelineOptions(),
-          context.getRunnerCapabilities(),
-          context.getBeamFnStateClient(),
-          context.getPTransformId(),
-          context.getPTransform(),
-          context.getProcessBundleInstructionIdSupplier(),
-          context.getCacheTokensSupplier(),
-          context.getBundleCacheSupplier(),
-          context.getProcessWideCache(),
-          context.getComponents(),
-          context::addTearDownFunction,
-          context::getPCollectionConsumer,
-          context::addPCollectionConsumer);
+      addRunnerForPairWithRestriction(context);
+    }
+
+    private void addRunnerForPairWithRestriction(Context context) throws IOException {
+      SplittablePairWithRestrictionDoFnRunner<?, ?, ?, ?> runner =
+          new SplittablePairWithRestrictionDoFnRunner<>(
+              context.getPipelineOptions(),
+              context.getPTransform(),
+              context::getPCollectionConsumer,
+              FnApiStateAccessor.Factory.factoryForPTransformContext(context));
+
+      // Register processing methods
+      context.addPCollectionConsumer(
+          context
+              .getPTransform()
+              .getInputsOrThrow(ParDoTranslation.getMainInputName(context.getPTransform())),
+          runner::processElement);
+      context.addTearDownFunction(runner::tearDown);
     }
   }
 
@@ -132,23 +119,12 @@ public class SplittablePairWithRestrictionDoFnRunner<
 
   SplittablePairWithRestrictionDoFnRunner(
       PipelineOptions pipelineOptions,
-      Set<String> runnerCapabilities,
-      BeamFnStateClient beamFnStateClient,
-      String pTransformId,
       PTransform pTransform,
-      Supplier<String> processBundleInstructionId,
-      Supplier<List<BeamFnApi.ProcessBundleRequest.CacheToken>> cacheTokens,
-      Supplier<Cache<?, ?>> bundleCache,
-      Cache<?, ?> processWideCache,
-      RunnerApi.Components components,
-      Consumer<ThrowingRunnable> addTearDownFunction,
       Function<String, FnDataReceiver<WindowedValue<?>>> getPCollectionConsumer,
-      BiConsumer<String, FnDataReceiver<WindowedValue<InputT>>> addPCollectionConsumer)
+      FnApiStateAccessor.Factory<Void> stateAccessorFactory)
       throws IOException {
     this.pipelineOptions = pipelineOptions;
 
-    RehydratedComponents rehydratedComponents =
-        RehydratedComponents.forComponents(components).withPipeline(Pipeline.create());
     ParDoPayload parDoPayload = ParDoPayload.parseFrom(pTransform.getSpec().getPayload());
 
     // DoFn and metadata
@@ -171,72 +147,27 @@ public class SplittablePairWithRestrictionDoFnRunner<
                 getPCollectionConsumer.apply(pTransform.getOutputsMap().get(mainOutputTag.getId()));
     this.mainOutputConsumer = mainOutputConsumer;
 
-    // Main input
-    String mainInputTag =
-        Iterables.getOnlyElement(
-            Sets.difference(
-                pTransform.getInputsMap().keySet(), parDoPayload.getSideInputsMap().keySet()));
-    String mainInputName = pTransform.getInputsOrThrow(mainInputTag);
-    PCollection mainInput =
-        components.getPcollectionsMap().get(pTransform.getInputsOrThrow(mainInputTag));
-
     // Side inputs
     this.sideInputMapping = ParDoTranslation.getSideInputMapping(parDoPayload);
-    @SuppressWarnings("rawtypes") // passed to FnApiStateAccessor which uses rawtypes
-    ImmutableMap.Builder<TupleTag<?>, SideInputSpec> tagToSideInputSpecMapBuilder =
-        ImmutableMap.builder();
-    for (Map.Entry<String, RunnerApi.SideInput> entry :
-        parDoPayload.getSideInputsMap().entrySet()) {
-      String sideInputTag = entry.getKey();
-      RunnerApi.SideInput sideInput = entry.getValue();
-      PCollection sideInputPCollection =
-          components.getPcollectionsMap().get(pTransform.getInputsOrThrow(sideInputTag));
-      WindowingStrategy<?, ?> sideInputWindowingStrategy =
-          rehydratedComponents.getWindowingStrategy(sideInputPCollection.getWindowingStrategyId());
-      tagToSideInputSpecMapBuilder.put(
-          new TupleTag<>(entry.getKey()),
-          SideInputSpec.create(
-              sideInput.getAccessPattern().getUrn(),
-              rehydratedComponents.getCoder(sideInputPCollection.getCoderId()),
-              (Coder<WindowT>) sideInputWindowingStrategy.getWindowFn().windowCoder(),
-              PCollectionViewTranslation.viewFnFromProto(entry.getValue().getViewFn()),
-              (WindowMappingFn<WindowT>)
-                  PCollectionViewTranslation.windowMappingFnFromProto(
-                      entry.getValue().getWindowMappingFn())));
-    }
-    @SuppressWarnings("rawtypes") // passed to FnApiStateAccessor which uses rawtypes
-    Map<TupleTag<?>, SideInputSpec> tagToSideInputSpecMap = tagToSideInputSpecMapBuilder.build();
 
     // Register processing methods
-    if (doFnSignature.getInitialRestriction().observesWindow() || !sideInputMapping.isEmpty()) {
-      addPCollectionConsumer.accept(
-          mainInputName, this::processElementForWindowObservingPairWithRestriction);
+    this.observesWindow =
+        doFnSignature.getInitialRestriction().observesWindow() || !sideInputMapping.isEmpty();
+
+    if (observesWindow) {
       this.mutableArgumentProvider = new WindowObservingProcessBundleContext();
     } else {
-      addPCollectionConsumer.accept(mainInputName, this::processElementForPairWithRestriction);
       this.mutableArgumentProvider = new NonWindowObservingProcessBundleContext();
     }
-    addTearDownFunction.accept(this::tearDown);
+    this.stateAccessor = stateAccessorFactory.create(this);
+  }
 
-    // State accessor for supporting side inputs, requires window coder and lots of metadata
-    WindowingStrategy<?, ?> windowingStrategy =
-        rehydratedComponents.getWindowingStrategy(mainInput.getWindowingStrategyId());
-    Coder<WindowT> windowCoder = (Coder<WindowT>) windowingStrategy.getWindowFn().windowCoder();
-    this.stateAccessor =
-        new FnApiStateAccessor<>(
-            pipelineOptions,
-            runnerCapabilities,
-            pTransformId,
-            processBundleInstructionId,
-            cacheTokens,
-            bundleCache,
-            processWideCache,
-            tagToSideInputSpecMap,
-            beamFnStateClient,
-            null,
-            (Coder<BoundedWindow>) windowCoder,
-            null,
-            mutableArgumentProvider::getCurrentWindow);
+  private void processElement(WindowedValue<InputT> elem) {
+    if (observesWindow) {
+      processElementForWindowObservingPairWithRestriction(elem);
+    } else {
+      processElementForPairWithRestriction(elem);
+    }
   }
 
   private void processElementForPairWithRestriction(WindowedValue<InputT> elem) {
@@ -301,6 +232,16 @@ public class SplittablePairWithRestrictionDoFnRunner<
     }
   }
 
+  @Override
+  public Void getCurrentKey() {
+    return null;
+  }
+
+  @Override
+  public BoundedWindow getCurrentWindow() {
+    return mutableArgumentProvider.getCurrentWindowOrFail();
+  }
+
   /** Base implementation that does not override methods which need to be window aware. */
   private abstract class PairWithRestrictionArgumentProvider
       extends DoFnInvoker.BaseArgumentProvider<InputT, OutputT> {
@@ -311,12 +252,12 @@ public class SplittablePairWithRestrictionDoFnRunner<
 
     private @Nullable BoundedWindow currentWindow;
 
-    protected WindowedValue<InputT> getCurrentElement() {
+    protected WindowedValue<InputT> getCurrentElementOrFail() {
       return checkStateNotNull(
           this.currentElement, "Attempt to access element outside element processing context.");
     }
 
-    protected BoundedWindow getCurrentWindow() {
+    protected BoundedWindow getCurrentWindowOrFail() {
       return checkStateNotNull(
           this.currentWindow, "Attempt to access window outside element processing context.");
     }
@@ -328,12 +269,12 @@ public class SplittablePairWithRestrictionDoFnRunner<
 
     @Override
     public InputT element(DoFn<InputT, OutputT> doFn) {
-      return getCurrentElement().getValue();
+      return getCurrentElementOrFail().getValue();
     }
 
     @Override
     public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
-      return getCurrentElement().getPane();
+      return getCurrentElementOrFail().getPane();
     }
 
     @Override
@@ -341,12 +282,12 @@ public class SplittablePairWithRestrictionDoFnRunner<
       SerializableFunction<InputT, Object> converter =
           (SerializableFunction<InputT, Object>)
               doFnSchemaInformation.getElementConverters().get(index);
-      return converter.apply(getCurrentElement().getValue());
+      return converter.apply(getCurrentElementOrFail().getValue());
     }
 
     @Override
     public Instant timestamp(DoFn<InputT, OutputT> doFn) {
-      return getCurrentElement().getTimestamp();
+      return getCurrentElementOrFail().getTimestamp();
     }
 
     @Override
@@ -358,12 +299,12 @@ public class SplittablePairWithRestrictionDoFnRunner<
   private class WindowObservingProcessBundleContext extends PairWithRestrictionArgumentProvider {
     @Override
     public BoundedWindow window() {
-      return getCurrentWindow();
+      return getCurrentWindowOrFail();
     }
 
     @Override
     public Object sideInput(String tagId) {
-      return stateAccessor.get(sideInputMapping.get(tagId), getCurrentWindow());
+      return stateAccessor.get(sideInputMapping.get(tagId), getCurrentWindowOrFail());
     }
   }
 
