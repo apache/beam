@@ -28,6 +28,7 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayDeque;
 import java.util.Queue;
 import java.util.UUID;
@@ -208,7 +209,7 @@ public class MemoryMonitor implements Runnable {
         canDumpHeap,
         gcThrashingPercentagePerPeriod,
         uploadFilePath,
-        getLoggingDir());
+        getHeapDumpDir());
   }
 
   @VisibleForTesting
@@ -245,6 +246,15 @@ public class MemoryMonitor implements Runnable {
     this.gcThrashingPercentagePerPeriod = gcThrashingPercentagePerPeriod;
     this.uploadFilePath = uploadFilePath;
     this.localDumpFolder = localDumpFolder;
+    try {
+      Files.createDirectories(
+          localDumpFolder.toPath(),
+          PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwxr-x---")));
+    } catch (Exception e) {
+      LOG.warn(
+          "Encountered exception creating directory for heap dumps, heap dumping may fail if OOMs are triggered.",
+          e);
+    }
   }
 
   /** For testing only: Wait for the monitor to be running. */
@@ -560,7 +570,11 @@ public class MemoryMonitor implements Runnable {
   }
 
   /** Return the path for logging heap dumps. */
-  private static File getLoggingDir() {
+  private static File getHeapDumpDir() {
+    @Nullable String heapDumpDir = System.getProperty("beam.fn.heap_dump_dir");
+    if (heapDumpDir != null) {
+      return new File(heapDumpDir);
+    }
     return new File(System.getProperty("java.io.tmpdir"));
   }
 
@@ -582,10 +596,10 @@ public class MemoryMonitor implements Runnable {
    * <p>NOTE: We deliberately don't salt the heap dump filename so as to minimize disk impact of
    * repeated dumps. These files can be of comparable size to the local disk.
    */
-  @VisibleForTesting
-  static synchronized File dumpHeap(File directory)
+  private static synchronized File dumpHeap(File directory)
       throws MalformedObjectNameException, InstanceNotFoundException, ReflectionException,
           MBeanException, IOException {
+
     boolean liveObjectsOnly = false;
     File fileName = new File(directory, "heap_dump.hprof");
     if (fileName.exists() && !fileName.delete()) {
