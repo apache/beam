@@ -4,7 +4,7 @@
     "python": "damccorm",
     "java": "robertwb"
   },
-  "nextAction": "Author",
+  "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
   "committerAssigned": true
