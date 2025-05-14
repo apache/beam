@@ -74,6 +74,7 @@
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * [IcebergIO] Now available with Beam SQL! ([#34799](https://github.com/apache/beam/pull/34799))
 * [IcebergIO] Added support for column pruning ([#34856](https://github.com/apache/beam/pull/34856))
+* [IcebergIO] Added support for pushdown filtering ([#34827](https://github.com/apache/beam/pull/34827))
 
 ## New Features / Improvements
 
