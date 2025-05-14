@@ -166,7 +166,8 @@ class _GcsCustomAuditEntriesAction(argparse.Action):
   GCS_AUDIT_PREFIX = 'x-goog-custom-audit-'
 
   def _exceed_entry_limit(self):
-    if _GcsCustomAuditEntriesAction.GCS_AUDIT_PREFIX + 'job' in self._custom_audit_entries:
+    job_audit_entry = _GcsCustomAuditEntriesAction.GCS_AUDIT_PREFIX + 'job'
+    if job_audit_entry in self._custom_audit_entries:
       return len(
           self._custom_audit_entries) > _GcsCustomAuditEntriesAction.MAX_ENTRIES
     else:
@@ -189,7 +190,8 @@ class _GcsCustomAuditEntriesAction(argparse.Action):
     if _GcsCustomAuditEntriesAction.GCS_AUDIT_PREFIX in key:
       self._custom_audit_entries[key] = value
     else:
-      self._custom_audit_entries[_GcsCustomAuditEntriesAction.GCS_AUDIT_PREFIX + key] = value
+      self._custom_audit_entries[_GcsCustomAuditEntriesAction.GCS_AUDIT_PREFIX +
+                                 key] = value
 
   def __call__(self, parser, namespace, values, option_string=None):
     if not hasattr(namespace, self.dest) or getattr(namespace,
