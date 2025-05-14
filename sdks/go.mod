@@ -47,7 +47,7 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/linkedin/goavro/v2 v2.13.1
 	github.com/nats-io/nats-server/v2 v2.11.3
-	github.com/nats-io/nats.go v1.41.2
+	github.com/nats-io/nats.go v1.42.0
 	github.com/proullon/ramsql v0.1.4
 	github.com/spf13/cobra v1.9.1
 	github.com/testcontainers/testcontainers-go v0.37.0
