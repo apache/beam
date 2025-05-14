@@ -93,7 +93,8 @@ class RuntimeTypeCheckTest(unittest.TestCase):
     def fn(e: int) -> int:
       return str(e)  # type: ignore
 
-    with self.assertRaisesRegex(TypeCheckError,
+    with self.assertRaisesRegex(RuntimeError,
+                                r"TypeCheckError.*"
                                 r'output should be.*int.*received.*str'):
       _ = self.p | beam.Create([1, 2, 3]) | beam.Map(fn)
       self.p.run()
