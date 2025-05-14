@@ -391,7 +391,7 @@ if [[ "$RUNNER" == "dataflow" ]]; then
       echo "Using container $JAVA_CONTAINER for cross-language java transforms"
       ./gradlew :sdks:java:container:java11:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$JAVA_TAG \
       -Porg.gradle.java.installations.auto-detect=false \
-      -Porg.gradle.java.installations.paths=$JAVA11_HOME
+      -Porg.gradle.java.installations.fromEnv=JAVA11_HOME
 
       # Verify it exists
       docker images | grep $JAVA_TAG
