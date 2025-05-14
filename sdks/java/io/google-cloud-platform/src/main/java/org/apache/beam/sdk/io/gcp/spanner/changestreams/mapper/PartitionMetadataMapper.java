@@ -80,7 +80,10 @@ public class PartitionMetadataMapper {
   public PartitionMetadata from(Struct row) {
     return PartitionMetadata.newBuilder()
         .setPartitionToken(row.getString(COLUMN_PARTITION_TOKEN))
-        .setParentTokens(Sets.newHashSet(row.getStringList(COLUMN_PARENT_TOKENS)))
+        .setParentTokens(
+            !row.isNull(COLUMN_PARENT_TOKENS)
+                ? Sets.newHashSet(row.getStringList(COLUMN_PARENT_TOKENS))
+                : null)
         .setStartTimestamp(row.getTimestamp(COLUMN_START_TIMESTAMP))
         .setEndTimestamp(row.getTimestamp(COLUMN_END_TIMESTAMP))
         .setHeartbeatMillis(row.getLong(COLUMN_HEARTBEAT_MILLIS))
