@@ -93,14 +93,6 @@ toxTask "testPy39pyarrow-18", "py39-pyarrow-18", "${posargs}"
 test.dependsOn "testPy39pyarrow-18"
 postCommitPyDep.dependsOn "testPy39pyarrow-18"
 
-toxTask "testPy39pyarrow-19", "py39-pyarrow-19", "${posargs}"
-test.dependsOn "testPy39pyarrow-19"
-postCommitPyDep.dependsOn "testPy39pyarrow-19"
-
-toxTask "testPy39pyarrow-20", "py39-pyarrow-20", "${posargs}"
-test.dependsOn "testPy39pyarrow-20"
-postCommitPyDep.dependsOn "testPy39pyarrow-20"
-
 // Create a test task for each supported minor version of pandas
 toxTask "testPy39pandas-14", "py39-pandas-14", "${posargs}"
 test.dependsOn "testPy39pandas-14"
