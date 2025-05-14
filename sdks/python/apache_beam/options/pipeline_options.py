@@ -163,9 +163,11 @@ class _GcsCustomAuditEntriesAction(argparse.Action):
   MAX_KEY_LENGTH = 64
   MAX_VALUE_LENGTH = 1200
   MAX_ENTRIES = 4
+  GCS_AUDIT_PREFIX = 'x-goog-custom-audit-'
 
   def _exceed_entry_limit(self):
-    if 'x-goog-custom-audit-job' in self._custom_audit_entries:
+    job_audit_entry = _GcsCustomAuditEntriesAction.GCS_AUDIT_PREFIX + 'job'
+    if job_audit_entry in self._custom_audit_entries:
       return len(
           self._custom_audit_entries) > _GcsCustomAuditEntriesAction.MAX_ENTRIES
     else:
@@ -185,7 +187,11 @@ class _GcsCustomAuditEntriesAction(argparse.Action):
           "The value '%s' in GCS custom audit entries exceeds the %d-character limit."  # pylint: disable=line-too-long
           % (value, _GcsCustomAuditEntriesAction.MAX_VALUE_LENGTH))
 
-    self._custom_audit_entries[f"x-goog-custom-audit-{key}"] = value
+    if _GcsCustomAuditEntriesAction.GCS_AUDIT_PREFIX in key:
+      self._custom_audit_entries[key] = value
+    else:
+      self._custom_audit_entries[_GcsCustomAuditEntriesAction.GCS_AUDIT_PREFIX +
+                                 key] = value
 
   def __call__(self, parser, namespace, values, option_string=None):
     if not hasattr(namespace, self.dest) or getattr(namespace,
