@@ -390,6 +390,7 @@ if [[ "$RUNNER" == "dataflow" ]]; then
       JAVA_CONTAINER=us.gcr.io/$PROJECT/$USER/beam_java11_sdk
       echo "Using container $JAVA_CONTAINER for cross-language java transforms"
       ./gradlew :sdks:java:container:java11:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$JAVA_TAG \
+      -PjavaVersion=11 \
       -Porg.gradle.java.installations.auto-detect=false \
       -Porg.gradle.java.installations.fromEnv=JAVA11_HOME
 
