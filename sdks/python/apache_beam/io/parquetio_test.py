@@ -487,7 +487,7 @@ class TestParquet(unittest.TestCase):
     self._run_parquet_test(file_name, None, 10000, True, expected_result)
 
   def test_dynamic_work_rebalancing(self):
-    file_name = self._write_data(count=120, row_group_size=20)
+    file_name = self._write_data(count=280, row_group_size=20)
     source = _create_parquet_source(file_name)
 
     splits = [split for split in source.split(desired_bundle_size=float('inf'))]
