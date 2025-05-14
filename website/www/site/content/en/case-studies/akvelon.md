@@ -101,6 +101,9 @@ community
         <img src="/images/learner_graph.png">
     </div>
     <div class="case-study-quote-author-info">
+        <div class="case-study-quote-author-img">
+            <img src="/images/case-study/akvelon/chitnis.png">
+        </div>
         <div class="case-study-quote-author-name">
           Jay Chitnis
         </div>

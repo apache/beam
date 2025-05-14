@@ -81,6 +81,11 @@
   logoUrl: /images/logos/powered-by/accenture.png
   linkUrl: case-studies/accenture_baltics/index.html
   linkText: Learn more
+- text: To support data privacy and pipeline reusability at scale, Akvelon developed Beam-based solutions for Protegrity and Equifax, enabling tokenization via Dataflow Flex Templates.
+  icon: icons/quote-icon.svg
+  logoUrl: /images/logos/powered-by/akvelon.png
+  linkUrl: case-studies/akvelon/index.html
+  linkText: Learn more
 - text: Have a story to share? Your logo could be here.
   icon: icons/quote-icon.svg
   logoUrl: images/logos/powered-by/blank.jpg
