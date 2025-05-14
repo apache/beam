@@ -221,15 +221,7 @@ def temp_mysql_database():
       Exception: Any other exception encountered during the setup process.
   """
   with MySqlContainer() as mysql_container:
-    conn = cursor = None
     try:
-      # Retrieve connection details from the running container
-      host = mysql_container.get_container_host_ip()
-      port = mysql_container.get_exposed_port(mysql_container.port_to_expose)
-      user = mysql_container.MYSQL_USER
-      password = mysql_container.MYSQL_PASSWORD
-      db_name = mysql_container.MYSQL_DATABASE
-
       # Make connection to temp database and create tmp table
       engine = sqlalchemy.create_engine(mysql_container.get_connection_url())
       with engine.begin() as connection:
@@ -239,19 +231,16 @@ def temp_mysql_database():
 
       # Construct the JDBC url for connections later on by tests
       jdbc_url = (
-          f"jdbc:mysql://{host}:{port}/{db_name}?"
-          f"user={user}&password={password}")
+          f"jdbc:mysql://{mysql_container.get_container_host_ip()}:"
+          f"{mysql_container.get_exposed_port(mysql_container.port_to_expose)}/"
+          f"{mysql_container.MYSQL_DATABASE}?"
+          f"user={mysql_container.MYSQL_USER}&"
+          f"password={mysql_container.MYSQL_PASSWORD}")
 
       yield jdbc_url
     except mysql.connector.Error as err:
       logging.error("Error interacting with temporary MySQL DB: %s", err)
       raise err
-    finally:
-      # Close connections
-      if cursor:
-        cursor.close()
-      if conn:
-        conn.close()
 
 
 @contextlib.contextmanager
@@ -281,15 +270,7 @@ def temp_postgres_database():
 
   # Start the postgress container using testcontainers
   with PostgresContainer(port=default_port) as postgres_container:
-    conn = cursor = None
     try:
-      # Retrieve connection details from the running container
-      host = postgres_container.get_container_host_ip()
-      port = postgres_container.get_exposed_port(default_port)
-      user = postgres_container.POSTGRES_USER
-      password = postgres_container.POSTGRES_PASSWORD
-      db_name = postgres_container.POSTGRES_DB
-
       # Make connection to temp database and create tmp table
       engine = sqlalchemy.create_engine(postgres_container.get_connection_url())
       with engine.begin() as connection:
@@ -299,19 +280,16 @@ def temp_postgres_database():
 
       # Construct the JDBC url for connections later on by tests
       jdbc_url = (
-          f"jdbc:postgresql://{host}:{port}/{db_name}?"
-          f"user={user}&password={password}")
+          f"jdbc:postgresql://{postgres_container.get_container_host_ip()}:"
+          f"{postgres_container.get_exposed_port(default_port)}/"
+          f"{postgres_container.POSTGRES_DB}?"
+          f"user={postgres_container.POSTGRES_USER}&"
+          f"password={postgres_container.POSTGRES_PASSWORD}")
 
       yield jdbc_url
     except (psycopg2.Error, Exception) as err:
       logging.error("Error interacting with temporary Postgres DB: %s", err)
       raise err
-    finally:
-      # Close connections
-      if cursor:
-        cursor.close()
-      if conn:
-        conn.close()
 
 
 @contextlib.contextmanager
@@ -346,15 +324,7 @@ def temp_sqlserver_database():
   # Start the sql server using testcontainers
   with SqlServerContainer(port=default_port,
                           dialect='mssql+pytds') as sqlserver_container:
-    conn = cursor = None
     try:
-      # Retrieve connection details from the running container
-      host = sqlserver_container.get_container_host_ip()
-      port = int(sqlserver_container.get_exposed_port(default_port))
-      user = sqlserver_container.SQLSERVER_USER
-      password = sqlserver_container.SQLSERVER_PASSWORD
-      db_name = sqlserver_container.SQLSERVER_DBNAME
-
       # Make connection to temp database and create tmp table
       engine = sqlalchemy.create_engine(
           sqlserver_container.get_connection_url())
@@ -367,10 +337,11 @@ def temp_sqlserver_database():
       # NOTE: encrypt=false and trustServerCertificate=true is generally
       # needed for test container connections without proper certificates setup
       jdbc_url = (
-          f"jdbc:sqlserver://{host}:{port};"
-          f"databaseName={db_name};"
-          f"user={user};"
-          f"password={password};"
+          f"jdbc:sqlserver://{sqlserver_container.get_container_host_ip()}:"
+          f"{int(sqlserver_container.get_exposed_port(default_port))};"
+          f"databaseName={sqlserver_container.SQLSERVER_DBNAME};"
+          f"user={sqlserver_container.SQLSERVER_USER};"
+          f"password={sqlserver_container.SQLSERVER_PASSWORD};"
           f"encrypt=true;"
           f"trustServerCertificate=true")
 
@@ -378,12 +349,6 @@ def temp_sqlserver_database():
     except (pytds.Error, Exception) as err:
       logging.error("Error interacting with temporary SQL Server DB: %s", err)
       raise err
-    finally:
-      # Close connections
-      if cursor:
-        cursor.close()
-      if conn:
-        conn.close()
 
 
 def replace_recursive(spec, vars):
