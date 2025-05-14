@@ -23,7 +23,6 @@ import glob
 import itertools
 import logging
 import os
-import sqlalchemy
 import sqlite3
 import unittest
 import uuid
@@ -32,6 +31,7 @@ import mock
 import mysql.connector
 import psycopg2
 import pytds
+import sqlalchemy
 import yaml
 from testcontainers.mssql import SqlServerContainer
 from testcontainers.mysql import MySqlContainer
