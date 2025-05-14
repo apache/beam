@@ -105,7 +105,7 @@ community
           Jay Chitnis
         </div>
         <div class="case-study-quote-author-position">
-          VP of Partners and Business Development @Protegrity 
+          VP of Partners and Business Development @Protegrity
         </div>
     </div>
   </div>
