@@ -15,3 +15,5 @@
 
 requests
 PyGithub
+google-cloud-storage
+google-cloud-pubsub
