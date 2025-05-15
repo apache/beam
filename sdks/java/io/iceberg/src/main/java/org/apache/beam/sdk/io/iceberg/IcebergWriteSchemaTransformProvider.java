@@ -110,6 +110,10 @@ public class IcebergWriteSchemaTransformProvider
             + "Is mutually exclusive with 'keep' and 'drop'.")
     public abstract @Nullable String getOnly();
 
+    @SchemaFieldDescription(
+        "Creates a partition spec from these fields and applies to the table before writing.")
+    public abstract @Nullable List<String> getPartitionFields();
+
     @AutoValue.Builder
     public abstract static class Builder {
       public abstract Builder setTable(String table);
@@ -127,6 +131,8 @@ public class IcebergWriteSchemaTransformProvider
       public abstract Builder setDrop(List<String> drop);
 
       public abstract Builder setOnly(String only);
+
+      public abstract Builder setPartitionFields(List<String> partitionFields);
 
       public abstract Configuration build();
     }
@@ -192,6 +198,7 @@ public class IcebergWriteSchemaTransformProvider
                       configuration.getTable(),
                       FileFormat.PARQUET.toString(),
                       rows.getSchema(),
+                      configuration.getPartitionFields(),
                       configuration.getDrop(),
                       configuration.getKeep(),
                       configuration.getOnly()));
