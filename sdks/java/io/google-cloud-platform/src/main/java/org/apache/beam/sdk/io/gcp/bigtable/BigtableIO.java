@@ -1644,7 +1644,9 @@ public class BigtableIO {
       long size = 0;
       for (BigtableSource source : splits) {
         if (counter == numberToCombine
-            || !checkRangeAdjacency(previousSourceRanges, source.getRanges())) {
+            || !checkRangeAdjacency(previousSourceRanges, source.getRanges())
+            // Protect against overflows
+            || Long.MAX_VALUE - size <= source.getEstimatedSizeBytes(options)) {
           reducedSplits.add(
               new BigtableSource(
                   factory,
@@ -1807,7 +1809,11 @@ public class BigtableIO {
       //  2. we want to scan to the end (endKey is empty) or farther (lastEndKey < endKey).
       if (!lastEndKey.isEmpty()
           && (range.getEndKey().isEmpty() || lastEndKey.compareTo(range.getEndKey()) < 0)) {
-        splits.add(this.withSingleRange(ByteKeyRange.of(lastEndKey, range.getEndKey())));
+        long responseOffset = sampleRowKeys.get(sampleRowKeys.size() - 1).getOffsetBytes();
+        long sampleSizeBytes = responseOffset - lastOffset;
+        splits.add(this
+            .withSingleRange(ByteKeyRange.of(lastEndKey, range.getEndKey()))
+            .withEstimatedSizeBytes(sampleSizeBytes));
       }
 
       List<BigtableSource> ret = splits.build();
@@ -1904,7 +1910,8 @@ public class BigtableIO {
           desiredBundleSizeBytes);
       if (sampleSizeBytes <= desiredBundleSizeBytes) {
         return Collections.singletonList(
-            this.withSingleRange(ByteKeyRange.of(range.getStartKey(), range.getEndKey())));
+            this.withSingleRange(ByteKeyRange.of(range.getStartKey(), range.getEndKey()))
+                .withEstimatedSizeBytes(sampleSizeBytes));
       }
 
       checkArgument(
@@ -2050,8 +2057,12 @@ public class BigtableIO {
       BigtableSource primary;
       BigtableSource residual;
       try {
-        primary = source.withSingleRange(ByteKeyRange.of(range.getStartKey(), splitKey));
-        residual = source.withSingleRange(ByteKeyRange.of(splitKey, range.getEndKey()));
+        primary = source
+            .withSingleRange(ByteKeyRange.of(range.getStartKey(), splitKey))
+            .withEstimatedSizeBytes((long)(source.estimatedSizeBytes * fraction));
+        residual = source
+            .withSingleRange(ByteKeyRange.of(splitKey, range.getEndKey()))
+            .withEstimatedSizeBytes((long)(source.estimatedSizeBytes * (1 - fraction)));
       } catch (RuntimeException e) {
         LOG.info(
             "{}: Interpolating for fraction {} yielded invalid split key {}.",
