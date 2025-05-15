@@ -28,6 +28,7 @@ from apache_beam.io.gcp.pubsub import PubsubMessage
 from apache_beam.testing.util import AssertThat
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.testing.util import row_namedtuple_equals_fn
 from apache_beam.yaml.yaml_transform import YamlTransform
 
 
@@ -99,7 +100,8 @@ class YamlPubSubTest(unittest.TestCase):
             ''')
         assert_that(
             result,
-            equal_to([beam.Row(payload=b'msg1'), beam.Row(payload=b'msg2')]))
+            equal_to([beam.Row(payload=b'msg1'), beam.Row(payload=b'msg2')],
+                     row_namedtuple_equals_fn))
 
   def test_simple_read_string(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
@@ -120,8 +122,8 @@ class YamlPubSubTest(unittest.TestCase):
             ''')
         assert_that(
             result,
-            equal_to([beam.Row(payload='äter'),
-                      beam.Row(payload='köttbullar')]))
+            equal_to([beam.Row(payload='äter'), beam.Row(payload='köttbullar')],
+                     row_namedtuple_equals_fn))
 
   def test_read_with_attribute(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
@@ -145,7 +147,8 @@ class YamlPubSubTest(unittest.TestCase):
             equal_to([
                 beam.Row(payload=b'msg1', attr='value1'),
                 beam.Row(payload=b'msg2', attr='value2')
-            ]))
+            ],
+                     row_namedtuple_equals_fn))
 
   def test_read_with_attribute_map(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
@@ -169,7 +172,8 @@ class YamlPubSubTest(unittest.TestCase):
             equal_to([
                 beam.Row(payload=b'msg1', attrMap={'attr': 'value1'}),
                 beam.Row(payload=b'msg2', attrMap={'attr': 'value2'})
-            ]))
+            ],
+                     row_namedtuple_equals_fn))
 
   def test_read_with_id_attribute(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
@@ -190,7 +194,8 @@ class YamlPubSubTest(unittest.TestCase):
             ''')
         assert_that(
             result,
-            equal_to([beam.Row(payload=b'msg1'), beam.Row(payload=b'msg2')]))
+            equal_to([beam.Row(payload=b'msg1'), beam.Row(payload=b'msg2')],
+                     row_namedtuple_equals_fn))
 
   _avro_schema = {
       'type': 'record',
@@ -230,10 +235,12 @@ class YamlPubSubTest(unittest.TestCase):
             ''' % json.dumps(self._avro_schema))
         assert_that(
             result,
-            equal_to([
-                beam.Row(label='37a', rank=1),  # linebreak
-                beam.Row(label='389a', rank=2)
-            ]))
+            equal_to(
+                [
+                    beam.Row(label='37a', rank=1),  # linebreak
+                    beam.Row(label='389a', rank=2)
+                ],
+                row_namedtuple_equals_fn))
 
   def test_read_json(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
@@ -273,7 +280,8 @@ class YamlPubSubTest(unittest.TestCase):
                     other={
                         'label': '37a', 'weierstrass': 'y^2+y=x^3-x'
                     })
-            ]))
+            ],
+                     row_namedtuple_equals_fn))
 
   def test_read_json_with_error_handling(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
@@ -300,7 +308,7 @@ class YamlPubSubTest(unittest.TestCase):
             ''')
         assert_that(
             result['good'],
-            equal_to([beam.Row(some_int=123)]),
+            equal_to([beam.Row(some_int=123)], row_namedtuple_equals_fn),
             label='CheckGood')
         assert_that(
             result['errors'] | beam.Map(lambda error: error.element),
@@ -355,7 +363,7 @@ class YamlPubSubTest(unittest.TestCase):
             ''')
         assert_that(
             result['good'],
-            equal_to([beam.Row(some_int=123)]),
+            equal_to([beam.Row(some_int=123)], row_namedtuple_equals_fn),
             label='CheckGood')
         assert_that(
             result['errors'] | beam.Map(lambda error: error.element),
