@@ -111,7 +111,17 @@ public class IcebergWriteSchemaTransformProvider
     public abstract @Nullable String getOnly();
 
     @SchemaFieldDescription(
-        "Creates a partition spec from these fields and applies to the table before writing.")
+        "Fields used to create a partition spec that is applied when tables are created. For a field 'foo', "
+            + "the available partition transforms are: \n\n"
+            + "- `foo`\n"
+            + "- `truncate(foo, N)`\n"
+            + "- `bucket(foo, N)`\n"
+            + "- `hour(foo)`\n"
+            + "- `day(foo)`\n"
+            + "- `month(foo)`\n"
+            + "- `year(foo)`\n"
+            + "- `void(foo)`\n\n"
+            + "For more information on partition transforms, please visit https://iceberg.apache.org/spec/#partition-transforms.")
     public abstract @Nullable List<String> getPartitionFields();
 
     @AutoValue.Builder

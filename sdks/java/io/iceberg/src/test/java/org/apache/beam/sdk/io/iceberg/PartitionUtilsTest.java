@@ -37,13 +37,14 @@ import org.apache.iceberg.transforms.Transform;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Test;
 
+/** Tests for {@link PartitionUtils} */
 public class PartitionUtilsTest {
   private static final Schema SCHEMA =
       Schema.builder()
           .addStringField("i_str")
           .addStringField("t_str")
           .addInt32Field("b_int")
-          .addNullableStringField("n_str")
+          .addNullableStringField("v_str")
           .addLogicalTypeField("y_datetime", SqlTypes.DATETIME)
           .addLogicalTypeField("m_date", SqlTypes.DATE)
           .addLogicalTypeField("d_date", SqlTypes.DATE)
@@ -92,9 +93,9 @@ public class PartitionUtilsTest {
 
   @Test
   public void testAlwaysNull() {
-    String field = "null(n_str)";
+    String field = "void(v_str)";
     TestCase.partitioningOn(field)
-        .outputFieldName("n_str_null")
+        .outputFieldName("v_str_null")
         .expectingTransform("VoidTransform")
         .validate();
   }
@@ -143,7 +144,7 @@ public class PartitionUtilsTest {
                 "i_str",
                 "truncate(t_str, 5)",
                 "bucket(b_int, 3)",
-                "null(n_str)",
+                "void(v_str)",
                 "year(y_datetime)",
                 "month(m_date)",
                 "day(d_date)",
@@ -155,7 +156,7 @@ public class PartitionUtilsTest {
             .identity("i_str")
             .truncate("t_str", 5)
             .bucket("b_int", 3)
-            .alwaysNull("n_str")
+            .alwaysNull("v_str")
             .year("y_datetime")
             .month("m_date")
             .day("d_date")

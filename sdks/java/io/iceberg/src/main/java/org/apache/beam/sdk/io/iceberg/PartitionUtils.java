@@ -37,7 +37,7 @@ class PartitionUtils {
       Pattern.compile("^truncate\\(([a-zA-Z0-9_-]+),\\s*(\\d+)\\)$");
   private static final Pattern BUCKET =
       Pattern.compile("^bucket\\(([a-zA-Z0-9_-]+),\\s*(\\d+)\\)$");
-  private static final Pattern NULL = Pattern.compile("^null\\(([^)]+)\\)$");
+  private static final Pattern VOID = Pattern.compile("^void\\(([^)]+)\\)$");
   private static final Pattern IDENTITY = Pattern.compile("^([a-zA-Z0-9_-]+)$");
 
   private static final Map<
@@ -58,7 +58,7 @@ class PartitionUtils {
                       builder.bucket(
                           checkStateNotNull(matcher.group(1)),
                           Integer.parseInt(checkStateNotNull(matcher.group(2)))),
-              NULL, (builder, matcher) -> builder.alwaysNull(checkStateNotNull(matcher.group(1))),
+              VOID, (builder, matcher) -> builder.alwaysNull(checkStateNotNull(matcher.group(1))),
               IDENTITY,
                   (builder, matcher) -> builder.identity(checkStateNotNull(matcher.group(1))));
 
