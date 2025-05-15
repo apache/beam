@@ -208,10 +208,8 @@ class MetricsTest(unittest.TestCase):
             sum_value=hc.greater_than_or_equal_to(0),
             count_value=hc.greater_than_or_equal_to(0),
             min_value=hc.greater_than_or_equal_to(0),
-            max_value=hc.greater_than_or_equal_to(0))
-            )
-    hc.assert_that(
-        metric_results['distributions'], hc.has_item(matcher))
+            max_value=hc.greater_than_or_equal_to(0)))
+    hc.assert_that(metric_results['distributions'], hc.has_item(matcher))
 
   def test_create_counter_distribution(self):
     sampler = statesampler.StateSampler('', counters.CounterFactory())
