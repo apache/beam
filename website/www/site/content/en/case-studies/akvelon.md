@@ -76,7 +76,7 @@ reusable, open-source pipeline components.
 Akvelon designed and implemented a Dataflow Flex Template using Apache Beam that allows
 users to tokenize and detokenize sensitive data within both batch and streaming pipelines.
 
-### Key features:
+### Key features
 - Seamless integration with Protegrity UDFs
 - Support for multiple data formats (CSV, JSON, Parquet)
 - Stateless and stateful processing using DoFn with timers for consistency and
@@ -132,7 +132,7 @@ Akvelon engineered a **shim layer** (CDAP Connector) that bridges CDAP plugins w
 Beam. This innovation enables CDAP source and sink plugins to operate seamlessly within
 Beam pipelines.
 
-### Highlights:
+### Highlights
 
 - Supports StructuredRecord format conversion to Beam schema (BeamRow)
 - Enables mixed Spark and Beam environments using the same plugin set
@@ -180,7 +180,7 @@ their data workflows.
 
 Akvelon accelerates enterprise digital transformation with Google Cloud through its deep
 expertise in data engineering, AI/ML, cloud infrastructure, and application development. Akvelon is a certified Google Cloud Partner.
-- [Akvelon on Gogole Cloud](https://cloud.google.com/find-a-partner/partner/akvelon)
+- [Akvelon on Google Cloud](https://cloud.google.com/find-a-partner/partner/akvelon)
 - [Akvelon Data and Analytics Accelerators](https://github.com/akvelon/DnA_accelerators)
 
 {{< case_study_feedback "Akvelon" >}}
