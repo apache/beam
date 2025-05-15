@@ -822,7 +822,7 @@ class BeamModulePlugin implements Plugin<Project> {
         jsr305                                      : "com.google.code.findbugs:jsr305:$jsr305_version",
         json_org                                    : "org.json:json:20231013", // Keep in sync with everit-json-schema / google_cloud_platform_libraries_bom transitive deps.
         everit_json_schema                          : "com.github.erosb:everit-json-schema:$everit_json_version",
-        junit                                       : "junit:junit:5.12.2",
+        junit                                       : "org.junit.jupiter:junit-jupiter-api:5.6.0",
         jupiter_api                                 : "org.junit.jupiter:junit-jupiter-api:$jupiter_version",
         jupiter_engine                              : "org.junit.jupiter:junit-jupiter-engine:$jupiter_version",
         jupiter_params                              : "org.junit.jupiter:junit-jupiter-params:$jupiter_version",
