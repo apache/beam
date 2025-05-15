@@ -771,6 +771,35 @@ public class BigtableIOTest {
     assertSourcesEqualReferenceSource(source, splits, null /* options */);
   }
 
+  @Test
+  public void testSplitDoesNotOverflow() throws Exception {
+    final String table = "TEST-SPLIT-OVERFLOW-TABLE";
+    final int numRows = 300000;
+    final int numSamples = 300000;
+    final long bytesPerRow = 15000L;
+
+    // Set up test table data and sample row keys for size estimation and splitting.
+    makeTableData(table, numRows);
+    service.setupSampleRowKeys(table, numSamples, bytesPerRow);
+
+    // Generate source and split it.
+    BigtableSource source =
+        new BigtableSource(
+            factory,
+            configId,
+            config,
+            BigtableReadOptions.builder()
+                .setTableId(StaticValueProvider.of(table))
+                .setKeyRanges(ALL_KEY_RANGE)
+                .build(),
+            null /*size*/);
+    List<BigtableSource> splits = source.split(500000000000L, null /* options */);
+
+    for(BigtableSource split : splits) {
+      assertTrue(split.getEstimatedSizeBytes(null) > 0);
+    }
+  }
+
   /**
    * Regression test for <a href="https://github.com/apache/beam/issues/28793">[Bug]: BigtableSource
    * "Desired bundle size 0 bytes must be greater than 0" #28793</a>.
