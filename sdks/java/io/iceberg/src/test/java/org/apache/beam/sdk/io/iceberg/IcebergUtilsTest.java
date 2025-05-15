@@ -700,9 +700,9 @@ public class IcebergUtilsTest {
 
     static final Schema BEAM_SCHEMA_LIST =
         Schema.builder()
-            .addIterableField("arr_str", Schema.FieldType.STRING)
-            .addIterableField("arr_int", Schema.FieldType.INT32)
-            .addIterableField("arr_bool", Schema.FieldType.BOOLEAN)
+            .addArrayField("arr_str", Schema.FieldType.STRING)
+            .addArrayField("arr_int", Schema.FieldType.INT32)
+            .addArrayField("arr_bool", Schema.FieldType.BOOLEAN)
             .build();
     static final org.apache.iceberg.Schema ICEBERG_SCHEMA_LIST =
         new org.apache.iceberg.Schema(

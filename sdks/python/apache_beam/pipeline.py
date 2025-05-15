@@ -857,7 +857,6 @@ class Pipeline(HasDisplayData):
     unique_suffix = uuid.uuid4().hex[:6]
     return '%s_%s' % (transform.label, unique_suffix)
 
-
   def _infer_result_type(
       self,
       transform,  # type: ptransform.PTransform
@@ -1004,8 +1003,8 @@ class Pipeline(HasDisplayData):
             if (isinstance(output.element_type,
                            typehints.TupleHint.TupleConstraint) and
                 len(output.element_type.tuple_types) == 2 and
-                pcoll.element_type.tuple_types[0] ==
-                output.element_type.tuple_types[0]):
+                pcoll.element_type.tuple_types[0]
+                == output.element_type.tuple_types[0]):
               output.requires_deterministic_key_coder = (
                   deterministic_key_coders and transform_node.full_label)
         for side_input in transform_node.transform.side_inputs:
@@ -1057,8 +1056,10 @@ class Pipeline(HasDisplayData):
     p = Pipeline(
         runner=runner,
         options=options,
-        display_data={str(ix): d
-                      for ix, d in enumerate(proto.display_data)})
+        display_data={
+            str(ix): d
+            for ix, d in enumerate(proto.display_data)
+        })
     from apache_beam.runners import pipeline_context
     context = pipeline_context.PipelineContext(
         proto.components, requirements=proto.requirements)
@@ -1177,7 +1178,7 @@ class AppliedPTransform(object):
       full_label,  # type: str
       main_inputs,  # type: Optional[Mapping[str, Union[pvalue.PBegin, pvalue.PCollection]]]
       environment_id,  # type: Optional[str]
-      annotations, # type: Optional[Dict[str, bytes]]
+      annotations,  # type: Optional[Dict[str, bytes]]
   ):
     # type: (...) -> None
     self.parent = parent
@@ -1421,13 +1422,11 @@ class AppliedPTransform(object):
         ],
         inputs={
             tag: context.pcollections.get_id(pc)
-            for tag,
-            pc in sorted(self.named_inputs().items())
+            for tag, pc in sorted(self.named_inputs().items())
         },
         outputs={
             tag: context.pcollections.get_id(out)
-            for tag,
-            out in sorted(self.named_outputs().items())
+            for tag, out in sorted(self.named_outputs().items())
         },
         environment_id=environment_id,
         annotations=self.annotations,
@@ -1468,8 +1467,8 @@ class AppliedPTransform(object):
     # TODO(https://github.com/apache/beam/issues/20136): use key, value pairs
     # instead of depending on tags with index as a suffix.
     indexed_side_inputs = [
-        (get_sideinput_index(tag), context.pcollections.get_by_id(id)) for tag,
-        id in proto.inputs.items() if tag in side_input_tags
+        (get_sideinput_index(tag), context.pcollections.get_by_id(id))
+        for tag, id in proto.inputs.items() if tag in side_input_tags
     ]
     side_inputs = [si for _, si in sorted(indexed_side_inputs)]
 
@@ -1492,8 +1491,7 @@ class AppliedPTransform(object):
       result.add_part(part)
     result.outputs = {
         None if tag == 'None' else tag: context.pcollections.get_by_id(id)
-        for tag,
-        id in proto.outputs.items()
+        for tag, id in proto.outputs.items()
     }
     # This annotation is expected by some runners.
     if proto.spec.urn == common_urns.primitives.PAR_DO.urn:

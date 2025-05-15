@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.managed.testing;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects.firstNonNull;
-
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
@@ -33,7 +31,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 @AutoService(SchemaTransformProvider.class)
 public class TestSchemaTransformProvider
@@ -55,16 +52,11 @@ public class TestSchemaTransformProvider
     @SchemaFieldDescription("Integer to add to each row element.")
     public abstract Integer getExtraInteger();
 
-    @SchemaFieldDescription("If true, will upper case the extra string. Default is false.")
-    public abstract @Nullable Boolean getToggleUppercase();
-
     @AutoValue.Builder
     public abstract static class Builder {
       public abstract Builder setExtraString(String extraString);
 
       public abstract Builder setExtraInteger(Integer extraInteger);
-
-      public abstract Builder setToggleUppercase(Boolean toggleUppercase);
 
       public abstract Config build();
     }
@@ -72,10 +64,7 @@ public class TestSchemaTransformProvider
 
   @Override
   public SchemaTransform from(Config config) {
-    String extraString =
-        firstNonNull(config.getToggleUppercase(), false)
-            ? config.getExtraString().toUpperCase()
-            : config.getExtraString();
+    String extraString = config.getExtraString();
     Integer extraInteger = config.getExtraInteger();
     return new SchemaTransform() {
       @Override

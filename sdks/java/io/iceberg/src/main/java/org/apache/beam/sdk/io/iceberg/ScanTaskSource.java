@@ -56,7 +56,12 @@ class ScanTaskSource extends BoundedSource<Row> {
 
   @Pure
   Schema getSchema() {
-    return getTable().schema();
+    return scanConfig.getProjectedSchema();
+  }
+
+  @Pure
+  IcebergScanConfig getScanConfig() {
+    return scanConfig;
   }
 
   @Override

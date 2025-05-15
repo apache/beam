@@ -725,8 +725,8 @@ class RangeSet:
 
   def __contains__(self, key: int) -> bool:
     idx = self._sorted_starts.bisect_left(key)
-    return (idx < len(self._sorted_starts) and self._sorted_starts[idx] == key
-            ) or (idx > 0 and self._sorted_ends[idx - 1] > key)
+    return (idx < len(self._sorted_starts) and self._sorted_starts[idx]
+            == key) or (idx > 0 and self._sorted_ends[idx - 1] > key)
 
   def __len__(self) -> int:
     assert len(self._sorted_starts) == len(self._sorted_ends)
@@ -1166,8 +1166,8 @@ class BundleProcessor(object):
     def get_operation(transform_id: str) -> operations.Operation:
       transform_consumers = {
           tag: [get_operation(op) for op in pcoll_consumers[pcoll_id]]
-          for tag,
-          pcoll_id in descriptor.transforms[transform_id].outputs.items()
+          for tag, pcoll_id in
+          descriptor.transforms[transform_id].outputs.items()
       }
 
       # Initialize transform-specific state in the Data Sampler.
@@ -1287,8 +1287,8 @@ class BundleProcessor(object):
         timer_info.output_stream.close()
 
       return ([
-          self.delayed_bundle_application(op, residual) for op,
-          residual in execution_context.delayed_applications
+          self.delayed_bundle_application(op, residual)
+          for op, residual in execution_context.delayed_applications
       ],
               self.requires_finalization())
 
@@ -1445,10 +1445,9 @@ class BeamTransformFactory(object):
     self.state_handler = state_handler
     self.context = pipeline_context.PipelineContext(
         descriptor,
-        iterable_state_read=lambda token,
-        element_coder_impl: _StateBackedIterable(
-            state_handler,
-            beam_fn_api_pb2.StateKey(
+        iterable_state_read=lambda token, element_coder_impl:
+        _StateBackedIterable(
+            state_handler, beam_fn_api_pb2.StateKey(
                 runner=beam_fn_api_pb2.StateKey.Runner(key=token)),
             element_coder_impl))
     self.data_sampler = data_sampler
@@ -1539,8 +1538,7 @@ class BeamTransformFactory(object):
   ) -> Dict[str, coders.Coder]:
     return {
         tag: self.get_windowed_coder(pcoll_id)
-        for tag,
-        pcoll_id in transform_proto.outputs.items()
+        for tag, pcoll_id in transform_proto.outputs.items()
     }
 
   def get_only_output_coder(
@@ -1552,8 +1550,7 @@ class BeamTransformFactory(object):
   ) -> Dict[str, coders.WindowedValueCoder]:
     return {
         tag: self.get_windowed_coder(pcoll_id)
-        for tag,
-        pcoll_id in transform_proto.inputs.items()
+        for tag, pcoll_id in transform_proto.inputs.items()
     }
 
   def get_only_input_coder(
@@ -1851,8 +1848,7 @@ def _create_pardo_operation(
     input_tags_to_coders = factory.get_input_coders(transform_proto)
     tagged_side_inputs = [
         (tag, beam.pvalue.SideInputData.from_runner_api(si, factory.context))
-        for tag,
-        si in pardo_proto.side_inputs.items()
+        for tag, si in pardo_proto.side_inputs.items()
     ]
     tagged_side_inputs.sort(
         key=lambda tag_si: sideinputs.get_sideinput_index(tag_si[0]))

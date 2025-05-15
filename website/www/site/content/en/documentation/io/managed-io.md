@@ -32,6 +32,18 @@ For example, the DataflowRunner can seamlessly upgrade a Managed transform to
 its latest SDK version, automatically applying bug fixes and new features (no
 manual updates or user intervention required!)
 
+## Supported SDKs
+
+The Managed API is directly accessible through the
+[Java](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/managed/Managed.html)
+and
+[Python](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.managed.html)
+SDKs.
+
+Additionally, some SDKs use the Managed API internally. For example, the Iceberg connector
+used in [Beam YAML](https://beam.apache.org/releases/yamldoc/current/#writetoiceberg)
+and Beam SQL is invoked via the Managed API under the hood.
+
 ## Available Configurations
 
 <i>Note: required configuration fields are <strong>bolded</strong>.</i>
@@ -50,8 +62,11 @@ manual updates or user intervention required!)
         catalog_name (<code style="color: green">str</code>)<br>
         catalog_properties (<code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>)<br>
         config_properties (<code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>)<br>
+        drop (<code>list[<span style="color: green;">str</span>]</code>)<br>
+        filter (<code style="color: green">str</code>)<br>
         from_snapshot (<code style="color: #f54251">int64</code>)<br>
         from_timestamp (<code style="color: #f54251">int64</code>)<br>
+        keep (<code>list[<span style="color: green;">str</span>]</code>)<br>
         poll_interval_seconds (<code style="color: #f54251">int32</code>)<br>
         starting_strategy (<code style="color: green">str</code>)<br>
         streaming (<code style="color: orange">boolean</code>)<br>
@@ -69,6 +84,9 @@ manual updates or user intervention required!)
         catalog_name (<code style="color: green">str</code>)<br>
         catalog_properties (<code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>)<br>
         config_properties (<code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>)<br>
+        drop (<code>list[<span style="color: green;">str</span>]</code>)<br>
+        filter (<code style="color: green">str</code>)<br>
+        keep (<code>list[<span style="color: green;">str</span>]</code>)<br>
       </td>
       <td>
         <strong>table</strong> (<code style="color: green">str</code>)<br>
@@ -182,6 +200,28 @@ manual updates or user intervention required!)
     </tr>
     <tr>
       <td>
+        drop
+      </td>
+      <td>
+        <code>list[<span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        A subset of column names to exclude from reading. If null or empty, all columns will be read.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        filter
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        SQL-like predicate to filter data at scan time. Example: "id > 5 AND status = 'ACTIVE'". Uses Apache Calcite syntax: https://calcite.apache.org/docs/reference.html
+      </td>
+    </tr>
+    <tr>
+      <td>
         from_snapshot
       </td>
       <td>
@@ -200,6 +240,17 @@ manual updates or user intervention required!)
       </td>
       <td>
         Starts reading from the first snapshot (inclusive) that was created after this timestamp (in milliseconds).
+      </td>
+    </tr>
+    <tr>
+      <td>
+        keep
+      </td>
+      <td>
+        <code>list[<span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        A subset of column names to read exclusively. If null or empty, all columns will be read.
       </td>
     </tr>
     <tr>
@@ -277,7 +328,7 @@ manual updates or user intervention required!)
         <code style="color: green">str</code>
       </td>
       <td>
-        Identifier of the Iceberg table.
+        A fully-qualified table identifier. You may also provide a template to write to multiple dynamic destinations, for example: `dataset.my_{col1}_{col2.nested}_table`.
       </td>
     </tr>
     <tr>
@@ -411,6 +462,39 @@ manual updates or user intervention required!)
       </td>
       <td>
         Properties passed to the Hadoop Configuration.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        drop
+      </td>
+      <td>
+        <code>list[<span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        A subset of column names to exclude from reading. If null or empty, all columns will be read.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        filter
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        SQL-like predicate to filter data at scan time. Example: "id > 5 AND status = 'ACTIVE'". Uses Apache Calcite syntax: https://calcite.apache.org/docs/reference.html
+      </td>
+    </tr>
+    <tr>
+      <td>
+        keep
+      </td>
+      <td>
+        <code>list[<span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        A subset of column names to read exclusively. If null or empty, all columns will be read.
       </td>
     </tr>
   </table>

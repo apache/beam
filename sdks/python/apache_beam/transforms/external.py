@@ -184,8 +184,8 @@ class ImplicitSchemaPayloadBuilder(SchemaBasedPayloadBuilder):
     }
 
     schema = named_fields_to_schema([
-        (key, convert_to_typing_type(instance_to_type(value))) for key,
-        value in values.items()
+        (key, convert_to_typing_type(instance_to_type(value)))
+        for key, value in values.items()
     ])
     return named_tuple_from_schema(schema)(**values)
 
@@ -248,8 +248,7 @@ class ExplicitSchemaTransformPayloadBuilder(SchemaTransformPayloadBuilder):
       elif type_info == 'map_type':
         return {
             key: dict_to_row_recursive(field_type.map_type.value_type, value)
-            for key,
-            value in py_value.items()
+            for key, value in py_value.items()
         }
       else:
         return py_value
@@ -463,8 +462,8 @@ class SchemaAwareExternalTransform(ptransform.PTransform):
         # construction.
         underlying_transform_id = (
             self._managed_replacement.underlying_transform_identifier)
-        if not (underlying_transform_id in
-                MANAGED_TRANSFORM_URN_TO_JAR_TARGET_MAPPING):
+        if not (underlying_transform_id
+                in MANAGED_TRANSFORM_URN_TO_JAR_TARGET_MAPPING):
           raise ValueError(
               'Could not find an expansion service jar for the managed ' +
               'transform ' + underlying_transform_id)
@@ -670,8 +669,8 @@ class AnnotationBasedPayloadBuilder(SchemaBasedPayloadBuilder):
 
   def _get_named_tuple_instance(self):
     schema = named_fields_to_schema([
-        (k, convert_to_typing_type(v)) for k,
-        v in self._transform.__init__.__annotations__.items()
+        (k, convert_to_typing_type(v))
+        for k, v in self._transform.__init__.__annotations__.items()
         if k in self._values
     ])
     return named_tuple_from_schema(schema)(**self._values)
@@ -845,8 +844,7 @@ class ExternalTransform(ptransform.PTransform):
 
     self._outputs = {
         tag: fix_output(result_context.pcollections.get_by_id(pcoll_id), tag)
-        for tag,
-        pcoll_id in self._expanded_transform.outputs.items()
+        for tag, pcoll_id in self._expanded_transform.outputs.items()
     }
 
     return self._output_to_pvalueish(self._outputs)
@@ -967,13 +965,11 @@ class ExternalTransform(ptransform.PTransform):
           subtransforms=proto.subtransforms,
           inputs={
               tag: pcoll_renames.get(pcoll, pcoll)
-              for tag,
-              pcoll in proto.inputs.items()
+              for tag, pcoll in proto.inputs.items()
           },
           outputs={
               tag: pcoll_renames.get(pcoll, pcoll)
-              for tag,
-              pcoll in proto.outputs.items()
+              for tag, pcoll in proto.outputs.items()
           },
           display_data=proto.display_data,
           environment_id=proto.environment_id)
@@ -988,13 +984,11 @@ class ExternalTransform(ptransform.PTransform):
         subtransforms=self._expanded_transform.subtransforms,
         inputs={
             tag: pcoll_renames.get(pcoll, pcoll)
-            for tag,
-            pcoll in self._expanded_transform.inputs.items()
+            for tag, pcoll in self._expanded_transform.inputs.items()
         },
         outputs={
             tag: pcoll_renames.get(pcoll, pcoll)
-            for tag,
-            pcoll in self._expanded_transform.outputs.items()
+            for tag, pcoll in self._expanded_transform.outputs.items()
         },
         annotations=self._expanded_transform.annotations,
         environment_id=self._expanded_transform.environment_id)

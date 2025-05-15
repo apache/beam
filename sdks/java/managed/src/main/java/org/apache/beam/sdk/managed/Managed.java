@@ -46,7 +46,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  * <h3>Available transforms</h3>
  *
  * <p>This API currently supports two operations: {@link Managed#read} and {@link Managed#write}.
- * Each one enumerates the available transforms in a {@code TRANSFORMS} map.
+ * Please check the <a href="https://beam.apache.org/documentation/io/managed-io/">Managed IO
+ * configuration page</a> to see available transforms and config options.
  *
  * <h3>Building a Managed turnkey transform</h3>
  *
@@ -176,8 +177,6 @@ public class Managed {
     @VisibleForTesting
     abstract List<String> getSupportedIdentifiers();
 
-    abstract @Nullable Boolean getSkipConfigValidation();
-
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -190,8 +189,6 @@ public class Managed {
 
       @VisibleForTesting
       abstract Builder setSupportedIdentifiers(List<String> supportedIdentifiers);
-
-      abstract Builder setSkipConfigValidation(boolean skip);
 
       abstract ManagedTransform build();
     }
@@ -219,14 +216,6 @@ public class Managed {
       return toBuilder().setSupportedIdentifiers(supportedIdentifiers).build();
     }
 
-    /**
-     * Skips configuration validation. If unset, the pipeline will fail at construction time if the
-     * configuration includes unknown fields or missing required fields.
-     */
-    public ManagedTransform skipConfigValidation() {
-      return toBuilder().setSkipConfigValidation(true).build();
-    }
-
     @Override
     public PCollectionRowTuple expand(PInput input) {
       PCollectionRowTuple inputTuple = resolveInput(input);
@@ -236,7 +225,6 @@ public class Managed {
               .setTransformIdentifier(getIdentifier())
               .setConfig(YamlUtils.yamlStringFromMap(getConfig()))
               .setConfigUrl(getConfigUrl())
-              .setSkipConfigValidation(getSkipConfigValidation())
               .build();
 
       SchemaTransform underlyingTransform =

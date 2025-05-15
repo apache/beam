@@ -345,7 +345,7 @@ class TestBigQueryVectorSearchIT(BigQueryVectorSearchIT):
     handler = BigQueryVectorSearchEnrichmentHandler(
         vector_search_parameters=params,
         min_batch_size=2,  # Force batching
-        max_batch_size=2   # Process 2 chunks at a time
+        max_batch_size=2  # Process 2 chunks at a time
     )
 
     expected_chunks = [
@@ -599,8 +599,7 @@ class TestBigQueryVectorSearchIT(BigQueryVectorSearchIT):
     handler = BigQueryVectorSearchEnrichmentHandler(
         vector_search_parameters=params,
         min_batch_size=2,  # Force batching
-        max_batch_size=2
-    )
+        max_batch_size=2)
 
     with TestPipeline(is_integration_test=True) as p:
       result = (p | beam.Create(test_chunks) | Enrichment(handler))
@@ -757,8 +756,7 @@ class TestBigQueryVectorSearchIT(BigQueryVectorSearchIT):
     handler = BigQueryVectorSearchEnrichmentHandler(
         vector_search_parameters=params,
         min_batch_size=10,  # Force batching
-        max_batch_size=100
-    )
+        max_batch_size=100)
 
     with TestPipeline(is_integration_test=True) as p:
       result = (p | beam.Create(test_chunks) | Enrichment(handler))
@@ -855,9 +853,8 @@ class TestBigQueryVectorSearchIT(BigQueryVectorSearchIT):
         columns=['content'],
         neighbor_count=1,
         metadata_restriction_template=(
-          "language = '{language}'"  # Invalid template
-        )
-    )
+            "language = '{language}'"  # Invalid template
+        ))
 
     handler = BigQueryVectorSearchEnrichmentHandler(
         vector_search_parameters=params)
@@ -889,8 +886,7 @@ class TestBigQueryVectorSearchIT(BigQueryVectorSearchIT):
             embedding=None,  # Missing embedding
             content=Content(text="test query"),
             metadata={"language": "en"},
-            index=0
-        )
+            index=0)
     ]
 
     params = BigQueryVectorSearchParameters(

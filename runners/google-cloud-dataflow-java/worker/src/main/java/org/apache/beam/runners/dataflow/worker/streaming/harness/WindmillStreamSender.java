@@ -35,7 +35,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.Ge
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreamFactory;
-import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.StreamingEngineThrottleTimers;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemScheduler;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudgetSpender;
@@ -67,7 +66,6 @@ final class WindmillStreamSender implements GetWorkBudgetSpender, StreamSender {
   private final GetDataStream getDataStream;
   private final CommitWorkStream commitWorkStream;
   private final WorkCommitter workCommitter;
-  private final StreamingEngineThrottleTimers streamingEngineThrottleTimers;
   private final ExecutorService streamStarter;
 
   private WindmillStreamSender(
@@ -80,22 +78,16 @@ final class WindmillStreamSender implements GetWorkBudgetSpender, StreamSender {
       Function<CommitWorkStream, WorkCommitter> workCommitterFactory) {
     this.started = new AtomicBoolean(false);
     this.getWorkBudget = getWorkBudget;
-    this.streamingEngineThrottleTimers = StreamingEngineThrottleTimers.create();
 
     // Stream instances connect/reconnect internally, so we can reuse the same instance through the
     // entire lifecycle of WindmillStreamSender.
-    this.getDataStream =
-        streamingEngineStreamFactory.createDirectGetDataStream(
-            connection, streamingEngineThrottleTimers.getDataThrottleTimer());
-    this.commitWorkStream =
-        streamingEngineStreamFactory.createDirectCommitWorkStream(
-            connection, streamingEngineThrottleTimers.commitWorkThrottleTimer());
+    this.getDataStream = streamingEngineStreamFactory.createDirectGetDataStream(connection);
+    this.commitWorkStream = streamingEngineStreamFactory.createDirectCommitWorkStream(connection);
     this.workCommitter = workCommitterFactory.apply(commitWorkStream);
     this.getWorkStream =
         streamingEngineStreamFactory.createDirectGetWorkStream(
             connection,
             withRequestBudget(getWorkRequest, getWorkBudget.get()),
-            streamingEngineThrottleTimers.getWorkThrottleTimer(),
             FixedStreamHeartbeatSender.create(getDataStream),
             getDataClientFactory.apply(getDataStream),
             workCommitter,
@@ -174,10 +166,6 @@ final class WindmillStreamSender implements GetWorkBudgetSpender, StreamSender {
     if (started.get()) {
       getWorkStream.setBudget(budget);
     }
-  }
-
-  long getAndResetThrottleTime() {
-    return streamingEngineThrottleTimers.getAndResetThrottleTime();
   }
 
   long getCurrentActiveCommitBytes() {

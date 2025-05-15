@@ -70,7 +70,7 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
   public ScanTaskReader(ScanTaskSource source) {
     this.source = source;
     this.project = source.getSchema();
-    this.beamSchema = icebergSchemaToBeamSchema(source.getSchema());
+    this.beamSchema = icebergSchemaToBeamSchema(project);
   }
 
   @Override
@@ -183,8 +183,10 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
       }
       GenericDeleteFilter deleteFilter =
           new GenericDeleteFilter(checkStateNotNull(io), fileTask, fileTask.schema(), project);
-      currentIterator = deleteFilter.filter(iterable).iterator();
+      iterable = deleteFilter.filter(iterable);
 
+      iterable = ReadUtils.maybeApplyFilter(iterable, source.getScanConfig());
+      currentIterator = iterable.iterator();
     } while (true);
 
     return false;
