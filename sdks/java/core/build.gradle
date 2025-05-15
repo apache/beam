@@ -102,7 +102,7 @@ dependencies {
   implementation library.java.snake_yaml
   shadowTest library.java.everit_json_schema
   provided library.java.junit
-  testImplementation "com.github.stefanbirkner:system-rules:1.19.0"
+  testImplementation("org.junit.vintage:junit-vintage-engine:5.12.2")
   provided library.java.hamcrest
   provided 'io.airlift:aircompressor:0.18'
   provided 'com.facebook.presto.hadoop:hadoop-apache2:3.2.0-1'

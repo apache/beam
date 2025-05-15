@@ -112,4 +112,12 @@
         </fileSet>
     </fileSets>
 
+    <dependency>
+        <groupId>org.junit.vintage</groupId>
+        <artifactId>junit-vintage-engine</artifactId>
+        <version>5.12.2</version>
+        <scope>test</scope>
+    </dependency>
+
+
 </assembly>

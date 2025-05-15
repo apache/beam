@@ -77,6 +77,12 @@
         <artifactId>${moduleName}</artifactId>
         <version>${version}</version>
       </dependency>
+      <dependency>
+          <groupId>org.junit.vintage</groupId>
+          <artifactId>junit-vintage-engine</artifactId>
+          <version>${junit5.vintage.version}</version>
+          <scope>test</scope>
+      </dependency>
     <% } %>
     </dependencies>
   </dependencyManagement>
