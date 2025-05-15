@@ -1845,7 +1845,23 @@ public class BigtableIO {
         } else {
           for (ByteKeyRange range : getRanges()) {
             if (range.overlaps(ByteKeyRange.of(currentStartKey, currentEndKey))) {
-              estimatedSizeBytes += currentOffset - lastOffset;
+              long segmentSize = currentOffset - lastOffset;
+              if (segmentSize > 0) {
+                estimatedSizeBytes += segmentSize;
+              } else if (segmentSize < 0) {
+                // Log the anomaly if segmentSize is negative, and treat as 0 for estimation.
+                LOG.warn(
+                    "Calculated negative segment size ({}) for sample region ending at key '{}' (offset {}) "
+                        + "based on previous offset {}. Treating as 0 for estimation. "
+                        + "Query range: {}, Sample segment: [{}...{}]",
+                    segmentSize,
+                    keyOffset.getKey().toStringUtf8(), // keyOffset.getKey() is ByteString
+                    currentOffset,
+                    lastOffset,
+                    range.toString(), // ByteKeyRange.toString() is reasonable
+                    currentStartKey.toString(), // ByteKey.toString() is hex
+                    currentEndKey.toString()); // ByteKey.toString() is hex
+              }
               // We don't want to double our estimated size if two ranges overlap this sample
               // region, so exit early.
               break;
