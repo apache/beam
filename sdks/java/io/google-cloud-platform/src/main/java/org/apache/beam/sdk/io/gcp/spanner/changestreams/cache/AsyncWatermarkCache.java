@@ -18,9 +18,10 @@
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.cache;
 
 import com.google.cloud.Timestamp;
-import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
@@ -40,7 +41,17 @@ public class AsyncWatermarkCache implements WatermarkCache {
 
   private static final String THREAD_NAME_FORMAT = "watermark_loading_thread_%d";
   private static final Object MIN_WATERMARK_KEY = new Object();
-  private final LoadingCache<Object, Optional<Timestamp>> cache;
+  private final LoadingCache<Object, Timestamp> cache;
+
+  // This is to cache the result of getUnfinishedMinWatermark query and filter the query in the next
+  // run. For the initial query, the value of this cache is min timestamp. If there is no partition
+  // in the metadata table, then this cache will not be updated. If the getUnfinishedMinWatermark
+  // query fails or times out, then this cache will not be updated.
+  // Note that, all the reload operations on this key are serialized due to use of the single
+  // threaded async reloading executor.
+  private Timestamp lastCachedMinWatermark = Timestamp.MIN_VALUE;
+
+  private final Lock lock = new ReentrantLock();
 
   public AsyncWatermarkCache(PartitionMetadataDao dao, Duration refreshRate) {
     this.cache =
@@ -48,7 +59,21 @@ public class AsyncWatermarkCache implements WatermarkCache {
             .refreshAfterWrite(java.time.Duration.ofMillis(refreshRate.getMillis()))
             .build(
                 CacheLoader.asyncReloading(
-                    CacheLoader.from(key -> Optional.ofNullable(dao.getUnfinishedMinWatermark())),
+                    CacheLoader.from(
+                        key -> {
+                          Timestamp unfinishedMinTimes =
+                              dao.getUnfinishedMinWatermarkFrom(lastCachedMinWatermark);
+                          if (unfinishedMinTimes != null
+                              && lastCachedMinWatermark.compareTo(unfinishedMinTimes) < 0) {
+                            lock.lock();
+                            try {
+                              lastCachedMinWatermark = unfinishedMinTimes;
+                            } finally {
+                              lock.unlock();
+                            }
+                          }
+                          return unfinishedMinTimes;
+                        }),
                     Executors.newSingleThreadExecutor(
                         new ThreadFactoryBuilder().setNameFormat(THREAD_NAME_FORMAT).build())));
   }
@@ -56,7 +81,7 @@ public class AsyncWatermarkCache implements WatermarkCache {
   @Override
   public @Nullable Timestamp getUnfinishedMinWatermark() {
     try {
-      return cache.get(MIN_WATERMARK_KEY).orElse(null);
+      return cache.get(MIN_WATERMARK_KEY);
     } catch (ExecutionException e) {
       throw new RuntimeException(e);
     }
