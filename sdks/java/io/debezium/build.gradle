@@ -64,7 +64,13 @@ dependencies {
     testImplementation library.java.testcontainers_mysql
     testImplementation library.java.testcontainers_postgresql
     // TODO(https://github.com/apache/beam/issues/31678) HikariCP 5.x requires Java11+
-    testImplementation 'com.zaxxer:HikariCP:4.0.3'
+    // testImplementation 'com.zaxxer:HikariCP:4.0.3'
+    testImplementation 'com.zaxxer:HikariCP:5.1.0'
+    // Check Debezium 3.3.1 documentation for the precise Jackson version it's built against.
+    // Assuming it's compatible with Jackson 2.17.x as per recent Debezium versions.
+    implementation "com.fasterxml.jackson.module:jackson-module-afterburner:2.17.1"
+
+
 
     // Kafka connect dependencies
     implementation "org.apache.kafka:connect-api:3.9.0"
