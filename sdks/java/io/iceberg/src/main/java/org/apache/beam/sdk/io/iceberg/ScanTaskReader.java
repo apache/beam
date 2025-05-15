@@ -183,8 +183,10 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
       }
       GenericDeleteFilter deleteFilter =
           new GenericDeleteFilter(checkStateNotNull(io), fileTask, fileTask.schema(), project);
-      currentIterator = deleteFilter.filter(iterable).iterator();
+      iterable = deleteFilter.filter(iterable);
 
+      iterable = ReadUtils.maybeApplyFilter(iterable, source.getScanConfig());
+      currentIterator = iterable.iterator();
     } while (true);
 
     return false;

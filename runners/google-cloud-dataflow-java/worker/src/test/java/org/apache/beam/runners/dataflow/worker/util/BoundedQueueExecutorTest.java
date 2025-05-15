@@ -172,9 +172,10 @@ public class BoundedQueueExecutorTest {
 
     // Stop m1 so there are available bytes for m2 to run.
     processStop1.countDown();
+    // m2 should be able to start execution
     processStart2.await();
-    // m2 started.
-    assertEquals(Thread.State.TERMINATED, m2Runner.getState());
+    // ensure that the execute() call scheduling m2 returns even if the completion of m2 is blocked.
+    m2Runner.join();
     processStop2.countDown();
     executor.shutdown();
   }

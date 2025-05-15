@@ -108,11 +108,12 @@ public class BigQueryMetastoreCatalogIT extends IcebergCatalogBaseIT {
   @Test
   public void testWriteToPartitionedAndValidateWithBQQuery()
       throws IOException, InterruptedException {
-    // For an example row where bool=true, modulo_5=3, str=value_303,
-    // this partition spec will create a partition like: /bool=true/modulo_5=3/str_trunc=value_3/
+    // For an example row where bool_field=true, modulo_5=3, str=value_303,
+    // this partition spec will create a partition like:
+    // /bool_field=true/modulo_5=3/str_trunc=value_3/
     PartitionSpec partitionSpec =
         PartitionSpec.builderFor(ICEBERG_SCHEMA)
-            .identity("bool")
+            .identity("bool_field")
             .hour("datetime")
             .truncate("str", "value_x".length())
             .build();
@@ -136,9 +137,9 @@ public class BigQueryMetastoreCatalogIT extends IcebergCatalogBaseIT {
     assertThat(beamRows, containsInAnyOrder(inputRows.toArray()));
 
     String queryByPartition =
-        String.format("SELECT bool, datetime FROM `%s.%s`", OPTIONS.getProject(), tableId());
+        String.format("SELECT bool_field, datetime FROM `%s.%s`", OPTIONS.getProject(), tableId());
     rows = bqClient.queryUnflattened(queryByPartition, OPTIONS.getProject(), true, true);
-    RowFilter rowFilter = new RowFilter(BEAM_SCHEMA).keep(Arrays.asList("bool", "datetime"));
+    RowFilter rowFilter = new RowFilter(BEAM_SCHEMA).keep(Arrays.asList("bool_field", "datetime"));
     beamRows =
         rows.stream()
             .map(tr -> BigQueryUtils.toBeamRow(rowFilter.outputSchema(), tr))
