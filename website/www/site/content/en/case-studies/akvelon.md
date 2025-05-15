@@ -98,12 +98,9 @@ community
   </p>
   <div class="case-study-quote-author">
     <div class="case-study-quote-author-img">
-        <img src="/images/learner_graph.png">
+        <img src="/images/case-study/akvelon/chitnis.png">
     </div>
     <div class="case-study-quote-author-info">
-        <div class="case-study-quote-author-img">
-            <img src="/images/case-study/akvelon/chitnis.png">
-        </div>
         <div class="case-study-quote-author-name">
           Jay Chitnis
         </div>
@@ -115,8 +112,8 @@ community
 </blockquote>
 
 <div class="post-scheme">
-    <a href="/images/case-study/akvelon/scheme-1.png" target="_blank" title="Click to enlarge">
-        <img src="/images/case-study/akvelon/scheme-1.png" alt="Protegrity & Equifax Tokenization Pipeline">
+    <a href="/images/case-study/akvelon/diagram-01.png" target="_blank" title="Click to enlarge">
+        <img src="/images/case-study/akvelon/diagram-01.png" alt="Protegrity & Equifax Tokenization Pipeline">
     </a>
 </div>
 
@@ -152,8 +149,8 @@ The project included prototyping, test infrastructure, and Salesforce plugin pip
 customers
 
 <div class="post-scheme">
-    <a href="/images/case-study/akvelon/scheme-2.png" target="_blank" title="Click to enlarge">
-        <img src="/images/case-study/akvelon/scheme-2.png" alt="CDAP Connector Integration with Apache Beam">
+    <a href="/images/case-study/akvelon/diagram-02.png" target="_blank" title="Click to enlarge">
+        <img src="/images/case-study/akvelon/diagram-02.png" alt="CDAP Connector Integration with Apache Beam">
     </a>
 </div>
 
