@@ -46,6 +46,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -178,39 +179,49 @@ public class PartitionMetadataDao {
    *
    * @return the earliest partition watermark which is not in a {@link State#FINISHED} state.
    */
-  public @Nullable Timestamp getUnfinishedMinWatermark() {
+  public @Nullable Timestamp getUnfinishedMinWatermark(Optional<Timestamp> since) {
+    Timestamp sinceTimestamp = since.orElse(Timestamp.MIN_VALUE);
     Statement statement;
+    final String MIN_WATERMARK = "min_watermark";
     if (this.isPostgres()) {
       statement =
           Statement.newBuilder(
-                  "SELECT \""
+                  "SELECT min(\""
                       + COLUMN_WATERMARK
-                      + "\" FROM \""
+                      + "\") as "
+                      + MIN_WATERMARK
+                      + " FROM \""
                       + metadataTableName
                       + "\" WHERE \""
                       + COLUMN_STATE
                       + "\" != $1"
-                      + " ORDER BY \""
+                      + " AND \""
                       + COLUMN_WATERMARK
-                      + "\" ASC LIMIT 1")
+                      + "\" >= $2")
               .bind("p1")
               .to(State.FINISHED.name())
+              .bind("p2")
+              .to(sinceTimestamp)
               .build();
     } else {
       statement =
           Statement.newBuilder(
-                  "SELECT "
+                  "SELECT min("
                       + COLUMN_WATERMARK
+                      + ") as "
+                      + MIN_WATERMARK
                       + " FROM "
                       + metadataTableName
                       + " WHERE "
                       + COLUMN_STATE
                       + " != @state"
-                      + " ORDER BY "
+                      + " AND "
                       + COLUMN_WATERMARK
-                      + " ASC LIMIT 1")
+                      + " >= @since;")
               .bind("state")
               .to(State.FINISHED.name())
+              .bind("since")
+              .to(sinceTimestamp)
               .build();
     }
     try (ResultSet resultSet =
@@ -218,7 +229,7 @@ public class PartitionMetadataDao {
             .singleUse()
             .executeQuery(statement, Options.tag("query=getUnfinishedMinWatermark"))) {
       if (resultSet.next()) {
-        return resultSet.getTimestamp(COLUMN_WATERMARK);
+        return resultSet.getTimestamp(MIN_WATERMARK);
       }
       return null;
     }

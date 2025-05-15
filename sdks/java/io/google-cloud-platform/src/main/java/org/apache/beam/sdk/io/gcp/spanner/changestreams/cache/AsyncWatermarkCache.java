@@ -42,13 +42,23 @@ public class AsyncWatermarkCache implements WatermarkCache {
   private static final Object MIN_WATERMARK_KEY = new Object();
   private final LoadingCache<Object, Optional<Timestamp>> cache;
 
+  private Timestamp lastCachedMinWatermark = Timestamp.MIN_VALUE;
+
   public AsyncWatermarkCache(PartitionMetadataDao dao, Duration refreshRate) {
     this.cache =
         CacheBuilder.newBuilder()
             .refreshAfterWrite(java.time.Duration.ofMillis(refreshRate.getMillis()))
             .build(
                 CacheLoader.asyncReloading(
-                    CacheLoader.from(key -> Optional.ofNullable(dao.getUnfinishedMinWatermark())),
+                    CacheLoader.from(
+                        key -> {
+                          Timestamp unfinishedMinTimes =
+                              dao.getUnfinishedMinWatermark(Optional.of(lastCachedMinWatermark));
+                          if (unfinishedMinTimes != null) {
+                            lastCachedMinWatermark = unfinishedMinTimes;
+                          }
+                          return Optional.ofNullable(unfinishedMinTimes);
+                        }),
                     Executors.newSingleThreadExecutor(
                         new ThreadFactoryBuilder().setNameFormat(THREAD_NAME_FORMAT).build())));
   }
