@@ -53,6 +53,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 
 /**
  * Describes the signature of a {@link DoFn}, in particular, which features it uses, which extra
@@ -67,91 +68,118 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 })
 public abstract class DoFnSignature {
   /** Class of the original {@link DoFn} from which this signature was produced. */
+  @Pure
   public abstract Class<? extends DoFn<?, ?>> fnClass();
 
   /** Whether this {@link DoFn} does a bounded amount of work per element. */
+  @Pure
   public abstract PCollection.IsBounded isBoundedPerElement();
 
   /** Details about this {@link DoFn}'s {@link DoFn.ProcessElement} method. */
+  @Pure
   public abstract ProcessElementMethod processElement();
 
   /** Details about the state cells that this {@link DoFn} declares. Immutable. */
+  @Pure
   public abstract Map<String, StateDeclaration> stateDeclarations();
 
   /** Details about this {@link DoFn}'s {@link DoFn.StartBundle} method. */
+  @Pure
   public abstract @Nullable BundleMethod startBundle();
 
   /** Details about this {@link DoFn}'s {@link DoFn.FinishBundle} method. */
+  @Pure
   public abstract @Nullable BundleMethod finishBundle();
 
   /** Details about this {@link DoFn}'s {@link DoFn.Setup} method. */
+  @Pure
   public abstract @Nullable LifecycleMethod setup();
 
   /** Details about this {@link DoFn}'s {@link DoFn.Teardown} method. */
+  @Pure
   public abstract @Nullable LifecycleMethod teardown();
 
   /** Details about this {@link DoFn}'s {@link DoFn.OnWindowExpiration} method. */
+  @Pure
   public abstract @Nullable OnWindowExpirationMethod onWindowExpiration();
 
   /** Timer declarations present on the {@link DoFn} class. Immutable. */
+  @Pure
   public abstract Map<String, TimerDeclaration> timerDeclarations();
 
   /** TimerMap declarations present on the {@link DoFn} class. Immutable. */
+  @Pure
   public abstract Map<String, TimerFamilyDeclaration> timerFamilyDeclarations();
 
   /** Field access declaration. */
+  @Pure
   public abstract @Nullable Map<String, FieldAccessDeclaration> fieldAccessDeclarations();
 
   /** Details about this {@link DoFn}'s {@link DoFn.GetInitialRestriction} method. */
+  @Pure
   public abstract @Nullable GetInitialRestrictionMethod getInitialRestriction();
 
   /** Details about this {@link DoFn}'s {@link DoFn.SplitRestriction} method. */
+  @Pure
   public abstract @Nullable SplitRestrictionMethod splitRestriction();
 
   /** Details about this {@link DoFn}'s {@link TruncateRestriction} method. */
+  @Pure
   public abstract @Nullable TruncateRestrictionMethod truncateRestriction();
 
   /** Details about this {@link DoFn}'s {@link DoFn.GetRestrictionCoder} method. */
+  @Pure
   public abstract @Nullable GetRestrictionCoderMethod getRestrictionCoder();
 
   /** Details about this {@link DoFn}'s {@link DoFn.GetWatermarkEstimatorStateCoder} method. */
+  @Pure
   public abstract @Nullable GetWatermarkEstimatorStateCoderMethod getWatermarkEstimatorStateCoder();
 
   /** Details about this {@link DoFn}'s {@link DoFn.GetInitialWatermarkEstimatorState} method. */
+  @Pure
   public abstract @Nullable GetInitialWatermarkEstimatorStateMethod
       getInitialWatermarkEstimatorState();
 
   /** Details about this {@link DoFn}'s {@link DoFn.NewWatermarkEstimator} method. */
+  @Pure
   public abstract @Nullable NewWatermarkEstimatorMethod newWatermarkEstimator();
 
   /** Details about this {@link DoFn}'s {@link DoFn.NewTracker} method. */
+  @Pure
   public abstract @Nullable NewTrackerMethod newTracker();
 
   /** Details about this {@link DoFn}'s {@link DoFn.GetSize} method. */
+  @Pure
   public abstract @Nullable GetSizeMethod getSize();
 
   /** Details about this {@link DoFn}'s {@link DoFn.OnTimer} methods. */
+  @Pure
   public abstract @Nullable Map<String, OnTimerMethod> onTimerMethods();
 
   /** Details about this {@link DoFn}'s {@link DoFn.OnTimerFamily} methods. */
+  @Pure
   public abstract @Nullable Map<String, OnTimerFamilyMethod> onTimerFamilyMethods();
 
   /** @deprecated use {@link #usesState()}, it's cleaner */
   @Deprecated
+  @Pure
   public boolean isStateful() {
     return stateDeclarations().size() > 0;
   }
 
   /** Whether the {@link DoFn} described by this signature uses state. */
+  @Pure
   public boolean usesState() {
     return stateDeclarations().size() > 0;
   }
 
   /** Whether the {@link DoFn} described by this signature uses timers. */
+  @Pure
   public boolean usesTimers() {
     return timerDeclarations().size() > 0 || timerFamilyDeclarations().size() > 0;
   }
 
+  @Pure
   static Builder builder() {
     return new AutoValue_DoFnSignature.Builder();
   }
@@ -208,12 +236,14 @@ public abstract class DoFnSignature {
 
     abstract Builder setOnTimerFamilyMethods(Map<String, OnTimerFamilyMethod> onTimerFamilyMethods);
 
+    @Pure
     abstract DoFnSignature build();
   }
 
   /** A method delegated to an annotated method of an underlying {@link DoFn}. */
   public interface DoFnMethod {
     /** The annotated method itself. */
+    @Pure
     Method targetMethod();
   }
 
