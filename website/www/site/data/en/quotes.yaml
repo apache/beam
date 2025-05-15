@@ -16,6 +16,11 @@
   logoUrl: images/logos/powered-by/linkedin.png
   linkUrl: case-studies/linkedin/index.html
   linkText: Learn more
+- text: To support data privacy and pipeline reusability at scale, Akvelon developed Beam-based solutions for Protegrity and Equifax, enabling tokenization via Dataflow Flex Templates.
+  icon: icons/quote-icon.svg
+  logoUrl: /images/logos/powered-by/akvelon.png
+  linkUrl: case-studies/akvelon/index.html
+  linkText: Learn more
 - text: With Apache Beam, OCTO accelerated the migration of one of France’s largest grocery retailers to streaming processing for transactional data, achieving 5x reduced infrastructure costs and 4x improved performance.
   icon: icons/quote-icon.svg
   logoUrl: images/logos/powered-by/octo.png
@@ -80,11 +85,6 @@
   icon: icons/quote-icon.svg
   logoUrl: /images/logos/powered-by/accenture.png
   linkUrl: case-studies/accenture_baltics/index.html
-  linkText: Learn more
-- text: To support data privacy and pipeline reusability at scale, Akvelon developed Beam-based solutions for Protegrity and Equifax, enabling tokenization via Dataflow Flex Templates.
-  icon: icons/quote-icon.svg
-  logoUrl: /images/logos/powered-by/akvelon.png
-  linkUrl: case-studies/akvelon/index.html
   linkText: Learn more
 - text: Have a story to share? Your logo could be here.
   icon: icons/quote-icon.svg
