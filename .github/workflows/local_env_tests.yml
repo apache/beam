@@ -55,8 +55,10 @@ jobs:
         run: "sudo ./local-env-setup.sh"
         id: local_env_install_ubuntu
       - name: "Gradle check"
-        run: "./gradlew checkSetup"
         id: local_env_install_gradle_check_ubuntu
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: checkSetup
   run_local_env_install_mac:
     timeout-minutes: 50
     name: "Mac run local environment shell script"
@@ -72,5 +74,7 @@ jobs:
         run: "./local-env-setup.sh"
         id: local_env_install_mac
       - name: "Gradle check"
-        run: "./gradlew checkSetup"
         id: local_env_install_gradle_check_mac
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: checkSetup

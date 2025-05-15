@@ -88,7 +88,10 @@ jobs:
         with:
           java-version: default
       - name: run ItFrameworkPrecommit script
-        run: ./gradlew -p it build
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: build
+          arguments: -p it
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v4
         if: ${{ !success() }}

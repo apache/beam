@@ -79,9 +79,10 @@ jobs:
         with:
           java-version: ${{ matrix.java_version }}
       - name: run jar Java${{ matrix.java_version }} script
-        run: |
-          ./gradlew runners:google-cloud-dataflow-java:testJar :runners:google-cloud-dataflow-java:worker:shadowJar \
-          -PjavaVersion=${{ matrix.java_version }} \
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :runners:google-cloud-dataflow-java:testJar :runners:google-cloud-dataflow-java:worker:shadowJar
+          arguments: -PjavaVersion=${{ matrix.java_version }}
       - name: run validatesRunner Java${{ matrix.java_version }} script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

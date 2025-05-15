@@ -77,8 +77,9 @@ jobs:
         with:
           java-version: 8
       - name: run jar Java8 script
-        run: |
-          ./gradlew :runners:spark:3:jar :runners:spark:3:testJar
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :runners:spark:3:jar :runners:spark:3:testJar
       - name: run validatesRunner Java8 script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
