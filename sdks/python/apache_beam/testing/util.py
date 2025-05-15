@@ -168,7 +168,7 @@ def equal_to(expected, equals_fn=None):
     # collection. It can also raise false negatives for types that don't have
     # a deterministic sort order, like pyarrow Tables as of 0.14.1
     if not equals_fn:
-      equals_fn = lambda e, a: e == a
+      equals_fn = row_namedtuple_equals_fn
       try:
         sorted_expected = sorted(expected)
         sorted_actual = sorted(actual)
@@ -204,10 +204,12 @@ def equal_to(expected, equals_fn=None):
 
 
 def row_namedtuple_equals_fn(expected, actual, fallback_equals_fn=None):
-  """equals_fn which can be passed into equal_to which treats Rows and
-    NamedTuples as equivalent types. This can be useful since Beam converts
-    Rows to NamedTuples when they are sent across portability layers, so a Row
-    may be converted to a NamedTuple automatically by Beam"""
+  """
+  equals_fn which can be used by equal_to which treats Rows and
+  NamedTuples as equivalent types. This can be useful since Beam converts
+  Rows to NamedTuples when they are sent across portability layers, so a Row
+  may be converted to a NamedTuple automatically by Beam.
+  """
   if fallback_equals_fn is None:
     fallback_equals_fn = lambda e, a: e == a
   if type(expected) is not pvalue.Row and not _is_named_tuple(expected):
