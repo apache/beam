@@ -495,8 +495,7 @@ def consolidate(metrics, key=to_key):
           return metrics_pb2.MonitoringInfo(
               urn=a.urn,
               type=a.type,
-              labels=dict((label, value) for label,
-                          value in a.labels.items()
+              labels=dict((label, value) for label, value in a.labels.items()
                           if b.labels.get(label) == value),
               payload=combiner(a.payload, b.payload))
 

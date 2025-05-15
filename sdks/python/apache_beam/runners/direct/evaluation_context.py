@@ -346,8 +346,8 @@ class EvaluationContext(object):
     registered as a PCollectionView, we add the result to the PCollectionView.
     """
     if (result.uncommitted_output_bundles and
-        result.uncommitted_output_bundles[0].pcollection in
-        self._pcollection_to_views):
+        result.uncommitted_output_bundles[0].pcollection
+        in self._pcollection_to_views):
       for view in self._pcollection_to_views[
           result.uncommitted_output_bundles[0].pcollection]:
         for committed_bundle in committed_bundles:

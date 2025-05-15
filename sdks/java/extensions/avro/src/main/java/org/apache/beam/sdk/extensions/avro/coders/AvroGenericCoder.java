@@ -17,17 +17,27 @@
  */
 package org.apache.beam.sdk.extensions.avro.coders;
 
+import java.util.concurrent.ExecutionException;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.extensions.avro.io.AvroDatumFactory;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 
 /** AvroCoder specialisation for GenericRecord, needed for cross-language transforms. */
 public class AvroGenericCoder extends AvroCoder<GenericRecord> {
+  private static final Cache<Schema, AvroGenericCoder> AVRO_GENERIC_CODER_CACHE =
+      CacheBuilder.newBuilder().weakValues().build();
+
   AvroGenericCoder(Schema schema) {
     super(AvroDatumFactory.GenericDatumFactory.INSTANCE, schema);
   }
 
   public static AvroGenericCoder of(Schema schema) {
-    return new AvroGenericCoder(schema);
+    try {
+      return AVRO_GENERIC_CODER_CACHE.get(schema, () -> new AvroGenericCoder(schema));
+    } catch (ExecutionException e) {
+      throw new RuntimeException(e);
+    }
   }
 }

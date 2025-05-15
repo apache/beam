@@ -232,8 +232,7 @@ def _load_pipeline_options(options_json):
     return {
         re.match(portable_option_regex, k).group('key') if re.match(
             portable_option_regex, k) else k: v
-        for k,
-        v in options.items()
+        for k, v in options.items()
     }
 
 

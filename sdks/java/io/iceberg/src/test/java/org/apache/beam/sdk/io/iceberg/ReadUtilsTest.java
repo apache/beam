@@ -81,7 +81,8 @@ public class ReadUtilsTest {
         for (FileScanTask fileScanTask : combinedScanTask.tasks()) {
           String fileName = Iterables.getLast(Splitter.on("/").split(fileScanTask.file().path()));
           List<Record> recordsRead = new ArrayList<>();
-          try (ParquetReader<Record> reader = ReadUtils.createReader(fileScanTask, simpleTable)) {
+          try (ParquetReader<Record> reader =
+              ReadUtils.createReader(fileScanTask, simpleTable, simpleTable.schema())) {
             reader.forEach(recordsRead::add);
           }
 

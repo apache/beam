@@ -689,8 +689,7 @@ class _BoundedTrieNode(object):
     else:
       node._children = {
           name: _BoundedTrieNode.from_proto(child)
-          for name,
-          child in proto.children.items()
+          for name, child in proto.children.items()
       }
       node._size = max(1, sum(child._size for child in node._children.values()))
     return node

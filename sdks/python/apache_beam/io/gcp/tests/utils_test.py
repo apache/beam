@@ -210,14 +210,13 @@ class PubSubUtilTest(unittest.TestCase):
     } for i in range(number_of_elements)]
     ack_ids = ['ack_id_{}'.format(i) for i in range(number_of_elements)]
     messages = [
-        PubsubMessage(data, attributes) for data,
-        attributes in zip(data_list, attributes_list)
+        PubsubMessage(data, attributes)
+        for data, attributes in zip(data_list, attributes_list)
     ]
     response_messages = [
         test_utils.PullResponseMessage(data, attributes, ack_id=ack_id)
-        for data,
-        attributes,
-        ack_id in zip(data_list, attributes_list, ack_ids)
+        for data, attributes, ack_id in zip(
+            data_list, attributes_list, ack_ids)
     ]
 
     class SequentialPullResponse(object):

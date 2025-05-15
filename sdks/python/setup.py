@@ -222,18 +222,18 @@ def generate_external_transform_wrappers():
     script_exists = os.path.exists(
         os.path.join(sdk_dir, 'gen_xlang_wrappers.py'))
     config_exists = os.path.exists(
-        os.path.join(os.path.dirname(sdk_dir),
-                     'standard_external_transforms.yaml'))
+        os.path.join(
+            os.path.dirname(sdk_dir), 'standard_external_transforms.yaml'))
     # we need both the script and the standard transforms config file.
     # at build time, we don't have access to apache_beam to discover and
     # retrieve external transforms, so the config file has to already exist
     if not script_exists or not config_exists:
       generated_transforms_dir = os.path.join(
-        sdk_dir, 'apache_beam', 'transforms', 'xlang')
+          sdk_dir, 'apache_beam', 'transforms', 'xlang')
 
       # if exists, this directory will have at least its __init__.py file
       if (not os.path.exists(generated_transforms_dir) or
-              len(os.listdir(generated_transforms_dir)) <= 1):
+          len(os.listdir(generated_transforms_dir)) <= 1):
         message = 'External transform wrappers have not been generated '
         if not script_exists:
           message += 'and the generation script `gen_xlang_wrappers.py`'
@@ -251,13 +251,16 @@ def generate_external_transform_wrappers():
         os.path.join(sdk_dir, 'gen_xlang_wrappers.py'),
         '--cleanup',
         '--transforms-config-source',
-        os.path.join(os.path.dirname(sdk_dir),
-                     'standard_external_transforms.yaml')
-    ], capture_output=True, check=True)
+        os.path.join(
+            os.path.dirname(sdk_dir), 'standard_external_transforms.yaml')
+    ],
+                   capture_output=True,
+                   check=True)
   except subprocess.CalledProcessError as err:
     raise RuntimeError(
         'Could not generate external transform wrappers due to '
-        'error: %s', err.stderr)
+        'error: %s',
+        err.stderr)
 
 
 def get_portability_package_data():
@@ -417,7 +420,8 @@ if __name__ == '__main__':
               'scikit-learn>=0.20.0',
               'setuptools',
               'sqlalchemy>=1.3,<3.0',
-              'psycopg2-binary>=2.8.5,<3.0.0,!=2.9.10',
+              'psycopg2-binary>=2.8.5,<2.9.10; python_version <= "3.9"',
+              'psycopg2-binary>=2.8.5,<3.0; python_version >= "3.10"',
               'testcontainers[mysql]>=3.0.3,<4.0.0',
               'cryptography>=41.0.2',
               'hypothesis>5.0.0,<7.0.0',
@@ -546,20 +550,14 @@ if __name__ == '__main__':
           # in https://github.com/apache/beam/blob/master/sdks/python/tox.ini
           # For more info, see
           # https://docs.google.com/document/d/1c84Gc-cZRCfrU8f7kWGsNR2o8oSRjCM-dGHO9KvPWPw/edit?usp=sharing
-          'torch': [
-              'torch<=1.13.0,<=2.0.0'
-          ],
-          'tensorflow': [
-              'tensorflow>=2.12rc1,<2.13'
-          ],
+          'torch': ['torch<=1.13.0,<2.1.0'],
+          'tensorflow': ['tensorflow>=2.12rc1,<2.13'],
           'transformers': [
               'transformers>=4.28.0,<4.49.0',
               'tensorflow==2.12.0',
               'torch>=1.9.0,<2.1.0'
           ],
-          'tft': [
-              'tensorflow_transform>=1.14.0,<1.15.0'
-          ],
+          'tft': ['tensorflow_transform>=1.14.0,<1.15.0'],
           'onnx': [
               'onnxruntime==1.13.1',
               'torch==1.13.1',
@@ -568,13 +566,8 @@ if __name__ == '__main__':
               'skl2onnx==1.13',
               'transformers==4.25.1'
           ],
-          'xgboost': [
-              'xgboost>=1.6.0,<2.1.3',
-              'datatable==1.0.0'
-          ],
-          'tensorflow-hub': [
-              'tensorflow-hub>=0.14.0,<0.16.0'
-          ]
+          'xgboost': ['xgboost>=1.6.0,<2.1.3', 'datatable==1.0.0'],
+          'tensorflow-hub': ['tensorflow-hub>=0.14.0,<0.16.0']
       },
       zip_safe=False,
       # PyPI package information.

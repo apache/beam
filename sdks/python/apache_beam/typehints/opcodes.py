@@ -490,6 +490,13 @@ def load_fast(state, arg):
   state.stack.append(state.vars[arg])
 
 
+def load_fast_load_fast(state, arg):
+  arg1 = arg >> 4
+  arg2 = arg & 15
+  state.stack.append(state.vars[arg1])
+  state.stack.append(state.vars[arg2])
+
+
 load_fast_check = load_fast
 
 
@@ -500,6 +507,20 @@ def load_fast_and_clear(state, arg):
 
 def store_fast(state, arg):
   state.vars[arg] = state.stack.pop()
+
+
+def store_fast_store_fast(state, arg):
+  arg1 = arg >> 4
+  arg2 = arg & 15
+  state.vars[arg1] = state.stack.pop()
+  state.vars[arg2] = state.stack.pop()
+
+
+def store_fast_load_fast(state, arg):
+  arg1 = arg >> 4
+  arg2 = arg & 15
+  state.vars[arg1] = state.stack.pop()
+  state.stack.append(state.vars[arg2])
 
 
 def delete_fast(state, arg):
@@ -555,23 +576,36 @@ def make_function(state, arg):
     pop_count = 2
     is_lambda = False
   closure = None
-  # arg contains flags, with corresponding stack values if positive.
-  # https://docs.python.org/3.6/library/dis.html#opcode-MAKE_FUNCTION
-  pop_count += bin(arg).count('1')
-  if arg & 0x08:
-    # Convert types in Tuple constraint to a tuple of CPython cells.
-    # https://stackoverflow.com/a/44670295
-    if is_lambda:
-      closureTuplePos = -2
-    else:
-      closureTuplePos = -3
-    closure = tuple((lambda _: lambda: _)(t).__closure__[0]
-                    for t in state.stack[closureTuplePos].tuple_types)
+  if (sys.version_info.major, sys.version_info.minor) < (3, 13):
+    # arg contains flags, with corresponding stack values if positive.
+    # https://docs.python.org/3.6/library/dis.html#opcode-MAKE_FUNCTION
+    pop_count += bin(arg).count('1')
+    if arg & 0x08:
+      # Convert types in Tuple constraint to a tuple of CPython cells.
+      # https://stackoverflow.com/a/44670295
+      if is_lambda:
+        closureTuplePos = -2
+      else:
+        closureTuplePos = -3
+      closure = tuple((lambda _: lambda: _)(t).__closure__[0]
+                      for t in state.stack[closureTuplePos].tuple_types)
 
   func = types.FunctionType(func_code, globals, name=func_name, closure=closure)
 
   assert pop_count <= len(state.stack)
   state.stack[-pop_count:] = [Const(func)]
+
+
+def set_function_attribute(state, arg):
+  func = state.stack.pop().value
+  attr = state.stack.pop().value
+  closure = None
+  if arg & 0x08:
+    closure = tuple((lambda _: lambda: _)(t).__closure__[0]
+                    for t in state.stack[attr].tuple_types)
+  new_func = types.FunctionType(
+      func.code, func.globals, name=func.name, closure=closure)
+  state.stack.append(Const(new_func))
 
 
 def make_closure(state, arg):
@@ -582,6 +616,10 @@ def build_slice(state, arg):
   state.stack[-arg:] = [slice]  # a slice object
 
 
+def to_bool(state, arg):
+  state.stack[-1] = bool
+
+
 def format_value(state, arg):
   if arg & 0x04:
     state.stack.pop()
@@ -589,12 +627,20 @@ def format_value(state, arg):
   state.stack.append(str)
 
 
+def convert_value(state, arg):
+  state.stack.pop()
+  state.stack.append(str)
+
+
 def format_simple(state, arg):
-  state.stack[-1:][str]
+  state.stack.pop()
+  state.stack.append(str)
 
 
 def format_with_spec(state, arg):
-  state.stack[-2:][str]
+  state.stack.pop()
+  state.stack.pop()
+  state.stack.append(str)
 
 
 def _unpack_lists(state, arg):

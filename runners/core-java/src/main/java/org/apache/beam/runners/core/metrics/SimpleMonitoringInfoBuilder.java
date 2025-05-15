@@ -30,6 +30,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpec;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpecs;
@@ -211,5 +212,10 @@ public class SimpleMonitoringInfoBuilder {
       return null;
     }
     return result;
+  }
+
+  public Optional<String> validate() {
+    final MonitoringInfo result = this.builder.build();
+    return VALIDATOR.validate(result);
   }
 }

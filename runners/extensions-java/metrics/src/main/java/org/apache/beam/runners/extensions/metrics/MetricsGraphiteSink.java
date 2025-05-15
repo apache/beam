@@ -31,6 +31,7 @@ import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.sdk.metrics.MetricsSink;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Sink to push metrics to Graphite. Graphite requires a timestamp. So metrics are reported with the
@@ -40,9 +41,6 @@ import org.apache.beam.sdk.metrics.MetricsSink;
  * {@code beam.counter.throughput.nbRecords.attempted.value} Or {@code
  * beam.distribution.throughput.nbRecordsPerSec.attempted.mean}
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class MetricsGraphiteSink implements MetricsSink {
   private static final Charset UTF_8 = Charset.forName("UTF-8");
   private static final Pattern WHITESPACE = Pattern.compile("[\\s]+");
@@ -103,7 +101,8 @@ public class MetricsGraphiteSink implements MetricsSink {
       try {
         messagePayload.append(createCommittedMessage());
       } catch (UnsupportedOperationException e) {
-        if (!e.getMessage().contains("committed metrics")) {
+        @Nullable String message = e.getMessage();
+        if (message != null && !message.contains("committed metrics")) {
           throw e;
         }
       }

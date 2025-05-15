@@ -224,8 +224,7 @@ def inject_test_tranforms(spec, test_spec, fix_failures):
       input_spec = scope.get_transform_spec(transform_id)['input']
       return {
           tag: require_output_or_outputs(input_ref)
-          for tag,
-          input_ref in yaml_transform.empty_if_explicitly_empty(
+          for tag, input_ref in yaml_transform.empty_if_explicitly_empty(
               input_spec).items()
       }
 

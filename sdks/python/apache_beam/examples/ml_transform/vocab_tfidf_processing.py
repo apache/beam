@@ -94,8 +94,7 @@ class ReadAndShuffleData(beam.PTransform):
         shuffled_examples
         | beam.Map(
             lambda label_review: {
-                REVIEW_COLUMN: label_review[0],
-                LABEL_COLUMN: label_review[1],
+                REVIEW_COLUMN: label_review[0], LABEL_COLUMN: label_review[1],
                 RAW_DATA_KEY: label_review[0]
             }))
 

@@ -164,7 +164,6 @@ import org.mockito.MockitoAnnotations;
 /** Tests for {@link ProcessBundleHandler}. */
 @RunWith(JUnit4.class)
 @SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "unused", // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of
   // errorprone is released (2.11.0)
 })
@@ -240,7 +239,7 @@ public class ProcessBundleHandlerTest {
   private static class TestBundleProcessor extends BundleProcessor {
     static int resetCnt = 0;
 
-    private BundleProcessor wrappedBundleProcessor;
+    private final BundleProcessor wrappedBundleProcessor;
 
     TestBundleProcessor(BundleProcessor wrappedBundleProcessor) {
       this.wrappedBundleProcessor = wrappedBundleProcessor;
@@ -327,7 +326,7 @@ public class ProcessBundleHandlerTest {
     }
 
     @Override
-    Collection<BeamFnDataReadRunner> getChannelRoots() {
+    Collection<BeamFnDataReadRunner<?>> getChannelRoots() {
       return wrappedBundleProcessor.getChannelRoots();
     }
 
@@ -459,7 +458,7 @@ public class ProcessBundleHandlerTest {
     List<RunnerApi.PTransform> transformsProcessed = new ArrayList<>();
     List<String> orderOfOperations = new ArrayList<>();
 
-    PTransformRunnerFactory<Object> startFinishRecorder =
+    PTransformRunnerFactory startFinishRecorder =
         (context) -> {
           String pTransformId = context.getPTransformId();
           transformsProcessed.add(context.getPTransform());
@@ -475,7 +474,6 @@ public class ProcessBundleHandlerTest {
                 assertThat(processBundleInstructionId.get(), equalTo("999L"));
                 orderOfOperations.add("Finish" + pTransformId);
               });
-          return null;
         };
 
     ProcessBundleHandler handler =
@@ -583,7 +581,7 @@ public class ProcessBundleHandlerTest {
 
     Map<String, PTransformRunnerFactory> urnToPTransformRunnerFactoryMap =
         Maps.newHashMap(REGISTERED_RUNNER_FACTORIES);
-    urnToPTransformRunnerFactoryMap.put(DATA_INPUT_URN, (context) -> null);
+    urnToPTransformRunnerFactoryMap.put(DATA_INPUT_URN, (context) -> {});
 
     ProcessBundleHandler handler =
         new ProcessBundleHandler(
@@ -647,7 +645,7 @@ public class ProcessBundleHandlerTest {
             null /* finalizeBundleHandler */,
             new ShortIdMap(),
             executionStateSampler,
-            ImmutableMap.of(DATA_INPUT_URN, (context) -> null),
+            ImmutableMap.of(DATA_INPUT_URN, (context) -> {}),
             Caches.noop(),
             new TestBundleProcessorCache(),
             null /* dataSampler */);
@@ -857,15 +855,13 @@ public class ProcessBundleHandlerTest {
             executionStateSampler,
             ImmutableMap.of(
                 DATA_INPUT_URN,
-                (PTransformRunnerFactory<Object>)
-                    (context) -> {
-                      BundleFinalizer bundleFinalizer = context.getBundleFinalizer();
-                      context.addStartBundleFunction(
-                          () ->
-                              bundleFinalizer.afterBundleCommit(
-                                  Instant.ofEpochMilli(42L), mockCallback));
-                      return null;
-                    }),
+                (context) -> {
+                  BundleFinalizer bundleFinalizer = context.getBundleFinalizer();
+                  context.addStartBundleFunction(
+                      () ->
+                          bundleFinalizer.afterBundleCommit(
+                              Instant.ofEpochMilli(42L), mockCallback));
+                }),
             Caches.noop(),
             new BundleProcessorCache(Duration.ZERO),
             null /* dataSampler */);
@@ -915,11 +911,8 @@ public class ProcessBundleHandlerTest {
             executionStateSampler,
             ImmutableMap.of(
                 DATA_INPUT_URN,
-                (PTransformRunnerFactory<Object>)
-                    (context) -> {
-                      context.addStartBundleFunction(ProcessBundleHandlerTest::throwException);
-                      return null;
-                    }),
+                (context) ->
+                    context.addStartBundleFunction(ProcessBundleHandlerTest::throwException)),
             Caches.noop(),
             new BundleProcessorCache(Duration.ZERO),
             null /* dataSampler */);
@@ -1051,16 +1044,13 @@ public class ProcessBundleHandlerTest {
         Maps.newHashMap(REGISTERED_RUNNER_FACTORIES);
     urnToPTransformRunnerFactoryMap.put(
         DATA_INPUT_URN,
-        (PTransformRunnerFactory<Object>)
-            (context) -> {
-              context.addIncomingDataEndpoint(
-                  ApiServiceDescriptor.getDefaultInstance(),
-                  KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()),
-                  (input) -> {
-                    dataOutput.add(input.getValue());
-                  });
-              return null;
-            });
+        (context) ->
+            context.addIncomingDataEndpoint(
+                ApiServiceDescriptor.getDefaultInstance(),
+                KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()),
+                (input) -> {
+                  dataOutput.add(input.getValue());
+                }));
 
     Mockito.doAnswer(
             (invocation) ->
@@ -1423,14 +1413,11 @@ public class ProcessBundleHandlerTest {
             executionStateSampler,
             ImmutableMap.of(
                 DATA_INPUT_URN,
-                (PTransformRunnerFactory<Object>)
-                    (context) -> {
-                      context.addIncomingDataEndpoint(
-                          ApiServiceDescriptor.getDefaultInstance(),
-                          StringUtf8Coder.of(),
-                          (input) -> {});
-                      return null;
-                    }),
+                (context) ->
+                    context.addIncomingDataEndpoint(
+                        ApiServiceDescriptor.getDefaultInstance(),
+                        StringUtf8Coder.of(),
+                        (input) -> {})),
             Caches.noop(),
             new BundleProcessorCache(Duration.ZERO),
             null /* dataSampler */);
@@ -1494,16 +1481,13 @@ public class ProcessBundleHandlerTest {
             executionStateSampler,
             ImmutableMap.of(
                 DATA_INPUT_URN,
-                (PTransformRunnerFactory<Object>)
-                    (context) -> {
-                      context.addIncomingDataEndpoint(
-                          ApiServiceDescriptor.getDefaultInstance(),
-                          StringUtf8Coder.of(),
-                          (input) -> {
-                            throw new IllegalStateException("TestException");
-                          });
-                      return null;
-                    }),
+                (context) ->
+                    context.addIncomingDataEndpoint(
+                        ApiServiceDescriptor.getDefaultInstance(),
+                        StringUtf8Coder.of(),
+                        (input) -> {
+                          throw new IllegalStateException("TestException");
+                        })),
             Caches.noop(),
             new BundleProcessorCache(Duration.ZERO),
             null /* dataSampler */);
@@ -1550,11 +1534,8 @@ public class ProcessBundleHandlerTest {
             executionStateSampler,
             ImmutableMap.of(
                 DATA_INPUT_URN,
-                (PTransformRunnerFactory<Object>)
-                    (context) -> {
-                      context.addFinishBundleFunction(ProcessBundleHandlerTest::throwException);
-                      return null;
-                    }),
+                (context) ->
+                    context.addFinishBundleFunction(ProcessBundleHandlerTest::throwException)),
             Caches.noop(),
             new BundleProcessorCache(Duration.ZERO),
             null /* dataSampler */);
@@ -1588,7 +1569,9 @@ public class ProcessBundleHandlerTest {
     Map<String, BeamFnApi.ProcessBundleDescriptor> fnApiRegistry =
         ImmutableMap.of("1L", processBundleDescriptor);
 
+    @SuppressWarnings("rawtypes")
     CompletableFuture<StateResponse>[] successfulResponse = new CompletableFuture[1];
+    @SuppressWarnings("rawtypes")
     CompletableFuture<StateResponse>[] unsuccessfulResponse = new CompletableFuture[1];
 
     BeamFnStateGrpcClientCache mockBeamFnStateGrpcClient =
@@ -1634,12 +1617,11 @@ public class ProcessBundleHandlerTest {
             executionStateSampler,
             ImmutableMap.of(
                 DATA_INPUT_URN,
-                new PTransformRunnerFactory<Object>() {
+                new PTransformRunnerFactory() {
                   @Override
-                  public Object createRunnerForPTransform(Context context) throws IOException {
+                  public void addRunnerForPTransform(Context context) throws IOException {
                     BeamFnStateClient beamFnStateClient = context.getBeamFnStateClient();
                     context.addStartBundleFunction(() -> doStateCalls(beamFnStateClient));
-                    return null;
                   }
 
                   private void doStateCalls(BeamFnStateClient beamFnStateClient) {
@@ -1689,12 +1671,11 @@ public class ProcessBundleHandlerTest {
             executionStateSampler,
             ImmutableMap.of(
                 DATA_INPUT_URN,
-                new PTransformRunnerFactory<Object>() {
+                new PTransformRunnerFactory() {
                   @Override
-                  public Object createRunnerForPTransform(Context context) throws IOException {
+                  public void addRunnerForPTransform(Context context) throws IOException {
                     BeamFnStateClient beamFnStateClient = context.getBeamFnStateClient();
                     context.addStartBundleFunction(() -> doStateCalls(beamFnStateClient));
-                    return null;
                   }
 
                   @SuppressWarnings("FutureReturnValueIgnored")
@@ -1775,7 +1756,7 @@ public class ProcessBundleHandlerTest {
             assertFalse(resetWasCalled.getAndSet(true));
           }
         };
-    PTransformRunnerFactory<Object> startFinishGuard =
+    PTransformRunnerFactory startFinishGuard =
         (context) -> {
           String pTransformId = context.getPTransformId();
           Supplier<String> processBundleInstructionId =
@@ -1789,7 +1770,6 @@ public class ProcessBundleHandlerTest {
               () -> {
                 finishLatch.await();
               });
-          return null;
         };
 
     BundleProcessorCache bundleProcessorCache = new BundleProcessorCache(Duration.ZERO);
@@ -1926,14 +1906,10 @@ public class ProcessBundleHandlerTest {
             executionStateSampler,
             ImmutableMap.of(
                 DATA_INPUT_URN,
-                new PTransformRunnerFactory<Object>() {
-                  @Override
-                  public Object createRunnerForPTransform(Context context) throws IOException {
+                context ->
                     context.addOutgoingTimersEndpoint(
-                        "timer", Timer.Coder.of(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE));
-                    return null;
-                  }
-                }),
+                        "timer",
+                        Timer.Coder.of(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE))),
             Caches.noop(),
             new BundleProcessorCache(Duration.ZERO),
             null /* dataSampler */);

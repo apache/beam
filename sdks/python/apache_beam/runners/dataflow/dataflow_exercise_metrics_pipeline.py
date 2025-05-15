@@ -164,14 +164,8 @@ def apply_and_run(pipeline):
       | beam.GroupByKey()
       | 'm_out' >> beam.FlatMap(
           lambda x: [
-              1,
-              2,
-              3,
-              4,
-              5,
-              beam.pvalue.TaggedOutput('once', x),
-              beam.pvalue.TaggedOutput('twice', x),
-              beam.pvalue.TaggedOutput('twice', x)
+              1, 2, 3, 4, 5, beam.pvalue.TaggedOutput('once', x), beam.pvalue.
+              TaggedOutput('twice', x), beam.pvalue.TaggedOutput('twice', x)
           ]))
   result = pipeline.run()
   result.wait_until_finish()

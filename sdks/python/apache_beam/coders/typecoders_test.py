@@ -24,6 +24,7 @@ from apache_beam.coders import coders
 from apache_beam.coders import typecoders
 from apache_beam.internal import pickler
 from apache_beam.typehints import typehints
+from apache_beam.utils import windowed_value
 
 
 class CustomClass(object):
@@ -140,6 +141,23 @@ class TypeCodersTest(unittest.TestCase):
     self.assertEqual(expected_coder, real_coder)
     self.assertEqual(expected_coder.encode(None), real_coder.encode(None))
     self.assertEqual(expected_coder.encode(b'abc'), real_coder.encode(b'abc'))
+
+  def test_paneinfo_coder(self):
+    expected_coder = coders.PaneInfoCoder()
+    real_coder = typecoders.registry.get_coder(windowed_value.PaneInfo)
+    self.assertEqual(expected_coder, real_coder)
+    for i in range(10):
+      pane_info = windowed_value.PaneInfo(
+          is_first=i == 0,
+          is_last=i == 9,
+          timing=windowed_value.PaneInfoTiming.EARLY,  # 0
+          index=i,
+          nonspeculative_index=-1)
+
+      encoded = real_coder.encode(pane_info)
+
+      self.assertEqual(expected_coder.encode(pane_info), encoded)
+      self.assertEqual(pane_info, real_coder.decode(encoded))
 
 
 if __name__ == '__main__':

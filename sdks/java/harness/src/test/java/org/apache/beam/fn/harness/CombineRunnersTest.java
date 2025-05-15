@@ -135,7 +135,7 @@ public class CombineRunnersTest {
             (FnDataReceiver<WindowedValue<KV<String, Integer>>>) mainOutputValues::add);
 
     // Create runner.
-    new CombineRunners.PrecombineFactory<>().createRunnerForPTransform(context);
+    new CombineRunners.PrecombineFactory().addRunnerForPTransform(context);
 
     Iterables.getOnlyElement(context.getStartBundleFunctions()).run();
 
@@ -219,7 +219,7 @@ public class CombineRunnersTest {
 
     // Create runner.
     MapFnRunners.forValueMapFnFactory(CombineRunners::createMergeAccumulatorsMapFunction)
-        .createRunnerForPTransform(context);
+        .addRunnerForPTransform(context);
 
     assertThat(context.getStartBundleFunctions(), empty());
     assertThat(context.getFinishBundleFunctions(), empty());
@@ -283,7 +283,7 @@ public class CombineRunnersTest {
 
     // Create runner.
     MapFnRunners.forValueMapFnFactory(CombineRunners::createExtractOutputsMapFunction)
-        .createRunnerForPTransform(context);
+        .addRunnerForPTransform(context);
 
     assertThat(context.getStartBundleFunctions(), empty());
     assertThat(context.getFinishBundleFunctions(), empty());
@@ -330,7 +330,7 @@ public class CombineRunnersTest {
 
     // Create runner.
     MapFnRunners.forValueMapFnFactory(CombineRunners::createConvertToAccumulatorsMapFunction)
-        .createRunnerForPTransform(context);
+        .addRunnerForPTransform(context);
 
     assertThat(context.getStartBundleFunctions(), empty());
     assertThat(context.getFinishBundleFunctions(), empty());
@@ -400,7 +400,7 @@ public class CombineRunnersTest {
 
     // Create runner.
     MapFnRunners.forValueMapFnFactory(CombineRunners::createCombineGroupedValuesMapFunction)
-        .createRunnerForPTransform(context);
+        .addRunnerForPTransform(context);
 
     assertThat(context.getStartBundleFunctions(), empty());
     assertThat(context.getFinishBundleFunctions(), empty());

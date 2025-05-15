@@ -202,7 +202,7 @@ public class AssignWindowsRunnerTest implements Serializable {
     context.addPCollectionConsumer("output", outputs::add);
 
     MapFnRunners.forWindowedValueMapFnFactory(new AssignWindowsMapFnFactory<>())
-        .createRunnerForPTransform(context);
+        .addRunnerForPTransform(context);
 
     WindowedValue<Integer> value =
         WindowedValue.of(

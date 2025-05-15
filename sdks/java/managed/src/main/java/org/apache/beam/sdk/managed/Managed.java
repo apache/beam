@@ -46,7 +46,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  * <h3>Available transforms</h3>
  *
  * <p>This API currently supports two operations: {@link Managed#read} and {@link Managed#write}.
- * Each one enumerates the available transforms in a {@code TRANSFORMS} map.
+ * Please check the <a href="https://beam.apache.org/documentation/io/managed-io/">Managed IO
+ * configuration page</a> to see available transforms and config options.
  *
  * <h3>Building a Managed turnkey transform</h3>
  *
@@ -165,6 +166,8 @@ public class Managed {
 
   @AutoValue
   public abstract static class ManagedTransform extends PTransform<PInput, PCollectionRowTuple> {
+    public static final String INPUT = "input";
+
     abstract String getIdentifier();
 
     abstract @Nullable Map<String, Object> getConfig();
@@ -242,8 +245,7 @@ public class Managed {
                 + "(using .setRowSchema()). Instead, found collection %s with coder: %s.",
             inputCollection.getName(),
             inputCollection.getCoder());
-        return PCollectionRowTuple.of(
-            ManagedTransformConstants.INPUT, (PCollection<Row>) inputCollection);
+        return PCollectionRowTuple.of(INPUT, (PCollection<Row>) inputCollection);
       } else if (input instanceof PCollectionRowTuple) {
         return (PCollectionRowTuple) input;
       }

@@ -29,18 +29,21 @@ import unittest
 import mock
 
 import apache_beam as beam
+from apache_beam import ManagedReplacement
 from apache_beam import Pipeline
 from apache_beam.coders import RowCoder
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.portability.api import beam_expansion_api_pb2
 from apache_beam.portability.api import external_transforms_pb2
 from apache_beam.portability.api import schema_pb2
+from apache_beam.portability.common_urns import ManagedTransforms
 from apache_beam.runners import pipeline_context
 from apache_beam.runners.portability import expansion_service
 from apache_beam.runners.portability.expansion_service_test import FibTransform
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms import external
+from apache_beam.transforms.external import MANAGED_SCHEMA_TRANSFORM_IDENTIFIER
 from apache_beam.transforms.external import AnnotationBasedPayloadBuilder
 from apache_beam.transforms.external import ImplicitSchemaPayloadBuilder
 from apache_beam.transforms.external import JavaClassLookupPayloadBuilder
@@ -530,8 +533,28 @@ class SchemaAwareExternalTransformTest(unittest.TestCase):
               id="test-id"),
           input_pcollection_names=["input"],
           output_pcollection_names=["output"])
+
+      test_managed_config = beam_expansion_api_pb2.SchemaTransformConfig(
+          config_schema=schema_pb2.Schema(
+              fields=[
+                  schema_pb2.Field(
+                      name="transform_identifier",
+                      type=schema_pb2.FieldType(atomic_type="STRING")),
+                  schema_pb2.Field(
+                      name="config_url",
+                      type=schema_pb2.FieldType(atomic_type="STRING")),
+                  schema_pb2.Field(
+                      name="config",
+                      type=schema_pb2.FieldType(atomic_type="STRING"))
+              ],
+              id="test-id1"),
+          input_pcollection_names=["input"],
+          output_pcollection_names=["output"])
       return beam_expansion_api_pb2.DiscoverSchemaTransformResponse(
-          schema_transform_configs={"test_schematransform": test_config})
+          schema_transform_configs={
+              "test_schematransform": test_config,
+              MANAGED_SCHEMA_TRANSFORM_IDENTIFIER: test_managed_config
+          })
 
   @mock.patch("apache_beam.transforms.external.ExternalTransform.service")
   def test_discover_one_config(self, mock_service):
@@ -572,6 +595,47 @@ class SchemaAwareExternalTransformTest(unittest.TestCase):
 
     self.assertNotEqual(tuple(kwargs.keys()), external_config_fields)
     self.assertEqual(tuple(ordered_fields), external_config_fields)
+
+  @mock.patch("apache_beam.transforms.external.ExternalTransform.service")
+  def test_managed_replacement_unknown_id(self, mock_service):
+    mock_service.return_value = self.MockDiscoveryService()
+
+    identifier = "test_schematransform"
+    kwargs = {"int_field": 0, "str_field": "str"}
+
+    managed_replacement = ManagedReplacement(
+        underlying_transform_identifier="unknown_id",
+        update_compatibility_version="2.50.0")
+
+    with self.assertRaises(ValueError):
+      beam.SchemaAwareExternalTransform(
+          identifier=identifier,
+          expansion_service=expansion_service,
+          rearrange_based_on_discovery=True,
+          managed_replacement=managed_replacement,
+          **kwargs)
+
+  @mock.patch("apache_beam.transforms.external.ExternalTransform.service")
+  @mock.patch("apache_beam.transforms.external.BeamJarExpansionService")
+  def test_managed_replacement_known_id(
+      self, mock_service, mock_beam_jar_service):
+    mock_service.return_value = self.MockDiscoveryService()
+    mock_beam_jar_service.return_value = self.MockDiscoveryService()
+
+    identifier = "test_schematransform"
+    kwargs = {"int_field": 0, "str_field": "str"}
+
+    managed_replacement = ManagedReplacement(
+        underlying_transform_identifier=ManagedTransforms.Urns.ICEBERG_READ.urn,
+        update_compatibility_version="2.50.0")
+
+    external_transform = beam.SchemaAwareExternalTransform(
+        identifier=identifier,
+        expansion_service=expansion_service,
+        rearrange_based_on_discovery=True,
+        managed_replacement=managed_replacement,
+        **kwargs)
+    self.assertIsNotNone(external_transform._managed_payload_builder)
 
 
 class JavaClassLookupPayloadBuilderTest(unittest.TestCase):

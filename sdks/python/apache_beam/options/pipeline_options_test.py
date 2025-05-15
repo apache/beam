@@ -750,6 +750,20 @@ class PipelineOptionsTest(unittest.TestCase):
             'x-goog-custom-audit-id': '1234'
         })
 
+  def test_gcs_custom_audit_entries_wo_duplicated_prefix(self):
+    options = PipelineOptions([
+        '--gcs_custom_audit_entry=x-goog-custom-audit-user=test-user',
+        '--gcs_custom_audit_entries={"job":"test-job", "id":"1234"}'
+    ])
+    entries = options.view_as(GoogleCloudOptions).gcs_custom_audit_entries
+    self.assertDictEqual(
+        entries,
+        {
+            'x-goog-custom-audit-user': 'test-user',
+            'x-goog-custom-audit-job': 'test-job',
+            'x-goog-custom-audit-id': '1234'
+        })
+
   @mock.patch('apache_beam.options.pipeline_options._BeamArgumentParser.error')
   def test_gcs_custom_audit_entries_with_errors(self, mock_error):
     long_key = 'a' * 65

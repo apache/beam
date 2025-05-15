@@ -281,11 +281,9 @@ class PrismJobServerTest(unittest.TestCase):
                          [False, False]])
   def test_with_unknown_path(self, custom_bin_cache, ignore_cache):
     self.assertRaises(
-        FileNotFoundError,
-        lambda: self.job_server.local_bin(
-            "/path/unknown",
-            bin_cache=self.cache_dir if custom_bin_cache else '',
-            ignore_cache=ignore_cache))
+        FileNotFoundError, lambda: self.job_server.local_bin(
+            "/path/unknown", bin_cache=self.cache_dir
+            if custom_bin_cache else '', ignore_cache=ignore_cache))
 
   @parameterized.expand([
       [True, True, True],

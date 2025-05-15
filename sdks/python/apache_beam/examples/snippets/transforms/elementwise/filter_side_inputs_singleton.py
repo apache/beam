@@ -61,8 +61,7 @@ def filter_side_inputs_singleton(test=None):
             },
         ])
         | 'Filter perennials' >> beam.Filter(
-            lambda plant,
-            duration: plant['duration'] == duration,
+            lambda plant, duration: plant['duration'] == duration,
             duration=beam.pvalue.AsSingleton(perennial),
         )
         | beam.Map(print))

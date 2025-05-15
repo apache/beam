@@ -234,8 +234,7 @@ def transform_docs(transform_base, transforms, providers, extra_docs=''):
       longest(
           lambda t: longest(
               lambda p: add_transform_links(
-                  t, p.description(t), providers.keys()),
-              providers[t]),
+                  t, p.description(t), providers.keys()), providers[t]),
           transforms).replace('::\n', '\n\n    :::yaml\n'),
       '',
       extra_docs,
@@ -519,6 +518,7 @@ def markdown_to_html(title, markdown_content, header=''):
   return f'''
             <html>
               <head>
+                <meta charset="UTF-8">
                 <title>{title}</title>
                 <style>
                 {pygments_style}

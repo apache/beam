@@ -704,21 +704,23 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
 
   @classmethod
   @overload
-  def register_urn(cls,
-                   urn,  # type: str
-                   parameter_type,  # type: type[T]
-                   constructor  # type: Callable[[beam_runner_api_pb2.PTransform, T, PipelineContext], Any]
-                  ):
+  def register_urn(
+      cls,
+      urn,  # type: str
+      parameter_type,  # type: type[T]
+      constructor  # type: Callable[[beam_runner_api_pb2.PTransform, T, PipelineContext], Any]
+  ):
     # type: (...) -> None
     pass
 
   @classmethod
   @overload
-  def register_urn(cls,
-                   urn,  # type: str
-                   parameter_type,  # type: None
-                   constructor  # type: Callable[[beam_runner_api_pb2.PTransform, bytes, PipelineContext], Any]
-                  ):
+  def register_urn(
+      cls,
+      urn,  # type: str
+      parameter_type,  # type: None
+      constructor  # type: Callable[[beam_runner_api_pb2.PTransform, bytes, PipelineContext], Any]
+  ):
     # type: (...) -> None
     pass
 
@@ -754,10 +756,11 @@ class PTransform(WithTypeHints, HasDisplayData, Generic[InputT, OutputT]):
         if isinstance(typed_param, str) else typed_param)
 
   @classmethod
-  def from_runner_api(cls,
-                      proto,  # type: Optional[beam_runner_api_pb2.PTransform]
-                      context  # type: PipelineContext
-                     ):
+  def from_runner_api(
+      cls,
+      proto,  # type: Optional[beam_runner_api_pb2.PTransform]
+      context  # type: PipelineContext
+  ):
     # type: (...) -> Optional[PTransform]
     if proto is None or proto.spec is None or not proto.spec.urn:
       return None
@@ -1202,8 +1205,7 @@ def annotate_yaml(constructor):
         # The outermost call is expected to be the most specific.
         'yaml_provider': 'python',
         'yaml_type': 'PyTransform',
-        'yaml_args': config,
-    }
+        'yaml_args': config, }
     return transform
 
   return wrapper

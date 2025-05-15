@@ -12,9 +12,9 @@
 
 import * as React from 'react';
 
-import { render, unmountComponentAtNode } from 'react-dom';
+import { createRoot, Root } from 'react-dom/client';
 
-import { act } from 'react-dom/test-utils';
+import { act } from 'react';
 
 import { InspectableList } from '../../inspector/InspectableList';
 
@@ -23,20 +23,35 @@ import { InspectableViewModel } from '../../inspector/InspectableViewModel';
 const mockedInspectableViewModel = new InspectableViewModel({} as any);
 
 let container: null | Element = null;
+let root: Root | null = null;
 beforeEach(() => {
   container = document.createElement('div');
   document.body.appendChild(container);
+  root = createRoot(container);
 });
 
-afterEach(() => {
-  unmountComponentAtNode(container);
-  container.remove();
-  container = null;
+afterEach(async () => {
+  try {
+    if (root) {
+      await act(async () => {
+        root.unmount();
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+    }
+  } catch (error) {
+    console.warn('During unmount:', error);
+  } finally {
+    if (container?.parentNode) {
+      container.remove();
+    }
+    container = null;
+    root = null;
+  }
 });
 
-it('renders a list', () => {
-  act(() => {
-    render(
+it('renders a list', async () => {
+  await act(async () => {
+    root.render(
       <InspectableList
         inspectableViewModel={mockedInspectableViewModel as any}
         id="pipeline_id"
@@ -57,27 +72,26 @@ it('renders a list', () => {
             type: 'pcollection'
           }
         }}
-      />,
-      container
+      />
     );
   });
-  const listElement: Element = container.firstElementChild;
-  const listHandle: Element = listElement.firstElementChild;
+  const listElement = container.firstElementChild as Element;
+  const listHandle = listElement.firstElementChild as Element;
   expect(listHandle.tagName).toBe('DIV');
   expect(listHandle.getAttribute('class')).toContain(
     'rmwc-collapsible-list__handle'
   );
-  const listHandleItem: Element = listHandle.firstElementChild;
+  const listHandleItem = listHandle.firstElementChild as Element;
   expect(listHandleItem.tagName).toBe('LI');
   expect(listHandleItem.getAttribute('class')).toContain('mdc-list-item');
-  const listHandleText: Element = listHandleItem.firstElementChild;
+  const listHandleText = listHandleItem.children[2] as Element;
   expect(listHandleText.getAttribute('class')).toContain('mdc-list-item__text');
-  const listHandlePrimaryText: Element = listHandleText.firstElementChild;
+  const listHandlePrimaryText = listHandleText.firstElementChild as Element;
   expect(listHandlePrimaryText.getAttribute('class')).toContain(
     'mdc-list-item__primary-text'
   );
   expect(listHandlePrimaryText.textContent).toBe('pipeline_name');
-  const listHandleMetaIcon: Element = listHandleItem.children[1];
+  const listHandleMetaIcon = listHandleItem.children[3] as Element;
   expect(listHandleMetaIcon.tagName).toBe('I');
   expect(listHandleMetaIcon.getAttribute('class')).toContain(
     'mdc-list-item__meta'
@@ -85,12 +99,12 @@ it('renders a list', () => {
   expect(listHandleMetaIcon.textContent).toBe('chevron_right');
   // Only check existence of collapsible list children because each child is an
   // individual list item that has its own unit tests.
-  const listChildren: Element = listElement.children[1];
+  const listChildren = listElement.children[1] as Element;
   expect(listChildren.tagName).toBe('DIV');
   expect(listChildren.getAttribute('class')).toContain(
     'rmwc-collapsible-list__children'
   );
-  const listChildItems: HTMLCollection =
-    listChildren.firstElementChild.children;
+  const listChildItems = listChildren.firstElementChild
+    .children as HTMLCollection;
   expect(listChildItems).toHaveLength(2);
 });

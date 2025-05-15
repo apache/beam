@@ -486,9 +486,8 @@ class SlidingWindows(NonMergingWindowFn):
             (interval_start := Timestamp(micros=s)),
             interval_start + self.size,
         ) for s in range(
-            start.micros,
-            timestamp.micros - self.size.micros,
-            -self.period.micros)
+            start.micros, timestamp.micros -
+            self.size.micros, -self.period.micros)
     ]
 
   def get_window_coder(self) -> coders.IntervalWindowCoder:

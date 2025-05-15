@@ -208,8 +208,10 @@ public abstract class SpannerSchema implements Serializable {
             return Type.bytes();
           }
           if (spannerType.startsWith("ARRAY")) {
-            // Substring "ARRAY<xxx>"
-            Pattern pattern = Pattern.compile("ARRAY<([^>(]+)>");
+            // find 'xxx' in string ARRAY<xxxxx>
+            // Graph DBs may have suffixes, eg ARRAY<FLOAT32>(vector_length=>256)
+            //
+            Pattern pattern = Pattern.compile("ARRAY<([^>]+)>");
             Matcher matcher = pattern.matcher(originalSpannerType);
 
             if (matcher.find()) {

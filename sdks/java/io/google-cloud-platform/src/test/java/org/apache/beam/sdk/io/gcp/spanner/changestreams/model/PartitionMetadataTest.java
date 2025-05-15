@@ -125,23 +125,6 @@ public class PartitionMetadataTest {
   }
 
   @Test
-  public void testBuilderThrowsExceptionWhenParentTokenMissing() {
-    assertThrows(
-        "parentToken",
-        IllegalStateException.class,
-        () ->
-            PartitionMetadata.newBuilder()
-                .setPartitionToken(PARTITION_TOKEN)
-                .setStartTimestamp(START_TIMESTAMP)
-                .setEndTimestamp(END_TIMESTAMP)
-                .setHeartbeatMillis(10)
-                .setState(State.CREATED)
-                .setWatermark(WATERMARK)
-                .setCreatedAt(CREATED_AT)
-                .build());
-  }
-
-  @Test
   public void testBuilderThrowsExceptionWhenStartTimestampMissing() {
     assertThrows(
         "startTimestamp",

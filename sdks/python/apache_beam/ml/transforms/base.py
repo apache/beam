@@ -628,8 +628,8 @@ class _MLTransformToPTransformMapper:
               self._parent_artifact_location, uuid.uuid4().hex[:6]),
           artifact_mode=self.artifact_mode)
       append_transform = hasattr(current_ptransform, 'append_transform')
-      if (type(current_ptransform) !=
-          previous_ptransform_type) or not append_transform:
+      if (type(current_ptransform)
+          != previous_ptransform_type) or not append_transform:
         ptransform_list.append(current_ptransform)
         previous_ptransform_type = type(current_ptransform)
       # If different PTransform is appended to the list and the PTransform

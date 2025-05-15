@@ -38,10 +38,9 @@ import org.apache.beam.runners.spark.translation.DoFnRunnerWithMetrics;
 import org.apache.beam.runners.spark.translation.SparkInputDataProcessor;
 import org.apache.beam.runners.spark.translation.SparkProcessContext;
 import org.apache.beam.runners.spark.util.ByteArray;
-import org.apache.beam.runners.spark.util.CachedSideInputReader;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
-import org.apache.beam.runners.spark.util.SparkSideInputReader;
+import org.apache.beam.runners.spark.util.SideInputReaderFactory;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
@@ -109,6 +108,8 @@ public class ParDoStateUpdateFn<KeyT, ValueT, InputT extends KV<KeyT, ValueT>, O
   private final Map<Integer, GlobalWatermarkHolder.SparkWatermarks> watermarks;
   private final List<Integer> sourceIds;
   private final TimerInternals.TimerDataCoderV2 timerDataCoder;
+  // for sideInput
+  private final boolean useStreamingSideInput;
 
   public ParDoStateUpdateFn(
       MetricsContainerStepMapAccumulator metricsAccum,
@@ -126,7 +127,8 @@ public class ParDoStateUpdateFn<KeyT, ValueT, InputT extends KV<KeyT, ValueT>, O
       DoFnSchemaInformation doFnSchemaInformation,
       Map<String, PCollectionView<?>> sideInputMapping,
       Map<Integer, GlobalWatermarkHolder.SparkWatermarks> watermarks,
-      List<Integer> sourceIds) {
+      List<Integer> sourceIds,
+      boolean useStreamingSideInput) {
     this.metricsAccum = metricsAccum;
     this.stepName = stepName;
     this.doFn = SerializableUtils.clone(doFn);
@@ -145,6 +147,7 @@ public class ParDoStateUpdateFn<KeyT, ValueT, InputT extends KV<KeyT, ValueT>, O
     this.sourceIds = sourceIds;
     this.timerDataCoder =
         TimerInternals.TimerDataCoderV2.of(windowingStrategy.getWindowFn().windowCoder());
+    this.useStreamingSideInput = useStreamingSideInput;
   }
 
   @Override
@@ -199,7 +202,7 @@ public class ParDoStateUpdateFn<KeyT, ValueT, InputT extends KV<KeyT, ValueT>, O
         DoFnRunners.simpleRunner(
             options.get(),
             doFn,
-            CachedSideInputReader.of(new SparkSideInputReader(sideInputs)),
+            SideInputReaderFactory.create(this.useStreamingSideInput, this.sideInputs),
             processor.getOutputManager(),
             (TupleTag<OutputT>) mainOutputTag,
             additionalOutputTags,

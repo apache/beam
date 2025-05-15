@@ -131,14 +131,9 @@ class DeferredPandasModule(object):
         expressions.ComputedExpression(
             'concat',
             lambda *objs: pd.concat(
-                objs,
-                axis=axis,
-                join=join,
-                ignore_index=ignore_index,
-                keys=keys,
-                levels=levels,
-                names=names,
-                verify_integrity=verify_integrity),  # yapf break
+                objs, axis=axis, join=join, ignore_index=ignore_index, keys=
+                keys, levels=levels, names=names, verify_integrity=
+                verify_integrity),  # yapf break
             exprs,
             requires_partition_by=required_partitioning,
             preserves_partition_by=preserves_partitioning))

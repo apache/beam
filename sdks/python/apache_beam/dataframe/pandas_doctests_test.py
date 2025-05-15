@@ -23,6 +23,8 @@ from apache_beam.dataframe import doctests
 from apache_beam.dataframe.frames import PD_VERSION
 from apache_beam.dataframe.pandas_top_level_functions import _is_top_level_function
 
+# pylint: skip-file
+
 
 @unittest.skipIf(
     sys.platform == 'win32', '[https://github.com/apache/beam/issues/20361]')
@@ -70,8 +72,7 @@ class DoctestTest(unittest.TestCase):
                 "df.loc['2016-01-05':'2016-01-10', :].tail()"
             ],
             'pandas.core.generic.NDFrame.replace': [
-                "s.replace([1, 2], method='bfill')",
-                # Relies on method='pad'
+                "s.replace([1, 2], method='bfill')",  # Relies on method='pad'
                 "s.replace('a')",
                 # Relies on method='pad'
                 # value=None is not valid for pandas < 1.4
@@ -142,8 +143,7 @@ class DoctestTest(unittest.TestCase):
                 #   some kind, 2 was passed
                 # pandas doctests only verify the type of exception
                 'df.rename(2)'
-            ],
-            # For pandas >= 1.4, rename is changed to _rename
+            ],  # For pandas >= 1.4, rename is changed to _rename
             'pandas.core.generic.NDFrame._rename': [
                 # Seems to be an upstream bug. The actual error has a different
                 # message:
@@ -151,8 +151,7 @@ class DoctestTest(unittest.TestCase):
                 #   some kind, 2 was passed
                 # pandas doctests only verify the type of exception
                 'df.rename(2)'
-            ],
-            # Tests rely on setting index
+            ],  # Tests rely on setting index
             'pandas.core.generic.NDFrame.rename_axis': ['*'],
             # Raises right exception, but testing framework has matching issues.
             'pandas.core.generic.NDFrame.replace': [
@@ -160,7 +159,7 @@ class DoctestTest(unittest.TestCase):
             ],
             'pandas.core.generic.NDFrame.squeeze': ['*'],
 
-            # NameError
+  # NameError
             'pandas.core.generic.NDFrame.resample': ['df'],
 
             # Skipped so we don't need to install natsort
@@ -211,8 +210,7 @@ class DoctestTest(unittest.TestCase):
                 "df.nsmallest(3, 'population', keep='last')",
             ],
             'pandas.core.frame.DataFrame.replace': [
-                "s.replace([1, 2], method='bfill')",
-                # Relies on method='pad'
+                "s.replace([1, 2], method='bfill')",  # Relies on method='pad'
                 "s.replace('a')",
                 # Relies on method='pad'
                 # value=None is not valid for pandas < 1.4
@@ -256,8 +254,7 @@ class DoctestTest(unittest.TestCase):
                 "df.melt(id_vars=[('A', 'D')], value_vars=[('B', 'E')])",
                 "df.melt(id_vars=['A'], value_vars=['B'],\n" +
                 "        var_name='myVarname', value_name='myValname')"
-            ],
-            # Most keep= options are order-sensitive
+            ],  # Most keep= options are order-sensitive
             'pandas.core.frame.DataFrame.drop_duplicates': ['*'],
             'pandas.core.frame.DataFrame.duplicated': [
                 'df.duplicated()',
@@ -294,20 +291,18 @@ class DoctestTest(unittest.TestCase):
                 "df1.merge(df2, how='cross')"
             ],
 
-            # TODO(https://github.com/apache/beam/issues/20759)
+  # TODO(https://github.com/apache/beam/issues/20759)
             'pandas.core.frame.DataFrame.set_index': [
                 "df.set_index([s, s**2])",
             ],
-
             'pandas.core.frame.DataFrame.set_axis': [
                 "df.set_axis(range(0,2), axis='index')",
             ],
 
-            # TODO(https://github.com/apache/beam/issues/21014)
+  # TODO(https://github.com/apache/beam/issues/21014)
             'pandas.core.frame.DataFrame.value_counts': [
-              'df.value_counts(dropna=False)'
+                'df.value_counts(dropna=False)'
             ],
-
             'pandas.core.frame.DataFrame.to_timestamp': ['*']
         },
         skip={
@@ -315,14 +310,12 @@ class DoctestTest(unittest.TestCase):
             '*': [
                 # mul doesn't work in Beam with axis='index'.
                 "df.mul({'circle': 0, 'triangle': 2, 'rectangle': 3}, "
-                  "axis='index')",
-                # eq doesn't work with axis='index'.
+                "axis='index')",  # eq doesn't work with axis='index'.
                 "df.eq([250, 250, 100], axis='index')",
                 # New test in Pandas 2.1 that uses indexes.
                 'df != pd.Series([100, 250], index=["cost", "revenue"])',
                 # New test in Pandas 2.1 that uses indexes.
                 'df.le(df_multindex, level=1)'
-
             ],
             # DeferredDataFrame  doesn't implement the DF interchange protocol.
             'pandas.core.frame.DataFrame.__dataframe__': ['*'],
@@ -335,20 +328,17 @@ class DoctestTest(unittest.TestCase):
                 'df',
                 'df2 = pd.DataFrame(data=df1, index=["a", "c"])',
                 'df2',
-            ],
-            # s2 created with reindex
+            ],  # s2 created with reindex
             'pandas.core.frame.DataFrame.dot': [
                 'df.dot(s2)',
             ],
-
             'pandas.core.frame.DataFrame.resample': ['df'],
             'pandas.core.frame.DataFrame.asfreq': ['*'],
             # Throws NotImplementedError when modifying df
             'pandas.core.frame.DataFrame.axes': [
                 # Returns deferred index.
                 'df.axes',
-            ],
-            # Skipped because the relies on loc to set cells in df2
+            ],  # Skipped because the relies on loc to set cells in df2
             'pandas.core.frame.DataFrame.compare': ['*'],
             'pandas.core.frame.DataFrame.cov': [
                 # Relies on setting entries ahead of time.
@@ -371,8 +361,7 @@ class DoctestTest(unittest.TestCase):
                 # This should pass as set_axis(axis='columns')
                 # and fail with set_axis(axis='index')
                 "df.set_axis(['a', 'b', 'c'], axis='index')"
-            ],
-            # Beam's implementation takes a filepath as an argument.
+            ],  # Beam's implementation takes a filepath as an argument.
             'pandas.core.frame.DataFrame.to_html': ['*'],
             'pandas.core.frame.DataFrame.to_markdown': ['*'],
             'pandas.core.frame.DataFrame.to_parquet': ['*'],
@@ -384,11 +373,10 @@ class DoctestTest(unittest.TestCase):
                 'df.insert(1, "newcol", [99, 99])',
                 'df.insert(0, "col1", [100, 100], allow_duplicates=True)'
             ],
-
             'pandas.core.frame.DataFrame.to_records': [
                 'df.index = df.index.rename("I")',
-                'index_dtypes = f"<S{df.index.str.len().max()}"', # 1.x
-                'index_dtypes = "<S{}".format(df.index.str.len().max())', #0.x
+                'index_dtypes = f"<S{df.index.str.len().max()}"',  # 1.x
+                'index_dtypes = "<S{}".format(df.index.str.len().max())',  #0.x
                 'df.to_records(index_dtypes=index_dtypes)',
             ],
             # These tests use the static method pd.pivot_table, which doesn't
@@ -404,8 +392,7 @@ class DoctestTest(unittest.TestCase):
                 'df.pivot(index=["lev1", "lev2"], columns=["lev3"],values="values")',
                 'df.pivot(index="lev1", columns=["lev2", "lev3"], values="values")',
                 'df.pivot(index=["lev1", "lev2"], columns=["lev3"], values="values")',
-            ],
-            # pylint: enable=line-too-long
+            ],  # pylint: enable=line-too-long
             'pandas.core.frame.DataFrame.append': [
                 'df',
                 # pylint: disable=line-too-long
@@ -416,14 +403,12 @@ class DoctestTest(unittest.TestCase):
             # Fails when result is a singleton:
             # https://github.com/apache/beam/issues/28559
             'pandas.core.frame.DataFrame.kurt': [
-                'df.kurt(axis=None).round(6)',
-                's.kurt()'
+                'df.kurt(axis=None).round(6)', 's.kurt()'
             ],
             # Fails when result is a singleton:
             # https://github.com/apache/beam/issues/28559
             'pandas.core.frame.DataFrame.sem': [
-                'df.sem().round(6)',
-                's.sem().round(6)'
+                'df.sem().round(6)', 's.sem().round(6)'
             ],
             'pandas.core.frame.DataFrame.melt': [
                 "df.columns = [list('ABC'), list('DEF')]", "df"
@@ -458,8 +443,7 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.frame.DataFrame.map': [
                 'df_copy.iloc[0, 0] = pd.NA',
                 "df_copy.map(lambda x: len(str(x)), na_action='ignore')",
-            ],
-            # Skipped so we don't need to install natsort
+            ],  # Skipped so we don't need to install natsort
             'pandas.core.frame.DataFrame.sort_values': [
                 'from natsort import index_natsorted',
                 'df.sort_values(\n'
@@ -531,8 +515,7 @@ class DoctestTest(unittest.TestCase):
                 's1.append(s2, ignore_index=True)',
             ],
             'pandas.core.series.Series.replace': [
-                "s.replace([1, 2], method='bfill')",
-                # Relies on method='pad'
+                "s.replace([1, 2], method='bfill')",  # Relies on method='pad'
                 "s.replace('a')",
                 # Relies on method='pad'
                 # value=None is not valid for pandas < 1.4
@@ -581,16 +564,14 @@ class DoctestTest(unittest.TestCase):
                 # indexes are identical and elide the alignment.
                 'ser.groupby(ser > 100).mean()',
             ],
-            'pandas.core.series.Series.asfreq': ['*'],
-            # error formatting
+            'pandas.core.series.Series.asfreq': ['*'],  # error formatting
             'pandas.core.series.Series.append': [
                 's1.append(s2, verify_integrity=True)',
             ],
             'pandas.core.series.Series.cov': [
                 # Differs in LSB on jenkins.
                 "s1.cov(s2)",
-            ],
-            # Test framework doesn't materialze DeferredIndex.
+            ],  # Test framework doesn't materialze DeferredIndex.
             'pandas.core.series.Series.keys': ['s.keys()'],
             # Skipped idxmax/idxmin due an issue with the test framework
             'pandas.core.series.Series.idxmin': ['s.idxmin()'],
@@ -620,14 +601,12 @@ class DoctestTest(unittest.TestCase):
             # Fails when result is a singleton:
             # https://github.com/apache/beam/issues/28559
             'pandas.core.series.Series.kurt': [
-                'df.kurt(axis=None).round(6)',
-                's.kurt()'
+                'df.kurt(axis=None).round(6)', 's.kurt()'
             ],
             # Fails when result is a singleton:
             # https://github.com/apache/beam/issues/28559
             'pandas.core.series.Series.sem': [
-                'df.sem().round(6)',
-                's.sem().round(6)'
+                'df.sem().round(6)', 's.sem().round(6)'
             ],
         })
     self.assertEqual(result.failed, 0)
@@ -675,13 +654,13 @@ class DoctestTest(unittest.TestCase):
                 "pd.Series(['foo', 'fuz', np.nan]).str.replace('f', repr)"
             ],
 
-            # output has incorrect formatting in 1.2.x
+  # output has incorrect formatting in 1.2.x
             f'{module_name}.StringMethods.extractall': ['*'],
 
             # For split and rsplit, if expand=True, then the series
             # must be of CategoricalDtype, which pandas doesn't convert to
             f'{module_name}.StringMethods.rsplit': [
-                's.str.split(r"\\+|=", expand=True)', # for pandas<1.4
+                's.str.split(r"\\+|=", expand=True)',  # for pandas<1.4
                 's.str.split(expand=True)',
                 's.str.rsplit("/", n=1, expand=True)',
                 's.str.split(r"and|plus", expand=True)',
@@ -692,7 +671,7 @@ class DoctestTest(unittest.TestCase):
                 's.str.split(r"\\.jpg", regex=False, expand=True)'
             ],
             f'{module_name}.StringMethods.split': [
-                's.str.split(r"\\+|=", expand=True)', # for pandas<1.4
+                's.str.split(r"\\+|=", expand=True)',  # for pandas<1.4
                 's.str.split(expand=True)',
                 's.str.rsplit("/", n=1, expand=True)',
                 's.str.split(r"and|plus", expand=True)',
@@ -741,8 +720,7 @@ class DoctestTest(unittest.TestCase):
             ],
             'pandas.core.indexes.accessors.TimedeltaProperties.to_pytimedelta': [
                 '*'
-            ],
-            # pylint: enable=line-too-long
+            ],  # pylint: enable=line-too-long
             # Test uses to_datetime. Beam calls to_datetime element-wise, and
             # therefore the .tz attribute is not evaluated on entire Series.
             # Hence, .tz becomes None, unless explicitly set.
@@ -750,7 +728,8 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.indexes.accessors.DatetimeProperties.tz': ['*'],
         })
     datetimelike_result = doctests.testmod(
-        pd.core.arrays.datetimelike, use_beam=False,
+        pd.core.arrays.datetimelike,
+        use_beam=False,
         not_implemented_ok={
             # Beam Dataframes don't implement a deferred to_timedelta operation.
             # Top-level issue: https://github.com/apache/beam/issues/20318
@@ -758,13 +737,11 @@ class DoctestTest(unittest.TestCase):
                 "ser = pd.Series(pd.to_timedelta([1, 2, 3], unit='d'))",
                 "tdelta_idx = pd.to_timedelta([1, 2, 3], unit='D')",
                 'tdelta_idx = pd.to_timedelta(["0 days", "10 days", "20 days"])',  # pylint: disable=line-too-long
-
                 "tdelta_idx",
                 "tdelta_idx.inferred_freq",
                 "tdelta_idx.mean()",
             ],
         })
-
 
     datetime_result = doctests.testmod(
         pd.core.arrays.datetimes,
@@ -782,7 +759,8 @@ class DoctestTest(unittest.TestCase):
             '*': [
                 "ser = pd.Series(pd.to_timedelta([1, 2, 3], unit='d'))",
                 "tdelta_idx = pd.to_timedelta([1, 2, 3], unit='D')",
-                'tdelta_idx = pd.to_timedelta(["0 days", "10 days", "20 days"])'],  # pylint: disable=line-too-long
+                'tdelta_idx = pd.to_timedelta(["0 days", "10 days", "20 days"])'
+            ],  # pylint: disable=line-too-long
             # Verifies index version of this method
             'pandas.core.arrays.datetimes.DatetimeArray.to_period': [
                 'df.index.to_period("M")'
@@ -872,8 +850,7 @@ class DoctestTest(unittest.TestCase):
             'pandas.core.groupby.groupby.GroupBy.resample': [
                 'df.iloc[2, 0] = 5',
                 'df',
-            ],
-            # df is reassigned
+            ],  # df is reassigned
             'pandas.core.groupby.groupby.GroupBy.rank': ['df'],
             # TODO: Raise wont implement for list passed as a grouping column
             # Currently raises unhashable type: list
@@ -887,11 +864,10 @@ class DoctestTest(unittest.TestCase):
         pd.core.groupby.generic,
         use_beam=False,
         wont_implement_ok={
-            '*' : [
+            '*': [
                 # resample is WontImpl.
                 "ser.resample('MS').nunique()",
-            ],
-            # TODO: Is take actually deprecated?
+            ],  # TODO: Is take actually deprecated?
             'pandas.core.groupby.generic.DataFrameGroupBy.take': ['*'],
             'pandas.core.groupby.generic.SeriesGroupBy.take': ['*'],
             'pandas.core.groupby.generic.SeriesGroupBy.nsmallest': [
@@ -945,23 +921,24 @@ class DoctestTest(unittest.TestCase):
                 "df.loc[df.index[:5], 'a'] = np.nan",
                 "df.loc[df.index[5:10], 'b'] = np.nan",
                 "df.cov(min_periods=12)",
-            ],
-            # These examples rely on grouping by a list
+            ],  # These examples rely on grouping by a list
             'pandas.core.groupby.generic.SeriesGroupBy.aggregate': ['*'],
             'pandas.core.groupby.generic.DataFrameGroupBy.aggregate': ['*'],
             # Skipped idxmax/idxmin due an issue with the test framework
             'pandas.core.groupby.generic.SeriesGroupBy.idxmin': ['s.idxmin()'],
             'pandas.core.groupby.generic.SeriesGroupBy.idxmax': ['s.idxmax()'],
             # Order-sensitive operations. TODO: Return a better error message.
-            'pandas.core.groupby.generic.SeriesGroupBy.is_monotonic_increasing': ['*'],  # pylint: disable=line-too-long
-            'pandas.core.groupby.generic.SeriesGroupBy.is_monotonic_decreasing': ['*'],  # pylint: disable=line-too-long
+            'pandas.core.groupby.generic.SeriesGroupBy.is_monotonic_increasing': [
+                '*'
+            ],  # pylint: disable=line-too-long
+            'pandas.core.groupby.generic.SeriesGroupBy.is_monotonic_decreasing': [
+                '*'
+            ],  # pylint: disable=line-too-long
             # Uses as_index, which is currently not_implemented
             'pandas.core.groupby.generic.DataFrameGroupBy.value_counts': [
-                "df.groupby('gender', as_index=False).value_counts()",
-                # pylint: disable=line-too-long
+                "df.groupby('gender', as_index=False).value_counts()",  # pylint: disable=line-too-long
                 "df.groupby('gender', as_index=False).value_counts(normalize=True)",
-            ],
-            # These examples rely on grouping by a list
+            ],  # These examples rely on grouping by a list
             'pandas.core.groupby.generic.SeriesGroupBy.fillna': ['*'],
             # These examples rely on grouping by a list
             'pandas.core.groupby.generic.DataFrameGroupBy.fillna': ['*'],
@@ -972,8 +949,7 @@ class DoctestTest(unittest.TestCase):
             # Named aggregation not supported yet.
             'pandas.core.groupby.generic.NamedAgg': [
                 'df.groupby("key").agg(result_a=agg_a, result_1=agg_1)'
-            ],
-            # These examples rely on grouping by a list
+            ],  # These examples rely on grouping by a list
             'pandas.core.groupby.generic.DataFrameGroupBy.transform': ['*'],
             # These examples rely on grouping by a list
             'pandas.core.groupby.generic.SeriesGroupBy.transform': ['*'],
@@ -1024,7 +1000,9 @@ class DoctestTest(unittest.TestCase):
             'pivot': ['*'],
             'to_datetime': ['s.head()'],
             'to_pickle': ['*'],
-            'unique': ['pd.unique(pd.Series([("a", "b"), ("b", "a"), ("a", "c"), ("b", "a")]).values)'],  # pylint: disable=line-too-long
+            'unique': [
+                'pd.unique(pd.Series([("a", "b"), ("b", "a"), ("a", "c"), ("b", "a")]).values)'
+            ],  # pylint: disable=line-too-long
             'melt': [
                 "pd.melt(df, id_vars=['A'], value_vars=['B'])",
                 "pd.melt(df, id_vars=['A'], value_vars=['B', 'C'])",
@@ -1039,34 +1017,27 @@ class DoctestTest(unittest.TestCase):
             'concat': [
                 'pd.concat([df5, df6], verify_integrity=True)',
                 'pd.concat([df7, new_row.to_frame().T], ignore_index=True)'
-            ],
-            # doctest DeprecationWarning
-            'melt': ['df'],
-            # Order-sensitive re-indexing.
+            ],  # doctest DeprecationWarning
+            'melt': ['df'],  # Order-sensitive re-indexing.
             'merge': [
                 "df1.merge(df2, left_on='lkey', right_on='rkey')",
                 "df1.merge(df2, left_on='lkey', right_on='rkey',\n"
                 "          suffixes=('_left', '_right'))",
                 "df1.merge(df2, how='left', on='a')",
-            ],
-            # Not an actual test.
+            ],  # Not an actual test.
             'option_context': ['*'],
             'factorize': ['codes', 'uniques'],
             # Bad top-level use of un-imported function.
             'merge_ordered': [
                 'merge_ordered(df1, df2, fill_method="ffill", left_by="group")'
-            ],
-            # Expected error.
+            ],  # Expected error.
             'pivot': [
                 "df.pivot(index='foo', columns='bar', values='baz')",
                 "df.pivot(index='foo', columns='bar')['baz']",
-                "df.pivot(index='foo', columns='bar', values=['baz', 'zoo'])",
-                # pylint: disable=line-too-long
-                'df.pivot(index="lev1", columns=["lev2", "lev3"],values="values")',
-                # pylint: disable=line-too-long
+                "df.pivot(index='foo', columns='bar', values=['baz', 'zoo'])",  # pylint: disable=line-too-long
+                'df.pivot(index="lev1", columns=["lev2", "lev3"],values="values")',  # pylint: disable=line-too-long
                 'df.pivot(index=["lev1", "lev2"], columns=["lev3"],values="values")'
-            ],
-            # Never written.
+            ],  # Never written.
             'to_pickle': ['os.remove("./dummy.pkl")'],
             **skip_reads
         })

@@ -287,32 +287,27 @@ class MetricsContainer(object):
     """
     counters = {
         MetricKey(self.step_name, k.metric_name): v.get_cumulative()
-        for k,
-        v in self.metrics.items() if k.cell_type == CounterCell
+        for k, v in self.metrics.items() if k.cell_type == CounterCell
     }
 
     distributions = {
         MetricKey(self.step_name, k.metric_name): v.get_cumulative()
-        for k,
-        v in self.metrics.items() if k.cell_type == DistributionCell
+        for k, v in self.metrics.items() if k.cell_type == DistributionCell
     }
 
     gauges = {
         MetricKey(self.step_name, k.metric_name): v.get_cumulative()
-        for k,
-        v in self.metrics.items() if k.cell_type == GaugeCell
+        for k, v in self.metrics.items() if k.cell_type == GaugeCell
     }
 
     string_sets = {
         MetricKey(self.step_name, k.metric_name): v.get_cumulative()
-        for k,
-        v in self.metrics.items() if k.cell_type == StringSetCell
+        for k, v in self.metrics.items() if k.cell_type == StringSetCell
     }
 
     bounded_tries = {
         MetricKey(self.step_name, k.metric_name): v.get_cumulative()
-        for k,
-        v in self.metrics.items() if k.cell_type == BoundedTrieCell
+        for k, v in self.metrics.items() if k.cell_type == BoundedTrieCell
     }
 
     return MetricUpdates(
@@ -320,8 +315,8 @@ class MetricsContainer(object):
 
   def to_runner_api(self):
     return [
-        cell.to_runner_api_user_metric(key.metric_name) for key,
-        cell in self.metrics.items()
+        cell.to_runner_api_user_metric(key.metric_name)
+        for key, cell in self.metrics.items()
     ]
 
   def to_runner_api_monitoring_infos(self, transform_id):
@@ -332,8 +327,7 @@ class MetricsContainer(object):
       items = list(self.metrics.items())
     all_metrics = [
         cell.to_runner_api_monitoring_info(key.metric_name, transform_id)
-        for key,
-        cell in items
+        for key, cell in items
     ]
     return {
         monitoring_infos.to_key(mi): mi

@@ -167,7 +167,8 @@ class SwitchingDirectRunner(PipelineRunner):
         pr = runner.run_pipeline(pipeline, options)
         # This is non-blocking, so if the state is *already* finished, something
         # probably failed on job submission.
-        if pr.state.is_terminal() and pr.state != PipelineState.DONE:
+        if (PipelineState.is_terminal(pr.state) and
+            pr.state != PipelineState.DONE):
           _LOGGER.info(
               'Pipeline failed on PrismRunner, falling back toDirectRunner.')
           runner = BundleBasedDirectRunner()

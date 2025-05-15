@@ -54,7 +54,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShu
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcGetDataStreamRequests.QueuedBatch;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcGetDataStreamRequests.QueuedRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
-import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 import org.joda.time.Instant;
@@ -74,7 +73,6 @@ final class GrpcGetDataStream
 
   private final Map<Long, AppendableInputStream> pending;
   private final AtomicLong idGenerator;
-  private final ThrottleTimer getDataThrottleTimer;
   private final JobHeader jobHeader;
   private final int streamingRpcBatchLimit;
   // If true, then active work refreshes will be sent as KeyedGetDataRequests. Otherwise, use the
@@ -90,7 +88,6 @@ final class GrpcGetDataStream
       StreamObserverFactory streamObserverFactory,
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
       int logEveryNStreamFailures,
-      ThrottleTimer getDataThrottleTimer,
       JobHeader jobHeader,
       AtomicLong idGenerator,
       int streamingRpcBatchLimit,
@@ -106,7 +103,6 @@ final class GrpcGetDataStream
         logEveryNStreamFailures,
         backendWorkerToken);
     this.idGenerator = idGenerator;
-    this.getDataThrottleTimer = getDataThrottleTimer;
     this.jobHeader = jobHeader;
     this.streamingRpcBatchLimit = streamingRpcBatchLimit;
     this.batches = new ConcurrentLinkedDeque<>();
@@ -123,7 +119,6 @@ final class GrpcGetDataStream
       StreamObserverFactory streamObserverFactory,
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
       int logEveryNStreamFailures,
-      ThrottleTimer getDataThrottleTimer,
       JobHeader jobHeader,
       AtomicLong idGenerator,
       int streamingRpcBatchLimit,
@@ -136,7 +131,6 @@ final class GrpcGetDataStream
         streamObserverFactory,
         streamRegistry,
         logEveryNStreamFailures,
-        getDataThrottleTimer,
         jobHeader,
         idGenerator,
         streamingRpcBatchLimit,
@@ -183,7 +177,6 @@ final class GrpcGetDataStream
   protected void onResponse(StreamingGetDataResponse chunk) {
     checkArgument(chunk.getRequestIdCount() == chunk.getSerializedResponseCount());
     checkArgument(chunk.getRemainingBytesForResponse() == 0 || chunk.getRequestIdCount() == 1);
-    getDataThrottleTimer.stop();
     onHeartbeatResponse(chunk.getComputationHeartbeatResponseList());
 
     for (int i = 0; i < chunk.getRequestIdCount(); ++i) {
@@ -201,11 +194,6 @@ final class GrpcGetDataStream
         responseStream.complete();
       }
     }
-  }
-
-  @Override
-  protected void startThrottleTimer() {
-    getDataThrottleTimer.start();
   }
 
   private long uniqueId() {

@@ -405,8 +405,10 @@ class TextEmbeddingHandlerTest(unittest.TestCase):
             'x': "Apache Beam"
         },
     ]
-    expected_data = [{key: value[::-1]
-                      for key, value in d.items()} for d in data]
+    expected_data = [{
+        key: value[::-1]
+        for key, value in d.items()
+    } for d in data]
     with beam.Pipeline() as p:
       result = (
           p
@@ -430,8 +432,10 @@ class TextEmbeddingHandlerTest(unittest.TestCase):
             'x': "Apache Beam"
         },
     ] * 100
-    expected_data = [{key: value[::-1]
-                      for key, value in d.items()} for d in data]
+    expected_data = [{
+        key: value[::-1]
+        for key, value in d.items()
+    } for d in data]
     with beam.Pipeline() as p:
       result = (
           p
@@ -456,8 +460,7 @@ class TextEmbeddingHandlerTest(unittest.TestCase):
     embedding_config = FakeEmbeddingsManager(columns=['x', 'y'])
     expected_data = [{
         key: (value[::-1] if key in embedding_config.columns else value)
-        for key,
-        value in d.items()
+        for key, value in d.items()
     } for d in data]
     with beam.Pipeline() as p:
       result = (

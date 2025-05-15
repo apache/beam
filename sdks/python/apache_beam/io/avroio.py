@@ -410,13 +410,8 @@ class WriteToAvro(beam.transforms.PTransform):
     """
     self._schema = schema
     self._sink_provider = lambda avro_schema: _create_avro_sink(
-        file_path_prefix,
-        avro_schema,
-        codec,
-        file_name_suffix,
-        num_shards,
-        shard_name_template,
-        mime_type)
+        file_path_prefix, avro_schema, codec, file_name_suffix, num_shards,
+        shard_name_template, mime_type)
 
   def expand(self, pcoll):
     if self._schema:

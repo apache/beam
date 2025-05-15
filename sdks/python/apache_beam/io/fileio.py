@@ -879,12 +879,13 @@ class _WriteUnshardedRecordsFn(beam.DoFn):
       sink.flush()
       writer.close()
 
-      file_result = FileResult(self._file_names[key],
-                               shard_index=-1,
-                               total_shards=0,
-                               window=key[1],
-                               pane=None,  # TODO(pabloem): get the pane info
-                               destination=key[0])
+      file_result = FileResult(
+          self._file_names[key],
+          shard_index=-1,
+          total_shards=0,
+          window=key[1],
+          pane=None,  # TODO(pabloem): get the pane info
+          destination=key[0])
 
       yield beam.pvalue.TaggedOutput(
           self.WRITTEN_FILES,

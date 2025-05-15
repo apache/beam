@@ -139,36 +139,36 @@ class DirectMetrics(MetricResults):
         MetricResult(
             MetricKey(k.step, k.metric),
             v.extract_committed(),
-            v.extract_latest_attempted()) for k,
-        v in self._counters.items() if self.matches(filter, k)
+            v.extract_latest_attempted()) for k, v in self._counters.items()
+        if self.matches(filter, k)
     ]
     distributions = [
         MetricResult(
             MetricKey(k.step, k.metric),
             v.extract_committed(),
-            v.extract_latest_attempted()) for k,
-        v in self._distributions.items() if self.matches(filter, k)
+            v.extract_latest_attempted())
+        for k, v in self._distributions.items() if self.matches(filter, k)
     ]
     gauges = [
         MetricResult(
             MetricKey(k.step, k.metric),
             v.extract_committed(),
-            v.extract_latest_attempted()) for k,
-        v in self._gauges.items() if self.matches(filter, k)
+            v.extract_latest_attempted()) for k, v in self._gauges.items()
+        if self.matches(filter, k)
     ]
     string_sets = [
         MetricResult(
             MetricKey(k.step, k.metric),
             v.extract_committed(),
-            v.extract_latest_attempted()) for k,
-        v in self._string_sets.items() if self.matches(filter, k)
+            v.extract_latest_attempted()) for k, v in self._string_sets.items()
+        if self.matches(filter, k)
     ]
     bounded_tries = [
         MetricResult(
             MetricKey(k.step, k.metric),
             v.extract_committed(),
-            v.extract_latest_attempted()) for k,
-        v in self._bounded_tries.items() if self.matches(filter, k)
+            v.extract_latest_attempted())
+        for k, v in self._bounded_tries.items() if self.matches(filter, k)
     ]
 
     return {

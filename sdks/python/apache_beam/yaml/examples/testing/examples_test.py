@@ -314,7 +314,8 @@ class YamlExamplesTestSuite:
 
   @classmethod
   def create_test_suite(cls, name: str, path: str):
-    return type(name, (unittest.TestCase, ), dict(cls.parse_test_methods(path)))
+    return type(
+        name, (unittest.TestCase, ), dict(cls.parse_test_methods(path)))
 
   @classmethod
   def register_test_preprocessor(cls, test_names: Union[str, List]):

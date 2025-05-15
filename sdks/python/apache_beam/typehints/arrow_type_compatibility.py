@@ -56,8 +56,8 @@ def beam_schema_from_arrow_schema(arrow_schema: pa.Schema) -> schema_pb2.Schema:
   if arrow_schema.metadata:
     schema_id = arrow_schema.metadata.get(BEAM_SCHEMA_ID_KEY, None)
     schema_options = [
-        _hydrate_beam_option(value) for key,
-        value in arrow_schema.metadata.items()
+        _hydrate_beam_option(value)
+        for key, value in arrow_schema.metadata.items()
         if key.startswith(BEAM_SCHEMA_OPTION_KEY_PREFIX)
     ]
   else:
@@ -78,14 +78,14 @@ def _beam_field_from_arrow_field(arrow_field: pa.Field) -> schema_pb2.Field:
 
   if arrow_field.metadata:
     field_options = [
-        _hydrate_beam_option(value) for key,
-        value in arrow_field.metadata.items()
+        _hydrate_beam_option(value)
+        for key, value in arrow_field.metadata.items()
         if key.startswith(BEAM_FIELD_OPTION_KEY_PREFIX)
     ]
     if isinstance(arrow_field.type, pa.StructType):
       beam_fieldtype.row_type.schema.options.extend([
-          _hydrate_beam_option(value) for key,
-          value in arrow_field.metadata.items()
+          _hydrate_beam_option(value)
+          for key, value in arrow_field.metadata.items()
           if key.startswith(BEAM_SCHEMA_OPTION_KEY_PREFIX)
       ])
       if BEAM_SCHEMA_ID_KEY in arrow_field.metadata:
@@ -320,8 +320,8 @@ class PyarrowBatchConverter(BatchConverter):
   def produce_batch(self, elements):
     arrays = [
         pa.array([getattr(el, name) for el in elements],
-                 type=self._arrow_schema.field(name).type) for name,
-        _ in self._element_type._fields
+                 type=self._arrow_schema.field(name).type)
+        for name, _ in self._element_type._fields
     ]
     return pa.Table.from_arrays(arrays, schema=self._arrow_schema)
 
@@ -331,8 +331,7 @@ class PyarrowBatchConverter(BatchConverter):
       yield self._element_type.user_type(
           **{
               name: val.as_py()
-              for name,
-              val in zip(self._arrow_schema.names, row_values)
+              for name, val in zip(self._arrow_schema.names, row_values)
           })
 
   def combine_batches(self, batches: List[pa.Table]):

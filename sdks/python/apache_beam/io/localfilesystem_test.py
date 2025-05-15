@@ -357,8 +357,8 @@ class LocalFileSystemTest(unittest.TestCase):
     elif isinstance(value, dict):
       # recurse to check subdirectory tree
       actual_leaf_count = sum([
-          self.check_tree(os.path.join(path, basename), v) for basename,
-          v in value.items()
+          self.check_tree(os.path.join(path, basename), v)
+          for basename, v in value.items()
       ])
     else:
       raise Exception('Unexpected value in tempdir tree: %s' % value)

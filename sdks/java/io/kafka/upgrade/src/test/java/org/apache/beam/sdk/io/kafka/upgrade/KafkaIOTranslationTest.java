@@ -78,6 +78,7 @@ public class KafkaIOTranslationTest {
         "getValueDeserializerProvider", "value_deserializer_provider");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getCheckStopReadingFn", "check_stop_reading_fn");
     READ_TRANSFORM_SCHEMA_MAPPING.put("getConsumerPollingTimeout", "consumer_polling_timeout");
+    READ_TRANSFORM_SCHEMA_MAPPING.put("getLogTopicVerification", "log_topic_verification");
   }
 
   // A mapping from Write transform builder methods to the corresponding schema fields in

@@ -497,8 +497,8 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
   def test_write_to_dynamic_destination(self):
 
     sink_params = [
-        fileio.TextSink, # pass a type signature
-        fileio.TextSink() # pass a FileSink object
+        fileio.TextSink,  # pass a type signature
+        fileio.TextSink()  # pass a FileSink object
     ]
 
     for sink in sink_params:
@@ -522,8 +522,8 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
             | fileio.ReadMatches()
             | beam.Map(
                 lambda f: (
-                    os.path.basename(f.metadata.path).split('-')[0],
-                    sorted(map(int, f.read_utf8().strip().split('\n'))))))
+                    os.path.basename(f.metadata.path).split('-')[0], sorted(
+                        map(int, f.read_utf8().strip().split('\n'))))))
 
         assert_that(
             result,

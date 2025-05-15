@@ -545,8 +545,7 @@ def _make_skeleton_class(
 
   skeleton_class = types.new_class(
       name,
-      bases, {"metaclass": type_constructor},
-      lambda ns: ns.update(type_kwargs))
+      bases, {"metaclass": type_constructor}, lambda ns: ns.update(type_kwargs))
 
   return _lookup_class_or_track(class_tracker_id, skeleton_class)
 
@@ -1432,11 +1431,14 @@ class Pickler(pickle.Pickler):
             dispatched here.
             """
       if obj is type(None):  # noqa
-        return self.save_reduce(type, (None, ), obj=obj)
+        return self.save_reduce(
+            type, (None, ), obj=obj)
       elif obj is type(Ellipsis):
-        return self.save_reduce(type, (Ellipsis, ), obj=obj)
+        return self.save_reduce(
+            type, (Ellipsis, ), obj=obj)
       elif obj is type(NotImplemented):
-        return self.save_reduce(type, (NotImplemented, ), obj=obj)
+        return self.save_reduce(
+            type, (NotImplemented, ), obj=obj)
       elif obj in _BUILTIN_TYPE_NAMES:
         return self.save_reduce(
             _builtin_type, (_BUILTIN_TYPE_NAMES[obj], ), obj=obj)

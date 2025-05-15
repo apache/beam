@@ -16,11 +16,9 @@
 #
 
 from typing import Any
-from typing import Dict
 from typing import Optional
 from typing import SupportsFloat
 from typing import SupportsInt
-from typing import Tuple
 from typing import TypeVar
 
 import apache_beam as beam
@@ -47,8 +45,8 @@ class OfflineDetector(AnomalyDetector):
   """
   @staticmethod
   def score_prediction_adapter(
-      keyed_prediction: Tuple[KeyT, PredictionResult]
-  ) -> Tuple[KeyT, AnomalyPrediction]:
+      keyed_prediction: tuple[KeyT, PredictionResult]
+  ) -> tuple[KeyT, AnomalyPrediction]:
     """Extracts a float score from `PredictionResult.inference` and wraps it.
 
     Takes a keyed `PredictionResult` from common ModelHandler output, assumes
@@ -56,11 +54,11 @@ class OfflineDetector(AnomalyDetector):
     paired with an `AnomalyPrediction` containing that float score.
 
     Args:
-      keyed_prediction: Tuple of `(key, PredictionResult)`. `PredictionResult`
+      keyed_prediction: tuple of `(key, PredictionResult)`. `PredictionResult`
         must have an `inference` attribute supporting float conversion.
 
     Returns:
-      Tuple of `(key, AnomalyPrediction)` with the extracted score.
+      tuple of `(key, AnomalyPrediction)` with the extracted score.
 
     Raises:
       AssertionError: If `PredictionResult.inference` doesn't support float().
@@ -73,8 +71,8 @@ class OfflineDetector(AnomalyDetector):
 
   @staticmethod
   def label_prediction_adapter(
-      keyed_prediction: Tuple[KeyT, PredictionResult]
-  ) -> Tuple[KeyT, AnomalyPrediction]:
+      keyed_prediction: tuple[KeyT, PredictionResult]
+  ) -> tuple[KeyT, AnomalyPrediction]:
     """Extracts an integer label from `PredictionResult.inference` and wraps it.
 
     Takes a keyed `PredictionResult`, assumes its `inference` attribute is an
@@ -82,11 +80,11 @@ class OfflineDetector(AnomalyDetector):
     `AnomalyPrediction` containing that integer label.
 
     Args:
-      keyed_prediction: Tuple of `(key, PredictionResult)`. `PredictionResult`
+      keyed_prediction: tuple of `(key, PredictionResult)`. `PredictionResult`
         must have an `inference` attribute supporting int conversion.
 
     Returns:
-      Tuple of `(key, AnomalyPrediction)` with the extracted label.
+      tuple of `(key, AnomalyPrediction)` with the extracted label.
 
     Raises:
       AssertionError: If `PredictionResult.inference` doesn't support int().
@@ -100,7 +98,7 @@ class OfflineDetector(AnomalyDetector):
   def __init__(
       self,
       keyed_model_handler: KeyedModelHandler[Any, beam.Row, PredictionT, Any],
-      run_inference_args: Optional[Dict[str, Any]] = None,
+      run_inference_args: Optional[dict[str, Any]] = None,
       **kwargs):
     super().__init__(**kwargs)
 

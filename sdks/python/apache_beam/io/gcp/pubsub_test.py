@@ -329,9 +329,9 @@ class TestMultiReadFromPubSubOverride(unittest.TestCase):
         PubSubSourceDescriptor(
             source=source,
             id_label=id_label,
-            timestamp_attribute=timestamp_attribute) for source,
-        id_label,
-        timestamp_attribute in zip(sources, id_labels, timestamp_attributes)
+            timestamp_attribute=timestamp_attribute)
+        for source, id_label, timestamp_attribute in zip(
+            sources, id_labels, timestamp_attributes)
     ]
 
     pcoll = (p | MultipleReadFromPubSub(pubsub_sources) | beam.Map(lambda x: x))

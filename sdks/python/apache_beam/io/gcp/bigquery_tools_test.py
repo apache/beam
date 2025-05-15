@@ -994,9 +994,8 @@ class TestBeamTypehintFromSchema(unittest.TestCase):
     schema = {"fields": self.get_schema_fields_with_mode("repeated")}
     typehints = get_beam_typehints_from_tableschema(schema)
 
-    expected_repeated_typehints = [
-        (name, Sequence[type]) for name, type in self.EXPECTED_TYPEHINTS
-    ]
+    expected_repeated_typehints = [(name, Sequence[type])
+                                   for name, type in self.EXPECTED_TYPEHINTS]
 
     self.assertEqual(typehints, expected_repeated_typehints)
 
@@ -1004,9 +1003,8 @@ class TestBeamTypehintFromSchema(unittest.TestCase):
     schema = {"fields": self.get_schema_fields_with_mode("nullable")}
     typehints = get_beam_typehints_from_tableschema(schema)
 
-    expected_nullable_typehints = [
-        (name, Optional[type]) for name, type in self.EXPECTED_TYPEHINTS
-    ]
+    expected_nullable_typehints = [(name, Optional[type])
+                                   for name, type in self.EXPECTED_TYPEHINTS]
 
     self.assertEqual(typehints, expected_nullable_typehints)
 

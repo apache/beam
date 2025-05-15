@@ -42,7 +42,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.AbstractWindmillS
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
-import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
@@ -61,7 +60,6 @@ final class GrpcCommitWorkStream
   private final ConcurrentMap<Long, PendingRequest> pending;
   private final AtomicLong idGenerator;
   private final JobHeader jobHeader;
-  private final ThrottleTimer commitWorkThrottleTimer;
   private final int streamingRpcBatchLimit;
 
   private GrpcCommitWorkStream(
@@ -72,7 +70,6 @@ final class GrpcCommitWorkStream
       StreamObserverFactory streamObserverFactory,
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
       int logEveryNStreamFailures,
-      ThrottleTimer commitWorkThrottleTimer,
       JobHeader jobHeader,
       AtomicLong idGenerator,
       int streamingRpcBatchLimit) {
@@ -88,7 +85,6 @@ final class GrpcCommitWorkStream
     pending = new ConcurrentHashMap<>();
     this.idGenerator = idGenerator;
     this.jobHeader = jobHeader;
-    this.commitWorkThrottleTimer = commitWorkThrottleTimer;
     this.streamingRpcBatchLimit = streamingRpcBatchLimit;
   }
 
@@ -100,7 +96,6 @@ final class GrpcCommitWorkStream
       StreamObserverFactory streamObserverFactory,
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
       int logEveryNStreamFailures,
-      ThrottleTimer commitWorkThrottleTimer,
       JobHeader jobHeader,
       AtomicLong idGenerator,
       int streamingRpcBatchLimit) {
@@ -111,7 +106,6 @@ final class GrpcCommitWorkStream
         streamObserverFactory,
         streamRegistry,
         logEveryNStreamFailures,
-        commitWorkThrottleTimer,
         jobHeader,
         idGenerator,
         streamingRpcBatchLimit);
@@ -160,8 +154,6 @@ final class GrpcCommitWorkStream
 
   @Override
   protected void onResponse(StreamingCommitResponse response) {
-    commitWorkThrottleTimer.stop();
-
     CommitCompletionFailureHandler failureHandler = new CommitCompletionFailureHandler();
     for (int i = 0; i < response.getRequestIdCount(); ++i) {
       long requestId = response.getRequestId(i);
@@ -206,11 +198,6 @@ final class GrpcCommitWorkStream
       pendingRequest.abort();
       pendingRequests.remove();
     }
-  }
-
-  @Override
-  protected void startThrottleTimer() {
-    commitWorkThrottleTimer.start();
   }
 
   private void flushInternal(Map<Long, PendingRequest> requests)

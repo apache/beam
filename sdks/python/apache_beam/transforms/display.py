@@ -221,8 +221,7 @@ class DisplayData(object):
 
     items = {
         k: (v if DisplayDataItem._get_value_type(v) is not None else str(v))
-        for k,
-        v in pipeline_options.display_data().items()
+        for k, v in pipeline_options.display_data().items()
     }
     return cls(pipeline_options._get_display_data_namespace(), items)
 

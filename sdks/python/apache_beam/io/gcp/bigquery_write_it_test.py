@@ -595,8 +595,10 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
               max_file_size=1,  # bytes
               method=beam.io.WriteToBigQuery.Method.FILE_LOADS,
               additional_bq_parameters={
-                  'schemaUpdateOptions': ['ALLOW_FIELD_ADDITION',
-                                          'ALLOW_FIELD_RELAXATION']},
+                  'schemaUpdateOptions': [
+                      'ALLOW_FIELD_ADDITION', 'ALLOW_FIELD_RELAXATION'
+                  ]
+              },
               temp_file_format=file_format))
 
 

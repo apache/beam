@@ -30,6 +30,7 @@ import org.apache.iceberg.CombinedScanTask;
 import org.apache.iceberg.DataOperations;
 import org.apache.iceberg.IncrementalAppendScan;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.expressions.Expression;
 import org.apache.iceberg.io.CloseableIterable;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
@@ -78,9 +79,17 @@ class CreateReadTasksDoFn
       }
 
       LOG.info("Planning to scan snapshot {}", toSnapshot);
-      IncrementalAppendScan scan = table.newIncrementalAppendScan().toSnapshot(toSnapshot);
+      IncrementalAppendScan scan =
+          table
+              .newIncrementalAppendScan()
+              .toSnapshot(toSnapshot)
+              .project(scanConfig.getProjectedSchema());
       if (fromSnapshot != null) {
         scan = scan.fromSnapshotExclusive(fromSnapshot);
+      }
+      @Nullable Expression filter = scanConfig.getFilter();
+      if (filter != null) {
+        scan = scan.filter(filter);
       }
 
       createAndOutputReadTasks(scan, snapshot, out);

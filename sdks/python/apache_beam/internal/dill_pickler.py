@@ -312,7 +312,8 @@ if 'save_module' in dir(dill.dill):
     else:
       dill_log.info('M2: %s' % obj)
       # pylint: disable=protected-access
-      pickler.save_reduce(dill.dill._import_module, (obj.__name__, ), obj=obj)
+      pickler.save_reduce(
+          dill.dill._import_module, (obj.__name__, ), obj=obj)
       # pylint: enable=protected-access
       dill_log.info('# M2')
 

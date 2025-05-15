@@ -49,8 +49,7 @@ def combinevalues_side_inputs_singleton(test=None):
             ('🍅', [4, 5, 3]),
         ])
         | 'Saturated sum' >> beam.CombineValues(
-            lambda values,
-            max_value: min(sum(values), max_value),
+            lambda values, max_value: min(sum(values), max_value),
             max_value=beam.pvalue.AsSingleton(max_value))
         | beam.Map(print))
     # [END combinevalues_side_inputs_singleton]

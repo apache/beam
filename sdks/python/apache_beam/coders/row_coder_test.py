@@ -446,8 +446,7 @@ class RowCoderTest(unittest.TestCase):
     for size in [len(self.PEOPLE) - 1, len(self.PEOPLE), len(self.PEOPLE) + 1]:
       dest = {
           field: np.ndarray((size, ), dtype=a.dtype)
-          for field,
-          a in columnar.items()
+          for field, a in columnar.items()
       }
       n = min(size, len(self.PEOPLE))
       self.assertEqual(

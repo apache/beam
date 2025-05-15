@@ -284,8 +284,8 @@ class PrismJobServer(job_server.SubprocessJobServer):
 
     # We failed to build for some reason.
     output = process.stdout.decode("utf-8")
-    if ("not in a module" not in output) and (
-        "no required module provides" not in output):
+    if ("not in a module" not in output) and ("no required module provides"
+                                              not in output):
       # This branch handles two classes of failures:
       # 1. Go isn't installed, so it needs to be installed by the Beam SDK
       #   developer.

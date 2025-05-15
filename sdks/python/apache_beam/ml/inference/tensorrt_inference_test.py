@@ -54,16 +54,14 @@ SINGLE_FEATURE_EXAMPLES = [
 ]
 
 SINGLE_FEATURE_PREDICTIONS = [
-    PredictionResult(ex, pred) for ex,
-    pred in zip(
+    PredictionResult(ex, pred) for ex, pred in zip(
         SINGLE_FEATURE_EXAMPLES,
         [[np.array([example * 2.0 + 0.5], dtype=np.float32)]
          for example in SINGLE_FEATURE_EXAMPLES])
 ]
 
 SINGLE_FEATURE_CUSTOM_PREDICTIONS = [
-    PredictionResult(ex, pred) for ex,
-    pred in zip(
+    PredictionResult(ex, pred) for ex, pred in zip(
         SINGLE_FEATURE_EXAMPLES,
         [[np.array([(example * 2.0 + 0.5) * 2], dtype=np.float32)]
          for example in SINGLE_FEATURE_EXAMPLES])
@@ -77,20 +75,18 @@ TWO_FEATURES_EXAMPLES = [
 ]
 
 TWO_FEATURES_PREDICTIONS = [
-    PredictionResult(ex, pred) for ex,
-    pred in zip(
-        TWO_FEATURES_EXAMPLES,
-        [[
-            np.array([example[0] * 2.0 + example[1] * 3 + 0.5],
-                     dtype=np.float32)
+    PredictionResult(ex, pred) for ex, pred in zip(
+        TWO_FEATURES_EXAMPLES, [[
+            np.array([example[0] * 2.0 + example[1] * 3 +
+                      0.5], dtype=np.float32)
         ] for example in TWO_FEATURES_EXAMPLES])
 ]
 
 
 def _compare_prediction_result(a, b):
   return ((a.example == b.example).all() and all(
-      np.array_equal(actual, expected) for actual,
-      expected in zip(a.inference, b.inference)))
+      np.array_equal(actual, expected)
+      for actual, expected in zip(a.inference, b.inference)))
 
 
 def _assign_or_fail(args):
@@ -140,8 +136,8 @@ def _custom_tensorRT_inference_fn(batch, engine, inference_args):
 
     return [
         PredictionResult(
-            x, [prediction[idx] * 2 for prediction in cpu_allocations]) for idx,
-        x in enumerate(batch)
+            x, [prediction[idx] * 2 for prediction in cpu_allocations])
+        for idx, x in enumerate(batch)
     ]
 
 

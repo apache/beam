@@ -259,8 +259,7 @@ def create_test_method(test_type, test_name, test_yaml):
         #  in precommits
         with mock.patch(
             'apache_beam.yaml.yaml_provider.ExternalProvider.create_transform',
-            lambda *args,
-            **kwargs: _Fakes.SomeTransform(*args, **kwargs)):
+            lambda *args, **kwargs: _Fakes.SomeTransform(*args, **kwargs)):
           p = beam.Pipeline(options=PipelineOptions(**options))
           yaml_transform.expand_pipeline(
               p, modified_yaml, yaml_provider.merge_providers([test_provider]))
@@ -343,9 +342,8 @@ def parse_test_methods(markdown_lines):
               yield (
                   test_name + '_' + suffix,
                   # The yp=... ts=... is to capture the looped closure values.
-                  lambda _,
-                  yp=yaml_pipeline,
-                  ts=test_spec: yaml_testing.run_test(yp, ts))
+                  lambda _, yp=yaml_pipeline, ts=test_spec: yaml_testing.
+                  run_test(yp, ts))
 
         code_lines = None
     elif code_lines is not None:

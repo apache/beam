@@ -45,6 +45,19 @@ public class PreparePubsubWriteDoFnTest implements Serializable {
   }
 
   @Test
+  public void testValidatePubsubMessageSizePayloadAndOrderingKey()
+      throws SizeLimitExceededException {
+    byte[] data = new byte[1024];
+    String orderingKey = "key";
+    PubsubMessage message = new PubsubMessage(data, null, null, orderingKey);
+
+    int messageSize =
+        PreparePubsubWriteDoFn.validatePubsubMessageSize(message, PUBSUB_MESSAGE_MAX_TOTAL_SIZE);
+
+    assertEquals(data.length + orderingKey.getBytes(StandardCharsets.UTF_8).length, messageSize);
+  }
+
+  @Test
   public void testValidatePubsubMessageSizePayloadAndAttributes()
       throws SizeLimitExceededException {
     byte[] data = new byte[1024];
@@ -68,6 +81,19 @@ public class PreparePubsubWriteDoFnTest implements Serializable {
   public void testValidatePubsubMessageSizePayloadTooLarge() {
     byte[] data = new byte[(10 << 20) + 1];
     PubsubMessage message = new PubsubMessage(data, null);
+
+    assertThrows(
+        SizeLimitExceededException.class,
+        () ->
+            PreparePubsubWriteDoFn.validatePubsubMessageSize(
+                message, PUBSUB_MESSAGE_MAX_TOTAL_SIZE));
+  }
+
+  @Test
+  public void testValidatePubsubMessageSizePayloadPlusOrderingKeyTooLarge() {
+    byte[] data = new byte[(10 << 20)];
+    String orderingKey = "key";
+    PubsubMessage message = new PubsubMessage(data, null, null, orderingKey);
 
     assertThrows(
         SizeLimitExceededException.class,
@@ -113,6 +139,19 @@ public class PreparePubsubWriteDoFnTest implements Serializable {
     String attributeValue = RandomStringUtils.randomAscii(1025);
     Map<String, String> attributes = ImmutableMap.of(attributeKey, attributeValue);
     PubsubMessage message = new PubsubMessage(data, attributes);
+
+    assertThrows(
+        SizeLimitExceededException.class,
+        () ->
+            PreparePubsubWriteDoFn.validatePubsubMessageSize(
+                message, PUBSUB_MESSAGE_MAX_TOTAL_SIZE));
+  }
+
+  @Test
+  public void testValidatePubsubMessageSizeOrderingKeyTooLarge() {
+    byte[] data = new byte[1024];
+    String orderingKey = RandomStringUtils.randomAscii(1025);
+    PubsubMessage message = new PubsubMessage(data, null, null, orderingKey);
 
     assertThrows(
         SizeLimitExceededException.class,

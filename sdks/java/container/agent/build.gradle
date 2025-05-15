@@ -20,22 +20,10 @@ plugins {
     id 'org.apache.beam.module'
 }
 
-// the order is intended here
-// Overwrite javaVersion global property if corresponding project property specified
-if (project.hasProperty('java11Home')) {
-    javaVersion = "1.11"
-} else if (project.hasProperty('java17Home')) {
-    javaVersion = "1.17"
-} else if (project.hasProperty('java21Home')) {
-    javaVersion = "1.21"
-} else if (JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0) {
-    // Otherwise, compile the project with java11 spec
-    javaVersion = "1.11"
-}
-
 applyJavaNature(
     exportJavadoc: false,
-    publish: false
+    publish: false,
+    requireJavaVersion: JavaVersion.VERSION_11
 )
 
 description = "Apache Beam :: SDKs :: Java :: Container :: Agent"
@@ -46,36 +34,5 @@ jar {
                 "Can-Redefine-Classes": true,
                 "Can-Retransform-Classes": true,
                 "Premain-Class": "org.apache.beam.agent.OpenModuleAgent")
-    }
-}
-
-// the order is intended here
-if (project.hasProperty('java11Home')) {
-    project.tasks.withType(JavaCompile) {
-        setJavaVerOptions(options, '11')
-    }
-} else if (project.hasProperty('java17Home')) {
-    project.tasks.withType(JavaCompile) {
-        setJavaVerOptions(options, '17')
-
-        checkerFramework {
-            skipCheckerFramework = true
-        }
-    }
-} else if (project.hasProperty('java21Home')) {
-    project.tasks.withType(JavaCompile) {
-        setJavaVerOptions(options, '21')
-
-        checkerFramework {
-            skipCheckerFramework = true
-        }
-    }
-}
-
-// Module classes requires JDK > 8
-project.tasks.each {
-    it.onlyIf {
-        project.hasProperty('java11Home') || project.hasProperty('java17Home') || project.hasProperty('java21Home')
-                || JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0
     }
 }

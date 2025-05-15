@@ -97,8 +97,7 @@ class ProviderParsingTest(unittest.TestCase):
 
   @mock.patch(
       'apache_beam.yaml.yaml_provider.ExternalProvider.provider_from_spec',
-      lambda _,
-      x: x)
+      lambda _, x: x)
   def test_include_file(self):
     flattened = [
         SafeLineLoader.strip_metadata(spec)
@@ -107,8 +106,7 @@ class ProviderParsingTest(unittest.TestCase):
                 self.INLINE_PROVIDER,
                 {
                     'include': self.to_include
-                },
-            ])
+                }, ])
     ]
 
     self.assertEqual([
@@ -119,8 +117,7 @@ class ProviderParsingTest(unittest.TestCase):
 
   @mock.patch(
       'apache_beam.yaml.yaml_provider.ExternalProvider.provider_from_spec',
-      lambda _,
-      x: x)
+      lambda _, x: x)
   def test_include_url(self):
     flattened = [
         SafeLineLoader.strip_metadata(spec)
@@ -129,8 +126,7 @@ class ProviderParsingTest(unittest.TestCase):
                 self.INLINE_PROVIDER,
                 {
                     'include': 'file:///' + self.to_include
-                },
-            ])
+                }, ])
     ]
 
     self.assertEqual([
@@ -141,8 +137,7 @@ class ProviderParsingTest(unittest.TestCase):
 
   @mock.patch(
       'apache_beam.yaml.yaml_provider.ExternalProvider.provider_from_spec',
-      lambda _,
-      x: x)
+      lambda _, x: x)
   def test_nested_include(self):
     flattened = [
         SafeLineLoader.strip_metadata(spec)
@@ -151,8 +146,7 @@ class ProviderParsingTest(unittest.TestCase):
                 self.INLINE_PROVIDER,
                 {
                     'include': self.to_include_nested
-                },
-            ])
+                }, ])
     ]
 
     self.assertEqual([

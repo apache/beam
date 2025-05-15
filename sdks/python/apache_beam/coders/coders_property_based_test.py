@@ -144,9 +144,7 @@ class ProperyTestingCoders(unittest.TestCase):
     row = RowType(
         **{
             name: data.draw(SCHEMA_TYPES_TO_STRATEGY[type_])
-            for name,
-            type_,
-            nullable in schema
+            for name, type_, nullable in schema
         })
 
     coder = RowCoder(typing_to_runner_api(RowType).row_type.schema)

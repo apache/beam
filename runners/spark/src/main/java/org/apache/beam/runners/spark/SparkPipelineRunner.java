@@ -20,7 +20,6 @@ package org.apache.beam.runners.spark;
 import static org.apache.beam.runners.fnexecution.translation.PipelineTranslatorUtils.hasUnboundedPCollections;
 import static org.apache.beam.runners.spark.SparkCommonPipelineOptions.prepareFilesToStage;
 
-import edu.umd.cs.findbugs.annotations.Nullable;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -59,6 +58,7 @@ import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.apache.spark.streaming.api.java.JavaStreamingListener;
 import org.apache.spark.streaming.api.java.JavaStreamingListenerWrapper;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
@@ -248,12 +248,12 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
   }
 
   private static class SparkPipelineRunnerConfiguration {
-    @Nullable
     @Option(
         name = "--base-job-name",
         usage =
             "The job to run. This must correspond to a subdirectory of the jar's BEAM-PIPELINE "
                 + "directory. *Only needs to be specified if the jar contains multiple pipelines.*")
+    @Nullable
     private String baseJobName = null;
   }
 

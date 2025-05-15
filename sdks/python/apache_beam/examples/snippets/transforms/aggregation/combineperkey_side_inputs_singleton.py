@@ -37,8 +37,7 @@ def combineperkey_side_inputs_singleton(test=None):
             ('🍅', 3),
         ])
         | 'Saturated sum' >> beam.CombinePerKey(
-            lambda values,
-            max_value: min(sum(values), max_value),
+            lambda values, max_value: min(sum(values), max_value),
             max_value=beam.pvalue.AsSingleton(max_value))
         | beam.Map(print))
     # [END combineperkey_side_inputs_singleton]

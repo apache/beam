@@ -162,8 +162,7 @@ class ArtifactStagingService(
         for key, dependencies in dependency_sets.items():
           dependency_sets[key] = list(
               resolve_as_files(
-                  ForwardingRetrievalService(),
-                  lambda name: self._file_writer(
+                  ForwardingRetrievalService(), lambda name: self._file_writer(
                       os.path.join(staging_token, name)),
                   dependencies))
         requests.done()

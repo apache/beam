@@ -101,7 +101,7 @@ public class FlattenRunnerTest {
         "mainOutputTarget",
         (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
 
-    new FlattenRunner.Factory<>().createRunnerForPTransform(context);
+    new FlattenRunner.Factory().addRunnerForPTransform(context);
 
     mainOutputValues.clear();
     assertThat(
@@ -164,7 +164,7 @@ public class FlattenRunnerTest {
         "mainOutputTarget",
         (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
 
-    new FlattenRunner.Factory<>().createRunnerForPTransform(context);
+    new FlattenRunner.Factory().addRunnerForPTransform(context);
 
     mainOutputValues.clear();
     assertThat(

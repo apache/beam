@@ -390,8 +390,7 @@ class DeferredFrameTest(_AbstractFrameTest):
     ambiguous = pd.Series([True, True, False], index=s.index)
 
     self._run_test(
-        lambda s,
-        ambiguous: s.tz_localize('CET', ambiguous=ambiguous),
+        lambda s, ambiguous: s.tz_localize('CET', ambiguous=ambiguous),
         s,
         ambiguous)
 
@@ -444,8 +443,7 @@ class DeferredFrameTest(_AbstractFrameTest):
     df2 = pd.DataFrame({'A': [1, 1], 'B': [3, 3]})
     take_smaller = lambda s1, s2: s1 if s1.sum() < s2.sum() else s2
     self._run_test(
-        lambda df,
-        df2: df.combine(df2, take_smaller),
+        lambda df, df2: df.combine(df2, take_smaller),
         df,
         df2,
         nonparallel=True)
@@ -455,8 +453,7 @@ class DeferredFrameTest(_AbstractFrameTest):
     df2 = pd.DataFrame({'A': [1, 1], 'B': [3, 3]})
     take_smaller = lambda s1, s2: s1 if s1.sum() < s2.sum() else s2
     self._run_test(
-        lambda df1,
-        df2: df1.combine(df2, take_smaller, fill_value=-5),
+        lambda df1, df2: df1.combine(df2, take_smaller, fill_value=-5),
         df1,
         df2,
         nonparallel=True)
@@ -465,8 +462,7 @@ class DeferredFrameTest(_AbstractFrameTest):
     s1 = pd.Series({'falcon': 330.0, 'eagle': 160.0})
     s2 = pd.Series({'falcon': 345.0, 'eagle': 200.0, 'duck': 30.0})
     self._run_test(
-        lambda s1,
-        s2: s1.combine(s2, max),
+        lambda s1, s2: s1.combine(s2, max),
         s1,
         s2,
         nonparallel=True,
@@ -576,16 +572,14 @@ class DeferredFrameTest(_AbstractFrameTest):
         'rkey': ['foo', 'bar', 'baz', 'foo'], 'value': [5, 6, 7, 8]
     })
     self._run_test(
-        lambda df1,
-        df2: df1.merge(df2, left_on='lkey', right_on='rkey').rename(
+        lambda df1, df2: df1.merge(df2, left_on='lkey', right_on='rkey').rename(
             index=lambda x: '*'),
         df1,
         df2,
         nonparallel=True,
         check_proxy=False)
     self._run_test(
-        lambda df1,
-        df2: df1.merge(
+        lambda df1, df2: df1.merge(
             df2, left_on='lkey', right_on='rkey', suffixes=('_left', '_right')).
         rename(index=lambda x: '*'),
         df1,
@@ -600,8 +594,8 @@ class DeferredFrameTest(_AbstractFrameTest):
     df2 = pd.DataFrame({'a': ['foo', 'baz'], 'c': [3, 4]})
 
     self._run_test(
-        lambda df1,
-        df2: df1.merge(df2, how='left', on='a').rename(index=lambda x: '*'),
+        lambda df1, df2: df1.merge(df2, how='left', on='a').rename(
+            index=lambda x: '*'),
         df1,
         df2,
         nonparallel=True,
@@ -618,8 +612,7 @@ class DeferredFrameTest(_AbstractFrameTest):
     }).set_index('rkey')
 
     self._run_test(
-        lambda df1,
-        df2: df1.merge(df2, left_index=True, right_index=True),
+        lambda df1, df2: df1.merge(df2, left_index=True, right_index=True),
         df1,
         df2,
         check_proxy=False)
@@ -632,16 +625,14 @@ class DeferredFrameTest(_AbstractFrameTest):
         'key': ['foo', 'bar', 'baz', 'foo'], 'value': [5, 6, 7, 8]
     })
     self._run_test(
-        lambda df1,
-        df2: df1.merge(df2, on='key').rename(index=lambda x: '*'),
+        lambda df1, df2: df1.merge(df2, on='key').rename(index=lambda x: '*'),
         df1,
         df2,
         nonparallel=True,
         check_proxy=False)
     self._run_test(
-        lambda df1,
-        df2: df1.merge(df2, on='key', suffixes=('_left', '_right')).rename(
-            index=lambda x: '*'),
+        lambda df1, df2: df1.merge(df2, on='key', suffixes=('_left', '_right')).
+        rename(index=lambda x: '*'),
         df1,
         df2,
         nonparallel=True,
@@ -652,16 +643,15 @@ class DeferredFrameTest(_AbstractFrameTest):
     df2 = pd.DataFrame({'a': ['foo', 'baz'], 'c': [3, 4]})
 
     self._run_test(
-        lambda df1,
-        df2: df1.merge(df2, how='left', on='a').rename(index=lambda x: '*'),
+        lambda df1, df2: df1.merge(df2, how='left', on='a').rename(
+            index=lambda x: '*'),
         df1,
         df2,
         nonparallel=True,
         check_proxy=False)
     # Test without specifying 'on'
     self._run_test(
-        lambda df1,
-        df2: df1.merge(df2, how='left').rename(index=lambda x: '*'),
+        lambda df1, df2: df1.merge(df2, how='left').rename(index=lambda x: '*'),
         df1,
         df2,
         nonparallel=True,
@@ -672,8 +662,7 @@ class DeferredFrameTest(_AbstractFrameTest):
     df2 = pd.DataFrame({'a': ['foo', 'baz'], 'c': [3, 4], 'a_rsuffix': [7, 8]})
 
     self._run_test(
-        lambda df1,
-        df2: df1.merge(
+        lambda df1, df2: df1.merge(
             df2, how='left', on='a', suffixes=('_lsuffix', '_rsuffix')).rename(
                 index=lambda x: '*'),
         df1,
@@ -682,9 +671,9 @@ class DeferredFrameTest(_AbstractFrameTest):
         check_proxy=False)
     # Test without specifying 'on'
     self._run_test(
-        lambda df1,
-        df2: df1.merge(df2, how='left', suffixes=('_lsuffix', '_rsuffix')).
-        rename(index=lambda x: '*'),
+        lambda df1, df2: df1.merge(
+            df2, how='left', suffixes=('_lsuffix', '_rsuffix')).rename(
+                index=lambda x: '*'),
         df1,
         df2,
         nonparallel=True,
@@ -731,10 +720,8 @@ class DeferredFrameTest(_AbstractFrameTest):
     for normalize in (True, False):
       for dropna in (True, False):
         self._run_test(
-            lambda df,
-            dropna=dropna,
-            normalize=normalize: df.num_wings.value_counts(
-                dropna=dropna, normalize=normalize),
+            lambda df, dropna=dropna, normalize=normalize: df.num_wings.
+            value_counts(dropna=dropna, normalize=normalize),
             df)
 
   def test_value_counts_does_not_support_sort(self):
@@ -962,11 +949,8 @@ class DeferredFrameTest(_AbstractFrameTest):
         df)
     self._run_test(
         lambda df: df.melt(
-            id_vars=['A'],
-            value_vars=['B'],
-            var_name='myVarname',
-            value_name='myValname',
-            ignore_index=False),
+            id_vars=['A'], value_vars=['B'], var_name='myVarname', value_name=
+            'myValname', ignore_index=False),
         df)
     self._run_test(
         lambda df: df.melt(
@@ -1041,14 +1025,12 @@ class DeferredFrameTest(_AbstractFrameTest):
     df2 = pd.DataFrame({'A': range(10), 'B': range(10)}, index=range(9, 19))
 
     self._run_error_test(
-        lambda s1,
-        s2: s1.append(s2, verify_integrity=True),
+        lambda s1, s2: s1.append(s2, verify_integrity=True),
         df1['A'],
         df2['A'],
         construction_time=False)
     self._run_error_test(
-        lambda df1,
-        df2: df1.append(df2, verify_integrity=True),
+        lambda df1, df2: df1.append(df2, verify_integrity=True),
         df1,
         df2,
         construction_time=False)
@@ -1144,12 +1126,12 @@ class DeferredFrameTest(_AbstractFrameTest):
       (
           lambda base: base.from_dict({
               'row_1': [3, 2, 1, 0], 'row_2': ['a', 'b', 'c', 'd']
-          },
-                                      orient='index'), ),
+          }, orient='index'), ),
       (
           lambda base: base.from_records(
-              np.array([(3, 'a'), (2, 'b'), (1, 'c'), (0, 'd')],
-                       dtype=[('col_1', 'i4'), ('col_2', 'U1')])), ),
+              np.array([(3, 'a'), (2, 'b'), (1, 'c'),
+                        (0, 'd')], dtype=[('col_1', 'i4'),
+                                          ('col_2', 'U1')])), ),
   ])
   def test_create_methods(self, func):
     expected = func(pd.DataFrame)
@@ -1242,8 +1224,7 @@ class DeferredFrameTest(_AbstractFrameTest):
     ambiguous = pd.Series([True, True, False], index=s.index)
 
     self._run_test(
-        lambda s,
-        ambiguous: s.dt.tz_localize('CET', ambiguous=ambiguous),
+        lambda s, ambiguous: s.dt.tz_localize('CET', ambiguous=ambiguous),
         s,
         ambiguous)
 
@@ -1297,25 +1278,22 @@ class DeferredFrameTest(_AbstractFrameTest):
       self._run_test(lambda df1, df2: df1.compare(df2), df1, df2)
 
     self._run_test(
-        lambda df1,
-        df2: df1.compare(df2, align_axis=0),
+        lambda df1, df2: df1.compare(df2, align_axis=0),
         df1,
         df2,
         check_proxy=False)
     self._run_test(lambda df1, df2: df1.compare(df2, keep_shape=True), df1, df2)
     self._run_test(
-        lambda df1,
-        df2: df1.compare(df2, align_axis=0, keep_shape=True),
+        lambda df1, df2: df1.compare(df2, align_axis=0, keep_shape=True),
         df1,
         df2)
     self._run_test(
-        lambda df1,
-        df2: df1.compare(df2, keep_shape=True, keep_equal=True),
+        lambda df1, df2: df1.compare(df2, keep_shape=True, keep_equal=True),
         df1,
         df2)
     self._run_test(
-        lambda df1,
-        df2: df1.compare(df2, align_axis=0, keep_shape=True, keep_equal=True),
+        lambda df1, df2: df1.compare(
+            df2, align_axis=0, keep_shape=True, keep_equal=True),
         df1,
         df2)
 
@@ -1956,8 +1934,7 @@ class GroupByTest(_AbstractFrameTest):
       [2, 1],
       ['foo', 0],
       [1, 'str'],
-      [3, 0, 2, 1],
-  ])
+      [3, 0, 2, 1], ])
   def test_groupby_level_agg(self, level):
     df = GROUPBY_DF.set_index(['group', 'foo', 'bar', 'str'], drop=False)
     self._run_test(lambda df: df.groupby(level=level).bar.max(), df)
@@ -2212,8 +2189,8 @@ class AggregationTest(_AbstractFrameTest):
   def test_series_agg_multifunc_level(self):
     # level= is ignored for multiple agg fns
     self._run_test(
-        lambda df: df.set_index(['group', 'foo']).bar.agg(['min', 'max'],
-                                                          level=0),
+        lambda df: df.set_index(['group', 'foo']).bar.agg(['min', 'max'], level=
+                                                          0),
         GROUPBY_DF)
 
   def test_series_mean_skipna(self):
@@ -2370,8 +2347,7 @@ class AggregationTest(_AbstractFrameTest):
             mean_foo=('foo', lambda x: np.mean(x)),
             median_bar=('bar', lambda x: np.median(x)),
             sum_baz=('baz', 'sum'),
-            count_bool=('bool', 'count'),
-        ),
+            count_bool=('bool', 'count'), ),
         GROUPBY_DF)
 
   def test_std_mostly_na_with_ddof(self):
@@ -2817,8 +2793,7 @@ class BeamSpecificTest(unittest.TestCase):
     self.assertTrue(target_weight > other_weight * 10, "weights too close")
 
     result = self._evaluate(
-        lambda s,
-        weights: s.sample(n=num_samples, weights=weights).sum(),
+        lambda s, weights: s.sample(n=num_samples, weights=weights).sum(),
         # The first elements are 1, the rest are all 0.  This means that when
         # we sum all the sampled elements (above), the result should be the
         # number of times the first elements (aka targets) were sampled.

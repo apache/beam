@@ -109,6 +109,7 @@ public class KafkaIOTranslation {
             .addNullableByteArrayField("value_deserializer_provider")
             .addNullableByteArrayField("check_stop_reading_fn")
             .addNullableInt64Field("consumer_polling_timeout")
+            .addNullableBooleanField("log_topic_verification")
             .build();
 
     @Override
@@ -217,6 +218,9 @@ public class KafkaIOTranslation {
         throw new RuntimeException(
             "Upgrading KafkaIO read transforms that have `withBadRecordErrorHandler` property set"
                 + " is not supported yet.");
+      }
+      if (transform.getLogTopicVerification() != null) {
+        fieldValues.put("log_topic_verification", transform.getLogTopicVerification());
       }
 
       fieldValues.put("redistribute", transform.isRedistributed());

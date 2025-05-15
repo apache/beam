@@ -1180,9 +1180,7 @@ def WithKeys(pcoll, k, *args, **kwargs):
              for arg in args) and all(isinstance(kwarg, AsSideInput)
                                       for kwarg in kwargs.values()):
         return pcoll | Map(
-            lambda v,
-            *args,
-            **kwargs: (k(v, *args, **kwargs), v),
+            lambda v, *args, **kwargs: (k(v, *args, **kwargs), v),
             *args,
             **kwargs)
       return pcoll | Map(lambda v: (k(v, *args, **kwargs), v))
@@ -1326,8 +1324,8 @@ class _GroupIntoBatchesParams:
         'batch_size must be a positive value')
     assert (
         self.max_buffering_duration_secs is not None and
-        self.max_buffering_duration_secs >= 0), (
-            'max_buffering_duration must be a non-negative value')
+        self.max_buffering_duration_secs
+        >= 0), ('max_buffering_duration must be a non-negative value')
 
   def get_payload(self):
     return beam_runner_api_pb2.GroupIntoBatchesPayload(

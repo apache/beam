@@ -23,11 +23,11 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.iceberg.CombinedScanTask;
+import org.apache.iceberg.Schema;
 import org.apache.iceberg.Table;
 import org.checkerframework.dataflow.qual.Pure;
 
@@ -56,7 +56,12 @@ class ScanTaskSource extends BoundedSource<Row> {
 
   @Pure
   Schema getSchema() {
-    return scanConfig.getSchema();
+    return scanConfig.getProjectedSchema();
+  }
+
+  @Pure
+  IcebergScanConfig getScanConfig() {
+    return scanConfig;
   }
 
   @Override

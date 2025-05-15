@@ -214,8 +214,8 @@ class Stager(object):
     if not skip_prestaged_dependencies:
       requirements_cache_path = (
           os.path.join(tempfile.gettempdir(), 'dataflow-requirements-cache') if
-          (setup_options.requirements_cache is None) else
-          setup_options.requirements_cache)
+          (setup_options.requirements_cache
+           is None) else setup_options.requirements_cache)
       if (setup_options.requirements_cache != SKIP_REQUIREMENTS_CACHE and
           not os.path.exists(requirements_cache_path)):
         os.makedirs(requirements_cache_path)

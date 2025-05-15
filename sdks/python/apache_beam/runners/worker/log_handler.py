@@ -111,8 +111,8 @@ class FnApiLogRecordHandler(logging.Handler):
       return LOG_LEVEL_TO_LOGENTRY_MAP[level]
     except KeyError:
       return max(
-          beam_level for python_level,
-          beam_level in LOG_LEVEL_TO_LOGENTRY_MAP.items()
+          beam_level
+          for python_level, beam_level in LOG_LEVEL_TO_LOGENTRY_MAP.items()
           if python_level <= level)
 
   def emit(self, record: logging.LogRecord) -> None:

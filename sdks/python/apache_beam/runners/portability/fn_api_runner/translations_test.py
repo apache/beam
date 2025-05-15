@@ -411,8 +411,8 @@ class TranslationsTest(unittest.TestCase):
                          'MyCombinePerKey(min)/Merge',
                          'MyCombinePerKey(min)/ExtractOutputs']:
       assert (
-          "my_annotation" in
-          optimized.components.transforms[transform_id].annotations)
+          "my_annotation"
+          in optimized.components.transforms[transform_id].annotations)
 
   def test_conditionally_packed_combiners(self):
     class RecursiveCombine(beam.PTransform):

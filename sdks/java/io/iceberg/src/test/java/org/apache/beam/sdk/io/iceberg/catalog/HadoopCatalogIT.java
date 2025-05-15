@@ -30,11 +30,6 @@ import org.apache.iceberg.hadoop.HadoopCatalog;
 
 public class HadoopCatalogIT extends IcebergCatalogBaseIT {
   @Override
-  public Integer numRecords() {
-    return 100;
-  }
-
-  @Override
   public Catalog createCatalog() {
     Configuration catalogHadoopConf = new Configuration();
     catalogHadoopConf.set("fs.gs.project.id", OPTIONS.getProject());

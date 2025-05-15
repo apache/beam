@@ -265,10 +265,23 @@ class GcsIO(object):
     bucket_name, blob_name = parse_gcs_path(path)
     bucket = self.client.bucket(bucket_name)
     if recursive:
-      # List and delete all blobs under the prefix.
-      blobs = bucket.list_blobs(prefix=blob_name)
-      for blob in blobs:
-        self._delete_blob(bucket, blob.name)
+      # List all blobs under the prefix.
+      blobs_to_delete = bucket.list_blobs(
+          prefix=blob_name, retry=self._storage_client_retry)
+      # Collect full paths for batch deletion.
+      paths_to_delete = [
+          f'gs://{bucket_name}/{blob.name}' for blob in blobs_to_delete
+      ]
+      if paths_to_delete:
+        # Delete them in batches.
+        results = self.delete_batch(paths_to_delete)
+        # Log any errors encountered during batch deletion.
+        errors = [f'{path}: {err}' for path, err in results if err is not None]
+        if errors:
+          _LOGGER.warning(
+              'Failed to delete some objects during recursive delete of %s: %s',
+              path,
+              ', '.join(errors))
     else:
       # Delete only the specific blob.
       self._delete_blob(bucket, blob_name)
@@ -468,11 +481,10 @@ class GcsIO(object):
     Args:
       path: GCS file path pattern in the form gs://<bucket>/<name>.
     """
-    try:
-      self._gcs_object(path)
-      return True
-    except NotFound:
-      return False
+    bucket_name, blob_name = parse_gcs_path(path)
+    bucket = self.client.bucket(bucket_name)
+    blob = bucket.blob(blob_name)
+    return blob.exists(retry=self._storage_client_retry)
 
   def checksum(self, path):
     """Looks up the checksum of a GCS object.

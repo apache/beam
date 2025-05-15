@@ -75,8 +75,7 @@ class HuggingFaceInferenceTest(unittest.TestCase):
         inference_fn=fake_inference_fn_tensor)
     batched_examples = [tf.constant([1]), tf.constant([10]), tf.constant([100])]
     expected_predictions = [
-        PredictionResult(ex, pred) for ex,
-        pred in zip(
+        PredictionResult(ex, pred) for ex, pred in zip(
             batched_examples,
             [tf.math.multiply(n, 10) for n in batched_examples])
     ]
@@ -94,8 +93,7 @@ class HuggingFaceInferenceTest(unittest.TestCase):
         inference_args={"add": True})
     batched_examples = [tf.constant([1]), tf.constant([10]), tf.constant([100])]
     expected_predictions = [
-        PredictionResult(ex, pred) for ex,
-        pred in zip(
+        PredictionResult(ex, pred) for ex, pred in zip(
             batched_examples, [
                 tf.math.add(tf.math.multiply(n, 10), 10)
                 for n in batched_examples

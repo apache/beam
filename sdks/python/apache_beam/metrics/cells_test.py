@@ -49,7 +49,8 @@ class TestCounterCell(unittest.TestCase):
     threads = []
     c = CounterCell()
     for _ in range(TestCounterCell.NUM_THREADS):
-      t = threading.Thread(target=TestCounterCell._modify_counter, args=(c, ))
+      t = threading.Thread(
+          target=TestCounterCell._modify_counter, args=(c, ))
       threads.append(t)
       t.start()
 

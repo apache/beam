@@ -151,9 +151,8 @@ class PipelineRenderer:
     if options.render_leaf_composite_nodes:
       is_leaf = lambda transform_id: any(
           re.match(
-              pattern,
-              self.pipeline.components.transforms[transform_id].unique_name)
-          for patterns in options.render_leaf_composite_nodes
+              pattern, self.pipeline.components.transforms[transform_id].
+              unique_name) for patterns in options.render_leaf_composite_nodes
           for pattern in patterns.split(','))
       self.leaf_composites = set()
 

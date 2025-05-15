@@ -163,7 +163,7 @@ public class BeamFnDataReadRunnerTest {
               .build();
       context.<String>addPCollectionConsumer(localOutputId, outputValues::add);
 
-      new BeamFnDataReadRunner.Factory<String>().createRunnerForPTransform(context);
+      new BeamFnDataReadRunner.Factory().addRunnerForPTransform(context);
 
       assertThat(context.getTearDownFunctions(), empty());
       assertThat(context.getStartBundleFunctions(), empty());
@@ -207,7 +207,7 @@ public class BeamFnDataReadRunnerTest {
       context.<String>addPCollectionConsumer(localOutputId, outputValues::add);
 
       BeamFnDataReadRunner<String> readRunner =
-          new BeamFnDataReadRunner.Factory<String>().createRunnerForPTransform(context);
+          new BeamFnDataReadRunner.Factory().addReadRunnerForPTransform(context);
       assertThat(context.getIncomingDataEndpoints().keySet(), hasSize(1));
       DataEndpoint<WindowedValue<String>> endpoint =
           (DataEndpoint<WindowedValue<String>>)
@@ -683,7 +683,7 @@ public class BeamFnDataReadRunnerTest {
             .build();
     context.addPCollectionConsumer(localOutputId, consumer);
 
-    return new BeamFnDataReadRunner.Factory<String>().createRunnerForPTransform(context);
+    return new BeamFnDataReadRunner.Factory().addReadRunnerForPTransform(context);
   }
 
   private static void assertIntermediateMonitoringDataDataChannelReadIndexEquals(
