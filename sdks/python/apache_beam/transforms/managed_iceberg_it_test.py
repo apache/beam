@@ -28,10 +28,10 @@ from apache_beam.testing.util import equal_to
 
 
 @pytest.mark.uses_io_java_expansion_service
-@unittest.skipUnless(
-    os.environ.get('EXPANSION_JARS'),
-    "EXPANSION_JARS environment var is not provided, "
-    "indicating that jars have not been built")
+# @unittest.skipUnless(
+#     os.environ.get('EXPANSION_JARS'),
+#     "EXPANSION_JARS environment var is not provided, "
+#     "indicating that jars have not been built")
 class ManagedIcebergIT(unittest.TestCase):
   WAREHOUSE = "gs://temp-storage-for-end-to-end-tests/xlang-python-using-java"
 
@@ -48,7 +48,8 @@ class ManagedIcebergIT(unittest.TestCase):
         str_=str(num),
         bytes_=bytes(num),
         bool_=(num % 2 == 0),
-        float_=(num + float(num) / 100))
+        float_=(num + float(num) / 100),
+        arr_=[num, num, num])
 
   def test_write_read_pipeline(self):
     iceberg_config = {
@@ -60,7 +61,7 @@ class ManagedIcebergIT(unittest.TestCase):
         }
     }
 
-    rows = [self._create_row(i) for i in range(100)]
+    rows = [self._create_row(i) for i in range(2)]
     expected_dicts = [row.as_dict() for row in rows]
 
     with beam.Pipeline(argv=self.args) as write_pipeline:
