@@ -46,7 +46,7 @@ dependencies {
     implementation library.java.jackson_core
     implementation library.java.jackson_databind
     implementation 'org.apache.hadoop:hadoop-common:3.3.5'
-    implementation 'org.apache.avro:avro:1.11.1'
+    implementation 'org.apache.avro:avro:1.12.0'
     implementation 'org.apache.parquet:parquet-avro:1.12.0'
     implementation 'org.apache.parquet:parquet-common:1.12.0'
     implementation 'org.apache.parquet:parquet-hadoop:1.12.0'
