@@ -15,11 +15,11 @@
 # limitations under the License.
 #
 
-import uuid
 import unittest
+import uuid
+from unittest import mock
 
 from apache_beam.utils import logs
-from unittest import mock
 
 
 class LogsTest(unittest.TestCase):
