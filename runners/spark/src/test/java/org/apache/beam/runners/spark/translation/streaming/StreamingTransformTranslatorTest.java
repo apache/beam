@@ -253,11 +253,11 @@ public class StreamingTransformTranslatorTest implements Serializable {
 
     // Fetch metrics for Flattened result after first run
     long firstMax = 0;
-    for (MetricResult<DistributionResult> dists : res.metrics().queryMetrics(metricsFilter).getDistributions()) {
+    for (MetricResult<DistributionResult> dists :
+        res.metrics().queryMetrics(metricsFilter).getDistributions()) {
       long currentMax = dists.getAttempted().getMax();
       if (currentMax > firstMax) {
         firstMax = currentMax;
-
       }
     }
 
@@ -279,7 +279,8 @@ public class StreamingTransformTranslatorTest implements Serializable {
 
     long secondMax = 0;
     long secondSum = 0;
-    for (MetricResult<DistributionResult> dists : res.metrics().queryMetrics(metricsFilter).getDistributions()) {
+    for (MetricResult<DistributionResult> dists :
+        res.metrics().queryMetrics(metricsFilter).getDistributions()) {
       long currentMax = dists.getAttempted().getMax();
       if (currentMax > secondMax) {
         secondMax = currentMax;
