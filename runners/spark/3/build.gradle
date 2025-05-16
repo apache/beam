@@ -88,3 +88,7 @@ tasks.register("sparkVersionsTest") {
   group = "Verification"
   dependsOn sparkVersions.collect{k,v -> "sparkVersion${k}Test"}
 }
+
+tasks.test {
+  outputs.upToDateWhen { false }
+}
