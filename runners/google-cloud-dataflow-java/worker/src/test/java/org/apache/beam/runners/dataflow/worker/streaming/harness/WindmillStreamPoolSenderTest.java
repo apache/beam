@@ -100,6 +100,7 @@ public class WindmillStreamPoolSenderTest {
             GetWorkBudget.builder().setBytes(BYTE_BUDGET).setItems(ITEM_BUDGET).build());
 
     windmillStreamPoolSender.start();
+    waitForDispatchLoopToStart(windmillStreamPoolSender);
 
     verify(streamFactory)
         .createGetWorkStream(
@@ -116,6 +117,7 @@ public class WindmillStreamPoolSenderTest {
     windmillStreamPoolSender.start();
     windmillStreamPoolSender.start();
     windmillStreamPoolSender.start();
+    waitForDispatchLoopToStart(windmillStreamPoolSender);
 
     verify(streamFactory, times(1))
         .createGetWorkStream(
@@ -137,6 +139,7 @@ public class WindmillStreamPoolSenderTest {
             GetWorkBudget.builder().setBytes(1L).setItems(1L).build(), mockStreamFactory);
 
     windmillStreamPoolSender.start();
+    waitForDispatchLoopToStart(windmillStreamPoolSender);
     windmillStreamPoolSender.close();
 
     verify(mockGetWorkStream).shutdown();
@@ -160,5 +163,18 @@ public class WindmillStreamPoolSenderTest {
         mockStreamingWorkScheduler,
         mockWaitForResources,
         mockComputationStateFetcher);
+  }
+
+  private void waitForDispatchLoopToStart(WindmillStreamPoolSender windmillStreamSender) {
+    while (true) {
+      if (windmillStreamSender.hasGetWorkStreamStarted()) {
+        break;
+      }
+      try {
+        Thread.sleep(1000); // Wait for 1 second
+      } catch (InterruptedException e) {
+        break;
+      }
+    }
   }
 }
