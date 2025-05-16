@@ -58,9 +58,6 @@ import org.joda.time.Instant;
  * WindowedValue<InputT>} to {@code WindowedValue<KV<InputT, KV<RestrictionT,
  * WatermarkEstimatorStateT>>>}
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class SplittablePairWithRestrictionDoFnRunner<
         InputT, RestrictionT, WatermarkEstimatorStateT, OutputT>
     implements FnApiStateAccessor.MutatingStateContext<Void, BoundedWindow> {
@@ -85,12 +82,17 @@ public class SplittablePairWithRestrictionDoFnRunner<
     }
 
     private void addRunnerForPairWithRestriction(Context context) throws IOException {
+      FnApiStateAccessor<Void> stateAccessor =
+          FnApiStateAccessor.Factory.<Void>factoryForPTransformContext(context).create();
+
       SplittablePairWithRestrictionDoFnRunner<?, ?, ?, ?> runner =
           new SplittablePairWithRestrictionDoFnRunner<>(
               context.getPipelineOptions(),
               context.getPTransform(),
               context::getPCollectionConsumer,
-              FnApiStateAccessor.Factory.factoryForPTransformContext(context));
+              stateAccessor);
+
+      stateAccessor.setKeyAndWindowContext(runner);
 
       // Register processing methods
       context.addPCollectionConsumer(
@@ -121,7 +123,7 @@ public class SplittablePairWithRestrictionDoFnRunner<
       PipelineOptions pipelineOptions,
       PTransform pTransform,
       Function<String, FnDataReceiver<WindowedValue<?>>> getPCollectionConsumer,
-      FnApiStateAccessor.Factory<Void> stateAccessorFactory)
+      FnApiStateAccessor<Void> stateAccessor)
       throws IOException {
     this.pipelineOptions = pipelineOptions;
 
@@ -144,7 +146,7 @@ public class SplittablePairWithRestrictionDoFnRunner<
     FnDataReceiver<WindowedValue<KV<InputT, KV<RestrictionT, WatermarkEstimatorStateT>>>>
         mainOutputConsumer =
             (FnDataReceiver)
-                getPCollectionConsumer.apply(pTransform.getOutputsMap().get(mainOutputTag.getId()));
+                getPCollectionConsumer.apply(pTransform.getOutputsOrThrow(mainOutputTag.getId()));
     this.mainOutputConsumer = mainOutputConsumer;
 
     // Side inputs
@@ -152,14 +154,16 @@ public class SplittablePairWithRestrictionDoFnRunner<
 
     // Register processing methods
     this.observesWindow =
-        doFnSignature.getInitialRestriction().observesWindow() || !sideInputMapping.isEmpty();
+        (doFnSignature.getInitialRestriction() != null
+                && doFnSignature.getInitialRestriction().observesWindow())
+            || !sideInputMapping.isEmpty();
 
     if (observesWindow) {
       this.mutableArgumentProvider = new WindowObservingProcessBundleContext();
     } else {
       this.mutableArgumentProvider = new NonWindowObservingProcessBundleContext();
     }
-    this.stateAccessor = stateAccessorFactory.create(this);
+    this.stateAccessor = stateAccessor;
   }
 
   private void processElement(WindowedValue<InputT> elem) {
@@ -175,15 +179,12 @@ public class SplittablePairWithRestrictionDoFnRunner<
     try {
       RestrictionT currentRestriction =
           doFnInvoker.invokeGetInitialRestriction(mutableArgumentProvider);
+      WatermarkEstimatorStateT watermarkEstimatorState =
+          doFnInvoker.invokeGetInitialWatermarkEstimatorState(mutableArgumentProvider);
       outputTo(
           mainOutputConsumer,
           elem.withValue(
-              KV.of(
-                  elem.getValue(),
-                  KV.of(
-                      currentRestriction,
-                      doFnInvoker.invokeGetInitialWatermarkEstimatorState(
-                          mutableArgumentProvider)))));
+              KV.of(elem.getValue(), KV.of(currentRestriction, watermarkEstimatorState))));
     } finally {
       mutableArgumentProvider.currentElement = null;
     }
@@ -198,15 +199,12 @@ public class SplittablePairWithRestrictionDoFnRunner<
         mutableArgumentProvider.currentWindow = boundedWindow;
         RestrictionT currentRestriction =
             doFnInvoker.invokeGetInitialRestriction(mutableArgumentProvider);
+        WatermarkEstimatorStateT watermarkEstimatorState =
+            doFnInvoker.invokeGetInitialWatermarkEstimatorState(mutableArgumentProvider);
         outputTo(
             mainOutputConsumer,
             WindowedValue.of(
-                KV.of(
-                    elem.getValue(),
-                    KV.of(
-                        currentRestriction,
-                        doFnInvoker.invokeGetInitialWatermarkEstimatorState(
-                            mutableArgumentProvider))),
+                KV.of(elem.getValue(), KV.of(currentRestriction, watermarkEstimatorState)),
                 elem.getTimestamp(),
                 boundedWindow,
                 elem.getPane()));
@@ -304,7 +302,11 @@ public class SplittablePairWithRestrictionDoFnRunner<
 
     @Override
     public Object sideInput(String tagId) {
-      return stateAccessor.get(sideInputMapping.get(tagId), getCurrentWindowOrFail());
+      PCollectionView<Object> pCollectionView =
+          (PCollectionView<Object>)
+              checkStateNotNull(sideInputMapping.get(tagId), "Side input tag not found: %s", tagId);
+
+      return stateAccessor.get(pCollectionView, getCurrentWindow());
     }
   }
 
