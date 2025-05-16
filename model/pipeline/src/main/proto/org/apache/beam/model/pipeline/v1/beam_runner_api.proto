@@ -2032,3 +2032,7 @@ message StandardResourceHints {
     MAX_ACTIVE_BUNDLES_PER_WORKER = 3 [(beam_urn) = "beam:resources:max_active_bundles_per_worker:v1"];
   }
 }
+
+message ElementMetadata {
+  // empty message - add drain, kind, tracing metadata in the future
+}
