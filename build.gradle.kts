@@ -571,6 +571,7 @@ tasks.register("communityMetricsProber") {
 tasks.register("javaExamplesDataflowPrecommit") {
   dependsOn(":runners:google-cloud-dataflow-java:examples:preCommit")
   dependsOn(":runners:google-cloud-dataflow-java:examples-streaming:preCommit")
+  dependsOn(":runners:google-cloud-dataflow-java:examplesJavaDistrolessRunnerV2PreCommit")
   dependsOn(":runners:google-cloud-dataflow-java:examplesJavaRunnerV2PreCommit")
 }
 
