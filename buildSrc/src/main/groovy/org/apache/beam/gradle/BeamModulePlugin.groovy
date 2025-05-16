@@ -682,7 +682,7 @@ class BeamModulePlugin implements Plugin<Project> {
         args4j                                      : "args4j:args4j:2.33",
         auto_value_annotations                      : "com.google.auto.value:auto-value-annotations:$autovalue_version",
         avro                                        : "org.apache.avro:avro:1.11.4",
-        avro_tests                                  : "org.apache.avro:avro:1.11.3:tests",
+        avro_tests                                  : "org.apache.avro:avro:1.11.4:tests",
         aws_java_sdk2_apache_client                 : "software.amazon.awssdk:apache-client:$aws_java_sdk2_version",
         aws_java_sdk2_netty_client                  : "software.amazon.awssdk:netty-nio-client:$aws_java_sdk2_version",
         aws_java_sdk2_auth                          : "software.amazon.awssdk:auth:$aws_java_sdk2_version",
