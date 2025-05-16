@@ -18,10 +18,9 @@
 package org.apache.beam.sdk.testing;
 
 import java.lang.annotation.Annotation;
-import java.util.Arrays;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicate;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
-import org.junit.experimental.categories.Category;
+import org.junit.jupiter.api.Tag;
 
 /** A utility class for querying annotations. */
 @SuppressWarnings({
@@ -32,16 +31,26 @@ class Annotations {
   /** Annotation predicates. */
   static class Predicates {
 
-    static Predicate<Annotation> isAnnotationOfType(final Class<? extends Annotation> clazz) {
+    static Predicate<Annotation> isAnnotationOfType(
+        final Class<? extends Annotation> annotationType) {
+      Preconditions.checkNotNull(annotationType, "annotationType cannot be null");
       return annotation ->
-          annotation.annotationType() != null && annotation.annotationType().equals(clazz);
+          annotation.annotationType() != null
+              && annotation.annotationType().equals(annotation.annotationType());
     }
 
-    static Predicate<Annotation> isCategoryOf(final Class<?> value, final boolean allowDerived) {
-      return category ->
-          FluentIterable.from(Arrays.asList(((Category) category).value()))
-              .anyMatch(
-                  aClass -> allowDerived ? value.isAssignableFrom(aClass) : value.equals(aClass));
+    static Predicate<Annotation> isJUnit5TagNamed(final String expectedTagName) {
+      Preconditions.checkNotNull(expectedTagName, "expectedTagName cannot be null");
+      return annotation -> {
+        if (annotation != null && Tag.class.equals(annotation.annotationType())) {
+          // Cast is safe due to the preceding check.
+          // Tag.value() is specified as @NonNull (by contract, though not explicitly by
+          // @javax.annotation.Nonnull),
+          // so no null check needed for its return value when comparing.
+          return expectedTagName.equals(((Tag) annotation).value());
+        }
+        return false;
+      };
     }
   }
 }

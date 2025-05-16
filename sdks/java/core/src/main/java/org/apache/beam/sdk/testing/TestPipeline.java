@@ -24,10 +24,8 @@ import static org.hamcrest.Matchers.is;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.lang.annotation.Annotation;
+import java.util.*;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.annotations.Internal;
@@ -49,15 +47,14 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicate;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.junit.experimental.categories.Category;
-import org.junit.rules.TestRule;
-import org.junit.runner.Description;
-import org.junit.runners.model.Statement;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.extension.AfterEachCallback;
+import org.junit.jupiter.api.extension.BeforeEachCallback;
+import org.junit.jupiter.api.extension.ExtensionContext;
 
 /**
  * A creator of test pipelines that can be used inside of tests that can be configured to run
@@ -104,7 +101,10 @@ import org.junit.runners.model.Statement;
  * href="https://beam.apache.org/documentation/pipelines/test-your-pipeline/">Testing</a>
  * documentation section.
  */
-public class TestPipeline extends Pipeline implements TestRule {
+public class TestPipeline extends Pipeline implements BeforeEachCallback, AfterEachCallback {
+
+  public static final String NEEDS_RUNNER_TAG = "NeedsRunner";
+  public static final String VALIDATES_RUNNER_TAG = "ValidatesRunner";
 
   private final PipelineOptions options;
 
@@ -287,51 +287,74 @@ public class TestPipeline extends Pipeline implements TestRule {
     return this.options;
   }
 
+  private void setDeducedEnforcementLevel(ExtensionContext context) {
+    // if the enforcement level has not been set by the user do auto-inference
+    if (!enforcement.isPresent()) {
+      boolean annotatedWithNeedsRunner;
+
+      // Check for @Category(NeedsRunner.class) or @Category(ValidatesRunner.class)
+      // on the test method
+      List<Annotation> methodAnnotations =
+          Arrays.asList(context.getRequiredTestMethod().getAnnotations());
+      annotatedWithNeedsRunner =
+          methodAnnotations.stream()
+              .filter(ann -> ann.annotationType().equals(Tag.class))
+              .map(ann -> (Tag) ann)
+              .anyMatch(
+                  cat ->
+                      Arrays.asList(cat.value()).contains(NeedsRunner.class)
+                          || Arrays.asList(cat.value()).contains(ValidatesRunner.class));
+
+      // Check on the test class if not found on method
+      if (!annotatedWithNeedsRunner) {
+        List<Annotation> classAnnotations =
+            Arrays.asList(context.getRequiredTestClass().getAnnotations());
+        annotatedWithNeedsRunner =
+            classAnnotations.stream()
+                .filter(ann -> ann.annotationType().equals(Tag.class))
+                .map(ann -> (Tag) ann)
+                .anyMatch(
+                    cat ->
+                        Arrays.asList(cat.value()).contains(NeedsRunner.class)
+                            || Arrays.asList(cat.value()).contains(ValidatesRunner.class));
+      }
+
+      // Additionally, check for JUnit 5 @Tag("NeedsRunner") or @Tag("ValidatesRunner")
+      if (!annotatedWithNeedsRunner) {
+        annotatedWithNeedsRunner =
+            context.getTags().stream()
+                .anyMatch(tag -> tag.equals("NeedsRunner") || tag.equals("ValidatesRunner"));
+      }
+
+      final boolean crashingRunner = CrashingRunner.class.isAssignableFrom(options.getRunner());
+
+      checkState(
+          !(annotatedWithNeedsRunner && crashingRunner),
+          "The test was annotated with a @NeedsRunner, @ValidatesRunner, or equivalent tag while the runner "
+              + "was set to [%s]. Please re-check your configuration.",
+          CrashingRunner.class.getSimpleName());
+
+      enableAbandonedNodeEnforcement(annotatedWithNeedsRunner || !crashingRunner);
+    }
+  }
+
   @Override
-  public Statement apply(final Statement statement, final Description description) {
-    return new Statement() {
+  public void beforeEach(ExtensionContext context) throws Exception {
+    options.as(ApplicationNameOptions.class).setAppName(getAppName(context));
+    setDeducedEnforcementLevel(context);
+  }
 
-      private void setDeducedEnforcementLevel() {
-        // if the enforcement level has not been set by the user do auto-inference
-        if (!enforcement.isPresent()) {
-
-          final boolean annotatedWithNeedsRunner =
-              FluentIterable.from(description.getAnnotations())
-                  .filter(Annotations.Predicates.isAnnotationOfType(Category.class))
-                  .anyMatch(Annotations.Predicates.isCategoryOf(NeedsRunner.class, true));
-
-          final boolean crashingRunner = CrashingRunner.class.isAssignableFrom(options.getRunner());
-
-          checkState(
-              !(annotatedWithNeedsRunner && crashingRunner),
-              "The test was annotated with a [@%s] / [@%s] while the runner "
-                  + "was set to [%s]. Please re-check your configuration.",
-              NeedsRunner.class.getSimpleName(),
-              ValidatesRunner.class.getSimpleName(),
-              CrashingRunner.class.getSimpleName());
-
-          enableAbandonedNodeEnforcement(annotatedWithNeedsRunner || !crashingRunner);
-        }
-      }
-
-      @Override
-      public void evaluate() throws Throwable {
-        options.as(ApplicationNameOptions.class).setAppName(getAppName(description));
-
-        setDeducedEnforcementLevel();
-
-        // statement.evaluate() essentially runs the user code contained in the unit test at hand.
-        // Exceptions thrown during the execution of the user's test code will propagate here,
-        // unless the user explicitly handles them with a "catch" clause in his code. If the
-        // exception is handled by a user's "catch" clause, is does not interrupt the flow and
-        // we move on to invoking the configured enforcements.
-        // If the user does not handle a thrown exception, it will propagate here and interrupt
-        // the flow, preventing the enforcement(s) from being activated.
-        // The motivation for this is avoiding enforcements over faulty pipelines.
-        statement.evaluate();
-        enforcement.get().afterUserCodeFinished();
-      }
-    };
+  @Override
+  public void afterEach(ExtensionContext context) throws Exception {
+    if (enforcement.isPresent()) {
+      enforcement.get().afterUserCodeFinished();
+    } else {
+      // This case should ideally not be reached if beforeEach was called.
+      // It implies TestPipeline was not correctly registered or used.
+      System.err.println(
+          "Warning: TestPipeline.afterEach called but enforcement was not set. "
+              + "Ensure TestPipeline is registered with @RegisterExtension.");
+    }
   }
 
   /**
@@ -528,9 +551,9 @@ public class TestPipeline extends Pipeline implements TestRule {
   }
 
   /** Returns the class + method name of the test. */
-  private String getAppName(Description description) {
-    String methodName = description.getMethodName();
-    Class<?> testClass = description.getTestClass();
+  private String getAppName(ExtensionContext description) {
+    String methodName = description.getRequiredTestMethod().getName();
+    Class<?> testClass = description.getRequiredTestClass();
     @Nullable Class<?> enclosingClass = testClass.getEnclosingClass();
     if (enclosingClass != null) {
       return String.format(

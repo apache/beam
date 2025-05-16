@@ -84,7 +84,6 @@ dependencies {
   shadow library.java.byte_buddy
   shadow library.java.commons_compress
   shadow library.java.commons_lang3
-  testImplementation library.java.mockito_inline
   shadow library.java.classgraph
   shadow library.java.jsr305
   shadow library.java.error_prone_annotations
@@ -95,14 +94,24 @@ dependencies {
   shadow library.java.snappy_java
   shadow library.java.joda_time
   implementation enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
-  testImplementation 'org.junit.vintage:junit-vintage-engine:${junit5.vintage.version}'
+  // JUnit 5 Jupiter API and Engine
+  testImplementation("org.junit.jupiter:junit-jupiter-api:5.10.2") // Use the latest stable version
+  testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.2")
+
+  // For Parameterized Tests
+  testImplementation("org.junit.jupiter:junit-jupiter-params:5.10.2")
+
+  // To run existing JUnit 4 tests
+  testRuntimeOnly("org.junit.vintage:junit-vintage-engine:5.10.2")
+
+  // Optional: For migration support (e.g. limited @Rule support)
+  testImplementation("org.junit.jupiter:junit-jupiter-migrationsupport:5.10.2")
   permitUnusedDeclared enforcedPlatform(library.java.google_cloud_platform_libraries_bom)
   provided library.java.json_org
   implementation library.java.everit_json_schema
   implementation library.java.snake_yaml
   shadowTest library.java.everit_json_schema
   provided library.java.junit
-  testImplementation "com.github.stefanbirkner:system-rules:1.19.0"
   provided library.java.hamcrest
   provided 'io.airlift:aircompressor:0.18'
   provided 'com.facebook.presto.hadoop:hadoop-apache2:3.2.0-1'

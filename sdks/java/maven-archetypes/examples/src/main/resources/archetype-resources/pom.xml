@@ -453,14 +453,12 @@
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter-api</artifactId>
       <version>${junit.version}</version>
-      <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>org.junit.vintage</groupId>
       <artifactId>junit-vintage-engine</artifactId>
-      <version>${junit5.vintage.version}</version>
-      <scope>test</scope>
+      <version>${junit.version}}</version>
     </dependency>
 
 

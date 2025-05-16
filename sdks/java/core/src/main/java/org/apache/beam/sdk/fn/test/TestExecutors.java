@@ -21,9 +21,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ForwardingExecutorService;
-import org.junit.rules.TestRule;
-import org.junit.runner.Description;
-import org.junit.runners.model.Statement;
+import org.junit.jupiter.api.extension.AfterEachCallback;
+import org.junit.jupiter.api.extension.BeforeEachCallback;
+import org.junit.jupiter.api.extension.ExtensionContext;
 
 /**
  * A {@link TestRule} that validates that all submitted tasks finished and were completed. This
@@ -42,7 +42,8 @@ public class TestExecutors {
   }
 
   /** A union of the {@link ExecutorService} and {@link TestRule} interfaces. */
-  public interface TestExecutorService extends ExecutorService, TestRule {}
+  public interface TestExecutorService
+      extends ExecutorService, BeforeEachCallback, AfterEachCallback {}
 
   private static class FromSupplier extends ForwardingExecutorService
       implements TestExecutorService {
@@ -54,33 +55,64 @@ public class TestExecutors {
     }
 
     @Override
-    public Statement apply(final Statement statement, Description arg1) {
-      return new Statement() {
-        @Override
-        public void evaluate() throws Throwable {
-          Throwable thrown = null;
-          delegate = executorServiceSupplier.get();
-          try {
-            statement.evaluate();
-          } catch (Throwable t) {
-            thrown = t;
-          }
-          shutdown();
-          if (!awaitTermination(5, TimeUnit.SECONDS)) {
-            shutdownNow();
-            IllegalStateException e =
+    public void beforeEach(ExtensionContext context) throws Exception {
+      this.delegate = executorServiceSupplier.get();
+      if (this.delegate == null) {
+        throw new IllegalStateException("The ExecutorService supplier returned null.");
+      }
+    }
+
+    @Override
+    public void afterEach(ExtensionContext context) throws Exception {
+      Throwable testMethodException = context.getExecutionException().orElse(null);
+      Throwable shutdownFailureException = null;
+
+      if (delegate != null) {
+        try {
+          delegate.shutdown();
+          if (!delegate.awaitTermination(5, TimeUnit.SECONDS)) {
+            delegate.shutdownNow(); // Attempt to force stop
+            // This exception indicates that tasks did not complete cleanly within the timeout.
+            shutdownFailureException =
                 new IllegalStateException("Test executor failed to shutdown cleanly.");
-            if (thrown != null) {
-              thrown.addSuppressed(e);
-            } else {
-              thrown = e;
-            }
+            // Optionally, one could await a short period after shutdownNow and log if still not
+            // terminated,
+            // but the primary failure is not shutting down gracefully.
           }
-          if (thrown != null) {
-            throw thrown;
-          }
+        } catch (InterruptedException ie) {
+          // InterruptedException during awaitTermination is a failure mode.
+          // Ensure executor is shut down forcefully.
+          delegate.shutdownNow();
+          Thread.currentThread().interrupt(); // Preserve interrupt status
+          shutdownFailureException =
+              new IllegalStateException("Test executor shutdown was interrupted.", ie);
+        } catch (Exception e) {
+          // Catch any other unexpected exceptions during the shutdown sequence
+          shutdownFailureException =
+              new IllegalStateException("Unexpected exception during test executor shutdown.", e);
+        } finally {
+          // Ensure delegate is nullified after attempts to shut down,
+          // to prevent reuse if the extension instance is somehow reused improperly.
+          this.delegate = null;
         }
-      };
+      }
+
+      if (testMethodException != null) {
+        if (shutdownFailureException != null) {
+          testMethodException.addSuppressed(shutdownFailureException);
+        }
+        try {
+          throw testMethodException;
+        } catch (Throwable e) {
+          throw new RuntimeException(e);
+        }
+      } else if (shutdownFailureException != null) {
+        try {
+          throw shutdownFailureException;
+        } catch (Throwable e) {
+          throw new RuntimeException(e);
+        }
+      }
     }
 
     @Override

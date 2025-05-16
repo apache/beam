@@ -21,10 +21,10 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
@@ -47,7 +47,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
-import org.junit.Assert;
+import org.junit.jupiter.api.Assertions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -304,7 +304,7 @@ public class SourceTestUtils {
     int i = 0;
     for (; i < expected.size() && i < actual.size(); ++i) {
       if (!Objects.equals(expected.get(i), actual.get(i))) {
-        Assert.fail(
+        Assertions.fail(
             String.format(
                 "%s: %s and %s have %d items in common and then differ. "
                     + "Item in %s (%d more): %s, item in %s (%d more): %s",
@@ -321,7 +321,7 @@ public class SourceTestUtils {
       }
     }
     if (i < expected.size() /* but i == actual.size() */) {
-      Assert.fail(
+      Assertions.fail(
           String.format(
               "%s: %s has %d more items after matching all %d from %s. First 5: %s",
               message,
@@ -331,7 +331,7 @@ public class SourceTestUtils {
               actualLabel,
               expected.subList(actual.size(), Math.min(expected.size(), actual.size() + 5))));
     } else if (i < actual.size() /* but i == expected.size() */) {
-      Assert.fail(
+      Assertions.fail(
           String.format(
               "%s: %s has %d more items after matching all %d from %s. First 5: %s",
               message,
@@ -362,34 +362,34 @@ public class SourceTestUtils {
       BoundedSource<T> residual = reader.splitAtFraction(splitFraction);
       if (residual != null) {
         assertFalse(
+            reader.getCurrentSource() == originalSource,
             String.format(
                 "Primary source didn't change after a successful split of %s at %f "
                     + "after reading %d items. "
                     + "Was the source object mutated instead of creating a new one? "
                     + "Source objects MUST be immutable.",
-                source, splitFraction, numItemsToReadBeforeSplit),
-            reader.getCurrentSource() == originalSource);
+                source, splitFraction, numItemsToReadBeforeSplit));
         assertFalse(
+            reader.getCurrentSource() == residual,
             String.format(
                 "Residual source equal to original source after a successful split of %s at %f "
                     + "after reading %d items. "
                     + "Was the source object mutated instead of creating a new one? "
                     + "Source objects MUST be immutable.",
-                source, splitFraction, numItemsToReadBeforeSplit),
-            reader.getCurrentSource() == residual);
+                source, splitFraction, numItemsToReadBeforeSplit));
       }
       // Failure cases are: must succeed but fails; must fail but succeeds.
       switch (expectedOutcome) {
         case MUST_SUCCEED_AND_BE_CONSISTENT:
           assertNotNull(
+              residual,
               "Failed to split reader of source: "
                   + source
                   + " at "
                   + splitFraction
                   + " after reading "
                   + numItemsToReadBeforeSplit
-                  + " items",
-              residual);
+                  + " items");
           break;
         case MUST_FAIL:
           assertEquals(null, residual);
@@ -601,8 +601,8 @@ public class SourceTestUtils {
   public static <T> void assertSplitAtFractionExhaustive(
       BoundedSource<T> source, PipelineOptions options) throws Exception {
     List<T> expectedItems = readFromSource(source, options);
-    assertFalse("Empty source", expectedItems.isEmpty());
-    assertFalse("Source reads a single item", expectedItems.size() == 1);
+    assertFalse(expectedItems.isEmpty(), "Empty source");
+    assertFalse(expectedItems.size() == 1, "Source reads a single item");
     List<List<Double>> allNonTrivialFractions = new ArrayList<>();
     {
       boolean anySuccessfulFractions = false;
@@ -619,11 +619,11 @@ public class SourceTestUtils {
         allNonTrivialFractions.add(stats.nonTrivialFractions);
       }
       assertTrue(
-          "splitAtFraction test completed vacuously: no successful split fractions found",
-          anySuccessfulFractions);
+          anySuccessfulFractions,
+          "splitAtFraction test completed vacuously: no successful split fractions found");
       assertTrue(
-          "splitAtFraction test completed vacuously: no non-trivial split fractions found",
-          anyNonTrivialFractions);
+          anyNonTrivialFractions,
+          "splitAtFraction test completed vacuously: no non-trivial split fractions found");
     }
     {
       // Perform a stress test of "racy" concurrent splitting:

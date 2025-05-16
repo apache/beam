@@ -23,9 +23,9 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -116,9 +116,9 @@ public final class ResourceIdTester {
       for (int j = 0; j < current.size(); ++j) {
         for (int k = 0; k < current.size(); ++k) {
           assertEquals(
-              "Value at " + j + " should equal value at " + k + " in equality group " + i,
               current.get(j),
-              current.get(k));
+              current.get(k),
+              "Value at " + j + " should equal value at " + k + " in equality group " + i);
         }
       }
       for (int j = 0; j < equalityGroups.size(); ++j) {
@@ -126,8 +126,8 @@ public final class ResourceIdTester {
           continue;
         }
         assertTrue(
-            current + " should not match any in " + equalityGroups.get(j),
-            Collections.disjoint(current, equalityGroups.get(j)));
+            Collections.disjoint(current, equalityGroups.get(j)),
+            current + " should not match any in " + equalityGroups.get(j));
       }
     }
   }
