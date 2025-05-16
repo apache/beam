@@ -24,7 +24,6 @@ import static org.hamcrest.Matchers.is;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
-import java.lang.annotation.Annotation;
 import java.util.*;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -51,7 +50,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterab
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -290,48 +288,19 @@ public class TestPipeline extends Pipeline implements BeforeEachCallback, AfterE
   private void setDeducedEnforcementLevel(ExtensionContext context) {
     // if the enforcement level has not been set by the user do auto-inference
     if (!enforcement.isPresent()) {
-      boolean annotatedWithNeedsRunner;
 
-      // Check for @Category(NeedsRunner.class) or @Category(ValidatesRunner.class)
-      // on the test method
-      List<Annotation> methodAnnotations =
-          Arrays.asList(context.getRequiredTestMethod().getAnnotations());
-      annotatedWithNeedsRunner =
-          methodAnnotations.stream()
-              .filter(ann -> ann.annotationType().equals(Tag.class))
-              .map(ann -> (Tag) ann)
-              .anyMatch(
-                  cat ->
-                      Arrays.asList(cat.value()).contains(NeedsRunner.class)
-                          || Arrays.asList(cat.value()).contains(ValidatesRunner.class));
+      Set<String> tags = context.getTags();
 
-      // Check on the test class if not found on method
-      if (!annotatedWithNeedsRunner) {
-        List<Annotation> classAnnotations =
-            Arrays.asList(context.getRequiredTestClass().getAnnotations());
-        annotatedWithNeedsRunner =
-            classAnnotations.stream()
-                .filter(ann -> ann.annotationType().equals(Tag.class))
-                .map(ann -> (Tag) ann)
-                .anyMatch(
-                    cat ->
-                        Arrays.asList(cat.value()).contains(NeedsRunner.class)
-                            || Arrays.asList(cat.value()).contains(ValidatesRunner.class));
-      }
-
-      // Additionally, check for JUnit 5 @Tag("NeedsRunner") or @Tag("ValidatesRunner")
-      if (!annotatedWithNeedsRunner) {
-        annotatedWithNeedsRunner =
-            context.getTags().stream()
-                .anyMatch(tag -> tag.equals("NeedsRunner") || tag.equals("ValidatesRunner"));
-      }
-
+      boolean annotatedWithNeedsRunner =
+          tags.contains("NeedsRunner") || tags.contains("ValidatesRunner");
       final boolean crashingRunner = CrashingRunner.class.isAssignableFrom(options.getRunner());
 
       checkState(
           !(annotatedWithNeedsRunner && crashingRunner),
-          "The test was annotated with a @NeedsRunner, @ValidatesRunner, or equivalent tag while the runner "
+          "The test was annotated with a [@%s] / [@%s] while the runner "
               + "was set to [%s]. Please re-check your configuration.",
+          NeedsRunner.class.getSimpleName(),
+          ValidatesRunner.class.getSimpleName(),
           CrashingRunner.class.getSimpleName());
 
       enableAbandonedNodeEnforcement(annotatedWithNeedsRunner || !crashingRunner);
