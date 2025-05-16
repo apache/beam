@@ -189,10 +189,8 @@ class GCSFileSystemTest(unittest.TestCase):
     gcsio_mock.copy.side_effect = exception
 
     # Issue batch rename.
-    expected_results = {
-        (s, d): exception
-        for s, d in zip(sources, destinations)
-    }
+    expected_results = {(s, d): exception
+                        for s, d in zip(sources, destinations)}
 
     # Issue batch copy.
     with self.assertRaisesRegex(BeamIOError,

@@ -829,7 +829,7 @@ public abstract class Row implements Serializable {
       return new RowWithStorage(schema, attachedValues);
     }
 
-    public Row attachValues(Object... values) {
+    public Row attachValues(@Nullable Object... values) {
       return attachValues(Arrays.asList(values));
     }
 

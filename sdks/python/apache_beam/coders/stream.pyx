@@ -73,9 +73,10 @@ cdef class OutputStream(object):
       if not v:
         break
 
-  cpdef write_var_int32(self, libc.stdint.int32_t signed_v):
+  cpdef write_var_int32(self, libc.stdint.int64_t signed_v):
     """Encode an int using variable-length encoding to a stream."""
-    cdef libc.stdint.int64_t v = signed_v & <libc.stdint.int64_t>(0xFFFFFFFF)
+    # for backward compatibility, input type is int64_t thus tolerates overflow
+    cdef libc.stdint.int64_t v = signed_v & 0xFFFFFFFF
     self.write_var_int64(v)
 
   cpdef write_bigendian_int64(self, libc.stdint.int64_t signed_v):
@@ -156,7 +157,7 @@ cdef class ByteCountingOutputStream(OutputStream):
   cpdef write_var_int64(self, libc.stdint.int64_t signed_v):
     self.count += get_varint_size(signed_v)
 
-  cpdef write_var_int32(self, libc.stdint.int32_t signed_v):
+  cpdef write_var_int32(self, libc.stdint.int64_t signed_v):
     if signed_v < 0:
       self.count += 5
     else:

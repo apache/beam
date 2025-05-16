@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+import itertools
 import logging
 import math
 import os
@@ -22,17 +23,12 @@ import pickle
 import shutil
 import tempfile
 import unittest
+from collections.abc import Iterable
 from typing import Any
-from typing import Dict
-from typing import Iterable
-from typing import Optional
-from typing import Sequence
-from typing import SupportsFloat
-from typing import Tuple
 
 import mock
 import numpy
-from sklearn.base import BaseEstimator
+from parameterized import parameterized
 
 import apache_beam as beam
 from apache_beam.ml.anomaly.aggregations import AnyVote
@@ -51,7 +47,6 @@ from apache_beam.ml.anomaly.transforms import AnomalyDetection
 from apache_beam.ml.anomaly.transforms import _StatefulThresholdDoFn
 from apache_beam.ml.anomaly.transforms import _StatelessThresholdDoFn
 from apache_beam.ml.inference.base import KeyedModelHandler
-from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.inference.base import _PostProcessingModelHandler
 from apache_beam.ml.inference.base import _PreProcessingModelHandler
@@ -69,7 +64,7 @@ def _prediction_iterable_is_equal_to(
   if len(a_list) != len(b_list):
     return False
 
-  return any(
+  return all(
       map(lambda x: _prediction_is_equal_to(x[0], x[1]), zip(a_list, b_list)))
 
 
@@ -101,33 +96,30 @@ def _prediction_is_equal_to(a: AnomalyPrediction, b: AnomalyPrediction):
   return False
 
 
+def _unkeyed_result_is_equal_to(a: AnomalyResult, b: AnomalyResult):
+  return a.example._asdict() == b.example._asdict() and \
+      _prediction_iterable_is_equal_to(a.predictions, b.predictions)
+
+
 def _keyed_result_is_equal_to(
     a: tuple[int, AnomalyResult], b: tuple[int, AnomalyResult]):
-  if a[0] != b[0]:
-    return False
-
-  if a[1].example != b[1].example:
-    return False
-
-  return _prediction_iterable_is_equal_to(a[1].predictions, b[1].predictions)
+  return a[0] == b[0] and _unkeyed_result_is_equal_to(a[1], b[1])
 
 
 class TestAnomalyDetection(unittest.TestCase):
-  def setUp(self):
-    self._input = [
-        (1, beam.Row(x1=1, x2=4)),
-        (2, beam.Row(x1=100, x2=5)),  # an row with a different key (key=2)
-        (1, beam.Row(x1=2, x2=4)),
-        (1, beam.Row(x1=3, x2=5)),
-        (1, beam.Row(x1=10, x2=4)),  # outlier in key=1, with respect to x1
-        (1, beam.Row(x1=2, x2=10)),  # outlier in key=1, with respect to x2
-        (1, beam.Row(x1=3, x2=4)),
+  class TestData:
+    unkeyed_input = [
+        beam.Row(x1=1, x2=4),
+        beam.Row(x1=2, x2=4),
+        beam.Row(x1=3, x2=5),
+        beam.Row(x1=10, x2=4),  # outlier in key=1, with respect to x1
+        beam.Row(x1=2, x2=10),  # outlier in key=1, with respect to x2
+        beam.Row(x1=3, x2=4),
     ]
+    keyed_input = list(zip(itertools.repeat(1),
+                           unkeyed_input)) + [(2, beam.Row(x1=100, x2=5))]
 
-  def test_one_detector(self):
-    zscore_x1_expected = [
-        AnomalyPrediction(
-            model_id='zscore_x1', score=float('NaN'), label=-2, threshold=3),
+    zscore_x1_expected_predictions = [
         AnomalyPrediction(
             model_id='zscore_x1', score=float('NaN'), label=-2, threshold=3),
         AnomalyPrediction(
@@ -149,52 +141,11 @@ class TestAnomalyDetection(unittest.TestCase):
             score=0.16452254913212455,
             label=0,
             threshold=3),
+        AnomalyPrediction(
+            model_id='zscore_x1', score=float('NaN'), label=-2, threshold=3),
     ]
-    detector = ZScore(features=["x1"], model_id="zscore_x1")
 
-    with TestPipeline() as p:
-      result = (
-          p | beam.Create(self._input)
-          # TODO: get rid of this conversion between BeamSchema to beam.Row.
-          | beam.Map(lambda t: (t[0], beam.Row(**t[1]._asdict())))
-          | AnomalyDetection(detector))
-      assert_that(
-          result,
-          equal_to([(
-              input[0], AnomalyResult(example=input[1], predictions=[decision]))
-                    for input,
-                    decision in zip(self._input, zscore_x1_expected)],
-                   _keyed_result_is_equal_to))
-
-  def test_multiple_detectors_without_aggregation(self):
-    zscore_x1_expected = [
-        AnomalyPrediction(
-            model_id='zscore_x1', score=float('NaN'), label=-2, threshold=3),
-        AnomalyPrediction(
-            model_id='zscore_x1', score=float('NaN'), label=-2, threshold=3),
-        AnomalyPrediction(
-            model_id='zscore_x1', score=float('NaN'), label=-2, threshold=3),
-        AnomalyPrediction(
-            model_id='zscore_x1',
-            score=2.1213203435596424,
-            label=0,
-            threshold=3),
-        AnomalyPrediction(
-            model_id='zscore_x1', score=8.0, label=1, threshold=3),
-        AnomalyPrediction(
-            model_id='zscore_x1',
-            score=0.4898979485566356,
-            label=0,
-            threshold=3),
-        AnomalyPrediction(
-            model_id='zscore_x1',
-            score=0.16452254913212455,
-            label=0,
-            threshold=3),
-    ]
-    zscore_x2_expected = [
-        AnomalyPrediction(
-            model_id='zscore_x2', score=float('NaN'), label=-2, threshold=2),
+    zscore_x2_expected_predictions = [
         AnomalyPrediction(
             model_id='zscore_x2', score=float('NaN'), label=-2, threshold=2),
         AnomalyPrediction(
@@ -212,8 +163,76 @@ class TestAnomalyDetection(unittest.TestCase):
             score=0.5368754921931594,
             label=0,
             threshold=2),
+        AnomalyPrediction(
+            model_id='zscore_x2', score=float('NaN'), label=-2, threshold=2),
     ]
 
+    aggregated_expected_predictions = [
+        AnomalyPrediction(model_id="custom", label=-2),
+        AnomalyPrediction(model_id="custom", label=-2),
+        AnomalyPrediction(model_id="custom", label=0),
+        AnomalyPrediction(model_id="custom", label=1),
+        AnomalyPrediction(model_id="custom", label=1),
+        AnomalyPrediction(model_id="custom", label=0),
+        AnomalyPrediction(model_id="custom", label=-2),
+    ]
+
+    keyed_zscore_x1_expected = [
+        (input[0], AnomalyResult(example=input[1], predictions=[decision]))
+        for input, decision in zip(keyed_input, zscore_x1_expected_predictions)
+    ]
+
+    unkeyed_zscore_x1_expected = [
+        AnomalyResult(example=input, predictions=[decision])
+        for input, decision in zip(
+            unkeyed_input, zscore_x1_expected_predictions)
+    ]
+
+    keyed_ensemble_expected = [(
+        input[0],
+        AnomalyResult(example=input[1], predictions=[decision1, decision2]))
+                               for input, decision1, decision2 in zip(
+                                   keyed_input, zscore_x1_expected_predictions,
+                                   zscore_x2_expected_predictions)]
+
+    unkeyed_ensemble_expected = [
+        AnomalyResult(example=input, predictions=[decision1, decision2])
+        for input, decision1, decision2 in zip(
+            unkeyed_input, zscore_x1_expected_predictions,
+            zscore_x2_expected_predictions)
+    ]
+
+    keyed_ensemble_agg_expected = [
+        (input[0], AnomalyResult(example=input[1], predictions=[prediction]))
+        for input, prediction in zip(
+            keyed_input, aggregated_expected_predictions)
+    ]
+
+    unkeyed_ensemble_agg_expected = [
+        AnomalyResult(example=input, predictions=[prediction])
+        for input, prediction in zip(
+            unkeyed_input, aggregated_expected_predictions)
+    ]
+
+  @parameterized.expand([
+      (TestData.keyed_input, TestData.keyed_zscore_x1_expected),
+      (TestData.unkeyed_input, TestData.unkeyed_zscore_x1_expected),
+  ])
+  def test_one_detector(self, input, expected):
+    detector = ZScore(features=["x1"], model_id="zscore_x1")
+    with TestPipeline() as p:
+      result = (p | beam.Create(input) | AnomalyDetection(detector))
+
+      if isinstance(input[0], tuple):
+        assert_that(result, equal_to(expected, _keyed_result_is_equal_to))
+      else:
+        assert_that(result, equal_to(expected, _unkeyed_result_is_equal_to))
+
+  @parameterized.expand([
+      (TestData.keyed_input, TestData.keyed_ensemble_expected),
+      (TestData.unkeyed_input, TestData.unkeyed_ensemble_expected),
+  ])
+  def test_multiple_detectors_without_aggregation(self, input, expected):
     sub_detectors = []
     sub_detectors.append(ZScore(features=["x1"], model_id="zscore_x1"))
     sub_detectors.append(
@@ -224,34 +243,19 @@ class TestAnomalyDetection(unittest.TestCase):
 
     with beam.Pipeline() as p:
       result = (
-          p | beam.Create(self._input)
-          # TODO: get rid of this conversion between BeamSchema to beam.Row.
-          | beam.Map(lambda t: (t[0], beam.Row(**t[1]._asdict())))
+          p | beam.Create(input)
           | AnomalyDetection(EnsembleAnomalyDetector(sub_detectors)))
 
-      assert_that(
-          result,
-          equal_to([(
-              input[0],
-              AnomalyResult(
-                  example=input[1], predictions=[decision1, decision2]))
-                    for input,
-                    decision1,
-                    decision2 in zip(
-                        self._input, zscore_x1_expected, zscore_x2_expected)],
-                   _keyed_result_is_equal_to))
+      if isinstance(input[0], tuple):
+        assert_that(result, equal_to(expected, _keyed_result_is_equal_to))
+      else:
+        assert_that(result, equal_to(expected, _unkeyed_result_is_equal_to))
 
-  def test_multiple_sub_detectors_with_aggregation(self):
-    aggregated = [
-        AnomalyPrediction(model_id="custom", label=-2),
-        AnomalyPrediction(model_id="custom", label=-2),
-        AnomalyPrediction(model_id="custom", label=-2),
-        AnomalyPrediction(model_id="custom", label=0),
-        AnomalyPrediction(model_id="custom", label=1),
-        AnomalyPrediction(model_id="custom", label=1),
-        AnomalyPrediction(model_id="custom", label=0),
-    ]
-
+  @parameterized.expand([
+      (TestData.keyed_input, TestData.keyed_ensemble_agg_expected),
+      (TestData.unkeyed_input, TestData.unkeyed_ensemble_agg_expected),
+  ])
+  def test_multiple_sub_detectors_with_aggregation(self, input, expected):
     sub_detectors = []
     sub_detectors.append(ZScore(features=["x1"], model_id="zscore_x1"))
     sub_detectors.append(
@@ -262,20 +266,15 @@ class TestAnomalyDetection(unittest.TestCase):
 
     with beam.Pipeline() as p:
       result = (
-          p | beam.Create(self._input)
-          # TODO: get rid of this conversion between BeamSchema to beam.Row.
-          | beam.Map(lambda t: (t[0], beam.Row(**t[1]._asdict())))
+          p | beam.Create(input)
           | AnomalyDetection(
               EnsembleAnomalyDetector(
                   sub_detectors, aggregation_strategy=AnyVote())))
 
-      assert_that(
-          result,
-          equal_to([(
-              input[0],
-              AnomalyResult(example=input[1], predictions=[prediction]))
-                    for input,
-                    prediction in zip(self._input, aggregated)]))
+      if isinstance(input[0], tuple):
+        assert_that(result, equal_to(expected, _keyed_result_is_equal_to))
+      else:
+        assert_that(result, equal_to(expected, _unkeyed_result_is_equal_to))
 
 
 class FakeNumpyModel():
@@ -287,93 +286,19 @@ class FakeNumpyModel():
     return [input_vector[0][0] * 10 - input_vector[0][1]]
 
 
-def alternate_numpy_inference_fn(
-    model: BaseEstimator,
-    batch: Sequence[numpy.ndarray],
-    inference_args: Optional[Dict[str, Any]] = None) -> Any:
-  return [0]
-
-
-def _to_keyed_numpy_array(t: Tuple[Any, beam.Row]):
+def _to_keyed_numpy_array(t: tuple[Any, beam.Row]):
   """Converts an Apache Beam Row to a NumPy array."""
   return t[0], numpy.array(list(t[1]))
 
 
-def _from_keyed_numpy_array(t: Tuple[Any, PredictionResult]):
-  assert isinstance(t[1].inference, SupportsFloat)
-  return t[0], float(t[1].inference)
-
-
 class TestOfflineDetector(unittest.TestCase):
-  def setUp(self):
-    global SklearnModelHandlerNumpy, KeyedModelHandler
-    global _PreProcessingModelHandler, _PostProcessingModelHandler
-    # Make model handlers into Specifiable
-    SklearnModelHandlerNumpy = specifiable(SklearnModelHandlerNumpy)
-    KeyedModelHandler = specifiable(KeyedModelHandler)
-    _PreProcessingModelHandler = specifiable(_PreProcessingModelHandler)
-    _PostProcessingModelHandler = specifiable(_PostProcessingModelHandler)
-    self.tmpdir = tempfile.mkdtemp()
-
-  def tearDown(self):
-    shutil.rmtree(self.tmpdir)
-    # Make the model handlers back to normal
-    SklearnModelHandlerNumpy.unspecifiable()
-    KeyedModelHandler.unspecifiable()
-    _PreProcessingModelHandler.unspecifiable()
-    _PostProcessingModelHandler.unspecifiable()
-
-  def test_default_inference_fn(self):
-    temp_file_name = self.tmpdir + os.sep + 'pickled_file'
-    with open(temp_file_name, 'wb') as file:
-      pickle.dump(FakeNumpyModel(), file)
-
-    keyed_model_handler = KeyedModelHandler(
-        SklearnModelHandlerNumpy(model_uri=temp_file_name)).with_preprocess_fn(
-            _to_keyed_numpy_array).with_postprocess_fn(_from_keyed_numpy_array)
-
-    detector = OfflineDetector(keyed_model_handler=keyed_model_handler)
-    detector_spec = detector.to_spec()
-    expected_spec = Spec(
-        type='OfflineDetector',
-        config={
-            'keyed_model_handler': Spec(
-                type='_PostProcessingModelHandler',
-                config={
-                    'base': Spec(
-                        type='_PreProcessingModelHandler',
-                        config={
-                            'base': Spec(
-                                type='KeyedModelHandler',
-                                config={
-                                    'unkeyed': Spec(
-                                        type='SklearnModelHandlerNumpy',
-                                        config={'model_uri': temp_file_name})
-                                }),
-                            'preprocess_fn': Spec(
-                                type='_to_keyed_numpy_array', config=None)
-                        }),
-                    'postprocess_fn': Spec(
-                        type='_from_keyed_numpy_array', config=None)
-                })
-        })
-    self.assertEqual(detector_spec, expected_spec)
-
-    self.assertEqual(_spec_type_to_subspace('SklearnModelHandlerNumpy'), '*')
-    self.assertEqual(_spec_type_to_subspace('_PreProcessingModelHandler'), '*')
-    self.assertEqual(_spec_type_to_subspace('_PostProcessingModelHandler'), '*')
-    self.assertEqual(_spec_type_to_subspace('_to_keyed_numpy_array'), '*')
-    self.assertEqual(_spec_type_to_subspace('_from_keyed_numpy_array'), '*')
-
-    # Make sure the spec from the detector can be used to reconstruct the same
-    # detector
-    detector_new = Specifiable.from_spec(detector_spec)
-
-    input = [
-        (1, beam.Row(x=1, y=2)),
-        (1, beam.Row(x=2, y=4)),
-        (1, beam.Row(x=3, y=6)),
+  class TestData:
+    unkeyed_input = [
+        beam.Row(x=1, y=2),
+        beam.Row(x=2, y=4),
+        beam.Row(x=3, y=6),
     ]
+    keyed_input = list(zip(itertools.repeat(1), unkeyed_input))
     expected_predictions = [
         AnomalyPrediction(
             model_id='OfflineDetector',
@@ -397,20 +322,93 @@ class TestOfflineDetector(unittest.TestCase):
             info='',
             source_predictions=None),
     ]
-    with TestPipeline() as p:
-      result = (
-          p | beam.Create(input)
-          # TODO: get rid of this conversion between BeamSchema to beam.Row.
-          | beam.Map(lambda t: (t[0], beam.Row(**t[1]._asdict())))
-          | AnomalyDetection(detector_new))
 
-      assert_that(
-          result,
-          equal_to([(
-              input[0],
-              AnomalyResult(example=input[1], predictions=[prediction]))
-                    for input,
-                    prediction in zip(input, expected_predictions)]))
+    keyed_expected = [
+        (input[0], AnomalyResult(example=input[1], predictions=[prediction]))
+        for input, prediction in zip(keyed_input, expected_predictions)
+    ]
+
+    unkeyed_expected = [
+        AnomalyResult(example=input, predictions=[prediction])
+        for input, prediction in zip(unkeyed_input, expected_predictions)
+    ]
+
+  def setUp(self):
+    global SklearnModelHandlerNumpy, KeyedModelHandler
+    global _PreProcessingModelHandler, _PostProcessingModelHandler
+    # Make model handlers into Specifiable
+    SklearnModelHandlerNumpy = specifiable(SklearnModelHandlerNumpy)
+    KeyedModelHandler = specifiable(KeyedModelHandler)
+    _PreProcessingModelHandler = specifiable(_PreProcessingModelHandler)
+    _PostProcessingModelHandler = specifiable(_PostProcessingModelHandler)
+    self.tmpdir = tempfile.mkdtemp()
+
+  def tearDown(self):
+    shutil.rmtree(self.tmpdir)
+    # Make the model handlers back to normal
+    SklearnModelHandlerNumpy.unspecifiable()
+    KeyedModelHandler.unspecifiable()
+    _PreProcessingModelHandler.unspecifiable()
+    _PostProcessingModelHandler.unspecifiable()
+
+  @parameterized.expand([
+      (TestData.keyed_input, TestData.keyed_expected),
+      (TestData.unkeyed_input, TestData.unkeyed_expected),
+  ])
+  def test_default_inference_fn(self, input, expected):
+    temp_file_name = self.tmpdir + os.sep + 'pickled_file'
+    with open(temp_file_name, 'wb') as file:
+      pickle.dump(FakeNumpyModel(), file)
+
+    keyed_model_handler = KeyedModelHandler(
+        SklearnModelHandlerNumpy(model_uri=temp_file_name)).with_preprocess_fn(
+            _to_keyed_numpy_array).with_postprocess_fn(
+                OfflineDetector.score_prediction_adapter)
+
+    detector = OfflineDetector(keyed_model_handler=keyed_model_handler)
+    detector_spec = detector.to_spec()
+    expected_spec = Spec(
+        type='OfflineDetector',
+        config={
+            'keyed_model_handler': Spec(
+                type='_PostProcessingModelHandler',
+                config={
+                    'base': Spec(
+                        type='_PreProcessingModelHandler',
+                        config={
+                            'base': Spec(
+                                type='KeyedModelHandler',
+                                config={
+                                    'unkeyed': Spec(
+                                        type='SklearnModelHandlerNumpy',
+                                        config={'model_uri': temp_file_name})
+                                }),
+                            'preprocess_fn': Spec(
+                                type='_to_keyed_numpy_array', config=None)
+                        }),
+                    'postprocess_fn': Spec(
+                        type='score_prediction_adapter', config=None)
+                })
+        })
+    self.assertEqual(detector_spec, expected_spec)
+
+    self.assertEqual(_spec_type_to_subspace('SklearnModelHandlerNumpy'), '*')
+    self.assertEqual(_spec_type_to_subspace('_PreProcessingModelHandler'), '*')
+    self.assertEqual(_spec_type_to_subspace('_PostProcessingModelHandler'), '*')
+    self.assertEqual(_spec_type_to_subspace('_to_keyed_numpy_array'), '*')
+    self.assertEqual(_spec_type_to_subspace('score_prediction_adapter'), '*')
+
+    # Make sure the spec from the detector can be used to reconstruct the same
+    # detector
+    detector_new = Specifiable.from_spec(detector_spec)
+
+    with TestPipeline() as p:
+      result = (p | beam.Create(input) | AnomalyDetection(detector_new))
+
+      if isinstance(input[0], tuple):
+        assert_that(result, equal_to(expected, _keyed_result_is_equal_to))
+      else:
+        assert_that(result, equal_to(expected, _unkeyed_result_is_equal_to))
 
   def test_run_inference_args(self):
     model_handler = SklearnModelHandlerNumpy(model_uri="unused")
@@ -422,12 +420,6 @@ class TestOfflineDetector(unittest.TestCase):
 
     p = TestPipeline()
 
-    input = [
-        (1, beam.Row(x=1, y=2)),
-        (1, beam.Row(x=2, y=4)),
-        (1, beam.Row(x=3, y=6)),
-    ]
-
     # patch the RunInference in "apache_beam.ml.anomaly.transforms" where
     # it is imported and call
     with mock.patch('apache_beam.ml.anomaly.transforms.RunInference') as mock_run_inference:  # pylint: disable=line-too-long
@@ -436,7 +428,9 @@ class TestOfflineDetector(unittest.TestCase):
       mock_run_inference.side_effect = RunInference
       try:
         p = TestPipeline()
-        _ = (p | beam.Create(input) | AnomalyDetection(detector))
+        _ = (
+            p | beam.Create(TestOfflineDetector.TestData.unkeyed_input)
+            | AnomalyDetection(detector))
       except:  # pylint: disable=bare-except
         pass
       call_args = mock_run_inference.call_args[1]

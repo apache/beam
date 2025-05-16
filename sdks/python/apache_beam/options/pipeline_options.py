@@ -143,8 +143,8 @@ class _DictUnionAction(argparse.Action):
   than one of the values, the last value takes precedence.
   """
   def __call__(self, parser, namespace, values, option_string=None):
-    if not hasattr(namespace,
-                   self.dest) or getattr(namespace, self.dest) is None:
+    if not hasattr(namespace, self.dest) or getattr(namespace,
+                                                    self.dest) is None:
       setattr(namespace, self.dest, {})
     getattr(namespace, self.dest).update(values)
 
@@ -163,9 +163,11 @@ class _GcsCustomAuditEntriesAction(argparse.Action):
   MAX_KEY_LENGTH = 64
   MAX_VALUE_LENGTH = 1200
   MAX_ENTRIES = 4
+  GCS_AUDIT_PREFIX = 'x-goog-custom-audit-'
 
   def _exceed_entry_limit(self):
-    if 'x-goog-custom-audit-job' in self._custom_audit_entries:
+    job_audit_entry = _GcsCustomAuditEntriesAction.GCS_AUDIT_PREFIX + 'job'
+    if job_audit_entry in self._custom_audit_entries:
       return len(
           self._custom_audit_entries) > _GcsCustomAuditEntriesAction.MAX_ENTRIES
     else:
@@ -185,11 +187,15 @@ class _GcsCustomAuditEntriesAction(argparse.Action):
           "The value '%s' in GCS custom audit entries exceeds the %d-character limit."  # pylint: disable=line-too-long
           % (value, _GcsCustomAuditEntriesAction.MAX_VALUE_LENGTH))
 
-    self._custom_audit_entries[f"x-goog-custom-audit-{key}"] = value
+    if _GcsCustomAuditEntriesAction.GCS_AUDIT_PREFIX in key:
+      self._custom_audit_entries[key] = value
+    else:
+      self._custom_audit_entries[_GcsCustomAuditEntriesAction.GCS_AUDIT_PREFIX +
+                                 key] = value
 
   def __call__(self, parser, namespace, values, option_string=None):
-    if not hasattr(namespace,
-                   self.dest) or getattr(namespace, self.dest) is None:
+    if not hasattr(namespace, self.dest) or getattr(namespace,
+                                                    self.dest) is None:
       setattr(namespace, self.dest, {})
       self._custom_audit_entries = getattr(namespace, self.dest)
 
@@ -290,7 +296,7 @@ class PipelineOptions(HasDisplayData):
 
     # Build parser that will parse options recognized by the [sub]class of
     # PipelineOptions whose object is being instantiated.
-    parser = _BeamArgumentParser()
+    parser = _BeamArgumentParser(allow_abbrev=False)
     for cls in type(self).mro():
       if cls == PipelineOptions:
         break
@@ -405,7 +411,7 @@ class PipelineOptions(HasDisplayData):
     # sub-classes in the main session might be repeated. Pick last unique
     # instance of each subclass to avoid conflicts.
     subset = {}
-    parser = _BeamArgumentParser()
+    parser = _BeamArgumentParser(allow_abbrev=False)
     for cls in PipelineOptions.__subclasses__():
       subset[str(cls)] = cls
     for cls in subset.values():
@@ -1218,8 +1224,7 @@ class WorkerOptions(PipelineOptions):
         type=str,
         choices=['NONE', 'THROUGHPUT_BASED'],
         default=None,  # Meaning unset, distinct from 'NONE' meaning don't scale
-        help=
-        ('If and how to autoscale the workerpool.'))
+        help=('If and how to autoscale the workerpool.'))
     parser.add_argument(
         '--worker_machine_type',
         '--machine_type',

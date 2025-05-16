@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.io.iceberg.IcebergUtils.icebergRecordToBeamRow;
+import static org.apache.beam.sdk.io.iceberg.IcebergUtils.icebergSchemaToBeamSchema;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import java.io.IOException;
@@ -26,12 +28,14 @@ import java.util.NoSuchElementException;
 import java.util.Queue;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.avro.Avro;
+import org.apache.iceberg.data.GenericDeleteFilter;
 import org.apache.iceberg.data.IdentityPartitionConverters;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.data.avro.DataReader;
@@ -55,6 +59,7 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
 
   private final ScanTaskSource source;
   private final org.apache.iceberg.Schema project;
+  private final Schema beamSchema;
 
   transient @Nullable FileIO io;
   transient @Nullable InputFilesDecryptor decryptor;
@@ -64,7 +69,8 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
 
   public ScanTaskReader(ScanTaskSource source) {
     this.source = source;
-    this.project = IcebergUtils.beamSchemaToIcebergSchema(source.getSchema());
+    this.project = source.getSchema();
+    this.beamSchema = icebergSchemaToBeamSchema(project);
   }
 
   @Override
@@ -175,8 +181,12 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
         default:
           throw new UnsupportedOperationException("Cannot read format: " + file.format());
       }
-      currentIterator = iterable.iterator();
+      GenericDeleteFilter deleteFilter =
+          new GenericDeleteFilter(checkStateNotNull(io), fileTask, fileTask.schema(), project);
+      iterable = deleteFilter.filter(iterable);
 
+      iterable = ReadUtils.maybeApplyFilter(iterable, source.getScanConfig());
+      currentIterator = iterable.iterator();
     } while (true);
 
     return false;
@@ -187,7 +197,7 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
     if (current == null) {
       throw new NoSuchElementException();
     }
-    return IcebergUtils.icebergRecordToBeamRow(source.getSchema(), current);
+    return icebergRecordToBeamRow(beamSchema, current);
   }
 
   @Override

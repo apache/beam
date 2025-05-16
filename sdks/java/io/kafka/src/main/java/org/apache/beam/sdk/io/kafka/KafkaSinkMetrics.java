@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
-import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.sdk.metrics.DelegatingGauge;
 import org.apache.beam.sdk.metrics.DelegatingHistogram;
 import org.apache.beam.sdk.metrics.Gauge;
@@ -26,6 +25,7 @@ import org.apache.beam.sdk.metrics.LabeledMetricNameUtils;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Helper class to create per worker metrics for Kafka Sink stages.
@@ -71,7 +71,7 @@ public class KafkaSinkMetrics {
     nameBuilder.addLabel(RPC_METHOD, method.toString());
     nameBuilder.addLabel(TOPIC_LABEL, topic);
 
-    nameBuilder.addMetricLabel(MonitoringInfoConstants.Labels.PER_WORKER_METRIC, "true");
+    nameBuilder.addMetricLabel("PER_WORKER_METRIC", "true");
     MetricName metricName = nameBuilder.build(METRICS_NAMESPACE);
 
     HistogramData.BucketType buckets = HistogramData.ExponentialBuckets.of(1, 17);
@@ -89,7 +89,7 @@ public class KafkaSinkMetrics {
   public static Gauge createBacklogGauge(MetricName name) {
     // TODO(#34195): Unify metrics collection path.
     // Currently KafkaSink metrics only supports aggregated per worker metrics.
-    Preconditions.checkState(MonitoringInfoConstants.isPerWorkerMetric(name));
+    Preconditions.checkState(isPerWorkerMetric(name));
     return new DelegatingGauge(name, false);
   }
 
@@ -107,7 +107,7 @@ public class KafkaSinkMetrics {
         LabeledMetricNameUtils.MetricNameBuilder.baseNameBuilder(ESTIMATED_BACKLOG_SIZE);
     nameBuilder.addLabel(PARTITION_ID, String.valueOf(partitionId));
     nameBuilder.addLabel(TOPIC_LABEL, topic);
-    nameBuilder.addMetricLabel(MonitoringInfoConstants.Labels.PER_WORKER_METRIC, "true");
+    nameBuilder.addMetricLabel("PER_WORKER_METRIC", "true");
     return nameBuilder.build(METRICS_NAMESPACE);
   }
 
@@ -125,5 +125,13 @@ public class KafkaSinkMetrics {
 
   public static void setSupportKafkaMetrics(boolean supportKafkaMetrics) {
     KafkaSinkMetrics.supportKafkaMetrics = supportKafkaMetrics;
+  }
+
+  private static boolean isPerWorkerMetric(MetricName metricName) {
+    @Nullable String value = metricName.getLabels().get("PER_WORKER_METRIC");
+    if (value != null && value.equals("true")) {
+      return true;
+    }
+    return false;
   }
 }

@@ -18,22 +18,28 @@
 
 import argparse
 import logging
+import os.path
 import shlex
 import typing
 import unittest
+import zipfile
 from os import linesep
-from os import path
 from os.path import exists
 from shutil import rmtree
 from tempfile import mkdtemp
+from unittest import mock
 
 import pytest
+from parameterized import parameterized
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.runners.portability import portable_runner_test
+from apache_beam.runners.portability import prism_runner
 from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
+from apache_beam.utils import shared
 
 # Run as
 #
@@ -118,10 +124,10 @@ class PrismRunnerTest(portable_runner_test.PortableRunnerTest):
       cls.conf_dir = mkdtemp(prefix='prismtest-conf')
 
       # path for a FileReporter to write metrics to
-      cls.test_metrics_path = path.join(cls.conf_dir, 'test-metrics.txt')
+      cls.test_metrics_path = os.path.join(cls.conf_dir, 'test-metrics.txt')
 
       # path to write Prism configuration to
-      conf_path = path.join(cls.conf_dir, 'prism-conf.yaml')
+      conf_path = os.path.join(cls.conf_dir, 'prism-conf.yaml')
       file_reporter = 'org.apache.beam.runners.prism.metrics.FileReporter'
       with open(conf_path, 'w') as f:
         f.write(
@@ -178,6 +184,19 @@ class PrismRunnerTest(portable_runner_test.PortableRunnerTest):
       lines = p | beam.io.ReadFromText('/etc/profile')
       assert_that(lines, lambda lines: len(lines) > 0)
 
+  def test_create_transform(self):
+    with self.create_pipeline() as p:
+      out = (p | beam.Create([1]))
+      assert_that(out, equal_to([1]))
+
+    with self.create_pipeline() as p:
+      out = (p | beam.Create([1, 2], reshuffle=False))
+      assert_that(out, equal_to([1, 2]))
+
+    with self.create_pipeline() as p:
+      out = (p | beam.Create([1, 2], reshuffle=True))
+      assert_that(out, equal_to([1, 2]))
+
   def test_external_transform(self):
     raise unittest.SkipTest("Requires an expansion service to execute.")
 
@@ -203,16 +222,204 @@ class PrismRunnerTest(portable_runner_test.PortableRunnerTest):
         "Requires Prism to support Custom Window Coders." +
         " https://github.com/apache/beam/issues/31921")
 
-  def test_pack_combiners(self):
-    raise unittest.SkipTest(
-        "Requires Prism to support coder:" +
-        " 'beam:coder:tuple:v1'. https://github.com/apache/beam/issues/32636")
-
   def test_metrics(self):
     super().test_metrics(check_bounded_trie=False)
 
+  # Inherits all other tests.
 
-# Inherits all other tests.
+
+class PrismJobServerTest(unittest.TestCase):
+  def setUp(self) -> None:
+    self.local_dir = mkdtemp()
+    self.cache_dir = os.path.join(self.local_dir, "cache")
+    os.mkdir(self.cache_dir)
+
+    self.job_server = prism_runner.PrismJobServer(options=PortableOptions())
+    self.local_bin_path = os.path.join(self.local_dir, "my_prism_bin")
+    self.local_zip_path = os.path.join(self.local_dir, "my_prism_bin.zip")
+    self.cache_bin_path = os.path.join(self.cache_dir, "my_prism_bin")
+    self.cache_zip_path = os.path.join(self.cache_dir, "my_prism_bin.zip")
+    self.remote_zip_path = "https://github.com/apache/beam/releases/download/fake_ver/my_prism_bin.zip"  # pylint: disable=line-too-long
+
+  def tearDown(self) -> None:
+    rmtree(self.local_dir)
+    pass
+
+  def _make_local_bin(self, fn=None):
+    fn = fn or self.local_bin_path
+    with open(fn, 'wb'):
+      pass
+
+  def _make_local_zip(self, fn=None):
+    fn = fn or self.local_zip_path
+    with zipfile.ZipFile(fn, 'w', zipfile.ZIP_DEFLATED):
+      pass
+
+  def _make_cache_bin(self, fn=None):
+    fn = fn or self.cache_bin_path
+    with open(fn, 'wb'):
+      pass
+
+  def _make_cache_zip(self, fn=None):
+    fn = fn or self.cache_zip_path
+    with zipfile.ZipFile(fn, 'w', zipfile.ZIP_DEFLATED):
+      pass
+
+  def _extract_side_effect(self, fn, path=None):
+    if path is None:
+      return fn
+
+    full_path = os.path.join(str(path), fn)
+    if path.startswith(self.cache_dir):
+      self._make_cache_bin(full_path)
+    else:
+      self._make_local_bin(full_path)
+
+    return full_path
+
+  @parameterized.expand([[True, True], [True, False], [False, True],
+                         [False, False]])
+  def test_with_unknown_path(self, custom_bin_cache, ignore_cache):
+    self.assertRaises(
+        FileNotFoundError, lambda: self.job_server.local_bin(
+            "/path/unknown", bin_cache=self.cache_dir
+            if custom_bin_cache else '', ignore_cache=ignore_cache))
+
+  @parameterized.expand([
+      [True, True, True],
+      [True, True, False],
+      [True, False, True],
+      [True, False, False],
+      [False, True, True],
+      [False, True, False],
+      [False, False, True],
+      [False, False, False],
+  ])
+  def test_with_local_binary_and_zip(
+      self, has_cache_bin, has_cache_zip, ignore_cache):
+    self._make_local_bin()
+    self._make_local_zip()
+    if has_cache_bin:
+      self._make_cache_bin()
+    if has_cache_zip:
+      self._make_cache_zip()
+
+    with mock.patch('zipfile.is_zipfile') as mock_is_zipfile:
+      with mock.patch('zipfile.ZipFile') as mock_zipfile_init:
+        mock_zipfile = mock.MagicMock()
+        mock_zipfile.extract = mock.Mock(side_effect=self._extract_side_effect)
+        mock_zipfile_init.return_value = mock_zipfile
+
+        # path is set to local binary
+        # always use local binary even if we have a cached copy, no unzipping
+        mock_is_zipfile.return_value = False
+        self.assertEqual(
+            self.job_server.local_bin(
+                self.local_bin_path, self.cache_dir, ignore_cache),
+            self.local_bin_path)
+
+        mock_zipfile_init.assert_not_called()
+
+        # path is set to local zip
+        # use local zip and unzip only if cache binary not available or
+        # ignore_cache is true
+        mock_is_zipfile.return_value = True
+        self.assertEqual(
+            self.job_server.local_bin(
+                self.local_zip_path, self.cache_dir, ignore_cache),
+            self.cache_bin_path)
+
+        if has_cache_bin and not ignore_cache:
+          # if cache is enabled and binary is in cache, we wont't unzip
+          mock_zipfile_init.assert_not_called()
+        else:
+          mock_zipfile_init.assert_called_once()
+          mock_zipfile_init.reset_mock()
+
+  @parameterized.expand([
+      [True, True, True],
+      [True, True, False],
+      [True, False, True],
+      [True, False, False],
+      [False, True, True],
+      [False, True, False],
+      [False, False, True],
+      [False, False, False],
+  ])
+  def test_with_remote_path(self, has_cache_bin, has_cache_zip, ignore_cache):
+    if has_cache_bin:
+      self._make_cache_bin()
+    if has_cache_zip:
+      self._make_cache_zip()
+
+    with mock.patch(
+        'apache_beam.runners.portability.prism_runner.urlopen') as mock_urlopen:
+      mock_response = mock.MagicMock()
+      if has_cache_zip:
+        with open(self.cache_zip_path, 'rb') as f:
+          mock_response.read.side_effect = [f.read(), b'']
+      else:
+        mock_response.read.return_value = b''
+      mock_urlopen.return_value = mock_response
+      with mock.patch('zipfile.is_zipfile') as mock_is_zipfile:
+        with mock.patch('zipfile.ZipFile') as mock_zipfile_init:
+          mock_zipfile = mock.MagicMock()
+          mock_zipfile.extract = mock.Mock(
+              side_effect=self._extract_side_effect)
+          mock_zipfile_init.return_value = mock_zipfile
+          mock_is_zipfile.return_value = True
+          self.assertEqual(
+              self.job_server.local_bin(
+                  self.remote_zip_path,
+                  self.cache_dir,
+                  ignore_cache=ignore_cache),
+              self.cache_bin_path)
+
+          if has_cache_zip and not ignore_cache:
+            # if cache is enabled and zip is in cache, we wont't download
+            mock_urlopen.assert_not_called()
+          else:
+            mock_urlopen.assert_called_once()
+
+          if has_cache_bin and has_cache_zip and not ignore_cache:
+            # if cache is enabled and both binary and zip are in cache, we
+            # wont't unzip
+            mock_zipfile_init.assert_not_called()
+          else:
+            mock_zipfile_init.assert_called_once()
+
+
+class PrismRunnerSingletonTest(unittest.TestCase):
+  @parameterized.expand([True, False])
+  def test_singleton(self, enable_singleton):
+    if enable_singleton:
+      options = DebugOptions(["--experiment=enable_prism_server_singleton"])
+    else:
+      options = DebugOptions()
+
+    runner = prism_runner.PrismRunner()
+    with mock.patch(
+        'apache_beam.runners.portability.prism_runner.PrismJobServer'
+    ) as mock_prism_server:
+
+      # Reset the class-level singleton for every fresh run
+      prism_runner.PrismRunner.shared_handle = shared.Shared()
+
+      runner = prism_runner.PrismRunner()
+      runner.default_job_server(options)
+
+      mock_prism_server.assert_called_once()
+      mock_prism_server.reset_mock()
+
+      runner = prism_runner.PrismRunner()
+      runner.default_job_server(options)
+      if enable_singleton:
+        # If singleton is enabled, we won't try to create a new server for the
+        # second run.
+        mock_prism_server.assert_not_called()
+      else:
+        mock_prism_server.assert_called_once()
+
 
 if __name__ == '__main__':
   # Run the tests.

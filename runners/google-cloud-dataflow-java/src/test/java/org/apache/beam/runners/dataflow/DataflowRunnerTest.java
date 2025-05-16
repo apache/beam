@@ -101,6 +101,9 @@ import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.auth.NoopCredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
@@ -144,6 +147,7 @@ import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Redistribute;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
@@ -2531,6 +2535,48 @@ public class DataflowRunnerTest implements Serializable {
           }
         });
     assertTrue(sawPubsubOverride.get());
+  }
+
+  @Test
+  public void testEnableAllowDuplicatesForRedistributeWithALO() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setDataflowServiceOptions(ImmutableList.of("streaming_mode_at_least_once"));
+    Pipeline pipeline = Pipeline.create(options);
+
+    ImmutableList<KV<String, Integer>> abitraryKVs =
+        ImmutableList.of(
+            KV.of("k1", 3),
+            KV.of("k5", Integer.MAX_VALUE),
+            KV.of("k5", Integer.MIN_VALUE),
+            KV.of("k2", 66),
+            KV.of("k1", 4),
+            KV.of("k2", -33),
+            KV.of("k3", 0));
+    PCollection<KV<String, Integer>> input =
+        pipeline.apply(
+            Create.of(abitraryKVs).withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
+    // The allowDuplicates for Redistribute is false by default.
+    PCollection<KV<String, Integer>> output = input.apply(Redistribute.byKey());
+    pipeline.run();
+
+    // The DataflowRedistributeByKey transform translated from Redistribute should have
+    // allowDuplicates set to true.
+    AtomicBoolean redistributeAllowDuplicates = new AtomicBoolean(false);
+    pipeline.traverseTopologically(
+        new PipelineVisitor.Defaults() {
+          @Override
+          public CompositeBehavior enterCompositeTransform(Node node) {
+            if (node.getTransform()
+                instanceof RedistributeByKeyOverrideFactory.DataflowRedistributeByKey) {
+              RedistributeByKeyOverrideFactory.DataflowRedistributeByKey<?, ?> redistribute =
+                  (RedistributeByKeyOverrideFactory.DataflowRedistributeByKey<?, ?>)
+                      node.getTransform();
+              redistributeAllowDuplicates.set(redistribute.getAllowDuplicates());
+            }
+            return CompositeBehavior.ENTER_TRANSFORM;
+          }
+        });
+    assertTrue(redistributeAllowDuplicates.get());
   }
 
   static class TestExpansionServiceClientFactory implements ExpansionServiceClientFactory {

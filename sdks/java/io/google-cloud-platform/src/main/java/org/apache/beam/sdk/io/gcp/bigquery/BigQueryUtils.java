@@ -753,6 +753,8 @@ public class BigQueryUtils {
         return LocalDate.parse(jsonBQString);
       } else if (fieldType.isLogicalType(SqlTypes.TIME.getIdentifier())) {
         return LocalTime.parse(jsonBQString);
+      } else if (fieldType.isLogicalType(SqlTypes.TIMESTAMP.getIdentifier())) {
+        return java.time.Instant.parse(jsonBQString);
       }
     }
 

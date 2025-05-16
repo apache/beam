@@ -22,8 +22,6 @@ For internal use only; no backwards-compatibility guarantees.
 
 # pytype: skip-file
 
-import collections
-import copy
 import logging
 import sys
 import threading
@@ -42,8 +40,6 @@ from apache_beam.coders import TupleCoder
 from apache_beam.coders import coders
 from apache_beam.internal import util
 from apache_beam.options.value_provider import RuntimeValueProvider
-from apache_beam.portability import common_urns
-from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.pvalue import TaggedOutput
 from apache_beam.runners.sdf_utils import NoOpWatermarkEstimatorProvider
 from apache_beam.runners.sdf_utils import RestrictionTrackerView
@@ -53,7 +49,6 @@ from apache_beam.runners.sdf_utils import ThreadsafeRestrictionTracker
 from apache_beam.runners.sdf_utils import ThreadsafeWatermarkEstimator
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import core
-from apache_beam.transforms import environments
 from apache_beam.transforms import userstate
 from apache_beam.transforms.core import RestrictionProvider
 from apache_beam.transforms.core import WatermarkEstimatorProvider
@@ -61,7 +56,6 @@ from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowFn
-from apache_beam.typehints import typehints
 from apache_beam.typehints.batch import BatchConverter
 from apache_beam.utils.counters import Counter
 from apache_beam.utils.counters import CounterName
@@ -472,11 +466,11 @@ class DoFnInvoker(object):
 
   A DoFnInvoker describes a particular way for invoking methods of a DoFn
   represented by a given DoFnSignature."""
-
-  def __init__(self,
-               output_handler,  # type: _OutputHandler
-               signature  # type: DoFnSignature
-              ):
+  def __init__(
+      self,
+      output_handler,  # type: _OutputHandler
+      signature  # type: DoFnSignature
+  ):
     # type: (...) -> None
 
     """
@@ -496,8 +490,9 @@ class DoFnInvoker(object):
       signature,  # type: DoFnSignature
       output_handler,  # type: OutputHandler
       context=None,  # type: Optional[DoFnContext]
-      side_inputs=None,   # type: Optional[List[sideinputs.SideInputMap]]
-      input_args=None, input_kwargs=None,
+      side_inputs=None,  # type: Optional[List[sideinputs.SideInputMap]]
+      input_args=None,
+      input_kwargs=None,
       process_invocation=True,
       user_state_context=None,  # type: Optional[userstate.UserStateContext]
       bundle_finalizer_param=None  # type: Optional[core._BundleFinalizerParam]
@@ -548,13 +543,13 @@ class DoFnInvoker(object):
           user_state_context,
           bundle_finalizer_param)
 
-  def invoke_process(self,
-                     windowed_value,  # type: WindowedValue
-                     restriction=None,
-                     watermark_estimator_state=None,
-                     additional_args=None,
-                     additional_kwargs=None
-                    ):
+  def invoke_process(
+      self,
+      windowed_value,  # type: WindowedValue
+      restriction=None,
+      watermark_estimator_state=None,
+      additional_args=None,
+      additional_kwargs=None):
     # type: (...) -> Iterable[SplitResultResidual]
 
     """Invokes the DoFn.process() function.
@@ -575,11 +570,11 @@ class DoFnInvoker(object):
     """
     raise NotImplementedError
 
-  def invoke_process_batch(self,
-                     windowed_batch,  # type: WindowedBatch
-                     additional_args=None,
-                     additional_kwargs=None
-                    ):
+  def invoke_process_batch(
+      self,
+      windowed_batch,  # type: WindowedBatch
+      additional_args=None,
+      additional_kwargs=None):
     # type: (...) -> None
 
     """Invokes the DoFn.process() function.
@@ -668,35 +663,35 @@ class DoFnInvoker(object):
 
 class SimpleInvoker(DoFnInvoker):
   """An invoker that processes elements ignoring windowing information."""
-
-  def __init__(self,
-               output_handler,  # type: OutputHandler
-               signature  # type: DoFnSignature
-              ):
+  def __init__(
+      self,
+      output_handler,  # type: OutputHandler
+      signature  # type: DoFnSignature
+  ):
     # type: (...) -> None
     super().__init__(output_handler, signature)
     self.process_method = signature.process_method.method_value
     self.process_batch_method = signature.process_batch_method.method_value
 
-  def invoke_process(self,
-                     windowed_value,  # type: WindowedValue
-                     restriction=None,
-                     watermark_estimator_state=None,
-                     additional_args=None,
-                     additional_kwargs=None
-                    ):
+  def invoke_process(
+      self,
+      windowed_value,  # type: WindowedValue
+      restriction=None,
+      watermark_estimator_state=None,
+      additional_args=None,
+      additional_kwargs=None):
     # type: (...) -> Iterable[SplitResultResidual]
     self.output_handler.handle_process_outputs(
         windowed_value, self.process_method(windowed_value.value))
     return []
 
-  def invoke_process_batch(self,
-                     windowed_batch,  # type: WindowedBatch
-                     restriction=None,
-                     watermark_estimator_state=None,
-                     additional_args=None,
-                     additional_kwargs=None
-                    ):
+  def invoke_process_batch(
+      self,
+      windowed_batch,  # type: WindowedBatch
+      restriction=None,
+      watermark_estimator_state=None,
+      additional_args=None,
+      additional_kwargs=None):
     # type: (...) -> None
     self.output_handler.handle_process_batch_outputs(
         windowed_batch, self.process_batch_method(windowed_batch.values))
@@ -781,17 +776,17 @@ def _get_arg_placeholders(
 
 class PerWindowInvoker(DoFnInvoker):
   """An invoker that processes elements considering windowing information."""
-
-  def __init__(self,
-               output_handler,  # type: OutputHandler
-               signature,  # type: DoFnSignature
-               context,  # type: DoFnContext
-               side_inputs,  # type: Iterable[sideinputs.SideInputMap]
-               input_args,
-               input_kwargs,
-               user_state_context,  # type: Optional[userstate.UserStateContext]
-               bundle_finalizer_param  # type: Optional[core._BundleFinalizerParam]
-              ):
+  def __init__(
+      self,
+      output_handler,  # type: OutputHandler
+      signature,  # type: DoFnSignature
+      context,  # type: DoFnContext
+      side_inputs,  # type: Iterable[sideinputs.SideInputMap]
+      input_args,
+      input_kwargs,
+      user_state_context,  # type: Optional[userstate.UserStateContext]
+      bundle_finalizer_param  # type: Optional[core._BundleFinalizerParam]
+  ):
     super().__init__(output_handler, signature)
     self.side_inputs = side_inputs
     self.context = context
@@ -823,8 +818,8 @@ class PerWindowInvoker(DoFnInvoker):
     # and has_cached_window_batch_args will be set to true if the corresponding
     # self.args_for_process,have been updated and should be reused directly.
     self.recalculate_window_args = (
-        self.has_windowed_inputs or 'disable_global_windowed_args_caching' in
-        RuntimeValueProvider.experiments)
+        self.has_windowed_inputs or 'disable_global_windowed_args_caching'
+        in RuntimeValueProvider.experiments)
     self.has_cached_window_args = False
     self.has_cached_window_batch_args = False
 
@@ -846,13 +841,13 @@ class PerWindowInvoker(DoFnInvoker):
         self.kwargs_for_process_batch) = _get_arg_placeholders(
             signature.process_batch_method, input_args, input_kwargs)
 
-  def invoke_process(self,
-                     windowed_value,  # type: WindowedValue
-                     restriction=None,
-                     watermark_estimator_state=None,
-                     additional_args=None,
-                     additional_kwargs=None
-                    ):
+  def invoke_process(
+      self,
+      windowed_value,  # type: WindowedValue
+      restriction=None,
+      watermark_estimator_state=None,
+      additional_args=None,
+      additional_kwargs=None):
     # type: (...) -> Iterable[SplitResultResidual]
     if not additional_args:
       additional_args = []
@@ -918,11 +913,11 @@ class PerWindowInvoker(DoFnInvoker):
           windowed_value, additional_args, additional_kwargs)
     return residuals
 
-  def invoke_process_batch(self,
-                     windowed_batch,  # type: WindowedBatch
-                     additional_args=None,
-                     additional_kwargs=None
-                    ):
+  def invoke_process_batch(
+      self,
+      windowed_batch,  # type: WindowedBatch
+      additional_args=None,
+      additional_kwargs=None):
     # type: (...) -> None
 
     if not additional_args:
@@ -947,9 +942,9 @@ class PerWindowInvoker(DoFnInvoker):
 
   def _should_process_window_for_sdf(
       self,
-      windowed_value, # type: WindowedValue
+      windowed_value,  # type: WindowedValue
       additional_kwargs,
-      window_index=None, # type: Optional[int]
+      window_index=None,  # type: Optional[int]
   ):
     restriction_tracker = self.invoke_create_tracker(self.restriction)
     watermark_estimator = self.invoke_create_watermark_estimator(
@@ -982,11 +977,12 @@ class PerWindowInvoker(DoFnInvoker):
       additional_kwargs[watermark_param] = self.threadsafe_watermark_estimator
     return True
 
-  def _invoke_process_per_window(self,
-                                 windowed_value,  # type: WindowedValue
-                                 additional_args,
-                                 additional_kwargs,
-                                ):
+  def _invoke_process_per_window(
+      self,
+      windowed_value,  # type: WindowedValue
+      additional_args,
+      additional_kwargs,
+  ):
     # type: (...) -> Optional[SplitResultResidual]
     if self.has_cached_window_args:
       args_for_process, kwargs_for_process = (
@@ -1155,16 +1151,17 @@ class PerWindowInvoker(DoFnInvoker):
         self.threadsafe_watermark_estimator)
 
   @staticmethod
-  def _try_split(fraction,
-      window_index, # type: Optional[int]
-      stop_window_index, # type: Optional[int]
-      windowed_value, # type: WindowedValue
+  def _try_split(
+      fraction,
+      window_index,  # type: Optional[int]
+      stop_window_index,  # type: Optional[int]
+      windowed_value,  # type: WindowedValue
       restriction,
       watermark_estimator_state,
-      restriction_provider, # type: RestrictionProvider
-      restriction_tracker, # type: RestrictionTracker
-      watermark_estimator, # type: WatermarkEstimator
-                 ):
+      restriction_provider,  # type: RestrictionProvider
+      restriction_tracker,  # type: RestrictionTracker
+      watermark_estimator,  # type: WatermarkEstimator
+  ):
     # type: (...) -> Optional[Tuple[Iterable[SplitResultPrimary], Iterable[SplitResultResidual], Optional[int]]]
 
     """Try to split returning a primaries, residuals and a new stop index.
@@ -1404,22 +1401,22 @@ class DoFnRunner:
 
   A helper class for executing ParDo operations.
   """
-
-  def __init__(self,
-               fn,  # type: core.DoFn
-               args,
-               kwargs,
-               side_inputs,  # type: Iterable[sideinputs.SideInputMap]
-               windowing,
-               tagged_receivers,  # type: Mapping[Optional[str], Receiver]
-               step_name=None,  # type: Optional[str]
-               logging_context=None,
-               state=None,
-               scoped_metrics_container=None,
-               operation_name=None,
-               transform_id=None,
-               user_state_context=None,  # type: Optional[userstate.UserStateContext]
-              ):
+  def __init__(
+      self,
+      fn,  # type: core.DoFn
+      args,
+      kwargs,
+      side_inputs,  # type: Iterable[sideinputs.SideInputMap]
+      windowing,
+      tagged_receivers,  # type: Mapping[Optional[str], Receiver]
+      step_name=None,  # type: Optional[str]
+      logging_context=None,
+      state=None,
+      scoped_metrics_container=None,
+      operation_name=None,
+      transform_id=None,
+      user_state_context=None,  # type: Optional[userstate.UserStateContext]
+  ):
     """Initializes a DoFnRunner.
 
     Args:
@@ -1626,16 +1623,16 @@ class OutputHandler(object):
 
 class _OutputHandler(OutputHandler):
   """Processes output produced by DoFn method invocations."""
-
-  def __init__(self,
-               window_fn,
-               main_receivers,  # type: Receiver
-               tagged_receivers,  # type: Mapping[Optional[str], Receiver]
-               per_element_output_counter,
-               output_batch_converter, # type: Optional[BatchConverter]
-               process_yields_batches, # type: bool
-               process_batch_yields_elements, # type: bool
-               ):
+  def __init__(
+      self,
+      window_fn,
+      main_receivers,  # type: Receiver
+      tagged_receivers,  # type: Mapping[Optional[str], Receiver]
+      per_element_output_counter,
+      output_batch_converter,  # type: Optional[BatchConverter]
+      process_yields_batches,  # type: bool
+      process_batch_yields_elements,  # type: bool
+  ):
     """Initializes ``_OutputHandler``.
 
     Args:
@@ -1920,159 +1917,3 @@ class DoFnContext(object):
       raise AttributeError('windows not accessible in this context')
     else:
       return self.windowed_value.windows
-
-
-def group_by_key_input_visitor(deterministic_key_coders=True):
-  # Importing here to avoid a circular dependency
-  # pylint: disable=wrong-import-order, wrong-import-position
-  from apache_beam.pipeline import PipelineVisitor
-  from apache_beam.transforms.core import GroupByKey
-
-  class GroupByKeyInputVisitor(PipelineVisitor):
-    """A visitor that replaces `Any` element type for input `PCollection` of
-    a `GroupByKey` with a `KV` type.
-
-    TODO(BEAM-115): Once Python SDK is compatible with the new Runner API,
-    we could directly replace the coder instead of mutating the element type.
-    """
-    def __init__(self, deterministic_key_coders=True):
-      self.deterministic_key_coders = deterministic_key_coders
-
-    def enter_composite_transform(self, transform_node):
-      self.visit_transform(transform_node)
-
-    def visit_transform(self, transform_node):
-      if isinstance(transform_node.transform, GroupByKey):
-        pcoll = transform_node.inputs[0]
-        pcoll.element_type = typehints.coerce_to_kv_type(
-            pcoll.element_type, transform_node.full_label)
-        pcoll.requires_deterministic_key_coder = (
-            self.deterministic_key_coders and transform_node.full_label)
-        key_type, value_type = pcoll.element_type.tuple_types
-        if transform_node.outputs:
-          key = next(iter(transform_node.outputs.keys()))
-          transform_node.outputs[key].element_type = typehints.KV[
-              key_type, typehints.Iterable[value_type]]
-          transform_node.outputs[key].requires_deterministic_key_coder = (
-              self.deterministic_key_coders and transform_node.full_label)
-
-  return GroupByKeyInputVisitor(deterministic_key_coders)
-
-
-def validate_pipeline_graph(pipeline_proto):
-  """Ensures this is a correctly constructed Beam pipeline.
-  """
-  def get_coder(pcoll_id):
-    return pipeline_proto.components.coders[
-        pipeline_proto.components.pcollections[pcoll_id].coder_id]
-
-  def validate_transform(transform_id):
-    transform_proto = pipeline_proto.components.transforms[transform_id]
-
-    # Currently the only validation we perform is that GBK operations have
-    # their coders set properly.
-    if transform_proto.spec.urn == common_urns.primitives.GROUP_BY_KEY.urn:
-      if len(transform_proto.inputs) != 1:
-        raise ValueError("Unexpected number of inputs: %s" % transform_proto)
-      if len(transform_proto.outputs) != 1:
-        raise ValueError("Unexpected number of outputs: %s" % transform_proto)
-      input_coder = get_coder(next(iter(transform_proto.inputs.values())))
-      output_coder = get_coder(next(iter(transform_proto.outputs.values())))
-      if input_coder.spec.urn != common_urns.coders.KV.urn:
-        raise ValueError(
-            "Bad coder for input of %s: %s" % (transform_id, input_coder))
-      if output_coder.spec.urn != common_urns.coders.KV.urn:
-        raise ValueError(
-            "Bad coder for output of %s: %s" % (transform_id, output_coder))
-      output_values_coder = pipeline_proto.components.coders[
-          output_coder.component_coder_ids[1]]
-      if (input_coder.component_coder_ids[0] !=
-          output_coder.component_coder_ids[0] or
-          output_values_coder.spec.urn != common_urns.coders.ITERABLE.urn or
-          output_values_coder.component_coder_ids[0] !=
-          input_coder.component_coder_ids[1]):
-        raise ValueError(
-            "Incompatible input coder %s and output coder %s for transform %s" %
-            (transform_id, input_coder, output_coder))
-    elif transform_proto.spec.urn == common_urns.primitives.ASSIGN_WINDOWS.urn:
-      if not transform_proto.inputs:
-        raise ValueError("Missing input for transform: %s" % transform_proto)
-    elif transform_proto.spec.urn == common_urns.primitives.PAR_DO.urn:
-      if not transform_proto.inputs:
-        raise ValueError("Missing input for transform: %s" % transform_proto)
-
-    for t in transform_proto.subtransforms:
-      validate_transform(t)
-
-  for t in pipeline_proto.root_transform_ids:
-    validate_transform(t)
-
-
-def merge_common_environments(pipeline_proto, inplace=False):
-  def dep_key(dep):
-    if dep.type_urn == common_urns.artifact_types.FILE.urn:
-      payload = beam_runner_api_pb2.ArtifactFilePayload.FromString(
-          dep.type_payload)
-      if payload.sha256:
-        type_info = 'sha256', payload.sha256
-      else:
-        type_info = 'path', payload.path
-    elif dep.type_urn == common_urns.artifact_types.URL.urn:
-      payload = beam_runner_api_pb2.ArtifactUrlPayload.FromString(
-          dep.type_payload)
-      if payload.sha256:
-        type_info = 'sha256', payload.sha256
-      else:
-        type_info = 'url', payload.url
-    else:
-      type_info = dep.type_urn, dep.type_payload
-    return type_info, dep.role_urn, dep.role_payload
-
-  def base_env_key(env):
-    return (
-        env.urn,
-        env.payload,
-        tuple(sorted(env.capabilities)),
-        tuple(sorted(env.resource_hints.items())),
-        tuple(sorted(dep_key(dep) for dep in env.dependencies)))
-
-  def env_key(env):
-    return tuple(
-        sorted(
-            base_env_key(e)
-            for e in environments.expand_anyof_environments(env)))
-
-  canonical_environments = collections.defaultdict(list)
-  for env_id, env in pipeline_proto.components.environments.items():
-    canonical_environments[env_key(env)].append(env_id)
-
-  if len(canonical_environments) == len(pipeline_proto.components.environments):
-    # All environments are already sufficiently distinct.
-    return pipeline_proto
-
-  environment_remappings = {
-      e: es[0]
-      for es in canonical_environments.values() for e in es
-  }
-
-  if not inplace:
-    pipeline_proto = copy.copy(pipeline_proto)
-
-  for t in pipeline_proto.components.transforms.values():
-    if t.environment_id not in pipeline_proto.components.environments:
-      # TODO(https://github.com/apache/beam/issues/30876): Remove this
-      #  workaround.
-      continue
-    if t.environment_id:
-      t.environment_id = environment_remappings[t.environment_id]
-  for w in pipeline_proto.components.windowing_strategies.values():
-    if w.environment_id not in pipeline_proto.components.environments:
-      # TODO(https://github.com/apache/beam/issues/30876): Remove this
-      #  workaround.
-      continue
-    if w.environment_id:
-      w.environment_id = environment_remappings[w.environment_id]
-  for e in set(pipeline_proto.components.environments.keys()) - set(
-      environment_remappings.values()):
-    del pipeline_proto.components.environments[e]
-  return pipeline_proto
