@@ -99,14 +99,18 @@ public class SpannerSchemaTest {
             .addColumn("test", "jsonbCol", "jsonb")
             .addColumn("test", "tokens", "spanner.tokenlist")
             .addColumn("test", "uuidCol", "uuid")
+            .addColumn("test", "arrayCol", "DOUBLE PRECISION[]")
+            .addColumn("test", "embeddingVectorCol", "DOUBLE PRECISION[] VECTOR LENGTH 16")
             .build();
 
     assertEquals(1, schema.getTables().size());
-    assertEquals(7, schema.getColumns("test").size());
+    assertEquals(9, schema.getColumns("test").size());
     assertEquals(1, schema.getKeyParts("test").size());
     assertEquals(Type.timestamp(), schema.getColumns("test").get(3).getType());
     assertEquals(Type.bytes(), schema.getColumns("test").get(5).getType());
     assertEquals(Type.string(), schema.getColumns("test").get(6).getType());
+    assertEquals(Type.array(Type.float64()), schema.getColumns("test").get(7).getType());
+    assertEquals(Type.array(Type.float64()), schema.getColumns("test").get(8).getType());
   }
 
   @Test
