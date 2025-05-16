@@ -22,6 +22,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 
 import java.util.Arrays;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -71,6 +72,35 @@ public class WindowedValueTest {
     Assert.assertEquals(value.getValue(), decodedValue.getValue());
     Assert.assertEquals(value.getTimestamp(), decodedValue.getTimestamp());
     Assert.assertArrayEquals(value.getWindows().toArray(), decodedValue.getWindows().toArray());
+  }
+
+  @Test
+  public void testWindowedValueWithElementMetadataCoder() throws CoderException {
+    Instant timestamp = new Instant(1234);
+    WindowedValue<String> value =
+        WindowedValue.of(
+            "abc",
+            new Instant(1234),
+            Arrays.asList(
+                new IntervalWindow(timestamp, timestamp.plus(Duration.millis(1000))),
+                new IntervalWindow(
+                    timestamp.plus(Duration.millis(1000)), timestamp.plus(Duration.millis(2000)))),
+            PaneInfo.NO_FIRING,
+            ElementMetadata.create(RunnerApi.DrainMode.Enum.DRAIN_MODE_DRAINING));
+
+    Coder<WindowedValue<String>> windowedValueCoder =
+        WindowedValue.getFullCoder(StringUtf8Coder.of(), IntervalWindow.getCoder());
+
+    byte[] encodedValue = CoderUtils.encodeToByteArray(windowedValueCoder, value);
+    WindowedValue<String> decodedValue =
+        CoderUtils.decodeFromByteArray(windowedValueCoder, encodedValue);
+
+    Assert.assertEquals(value.getValue(), decodedValue.getValue());
+    Assert.assertEquals(value.getTimestamp(), decodedValue.getTimestamp());
+    Assert.assertArrayEquals(value.getWindows().toArray(), decodedValue.getWindows().toArray());
+    ElementMetadata elementMetadata = decodedValue.getElementMetadata();
+    Assert.assertNotNull(elementMetadata);
+    Assert.assertEquals(RunnerApi.DrainMode.Enum.DRAIN_MODE_DRAINING, elementMetadata.drainMode());
   }
 
   @Test
