@@ -17,10 +17,11 @@
 
 """Pipeline, the top-level Beam object.
 
-A pipeline holds a DAG of PValues and their transforms. Conceptually the 
-:class:`~apache_beam.pvalue.PValue` s are the DAG's nodes and 
-the :class:`~apache_beam.transforms.ptransform.PTransform` s computing 
-the :class:`~apache_beam.pvalue.PValue` s are the edges.
+A pipeline holds a DAG of data transforms. Conceptually the nodes of the DAG
+are transforms (:class:`~apache_beam.transforms.ptransform.PTransform` objects)
+and the edges are values (mostly :class:`~apache_beam.pvalue.PCollection`
+objects). The transforms take as inputs one or more PValues and output one or
+more :class:`~apache_beam.pvalue.PValue` s.
 
 The pipeline offers functionality to traverse the graph.  The actual operation
 to be executed for each node visited is specified through a runner object.
@@ -114,13 +115,12 @@ __all__ = ['Pipeline', 'transform_annotations']
 
 
 class Pipeline(HasDisplayData):
-  """A pipeline object that manages a DAG of
-  :class:`~apache_beam.pvalue.PValue` s and their
-  :class:`~apache_beam.transforms.ptransform.PTransform` s.
+  """A pipeline object that manages a DAG of 
+  :class:`~apache_beam.transforms.ptransform.PTransform` s 
+  and their :class:`~apache_beam.pvalue.PValue` s.
 
-  Conceptually the :class:`~apache_beam.pvalue.PValue` s are the DAG's nodes and
-  the :class:`~apache_beam.transforms.ptransform.PTransform` s computing
-  the :class:`~apache_beam.pvalue.PValue` s are the edges.
+  Conceptually the :class:~apache_beam.transforms.ptransform.PTransform` s are the DAG's nodes and
+  the :class:~apache_beam.pvalue.PValue` s are the edges.
 
   All the transforms applied to the pipeline must have distinct full labels.
   If same transform instance needs to be applied then the right shift operator
