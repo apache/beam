@@ -1018,11 +1018,23 @@ class BeamModulePlugin implements Plugin<Project> {
         'varargs',
       ]
 
+      // Set the toolchain language version
+      def toolchainLanguageVersion = JavaLanguageVersion.of(project.javaVersion)
+      if (!toolchainLanguageVersion.canCompileOrRun(configuration.minimumLanguageVersion)) {
+        def incompatibleLanguageVersion = toolchainLanguageVersion
+        toolchainLanguageVersion = JavaLanguageVersion.of(configuration.minimumLanguageVersion)
+
+        logger.warning('Requested a toolchain for language version ' + toolchainLanguageVersion + ' because '
+            + 'a toolchain for language version ' + incompatibleLanguageVersion + ' is incompatible with '
+            + 'the minimum supported language version.')
+        toolchainLanguageVersion = JavaLanguageVersion.of(configuration.minimumLanguageVersion)
+      }
+
       project.apply plugin: "java"
 
       project.java {
         toolchain {
-          languageVersion = JavaLanguageVersion.of(project.javaVersion)
+          languageVersion = toolchainLanguageVersion
         }
       }
 
@@ -1110,7 +1122,7 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
 
-      if (JavaLanguageVersion.of(project.javaVersion).canCompileOrRun(9)) {
+      if (toolchainLanguageVersion.canCompileOrRun(9)) {
         // Use -release 8 when targeting Java 8 and running on JDK > 8
         //
         // Consider migrating compilation and testing to use JDK 9+ and setting '--release 8' as
@@ -1125,7 +1137,7 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
 
-      if (JavaLanguageVersion.of(project.javaVersion).canCompileOrRun(21)) {
+      if (toolchainLanguageVersion.canCompileOrRun(21)) {
         project.tasks.withType(JavaCompile).configureEach {
           // Java21 introduced new lint "this-escape", violated by generated srcs
           // TODO(yathu) remove this once generated code (antlr) no longer trigger this warning
@@ -1157,7 +1169,7 @@ class BeamModulePlugin implements Plugin<Project> {
         maxHeapSize = '2g'
       }
 
-      if (JavaLanguageVersion.of(project.javaVersion).canCompileOrRun(17)) {
+      if (toolchainLanguageVersion.canCompileOrRun(17)) {
         project.tasks.withType(Test).configureEach {
           jvmArgs += [
             "--add-opens=java.base/java.nio=ALL-UNNAMED",
