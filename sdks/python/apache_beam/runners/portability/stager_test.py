@@ -47,6 +47,7 @@ try:
 except ImportError:
   setuptools = None
 
+
 class StagerTest(unittest.TestCase):
   def setUp(self):
     self._temp_dir = None
@@ -418,7 +419,7 @@ class StagerTest(unittest.TestCase):
             'The --setup_file option expects the full path to a file named '
             'setup.py or pyproject.toml instead of '))
 
-  @unittest.skipIf(setuptools is None,"setuptools not available in this env")
+  @unittest.skipIf(setuptools is None, "setuptools not available in this env")
   def test_setup_file_as_setup_dot_py_file(self):
     source_dir = self.make_temp_dir()
 
@@ -432,11 +433,11 @@ class StagerTest(unittest.TestCase):
         "from setuptools import setup; setup(name='my_package')")
     temp_dir = tempfile.mkdtemp()
     resources = self.stager.create_job_resources(
-          options=options, temp_dir=temp_dir)
+        options=options, temp_dir=temp_dir)
     file_path = list(self.stager.extract_staging_tuple_iter(resources))[0][0]
 
-    self.assertEqual(os.path.join(temp_dir, 'my_package-0.0.0.tar.gz'),
-                     file_path)
+    self.assertEqual(
+        os.path.join(temp_dir, 'my_package-0.0.0.tar.gz'), file_path)
 
   def test_sdk_location_default(self):
     staging_dir = self.make_temp_dir()

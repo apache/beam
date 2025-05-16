@@ -283,7 +283,7 @@ class Stager(object):
               'The file %s cannot be found. It was specified in the '
               '--setup_file command line option.' % setup_options.setup_file)
         if os.path.basename(setup_options.setup_file) not in ('setup.py',
-                                                            'pyproject.toml'):
+                                                              'pyproject.toml'):
           raise RuntimeError(
               'The --setup_file option expects the full path to a file named '
               'setup.py or pyproject.toml instead of %s' %
