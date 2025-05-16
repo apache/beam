@@ -106,13 +106,10 @@ hadoopVersions.each { kv ->
   }
 }
 
-project.tasks.withType(Test).configureEach {
-  if (JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0 && project.findProperty('testJavaVersion') != '8') {
-    useJUnit {
-      filter {
-        excludeTestsMatching "org.apache.beam.sdk.io.hcatalog.HCatalogIOTest"
-        excludeTestsMatching "org.apache.beam.sdk.io.hcatalog.HCatalogBeamSchemaTest"
-      }
+tasks.withType(Test).configureEach {
+    // TODO(https://github.com/apache/beam/issues/32189) remove when embedded hive supports Java11
+    // Also change .github/workflows/beam_PostCommit_Java_Hadoop_Versions.yml
+    javaLauncher = javaToolchains.launcherFor {
+      languageVersion = JavaLanguageVersion.of(8)
     }
-  }
 }

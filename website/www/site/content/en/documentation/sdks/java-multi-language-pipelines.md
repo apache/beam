@@ -221,7 +221,9 @@ python -m apache_beam.runners.portability.local_job_service_main -p $JOB_SERVER_
    (this guide requires that your JAVA_HOME is set to Java 11).
 
 ```
-./gradlew :sdks:java:container:java11:docker -Pjava11Home=$JAVA_HOME
+./gradlew :sdks:java:container:java11:docker \
+-Porg.gradle.java.installations.auto-detect=false \
+-Porg.gradle.java.installations.paths=$JAVA_HOME
 ```
 
 5. Run the pipeline.

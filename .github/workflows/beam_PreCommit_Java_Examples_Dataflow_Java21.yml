@@ -93,14 +93,10 @@ jobs:
         comment_phrase: ${{ matrix.job_phrase }}
         github_token: ${{ secrets.GITHUB_TOKEN }}
         github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-    # The test requires Java 21 and Java 8 versions.
-    # Java 8 is installed second because JAVA_HOME needs to point to Java 8.
     - name: Setup environment
       uses: ./.github/actions/setup-environment-action
       with:
-        java-version: |
-          21
-          8
+        java-version: 21
     - name: Clean
       uses: ./.github/actions/gradle-command-self-hosted-action
       with:
@@ -116,9 +112,8 @@ jobs:
         arguments: |
           -PdisableSpotlessCheck=true \
           -PdisableCheckStyle=true \
-          -PtestJavaVersion=21 \
+          -PjavaVersion=21 \
           -PskipCheckerFramework \
-          -Pjava21Home=$JAVA_HOME_21_X64 \
         max-workers: 12
     - name: Archive JUnit Test Results
       uses: actions/upload-artifact@v4

@@ -23,7 +23,7 @@ plugins {
 applyJavaNature(
     exportJavadoc: false,
     publish: false,
-    requireJavaVersion: JavaVersion.VERSION_11
+    minimumLanguageVersion: 11
 )
 
 description = "Apache Beam :: SDKs :: Java :: Container :: Agent"

@@ -73,17 +73,14 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: |
-            17
-            8
+          java-version: 17
       - name: run PostCommit Java Jpms Direct Java17 script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:testing:jpms-tests:directRunnerIntegrationTest
           arguments:
             -PskipCheckerFramework
-            -PtestJavaVersion=17
-            -Pjava17Home=$JAVA_HOME_17_X64
+            -PjavaVersion=17
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v4
         if: ${{ !success() }}

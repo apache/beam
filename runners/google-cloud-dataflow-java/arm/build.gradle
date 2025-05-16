@@ -72,7 +72,7 @@ configurations { examplesJavaIntegrationTest }
 dependencies {
     examplesJavaIntegrationTest project(project.path)
     // TODO(yathu) Include full test classpath once gradle shadow plugin support Java21
-    if (project.findProperty('testJavaVersion') == '21' || JavaVersion.current().equals(JavaVersion.VERSION_21)) {
+    if (JavaLanguageVersion.of(project.javaVersion).canCompileOrRun(21)) {
       examplesJavaIntegrationTest project(path: ":runners:google-cloud-dataflow-java")
     } else {
       examplesJavaIntegrationTest project(path: ":runners:google-cloud-dataflow-java", configuration: "testRuntimeMigration")
@@ -80,16 +80,12 @@ dependencies {
     examplesJavaIntegrationTest project(path: ":examples:java", configuration: "testRuntimeMigration")
 }
 
-def javaVer = "java8"
-if (project.hasProperty('testJavaVersion')) {
-  javaVer = "java${project.getProperty('testJavaVersion')}"
-}
 def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
 def gcpRegion = project.findProperty('gcpRegion') ?: 'us-central1'
 def dataflowValidatesTempRoot = project.findProperty('gcpTempRoot') ?: 'gs://temp-storage-for-validates-runner-tests'
 def firestoreDb = project.findProperty('firestoreDb') ?: 'firestoredb'
 def dockerImageRoot = project.findProperty('docker-repository-root') ?: "us.gcr.io/${gcpProject}/java-postcommit-it"
-def DockerJavaMultiarchImageContainer = "${dockerImageRoot}/${project.docker_image_default_repo_prefix}${javaVer}_sdk"
+def DockerJavaMultiarchImageContainer = "${dockerImageRoot}/${project.docker_image_default_repo_prefix}java${project.javaVersion}_sdk"
 def dockerTag = project.findProperty('docker-tag') ?: new Date().format('yyyyMMddHHmmss')
 ext.DockerJavaMultiarchImageName = "${DockerJavaMultiarchImageContainer}:${dockerTag}" as String
 
@@ -113,7 +109,7 @@ def runnerV2PipelineOptionsARM = [
 // than 6 weeks old are deleted by stale_dataflow_prebuilt_image_cleaner.sh that runs
 // daily.
 def buildAndPushDockerJavaMultiarchContainer = tasks.register("buildAndPushDockerJavaMultiarchContainer") {
-  dependsOn ":sdks:java:container:${javaVer}:docker"
+  dependsOn ":sdks:java:container:java${project.javaVersion}:docker"
 }
 
 task printrunnerV2PipelineOptionsARM {

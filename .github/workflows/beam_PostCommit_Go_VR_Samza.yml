@@ -81,3 +81,4 @@ jobs:
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:go:test:samzaValidatesRunner
+          arguments: -PjavaVersion=8

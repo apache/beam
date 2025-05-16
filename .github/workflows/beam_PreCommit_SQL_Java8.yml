@@ -81,9 +81,7 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: |
-            8
-            11
+          java-version: 8
           python-version: default
           go-version: default
       - name: Install Flutter
@@ -98,9 +96,8 @@ jobs:
           arguments: |
             -PdisableSpotlessCheck=true \
             -PdisableCheckStyle=true \
-            -PtestJavaVersion=8 \
+            -PjavaVersion=8 \
             -PskipCheckerFramework \
-            -Pjava8Home=$JAVA_HOME_8_X64 \
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v4
         if: ${{ !success() }}

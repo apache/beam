@@ -78,7 +78,7 @@ jobs:
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:testing:jpms-tests:directRunnerIntegrationTest
-          arguments: -Dorg.gradle.java.home=$JAVA_HOME_11_X64
+          arguments: -PjavaVersion=11
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v4
         if: ${{ !success() }}

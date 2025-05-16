@@ -390,6 +390,7 @@ tasks.register("sqlPreCommit") {
 
 tasks.register("javaPreCommitPortabilityApi") {
   dependsOn(":runners:google-cloud-dataflow-java:worker:build")
+  dependsOn(":sdks:java:testing:test-utils:verifyJavaVersion${project.ext.get("javaVersion")}")
 }
 
 tasks.register("javaPostCommit") {
@@ -572,6 +573,7 @@ tasks.register("javaExamplesDataflowPrecommit") {
   dependsOn(":runners:google-cloud-dataflow-java:examples:preCommit")
   dependsOn(":runners:google-cloud-dataflow-java:examples-streaming:preCommit")
   dependsOn(":runners:google-cloud-dataflow-java:examplesJavaRunnerV2PreCommit")
+  dependsOn(":sdks:java:testing:test-utils:verifyJavaVersion${project.ext.get("javaVersion")}")
 }
 
 tasks.register("whitespacePreCommit") {
@@ -759,18 +761,6 @@ if (project.hasProperty("javaLinkageArtifactIds")) {
     args(*arguments)
     doLast {
       println("NOTE: This task published artifacts into your local Maven repository. You may want to remove them manually.")
-    }
-  }
-}
-if (project.hasProperty("testJavaVersion")) {
-  var testVer = project.property("testJavaVersion")
-
-  tasks.getByName("javaPreCommitPortabilityApi").dependsOn(":sdks:java:testing:test-utils:verifyJavaVersion$testVer")
-  tasks.getByName("javaExamplesDataflowPrecommit").dependsOn(":sdks:java:testing:test-utils:verifyJavaVersion$testVer")
-} else {
-  allprojects {
-    tasks.withType(Test::class).configureEach {
-      exclude("**/JvmVerification.class")
     }
   }
 }

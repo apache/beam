@@ -1,5 +1,3 @@
-import static org.apache.beam.gradle.BeamModulePlugin.getSupportedJavaVersion
-
 import org.apache.tools.ant.taskdefs.condition.Os
 
 /*
@@ -23,7 +21,6 @@ import org.apache.tools.ant.taskdefs.condition.Os
 def pythonRootDir = "${rootDir}/sdks/python"
 def pythonVersionSuffix = project.ext.pythonVersion.replace('.', '')
 def latestFlinkVersion = project.ext.latestFlinkVersion
-def currentJavaVersion = project.ext.currentJavaVersion
 
 ext {
   pythonContainerTask = ":sdks:python:container:py${pythonVersionSuffix}:docker"
@@ -42,8 +39,7 @@ def createFlinkRunnerTestTask(String workerType) {
   task.configure {
     dependsOn ":runners:flink:${latestFlinkVersion}:job-server:shadowJar"
     // The Java SDK worker is required to execute external transforms.
-    def suffix = getSupportedJavaVersion()
-    dependsOn ":sdks:java:container:${suffix}:docker"
+    dependsOn ":sdks:java:container:java${project.javaVersion}:docker"
     if (workerType == 'DOCKER') {
       dependsOn pythonContainerTask
     } else if (workerType == 'PROCESS') {
@@ -214,8 +210,7 @@ def createPrismRunnerTestTask(String workerType) {
   task.configure {
     dependsOn ":runners:prism:build"
     // The Java SDK worker is required to execute external transforms.
-    def suffix = getSupportedJavaVersion()
-    dependsOn ":sdks:java:container:${suffix}:docker"
+    dependsOn ":sdks:java:container:java${project.javaVersion}:docker"
     if (workerType == 'DOCKER') {
       dependsOn pythonContainerTask
     } else if (workerType == 'PROCESS') {
@@ -373,7 +368,7 @@ project.tasks.register("postCommitPy${pythonVersionSuffix}IT") {
           'setupVirtualenv',
           'installGcpTest',
           ":runners:flink:${latestFlinkVersion}:job-server:shadowJar",
-          ":sdks:java:container:${currentJavaVersion}:docker",
+          ":sdks:java:container:java${project.javaVersion}:docker",
           ':sdks:java:testing:kafka-service:buildTestKafkaServiceJar',
           ':sdks:java:io:expansion-service:shadowJar',
           ':sdks:java:io:google-cloud-platform:expansion-service:shadowJar',
@@ -425,7 +420,7 @@ project.tasks.register("xlangSpannerIOIT") {
           'setupVirtualenv',
           'installGcpTest',
           ":runners:flink:${latestFlinkVersion}:job-server:shadowJar",
-          ":sdks:java:container:${currentJavaVersion}:docker",
+          ":sdks:java:container:java${project.javaVersion}:docker",
           ':sdks:java:io:expansion-service:shadowJar',
           ':sdks:java:io:google-cloud-platform:expansion-service:shadowJar',
           ':sdks:java:io:amazon-web-services2:expansion-service:shadowJar',

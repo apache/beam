@@ -148,9 +148,12 @@ task javaPostCommit() {
 }
 
 task postCommitLegacyWorkerJava8(type: Test) {
+  javaLauncher = javaToolchains.launcherFor {
+    languageVersion = JavaLanguageVersion.of(8)
+  }
+
   dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
   def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
-  systemProperty "java.specification.version", "8"
   with commonConfig(dataflowWorkerJar: dataflowWorkerJar, runWordCount: 'only')
 }
 
@@ -158,10 +161,27 @@ task java8PostCommit() {
   dependsOn postCommitLegacyWorkerJava8
 }
 
+task postCommitLegacyWorkerJava11(type: Test) {
+  javaLauncher = javaToolchains.launcherFor {
+    languageVersion = JavaLanguageVersion.of(11)
+  }
+
+  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
+  def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+  with commonConfig(dataflowWorkerJar: dataflowWorkerJar, runWordCount: 'only')
+}
+
+task java11PostCommit() {
+  dependsOn postCommitLegacyWorkerJava11
+}
+
 task postCommitLegacyWorkerJava17(type: Test) {
+    javaLauncher = javaToolchains.launcherFor {
+      languageVersion = JavaLanguageVersion.of(17)
+    }
+
     dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
     def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
-    systemProperty "java.specification.version", "17"
     with commonConfig(dataflowWorkerJar: dataflowWorkerJar, runWordCount: 'only')
 }
 
@@ -170,9 +190,12 @@ task java17PostCommit() {
 }
 
 task postCommitLegacyWorkerJava21(type: Test) {
+    javaLauncher = javaToolchains.launcherFor {
+      languageVersion = JavaLanguageVersion.of(21)
+    }
+
     dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
     def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?: project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
-    systemProperty "java.specification.version", "21"
     with commonConfig(dataflowWorkerJar: dataflowWorkerJar, runWordCount: 'exclude')
 }
 
@@ -183,9 +206,7 @@ task java21PostCommit() {
 task preCommit() {
   dependsOn preCommitLegacyWorker
   dependsOn preCommitLegacyWorkerImpersonate
-  if (project.hasProperty("testJavaVersion")) {
-    dependsOn ":sdks:java:testing:test-utils:verifyJavaVersion${project.property("testJavaVersion")}"
-  }
+  dependsOn ":sdks:java:testing:test-utils:verifyJavaVersion${project.javaVersion}"
 }
 
 task verifyPortabilityApi() {

@@ -49,26 +49,6 @@ public class JvmVerification {
     assertEquals(v1_8, getByteCodeVersion(DoFn.class));
   }
 
-  @Test
-  public void verifyTestCodeIsCompiledWithJava8() throws IOException {
-    assertEquals(v1_8, getByteCodeVersion(JvmVerification.class));
-  }
-
-  @Test
-  public void verifyTestCodeIsCompiledWithJava11() throws IOException {
-    assertEquals(v11, getByteCodeVersion(JvmVerification.class));
-  }
-
-  @Test
-  public void verifyTestCodeIsCompiledWithJava17() throws IOException {
-    assertEquals(v17, getByteCodeVersion(JvmVerification.class));
-  }
-
-  @Test
-  public void verifyTestCodeIsCompiledWithJava21() throws IOException {
-    assertEquals(v21, getByteCodeVersion(JvmVerification.class));
-  }
-
   // jvm
   @Test
   public void verifyRunningJVMVersionIs8() {
