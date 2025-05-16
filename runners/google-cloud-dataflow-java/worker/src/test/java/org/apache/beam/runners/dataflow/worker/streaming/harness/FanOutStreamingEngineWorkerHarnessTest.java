@@ -328,6 +328,69 @@ public class FanOutStreamingEngineWorkerHarnessTest {
   }
 
   @Test
+  public void testOnNewWorkerMetadata_endpointTypeChanged() throws InterruptedException {
+    GetWorkBudgetDistributor getWorkBudgetDistributor = mock(GetWorkBudgetDistributor.class);
+    fanOutStreamingEngineWorkProvider =
+        newFanOutStreamingEngineWorkerHarness(
+            GetWorkBudget.builder().setItems(1).setBytes(1).build(),
+            getWorkBudgetDistributor,
+            noOpProcessWorkItemFn());
+
+    String workerToken = "workerToken1";
+    String workerToken2 = "workerToken2";
+
+    WorkerMetadataResponse firstWorkerMetadata =
+        WorkerMetadataResponse.newBuilder()
+            .setMetadataVersion(1)
+            .addWorkEndpoints(
+                WorkerMetadataResponse.Endpoint.newBuilder()
+                    .setBackendWorkerToken(workerToken)
+                    .build())
+            .addWorkEndpoints(
+                WorkerMetadataResponse.Endpoint.newBuilder()
+                    .setBackendWorkerToken(workerToken2)
+                    .build())
+            .setExternalEndpoint(AUTHENTICATING_SERVICE)
+            .setEndpointType(EndpointType.DIRECTPATH)
+            .putAllGlobalDataEndpoints(DEFAULT)
+            .build();
+
+    WorkerMetadataResponse secondWorkerMetadata =
+        WorkerMetadataResponse.newBuilder()
+            .setMetadataVersion(2)
+            .addWorkEndpoints(
+                WorkerMetadataResponse.Endpoint.newBuilder()
+                    .setDirectEndpoint(
+                        DEFAULT_WINDMILL_SERVICE_ADDRESS.gcpServiceAddress().toString())
+                    .build())
+            .setExternalEndpoint(AUTHENTICATING_SERVICE)
+            .setEndpointType(EndpointType.CLOUDPATH)
+            .build();
+
+    fakeGetWorkerMetadataStub.injectWorkerMetadata(firstWorkerMetadata);
+    StreamingEngineBackends currentBackends = fanOutStreamingEngineWorkProvider.currentBackends();
+    assertEquals(2, currentBackends.windmillStreams().size());
+    Set<String> workerTokens =
+        fanOutStreamingEngineWorkProvider.currentBackends().windmillStreams().keySet().stream()
+            .map(endpoint -> endpoint.workerToken().orElseThrow(IllegalStateException::new))
+            .collect(Collectors.toSet());
+    assertTrue(workerTokens.contains(workerToken));
+    assertTrue(workerTokens.contains(workerToken2));
+
+    fakeGetWorkerMetadataStub.injectWorkerMetadata(secondWorkerMetadata);
+    currentBackends = fanOutStreamingEngineWorkProvider.currentBackends();
+    assertEquals(1, currentBackends.windmillStreams().size());
+    Set<String> directEndpointStrings =
+        fanOutStreamingEngineWorkProvider.currentBackends().windmillStreams().keySet().stream()
+            .filter(endpoint -> endpoint.directEndpoint().isPresent())
+            .map(endpoint -> endpoint.directEndpoint().get())
+            .map(serviceAddress -> serviceAddress.getServiceAddress().toString())
+            .collect(Collectors.toSet());
+    assert (directEndpointStrings.contains(
+        DEFAULT_WINDMILL_SERVICE_ADDRESS.gcpServiceAddress().toString()));
+  }
+
+  @Test
   public void testOnNewWorkerMetadata_redistributesBudget() throws InterruptedException {
     String workerToken = "workerToken1";
     String workerToken2 = "workerToken2";

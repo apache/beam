@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker.streaming.harness;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -70,6 +71,7 @@ public final class WindmillStreamPoolSender implements StreamSender, WindmillStr
   private final Function<String, Optional<ComputationState>> computationStateFetcher;
   private final ExecutorService workProviderExecutor;
   private final AtomicBoolean isRunning;
+  private final AtomicBoolean hasGetWorkStreamStarted;
   private @Nullable GetWorkStream getWorkStream;
 
   private WindmillStreamPoolSender(
@@ -84,6 +86,7 @@ public final class WindmillStreamPoolSender implements StreamSender, WindmillStr
       Runnable waitForResources,
       Function<String, Optional<ComputationState>> computationStateFetcher) {
     this.isRunning = new AtomicBoolean(false);
+    this.hasGetWorkStreamStarted = new AtomicBoolean(false);
     this.connection = connection;
     this.getWorkRequest = getWorkRequest;
     this.getWorkBudget = getWorkBudget;
@@ -137,6 +140,8 @@ public final class WindmillStreamPoolSender implements StreamSender, WindmillStr
               streamingEngineThrottleTimers.getWorkThrottleTimer(),
               getWorkItemReceiver());
       this.getWorkStream.start();
+      this.hasGetWorkStreamStarted.set(true);
+
       try {
         // Reconnect every now and again to enable better load balancing.
         // If at any point the server closes the stream, we will reconnect immediately;
@@ -193,14 +198,13 @@ public final class WindmillStreamPoolSender implements StreamSender, WindmillStr
           !workProviderExecutor.isShutdown(),
           "WindmillStreamPoolSender has already been shutdown.");
       workCommitter.start();
+      isRunning.set(true);
       workProviderExecutor.execute(
           () -> {
             LOG.info("Starting dispatch.");
             dispatchLoop();
             LOG.info("Dispatch done");
           });
-
-      isRunning.set(true);
     }
   }
 
@@ -211,6 +215,7 @@ public final class WindmillStreamPoolSender implements StreamSender, WindmillStr
       workProviderExecutor.shutdownNow();
       workCommitter.stop();
       isRunning.set(false);
+      hasGetWorkStreamStarted.set(false);
     }
   }
 
@@ -231,5 +236,10 @@ public final class WindmillStreamPoolSender implements StreamSender, WindmillStr
   @Override
   public long getCurrentActiveCommitBytes() {
     return workCommitter.currentActiveCommitBytes();
+  }
+
+  @VisibleForTesting
+  public boolean hasGetWorkStreamStarted() {
+    return hasGetWorkStreamStarted.get();
   }
 }
