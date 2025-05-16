@@ -601,6 +601,7 @@ class BeamModulePlugin implements Plugin<Project> {
     // There are a few versions are determined by the BOMs by running scripts/tools/bomupgrader.py
     // marked as [bomupgrader]. See the documentation of that script for detail.
     def activemq_version = "5.14.5"
+    def avro_version = "1.12.0"
     def autovalue_version = "1.9"
     def autoservice_version = "1.0.1"
     def aws_java_sdk2_version = "2.20.162"
@@ -681,8 +682,8 @@ class BeamModulePlugin implements Plugin<Project> {
         antlr_runtime                               : "org.antlr:antlr4-runtime:4.7",
         args4j                                      : "args4j:args4j:2.33",
         auto_value_annotations                      : "com.google.auto.value:auto-value-annotations:$autovalue_version",
-        avro                                        : "org.apache.avro:avro:1.12.0",
-        avro_tests                                  : "org.apache.avro:avro:1.12.0:tests",
+        avro                                        : "org.apache.avro:avro:${avro_version}",
+        avro_tests                                  : "org.apache.avro:avro:${avro_version}:tests",
         aws_java_sdk2_apache_client                 : "software.amazon.awssdk:apache-client:$aws_java_sdk2_version",
         aws_java_sdk2_netty_client                  : "software.amazon.awssdk:netty-nio-client:$aws_java_sdk2_version",
         aws_java_sdk2_auth                          : "software.amazon.awssdk:auth:$aws_java_sdk2_version",
