@@ -67,6 +67,7 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -124,6 +125,7 @@ public class StreamingTransformTranslatorTest implements Serializable {
 
   @Test
   @Category({StreamingTest.class, UsesSideInputs.class})
+  @Ignore("Very flaky: https://github.com/apache/beam/issues/34945")
   public void testStreamingSideInputAsIterableView() {
     final PipelineFunction pipelineFunction =
         (PipelineOptions options) -> {
