@@ -1198,6 +1198,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
       List<String> skipDefRegexes = []
       skipDefRegexes << "AutoValue_.*"
+      skipDefRegexes << "AutoBuilder_.*"
       skipDefRegexes << "AutoOneOf_.*"
       skipDefRegexes << ".*\\.jmh_generated\\..*"
       skipDefRegexes += configuration.generatedClassPatterns
@@ -1291,7 +1292,8 @@ class BeamModulePlugin implements Plugin<Project> {
         '**/org/apache/beam/gradle/**',
         '**/org/apache/beam/model/**',
         '**/org/apache/beam/runners/dataflow/worker/windmill/**',
-        '**/AutoValue_*'
+        '**/AutoValue_*',
+        '**/AutoBuilder_*',
       ]
 
       def jacocoEnabled = project.hasProperty('enableJacocoReport')
