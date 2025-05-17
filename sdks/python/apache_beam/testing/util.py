@@ -50,6 +50,7 @@ __all__ = [
     'matches_all',
     # open_shards is internal and has no backwards compatibility guarantees.
     'open_shards',
+    'row_namedtuple_equals_fn',
     'TestWindowedValue',
 ]
 
@@ -167,7 +168,7 @@ def equal_to(expected, equals_fn=None):
     # collection. It can also raise false negatives for types that don't have
     # a deterministic sort order, like pyarrow Tables as of 0.14.1
     if not equals_fn:
-      equals_fn = lambda e, a: e == a
+      equals_fn = row_namedtuple_equals_fn
       try:
         sorted_expected = sorted(expected)
         sorted_actual = sorted(actual)
@@ -200,6 +201,33 @@ def equal_to(expected, equals_fn=None):
       raise BeamAssertException(msg)
 
   return _equal
+
+
+def row_namedtuple_equals_fn(expected, actual, fallback_equals_fn=None):
+  """
+  equals_fn which can be used by equal_to which treats Rows and
+  NamedTuples as equivalent types. This can be useful since Beam converts
+  Rows to NamedTuples when they are sent across portability layers, so a Row
+  may be converted to a NamedTuple automatically by Beam.
+  """
+  if fallback_equals_fn is None:
+    fallback_equals_fn = lambda e, a: e == a
+  if type(expected) is not pvalue.Row and not _is_named_tuple(expected):
+    return fallback_equals_fn(expected, actual)
+  if type(actual) is not pvalue.Row and not _is_named_tuple(actual):
+    return fallback_equals_fn(expected, actual)
+
+  expected_dict = expected._asdict()
+  actual_dict = actual._asdict()
+  if len(expected_dict) != len(actual_dict):
+    return False
+  for k, v in expected_dict.items():
+    if k not in actual_dict:
+      return False
+    if not row_namedtuple_equals_fn(v, actual_dict[k]):
+      return False
+
+  return True
 
 
 def matches_all(expected):
@@ -384,6 +412,12 @@ def _sort_lists(result):
     return sorted(result)
   else:
     return result
+
+
+def _is_named_tuple(obj) -> bool:
+  return (
+      isinstance(obj, tuple) and hasattr(obj, '_asdict') and
+      hasattr(obj, '_fields'))
 
 
 # A utility transform that recursively sorts lists for easier testing.

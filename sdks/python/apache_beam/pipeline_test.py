@@ -412,7 +412,7 @@ class PipelineTest(unittest.TestCase):
     def raise_exception(exn):
       raise exn
 
-    with self.assertRaises(ValueError):
+    with self.assertRaisesRegex(RuntimeError, 'ValueError:'):
       with Pipeline() as p:
         # pylint: disable=expression-not-assigned
         p | Create([ValueError('msg')]) | Map(raise_exception)
@@ -714,7 +714,9 @@ class PipelineTest(unittest.TestCase):
           RuntimeError,
           'Pipeline construction environment and pipeline runtime '
           'environment are not compatible.'):
-        with TestPipeline() as p:
+        # TODO(https://github.com/apache/beam/issues/34549): Prism doesn't
+        # pass through capabilities as part of the ProcessBundleDescriptor.
+        with TestPipeline('FnApiRunner') as p:
           _ = p | Create([None])
 
 
