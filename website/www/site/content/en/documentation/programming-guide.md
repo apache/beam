@@ -1240,7 +1240,7 @@ with beam.Pipeline() as pipeline:
 
 <span class="language-python">
 
-> **Returning a list (e.g., `return [element1, element2]`) is valid**  
+> **Returning a list (e.g., `return [element1, element2]`) is valid because List is Iterable**  
 > This approach works well when emitting multiple outputs from a single call and is easy to read for small datasets.
 
 </span>
