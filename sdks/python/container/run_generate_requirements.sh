@@ -25,7 +25,7 @@
 
 # It is recommended to run this script via gradle commands such as:
 # ./gradlew :sdks:python:container:generatePythonRequirementsAll
-# ./gradlew :sdks:python:container:py38:generatePythonRequirements
+# ./gradlew :sdks:python:container:py39:generatePythonRequirements
 
 # You will need Python interpreters for all versions supported by Beam, see:
 # https://s.apache.org/beam-python-dev-wiki
