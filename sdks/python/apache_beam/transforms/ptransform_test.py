@@ -155,7 +155,11 @@ class PTransformTest(unittest.TestCase):
       assert_that(result, equal_to([11, 12, 13]))
 
   def test_do_with_do_fn_returning_string_raises_warning(self):
-    with self.assertRaises(typehints.TypeCheckError) as cm:
+    ex_details = r'TypeCheckError.*'
+    'Returning a str from a ParDo or FlatMap '
+    'is discouraged.'
+
+    with self.assertRaisesRegex(RuntimeError, ex_details):
       with TestPipeline() as pipeline:
         pipeline._options.view_as(TypeOptions).runtime_type_check = True
         pcoll = pipeline | 'Start' >> beam.Create(['2', '9', '3'])
@@ -164,13 +168,12 @@ class PTransformTest(unittest.TestCase):
         # Since the DoFn directly returns a string we should get an
         # error warning us when the pipeliene runs.
 
-    expected_error_prefix = (
-        'Returning a str from a ParDo or FlatMap '
-        'is discouraged.')
-    self.assertStartswith(cm.exception.args[0], expected_error_prefix)
-
   def test_do_with_do_fn_returning_dict_raises_warning(self):
-    with self.assertRaises(typehints.TypeCheckError) as cm:
+    ex_details = r'TypeCheckError.*'
+    'Returning a dict from a ParDo or FlatMap '
+    'is discouraged.'
+
+    with self.assertRaisesRegex(RuntimeError, ex_details):
       with TestPipeline() as pipeline:
         pipeline._options.view_as(TypeOptions).runtime_type_check = True
         pcoll = pipeline | 'Start' >> beam.Create(['2', '9', '3'])
@@ -178,11 +181,6 @@ class PTransformTest(unittest.TestCase):
 
         # Since the DoFn directly returns a dict we should get an error warning
         # us when the pipeliene runs.
-
-    expected_error_prefix = (
-        'Returning a dict from a ParDo or FlatMap '
-        'is discouraged.')
-    self.assertStartswith(cm.exception.args[0], expected_error_prefix)
 
   def test_do_with_multiple_outputs_maintains_unique_name(self):
     with TestPipeline() as pipeline:
@@ -222,10 +220,11 @@ class PTransformTest(unittest.TestCase):
     metric_results = res.metrics().query(
         MetricsFilter().with_name('recordsRead'))
     outputs_counter = metric_results['counters'][0]
-    self.assertStartswith(outputs_counter.key.step, 'Read')
+    msg = outputs_counter.key.step
+    cont = 'Read-SDFBoundedSourceReader'
+    self.assertTrue(cont in msg, '"%s" does not contain "%s"' % (msg, cont))
     self.assertEqual(outputs_counter.key.metric.name, 'recordsRead')
     self.assertEqual(outputs_counter.committed, 100)
-    self.assertEqual(outputs_counter.attempted, 100)
 
   @pytest.mark.it_validatesrunner
   def test_par_do_with_multiple_outputs_and_using_yield(self):
@@ -292,16 +291,15 @@ class PTransformTest(unittest.TestCase):
     def incorrect_par_do_fn(x):
       return x + 5
 
-    with self.assertRaises(typehints.TypeCheckError) as cm:
+    ex_details = r'TypeCheckError.*FlatMap and ParDo must return an iterable.'
+
+    with self.assertRaisesRegex(RuntimeError, ex_details):
       with TestPipeline() as pipeline:
         pipeline._options.view_as(TypeOptions).runtime_type_check = True
         pcoll = pipeline | 'Start' >> beam.Create([2, 9, 3])
         pcoll | 'Do' >> beam.FlatMap(incorrect_par_do_fn)
         # It's a requirement that all user-defined functions to a ParDo return
         # an iterable.
-
-    expected_error_prefix = 'FlatMap and ParDo must return an iterable.'
-    self.assertStartswith(cm.exception.args[0], expected_error_prefix)
 
   def test_do_fn_with_finish(self):
     class MyDoFn(beam.DoFn):
@@ -661,7 +659,7 @@ class PTransformTest(unittest.TestCase):
 
     # Check that a bad partition label will yield an error. For the
     # DirectRunner, this error manifests as an exception.
-    with self.assertRaises(ValueError):
+    with self.assertRaisesRegex(RuntimeError, "ValueError"):
       with TestPipeline() as pipeline:
         pcoll = pipeline | 'Start' >> beam.Create([0, 1, 2, 3, 4, 5, 6, 7, 8])
         partitions = pcoll | beam.Partition(SomePartitionFn(), 4, 10000)

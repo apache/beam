@@ -115,8 +115,14 @@ class SwitchingDirectRunner(PipelineRunner):
       """Visitor determining if a Pipeline can be run on the PrismRunner."""
       def accept(self, pipeline):
         self.supported_by_prism_runner = True
+        # TODO(https://github.com/apache/beam/issues/33623): Prism currently
+        # double fires on AfterCount trigger, once appropriately, and once
+        # incorrectly at the end of the window. This if condition could be
+        # more targeted, but for now we'll just ignore all unsafe triggers.
+        if pipeline.allow_unsafe_triggers:
+          self.supported_by_prism_runner = False
         # TODO(https://github.com/apache/beam/issues/33623): Prism currently does not support interactive mode
-        if is_in_ipython():
+        elif is_in_ipython():
           self.supported_by_prism_runner = False
         else:
           pipeline.visit(self)
@@ -130,7 +136,12 @@ class SwitchingDirectRunner(PipelineRunner):
           self.supported_by_prism_runner = False
         if isinstance(transform, beam.ParDo):
           dofn = transform.dofn
-
+          # TODO(https://github.com/apache/beam/issues/33623): Prism currently
+          # does not seem to handle DoFns using exception handling very well.
+          # This may be limited just to subprocess DoFns, but more
+          # investigation is needed before making it default
+          if isinstance(dofn, beam.transforms.core._ExceptionHandlingWrapperDoFn):
+            self.supported_by_prism_runner = False
           # https://github.com/apache/beam/issues/34549
           # Remote once we can support local materialization
           if (hasattr(dofn, 'is_materialize_values_do_fn') and
