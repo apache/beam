@@ -56,7 +56,7 @@ def read_from_text(path: str):
 
   """Reads lines from a text files.
 
-  The resulting PCollection consists of rows with a single string filed named
+  The resulting PCollection consists of rows with a single string field named
   "line."
 
   Args:
