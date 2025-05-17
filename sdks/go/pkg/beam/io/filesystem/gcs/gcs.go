@@ -30,20 +30,28 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/fsx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/gcsx"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/hooks"
 	"google.golang.org/api/iterator"
 )
+
+const (
+	projectBillingHook = "beam:go:hook:filesystem:billingproject"
+)
+
+var billingProject string = ""
 
 func init() {
 	filesystem.Register("gs", New)
 }
 
 type fs struct {
-	client *storage.Client
+	client           *storage.Client
 }
 
 // New creates a new Google Cloud Storage filesystem using application
 // default credentials. If it fails, it falls back to unauthenticated
 // access.
+// It will use the environment variable named `BILLING_PROJECT_ID` as requester payer bucket attribute.
 func New(ctx context.Context) filesystem.Interface {
 	client, err := gcsx.NewClient(ctx, storage.ScopeReadWrite)
 	if err != nil {
@@ -54,7 +62,23 @@ func New(ctx context.Context) filesystem.Interface {
 			panic(errors.Wrapf(err, "failed to create GCS client"))
 		}
 	}
-	return &fs{client: client}
+	return &fs{
+		client:           client,
+	}
+}
+
+func SetRequesterBillingProject(project string){
+	billingProject = project
+}
+
+// RequesterBillingProject configure project to be used in google storage operations
+// with requester pays actived. More informaiton about requester pays in https://cloud.google.com/storage/docs/requester-pays
+func RequesterBillingProject(project string) error {
+	if project == "" {
+		return fmt.Errorf("project cannot be empty, got %v", project)
+	}
+	// The hook itself is defined in beam/core/runtime/harness/file_system_hooks.go
+	return hooks.EnableHook(projectBillingHook, project)
 }
 
 func (f *fs) Close() error {
@@ -73,7 +97,7 @@ func (f *fs) List(ctx context.Context, glob string) ([]string, error) {
 	// For now, we assume * is the first matching character to make a
 	// prefix listing and not list the entire bucket.
 	prefix := fsx.GetPrefix(object)
-	it := f.client.Bucket(bucket).Objects(ctx, &storage.Query{
+	it := f.client.Bucket(bucket).UserProject(billingProject).Objects(ctx, &storage.Query{
 		Prefix: prefix,
 	})
 	for {
@@ -107,7 +131,7 @@ func (f *fs) OpenRead(ctx context.Context, filename string) (io.ReadCloser, erro
 		return nil, err
 	}
 
-	return f.client.Bucket(bucket).Object(object).NewReader(ctx)
+	return f.client.Bucket(bucket).UserProject(billingProject).Object(object).NewReader(ctx)
 }
 
 // TODO(herohde) 7/12/2017: should we create the bucket in OpenWrite? For now, "no".
@@ -118,7 +142,7 @@ func (f *fs) OpenWrite(ctx context.Context, filename string) (io.WriteCloser, er
 		return nil, err
 	}
 
-	return f.client.Bucket(bucket).Object(object).NewWriter(ctx), nil
+	return f.client.Bucket(bucket).UserProject(billingProject).Object(object).NewWriter(ctx), nil
 }
 
 func (f *fs) Size(ctx context.Context, filename string) (int64, error) {
@@ -127,7 +151,7 @@ func (f *fs) Size(ctx context.Context, filename string) (int64, error) {
 		return -1, err
 	}
 
-	obj := f.client.Bucket(bucket).Object(object)
+	obj := f.client.Bucket(bucket).UserProject(billingProject).Object(object)
 	attrs, err := obj.Attrs(ctx)
 	if err != nil {
 		return -1, err
@@ -143,7 +167,7 @@ func (f *fs) LastModified(ctx context.Context, filename string) (time.Time, erro
 		return time.Time{}, err
 	}
 
-	obj := f.client.Bucket(bucket).Object(object)
+	obj := f.client.Bucket(bucket).UserProject(billingProject).Object(object)
 	attrs, err := obj.Attrs(ctx)
 	if err != nil {
 		return time.Time{}, err
@@ -159,7 +183,7 @@ func (f *fs) Remove(ctx context.Context, filename string) error {
 		return err
 	}
 
-	obj := f.client.Bucket(bucket).Object(object)
+	obj := f.client.Bucket(bucket).UserProject(billingProject).Object(object)
 	return obj.Delete(ctx)
 }
 
@@ -169,13 +193,13 @@ func (f *fs) Copy(ctx context.Context, srcpath, dstpath string) error {
 	if err != nil {
 		return err
 	}
-	srcobj := f.client.Bucket(bucket).Object(src)
+	srcobj := f.client.Bucket(bucket).UserProject(billingProject).Object(src)
 
 	bucket, dst, err := gcsx.ParseObject(dstpath)
 	if err != nil {
 		return err
 	}
-	dstobj := f.client.Bucket(bucket).Object(dst)
+	dstobj := f.client.Bucket(bucket).UserProject(billingProject).Object(dst)
 
 	cp := dstobj.CopierFrom(srcobj)
 	_, err = cp.Run(ctx)
@@ -188,13 +212,13 @@ func (f *fs) Rename(ctx context.Context, srcpath, dstpath string) error {
 	if err != nil {
 		return err
 	}
-	srcobj := f.client.Bucket(bucket).Object(src)
+	srcobj := f.client.Bucket(bucket).UserProject(billingProject).Object(src)
 
 	bucket, dst, err := gcsx.ParseObject(dstpath)
 	if err != nil {
 		return err
 	}
-	dstobj := f.client.Bucket(bucket).Object(dst)
+	dstobj := f.client.Bucket(bucket).UserProject(billingProject).Object(dst)
 
 	cp := dstobj.CopierFrom(srcobj)
 	_, err = cp.Run(ctx)
