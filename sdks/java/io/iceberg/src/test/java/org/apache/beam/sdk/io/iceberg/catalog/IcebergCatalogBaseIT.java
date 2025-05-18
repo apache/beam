@@ -244,8 +244,8 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
           .addStringField("str")
           .addStringField("char")
           .addInt64Field("modulo_5")
-          .addBooleanField("bool")
-          .addInt32Field("int")
+          .addBooleanField("bool_field")
+          .addInt32Field("int_field")
           .addRowField("row", NESTED_ROW_SCHEMA)
           .addArrayField("arr_long", Schema.FieldType.INT64)
           .addNullableRowField("nullable_row", NESTED_ROW_SCHEMA)
@@ -442,14 +442,43 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   }
 
   @Test
-  public void testStreamingRead() throws Exception {
+  public void testReadWithFilter() throws Exception {
     Table table = catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA);
 
-    List<Row> expectedRows = populateTable(table);
+    List<Row> expectedRows =
+        populateTable(table).stream()
+            .filter(
+                row ->
+                    row.getBoolean("bool_field")
+                        && (row.getInt32("int_field") < 500 || row.getInt32("modulo_5") == 3))
+            .collect(Collectors.toList());
+
+    Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
+    config.put("filter", "\"bool_field\" = TRUE AND (\"int_field\" < 500 OR \"modulo_5\" = 3)");
+
+    PCollection<Row> rows =
+        pipeline.apply(Managed.read(ICEBERG).withConfig(config)).getSinglePCollection();
+
+    PAssert.that(rows).containsInAnyOrder(expectedRows);
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testStreamingReadWithFilter() throws Exception {
+    Table table = catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA);
+
+    List<Row> expectedRows =
+        populateTable(table).stream()
+            .filter(
+                row ->
+                    row.getBoolean("bool_field")
+                        && (row.getInt32("int_field") < 350 || row.getInt32("modulo_5") == 2))
+            .collect(Collectors.toList());
 
     Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
     config.put("streaming", true);
     config.put("to_snapshot", table.currentSnapshot().snapshotId());
+    config.put("filter", "\"bool_field\" = TRUE AND (\"int_field\" < 350 OR \"modulo_5\" = 2)");
 
     PCollection<Row> rows =
         pipeline.apply(Managed.read(ICEBERG_CDC).withConfig(config)).getSinglePCollection();
@@ -496,6 +525,34 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     Table table = catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA);
     List<Row> expectedRows = populateTable(table);
     Map<String, Object> readConfig = managedIcebergConfig(tableId());
+    String writeTableId = tableId() + "_2";
+    Map<String, Object> writeConfig = managedIcebergConfig(writeTableId);
+
+    pipeline
+        .apply("read", Managed.read(ICEBERG).withConfig(readConfig))
+        .getSinglePCollection()
+        .apply("write", Managed.write(ICEBERG).withConfig(writeConfig));
+    pipeline.run().waitUntilFinish();
+
+    List<Record> returnedRecords =
+        readRecords(catalog.loadTable(TableIdentifier.parse(writeTableId)));
+    assertThat(
+        returnedRecords,
+        containsInAnyOrder(expectedRows.stream().map(RECORD_FUNC::apply).toArray()));
+  }
+
+  @Test
+  public void testWriteReadWithFilter() throws IOException {
+    Table table = catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA);
+    List<Row> expectedRows =
+        populateTable(table).stream()
+            .filter(
+                row ->
+                    row.getBoolean("bool_field")
+                        && (row.getInt32("int_field") < 350 || row.getInt32("modulo_5") == 2))
+            .collect(Collectors.toList());
+    Map<String, Object> readConfig = new HashMap<>(managedIcebergConfig(tableId()));
+    readConfig.put("filter", "\"bool_field\" = TRUE AND (\"int_field\" < 350 OR \"modulo_5\" = 2)");
     String writeTableId = tableId() + "_2";
     Map<String, Object> writeConfig = managedIcebergConfig(writeTableId);
 
@@ -565,7 +622,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     // this partition spec will create a partition like: /bool=true/modulo_5=3/str_trunc=value_3/
     PartitionSpec partitionSpec =
         PartitionSpec.builderFor(ICEBERG_SCHEMA)
-            .identity("bool")
+            .identity("bool_field")
             .hour("datetime")
             .truncate("str", "value_x".length())
             .build();
@@ -594,7 +651,10 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   public void testStreamingWrite() throws IOException {
     int numRecords = numRecords();
     PartitionSpec partitionSpec =
-        PartitionSpec.builderFor(ICEBERG_SCHEMA).identity("bool").identity("modulo_5").build();
+        PartitionSpec.builderFor(ICEBERG_SCHEMA)
+            .identity("bool_field")
+            .identity("modulo_5")
+            .build();
     Table table =
         catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA, partitionSpec);
 
@@ -624,7 +684,10 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   public void testStreamingWriteWithPriorWindowing() throws IOException {
     int numRecords = numRecords();
     PartitionSpec partitionSpec =
-        PartitionSpec.builderFor(ICEBERG_SCHEMA).identity("bool").identity("modulo_5").build();
+        PartitionSpec.builderFor(ICEBERG_SCHEMA)
+            .identity("bool_field")
+            .identity("modulo_5")
+            .build();
     Table table =
         catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA, partitionSpec);
 
@@ -668,7 +731,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     String tableIdentifierTemplate = tableId() + "_{modulo_5}_{char}";
     Map<String, Object> writeConfig = new HashMap<>(managedIcebergConfig(tableIdentifierTemplate));
 
-    List<String> fieldsToFilter = Arrays.asList("row", "str", "int", "nullable_long");
+    List<String> fieldsToFilter = Arrays.asList("row", "str", "int_field", "nullable_long");
     // an un-configured filter will just return the same row
     RowFilter rowFilter = new RowFilter(BEAM_SCHEMA);
     if (filterOp != null) {
@@ -703,7 +766,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     if (partitioning) {
       Preconditions.checkState(filterOp == null || !filterOp.equals("only"));
       PartitionSpec partitionSpec =
-          PartitionSpec.builderFor(tableSchema).identity("bool").identity("modulo_5").build();
+          PartitionSpec.builderFor(tableSchema).identity("bool_field").identity("modulo_5").build();
       catalog.createTable(tableIdentifier0, tableSchema, partitionSpec);
       catalog.createTable(tableIdentifier1, tableSchema, partitionSpec);
       catalog.createTable(tableIdentifier2, tableSchema, partitionSpec);

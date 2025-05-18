@@ -152,8 +152,8 @@ class MetricLogger(object):
     if self._lock.acquire(False):
       try:
         current_millis = int(time.time() * 1000)
-        if ((current_millis - self._last_logging_millis) >
-            self.minimum_logging_frequency_msec):
+        if ((current_millis - self._last_logging_millis)
+            > self.minimum_logging_frequency_msec):
           logging_metric_info = [
               '[Locally aggregated metrics since %s]' %
               datetime.datetime.fromtimestamp(

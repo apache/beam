@@ -163,7 +163,7 @@ class CodersTest(unittest.TestCase):
         coders.BigEndianShortCoder,
         coders.SinglePrecisionFloatCoder,
         coders.ToBytesCoder,
-        coders.BigIntegerCoder, # tested in DecimalCoder
+        coders.BigIntegerCoder,  # tested in DecimalCoder
         coders.TimestampPrefixingOpaqueWindowCoder,
     ])
     cls.seen_nested -= set(
@@ -699,9 +699,14 @@ class CodersTest(unittest.TestCase):
 
   def test_map_coder(self):
     values = [
-        {1: "one", 300: "three hundred"}, # force yapf to be nice
+        {
+            1: "one", 300: "three hundred"
+        },  # force yapf to be nice
         {},
-        {i: str(i) for i in range(5000)}
+        {
+            i: str(i)
+            for i in range(5000)
+        }
     ]
     map_coder = coders.MapCoder(coders.VarIntCoder(), coders.StrUtf8Coder())
     self.check_coder(map_coder, *values)

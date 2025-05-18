@@ -384,9 +384,8 @@ class Coder(object):
     """
     setattr(
         cls,
-        'to_runner_api_parameter',
-        lambda self,
-        unused_context: (urn, None, self._get_component_coders()))
+        'to_runner_api_parameter', lambda self, unused_context:
+        (urn, None, self._get_component_coders()))
 
     # pylint: disable=unused-variable
     @Coder.register_urn(urn, None)

@@ -95,11 +95,11 @@ def validate_pipeline_graph(pipeline_proto):
             "Bad coder for output of %s: %s" % (transform_id, output_coder))
       output_values_coder = pipeline_proto.components.coders[
           output_coder.component_coder_ids[1]]
-      if (input_coder.component_coder_ids[0] !=
-          output_coder.component_coder_ids[0] or
+      if (input_coder.component_coder_ids[0]
+          != output_coder.component_coder_ids[0] or
           output_values_coder.spec.urn != common_urns.coders.ITERABLE.urn or
-          output_values_coder.component_coder_ids[0] !=
-          input_coder.component_coder_ids[1]):
+          output_values_coder.component_coder_ids[0]
+          != input_coder.component_coder_ids[1]):
         raise ValueError(
             "Incompatible input coder %s and output coder %s for transform %s" %
             (transform_id, input_coder, output_coder))
@@ -183,7 +183,8 @@ def merge_common_environments(pipeline_proto, inplace=False):
 
   environment_remappings = {
       e: es[0]
-      for es in canonical_environments.values() for e in es
+      for es in canonical_environments.values()
+      for e in es
   }
 
   return update_environments(pipeline_proto, environment_remappings, inplace)

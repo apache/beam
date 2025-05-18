@@ -23,6 +23,11 @@ more optimal/updated version without requiring the user to do anything. It may
 also replace the transform with something entirely different if it chooses to.
 By default, however, the specified transform will remain unchanged.
 
+Available transforms
+====================
+Please check the Managed IO configuration page:
+https://beam.apache.org/documentation/io/managed-io/
+
 Using Managed Transforms
 ========================
 Managed turnkey transforms have a defined configuration and can be built using
@@ -50,18 +55,9 @@ Simply provide the location to the file like so::
                     beam.managed.KAFKA,
                     config_url="path/to/config.yaml")
 
-Available transforms
-====================
-Available transforms are:
-
-- **Kafka Read and Write**
-- **Iceberg Read and Write**
 
 **Note:** inputs and outputs need to be PCollection(s) of Beam
 :py:class:`apache_beam.pvalue.Row` elements.
-
-**Note:** Today, all managed transforms are essentially cross-language
-transforms, and Java's ManagedSchemaTransform is used under the hood.
 
 Runner specific features
 ========================

@@ -602,9 +602,10 @@ class _Explode(beam.PTransform):
         pcoll
         | beam.FlatMap(
             lambda row:
-            (explode_cross_product if cross_product else explode_zip)
-            ({name: getattr(row, name)
-              for name in all_fields}, to_explode)))
+            (explode_cross_product if cross_product else explode_zip)({
+                name: getattr(row, name)
+                for name in all_fields
+            }, to_explode)))
 
   def infer_output_type(self, input_type):
     return row_type.RowTypeConstraint.from_fields([(

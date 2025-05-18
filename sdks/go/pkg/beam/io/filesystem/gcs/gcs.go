@@ -25,12 +25,12 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/hooks"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/fsx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/gcsx"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/hooks"
 	"google.golang.org/api/iterator"
 )
 
@@ -42,10 +42,26 @@ var billingProject string = ""
 
 func init() {
 	filesystem.Register("gs", New)
+	hf := func(opts []string) hooks.Hook {
+		return hooks.Hook{
+			Init: func(ctx context.Context) (context.Context, error) {
+				if len(opts) == 0 {
+					return ctx, nil
+				}
+				if len(opts) > 1 {
+					return ctx, fmt.Errorf("expected 1 option, got %v: %v", len(opts), opts)
+				}
+
+				billingProject = opts[0]
+				return ctx, nil
+			},
+		}
+	}
+	hooks.RegisterHook(projectBillingHook, hf)
 }
 
 type fs struct {
-	client           *storage.Client
+	client *storage.Client
 }
 
 // New creates a new Google Cloud Storage filesystem using application
@@ -63,11 +79,11 @@ func New(ctx context.Context) filesystem.Interface {
 		}
 	}
 	return &fs{
-		client:           client,
+		client: client,
 	}
 }
 
-func SetRequesterBillingProject(project string){
+func SetRequesterBillingProject(project string) {
 	billingProject = project
 }
 

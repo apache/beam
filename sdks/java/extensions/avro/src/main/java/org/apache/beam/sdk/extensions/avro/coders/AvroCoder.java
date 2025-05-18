@@ -22,6 +22,7 @@ import com.google.errorprone.annotations.FormatString;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ObjectInputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.lang.reflect.Field;
@@ -31,9 +32,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.SortedSet;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.function.Supplier;
 import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericDatumWriter;
@@ -63,7 +68,8 @@ import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.extensions.avro.io.AvroDatumFactory;
 import org.apache.beam.sdk.util.EmptyOnDeserializationThreadLocal;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -108,6 +114,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 })
 public class AvroCoder<T> extends CustomCoder<T> {
 
+  private static final Cache<AvroCoderCacheKey, AvroCoder<?>> AVRO_CODER_CACHE =
+      CacheBuilder.newBuilder().weakValues().build();
+
   /**
    * Returns an {@link AvroCoder} instance for the Avro schema. The implicit type is GenericRecord.
    */
@@ -138,7 +147,11 @@ public class AvroCoder<T> extends CustomCoder<T> {
    * <p>The schema must correspond to the type provided.
    */
   public static <T> AvroCoder<T> specific(Class<T> type, Schema schema) {
-    return new AvroCoder<>(AvroDatumFactory.specific(type), schema);
+    return fromCacheOrCreate(
+        type,
+        schema,
+        AvroCoderType.SPECIFIC,
+        () -> new AvroCoder<>(AvroDatumFactory.specific(type), schema));
   }
 
   /**
@@ -164,7 +177,11 @@ public class AvroCoder<T> extends CustomCoder<T> {
    * <p>The schema must correspond to the type provided.
    */
   public static <T> AvroCoder<T> reflect(Class<T> type, Schema schema) {
-    return new AvroCoder<>(AvroDatumFactory.reflect(type), schema);
+    return fromCacheOrCreate(
+        type,
+        schema,
+        AvroCoderType.REFLECT,
+        () -> new AvroCoder<>(AvroDatumFactory.reflect(type), schema));
   }
 
   /**
@@ -242,7 +259,28 @@ public class AvroCoder<T> extends CustomCoder<T> {
    * @param <T> the element type
    */
   public static <T> AvroCoder<T> of(AvroDatumFactory<T> datumFactory, Schema schema) {
-    return new AvroCoder<>(datumFactory, schema);
+    Optional<AvroCoderType> avroCoderTypeOptional = AvroCoderType.fromDatumFactory(datumFactory);
+    if (!avroCoderTypeOptional.isPresent()) {
+      return new AvroCoder<>(datumFactory, schema);
+    }
+
+    Class<T> type = datumFactory.getType();
+    return fromCacheOrCreate(
+        type, schema, avroCoderTypeOptional.get(), () -> new AvroCoder<>(datumFactory, schema));
+  }
+
+  private static <T> AvroCoder<T> fromCacheOrCreate(
+      Class<T> type,
+      Schema schema,
+      AvroCoderType avroCoderType,
+      Callable<AvroCoder<T>> avroCoderCreator) {
+    try {
+      return (AvroCoder<T>)
+          AVRO_CODER_CACHE.get(
+              new AvroCoderCacheKey(type, schema, avroCoderType), avroCoderCreator);
+    } catch (ExecutionException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   /**
@@ -354,8 +392,18 @@ public class AvroCoder<T> extends CustomCoder<T> {
   // an inner coder.
   private final EmptyOnDeserializationThreadLocal<BinaryDecoder> decoder;
   private final EmptyOnDeserializationThreadLocal<BinaryEncoder> encoder;
-  private final EmptyOnDeserializationThreadLocal<DatumWriter<T>> writer;
-  private final EmptyOnDeserializationThreadLocal<DatumReader<T>> reader;
+
+  // writer and reader are unused but kept for serialization update compatibility.
+  @SuppressWarnings("unused")
+  private final EmptyOnDeserializationThreadLocal<DatumWriter<T>> writer = null;
+
+  @SuppressWarnings("unused")
+  private final EmptyOnDeserializationThreadLocal<DatumReader<T>> reader = null;
+
+  // datumReader and datumWriter are initialized in the constructor and
+  // on deserialization (see readObject).
+  private transient DatumWriter<T> datumWriter;
+  private transient DatumReader<T> datumReader;
 
   protected AvroCoder(Class<T> type, Schema schema) {
     this(type, schema, false);
@@ -376,27 +424,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
     this.decoder = new EmptyOnDeserializationThreadLocal<>();
     this.encoder = new EmptyOnDeserializationThreadLocal<>();
 
-    // Reader and writer are allocated once per thread per Coder
-    this.reader =
-        new EmptyOnDeserializationThreadLocal<DatumReader<T>>() {
-          private final AvroCoder<T> myCoder = AvroCoder.this;
-
-          @Override
-          public DatumReader<T> initialValue() {
-            Schema schema = myCoder.getSchema();
-            return myCoder.datumFactory.apply(schema, schema);
-          }
-        };
-
-    this.writer =
-        new EmptyOnDeserializationThreadLocal<DatumWriter<T>>() {
-          private final AvroCoder<T> myCoder = AvroCoder.this;
-
-          @Override
-          public DatumWriter<T> initialValue() {
-            return myCoder.datumFactory.apply(myCoder.getSchema());
-          }
-        };
+    initializeAvroDatumReaderAndWriter();
   }
 
   /** Returns the type this coder encodes/decodes. */
@@ -407,6 +435,16 @@ public class AvroCoder<T> extends CustomCoder<T> {
   /** Returns the datum factory used for encoding/decoding. */
   public AvroDatumFactory<T> getDatumFactory() {
     return datumFactory;
+  }
+
+  /** Returns the DatumWriter used for encoding. */
+  public DatumWriter<T> getDatumWriter() {
+    return datumWriter;
+  }
+
+  /** Returns the DatumReader used for decoding. */
+  public DatumReader<T> getDatumReader() {
+    return datumReader;
   }
 
   /**
@@ -425,7 +463,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
     BinaryEncoder encoderInstance = ENCODER_FACTORY.directBinaryEncoder(outStream, encoder.get());
     // Save the potentially-new instance for reuse later.
     encoder.set(encoderInstance);
-    writer.get().write(value, encoderInstance);
+    datumWriter.write(value, encoderInstance);
     // Direct binary encoder does not buffer any data and need not be flushed.
   }
 
@@ -435,7 +473,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
     BinaryDecoder decoderInstance = DECODER_FACTORY.directBinaryDecoder(inStream, decoder.get());
     // Save the potentially-new instance for later.
     decoder.set(decoderInstance);
-    return reader.get().read(null, decoderInstance);
+    return datumReader.read(null, decoderInstance);
   }
 
   /**
@@ -839,5 +877,81 @@ public class AvroCoder<T> extends CustomCoder<T> {
   @Override
   public int hashCode() {
     return Objects.hash(getClass(), typeDescriptor, datumFactory, schemaSupplier.get());
+  }
+
+  private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+    in.defaultReadObject();
+    Optional<AvroCoder<T>> cachedCoder =
+        AvroCoderType.fromDatumFactory(this.datumFactory)
+            .map(
+                avroCoderType ->
+                    new AvroCoderCacheKey(
+                        this.typeDescriptor.getRawType(), this.schemaSupplier.get(), avroCoderType))
+            .map(
+                avroCoderCacheKey ->
+                    (AvroCoder<T>) AVRO_CODER_CACHE.getIfPresent(avroCoderCacheKey));
+
+    if (cachedCoder.isPresent()) {
+      this.datumReader = cachedCoder.get().datumReader;
+      this.datumWriter = cachedCoder.get().datumWriter;
+    } else {
+      initializeAvroDatumReaderAndWriter();
+    }
+  }
+
+  private void initializeAvroDatumReaderAndWriter() {
+    this.datumReader =
+        this.datumFactory.apply(this.schemaSupplier.get(), this.schemaSupplier.get());
+    this.datumWriter = this.datumFactory.apply(this.schemaSupplier.get());
+  }
+
+  enum AvroCoderType {
+    SPECIFIC,
+    REFLECT;
+
+    public static Optional<AvroCoderType> fromDatumFactory(AvroDatumFactory<?> datumFactory) {
+      if (AvroDatumFactory.ReflectDatumFactory.class.equals(datumFactory.getClass())) {
+        return Optional.of(AvroCoderType.REFLECT);
+      } else if (AvroDatumFactory.SpecificDatumFactory.class.equals(datumFactory.getClass())) {
+        return Optional.of(AvroCoderType.SPECIFIC);
+      }
+      return Optional.empty();
+    }
+  }
+
+  static class AvroCoderCacheKey implements Serializable {
+    private final Class<?> type;
+    private final Schema schema;
+    private final AvroCoderType avroCoderType;
+
+    AvroCoderCacheKey(Class<?> type, Schema schema, AvroCoderType avroCoderType) {
+      this.type = type;
+      this.schema = schema;
+      this.avroCoderType = avroCoderType;
+    }
+
+    public static AvroCoderCacheKey specific(Class<?> type, Schema schema) {
+      return new AvroCoderCacheKey(type, schema, AvroCoderType.SPECIFIC);
+    }
+
+    public static AvroCoderCacheKey reflect(Class<?> type, Schema schema) {
+      return new AvroCoderCacheKey(type, schema, AvroCoderType.REFLECT);
+    }
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      AvroCoderCacheKey that = (AvroCoderCacheKey) o;
+      return Objects.equals(type, that.type)
+          && Objects.equals(schema, that.schema)
+          && Objects.equals(avroCoderType, that.avroCoderType);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(type, schema, avroCoderType);
+    }
   }
 }
