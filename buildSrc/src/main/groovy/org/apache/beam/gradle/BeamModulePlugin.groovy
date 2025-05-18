@@ -681,6 +681,7 @@ class BeamModulePlugin implements Plugin<Project> {
         antlr_runtime                               : "org.antlr:antlr4-runtime:4.7",
         args4j                                      : "args4j:args4j:2.33",
         auto_value_annotations                      : "com.google.auto.value:auto-value-annotations:$autovalue_version",
+        // TODO: https://github.com/apache/beam/issues/34993 after stopping supporting Java 8
         avro                                        : "org.apache.avro:avro:1.11.4",
         avro_tests                                  : "org.apache.avro:avro:1.11.3:tests",
         aws_java_sdk2_apache_client                 : "software.amazon.awssdk:apache-client:$aws_java_sdk2_version",
