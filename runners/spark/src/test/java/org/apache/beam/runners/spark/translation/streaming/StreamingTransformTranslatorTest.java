@@ -67,6 +67,7 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -204,6 +205,7 @@ public class StreamingTransformTranslatorTest implements Serializable {
    * </ol>
    */
   @Category({UsesCheckpointRecovery.class, StreamingTest.class})
+  @Ignore("https://github.com/apache/beam/issues/35008")
   @Test
   public void testFlattenPCollResumeFromCheckpoint() {
     final MetricsFilter metricsFilter =
