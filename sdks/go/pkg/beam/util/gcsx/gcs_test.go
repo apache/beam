@@ -16,11 +16,11 @@
 package gcsx
 
 import (
+	"context"
 	"strings"
 	"testing"
-	"context"
 
-    "cloud.google.com/go/storage"
+	"cloud.google.com/go/storage"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
