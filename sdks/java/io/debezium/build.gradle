@@ -67,8 +67,7 @@ dependencies {
     // testImplementation 'com.zaxxer:HikariCP:4.0.3'
     testImplementation 'com.zaxxer:HikariCP:5.1.0'
     testImplementation "io.debezium:debezium-testing-testcontainers:3.1.1.Final"
-
- 
+    
     testImplementation "com.fasterxml.jackson.module:jackson-module-afterburner:2.17.1"
 
     configurations.named("testRuntimeClasspath") {
@@ -76,9 +75,8 @@ dependencies {
             'com.fasterxml.jackson.core:jackson-core:2.17.1',
             'com.fasterxml.jackson.core:jackson-annotations:2.17.1',
             'com.fasterxml.jackson.core:jackson-databind:2.17.1',
-            'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.17.1', // Debezium uses this
+            'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.17.1',
             'com.fasterxml.jackson.module:jackson-module-afterburner:2.17.1'
-
         )
     }
 
