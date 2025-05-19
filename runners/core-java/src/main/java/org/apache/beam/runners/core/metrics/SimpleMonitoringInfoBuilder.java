@@ -24,14 +24,17 @@ import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encod
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Counter;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Distribution;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Gauge;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Histogram;
 import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeStringSet;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpec;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfoSpecs;
+import org.apache.beam.sdk.util.HistogramData;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -170,6 +173,15 @@ public class SimpleMonitoringInfoBuilder {
     return this;
   }
 
+  /**
+   * Encodes the value and sets the type to {@link MonitoringInfoConstants.TypeUrns#HISTOGRAM_TYPE}.
+   */
+  public SimpleMonitoringInfoBuilder setInt64HistogramValue(HistogramData data) {
+    this.builder.setPayload(encodeInt64Histogram(data));
+    this.builder.setType(MonitoringInfoConstants.TypeUrns.HISTOGRAM_TYPE);
+    return this;
+  }
+
   /** Sets the MonitoringInfo label to the given name and value. */
   public SimpleMonitoringInfoBuilder setLabel(String labelName, String labelValue) {
     this.builder.putLabels(labelName, labelValue);
@@ -200,5 +212,10 @@ public class SimpleMonitoringInfoBuilder {
       return null;
     }
     return result;
+  }
+
+  public Optional<String> validate() {
+    final MonitoringInfo result = this.builder.build();
+    return VALIDATOR.validate(result);
   }
 }

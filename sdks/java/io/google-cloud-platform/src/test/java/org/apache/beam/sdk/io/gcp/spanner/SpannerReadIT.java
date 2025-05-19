@@ -70,6 +70,7 @@ import org.junit.runners.JUnit4;
 public class SpannerReadIT {
 
   private static final int MAX_DB_NAME_LENGTH = 30;
+  private static final int CLEANUP_PROPAGATION_DELAY_MS = 5000;
 
   @Rule public final transient TestPipeline p = TestPipeline.create();
   @Rule public transient ExpectedException thrown = ExpectedException.none();
@@ -285,6 +286,12 @@ public class SpannerReadIT {
     public Transaction apply(Transaction tx) {
       BatchClient batchClient = SpannerAccessor.getOrCreate(spannerConfig).getBatchClient();
       batchClient.batchReadOnlyTransaction(tx.transactionId()).cleanup();
+      try {
+        // Wait for cleanup to propagate.
+        Thread.sleep(CLEANUP_PROPAGATION_DELAY_MS);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
       return tx;
     }
   }

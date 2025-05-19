@@ -38,7 +38,13 @@ from apache_beam.yaml.yaml_transform import preprocess
 from apache_beam.yaml.yaml_transform import preprocess_flattened_inputs
 from apache_beam.yaml.yaml_transform import preprocess_windowing
 from apache_beam.yaml.yaml_transform import push_windowing_to_roots
+from apache_beam.yaml.yaml_transform import validate_against_schema
 from apache_beam.yaml.yaml_utils import SafeLineLoader
+
+try:
+  import jsonschema
+except ImportError:
+  jsonschema = None
 
 
 def new_pipeline():
@@ -290,6 +296,23 @@ class MainTest(unittest.TestCase):
         r"Transform .* is part of a chain. "
         r"Cannot define explicit inputs on chain pipeline"):
       chain_as_composite(spec)
+
+  def test_validate_against_schema_with_transform_input(self):
+    spec = '''
+        pipeline:
+          type: chain
+          transforms:
+            - type: Create
+              config:
+                elements: [1, 2, 3]
+            - type: LogForTesting
+              input: Create
+      '''
+    spec = yaml.load(spec, Loader=SafeLineLoader)
+    with self.assertRaisesRegex(jsonschema.ValidationError,
+                                r"'input' should not be used "
+                                r"along with 'chain' type transforms.*"):
+      validate_against_schema(spec, 'generic')
 
   def test_normalize_source_sink(self):
     spec = '''

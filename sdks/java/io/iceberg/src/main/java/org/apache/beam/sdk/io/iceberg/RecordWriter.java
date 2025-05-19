@@ -22,12 +22,15 @@ import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.FileFormat;
+import org.apache.iceberg.MetricsConfig;
 import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.avro.Avro;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.data.parquet.GenericParquetWriter;
+import org.apache.iceberg.encryption.EncryptedOutputFile;
+import org.apache.iceberg.encryption.EncryptionKeyMetadata;
 import org.apache.iceberg.io.DataWriter;
 import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.io.OutputFile;
@@ -59,6 +62,8 @@ class RecordWriter {
       throws IOException {
     this.table = table;
     this.fileFormat = fileFormat;
+    MetricsConfig metricsConfig = MetricsConfig.forTable(table);
+
     if (table.spec().isUnpartitioned()) {
       absoluteFilename =
           fileFormat.addExtension(table.locationProvider().newDataLocation(filename));
@@ -68,8 +73,12 @@ class RecordWriter {
               table.locationProvider().newDataLocation(table.spec(), partitionKey, filename));
     }
     OutputFile outputFile;
+    EncryptionKeyMetadata keyMetadata;
     try (FileIO io = table.io()) {
-      outputFile = io.newOutputFile(absoluteFilename);
+      OutputFile tmpFile = io.newOutputFile(absoluteFilename);
+      EncryptedOutputFile encryptedOutputFile = table.encryption().encrypt(tmpFile);
+      outputFile = encryptedOutputFile.encryptingOutputFile();
+      keyMetadata = encryptedOutputFile.keyMetadata();
     }
 
     switch (fileFormat) {
@@ -80,6 +89,8 @@ class RecordWriter {
                 .schema(table.schema())
                 .withSpec(table.spec())
                 .withPartition(partitionKey)
+                .metricsConfig(metricsConfig)
+                .withKeyMetadata(keyMetadata)
                 .overwrite()
                 .build();
         break;
@@ -90,6 +101,8 @@ class RecordWriter {
                 .schema(table.schema())
                 .withSpec(table.spec())
                 .withPartition(partitionKey)
+                .metricsConfig(metricsConfig)
+                .withKeyMetadata(keyMetadata)
                 .overwrite()
                 .build();
         break;
@@ -108,6 +121,7 @@ class RecordWriter {
   }
 
   public void write(Record record) {
+
     icebergDataWriter.write(record);
   }
 

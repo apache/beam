@@ -42,6 +42,7 @@ import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.junit.Assert;
 import org.junit.Test;
@@ -229,6 +230,43 @@ public class MetricsContainerImplTest {
     builder2
         .setUrn(MonitoringInfoConstants.Urns.USER_SUM_INT64)
         .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, "ns")
+        .setLabel(MonitoringInfoConstants.Labels.NAME, "name2")
+        .setInt64SumValue(4)
+        .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "step1");
+
+    ArrayList<MonitoringInfo> actualMonitoringInfos = new ArrayList<MonitoringInfo>();
+    for (MonitoringInfo mi : testObject.getMonitoringInfos()) {
+      actualMonitoringInfos.add(mi);
+    }
+
+    assertThat(actualMonitoringInfos, containsInAnyOrder(builder1.build(), builder2.build()));
+  }
+
+  @Test
+  public void testMonitoringInfosLabelsArePopulatedForMetricNamesWithLabels() {
+    MetricsContainerImpl testObject = new MetricsContainerImpl("step1");
+
+    CounterCell c1 =
+        testObject.getCounter(
+            MetricName.named("KafkaSink", "name1", ImmutableMap.of("PER_WORKER_METRIC", "true")));
+    CounterCell c2 = testObject.getCounter(MetricName.named("BigQuerySink", "name2"));
+
+    c1.inc(2L);
+    c2.inc(4L);
+
+    SimpleMonitoringInfoBuilder builder1 = new SimpleMonitoringInfoBuilder();
+    builder1
+        .setUrn(MonitoringInfoConstants.Urns.USER_SUM_INT64)
+        .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, "KafkaSink")
+        .setLabel(MonitoringInfoConstants.Labels.NAME, "name1")
+        .setLabel(MonitoringInfoConstants.Labels.PER_WORKER_METRIC, "true")
+        .setInt64SumValue(2)
+        .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "step1");
+
+    SimpleMonitoringInfoBuilder builder2 = new SimpleMonitoringInfoBuilder();
+    builder2
+        .setUrn(MonitoringInfoConstants.Urns.USER_SUM_INT64)
+        .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, "BigQuerySink")
         .setLabel(MonitoringInfoConstants.Labels.NAME, "name2")
         .setInt64SumValue(4)
         .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "step1");

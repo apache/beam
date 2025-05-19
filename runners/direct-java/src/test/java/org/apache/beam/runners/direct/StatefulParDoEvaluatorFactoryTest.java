@@ -193,7 +193,8 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
 
     // And digging to check whether the window is ready
     when(mockEvaluationContext.createSideInputReader(anyList())).thenReturn(mockSideInputReader);
-    when(mockSideInputReader.isReady(ArgumentMatchers.any(), ArgumentMatchers.any())).thenReturn(false);
+    when(mockSideInputReader.isReady(ArgumentMatchers.any(), ArgumentMatchers.any()))
+        .thenReturn(false);
 
     IntervalWindow firstWindow = new IntervalWindow(new Instant(0), new Instant(9));
 

@@ -318,12 +318,27 @@ class FnApiRunnerTest(unittest.TestCase):
           | beam.WindowInto(window.SlidingWindows(size=5, period=3))
           | beam.ParDo(PerWindowDoFn()))
 
-      assert_that(res, equal_to([               0*-3, 1*-3, # [-3, 2)
-                                 0*0, 1*0, 2*0, 3* 0, 4* 0, # [ 0, 5)
-                                 3*3, 4*3, 5*3, 6* 3, 7* 3, # [ 3, 8)
-                                 6*6, 7*6, 8*6, 9* 6,       # [ 6, 11)
-                                 9*9                        # [ 9, 14)
-                                 ]))
+      assert_that(
+          res,
+          equal_to([
+              0 * -3,
+              1 * -3,  # [-3, 2)
+              0 * 0,
+              1 * 0,
+              2 * 0,
+              3 * 0,
+              4 * 0,  # [ 0, 5)
+              3 * 3,
+              4 * 3,
+              5 * 3,
+              6 * 3,
+              7 * 3,  # [ 3, 8)
+              6 * 6,
+              7 * 6,
+              8 * 6,
+              9 * 6,  # [ 6, 11)
+              9 * 9  # [ 9, 14)
+          ]))
 
   def test_batch_to_element_pardo(self):
     class ArraySumDoFn(beam.DoFn):
@@ -538,6 +553,22 @@ class FnApiRunnerTest(unittest.TestCase):
                   equal_to([('a', 1), ('b', 2)] + third_element),
                   label='CheckFlattenOfSideInput')
 
+  def test_flatten_and_gbk(self, with_transcoding=True):
+    with self.create_pipeline() as p:
+      side1 = p | 'side1' >> beam.Create([('a', 1)])
+      if with_transcoding:
+        # Also test non-matching coder types (transcoding required)
+        second_element = [('another_type')]
+      else:
+        second_element = [('b', 2)]
+      side2 = p | 'side2' >> beam.Create(second_element)
+
+      flatten_out = (side1, side2) | beam.Flatten()
+      gbk_out = side1 | beam.GroupByKey()
+
+      assert_that(flatten_out, equal_to([('a', 1)] + second_element))
+      assert_that(gbk_out, equal_to([('a', [1])]))
+
   def test_gbk_side_input(self):
     with self.create_pipeline() as p:
       main = p | 'main' >> beam.Create([None])
@@ -565,15 +596,12 @@ class FnApiRunnerTest(unittest.TestCase):
       side = p | 'side' >> beam.Create([('a', 1), ('b', 2), ('a', 3)])
       assert_that(
           main | 'first map' >> beam.Map(
-              lambda k,
-              d,
-              l: (k, sorted(d[k]), sorted([e[1] for e in l])),
+              lambda k, d, l: (k, sorted(d[k]), sorted([e[1] for e in l])),
               beam.pvalue.AsMultiMap(side),
               beam.pvalue.AsList(side))
           | 'second map' >> beam.Map(
-              lambda k,
-              d,
-              l: (k[0], sorted(d[k[0]]), sorted([e[1] for e in l])),
+              lambda k, d, l:
+              (k[0], sorted(d[k[0]]), sorted([e[1] for e in l])),
               beam.pvalue.AsMultiMap(side),
               beam.pvalue.AsList(side)),
           equal_to([('a', [1, 3], [1, 2, 3]), ('b', [2], [1, 2, 3])]))
@@ -1055,6 +1083,15 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(
           p | beam.Create([1, 2, 3]) | beam.Reshuffle(), equal_to([1, 2, 3]))
 
+  def test_reshuffle_after_custom_window(self):
+    with self.create_pipeline() as p:
+      assert_that(
+          p | beam.Create([12, 2, 1])
+          | beam.Map(lambda t: window.TimestampedValue(t, t))
+          | beam.WindowInto(beam.transforms.window.FixedWindows(2))
+          | beam.Reshuffle(),
+          equal_to([12, 2, 1]))
+
   def test_flatten(self, with_transcoding=True):
     with self.create_pipeline() as p:
       if with_transcoding:
@@ -1080,6 +1117,27 @@ class FnApiRunnerTest(unittest.TestCase):
           | beam.Create([('a', 1), ('a', 2), ('b', 3)])
           | beam.CombinePerKey(beam.combiners.MeanCombineFn()))
       assert_that(res, equal_to([('a', 1.5), ('b', 3.0)]))
+
+  def test_windowed_combine_per_key(self):
+    with self.create_pipeline() as p:
+      input = (
+          p | beam.Create([12, 2, 1])
+          | beam.Map(lambda t: window.TimestampedValue(('k', t), t)))
+
+      fixed = input | 'Fixed' >> (
+          beam.WindowInto(beam.transforms.window.FixedWindows(10))
+          | beam.CombinePerKey(beam.combiners.MeanCombineFn()))
+      assert_that(fixed, equal_to([('k', 1.5), ('k', 12)]))
+
+      sliding = input | 'Sliding' >> (
+          beam.WindowInto(beam.transforms.window.SlidingWindows(20, 10))
+          | beam.CombinePerKey(beam.combiners.MeanCombineFn()))
+      assert_that(sliding, equal_to([('k', 1.5), ('k', 5.0), ('k', 12)]))
+
+      sessions = input | 'Sessions' >> (
+          beam.WindowInto(beam.transforms.window.Sessions(5))
+          | beam.CombinePerKey(beam.combiners.MeanCombineFn()))
+      assert_that(sessions, equal_to([('k', 1.5), ('k', 12)]))
 
   def test_read(self):
     # Can't use NamedTemporaryFile as a context
@@ -1145,8 +1203,7 @@ class FnApiRunnerTest(unittest.TestCase):
       side_input_res = (
           big
           | beam.Map(
-              lambda x,
-              side: (x[0], side.count(x[0])),
+              lambda x, side: (x[0], side.count(x[0])),
               beam.pvalue.AsList(big | beam.Map(lambda x: x[0]))))
       assert_that(
           side_input_res,
@@ -1737,14 +1794,8 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
         | beam.GroupByKey()
         | 'm_out' >> beam.FlatMap(
             lambda x: [
-                1,
-                2,
-                3,
-                4,
-                5,
-                beam.pvalue.TaggedOutput('once', x),
-                beam.pvalue.TaggedOutput('twice', x),
-                beam.pvalue.TaggedOutput('twice', x)
+                1, 2, 3, 4, 5, beam.pvalue.TaggedOutput('once', x), beam.pvalue.
+                TaggedOutput('twice', x), beam.pvalue.TaggedOutput('twice', x)
             ]))
 
     res = p.run()

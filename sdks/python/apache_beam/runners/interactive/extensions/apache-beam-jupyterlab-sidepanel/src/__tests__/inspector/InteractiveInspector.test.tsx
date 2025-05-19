@@ -12,13 +12,14 @@
 
 import * as React from 'react';
 
-import { render, unmountComponentAtNode } from 'react-dom';
+import { createRoot, Root } from 'react-dom/client';
 
-import { act } from 'react-dom/test-utils';
+import { act } from 'react';
 
 import { InteractiveInspector } from '../../inspector/InteractiveInspector';
 
 import { InspectableViewModel } from '../../inspector/InspectableViewModel';
+import { waitFor } from '@testing-library/dom';
 
 const fakeSessionContext = {
   session: {
@@ -36,31 +37,45 @@ const fakeSessionContext = {
 };
 
 let container: null | Element = null;
+let root: Root | null = null;
 beforeEach(() => {
   container = document.createElement('div');
   document.body.appendChild(container);
+  root = createRoot(container);
 });
 
-afterEach(() => {
-  unmountComponentAtNode(container);
-  container.remove();
-  container = null;
+afterEach(async () => {
+  try {
+    if (root) {
+      await act(async () => {
+        root.unmount();
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+    }
+  } catch (error) {
+    console.warn('During unmount:', error);
+  } finally {
+    if (container?.parentNode) {
+      container.remove();
+    }
+    container = null;
+    root = null;
+  }
 });
 
-it('renders the top app bar and drawer wrapped inspectables', () => {
+it('renders the top app bar and drawer wrapped inspectables', async () => {
   const inspectableViewModel = new InspectableViewModel(
     fakeSessionContext as any
   );
-  act(() => {
-    render(
+  await act(async () => {
+    root.render(
       <InteractiveInspector
         sessionContext={fakeSessionContext as any}
         inspectableViewModel={inspectableViewModel}
-      />,
-      container
+      />
     );
   });
-  const topAppBarHeader: Element = container.firstElementChild;
+  const topAppBarHeader = container.firstElementChild as Element;
   expect(topAppBarHeader.tagName).toBe('HEADER');
   expect(topAppBarHeader.getAttribute('class')).toContain('mdc-top-app-bar');
   expect(topAppBarHeader.getAttribute('class')).toContain(
@@ -71,17 +86,18 @@ it('renders the top app bar and drawer wrapped inspectables', () => {
   );
   expect(topAppBarHeader.innerHTML).toContain('menu');
   expect(topAppBarHeader.innerHTML).toContain('Inspector [kernel:no kernel]');
-  const topAppBarFixedAdjust: Element = container.children[1];
+  const topAppBarFixedAdjust = container.children[1] as Element;
   expect(topAppBarFixedAdjust.tagName).toBe('DIV');
   expect(topAppBarFixedAdjust.getAttribute('class')).toContain(
     'mdc-top-app-bar--fixed-adjust'
   );
-  const interactiveInspectorDiv: Element = container.children[2];
+  const interactiveInspectorDiv = container.children[2] as Element;
   expect(interactiveInspectorDiv.tagName).toBe('DIV');
   expect(interactiveInspectorDiv.getAttribute('class')).toContain(
     'InteractiveInspector'
   );
-  const inspectablesAside: Element = interactiveInspectorDiv.firstElementChild;
+  const inspectablesAside =
+    interactiveInspectorDiv.firstElementChild as Element;
   expect(inspectablesAside.tagName).toBe('ASIDE');
   expect(inspectablesAside.innerHTML).toContain(
     '<div>No inspectable pipeline nor pcollection has been defined.</div>'
@@ -89,8 +105,8 @@ it('renders the top app bar and drawer wrapped inspectables', () => {
   expect(inspectablesAside.firstElementChild.getAttribute('class')).toContain(
     'mdc-drawer__content'
   );
-  const inspectableViewAsAppContent: Element =
-    interactiveInspectorDiv.children[1];
+  const inspectableViewAsAppContent = interactiveInspectorDiv
+    .children[1] as Element;
   expect(inspectableViewAsAppContent.tagName).toBe('DIV');
   expect(inspectableViewAsAppContent.getAttribute('class')).toContain(
     'mdc-drawer-app-content'
@@ -100,72 +116,85 @@ it('renders the top app bar and drawer wrapped inspectables', () => {
   ).toContain('InspectableView');
 });
 
-it('renders the drawer open by default', () => {
+it('renders the drawer open by default', async () => {
   const inspectableViewModel = new InspectableViewModel(
     fakeSessionContext as any
   );
-  act(() => {
-    render(
+  await act(async () => {
+    root.render(
       <InteractiveInspector
         sessionContext={fakeSessionContext as any}
         inspectableViewModel={inspectableViewModel}
-      />,
-      container
+      />
     );
   });
-  const inspectablesAside: Element = container.children[2].firstElementChild;
+  const inspectablesAside = container.children[2].firstElementChild as Element;
   expect(inspectablesAside.getAttribute('class')).toContain('mdc-drawer--open');
 });
 
-it('closes the drawer on flip from open state', () => {
+it('closes the drawer on flip from open state', async () => {
   const inspectorRef: React.RefObject<InteractiveInspector> =
     React.createRef<InteractiveInspector>();
   const inspectableViewModel = new InspectableViewModel(
     fakeSessionContext as any
   );
-  act(() => {
-    render(
+  await act(async () => {
+    root.render(
       <InteractiveInspector
         ref={inspectorRef}
         sessionContext={fakeSessionContext as any}
         inspectableViewModel={inspectableViewModel}
-      />,
-      container
+      />
     );
+  });
+
+  await act(async () => {
     const inspector = inspectorRef.current;
     if (inspector) {
       inspector.flipDrawer();
     }
   });
+
   // react test renderer does not re-render the drawer component even if the
   // state is changed. Test the state change instead of DOM change.
-  const inspector = inspectorRef.current;
-  if (inspector) {
-    expect(inspector.state.drawerOpen).toBe(false);
-  }
+  await waitFor(() => {
+    const updatedInspector = inspectorRef.current;
+    if (updatedInspector) {
+      expect(updatedInspector.state.drawerOpen).toBe(false); // 确保抽屉被打开
+    }
+  });
 });
 
-it('updates session info on change', () => {
+it('updates session info on change', async () => {
   const inspectorRef: React.RefObject<InteractiveInspector> =
     React.createRef<InteractiveInspector>();
   const inspectableViewModel = new InspectableViewModel(
     fakeSessionContext as any
   );
-  act(() => {
-    render(
+
+  await act(async () => {
+    root.render(
       <InteractiveInspector
         ref={inspectorRef}
         sessionContext={fakeSessionContext as any}
         inspectableViewModel={inspectableViewModel}
-      />,
-      container
+      />
     );
+  });
+
+  await act(async () => {
     const inspector = inspectorRef.current;
     if (inspector) {
       fakeSessionContext.kernelDisplayName = 'new kernel';
       inspector.updateSessionInfo();
     }
   });
-  const topAppBarHeader: Element = container.firstElementChild;
-  expect(topAppBarHeader.innerHTML).toContain('Inspector [kernel:new kernel]');
+
+  await waitFor(() => {
+    const topAppBarHeader = container.firstElementChild.firstElementChild
+      .firstElementChild.children[1] as Element;
+    expect(topAppBarHeader.innerHTML).toContain(
+      'Inspector [kernel:new kernel]'
+    );
+  });
 });

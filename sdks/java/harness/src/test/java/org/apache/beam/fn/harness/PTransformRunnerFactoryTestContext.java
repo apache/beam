@@ -277,6 +277,11 @@ public abstract class PTransformRunnerFactoryTestContext
         .add(TimerEndpoint.create(getPTransformId(), timerFamilyId, coder, receiver));
   }
 
+  @Override
+  public <T> void addChannelRoot(BeamFnDataReadRunner<T> beamFnDataReadRunner) {
+    // noop
+  }
+
   public abstract Map<ApiServiceDescriptor, BeamFnDataOutboundAggregator> getOutboundAggregators();
 
   public void addOutboundAggregator(

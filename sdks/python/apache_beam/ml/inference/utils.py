@@ -20,10 +20,9 @@
 Util/helper functions used in apache_beam.ml.inference.
 """
 import os
+from collections.abc import Iterable
 from functools import partial
 from typing import Any
-from typing import Dict
-from typing import Iterable
 from typing import Optional
 from typing import Union
 
@@ -43,7 +42,7 @@ _START_TIME_STAMP = Timestamp.now()
 
 def _convert_to_result(
     batch: Iterable,
-    predictions: Union[Iterable, Dict[Any, Iterable]],
+    predictions: Union[Iterable, dict[Any, Iterable]],
     model_id: Optional[str] = None,
 ) -> Iterable[PredictionResult]:
   if isinstance(predictions, dict):
@@ -55,8 +54,8 @@ def _convert_to_result(
         dict(zip(predictions.keys(), v)) for v in zip(*predictions.values())
     ]
     return [
-        PredictionResult(x, y, model_id) for x,
-        y in zip(batch, predictions_per_tensor)
+        PredictionResult(x, y, model_id)
+        for x, y in zip(batch, predictions_per_tensor)
     ]
   return [PredictionResult(x, y, model_id) for x, y in zip(batch, predictions)]
 

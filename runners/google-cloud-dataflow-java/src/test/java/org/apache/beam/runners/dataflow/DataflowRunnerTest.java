@@ -45,7 +45,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isA;
-import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -98,11 +97,13 @@ import org.apache.beam.runners.dataflow.DataflowRunner.StreamingShardedWriteFact
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
-import org.apache.beam.runners.dataflow.options.DefaultGcpRegionFactory;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.auth.NoopCredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
@@ -146,6 +147,7 @@ import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Redistribute;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
@@ -153,7 +155,6 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.util.construction.BeamUrns;
 import org.apache.beam.sdk.util.construction.Environments;
@@ -192,7 +193,6 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
-import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 
 /**
@@ -270,8 +270,7 @@ public class DataflowRunnerTest implements Serializable {
     return p;
   }
 
-  private static Dataflow buildMockDataflow(Dataflow.Projects.Locations.Jobs mockJobs)
-      throws IOException {
+  static Dataflow buildMockDataflow(Dataflow.Projects.Locations.Jobs mockJobs) throws IOException {
     Dataflow mockDataflowClient = mock(Dataflow.class);
     Dataflow.Projects mockProjects = mock(Dataflow.Projects.class);
     Dataflow.Projects.Locations mockLocations = mock(Dataflow.Projects.Locations.class);
@@ -303,7 +302,7 @@ public class DataflowRunnerTest implements Serializable {
     return mockDataflowClient;
   }
 
-  private static GcsUtil buildMockGcsUtil() throws IOException {
+  static GcsUtil buildMockGcsUtil() throws IOException {
     GcsUtil mockGcsUtil = mock(GcsUtil.class);
 
     when(mockGcsUtil.create(any(GcsPath.class), any(GcsUtil.CreateOptions.class)))
@@ -488,41 +487,6 @@ public class DataflowRunnerTest implements Serializable {
         optionsMap,
         hasEntry("numberOfWorkerHarnessThreads", options.getNumberOfWorkerHarnessThreads()));
     assertThat(optionsMap, hasEntry("region", options.getRegion()));
-  }
-
-  /**
-   * Test that the region is set in the generated JSON pipeline options even when a default value is
-   * grabbed from the environment.
-   */
-  @Test
-  public void testDefaultRegionSet() throws Exception {
-    try (MockedStatic<DefaultGcpRegionFactory> mocked =
-        Mockito.mockStatic(DefaultGcpRegionFactory.class)) {
-      mocked.when(DefaultGcpRegionFactory::getRegionFromEnvironment).thenReturn(REGION_ID);
-      Dataflow.Projects.Locations.Jobs mockJobs = mock(Dataflow.Projects.Locations.Jobs.class);
-
-      DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-      options.setRunner(DataflowRunner.class);
-      options.setProject(PROJECT_ID);
-      options.setTempLocation(VALID_TEMP_BUCKET);
-      // Set FILES_PROPERTY to empty to prevent a default value calculated from classpath.
-      options.setFilesToStage(new ArrayList<>());
-      options.setDataflowClient(buildMockDataflow(mockJobs));
-      options.setGcsUtil(buildMockGcsUtil());
-      options.setGcpCredential(new TestCredential());
-
-      Pipeline p = Pipeline.create(options);
-      p.run();
-
-      ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
-      Mockito.verify(mockJobs).create(eq(PROJECT_ID), eq(REGION_ID), jobCaptor.capture());
-      Map<String, Object> sdkPipelineOptions =
-          jobCaptor.getValue().getEnvironment().getSdkPipelineOptions();
-
-      assertThat(sdkPipelineOptions, hasKey("options"));
-      Map<String, Object> optionsMap = (Map<String, Object>) sdkPipelineOptions.get("options");
-      assertThat(optionsMap, hasEntry("region", options.getRegion()));
-    }
   }
 
   @Test
@@ -2022,7 +1986,7 @@ public class DataflowRunnerTest implements Serializable {
     p.run();
   }
 
-  private static WritableByteChannel createWritableByteChannelThrowsIOExceptionAtClose(
+  static WritableByteChannel createWritableByteChannelThrowsIOExceptionAtClose(
       String errorMessage) {
     return new WritableByteChannel() {
       @Override
@@ -2044,39 +2008,7 @@ public class DataflowRunnerTest implements Serializable {
     };
   }
 
-  /**
-   * Tests that the {@link DataflowRunner} with {@code --templateLocation} throws the appropriate
-   * exception when an output file throws IOException at close.
-   */
-  @Test
-  public void testTemplateRunnerLoggedErrorForFileCloseError() throws Exception {
-    File templateLocation = tmpFolder.newFile();
-    String closeErrorMessage = "Unable to close";
-
-    try (MockedStatic<FileSystems> mocked =
-        Mockito.mockStatic(FileSystems.class, CALLS_REAL_METHODS)) {
-      mocked
-          .when(
-              () ->
-                  FileSystems.create(
-                      FileSystems.matchNewResource(templateLocation.getPath(), false),
-                      MimeTypes.TEXT))
-          .thenReturn(createWritableByteChannelThrowsIOExceptionAtClose(closeErrorMessage));
-
-      DataflowPipelineOptions options = buildPipelineOptions();
-      options.setTemplateLocation(templateLocation.getPath());
-      Pipeline p = Pipeline.create(options);
-
-      thrown.expectMessage("Cannot create output file at");
-      thrown.expect(RuntimeException.class);
-      thrown.expectCause(Matchers.isA(IOException.class));
-      thrown.expectCause(hasProperty("message", is(closeErrorMessage)));
-
-      p.run();
-    }
-  }
-
-  private static WritableByteChannel createWritableByteChannelThrowsIOExceptionAtWrite(
+  static WritableByteChannel createWritableByteChannelThrowsIOExceptionAtWrite(
       String errorMessage) {
     return new WritableByteChannel() {
       @Override
@@ -2092,38 +2024,6 @@ public class DataflowRunnerTest implements Serializable {
       @Override
       public void close() {}
     };
-  }
-
-  /**
-   * Tests that the {@link DataflowRunner} with {@code --templateLocation} throws the appropriate
-   * exception when an output file throws IOException at close.
-   */
-  @Test
-  public void testTemplateRunnerLoggedErrorForFileWriteError() throws Exception {
-    File templateLocation = tmpFolder.newFile();
-    String closeErrorMessage = "Unable to write";
-
-    try (MockedStatic<FileSystems> mocked =
-        Mockito.mockStatic(FileSystems.class, CALLS_REAL_METHODS)) {
-      mocked
-          .when(
-              () ->
-                  FileSystems.create(
-                      FileSystems.matchNewResource(templateLocation.getPath(), false),
-                      MimeTypes.TEXT))
-          .thenReturn(createWritableByteChannelThrowsIOExceptionAtWrite(closeErrorMessage));
-
-      thrown.expectMessage("Cannot create output file at");
-      thrown.expect(RuntimeException.class);
-      thrown.expectCause(Matchers.isA(IOException.class));
-      thrown.expectCause(hasProperty("message", is(closeErrorMessage)));
-
-      DataflowPipelineOptions options = buildPipelineOptions();
-      options.setTemplateLocation(templateLocation.getPath());
-      Pipeline p = Pipeline.create(options);
-
-      p.run();
-    }
   }
 
   @Test
@@ -2635,6 +2535,48 @@ public class DataflowRunnerTest implements Serializable {
           }
         });
     assertTrue(sawPubsubOverride.get());
+  }
+
+  @Test
+  public void testEnableAllowDuplicatesForRedistributeWithALO() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setDataflowServiceOptions(ImmutableList.of("streaming_mode_at_least_once"));
+    Pipeline pipeline = Pipeline.create(options);
+
+    ImmutableList<KV<String, Integer>> abitraryKVs =
+        ImmutableList.of(
+            KV.of("k1", 3),
+            KV.of("k5", Integer.MAX_VALUE),
+            KV.of("k5", Integer.MIN_VALUE),
+            KV.of("k2", 66),
+            KV.of("k1", 4),
+            KV.of("k2", -33),
+            KV.of("k3", 0));
+    PCollection<KV<String, Integer>> input =
+        pipeline.apply(
+            Create.of(abitraryKVs).withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
+    // The allowDuplicates for Redistribute is false by default.
+    PCollection<KV<String, Integer>> output = input.apply(Redistribute.byKey());
+    pipeline.run();
+
+    // The DataflowRedistributeByKey transform translated from Redistribute should have
+    // allowDuplicates set to true.
+    AtomicBoolean redistributeAllowDuplicates = new AtomicBoolean(false);
+    pipeline.traverseTopologically(
+        new PipelineVisitor.Defaults() {
+          @Override
+          public CompositeBehavior enterCompositeTransform(Node node) {
+            if (node.getTransform()
+                instanceof RedistributeByKeyOverrideFactory.DataflowRedistributeByKey) {
+              RedistributeByKeyOverrideFactory.DataflowRedistributeByKey<?, ?> redistribute =
+                  (RedistributeByKeyOverrideFactory.DataflowRedistributeByKey<?, ?>)
+                      node.getTransform();
+              redistributeAllowDuplicates.set(redistribute.getAllowDuplicates());
+            }
+            return CompositeBehavior.ENTER_TRANSFORM;
+          }
+        });
+    assertTrue(redistributeAllowDuplicates.get());
   }
 
   static class TestExpansionServiceClientFactory implements ExpansionServiceClientFactory {

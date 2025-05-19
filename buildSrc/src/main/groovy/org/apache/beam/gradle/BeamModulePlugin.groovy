@@ -179,6 +179,15 @@ class BeamModulePlugin implements Plugin<Project> {
      * The set of additional maven repositories that should be added into published POM file.
      */
     List<Map> mavenRepositories = []
+
+    /**
+     * Set minimal Java version needed to compile the module.
+     *
+     * <p>Valid values are LTS versions greater than the lowest supported
+     * Java version. Used when newer Java byte code version required than Beam's
+     * byte code compatibility version.
+     */
+    JavaVersion requireJavaVersion = null
   }
 
   /** A class defining the set of configurable properties accepted by applyPortabilityNature. */
@@ -573,7 +582,7 @@ class BeamModulePlugin implements Plugin<Project> {
     }
 
     project.ext.useBuildx = {
-      return project.containerArchitectures() != [project.nativeArchitecture()]
+      return (project.containerArchitectures() != [project.nativeArchitecture()]) || project.rootProject.hasProperty("useBuildx")
     }
 
     /** ***********************************************************************************************/
@@ -602,23 +611,23 @@ class BeamModulePlugin implements Plugin<Project> {
     def dbcp2_version = "2.9.0"
     def errorprone_version = "2.10.0"
     // [bomupgrader] determined by: com.google.api:gax, consistent with: google_cloud_platform_libraries_bom
-    def gax_version = "2.59.1"
+    def gax_version = "2.63.1"
     def google_ads_version = "33.0.0"
     def google_clients_version = "2.0.0"
     def google_cloud_bigdataoss_version = "2.2.26"
     // [bomupgrader] determined by: com.google.cloud:google-cloud-spanner, consistent with: google_cloud_platform_libraries_bom
-    def google_cloud_spanner_version = "6.85.0"
+    def google_cloud_spanner_version = "6.89.0"
     def google_code_gson_version = "2.10.1"
     def google_oauth_clients_version = "1.34.1"
     // [bomupgrader] determined by: io.grpc:grpc-netty, consistent with: google_cloud_platform_libraries_bom
-    def grpc_version = "1.69.0"
+    def grpc_version = "1.70.0"
     def guava_version = "33.1.0-jre"
     def hadoop_version = "3.4.1"
     def hamcrest_version = "2.1"
     def influxdb_version = "2.19"
     def httpclient_version = "4.5.13"
     def httpcore_version = "4.4.14"
-    def iceberg_bqms_catalog_version = "1.5.2-0.1.0"
+    def iceberg_bqms_catalog_version = "1.6.1-1.0.0"
     def jackson_version = "2.15.4"
     def jaxb_api_version = "2.3.3"
     def jsr305_version = "3.0.2"
@@ -627,21 +636,20 @@ class BeamModulePlugin implements Plugin<Project> {
     def log4j2_version = "2.20.0"
     def nemo_version = "0.1"
     // [bomupgrader] determined by: io.grpc:grpc-netty, consistent with: google_cloud_platform_libraries_bom
-    def netty_version = "4.1.110.Final"
+    def netty_version = "4.1.118.Final"
     def postgres_version = "42.2.16"
-    def powermock_version = "2.0.9"
     // [bomupgrader] determined by: com.google.protobuf:protobuf-java, consistent with: google_cloud_platform_libraries_bom
-    def protobuf_version = "4.29.0"
+    def protobuf_version = "4.29.4"
     def qpid_jms_client_version = "0.61.0"
     def quickcheck_version = "1.0"
     def sbe_tool_version = "1.25.1"
     def singlestore_jdbc_version = "1.1.4"
-    def slf4j_version = "1.7.30"
+    def slf4j_version = "2.0.16"
     def snakeyaml_engine_version = "2.6"
     def snakeyaml_version = "2.2"
     def solace_version = "10.21.0"
     def spark2_version = "2.4.8"
-    def spark3_version = "3.2.2"
+    def spark3_version = "3.5.0"
     def spotbugs_version = "4.0.6"
     def testcontainers_version = "1.19.7"
     // [bomupgrader] determined by: org.apache.arrow:arrow-memory-core, consistent with: google_cloud_platform_libraries_bom
@@ -727,18 +735,16 @@ class BeamModulePlugin implements Plugin<Project> {
         gax_grpc                                    : "com.google.api:gax-grpc", // google_cloud_platform_libraries_bom sets version
         gax_grpc_test                               : "com.google.api:gax-grpc:$gax_version:testlib", // google_cloud_platform_libraries_bom sets version
         gax_httpjson                                : "com.google.api:gax-httpjson", // google_cloud_platform_libraries_bom sets version
-        google_ads                                  : "com.google.api-ads:google-ads:$google_ads_version",
-        google_ads_stubs                            : "com.google.api-ads:google-ads-stubs-v17:$google_ads_version",
         google_api_client                           : "com.google.api-client:google-api-client:$google_clients_version", // for the libraries using $google_clients_version below.
         google_api_client_gson                      : "com.google.api-client:google-api-client-gson:$google_clients_version",
         google_api_client_java6                     : "com.google.api-client:google-api-client-java6:$google_clients_version",
         google_api_common                           : "com.google.api:api-common", // google_cloud_platform_libraries_bom sets version
-        google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20241222-2.0.0",  // [bomupgrader] sets version
+        google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20250313-2.0.0",  // [bomupgrader] sets version
         google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20240310-2.0.0",  // [bomupgrader] sets version
         google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20250106-$google_clients_version",
         google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1-rev20240130-$google_clients_version",
         google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20220904-$google_clients_version",
-        google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20241206-2.0.0",  // [bomupgrader] sets version
+        google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20250224-2.0.0",  // [bomupgrader] sets version
         google_auth_library_credentials             : "com.google.auth:google-auth-library-credentials", // google_cloud_platform_libraries_bom sets version
         google_auth_library_oauth2_http             : "com.google.auth:google-auth-library-oauth2-http", // google_cloud_platform_libraries_bom sets version
         google_cloud_bigquery                       : "com.google.cloud:google-cloud-bigquery", // google_cloud_platform_libraries_bom sets version
@@ -750,13 +756,13 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_core_grpc                      : "com.google.cloud:google-cloud-core-grpc", // google_cloud_platform_libraries_bom sets version
         google_cloud_datacatalog_v1beta1            : "com.google.cloud:google-cloud-datacatalog", // google_cloud_platform_libraries_bom sets version
         google_cloud_dataflow_java_proto_library_all: "com.google.cloud.dataflow:google-cloud-dataflow-java-proto-library-all:0.5.160304",
-        google_cloud_datastore_v1_proto_client      : "com.google.cloud.datastore:datastore-v1-proto-client:2.25.2",   // [bomupgrader] sets version
+        google_cloud_datastore_v1_proto_client      : "com.google.cloud.datastore:datastore-v1-proto-client:2.27.1",   // [bomupgrader] sets version
         google_cloud_firestore                      : "com.google.cloud:google-cloud-firestore", // google_cloud_platform_libraries_bom sets version
         google_cloud_pubsub                         : "com.google.cloud:google-cloud-pubsub", // google_cloud_platform_libraries_bom sets version
         google_cloud_pubsublite                     : "com.google.cloud:google-cloud-pubsublite",  // google_cloud_platform_libraries_bom sets version
         // [bomupgrader] the BOM version is set by scripts/tools/bomupgrader.py. If update manually, also update
         // libraries-bom version on sdks/java/container/license_scripts/dep_urls_java.yaml
-        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:26.53.0",
+        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:26.57.0",
         google_cloud_secret_manager                 : "com.google.cloud:google-cloud-secretmanager", // google_cloud_platform_libraries_bom sets version
         google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner", // google_cloud_platform_libraries_bom sets version
         google_cloud_spanner_test                   : "com.google.cloud:google-cloud-spanner:$google_cloud_spanner_version:tests",
@@ -837,8 +843,10 @@ class BeamModulePlugin implements Plugin<Project> {
         log4j2_core                                 : "org.apache.logging.log4j:log4j-core:$log4j2_version",
         log4j2_to_slf4j                             : "org.apache.logging.log4j:log4j-to-slf4j:$log4j2_version",
         log4j2_slf4j_impl                           : "org.apache.logging.log4j:log4j-slf4j-impl:$log4j2_version",
-        mockito_core                                : "org.mockito:mockito-core:3.7.7",
-        mockito_inline                              : "org.mockito:mockito-inline:4.5.1",
+        log4j2_slf4j2_impl                          : "org.apache.logging.log4j:log4j-slf4j2-impl:$log4j2_version",
+        log4j2_log4j12_api                          : "org.apache.logging.log4j:log4j-1.2-api:$log4j2_version",
+        mockito_core                                : "org.mockito:mockito-core:4.11.0",
+        mockito_inline                              : "org.mockito:mockito-inline:4.11.0",
         mongo_java_driver                           : "org.mongodb:mongo-java-driver:3.12.11",
         nemo_compiler_frontend_beam                 : "org.apache.nemo:nemo-compiler-frontend-beam:$nemo_version",
         netty_all                                   : "io.netty:netty-all:$netty_version",
@@ -847,8 +855,6 @@ class BeamModulePlugin implements Plugin<Project> {
         netty_transport                             : "io.netty:netty-transport:$netty_version",
         netty_transport_native_epoll                : "io.netty:netty-transport-native-epoll:$netty_version",
         postgres                                    : "org.postgresql:postgresql:$postgres_version",
-        powermock                                   : "org.powermock:powermock-module-junit4:$powermock_version",
-        powermock_mockito                           : "org.powermock:powermock-api-mockito2:$powermock_version",
         protobuf_java                               : "com.google.protobuf:protobuf-java:$protobuf_version",
         protobuf_java_util                          : "com.google.protobuf:protobuf-java-util:$protobuf_version",
         proto_google_cloud_bigquery_storage_v1      : "com.google.api.grpc:proto-google-cloud-bigquerystorage-v1", // google_cloud_platform_libraries_bom sets version
@@ -1109,7 +1115,44 @@ class BeamModulePlugin implements Plugin<Project> {
       }
 
       // Configure the Java compiler source language and target compatibility levels. Also ensure that
-      // we configure the Java compiler to use UTF-8.
+      def requireJavaVersion = JavaVersion.toVersion(project.javaVersion)
+      if (configuration.requireJavaVersion != null) {
+        // Overwrite project.javaVersion if requested.
+        if (JavaVersion.VERSION_11.equals(configuration.requireJavaVersion)) {
+          project.javaVersion = '11'
+        } else if (JavaVersion.VERSION_17.equals(configuration.requireJavaVersion)) {
+          project.javaVersion = '17'
+        } else if (JavaVersion.VERSION_21.equals(configuration.requireJavaVersion)) {
+          project.javaVersion = '21'
+        } else {
+          throw new GradleException(
+          "requireJavaVersion has to be supported LTS version greater than the default Java version. Actual: " +
+          configuration.requireJavaVersion
+          )
+        }
+        requireJavaVersion = configuration.requireJavaVersion
+      }
+
+      String forkJavaVersion = null
+      if (requireJavaVersion.compareTo(JavaVersion.current()) > 0) {
+        // If compiled on older SDK, compile with JDK configured with compatible javaXXHome
+        // The order is intended here
+        if (requireJavaVersion.compareTo(JavaVersion.VERSION_11) <= 0 &&
+        project.hasProperty('java11Home')) {
+          forkJavaVersion = '11'
+        } else if (requireJavaVersion.compareTo(JavaVersion.VERSION_17) <= 0 &&
+        project.hasProperty('java17Home')) {
+          forkJavaVersion = '17'
+        } else if (requireJavaVersion.compareTo(JavaVersion.VERSION_21) <= 0 &&
+        project.hasProperty('java21Home')) {
+          forkJavaVersion = '21'
+        } else {
+          logger.config("Module ${project.name} disabled. To enable, either " +
+              "compile on newer Java version or pass java${project.javaVersion}Home project property")
+          forkJavaVersion = ''
+        }
+      }
+
       project.sourceCompatibility = project.javaVersion
       project.targetCompatibility = project.javaVersion
 
@@ -1130,37 +1173,6 @@ class BeamModulePlugin implements Plugin<Project> {
       // TODO(yathu) remove this once generated code (antlr) no longer trigger this warning
       if (JavaVersion.current().compareTo(JavaVersion.VERSION_21) >= 0) {
         defaultLintSuppressions += ['this-escape']
-      }
-
-      project.tasks.withType(JavaCompile).configureEach {
-        options.encoding = "UTF-8"
-        // Use -source 8 -target 8 when targeting Java 8 and running on JDK > 8
-        //
-        // Consider migrating compilation and testing to use JDK 9+ and setting '--release 8' as
-        // the default allowing 'applyJavaNature' to override it for the few modules that need JDK 9+
-        // artifacts. See https://stackoverflow.com/a/43103038/4368200 for additional details.
-        if (JavaVersion.VERSION_1_8.compareTo(JavaVersion.toVersion(project.javaVersion)) == 0
-        && JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0) {
-          options.compilerArgs += ['--release', '8']
-          // TODO(https://github.com/apache/beam/issues/23901): Fix
-          // optimizerOuterThis breakage
-          options.compilerArgs += ['-XDoptimizeOuterThis=false']
-        }
-        // As we want to add '-Xlint:-deprecation' we intentionally remove '-Xlint:deprecation' from compilerArgs here,
-        // as intellij is adding this, see https://youtrack.jetbrains.com/issue/IDEA-196615
-        options.compilerArgs -= [
-          "-Xlint:deprecation",
-        ]
-        options.compilerArgs += ([
-          '-parameters',
-          '-Xlint:all',
-          '-Werror'
-        ]
-        + (defaultLintSuppressions + configuration.disableLintWarnings).collect { "-Xlint:-${it}" })
-      }
-
-      project.tasks.withType(Jar).configureEach {
-        preserveFileTimestamps(false)
       }
 
       // Configure the default test tasks set of tests executed
@@ -1564,6 +1576,45 @@ class BeamModulePlugin implements Plugin<Project> {
         }
       }
 
+      // Handle compile Java versions
+      project.tasks.withType(JavaCompile).configureEach {
+        // we configure the Java compiler to use UTF-8.
+        options.encoding = "UTF-8"
+        // If compiled on newer JDK, set byte code compatibility
+        if (requireJavaVersion.compareTo(JavaVersion.current()) < 0) {
+          def compatVersion = project.javaVersion == '1.8' ? '8' : project.javaVersion
+          options.compilerArgs += ['--release', compatVersion]
+          // TODO(https://github.com/apache/beam/issues/23901): Fix
+          // optimizerOuterThis breakage
+          options.compilerArgs += ['-XDoptimizeOuterThis=false']
+        } else if (forkJavaVersion) {
+          // If compiled on older SDK, compile with JDK configured with compatible javaXXHome
+          setCompileAndRuntimeJavaVersion(options.compilerArgs, requireJavaVersion as String)
+          project.ext.setJavaVerOptions(options, forkJavaVersion)
+        }
+        // As we want to add '-Xlint:-deprecation' we intentionally remove '-Xlint:deprecation' from compilerArgs here,
+        // as intellij is adding this, see https://youtrack.jetbrains.com/issue/IDEA-196615
+        options.compilerArgs -= [
+          "-Xlint:deprecation",
+        ]
+        options.compilerArgs += ([
+          '-parameters',
+          '-Xlint:all',
+          '-Werror'
+        ]
+        + (defaultLintSuppressions + configuration.disableLintWarnings).collect { "-Xlint:-${it}" })
+      }
+
+      if (forkJavaVersion) {
+        project.tasks.withType(Javadoc) {
+          executable = project.findProperty('java' + forkJavaVersion + 'Home') + '/bin/javadoc'
+        }
+      }
+
+      project.tasks.withType(Jar).configureEach {
+        preserveFileTimestamps(false)
+      }
+
       // if specified test java version, modify the compile and runtime versions accordingly
       if (['8', '11', '17', '21'].contains(project.findProperty('testJavaVersion'))) {
         String ver = project.getProperty('testJavaVersion')
@@ -1794,8 +1845,21 @@ class BeamModulePlugin implements Plugin<Project> {
       project.ext.includeInJavaBom = configuration.publish
       project.ext.exportJavadoc = configuration.exportJavadoc
 
-      if ((isRelease(project) || project.hasProperty('publishing')) &&
-      configuration.publish) {
+      boolean publishEnabledByCommand = isRelease(project) || project.hasProperty('publishing')
+      if (forkJavaVersion == '') {
+        // project needs newer version and not served.
+        // If not publishing ,disable the project. Otherwise, fail the build
+        def msg = "project ${project.name} needs newer Java version to compile. Consider set -Pjava${project.javaVersion}Home"
+        if (publishEnabledByCommand) {
+          throw new GradleException("Publish enabled but " + msg + ".")
+        } else {
+          logger.config(msg + " if needed.")
+          project.tasks.each {
+            it.enabled = false
+          }
+        }
+      }
+      if (publishEnabledByCommand && configuration.publish) {
         project.apply plugin: "maven-publish"
 
         // plugin to support repository authentication via ~/.m2/settings.xml
@@ -2221,7 +2285,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
       // This sets the whole project Go version.
       // The latest stable Go version can be checked at https://go.dev/dl/
-      project.ext.goVersion = "go1.23.6"
+      project.ext.goVersion = "go1.24.0"
 
       // Minor TODO: Figure out if we can pull out the GOCMD env variable after goPrepare script
       // completion, and avoid this GOBIN substitution.
@@ -2983,8 +3047,9 @@ class BeamModulePlugin implements Plugin<Project> {
             // TODO: https://github.com/apache/beam/issues/29022
             // pip 23.3 is failing due to Hash mismatch between expected SHA of the packaged and actual SHA.
             // until it is resolved on pip's side, don't use pip's cache.
+            // pip 25.1 casues :sdks:python:installGcpTest stuck. Pin to 25.0.1 for now.
             args '-c', ". ${project.ext.envdir}/bin/activate && " +
-                "pip install --pre --retries 10 --upgrade pip --no-cache-dir && " +
+                "pip install --pre --retries 10 --upgrade pip==25.0.1 --no-cache-dir && " +
                 "pip install --pre --retries 10 --upgrade tox --no-cache-dir"
           }
         }
@@ -3024,9 +3089,15 @@ class BeamModulePlugin implements Plugin<Project> {
         dependsOn ':sdks:python:sdist'
         doLast {
           def distTarBall = "${pythonRootDir}/build/apache-beam.tar.gz"
+          def packages = "gcp,test,aws,azure,dataframe"
+          def extra = project.findProperty('beamPythonExtra')
+          if (extra) {
+            packages += ",${extra}"
+          }
+
           project.exec {
             executable 'sh'
-            args '-c', ". ${project.ext.envdir}/bin/activate && pip install --pre --retries 10 ${distTarBall}[gcp,test,aws,azure,dataframe]"
+            args '-c', ". ${project.ext.envdir}/bin/activate && pip install --pre --retries 10 ${distTarBall}[${packages}]"
           }
         }
       }
@@ -3034,12 +3105,6 @@ class BeamModulePlugin implements Plugin<Project> {
       def cleanPython = project.tasks.register('cleanPython') {
         doLast {
           def activate = "${project.ext.envdir}/bin/activate"
-          project.exec {
-            executable 'sh'
-            args '-c', "if [ -e ${activate} ]; then " +
-                ". ${activate} && cd ${pythonRootDir} && python setup.py clean; " +
-                "fi"
-          }
           project.delete project.buildDir     // Gradle build directory
           project.delete project.ext.envdir   // virtualenv directory
           project.delete "$project.projectDir/target"   // tox work directory

@@ -130,6 +130,11 @@ cdef class VarIntCoderImpl(StreamCoderImpl):
   cpdef bytes encode(self, value)
 
 
+cdef class VarInt32CoderImpl(StreamCoderImpl):
+  @cython.locals(ivalue=libc.stdint.int32_t)
+  cpdef bytes encode(self, value)
+
+
 cdef class SingletonCoderImpl(CoderImpl):
   cdef object _value
 

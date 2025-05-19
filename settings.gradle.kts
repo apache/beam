@@ -25,7 +25,7 @@ pluginManagement {
 
 plugins {
   id("com.gradle.develocity") version "3.19"
-  id("com.gradle.common-custom-user-data-gradle-plugin") version "2.0.2"
+  id("com.gradle.common-custom-user-data-gradle-plugin") version "2.2.1"
 }
 
 
@@ -78,6 +78,7 @@ include(":examples:java:cdap:hubspot")
 include(":examples:java:cdap:salesforce")
 include(":examples:java:cdap:servicenow")
 include(":examples:java:cdap:zendesk")
+include(":examples:java:sql")
 include(":examples:java:webapis")
 include(":examples:kotlin")
 include(":examples:multi-language")
@@ -198,7 +199,6 @@ include(":sdks:java:extensions:sql")
 include(":sdks:java:extensions:sql:payloads")
 include(":sdks:java:extensions:sql:perf-tests")
 include(":sdks:java:extensions:sql:jdbc")
-include(":sdks:java:extensions:sql:shell")
 include(":sdks:java:extensions:sql:hcatalog")
 include(":sdks:java:extensions:sql:datacatalog")
 include(":sdks:java:extensions:sql:zetasql")
@@ -206,6 +206,7 @@ include(":sdks:java:extensions:sql:expansion-service")
 include(":sdks:java:extensions:sql:udf")
 include(":sdks:java:extensions:sql:udf-test-provider")
 include(":sdks:java:extensions:timeseries")
+include(":sdks:java:extensions:yaml")
 include(":sdks:java:extensions:zetasketch")
 include(":sdks:java:harness")
 include(":sdks:java:harness:jmh")
@@ -242,6 +243,7 @@ include(":sdks:java:io:jdbc")
 include(":sdks:java:io:jms")
 include(":sdks:java:io:json")
 include(":sdks:java:io:kafka")
+include(":sdks:java:io:kafka:jmh")
 include(":sdks:java:io:kafka:upgrade")
 include(":sdks:java:io:kudu")
 include(":sdks:java:io:mongodb")
@@ -253,7 +255,7 @@ include(":sdks:java:io:rabbitmq")
 include(":sdks:java:io:redis")
 include(":sdks:java:io:rrio")
 include(":sdks:java:io:solr")
-include(":sdks:java:io:sparkreceiver:2")
+include(":sdks:java:io:sparkreceiver:3")
 include(":sdks:java:io:snowflake")
 include(":sdks:java:io:snowflake:expansion-service")
 include(":sdks:java:io:splunk")
@@ -336,18 +338,18 @@ project(":beam-test-gha").projectDir = file(".github")
 include("beam-validate-runner")
 project(":beam-validate-runner").projectDir = file(".test-infra/validate-runner")
 include("com.google.api.gax.batching")
+include("sdks:java:io:kafka:kafka-390")
+findProject(":sdks:java:io:kafka:kafka-390")?.name = "kafka-390"
 include("sdks:java:io:kafka:kafka-312")
 findProject(":sdks:java:io:kafka:kafka-312")?.name = "kafka-312"
+include("sdks:java:io:kafka:kafka-282")
+findProject(":sdks:java:io:kafka:kafka-282")?.name = "kafka-282"
 include("sdks:java:io:kafka:kafka-251")
 findProject(":sdks:java:io:kafka:kafka-251")?.name = "kafka-251"
 include("sdks:java:io:kafka:kafka-241")
 findProject(":sdks:java:io:kafka:kafka-241")?.name = "kafka-241"
 include("sdks:java:io:kafka:kafka-231")
 findProject(":sdks:java:io:kafka:kafka-231")?.name = "kafka-231"
-include("sdks:java:io:kafka:kafka-222")
-findProject(":sdks:java:io:kafka:kafka-222")?.name = "kafka-222"
-include("sdks:java:io:kafka:kafka-211")
-findProject(":sdks:java:io:kafka:kafka-211")?.name = "kafka-211"
 include("sdks:java:io:kafka:kafka-201")
 findProject(":sdks:java:io:kafka:kafka-201")?.name = "kafka-201"
 include("sdks:java:managed")
@@ -362,3 +364,5 @@ include("sdks:java:io:iceberg:hive")
 findProject(":sdks:java:io:iceberg:hive")?.name = "hive"
 include("sdks:java:io:iceberg:bqms")
 findProject(":sdks:java:io:iceberg:bqms")?.name = "bqms"
+include("it:clickhouse")
+findProject(":it:clickhouse")?.name = "clickhouse"

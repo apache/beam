@@ -462,9 +462,10 @@ class AzureBlobStoreFileSystem extends FileSystem<AzfsResourceId> {
       lineage.add(
           "abs",
           ImmutableList.of(
-              resourceId.getAccount(), resourceId.getContainer(), resourceId.getBlob()));
+              resourceId.getAccount(), resourceId.getContainer(), resourceId.getBlob()),
+          "/");
     } else {
-      lineage.add("abs", ImmutableList.of(resourceId.getAccount(), resourceId.getContainer()));
+      lineage.add("abs", ImmutableList.of(resourceId.getAccount(), resourceId.getContainer()), "/");
     }
   }
 }

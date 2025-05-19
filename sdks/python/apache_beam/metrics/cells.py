@@ -28,6 +28,7 @@ import logging
 import threading
 import time
 from datetime import datetime
+from datetime import timezone
 from typing import Iterable
 from typing import Optional
 from typing import Set
@@ -72,7 +73,7 @@ class MetricCell(object):
 
   def to_runner_api_monitoring_info(self, name, transform_id):
     if not self._start_time:
-      self._start_time = datetime.utcnow()
+      self._start_time = datetime.now(timezone.utc)
     mi = self.to_runner_api_monitoring_info_impl(name, transform_id)
     mi.start_time.FromDatetime(self._start_time)
     return mi
@@ -688,8 +689,7 @@ class _BoundedTrieNode(object):
     else:
       node._children = {
           name: _BoundedTrieNode.from_proto(child)
-          for name,
-          child in proto.children.items()
+          for name, child in proto.children.items()
       }
       node._size = max(1, sum(child._size for child in node._children.values()))
     return node

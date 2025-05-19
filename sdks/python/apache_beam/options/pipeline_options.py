@@ -143,10 +143,81 @@ class _DictUnionAction(argparse.Action):
   than one of the values, the last value takes precedence.
   """
   def __call__(self, parser, namespace, values, option_string=None):
-    if not hasattr(namespace,
-                   self.dest) or getattr(namespace, self.dest) is None:
+    if not hasattr(namespace, self.dest) or getattr(namespace,
+                                                    self.dest) is None:
       setattr(namespace, self.dest, {})
     getattr(namespace, self.dest).update(values)
+
+
+class _GcsCustomAuditEntriesAction(argparse.Action):
+  """
+  Argparse Action for GCS custom audit entries.
+
+  According to Google Cloud Storage audit logging documentation
+  (https://cloud.google.com/storage/docs/audit-logging#add-custom-metadata), the
+  following limitations apply:
+  - keys must be 64 characters or less,
+  - values 1,200 characters or less, and
+  - a maximum of four custom metadata entries are permitted per request.
+  """
+  MAX_KEY_LENGTH = 64
+  MAX_VALUE_LENGTH = 1200
+  MAX_ENTRIES = 4
+  GCS_AUDIT_PREFIX = 'x-goog-custom-audit-'
+
+  def _exceed_entry_limit(self):
+    job_audit_entry = _GcsCustomAuditEntriesAction.GCS_AUDIT_PREFIX + 'job'
+    if job_audit_entry in self._custom_audit_entries:
+      return len(
+          self._custom_audit_entries) > _GcsCustomAuditEntriesAction.MAX_ENTRIES
+    else:
+      return len(self._custom_audit_entries) > (
+          _GcsCustomAuditEntriesAction.MAX_ENTRIES - 1)
+
+  def _add_entry(self, key, value):
+    if len(key) > _GcsCustomAuditEntriesAction.MAX_KEY_LENGTH:
+      raise argparse.ArgumentError(
+          None,
+          "The key '%s' in GCS custom audit entries exceeds the %d-character limit."  # pylint: disable=line-too-long
+          % (key, _GcsCustomAuditEntriesAction.MAX_KEY_LENGTH))
+
+    if len(value) > _GcsCustomAuditEntriesAction.MAX_VALUE_LENGTH:
+      raise argparse.ArgumentError(
+          None,
+          "The value '%s' in GCS custom audit entries exceeds the %d-character limit."  # pylint: disable=line-too-long
+          % (value, _GcsCustomAuditEntriesAction.MAX_VALUE_LENGTH))
+
+    if _GcsCustomAuditEntriesAction.GCS_AUDIT_PREFIX in key:
+      self._custom_audit_entries[key] = value
+    else:
+      self._custom_audit_entries[_GcsCustomAuditEntriesAction.GCS_AUDIT_PREFIX +
+                                 key] = value
+
+  def __call__(self, parser, namespace, values, option_string=None):
+    if not hasattr(namespace, self.dest) or getattr(namespace,
+                                                    self.dest) is None:
+      setattr(namespace, self.dest, {})
+      self._custom_audit_entries = getattr(namespace, self.dest)
+
+    if option_string == '--gcs_custom_audit_entries':
+      # in the format of {"key": "value"}
+      assert (isinstance(values, str))
+      sub_entries = json.loads(values)
+      for key, value in sub_entries.items():
+        self._add_entry(key, value)
+    else:  # option_string == '--gcs_custom_audit_entry'
+      # in the format of 'key=value'
+      assert (isinstance(values, str))
+      parts = values.split('=', 1)
+      key = parts[0]
+      value = parts[1] if len(parts) > 1 else ''
+      self._add_entry(key, value)
+
+    if self._exceed_entry_limit():
+      raise argparse.ArgumentError(
+          None,
+          "The maximum allowed number of GCS custom audit entries (including the default x-goo-custom-audit-job) is %d."  # pylint: disable=line-too-long
+          % _GcsCustomAuditEntriesAction.MAX_ENTRIES)
 
 
 class PipelineOptions(HasDisplayData):
@@ -225,7 +296,7 @@ class PipelineOptions(HasDisplayData):
 
     # Build parser that will parse options recognized by the [sub]class of
     # PipelineOptions whose object is being instantiated.
-    parser = _BeamArgumentParser()
+    parser = _BeamArgumentParser(allow_abbrev=False)
     for cls in type(self).mro():
       if cls == PipelineOptions:
         break
@@ -340,7 +411,7 @@ class PipelineOptions(HasDisplayData):
     # sub-classes in the main session might be repeated. Pick last unique
     # instance of each subclass to avoid conflicts.
     subset = {}
-    parser = _BeamArgumentParser()
+    parser = _BeamArgumentParser(allow_abbrev=False)
     for cls in PipelineOptions.__subclasses__():
       subset[str(cls)] = cls
     for cls in subset.values():
@@ -354,6 +425,14 @@ class PipelineOptions(HasDisplayData):
         _LOGGER.warning(
             'Unknown pipeline options received: %s. Ignore if flags are '
             'used for internal purposes.' % (','.join(unknown_args)))
+
+      seen = set()
+
+      def add_new_arg(arg, **kwargs):
+        if arg not in seen:
+          parser.add_argument(arg, **kwargs)
+        seen.add(arg)
+
       i = 0
       while i < len(unknown_args):
         # End of argument parsing.
@@ -367,12 +446,12 @@ class PipelineOptions(HasDisplayData):
         if i + 1 >= len(unknown_args) or unknown_args[i + 1].startswith('-'):
           split = unknown_args[i].split('=', 1)
           if len(split) == 1:
-            parser.add_argument(unknown_args[i], action='store_true')
+            add_new_arg(unknown_args[i], action='store_true')
           else:
-            parser.add_argument(split[0], type=str)
+            add_new_arg(split[0], type=str)
           i += 1
         elif unknown_args[i].startswith('--'):
-          parser.add_argument(unknown_args[i], type=str)
+          add_new_arg(unknown_args[i], type=str)
           i += 2
         else:
           # skip all binary flags used with '-' and not '--'.
@@ -591,6 +670,8 @@ class StreamingOptions(PipelineOptions):
     parser.add_argument(
         '--update_compatibility_version',
         default=None,
+        nargs='?',
+        const=None,
         help='Attempt to produce a pipeline compatible with the given prior '
         'version of the Beam SDK. '
         'See for example, https://cloud.google.com/dataflow/docs/guides/'
@@ -951,6 +1032,16 @@ class GoogleCloudOptions(PipelineOptions):
         action='store_true',
         help='Use blob generation when mutating blobs in GCSIO to '
         'mitigate race conditions at the cost of more HTTP requests.')
+    parser.add_argument(
+        '--gcs_custom_audit_entry',
+        '--gcs_custom_audit_entries',
+        dest='gcs_custom_audit_entries',
+        action=_GcsCustomAuditEntriesAction,
+        default=None,
+        help='Custom information to be attached to audit logs. '
+        'Entries are key value pairs separated by = '
+        '(e.g. --gcs_custom_audit_entry key=value) or a JSON string '
+        '(e.g. --gcs_custom_audit_entries=\'{ "user": "test", "id": "12" }\').')
 
   def _create_default_gcs_bucket(self):
     try:
@@ -1133,8 +1224,7 @@ class WorkerOptions(PipelineOptions):
         type=str,
         choices=['NONE', 'THROUGHPUT_BASED'],
         default=None,  # Meaning unset, distinct from 'NONE' meaning don't scale
-        help=
-        ('If and how to autoscale the workerpool.'))
+        help=('If and how to autoscale the workerpool.'))
     parser.add_argument(
         '--worker_machine_type',
         '--machine_type',
@@ -1484,6 +1574,16 @@ class SetupOptions(PipelineOptions):
             'workers will install them in same order they were specified on '
             'the command line.'))
     parser.add_argument(
+        '--files_to_stage',
+        dest='files_to_stage',
+        action='append',
+        default=None,
+        help=(
+            'Local path to a file. During job submission, the files will be '
+            'staged in the staging area (--staging_location option) and then '
+            'workers will upload them to the worker specific staging location '
+            '(e.g. $SEMI_PERSISTENT_DIRECTORY/staged/ for portable runner.'))
+    parser.add_argument(
         '--prebuild_sdk_container_engine',
         help=(
             'Prebuild sdk worker container image before job submission. If '
@@ -1813,9 +1913,6 @@ class TestDataflowOptions(PipelineOptions):
         help='Root URL for use with the Google Cloud Pub/Sub API.',
     )
 
-
-# TODO(silviuc): Add --files_to_stage option.
-# This could potentially replace the --requirements_file and --setup_file.
 
 # TODO(silviuc): Non-standard options. Keep them? If yes, add help too!
 # Remote execution must check that this option is not None.

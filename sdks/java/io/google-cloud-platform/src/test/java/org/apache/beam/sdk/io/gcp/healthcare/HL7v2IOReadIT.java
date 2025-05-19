@@ -51,6 +51,7 @@ public class HL7v2IOReadIT {
           + "_"
           + new SecureRandom().nextInt(32)
           + "_read_it";
+  private static final long MESSAGE_INDEXING_DELAY_MS = 5000;
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
@@ -78,6 +79,8 @@ public class HL7v2IOReadIT {
     }
     // Create HL7 messages and write them to HL7v2 Store.
     writeHL7v2Messages(this.client, healthcareDataset + "/hl7V2Stores/" + HL7V2_STORE_NAME);
+    // Wait a short time to allow all messages to be fully available.
+    Thread.sleep(MESSAGE_INDEXING_DELAY_MS);
   }
 
   @After

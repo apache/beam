@@ -24,6 +24,7 @@ from collections.abc import Collection
 from collections.abc import Iterable
 from collections.abc import Mapping
 from typing import Any
+from typing import NamedTuple
 from typing import Optional
 from typing import TypeVar
 from typing import Union
@@ -41,6 +42,8 @@ from apache_beam.typehints.schemas import named_fields_from_element_type
 from apache_beam.typehints.schemas import schema_from_element_type
 from apache_beam.typehints.schemas import typing_from_runner_api
 from apache_beam.utils import python_callable
+from apache_beam.utils import windowed_value
+from apache_beam.utils.timestamp import Timestamp
 from apache_beam.yaml import json_utils
 from apache_beam.yaml import options
 from apache_beam.yaml import yaml_provider
@@ -319,6 +322,8 @@ def _validator(beam_type: schema_pb2.FieldType) -> Callable[[Any], bool]:
       return lambda x: isinstance(x, (int, float))
     elif beam_type.atomic_type == schema_pb2.STRING:
       return lambda x: isinstance(x, str)
+    elif beam_type.atomic_type == schema_pb2.BYTES:
+      return lambda x: isinstance(x, bytes)
     else:
       raise ValueError(
           f'Unknown or unsupported atomic type: {beam_type.atomic_type}')
@@ -559,7 +564,10 @@ class _Explode(beam.PTransform):
         cross_product = True
     self._fields = fields
     self._cross_product = cross_product
-    # TODO(yaml): Support standard error handling argument.
+    # TODO(yaml):
+    # 1. Support standard error handling argument.
+    # 2. Supposedly error_handling parameter is not an accepted parameter when
+    #    executing.  Needs further investigation.
     self._exception_handling_args = exception_handling_args(error_handling)
 
   @maybe_with_exception_handling
@@ -594,9 +602,10 @@ class _Explode(beam.PTransform):
         pcoll
         | beam.FlatMap(
             lambda row:
-            (explode_cross_product if cross_product else explode_zip)
-            ({name: getattr(row, name)
-              for name in all_fields}, to_explode)))
+            (explode_cross_product if cross_product else explode_zip)({
+                name: getattr(row, name)
+                for name in all_fields
+            }, to_explode)))
 
   def infer_output_type(self, input_type):
     return row_type.RowTypeConstraint.from_fields([(
@@ -675,7 +684,8 @@ def _PyJsMapToFields(
     fields: Mapping[str, Union[str, Mapping[str, str]]],
     append: Optional[bool] = False,
     drop: Optional[Iterable[str]] = None,
-    language: Optional[str] = None):
+    language: Optional[str] = None,
+    dependencies: Optional[Iterable[str]] = None):
   """Creates records with new fields defined in terms of the input fields.
 
   See more complete documentation on
@@ -691,6 +701,8 @@ def _PyJsMapToFields(
       original record that should not be kept
     language: The language used to define (and execute) the
       expressions and/or callables in `fields`. Defaults to generic.
+    dependencies: An optional list of extra dependencies that are needed for
+      these UDFs.  The interpretation of these strings is language-dependent.
     error_handling: Whether and where to output records that throw errors when
       the above expressions are evaluated.
   """  # pylint: disable=line-too-long
@@ -742,7 +754,7 @@ def _Partition(
     outputs: list[str],
     unknown_output: Optional[str] = None,
     error_handling: Optional[Mapping[str, Any]] = None,
-    language: Optional[str] = 'generic'):
+    language: str = 'generic'):
   """Splits an input into several distinct outputs.
 
   Each input element will go to a distinct output based on the field or
@@ -759,7 +771,7 @@ def _Partition(
         parameter.
       error_handling: (Optional) Whether and how to handle errors during
         partitioning.
-      language: (Optional) The language of the `by` expression.
+      language: The language of the `by` expression.
   """
   split_fn = _as_callable_for_pcoll(pcoll, by, 'by', language)
   try:
@@ -808,6 +820,9 @@ def _Partition(
     mapping_transform = mapping_transform.with_outputs(*output_set)
   splits = pcoll | mapping_transform.with_input_types(T).with_output_types(T)
   result = {out: getattr(splits, out) for out in output_set}
+  for tag, out in result.items():
+    if tag != error_output:
+      out.element_type = pcoll.element_type
   if error_output:
     result[error_output] = result[error_output] | map_errors_to_standard_format(
         pcoll.element_type)
@@ -842,6 +857,109 @@ def _AssignTimestamps(
                           ).with_input_types(T).with_output_types(T)
 
 
+class PaneInfoTuple(NamedTuple):
+  is_first: bool
+  is_last: bool
+  timing: str
+  index: int  # type: ignore[assignment]
+  nonspeculative_index: int
+
+  @classmethod
+  def from_pane_info(cls, pane_info):
+    return cls(
+        pane_info.is_first,
+        pane_info.is_last,
+        windowed_value.PaneInfoTiming.to_string(pane_info.timing),
+        pane_info.index,
+        pane_info.nonspeculative_index)
+
+
+_WINDOWING_INFO_TYPES = {
+    'timestamp': Timestamp,
+    'window_start': Optional[Timestamp],
+    'window_end': Timestamp,
+    'window_string': str,
+    'window_type': str,
+    'window_object': Any,
+    'pane_info': PaneInfoTuple,
+}
+_WINDOWING_INFO_EXTRACTORS = {
+    'timestamp': lambda locals: locals['timestamp'],
+    'window_start': lambda locals: getattr(locals['window'], 'start', None),
+    'window_end': lambda locals: locals['window'].end,
+    'window_string': lambda locals: str(locals['window']),
+    'window_type': lambda locals: type(locals['window']).__name__,
+    'window_object': lambda locals: locals['window'],
+    'pane_info': lambda locals: PaneInfoTuple.from_pane_info(
+        locals['pane_info']),
+}
+assert set(_WINDOWING_INFO_TYPES.keys()) == set(
+    _WINDOWING_INFO_EXTRACTORS.keys())
+
+
+@beam.ptransform.ptransform_fn
+def _ExtractWindowingInfo(
+    pcoll, fields: Optional[Union[Mapping[str, str], Iterable[str]]] = None):
+  """
+  Extracts the implicit windowing information from an element and makes it
+  explicit as field(s) in the element itself.
+
+  The following windowing parameter values are supported:
+
+    * `timestamp`: The event timestamp of the current element.
+    * `window_start`: The start of the window iff it is an interval window.
+    * `window_end`: The (exclusive) end of the window.
+    * `window_string`: The string representation of the window.
+    * `window_type`: The type of the window as a string.
+    * `winodw_object`: The actual window object itself,
+        as a Java or Python object.
+    * `pane_info`: A schema'd representation of the current pane info, including
+        its index, whether it was the last firing, etc.
+
+  As a convenience, a list rather than a mapping of fields may be provided,
+  in which case the fields will be named according to the requested values.
+
+  Args:
+    fields: A mapping of new field names to various windowing parameters,
+      as documented above.  If omitted, defaults to
+      `[timestamp, window_start, window_end]`.
+  """
+  if fields is None:
+    fields = ['timestamp', 'window_start', 'window_end']
+  if not isinstance(fields, Mapping):
+    if isinstance(fields, Iterable) and not isinstance(fields, str):
+      fields = {fld: fld for fld in fields}
+    else:
+      raise TypeError(
+          'Fields must be a mapping or iterable of strings, got {fields}')
+
+  existing_fields = named_fields_from_element_type(pcoll.element_type)
+  new_fields = []
+  for field, value in fields.items():
+    if value not in _WINDOWING_INFO_TYPES:
+      raise ValueError(
+          f'{value} is not a valid windowing parameter; '
+          f'must be one of {list(_WINDOWING_INFO_TYPES.keys())}')
+    elif field in existing_fields:
+      raise ValueError(f'Input schema already has a field named {field}.')
+    else:
+      new_fields.append((field, _WINDOWING_INFO_TYPES[value]))
+
+  def augment_row(
+      row,
+      timestamp=beam.DoFn.TimestampParam,
+      window=beam.DoFn.WindowParam,
+      pane_info=beam.DoFn.PaneInfoParam):
+    as_dict = row._asdict()
+    for field, value in fields.items():
+      as_dict[field] = _WINDOWING_INFO_EXTRACTORS[value](locals())
+    return beam.Row(**as_dict)
+
+  return pcoll | beam.Map(augment_row).with_output_types(
+      row_type.RowTypeConstraint.from_fields(
+          existing_fields + new_fields))  # type: ignore[operator]
+
+
 def create_mapping_providers():
   # These are MetaInlineProviders because their expansion is in terms of other
   # YamlTransforms, but in a way that needs to be deferred until the input
@@ -852,6 +970,7 @@ def create_mapping_providers():
           'AssignTimestamps-javascript': _AssignTimestamps,
           'AssignTimestamps-generic': _AssignTimestamps,
           'Explode': _Explode,
+          'ExtractWindowingInfo': _ExtractWindowingInfo,
           'Filter-python': _PyJsFilter,
           'Filter-javascript': _PyJsFilter,
           'Filter-generic': _PyJsFilter,

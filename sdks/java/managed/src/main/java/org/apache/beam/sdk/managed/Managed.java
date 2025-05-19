@@ -46,7 +46,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  * <h3>Available transforms</h3>
  *
  * <p>This API currently supports two operations: {@link Managed#read} and {@link Managed#write}.
- * Each one enumerates the available transforms in a {@code TRANSFORMS} map.
+ * Please check the <a href="https://beam.apache.org/documentation/io/managed-io/">Managed IO
+ * configuration page</a> to see available transforms and config options.
  *
  * <h3>Building a Managed turnkey transform</h3>
  *
@@ -80,11 +81,19 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  *
  * inputRows.apply(Managed.write(ICEBERG).withConfigUrl("path/to/config.yaml"));
  * }</pre>
+ *
+ * <h3>Runner specific features</h3>
+ *
+ * Google Cloud Dataflow supports additional management features for {@code Managed} including
+ * automatically upgrading transforms to the latest supported version. For more details and
+ * examples, please see <a href="https://cloud.google.com/dataflow/docs/guides/managed-io">Dataflow
+ * managed I/O</a>.
  */
 public class Managed {
 
   // TODO: Dynamically generate a list of supported transforms
   public static final String ICEBERG = "iceberg";
+  public static final String ICEBERG_CDC = "iceberg_cdc";
   public static final String KAFKA = "kafka";
   public static final String BIGQUERY = "bigquery";
 
@@ -92,6 +101,7 @@ public class Managed {
   public static final Map<String, String> READ_TRANSFORMS =
       ImmutableMap.<String, String>builder()
           .put(ICEBERG, getUrn(ExternalTransforms.ManagedTransforms.Urns.ICEBERG_READ))
+          .put(ICEBERG_CDC, getUrn(ExternalTransforms.ManagedTransforms.Urns.ICEBERG_CDC_READ))
           .put(KAFKA, getUrn(ExternalTransforms.ManagedTransforms.Urns.KAFKA_READ))
           .put(BIGQUERY, getUrn(ExternalTransforms.ManagedTransforms.Urns.BIGQUERY_READ))
           .build();
@@ -107,9 +117,14 @@ public class Managed {
    * supported managed sources are:
    *
    * <ul>
-   *   <li>{@link Managed#ICEBERG} : Read from Apache Iceberg tables
-   *   <li>{@link Managed#KAFKA} : Read from Apache Kafka topics
-   *   <li>{@link Managed#BIGQUERY} : Read from GCP BigQuery tables
+   *   <li>{@link Managed#ICEBERG} : Read from Apache Iceberg tables using <a
+   *       href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/iceberg/IcebergIO.html">IcebergIO</a>
+   *   <li>{@link Managed#ICEBERG_CDC} : CDC Read from Apache Iceberg tables using <a
+   *       href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/iceberg/IcebergIO.html">IcebergIO</a>
+   *   <li>{@link Managed#KAFKA} : Read from Apache Kafka topics using <a
+   *       href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/kafka/KafkaIO.html">KafkaIO</a>
+   *   <li>{@link Managed#BIGQUERY} : Read from GCP BigQuery tables using <a
+   *       href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.html">BigQueryIO</a>
    * </ul>
    */
   public static ManagedTransform read(String source) {
@@ -129,9 +144,12 @@ public class Managed {
    * managed sinks are:
    *
    * <ul>
-   *   <li>{@link Managed#ICEBERG} : Write to Apache Iceberg tables
-   *   <li>{@link Managed#KAFKA} : Write to Apache Kafka topics
-   *   <li>{@link Managed#BIGQUERY} : Write to GCP BigQuery tables
+   *   <li>{@link Managed#ICEBERG} : Write to Apache Iceberg tables <a
+   *       href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/iceberg/IcebergIO.html">IcebergIO</a>
+   *   <li>{@link Managed#KAFKA} : Write to Apache Kafka topics <a
+   *       href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/kafka/KafkaIO.html">KafkaIO</a>
+   *   <li>{@link Managed#BIGQUERY} : Write to GCP BigQuery tables <a
+   *       href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.html">BigQueryIO</a>
    * </ul>
    */
   public static ManagedTransform write(String sink) {
@@ -148,6 +166,8 @@ public class Managed {
 
   @AutoValue
   public abstract static class ManagedTransform extends PTransform<PInput, PCollectionRowTuple> {
+    public static final String INPUT = "input";
+
     abstract String getIdentifier();
 
     abstract @Nullable Map<String, Object> getConfig();
@@ -225,8 +245,7 @@ public class Managed {
                 + "(using .setRowSchema()). Instead, found collection %s with coder: %s.",
             inputCollection.getName(),
             inputCollection.getCoder());
-        return PCollectionRowTuple.of(
-            ManagedTransformConstants.INPUT, (PCollection<Row>) inputCollection);
+        return PCollectionRowTuple.of(INPUT, (PCollection<Row>) inputCollection);
       } else if (input instanceof PCollectionRowTuple) {
         return (PCollectionRowTuple) input;
       }

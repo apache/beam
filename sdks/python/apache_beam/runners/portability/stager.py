@@ -214,8 +214,8 @@ class Stager(object):
     if not skip_prestaged_dependencies:
       requirements_cache_path = (
           os.path.join(tempfile.gettempdir(), 'dataflow-requirements-cache') if
-          (setup_options.requirements_cache is None) else
-          setup_options.requirements_cache)
+          (setup_options.requirements_cache
+           is None) else setup_options.requirements_cache)
       if (setup_options.requirements_cache != SKIP_REQUIREMENTS_CACHE and
           not os.path.exists(requirements_cache_path)):
         os.makedirs(requirements_cache_path)
@@ -291,6 +291,12 @@ class Stager(object):
         resources.append(
             Stager._create_file_stage_to_artifact(
                 tarball_file, WORKFLOW_TARBALL_FILE))
+
+      if setup_options.files_to_stage is not None:
+        for file in setup_options.files_to_stage:
+          resources.append(
+              Stager._create_file_stage_to_artifact(
+                  file, os.path.basename(file)))
 
       # Handle extra local packages that should be staged.
       if setup_options.extra_packages is not None:

@@ -33,9 +33,9 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
@@ -132,7 +132,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer.Type;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WatermarkHold;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItemCommitRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
-import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannelFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannels;
 import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactoryFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
@@ -883,8 +883,7 @@ public class StreamingDataflowWorkerTest {
             new FakeWindmillStubFactoryFactory(
                 new FakeWindmillStubFactory(
                     () ->
-                        WindmillChannelFactory.inProcessChannel(
-                            "StreamingDataflowWorkerTestChannel"))));
+                        WindmillChannels.inProcessChannel("StreamingDataflowWorkerTestChannel"))));
     this.computationStateCache = worker.getComputationStateCache();
     return worker;
   }
@@ -2947,7 +2946,8 @@ public class StreamingDataflowWorkerTest {
             new ThreadFactoryBuilder()
                 .setNameFormat("DataflowWorkUnits-%d")
                 .setDaemon(true)
-                .build());
+                .build(),
+            /*useFairMonitor=*/ false);
 
     ComputationState computationState =
         new ComputationState(
@@ -3007,7 +3007,8 @@ public class StreamingDataflowWorkerTest {
             new ThreadFactoryBuilder()
                 .setNameFormat("DataflowWorkUnits-%d")
                 .setDaemon(true)
-                .build());
+                .build(),
+            /*useFairMonitor=*/ false);
 
     ComputationState computationState =
         new ComputationState(
@@ -3076,7 +3077,8 @@ public class StreamingDataflowWorkerTest {
             new ThreadFactoryBuilder()
                 .setNameFormat("DataflowWorkUnits-%d")
                 .setDaemon(true)
-                .build());
+                .build(),
+            /*useFairMonitor=*/ false);
 
     ComputationState computationState =
         new ComputationState(
@@ -3149,7 +3151,8 @@ public class StreamingDataflowWorkerTest {
             new ThreadFactoryBuilder()
                 .setNameFormat("DataflowWorkUnits-%d")
                 .setDaemon(true)
-                .build());
+                .build(),
+            /*useFairMonitor=*/ false);
 
     ComputationState computationState =
         new ComputationState(

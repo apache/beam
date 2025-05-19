@@ -80,7 +80,7 @@ jobs:
         job_name: [beam_PostCommit_Java_Nexmark_Flink]
         job_phrase: [Run Flink Runner Nexmark Tests]
         streaming: [false, true]
-        queryLanguage: [sql, zetasql, none]
+        queryLanguage: [sql, none]
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'pull_request_target' ||

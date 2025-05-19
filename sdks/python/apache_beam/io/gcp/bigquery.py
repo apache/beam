@@ -238,7 +238,7 @@ also take a callable that receives a table reference.
 
 Chaining of operations after WriteToBigQuery
 --------------------------------------------
-WritToBigQuery returns an object with several PCollections that consist of
+WriteToBigQuery returns an object with several PCollections that consist of
 metadata about the write operations. These are useful to inspect the write
 operation and follow with the results::
 
@@ -784,14 +784,15 @@ class _CustomBigQuerySource(BoundedSource):
 
   def _create_source(self, path, coder):
     if not self.use_json_exports:
-      return create_avro_source(path)
+      return create_avro_source(path, validate=self.validate)
     else:
       return TextSource(
           path,
           min_bundle_size=0,
           compression_type=CompressionTypes.UNCOMPRESSED,
           strip_trailing_newlines=True,
-          coder=coder)
+          coder=coder,
+          validate=self.validate)
 
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
     if self.export_result is None:
@@ -1617,8 +1618,8 @@ class BigQueryWriteFn(DoFn):
 
       # Flush current batch first if adding this row will exceed our limits
       # limits: byte size; number of rows
-      if ((self._destination_buffer_byte_size[destination] + row_byte_size >
-           self._max_insert_payload_size) or
+      if ((self._destination_buffer_byte_size[destination] + row_byte_size
+           > self._max_insert_payload_size) or
           len(self._rows_buffer[destination]) >= self._max_batch_size):
         flushed_batch = self._flush_batch(destination)
         # After flushing our existing batch, we now buffer the current row
@@ -1712,9 +1713,8 @@ class BigQueryWriteFn(DoFn):
         # - WARNING when we are continuing to retry, and have a deadline.
         # - ERROR when we will no longer retry, or MAY retry forever.
         log_level = (
-            logging.WARN if should_retry or
-            self._retry_strategy != RetryStrategy.RETRY_ALWAYS else
-            logging.ERROR)
+            logging.WARN if should_retry or self._retry_strategy
+            != RetryStrategy.RETRY_ALWAYS else logging.ERROR)
 
         _LOGGER.log(log_level, message)
 
@@ -1740,16 +1740,13 @@ class BigQueryWriteFn(DoFn):
         [
             pvalue.TaggedOutput(
                 BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS,
-                w.with_value((destination, row, err))) for row,
-            err,
-            w in failed_rows
+                w.with_value((destination, row, err)))
+            for row, err, w in failed_rows
         ],
         [
             pvalue.TaggedOutput(
                 BigQueryWriteFn.FAILED_ROWS, w.with_value((destination, row)))
-            for row,
-            unused_err,
-            w in failed_rows
+            for row, unused_err, w in failed_rows
         ])
 
 
@@ -2331,10 +2328,9 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     # remove_objects_from_args and insert_values_in_args
     # are currently implemented.
     def serialize(side_inputs):
-      return {(SIDE_INPUT_PREFIX + '%s') % ix:
-              si.to_runner_api(context).SerializeToString()
-              for ix,
-              si in enumerate(side_inputs)}
+      return {(SIDE_INPUT_PREFIX + '%s') % ix: si.to_runner_api(
+                  context).SerializeToString()
+              for ix, si in enumerate(side_inputs)}
 
     table_side_inputs = serialize(self.table_side_inputs)
     schema_side_inputs = serialize(self.schema_side_inputs)
@@ -2382,8 +2378,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
       # to_runner_api_parameter above).
       indexed_side_inputs = [(
           get_sideinput_index(tag),
-          pvalue.AsSideInput.from_runner_api(si, context)) for tag,
-                             si in deserialized_side_inputs.items()]
+          pvalue.AsSideInput.from_runner_api(si, context))
+                             for tag, si in deserialized_side_inputs.items()]
       return [si for _, si in sorted(indexed_side_inputs)]
 
     config['table_side_inputs'] = deserialize(config['table_side_inputs'])
@@ -2661,8 +2657,8 @@ class StorageWriteToBigQuery(PTransform):
       failed_rows = failed_rows | beam.Map(lambda row: row.as_dict())
       failed_rows_with_errors = failed_rows_with_errors | beam.Map(
           lambda row: {
-              "error_message": row.error_message,
-              "failed_row": row.failed_row.as_dict()
+              "error_message": row.error_message, "failed_row": row.failed_row.
+              as_dict()
           })
 
     return WriteResult(
@@ -2682,8 +2678,8 @@ class StorageWriteToBigQuery(PTransform):
             | "Convert dict to Beam Row" >> beam.Map(
                 lambda row: beam.Row(
                     **{
-                        StorageWriteToBigQuery.DESTINATION: row[0],
-                        StorageWriteToBigQuery.RECORD: bigquery_tools.
+                        StorageWriteToBigQuery.DESTINATION: row[
+                            0], StorageWriteToBigQuery.RECORD: bigquery_tools.
                         beam_row_from_dict(row[1], self.schema)
                     })))
       else:
@@ -2748,7 +2744,8 @@ class ReadFromBigQuery(PTransform):
       :data:`True` for most scenarios in order to catch errors as early as
       possible (pipeline construction instead of pipeline execution). It
       should be :data:`False` if the table is created during pipeline
-      execution by a previous step.
+      execution by a previous step. Set this to :data:`False`
+      if the BigQuery export method is slow due to checking file existence.
     coder (~apache_beam.coders.coders.Coder): The coder for the table
       rows. If :data:`None`, then the default coder is
       _JsonToDictCoder, which will interpret every row as a JSON
@@ -3037,7 +3034,8 @@ class ReadAllFromBigQuery(PTransform):
       bucket where the extracted table should be written as a string. If
       :data:`None`, then the temp_location parameter is used.
     validate (bool): If :data:`True`, various checks will be done when source
-      gets initialized (e.g., is table present?).
+      gets initialized (e.g., is table present?). Set this to :data:`False`
+      if the BigQuery export method is slow due to checking file existence.
     kms_key (str): Experimental. Optional Cloud KMS key name for use when
       creating new temporary tables.
    """
@@ -3082,6 +3080,7 @@ class ReadAllFromBigQuery(PTransform):
         _BigQueryReadSplit(
             options=pcoll.pipeline.options,
             gcs_location=self.gcs_location,
+            validate=self.validate,
             bigquery_job_labels=self.bigquery_job_labels,
             job_name=job_name,
             step_name=step_name,
