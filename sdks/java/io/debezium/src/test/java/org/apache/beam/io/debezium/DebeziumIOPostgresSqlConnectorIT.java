@@ -74,8 +74,10 @@ public class DebeziumIOPostgresSqlConnectorIT {
   static DataSource getPostgresDatasource() {
     PGSimpleDataSource dataSource = new PGSimpleDataSource();
     dataSource.setDatabaseName("inventory");
-    dataSource.setServerName(POSTGRES_SQL_CONTAINER.getContainerIpAddress());
-    dataSource.setPortNumber(POSTGRES_SQL_CONTAINER.getMappedPort(5432));
+    String[] serverNames = new String [] {POSTGRES_SQL_CONTAINER.getHost()};
+    dataSource.setServerNames(serverNames);
+    int[] ports =new int[] {POSTGRES_SQL_CONTAINER.getMappedPort(5432)};
+    dataSource.setPortNumbers(ports);
     dataSource.setUser("debezium");
     dataSource.setPassword("dbz");
     return dataSource;
@@ -156,7 +158,7 @@ public class DebeziumIOPostgresSqlConnectorIT {
   public void testDebeziumIOPostgresSql() {
     POSTGRES_SQL_CONTAINER.start();
 
-    String host = POSTGRES_SQL_CONTAINER.getContainerIpAddress();
+    String host = POSTGRES_SQL_CONTAINER.getHost();
     String port = POSTGRES_SQL_CONTAINER.getMappedPort(5432).toString();
 
     PipelineOptions options = PipelineOptionsFactory.create();
@@ -173,7 +175,6 @@ public class DebeziumIOPostgresSqlConnectorIT {
                         .withPort(port)
                         .withConnectionProperty("database.dbname", "inventory")
                         .withConnectionProperty("database.server.name", "dbserver1")
-                        .withConnectionProperty("database.include.list", "inventory")
                         .withConnectionProperty("include.schema.changes", "false"))
                 .withFormatFunction(new SourceRecordJson.SourceRecordJsonMapper())
                 .withMaxNumberOfRecords(30)
