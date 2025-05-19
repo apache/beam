@@ -1,9 +1,9 @@
 ---
-title: "Akvelon Empowers Secure and Interoperable Data Pipelines with Apache Beam"
+title: "Secure and Interoperable Apache Beam Pipelines by Akvelon"
 name: "Akvelon"
 icon: "/images/logos/powered-by/akvelon.png"
 category: "study"
-cardTitle: "Akvelon Empowers Secure and Interoperable Data Pipelines with Apache Beam"
+cardTitle: "Secure and Interoperable Apache Beam Pipelines by Akvelon"
 cardDescription: "To support data privacy and pipeline reusability at scale, Akvelon developed Beam-based solutions for Protegrity and a major North American credit reporting company, enabling tokenization with Dataflow Flex Templates. Akvelon also built a CDAP Connector to integrate CDAP plugins with Apache Beam, enabling plugin reuse and multi-runtime compatibility."
 authorName: "Vitaly Terentyev"
 coauthorName: "Ashley Pikle"
