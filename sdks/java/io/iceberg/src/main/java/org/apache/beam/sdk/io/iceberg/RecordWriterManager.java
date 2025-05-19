@@ -295,7 +295,11 @@ class RecordWriterManager implements AutoCloseable {
             org.apache.iceberg.Schema tableSchema =
                 IcebergUtils.beamSchemaToIcebergSchema(dataSchema);
             table = catalog.createTable(identifier, tableSchema, partitionSpec);
-            LOG.info("Created Iceberg table '{}' with schema: {}", identifier, tableSchema);
+            LOG.info(
+                "Created Iceberg table '{}' with schema: {}\n, partition spec: {}",
+                identifier,
+                tableSchema,
+                partitionSpec);
           } catch (AlreadyExistsException alreadyExistsException) {
             // handle race condition where workers are concurrently creating the same table.
             // if running into already exists exception, we perform one last load

@@ -37,7 +37,7 @@ import org.apache.iceberg.transforms.Transform;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Test;
 
-/** Tests for {@link PartitionUtils}.*/
+/** Tests for {@link PartitionUtils}. */
 public class PartitionUtilsTest {
   private static final Schema SCHEMA =
       Schema.builder()
