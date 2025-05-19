@@ -400,7 +400,7 @@ class StagerTest(unittest.TestCase):
             'The --setup_file option expects the full path to a file named '
             'setup.py or pyproject.toml instead of '))
 
-  def test_setup_file_not_named_pyproject_dot_toml_file(self):
+  def test_setup_file_supplies_unexpected_filename(self):
     staging_dir = self.make_temp_dir()
     source_dir = self.make_temp_dir()
 
