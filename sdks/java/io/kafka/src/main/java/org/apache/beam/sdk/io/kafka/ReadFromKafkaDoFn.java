@@ -591,7 +591,7 @@ abstract class ReadFromKafkaDoFn<K, V>
     long expectedOffset = tracker.currentRestriction().getFrom();
     consumer.resume(Collections.singleton(topicPartition));
     consumer.seek(topicPartition, expectedOffset);
-    final Stopwatch sw = Stopwatch.createStarted();
+    final Stopwatch pollTimer = Stopwatch.createUnstarted();
 
     final KafkaMetrics kafkaMetrics = KafkaSinkMetrics.kafkaMetrics();
     try {
@@ -600,7 +600,7 @@ abstract class ReadFromKafkaDoFn<K, V>
         // A consumer will often have prefetches waiting to be returned immediately in which case
         // this timer may contribute more latency than it measures.
         // See https://shipilev.net/blog/2014/nanotrusting-nanotime/ for more information.
-        final Stopwatch pollTimer = Stopwatch.createStarted();
+        pollTimer.reset().start();
         // Fetch the next records.
         final ConsumerRecords<byte[], byte[]> rawRecords =
             consumer.poll(this.consumerPollingTimeout);
