@@ -18,7 +18,9 @@ package gcsx
 import (
 	"strings"
 	"testing"
+	"context"
 
+    "cloud.google.com/go/storage"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
@@ -104,5 +106,49 @@ func TestGetDisableSoftDeletePolicyBucketAttrs(t *testing.T) {
 	}
 	if attrs != nil && attrs.SoftDeletePolicy.RetentionDuration != 0 {
 		t.Errorf("attrs has RetentionDuration %v which is not correct", attrs.SoftDeletePolicy.RetentionDuration)
+	}
+}
+
+func TestSoftDeletePolicyWhenEnabled(t *testing.T) {
+	// Save original and defer restore
+	original := getBucketAttrs
+	defer func() { getBucketAttrs = original }()
+
+	// Inject mock behavior
+	getBucketAttrs = func(ctx context.Context, bucketName string) (*storage.BucketAttrs, error) {
+		return &storage.BucketAttrs{
+			SoftDeletePolicy: &storage.SoftDeletePolicy{
+				RetentionDuration: 1029,
+			},
+		}, nil
+	}
+
+	enabled, err := SoftDeletePolicyEnabled(context.Background(), "mock-bucket")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if !enabled {
+		t.Errorf("Expected soft delete to be enabled, got false")
+	}
+}
+
+func TestSoftDeletePolicyWhenDisabled(t *testing.T) {
+	original := getBucketAttrs
+	defer func() { getBucketAttrs = original }()
+
+	getBucketAttrs = func(ctx context.Context, bucketName string) (*storage.BucketAttrs, error) {
+		return &storage.BucketAttrs{
+			SoftDeletePolicy: &storage.SoftDeletePolicy{
+				RetentionDuration: 0,
+			},
+		}, nil
+	}
+
+	enabled, err := SoftDeletePolicyEnabled(context.Background(), "mock-bucket")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if enabled {
+		t.Errorf("Expected soft delete to be disabled, got true")
 	}
 }

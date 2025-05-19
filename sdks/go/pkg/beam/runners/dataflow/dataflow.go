@@ -268,6 +268,9 @@ func getJobOptions(ctx context.Context, streaming bool) (*dataflowlib.JobOptions
 	if *stagingLocation == "" {
 		return nil, errors.New("no GCS staging location specified. Use --staging_location=gs://<bucket>/<path>")
 	}
+
+	checkSoftDeletePolicyEnabled(ctx, *stagingLocation, "staging_location") 
+
 	var jobLabels map[string]string
 	if *labels != "" {
 		if err := json.Unmarshal([]byte(*labels), &jobLabels); err != nil {
@@ -411,6 +414,8 @@ func getJobOptions(ctx context.Context, streaming bool) (*dataflowlib.JobOptions
 	if opts.TempLocation == "" {
 		opts.TempLocation = gcsx.Join(*stagingLocation, "tmp")
 	}
+    
+	checkSoftDeletePolicyEnabled(ctx, opts.TempLocation, "temp_location")
 
 	return opts, nil
 }
@@ -455,4 +460,22 @@ func getContainerImage(ctx context.Context) string {
 		return envConfig
 	}
 	panic(fmt.Sprintf("Unsupported environment %v", urn))
+}
+
+func checkSoftDeletePolicyEnabled(ctx context.Context, bucketName string, locationName string) {
+    bucket, _, err := gcsx.ParseObject(bucketName)
+	if err != nil {
+		log.Warnf(ctx, "Error parsing bucket name: %v", err)
+		return
+	}
+	if enabled, err_msg := gcsx.SoftDeletePolicyEnabled(ctx, bucket); err_msg != nil {
+		log.Warnf(ctx,"Error checking SoftDeletePolicy: %v", err_msg)
+	}else if enabled {
+		log.Warnf(ctx,"Bucket %s specified in %s has soft-delete policy enabled. "+
+	    "Dataflow jobs use Cloud Storage to store temporary files during pipeline execution. "+
+	    "To avoid being billed for unnecessary storage costs, turn off the soft delete feature "+
+	    "on buckets that your Dataflow jobs use for temporary storage. "+
+	    "For more information, see https://cloud.google.com/storage/docs/use-soft-delete#remove-soft-delete-policy.", 
+	    bucketName,locationName)
+	}
 }
