@@ -119,8 +119,8 @@ class Pipeline(HasDisplayData):
   :class:`~apache_beam.transforms.ptransform.PTransform` s 
   and their :class:`~apache_beam.pvalue.PValue` s.
 
-  Conceptually the :class:~apache_beam.transforms.ptransform.PTransform` s are the DAG's nodes and
-  the :class:~apache_beam.pvalue.PValue` s are the edges.
+  Conceptually the :class:~apache_beam.transforms.ptransform.PTransform` s are 
+  the DAG's nodes and the :class:~apache_beam.pvalue.PValue` s are the edges.
 
   All the transforms applied to the pipeline must have distinct full labels.
   If same transform instance needs to be applied then the right shift operator
