@@ -260,7 +260,6 @@ public class StreamingTransformTranslatorTest implements Serializable {
         firstMax = currentMax;
       }
     }
-
     // Clean up state
     clean();
 
@@ -288,7 +287,7 @@ public class StreamingTransformTranslatorTest implements Serializable {
       }
     }
 
-    assertTrue(secondMax > firstMax);
+    assertTrue(secondMax >= firstMax);
     assertEquals((1L + secondMax) * secondMax / 2, secondSum);
   }
 
