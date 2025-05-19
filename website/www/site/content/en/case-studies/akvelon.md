@@ -80,7 +80,7 @@ Akvelon designed and implemented a **Dataflow Flex Template** using Apache Beam 
 ### Key features
 - **Seamless integration with Protegrity UDFs**, enabling native tokenization directly within Beam transforms without requiring external service orchestration
 - **Support for multiple data formats** such as CSV, JSON, Parquet, allowing flexible deployment across diverse data pipelines
-- **Stateful processing with DoFn and timers**, which improves streaming reliability and reduces overall pipeline latency
+- **Stateful processing with `DoFn` and timers**, which improves streaming reliability and reduces overall pipeline latency
 - **Full compatibility with Google Cloud Dataflow**, ensuring autoscaling, fault tolerance, and operational simplicity through managed Apache Beam execution
 
 This design provided both Protegrity and its enterprise clients with a reusable, open-source architecture for scalable data privacy and processing.
@@ -127,7 +127,7 @@ Akvelon engineered a **shim layer** (CDAP Connector) that bridges CDAP plugins w
 
 ### Highlights
 
-- Supports StructuredRecord format conversion to Beam schema (BeamRow)
+- Supports `StructuredRecord` format conversion to Beam schema (`BeamRow`)
 - Enables CDAP plugins to run seamlessly in both Spark and Beam pipelines
 - Facilitates integration testing across third-party data sources (e.g., Salesforce, Zendesk)
 - Complies with Beam’s development and style guide for open-source contributions
