@@ -88,7 +88,7 @@ jobs:
         with:
             gradle-command: :runners:google-cloud-dataflow-java:examplesJavaRunnerV2IntegrationTestDistroless
             max-workers: 12
-            arguments: |
+            arguments:
               -PskipCheckerFramework
               -PtestJavaVersion=17
               -Pjava17Home=$JAVA_HOME_17_X64
