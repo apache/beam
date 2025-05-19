@@ -591,7 +591,6 @@ abstract class ReadFromKafkaDoFn<K, V>
     long expectedOffset = tracker.currentRestriction().getFrom();
     consumer.resume(Collections.singleton(topicPartition));
     consumer.seek(topicPartition, expectedOffset);
-    long skippedRecords = 0L;
     final Stopwatch sw = Stopwatch.createStarted();
 
     final KafkaMetrics kafkaMetrics = KafkaSinkMetrics.kafkaMetrics();
@@ -626,14 +625,6 @@ abstract class ReadFromKafkaDoFn<K, V>
         // Visible progress within the consumer polling timeout.
         // Partially or fully claim and process records in this batch.
         for (ConsumerRecord<byte[], byte[]> rawRecord : rawRecords) {
-          if (skippedRecords > 0L) {
-            LOG.warn(
-                "{} records were skipped due to seek returning an"
-                    + " earlier position than requested position of {}",
-                skippedRecords,
-                expectedOffset);
-            skippedRecords = 0L;
-          }
           if (!tracker.tryClaim(rawRecord.offset())) {
             consumer.seek(topicPartition, rawRecord.offset());
             consumer.pause(Collections.singleton(topicPartition));
