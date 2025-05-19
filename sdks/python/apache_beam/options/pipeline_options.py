@@ -187,7 +187,7 @@ class _GcsCustomAuditEntriesAction(argparse.Action):
           "The value '%s' in GCS custom audit entries exceeds the %d-character limit."  # pylint: disable=line-too-long
           % (value, _GcsCustomAuditEntriesAction.MAX_VALUE_LENGTH))
 
-    if _GcsCustomAuditEntriesAction.GCS_AUDIT_PREFIX in key:
+    if key.startswith(_GcsCustomAuditEntriesAction.GCS_AUDIT_PREFIX):
       self._custom_audit_entries[key] = value
     else:
       self._custom_audit_entries[_GcsCustomAuditEntriesAction.GCS_AUDIT_PREFIX +
@@ -296,7 +296,7 @@ class PipelineOptions(HasDisplayData):
 
     # Build parser that will parse options recognized by the [sub]class of
     # PipelineOptions whose object is being instantiated.
-    parser = _BeamArgumentParser()
+    parser = _BeamArgumentParser(allow_abbrev=False)
     for cls in type(self).mro():
       if cls == PipelineOptions:
         break
@@ -411,7 +411,7 @@ class PipelineOptions(HasDisplayData):
     # sub-classes in the main session might be repeated. Pick last unique
     # instance of each subclass to avoid conflicts.
     subset = {}
-    parser = _BeamArgumentParser()
+    parser = _BeamArgumentParser(allow_abbrev=False)
     for cls in PipelineOptions.__subclasses__():
       subset[str(cls)] = cls
     for cls in subset.values():
