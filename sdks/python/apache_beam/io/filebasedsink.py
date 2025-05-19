@@ -440,10 +440,10 @@ class FileBasedSinkWriter(iobase.Writer):
   def at_capacity(self):
     return (
         self.sink.max_records_per_shard and
-        self.num_records_written >= self.sink.max_records_per_shard
-    ) or (
-        self.sink.max_bytes_per_shard and
-        self.sink.byte_counter.bytes_written >= self.sink.max_bytes_per_shard)
+        self.num_records_written >= self.sink.max_records_per_shard) or (
+            self.sink.max_bytes_per_shard and
+            self.sink.byte_counter.bytes_written
+            >= self.sink.max_bytes_per_shard)
 
   def close(self):
     self.sink.close(self.temp_handle)

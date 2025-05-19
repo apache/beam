@@ -181,8 +181,7 @@ class JobServiceHandle(object):
     # TODO: Define URNs for options.
     p_options = {
         'beam:option:' + k + ':v1': convert_pipeline_option_value(v)
-        for k,
-        v in all_options.items() if v is not None
+        for k, v in all_options.items() if v is not None
     }
     return job_utils.dict_to_struct(p_options)
 

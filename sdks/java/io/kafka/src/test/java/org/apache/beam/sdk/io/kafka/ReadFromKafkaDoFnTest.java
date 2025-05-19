@@ -267,12 +267,14 @@ public class ReadFromKafkaDoFnTest {
     @Override
     public synchronized void assign(Collection<TopicPartition> partitions) {
       assertTrue(Iterables.getOnlyElement(partitions).equals(this.topicPartition));
+      super.assign(partitions);
     }
 
     @Override
     public synchronized void seek(TopicPartition partition, long offset) {
       assertTrue(partition.equals(this.topicPartition));
       this.startOffset = offset;
+      super.seek(partition, offset);
     }
 
     @Override
@@ -715,14 +717,14 @@ public class ReadFromKafkaDoFnTest {
   @Test
   public void testConstructorWithPollTimeout() {
     ReadSourceDescriptors<String, String> descriptors = makeReadSourceDescriptor(consumer);
-    // default poll timeout = 1 scond
+    // default poll timeout = 2 seconds
     ReadFromKafkaDoFn<String, String> dofnInstance = ReadFromKafkaDoFn.create(descriptors, RECORDS);
-    Assert.assertEquals(2L, dofnInstance.consumerPollingTimeout);
+    Assert.assertEquals(Duration.ofSeconds(2L), dofnInstance.consumerPollingTimeout);
     // updated timeout = 5 seconds
     descriptors = descriptors.withConsumerPollingTimeout(5L);
     ReadFromKafkaDoFn<String, String> dofnInstanceNew =
         ReadFromKafkaDoFn.create(descriptors, RECORDS);
-    Assert.assertEquals(5L, dofnInstanceNew.consumerPollingTimeout);
+    Assert.assertEquals(Duration.ofSeconds(5L), dofnInstanceNew.consumerPollingTimeout);
   }
 
   private BoundednessVisitor testBoundedness(

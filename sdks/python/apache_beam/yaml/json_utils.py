@@ -36,14 +36,17 @@ JSON_ATOMIC_TYPES_TO_BEAM = {
     'integer': schema_pb2.INT64,
     'number': schema_pb2.DOUBLE,
     'string': schema_pb2.STRING,
+    'bytes': schema_pb2.BYTES
 }
 
 BEAM_ATOMIC_TYPES_TO_JSON = {
     schema_pb2.INT16: 'integer',
     schema_pb2.INT32: 'integer',
     schema_pb2.FLOAT: 'number',
-    **{v: k
-       for k, v in JSON_ATOMIC_TYPES_TO_BEAM.items()}
+    **{
+        v: k
+        for k, v in JSON_ATOMIC_TYPES_TO_BEAM.items()
+    }
 }
 
 

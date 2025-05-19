@@ -139,65 +139,48 @@ class StandardCodersTest(unittest.TestCase):
       'beam:coder:bool:v1': lambda x: x,
       'beam:coder:string_utf8:v1': lambda x: x,
       'beam:coder:varint:v1': lambda x: x,
-      'beam:coder:kv:v1': lambda x,
-      key_parser,
-      value_parser: (key_parser(x['key']), value_parser(x['value'])),
+      'beam:coder:kv:v1': lambda x, key_parser, value_parser:
+      (key_parser(x['key']), value_parser(x['value'])),
       'beam:coder:interval_window:v1': lambda x: IntervalWindow(
-          start=Timestamp(micros=(x['end'] - x['span']) * 1000),
-          end=Timestamp(micros=x['end'] * 1000)),
-      'beam:coder:iterable:v1': lambda x,
-      parser: list(map(parser, x)),
-      'beam:coder:state_backed_iterable:v1': lambda x,
-      parser: list(map(parser, x)),
+          start=Timestamp(micros=(x['end'] - x['span']) * 1000), end=Timestamp(
+              micros=x['end'] * 1000)),
+      'beam:coder:iterable:v1': lambda x, parser: list(map(parser, x)),
+      'beam:coder:state_backed_iterable:v1': lambda x, parser: list(
+          map(parser, x)),
       'beam:coder:global_window:v1': lambda x: window.GlobalWindow(),
-      'beam:coder:windowed_value:v1': lambda x,
-      value_parser,
+      'beam:coder:windowed_value:v1': lambda x, value_parser, window_parser:
+      windowed_value.create(
+          value_parser(x['value']), x['timestamp'] * 1000, tuple(
+              window_parser(w) for w in x['windows'])),
+      'beam:coder:param_windowed_value:v1': lambda x, value_parser,
       window_parser: windowed_value.create(
-          value_parser(x['value']),
-          x['timestamp'] * 1000,
-          tuple(window_parser(w) for w in x['windows'])),
-      'beam:coder:param_windowed_value:v1': lambda x,
-      value_parser,
-      window_parser: windowed_value.create(
-          value_parser(x['value']),
-          x['timestamp'] * 1000,
-          tuple(window_parser(w) for w in x['windows']),
-          PaneInfo(
-              x['pane']['is_first'],
-              x['pane']['is_last'],
-              PaneInfoTiming.from_string(x['pane']['timing']),
-              x['pane']['index'],
-              x['pane']['on_time_index'])),
-      'beam:coder:timer:v1': lambda x,
-      value_parser,
-      window_parser: userstate.Timer(
-          user_key=value_parser(x['userKey']),
-          dynamic_timer_tag=x['dynamicTimerTag'],
-          clear_bit=x['clearBit'],
-          windows=tuple(window_parser(w) for w in x['windows']),
-          fire_timestamp=None,
-          hold_timestamp=None,
-          paneinfo=None) if x['clearBit'] else userstate.Timer(
-              user_key=value_parser(x['userKey']),
-              dynamic_timer_tag=x['dynamicTimerTag'],
-              clear_bit=x['clearBit'],
-              fire_timestamp=Timestamp(micros=x['fireTimestamp'] * 1000),
-              hold_timestamp=Timestamp(micros=x['holdTimestamp'] * 1000),
-              windows=tuple(window_parser(w) for w in x['windows']),
-              paneinfo=PaneInfo(
-                  x['pane']['is_first'],
-                  x['pane']['is_last'],
-                  PaneInfoTiming.from_string(x['pane']['timing']),
-                  x['pane']['index'],
-                  x['pane']['on_time_index'])),
+          value_parser(x['value']), x['timestamp'] * 1000, tuple(
+              window_parser(w) for w in x['windows']), PaneInfo(
+                  x['pane']['is_first'], x['pane']['is_last'], PaneInfoTiming.
+                  from_string(x['pane']['timing']), x['pane']['index'], x[
+                      'pane']['on_time_index'])),
+      'beam:coder:timer:v1': lambda x, value_parser, window_parser: userstate.
+      Timer(
+          user_key=value_parser(x['userKey']), dynamic_timer_tag=x[
+              'dynamicTimerTag'], clear_bit=x['clearBit'], windows=tuple(
+                  window_parser(w) for w in x['windows']), fire_timestamp=None,
+          hold_timestamp=None, paneinfo=None)
+      if x['clearBit'] else userstate.Timer(
+          user_key=value_parser(x['userKey']), dynamic_timer_tag=x[
+              'dynamicTimerTag'], clear_bit=x['clearBit'], fire_timestamp=
+          Timestamp(micros=x['fireTimestamp'] * 1000), hold_timestamp=Timestamp(
+              micros=x['holdTimestamp'] * 1000), windows=tuple(
+                  window_parser(w) for w in x['windows']), paneinfo=PaneInfo(
+                      x['pane']['is_first'], x['pane']['is_last'],
+                      PaneInfoTiming.from_string(x['pane']['timing']), x[
+                          'pane']['index'], x['pane']['on_time_index'])),
       'beam:coder:double:v1': parse_float,
-      'beam:coder:sharded_key:v1': lambda x,
-      value_parser: ShardedKey(
+      'beam:coder:sharded_key:v1': lambda x, value_parser: ShardedKey(
           key=value_parser(x['key']), shard_id=x['shardId'].encode('utf-8')),
-      'beam:coder:custom_window:v1': lambda x,
-      window_parser: window_parser(x['window']),
-      'beam:coder:nullable:v1': lambda x,
-      value_parser: x.encode('utf-8') if x else None
+      'beam:coder:custom_window:v1': lambda x, window_parser: window_parser(
+          x['window']),
+      'beam:coder:nullable:v1': lambda x, value_parser: x.encode('utf-8')
+      if x else None
   }
 
   def test_standard_coders(self):

@@ -41,7 +41,6 @@ from typing import Any
 from typing import Optional
 from typing import Union
 
-import clonevirtualenv
 import docstring_parser
 import yaml
 
@@ -49,6 +48,7 @@ import apache_beam as beam
 import apache_beam.dataframe.io
 import apache_beam.io
 import apache_beam.transforms.util
+from apache_beam import ManagedReplacement
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.portability.api import schema_pb2
 from apache_beam.runners import pipeline_context
@@ -182,10 +182,20 @@ class ExternalProvider(Provider):
   """A Provider implemented via the cross language transform service."""
   _provider_types: dict[str, Callable[..., Provider]] = {}
 
-  def __init__(self, urns, service):
+  def __init__(self, urns, service, managed_replacement=None):
+    """Initializes the ExternalProvider.
+
+    Args:
+      urns: a set of URNs that uniquely identify the transforms supported.
+      service: the gradle target that identified the expansion service jar.
+      managed_replacement (Optional): a map that defines the transform for
+        which the SDK may replace the transform with an available managed
+        transform.
+    """
     self._urns = urns
     self._service = service
     self._schema_transforms = None
+    self._managed_replacement = managed_replacement
 
   def provided_transforms(self):
     return self._urns.keys()
@@ -225,8 +235,18 @@ class ExternalProvider(Provider):
       self._service = self._service()
     urn = self._urns[type]
     if urn in self.schema_transforms():
+      managed_replacement = None
+      if self._managed_replacement and type in self._managed_replacement:
+        managed_replacement = ManagedReplacement(
+            underlying_transform_identifier=urn,
+            update_compatibility_version=self._managed_replacement[type])
+
       return external.SchemaAwareExternalTransform(
-          urn, self._service, rearrange_based_on_discovery=True, **args)
+          urn,
+          self._service,
+          rearrange_based_on_discovery=True,
+          managed_replacement=managed_replacement,
+          **args)
     else:
       return type >> self.create_external_transform(urn, args)
 
@@ -304,14 +324,9 @@ def maven_jar(
     classifier=None,
     appendix=None):
   return ExternalJavaProvider(
-      urns,
-      lambda: subprocess_server.JavaJarServer.path_to_maven_jar(
-          artifact_id=artifact_id,
-          group_id=group_id,
-          version=version,
-          repository=repository,
-          classifier=classifier,
-          appendix=appendix))
+      urns, lambda: subprocess_server.JavaJarServer.path_to_maven_jar(
+          artifact_id=artifact_id, group_id=group_id, version=version,
+          repository=repository, classifier=classifier, appendix=appendix))
 
 
 @ExternalProvider.register_provider_type('beamJar')
@@ -319,14 +334,15 @@ def beam_jar(
     urns,
     *,
     gradle_target,
+    managed_replacement=None,
     appendix=None,
     version=beam_version,
     artifact_id=None):
   return ExternalJavaProvider(
-      urns,
-      lambda: subprocess_server.JavaJarServer.path_to_beam_jar(
-          gradle_target=gradle_target, version=version, artifact_id=artifact_id)
-  )
+      urns, lambda: subprocess_server.JavaJarServer.path_to_beam_jar(
+          gradle_target=gradle_target, version=version, artifact_id=artifact_id
+      ),
+      managed_replacement=managed_replacement)
 
 
 @ExternalProvider.register_provider_type('docker')
@@ -358,11 +374,12 @@ class RemoteProvider(ExternalProvider):
 
 
 class ExternalJavaProvider(ExternalProvider):
-  def __init__(self, urns, jar_provider, classpath=None):
+  def __init__(
+      self, urns, jar_provider, managed_replacement=None, classpath=None):
     super().__init__(
-        urns,
-        lambda: external.JavaJarExpansionService(
-            jar_provider(), classpath=classpath))
+        urns, lambda: external.JavaJarExpansionService(
+            jar_provider(), classpath=classpath),
+        managed_replacement)
     self._jar_provider = jar_provider
     self._classpath = classpath
 
@@ -402,8 +419,8 @@ def python(urns, provider_base_path, packages=()):
     return ExternalPythonProvider(urns, provider_base_path, packages)
   else:
     return InlineProvider({
-        name:
-        python_callable.PythonCallableWithSource.load_from_source(constructor)
+        name: python_callable.PythonCallableWithSource.load_from_source(
+            constructor)
         for (name, constructor) in urns.items()
     })
 
@@ -516,7 +533,7 @@ class YamlProvider(Provider):
     if (body.get('type') == 'chain' and 'input' not in body and
         spec.get('requires_inputs', True)):
       body['input'] = 'input'
-    return yaml_create_transform(preprocess(body), [])
+    return yaml_create_transform(preprocess(body))  # type: ignore
 
 
 # This is needed because type inference can't handle *args, **kwargs forwarding.
@@ -596,9 +613,8 @@ class InlineProvider(Provider):
         for param in cls.get_docs(factory).params
     }
 
-    names_and_types = [
-        (name, typing_to_runner_api(type_of(p))) for name, p in params.items()
-    ]
+    names_and_types = [(name, typing_to_runner_api(type_of(p)))
+                       for name, p in params.items()]
     return schema_pb2.Schema(
         fields=[
             schema_pb2.Field(name=name, type=type, description=docs.get(name))
@@ -661,6 +677,15 @@ class MetaInlineProvider(InlineProvider):
     return self._transform_factories[type](yaml_create_transform, **args)
 
 
+# Note: This function is used to override the default provider by some
+# users, so a change here will be breaking to those users. Change with
+# caution.
+def get_default_sql_provider():
+  return beam_jar(
+      urns={'Sql': 'beam:external:java:sql:v1'},
+      gradle_target='sdks:java:extensions:sql:expansion-service:shadowJar')
+
+
 class SqlBackedProvider(Provider):
   def __init__(
       self,
@@ -668,9 +693,7 @@ class SqlBackedProvider(Provider):
       sql_provider: Optional[Provider] = None):
     self._transforms = transforms
     if sql_provider is None:
-      sql_provider = beam_jar(
-          urns={'Sql': 'beam:external:java:sql:v1'},
-          gradle_target='sdks:java:extensions:sql:expansion-service:shadowJar')
+      sql_provider = get_default_sql_provider()
     self._sql_provider = sql_provider
 
   def sql_provider(self):
@@ -1190,6 +1213,8 @@ class PypiExpansionService:
     venv = cls._path(base_python, packages)
     if not os.path.exists(venv):
       try:
+        # Avoid hard dependency for environments where this is never used.
+        import clonevirtualenv
         clonable_venv = cls._create_venv_to_clone(base_python)
         clonevirtualenv.clone_virtualenv(clonable_venv, venv)
         venv_pip = os.path.join(venv, 'bin', 'pip')

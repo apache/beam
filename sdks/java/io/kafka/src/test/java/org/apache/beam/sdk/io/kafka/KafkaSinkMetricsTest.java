@@ -19,7 +19,9 @@ package org.apache.beam.sdk.io.kafka;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertTrue;
 
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.sdk.metrics.Gauge;
 import org.apache.beam.sdk.metrics.Histogram;
 import org.apache.beam.sdk.metrics.MetricName;
@@ -43,6 +45,11 @@ public class KafkaSinkMetricsTest {
             "RpcLatency*rpc_method:POLL;topic_name:topic1;",
             ImmutableMap.of("PER_WORKER_METRIC", "true"));
     assertThat(histogram.getName(), equalTo(histogramName));
+    assertTrue(
+        histogram
+            .getName()
+            .getLabels()
+            .containsKey(MonitoringInfoConstants.Labels.PER_WORKER_METRIC));
   }
 
   @Test
@@ -58,5 +65,7 @@ public class KafkaSinkMetricsTest {
             ImmutableMap.of("PER_WORKER_METRIC", "true"));
 
     assertThat(gauge.getName(), equalTo(gaugeName));
+    assertTrue(
+        gauge.getName().getLabels().containsKey(MonitoringInfoConstants.Labels.PER_WORKER_METRIC));
   }
 }

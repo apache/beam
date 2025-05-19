@@ -16,6 +16,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 # Beam ZetaSQL overview
+
+**Note:** Beam ZetaSQL has been deprecated ([details](https://github.com/apache/beam/issues/34423)). Please switch to use the default [Calcite SQL](/documentation/dsls/sql/calcite/overview) dialect.
+
 Beam SQL supports a variant of the [ZetaSQL](https://github.com/google/zetasql) language. ZetaSQL is similar to the language in BigQuery's SQL framework. This Beam SQL dialect is especially useful in pipelines that [write to or read from BigQuery tables](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.html).
 
 Beam SQL has additional extensions leveraging Beam’s unified batch/streaming model and processing complex data types. You can use these extensions with all Beam SQL dialects, including Beam ZetaSQL.
