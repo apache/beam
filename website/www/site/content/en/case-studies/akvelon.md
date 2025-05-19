@@ -51,7 +51,7 @@ limitations under the License.
 </div>
 <div class="case-study-post">
 
-# Akvelon Empowers Secure and Interoperable Data Pipelines with Apache Beam
+# Secure and Interoperable Apache Beam Pipelines by Akvelon
 
 ## Background
 
