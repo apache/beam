@@ -79,6 +79,10 @@ jobs:
         with:
             gradle-command: :runners:google-cloud-dataflow-java:examplesJavaRunnerV2IntegrationTest
             max-workers: 12
+            arguments: |
+              -PdisableSpotlessCheck=true \
+              -PdisableCheckStyle=true \
+              -PskipCheckerFramework \
       - name: Setup Java 17 environment
         uses: ./.github/actions/setup-environment-action
         with:
@@ -88,10 +92,12 @@ jobs:
         with:
             gradle-command: :runners:google-cloud-dataflow-java:examplesJavaRunnerV2IntegrationTestDistroless
             max-workers: 12
-            arguments:
-              -PskipCheckerFramework
-              -PtestJavaVersion=17
-              -Pjava17Home=$JAVA_HOME_17_X64
+            arguments: |
+              -PdisableSpotlessCheck=true \
+              -PdisableCheckStyle=true \
+              -PskipCheckerFramework \
+              -PtestJavaVersion=17 \
+              -Pjava17Home=$JAVA_HOME_17_X64 \
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v4
         if: ${{ !success() }}
