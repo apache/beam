@@ -16,5 +16,5 @@
  * limitations under the License.
  */
 
-/** Common code for AWS authentication providers running on external locations. */
-package org.apache.beam.sdk.io.aws2.common.auth.providers;
+/** Common code for AWS authentication related functionalities. */
+package org.apache.beam.sdk.io.aws2.auth;

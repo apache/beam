@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.aws2.common.auth.providers;
+package org.apache.beam.sdk.io.aws2.auth;
 
 import org.apache.beam.sdk.util.InstanceBuilder;
 

@@ -41,7 +41,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import java.util.function.Supplier;
-import org.apache.beam.sdk.io.aws2.common.auth.providers.StsAssumeRoleWithDynamicWebIdentityCredentialsProvider;
+import org.apache.beam.sdk.io.aws2.auth.StsAssumeRoleForFederatedCredentialsProvider;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.util.ThrowingSupplier;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
@@ -287,7 +287,7 @@ public class AwsModuleTest {
     String webTokenProviderFQCN = "some.class.Name";
     Integer sessionDurationSecs = 30;
     AwsCredentialsProvider provider =
-        StsAssumeRoleWithDynamicWebIdentityCredentialsProvider.builder()
+        StsAssumeRoleForFederatedCredentialsProvider.builder()
             .setAssumedRoleArn(roleArn)
             .setAudience(audience)
             .setWebIdTokenProviderFQCN(webTokenProviderFQCN)
@@ -298,9 +298,9 @@ public class AwsModuleTest {
     AwsCredentialsProvider deserializedProvider = serializeAndDeserialize(provider);
 
     assertThat(deserializedProvider)
-        .isInstanceOf(StsAssumeRoleWithDynamicWebIdentityCredentialsProvider.class);
-    StsAssumeRoleWithDynamicWebIdentityCredentialsProvider castedProvider =
-        (StsAssumeRoleWithDynamicWebIdentityCredentialsProvider) deserializedProvider;
+        .isInstanceOf(StsAssumeRoleForFederatedCredentialsProvider.class);
+    StsAssumeRoleForFederatedCredentialsProvider castedProvider =
+        (StsAssumeRoleForFederatedCredentialsProvider) deserializedProvider;
     assertThat(castedProvider.assumedRoleArn()).isEqualTo(roleArn);
     assertThat(castedProvider.audience()).isEqualTo(audience);
     assertThat(castedProvider.webIdTokenProviderFQCN()).isEqualTo(webTokenProviderFQCN);
@@ -313,7 +313,7 @@ public class AwsModuleTest {
     String audience = "audience";
     String webTokenProviderFQCN = "some.class.Name";
     AwsCredentialsProvider provider =
-        StsAssumeRoleWithDynamicWebIdentityCredentialsProvider.builder()
+        StsAssumeRoleForFederatedCredentialsProvider.builder()
             .setAssumedRoleArn(roleArn)
             .setAudience(audience)
             .setWebIdTokenProviderFQCN(webTokenProviderFQCN)
@@ -323,9 +323,9 @@ public class AwsModuleTest {
     AwsCredentialsProvider deserializedProvider = serializeAndDeserialize(provider);
 
     assertThat(deserializedProvider)
-        .isInstanceOf(StsAssumeRoleWithDynamicWebIdentityCredentialsProvider.class);
-    StsAssumeRoleWithDynamicWebIdentityCredentialsProvider castedProvider =
-        (StsAssumeRoleWithDynamicWebIdentityCredentialsProvider) deserializedProvider;
+        .isInstanceOf(StsAssumeRoleForFederatedCredentialsProvider.class);
+    StsAssumeRoleForFederatedCredentialsProvider castedProvider =
+        (StsAssumeRoleForFederatedCredentialsProvider) deserializedProvider;
     assertThat(castedProvider.assumedRoleArn()).isEqualTo(roleArn);
     assertThat(castedProvider.audience()).isEqualTo(audience);
     assertThat(castedProvider.webIdTokenProviderFQCN()).isEqualTo(webTokenProviderFQCN);

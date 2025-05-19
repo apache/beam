@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.aws2.common.auth.providers;
+package org.apache.beam.sdk.io.aws2.auth;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -28,6 +28,17 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
 /**
  * A OIDC web identity token provider implementation that uses the application default credentials
  * set by the runtime (container, GCE instance, local environment, etc.).
+ *
+ * <p>To configure a long-running (batch or streaming) Dataflow pipeline that interacts with AWS
+ * resources use a similar configuration to:
+ *
+ * <pre>{@code --awsCredentialsProvider={
+ *   "@type": "StsAssumeRoleForFederatedCredentialsProvider",
+ *   "roleArn": "<the AWS ARN of the role to be assumed by the pipeline>",
+ *   "audience": "<the configured Audience for the federated authentication>",
+ *   "webIdTokenProviderFQCN": "org.apache.beam.sdk.io.aws2.auth.GoogleADCIdTokenProvider",
+ *   "durationSeconds": 3600
+ * }}</pre>
  */
 public class GoogleADCIdTokenProvider implements WebIdTokenProvider {
   private final IdTokenProvider idTokenProvider;

@@ -15,12 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.aws2.common.auth.providers;
+package org.apache.beam.sdk.io.aws2.auth;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
-import org.apache.beam.sdk.io.aws2.common.auth.providers.StsAssumeRoleWithDynamicWebIdentityCredentialsProvider.CredentialsProviderDelegate;
+import org.apache.beam.sdk.io.aws2.auth.StsAssumeRoleForFederatedCredentialsProvider.CredentialsProviderDelegate;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -29,11 +29,11 @@ import org.mockito.junit.MockitoJUnitRunner;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 
 @RunWith(MockitoJUnitRunner.class)
-public class StsAssumeRoleWithDynamicWebIdentityCredentialsProviderTest {
+public class StsAssumeRoleForFederatedCredentialsProviderTest {
   private static final String AUDIENCE = "some static audience";
   private static final String ASSUMED_ROLE = "some role";
   private static final String TEST_WEBTOKEN_PROVIDER =
-      "org.apache.beam.sdk.io.aws2.common.auth.providers.StsAssumeRoleWithDynamicWebIdentityCredentialsProviderTest$TestTokenProvider";
+      "org.apache.beam.sdk.io.aws2.auth.StsAssumeRoleForFederatedCredentialsProviderTest$TestTokenProvider";
   private static final String FAKE_ACCESS_KEY = "some-access-key";
   private static final String FAKE_SECRET_KEY = "some-secret-key";
 
@@ -49,8 +49,8 @@ public class StsAssumeRoleWithDynamicWebIdentityCredentialsProviderTest {
 
   @Test
   public void retrieveAwsCredentials() {
-    StsAssumeRoleWithDynamicWebIdentityCredentialsProvider provider =
-        StsAssumeRoleWithDynamicWebIdentityCredentialsProvider.builder()
+    StsAssumeRoleForFederatedCredentialsProvider provider =
+        StsAssumeRoleForFederatedCredentialsProvider.builder()
             .setAssumedRoleArn(ASSUMED_ROLE)
             .setAudience(AUDIENCE)
             .setWebIdTokenProviderFQCN(TEST_WEBTOKEN_PROVIDER)
@@ -66,7 +66,7 @@ public class StsAssumeRoleWithDynamicWebIdentityCredentialsProviderTest {
 
   @Test(expected = IllegalStateException.class)
   public void mustFailWithoutRole() {
-    StsAssumeRoleWithDynamicWebIdentityCredentialsProvider.builder()
+    StsAssumeRoleForFederatedCredentialsProvider.builder()
         .setAudience(AUDIENCE)
         .setWebIdTokenProviderFQCN(TEST_WEBTOKEN_PROVIDER)
         .build();
@@ -74,7 +74,7 @@ public class StsAssumeRoleWithDynamicWebIdentityCredentialsProviderTest {
 
   @Test(expected = IllegalStateException.class)
   public void mustFailWithoutAudience() {
-    StsAssumeRoleWithDynamicWebIdentityCredentialsProvider.builder()
+    StsAssumeRoleForFederatedCredentialsProvider.builder()
         .setAssumedRoleArn(ASSUMED_ROLE)
         .setWebIdTokenProviderFQCN(TEST_WEBTOKEN_PROVIDER)
         .build();
@@ -82,7 +82,7 @@ public class StsAssumeRoleWithDynamicWebIdentityCredentialsProviderTest {
 
   @Test(expected = IllegalStateException.class)
   public void mustFailWithoutIdTokenProvider() {
-    StsAssumeRoleWithDynamicWebIdentityCredentialsProvider.builder()
+    StsAssumeRoleForFederatedCredentialsProvider.builder()
         .setAssumedRoleArn(ASSUMED_ROLE)
         .setAudience(AUDIENCE)
         .build();

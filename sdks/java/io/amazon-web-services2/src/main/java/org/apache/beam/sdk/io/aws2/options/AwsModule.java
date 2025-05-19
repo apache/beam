@@ -46,7 +46,7 @@ import java.io.IOException;
 import java.util.Optional;
 import java.util.function.Supplier;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.reflect.FieldUtils;
-import org.apache.beam.sdk.io.aws2.common.auth.providers.StsAssumeRoleWithDynamicWebIdentityCredentialsProvider;
+import org.apache.beam.sdk.io.aws2.auth.StsAssumeRoleForFederatedCredentialsProvider;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider;
@@ -193,8 +193,8 @@ public class AwsModule extends SimpleModule {
                     .build())
             .build();
       } else if (typeName.equals(
-          StsAssumeRoleWithDynamicWebIdentityCredentialsProvider.class.getSimpleName())) {
-        return StsAssumeRoleWithDynamicWebIdentityCredentialsProvider.builder()
+          StsAssumeRoleForFederatedCredentialsProvider.class.getSimpleName())) {
+        return StsAssumeRoleForFederatedCredentialsProvider.builder()
             .setAudience(getNotNull(json, AUDIENCE, typeName))
             .setAssumedRoleArn(getNotNull(json, ROLE_ARN, typeName))
             .setWebIdTokenProviderFQCN(getNotNull(json, WEBID_TOKEN_FQCN, typeName))
@@ -202,8 +202,7 @@ public class AwsModule extends SimpleModule {
                 Optional.ofNullable(json.get(SESSION_DURATION_SECONDS))
                     .map(JsonNode::asInt)
                     .orElse(
-                        StsAssumeRoleWithDynamicWebIdentityCredentialsProvider
-                            .DEFAULT_SESSION_DURATION_SECS))
+                        StsAssumeRoleForFederatedCredentialsProvider.DEFAULT_SESSION_DURATION_SECS))
             .build();
       } else {
         throw new IOException(
@@ -284,10 +283,9 @@ public class AwsModule extends SimpleModule {
             .findValueSerializer(AssumeRoleWithWebIdentityRequest.serializableBuilderClass())
             .unwrappingSerializer(NameTransformer.NOP)
             .serialize(reqSupplier.get().toBuilder(), jsonGenerator, serializer);
-      } else if (credentialsProvider
-          instanceof StsAssumeRoleWithDynamicWebIdentityCredentialsProvider) {
-        StsAssumeRoleWithDynamicWebIdentityCredentialsProvider provider =
-            (StsAssumeRoleWithDynamicWebIdentityCredentialsProvider) credentialsProvider;
+      } else if (credentialsProvider instanceof StsAssumeRoleForFederatedCredentialsProvider) {
+        StsAssumeRoleForFederatedCredentialsProvider provider =
+            (StsAssumeRoleForFederatedCredentialsProvider) credentialsProvider;
         jsonGenerator.writeStringField(AUDIENCE, provider.audience());
         jsonGenerator.writeStringField(ROLE_ARN, provider.assumedRoleArn());
         jsonGenerator.writeStringField(WEBID_TOKEN_FQCN, provider.webIdTokenProviderFQCN());

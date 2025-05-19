@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.aws2.common.auth.providers;
+package org.apache.beam.sdk.io.aws2.auth;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
@@ -50,10 +50,10 @@ import software.amazon.awssdk.utils.SdkAutoCloseable;
 @AutoValue
 @JsonSubTypes({
   @JsonSubTypes.Type(
-      value = AutoValue_StsAssumeRoleWithDynamicWebIdentityCredentialsProvider.class,
-      name = "StsAssumeRoleWithDynamicWebIdentityCredentialsProvider")
+      value = AutoValue_StsAssumeRoleForFederatedCredentialsProvider.class,
+      name = "StsAssumeRoleForFederatedCredentialsProvider")
 })
-public abstract class StsAssumeRoleWithDynamicWebIdentityCredentialsProvider
+public abstract class StsAssumeRoleForFederatedCredentialsProvider
     implements AwsCredentialsProvider, SdkAutoCloseable {
 
   public static final Integer DEFAULT_SESSION_DURATION_SECS = 3600;
@@ -80,15 +80,15 @@ public abstract class StsAssumeRoleWithDynamicWebIdentityCredentialsProvider
   }
 
   /**
-   * Creates a builder for the type {@link StsAssumeRoleWithDynamicWebIdentityCredentialsProvider}.
+   * Creates a builder for the type {@link StsAssumeRoleForFederatedCredentialsProvider}.
    *
    * @return an initialized builder instance.
    */
-  public static StsAssumeRoleWithDynamicWebIdentityCredentialsProvider.Builder builder() {
-    return new AutoValue_StsAssumeRoleWithDynamicWebIdentityCredentialsProvider.Builder();
+  public static StsAssumeRoleForFederatedCredentialsProvider.Builder builder() {
+    return new AutoValue_StsAssumeRoleForFederatedCredentialsProvider.Builder();
   }
 
-  /** Builder class for {@link StsAssumeRoleWithDynamicWebIdentityCredentialsProvider}. */
+  /** Builder class for {@link StsAssumeRoleForFederatedCredentialsProvider}. */
   @AutoValue.Builder
   public abstract static class Builder {
 
@@ -144,15 +144,15 @@ public abstract class StsAssumeRoleWithDynamicWebIdentityCredentialsProvider
 
     abstract Integer sessionDurationSecs();
 
-    abstract StsAssumeRoleWithDynamicWebIdentityCredentialsProvider autoBuild(); // not public
+    abstract StsAssumeRoleForFederatedCredentialsProvider autoBuild(); // not public
 
     /**
-     * Validates and fully initializes a {@link
-     * StsAssumeRoleWithDynamicWebIdentityCredentialsProvider} instance.
+     * Validates and fully initializes a {@link StsAssumeRoleForFederatedCredentialsProvider}
+     * instance.
      *
      * @return the initialized credentials provider instance.
      */
-    public StsAssumeRoleWithDynamicWebIdentityCredentialsProvider build() {
+    public StsAssumeRoleForFederatedCredentialsProvider build() {
       checkState(audience() != null, "Audience value should not be null");
       checkState(assumedRoleArn() != null, "The role to assume should not be null");
       checkState(
