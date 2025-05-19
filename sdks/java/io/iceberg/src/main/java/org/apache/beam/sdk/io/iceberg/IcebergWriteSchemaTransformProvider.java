@@ -112,7 +112,7 @@ public class IcebergWriteSchemaTransformProvider
 
     @SchemaFieldDescription(
         "Fields used to create a partition spec that is applied when tables are created. For a field 'foo', "
-            + "the available partition transforms are: \n\n"
+            + "the available partition transforms are:\n\n"
             + "- `foo`\n"
             + "- `truncate(foo, N)`\n"
             + "- `bucket(foo, N)`\n"
