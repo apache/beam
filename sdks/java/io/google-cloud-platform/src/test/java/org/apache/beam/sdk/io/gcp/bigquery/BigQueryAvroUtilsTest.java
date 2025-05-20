@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
@@ -371,5 +372,51 @@ public class BigQueryAvroUtilsTest {
       associates = new SubBird[1];
       associates[0] = new SubBird();
     }
+  }
+
+  @Test
+  public void testToGenericAvroSchemaWithDuplicateFieldNamesInNestedRecords() {
+    TableFieldSchema stringSchema1 = new TableFieldSchema().setName("id1").setType("STRING");
+    TableFieldSchema stringSchema2 = new TableFieldSchema().setName("id2").setType("STRING");
+
+    TableFieldSchema identifier1Schema =
+        new TableFieldSchema()
+            .setName("identifier")
+            .setType("RECORD")
+            .setFields(java.util.Arrays.asList(stringSchema1));
+
+    TableFieldSchema identifier2Schema =
+        new TableFieldSchema()
+            .setName("identifier")
+            .setType("RECORD")
+            .setFields(java.util.Arrays.asList(stringSchema2));
+
+    TableFieldSchema recordSchema =
+        new TableFieldSchema()
+            .setName("record")
+            .setType("RECORD")
+            .setFields(java.util.Arrays.asList(identifier1Schema));
+
+    TableFieldSchema rootSchema =
+        new TableFieldSchema()
+            .setName("root")
+            .setType("RECORD")
+            .setFields(java.util.Arrays.asList(recordSchema, identifier2Schema));
+
+    final Schema output = BigQueryAvroUtils.toGenericAvroSchema("root", rootSchema.getFields());
+
+    // This line should throw SchemaParseException because Avro does not allow duplicate
+    // field names in the full schema, even if they are in different branches of the hierarchy
+    // when represented as BigQuery TableFieldSchema.
+    // Avro flattens or mangles names to avoid this, but our conversion might not,
+    // or it might produce a name that still clashes.
+    assertThrows(
+        org.apache.avro.SchemaParseException.class,
+        () -> {
+          // The act of trying to convert the schema to string will trigger the check
+          // for duplicate field names if the Avro library's Schema constructor or
+          // related methods perform this validation.
+          output.toString();
+        });
   }
 }

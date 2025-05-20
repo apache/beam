@@ -402,52 +402,103 @@ class BigQueryAvroUtils {
         unionTypes.get(1).getType(), unionTypes.get(1).getLogicalType(), fieldSchema, v);
   }
 
-  static Schema toGenericAvroSchema(String schemaName, List<TableFieldSchema> fieldSchemas) {
-    List<Field> avroFields = new ArrayList<>();
-    for (TableFieldSchema bigQueryField : fieldSchemas) {
-      avroFields.add(convertField(bigQueryField));
+  private static String sanitizeNameForAvro(String name) {
+    if (name == null || name.isEmpty()) {
+        return "_empty_";
     }
-    return Schema.createRecord(
-        schemaName,
-        "Translated Avro Schema for " + schemaName,
-        "org.apache.beam.sdk.io.gcp.bigquery",
-        false,
-        avroFields);
+    StringBuilder sanitized = new StringBuilder();
+    char firstChar = name.charAt(0);
+    if (!((firstChar >= 'A' && firstChar <= 'Z') || (firstChar >= 'a' && firstChar <= 'z') || firstChar == '_')) {
+        sanitized.append('_');
+    }
+    for (char ch : name.toCharArray()) {
+        if ((ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || ch == '_') {
+            sanitized.append(ch);
+        } else {
+            sanitized.append('_');
+        }
+    }
+    return sanitized.toString();
   }
 
-  @SuppressWarnings({
-    "nullness" // Avro library not annotated
-  })
-  private static Field convertField(TableFieldSchema bigQueryField) {
-    ImmutableCollection<Type> avroTypes = BIG_QUERY_TO_AVRO_TYPES.get(bigQueryField.getType());
-    if (avroTypes.isEmpty()) {
-      throw new IllegalArgumentException(
-          "Unable to map BigQuery field type " + bigQueryField.getType() + " to avro type.");
-    }
+  static Schema toGenericAvroSchema(String topLevelRecordName, List<TableFieldSchema> fieldSchemas) {
+    return toGenericAvroSchemaRecursive(
+        sanitizeNameForAvro(topLevelRecordName),
+        fieldSchemas,
+        "org.apache.beam.sdk.io.gcp.bigquery", 
+        new org.apache.avro.Schema.Names()
+    );
+  }
 
-    Type avroType = avroTypes.iterator().next();
-    Schema elementSchema;
-    if (avroType == Type.RECORD) {
-      elementSchema = toGenericAvroSchema(bigQueryField.getName(), bigQueryField.getFields());
-    } else {
-      elementSchema = handleAvroLogicalTypes(bigQueryField, avroType);
-    }
-    Schema fieldSchema;
-    if (bigQueryField.getMode() == null || "NULLABLE".equals(bigQueryField.getMode())) {
-      fieldSchema = Schema.createUnion(Schema.create(Type.NULL), elementSchema);
-    } else if ("REQUIRED".equals(bigQueryField.getMode())) {
-      fieldSchema = elementSchema;
-    } else if ("REPEATED".equals(bigQueryField.getMode())) {
-      fieldSchema = Schema.createArray(elementSchema);
-    } else {
-      throw new IllegalArgumentException(
-          String.format("Unknown BigQuery Field Mode: %s", bigQueryField.getMode()));
-    }
-    return new Field(
-        bigQueryField.getName(),
-        fieldSchema,
-        bigQueryField.getDescription(),
-        (Object) null /* Cast to avoid deprecated JsonNode constructor. */);
+  private static Schema toGenericAvroSchemaRecursive(
+          String recordName, 
+          List<TableFieldSchema> fieldSchemas,
+          String currentNamespace, 
+          org.apache.avro.Schema.Names names) {
+
+      String doc = "Translated Avro Schema for " + recordName + " in namespace " + currentNamespace;
+      String fullName = currentNamespace.isEmpty() ? recordName : currentNamespace + "." + recordName;
+      if (names.contains(fullName)) {
+        return names.get(fullName);
+      }
+      
+      Schema recordSchema = Schema.createRecord(recordName, doc, currentNamespace, false);
+      names.add(recordSchema);
+
+      List<Schema.Field> avroFields = new ArrayList<>();
+      for (TableFieldSchema bigQueryField : fieldSchemas) {
+          avroFields.add(convertFieldRecursive(bigQueryField, recordSchema.getFullName(), names));
+      }
+      recordSchema.setFields(avroFields);
+      return recordSchema;
+  }
+
+  @SuppressWarnings({"nullness"}) 
+  private static Schema.Field convertFieldRecursive(
+          TableFieldSchema bigQueryField,
+          String parentAvroRecordFullName, 
+          org.apache.avro.Schema.Names names) {
+
+      String sanitizedFieldName = sanitizeNameForAvro(bigQueryField.getName());
+      Schema elementSchema;
+      String bqType = bigQueryField.getType();
+      ImmutableCollection<Type> avroTypes = BIG_QUERY_TO_AVRO_TYPES.get(bqType);
+      if (avroTypes.isEmpty()) {
+          throw new IllegalArgumentException(
+              "Unable to map BigQuery field type " + bqType + " to avro type for field " + sanitizedFieldName);
+      }
+      Type avroType = avroTypes.iterator().next();
+
+      if ("RECORD".equals(bqType) || "STRUCT".equals(bqType)) {
+          elementSchema = toGenericAvroSchemaRecursive(
+              sanitizeNameForAvro(bigQueryField.getName()), 
+              bigQueryField.getFields(),
+              parentAvroRecordFullName, 
+              names
+          );
+      } else {
+          elementSchema = handleAvroLogicalTypes(bigQueryField, avroType);
+      }
+
+      Schema fieldSchema;
+      String mode = bigQueryField.getMode();
+      if (mode == null || "NULLABLE".equals(mode)) {
+          fieldSchema = Schema.createUnion(Schema.create(Type.NULL), elementSchema);
+      } else if ("REQUIRED".equals(mode)) {
+          fieldSchema = elementSchema;
+      } else if ("REPEATED".equals(mode)) {
+          fieldSchema = Schema.createArray(elementSchema);
+      } else {
+          throw new IllegalArgumentException(
+              String.format("Unknown BigQuery Field Mode: %s for field %s", mode, sanitizedFieldName));
+      }
+      
+      Object defaultValue = null; 
+      return new Schema.Field(
+          sanitizedFieldName,
+          fieldSchema,
+          bigQueryField.getDescription(),
+          defaultValue);
   }
 
   private static Schema handleAvroLogicalTypes(TableFieldSchema bigQueryField, Type avroType) {
