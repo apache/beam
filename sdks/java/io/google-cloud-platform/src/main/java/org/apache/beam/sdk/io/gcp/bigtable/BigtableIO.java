@@ -221,7 +221,7 @@ import org.slf4j.LoggerFactory;
  * <p>You can also limit the wait time in the finish bundle step by setting the
  * bigtable_writer_wait_timeout_ms experimental flag when you run the pipeline. For example,
  * --experiments=bigtable_writer_wait_timeout_ms=60000 will limit the wait time in finish bundle to
- * be 10 minutes.
+ * be 1 minute.
  *
  * <p>Optionally, BigtableIO.write() may be configured to emit {@link BigtableWriteResult} elements
  * after each group of inputs is written to Bigtable. These can be used to then trigger user code
