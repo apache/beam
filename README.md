@@ -55,6 +55,34 @@ The key concepts in the Beam programming model are:
 * `Pipeline`: manages a directed acyclic graph of PTransforms and PCollections that is ready for execution.
 * `PipelineRunner`: specifies where and how the pipeline should execute.
 
+## Working with PCollections
+
+A `PCollection` represents a distributed dataset that your Beam pipeline operates on. The "P" stands for "parallel" to indicate that a PCollection can be processed by multiple workers in parallel.
+
+PCollections can be created in a few primary ways:
+
+*   **From in-memory data:** You can create a PCollection from a local collection (like a list or array) in your driver program. This is typically done using a `Create` transform (e.g., `beam.Create()` in Python, `Create.of()` in Java). This is useful for testing or for small, fixed datasets.
+*   **Reading from external sources:** More commonly, PCollections are created by reading data from an external storage system. Beam provides I/O connectors for a wide variety of systems, such as:
+    *   Text files
+    *   Apache Avro, Apache Parquet
+    *   Databases (JDBC, Google Cloud Bigtable, Apache Cassandra, etc.)
+    *   Messaging systems (Apache Kafka, Google Cloud Pub/Sub, etc.)
+
+Key characteristics of PCollections include:
+
+*   **Immutability:** Once a PCollection is created, it cannot be changed. When you apply a transform to a PCollection, you get a new PCollection as output. This immutability is key to allowing Beam to retry operations safely and to enable optimizations.
+*   **Element Type:** Each PCollection has a specific data type for its elements. For SDKs with static typing (like Java), this is enforced at compile time. For dynamically typed SDKs (like Python), Beam often infers or can be told the type, which helps in choosing efficient processing strategies (e.g., selecting appropriate Coders).
+*   **Bounded vs. Unbounded:**
+    *   A **bounded** PCollection represents a dataset of a known, fixed size. Data read from batch storage systems (like a file on HDFS or a table in BigQuery) typically forms a bounded PCollection.
+    *   An **unbounded** PCollection represents a dataset that is continuously growing and has no defined end. This is typical for streaming data sources, like messages from Kafka or events from Pub/Sub. Beam's model provides powerful tools (like windowing) to process unbounded PCollections.
+
+PCollections are the inputs and outputs for every `PTransform` in your pipeline. Common operations performed through PTransforms include:
+*   Element-wise transformations (e.g., formatting or converting each element).
+*   Filtering elements based on a condition.
+*   Grouping elements by a key.
+*   Aggregating elements within a group or across an entire PCollection.
+*   Combining data from multiple PCollections.
+
 ### SDKs
 
 Beam supports multiple language-specific SDKs for writing pipelines against the Beam Model.
