@@ -56,8 +56,8 @@ _LOG_TIMER = {}
 def log_first_n(
     lvl: int,
     msg: str,
+    *args,
     n: int = 1,
-    *,
     name: Optional[str] = None,
     key: Union[str, tuple[str]] = "caller") -> None:
   """
@@ -93,11 +93,11 @@ def log_first_n(
 
   _LOG_COUNTER[hash_key] += 1
   if _LOG_COUNTER[hash_key] <= n:
-    logging.getLogger(name or caller_module).log(lvl, msg)
+    logging.getLogger(name or caller_module).log(lvl, msg, *args)
 
 
 def log_every_n(
-    lvl: int, msg: str, n: int = 1, *, name: Optional[str] = None) -> None:
+    lvl: int, msg: str, *args, n: int = 1, name: Optional[str] = None) -> None:
   """
     Log once per n times.
 
@@ -111,11 +111,11 @@ def log_every_n(
   caller_module, key = _find_caller()
   _LOG_COUNTER[key] += 1
   if n == 1 or _LOG_COUNTER[key] % n == 1:
-    logging.getLogger(name or caller_module).log(lvl, msg)
+    logging.getLogger(name or caller_module).log(lvl, msg, *args)
 
 
 def log_every_n_seconds(
-    lvl: int, msg: str, n: int = 1, *, name: Optional[str] = None) -> None:
+    lvl: int, msg: str, *args, n: int = 1, name: Optional[str] = None) -> None:
   """
     Log no more than once per n seconds.
 
@@ -130,5 +130,5 @@ def log_every_n_seconds(
   last_logged = _LOG_TIMER.get(key, None)
   current_time = time.time()
   if last_logged is None or current_time - last_logged >= n:
-    logging.getLogger(name or caller_module).log(lvl, msg)
+    logging.getLogger(name or caller_module).log(lvl, msg, *args)
     _LOG_TIMER[key] = current_time
