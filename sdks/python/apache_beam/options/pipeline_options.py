@@ -187,7 +187,7 @@ class _GcsCustomAuditEntriesAction(argparse.Action):
           "The value '%s' in GCS custom audit entries exceeds the %d-character limit."  # pylint: disable=line-too-long
           % (value, _GcsCustomAuditEntriesAction.MAX_VALUE_LENGTH))
 
-    if _GcsCustomAuditEntriesAction.GCS_AUDIT_PREFIX in key:
+    if key.startswith(_GcsCustomAuditEntriesAction.GCS_AUDIT_PREFIX):
       self._custom_audit_entries[key] = value
     else:
       self._custom_audit_entries[_GcsCustomAuditEntriesAction.GCS_AUDIT_PREFIX +

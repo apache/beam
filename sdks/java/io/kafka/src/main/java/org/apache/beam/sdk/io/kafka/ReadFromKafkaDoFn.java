@@ -588,12 +588,10 @@ abstract class ReadFromKafkaDoFn<K, V>
               topicPartition, Optional.ofNullable(watermarkEstimator.currentWatermark()));
     }
 
-    long startOffset = tracker.currentRestriction().getFrom();
-    long expectedOffset = startOffset;
+    long expectedOffset = tracker.currentRestriction().getFrom();
     consumer.resume(Collections.singleton(topicPartition));
-    consumer.seek(topicPartition, startOffset);
-    long skippedRecords = 0L;
-    final Stopwatch sw = Stopwatch.createStarted();
+    consumer.seek(topicPartition, expectedOffset);
+    final Stopwatch pollTimer = Stopwatch.createUnstarted();
 
     final KafkaMetrics kafkaMetrics = KafkaSinkMetrics.kafkaMetrics();
     try {
@@ -602,7 +600,7 @@ abstract class ReadFromKafkaDoFn<K, V>
         // A consumer will often have prefetches waiting to be returned immediately in which case
         // this timer may contribute more latency than it measures.
         // See https://shipilev.net/blog/2014/nanotrusting-nanotime/ for more information.
-        final Stopwatch pollTimer = Stopwatch.createStarted();
+        pollTimer.reset().start();
         // Fetch the next records.
         final ConsumerRecords<byte[], byte[]> rawRecords =
             consumer.poll(this.consumerPollingTimeout);
@@ -627,37 +625,6 @@ abstract class ReadFromKafkaDoFn<K, V>
         // Visible progress within the consumer polling timeout.
         // Partially or fully claim and process records in this batch.
         for (ConsumerRecord<byte[], byte[]> rawRecord : rawRecords) {
-          // If the Kafka consumer returns a record with an offset that is already processed
-          // the record can be safely skipped. This is needed because there is a possibility
-          // that the seek() above fails to move the offset to the desired position. In which
-          // case poll() would return records that are already cnsumed.
-          if (rawRecord.offset() < startOffset) {
-            // If the start offset is not reached even after skipping the records for 10 seconds
-            // then the processing is stopped with a backoff to give the Kakfa server some time
-            // catch up.
-            if (sw.elapsed().getSeconds() > 10L) {
-              LOG.error(
-                  "The expected offset ({}) was not reached even after"
-                      + " skipping consumed records for 10 seconds. The offset we could"
-                      + " reach was {}. The processing of this bundle will be attempted"
-                      + " at a later time.",
-                  expectedOffset,
-                  rawRecord.offset());
-              consumer.pause(Collections.singleton(topicPartition));
-              return ProcessContinuation.resume()
-                  .withResumeDelay(org.joda.time.Duration.standardSeconds(10L));
-            }
-            skippedRecords++;
-            continue;
-          }
-          if (skippedRecords > 0L) {
-            LOG.warn(
-                "{} records were skipped due to seek returning an"
-                    + " earlier position than requested position of {}",
-                skippedRecords,
-                expectedOffset);
-            skippedRecords = 0L;
-          }
           if (!tracker.tryClaim(rawRecord.offset())) {
             consumer.seek(topicPartition, rawRecord.offset());
             consumer.pause(Collections.singleton(topicPartition));
