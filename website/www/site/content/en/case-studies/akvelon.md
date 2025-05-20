@@ -160,11 +160,13 @@ Akvelon’s contributions to Apache Beam-based solutions - from advanced tokeniz
 
 ## About Akvelon, Inc.
 
-At Akvelon, we’ve built a long-standing partnership with Google Cloud - helping software-driven organizations implement, migrate, modernize, automate, and optimize their systems while making the most of cloud technologies.
+Akvelon guides enterprises through digital transformation on Google Cloud - applying deep expertise in data engineering, AI/ML, cloud infrastructure, and custom application development to design, deploy, and scale modern workloads.
 
-As a Google Cloud Service and Build Partner, we contribute actively to the ecosystem:
-- Contributing code and guidance to Apache Beam - including Playground, Tour of Beam, and the Duet AI training set
-- Improving project infrastructure and supporting the Apache Beam community - now with an official Apache Beam Committer on our team
+At Akvelon, we’ve built a long-standing partnership with Google Cloud—helping software-driven organizations implement, migrate, modernize, automate, and optimize their systems while making the most of cloud technologies.
+
+As a **Google Cloud Service** and **Build Partner**, we contribute actively to the ecosystem:
+- Contributing code and guidance to **Apache Beam**—including Playground, Tour of Beam, and the Duet AI training set
+- Improving project infrastructure and supporting the Apache Beam community—now with an official Apache Beam Committer on our team
 
 Backed by deep expertise in data engineering, AI/ML, cloud architecture, and application development, our engineers deliver reusable, secure, and production-ready solutions on Google Cloud for enterprises worldwide.
 
