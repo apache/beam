@@ -23,11 +23,16 @@ https://github.com/abseil/abseil-py/blob/master/absl/logging/__init__.py
 in
 https://github.com/facebookresearch/detectron2/blob/main/detectron2/utils/logger.py
 """
-
+import logging
+import os
 import sys
+import time
+from collections import Counter
+
+from typing import Optional, Union
 
 
-def _find_caller():
+def _find_caller() -> tuple[str, tuple]:
   """
     Returns:
         str: module name of the caller
@@ -48,7 +53,13 @@ _LOG_COUNTER = Counter()
 _LOG_TIMER = {}
 
 
-def log_first_n(lvl, msg, n=1, *, name=None, key="caller"):
+def log_first_n(
+    lvl: int,
+    msg: str,
+    n: int = 1,
+    *,
+    name: Optional[str] = None,
+    key: Union[str, tuple[str]] = "caller") -> None:
   """
     Log only for the first n times.
 
@@ -85,7 +96,8 @@ def log_first_n(lvl, msg, n=1, *, name=None, key="caller"):
     logging.getLogger(name or caller_module).log(lvl, msg)
 
 
-def log_every_n(lvl, msg, n=1, *, name=None):
+def log_every_n(
+    lvl: int, msg: str, n: int = 1, *, name: Optional[str] = None) -> None:
   """
     Log once per n times.
 
@@ -102,7 +114,8 @@ def log_every_n(lvl, msg, n=1, *, name=None):
     logging.getLogger(name or caller_module).log(lvl, msg)
 
 
-def log_every_n_seconds(lvl, msg, n=1, *, name=None):
+def log_every_n_seconds(
+    lvl: int, msg: str, n: int = 1, *, name: Optional[str] = None) -> None:
   """
     Log no more than once per n seconds.
 
