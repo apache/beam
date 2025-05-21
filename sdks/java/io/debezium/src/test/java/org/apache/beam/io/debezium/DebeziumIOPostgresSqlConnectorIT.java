@@ -74,9 +74,9 @@ public class DebeziumIOPostgresSqlConnectorIT {
   static DataSource getPostgresDatasource() {
     PGSimpleDataSource dataSource = new PGSimpleDataSource();
     dataSource.setDatabaseName("inventory");
-    String[] serverNames = new String [] {POSTGRES_SQL_CONTAINER.getHost()};
+    String[] serverNames = new String[] {POSTGRES_SQL_CONTAINER.getHost()};
     dataSource.setServerNames(serverNames);
-    int[] ports =new int[] {POSTGRES_SQL_CONTAINER.getMappedPort(5432)};
+    int[] ports = new int[] {POSTGRES_SQL_CONTAINER.getMappedPort(5432)};
     dataSource.setPortNumbers(ports);
     dataSource.setUser("debezium");
     dataSource.setPassword("dbz");

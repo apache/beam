@@ -56,7 +56,7 @@ public class DebeziumReadSchemaTransformTest {
   @ClassRule
   public static final MySQLContainer<?> MY_SQL_CONTAINER =
       new MySQLContainer<>(
-              DockerImageName.parse("debezium/example-mysql:1.4")
+              DockerImageName.parse("debezium/example-mysql:3.0.0.Final")
                   .asCompatibleSubstituteFor("mysql"))
           .withPassword("debezium")
           .withUsername("mysqluser")

@@ -66,7 +66,7 @@ public class DebeziumIOMySqlConnectorIT {
   @ClassRule
   public static final MySQLContainer<?> MY_SQL_CONTAINER =
       new MySQLContainer<>(
-              DockerImageName.parse("debezium/example-mysql:1.4")
+              DockerImageName.parse("debezium/example-mysql:3.0.0.Final")
                   .asCompatibleSubstituteFor("mysql"))
           .withPassword("debezium")
           .withUsername("mysqluser")
@@ -187,7 +187,7 @@ public class DebeziumIOMySqlConnectorIT {
   public void testDebeziumIOMySql() {
     MY_SQL_CONTAINER.start();
 
-    String host = MY_SQL_CONTAINER.getContainerIpAddress();
+    String host = MY_SQL_CONTAINER.getHost();
     String port = MY_SQL_CONTAINER.getMappedPort(3306).toString();
 
     PipelineOptions options = PipelineOptionsFactory.create();
@@ -204,7 +204,6 @@ public class DebeziumIOMySqlConnectorIT {
                         .withPort(port)
                         .withConnectionProperty("database.server.id", "184054")
                         .withConnectionProperty("database.server.name", "dbserver1")
-                        .withConnectionProperty("database.include.list", "inventory")
                         .withConnectionProperty("include.schema.changes", "false"))
                 .withFormatFunction(new SourceRecordJson.SourceRecordJsonMapper())
                 .withMaxNumberOfRecords(30)

@@ -75,7 +75,6 @@ import org.slf4j.LoggerFactory;
  *             .withConnectorClass(MySqlConnector.class)
  *             .withConnectionProperty("database.server.id", "184054")
  *             .withConnectionProperty("database.server.name", "serverid")
- *             .withConnectionProperty("database.include.list", "dbname")
  *             .withConnectionProperty("database.history", DebeziumSDFDatabaseHistory.class.getName())
  *             .withConnectionProperty("include.schema.changes", "false");
  *
