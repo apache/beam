@@ -67,9 +67,12 @@ class OpenAIChatMessage():
 def start_process(cmd) -> tuple[subprocess.Popen, int]:
   port, = subprocess_server.pick_port(None)
   cmd = [arg.replace('{{PORT}}', str(port)) for arg in cmd]  # pylint: disable=not-an-iterable
+  vllm_env = os.environ.copy()
+  # Use default logging to avoid vllm breaking Beam's logging
+  vllm_env["VLLM_CONFIGURE_LOGGING"] = 0
   logging.info("Starting service with %s", str(cmd).replace("',", "'"))
   process = subprocess.Popen(
-      cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+      cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=vllm_env)
 
   # Emit the output of this command as info level logging.
   def log_stdout():
