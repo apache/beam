@@ -39,6 +39,7 @@ from openai import AsyncOpenAI
 from openai import OpenAI
 
 try:
+  os.environ['VLLM_CONFIGURE_LOGGING'] = 0
   import vllm  # pylint: disable=unused-import
   logging.info('vllm module successfully imported.')
 except ModuleNotFoundError:
