@@ -87,8 +87,13 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           java-version: 17
+      - name: GCloud Docker credential helper
+        run: |
+          gcloud auth configure-docker us.gcr.io
       - name: run PostCommit Java Distroless Examples Dataflow V2 script
         uses: ./.github/actions/gradle-command-self-hosted-action
+        env:
+          USER: github-actions
         with:
             gradle-command: :runners:google-cloud-dataflow-java:examplesJavaRunnerV2IntegrationTestDistroless
             max-workers: 12
