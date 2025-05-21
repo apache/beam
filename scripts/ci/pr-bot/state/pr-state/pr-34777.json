@@ -3,7 +3,7 @@
   "reviewersAssignedForLabels": {
     "python": "jrmccluskey"
   },
-  "nextAction": "Author",
+  "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
   "committerAssigned": false
