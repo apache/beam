@@ -22,7 +22,6 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.service.AutoService;
-import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -57,6 +56,7 @@ import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.ShortIdMap;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
@@ -134,6 +134,7 @@ import org.joda.time.format.PeriodFormat;
 @SuppressWarnings({
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
+@Internal
 public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimatorStateT, OutputT>
     implements FnApiStateAccessor.MutatingStateContext<Object, BoundedWindow> {
   /** A registrar which provides a factory to handle Java {@link DoFn}s. */
@@ -144,7 +145,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       Factory factory = new Factory();
       return ImmutableMap.<String, PTransformRunnerFactory>builder()
           .put(PTransformTranslation.PAR_DO_TRANSFORM_URN, factory)
-          .put(PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN, factory)
           .put(PTransformTranslation.SPLITTABLE_TRUNCATE_SIZED_RESTRICTION_URN, factory)
           .put(
               PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN, factory)
@@ -157,6 +157,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public final void addRunnerForPTransform(Context context) throws IOException {
+
+      FnApiStateAccessor<Object> stateAccessor =
+          FnApiStateAccessor.Factory.factoryForPTransformContext(context).create();
 
       FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimatorStateT, OutputT> runner =
           new FnApiDoFnRunner<>(
@@ -175,7 +178,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               context::addBundleProgressReporter,
               context.getSplitListener(),
               context.getBundleFinalizer(),
-              FnApiStateAccessor.Factory.factoryForPTransformContext(context));
+              stateAccessor);
+
+      stateAccessor.setKeyAndWindowContext(runner);
 
       for (Map.Entry<String, KV<TimeDomain, Coder<Timer<Object>>>> entry :
           runner.timerFamilyInfos.entrySet()) {
@@ -338,7 +343,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       Consumer<BundleProgressReporter> addBundleProgressReporter,
       BundleSplitListener splitListener,
       BundleFinalizer bundleFinalizer,
-      FnApiStateAccessor.Factory<Object> stateAccessorFactory) {
+      FnApiStateAccessor<Object> stateAccessor) {
     this.pipelineOptions = pipelineOptions;
     this.pTransformId = pTransformId;
     this.pTransform = pTransform;
@@ -478,24 +483,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         } else {
           mainInputConsumer = this::processElementForParDo;
           this.processContext = new NonWindowObservingProcessBundleContext();
-        }
-        break;
-      case PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN:
-        if ((doFnSignature.splitRestriction() != null
-                && doFnSignature.splitRestriction().observesWindow())
-            || (doFnSignature.newTracker() != null && doFnSignature.newTracker().observesWindow())
-            || (doFnSignature.getSize() != null && doFnSignature.getSize().observesWindow())
-            || !sideInputMapping.isEmpty()) {
-          mainInputConsumer = this::processElementForWindowObservingSplitRestriction;
-          this.processContext =
-              new SizedRestrictionWindowObservingProcessBundleContext(
-                  PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN);
-
-        } else {
-          mainInputConsumer = this::processElementForSplitRestriction;
-          this.processContext =
-              new SizedRestrictionNonWindowObservingProcessBundleContext(
-                  PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN);
         }
         break;
       case PTransformTranslation.SPLITTABLE_TRUNCATE_SIZED_RESTRICTION_URN:
@@ -675,7 +662,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         // no-op
     }
 
-    this.stateAccessor = stateAccessorFactory.create(this);
+    this.stateAccessor = stateAccessor;
 
     // Register as a consumer for each timer.
     this.outboundTimerReceivers = new HashMap<>();
@@ -746,80 +733,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       currentElement = null;
       currentWindow = null;
     }
-  }
-
-  private void processElementForSplitRestriction(
-      WindowedValue<KV<InputT, KV<RestrictionT, WatermarkEstimatorStateT>>> elem) {
-    currentElement = elem.withValue(elem.getValue().getKey());
-    currentRestriction = elem.getValue().getValue().getKey();
-    currentWatermarkEstimatorState = elem.getValue().getValue().getValue();
-    currentTrackerClaimed = new AtomicBoolean(false);
-    currentTracker =
-        RestrictionTrackers.observe(
-            doFnInvoker.invokeNewTracker(processContext),
-            new ClaimObserver<PositionT>() {
-              private final AtomicBoolean claimed =
-                  Preconditions.checkNotNull(currentTrackerClaimed);
-
-              @Override
-              public void onClaimed(PositionT position) {
-                claimed.lazySet(true);
-              }
-
-              @Override
-              public void onClaimFailed(PositionT position) {}
-            });
-    try {
-      doFnInvoker.invokeSplitRestriction(processContext);
-    } finally {
-      currentElement = null;
-      currentRestriction = null;
-      currentWatermarkEstimatorState = null;
-      currentTracker = null;
-      currentTrackerClaimed = null;
-    }
-
-    this.stateAccessor.finalizeState();
-  }
-
-  private void processElementForWindowObservingSplitRestriction(
-      WindowedValue<KV<InputT, KV<RestrictionT, WatermarkEstimatorStateT>>> elem) {
-    currentElement = elem.withValue(elem.getValue().getKey());
-    currentRestriction = elem.getValue().getValue().getKey();
-    currentWatermarkEstimatorState = elem.getValue().getValue().getValue();
-    try {
-      Iterator<BoundedWindow> windowIterator =
-          (Iterator<BoundedWindow>) elem.getWindows().iterator();
-      while (windowIterator.hasNext()) {
-        currentWindow = windowIterator.next();
-        currentTrackerClaimed = new AtomicBoolean(false);
-        currentTracker =
-            RestrictionTrackers.observe(
-                doFnInvoker.invokeNewTracker(processContext),
-                new ClaimObserver<PositionT>() {
-                  private final AtomicBoolean claimed =
-                      Preconditions.checkNotNull(currentTrackerClaimed);
-
-                  @Override
-                  public void onClaimed(PositionT position) {
-                    claimed.lazySet(true);
-                  }
-
-                  @Override
-                  public void onClaimFailed(PositionT position) {}
-                });
-        doFnInvoker.invokeSplitRestriction(processContext);
-      }
-    } finally {
-      currentElement = null;
-      currentRestriction = null;
-      currentWatermarkEstimatorState = null;
-      currentWindow = null;
-      currentTracker = null;
-      currentTrackerClaimed = null;
-    }
-
-    this.stateAccessor.finalizeState();
   }
 
   private void processElementForTruncateRestriction(
@@ -904,49 +817,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       }
     }
     this.stateAccessor.finalizeState();
-  }
-
-  /** Internal class to hold the primary and residual roots when converted to an input element. */
-  @AutoValue
-  @AutoValue.CopyAnnotations
-  abstract static class WindowedSplitResult {
-    public static WindowedSplitResult forRoots(
-        WindowedValue<?> primaryInFullyProcessedWindowsRoot,
-        WindowedValue<?> primarySplitRoot,
-        WindowedValue<?> residualSplitRoot,
-        WindowedValue<?> residualInUnprocessedWindowsRoot) {
-      return new AutoValue_FnApiDoFnRunner_WindowedSplitResult(
-          primaryInFullyProcessedWindowsRoot,
-          primarySplitRoot,
-          residualSplitRoot,
-          residualInUnprocessedWindowsRoot);
-    }
-
-    public abstract @Nullable WindowedValue<?> getPrimaryInFullyProcessedWindowsRoot();
-
-    public abstract @Nullable WindowedValue<?> getPrimarySplitRoot();
-
-    public abstract @Nullable WindowedValue<?> getResidualSplitRoot();
-
-    public abstract @Nullable WindowedValue<?> getResidualInUnprocessedWindowsRoot();
-  }
-
-  @AutoValue
-  @AutoValue.CopyAnnotations
-  abstract static class SplitResultsWithStopIndex {
-    public static SplitResultsWithStopIndex of(
-        WindowedSplitResult windowSplit,
-        HandlesSplits.SplitResult downstreamSplit,
-        int newWindowStopIndex) {
-      return new AutoValue_FnApiDoFnRunner_SplitResultsWithStopIndex(
-          windowSplit, downstreamSplit, newWindowStopIndex);
-    }
-
-    public abstract @Nullable WindowedSplitResult getWindowSplit();
-
-    public abstract HandlesSplits.@Nullable SplitResult getDownstreamSplit();
-
-    public abstract int getNewWindowStopIndex();
   }
 
   private void processElementForWindowObservingSizedElementAndRestriction(
