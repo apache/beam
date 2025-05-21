@@ -185,7 +185,14 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
     if (getSessionService().getReceiver().isEOF()) {
       return BoundedWindow.TIMESTAMP_MAX_VALUE;
     }
-    return watermarkPolicy.getWatermark();
+    try {
+      return watermarkPolicy.getWatermark();
+    } catch (NullPointerException e) {
+      LOG.warn(
+          "SolaceIO.Read: WatermarkPolicy threw NPE (likely due to disconnection); returning min watermark",
+          e);
+      return BoundedWindow.TIMESTAMP_MIN_VALUE;
+    }
   }
 
   @Override
