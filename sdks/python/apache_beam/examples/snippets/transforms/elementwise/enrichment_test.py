@@ -32,6 +32,8 @@ try:
       enrichment_with_bigtable, enrichment_with_vertex_ai_legacy)
   from apache_beam.examples.snippets.transforms.elementwise.enrichment import (
       enrichment_with_vertex_ai, enrichment_with_cloudsql)
+  from apache_beam.transforms.enrichment_handlers.cloudsql import (
+      DatabaseTypeAdapter)
   from apache_beam.transforms.enrichment_handlers.cloudsql_it_test import (
       CloudSQLEnrichmentTestHelper, SQLDBContainerInfo)
   from apache_beam.io.requestresponse import RequestResponseIO
@@ -132,7 +134,8 @@ class EnrichmentTest(unittest.TestCase):
             "product_id": 3, "name": "C", 'quantity': 10, 'region_id': 4
         },
     ]
-    db = CloudSQLEnrichmentTestHelper.start_sql_db_container()
+    db_adapter = DatabaseTypeAdapter.POSTGRESQL
+    db = CloudSQLEnrichmentTestHelper.start_sql_db_container(db_adapter)
     os.environ['SQL_DB_TYPE'] = db.adapter.name
     os.environ['SQL_DB_ADDRESS'] = db.address
     os.environ['SQL_DB_USER'] = db.user
@@ -149,7 +152,7 @@ class EnrichmentTest(unittest.TestCase):
   def post_cloudsql_enrichment_test(
       self, db: SQLDBContainerInfo, engine: Engine):
     engine.dispose(close=True)
-    CloudSQLEnrichmentTestHelper.stop_sql_db_container(db.container)
+    CloudSQLEnrichmentTestHelper.stop_sql_db_container(db)
     os.environ.pop('SQL_DB_TYPE', None)
     os.environ.pop('SQL_DB_ADDRESS', None)
     os.environ.pop('SQL_DB_USER', None)
