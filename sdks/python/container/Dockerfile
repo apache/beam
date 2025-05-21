@@ -28,6 +28,7 @@ COPY target/launcher/${TARGETOS}_${TARGETARCH}/boot target/LICENSE target/NOTICE
 
 ENV CLOUDSDK_CORE_DISABLE_PROMPTS yes
 ENV PATH $PATH:/usr/local/gcloud/google-cloud-sdk/bin
+ENV GRPC_EXPERIMENTS -event_engine_client
 
 # Use one RUN command to reduce the number of layers.
 RUN  \
