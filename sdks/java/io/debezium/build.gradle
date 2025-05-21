@@ -63,6 +63,7 @@ dependencies {
     testImplementation library.java.testcontainers_base
     testImplementation library.java.testcontainers_mysql
     testImplementation library.java.testcontainers_postgresql
+    testImplementation library.java.testcontainers_kafka
     // TODO(https://github.com/apache/beam/issues/31678) HikariCP 5.x requires Java11+
     // testImplementation 'com.zaxxer:HikariCP:4.0.3'
     testImplementation 'com.zaxxer:HikariCP:5.1.0'

@@ -559,8 +559,10 @@ public class DebeziumIO {
           "database.history",
           k -> KafkaSourceConsumerFn.DebeziumSDFDatabaseHistory.class.getName());
       configuration.computeIfAbsent("topic.prefix", k -> "beam-debezium-connector");
-      configuration.computeIfAbsent("schema.history.internal.kafka.bootstrap.servers", k -> "localhost:9092");
-      configuration.computeIfAbsent("schema.history.internal.kafka.topic", k -> "schema-changes.inventory");
+      configuration.computeIfAbsent(
+          "schema.history.internal.kafka.bootstrap.servers", k -> "localhost:9092");
+      configuration.computeIfAbsent(
+          "schema.history.internal.kafka.topic", k -> "schema-changes.inventory");
 
       String stringProperties = Joiner.on('\n').withKeyValueSeparator(" -> ").join(configuration);
       LOG.debug("---------------- Connector configuration: {}", stringProperties);
