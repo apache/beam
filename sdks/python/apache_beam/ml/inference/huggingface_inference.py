@@ -47,15 +47,16 @@ __all__ = [
     "HuggingFacePipelineModelHandler",
 ]
 
-TensorInferenceFn = Callable[[
-    Sequence[Union[torch.Tensor, tf.Tensor]],
-    Union[AutoModel, TFAutoModel],
-    str,
-    Optional[dict[str, Any]],
-    Optional[str],
-],
-                             Iterable[PredictionResult],
-                             ]
+TensorInferenceFn = Callable[
+    [
+        Sequence[Union[torch.Tensor, tf.Tensor]],
+        Union[AutoModel, TFAutoModel],
+        str,
+        Optional[dict[str, Any]],
+        Optional[str],
+    ],
+    Iterable[PredictionResult],
+]
 
 KeyedTensorInferenceFn = Callable[[
     Sequence[dict[str, Union[torch.Tensor, tf.Tensor]]],

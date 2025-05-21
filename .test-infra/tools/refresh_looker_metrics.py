@@ -40,6 +40,8 @@ LOOKS_TO_DOWNLOAD = [
     ("78", ["243", "244", "245", "246", "247"]),  # PyTorch Resnet 101
     ("79", ["248", "249", "250", "251", "252"]),  # PyTorch Resnet 152
     ("80", ["253", "254", "255", "256", "257"]),  # PyTorch Resnet 152 Tesla T4
+    ("82", ["263", "264", "265", "266", "267"]),  # PyTorch Sentiment Streaming DistilBERT base uncased
+    ("85", ["268", "269", "270", "271", "272"]),  # PyTorch Sentiment Batch DistilBERT base uncased
 ]
 
 

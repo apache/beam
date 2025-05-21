@@ -169,9 +169,6 @@ public class AbstractWindmillStreamTest {
       return false;
     }
 
-    @Override
-    protected void startThrottleTimer() {}
-
     private void testSend() throws WindmillStreamShutdownException {
       trySend(1);
     }

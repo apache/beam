@@ -48,7 +48,8 @@ class ManagedIcebergIT(unittest.TestCase):
         str_=str(num),
         bytes_=bytes(num),
         bool_=(num % 2 == 0),
-        float_=(num + float(num) / 100))
+        float_=(num + float(num) / 100),
+        arr_=[num, num, num])
 
   def test_write_read_pipeline(self):
     iceberg_config = {
@@ -75,16 +76,7 @@ class ManagedIcebergIT(unittest.TestCase):
           | beam.managed.Read(beam.managed.ICEBERG, config=iceberg_config)
           | beam.Map(lambda row: row._asdict()))
 
-      output_dicts_skipped_config = (
-          read_pipeline
-          | beam.managed.Read(
-              beam.managed.ICEBERG,
-              config=iceberg_config,
-              skip_config_validation=True)
-          | beam.Map(lambda row: row._asdict()))
-
       assert_that(output_dicts, equal_to(expected_dicts))
-      assert_that(output_dicts_skipped_config, equal_to(expected_dicts))
 
 
 if __name__ == '__main__':

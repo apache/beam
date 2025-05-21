@@ -324,14 +324,9 @@ def maven_jar(
     classifier=None,
     appendix=None):
   return ExternalJavaProvider(
-      urns,
-      lambda: subprocess_server.JavaJarServer.path_to_maven_jar(
-          artifact_id=artifact_id,
-          group_id=group_id,
-          version=version,
-          repository=repository,
-          classifier=classifier,
-          appendix=appendix))
+      urns, lambda: subprocess_server.JavaJarServer.path_to_maven_jar(
+          artifact_id=artifact_id, group_id=group_id, version=version,
+          repository=repository, classifier=classifier, appendix=appendix))
 
 
 @ExternalProvider.register_provider_type('beamJar')
@@ -344,8 +339,7 @@ def beam_jar(
     version=beam_version,
     artifact_id=None):
   return ExternalJavaProvider(
-      urns,
-      lambda: subprocess_server.JavaJarServer.path_to_beam_jar(
+      urns, lambda: subprocess_server.JavaJarServer.path_to_beam_jar(
           gradle_target=gradle_target, version=version, artifact_id=artifact_id
       ),
       managed_replacement=managed_replacement)
@@ -383,8 +377,7 @@ class ExternalJavaProvider(ExternalProvider):
   def __init__(
       self, urns, jar_provider, managed_replacement=None, classpath=None):
     super().__init__(
-        urns,
-        lambda: external.JavaJarExpansionService(
+        urns, lambda: external.JavaJarExpansionService(
             jar_provider(), classpath=classpath),
         managed_replacement)
     self._jar_provider = jar_provider
@@ -426,8 +419,8 @@ def python(urns, provider_base_path, packages=()):
     return ExternalPythonProvider(urns, provider_base_path, packages)
   else:
     return InlineProvider({
-        name:
-        python_callable.PythonCallableWithSource.load_from_source(constructor)
+        name: python_callable.PythonCallableWithSource.load_from_source(
+            constructor)
         for (name, constructor) in urns.items()
     })
 
@@ -620,9 +613,8 @@ class InlineProvider(Provider):
         for param in cls.get_docs(factory).params
     }
 
-    names_and_types = [
-        (name, typing_to_runner_api(type_of(p))) for name, p in params.items()
-    ]
+    names_and_types = [(name, typing_to_runner_api(type_of(p)))
+                       for name, p in params.items()]
     return schema_pb2.Schema(
         fields=[
             schema_pb2.Field(name=name, type=type, description=docs.get(name))

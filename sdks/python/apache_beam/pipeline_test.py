@@ -1442,33 +1442,31 @@ class RunnerApiTest(unittest.TestCase):
                     dependencies=[file_artifact('a1', 'x', 'dest')]),
                 'e2': beam_runner_api_pb2.Environment(
                     dependencies=[file_artifact('a2', 'x', 'dest')]),
-                # Different hash.
                 'e3': beam_runner_api_pb2.Environment(
-                    dependencies=[file_artifact('a3', 'y', 'dest')]),
-                # Different destination.
+                    dependencies=[file_artifact('a3', 'y', 'dest')
+                                  ]),  # Different hash.
                 'e4': beam_runner_api_pb2.Environment(
-                    dependencies=[file_artifact('a4', 'y', 'dest2')]),
-                # Multiple files with same hash and destinations.
+                    dependencies=[file_artifact('a4', 'y', 'dest2')
+                                  ]),  # Different destination.
                 'e5': beam_runner_api_pb2.Environment(
                     dependencies=[
                         file_artifact('a1', 'x', 'dest'),
                         file_artifact('b1', 'xb', 'destB')
-                    ]),
+                    ]),  # Multiple files with same hash and destinations.
                 'e6': beam_runner_api_pb2.Environment(
                     dependencies=[
                         file_artifact('a2', 'x', 'dest'),
                         file_artifact('b2', 'xb', 'destB')
                     ]),
-                # Overlapping, but not identical, files.
                 'e7': beam_runner_api_pb2.Environment(
                     dependencies=[
                         file_artifact('a1', 'x', 'dest'),
                         file_artifact('b2', 'y', 'destB')
-                    ]),
-                # Same files as first, but differing other properties.
+                    ]),  # Overlapping, but not identical, files.
                 'e0': beam_runner_api_pb2.Environment(
                     resource_hints={'hint': b'value'},
-                    dependencies=[file_artifact('a1', 'x', 'dest')]),
+                    dependencies=[file_artifact('a1', 'x', 'dest')]
+                ),  # Same files as first, but differing other properties.
             }))
     Pipeline.merge_compatible_environments(proto)
 

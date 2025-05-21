@@ -263,8 +263,7 @@ class BatchDoFnTest(unittest.TestCase):
     pc = p | beam.Create(['a', 'b', 'c'])
 
     with self.assertRaisesRegex(
-        TypeError,
-        # Error should mention "input", and the name of the DoFn
+        TypeError,  # Error should mention "input", and the name of the DoFn
         r'input.*BatchDoFn.*'):
       _ = pc | beam.ParDo(BatchDoFn())
 

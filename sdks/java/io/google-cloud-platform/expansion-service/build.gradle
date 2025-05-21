@@ -26,6 +26,12 @@ applyJavaNature(
         shadowClosure: {},
 )
 
+configurations.runtimeClasspath {
+  // Pin avro to 1.11.4 due to https://github.com/apache/beam/issues/34968
+  // cannot upgrade this to the latest version due to https://github.com/apache/beam/issues/34993
+  resolutionStrategy.force 'org.apache.avro:avro:1.11.4'
+}
+
 description = "Apache Beam :: SDKs :: Java :: IO :: Google Cloud Platform :: Expansion Service"
 ext.summary = "Expansion service serving GCP Java IOs"
 

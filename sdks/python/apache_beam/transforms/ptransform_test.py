@@ -267,9 +267,8 @@ class PTransformTest(unittest.TestCase):
       nums = pipeline | 'Some Numbers' >> beam.Create([1, 2, 3, 4])
       results = nums | 'ClassifyNumbers' >> beam.FlatMap(
           lambda x: [
-              x,
-              pvalue.TaggedOutput('even' if x % 2 == 0 else 'odd', x),
-              pvalue.TaggedOutput('extra', x)
+              x, pvalue.TaggedOutput('even' if x % 2 == 0 else 'odd', x), pvalue
+              .TaggedOutput('extra', x)
           ]).with_outputs()
       assert_that(results[None], equal_to([1, 2, 3, 4]))
       assert_that(results.odd, equal_to([1, 3]), label='assert:odd')
@@ -343,9 +342,8 @@ class PTransformTest(unittest.TestCase):
           | beam.ParDo(MyDoFn())
           | WindowInto(windowfn)
           | 'create tuple' >> beam.Map(
-              lambda v,
-              t=beam.DoFn.TimestampParam,
-              w=beam.DoFn.WindowParam: (v, t, w.start, w.end)))
+              lambda v, t=beam.DoFn.TimestampParam, w=beam.DoFn.WindowParam:
+              (v, t, w.start, w.end)))
       expected_process = [
           ('process1', Timestamp(5), Timestamp(4), Timestamp(6))
       ]
@@ -457,8 +455,7 @@ class PTransformTest(unittest.TestCase):
       divisor = pipeline | 'Divisor' >> beam.Create([2])
       result = pcoll | 'Max' >> beam.CombineGlobally(
           # Multiples of divisor only.
-          lambda vals,
-          d: max(v for v in vals if v % d == 0),
+          lambda vals, d: max(v for v in vals if v % d == 0),
           pvalue.AsSingleton(divisor)).without_defaults()
       filt_vals = [v for v in values if v % 2 == 0]
       assert_that(result, equal_to([max(filt_vals)]))
@@ -492,8 +489,7 @@ class PTransformTest(unittest.TestCase):
           ([('a', x) for x in vals_1] + [('b', x) for x in vals_2]))
       divisor = pipeline | 'Divisor' >> beam.Create([2])
       result = pcoll | beam.CombinePerKey(
-          lambda vals,
-          d: max(v for v in vals if v % d == 0),
+          lambda vals, d: max(v for v in vals if v % d == 0),
           pvalue.AsSingleton(divisor))  # Multiples of divisor only.
       m_1 = max(v for v in vals_1 if v % 2 == 0)
       m_2 = max(v for v in vals_2 if v % 2 == 0)
@@ -687,10 +683,7 @@ class PTransformTest(unittest.TestCase):
       side_input = pipeline | 'Side Input' >> beam.Create([100, 1000])
       partitions = (
           pcoll | 'part' >> beam.Partition(
-              lambda e,
-              n,
-              offset,
-              si_list: ((e + len(si_list)) % 3) + offset,
+              lambda e, n, offset, si_list: ((e + len(si_list)) % 3) + offset,
               4,
               1,
               pvalue.AsList(side_input)))
@@ -974,8 +967,10 @@ class TestGroupBy(unittest.TestCase):
     def normalize(key, values):
       if isinstance(key, tuple):
         key = beam.Row(
-            **{name: value
-               for name, value in zip(type(key)._fields, key)})
+            **{
+                name: value
+                for name, value in zip(type(key)._fields, key)
+            })
       return key, sorted(v.value for v in values)
 
     with TestPipeline() as p:
@@ -1024,8 +1019,10 @@ class TestGroupBy(unittest.TestCase):
   def test_aggregate(self):
     def named_tuple_to_row(t):
       return beam.Row(
-          **{name: value
-             for name, value in zip(type(t)._fields, t)})
+          **{
+              name: value
+              for name, value in zip(type(t)._fields, t)
+          })
 
     with TestPipeline() as p:
       pcoll = p | beam.Create(range(-2, 3)) | beam.Map(
@@ -1034,15 +1031,15 @@ class TestGroupBy(unittest.TestCase):
 
       assert_that(
           pcoll
-          | beam.GroupBy('square', big=lambda x: x.value > 1)
-            .aggregate_field('value', sum, 'sum')
-            .aggregate_field(lambda x: x.sign == 1, all, 'positive')
+          | beam.GroupBy('square', big=lambda x: x.value > 1).aggregate_field(
+              'value', sum, 'sum').aggregate_field(
+                  lambda x: x.sign == 1, all, 'positive')
           | beam.Map(named_tuple_to_row),
           equal_to([
-              beam.Row(square=0, big=False, sum=0, positive=False),   # [0],
-              beam.Row(square=1, big=False, sum=0, positive=False),   # [-1, 1]
+              beam.Row(square=0, big=False, sum=0, positive=False),  # [0],
+              beam.Row(square=1, big=False, sum=0, positive=False),  # [-1, 1]
               beam.Row(square=4, big=False, sum=-2, positive=False),  # [-2]
-              beam.Row(square=4, big=True, sum=2, positive=True),     # [2]
+              beam.Row(square=4, big=True, sum=2, positive=True),  # [2]
           ]))
 
   def test_pickled_field(self):

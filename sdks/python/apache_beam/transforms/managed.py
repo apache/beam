@@ -23,6 +23,11 @@ more optimal/updated version without requiring the user to do anything. It may
 also replace the transform with something entirely different if it chooses to.
 By default, however, the specified transform will remain unchanged.
 
+Available transforms
+====================
+Please check the Managed IO configuration page:
+https://beam.apache.org/documentation/io/managed-io/
+
 Using Managed Transforms
 ========================
 Managed turnkey transforms have a defined configuration and can be built using
@@ -50,18 +55,9 @@ Simply provide the location to the file like so::
                     beam.managed.KAFKA,
                     config_url="path/to/config.yaml")
 
-Available transforms
-====================
-Available transforms are:
-
-- **Kafka Read and Write**
-- **Iceberg Read and Write**
 
 **Note:** inputs and outputs need to be PCollection(s) of Beam
 :py:class:`apache_beam.pvalue.Row` elements.
-
-**Note:** Today, all managed transforms are essentially cross-language
-transforms, and Java's ManagedSchemaTransform is used under the hood.
 
 Runner specific features
 ========================
@@ -107,7 +103,6 @@ class Read(PTransform):
       source: str,
       config: Optional[dict[str, Any]] = None,
       config_url: Optional[str] = None,
-      skip_config_validation: bool = False,
       expansion_service=None):
     super().__init__()
     self._source = source
@@ -122,7 +117,6 @@ class Read(PTransform):
     self._underlying_identifier = identifier
     self._yaml_config = yaml.dump(config)
     self._config_url = config_url
-    self._skip_config_validation = skip_config_validation
 
   def expand(self, input):
     return input | SchemaAwareExternalTransform(
@@ -131,8 +125,7 @@ class Read(PTransform):
         rearrange_based_on_discovery=True,
         transform_identifier=self._underlying_identifier,
         config=self._yaml_config,
-        config_url=self._config_url,
-        skip_config_validation=self._skip_config_validation)
+        config_url=self._config_url)
 
   def default_label(self) -> str:
     return "Managed Read(%s)" % self._source.upper()
@@ -151,7 +144,6 @@ class Write(PTransform):
       sink: str,
       config: Optional[dict[str, Any]] = None,
       config_url: Optional[str] = None,
-      skip_config_validation: bool = False,
       expansion_service=None):
     super().__init__()
     self._sink = sink
@@ -166,7 +158,6 @@ class Write(PTransform):
     self._underlying_identifier = identifier
     self._yaml_config = yaml.dump(config)
     self._config_url = config_url
-    self._skip_config_validation = skip_config_validation
 
   def expand(self, input):
     return input | SchemaAwareExternalTransform(
@@ -175,8 +166,7 @@ class Write(PTransform):
         rearrange_based_on_discovery=True,
         transform_identifier=self._underlying_identifier,
         config=self._yaml_config,
-        config_url=self._config_url,
-        skip_config_validation=self._skip_config_validation)
+        config_url=self._config_url)
 
   def default_label(self) -> str:
     return "Managed Write(%s)" % self._sink.upper()

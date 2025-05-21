@@ -51,8 +51,7 @@ def map_side_inputs_singleton(test=None):
             '# 🥔Potato\n',
         ])
         | 'Strip header' >> beam.Map(
-            lambda text,
-            chars: text.strip(chars),
+            lambda text, chars: text.strip(chars),
             chars=beam.pvalue.AsSingleton(chars),
         )
         | beam.Map(print))

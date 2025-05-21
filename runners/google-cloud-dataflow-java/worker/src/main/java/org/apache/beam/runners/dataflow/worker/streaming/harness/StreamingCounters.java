@@ -41,8 +41,6 @@ public abstract class StreamingCounters {
         pendingDeltaCounters.longSum(
             StreamingSystemCounterNames.WINDMILL_STATE_BYTES_WRITTEN.counterName()),
         pendingDeltaCounters.longSum(
-            StreamingSystemCounterNames.WINDMILL_QUOTA_THROTTLING.counterName()),
-        pendingDeltaCounters.longSum(
             StreamingSystemCounterNames.TIME_AT_MAX_ACTIVE_THREADS.counterName()),
         pendingCumulativeCounters.longSum(
             StreamingSystemCounterNames.JAVA_HARNESS_USED_MEMORY.counterName()),
@@ -74,8 +72,6 @@ public abstract class StreamingCounters {
   public abstract Counter<Long, Long> windmillStateBytesRead();
 
   public abstract Counter<Long, Long> windmillStateBytesWritten();
-
-  public abstract Counter<Long, Long> windmillQuotaThrottling();
 
   public abstract Counter<Long, Long> timeAtMaxActiveThreads();
   // Built-in cumulative counters.
