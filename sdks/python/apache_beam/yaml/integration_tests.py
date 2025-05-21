@@ -23,21 +23,19 @@ import glob
 import itertools
 import logging
 import os
+import random
+import string
 import unittest
 import uuid
 
 import mock
-import random
 import sqlalchemy
-import string
 import yaml
-
 from google.cloud import pubsub_v1
-from testcontainers.kafka import KafkaContainer
 from testcontainers.core.container import DockerContainer
-from testcontainers.google import PubSubContainer
-
 from testcontainers.core.waiting_utils import wait_for_logs
+from testcontainers.google import PubSubContainer
+from testcontainers.kafka import KafkaContainer
 
 import apache_beam as beam
 from apache_beam.io import filesystems
