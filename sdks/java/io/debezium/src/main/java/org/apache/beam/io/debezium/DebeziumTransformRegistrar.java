@@ -34,7 +34,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class DebeziumTransformRegistrar implements ExternalTransformRegistrar {
-  public static final String READ_JSON_URN = "beam:transform:org.apache.beam:debezium_read:v3";
+  public static final String READ_JSON_URN = "beam:transform:org.apache.beam:debezium_read:v1";
 
   @Override
   public Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders() {
