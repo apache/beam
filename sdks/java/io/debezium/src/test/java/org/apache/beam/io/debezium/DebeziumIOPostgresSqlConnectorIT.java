@@ -180,7 +180,7 @@ public class DebeziumIOPostgresSqlConnectorIT {
                 .withMaxNumberOfRecords(30)
                 .withCoder(StringUtf8Coder.of()));
     String expected =
-        "{\"metadata\":{\"connector\":\"postgresql\",\"version\":\"1.3.1.Final\",\"name\":\"dbserver1\","
+        "{\"metadata\":{\"connector\":\"postgresql\",\"version\":\"3.1.1.Final\",\"name\":\"beam-debezium-connector\","
             + "\"database\":\"inventory\",\"schema\":\"inventory\",\"table\":\"customers\"},\"before\":null,"
             + "\"after\":{\"fields\":{\"last_name\":\"Thomas\",\"id\":1001,\"first_name\":\"Sally\","
             + "\"email\":\"sally.thomas@acme.com\"}}}";
