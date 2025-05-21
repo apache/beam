@@ -32,12 +32,14 @@ from apache_beam.testing.util import equal_to
 from apache_beam.testing.util import equal_to_per_window
 from apache_beam.testing.util import is_empty
 from apache_beam.testing.util import is_not_empty
+from apache_beam.testing.util import row_namedtuple_equals_fn
 from apache_beam.transforms import trigger
 from apache_beam.transforms import window
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import IntervalWindow
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
+from typing import NamedTuple
 
 
 class UtilTest(unittest.TestCase):
@@ -67,22 +69,26 @@ class UtilTest(unittest.TestCase):
         assert_that(p | Create([1, 10, 100]), equal_to([1, 2, 3]))
 
   def test_assert_missing(self):
-    with self.assertRaisesRegex(BeamAssertException,
+    with self.assertRaisesRegex(RuntimeError,
+                                r"BeamAssertException.*"
                                 r"missing elements \['c'\]"):
       with TestPipeline() as p:
         assert_that(p | Create(['a', 'b']), equal_to(['a', 'b', 'c']))
 
   def test_assert_unexpected(self):
-    with self.assertRaisesRegex(BeamAssertException,
+    with self.assertRaisesRegex(RuntimeError,
+                                r"BeamAssertException.*"
                                 r"unexpected elements \['c', 'd'\]|"
                                 r"unexpected elements \['d', 'c'\]"):
       with TestPipeline() as p:
         assert_that(p | Create(['a', 'b', 'c', 'd']), equal_to(['a', 'b']))
 
   def test_assert_missing_and_unexpected(self):
-    with self.assertRaisesRegex(
-        BeamAssertException,
-        r"unexpected elements \['c'\].*missing elements \['d'\]"):
+    with self.assertRaisesRegex(RuntimeError,
+                                r"BeamAssertException.*"
+                                r"unexpected elements \["
+                                r"'c'\].*missing elements"
+                                r" \['d'\]"):
       with TestPipeline() as p:
         assert_that(p | Create(['a', 'b', 'c']), equal_to(['a', 'b', 'd']))
 
@@ -142,7 +148,7 @@ class UtilTest(unittest.TestCase):
       assert_that(p | Create([1, 2, 3]), is_not_empty())
 
   def test_assert_that_fails_on_is_not_empty_expected(self):
-    with self.assertRaises(BeamAssertException):
+    with self.assertRaisesRegex(RuntimeError, "BeamAssertException"):
       with TestPipeline() as p:
         assert_that(p | Create([]), is_not_empty())
 
@@ -166,7 +172,7 @@ class UtilTest(unittest.TestCase):
                   reify_windows=True)
 
   def test_equal_to_per_window_fail_unmatched_window(self):
-    with self.assertRaises(BeamAssertException):
+    with self.assertRaisesRegex(RuntimeError, "BeamAssertException"):
       expected = {
           window.IntervalWindow(50, 100): [('k', [1])],
       }
@@ -197,7 +203,7 @@ class UtilTest(unittest.TestCase):
       assert_that(outputs, equal_to([2, 3, 4]))
 
   def test_equal_to_per_window_fail_unmatched_element(self):
-    with self.assertRaises(BeamAssertException):
+    with self.assertRaisesRegex(RuntimeError, "BeamAssertException"):
       start = int(MIN_TIMESTAMP.micros // 1e6) - 5
       end = start + 20
       expected = {
@@ -235,7 +241,7 @@ class UtilTest(unittest.TestCase):
                   equal_to_per_window(expected))
 
   def test_equal_to_per_window_fail_unexpected_element(self):
-    with self.assertRaises(BeamAssertException):
+    with self.assertRaisesRegex(RuntimeError, "BeamAssertException"):
       start = int(MIN_TIMESTAMP.micros // 1e6) - 5
       end = start + 20
       expected = {
@@ -253,6 +259,54 @@ class UtilTest(unittest.TestCase):
             | beam.GroupByKey()),
                     equal_to_per_window(expected),
                     reify_windows=True)
+
+  def test_row_namedtuple_equals(self):
+    class RowTuple(NamedTuple):
+      a: str
+      b: int
+
+    self.assertTrue(
+        row_namedtuple_equals_fn(
+            beam.Row(a='123', b=456), beam.Row(a='123', b=456)))
+    self.assertTrue(
+        row_namedtuple_equals_fn(
+            beam.Row(a='123', b=456), RowTuple(a='123', b=456)))
+    self.assertTrue(
+        row_namedtuple_equals_fn(
+            RowTuple(a='123', b=456), RowTuple(a='123', b=456)))
+    self.assertTrue(
+        row_namedtuple_equals_fn(
+            RowTuple(a='123', b=456), beam.Row(a='123', b=456)))
+    self.assertTrue(row_namedtuple_equals_fn('foo', 'foo'))
+    self.assertFalse(
+        row_namedtuple_equals_fn(
+            beam.Row(a='123', b=456), beam.Row(a='123', b=4567)))
+    self.assertFalse(
+        row_namedtuple_equals_fn(
+            beam.Row(a='123', b=456), beam.Row(a='123', b=456, c='a')))
+    self.assertFalse(
+        row_namedtuple_equals_fn(
+            beam.Row(a='123', b=456), RowTuple(a='123', b=4567)))
+    self.assertFalse(
+        row_namedtuple_equals_fn(
+            beam.Row(a='123', b=456, c='foo'), RowTuple(a='123', b=4567)))
+    self.assertFalse(
+        row_namedtuple_equals_fn(beam.Row(a='123'), RowTuple(a='123', b=4567)))
+    self.assertFalse(row_namedtuple_equals_fn(beam.Row(a='123'), '123'))
+    self.assertFalse(row_namedtuple_equals_fn('123', RowTuple(a='123', b=4567)))
+
+    class NestedNamedTuple(NamedTuple):
+      a: str
+      b: RowTuple
+
+    self.assertTrue(
+        row_namedtuple_equals_fn(
+            beam.Row(a='foo', b=beam.Row(a='123', b=456)),
+            NestedNamedTuple(a='foo', b=RowTuple(a='123', b=456))))
+    self.assertTrue(
+        row_namedtuple_equals_fn(
+            beam.Row(a='foo', b=beam.Row(a='123', b=456)),
+            beam.Row(a='foo', b=RowTuple(a='123', b=456))))
 
 
 if __name__ == '__main__':
