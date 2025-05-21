@@ -56,7 +56,7 @@ def enrichment_with_cloudsql():
   import apache_beam as beam
   from apache_beam.transforms.enrichment import Enrichment
   from apache_beam.transforms.enrichment_handlers.cloudsql import (
-      CloudSQLEnrichmentHandler, DatabaseTypeAdapter)
+      CloudSQLEnrichmentHandler, DatabaseTypeAdapter, TableFieldsQueryConfig)
   import os
 
   database_type_adapter = DatabaseTypeAdapter[os.environ.get("SQL_DB_TYPE")]
@@ -74,6 +74,11 @@ def enrichment_with_cloudsql():
       beam.Row(product_id=3, name='C'),
   ]
 
+  query_config = TableFieldsQueryConfig(
+      table_id=table_id,
+      where_clause_template=where_clause_template,
+      where_clause_fields=where_clause_fields)
+
   cloudsql_handler = CloudSQLEnrichmentHandler(
       database_type_adapter=database_type_adapter,
       database_address=database_address,
@@ -81,8 +86,7 @@ def enrichment_with_cloudsql():
       database_password=database_password,
       database_id=database_id,
       table_id=table_id,
-      where_clause_template=where_clause_template,
-      where_clause_fields=where_clause_fields)
+      query_config=query_config)
   with beam.Pipeline() as p:
     _ = (
         p

@@ -33,6 +33,8 @@ from apache_beam.testing.util import equal_to
 try:
   from testcontainers.core.generic import DbContainer
   from testcontainers.postgres import PostgresContainer
+  from testcontainers.mysql import MySqlContainer
+  from testcontainers.mssql import SqlServerContainer
   from testcontainers.redis import RedisContainer
   from sqlalchemy import (
       create_engine, MetaData, Table, Column, Integer, String, Engine)
@@ -40,7 +42,9 @@ try:
   from apache_beam.transforms.enrichment_handlers.cloudsql import (
       CloudSQLEnrichmentHandler,
       DatabaseTypeAdapter,
-  )
+      CustomQueryConfig,
+      TableFieldsQueryConfig,
+      TableFunctionQueryConfig)
 except ImportError:
   raise unittest.SkipTest('Google Cloud SQL dependencies are not installed.')
 
@@ -78,18 +82,36 @@ class SQLDBContainerInfo:
 class CloudSQLEnrichmentTestHelper:
   @staticmethod
   def start_sql_db_container(
+      database_type: DatabaseTypeAdapter,
       sql_client_retries=3) -> Optional[SQLDBContainerInfo]:
     info = None
     for i in range(sql_client_retries):
       try:
-        database_type_adapter = DatabaseTypeAdapter.POSTGRESQL
-        sql_db_container = PostgresContainer(image="postgres:16")
-        sql_db_container.start()
-        host = sql_db_container.get_container_host_ip()
-        port = sql_db_container.get_exposed_port(5432)
-        user, password, db_id = "test", "test", "test"
+        if database_type == DatabaseTypeAdapter.POSTGRESQL:
+          sql_db_container = PostgresContainer(image="postgres:16")
+          sql_db_container.start()
+          host = sql_db_container.get_container_host_ip()
+          port = sql_db_container.get_exposed_port(5432)
+          user, password, db_id = "test", "test", "test"
+
+        elif database_type == DatabaseTypeAdapter.MYSQL:
+          sql_db_container = MySqlContainer(image="mysql:8.0")
+          sql_db_container.start()
+          host = sql_db_container.get_container_host_ip()
+          port = sql_db_container.get_exposed_port(3306)
+          user, password, db_id = "test", "test", "test"
+
+        elif database_type == DatabaseTypeAdapter.SQLSERVER:
+          sql_db_container = SqlServerContainer()
+          sql_db_container.start()
+          host = sql_db_container.get_container_host_ip()
+          port = sql_db_container.get_exposed_port(1433)
+          user, password, db_id = "sa", "A_Str0ng_Required_Password", "tempdb"
+        else:
+          raise ValueError(f"Unsupported database type: {database_type}")
+
         info = SQLDBContainerInfo(
-            adapter=database_type_adapter,
+            adapter=database_type,
             container=sql_db_container,
             host=host,
             port=port,
@@ -97,32 +119,38 @@ class CloudSQLEnrichmentTestHelper:
             password=password,
             id=db_id)
         _LOGGER.info(
-            "PostgreSQL container started successfully on %s.", info.address)
+            "%s container started successfully on %s.",
+            database_type.name,
+            info.address)
         break
       except Exception as e:
         _LOGGER.warning(
-            "Retry %d/%d: Failed to start PostgreSQL container. Reason: %s",
+            "Retry %d/%d: Failed to start %s container. Reason: %s",
             i + 1,
             sql_client_retries,
+            database_type.name,
             e)
         if i == sql_client_retries - 1:
           _LOGGER.error(
-              "Unable to start PostgreSQL container for IO tests after %d "
+              "Unable to start %s container for I/O tests after %d "
               "retries. Tests cannot proceed.",
+              database_type.name,
               sql_client_retries)
           raise e
 
     return info
 
   @staticmethod
-  def stop_sql_db_container(sql_db: DbContainer):
+  def stop_sql_db_container(db_info: SQLDBContainerInfo):
     try:
-      _LOGGER.debug("Stopping PostgreSQL container.")
-      sql_db.stop()
-      _LOGGER.info("PostgreSQL container stopped successfully.")
+      _LOGGER.debug("Stopping %s container.", db_info.adapter.name)
+      db_info.container.stop()
+      _LOGGER.info("%s container stopped successfully.", db_info.adapter.name)
     except Exception as e:
       _LOGGER.warning(
-          "Error encountered while stopping PostgreSQL container: %s", e)
+          "Error encountered while stopping %s container: %s",
+          db_info.adapter.name,
+          e)
 
   @staticmethod
   def create_table(
@@ -141,21 +169,23 @@ class CloudSQLEnrichmentTestHelper:
       try:
         connection.execute(table.insert(), table_data)
         transaction.commit()
-        return engine
       except Exception as e:
         transaction.rollback()
         raise e
 
+    return engine
+
+
+def init_db_type(db_type):
+  def wrapper(cls):
+    cls.db_type = db_type
+    return cls
+
+  return wrapper
+
 
 @pytest.mark.uses_testcontainer
-class TestCloudSQLEnrichment(unittest.TestCase):
-  _table_id = "product_details"
-  _columns = [
-      Column("id", Integer, primary_key=True),
-      Column("name", String, nullable=False),
-      Column("quantity", Integer, nullable=False),
-      Column("distribution_center_id", Integer, nullable=False),
-  ]
+class BaseTestCloudSQLEnrichment(unittest.TestCase):
   _table_data = [
       {
           "id": 1, "name": "A", 'quantity': 2, 'distribution_center_id': 3
@@ -182,13 +212,28 @@ class TestCloudSQLEnrichment(unittest.TestCase):
           "id": 8, "name": "D", 'quantity': 4, 'distribution_center_id': 1
       },
   ]
+  db = None
+  _engine = None
 
   @classmethod
   def setUpClass(cls):
-    cls.db = CloudSQLEnrichmentTestHelper.start_sql_db_container()
+    if not hasattr(cls, 'db_type'):
+      # Skip setup for the base class.
+      raise unittest.SkipTest("Base class - no db_type defined")
+    cls.db = CloudSQLEnrichmentTestHelper.start_sql_db_container(cls.db_type)
     cls._engine = CloudSQLEnrichmentTestHelper.create_table(
-        cls._table_id, cls.db.url, cls._columns, cls._table_data)
+        cls._table_id, cls.db.url, cls.get_columns(), cls._table_data)
     cls._cache_client_retries = 3
+
+  @classmethod
+  def get_columns(cls):
+    """Returns fresh column objects each time it's called."""
+    return [
+        Column("id", Integer, primary_key=True),
+        Column("name", String(255), nullable=False),
+        Column("quantity", Integer, nullable=False),
+        Column("distribution_center_id", Integer, nullable=False),
+    ]
 
   @pytest.fixture
   def cache_container(self):
@@ -222,7 +267,7 @@ class TestCloudSQLEnrichment(unittest.TestCase):
   @classmethod
   def tearDownClass(cls):
     cls._engine.dispose(close=True)
-    CloudSQLEnrichmentTestHelper.stop_sql_db_container(cls.db.container)
+    CloudSQLEnrichmentTestHelper.stop_sql_db_container(cls.db)
     cls._engine = None
 
   def test_cloudsql_enrichment(self):
@@ -235,15 +280,19 @@ class TestCloudSQLEnrichment(unittest.TestCase):
         beam.Row(id=1, name='A'),
         beam.Row(id=2, name='B'),
     ]
+
+    query_config = TableFieldsQueryConfig(
+        table_id=self._table_id,
+        where_clause_template="id = {}",
+        where_clause_fields=fields)
+
     handler = CloudSQLEnrichmentHandler(
         database_type_adapter=self.db.adapter,
         database_address=self.db.address,
         database_user=self.db.user,
         database_password=self.db.id,
         database_id=self.db.id,
-        table_id=self._table_id,
-        where_clause_template="id = {}",
-        where_clause_fields=fields,
+        query_config=query_config,
         min_batch_size=1,
         max_batch_size=100,
     )
@@ -262,15 +311,19 @@ class TestCloudSQLEnrichment(unittest.TestCase):
         beam.Row(id=1, name='A'),
         beam.Row(id=2, name='B'),
     ]
+
+    query_config = TableFieldsQueryConfig(
+        table_id=self._table_id,
+        where_clause_template="id = {}",
+        where_clause_fields=fields)
+
     handler = CloudSQLEnrichmentHandler(
         database_type_adapter=self.db.adapter,
         database_address=self.db.address,
         database_user=self.db.user,
         database_password=self.db.password,
         database_id=self.db.id,
-        table_id=self._table_id,
-        where_clause_template="id = {}",
-        where_clause_fields=fields,
+        query_config=query_config,
         min_batch_size=2,
         max_batch_size=100,
     )
@@ -289,15 +342,19 @@ class TestCloudSQLEnrichment(unittest.TestCase):
         beam.Row(id=1, distribution_center_id=3),
         beam.Row(id=2, distribution_center_id=1),
     ]
+
+    query_config = TableFieldsQueryConfig(
+        table_id=self._table_id,
+        where_clause_template="id = {} AND distribution_center_id = {}",
+        where_clause_fields=fields)
+
     handler = CloudSQLEnrichmentHandler(
         database_type_adapter=self.db.adapter,
         database_address=self.db.address,
         database_user=self.db.user,
         database_password=self.db.password,
         database_id=self.db.id,
-        table_id=self._table_id,
-        where_clause_template="id = {} AND distribution_center_id = {}",
-        where_clause_fields=fields,
+        query_config=query_config,
         min_batch_size=8,
         max_batch_size=100,
     )
@@ -316,13 +373,16 @@ class TestCloudSQLEnrichment(unittest.TestCase):
         beam.Row(id=2, name='B'),
     ]
     fn = functools.partial(query_fn, self._table_id)
+
+    query_config = CustomQueryConfig(query_fn=fn)
+
     handler = CloudSQLEnrichmentHandler(
         database_type_adapter=self.db.adapter,
         database_address=self.db.address,
         database_user=self.db.user,
         database_password=self.db.password,
         database_id=self.db.id,
-        query_fn=fn)
+        query_config=query_config)
     with TestPipeline(is_integration_test=True) as test_pipeline:
       pcoll = (test_pipeline | beam.Create(requests) | Enrichment(handler))
 
@@ -337,15 +397,19 @@ class TestCloudSQLEnrichment(unittest.TestCase):
         beam.Row(id=1, name='A'),
         beam.Row(id=2, name='B'),
     ]
+
+    query_config = TableFunctionQueryConfig(
+        table_id=self._table_id,
+        where_clause_template="id = {}",
+        where_clause_value_fn=where_clause_value_fn)
+
     handler = CloudSQLEnrichmentHandler(
         database_type_adapter=self.db.adapter,
         database_address=self.db.address,
         database_user=self.db.user,
         database_password=self.db.password,
         database_id=self.db.id,
-        table_id=self._table_id,
-        where_clause_template="id = {}",
-        where_clause_value_fn=where_clause_value_fn,
+        query_config=query_config,
         min_batch_size=2,
         max_batch_size=100)
     with TestPipeline(is_integration_test=True) as test_pipeline:
@@ -358,15 +422,19 @@ class TestCloudSQLEnrichment(unittest.TestCase):
         beam.Row(id=1, name='A'),
         beam.Row(id=2, name='B'),
     ]
+
+    query_config = TableFunctionQueryConfig(
+        table_id=self._table_id,
+        where_clause_template="id = {}",
+        where_clause_value_fn=where_clause_value_fn)
+
     handler = CloudSQLEnrichmentHandler(
         database_type_adapter=self.db.adapter,
         database_address=self.db.address,
         database_user=self.db.user,
         database_password=self.db.password,
         database_id=self.db.id,
-        table_id=self._table_id,
-        where_clause_template="id = {}",
-        where_clause_value_fn=where_clause_value_fn,
+        query_config=query_config,
         column_names=["wrong_column"],
     )
     with self.assertRaises(RuntimeError):
@@ -388,15 +456,19 @@ class TestCloudSQLEnrichment(unittest.TestCase):
         beam.Row(id=1, name="A", quantity=2, distribution_center_id=3),
         beam.Row(id=2, name="B", quantity=3, distribution_center_id=1)
     ]
+
+    query_config = TableFunctionQueryConfig(
+        table_id=self._table_id,
+        where_clause_template="id = {}",
+        where_clause_value_fn=where_clause_value_fn)
+
     handler = CloudSQLEnrichmentHandler(
         database_type_adapter=self.db.adapter,
         database_address=self.db.address,
         database_user=self.db.user,
         database_password=self.db.password,
         database_id=self.db.id,
-        table_id=self._table_id,
-        where_clause_template="id = {}",
-        where_clause_value_fn=where_clause_value_fn,
+        query_config=query_config,
         min_batch_size=2,
         max_batch_size=100)
     with TestPipeline(is_integration_test=True) as test_pipeline:
@@ -431,6 +503,24 @@ class TestCloudSQLEnrichment(unittest.TestCase):
 
     # Restore the original CloudSQL enrichment handler implementation.
     CloudSQLEnrichmentHandler.__call__ = actual
+
+
+@init_db_type(DatabaseTypeAdapter.POSTGRESQL)
+@pytest.mark.uses_testcontainer
+class TestCloudSQLEnrichmentPostgres(BaseTestCloudSQLEnrichment):
+  _table_id = "product_details_pg"
+
+
+@init_db_type(DatabaseTypeAdapter.MYSQL)
+@pytest.mark.uses_testcontainer
+class TestCloudSQLEnrichmentMySQL(BaseTestCloudSQLEnrichment):
+  _table_id = "product_details_mysql"
+
+
+@init_db_type(DatabaseTypeAdapter.SQLSERVER)
+@pytest.mark.uses_testcontainer
+class TestCloudSQLEnrichmentSQLServer(BaseTestCloudSQLEnrichment):
+  _table_id = "product_details_mssql"
 
 
 if __name__ == "__main__":
