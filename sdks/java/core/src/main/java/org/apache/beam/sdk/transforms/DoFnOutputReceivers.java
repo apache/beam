@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
@@ -29,6 +30,8 @@ import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.OutputBuilder;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -40,9 +43,111 @@ import org.joda.time.Instant;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class DoFnOutputReceivers {
+
+  /**
+   * OutputBuilder implementations may extend this class to simplify wrapping of another
+   * OutputBuilder.
+   *
+   * <p>Because a common cause of delegation is to adjust the type of output received, extenders
+   * <i>must</i> implement {#link setValue} and {#link getValue}.
+   */
+  public abstract static class DelegatingOutputBuilder<InnerT, OuterT>
+      implements OutputBuilder<OuterT> {
+
+    private final OutputBuilder<InnerT> delegate;
+
+    public DelegatingOutputBuilder(OutputBuilder<InnerT> delegate) {
+      this.delegate = delegate;
+    }
+
+    protected OutputBuilder<InnerT> getDelegate() {
+      return delegate;
+    }
+
+    @Override
+    public abstract OutputBuilder<OuterT> setValue(OuterT value);
+
+    @Override
+    public OutputBuilder<OuterT> setTimestamp(Instant timestamp) {
+      delegate.setTimestamp(timestamp);
+      return this;
+    }
+
+    @Override
+    public OutputBuilder<OuterT> setWindow(BoundedWindow window) {
+      delegate.setWindow(window);
+      return this;
+    }
+
+    @Override
+    public OutputBuilder<OuterT> setWindows(Collection<? extends BoundedWindow> windows) {
+      delegate.setWindows(windows);
+      return this;
+    }
+
+    @Override
+    public OutputBuilder<OuterT> setPaneInfo(PaneInfo paneInfo) {
+      delegate.setPaneInfo(paneInfo);
+      return this;
+    }
+
+    @Override
+    public abstract OuterT getValue();
+
+    @Override
+    public Instant getTimestamp() {
+      return delegate.getTimestamp();
+    }
+
+    @Override
+    public Collection<? extends BoundedWindow> getWindows() {
+      return delegate.getWindows();
+    }
+
+    @Override
+    public PaneInfo getPaneInfo() {
+      return delegate.getPaneInfo();
+    }
+
+    @Override
+    public void output() {
+      delegate.output();
+    }
+  }
+
+  private static class RowOutputBuilder<T> extends DelegatingOutputBuilder<T, Row>
+      implements OutputBuilder<Row> {
+
+    private @Nullable Row currentRow;
+    private final SchemaCoder<T> schemaCoder;
+
+    RowOutputBuilder(OutputBuilder<T> delegate, SchemaCoder<T> schemaCoder) {
+      super(delegate);
+      this.schemaCoder = schemaCoder;
+    }
+
+    @Override
+    public OutputBuilder<Row> setValue(Row value) {
+      currentRow = value;
+      getDelegate().setValue(schemaCoder.getFromRowFunction().apply(value));
+      return (OutputBuilder<Row>) this;
+    }
+
+    @Override
+    public Row getValue() {
+      checkStateNotNull(currentRow, "getValue() called before value set");
+      return currentRow;
+    }
+  }
+
   private static class RowOutputReceiver<T> implements OutputReceiver<Row> {
     WindowedContextOutputReceiver<T> outputReceiver;
     SchemaCoder<T> schemaCoder;
+
+    @Override
+    public OutputBuilder<Row> builder() {
+      return new RowOutputBuilder<>(outputReceiver.builder(), schemaCoder);
+    }
 
     public RowOutputReceiver(
         DoFn<?, ?>.WindowedContext context,
@@ -51,29 +156,14 @@ public class DoFnOutputReceivers {
       outputReceiver = new WindowedContextOutputReceiver<>(context, outputTag);
       this.schemaCoder = checkNotNull(schemaCoder);
     }
-
-    @Override
-    public void output(Row output) {
-      outputReceiver.output(schemaCoder.getFromRowFunction().apply(output));
-    }
-
-    @Override
-    public void outputWithTimestamp(Row output, Instant timestamp) {
-      outputReceiver.outputWithTimestamp(schemaCoder.getFromRowFunction().apply(output), timestamp);
-    }
-
-    @Override
-    public void outputWindowedValue(
-        Row output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo paneInfo) {
-      outputReceiver.outputWindowedValue(
-          schemaCoder.getFromRowFunction().apply(output), timestamp, windows, paneInfo);
-    }
   }
 
-  private static class WindowedContextOutputReceiver<T> implements OutputReceiver<T> {
+  /**
+   * OutputReceiver that delegates all its core functionality to DoFn.WindowedContext which predates
+   * OutputReceiver and has most of the same methods.
+   */
+  private static class WindowedContextOutputReceiver<T>
+      implements OutputReceiver<T>, WindowedValue.Outputter<T> {
     DoFn<?, ?>.WindowedContext context;
     @Nullable TupleTag<T> outputTag;
 
@@ -84,34 +174,26 @@ public class DoFnOutputReceivers {
     }
 
     @Override
-    public void output(T output) {
-      if (outputTag != null) {
-        context.output(outputTag, output);
-      } else {
-        ((DoFn<?, T>.WindowedContext) context).output(output);
-      }
+    public OutputBuilder<T> builder() {
+      return WindowedValue.builder(this);
     }
 
     @Override
-    public void outputWithTimestamp(T output, Instant timestamp) {
+    public void output(WindowedValue.Builder<T> outputBuilder) {
       if (outputTag != null) {
-        context.outputWithTimestamp(outputTag, output, timestamp);
-      } else {
-        ((DoFn<?, T>.WindowedContext) context).outputWithTimestamp(output, timestamp);
-      }
-    }
-
-    @Override
-    public void outputWindowedValue(
-        T output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo paneInfo) {
-      if (outputTag != null) {
-        context.outputWindowedValue(outputTag, output, timestamp, windows, paneInfo);
+        context.outputWindowedValue(
+            outputTag,
+            outputBuilder.getValue(),
+            outputBuilder.getTimestamp(),
+            outputBuilder.getWindows(),
+            outputBuilder.getPaneInfo());
       } else {
         ((DoFn<?, T>.WindowedContext) context)
-            .outputWindowedValue(output, timestamp, windows, paneInfo);
+            .outputWindowedValue(
+                outputBuilder.getValue(),
+                outputBuilder.getTimestamp(),
+                outputBuilder.getWindows(),
+                outputBuilder.getPaneInfo());
       }
     }
   }

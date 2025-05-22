@@ -45,6 +45,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.values.OutputBuilder;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
@@ -391,17 +392,27 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
 
   /** Receives values of the given type. */
   public interface OutputReceiver<T> {
-    void output(T output);
+    OutputBuilder<T> builder();
 
-    void outputWithTimestamp(T output, Instant timestamp);
+    default void output(T value) {
+      builder().setValue(value).output();
+    }
+
+    default void outputWithTimestamp(T value, Instant timestamp) {
+      builder().setValue(value).setTimestamp(timestamp).output();
+    }
 
     default void outputWindowedValue(
-        T output,
+        T value,
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo) {
-      throw new UnsupportedOperationException(
-          String.format("Not implemented: %s.outputWindowedValue", this.getClass().getName()));
+      builder()
+          .setValue(value)
+          .setTimestamp(timestamp)
+          .setWindows(windows)
+          .setPaneInfo(paneInfo)
+          .output();
     }
   }
 
