@@ -180,7 +180,7 @@ tests:
 As before, each test only executes the portion of the pipeline between the
 mock inputs and expected outputs.  Note that the named transform in a
 `mock_inputs` specification *is* executed, while the named transform of a
-`mock_oupputs` specification is not.
+`mock_outputs` specification is not.
 Similarly, the named transform of a `expected_inputs` specification is *not*
 executed, while the named transform of an `expected_outputs` necessarily is.
 
@@ -225,10 +225,10 @@ are meaningful and as expected.)
 
 ## Branching pipelines
 
-For complex, branching pipelines, any number of `mock_inputs` and `mock_outupts`
+For complex, branching pipelines, any number of `mock_inputs` and `mock_outputs`
 may be enumerated to provide the input data, and any number of `expected_inputs`
 and `expected_outputs` validations may be specified as well.
-In both the `mock_outupts` and `expected_outputs` block, multiple outputs can
+In both the `mock_outputs` and `expected_outputs` block, multiple outputs can
 be disambiguated with the `TransformName.output_name` notation just as when
 authoring a yaml pipeline.
 
