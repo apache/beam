@@ -26,6 +26,7 @@ from typing import Tuple
 
 from google.api_core.retry import Retry
 
+from cachetools.func import ttl_cache
 from apache_beam import pvalue
 from apache_beam.metrics import Metrics
 from apache_beam.options.pipeline_options import GoogleCloudOptions
@@ -34,7 +35,6 @@ from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
 from apache_beam.transforms.util import GroupIntoBatches
 from apache_beam.utils import retry
-from cachetools.func import ttl_cache
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:

@@ -21,20 +21,20 @@ import secrets
 import time
 import unittest
 
-import psycopg2
 import pytest
+import sqlalchemy
+from google.cloud.sql.connector import Connector
+from sqlalchemy import text
 
 import apache_beam as beam
 from apache_beam.io.jdbc import ReadFromJdbc
 from apache_beam.ml.rag.ingestion import test_utils
-from apache_beam.ml.rag.ingestion.alloydb import AlloyDBLanguageConnectorConfig
-from apache_beam.ml.rag.ingestion.alloydb import AlloyDBVectorWriterConfig
 from apache_beam.ml.rag.ingestion.base import VectorDatabaseWriteTransform
+from apache_beam.ml.rag.ingestion.cloudsql import CloudSQLPostgresVectorWriterConfig
+from apache_beam.ml.rag.ingestion.cloudsql import LanguageConnectorConfig
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-
-_LOGGER = logging.getLogger(__name__)
 
 
 @pytest.mark.uses_gcp_java_expansion_service
@@ -45,30 +45,45 @@ _LOGGER = logging.getLogger(__name__)
 @unittest.skipUnless(
     os.environ.get('ALLOYDB_PASSWORD'),
     "ALLOYDB_PASSWORD environment var is not provided")
-class AlloydbVectorWriterConfigTest(unittest.TestCase):
+class CloudSQLPostgresVectorWriterConfigTest(unittest.TestCase):
   POSTGRES_TABLE_PREFIX = 'python_rag_postgres_'
 
   @classmethod
+  def _create_engine(cls):
+    """Create SQLAlchemy engine using Cloud SQL connector."""
+    def getconn():
+      conn = cls.connector.connect(
+          cls.instance_uri,
+          "pg8000",
+          user=cls.username,
+          password=cls.password,
+          db=cls.database,
+      )
+      return conn
+
+    engine = sqlalchemy.create_engine(
+        "postgresql+pg8000://",
+        creator=getconn,
+    )
+    return engine
+
+  @classmethod
   def setUpClass(cls):
-    cls.host = os.environ.get('ALLOYDB_HOST', '10.119.0.22')
-    cls.port = os.environ.get('ALLOYDB_PORT', '5432')
-    cls.database = os.environ.get('ALLOYDB_DATABASE', 'postgres')
-    cls.username = os.environ.get('ALLOYDB_USERNAME', 'postgres')
+    cls.database = os.environ.get('POSTGRES_DATABASE', 'postgres')
+    cls.username = os.environ.get('POSTGRES_USERNAME', 'postgres')
     if not os.environ.get('ALLOYDB_PASSWORD'):
       raise ValueError('ALLOYDB_PASSWORD env not set')
     cls.password = os.environ.get('ALLOYDB_PASSWORD')
+    cls.instance_uri = os.environ.get(
+        'POSTGRES_INSTANCE_URI',
+        'apache-beam-testing:us-central1:beam-integration-tests')
 
     # Create unique table name suffix
     cls.table_suffix = '%d%s' % (int(time.time()), secrets.token_hex(3))
 
     # Setup database connection
-    cls.conn = psycopg2.connect(
-        host=cls.host,
-        port=cls.port,
-        database=cls.database,
-        user=cls.username,
-        password=cls.password)
-    cls.conn.autocommit = True
+    cls.connector = Connector(refresh_strategy="LAZY")
+    cls.engine = cls._create_engine()
 
   def skip_if_dataflow_runner(self):
     if self._runner and "dataflowrunner" in self._runner.lower():
@@ -80,50 +95,51 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
     self.read_test_pipeline = TestPipeline(is_integration_test=True)
     self._runner = type(self.read_test_pipeline.runner).__name__
 
-    self.default_table_name = "default_embeddings"
-    f"{self.POSTGRES_TABLE_PREFIX}" \
+    self.default_table_name = f"{self.POSTGRES_TABLE_PREFIX}" \
       f"{self.table_suffix}"
 
-    self.jdbc_url = f'jdbc:postgresql://{self.host}:{self.port}/{self.database}'
-
     # Create test table
-    with self.conn.cursor() as cursor:
-      cursor.execute(
-          f"""
+    with self.engine.connect() as connection:
+      connection.execute(
+          text(
+              f"""
                 CREATE TABLE {self.default_table_name} (
                     id TEXT PRIMARY KEY,
                     embedding VECTOR({test_utils.VECTOR_SIZE}),
                     content TEXT,
                     metadata JSONB
                 )
-            """)
+            """))
+      connection.commit()
     _LOGGER = logging.getLogger(__name__)
     _LOGGER.info("Created table %s", self.default_table_name)
 
   def tearDown(self):
     # Drop test table
-    with self.conn.cursor() as cursor:
-      cursor.execute(f"DROP TABLE IF EXISTS {self.default_table_name}")
+    with self.engine.connect() as connection:
+      connection.execute(
+          text(f"DROP TABLE IF EXISTS {self.default_table_name}"))
+      connection.commit()
     _LOGGER = logging.getLogger(__name__)
     _LOGGER.info("Dropped table %s", self.default_table_name)
 
   @classmethod
   def tearDownClass(cls):
-    if hasattr(cls, 'conn'):
-      cls.conn.close()
+    if hasattr(cls, 'connector'):
+      cls.connector.close()
+    if hasattr(cls, 'engine'):
+      cls.engine.dispose()
 
   def test_language_connector(self):
     """Test language connector."""
     self.skip_if_dataflow_runner()
 
-    connection_config = AlloyDBLanguageConnectorConfig(
+    connection_config = LanguageConnectorConfig(
         username=self.username,
         password=self.password,
         database_name=self.database,
-        instance_name="projects/apache-beam-testing/locations/us-central1/\
-            clusters/testing-psc/instances/testing-psc-1",
-        ip_type="PSC")
-    writer_config = AlloyDBVectorWriterConfig(
+        instance_name=self.instance_uri)
+    writer_config = CloudSQLPostgresVectorWriterConfig(
         connection_config=connection_config, table_name=self.default_table_name)
 
     # Create test chunks
@@ -155,11 +171,13 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
           | ReadFromJdbc(
               table_name=self.default_table_name,
               driver_class_name="org.postgresql.Driver",
-              jdbc_url=connection_config.to_connection_config().jdbc_url,
+              jdbc_url=writer_config.connector_config.to_connection_config(
+              ).jdbc_url,
               username=self.username,
               password=self.password,
               query=read_query,
-              classpath=connection_config.additional_jdbc_args()['classpath']))
+              classpath=writer_config.connector_config.additional_jdbc_args()
+              ['classpath']))
 
       count_result = rows | "Count All" >> beam.combiners.Count.Globally()
       assert_that(count_result, equal_to([num_records]), label='count_check')
