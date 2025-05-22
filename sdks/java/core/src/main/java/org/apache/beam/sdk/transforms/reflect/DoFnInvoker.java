@@ -188,16 +188,30 @@ public interface DoFnInvoker<InputT, OutputT> {
 
     /**
      * Provide a reference to the input element key in {@link org.apache.beam.sdk.values.KV} pair.
+     *
+     * <p>{@code null} is allowed because user keys may be null. This method may <i>not</i> return
+     * null for any other reason.
      */
+    @Nullable
     Object key();
 
-    /** Provide a reference to the input sideInput with the specified tag. */
+    /**
+     * Provide a reference to the input sideInput with the specified tag.
+     *
+     * <p>{@code null} is allowed because side input values may be null. This method may <i>not</i>
+     * return null for any other reason.
+     */
+    @Nullable
     Object sideInput(String tagId);
 
     /**
      * Provide a reference to the selected schema field corresponding to the input argument
      * specified by index.
+     *
+     * <p>{@code null} is allowed because element fields may be null. This method may <i>not</i>
+     * return null for any other reason.
      */
+    @Nullable
     Object schemaElement(int index);
 
     /** Provide a reference to the input element timestamp. */
@@ -282,13 +296,13 @@ public interface DoFnInvoker<InputT, OutputT> {
     }
 
     @Override
-    public Object key() {
+    public @Nullable Object key() {
       throw new UnsupportedOperationException(
           "Cannot access key as parameter outside of @OnTimer method.");
     }
 
     @Override
-    public Object sideInput(String tagId) {
+    public @Nullable Object sideInput(String tagId) {
       throw new UnsupportedOperationException(
           String.format("SideInput unsupported in %s", getErrorContext()));
     }
@@ -300,7 +314,7 @@ public interface DoFnInvoker<InputT, OutputT> {
     }
 
     @Override
-    public Object schemaElement(int index) {
+    public @Nullable Object schemaElement(int index) {
       throw new UnsupportedOperationException(
           String.format("Schema element unsupported in %s", getErrorContext()));
     }
@@ -481,17 +495,17 @@ public interface DoFnInvoker<InputT, OutputT> {
     }
 
     @Override
-    public Object key() {
+    public @Nullable Object key() {
       return delegate.key();
     }
 
     @Override
-    public Object sideInput(String tagId) {
+    public @Nullable Object sideInput(String tagId) {
       return delegate.sideInput(tagId);
     }
 
     @Override
-    public Object schemaElement(int index) {
+    public @Nullable Object schemaElement(int index) {
       return delegate.schemaElement(index);
     }
 
