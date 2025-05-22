@@ -386,6 +386,14 @@
         project: 'projectId'
         instance: 'instanceId'
         table: 'tableId'
+        key: ""
+        type: ""
+        value: ""
+        columnQual: ""
+        familyName: ""
+        timestamp_micros: ""
+        start_timestamp_micros: ""
+        end_timestamp_micros: ""
     underlying_provider:
       type: beamJar
       transforms:

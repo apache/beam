@@ -104,6 +104,8 @@ def instance_prefix(instance):
 
 @contextlib.contextmanager
 def temp_bigtable_table(project, prefix='yaml_bt_it_'):
+    INSTANCE = "bt-read-tests"
+    TABLE_ID = "test-table"
     test_pipeline = TestPipeline(is_integration_test=True)
     args = test_pipeline.get_full_options_as_args()
     project = test_pipeline.get_option('project')
@@ -115,7 +117,7 @@ def temp_bigtable_table(project, prefix='yaml_bt_it_'):
     instance = client.instance(
         instance_id,
         display_name=INSTANCE,
-        instance_type=Instance.Type.DEVELOPMENT)
+        instance_type=instance.Instance.Type.DEVELOPMENT)
     cluster = instance.cluster("test-cluster", "us-central1-a")
     operation = instance.create(clusters=[cluster])
     operation.result(timeout=500)
