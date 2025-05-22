@@ -30,6 +30,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Duration;
+import java.util.Map;
+import java.util.Properties;
+import java.util.stream.Collectors;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -50,6 +53,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.containers.wait.strategy.HttpWaitStrategy;
 import org.testcontainers.utility.DockerImageName;
@@ -58,6 +62,10 @@ import org.testcontainers.utility.DockerImageName;
 public class DebeziumIOMySqlConnectorIT {
 
   private static final Logger LOG = LoggerFactory.getLogger(DebeziumIOMySqlConnectorIT.class);
+
+  private static final DockerImageName KAFKA_IMAGE =
+      DockerImageName.parse("confluentinc/cp-kafka:7.6.0");
+
   /**
    * Debezium - MySqlContainer
    *
@@ -66,7 +74,7 @@ public class DebeziumIOMySqlConnectorIT {
   @ClassRule
   public static final MySQLContainer<?> MY_SQL_CONTAINER =
       new MySQLContainer<>(
-              DockerImageName.parse("debezium/example-mysql:1.4")
+              DockerImageName.parse("debezium/example-mysql:3.0.0.Final")
                   .asCompatibleSubstituteFor("mysql"))
           .withPassword("debezium")
           .withUsername("mysqluser")
@@ -76,6 +84,9 @@ public class DebeziumIOMySqlConnectorIT {
                   .forPort(3306)
                   .forStatusCodeMatching(response -> response == 200)
                   .withStartupTimeout(Duration.ofMinutes(2)));
+
+  // Added Kafka Testcontainer for schema history
+  @ClassRule public static final KafkaContainer KAFKA_CONTAINER = new KafkaContainer(KAFKA_IMAGE);
 
   public static DataSource getMysqlDatasource(Void unused) {
     HikariConfig hikariConfig = new HikariConfig();
@@ -185,10 +196,45 @@ public class DebeziumIOMySqlConnectorIT {
    */
   @Test
   public void testDebeziumIOMySql() {
-    MY_SQL_CONTAINER.start();
 
-    String host = MY_SQL_CONTAINER.getContainerIpAddress();
+    // MY_SQL_CONTAINER.start(); // Container is started by @ClassRule
+    // KAFKA_CONTAINER.start(); // Container is started by @ClassRule
+
+    String host = MY_SQL_CONTAINER.getHost();
     String port = MY_SQL_CONTAINER.getMappedPort(3306).toString();
+    String kafkaBootstrapServers = KAFKA_CONTAINER.getBootstrapServers();
+    String schemaHistoryTopic = "mysql-schema-history-io-" + System.nanoTime(); // Unique topic
+
+    // --- Create Debezium Connector Properties ---
+    Properties dbzConnectorProps = new Properties();
+    // MySQL connection properties
+    dbzConnectorProps.setProperty("database.hostname", host);
+    dbzConnectorProps.setProperty("database.port", port);
+    dbzConnectorProps.setProperty("database.user", MY_SQL_CONTAINER.getUsername());
+    dbzConnectorProps.setProperty("database.password", MY_SQL_CONTAINER.getPassword());
+    dbzConnectorProps.setProperty("database.server.id", "184054");
+    dbzConnectorProps.setProperty("database.server.name", "dbserver1");
+    dbzConnectorProps.setProperty(
+        "database.include.list", "inventory"); // Comma-separated list of databases
+    dbzConnectorProps.setProperty(
+        "table.include.list",
+        "inventory.addresses"); // Comma-separated list of tables (fully qualified)
+    // dbzConnectorProps.setProperty("include.schema.changes", "false"); // Default is true, usually
+    // needed for schema history.
+    // Consider if you really want this false. For robust schema history, true is better.
+
+    // --- Kafka Schema History Properties ---
+    dbzConnectorProps.setProperty(
+        "schema.history.internal.kafka.bootstrap.servers", kafkaBootstrapServers);
+    dbzConnectorProps.setProperty("schema.history.internal.kafka.topic", schemaHistoryTopic);
+    // Explicitly set KafkaSchemaHistory (though often default if above are set)
+    dbzConnectorProps.setProperty(
+        "schema.history.internal", "io.debezium.storage.kafka.history.KafkaSchemaHistory");
+
+    // Convert Properties to Map<String, String>
+    Map<String, String> connectorPropsMap =
+        dbzConnectorProps.entrySet().stream()
+            .collect(Collectors.toMap(e -> (String) e.getKey(), e -> (String) e.getValue()));
 
     PipelineOptions options = PipelineOptionsFactory.create();
     Pipeline p = Pipeline.create(options);
@@ -197,20 +243,20 @@ public class DebeziumIOMySqlConnectorIT {
             DebeziumIO.<String>read()
                 .withConnectorConfiguration(
                     DebeziumIO.ConnectorConfiguration.create()
-                        .withUsername("debezium")
-                        .withPassword("dbz")
+                        // .withUsername("mysqluser")
+                        // .withPassword("debezium")
                         .withConnectorClass(MySqlConnector.class)
-                        .withHostName(host)
-                        .withPort(port)
-                        .withConnectionProperty("database.server.id", "184054")
-                        .withConnectionProperty("database.server.name", "dbserver1")
-                        .withConnectionProperty("database.include.list", "inventory")
-                        .withConnectionProperty("include.schema.changes", "false"))
+                        // .withHostName(host)
+                        // .withPort(port)
+                        .withConnectionProperties(connectorPropsMap))
+                // .withConnectionProperty("database.server.id", "184054")
+                // .withConnectionProperty("database.server.name", "dbserver1")
+                // .withConnectionProperty("include.schema.changes", "false"))
                 .withFormatFunction(new SourceRecordJson.SourceRecordJsonMapper())
                 .withMaxNumberOfRecords(30)
                 .withCoder(StringUtf8Coder.of()));
     String expected =
-        "{\"metadata\":{\"connector\":\"mysql\",\"version\":\"1.3.1.Final\",\"name\":\"dbserver1\","
+        "{\"metadata\":{\"connector\":\"mysql\",\"version\":\"1.9.8.Final\",\"name\":\"dbserver1\","
             + "\"database\":\"inventory\",\"schema\":\"mysql-bin.000003\",\"table\":\"addresses\"},\"before\":null,"
             + "\"after\":{\"fields\":{\"zip\":\"76036\",\"city\":\"Euless\","
             + "\"street\":\"3183 Moore Avenue\",\"id\":10,\"state\":\"Texas\",\"customer_id\":1001,"
