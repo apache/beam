@@ -1,0 +1,63 @@
+fixtures:
+  - name: BT_TABLE
+    type: "apache_beam.yaml.integration_tests.temp_bigtable_table"
+    config:
+      project: "apache-beam-testing"
+  - name: TEMP_DIR
+    # Need distributed filesystem to be able to read and write from a container.
+    type: "apache_beam.yaml.integration_tests.gcs_temp_dir"
+    config:
+      bucket: "gs://temp-storage-for-end-to-end-tests/temp-it"
+
+  # Tests for BigTable YAML IO
+pipelines:
+  - pipeline:
+    type: chain
+    transforms:
+      - type: ReadFromBigTable
+        name: ReadBigTableData
+        config:
+          project: 'dummy-project-id'  # These will likely be overridden or mocked by the test runner
+          instance: 'dummy-instance-id'
+          table: 'dummy-table-id'
+      - type: LogForTesting # Placeholder for actual data verification
+        name: LogReadOutput
+        input: ReadBigTableData
+    options:
+      project: "apache-beam-testing"
+      temp_location: "{TEMP_DIR}"
+
+  - pipeline:
+    type: chain
+    transforms:
+      - type: Create
+        name: CreateSampleMutations
+        config:
+          elements:
+            - key: b'row1' # Base64 encoded string for bytes, or ensure test runner handles 'b' prefix
+              mutations:
+                - type: b'SetCell'
+                  family_name: b'cf1'
+                  column_qualifier: b'cq1'
+                  value: b'value1_from_yaml'
+                  timestamp_micros: -1
+                - type: b'SetCell'
+                  family_name: b'cf1'
+                  column_qualifier: b'cq2'
+                  value: b'value2_from_yaml'
+            - key: b'row2'
+              mutations:
+                - type: b'SetCell'
+                  family_name: b'cf2'
+                  column_qualifier: b'cq_other'
+                  value: b'another_value_yaml'
+      - type: WriteToBigTable
+        name: WriteBigTableData
+        input: CreateSampleMutations
+        config:
+          project: 'dummy-project-id' # These will likely be overridden or mocked by the test runner
+          instance: 'dummy-instance-id'
+          table: 'dummy-table-id'
+    options:
+        project: "apache-beam-testing"
+        temp_location: "{TEMP_DIR}"

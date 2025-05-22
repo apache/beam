@@ -29,15 +29,36 @@ import uuid
 import mock
 import yaml
 
+
 import apache_beam as beam
 from apache_beam.io import filesystems
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.internal.clients import bigquery
+from  apache_beam.io.gcp import bigtableio
+
 from apache_beam.io.gcp.spanner_wrapper import SpannerWrapper
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.utils import python_callable
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml import yaml_transform
+
+from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
+
+_LOGGER = logging.getLogger(__name__)
+
+# Protect against environments where bigtable library is not available.
+try:
+    from apitools.base.py.exceptions import HttpError
+    from google.cloud.bigtable import client
+    from google.cloud.bigtable.row_filters import TimestampRange
+    from google.cloud.bigtable.row import DirectRow, PartialRowData, Cell
+    from google.cloud.bigtable.table import Table
+    from google.cloud.bigtable_admin_v2.types import instance
+except ImportError as e:
+    client = None
+    HttpError = None
 
 
 @contextlib.contextmanager
@@ -74,6 +95,54 @@ def temp_bigquery_table(project, prefix='yaml_bq_it_'):
       projectId=project, datasetId=dataset_id, deleteContents=True)
   logging.info("Deleting dataset %s in project %s", dataset_id, project)
   bigquery_client.client.datasets.Delete(request)
+
+def instance_prefix(instance):
+    datestr = "".join(filter(str.isdigit, str(datetime.now(timezone.utc).date())))
+    instance_id = '%s-%s-%s' % (instance, datestr, secrets.token_hex(4))
+    assert len(instance_id) < 34, "instance id length needs to be within [6, 33]"
+    return instance_id
+
+@contextlib.contextmanager
+def temp_bigtable_table(project, prefix='yaml_bt_it_'):
+    test_pipeline = TestPipeline(is_integration_test=True)
+    args = test_pipeline.get_full_options_as_args()
+    project = test_pipeline.get_option('project')
+
+    instance_id = instance_prefix(INSTANCE)
+
+    client = client.Client(admin=True, project=project)
+    # create cluster and instance
+    instance = client.instance(
+        instance_id,
+        display_name=INSTANCE,
+        instance_type=Instance.Type.DEVELOPMENT)
+    cluster = instance.cluster("test-cluster", "us-central1-a")
+    operation = instance.create(clusters=[cluster])
+    operation.result(timeout=500)
+    _LOGGER.info(
+        "Created instance [%s] in project [%s]",
+        instance.instance_id,
+        project)
+
+    # create table inside instance
+    table = instance.table(TABLE_ID)
+    table.create()
+    _LOGGER.info("Created table [%s]", table.table_id)
+    if (os.environ.get('TRANSFORM_SERVICE_PORT')):
+        _transform_service_address = (
+                'localhost:' + os.environ.get('TRANSFORM_SERVICE_PORT'))
+    else:
+        _transform_service_address = None
+    bigquery_client = BigQueryWrapper()
+    dataset_id = '%s_%s' % (prefix, uuid.uuid4().hex)
+    bigquery_client.get_or_create_dataset(project, dataset_id)
+    logging.info("Created dataset %s in project %s", dataset_id, project)
+    yield f'{project}.{dataset_id}.tmp_table'
+    request = bigquery.BigqueryDatasetsDeleteRequest(
+        projectId=project, datasetId=dataset_id, deleteContents=True)
+    logging.info("Deleting dataset %s in project %s", dataset_id, project)
+    bigquery_client.client.datasets.Delete(request)
+
 
 
 def replace_recursive(spec, vars):
@@ -183,16 +252,18 @@ def create_test_methods(spec):
     yield f'test_{suffix}', test
 
 
+# Add bigTable, if not big table it skips (temporarily)
 def parse_test_files(filepattern):
   for path in glob.glob(filepattern):
-    with open(path) as fin:
-      suite_name = os.path.splitext(os.path.basename(path))[0].title().replace(
-          '-', '') + 'Test'
-      print(path, suite_name)
-      methods = dict(
-          create_test_methods(
-              yaml.load(fin, Loader=yaml_transform.SafeLineLoader)))
-      globals()[suite_name] = type(suite_name, (unittest.TestCase, ), methods)
+    if "bigTable" in path:
+        with open(path) as fin:
+          suite_name = os.path.splitext(os.path.basename(path))[0].title().replace(
+              '-', '') + 'Test'
+          print(path, suite_name)
+          methods = dict(
+              create_test_methods(
+                  yaml.load(fin, Loader=yaml_transform.SafeLineLoader)))
+          globals()[suite_name] = type(suite_name, (unittest.TestCase, ), methods)
 
 
 logging.getLogger().setLevel(logging.INFO)
