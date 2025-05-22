@@ -28,6 +28,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheLoa
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.LoadingCache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Asynchronously compute the earliest partition watermark and stores it in memory. The value will
@@ -39,12 +41,15 @@ import org.joda.time.Duration;
 public class AsyncWatermarkCache implements WatermarkCache {
 
   private static final String THREAD_NAME_FORMAT = "watermark_loading_thread_%d";
+
+  private static final Logger LOG = LoggerFactory.getLogger(AsyncWatermarkCache.class);
   private static final Object MIN_WATERMARK_KEY = new Object();
   private final LoadingCache<Object, Optional<Timestamp>> cache;
 
   private Timestamp lastCachedMinWatermark = Timestamp.MIN_VALUE;
 
   public AsyncWatermarkCache(PartitionMetadataDao dao, Duration refreshRate) {
+    LOG.info("changliiu AsyncWatermarkCache 1");
     this.cache =
         CacheBuilder.newBuilder()
             .refreshAfterWrite(java.time.Duration.ofMillis(refreshRate.getMillis()))
@@ -52,13 +57,22 @@ public class AsyncWatermarkCache implements WatermarkCache {
                 CacheLoader.asyncReloading(
                     CacheLoader.from(
                         key -> {
+                          LOG.info(
+                              "changliiu AsyncWatermarkCache 2 - refresh cache, lastCachedMinWatermark:"
+                                  + lastCachedMinWatermark.toString());
                           Timestamp unfinishedMinTimes =
                               dao.getUnfinishedMinWatermark(Optional.of(lastCachedMinWatermark));
                           if (unfinishedMinTimes != null) {
                             lastCachedMinWatermark = unfinishedMinTimes;
                           }
+                          LOG.info(
+                              "changliiu AsyncWatermarkCache 3 - get min watermark, now lastCachedMinWatermark:"
+                                  + lastCachedMinWatermark.toString());
+                          System.out.println("changliiu AsyncWatermarkCache 3 --");
                           return Optional.ofNullable(unfinishedMinTimes);
                         }),
+                    // CacheLoader.from(key ->
+                    // Optional.ofNullable(dao.getUnfinishedMinWatermark())),
                     Executors.newSingleThreadExecutor(
                         new ThreadFactoryBuilder().setNameFormat(THREAD_NAME_FORMAT).build())));
   }

@@ -161,7 +161,7 @@ public class QueryChangeStreamAction {
     final String token = partition.getPartitionToken();
     final Timestamp startTimestamp = tracker.currentRestriction().getFrom();
     final Timestamp endTimestamp = partition.getEndTimestamp();
-
+    LOG.info("changliiu QueryChangeStreamAction 1");
     // TODO: Potentially we can avoid this fetch, by enriching the runningAt timestamp when the
     // ReadChangeStreamPartitionDoFn#processElement is called
     final PartitionMetadata updatedPartition =
@@ -175,7 +175,7 @@ public class QueryChangeStreamAction {
     // Interrupter with soft timeout to commit the work if any records have been processed.
     RestrictionInterrupter<Timestamp> interrupter =
         RestrictionInterrupter.withSoftTimeout(RESTRICTION_TRACKER_TIMEOUT);
-
+    LOG.info("changliiu QueryChangeStreamAction 2");
     try (ChangeStreamResultSet resultSet =
         changeStreamDao.changeStreamQuery(
             token, startTimestamp, endTimestamp, partition.getHeartbeatMillis())) {

@@ -163,7 +163,7 @@ public class DetectNewPartitionsDoFn extends DoFn<PartitionMetadata, PartitionMe
       RestrictionTracker<TimestampRange, com.google.cloud.Timestamp> tracker,
       OutputReceiver<PartitionMetadata> receiver,
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
-
+    LOG.info("changliiu DetectNewPartitionsDoFn 1");
     return detectNewPartitionsAction.run(tracker, receiver, watermarkEstimator);
   }
 

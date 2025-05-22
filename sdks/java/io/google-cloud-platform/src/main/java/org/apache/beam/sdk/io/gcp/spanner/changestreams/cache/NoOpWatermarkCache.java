@@ -21,6 +21,8 @@ import com.google.cloud.Timestamp;
 import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Synchronously compute the earliest partition watermark, by delegating the call to {@link
@@ -30,12 +32,17 @@ public class NoOpWatermarkCache implements WatermarkCache {
 
   private final PartitionMetadataDao dao;
 
+  private static final Logger LOG = LoggerFactory.getLogger(NoOpWatermarkCache.class);
+
   public NoOpWatermarkCache(PartitionMetadataDao dao) {
+    LOG.info("changliiu NoOpWatermarkCache");
     this.dao = dao;
   }
 
   @Override
   public @Nullable Timestamp getUnfinishedMinWatermark() {
     return dao.getUnfinishedMinWatermark(Optional.empty());
+    // return dao.getUnfinishedMinWatermark();
+    // changliiu remove
   }
 }

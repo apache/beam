@@ -1815,8 +1815,8 @@ public class SpannerIO {
 
       final Duration watermarkRefreshRate =
           MoreObjects.firstNonNull(getWatermarkRefreshRate(), DEFAULT_WATERMARK_REFRESH_RATE);
+      LOG.info("changliiu 0 - " + watermarkRefreshRate.getStandardSeconds());
       final CacheFactory cacheFactory = new CacheFactory(daoFactory, watermarkRefreshRate);
-
       final InitializeDoFn initializeDoFn =
           new InitializeDoFn(daoFactory, mapperFactory, startTimestamp, endTimestamp);
       final DetectNewPartitionsDoFn detectNewPartitionsDoFn =
@@ -1853,7 +1853,7 @@ public class SpannerIO {
       final BytesThroughputEstimator<DataChangeRecord> throughputEstimator =
           new BytesThroughputEstimator<>(THROUGHPUT_WINDOW_SECONDS, dataChangeRecordSizeEstimator);
       readChangeStreamPartitionDoFn.setThroughputEstimator(throughputEstimator);
-
+      LOG.info("changliiu 4 - v4");
       impulseOut
           .apply(WithTimestamps.of(e -> GlobalWindow.INSTANCE.maxTimestamp()))
           .apply(Wait.on(dataChangeRecordsOut))
