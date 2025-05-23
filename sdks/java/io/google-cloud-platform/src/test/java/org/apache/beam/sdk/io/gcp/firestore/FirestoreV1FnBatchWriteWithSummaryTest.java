@@ -240,7 +240,7 @@ public final class FirestoreV1FnBatchWriteWithSummaryTest
   }
 
   @Test
-  public final void testWithProjectId_thenWithDatabaseId() {
+  public void testWithProjectId_thenWithDatabaseId() {
     FirestoreV1.Write beamWrite =
         new FirestoreV1.Write().withProjectId("my-project").withDatabaseId("(default)");
 
