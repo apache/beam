@@ -46,11 +46,11 @@ from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.gcp import bigquery as beam_bq
 from apache_beam.io.gcp import bigquery_tools
+from apache_beam.io.gcp.bigquery import MAX_INSERT_RETRIES
 from apache_beam.io.gcp.bigquery import ReadFromBigQuery
 from apache_beam.io.gcp.bigquery import TableRowJsonCoder
 from apache_beam.io.gcp.bigquery import WriteToBigQuery
 from apache_beam.io.gcp.bigquery import _StreamToBigQuery
-from apache_beam.io.gcp.bigquery import MAX_INSERT_RETRIES
 from apache_beam.io.gcp.bigquery_read_internal import _BigQueryReadSplit
 from apache_beam.io.gcp.bigquery_read_internal import _JsonToDictCoder
 from apache_beam.io.gcp.bigquery_read_internal import bigquery_export_destination_uri
@@ -1096,14 +1096,7 @@ class TestWriteToBigQuery(unittest.TestCase):
 
   def test_max_retries_exceeds_limit(self):
     table = 'project:dataset.table'
-    rows = [
-        {
-            'columnA': 'value1'
-        },
-        {
-            'columnA': 'value2'
-        }
-    ]
+    rows = [{'columnA': 'value1'}, {'columnA': 'value2'}]
     with beam.Pipeline() as p:
       data = p | beam.Create(rows)
 
@@ -1112,11 +1105,11 @@ class TestWriteToBigQuery(unittest.TestCase):
             table=table,
             schema='columnA:STRING',
             method='STREAMING_INSERTS',
-            max_retries=MAX_INSERT_RETRIES + 1 # Exceeds the limit of 10000
+            max_retries=MAX_INSERT_RETRIES + 1  # Exceeds the limit of 10000
         )
 
-        self.assertIn('max_retries cannot be more than 10000',
-                      str(context.exception))
+        self.assertIn(
+            'max_retries cannot be more than 10000', str(context.exception))
 
   @parameterized.expand([
       param(
@@ -1265,7 +1258,6 @@ class BigQueryStreamingInsertsErrorHandling(unittest.TestCase):
           error_reason='Forbidden',  # in _NON_TRANSIENT_ERRORS
           failed_rows=['value1', 'value3', 'value5']),
   ])
-
   def test_insert_rows_json_exception_retry_always(
       self, insert_response, error_reason, failed_rows):
     # In this test, a pipeline will always retry all caught exception types

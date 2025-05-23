@@ -2226,7 +2226,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           with_auto_sharding=self.with_auto_sharding,
           test_client=self.test_client,
           max_insert_payload_size=self._max_insert_payload_size,
-          max_retries = self._max_retries,
+          max_retries=self._max_retries,
           num_streaming_keys=self._num_streaming_keys)
 
       return WriteResult(
