@@ -44,8 +44,8 @@ the command:
 python -m apache_beam.yaml.main --pipeline_spec_file=/path/to/example.yaml
 ```
 
-Depending on the yaml pipeline, the output maybe sent to the command line or a
-file located in the execution folder used.
+Depending on the yaml pipeline, the output may be emitted to standard output or
+a file located in the execution folder used.
 
 ## Wordcount
 A good starting place is the [Wordcount](wordcount_minimal.yaml) example under
