@@ -60,7 +60,7 @@ yamls and confirm the expected results.
 ```
 pytest -v testing/
 
-or 
+or
 
 python -m unittest -v testing/examples_test.py
 ```
