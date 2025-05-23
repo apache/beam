@@ -99,12 +99,15 @@ public class DetectNewPartitionsAction {
       RestrictionTracker<TimestampRange, Timestamp> tracker,
       OutputReceiver<PartitionMetadata> receiver,
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
+    LOG.info("changliiu DetectNewPartitionsAction 1");
+    System.out.println("changliiu - 1");
 
     final Timestamp readTimestamp = tracker.currentRestriction().getFrom();
     // Updates the current watermark as the min of the watermarks from all existing partitions
     final Timestamp minWatermark = cache.getUnfinishedMinWatermark();
-
+    LOG.info("changliiu DetectNewPartitionsAction 2, ");
     if (minWatermark != null) {
+      LOG.info("changliiu DetectNewPartitionsAction 3");
       return processPartitions(tracker, receiver, watermarkEstimator, minWatermark, readTimestamp);
     } else {
       return terminate(tracker);
