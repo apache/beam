@@ -32,7 +32,6 @@ try:
 except ImportError as e:
   raise unittest.SkipTest("Gemini model handler dependencies are not installed")
 
-
 _OUTPUT_DIR = "gs://apache-beam-ml/testing/outputs/gemini"
 _TEST_PROJECT = "apache-beam-testing"
 _TEST_REGION = "us-central1"

@@ -65,9 +65,8 @@ class GeminiModelHandler(RemoteModelHandler[Any, PredictionResult,
   def __init__(
       self,
       model_name: str,
-      request_fn: Callable[[
-          str, Sequence[Any], genai.Client, dict[str, Any]], Any
-      ],
+      request_fn: Callable[[str, Sequence[Any], genai.Client, dict[str, Any]],
+                           Any],
       api_key: Optional[str] = None,
       project: Optional[str] = None,
       location: Optional[str] = None,
