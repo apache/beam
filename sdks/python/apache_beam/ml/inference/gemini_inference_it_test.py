@@ -21,6 +21,8 @@ import logging
 import unittest
 import uuid
 
+import pytest
+
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.testing.test_pipeline import TestPipeline
 
@@ -37,6 +39,7 @@ _TEST_REGION = "us-central1"
 
 
 class GeminiInference(unittest.TestCase):
+  @pytest.mark.gemini_postcommit
   def test_gemini_text_classification(self):
     output_file = '/'.join([_OUTPUT_DIR, str(uuid.uuid4()), 'output.txt'])
 
