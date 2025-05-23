@@ -26,19 +26,15 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
-import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
-import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfig;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillMetadataServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillMetadataServiceV1Alpha1Grpc.CloudWindmillMetadataServiceV1Alpha1Stub;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactory;
-import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillStubFactoryFactory;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -64,43 +60,25 @@ public class GrpcDispatcherClient {
   @GuardedBy("this")
   private final Random rand;
 
-  private final WindmillStubFactoryFactory windmillStubFactoryFactory;
-
-  private final AtomicReference<WindmillStubFactory> windmillStubFactory = new AtomicReference<>();
-
-  private final AtomicBoolean useIsolatedChannels = new AtomicBoolean();
-  private final boolean reactToIsolatedChannelsJobSetting;
+  private final WindmillStubFactory windmillStubFactory;
 
   private GrpcDispatcherClient(
-      DataflowWorkerHarnessOptions options,
-      WindmillStubFactoryFactory windmillStubFactoryFactory,
+      WindmillStubFactory windmillStubFactory,
       DispatcherStubs initialDispatcherStubs,
       Random rand) {
-    this.windmillStubFactoryFactory = windmillStubFactoryFactory;
-    if (options.getUseWindmillIsolatedChannels() != null) {
-      this.useIsolatedChannels.set(options.getUseWindmillIsolatedChannels());
-      this.reactToIsolatedChannelsJobSetting = false;
-    } else {
-      this.useIsolatedChannels.set(false);
-      this.reactToIsolatedChannelsJobSetting = true;
-    }
-    this.windmillStubFactory.set(
-        windmillStubFactoryFactory.makeWindmillStubFactory(useIsolatedChannels.get()));
+    this.windmillStubFactory = windmillStubFactory;
     this.rand = rand;
     this.dispatcherStubs = new AtomicReference<>(initialDispatcherStubs);
     this.onInitializedEndpoints = new CountDownLatch(1);
   }
 
-  public static GrpcDispatcherClient create(
-      DataflowWorkerHarnessOptions options, WindmillStubFactoryFactory windmillStubFactoryFactory) {
-    return new GrpcDispatcherClient(
-        options, windmillStubFactoryFactory, DispatcherStubs.empty(), new Random());
+  public static GrpcDispatcherClient create(WindmillStubFactory windmillStubFactory) {
+    return new GrpcDispatcherClient(windmillStubFactory, DispatcherStubs.empty(), new Random());
   }
 
   @VisibleForTesting
   public static GrpcDispatcherClient forTesting(
-      DataflowWorkerHarnessOptions options,
-      WindmillStubFactoryFactory windmillStubFactoryFactory,
+      WindmillStubFactory windmillStubFactory,
       List<CloudWindmillServiceV1Alpha1Stub> windmillServiceStubs,
       List<CloudWindmillMetadataServiceV1Alpha1Stub> windmillMetadataServiceStubs,
       Set<HostAndPort> dispatcherEndpoints) {
@@ -108,8 +86,7 @@ public class GrpcDispatcherClient {
         dispatcherEndpoints.size() == windmillServiceStubs.size()
             && windmillServiceStubs.size() == windmillMetadataServiceStubs.size());
     return new GrpcDispatcherClient(
-        options,
-        windmillStubFactoryFactory,
+        windmillStubFactory,
         DispatcherStubs.create(
             dispatcherEndpoints, windmillServiceStubs, windmillMetadataServiceStubs),
         new Random());
@@ -164,26 +141,14 @@ public class GrpcDispatcherClient {
     return stubs.get(rand.nextInt(stubs.size()));
   }
 
-  public void onJobConfig(StreamingGlobalConfig config) {
-    if (config.windmillServiceEndpoints().isEmpty()) {
-      LOG.warn("Dispatcher client received empty windmill service endpoints from global config");
-      return;
-    }
-    boolean forceRecreateStubs = false;
-    if (reactToIsolatedChannelsJobSetting) {
-      boolean useIsolatedChannels = config.userWorkerJobSettings().getUseWindmillIsolatedChannels();
-      if (this.useIsolatedChannels.getAndSet(useIsolatedChannels) != useIsolatedChannels) {
-        windmillStubFactory.set(
-            windmillStubFactoryFactory.makeWindmillStubFactory(useIsolatedChannels));
-        forceRecreateStubs = true;
-      }
-    }
-    consumeWindmillDispatcherEndpoints(config.windmillServiceEndpoints(), forceRecreateStubs);
-  }
-
   public synchronized void consumeWindmillDispatcherEndpoints(
       ImmutableSet<HostAndPort> dispatcherEndpoints) {
     consumeWindmillDispatcherEndpoints(dispatcherEndpoints, /* forceRecreateStubs= */ false);
+  }
+
+  public synchronized void reloadDispatcherEndpoints(
+      ImmutableSet<HostAndPort> dispatcherEndpoints) {
+    consumeWindmillDispatcherEndpoints(dispatcherEndpoints, /* forceRecreateStubs= */ true);
   }
 
   private synchronized void consumeWindmillDispatcherEndpoints(
@@ -204,7 +169,7 @@ public class GrpcDispatcherClient {
     }
 
     LOG.info("Initializing Streaming Engine GRPC client for endpoints: {}", dispatcherEndpoints);
-    dispatcherStubs.set(DispatcherStubs.create(dispatcherEndpoints, windmillStubFactory.get()));
+    dispatcherStubs.set(DispatcherStubs.create(dispatcherEndpoints, windmillStubFactory));
     onInitializedEndpoints.countDown();
   }
 

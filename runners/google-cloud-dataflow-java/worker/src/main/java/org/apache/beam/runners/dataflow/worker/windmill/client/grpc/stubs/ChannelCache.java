@@ -132,9 +132,6 @@ public final class ChannelCache implements StatusDataProvider {
   public synchronized void consumeFlowControlSettings(
       UserWorkerGrpcFlowControlSettings flowControlSettings) {
     if (!flowControlSettings.equals(currentFlowControlSettings)) {
-      // Refreshing the cache will asynchronously terminate the old channels via the removalListener
-      // and return a newly created one on the next Cache.load(address). This could be expensive so
-      // only do it when we have received new flow control settings.
       LOG.debug("Updating flow control settings {}.", flowControlSettings);
       currentFlowControlSettings = flowControlSettings;
       channelCache.asMap().keySet().forEach(channelCache::refresh);
