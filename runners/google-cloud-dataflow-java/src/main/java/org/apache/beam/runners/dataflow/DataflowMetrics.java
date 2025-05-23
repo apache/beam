@@ -29,6 +29,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.model.pipeline.v1.MetricsApi.BoundedTrie;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.metrics.BoundedTrieData;
@@ -44,9 +45,11 @@ import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.metrics.StringSetResult;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Objects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
@@ -133,7 +136,8 @@ class DataflowMetrics extends MetricResults {
     return result;
   }
 
-  private static class DataflowMetricResultExtractor {
+  @VisibleForTesting
+  static class DataflowMetricResultExtractor {
     private final ImmutableList.Builder<MetricResult<Long>> counterResults;
     private final ImmutableList.Builder<MetricResult<DistributionResult>> distributionResults;
     private final ImmutableList.Builder<MetricResult<GaugeResult>> gaugeResults;
@@ -206,12 +210,21 @@ class DataflowMetrics extends MetricResults {
     }
 
     private BoundedTrieResult getBoundedTrieValue(MetricUpdate metricUpdate) {
-      if (metricUpdate.getTrie() == null) {
+      BoundedTrieData trieData = null;
+      Object trieFromResponse = metricUpdate.getTrie();
+      // Fail-safely cast Trie returned by dataflow API to BoundedTrieResult
+      if (trieFromResponse instanceof BoundedTrie) {
+        BoundedTrie bTrie = (BoundedTrie) metricUpdate.getTrie();
+        trieData = BoundedTrieData.fromProto(bTrie);
+      } else if (trieFromResponse instanceof com.google.protobuf.Struct) {
+        trieData = trieFromStruct((com.google.protobuf.Struct) trieFromResponse);
+      }
+
+      if (trieData != null) {
+        return BoundedTrieResult.create(trieData.extractResult().getResult());
+      } else {
         return BoundedTrieResult.empty();
       }
-      BoundedTrie bTrie = (BoundedTrie) metricUpdate.getTrie();
-      BoundedTrieData trieData = BoundedTrieData.fromProto(bTrie);
-      return BoundedTrieResult.create(trieData.extractResult().getResult());
     }
 
     private DistributionResult getDistributionValue(MetricUpdate metricUpdate) {
@@ -224,6 +237,68 @@ class DataflowMetrics extends MetricResults {
       long max = checkArgumentNotNull(((Number) distributionMap.get("max"))).longValue();
       long sum = checkArgumentNotNull(((Number) distributionMap.get("sum"))).longValue();
       return DistributionResult.create(sum, count, min, max);
+    }
+
+    /** Translate Struct proto returned by Dataflow API client to BoundedTrieData. */
+    @VisibleForTesting
+    @SuppressWarnings("ReferenceEquality") // Compare with protobuf Struct default instance
+    static BoundedTrieData trieFromStruct(com.google.protobuf.Struct responseProto) {
+      Map<String, com.google.protobuf.Value> fieldsMap = responseProto.getFieldsMap();
+      int bound = 0;
+      List<String> singleton = null;
+      com.google.protobuf.Value maybeBound = fieldsMap.get("bound");
+      if (maybeBound != null) {
+        bound = (int) maybeBound.getNumberValue();
+      }
+      com.google.protobuf.Value maybeSingleton = fieldsMap.get("singleton");
+      if (maybeSingleton != null) {
+        List<com.google.protobuf.Value> valueList = maybeSingleton.getListValue().getValuesList();
+        ImmutableList.Builder<String> builder = ImmutableList.builder();
+        for (com.google.protobuf.Value stringValue : valueList) {
+          builder.add(stringValue.getStringValue());
+        }
+        singleton = builder.build();
+      }
+      com.google.protobuf.Value maybeRoot = fieldsMap.get("root");
+      BoundedTrieData.BoundedTrieNode root = null;
+      if (maybeRoot != null
+          && maybeRoot.getStructValue() != com.google.protobuf.Struct.getDefaultInstance()) {
+        root = trieNodeFromStruct(maybeRoot.getStructValue());
+      }
+      return new BoundedTrieData(singleton, root, bound);
+    }
+
+    /**
+     * Translate Struct proto returned by Dataflow API client to BoundedTrieData.BoundedTrieNode.
+     */
+    @SuppressWarnings({"ReferenceEquality"}) // Compare with protobuf Struct default instance
+    private static BoundedTrieData.BoundedTrieNode trieNodeFromStruct(
+        com.google.protobuf.Struct responseProto) {
+      Map<String, com.google.protobuf.Value> fieldsMap = responseProto.getFieldsMap();
+      boolean truncated = false;
+      com.google.protobuf.Value mayTruncated = fieldsMap.get("truncated");
+      if (mayTruncated != null) {
+        truncated = mayTruncated.getBoolValue();
+      }
+      int childrenSize = 0;
+      ImmutableMap.Builder<String, BoundedTrieData.BoundedTrieNode> builder =
+          ImmutableMap.builder();
+      com.google.protobuf.Value maybeChildren = fieldsMap.get("children");
+      if (maybeChildren != null) {
+        Map<String, com.google.protobuf.Value> allChildren =
+            maybeChildren.getStructValue().getFieldsMap();
+        for (Map.Entry<String, com.google.protobuf.Value> childValue : allChildren.entrySet()) {
+          com.google.protobuf.Struct maybeChild = childValue.getValue().getStructValue();
+          if (maybeChild != com.google.protobuf.Struct.getDefaultInstance()) {
+            BoundedTrieData.BoundedTrieNode child =
+                trieNodeFromStruct(childValue.getValue().getStructValue());
+            builder.put(childValue.getKey(), child);
+            childrenSize += child.getSize();
+          }
+        }
+      }
+      Map<String, BoundedTrieData.BoundedTrieNode> children = builder.build();
+      return new BoundedTrieData.BoundedTrieNode(children, truncated, Math.max(1, childrenSize));
     }
 
     public Iterable<MetricResult<DistributionResult>> getDistributionResults() {
