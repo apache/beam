@@ -74,7 +74,7 @@ googleapis-common-protos==1.70.0
 greenlet==3.2.2
 grpc-google-iam-v1==0.14.2
 grpc-interceptor==0.15.4
-grpcio==1.72.0rc1
+grpcio==1.71.0
 grpcio-status==1.71.0
 guppy3==3.1.5
 h11==0.16.0
