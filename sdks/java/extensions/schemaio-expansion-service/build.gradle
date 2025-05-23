@@ -64,6 +64,7 @@ dependencies {
     permitUnusedDeclared 'com.google.cloud:alloydb-jdbc-connector:1.2.0'
     testImplementation library.java.junit
     testImplementation library.java.mockito_core
+    runtimeOnly ("org.xerial:sqlite-jdbc:3.49.1.0")
 }
 
 task runExpansionService (type: JavaExec) {
