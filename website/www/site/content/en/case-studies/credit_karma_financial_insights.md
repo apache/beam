@@ -1,6 +1,6 @@
 ---
 title: "Credit Karma: Leveraging Apache Beam for Enhanced Financial Insights"
-name: "Credit Karma"
+name: "Credit Karma: Beam for Financial Insights"
 icon: /images/logos/powered-by/credit-karma.png
 hasNav: true
 category: study
@@ -123,7 +123,8 @@ By using Apache Beam, Credit Karma has achieved significant improvements, includ
 
 Credit Karma's tech stack includes DataflowRunner, Google Cloud Platform (GCP), and custom containers. Their teams use Java and Python for programming.
 
-{{< case_study_feedback "CreditKarma" >}}
+<!-- case_study_feedback adds feedback buttons -->
+{{< case_study_feedback "CreditKarmaFinancialInsights" >}}
 
 </div>
 <div class="clear-nav"></div>
