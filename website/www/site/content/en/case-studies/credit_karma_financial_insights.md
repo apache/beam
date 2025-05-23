@@ -123,7 +123,7 @@ By using Apache Beam, Credit Karma has achieved significant improvements, includ
 
 Credit Karma's tech stack includes DataflowRunner, Google Cloud Platform (GCP), and custom containers. Their teams use Java and Python for programming.
 
-<!-- case_study_feedback adds feedback buttons -->
-{{< case_study_feedback "AccentureBalticsStreaming" >}}
+{{< case_study_feedback "CreditKarma" >}}
+
 </div>
 <div class="clear-nav"></div>
