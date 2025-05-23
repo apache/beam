@@ -44,7 +44,7 @@ the command:
 python -m apache_beam.yaml.main --pipeline_spec_file=/path/to/example.yaml
 ```
 
-Deending on the yaml pipeline, the output maybe sent to the command line or a
+Depending on the yaml pipeline, the output maybe sent to the command line or a
 file located in the execution folder used.
 
 ## Wordcount
