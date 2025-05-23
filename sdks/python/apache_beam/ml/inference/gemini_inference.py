@@ -60,7 +60,7 @@ def generate_from_string(
       model=model_name, contents=batch, **inference_args)
 
 
-class GeminiModelHandler(RemoteModelHandler[str, PredictionResult,
+class GeminiModelHandler(RemoteModelHandler[Any, PredictionResult,
                                             genai.Client]):
   def __init__(
       self,
@@ -145,7 +145,7 @@ class GeminiModelHandler(RemoteModelHandler[str, PredictionResult,
 
   def request(
       self,
-      batch: Sequence[str],
+      batch: Sequence[Any],
       model: genai.Client,
       inference_args: Optional[dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
