@@ -43,7 +43,6 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -97,7 +96,7 @@ public interface DoFnInvoker<InputT, OutputT> {
   void invokeSplitRestriction(ArgumentProvider<InputT, OutputT> arguments);
 
   /** Invoke the {@link TruncateRestriction} method on the bound {@link DoFn}. */
-  <RestrictionT> @Nullable TruncateResult<RestrictionT> invokeTruncateRestriction(
+  <RestrictionT> TruncateResult<RestrictionT> invokeTruncateRestriction(
       ArgumentProvider<InputT, OutputT> arguments);
 
   /**
@@ -118,13 +117,7 @@ public interface DoFnInvoker<InputT, OutputT> {
   <RestrictionT, PositionT> RestrictionTracker<RestrictionT, PositionT> invokeNewTracker(
       ArgumentProvider<InputT, OutputT> arguments);
 
-  /**
-   * Invoke the {@link DoFn.NewWatermarkEstimator} method on the bound {@link DoFn}.
-   *
-   * <p>Note that since {@code WatermarkEstimatorStateT} is permitted to be a nullable type, if this
-   * method returns {@code null} that is interpreted as a valid watermark estimator state, not the
-   * absence of a state.
-   */
+  /** Invoke the {@link DoFn.NewWatermarkEstimator} method on the bound {@link DoFn}. */
   @SuppressWarnings("TypeParameterUnusedInFormals")
   <WatermarkEstimatorStateT>
       WatermarkEstimator<WatermarkEstimatorStateT> invokeNewWatermarkEstimator(
