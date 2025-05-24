@@ -1776,7 +1776,7 @@ class _StreamToBigQuery(PTransform):
       with_auto_sharding,
       num_streaming_keys=DEFAULT_SHARDS_PER_DESTINATION,
       test_client=None,
-      max_retries=None,
+      max_retries=MAX_INSERT_RETRIES,
       max_insert_payload_size=MAX_INSERT_PAYLOAD_SIZE):
     self.table_reference = table_reference
     self.table_side_inputs = table_side_inputs
@@ -1794,7 +1794,7 @@ class _StreamToBigQuery(PTransform):
     self.ignore_unknown_columns = ignore_unknown_columns
     self.with_auto_sharding = with_auto_sharding
     self._num_streaming_keys = num_streaming_keys
-    self.max_retries = max_retries or MAX_INSERT_RETRIES
+    self._max_retries = max_retries
     self._max_insert_payload_size = max_insert_payload_size
 
   class InsertIdPrefixFn(DoFn):
@@ -1822,7 +1822,7 @@ class _StreamToBigQuery(PTransform):
         ignore_insert_ids=self.ignore_insert_ids,
         ignore_unknown_columns=self.ignore_unknown_columns,
         with_batched_input=self.with_auto_sharding,
-        max_retries=self.max_retries,
+        max_retries=self._max_retries,
         max_insert_payload_size=self._max_insert_payload_size)
 
     def _add_random_shard(element):
@@ -1925,6 +1925,7 @@ class WriteToBigQuery(PTransform):
       num_storage_api_streams=0,
       ignore_unknown_columns=False,
       load_job_project_id=None,
+      max_retries=MAX_INSERT_RETRIES,
       max_insert_payload_size=MAX_INSERT_PAYLOAD_SIZE,
       num_streaming_keys=DEFAULT_SHARDS_PER_DESTINATION,
       use_cdc_writes: bool = False,
@@ -2092,6 +2093,9 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
       expansion_service: The address (host:port) of the expansion service.
         If no expansion service is provided, will attempt to run the default
         GCP expansion service. Used for STORAGE_WRITE_API method.
+      max_retries: The number of times that we will retry inserting a group of
+        rows into BigQuery. By default, we retry 10000 times with exponential
+        backoffs (effectively retry forever).
       max_insert_payload_size: The maximum byte size for a BigQuery legacy
         streaming insert payload.
       use_cdc_writes: Configure the usage of CDC writes on BigQuery.
@@ -2142,6 +2146,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     self._ignore_insert_ids = ignore_insert_ids
     self._ignore_unknown_columns = ignore_unknown_columns
     self.load_job_project_id = load_job_project_id
+    self._max_retries = max_retries
     self._max_insert_payload_size = max_insert_payload_size
     self._num_streaming_keys = num_streaming_keys
     self._use_cdc_writes = use_cdc_writes
@@ -2199,6 +2204,11 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
             f'{MAX_INSERT_PAYLOAD_SIZE} bytes, as per BigQuery quota limits: '
             'https://cloud.google.com/bigquery/quotas#streaming_inserts.')
 
+      if self._max_retries > MAX_INSERT_RETRIES:
+        raise ValueError(
+            'max_retries cannot be more than '
+            f'{MAX_INSERT_RETRIES}, hence please reduce the value.')
+
       outputs = pcoll | _StreamToBigQuery(
           table_reference=self.table_reference,
           table_side_inputs=self.table_side_inputs,
@@ -2216,6 +2226,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           with_auto_sharding=self.with_auto_sharding,
           test_client=self.test_client,
           max_insert_payload_size=self._max_insert_payload_size,
+          max_retries=self._max_retries,
           num_streaming_keys=self._num_streaming_keys)
 
       return WriteResult(
