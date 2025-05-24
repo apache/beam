@@ -122,6 +122,24 @@ class ExternalTransformProviderIT(unittest.TestCase):
 
       assert_that(numbers, equal_to([i for i in range(10)]))
 
+  def test_run_generate_sequence_with_elements_per_period(self):
+    provider = ExternalTransformProvider(
+        BeamJarExpansionService(":sdks:java:io:expansion-service:shadowJar"))
+
+    # We expect this to produce 0, 1, 2, 3.
+    # The rate limiting (2 elements per 1 second) is primarily to ensure
+    # these parameters are accepted and the pipeline runs.
+    # Exact timing is hard to assert in an IT.
+    # The end parameter ensures the sequence is bounded for the test.
+    with beam.Pipeline() as p:
+      numbers = p | provider.GenerateSequence(
+          start=0,
+          end=4,
+          elements_per_period=2,
+          period=1) | beam.Map(lambda row: row.value)
+
+      assert_that(numbers, equal_to([0, 1, 2, 3]))
+
 
 @pytest.mark.xlang_wrapper_generation
 @unittest.skipUnless(
