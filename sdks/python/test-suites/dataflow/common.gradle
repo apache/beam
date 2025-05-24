@@ -509,6 +509,33 @@ task vertexAIInferenceTest {
     }
 }
 
+// Vertex AI RunInference IT tests
+task geminiInferenceTest {
+  dependsOn 'initializeForDataflowJob'
+  dependsOn ':sdks:python:sdist'
+  def requirementsFile = "${rootDir}/sdks/python/apache_beam/ml/inference/gemini_tests_requirements.txt"
+  doFirst {
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && pip install -r $requirementsFile"
+      }
+    }
+  doLast {
+      def testOpts = basicTestOpts
+      def argMap = [
+          "test_opts": testOpts,
+          "suite": "GeminiTests-df-py${pythonVersionSuffix}",
+          "collect": "gemini_postcommit" ,
+          "runner": "TestDataflowRunner",
+          "requirements_file": "$requirementsFile"
+      ]
+      def cmdArgs = mapToArgString(argMap)
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+      }
+    }
+}
 
 task installTFTRequirements {
   dependsOn 'initializeForDataflowJob'
@@ -576,6 +603,7 @@ project.tasks.register("inferencePostCommitIT") {
   // model is fixed.
   // 'tensorRTtests',
   'vertexAIInferenceTest',
+  'geminiInferenceTest',
   'mockAPITests',
   ]
 }
