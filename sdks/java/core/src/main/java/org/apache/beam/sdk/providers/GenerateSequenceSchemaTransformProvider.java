@@ -130,6 +130,18 @@ public class GenerateSequenceSchemaTransformProvider
     @Nullable
     public abstract Rate getRate();
 
+    @SchemaFieldDescription(
+        "Number of elements to generate per period. Alternative to using the 'rate' object. "
+            + "If set, 'period' must also be set. Takes precedence over 'rate'.")
+    @Nullable
+    public abstract Long getElementsPerPeriod();
+
+    @SchemaFieldDescription(
+        "The period in seconds for generating elements. Alternative to using the 'rate' object. "
+            + "If set, 'elementsPerPeriod' must also be set. Takes precedence over 'rate'.")
+    @Nullable
+    public abstract Long getPeriod();
+
     @AutoValue.Builder
     public abstract static class Builder {
 
@@ -138,6 +150,10 @@ public class GenerateSequenceSchemaTransformProvider
       public abstract Builder setEnd(Long end);
 
       public abstract Builder setRate(Rate rate);
+
+      public abstract Builder setElementsPerPeriod(Long elementsPerPeriod);
+
+      public abstract Builder setPeriod(Long period);
 
       public abstract GenerateSequenceConfiguration build();
     }
@@ -149,8 +165,31 @@ public class GenerateSequenceSchemaTransformProvider
       if (end != null) {
         checkArgument(end == -1 || end >= start, "Invalid range [%s, %s)", start, end);
       }
-      Rate rate = this.getRate();
-      if (rate != null) {
+
+      Long elementsPerPeriod = getElementsPerPeriod();
+      Long period = getPeriod();
+      Rate rate = getRate();
+
+      if (elementsPerPeriod != null || period != null) {
+        // Ensure both are specified if one is.
+        if (elementsPerPeriod == null || period == null) {
+          throw new IllegalArgumentException(
+              "If either 'elementsPerPeriod' or 'period' is specified, both must be specified.");
+        }
+        // At this point, both elementsPerPeriod and period are guaranteed to be non-null.
+        checkArgument(
+            elementsPerPeriod > 0,
+            "Invalid 'elementsPerPeriod' specification. Expected positive value but received %s.",
+            elementsPerPeriod);
+        checkArgument(
+            period > 0,
+            "Invalid 'period' specification. Expected positive value but received %s.",
+            period);
+        if (rate != null) {
+          // Consider logging a warning if rate is also set, as it will be ignored.
+          // For now, we just prioritize elementsPerPeriod/period.
+        }
+      } else if (rate != null) {
         checkArgument(
             rate.getElements() > 0,
             "Invalid rate specification. Expected positive elements component but received %s.",
@@ -159,6 +198,10 @@ public class GenerateSequenceSchemaTransformProvider
             Optional.ofNullable(rate.getSeconds()).orElse(1L) > 0,
             "Invalid rate specification. Expected positive seconds component but received %s.",
             rate.getSeconds());
+        // Ensure seconds is present if elements is, to match the original issue's concern
+        checkArgument(
+            !(rate.getElements() != null && rate.getSeconds() == null),
+            "Invalid rate specification. If rate.elements is specified, rate.seconds must also be specified.");
       }
     }
   }
@@ -177,14 +220,25 @@ public class GenerateSequenceSchemaTransformProvider
           input.getAll().isEmpty(), "Expected no inputs but got: %s", input.getAll().keySet());
 
       Long end = Optional.ofNullable(configuration.getEnd()).orElse(-1L);
-      GenerateSequenceConfiguration.Rate rate = configuration.getRate();
-
       GenerateSequence sequence = GenerateSequence.from(configuration.getStart()).to(end);
-      if (rate != null) {
-        sequence =
-            sequence.withRate(
-                rate.getElements(),
-                Duration.standardSeconds(Optional.ofNullable(rate.getSeconds()).orElse(1L)));
+
+      Long elementsPerPeriod = configuration.getElementsPerPeriod();
+      Long period = configuration.getPeriod();
+
+      if (elementsPerPeriod != null && period != null) {
+        // elementsPerPeriod and period are validated to be non-null and positive by validate()
+        sequence = sequence.withRate(elementsPerPeriod, Duration.standardSeconds(period));
+      } else {
+        GenerateSequenceConfiguration.Rate rate = configuration.getRate();
+        if (rate != null) {
+          // rate.getElements() is validated to be positive.
+          // rate.getSeconds() is validated to be positive if present, defaults to 1L if null.
+          // The additional check in validate() ensures getSeconds() is present if getElements() is.
+          sequence =
+              sequence.withRate(
+                  rate.getElements(),
+                  Duration.standardSeconds(Optional.ofNullable(rate.getSeconds()).orElse(1L)));
+        }
       }
 
       return PCollectionRowTuple.of(
