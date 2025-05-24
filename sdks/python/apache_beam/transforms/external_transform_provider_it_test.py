@@ -133,9 +133,7 @@ class ExternalTransformProviderIT(unittest.TestCase):
     # The end parameter ensures the sequence is bounded for the test.
     with beam.Pipeline() as p:
       numbers = p | provider.GenerateSequence(
-          start=0,
-          end=4,
-          elements_per_period=2,
+          start=0, end=4, elements_per_period=2,
           period=1) | beam.Map(lambda row: row.value)
 
       assert_that(numbers, equal_to([0, 1, 2, 3]))
