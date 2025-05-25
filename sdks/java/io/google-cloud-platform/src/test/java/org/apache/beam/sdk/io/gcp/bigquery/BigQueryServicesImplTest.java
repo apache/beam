@@ -122,6 +122,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.MockitoAnnotations;
+import org.mockito.ArgumentCaptor;
 
 /** Tests for {@link BigQueryServicesImpl}. */
 @RunWith(JUnit4.class)
@@ -2118,5 +2119,126 @@ public class BigQueryServicesImplTest {
             .getClient()
             .getSettings()
             .getEndpoint());
+  }
+
+  @Test
+  public void testGetTableWithDefaultProjectFromOptions() throws Exception {
+    BigQueryOptions mockOptions = mock(BigQueryOptions.class);
+    when(mockOptions.getBigQueryProject()).thenReturn("test-project-bqoptions");
+    // Mock fallback project ID, though it shouldn't be used in this test
+    when(mockOptions.getProject()).thenReturn("test-project-gcpopts");
+
+    Bigquery mockBigqueryClient = mock(Bigquery.class);
+    Bigquery.Tables mockTables = mock(Bigquery.Tables.class);
+    Bigquery.Tables.Get mockGet = mock(Bigquery.Tables.Get.class);
+
+    when(mockBigqueryClient.tables()).thenReturn(mockTables);
+    when(mockTables.get(anyString(), anyString(), anyString())).thenReturn(mockGet);
+    when(mockGet.setPrettyPrint(anyBoolean())).thenReturn(mockGet);
+    // Allow for selectedFields and view to be called, returning the same mockGet
+    when(mockGet.setSelectedFields(anyString())).thenReturn(mockGet);
+    when(mockGet.set(anyString(), any())).thenReturn(mockGet);
+
+
+    Table mockResultTable =
+        new Table()
+            .setTableReference(
+                new TableReference()
+                    .setProjectId("resolved-project") // This will be the captured project ID
+                    .setDatasetId("testdataset")
+                    .setTableId("testtable"));
+    when(mockGet.execute()).thenReturn(mockResultTable);
+
+    DatasetServiceImpl datasetService = new DatasetServiceImpl(mockBigqueryClient, mockOptions);
+    TableReference inputTableRef =
+        new TableReference().setDatasetId("testdataset").setTableId("testtable");
+
+    datasetService.getTable(inputTableRef);
+
+    ArgumentCaptor<String> projectIdCaptor = ArgumentCaptor.forClass(String.class);
+    verify(mockTables).get(projectIdCaptor.capture(), eq("testdataset"), eq("testtable"));
+    assertEquals("test-project-bqoptions", projectIdCaptor.getValue());
+  }
+
+  @Test
+  public void testGetTableWithDefaultProjectFromGcpOptions() throws Exception {
+    BigQueryOptions mockOptions = mock(BigQueryOptions.class);
+    when(mockOptions.getBigQueryProject()).thenReturn(null); // Primary is null
+    // Mock GcpOptions specifically for getProject()
+    GcpOptions mockGcpOptions = mock(GcpOptions.class);
+    when(mockOptions.as(GcpOptions.class)).thenReturn(mockGcpOptions);
+    when(mockGcpOptions.getProject()).thenReturn("test-project-gcpopts"); // Fallback
+
+    Bigquery mockBigqueryClient = mock(Bigquery.class);
+    Bigquery.Tables mockTables = mock(Bigquery.Tables.class);
+    Bigquery.Tables.Get mockGet = mock(Bigquery.Tables.Get.class);
+
+    when(mockBigqueryClient.tables()).thenReturn(mockTables);
+    when(mockTables.get(anyString(), anyString(), anyString())).thenReturn(mockGet);
+    when(mockGet.setPrettyPrint(anyBoolean())).thenReturn(mockGet);
+    when(mockGet.setSelectedFields(anyString())).thenReturn(mockGet);
+    when(mockGet.set(anyString(), any())).thenReturn(mockGet);
+
+    Table mockResultTable =
+        new Table()
+            .setTableReference(
+                new TableReference()
+                    .setProjectId("resolved-project")
+                    .setDatasetId("testdataset")
+                    .setTableId("testtable"));
+    when(mockGet.execute()).thenReturn(mockResultTable);
+
+    DatasetServiceImpl datasetService = new DatasetServiceImpl(mockBigqueryClient, mockOptions);
+    TableReference inputTableRef =
+        new TableReference().setDatasetId("testdataset").setTableId("testtable");
+
+    datasetService.getTable(inputTableRef);
+
+    ArgumentCaptor<String> projectIdCaptor = ArgumentCaptor.forClass(String.class);
+    verify(mockTables).get(projectIdCaptor.capture(), eq("testdataset"), eq("testtable"));
+    assertEquals("test-project-gcpopts", projectIdCaptor.getValue());
+  }
+
+  @Test
+  public void testGetTableWithProjectIdInTableReference() throws Exception {
+    BigQueryOptions mockOptions = mock(BigQueryOptions.class);
+    // These shouldn't be used, but set them for completeness
+    when(mockOptions.getBigQueryProject()).thenReturn("test-project-bqoptions");
+    GcpOptions mockGcpOptions = mock(GcpOptions.class);
+    when(mockOptions.as(GcpOptions.class)).thenReturn(mockGcpOptions);
+    when(mockGcpOptions.getProject()).thenReturn("test-project-gcpopts");
+
+
+    Bigquery mockBigqueryClient = mock(Bigquery.class);
+    Bigquery.Tables mockTables = mock(Bigquery.Tables.class);
+    Bigquery.Tables.Get mockGet = mock(Bigquery.Tables.Get.class);
+
+    when(mockBigqueryClient.tables()).thenReturn(mockTables);
+    when(mockTables.get(anyString(), anyString(), anyString())).thenReturn(mockGet);
+    when(mockGet.setPrettyPrint(anyBoolean())).thenReturn(mockGet);
+    when(mockGet.setSelectedFields(anyString())).thenReturn(mockGet);
+    when(mockGet.set(anyString(), any())).thenReturn(mockGet);
+
+    Table mockResultTable =
+        new Table()
+            .setTableReference(
+                new TableReference()
+                    .setProjectId("original-project") // This should be the one used
+                    .setDatasetId("testdataset")
+                    .setTableId("testtable"));
+    when(mockGet.execute()).thenReturn(mockResultTable);
+
+    DatasetServiceImpl datasetService = new DatasetServiceImpl(mockBigqueryClient, mockOptions);
+    TableReference inputTableRefWithProject =
+        new TableReference()
+            .setProjectId("original-project")
+            .setDatasetId("testdataset")
+            .setTableId("testtable");
+
+    datasetService.getTable(inputTableRefWithProject);
+
+    ArgumentCaptor<String> projectIdCaptor = ArgumentCaptor.forClass(String.class);
+    verify(mockTables).get(projectIdCaptor.capture(), eq("testdataset"), eq("testtable"));
+    assertEquals("original-project", projectIdCaptor.getValue());
   }
 }
