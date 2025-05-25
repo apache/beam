@@ -34,9 +34,13 @@ import java.util.Map;
 import java.util.NavigableSet;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
+import org.apache.beam.fn.harness.control.ExecutionStateSampler;
+import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import org.apache.beam.fn.harness.control.BundleProgressReporter;
 import org.apache.beam.fn.harness.control.BundleProgressReporter;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.state.FnApiStateAccessor;
@@ -161,6 +165,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       FnApiStateAccessor<Object> stateAccessor =
           FnApiStateAccessor.Factory.factoryForPTransformContext(context).create();
 
+      // TODO: Get the ExecutionStateTracker from the context once it is available.
+      // For now, we pass null.
       FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimatorStateT, OutputT> runner =
           new FnApiDoFnRunner<>(
               context.getPipelineOptions(),
@@ -178,7 +184,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               context::addBundleProgressReporter,
               context.getSplitListener(),
               context.getBundleFinalizer(),
-              stateAccessor);
+              stateAccessor,
+              context.getExecutionStateTracker());
 
       stateAccessor.setKeyAndWindowContext(runner);
 
@@ -231,6 +238,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private final Duration allowedLateness;
   private final String workCompletedShortId;
   private final String workRemainingShortId;
+  private final ExecutionStateSampler.ExecutionStateTracker executionStateTracker;
 
   /**
    * Used to guarantee a consistent view of this {@link FnApiDoFnRunner} while setting up for {@link
@@ -343,7 +351,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       Consumer<BundleProgressReporter> addBundleProgressReporter,
       BundleSplitListener splitListener,
       BundleFinalizer bundleFinalizer,
-      FnApiStateAccessor<Object> stateAccessor) {
+      FnApiStateAccessor<Object> stateAccessor,
+      ExecutionStateSampler.ExecutionStateTracker executionStateTracker) {
     this.pipelineOptions = pipelineOptions;
     this.pTransformId = pTransformId;
     this.pTransform = pTransform;
@@ -682,6 +691,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             localName, getOutgoingTimersConsumer.apply(localName, timerCoder));
       }
     }
+    this.executionStateTracker = executionStateTracker;
   }
 
   @Override
@@ -1532,7 +1542,19 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       String timerFamilyId, String timerId, TimeDomain timeDomain, Timer<K> timer) {
     currentTimer = timer;
     currentTimeDomain = timeDomain;
-    doFnInvoker.invokeOnTimer(timerId, timerFamilyId, onTimerContext);
+    MetricsContainer metricsContainer = this.executionStateTracker.getMetricsContainer();
+    MetricsEnvironment.MetricsEnvironmentState currentState = null;
+    if (metricsContainer != null) {
+      currentState = MetricsEnvironment.getMetricsEnvironmentStateForCurrentThread();
+      currentState.activate(metricsContainer);
+    }
+    try {
+      doFnInvoker.invokeOnTimer(timerId, timerFamilyId, onTimerContext);
+    } finally {
+      if (currentState != null) {
+        currentState.activate(null); // Deactivate the MetricsContainer
+      }
+    }
   }
 
   private <K> void processOnWindowExpiration(Timer<K> timer) {

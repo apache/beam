@@ -24,6 +24,7 @@ import java.util.Set;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.control.BundleProgressReporter;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
+import org.apache.beam.fn.harness.control.ExecutionStateSampler;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
@@ -160,6 +161,9 @@ public interface PTransformRunnerFactory {
      * instant provides the timeout on how long the finalization callback is valid for.
      */
     DoFn.BundleFinalizer getBundleFinalizer();
+
+    /** Returns the {@link ExecutionStateSampler.ExecutionStateTracker} for the current bundle. */
+    ExecutionStateSampler.ExecutionStateTracker getExecutionStateTracker();
   }
 
   /**

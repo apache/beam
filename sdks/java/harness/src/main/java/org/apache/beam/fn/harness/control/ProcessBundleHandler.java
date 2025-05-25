@@ -246,7 +246,8 @@ public class ProcessBundleHandler {
       BundleFinalizer bundleFinalizer,
       Collection<BeamFnDataReadRunner<?>> channelRoots,
       Map<ApiServiceDescriptor, BeamFnDataOutboundAggregator> outboundAggregatorMap,
-      Set<String> runnerCapabilities)
+      Set<String> runnerCapabilities,
+      ExecutionStateSampler.ExecutionStateTracker stateTracker)
       throws IOException {
 
     // Recursively ensure that all consumers of the output PCollection have been created.
@@ -279,7 +280,8 @@ public class ProcessBundleHandler {
             bundleFinalizer,
             channelRoots,
             outboundAggregatorMap,
-            runnerCapabilities);
+            runnerCapabilities,
+            stateTracker);
       }
     }
 
@@ -478,6 +480,11 @@ public class ProcessBundleHandler {
                 @Override
                 public BundleFinalizer getBundleFinalizer() {
                   return bundleFinalizer;
+                }
+
+                @Override
+                public ExecutionStateSampler.ExecutionStateTracker getExecutionStateTracker() {
+                  return stateTracker;
                 }
               });
       processedPTransformIds.add(pTransformId);
@@ -904,7 +911,8 @@ public class ProcessBundleHandler {
           bundleFinalizer,
           bundleProcessor.getChannelRoots(),
           bundleProcessor.getOutboundAggregators(),
-          bundleProcessor.getRunnerCapabilities());
+          bundleProcessor.getRunnerCapabilities(),
+          stateTracker);
     }
     bundleProcessor.finish();
 
