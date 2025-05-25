@@ -266,10 +266,8 @@ def create_index(include, exclude, options):
     markdown_out = io.StringIO()
     if options.provider_source_file:
       providers = yaml_provider.merge_providers(
-        yaml_provider.load_providers(
-          yaml_utils.locate_data_file(options.provider_source_file)
-        )
-      )
+          yaml_provider.load_providers(
+              yaml_utils.locate_data_file(options.provider_source_file)))
     else:
       providers = yaml_provider.standard_providers()
     for transform_base, transforms in itertools.groupby(
@@ -566,9 +564,9 @@ def main():
   parser.add_argument('--include', default='.*')
   parser.add_argument('--exclude', default='')
   parser.add_argument(
-    "--provider-source-file",
-    help="Path to a YAML file containing custom providers. "
-    "If not provided, uses standard Beam providers.",
+      "--provider-source-file",
+      help="Path to a YAML file containing custom providers. "
+      "If not provided, uses standard Beam providers.",
   )
   options = parser.parse_args()
   include = re.compile(options.include).match
