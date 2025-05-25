@@ -30,6 +30,9 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -121,8 +124,8 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.MockitoAnnotations;
 import org.mockito.ArgumentCaptor;
+import org.mockito.MockitoAnnotations;
 
 /** Tests for {@link BigQueryServicesImpl}. */
 @RunWith(JUnit4.class)
@@ -2139,7 +2142,6 @@ public class BigQueryServicesImplTest {
     when(mockGet.setSelectedFields(anyString())).thenReturn(mockGet);
     when(mockGet.set(anyString(), any())).thenReturn(mockGet);
 
-
     Table mockResultTable =
         new Table()
             .setTableReference(
@@ -2207,7 +2209,6 @@ public class BigQueryServicesImplTest {
     GcpOptions mockGcpOptions = mock(GcpOptions.class);
     when(mockOptions.as(GcpOptions.class)).thenReturn(mockGcpOptions);
     when(mockGcpOptions.getProject()).thenReturn("test-project-gcpopts");
-
 
     Bigquery mockBigqueryClient = mock(Bigquery.class);
     Bigquery.Tables mockTables = mock(Bigquery.Tables.class);
