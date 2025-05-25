@@ -674,19 +674,37 @@ public class BigQueryServicesImpl implements BigQueryServices {
         Sleeper sleeper)
         throws IOException, InterruptedException {
       TableReference updatedRef = ref.clone();
-      if (Strings.isNullOrEmpty(updatedRef.getProjectId())) { // Check for null or empty string
+      if (Strings.isNullOrEmpty(updatedRef.getProjectId())) {
+        String projectIdToSet = null;
         BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
-        String projectId = bqOptions.getBigQueryProject();
-        if (Strings.isNullOrEmpty(projectId)) {
-          // Fallback to GcpOptions.getProject() if BigQueryOptions.getBigQueryProject() is also
-          // null/empty
-          projectId = bqOptions.as(GcpOptions.class).getProject();
+
+        if (bqOptions != null) {
+          projectIdToSet = bqOptions.getBigQueryProject();
+          if (Strings.isNullOrEmpty(projectIdToSet)) {
+            // Try to get from GcpOptions via bqOptions
+            GcpOptions gcpOptionsFromBq = bqOptions.as(GcpOptions.class);
+            if (gcpOptionsFromBq != null) {
+              projectIdToSet = gcpOptionsFromBq.getProject();
+            }
+          }
         }
-        if (Strings.isNullOrEmpty(projectId)) {
+
+        // If still no project ID, try getting GcpOptions directly from the main 'options'
+        // This covers cases where 'options' might be GcpOptions but not BigQueryOptions,
+        // or if BigQueryOptions was present but didn't yield a project ID.
+        // This also handles the case where bqOptions itself was null.
+        if (Strings.isNullOrEmpty(projectIdToSet)) {
+          GcpOptions gcpOptionsDirect = options.as(GcpOptions.class);
+          if (gcpOptionsDirect != null) {
+            projectIdToSet = gcpOptionsDirect.getProject();
+          }
+        }
+
+        if (Strings.isNullOrEmpty(projectIdToSet)) {
           throw new IllegalArgumentException(
               "Project ID is null and could not be inferred from options. Please ensure a project ID is configured.");
         }
-        updatedRef.setProjectId(projectId); // Set the resolved project ID
+        updatedRef.setProjectId(projectIdToSet);
       }
       Tables.Get get =
           client

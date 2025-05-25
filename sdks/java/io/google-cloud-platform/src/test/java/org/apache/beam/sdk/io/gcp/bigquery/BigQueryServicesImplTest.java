@@ -2128,6 +2128,8 @@ public class BigQueryServicesImplTest {
   @Test
   public void testGetTableWithDefaultProjectFromOptions() throws Exception {
     BigQueryOptions mockOptions = mock(BigQueryOptions.class);
+    when(mockOptions.as(BigQueryOptions.class)).thenReturn(mockOptions);
+    when(mockOptions.as(GcpOptions.class)).thenReturn(mockOptions);
     when(mockOptions.getBigQueryProject()).thenReturn("test-project-bqoptions");
     // Mock fallback project ID, though it shouldn't be used in this test
     when(mockOptions.getProject()).thenReturn("test-project-gcpopts");
@@ -2166,10 +2168,13 @@ public class BigQueryServicesImplTest {
   @Test
   public void testGetTableWithDefaultProjectFromGcpOptions() throws Exception {
     BigQueryOptions mockOptions = mock(BigQueryOptions.class);
+    when(mockOptions.as(BigQueryOptions.class)).thenReturn(mockOptions);
+    // when(mockOptions.as(GcpOptions.class)).thenReturn(mockOptions); // This will be set up below
     when(mockOptions.getBigQueryProject()).thenReturn(null); // Primary is null
     // Mock GcpOptions specifically for getProject()
     GcpOptions mockGcpOptions = mock(GcpOptions.class);
-    when(mockOptions.as(GcpOptions.class)).thenReturn(mockGcpOptions);
+    when(mockOptions.as(GcpOptions.class))
+        .thenReturn(mockGcpOptions); // Correctly stubbed for the test's logic path
     when(mockGcpOptions.getProject()).thenReturn("test-project-gcpopts"); // Fallback
 
     Bigquery mockBigqueryClient = mock(Bigquery.class);
@@ -2205,11 +2210,15 @@ public class BigQueryServicesImplTest {
   @Test
   public void testGetTableWithProjectIdInTableReference() throws Exception {
     BigQueryOptions mockOptions = mock(BigQueryOptions.class);
+    when(mockOptions.as(BigQueryOptions.class)).thenReturn(mockOptions);
+    when(mockOptions.as(GcpOptions.class)).thenReturn(mockOptions);
     // These shouldn't be used, but set them for completeness
     when(mockOptions.getBigQueryProject()).thenReturn("test-project-bqoptions");
-    GcpOptions mockGcpOptions = mock(GcpOptions.class);
-    when(mockOptions.as(GcpOptions.class)).thenReturn(mockGcpOptions);
-    when(mockGcpOptions.getProject()).thenReturn("test-project-gcpopts");
+    // GcpOptions mockGcpOptions = mock(GcpOptions.class); // Not strictly needed if BQO.as(GcpO)
+    // returns BQO itself
+    // when(mockOptions.as(GcpOptions.class)).thenReturn(mockGcpOptions); // Now returns mockOptions
+    when(mockOptions.getProject())
+        .thenReturn("test-project-gcpopts"); // Call on mockOptions directly
 
     Bigquery mockBigqueryClient = mock(Bigquery.class);
     Bigquery.Tables mockTables = mock(Bigquery.Tables.class);
