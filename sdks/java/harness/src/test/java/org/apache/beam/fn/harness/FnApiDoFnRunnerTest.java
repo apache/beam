@@ -168,7 +168,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
     @Rule public transient ResetDateTimeProvider dateTimeProvider = new ResetDateTimeProvider();
 
     public static final String TEST_TRANSFORM_ID = "pTransformId";
-    // Must be static final for use in annotations and as constants
+
     static final String TIMER_ID_FOR_COUNTER_TEST = "testTimerForCounter";
     static final String PROCESS_COUNTER_NAME_FOR_TEST = "process_counter_for_timer_test";
     static final String TIMER_COUNTER_NAME_FOR_TEST = "timer_counter_for_timer_test";
