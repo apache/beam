@@ -21,8 +21,11 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertThrows;
 
 import io.debezium.DebeziumException;
-import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -35,13 +38,16 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.testcontainers.containers.Container;
+import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.containers.wait.strategy.HttpWaitStrategy;
 import org.testcontainers.utility.DockerImageName;
 
 @RunWith(Parameterized.class)
 public class DebeziumReadSchemaTransformTest {
+
+  private static final DockerImageName KAFKA_IMAGE =
+      DockerImageName.parse("confluentinc/cp-kafka:7.6.0");
 
   @ClassRule
   public static final PostgreSQLContainer<?> POSTGRES_SQL_CONTAINER =
@@ -58,21 +64,28 @@ public class DebeziumReadSchemaTransformTest {
       new MySQLContainer<>(
               DockerImageName.parse("debezium/example-mysql:3.0.0.Final")
                   .asCompatibleSubstituteFor("mysql"))
-          .withPassword("debezium")
-          .withUsername("mysqluser")
-          .withExposedPorts(3306)
-          .waitingFor(
-              new HttpWaitStrategy()
-                  .forPort(3306)
-                  .forStatusCodeMatching(response -> response == 200)
-                  .withStartupTimeout(Duration.ofMinutes(2)));
+          .withUsername("mysqluser") // User 'mysqluser'
+          .withPassword("debezium") // Password for 'mysqluser'
+          .withExposedPorts(3306);
 
-  @Parameterized.Parameters
+  @ClassRule public static final KafkaContainer KAFKA_CONTAINER = new KafkaContainer(KAFKA_IMAGE);
+
+  @Parameterized.Parameters(name = "{index}: database={3}, user={1}")
   public static Iterable<Object[]> data() {
     return Arrays.asList(
         new Object[][] {
-          {POSTGRES_SQL_CONTAINER, "debezium", "dbz", "POSTGRES", 5432},
-          {MY_SQL_CONTAINER, "debezium", "dbz", "MYSQL", 3306}
+          // Corrected MySQL credentials to match container definition
+          {
+            POSTGRES_SQL_CONTAINER,
+            "debezium",
+            "dbz",
+            "POSTGRES",
+            5432,
+            "inventory.inventory.customers"
+          }, // PG table name
+          {
+            MY_SQL_CONTAINER, "mysqluser", "debezium", "MYSQL", 3306, "inventory.customers"
+          } // MySQL table name
         });
   }
 
@@ -91,20 +104,58 @@ public class DebeziumReadSchemaTransformTest {
   @Parameterized.Parameter(4)
   public Integer port;
 
+  @Parameterized.Parameter(5)
+  public String tableName;
+
   private PTransform<PCollectionRowTuple, PCollectionRowTuple> makePtransform(
-      String user, String password, String database, Integer port, String host) {
-    return new DebeziumReadSchemaTransformProvider(true, 10, 100L)
-        .from(
+      String user,
+      String password,
+      String databaseType,
+      Integer mappedPort,
+      String host,
+      String tableToRead) {
+
+    String kafkaBootstrapServers = KAFKA_CONTAINER.getBootstrapServers();
+    String schemaHistoryTopic =
+        "schema-history-" + databaseType.toLowerCase() + "-" + System.nanoTime();
+
+    Properties connectorProps = new Properties();
+    connectorProps.setProperty(
+        "schema.history.internal.kafka.bootstrap.servers", kafkaBootstrapServers);
+    connectorProps.setProperty("schema.history.internal.kafka.topic", schemaHistoryTopic);
+    connectorProps.setProperty(
+        "schema.history.internal", "io.debezium.storage.kafka.history.KafkaSchemaHistory");
+
+    
+    if ("MYSQL".equals(databaseType)) {
+      connectorProps.setProperty("database.server.id", "19001");
+      connectorProps.setProperty("database.server.name", "test-mysql-server-transform");
+    } else if ("POSTGRES".equals(databaseType)) {
+      connectorProps.setProperty("plugin.name", "pgoutput");
+      connectorProps.setProperty("database.server.name", "test-pg-server-transform");
+      connectorProps.setProperty("database.dbname", "inventory");
+    }
+
+    List<String> debeziumConnectionPropertiesList = new ArrayList<>();
+    for (Map.Entry<Object, Object> entry : connectorProps.entrySet()) {
+      debeziumConnectionPropertiesList.add(entry.getKey() + "=" + entry.getValue());
+    }
+
+    DebeziumReadSchemaTransformProvider.DebeziumReadSchemaTransformConfiguration.Builder
+        configBuilder =
             DebeziumReadSchemaTransformProvider.DebeziumReadSchemaTransformConfiguration.builder()
-                .setDatabase(database)
+                .setDatabase(databaseType)
                 .setPassword(password)
                 .setUsername(user)
                 .setHost(host)
-                // In postgres, this field is "schema.table", while in MySQL it
-                // is "database.table".
-                .setTable("inventory.customers")
-                .setPort(port)
-                .build());
+                .setTable(tableToRead)
+                .setPort(mappedPort);
+
+    if (!debeziumConnectionPropertiesList.isEmpty()) {
+      configBuilder.setDebeziumConnectionProperties(debeziumConnectionPropertiesList);
+    }
+
+    return new DebeziumReadSchemaTransformProvider(true, 10, 100L).from(configBuilder.build());
   }
 
   @Test
@@ -113,12 +164,14 @@ public class DebeziumReadSchemaTransformTest {
     PCollection<Row> result =
         PCollectionRowTuple.empty(readPipeline)
             .apply(
+                "ReadDebeziumSchema_" + database,
                 makePtransform(
                     userName,
                     password,
                     database,
                     databaseContainer.getMappedPort(port),
-                    "localhost"))
+                    databaseContainer.getHost(),
+                    tableName))
             .get("output");
     assertThat(
         result.getSchema().getFields().stream()
@@ -142,7 +195,8 @@ public class DebeziumReadSchemaTransformTest {
                           password,
                           database,
                           databaseContainer.getMappedPort(port),
-                          "localhost"))
+                          databaseContainer.getHost(),
+                          tableName))
                   .get("output");
             });
     assertThat(ex.getCause().getMessage(), Matchers.containsString("password"));
@@ -158,12 +212,14 @@ public class DebeziumReadSchemaTransformTest {
             () -> {
               PCollectionRowTuple.empty(readPipeline)
                   .apply(
+                      "ReadWithWrongPassword_" + database,
                       makePtransform(
                           userName,
                           "wrongPassword",
                           database,
                           databaseContainer.getMappedPort(port),
-                          "localhost"))
+                          databaseContainer.getHost(),
+                          tableName))
                   .get("output");
             });
     assertThat(ex.getCause().getMessage(), Matchers.containsString("password"));
@@ -178,7 +234,15 @@ public class DebeziumReadSchemaTransformTest {
             DebeziumException.class,
             () -> {
               PCollectionRowTuple.empty(readPipeline)
-                  .apply(makePtransform(userName, password, database, 12345, "localhost"))
+                  .apply(
+                      "ReadWithWrongPort_" + database,
+                      makePtransform(
+                          userName,
+                          password,
+                          database,
+                          12345, // Incorrect port
+                          databaseContainer.getHost(),
+                          tableName))
                   .get("output");
             });
     Throwable lowestCause = ex.getCause();
@@ -196,12 +260,14 @@ public class DebeziumReadSchemaTransformTest {
         () ->
             PCollectionRowTuple.empty(readPipeline)
                 .apply(
+                    "ReadWithWrongHost_" + database,
                     makePtransform(
                         userName,
                         password,
                         database,
                         databaseContainer.getMappedPort(port),
-                        "169.254.254.254"))
+                        "169.254.254.254",
+                        tableName))
                 .get("output"));
   }
 }

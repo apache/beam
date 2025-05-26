@@ -204,7 +204,8 @@ public class DebeziumIOMySqlConnectorIT {
     String port = MY_SQL_CONTAINER.getMappedPort(3306).toString();
     String kafkaBootstrapServers = KAFKA_CONTAINER.getBootstrapServers();
     String schemaHistoryTopic = "mysql-schema-history-io-" + System.nanoTime(); // Unique topic
-
+    String username = MY_SQL_CONTAINER.getUsername();
+    String password = MY_SQL_CONTAINER.getPassword();
     // --- Create Debezium Connector Properties ---
     Properties dbzConnectorProps = new Properties();
     // MySQL connection properties
@@ -243,15 +244,12 @@ public class DebeziumIOMySqlConnectorIT {
             DebeziumIO.<String>read()
                 .withConnectorConfiguration(
                     DebeziumIO.ConnectorConfiguration.create()
-                        // .withUsername("mysqluser")
-                        // .withPassword("debezium")
                         .withConnectorClass(MySqlConnector.class)
-                        // .withHostName(host)
-                        // .withPort(port)
+                        .withHostName(host)
+                        .withPort(port)
+                        .withUsername(username)
+                        .withPassword(password)
                         .withConnectionProperties(connectorPropsMap))
-                // .withConnectionProperty("database.server.id", "184054")
-                // .withConnectionProperty("database.server.name", "dbserver1")
-                // .withConnectionProperty("include.schema.changes", "false"))
                 .withFormatFunction(new SourceRecordJson.SourceRecordJsonMapper())
                 .withMaxNumberOfRecords(30)
                 .withCoder(StringUtf8Coder.of()));
