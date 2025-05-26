@@ -47,6 +47,7 @@ from apache_beam.metrics.cells import BoundedTrieCell
 from apache_beam.metrics.cells import CounterCell
 from apache_beam.metrics.cells import DistributionCell
 from apache_beam.metrics.cells import GaugeCell
+from apache_beam.metrics.cells import MetricCellFactory
 from apache_beam.metrics.cells import StringSetCell
 from apache_beam.metrics.cells import StringSetData
 from apache_beam.runners.worker import statesampler
@@ -57,7 +58,6 @@ if TYPE_CHECKING:
   from apache_beam.metrics.cells import GaugeData
   from apache_beam.metrics.cells import DistributionData
   from apache_beam.metrics.cells import MetricCell
-  from apache_beam.metrics.cells import MetricCellFactory
   from apache_beam.metrics.metricbase import MetricName
   from apache_beam.portability.api import metrics_pb2
 
