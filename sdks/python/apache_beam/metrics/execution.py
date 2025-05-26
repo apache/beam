@@ -240,7 +240,7 @@ class MetricsContainer(object):
   """
   def __init__(self, step_name):
     self.step_name = step_name
-    self._lock = threading.Lock()
+    self.lock = threading.Lock()
     self.metrics = {}  # type: Dict[_TypedMetricName, MetricCell]
 
   def get_counter(self, metric_name):
@@ -277,11 +277,11 @@ class MetricsContainer(object):
     if cell is None:
       # If not found, acquire lock and check again.
       # This is to prevent duplicate cell creation in concurrent scenarios.
-      with self._lock:
+      with self.lock:
         cell = self.metrics.get(typed_metric_name, None)
         if cell is None:
           cell = self.metrics[typed_metric_name] = typed_metric_name.cell_type(
-              container_lock=self._lock)
+              container_lock=self.lock)
     return cell
 
   def get_cumulative(self):
@@ -329,7 +329,7 @@ class MetricsContainer(object):
     # type: (str) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
 
     """Returns a list of MonitoringInfos for the metrics in this container."""
-    with self._lock:
+    with self.lock:
       items = list(self.metrics.items())
       all_metrics = [
           cell.to_runner_api_monitoring_info(key.metric_name, transform_id)
