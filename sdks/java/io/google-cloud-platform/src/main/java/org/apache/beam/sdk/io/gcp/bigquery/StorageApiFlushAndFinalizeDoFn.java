@@ -40,6 +40,7 @@ import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -61,6 +62,8 @@ public class StorageApiFlushAndFinalizeDoFn extends DoFn<KV<String, Operation>, 
       Metrics.counter(StorageApiFlushAndFinalizeDoFn.class, "flushOperationsAlreadyExists");
   private final Counter flushOperationsInvalidArgument =
       Metrics.counter(StorageApiFlushAndFinalizeDoFn.class, "flushOperationsInvalidArgument");
+  private final Counter flushOperationsOffsetBeyondEnd =
+      Metrics.counter(StorageApiFlushAndFinalizeDoFn.class, "flushOperationsOffsetBeyondEnd");
   private final Distribution flushLatencyDistribution =
       Metrics.distribution(StorageApiFlushAndFinalizeDoFn.class, "flushOperationLatencyMs");
   private final Counter finalizeOperationsSent =
@@ -69,6 +72,41 @@ public class StorageApiFlushAndFinalizeDoFn extends DoFn<KV<String, Operation>, 
       Metrics.counter(StorageApiFlushAndFinalizeDoFn.class, "finalizeOperationsSucceeded");
   private final Counter finalizeOperationsFailed =
       Metrics.counter(StorageApiFlushAndFinalizeDoFn.class, "finalizeOperationsFailed");
+
+  /** Custom exception to indicate that a stream is invalid due to an offset error. */
+  public static class StreamOffsetBeyondEndException extends IOException {
+    public StreamOffsetBeyondEndException(String message, Throwable cause) {
+      super(message, cause);
+    }
+  }
+
+  /**
+   * Checks if the given throwable is or is caused by an ApiException indicating that an offset is
+   * beyond the end of a BigQuery stream.
+   */
+  private boolean isOffsetBeyondEndOfStreamError(Throwable t) {
+    if (t == null) {
+      return false;
+    }
+    if (t instanceof ApiException) {
+      ApiException apiException = (ApiException) t;
+      if (apiException.getStatusCode().getCode() == Code.OUT_OF_RANGE) {
+        // Check if the cause is gRPC StatusRuntimeException for more specific message check
+        Throwable cause = apiException.getCause();
+        if (cause instanceof io.grpc.StatusRuntimeException) {
+          io.grpc.StatusRuntimeException grpcException = (io.grpc.StatusRuntimeException) cause;
+          return grpcException.getStatus().getCode() == io.grpc.Status.Code.OUT_OF_RANGE
+              && grpcException.getMessage() != null
+              && grpcException.getMessage().toLowerCase().contains("is beyond the end of the stream");
+        }
+        // Fallback to checking the ApiException message directly if cause is not gRPC
+        return apiException.getMessage() != null
+            && apiException.getMessage().toLowerCase().contains("is beyond the end of the stream");
+      }
+    }
+    // Recursively check the cause, as the specific exception might be wrapped.
+    return isOffsetBeyondEndOfStreamError(t.getCause());
+  }
 
   @DefaultSchema(JavaFieldSchema.class)
   static class Operation implements Comparable<Operation>, Serializable {
@@ -169,6 +207,29 @@ public class StorageApiFlushAndFinalizeDoFn extends DoFn<KV<String, Operation>, 
             flushOperationsFailed.inc();
             BigQuerySinkMetrics.reportFailedRPCMetrics(
                 failedContext, BigQuerySinkMetrics.RpcMethod.FLUSH_ROWS);
+
+            if (isOffsetBeyondEndOfStreamError(error)) {
+              flushOperationsOffsetBeyondEnd.inc();
+              LOG.warn(
+                  "Flush of stream {} to offset {} failed because the offset is beyond the end of the stream. "
+                      + "This typically means the stream was finalized or truncated by BQ. "
+                      + "The operation will not be retried on this stream. Error: {}",
+                  streamId,
+                  offset,
+                  error.toString());
+              // This specific error is not retriable on the same stream.
+              // Throwing a runtime exception to break out of the RetryManager and signal
+              // to the Beam runner that the bundle should be retried, which will then
+              // allow an upstream DoFn to create a new stream.
+              throw new RuntimeException(
+                  new StreamOffsetBeyondEndException(
+                      "Offset "
+                          + offset
+                          + " is beyond the end of stream "
+                          + streamId
+                          + ". Stream is considered invalid for further appends.",
+                      error));
+            }
 
             if (error instanceof ApiException) {
               Code statusCode = ((ApiException) error).getStatusCode().getCode();
