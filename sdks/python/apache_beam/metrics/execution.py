@@ -47,7 +47,6 @@ from apache_beam.metrics.cells import BoundedTrieCell
 from apache_beam.metrics.cells import CounterCell
 from apache_beam.metrics.cells import DistributionCell
 from apache_beam.metrics.cells import GaugeCell
-from apache_beam.metrics.cells import MetricCellFactory
 from apache_beam.metrics.cells import StringSetCell
 from apache_beam.metrics.cells import StringSetData
 from apache_beam.runners.worker import statesampler
