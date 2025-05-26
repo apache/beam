@@ -47,6 +47,7 @@ from apache_beam.metrics.cells import BoundedTrieCell
 from apache_beam.metrics.cells import CounterCell
 from apache_beam.metrics.cells import DistributionCell
 from apache_beam.metrics.cells import GaugeCell
+from apache_beam.metrics.cells import MetricCellFactory
 from apache_beam.metrics.cells import StringSetCell
 from apache_beam.metrics.cells import StringSetData
 from apache_beam.runners.worker import statesampler
@@ -280,8 +281,16 @@ class MetricsContainer(object):
       with self.lock:
         cell = self.metrics.get(typed_metric_name, None)
         if cell is None:
-          cell = self.metrics[typed_metric_name] = typed_metric_name.cell_type(
-              container_lock=self.lock)
+          if isinstance(typed_metric_name.cell_type, MetricCellFactory):
+            # If it's a factory, call it without container_lock,
+            # as the factory's __call__ should handle cell creation.
+            cell = self.metrics[
+                typed_metric_name] = typed_metric_name.cell_type()
+          else:
+            # Otherwise, assume it's a MetricCell class and pass container_lock.
+            cell = self.metrics[
+                typed_metric_name] = typed_metric_name.cell_type(
+                    container_lock=self.lock)
     return cell
 
   def get_cumulative(self):
