@@ -217,6 +217,9 @@ public abstract class PTransformRunnerFactoryTestContext
 
     Builder timerApiServiceDescriptor(ApiServiceDescriptor value);
 
+    Builder executionStateTracker(
+        org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionStateTracker value);
+
     PTransformRunnerFactoryTestContext build();
   }
 

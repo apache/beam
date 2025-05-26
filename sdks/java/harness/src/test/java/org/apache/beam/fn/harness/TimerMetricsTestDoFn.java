@@ -36,6 +36,7 @@ public class TimerMetricsTestDoFn extends DoFn<KV<String, Long>, KV<String, Long
   public static final String TIMER_ID = "myTestTimer";
 
   @TimerId(TIMER_ID)
+  @SuppressWarnings("UnusedVariable")
   private final TimerSpec timerSpec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
   private final Counter timersFiredCounter =
@@ -51,9 +52,8 @@ public class TimerMetricsTestDoFn extends DoFn<KV<String, Long>, KV<String, Long
   }
 
   @OnTimer(TIMER_ID)
-  public void onTimerCallback(OnTimerContext c) {
-    LOG.info(
-        "Timer fired for key: {}, window: {}, timestamp: {}", c.key(), c.window(), c.timestamp());
+  public void onTimerCallback(OnTimerContext c, @Key String key) {
+    LOG.info("Timer fired for key: {}, window: {}, timestamp: {}", key, c.window(), c.timestamp());
     timersFiredCounter.inc();
   }
 }
