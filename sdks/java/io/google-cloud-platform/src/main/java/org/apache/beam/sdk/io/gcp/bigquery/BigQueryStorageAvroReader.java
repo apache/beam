@@ -19,29 +19,43 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.cloud.bigquery.storage.v1.AvroRows;
 import com.google.cloud.bigquery.storage.v1.ReadRowsResponse;
-import com.google.cloud.bigquery.storage.v1.ReadSession;
 import java.io.IOException;
 import org.apache.avro.Schema;
-import org.apache.avro.generic.GenericDatumReader;
-import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.DecoderFactory;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
+import org.apache.beam.sdk.extensions.avro.io.AvroDatumFactory;
+import org.apache.beam.sdk.extensions.avro.io.AvroSource;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.Preconditions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-class BigQueryStorageAvroReader implements BigQueryStorageReader {
+class BigQueryStorageAvroReader<AvroT, T> implements BigQueryStorageReader<T> {
 
-  private final Schema avroSchema;
-  private final DatumReader<GenericRecord> datumReader;
+  private final DatumReader<AvroT> datumReader;
+  private final SerializableFunction<AvroT, T> fromAvroRecord;
+  private final @Nullable AvroCoder<AvroT> badRecordCoder;
   private @Nullable BinaryDecoder decoder;
   private long rowCount;
 
-  BigQueryStorageAvroReader(ReadSession readSession) {
-    this.avroSchema = new Schema.Parser().parse(readSession.getAvroSchema().getSchema());
-    this.datumReader = new GenericDatumReader<>(avroSchema);
+  private transient @Nullable AvroT badRecord = null;
+
+  BigQueryStorageAvroReader(
+      Schema writerSchema,
+      Schema readerSchema,
+      AvroSource.DatumReaderFactory<AvroT> readerFactory,
+      SerializableFunction<AvroT, T> fromAvroRecord) {
+    this.datumReader = readerFactory.apply(writerSchema, readerSchema);
+    this.fromAvroRecord = fromAvroRecord;
     this.rowCount = 0;
-    decoder = null;
+    this.decoder = null;
+    if (readerFactory instanceof AvroDatumFactory) {
+      this.badRecordCoder = AvroCoder.of((AvroDatumFactory<AvroT>) readerFactory, readerSchema);
+    } else {
+      this.badRecordCoder = null;
+    }
   }
 
   @Override
@@ -63,14 +77,29 @@ class BigQueryStorageAvroReader implements BigQueryStorageReader {
   }
 
   @Override
-  public GenericRecord readSingleRecord() throws IOException {
+  public T readSingleRecord() throws IOException {
     Preconditions.checkStateNotNull(decoder);
     @SuppressWarnings({
       "nullness" // reused record is null but avro not annotated
     })
     // record should not be reused, mutating outputted values is unsafe
-    GenericRecord newRecord = datumReader.read(/*reuse=*/ null, decoder);
-    return newRecord;
+    AvroT avroRecord = datumReader.read(/*reuse=*/ null, decoder);
+    try {
+      return fromAvroRecord.apply(avroRecord);
+    } catch (Exception e) {
+      badRecord = avroRecord;
+      throw new ReadException(e);
+    }
+  }
+
+  @Override
+  public @Nullable Object getLastBadRecord() {
+    return badRecord;
+  }
+
+  @Override
+  public @Nullable Coder<AvroT> getBadRecordCoder() {
+    return badRecordCoder;
   }
 
   @Override
