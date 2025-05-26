@@ -40,7 +40,6 @@ import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -97,7 +96,10 @@ public class StorageApiFlushAndFinalizeDoFn extends DoFn<KV<String, Operation>, 
           io.grpc.StatusRuntimeException grpcException = (io.grpc.StatusRuntimeException) cause;
           return grpcException.getStatus().getCode() == io.grpc.Status.Code.OUT_OF_RANGE
               && grpcException.getMessage() != null
-              && grpcException.getMessage().toLowerCase().contains("is beyond the end of the stream");
+              && grpcException
+                  .getMessage()
+                  .toLowerCase()
+                  .contains("is beyond the end of the stream");
         }
         // Fallback to checking the ApiException message directly if cause is not gRPC
         return apiException.getMessage() != null
