@@ -61,8 +61,9 @@ class MetricCell(object):
   and may be subject to parallel/concurrent updates. Cells should only be used
   directly within a runner.
   """
-  def __init__(self):
-    self._lock = threading.Lock()
+  def __init__(self, container_lock=None):
+    self._lock = threading.Lock()  # Lock for this specific cell's internal data
+    self._container_lock = container_lock  # Lock from the MetricsContainer
     self._start_time = None
 
   def update(self, value):
@@ -106,8 +107,8 @@ class CounterCell(MetricCell):
 
   This class is thread safe.
   """
-  def __init__(self, *args):
-    super().__init__(*args)
+  def __init__(self, container_lock=None):
+    super().__init__(container_lock=container_lock)
     self.value = 0
 
   def reset(self):
@@ -137,7 +138,11 @@ class CounterCell(MetricCell):
       # directly by circumventing the GIL.
       self.value += ivalue
     else:
-      with self._lock:
+      # If a container lock is provided, use it. Otherwise, use cell's own lock.
+      # This ensures that if the cell is managed by a MetricsContainer,
+      # the container's lock is used for thread safety across cells.
+      lock_to_use = self._container_lock if self._container_lock else self._lock
+      with lock_to_use:
         self.value += value
 
   def get_cumulative(self):
@@ -171,8 +176,8 @@ class DistributionCell(MetricCell):
 
   This class is thread safe.
   """
-  def __init__(self, *args):
-    super().__init__(*args)
+  def __init__(self, container_lock=None):
+    super().__init__(container_lock=container_lock)
     self.data = DistributionData.identity_element()
 
   def reset(self):
@@ -190,7 +195,9 @@ class DistributionCell(MetricCell):
       # We will hold the GIL throughout the entire _update.
       self._update(value)
     else:
-      with self._lock:
+      # If a container lock is provided, use it. Otherwise, use cell's own lock.
+      lock_to_use = self._container_lock if self._container_lock else self._lock
+      with lock_to_use:
         self._update(value)
 
   def _update(self, value):
@@ -226,8 +233,8 @@ class AbstractMetricCell(MetricCell):
 
   This class is thread safe.
   """
-  def __init__(self, data_class):
-    super().__init__()
+  def __init__(self, data_class, container_lock=None):
+    super().__init__(container_lock=container_lock)
     self.data_class = data_class
     self.data = self.data_class.identity_element()
 
@@ -240,11 +247,13 @@ class AbstractMetricCell(MetricCell):
     return result
 
   def set(self, value):
-    with self._lock:
+    lock_to_use = self._container_lock if self._container_lock else self._lock
+    with lock_to_use:
       self._update_locked(value)
 
   def update(self, value):
-    with self._lock:
+    lock_to_use = self._container_lock if self._container_lock else self._lock
+    with lock_to_use:
       self._update_locked(value)
 
   def _update_locked(self, value):
@@ -269,8 +278,8 @@ class GaugeCell(AbstractMetricCell):
 
   This class is thread safe.
   """
-  def __init__(self):
-    super().__init__(GaugeData)
+  def __init__(self, container_lock=None):
+    super().__init__(GaugeData, container_lock=container_lock)
 
   def _update_locked(self, value):
     # Set the value directly without checking timestamp, because
@@ -298,8 +307,8 @@ class StringSetCell(AbstractMetricCell):
 
   This class is thread safe.
   """
-  def __init__(self):
-    super().__init__(StringSetData)
+  def __init__(self, container_lock=None):
+    super().__init__(StringSetData, container_lock=container_lock)
 
   def add(self, value):
     self.update(value)
@@ -327,8 +336,8 @@ class BoundedTrieCell(AbstractMetricCell):
 
   This class is thread safe.
   """
-  def __init__(self):
-    super().__init__(BoundedTrieData)
+  def __init__(self, container_lock=None):
+    super().__init__(BoundedTrieData, container_lock=container_lock)
 
   def add(self, value):
     self.update(value)
