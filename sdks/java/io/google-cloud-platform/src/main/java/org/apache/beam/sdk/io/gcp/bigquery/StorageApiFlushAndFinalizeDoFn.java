@@ -107,7 +107,11 @@ public class StorageApiFlushAndFinalizeDoFn extends DoFn<KV<String, Operation>, 
       }
     }
     // Recursively check the cause, as the specific exception might be wrapped.
-    return isOffsetBeyondEndOfStreamError(t.getCause());
+    Throwable cause = t.getCause();
+    if (cause == null) {
+      return false;
+    }
+    return isOffsetBeyondEndOfStreamError(cause);
   }
 
   @DefaultSchema(JavaFieldSchema.class)
@@ -210,7 +214,7 @@ public class StorageApiFlushAndFinalizeDoFn extends DoFn<KV<String, Operation>, 
             BigQuerySinkMetrics.reportFailedRPCMetrics(
                 failedContext, BigQuerySinkMetrics.RpcMethod.FLUSH_ROWS);
 
-            if (isOffsetBeyondEndOfStreamError(error)) {
+            if (error != null && isOffsetBeyondEndOfStreamError(error)) {
               flushOperationsOffsetBeyondEnd.inc();
               LOG.warn(
                   "Flush of stream {} to offset {} failed because the offset is beyond the end of the stream. "
