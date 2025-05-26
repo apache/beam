@@ -1533,8 +1533,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     currentTimer = timer;
     currentTimeDomain = timeDomain;
     doFnInvoker.invokeOnTimer(timerId, timerFamilyId, onTimerContext);
-    // Finalize state to ensure metrics and other state changes are committed.
-    this.stateAccessor.finalizeState();
   }
 
   private <K> void processOnWindowExpiration(Timer<K> timer) {
@@ -1547,8 +1545,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         currentWindow = windowIterator.next();
         doFnInvoker.invokeOnWindowExpiration(onWindowExpirationContext);
       }
-      // Finalize state to ensure metrics and other state changes are committed.
-      this.stateAccessor.finalizeState();
     } finally {
       currentKey = null;
       currentTimer = null;

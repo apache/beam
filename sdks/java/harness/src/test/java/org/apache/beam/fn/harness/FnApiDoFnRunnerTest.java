@@ -32,7 +32,6 @@ import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
@@ -77,7 +76,6 @@ import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.fn.data.BeamFnDataOutboundAggregator;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
@@ -168,179 +166,6 @@ public class FnApiDoFnRunnerTest implements Serializable {
     @Rule public transient ResetDateTimeProvider dateTimeProvider = new ResetDateTimeProvider();
 
     public static final String TEST_TRANSFORM_ID = "pTransformId";
-
-    static final String TIMER_ID_FOR_COUNTER_TEST = "testTimerForCounter";
-    static final String PROCESS_COUNTER_NAME_FOR_TEST = "process_counter_for_timer_test";
-    static final String TIMER_COUNTER_NAME_FOR_TEST = "timer_counter_for_timer_test";
-
-    // Helper to find MonitoringInfo for a counter
-    private MonitoringInfo findCounter(
-        List<MonitoringInfo> infos, String ptransformId, String namespace, String name) {
-      String expectedUrn = MonitoringInfoConstants.Urns.USER_SUM_INT64;
-      for (MonitoringInfo info : infos) {
-        if (expectedUrn.equals(info.getUrn())
-            && ptransformId.equals(
-                info.getLabelsMap().get(MonitoringInfoConstants.Labels.PTRANSFORM))
-            && namespace.equals(info.getLabelsMap().get(MonitoringInfoConstants.Labels.NAMESPACE))
-            && name.equals(info.getLabelsMap().get(MonitoringInfoConstants.Labels.NAME))) {
-          return info;
-        }
-      }
-      return null;
-    }
-
-    // Helper to extract counter value
-    private long extractCounterValue(MonitoringInfo info) {
-      if (info == null) {
-        throw new IllegalArgumentException("MonitoringInfo cannot be null");
-      }
-
-      boolean isUserSumInt64 =
-          MonitoringInfoConstants.Urns.USER_SUM_INT64.equals(info.getUrn())
-              && MonitoringInfoConstants.TypeUrns.SUM_INT64_TYPE.equals(info.getType());
-
-      if (isUserSumInt64) {
-        try {
-          return VarIntCoder.of().decode(info.getPayload().newInput());
-        } catch (IOException e) {
-          throw new RuntimeException("Failed to decode MonitoringInfo payload for counter", e);
-        }
-      }
-      throw new IllegalArgumentException(
-          "MonitoringInfo is not a user sum int64 counter or has unexpected URN/Type. URN: "
-              + info.getUrn()
-              + ", Type: "
-              + info.getType()
-              + ", Info: "
-              + info);
-    }
-
-    @Test
-    public void testCountersInOnTimer() throws Exception {
-      // 1. Define a DoFn with counters in processElement and onTimer
-
-      class TestTimerCounterDoFn extends DoFn<KV<String, String>, String> {
-        final Counter processCounter =
-            Metrics.counter(TestTimerCounterDoFn.class, PROCESS_COUNTER_NAME_FOR_TEST);
-        final Counter timerCounter =
-            Metrics.counter(TestTimerCounterDoFn.class, TIMER_COUNTER_NAME_FOR_TEST);
-
-        @TimerId(TIMER_ID_FOR_COUNTER_TEST)
-        private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
-
-        @ProcessElement
-        public void processElement(
-            ProcessContext c, @TimerId(TIMER_ID_FOR_COUNTER_TEST) Timer timer) {
-          processCounter.inc();
-          // Set a timer to fire
-          timer.set(c.timestamp().plus(Duration.standardSeconds(1)));
-          c.output("processed:" + c.element().getValue());
-        }
-
-        @OnTimer(TIMER_ID_FOR_COUNTER_TEST)
-        public void onTimer(OnTimerContext c, @Key String key) {
-          timerCounter.inc();
-          c.output("timer_fired_for_key:" + key);
-        }
-      }
-
-      // 2. Setup Pipeline and PTransformProto
-      Pipeline p = Pipeline.create();
-      PCollection<KV<String, String>> input = p.apply(Create.of(KV.of("key1", "val1")));
-      PCollection<String> output =
-          input.apply(TEST_TRANSFORM_ID, ParDo.of(new TestTimerCounterDoFn()));
-
-      SdkComponents sdkComponents = SdkComponents.create(p.getOptions());
-      RunnerApi.Pipeline pProto = PipelineTranslation.toProto(p, sdkComponents);
-      String inputPCollectionId = sdkComponents.registerPCollection(input);
-      String outputPCollectionId = sdkComponents.registerPCollection(output);
-
-      RunnerApi.PTransform pTransformProto =
-          pProto
-              .getComponents()
-              .getTransformsMap()
-              .get(
-                  pProto
-                      .getComponents()
-                      .getTransformsOrThrow(TEST_TRANSFORM_ID)
-                      .getSubtransforms(0));
-
-      // 3. Setup PTransformRunnerFactoryTestContext
-      MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
-      try (Closeable closeable =
-          MetricsEnvironment.scopedMetricsContainer(
-              metricsContainerRegistry.getUnboundContainer())) {
-
-        PTransformRunnerFactoryTestContext context =
-            PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransformProto)
-                .processBundleInstructionId("bundle-id-1")
-                .beamFnStateClient(
-                    new FakeBeamFnStateClient(StringUtf8Coder.of(), ImmutableMap.of()))
-                .components(pProto.getComponents())
-                .build();
-
-        List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
-        context.addPCollectionConsumer(
-            outputPCollectionId,
-            (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
-
-        new FnApiDoFnRunner.Factory<>().addRunnerForPTransform(context);
-
-        // 4. Execute: startBundle, processElement, fire timer, finishBundle
-        Iterables.getOnlyElement(context.getStartBundleFunctions()).run();
-
-        FnDataReceiver<WindowedValue<?>> mainInputReceiver =
-            context.getPCollectionConsumer(inputPCollectionId);
-        Instant elementTimestamp = new Instant(1000L);
-        mainInputReceiver.accept(
-            timestampedValueInGlobalWindow(KV.of("key1", "val1"), elementTimestamp));
-
-        Instant timerFireTimestamp = elementTimestamp.plus(Duration.standardSeconds(1));
-        org.apache.beam.sdk.util.construction.Timer<String> timerData =
-            org.apache.beam.sdk.util.construction.Timer.of(
-                "key1", // User key
-                "", // Dynamic timer tag
-                Collections.singletonList(GlobalWindow.INSTANCE),
-                timerFireTimestamp, // Scheduled time
-                timerFireTimestamp, // Hold time
-                PaneInfo.NO_FIRING);
-
-        context.getIncomingTimerEndpoint(TIMER_ID_FOR_COUNTER_TEST).getReceiver().accept(timerData);
-
-        Iterables.getOnlyElement(context.getFinishBundleFunctions()).run();
-
-        // 5. Assert MonitoringInfos
-        List<MonitoringInfo> monitoringInfos =
-            ImmutableList.copyOf(metricsContainerRegistry.getMonitoringInfos());
-
-        MonitoringInfo processCounterInfo =
-            findCounter(
-                monitoringInfos,
-                TEST_TRANSFORM_ID,
-                TestTimerCounterDoFn.class.getName(),
-                PROCESS_COUNTER_NAME_FOR_TEST);
-        assertNotNull("Process counter MonitoringInfo not found", processCounterInfo);
-        assertEquals(
-            "Process counter value incorrect", 1L, extractCounterValue(processCounterInfo));
-
-        MonitoringInfo timerCounterInfo =
-            findCounter(
-                monitoringInfos,
-                TEST_TRANSFORM_ID,
-                TestTimerCounterDoFn.class.getName(),
-                TIMER_COUNTER_NAME_FOR_TEST);
-        // This is the main assertion for the bug.
-        // Before the fix, this will likely be null or the counter value will be 0.
-        assertNotNull("Timer counter MonitoringInfo not found", timerCounterInfo);
-        assertEquals("Timer counter value incorrect", 1L, extractCounterValue(timerCounterInfo));
-
-        assertThat(
-            mainOutputValues,
-            containsInAnyOrder(
-                timestampedValueInGlobalWindow("processed:val1", elementTimestamp),
-                timestampedValueInGlobalWindow("timer_fired_for_key:key1", timerFireTimestamp)));
-      }
-    }
 
     private static class ConcatCombineFn extends CombineFn<String, String, String> {
       @Override
