@@ -22,6 +22,7 @@ from cpython.datetime cimport datetime
 
 cdef class MetricCell(object):
   cdef object _lock
+  cdef object _container_lock
   cpdef bint update(self, value) except -1
   cdef datetime _start_time
 
