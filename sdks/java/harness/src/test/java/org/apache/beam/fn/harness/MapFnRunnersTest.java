@@ -29,10 +29,13 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.fn.harness.MapFnRunners.ValueMapFnFactory;
+import org.apache.beam.fn.harness.control.ExecutionStateSampler;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.function.ThrowingFunction;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -41,6 +44,8 @@ import org.apache.beam.sdk.util.construction.CoderTranslation;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -48,6 +53,10 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link MapFnRunners}. */
 @RunWith(JUnit4.class)
 public class MapFnRunnersTest {
+  private PipelineOptions pipelineOptions;
+  private ExecutionStateSampler executionStateSampler;
+  private ExecutionStateSampler.ExecutionStateTracker executionStateTracker;
+
   private static final String EXPECTED_ID = "pTransformId";
   private static final RunnerApi.PTransform EXPECTED_PTRANSFORM =
       RunnerApi.PTransform.newBuilder()
@@ -66,6 +75,20 @@ public class MapFnRunnersTest {
     }
   }
 
+  @Before
+  public void setUp() {
+    pipelineOptions = PipelineOptionsFactory.create();
+    executionStateSampler = new ExecutionStateSampler(pipelineOptions, System::currentTimeMillis);
+    executionStateTracker = executionStateSampler.create();
+  }
+
+  @After
+  public void tearDown() {
+    if (executionStateSampler != null) {
+      executionStateSampler.stop();
+    }
+  }
+
   @Test
   public void testValueOnlyMapping() throws Exception {
     PTransformRunnerFactoryTestContext context =
@@ -76,6 +99,7 @@ public class MapFnRunnersTest {
                     .putAllPcollections(Collections.singletonMap("inputPC", INPUT_PCOLLECTION))
                     .putAllCoders(Collections.singletonMap("coder-id", valueCoder))
                     .build())
+            .executionStateTracker(executionStateTracker)
             .build();
     List<WindowedValue<?>> outputConsumer = new ArrayList<>();
     context.addPCollectionConsumer("outputPC", outputConsumer::add);
@@ -105,6 +129,7 @@ public class MapFnRunnersTest {
                     .putAllPcollections(Collections.singletonMap("inputPC", INPUT_PCOLLECTION))
                     .putAllCoders(Collections.singletonMap("coder-id", valueCoder))
                     .build())
+            .executionStateTracker(executionStateTracker)
             .build();
     List<WindowedValue<?>> outputConsumer = new ArrayList<>();
     context.addPCollectionConsumer("outputPC", outputConsumer::add);
@@ -133,6 +158,7 @@ public class MapFnRunnersTest {
                     .putAllPcollections(Collections.singletonMap("inputPC", INPUT_PCOLLECTION))
                     .putAllCoders(Collections.singletonMap("coder-id", valueCoder))
                     .build())
+            .executionStateTracker(executionStateTracker)
             .build();
     List<WindowedValue<?>> outputConsumer = new ArrayList<>();
     context.addPCollectionConsumer("outputPC", outputConsumer::add);
