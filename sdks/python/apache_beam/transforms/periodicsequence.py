@@ -178,25 +178,35 @@ class PeriodicImpulse(PTransform):
       start_timestamp=Timestamp.now(),
       stop_timestamp=MAX_TIMESTAMP,
       fire_interval=360.0,
-      apply_windowing=False):
+      apply_windowing=False,
+      is_bounded=None):
     '''
     :param start_timestamp: Timestamp for first element.
     :param stop_timestamp: Timestamp after which no elements will be output.
     :param fire_interval: Interval in seconds at which to output elements.
     :param apply_windowing: Whether each element should be assigned to
       individual window. If false, all elements will reside in global window.
+    :param is_bounded: whether to treat the output PCollection as bounded.
+      Defaults to True for small timestamp ranges and False for large ones.
     '''
     self.start_ts = start_timestamp
     self.stop_ts = stop_timestamp
     self.interval = fire_interval
     self.apply_windowing = apply_windowing
+    self.is_bounded = (
+        stop_timestamp - start_timestamp < 60
+        if is_bounded is None else is_bounded)
 
   def expand(self, pbegin):
-    result = (
+    sequence = (
         pbegin
         | 'ImpulseElement' >> beam.Create(
             [(self.start_ts, self.stop_ts, self.interval)])
-        | 'GenSequence' >> beam.ParDo(ImpulseSeqGenDoFn())
+        | 'GenSequence' >> beam.ParDo(ImpulseSeqGenDoFn()))
+    if self.is_bounded:
+      sequence.is_bounded = True
+    result = (
+        sequence
         | 'MapToTimestamped' >> beam.Map(lambda tt: TimestampedValue(tt, tt)))
     if self.apply_windowing:
       result = result | 'ApplyWindowing' >> beam.WindowInto(
