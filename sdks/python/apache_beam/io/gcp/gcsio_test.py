@@ -231,6 +231,9 @@ class FakeBlob(object):
   def __eq__(self, other):
     return self.bucket.get_blob(self.name) is other.bucket.get_blob(other.name)
 
+  def exists(self, **kwargs):
+    return self.bucket.get_blob(self.name) is not None
+
 
 @unittest.skipIf(NotFound is None, 'GCP dependencies are not installed')
 class TestGCSPathParser(unittest.TestCase):
@@ -396,7 +399,7 @@ class TestGCSIO(unittest.TestCase):
     self.assertFalse(self.gcs.exists(file_name + 'xyz'))
     self.assertTrue(self.gcs.exists(file_name))
 
-  @mock.patch.object(FakeBucket, 'get_blob')
+  @mock.patch.object(FakeBlob, 'exists')
   def test_exists_failure(self, mock_get):
     # Raising an error other than 404. Raising 404 is a valid failure for
     # exists() call.

@@ -34,6 +34,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjec
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.expressions.Evaluator;
 import org.apache.iceberg.expressions.Expression;
 import org.apache.iceberg.types.Types;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
@@ -88,6 +89,21 @@ public abstract class IcebergScanConfig implements Serializable {
   public org.apache.iceberg.Schema getProjectedSchema() {
     return resolveSchema(getTable().schema(), getKeepFields(), getDropFields());
   }
+
+  @Pure
+  @Nullable
+  public Evaluator getEvaluator() {
+    @Nullable Expression filter = getFilter();
+    if (filter == null) {
+      return null;
+    }
+    if (cachedEvaluator == null) {
+      cachedEvaluator = new Evaluator(getProjectedSchema().asStruct(), filter);
+    }
+    return cachedEvaluator;
+  }
+
+  private transient @Nullable Evaluator cachedEvaluator;
 
   @Pure
   public abstract @Nullable Expression getFilter();

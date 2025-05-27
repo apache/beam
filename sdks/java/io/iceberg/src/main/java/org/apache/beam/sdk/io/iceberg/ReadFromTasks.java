@@ -76,7 +76,10 @@ class ReadFromTasks extends DoFn<KV<ReadTaskDescriptor, ReadTask>, Row> {
       FileScanTask task = fileScanTasks.get((int) l);
       org.apache.iceberg.Schema projected = scanConfig.getProjectedSchema();
       Schema beamSchema = IcebergUtils.icebergSchemaToBeamSchema(projected);
-      try (CloseableIterable<Record> reader = ReadUtils.createReader(task, table, projected)) {
+      try (CloseableIterable<Record> fullIterable =
+          ReadUtils.createReader(task, table, projected)) {
+        CloseableIterable<Record> reader = ReadUtils.maybeApplyFilter(fullIterable, scanConfig);
+
         for (Record record : reader) {
           Row row = IcebergUtils.icebergRecordToBeamRow(beamSchema, record);
           out.output(row);

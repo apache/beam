@@ -20,6 +20,7 @@ on:
     tags: ['v*']
     branches: ['master', 'release-*']
     paths:
+      - "buildSrc/**"
       - "runners/core-java/**"
       - "sdks/java/core/src/main/**"
       - "sdks/java/extensions/arrow/**"
@@ -33,6 +34,7 @@ on:
   pull_request_target:
     branches: ['master', 'release-*']
     paths:
+      - "buildSrc/**"
       - "runners/core-java/**"
       - 'release/trigger_all_tests.json'
       - '.github/trigger_files/beam_PreCommit_Java_GCP_IO_Direct.json'

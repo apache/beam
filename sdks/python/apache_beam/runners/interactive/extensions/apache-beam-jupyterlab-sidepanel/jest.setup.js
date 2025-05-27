@@ -15,27 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.windmill.client.throttling;
 
-import com.google.auto.value.AutoValue;
+/**
+ * Configures jest async performance.
+ */
 
-@AutoValue
-public abstract class StreamingEngineThrottleTimers {
+const { configure } = require('@testing-library/react');
+require('@testing-library/jest-dom');
 
-  public static StreamingEngineThrottleTimers create() {
-    return new AutoValue_StreamingEngineThrottleTimers(
-        new ThrottleTimer(), new ThrottleTimer(), new ThrottleTimer());
-  }
+configure({
+    asyncUtilTimeout: 5000,
+    react: { version: 'detect' }
+});
 
-  public long getAndResetThrottleTime() {
-    return getWorkThrottleTimer().getAndResetThrottleTime()
-        + getDataThrottleTimer().getAndResetThrottleTime()
-        + commitWorkThrottleTimer().getAndResetThrottleTime();
-  }
-
-  public abstract ThrottleTimer getWorkThrottleTimer();
-
-  public abstract ThrottleTimer getDataThrottleTimer();
-
-  public abstract ThrottleTimer commitWorkThrottleTimer();
-}
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;

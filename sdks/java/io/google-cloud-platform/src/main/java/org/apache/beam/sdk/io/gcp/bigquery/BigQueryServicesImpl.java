@@ -1489,7 +1489,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
               .build();
       return new StreamAppendClient() {
         private int pins = 0;
-        private boolean closed = false;
+        private volatile boolean closed = false;
 
         @Override
         public void close() throws Exception {

@@ -329,7 +329,7 @@ tasks.register('buildAndPushDistrolessContainerImage', Task.class) {
               '-t',
               imageURL,
               '-f',
-              'sdks/java/container/Dockerfile-distroless',
+              'sdks/java/container/distroless/Dockerfile',
               "--build-arg=BEAM_BASE=gcr.io/apache-beam-testing/beam-sdk/beam_${javaVer}_sdk",
               "--build-arg=DISTROLESS_BASE=gcr.io/distroless/${javaVer}-debian12",
               '.'
