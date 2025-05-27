@@ -72,10 +72,12 @@ jobs:
           - "python:container:py310"
           - "python:container:py311"
           - "python:container:py312"
+          - "python:container:py313"
           - "python:container:distroless:py39"
           - "python:container:distroless:py310"
           - "python:container:distroless:py311"
           - "python:container:distroless:py312"
+          - "python:container:distroless:py313"
           - "java:expansion-service:container"
     steps:
       - uses: actions/checkout@v4
