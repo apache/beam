@@ -142,27 +142,27 @@ class _VLLMModelServer():
     return self._server_port
 
   def check_connectivity(self, retries=3):
-    client = getVLLMClient(self._server_port)
-    while self._server_process.poll() is None:
-      try:
-        models = client.models.list().data
-        logging.info('models: %s' % models)
-        if len(models) > 0:
-          self._server_started = True
-          return
-      except:  # pylint: disable=bare-except
-        pass
-      # Sleep while bringing up the process
-      time.sleep(5)
+    with getVLLMClient(self._server_port) as client:
+      while self._server_process.poll() is None:
+        try:
+          models = client.models.list().data
+          logging.info('models: %s' % models)
+          if len(models) > 0:
+            self._server_started = True
+            return
+        except:  # pylint: disable=bare-except
+          pass
+        # Sleep while bringing up the process
+        time.sleep(5)
 
-    if retries == 0:
-      self._server_started = False
-      raise Exception(
-          "Failed to start vLLM server, polling process exited with code " +
-          "%s.  Next time a request is tried, the server will be restarted" %
-          self._server_process.poll())
-    else:
-      self.start_server(retries - 1)
+      if retries == 0:
+        self._server_started = False
+        raise Exception(
+            "Failed to start vLLM server, polling process exited with code " +
+            "%s.  Next time a request is tried, the server will be restarted" %
+            self._server_process.poll())
+      else:
+        self.start_server(retries - 1)
 
 
 class VLLMCompletionsModelHandler(ModelHandler[str,
