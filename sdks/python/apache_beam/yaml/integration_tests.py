@@ -18,6 +18,10 @@
 """Runs integration tests in the tests directory."""
 
 import contextlib
+import logging
+import os
+import secrets
+import time
 import copy
 import glob
 import itertools
@@ -25,9 +29,13 @@ import logging
 import os
 import unittest
 import uuid
+from datetime import datetime
+from datetime import timezone
 
 import mock
 import yaml
+
+import pytest
 
 
 import apache_beam as beam
@@ -45,6 +53,8 @@ from apache_beam.yaml import yaml_transform
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+
+from google.cloud.bigtable import client
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -106,15 +116,15 @@ def instance_prefix(instance):
 def temp_bigtable_table(project, prefix='yaml_bt_it_'):
     INSTANCE = "bt-read-tests"
     TABLE_ID = "test-table"
-    test_pipeline = TestPipeline(is_integration_test=True)
-    args = test_pipeline.get_full_options_as_args()
-    project = test_pipeline.get_option('project')
+    # test_pipeline = TestPipeline(is_integration_test=True)
+    # args = test_pipeline.get_full_options_as_args()
+    # project = test_pipeline.get_option('project')
 
     instance_id = instance_prefix(INSTANCE)
 
-    client = client.Client(admin=True, project=project)
+    clientT = client.Client(admin=True, project=project)
     # create cluster and instance
-    instance = client.instance(
+    instance = clientT.instance(
         instance_id,
         display_name=INSTANCE,
         instance_type=instance.Instance.Type.DEVELOPMENT)
