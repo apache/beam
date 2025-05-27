@@ -158,7 +158,7 @@ specification.</p><h2 id=pipeline-fragment-tests>Pipeline fragment tests</h2><p>
 </code></pre><p>As before, each test only executes the portion of the pipeline between the
 mock inputs and expected outputs. Note that the named transform in a
 <code>mock_inputs</code> specification <em>is</em> executed, while the named transform of a
-<code>mock_oupputs</code> specification is not.
+<code>mock_outputs</code> specification is not.
 Similarly, the named transform of a <code>expected_inputs</code> specification is <em>not</em>
 executed, while the named transform of an <code>expected_outputs</code> necessarily is.</p><h2 id=automatically-generating-tests>Automatically generating tests.</h2><p>In an effort to make tests as easy to write and maintain as possible,
 Beam YAML provides utilities to compute the expected outputs for your tests.</p><p>Running</p><pre tabindex=0><code>python -m apache_beam.yaml.main \
@@ -178,10 +178,10 @@ This can be useful in authoring tests as well&ndash;one can simply specify a
 nonsensical or empty elements block in the expectation and the <code>--fix_tests</code>
 flag will populate it for you.
 (Of course, it is on any user of these flags to verify that the produced values
-are meaningful and as expected.)</p><h2 id=branching-pipelines>Branching pipelines</h2><p>For complex, branching pipelines, any number of <code>mock_inputs</code> and <code>mock_outupts</code>
+are meaningful and as expected.)</p><h2 id=branching-pipelines>Branching pipelines</h2><p>For complex, branching pipelines, any number of <code>mock_inputs</code> and <code>mock_outputs</code>
 may be enumerated to provide the input data, and any number of <code>expected_inputs</code>
 and <code>expected_outputs</code> validations may be specified as well.
-In both the <code>mock_outupts</code> and <code>expected_outputs</code> block, multiple outputs can
+In both the <code>mock_outputs</code> and <code>expected_outputs</code> block, multiple outputs can
 be disambiguated with the <code>TransformName.output_name</code> notation just as when
 authoring a yaml pipeline.</p><pre tabindex=0><code>pipeline:
   transforms:
