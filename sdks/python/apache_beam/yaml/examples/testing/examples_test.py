@@ -656,8 +656,6 @@ INPUT_TABLES = {
 }
 YAML_DOCS_DIR = os.path.join(os.path.dirname(__file__))
 
-ExamplesTest = YamlExamplesTestSuite(
-    'ExamplesTest', os.path.join(YAML_DOCS_DIR, '../*.yaml')).run()
 AggregationTest = YamlExamplesTestSuite(
     'AggregationExamplesTest',
     os.path.join(YAML_DOCS_DIR, '../transforms/aggregation/*.yaml')).run()
@@ -667,6 +665,8 @@ BlueprintsTest = YamlExamplesTestSuite(
 ElementWiseTest = YamlExamplesTestSuite(
     'ElementwiseExamplesTest',
     os.path.join(YAML_DOCS_DIR, '../transforms/elementwise/*.yaml')).run()
+ExamplesTest = YamlExamplesTestSuite(
+    'ExamplesTest', os.path.join(YAML_DOCS_DIR, '../*.yaml')).run()
 IOTest = YamlExamplesTestSuite(
     'IOExamplesTest', os.path.join(YAML_DOCS_DIR,
                                    '../transforms/io/*.yaml')).run()
