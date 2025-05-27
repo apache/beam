@@ -23,7 +23,9 @@ import glob
 import itertools
 import logging
 import os
+import random
 import sqlite3
+import string
 import unittest
 import uuid
 
@@ -31,9 +33,7 @@ import mock
 import mysql.connector
 import psycopg2
 import pytds
-import random
 import sqlalchemy
-import string
 import yaml
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
