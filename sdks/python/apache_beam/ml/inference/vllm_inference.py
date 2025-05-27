@@ -39,6 +39,8 @@ from openai import AsyncOpenAI
 from openai import OpenAI
 
 try:
+  # VLLM logging config breaks beam logging.
+  os.environ["VLLM_CONFIGURE_LOGGING"] = "0"
   import vllm  # pylint: disable=unused-import
   logging.info('vllm module successfully imported.')
 except ModuleNotFoundError:
@@ -127,7 +129,9 @@ class _VLLMModelServer():
       ]
       for k, v in self._vllm_server_kwargs.items():
         server_cmd.append(f'--{k}')
-        server_cmd.append(v)
+        # Only add values for commands with value part.
+        if v is not None:
+          server_cmd.append(v)
       self._server_process, self._server_port = start_process(server_cmd)
 
     self.check_connectivity(retries)
@@ -200,27 +204,21 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
       model: _VLLMModelServer,
       inference_args: Optional[dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
-    client = getAsyncVLLMClient(model.get_server_port())
     inference_args = inference_args or {}
-    async_predictions = []
-    for prompt in batch:
+
+    async with getAsyncVLLMClient(model.get_server_port()) as client:
       try:
-        completion = client.completions.create(
-            model=self._model_name, prompt=prompt, **inference_args)
-        async_predictions.append(completion)
+        async_predictions = [
+            client.completions.create(
+                model=self._model_name, prompt=prompt, **inference_args)
+            for prompt in batch
+        ]
+        responses = await asyncio.gather(*async_predictions)
       except Exception as e:
         model.check_connectivity()
         raise e
 
-    predictions = []
-    for p in async_predictions:
-      try:
-        predictions.append(await p)
-      except Exception as e:
-        model.check_connectivity()
-        raise e
-
-    return [PredictionResult(x, y) for x, y in zip(batch, predictions)]
+    return [PredictionResult(x, y) for x, y in zip(batch, responses)]
 
   def run_inference(
       self,
@@ -301,25 +299,19 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
       model: _VLLMModelServer,
       inference_args: Optional[dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
-    client = getAsyncVLLMClient(model.get_server_port())
     inference_args = inference_args or {}
-    async_predictions = []
-    for messages in batch:
-      formatted = []
-      for message in messages:
-        formatted.append({"role": message.role, "content": message.content})
-      try:
-        completion = client.chat.completions.create(
-            model=self._model_name, messages=formatted, **inference_args)
-        async_predictions.append(completion)
-      except Exception as e:
-        model.check_connectivity()
-        raise e
 
-    predictions = []
-    for p in async_predictions:
+    async with getAsyncVLLMClient(model.get_server_port()) as client:
       try:
-        predictions.append(await p)
+        async_predictions = [
+            client.chat.completions.create(
+                model=self._model_name,
+                messages=[{
+                    "role": message.role, "content": message.content
+                } for message in messages],
+                **inference_args) for messages in batch
+        ]
+        predictions = await asyncio.gather(*async_predictions)
       except Exception as e:
         model.check_connectivity()
         raise e
