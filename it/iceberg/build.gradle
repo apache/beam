@@ -27,15 +27,6 @@ description = "Apache Beam :: IT :: Iceberg"
 ext.summary = "Integration test utilities for Iceberg."
 
 dependencies {
-    implementation library.java.testcontainers_base
-    implementation project(path: ":it:testcontainers")
-    implementation library.java.testcontainers_kafka
-    implementation library.java.kafka_clients
-
-
-    implementation library.java.slf4j_api
-    implementation library.java.vendored_guava_32_1_2_jre
-    implementation project(path: ":it:common")
     testImplementation project(path: ":it:google-cloud-platform")
     testImplementation project(path: ":sdks:java:io:synthetic")
     testImplementation project(path: ":sdks:java:managed")

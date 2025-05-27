@@ -75,4 +75,4 @@ jobs:
       - name: Run IcebergIO Load Test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :it:iceberg:IcebergBQMSLoadTestLarge --info
+          gradle-command: :it:iceberg:IcebergBQMSLoadTestLarge --info -DinfluxHost="http://10.128.0.96:8086" -DinfluxDatabase="beam_test_metrics" -DinfluxMeasurement="java_stress_test_iceberg_bqms"
