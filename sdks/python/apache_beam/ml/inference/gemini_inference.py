@@ -85,6 +85,10 @@ class GeminiModelHandler(RemoteModelHandler[Any, PredictionResult,
 
     Args:
       model_name: the Gemini model to send the request to
+      request_fn: the function to use to send the request. Should take the
+        model name and the parameters from request() and return the responses
+        from Gemini. The class will handle bundling the inputs and responses
+        together.
       api_key: the Gemini Developer API key to use for the requests. Setting
         this parameter sends requests for this job to the Gemini Developer API.
         If this paramter is provided, do not set the project or location
@@ -154,7 +158,7 @@ class GeminiModelHandler(RemoteModelHandler[Any, PredictionResult,
 
     Args:
       batch: a sequence of any values to be passed to the Gemini service.
-        Should be a list of strings.
+        Should be inputs accepted by the provided inference function.
       model: a genai.Client object configured to access the desired service.
       inference_args: any additional arguments to send as part of the
         prediction request.
