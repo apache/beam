@@ -83,6 +83,8 @@ _LEGACY_ENVIRONMENT_MAJOR_VERSION = '8'
 _FNAPI_ENVIRONMENT_MAJOR_VERSION = '8'
 
 _LOGGER = logging.getLogger(__name__)
+# Fix issue: https://github.com/apache/beam/issues/35013
+_LOGGER.setLevel(logging.INFO)
 
 _PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW = ['3.9', '3.10', '3.11', '3.12']
 
@@ -894,7 +896,7 @@ class DataflowApplicationClient(object):
     # The response is a Job proto with the id for the new job.
     _LOGGER.info('Created job with id: [%s]', response.id)
     _LOGGER.info('Submitted job: %s', response.id)
-    _LOGGER.warning(
+    _LOGGER.info(
         'To access the Dataflow monitoring console, please navigate to '
         'https://console.cloud.google.com/dataflow/jobs/%s/%s?project=%s',
         self.google_cloud_options.region,
