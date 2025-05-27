@@ -39,8 +39,11 @@ dependencies {
     testImplementation project(path: ":it:google-cloud-platform")
     testImplementation project(path: ":sdks:java:io:synthetic")
     testImplementation project(path: ":sdks:java:managed")
+    testImplementation library.java.google_api_services_bigquery
 
     testImplementation project(path: ":sdks:java:io:iceberg")
+    testImplementation "org.apache.iceberg:iceberg-core:1.6.1"
+    testImplementation library.java.hadoop_common
     testRuntimeOnly project(path: ":sdks:java:io:iceberg:bqms", configuration: "shadow")
     testRuntimeOnly library.java.hadoop_auth
     testRuntimeOnly library.java.hadoop_client

@@ -13,13 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: IcebergIO Performance Tests
+name: IcebergIO Load Tests
 
 on:
   schedule:
     - cron: '10 10/12 * * *'
   pull_request_target:
-    paths: [ '.github/trigger_files/IO_Iceberg_Performance_Tests.json' ]
+    paths: [ '.github/trigger_files/IO_Iceberg_Load_Tests.json' ]
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -49,19 +49,19 @@ env:
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
 jobs:
-  IO_Iceberg_Performance_Tests:
+  IO_Iceberg_Load_Tests:
     if: |
       github.event_name == 'pull_request_target' ||
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
-      github.event.comment.body == 'Run IcebergIO Performance Test'
+      github.event.comment.body == 'Run IcebergIO Load Test'
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 120
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     strategy:
       matrix:
-        job_name: ["IO_Iceberg_Performance_Tests"]
-        job_phrase: ["Run IcebergIO Performance Test"]
+        job_name: ["IO_Iceberg_Load_Tests"]
+        job_phrase: ["Run IcebergIO Load Test"]
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository
@@ -72,7 +72,7 @@ jobs:
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
-      - name: Run IcebergIO Performance Test
+      - name: Run IcebergIO Load Test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:java:io:iceberg:loadTest
+          gradle-command: :it:iceberg:IcebergBQMSLoadTestLarge --info
