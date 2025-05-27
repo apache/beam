@@ -16,6 +16,11 @@
 # limitations under the License.
 #
 
+"""
+This file contains the input data to be requested by the example tests, if
+needed.
+"""
+
 
 def products_csv():
   return '\n'.join([
