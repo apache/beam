@@ -77,7 +77,7 @@ public class FilterUtils {
           .put(SqlKind.OR, Operation.OR)
           .build();
 
-  public static Set<SqlKind> SUPPORTED_OPS = FILTERS.keySet();
+  public static final Set<SqlKind> SUPPORTED_OPS = FILTERS.keySet();
 
   /**
    * Parses a SQL filter expression string and returns a set of all field names referenced within
