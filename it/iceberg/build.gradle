@@ -27,6 +27,7 @@ description = "Apache Beam :: IT :: Iceberg"
 ext.summary = "Integration test utilities for Iceberg."
 
 dependencies {
+    testImplementation project(path: ":it:common")
     testImplementation project(path: ":it:google-cloud-platform")
     testImplementation project(path: ":sdks:java:io:synthetic")
     testImplementation project(path: ":sdks:java:managed")
