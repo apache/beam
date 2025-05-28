@@ -15,8 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import groovy.json.JsonOutput
-
 plugins { id 'org.apache.beam.module' }
 
 // The order is intended here - Debezium 3 requires Java 17, or later
@@ -44,16 +42,29 @@ ext.summary = "Library to work with Debezium data."
 
 dependencies {
     implementation library.java.vendored_guava_32_1_2_jre
-    implementation library.java.vendored_grpc_1_69_0
+    implementation library.java.vendored_grpc_1_69_0 // Ensure this is the correct version used in Beam
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     implementation library.java.slf4j_api
     implementation library.java.joda_time
     provided library.java.jackson_dataformat_csv
     permitUnusedDeclared library.java.jackson_dataformat_csv
-    testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
-    testImplementation project(path: ":sdks:java:io:common")
+
+    // Kafka connect dependencies
+    implementation "org.apache.kafka:connect-api:3.9.0"
+    implementation "org.apache.kafka:connect-json:3.9.0"
+    permitUnusedDeclared "org.apache.kafka:connect-json:3.9.0"
+
+    // Debezium dependencies
+    implementation group: 'io.debezium', name: 'debezium-core', version: '3.1.1.Final'
+
+
+    // Jackson Afterburner - primarily for tests if DirectRunner serialization is the main place it's used/fails
+    testImplementation "com.fasterxml.jackson.module:jackson-module-afterburner:2.17.1"
+
 
     // Test dependencies
+    testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+    testImplementation project(path: ":sdks:java:io:common")
     testImplementation library.java.junit
     testImplementation project(path: ":sdks:java:io:jdbc")
     testRuntimeOnly library.java.slf4j_jdk14
@@ -61,63 +72,98 @@ dependencies {
     testImplementation project(":runners:google-cloud-dataflow-java")
     testImplementation library.java.hamcrest
     testImplementation library.java.testcontainers_base
-    testImplementation library.java.testcontainers_mysql
-    testImplementation library.java.testcontainers_postgresql
-    testImplementation library.java.testcontainers_kafka
-    // TODO(https://github.com/apache/beam/issues/31678) HikariCP 5.x requires Java11+
-    // testImplementation 'com.zaxxer:HikariCP:4.0.3'
-    testImplementation 'com.zaxxer:HikariCP:5.1.0'
+    testImplementation "org.testcontainers:kafka" // Make sure this is present
+    testImplementation "org.testcontainers:mysql" // Make sure this is present
+    testImplementation "org.testcontainers:postgresql" // Make sure this is present
     testImplementation "io.debezium:debezium-testing-testcontainers:3.1.1.Final"
+    testImplementation 'com.zaxxer:HikariCP:5.1.0'
 
-    testImplementation "com.fasterxml.jackson.module:jackson-module-afterburner:2.17.1"
-
-    configurations.named("testRuntimeClasspath") {
-        resolutionStrategy.force (
-            'com.fasterxml.jackson.core:jackson-core:2.17.1',
-            'com.fasterxml.jackson.core:jackson-annotations:2.17.1',
-            'com.fasterxml.jackson.core:jackson-databind:2.17.1',
-            'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.17.1',
-            'com.fasterxml.jackson.module:jackson-module-afterburner:2.17.1'
-        )
-    }
-
-    // Kafka connect dependencies
-    implementation "org.apache.kafka:connect-api:3.9.0"
-    implementation "org.apache.kafka:connect-json:3.9.0"
-    permitUnusedDeclared "org.apache.kafka:connect-json:3.9.0" // BEAM-11761
-
-    // Debezium dependencies
-    implementation group: 'io.debezium', name: 'debezium-core', version: '3.1.1.Final'
+    // Debezium connector implementations for testing
     testImplementation group: 'io.debezium', name: 'debezium-connector-mysql', version: '3.1.1.Final'
     testImplementation group: 'io.debezium', name: 'debezium-connector-postgres', version: '3.1.1.Final'
 }
+
+
+// Force Jackson versions for the test runtime classpath
+configurations.named("testRuntimeClasspath") {
+    resolutionStrategy.force (
+        'com.fasterxml.jackson.core:jackson-core:2.17.1',
+        'com.fasterxml.jackson.core:jackson-annotations:2.17.1',
+        'com.fasterxml.jackson.core:jackson-databind:2.17.1',
+        'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.17.1',
+        'com.fasterxml.jackson.module:jackson-module-afterburner:2.17.1'
+    )
+}
+
 
 test {
     testLogging {
         outputs.upToDateWhen {false}
         showStandardStreams = true
+        exceptionFormat = 'full' 
     }
+    // Filter problematic --add-opens arguments that might be inherited.
+    // Ensure we are working with a mutable list.
+    List<String> initialJvmArgs = jvmArgs ?: []
+    List<String> mutableJvmArgs = new ArrayList<>(initialJvmArgs) // Create a mutable copy
+
+    List<String> filteredJvmArgs = mutableJvmArgs.findAll { arg ->
+        String argStr = arg.toString()
+        // Check if the argument is one of the problematic ones
+        boolean shouldRemove = argStr.startsWith('--add-opens=c/') || argStr.startsWith('--add-opens=org.apache.beam.sdk/')
+        if (shouldRemove) {
+            project.logger.lifecycle("Debezium IO: Filtering out problematic inherited jvmArg for test task: ${argStr}")
+        }
+        return !shouldRemove // Keep the argument if it's NOT one to remove
+    }
+    jvmArgs = filteredJvmArgs // Assign the new, filtered list back
+
+    // If IllegalAccessError with Afterburner persists after other test issues are resolved,
+    // a more targeted solution for JPMS compatibility or Beam's module structure will be needed.
 }
 
 
 task integrationTest(type: Test, dependsOn: processTestResources) {
-  group = "Verification"
-  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-          "--runner=DirectRunner",
-  ])
+    group = "Verification"
+    // Use fully qualified name for JsonOutput to ensure it's resolved
+    systemProperty "beamTestPipelineOptions", groovy.json.JsonOutput.toJson([
+            "--runner=DirectRunner",
+    ])
 
-  // Disable Gradle cache: these ITs interact with live service that should always be considered "out of date"
-  outputs.upToDateWhen { false }
+    outputs.upToDateWhen { false }
 
-  include '**/*IT.class'
-  classpath = sourceSets.test.runtimeClasspath
-  testClassesDirs = sourceSets.test.output.classesDirs
+    include '**/*IT.class'
+    classpath = sourceSets.test.runtimeClasspath
+    testClassesDirs = sourceSets.test.output.classesDirs
 
-  useJUnit {
-  }
+    useJUnit {
+    }
+    
+    // Ensure jvmArgs for integrationTest are also cleaned or correctly inherited,
+    // by applying similar filtering logic.
+    List<String> initialIntegrationJvmArgs = jvmArgs ?: []
+    List<String> mutableIntegrationJvmArgs = new ArrayList<>(initialIntegrationJvmArgs)
+
+    List<String> filteredIntegrationJvmArgs = mutableIntegrationJvmArgs.findAll { arg ->
+        String argStr = arg.toString()
+        boolean shouldRemove = argStr.startsWith('--add-opens=c/') || argStr.startsWith('--add-opens=org.apache.beam.sdk/')
+        // Optional: add logging here too if needed for debugging integrationTest specifically
+        if (shouldRemove) {
+            project.logger.lifecycle("Debezium IO: Filtering out problematic inherited jvmArg for integrationTest task: ${argStr}")
+        }
+        return !shouldRemove
+    }
+    jvmArgs = filteredIntegrationJvmArgs
+
+
+    testLogging {
+        outputs.upToDateWhen {false}
+        showStandardStreams = true
+        exceptionFormat = 'full'
+    }
 }
 
-// The order is intended here - Debezium 3 requires Java 17, or later
+// Java version configuration (remains the same)
 if (project.hasProperty('java17Home')) {
     project.tasks.withType(JavaCompile) {
         setJavaVerOptions(options, '17')
@@ -134,7 +180,6 @@ if (project.hasProperty('java17Home')) {
     }
 }
 
-// Module classes requires JDK > 8
 project.tasks.each {
     it.onlyIf {project.hasProperty('java17Home') || project.hasProperty('java21Home')
                 || JavaVersion.VERSION_17.compareTo(JavaVersion.current()) <= 0
