@@ -31,6 +31,7 @@ import org.apache.beam.sdk.io.iceberg.IcebergIO.ReadRows.StartingStrategy;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
@@ -75,19 +76,57 @@ public abstract class IcebergScanConfig implements Serializable {
   @VisibleForTesting
   static org.apache.iceberg.Schema resolveSchema(
       org.apache.iceberg.Schema schema, @Nullable List<String> keep, @Nullable List<String> drop) {
+    return resolveSchema(schema, keep, drop, null);
+  }
+
+  @VisibleForTesting
+  static org.apache.iceberg.Schema resolveSchema(
+      org.apache.iceberg.Schema schema,
+      @Nullable List<String> keep,
+      @Nullable List<String> drop,
+      @Nullable Set<String> fieldsInFilter) {
+    ImmutableList.Builder<String> selectedFields = ImmutableList.builder();
     if (keep != null && !keep.isEmpty()) {
-      schema = schema.select(keep);
+      selectedFields.addAll(keep);
     } else if (drop != null && !drop.isEmpty()) {
       Set<String> fields =
           schema.columns().stream().map(Types.NestedField::name).collect(Collectors.toSet());
       drop.forEach(fields::remove);
-      schema = schema.select(fields);
+      selectedFields.addAll(fields);
     }
-    return schema;
+
+    if (fieldsInFilter != null && !fieldsInFilter.isEmpty()) {
+      fieldsInFilter.stream()
+          .map(f -> schema.caseInsensitiveFindField(f).name())
+          .forEach(selectedFields::add);
+    }
+    return schema.select(selectedFields.build());
   }
 
+  private org.apache.iceberg.@Nullable Schema cachedProjectedSchema;
+  /** Returns the projected Schema after applying column pruning. */
   public org.apache.iceberg.Schema getProjectedSchema() {
-    return resolveSchema(getTable().schema(), getKeepFields(), getDropFields());
+    if (cachedProjectedSchema == null) {
+      cachedProjectedSchema = resolveSchema(getTable().schema(), getKeepFields(), getDropFields());
+    }
+    return cachedProjectedSchema;
+  }
+
+  private org.apache.iceberg.@Nullable Schema cachedRequiredSchema;
+  /**
+   * Returns a Schema that includes explicitly selected fields and fields referenced in the filter
+   * statement.
+   */
+  public org.apache.iceberg.Schema getRequiredSchema() {
+    if (cachedRequiredSchema == null) {
+      cachedRequiredSchema =
+          resolveSchema(
+              getTable().schema(),
+              getKeepFields(),
+              getDropFields(),
+              FilterUtils.getReferencedFieldNames(getFilterString()));
+    }
+    return cachedRequiredSchema;
   }
 
   @Pure
@@ -98,7 +137,7 @@ public abstract class IcebergScanConfig implements Serializable {
       return null;
     }
     if (cachedEvaluator == null) {
-      cachedEvaluator = new Evaluator(getProjectedSchema().asStruct(), filter);
+      cachedEvaluator = new Evaluator(getRequiredSchema().asStruct(), filter);
     }
     return cachedEvaluator;
   }
@@ -106,7 +145,18 @@ public abstract class IcebergScanConfig implements Serializable {
   private transient @Nullable Evaluator cachedEvaluator;
 
   @Pure
-  public abstract @Nullable Expression getFilter();
+  @Nullable
+  public Expression getFilter() {
+    if (cachedFilter == null) {
+      cachedFilter = FilterUtils.convert(getFilterString(), getTable().schema());
+    }
+    return cachedFilter;
+  }
+
+  private transient @Nullable Expression cachedFilter;
+
+  @Pure
+  public abstract @Nullable String getFilterString();
 
   @Pure
   public abstract @Nullable Boolean getCaseSensitive();
@@ -172,7 +222,7 @@ public abstract class IcebergScanConfig implements Serializable {
   public static Builder builder() {
     return new AutoValue_IcebergScanConfig.Builder()
         .setScanType(ScanType.TABLE)
-        .setFilter(null)
+        .setFilterString(null)
         .setCaseSensitive(null)
         .setOptions(ImmutableMap.of())
         .setSnapshot(null)
@@ -211,7 +261,7 @@ public abstract class IcebergScanConfig implements Serializable {
 
     public abstract Builder setSchema(Schema schema);
 
-    public abstract Builder setFilter(@Nullable Expression filter);
+    public abstract Builder setFilterString(@Nullable String filterString);
 
     public abstract Builder setCaseSensitive(@Nullable Boolean caseSensitive);
 

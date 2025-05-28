@@ -28,7 +28,9 @@ import static org.apache.beam.sdk.schemas.Schema.FieldType.STRING;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.array;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.row;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 
 import com.google.api.services.bigquery.model.TableRow;
@@ -38,6 +40,8 @@ import java.util.UUID;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamPushDownIOSourceRel;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
@@ -48,10 +52,12 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.joda.time.Duration;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -79,6 +85,8 @@ public class IcebergReadWriteIT {
 
   @Rule public transient TestPipeline writePipeline = TestPipeline.create();
   @Rule public transient TestPipeline readPipeline = TestPipeline.create();
+  @Rule public TestName testName = new TestName();
+  private static IcebergTableProvider provider;
 
   private static final BigqueryClient BQ_CLIENT = new BigqueryClient("IcebergReadWriteIT");
   static final String DATASET = "iceberg_sql_tests_" + System.nanoTime();
@@ -94,6 +102,15 @@ public class IcebergReadWriteIT {
             TestPipeline.testingPipelineOptions().getTempLocation(),
             IcebergReadWriteIT.class.getSimpleName(),
             UUID.randomUUID());
+    provider =
+        IcebergTableProvider.create()
+            .withCatalogProperties(
+                ImmutableMap.of(
+                    "catalog-impl", "org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog",
+                    "io-impl", "org.apache.iceberg.gcp.gcs.GCSFileIO",
+                    "warehouse", warehouse,
+                    "gcp_project", OPTIONS.getProject(),
+                    "gcp_region", "us-central1"));
     BQ_CLIENT.createNewDataset(OPTIONS.getProject(), DATASET);
   }
 
@@ -104,17 +121,8 @@ public class IcebergReadWriteIT {
 
   @Test
   public void testSqlWriteAndRead() throws IOException, InterruptedException {
-    BeamSqlEnv sqlEnv =
-        BeamSqlEnv.inMemory(
-            IcebergTableProvider.create()
-                .withCatalogProperties(
-                    ImmutableMap.of(
-                        "catalog-impl", "org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog",
-                        "io-impl", "org.apache.iceberg.gcp.gcs.GCSFileIO",
-                        "warehouse", warehouse,
-                        "gcp_project", OPTIONS.getProject(),
-                        "gcp_region", "us-central1")));
-    String tableIdentifier = DATASET + ".my_table";
+    BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(provider);
+    String tableIdentifier = DATASET + "." + testName.getMethodName();
 
     // 1) create beam table
     String createTableStatement =
@@ -153,7 +161,6 @@ public class IcebergReadWriteIT {
             + "ROW(ARRAY['foo', 'bar'], 456), "
             + "ROW(ARRAY['cat', 'dog'], 789)]"
             + ")";
-    sqlEnv.parseQuery(insertStatement);
     BeamSqlRelUtils.toPCollection(writePipeline, sqlEnv.parseQuery(insertStatement));
     writePipeline.run().waitUntilFinish();
 
@@ -190,8 +197,60 @@ public class IcebergReadWriteIT {
     assertThat(state, equalTo(PipelineResult.State.DONE));
   }
 
+  @Test
+  public void testSQLReadWithProjectAndFilterPushDown() {
+    BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(provider);
+    String tableIdentifier = DATASET + "." + testName.getMethodName();
+
+    String createTableStatement =
+        "CREATE EXTERNAL TABLE TEST( \n"
+            + "   c_integer INTEGER, \n"
+            + "   c_float FLOAT, \n"
+            + "   c_boolean BOOLEAN, \n"
+            + "   c_timestamp TIMESTAMP, \n"
+            + "   c_varchar VARCHAR \n "
+            + ") \n"
+            + "TYPE 'iceberg' \n"
+            + "LOCATION '"
+            + tableIdentifier
+            + "'";
+    sqlEnv.executeDdl(createTableStatement);
+
+    String insertStatement =
+        "INSERT INTO TEST VALUES "
+            + "(123, 1.23, TRUE, TIMESTAMP '2025-05-22 20:17:40.123', 'a'), "
+            + "(456, 4.56, FALSE, TIMESTAMP '2025-05-25 20:17:40.123', 'b'), "
+            + "(789, 7.89, TRUE, TIMESTAMP '2025-05-28 20:17:40.123', 'c')";
+    BeamSqlRelUtils.toPCollection(writePipeline, sqlEnv.parseQuery(insertStatement));
+    writePipeline.run().waitUntilFinish(Duration.standardMinutes(5));
+
+    String selectTableStatement =
+        "SELECT c_integer, c_varchar FROM TEST where "
+            + "(c_boolean=TRUE and c_varchar in ('a', 'b')) or c_float > 5";
+    BeamRelNode relNode = sqlEnv.parseQuery(selectTableStatement);
+    PCollection<Row> output = BeamSqlRelUtils.toPCollection(readPipeline, relNode);
+
+    assertThat(relNode, instanceOf(BeamPushDownIOSourceRel.class));
+    // Unused fields should not be projected by an IO
+    assertThat(relNode.getRowType().getFieldNames(), containsInAnyOrder("c_integer", "c_varchar"));
+
+    assertThat(
+        output.getSchema(),
+        equalTo(
+            Schema.builder()
+                .addNullableField("c_integer", INT32)
+                .addNullableField("c_varchar", STRING)
+                .build()));
+
+    PAssert.that(output)
+        .containsInAnyOrder(
+            Row.withSchema(output.getSchema()).addValues(123, "a").build(),
+            Row.withSchema(output.getSchema()).addValues(789, "c").build());
+    PipelineResult.State state = readPipeline.run().waitUntilFinish(Duration.standardMinutes(5));
+    assertThat(state, equalTo(PipelineResult.State.DONE));
+  }
+
   private Row nestedRow(List<String> arr, Integer intVal) {
-    System.out.println(arr);
     return Row.withSchema(NESTED_SCHEMA).addValues(arr, intVal).build();
   }
 }
