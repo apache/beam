@@ -489,8 +489,8 @@ def replace_recursive(spec, vars):
     }
   elif isinstance(spec, list):
     return [replace_recursive(value, vars) for value in spec]
-  # TODO(derrickaw): Consider checking for callable in the if branch above
-  # instead of checking lambda here.
+  # TODO(https://github.com/apache/beam/issues/35067): Consider checking for
+  # callable in the if branch above instead of checking lambda here.
   elif isinstance(
       spec, str) and '{' in spec and '{\n' not in spec and 'lambda' not in spec:
     try:
