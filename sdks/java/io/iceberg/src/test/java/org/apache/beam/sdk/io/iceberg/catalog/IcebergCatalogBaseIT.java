@@ -618,11 +618,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
   @Test
   public void testWriteToPartitionedTable() throws IOException {
-    // For an example row where bool=true, modulo_5=3, str=value_303,
-    // this partition spec will create a partition like: /bool=true/modulo_5=3/str_trunc=value_3/
-
-    // Write with Beam
-    Map<String, Object> config = managedIcebergConfig(tableId());
+    Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
     int truncLength = "value_x".length();
     config.put(
         "partition_fields",

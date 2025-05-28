@@ -487,7 +487,7 @@ public class IcebergWriteSchemaTransformProviderTest {
                 "i_str",
                 "truncate(t_str, 5)",
                 "bucket(b_int, 3)",
-                "null(n_str)",
+                "void(n_str)",
                 "year(y_datetime)",
                 "month(m_date)",
                 "day(d_date)",
