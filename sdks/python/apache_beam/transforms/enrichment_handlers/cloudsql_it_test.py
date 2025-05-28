@@ -88,25 +88,39 @@ class CloudSQLEnrichmentTestHelper:
     for i in range(sql_client_retries):
       try:
         if database_type == DatabaseTypeAdapter.POSTGRESQL:
-          sql_db_container = PostgresContainer(image="postgres:16")
+          user, password, db_id = "test", "test", "test"
+          sql_db_container = PostgresContainer(
+              image="postgres:16",
+              user=user,
+              password=password,
+              dbname=db_id,
+              driver=database_type.value)
           sql_db_container.start()
           host = sql_db_container.get_container_host_ip()
           port = sql_db_container.get_exposed_port(5432)
-          user, password, db_id = "test", "test", "test"
 
         elif database_type == DatabaseTypeAdapter.MYSQL:
-          sql_db_container = MySqlContainer(image="mysql:8.0")
+          user, password, db_id = "test", "test", "test"
+          sql_db_container = MySqlContainer(
+              image="mysql:8.0",
+              MYSQL_USER=user,
+              MYSQL_ROOT_PASSWORD=password,
+              MYSQL_PASSWORD=password,
+              MYSQL_DATABASE=db_id)
           sql_db_container.start()
           host = sql_db_container.get_container_host_ip()
           port = sql_db_container.get_exposed_port(3306)
-          user, password, db_id = "test", "test", "test"
 
         elif database_type == DatabaseTypeAdapter.SQLSERVER:
-          sql_db_container = SqlServerContainer()
+          user, password, db_id = "SA", "A_Str0ng_Required_Password", "tempdb"
+          sql_db_container = SqlServerContainer(
+              image="mcr.microsoft.com/mssql/server:2022-latest",
+              user=user,
+              password=password,
+              dbname=db_id)
           sql_db_container.start()
           host = sql_db_container.get_container_host_ip()
           port = sql_db_container.get_exposed_port(1433)
-          user, password, db_id = "sa", "A_Str0ng_Required_Password", "tempdb"
         else:
           raise ValueError(f"Unsupported database type: {database_type}")
 

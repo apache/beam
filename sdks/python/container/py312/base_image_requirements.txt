@@ -116,6 +116,7 @@ pluggy==1.5.0
 proto-plus==1.26.1
 protobuf==5.29.4
 psycopg2-binary==2.9.9
+pymssql==2.3.4
 pyarrow==16.1.0
 pyarrow-hotfix==0.6
 pyasn1==0.6.1
