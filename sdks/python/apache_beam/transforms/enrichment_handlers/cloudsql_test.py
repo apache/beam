@@ -38,40 +38,70 @@ class TestCloudSQLEnrichment(unittest.TestCase):
   @parameterized.expand([
       # Empty TableFieldsQueryConfig.
       (
-          TableFieldsQueryConfig(
+          lambda: TableFieldsQueryConfig(
               table_id="", where_clause_template="", where_clause_fields=[]),
           1,
-          2),
+          2,
+          "must provide table_id and where_clause_template"
+      ),
       # Missing where_clause_template in TableFieldsQueryConfig.
       (
-          TableFieldsQueryConfig(
+          lambda: TableFieldsQueryConfig(
               table_id="table",
               where_clause_template="",
               where_clause_fields=["id"]),
           2,
-          10),
+          10,
+          "must provide table_id and where_clause_template"
+      ),
       # Invalid CustomQueryConfig with None query_fn.
-      (CustomQueryConfig(query_fn=None), 2, 10),  # type: ignore[arg-type]
+      (
+          lambda: CustomQueryConfig(query_fn=None),  # type: ignore[arg-type]
+          2,
+          10,
+          "must provide a valid query_fn"
+      ),
       # Missing table_id in TableFunctionQueryConfig.
       (
-          TableFunctionQueryConfig(
+          lambda: TableFunctionQueryConfig(
               table_id="",
               where_clause_template="id='{}'",
               where_clause_value_fn=where_clause_value_fn),
           2,
-          10),
+          10,
+          "must provide table_id and where_clause_template"
+      ),
+      # Missing where_clause_fields in TableFieldsQueryConfig.
+      (
+          lambda: TableFieldsQueryConfig(
+              table_id="table",
+              where_clause_template="id = '{}'",
+              where_clause_fields=[]),
+          1,
+          10,
+          "must provide non-empty where_clause_fields"
+      ),
+      # Missing where_clause_value_fn in TableFunctionQueryConfig.
+      (
+          lambda: TableFunctionQueryConfig(
+              table_id="table",
+              where_clause_template="id = '{}'",
+              where_clause_value_fn=None),  # type: ignore[arg-type]
+          1,
+          10,
+          "must provide where_clause_value_fn"
+      ),
   ])
   def test_invalid_query_config(
-      self, query_config, min_batch_size, max_batch_size):
+      self, create_config, min_batch_size, max_batch_size, expected_error_msg):
+    """Test that validation errors are raised for invalid query configs.
+    
+    The test verifies both that the appropriate ValueError is raised and that
+    the error message contains the expected text.
     """
-    TC 1: Empty TableFieldsQueryConfig.
-
-    It should raise an error.
-    TC 2: Missing where_clause_template in TableFieldsQueryConfig.
-    TC 3: Invalid CustomQueryConfig with None query_fn.
-    TC 4: Missing table_id in TableFunctionQueryConfig.
-    """
-    with self.assertRaises(ValueError):
+    with self.assertRaises(ValueError) as context:
+      # Call the lambda to create the config.
+      query_config = create_config()
       _ = CloudSQLEnrichmentHandler(
           database_type_adapter=DatabaseTypeAdapter.POSTGRESQL,
           database_address='',
@@ -82,6 +112,8 @@ class TestCloudSQLEnrichment(unittest.TestCase):
           min_batch_size=min_batch_size,
           max_batch_size=max_batch_size,
       )
+    # Verify the error message contains the expected text.
+    self.assertIn(expected_error_msg, str(context.exception))
 
   def test_valid_query_configs(self):
     """Test valid query configuration cases."""

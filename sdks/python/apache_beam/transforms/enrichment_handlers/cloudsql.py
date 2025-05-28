@@ -22,7 +22,6 @@ from typing import Any
 from typing import List
 from typing import Optional
 from typing import Union
-from typing import cast
 
 from sqlalchemy import create_engine
 from sqlalchemy import text
@@ -39,6 +38,10 @@ class CustomQueryConfig:
   """Configuration for using a custom query function."""
   query_fn: QueryFn
 
+  def __post_init__(self):
+    if not self.query_fn:
+      raise ValueError("CustomQueryConfig must provide a valid query_fn")
+
 
 @dataclass
 class TableFieldsQueryConfig:
@@ -46,6 +49,18 @@ class TableFieldsQueryConfig:
   table_id: str
   where_clause_template: str
   where_clause_fields: List[str]
+
+  def __post_init__(self):
+    if not self.table_id or not self.where_clause_template:
+      raise ValueError(
+          "TableFieldsQueryConfig and " +
+          "TableFunctionQueryConfig must provide table_id " +
+          "and where_clause_template")
+
+    if not self.where_clause_fields:
+      raise ValueError(
+          "TableFieldsQueryConfig must provide non-empty " +
+          "where_clause_fields")
 
 
 @dataclass
@@ -55,47 +70,27 @@ class TableFunctionQueryConfig:
   where_clause_template: str
   where_clause_value_fn: ConditionValueFn
 
+  def __post_init__(self):
+    if not self.table_id or not self.where_clause_template:
+      raise ValueError(
+          "TableFieldsQueryConfig and " +
+          "TableFunctionQueryConfig must provide table_id " +
+          "and where_clause_template")
+
+    if not self.where_clause_value_fn:
+      raise ValueError(
+          "TableFunctionQueryConfig must provide " + "where_clause_value_fn")
+
 
 QueryConfig = Union[CustomQueryConfig,
                     TableFieldsQueryConfig,
                     TableFunctionQueryConfig]
 
 
-def _validate_query_config(query_config: QueryConfig):
-  """Validates the provided query configuration."""
-  if isinstance(query_config, CustomQueryConfig):
-    if not query_config.query_fn:
-      raise ValueError("CustomQueryConfig must provide a valid query_fn")
-  elif isinstance(query_config,
-                  (TableFieldsQueryConfig, TableFunctionQueryConfig)):
-    if not query_config.table_id or not query_config.where_clause_template:
-      raise ValueError(
-          "TableFieldsQueryConfig and " +
-          "TableFunctionQueryConfig must provide table_id " +
-          "and where_clause_template")
-
-    is_table_fields = isinstance(query_config, TableFieldsQueryConfig)
-    if is_table_fields:
-      table_fields_config = cast(TableFieldsQueryConfig, query_config)
-      if not table_fields_config.where_clause_fields:
-        raise ValueError(
-            "TableFieldsQueryConfig must provide non-empty " +
-            "where_clause_fields")
-
-    is_table_function = isinstance(query_config, TableFunctionQueryConfig)
-    if is_table_function:
-      table_function_config = cast(TableFunctionQueryConfig, query_config)
-      if not table_function_config.where_clause_value_fn:
-        raise ValueError(
-            "TableFunctionQueryConfig must provide " + "where_clause_value_fn")
-  else:
-    raise ValueError("Invalid query_config type provided")
-
-
 class DatabaseTypeAdapter(Enum):
   POSTGRESQL = "psycopg2"
   MYSQL = "pymysql"
-  SQLSERVER = "pymysql"
+  SQLSERVER = "pymssql"
 
   def to_sqlalchemy_dialect(self):
     """Map the adapter type to its corresponding SQLAlchemy dialect.
@@ -190,7 +185,6 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
       * Ensure that the database user has the necessary permissions to query the
         specified table.
     """
-    _validate_query_config(query_config)
     self._database_type_adapter = database_type_adapter
     self._database_id = database_id
     self._database_user = database_user
@@ -235,71 +229,80 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
           f'table exists. {e}')
 
   def __call__(self, request: Union[beam.Row, list[beam.Row]], *args, **kwargs):
+    """Handle requests by delegating to single or batch processing."""
     if isinstance(request, list):
-      values, responses = [], []
-      requests_map: dict[Any, Any] = {}
-      batch_size = len(request)
-      raw_query = self.query_template
-
-      # For multiple requests in the batch, combine the WHERE clause conditions
-      # using 'OR' and update the query template to handle all requests.
-      table_query_configs = (TableFieldsQueryConfig, TableFunctionQueryConfig)
-      if batch_size > 1 and isinstance(self._query_config, table_query_configs):
-        where_clause_template_batched = ' OR '.join(
-            [fr'({self._query_config.where_clause_template})'] * batch_size)
-        raw_query = self.query_template.replace(
-            self._query_config.where_clause_template,
-            where_clause_template_batched)
-
-      # Extract where_clause_fields values and map the generated request key to
-      # the original request object.
-      for req in request:
-        request_dict = req._asdict()
-        try:
-          if isinstance(self._query_config, TableFunctionQueryConfig):
-            current_values = self._query_config.where_clause_value_fn(req)
-          elif isinstance(self._query_config, TableFieldsQueryConfig):
-            current_values = [
-                request_dict[field]
-                for field in self._query_config.where_clause_fields
-            ]
-        except KeyError as e:
-          raise KeyError(
-              "Make sure the values passed in `where_clause_fields` are the "
-              "keys in the input `beam.Row`." + str(e))
-        values.extend(current_values)
-        requests_map[self.create_row_key(req)] = req
-
-      # Formulate the query, execute it, and return a list of original requests
-      # paired with their responses.
-      query = raw_query.format(*values)
-      responses_dict = self._execute_query(query, is_batch=True)
-      for response in responses_dict:
-        response_row = beam.Row(**response)
-        response_key = self.create_row_key(response_row)
-        if response_key in requests_map:
-          responses.append((requests_map[response_key], response_row))
-      return responses
+      return self._process_batch_request(request)
     else:
-      request_dict = request._asdict()
-      if isinstance(self._query_config, CustomQueryConfig):
-        query = self._query_config.query_fn(request)
-      else:
-        try:
-          if isinstance(self._query_config, TableFunctionQueryConfig):
-            values = self._query_config.where_clause_value_fn(request)
-          elif isinstance(self._query_config, TableFieldsQueryConfig):
-            values = [
-                request_dict[field]
-                for field in self._query_config.where_clause_fields
-            ]
-        except KeyError as e:
-          raise KeyError(
-              "Make sure the values passed in `where_clause_fields` are the "
-              "keys in the input `beam.Row`." + str(e))
-        query = self.query_template.format(*values)
-      response_dict = self._execute_query(query, is_batch=False)
-      return request, beam.Row(**response_dict)
+      return self._process_single_request(request)
+
+  def _process_batch_request(self, requests: list[beam.Row]):
+    """Process batch requests and match responses to original requests."""
+    values, responses = [], []
+    requests_map: dict[Any, Any] = {}
+    batch_size = len(requests)
+    raw_query = self.query_template
+
+    # For multiple requests in the batch, combine the WHERE clause conditions
+    # using 'OR' and update the query template to handle all requests.
+    table_query_configs = (TableFieldsQueryConfig, TableFunctionQueryConfig)
+    if batch_size > 1 and isinstance(self._query_config, table_query_configs):
+      where_clause_template_batched = ' OR '.join(
+          [fr'({self._query_config.where_clause_template})'] * batch_size)
+      raw_query = self.query_template.replace(
+          self._query_config.where_clause_template,
+          where_clause_template_batched)
+
+    # Extract where_clause_fields values and map the generated request key to
+    # the original request object.
+    for req in requests:
+      request_dict = req._asdict()
+      try:
+        if isinstance(self._query_config, TableFunctionQueryConfig):
+          current_values = self._query_config.where_clause_value_fn(req)
+        elif isinstance(self._query_config, TableFieldsQueryConfig):
+          current_values = [
+              request_dict[field]
+              for field in self._query_config.where_clause_fields
+          ]
+      except KeyError as e:
+        raise KeyError(
+            "Make sure the values passed in `where_clause_fields` are "
+            " thekeys in the input `beam.Row`." + str(e))
+      values.extend(current_values)
+      requests_map[self.create_row_key(req)] = req
+
+    # Formulate the query, execute it, and return a list of original requests
+    # paired with their responses.
+    query = raw_query.format(*values)
+    responses_dict = self._execute_query(query, is_batch=True)
+    for response in responses_dict:
+      response_row = beam.Row(**response)
+      response_key = self.create_row_key(response_row)
+      if response_key in requests_map:
+        responses.append((requests_map[response_key], response_row))
+    return responses
+
+  def _process_single_request(self, request: beam.Row):
+    """Process a single request and return with its response."""
+    request_dict = request._asdict()
+    if isinstance(self._query_config, CustomQueryConfig):
+      query = self._query_config.query_fn(request)
+    else:
+      try:
+        if isinstance(self._query_config, TableFunctionQueryConfig):
+          values = self._query_config.where_clause_value_fn(request)
+        elif isinstance(self._query_config, TableFieldsQueryConfig):
+          values = [
+              request_dict[field]
+              for field in self._query_config.where_clause_fields
+          ]
+      except KeyError as e:
+        raise KeyError(
+            "Make sure the values passed in `where_clause_fields` are "
+            "the keys in the input `beam.Row`." + str(e))
+      query = self.query_template.format(*values)
+    response_dict = self._execute_query(query, is_batch=False)
+    return request, beam.Row(**response_dict)
 
   def create_row_key(self, row: beam.Row):
     if isinstance(self._query_config, TableFunctionQueryConfig):
