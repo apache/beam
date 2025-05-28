@@ -89,7 +89,7 @@ if (!outputFound) {
     throw new RuntimeException("No output files found for HourlyTeamScore after ${retries * waitTime} seconds.")
 }
 
-command_output_text = t.run "gsutil cat ${outputPath}}* | grep AzureBilby "
+command_output_text = t.run "gsutil cat ${outputPath}* | grep AzureBilby "
 t.see "total_score: 2788, team: AzureBilby", command_output_text
 t.success("HourlyTeamScore successfully run on DataflowRunner.")
 t.run "gsutil rm gs://${t.gcsBucket()}/${mobileGamingCommands.getHourlyTeamScoreOutputName(runner)}*"
