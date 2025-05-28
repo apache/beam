@@ -107,6 +107,7 @@ dependencies {
   testImplementation library.java.testcontainers_kafka
   testRuntimeOnly library.java.slf4j_jdk14
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+  testImplementation group: 'org.apache.beam', name: 'beam-runners-google-cloud-dataflow-java', version: "2.65.0"
   kafkaVersions.each {"kafkaVersion$it.key" "org.apache.kafka:kafka-clients:$it.value"}
 }
 
