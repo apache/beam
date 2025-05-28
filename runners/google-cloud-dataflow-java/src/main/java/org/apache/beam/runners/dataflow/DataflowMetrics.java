@@ -179,7 +179,7 @@ class DataflowMetrics extends MetricResults {
         // stringset metric
         StringSetResult value = getStringSetValue(committed);
         stringSetResults.add(MetricResult.create(metricKey, !isStreamingJob, value));
-      } else if (committed.getTrie() != null && attempted.getTrie() != null) {
+      } else if (committed.getBoundedTrie() != null && attempted.getBoundedTrie() != null) {
         BoundedTrieResult value = getBoundedTrieValue(committed);
         boundedTrieResults.add(MetricResult.create(metricKey, !isStreamingJob, value));
       } else {
@@ -211,10 +211,10 @@ class DataflowMetrics extends MetricResults {
 
     private BoundedTrieResult getBoundedTrieValue(MetricUpdate metricUpdate) {
       BoundedTrieData trieData = null;
-      Object trieFromResponse = metricUpdate.getTrie();
+      Object trieFromResponse = metricUpdate.getBoundedTrie();
       // Fail-safely cast Trie returned by dataflow API to BoundedTrieResult
       if (trieFromResponse instanceof BoundedTrie) {
-        BoundedTrie bTrie = (BoundedTrie) metricUpdate.getTrie();
+        BoundedTrie bTrie = (BoundedTrie) metricUpdate.getBoundedTrie();
         trieData = BoundedTrieData.fromProto(bTrie);
       } else if (trieFromResponse instanceof com.google.protobuf.Struct) {
         trieData = trieFromStruct((com.google.protobuf.Struct) trieFromResponse);
