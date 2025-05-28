@@ -35,6 +35,7 @@ import psycopg2
 import pytds
 import sqlalchemy
 import yaml
+from google.cloud import pubsub_v1
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
 from testcontainers.google import PubSubContainer
@@ -42,8 +43,6 @@ from testcontainers.kafka import KafkaContainer
 from testcontainers.mssql import SqlServerContainer
 from testcontainers.mysql import MySqlContainer
 from testcontainers.postgres import PostgresContainer
-
-from google.cloud import pubsub_v1
 
 import apache_beam as beam
 from apache_beam.io import filesystems
