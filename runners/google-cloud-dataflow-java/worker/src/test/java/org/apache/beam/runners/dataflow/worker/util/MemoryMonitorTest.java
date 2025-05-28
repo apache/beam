@@ -18,12 +18,9 @@
 package org.apache.beam.runners.dataflow.worker.util;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assume.assumeThat;
 
 import java.io.File;
 import java.io.IOException;
@@ -34,7 +31,6 @@ import java.time.ZoneOffset;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.apache.beam.sdk.util.construction.Environments;
 import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Rule;
@@ -168,8 +164,6 @@ public class MemoryMonitorTest {
 
   @Test
   public void uploadJfrProfilesOnThrashing() throws Exception {
-    assumeThat(Environments.getJavaVersion(), is(not(Environments.JavaVersion.java8)));
-
     File remoteFolder = tempFolder.newFolder();
     monitor =
         MemoryMonitor.forTest(
