@@ -277,7 +277,14 @@ class RecordWriterManager implements AutoCloseable {
    * implementation. Although it is expected, some implementations may not support creating a table
    * using the Iceberg API.
    */
-  private Table getOrCreateTable(TableIdentifier identifier, Schema dataSchema) {
+  private Table getOrCreateTable(IcebergDestination destination, Schema dataSchema) {
+    TableIdentifier identifier = destination.getTableIdentifier();
+    @Nullable IcebergTableCreateConfig createConfig = destination.getTableCreateConfig();
+    PartitionSpec partitionSpec = PartitionSpec.unpartitioned();
+    if (createConfig != null && createConfig.getPartitionSpec() != null) {
+      partitionSpec = createConfig.getPartitionSpec();
+    }
+
     @Nullable Table table = TABLE_CACHE.getIfPresent(identifier);
     if (table == null) {
       synchronized (TABLE_CACHE) {
@@ -287,9 +294,12 @@ class RecordWriterManager implements AutoCloseable {
           try {
             org.apache.iceberg.Schema tableSchema =
                 IcebergUtils.beamSchemaToIcebergSchema(dataSchema);
-            // TODO(ahmedabu98): support creating a table with a specified partition spec
-            table = catalog.createTable(identifier, tableSchema);
-            LOG.info("Created Iceberg table '{}' with schema: {}", identifier, tableSchema);
+            table = catalog.createTable(identifier, tableSchema, partitionSpec);
+            LOG.info(
+                "Created Iceberg table '{}' with schema: {}\n, partition spec: {}",
+                identifier,
+                tableSchema,
+                partitionSpec);
           } catch (AlreadyExistsException alreadyExistsException) {
             // handle race condition where workers are concurrently creating the same table.
             // if running into already exists exception, we perform one last load
@@ -318,9 +328,9 @@ class RecordWriterManager implements AutoCloseable {
         destinations.computeIfAbsent(
             icebergDestination,
             destination -> {
-              TableIdentifier identifier = destination.getValue().getTableIdentifier();
-              Table table = getOrCreateTable(identifier, row.getSchema());
-              return new DestinationState(destination.getValue(), table);
+              IcebergDestination dest = destination.getValue();
+              Table table = getOrCreateTable(dest, row.getSchema());
+              return new DestinationState(dest, table);
             });
 
     Record icebergRecord = IcebergUtils.beamRowToIcebergRecord(destinationState.schema, row);
