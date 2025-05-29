@@ -32,7 +32,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.Ge
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreamFactory;
-import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.StreamingWorkScheduler;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
@@ -84,7 +83,7 @@ public class WindmillStreamPoolSenderTest {
     grpcCleanup.register(inProcessChannel);
     connection =
         WindmillConnection.builder()
-            .setStub(CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel))
+            .setStubSupplier(() -> CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel))
             .build();
   }
 
@@ -104,7 +103,9 @@ public class WindmillStreamPoolSenderTest {
 
     verify(streamFactory)
         .createGetWorkStream(
-            eq(connection.stub()), eq(GET_WORK_REQUEST), any(ThrottleTimer.class), any());
+            any(CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub.class),
+            eq(GET_WORK_REQUEST),
+            any());
     verify(mockWorkCommitter).start();
   }
 
@@ -121,7 +122,9 @@ public class WindmillStreamPoolSenderTest {
 
     verify(streamFactory, times(1))
         .createGetWorkStream(
-            eq(connection.stub()), eq(GET_WORK_REQUEST), any(ThrottleTimer.class), any());
+            any(CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub.class),
+            eq(GET_WORK_REQUEST),
+            any());
     verify(mockWorkCommitter, times(1)).start();
   }
 
@@ -131,7 +134,9 @@ public class WindmillStreamPoolSenderTest {
     GetWorkStream mockGetWorkStream = mock(GetWorkStream.class);
 
     when(mockStreamFactory.createGetWorkStream(
-            eq(connection.stub()), any(GetWorkRequest.class), any(ThrottleTimer.class), any()))
+            any(CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub.class),
+            any(GetWorkRequest.class),
+            any()))
         .thenReturn(mockGetWorkStream);
 
     WindmillStreamPoolSender windmillStreamPoolSender =

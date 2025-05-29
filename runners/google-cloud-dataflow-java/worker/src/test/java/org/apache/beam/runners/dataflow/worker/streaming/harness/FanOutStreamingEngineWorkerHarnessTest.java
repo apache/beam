@@ -88,9 +88,8 @@ public class FanOutStreamingEngineWorkerHarnessTest {
   private static final long WAIT_FOR_METADATA_INJECTIONS_SECONDS = 5;
   private static final long SERVER_SHUTDOWN_TIMEOUT_SECONDS = 30;
   private static final WindmillServiceAddress DEFAULT_WINDMILL_SERVICE_ADDRESS =
-      WindmillServiceAddress.create(HostAndPort.fromParts(WindmillChannelFactory.LOCALHOST, 443));
+      WindmillServiceAddress.create(HostAndPort.fromParts(WindmillChannels.LOCALHOST, 443));
   private static final String AUTHENTICATING_SERVICE = "test.googleapis.com";
-
   private static final ImmutableMap<String, WorkerMetadataResponse.Endpoint> DEFAULT =
       ImmutableMap.of(
           "global_data",
@@ -402,10 +401,6 @@ public class FanOutStreamingEngineWorkerHarnessTest {
                 WorkerMetadataResponse.Endpoint.newBuilder()
                     .setBackendWorkerToken(workerToken)
                     .build())
-<<<<<<< HEAD
-             .setExternalEndpoint(AUTHENTICATING_SERVICE)
-=======
->>>>>>> f41b9b0b231 (Addressing review comments)
             .setEndpointType(EndpointType.DIRECTPATH)
             .putAllGlobalDataEndpoints(DEFAULT)
             .build();

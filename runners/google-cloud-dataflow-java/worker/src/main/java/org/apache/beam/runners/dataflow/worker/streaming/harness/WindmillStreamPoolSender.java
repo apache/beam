@@ -132,9 +132,7 @@ public final class WindmillStreamPoolSender implements StreamSender, WindmillStr
     while (isRunning.get()) {
       this.getWorkStream =
           streamingEngineStreamFactory.createGetWorkStream(
-              connection.stub(),
-              getWorkRequest,
-              getWorkItemReceiver());
+              connection.currentStub(), getWorkRequest, getWorkItemReceiver());
       this.getWorkStream.start();
       this.hasGetWorkStreamStarted.set(true);
 

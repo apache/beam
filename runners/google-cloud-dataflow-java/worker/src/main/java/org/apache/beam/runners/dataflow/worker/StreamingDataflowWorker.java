@@ -306,7 +306,7 @@ public final class StreamingDataflowWorker {
                       .setCommitWorkStreamFactory(
                           () -> CloseableStream.create(commitWorkStream, () -> {}))
                       .build(),
-                      getDataMetricTracker,
+              getDataMetricTracker,
               (connection) ->
                   WindmillStreamPoolSender.create(
                       connection,

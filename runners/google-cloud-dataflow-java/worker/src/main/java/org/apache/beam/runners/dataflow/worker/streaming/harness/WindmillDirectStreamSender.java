@@ -122,7 +122,8 @@ final class WindmillDirectStreamSender implements StreamSender, WindmillStreamSe
   @Override
   public synchronized void start() {
     if (!started.get()) {
-      checkState(!streamStarter.isShutdown(), "WindmillDirectStreamSender has already been shutdown.");
+      checkState(
+          !streamStarter.isShutdown(), "WindmillDirectStreamSender has already been shutdown.");
 
       // Start these 3 streams in parallel since they each may perform blocking IO.
       CompletableFuture.allOf(
