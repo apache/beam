@@ -180,6 +180,7 @@ class DataflowMetrics extends MetricResults {
         StringSetResult value = getStringSetValue(committed);
         stringSetResults.add(MetricResult.create(metricKey, !isStreamingJob, value));
       } else if (committed.getBoundedTrie() != null && attempted.getBoundedTrie() != null) {
+        LOG.info("DO NOT MERGE: get bounded trie: {}", committed.getBoundedTrie());
         BoundedTrieResult value = getBoundedTrieValue(committed);
         boundedTrieResults.add(MetricResult.create(metricKey, !isStreamingJob, value));
       } else {
@@ -217,7 +218,10 @@ class DataflowMetrics extends MetricResults {
         BoundedTrie bTrie = (BoundedTrie) metricUpdate.getBoundedTrie();
         trieData = BoundedTrieData.fromProto(bTrie);
       } else if (trieFromResponse instanceof com.google.protobuf.Struct) {
+        LOG.info("DO NOT MERGE try to resolve struct");
         trieData = trieFromStruct((com.google.protobuf.Struct) trieFromResponse);
+      } else {
+        LOG.info("DO NOT MERGE bounded trie is of type {}", trieFromResponse.getClass().getName());
       }
 
       if (trieData != null) {
