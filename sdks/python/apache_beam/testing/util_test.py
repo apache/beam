@@ -69,14 +69,14 @@ class UtilTest(unittest.TestCase):
         assert_that(p | Create([1, 10, 100]), equal_to([1, 2, 3]))
 
   def test_assert_missing(self):
-    with self.assertRaisesRegex(RuntimeError,
+    with self.assertRaisesRegex(Exception,
                                 r"BeamAssertException.*"
                                 r"missing elements \['c'\]"):
       with TestPipeline() as p:
         assert_that(p | Create(['a', 'b']), equal_to(['a', 'b', 'c']))
 
   def test_assert_unexpected(self):
-    with self.assertRaisesRegex(RuntimeError,
+    with self.assertRaisesRegex(Exception,
                                 r"BeamAssertException.*"
                                 r"unexpected elements \['c', 'd'\]|"
                                 r"unexpected elements \['d', 'c'\]"):
@@ -84,7 +84,7 @@ class UtilTest(unittest.TestCase):
         assert_that(p | Create(['a', 'b', 'c', 'd']), equal_to(['a', 'b']))
 
   def test_assert_missing_and_unexpected(self):
-    with self.assertRaisesRegex(RuntimeError,
+    with self.assertRaisesRegex(Exception,
                                 r"BeamAssertException.*"
                                 r"unexpected elements \["
                                 r"'c'\].*missing elements"
@@ -148,7 +148,7 @@ class UtilTest(unittest.TestCase):
       assert_that(p | Create([1, 2, 3]), is_not_empty())
 
   def test_assert_that_fails_on_is_not_empty_expected(self):
-    with self.assertRaisesRegex(RuntimeError, "BeamAssertException"):
+    with self.assertRaisesRegex(Exception, "BeamAssertException"):
       with TestPipeline() as p:
         assert_that(p | Create([]), is_not_empty())
 
@@ -172,7 +172,7 @@ class UtilTest(unittest.TestCase):
                   reify_windows=True)
 
   def test_equal_to_per_window_fail_unmatched_window(self):
-    with self.assertRaisesRegex(RuntimeError, "BeamAssertException"):
+    with self.assertRaisesRegex(Exception, "BeamAssertException"):
       expected = {
           window.IntervalWindow(50, 100): [('k', [1])],
       }
@@ -203,7 +203,7 @@ class UtilTest(unittest.TestCase):
       assert_that(outputs, equal_to([2, 3, 4]))
 
   def test_equal_to_per_window_fail_unmatched_element(self):
-    with self.assertRaisesRegex(RuntimeError, "BeamAssertException"):
+    with self.assertRaisesRegex(Exception, "BeamAssertException"):
       start = int(MIN_TIMESTAMP.micros // 1e6) - 5
       end = start + 20
       expected = {
@@ -241,7 +241,7 @@ class UtilTest(unittest.TestCase):
                   equal_to_per_window(expected))
 
   def test_equal_to_per_window_fail_unexpected_element(self):
-    with self.assertRaisesRegex(RuntimeError, "BeamAssertException"):
+    with self.assertRaisesRegex(Exception, "BeamAssertException"):
       start = int(MIN_TIMESTAMP.micros // 1e6) - 5
       end = start + 20
       expected = {

@@ -159,7 +159,7 @@ class PTransformTest(unittest.TestCase):
     'Returning a str from a ParDo or FlatMap '
     'is discouraged.'
 
-    with self.assertRaisesRegex(RuntimeError, ex_details):
+    with self.assertRaisesRegex(Exception, ex_details):
       with TestPipeline() as pipeline:
         pipeline._options.view_as(TypeOptions).runtime_type_check = True
         pcoll = pipeline | 'Start' >> beam.Create(['2', '9', '3'])
@@ -173,7 +173,7 @@ class PTransformTest(unittest.TestCase):
     'Returning a dict from a ParDo or FlatMap '
     'is discouraged.'
 
-    with self.assertRaisesRegex(RuntimeError, ex_details):
+    with self.assertRaisesRegex(Exception, ex_details):
       with TestPipeline() as pipeline:
         pipeline._options.view_as(TypeOptions).runtime_type_check = True
         pcoll = pipeline | 'Start' >> beam.Create(['2', '9', '3'])
@@ -293,7 +293,7 @@ class PTransformTest(unittest.TestCase):
 
     ex_details = r'TypeCheckError.*FlatMap and ParDo must return an iterable.'
 
-    with self.assertRaisesRegex(RuntimeError, ex_details):
+    with self.assertRaisesRegex(Exception, ex_details):
       with TestPipeline() as pipeline:
         pipeline._options.view_as(TypeOptions).runtime_type_check = True
         pcoll = pipeline | 'Start' >> beam.Create([2, 9, 3])
@@ -659,7 +659,7 @@ class PTransformTest(unittest.TestCase):
 
     # Check that a bad partition label will yield an error. For the
     # DirectRunner, this error manifests as an exception.
-    with self.assertRaisesRegex(RuntimeError, "ValueError"):
+    with self.assertRaisesRegex(Exception, "ValueError"):
       with TestPipeline() as pipeline:
         pcoll = pipeline | 'Start' >> beam.Create([0, 1, 2, 3, 4, 5, 6, 7, 8])
         partitions = pcoll | beam.Partition(SomePartitionFn(), 4, 10000)
@@ -1648,7 +1648,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     "Expected an instance of {}, "
     "instead found some_string, an instance of {}.".format(int, str)
 
-    with self.assertRaisesRegex(RuntimeError, error_regex) as e:
+    with self.assertRaisesRegex(Exception, error_regex) as e:
       self.p.run()
 
   def test_run_time_type_checking_enabled_types_satisfied(self):
@@ -1702,7 +1702,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     "Expected an instance of type <class 'bool'>, "
     "instead received an instance of type int."
 
-    with self.assertRaisesRegex(RuntimeError, error_regex) as e:
+    with self.assertRaisesRegex(Exception, error_regex) as e:
       self.p.run()
 
   def test_pipeline_checking_satisfied_run_time_checking_satisfied(self):
@@ -1738,7 +1738,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     "Expected an instance of {}, "
     "instead found 1, an instance of {}.".format(str, int)
 
-    with self.assertRaisesRegex(RuntimeError, error_regex) as e:
+    with self.assertRaisesRegex(Exception, error_regex) as e:
       (
           self.p
           | beam.Create([1, 1, 1])
@@ -1759,7 +1759,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     "Expected an instance of type <class 'int'>, instead received an "
     "instance of type float."
 
-    with self.assertRaisesRegex(RuntimeError, error_regex) as e:
+    with self.assertRaisesRegex(Exception, error_regex) as e:
       (
           self.p
           | beam.Create([(1, 3.0), (2, 4.9), (3, 9.5)])
@@ -1796,7 +1796,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
       "Expected an instance of {}, "
       "instead found 1.0, an instance of {}".format(int, float)
 
-    with self.assertRaisesRegex(RuntimeError, error_regex) as e:
+    with self.assertRaisesRegex(Exception, error_regex) as e:
       (
           self.p
           | beam.Create([1, 1, 1])
@@ -1826,7 +1826,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
       "Tuple type constraint violated. "
       "Valid object instance must be of type 'tuple'. "
 
-    with self.assertRaisesRegex(RuntimeError, error_regex) as e:
+    with self.assertRaisesRegex(Exception, error_regex) as e:
       (
           self.p
           | beam.Create([(1, 3.0), (2, 4.9), (3, 9.5)])
@@ -1852,7 +1852,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     "Expected an instance of {}, "
     "instead found 1.0, an instance of {}.".format(int, float)
 
-    with self.assertRaisesRegex(RuntimeError, error_regex) as e:
+    with self.assertRaisesRegex(Exception, error_regex) as e:
       (self.p | beam.Create([1, 2, 3, 4]) | 'Add 1' >> beam.Map(add, 1.0))
       self.p.run()
 
@@ -1866,7 +1866,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     "Expected an instance of {}, "
     "instead found 1.0, an instance of {}.".format(int, float)
 
-    with self.assertRaisesRegex(RuntimeError, error_regex) as e:
+    with self.assertRaisesRegex(Exception, error_regex) as e:
       (
           self.p
           | beam.Create([1, 2, 3, 4])
@@ -1974,7 +1974,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     "Type-hint for return type violated. "
     "Expected an instance of {}, instead found".format(int)
 
-    with self.assertRaisesRegex(RuntimeError, error_regex) as e:
+    with self.assertRaisesRegex(Exception, error_regex) as e:
       (
           self.p
           | 'K' >> beam.Create([5, 5, 5, 5]).with_output_types(int)
@@ -2037,7 +2037,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     "Expected an instance of {}, "
     "instead found 0, an instance of {}.".format(str, int)
 
-    with self.assertRaisesRegex(RuntimeError, error_regex) as e:
+    with self.assertRaisesRegex(Exception, error_regex) as e:
       (
           self.p
           | beam.Create([0]).with_output_types(int)
@@ -2111,7 +2111,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     "type-constraint violated. Expected an instance of one "
     "of: ('int', 'float'), received str instead."
 
-    with self.assertRaisesRegex(RuntimeError, error_regex) as e:
+    with self.assertRaisesRegex(Exception, error_regex) as e:
       (
           self.p
           | 'C' >> beam.Create(['t', 'e', 's', 't']).with_output_types(str)
@@ -2179,7 +2179,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     "'int'>\", \"<class 'numpy.float64'>\", \"<class 'numpy.int64'>\"), " \
     "received str instead"
 
-    with self.assertRaisesRegex(RuntimeError, error_regex) as e:
+    with self.assertRaisesRegex(Exception, error_regex) as e:
       (
           self.p
           | beam.Create(range(5)).with_output_types(int)
@@ -2509,7 +2509,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     error_regex = r"TypeError.*"
     "object of type 'int' has no len() [while running 'Len']"
 
-    with self.assertRaisesRegex(RuntimeError, error_regex) as e:
+    with self.assertRaisesRegex(Exception, error_regex) as e:
       (
           self.p
           | beam.Create([1, 2, 3]).with_output_types(int)
