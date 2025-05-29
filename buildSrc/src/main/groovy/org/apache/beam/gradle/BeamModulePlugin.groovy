@@ -455,10 +455,11 @@ class BeamModulePlugin implements Plugin<Project> {
   }
 
   /** Get version for Java SDK container */
-  static def getSupportedJavaVersion() {
-    if (JavaVersion.current() <= JavaVersion.VERSION_11) {
+  static def getSupportedJavaVersion(String assignedVersion = null) {
+    JavaVersion ver = assignedVersion ? JavaVersion.toVersion(assignedVersion) : JavaVersion.current()
+    if (ver <= JavaVersion.VERSION_11) {
       return 'java11'
-    } else if (JavaVersion.current() <= JavaVersion.VERSION_17) {
+    } else if (ver <= JavaVersion.VERSION_17) {
       return 'java17'
     } else {
       return 'java21'
@@ -2649,8 +2650,8 @@ class BeamModulePlugin implements Plugin<Project> {
         // see https://issues.apache.org/jira/browse/BEAM-6698
         maxHeapSize = '4g'
         if (config.environment == PortableValidatesRunnerConfiguration.Environment.DOCKER) {
-          def ver = project.findProperty('testJavaVersion')
-          def javaContainerSuffix = ver ? "java$ver" : getSupportedJavaVersion()
+          String ver = project.findProperty('testJavaVersion')
+          def javaContainerSuffix = getSupportedJavaVersion(ver)
           dependsOn ":sdks:java:container:${javaContainerSuffix}:docker"
         }
       }
