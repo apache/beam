@@ -1,0 +1,6 @@
+- username: # The username of the person requesting access
+  email: # The email address of the person requesting access, this should be an email address that is associated with a Google account
+  resource: # The GCP resource for which access is being requested (e.g., "project-id", "bucket-name")
+  access_level: # The level of access being requested (e.g., "Viewer", "Editor", "Owner")
+  reason_for_access: # A brief description of why access is needed
+  reviewer: # The person responsible for reviewing the access request
