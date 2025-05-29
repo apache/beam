@@ -83,7 +83,7 @@ class IncrementalScanSource extends PTransform<PBegin, PCollection<Row>> {
   /** Creates a fixed snapshot range. */
   private PCollection<KV<String, List<SnapshotInfo>>> boundedSnapshots(PBegin input, Table table) {
     checkStateNotNull(
-        table.currentSnapshot().snapshotId(),
+        table.currentSnapshot(),
         "Table %s does not have any snapshots to read from.",
         scanConfig.getTableIdentifier());
 
