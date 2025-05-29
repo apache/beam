@@ -150,23 +150,23 @@ class MockStaleCleaner(StaleCleaner):
                  time_threshold=DEFAULT_TIME_THRESHOLD, active_resources=None,
                  stored_resources=None):
         super().__init__(project_id, resource_type, bucket_name, prefixes, time_threshold)
-        self._active_resources = active_resources or {}
-        self._stored_resources = stored_resources or {}
+        self._active_resources_mock_data = active_resources or {}
+        self._stored_resources_mock_data = stored_resources or {}
         self.deleted_resources = []
 
-    def _StaleCleaner__active_resources(self, clock=None):
+    def _active_resources(self, clock=None):
         """Override the private method to return mock data."""
-        return self._active_resources
+        return self._active_resources_mock_data
 
-    def _StaleCleaner__stored_resources(self):
+    def _stored_resources(self):
         """Override the private method to return mock data."""
-        return self._stored_resources
+        return self._stored_resources_mock_data
 
-    def _StaleCleaner__write_resources(self, resources):
+    def _write_resources(self, resources):
         """Override the private method to store resources."""
-        self._stored_resources = resources
+        self._stored_resources_mock_data = resources
 
-    def _StaleCleaner__delete_resource(self, resource_name):
+    def _delete_resource(self, resource_name):
         """Override the private method to record deleted resources."""
         self.deleted_resources.append(resource_name)
 
@@ -202,7 +202,7 @@ class StaleCleanerTest(unittest.TestCase):
         )
 
         # Active resources in GCP
-        self.active_resources = {
+        self.active_resources_data = {
             "fresh-resource": self.fresh_resource,
             "stale-resource": self.stale_resource,
             "new-resource": GoogleCloudResource(
@@ -213,7 +213,7 @@ class StaleCleanerTest(unittest.TestCase):
         }
 
         # Stored resources
-        self.stored_resources = {
+        self.stored_resources_data = {
             "fresh-resource": self.fresh_resource,
             "stale-resource": self.stale_resource,
             "deleted-resource": GoogleCloudResource(
@@ -229,8 +229,8 @@ class StaleCleanerTest(unittest.TestCase):
             bucket_name=self.bucket_name,
             prefixes=self.prefixes,
             time_threshold=self.time_threshold,
-            active_resources=self.active_resources,
-            stored_resources=self.stored_resources
+            active_resources=self.active_resources_data,
+            stored_resources=self.stored_resources_data
         )
 
         self.current_time = current_time
@@ -250,19 +250,19 @@ class StaleCleanerTest(unittest.TestCase):
             self.cleaner.refresh(clock=self.current_time)
 
         # Check that deleted-resource was removed
-        self.assertNotIn("deleted-resource", self.cleaner._stored_resources)
+        self.assertNotIn("deleted-resource", self.cleaner._stored_resources_mock_data)
 
         # Check that new-resource was added
-        self.assertIn("new-resource", self.cleaner._stored_resources)
+        self.assertIn("new-resource", self.cleaner._stored_resources_mock_data)
 
         # Check that fresh-resource was updated
         self.assertEqual(
-            self.cleaner._stored_resources["fresh-resource"].last_update_date,
+            self.cleaner._stored_resources_mock_data["fresh-resource"].last_update_date,
             self.current_time
         )
 
         # Check that stale-resource is still present
-        self.assertIn("stale-resource", self.cleaner._stored_resources)
+        self.assertIn("stale-resource", self.cleaner._stored_resources_mock_data)
 
     def test_stale_resources(self):
         """Test stale_resources method."""
@@ -352,7 +352,7 @@ class PubSubTopicCleanerTest(unittest.TestCase):
         self.cleaner.client.list_topics.return_value = [mock_topic1, mock_topic2]
 
         # Call the private method using name mangling
-        resources = self.cleaner._PubSubTopicCleaner__active_resources()
+        resources = self.cleaner._active_resources()
 
         # Should only return the topic with matching prefix
         self.assertEqual(len(resources), 1)
@@ -374,7 +374,7 @@ class PubSubTopicCleanerTest(unittest.TestCase):
         self.cleaner.client.list_topics.return_value = [mock_topic1, mock_topic2]
 
         # Call the private method using name mangling
-        resources = self.cleaner._PubSubTopicCleaner__active_resources()
+        resources = self.cleaner._active_resources()
 
         # Should return all topics
         self.assertEqual(len(resources), 2)
@@ -388,7 +388,7 @@ class PubSubTopicCleanerTest(unittest.TestCase):
 
         # Call the private method using name mangling
         with mock.patch('builtins.print') as mock_print:
-            self.cleaner._PubSubTopicCleaner__delete_resource(resource_name)
+            self.cleaner._delete_resource(resource_name)
 
             # Check that delete_topic was called
             self.cleaner.client.delete_topic.assert_called_once_with(name=resource_name)

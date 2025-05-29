@@ -105,13 +105,13 @@ class StaleCleaner:
         self.prefixes = prefixes or []
         self.time_threshold = time_threshold
 
-    def __delete_resource(self, resource_name: str) -> None:
+    def _delete_resource(self, resource_name: str) -> None:
         """
         Different for each resource type. Delete the resource from GCP.
         """
         pass
 
-    def __active_resources(self, clock: datetime.datetime = None) -> dict:
+    def _active_resources(self, clock: datetime.datetime = None) -> dict:
         """
         Different for each resource type. Get the active resources from GCP as a dictionary.
         The dictionary is a dict of GoogleCloudResource objects.
@@ -120,7 +120,7 @@ class StaleCleaner:
         """
         pass
 
-    def __write_resources(self, resources: dict) -> None:
+    def _write_resources(self, resources: dict) -> None:
         """
         Write existing resources to the google bucket.
         """
@@ -134,7 +134,7 @@ class StaleCleaner:
         blob.upload_from_string(blob_json, content_type="application/json")
         print(f"Resources written to {self.bucket_name}/{STORAGE_PREFIX}{self.resource_type}.json")
 
-    def __stored_resources(self) -> dict:
+    def _stored_resources(self) -> dict:
         """
         Get the stored resources from the google bucket.
         """
@@ -170,8 +170,8 @@ class StaleCleaner:
             5. Save the working resources to the google bucket
         """
         clock = clock or datetime.datetime.now()
-        stored_resources = self.__stored_resources()
-        active_resources = self.__active_resources(clock=clock)
+        stored_resources = self._stored_resources()
+        active_resources = self._active_resources(clock=clock)
 
         for k, v in list(stored_resources.items()):
             if k not in active_resources:
@@ -184,7 +184,7 @@ class StaleCleaner:
             if k not in stored_resources:
                 stored_resources[k] = v
 
-        self.__write_resources(stored_resources)
+        self._write_resources(stored_resources)
 
     def stale_resources(self, clock: datetime.datetime = None) -> dict:
         """
@@ -195,7 +195,7 @@ class StaleCleaner:
             3. If the time since the creation date is greater than the time threshold, add it to the stale resources
         """
         clock = clock or datetime.datetime.now()
-        stored_resources = self.__stored_resources()
+        stored_resources = self._stored_resources()
         stale_resources = {}
 
         for k, v in stored_resources.items():
@@ -213,7 +213,7 @@ class StaleCleaner:
             3. If the time since the creation date is less than the time threshold, add it to the fresh resources
         """
         clock = clock or datetime.datetime.now()
-        stored_resources = self.__stored_resources()
+        stored_resources = self._stored_resources()
         fresh_resources = {}
 
         for k, v in stored_resources.items():
@@ -238,7 +238,7 @@ class StaleCleaner:
             if v.time_alive(clock=clock) > self.time_threshold:
                 print(f"Resource {k} is stale and should be deleted.")
                 if not dry_run:
-                    self.__delete_resource(k)
+                    self._delete_resource(k)
                 else:
                     print(f"Resource {k} would be deleted.")
 
@@ -249,7 +249,7 @@ class PubSubTopicCleaner(StaleCleaner):
         super().__init__(project_id, PUBSUB_TOPIC_RESOURCE, bucket_name, prefixes, time_threshold)
         self.client = pubsub_v1.PublisherClient()
 
-    def __active_resources(self, clock: datetime.datetime = None) -> dict:
+    def _active_resources(self, clock: datetime.datetime = None) -> dict:
         d = {}
         for topic in self.client.list_topics(request={"project": self.project_path}):
             # Only include topics that match any of the specified prefixes
@@ -262,7 +262,7 @@ class PubSubTopicCleaner(StaleCleaner):
                 )
         return d
 
-    def __delete_resource(self, resource_name: str) -> None:
+    def _delete_resource(self, resource_name: str) -> None:
         topic_name = resource_name.split('/')[-1]
         print(f"Deleting PubSub topic {topic_name}")
         self.client.delete_topic(name=resource_name)
