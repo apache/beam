@@ -59,39 +59,43 @@ import org.testcontainers.utility.DockerImageName;
 public class DebeziumReadSchemaTransformTest {
   private static final Logger LOG = LoggerFactory.getLogger(DebeziumReadSchemaTransformTest.class);
 
-  private static final DockerImageName KAFKA_IMAGE = DockerImageName.parse("confluentinc/cp-kafka:7.6.0");
+  private static final DockerImageName KAFKA_IMAGE =
+      DockerImageName.parse("confluentinc/cp-kafka:7.6.0");
 
   @ClassRule
-  public static final PostgreSQLContainer<?> POSTGRES_SQL_CONTAINER = new PostgreSQLContainer<>(
-      DockerImageName.parse("quay.io/debezium/example-postgres:latest")
-          .asCompatibleSubstituteFor("postgres"))
-      .withPassword("dbz")
-      .withUsername("debezium")
-      .withExposedPorts(5432)
-      .withDatabaseName("inventory");
+  public static final PostgreSQLContainer<?> POSTGRES_SQL_CONTAINER =
+      new PostgreSQLContainer<>(
+              DockerImageName.parse("quay.io/debezium/example-postgres:latest")
+                  .asCompatibleSubstituteFor("postgres"))
+          .withPassword("dbz")
+          .withUsername("debezium")
+          .withExposedPorts(5432)
+          .withDatabaseName("inventory");
 
   @ClassRule
-  public static final MySQLContainer<?> MY_SQL_CONTAINER = new MySQLContainer<>(
-      DockerImageName.parse("debezium/example-mysql:3.0.0.Final")
-          .asCompatibleSubstituteFor("mysql"))
-      .withUsername("mysqluser")
-      .withPassword("debezium")
-      .withExposedPorts(3306)
-      .withCommand("--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci");
+  public static final MySQLContainer<?> MY_SQL_CONTAINER =
+      new MySQLContainer<>(
+              DockerImageName.parse("debezium/example-mysql:3.0.0.Final")
+                  .asCompatibleSubstituteFor("mysql"))
+          .withUsername("mysqluser")
+          .withPassword("debezium")
+          .withExposedPorts(3306)
+          .withCommand("--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci");
 
-  @ClassRule
-  public static final KafkaContainer KAFKA_CONTAINER = new KafkaContainer(KAFKA_IMAGE);
+  @ClassRule public static final KafkaContainer KAFKA_CONTAINER = new KafkaContainer(KAFKA_IMAGE);
 
   @BeforeClass
   public static void startContainers() throws Exception {
     Startables.deepStart(Stream.of(POSTGRES_SQL_CONTAINER, MY_SQL_CONTAINER, KAFKA_CONTAINER))
         .join();
 
-    try (Connection conn = DriverManager.getConnection(
-        MY_SQL_CONTAINER.getJdbcUrl(), "root", MY_SQL_CONTAINER.getPassword());
+    try (Connection conn =
+            DriverManager.getConnection(
+                MY_SQL_CONTAINER.getJdbcUrl(), "root", MY_SQL_CONTAINER.getPassword());
         Statement stmt = conn.createStatement()) {
-      stmt.execute(
-          "GRANT RELOAD, FLUSH_TABLES, LOCK TABLES, PROCESS, REPLICATION CLIENT, REPLICATION SLAVE ON *.* TO 'mysqluser'@'%'; FLUSH PRIVILEGES;");
+      stmt.execute("GRANT REPLICATION CLIENT ON *.* TO 'mysqluser'@'%'");
+      stmt.execute("GRANT SELECT, REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO 'mysqluser'@'%'");
+      stmt.execute("FLUSH PRIVILEGES");
       LOG.info("Granted privileges to mysqluser for MySQL.");
     } catch (Exception e) {
       LOG.error("Failed to grant privileges to mysqluser in MySQL container", e);
@@ -100,10 +104,8 @@ public class DebeziumReadSchemaTransformTest {
 
   @AfterClass
   public static void stopContainers() {
-    if (KAFKA_CONTAINER != null && KAFKA_CONTAINER.isRunning())
-      KAFKA_CONTAINER.stop();
-    if (MY_SQL_CONTAINER != null && MY_SQL_CONTAINER.isRunning())
-      MY_SQL_CONTAINER.stop();
+    if (KAFKA_CONTAINER != null && KAFKA_CONTAINER.isRunning()) KAFKA_CONTAINER.stop();
+    if (MY_SQL_CONTAINER != null && MY_SQL_CONTAINER.isRunning()) MY_SQL_CONTAINER.stop();
     if (POSTGRES_SQL_CONTAINER != null && POSTGRES_SQL_CONTAINER.isRunning())
       POSTGRES_SQL_CONTAINER.stop();
   }
@@ -112,22 +114,22 @@ public class DebeziumReadSchemaTransformTest {
   public static Iterable<Object[]> data() {
     return Arrays.asList(
         new Object[][] {
-            {
-                POSTGRES_SQL_CONTAINER,
-                "debezium",
-                "dbz",
-                "POSTGRES",
-                5432,
-                "inventory.customers" // schema.table for PostgreSQL
-            },
-            {
-                MY_SQL_CONTAINER,
-                "mysqluser",
-                "debezium",
-                "MYSQL",
-                3306,
-                "inventory.customers" // database.table for MySQL
-            }
+          {
+            POSTGRES_SQL_CONTAINER,
+            "debezium",
+            "dbz",
+            "POSTGRES",
+            5432,
+            "inventory.customers" // schema.table for PostgreSQL
+          },
+          {
+            MY_SQL_CONTAINER,
+            "mysqluser",
+            "debezium",
+            "MYSQL",
+            3306,
+            "inventory.customers" // database.table for MySQL
+          }
         });
   }
 
@@ -175,9 +177,10 @@ public class DebeziumReadSchemaTransformTest {
       String mySqlServerId = String.valueOf(ThreadLocalRandom.current().nextInt(50000, 1000000));
       connectorProps.setProperty("database.server.id", mySqlServerId);
       connectorProps.setProperty("database.server.name", "test-mysql-server-" + uniqueSuffix);
-      String dbName = tableToRead.contains(".")
-          ? tableToRead.substring(0, tableToRead.indexOf('.'))
-          : "inventory";
+      String dbName =
+          tableToRead.contains(".")
+              ? tableToRead.substring(0, tableToRead.indexOf('.'))
+              : "inventory";
       connectorProps.setProperty("database.include.list", dbName);
       connectorProps.setProperty("snapshot.locking.mode", "none");
       connectorProps.setProperty("table.include.list", tableToRead);
@@ -207,14 +210,15 @@ public class DebeziumReadSchemaTransformTest {
       debeziumConnectionPropertiesList.add(entry.getKey() + "=" + entry.getValue());
     }
 
-    DebeziumReadSchemaTransformProvider.DebeziumReadSchemaTransformConfiguration.Builder configBuilder = DebeziumReadSchemaTransformProvider.DebeziumReadSchemaTransformConfiguration
-        .builder()
-        .setDatabase(databaseType)
-        .setPassword(password)
-        .setUsername(user)
-        .setHost(host)
-        .setTable(tableToRead)
-        .setPort(mappedPort);
+    DebeziumReadSchemaTransformProvider.DebeziumReadSchemaTransformConfiguration.Builder
+        configBuilder =
+            DebeziumReadSchemaTransformProvider.DebeziumReadSchemaTransformConfiguration.builder()
+                .setDatabase(databaseType)
+                .setPassword(password)
+                .setUsername(user)
+                .setHost(host)
+                .setTable(tableToRead)
+                .setPort(mappedPort);
 
     if (!debeziumConnectionPropertiesList.isEmpty()) {
       configBuilder.setDebeziumConnectionProperties(debeziumConnectionPropertiesList);
@@ -234,20 +238,21 @@ public class DebeziumReadSchemaTransformTest {
     Pipeline readPipeline = Pipeline.create();
     PCollection<Row> result = null;
     try {
-      result = PCollectionRowTuple.empty(readPipeline)
-          .apply(
-              "ReadDebeziumSchema_"
-                  + database
-                  + "_"
-                  + UUID.randomUUID().toString().substring(0, 4),
-              makePtransform(
-                  userName,
-                  password,
-                  database,
-                  databaseContainer.getMappedPort(port),
-                  databaseContainer.getHost(),
-                  tableName))
-          .get("output");
+      result =
+          PCollectionRowTuple.empty(readPipeline)
+              .apply(
+                  "ReadDebeziumSchema_"
+                      + database
+                      + "_"
+                      + UUID.randomUUID().toString().substring(0, 4),
+                  makePtransform(
+                      userName,
+                      password,
+                      database,
+                      databaseContainer.getMappedPort(port),
+                      databaseContainer.getHost(),
+                      tableName))
+              .get("output");
     } catch (Exception e) {
       LOG.error("Error applying/expanding transform in testNoProblem for {}: ", database, e);
       throw new RuntimeException(
@@ -333,27 +338,29 @@ public class DebeziumReadSchemaTransformTest {
     LOG.info("Running {} on port {}", testInfo, databaseContainer.getMappedPort(port));
 
     final Pipeline readPipeline = Pipeline.create();
-    final PTransform<PCollectionRowTuple, PCollectionRowTuple> transform = makePtransform(
-        "wrongUser",
-        password,
-        database,
-        databaseContainer.getMappedPort(port),
-        databaseContainer.getHost(),
-        tableName);
+    final PTransform<PCollectionRowTuple, PCollectionRowTuple> transform =
+        makePtransform(
+            "wrongUser",
+            password,
+            database,
+            databaseContainer.getMappedPort(port),
+            databaseContainer.getHost(),
+            tableName);
 
-    Exception ex = assertThrows(
-        "Expected pipeline to fail due to wrong user for " + database,
-        Exception.class,
-        () -> {
-          // This .apply() call is the single "action" statement expected to throw
-          PCollectionRowTuple.empty(readPipeline)
-              .apply(
-                  "ReadWithWrongUser_"
-                      + database
-                      + "_"
-                      + UUID.randomUUID().toString().substring(0, 4),
-                  transform);
-        });
+    Exception ex =
+        assertThrows(
+            "Expected pipeline to fail due to wrong user for " + database,
+            Exception.class,
+            () -> {
+              // This .apply() call is the single "action" statement expected to throw
+              PCollectionRowTuple.empty(readPipeline)
+                  .apply(
+                      "ReadWithWrongUser_"
+                          + database
+                          + "_"
+                          + UUID.randomUUID().toString().substring(0, 4),
+                      transform);
+            });
 
     assertTrue(
         String.format(
@@ -372,26 +379,28 @@ public class DebeziumReadSchemaTransformTest {
     LOG.info("Running {} on port {}", testInfo, databaseContainer.getMappedPort(port));
 
     final Pipeline readPipeline = Pipeline.create();
-    final PTransform<PCollectionRowTuple, PCollectionRowTuple> transform = makePtransform(
-        userName,
-        "wrongPassword",
-        database,
-        databaseContainer.getMappedPort(port),
-        databaseContainer.getHost(),
-        tableName);
+    final PTransform<PCollectionRowTuple, PCollectionRowTuple> transform =
+        makePtransform(
+            userName,
+            "wrongPassword",
+            database,
+            databaseContainer.getMappedPort(port),
+            databaseContainer.getHost(),
+            tableName);
 
-    Exception ex = assertThrows(
-        "Expected pipeline to fail due to wrong password for " + database,
-        Exception.class,
-        () -> {
-          PCollectionRowTuple.empty(readPipeline)
-              .apply(
-                  "ReadWithWrongPassword_"
-                      + database
-                      + "_"
-                      + UUID.randomUUID().toString().substring(0, 4),
-                  transform);
-        });
+    Exception ex =
+        assertThrows(
+            "Expected pipeline to fail due to wrong password for " + database,
+            Exception.class,
+            () -> {
+              PCollectionRowTuple.empty(readPipeline)
+                  .apply(
+                      "ReadWithWrongPassword_"
+                          + database
+                          + "_"
+                          + UUID.randomUUID().toString().substring(0, 4),
+                      transform);
+            });
 
     assertTrue(
         String.format(
@@ -410,26 +419,28 @@ public class DebeziumReadSchemaTransformTest {
     LOG.info("Running {} ", testInfo);
 
     final Pipeline readPipeline = Pipeline.create();
-    final PTransform<PCollectionRowTuple, PCollectionRowTuple> transform = makePtransform(
-        userName,
-        password,
-        database,
-        12345, // Incorrect port
-        databaseContainer.getHost(),
-        tableName);
+    final PTransform<PCollectionRowTuple, PCollectionRowTuple> transform =
+        makePtransform(
+            userName,
+            password,
+            database,
+            12345, // Incorrect port
+            databaseContainer.getHost(),
+            tableName);
 
-    Exception ex = assertThrows(
-        "Expected pipeline to fail due to wrong port for " + database,
-        Exception.class,
-        () -> {
-          PCollectionRowTuple.empty(readPipeline)
-              .apply(
-                  "ReadWithWrongPort_"
-                      + database
-                      + "_"
-                      + UUID.randomUUID().toString().substring(0, 4),
-                  transform);
-        });
+    Exception ex =
+        assertThrows(
+            "Expected pipeline to fail due to wrong port for " + database,
+            Exception.class,
+            () -> {
+              PCollectionRowTuple.empty(readPipeline)
+                  .apply(
+                      "ReadWithWrongPort_"
+                          + database
+                          + "_"
+                          + UUID.randomUUID().toString().substring(0, 4),
+                      transform);
+            });
 
     assertTrue(
         String.format(
@@ -446,26 +457,28 @@ public class DebeziumReadSchemaTransformTest {
     LOG.info("Running {} ", testInfo);
 
     final Pipeline readPipeline = Pipeline.create();
-    final PTransform<PCollectionRowTuple, PCollectionRowTuple> transform = makePtransform(
-        userName,
-        password,
-        database,
-        databaseContainer.getMappedPort(port),
-        "172.168.254.253", // Non-existent, non-routable IP
-        tableName);
+    final PTransform<PCollectionRowTuple, PCollectionRowTuple> transform =
+        makePtransform(
+            userName,
+            password,
+            database,
+            databaseContainer.getMappedPort(port),
+            "172.168.254.253", // Non-existent, non-routable IP
+            tableName);
 
-    Exception ex = assertThrows(
-        "Expected pipeline to fail due to wrong host for " + database,
-        Exception.class,
-        () -> {
-          PCollectionRowTuple.empty(readPipeline)
-              .apply(
-                  "ReadWithWrongHost_"
-                      + database
-                      + "_"
-                      + UUID.randomUUID().toString().substring(0, 4),
-                  transform);
-        });
+    Exception ex =
+        assertThrows(
+            "Expected pipeline to fail due to wrong host for " + database,
+            Exception.class,
+            () -> {
+              PCollectionRowTuple.empty(readPipeline)
+                  .apply(
+                      "ReadWithWrongHost_"
+                          + database
+                          + "_"
+                          + UUID.randomUUID().toString().substring(0, 4),
+                      transform);
+            });
 
     assertTrue(
         String.format("%s: Expected connection/host error. Got: %s", testInfo, ex.toString()),
