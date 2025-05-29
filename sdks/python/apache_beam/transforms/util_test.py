@@ -1089,6 +1089,12 @@ class ReshuffleTest(unittest.TestCase):
         index=1,
         nonspeculative_index=1)
 
+    # Portable runners may not have the same level of precision on timestamps -
+    # this gets the largest supported timestamp with the extra non-supported bits
+    # truncated
+    gt = GlobalWindow().max_timestamp()
+    truncated_gt = gt - (gt % 0.001)
+
     expected_preserved = [
         TestWindowedValue('a', MIN_TIMESTAMP, [GlobalWindow()], no_firing),
         TestWindowedValue(
@@ -1096,7 +1102,7 @@ class ReshuffleTest(unittest.TestCase):
         TestWindowedValue(
             'c', timestamp.Timestamp(33), [GlobalWindow()], late_firing),
         TestWindowedValue(
-            'd', GlobalWindow().max_timestamp(), [GlobalWindow()], no_firing)
+            'd', truncated_gt, [GlobalWindow()], no_firing)
     ]
 
     expected_not_preserved = [
@@ -1108,7 +1114,7 @@ class ReshuffleTest(unittest.TestCase):
             'c', timestamp.Timestamp(33), [GlobalWindow()], PANE_INFO_UNKNOWN),
         TestWindowedValue(
             'd',
-            GlobalWindow().max_timestamp(), [GlobalWindow()],
+            truncated_gt, [GlobalWindow()],
             PANE_INFO_UNKNOWN)
     ]
 
@@ -1126,7 +1132,7 @@ class ReshuffleTest(unittest.TestCase):
           WindowedValue(
               'c', timestamp.Timestamp(33), [GlobalWindow()], late_firing),
           WindowedValue(
-              'd', GlobalWindow().max_timestamp(), [GlobalWindow()], no_firing)
+              'd', truncated_gt, [GlobalWindow()], no_firing)
       ]
 
       after_reshuffle = (

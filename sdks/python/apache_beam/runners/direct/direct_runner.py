@@ -114,6 +114,7 @@ class SwitchingDirectRunner(PipelineRunner):
     class _PrismRunnerSupportVisitor(PipelineVisitor):
       """Visitor determining if a Pipeline can be run on the PrismRunner."""
       def accept(self, pipeline):
+        all_options = options.get_all_options()
         self.supported_by_prism_runner = True
         # TODO(https://github.com/apache/beam/issues/33623): Prism currently
         # double fires on AfterCount trigger, once appropriately, and once
@@ -121,8 +122,13 @@ class SwitchingDirectRunner(PipelineRunner):
         # more targeted, but for now we'll just ignore all unsafe triggers.
         if pipeline.allow_unsafe_triggers:
           self.supported_by_prism_runner = False
-        # TODO(https://github.com/apache/beam/issues/33623): Prism currently does not support interactive mode
+        # TODO(https://github.com/apache/beam/issues/33623): Prism currently
+        # does not support interactive mode
         elif is_in_ipython():
+          self.supported_by_prism_runner = False
+        # TODO(https://github.com/apache/beam/issues/33623): Prism currently
+        # does not support the update compat flag
+        elif all_options['update_compatibility_version']:
           self.supported_by_prism_runner = False
         else:
           pipeline.visit(self)
@@ -166,6 +172,12 @@ class SwitchingDirectRunner(PipelineRunner):
             for state in state_specs:
               if isinstance(state, userstate.CombiningValueStateSpec):
                 self.supported_by_prism_runner = False
+        # TODO(https://github.com/apache/beam/issues/33623): Prism seems to
+        # not handle session windows correctly. Examples are:
+        # util_test.py::ReshuffleTest::test_reshuffle_window_fn_preserved
+        # and util_test.py::ReshuffleTest::test_reshuffle_windows_unchanged
+        if isinstance(transform, beam.WindowInto) and isinstance(transform.get_windowing('').windowfn, beam.window.Sessions):
+          self.supported_by_prism_runner = False
 
     # Use BundleBasedDirectRunner if other runners are missing needed features.
     runner = BundleBasedDirectRunner()
