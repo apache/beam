@@ -385,8 +385,9 @@ public class FanOutStreamingEngineWorkerHarnessTest {
             .map(endpoint -> endpoint.directEndpoint().get())
             .map(serviceAddress -> serviceAddress.getServiceAddress().toString())
             .collect(Collectors.toSet());
-    assert (directEndpointStrings.contains(
-        DEFAULT_WINDMILL_SERVICE_ADDRESS.gcpServiceAddress().toString()));
+    assertTrue(
+        directEndpointStrings.contains(
+            DEFAULT_WINDMILL_SERVICE_ADDRESS.gcpServiceAddress().toString()));
   }
 
   @Test
