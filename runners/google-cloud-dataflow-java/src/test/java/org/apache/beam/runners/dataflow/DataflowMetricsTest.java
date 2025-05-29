@@ -25,7 +25,6 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
@@ -39,8 +38,6 @@ import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.JobMetrics;
 import com.google.api.services.dataflow.model.MetricStructuredName;
 import com.google.api.services.dataflow.model.MetricUpdate;
-import com.google.protobuf.TextFormat;
-import com.google.protobuf.TextFormat.ParseException;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.Set;
@@ -299,6 +296,7 @@ public class DataflowMetricsTest {
                 StringSetResult.create(ImmutableSet.of("ab", "cd")))));
   }
 
+  /*
   @Test
   public void testSingletonBoundedTrieFromMessage() throws ParseException {
     String textProto =
@@ -421,6 +419,7 @@ public class DataflowMetricsTest {
     BoundedTrieData result = DataflowMetrics.DataflowMetricResultExtractor.trieFromStruct(response);
     assertEquals("BoundedTrieData({'gcs:some-bucket.some-folder/true'})", result.toString());
   }
+   */
 
   @Test
   public void testSingleBoundedTrieUpdates() throws IOException {

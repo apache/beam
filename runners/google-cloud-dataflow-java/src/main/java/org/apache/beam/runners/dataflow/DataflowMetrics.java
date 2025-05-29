@@ -217,9 +217,9 @@ class DataflowMetrics extends MetricResults {
       if (trieFromResponse instanceof BoundedTrie) {
         BoundedTrie bTrie = (BoundedTrie) metricUpdate.getBoundedTrie();
         trieData = BoundedTrieData.fromProto(bTrie);
-      } else if (trieFromResponse instanceof com.google.protobuf.Struct) {
-        LOG.info("DO NOT MERGE try to resolve struct");
-        trieData = trieFromStruct((com.google.protobuf.Struct) trieFromResponse);
+      } else if (trieFromResponse instanceof ArrayMap) {
+        LOG.info("DO NOT MERGE try to resolve ArrayMap");
+        trieData = trieFromArrayMap((ArrayMap) trieFromResponse);
       } else {
         LOG.info("DO NOT MERGE bounded trie is of type {}", trieFromResponse.getClass().getName());
       }
@@ -243,60 +243,57 @@ class DataflowMetrics extends MetricResults {
       return DistributionResult.create(sum, count, min, max);
     }
 
-    /** Translate Struct proto returned by Dataflow API client to BoundedTrieData. */
+    /** Translate ArrayMap returned by Dataflow API client to BoundedTrieData. */
     @VisibleForTesting
-    @SuppressWarnings("ReferenceEquality") // Compare with protobuf Struct default instance
-    static BoundedTrieData trieFromStruct(com.google.protobuf.Struct responseProto) {
-      Map<String, com.google.protobuf.Value> fieldsMap = responseProto.getFieldsMap();
+    static BoundedTrieData trieFromArrayMap(ArrayMap fieldsMap) {
+      // {root={truncated=false, children={gcs:={children={yathu_test.={truncated=false,
+      // children={temp/2={truncated=false}, temp/1={truncated=false}, temp/3={truncated=false}}}},
+      // truncated=false}}}, bound=100}
       int bound = 0;
       List<String> singleton = null;
-      com.google.protobuf.Value maybeBound = fieldsMap.get("bound");
-      if (maybeBound != null) {
-        bound = (int) maybeBound.getNumberValue();
+      Object maybeBound = fieldsMap.get("bound");
+      if (maybeBound instanceof Number) {
+        bound = ((Number) maybeBound).intValue();
       }
-      com.google.protobuf.Value maybeSingleton = fieldsMap.get("singleton");
-      if (maybeSingleton != null) {
-        List<com.google.protobuf.Value> valueList = maybeSingleton.getListValue().getValuesList();
+      Object maybeSingleton = fieldsMap.get("singleton");
+      if (maybeSingleton instanceof List) {
+        List valueList = (List) maybeSingleton;
         ImmutableList.Builder<String> builder = ImmutableList.builder();
-        for (com.google.protobuf.Value stringValue : valueList) {
-          builder.add(stringValue.getStringValue());
+        for (Object stringValue : valueList) {
+          builder.add((String) stringValue);
         }
         singleton = builder.build();
       }
-      com.google.protobuf.Value maybeRoot = fieldsMap.get("root");
+      Object maybeRoot = fieldsMap.get("root");
       BoundedTrieData.BoundedTrieNode root = null;
-      if (maybeRoot != null
-          && maybeRoot.getStructValue() != com.google.protobuf.Struct.getDefaultInstance()) {
-        root = trieNodeFromStruct(maybeRoot.getStructValue());
+      if (maybeRoot instanceof Map) {
+        root = trieNodeFromMap((Map) maybeRoot);
       }
       return new BoundedTrieData(singleton, root, bound);
     }
 
-    /**
-     * Translate Struct proto returned by Dataflow API client to BoundedTrieData.BoundedTrieNode.
-     */
-    @SuppressWarnings({"ReferenceEquality"}) // Compare with protobuf Struct default instance
-    private static BoundedTrieData.BoundedTrieNode trieNodeFromStruct(
-        com.google.protobuf.Struct responseProto) {
-      Map<String, com.google.protobuf.Value> fieldsMap = responseProto.getFieldsMap();
+    /** Translate Map returned by Dataflow API client to BoundedTrieData.BoundedTrieNode. */
+    private static BoundedTrieData.BoundedTrieNode trieNodeFromMap(Map fieldsMap) {
       boolean truncated = false;
-      com.google.protobuf.Value mayTruncated = fieldsMap.get("truncated");
-      if (mayTruncated != null) {
-        truncated = mayTruncated.getBoolValue();
+      Object mayTruncated = fieldsMap.get("truncated");
+      if (mayTruncated instanceof Boolean) {
+        truncated = (boolean) mayTruncated;
       }
       int childrenSize = 0;
       ImmutableMap.Builder<String, BoundedTrieData.BoundedTrieNode> builder =
           ImmutableMap.builder();
-      com.google.protobuf.Value maybeChildren = fieldsMap.get("children");
-      if (maybeChildren != null) {
-        Map<String, com.google.protobuf.Value> allChildren =
-            maybeChildren.getStructValue().getFieldsMap();
-        for (Map.Entry<String, com.google.protobuf.Value> childValue : allChildren.entrySet()) {
-          com.google.protobuf.Struct maybeChild = childValue.getValue().getStructValue();
-          if (maybeChild != com.google.protobuf.Struct.getDefaultInstance()) {
-            BoundedTrieData.BoundedTrieNode child =
-                trieNodeFromStruct(childValue.getValue().getStructValue());
-            builder.put(childValue.getKey(), child);
+      Object maybeChildren = fieldsMap.get("children");
+      if (maybeChildren instanceof Map) {
+        Map allChildren = (Map) maybeChildren;
+        for (Object maybeChildValue : allChildren.entrySet()) {
+          Map.Entry childValue = (Map.Entry) maybeChildValue;
+          Object maybeChild = childValue.getValue();
+          if (maybeChild instanceof Map) {
+            BoundedTrieData.BoundedTrieNode child = trieNodeFromMap((Map) maybeChild);
+            Object maybeKey = childValue.getKey();
+            if (maybeKey instanceof String) {
+              builder.put((String) maybeKey, child);
+            }
             childrenSize += child.getSize();
           }
         }
