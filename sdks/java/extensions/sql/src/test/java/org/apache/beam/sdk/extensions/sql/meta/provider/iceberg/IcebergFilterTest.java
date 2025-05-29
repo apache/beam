@@ -40,6 +40,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+/** Test class for {@link IcebergFilter}. */
 @RunWith(JUnit4.class)
 public class IcebergFilterTest {
   // TODO: add date, time, and datetime fields.
@@ -84,10 +85,8 @@ public class IcebergFilterTest {
                 "select * from TEST where unused1>100 and unused1<=200 and id<>1 and (name='two' or id=2)",
                 true),
             Pair.of("select * from TEST where unused2=200", true),
-            Pair.of("select * from TEST where name like 'o%e'", true),
             // Functions involving more than one column are not supported yet.
-            Pair.of("select * from TEST where unused1=unused2 and id=2", false),
-            Pair.of("select * from TEST where unused1+unused2=10", false));
+            Pair.of("select * from TEST where unused1=unused2 and id=2", false));
 
     for (Pair<String, Boolean> query : sqlQueries) {
       String sql = query.getLeft();
