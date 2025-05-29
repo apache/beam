@@ -85,22 +85,23 @@ public abstract class IcebergScanConfig implements Serializable {
       @Nullable List<String> keep,
       @Nullable List<String> drop,
       @Nullable Set<String> fieldsInFilter) {
-    ImmutableList.Builder<String> selectedFields = ImmutableList.builder();
+    ImmutableList.Builder<String> selectedFieldsBuilder = ImmutableList.builder();
     if (keep != null && !keep.isEmpty()) {
-      selectedFields.addAll(keep);
+      selectedFieldsBuilder.addAll(keep);
     } else if (drop != null && !drop.isEmpty()) {
       Set<String> fields =
           schema.columns().stream().map(Types.NestedField::name).collect(Collectors.toSet());
       drop.forEach(fields::remove);
-      selectedFields.addAll(fields);
+      selectedFieldsBuilder.addAll(fields);
     }
 
     if (fieldsInFilter != null && !fieldsInFilter.isEmpty()) {
       fieldsInFilter.stream()
           .map(f -> schema.caseInsensitiveFindField(f).name())
-          .forEach(selectedFields::add);
+          .forEach(selectedFieldsBuilder::add);
     }
-    return schema.select(selectedFields.build());
+    ImmutableList<String> selectedFields = selectedFieldsBuilder.build();
+    return selectedFields.isEmpty() ? schema : schema.select(selectedFields);
   }
 
   private org.apache.iceberg.@Nullable Schema cachedProjectedSchema;
