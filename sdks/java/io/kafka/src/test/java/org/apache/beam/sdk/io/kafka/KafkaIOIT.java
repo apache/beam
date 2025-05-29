@@ -28,7 +28,17 @@ import io.confluent.kafka.serializers.KafkaAvroSerializer;
 import io.confluent.kafka.serializers.KafkaAvroSerializerConfig;
 import java.io.IOException;
 import java.time.Instant;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Random;
+import java.util.Set;
+import java.util.UUID;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
@@ -38,7 +48,11 @@ import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.coders.*;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
+import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.io.GenerateSequence;
@@ -956,7 +970,7 @@ public class KafkaIOIT {
     String bootstrapServer =
         "bootstrap.kafkaio-testing.us-central1.managedkafka.apache-beam-testing.cloud.goog:9092";
     String schemaRegistrySubject = topicName + "-value";
-    final Schema KAFKA_TOPIC_SCHEMA =
+    final Schema kafkaTopicSchema =
         Schema.builder().addStringField("name").addInt32Field("age").build();
     String schemaString =
         "{\n"
@@ -1087,20 +1101,20 @@ public class KafkaIOIT {
           pRead
               .apply(Managed.read(Managed.KAFKA).withConfig(config))
               .get("output")
-              .setCoder(RowCoder.of(KAFKA_TOPIC_SCHEMA));
+              .setCoder(RowCoder.of(kafkaTopicSchema));
 
       PAssert.that(output)
           .containsInAnyOrder(
               ImmutableList.of(
-                  Row.withSchema(KAFKA_TOPIC_SCHEMA)
+                  Row.withSchema(kafkaTopicSchema)
                       .withFieldValue("name", "Alice Wonderland")
                       .withFieldValue("age", 25)
                       .build(),
-                  Row.withSchema(KAFKA_TOPIC_SCHEMA)
+                  Row.withSchema(kafkaTopicSchema)
                       .withFieldValue("name", "Bob The Builder")
                       .withFieldValue("age", 30)
                       .build(),
-                  Row.withSchema(KAFKA_TOPIC_SCHEMA)
+                  Row.withSchema(kafkaTopicSchema)
                       .withFieldValue("name", "Charlie Chaplin")
                       .withFieldValue("age", 35)
                       .build()));

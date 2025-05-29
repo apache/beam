@@ -133,8 +133,7 @@ public class KafkaReadSchemaTransformProvider
 
   static class KafkaReadSchemaTransform extends SchemaTransform {
     private final KafkaReadSchemaTransformConfiguration configuration;
-    private final String GOOGLE_MANAGED_SCHEMA_REGISTRY_PREFIX =
-        "https://managedkafka.googleapis.com/";
+    private final String googleManagedSchemaRegistryPrefix = "https://managedkafka.googleapis.com/";
 
     KafkaReadSchemaTransform(KafkaReadSchemaTransformConfiguration configuration) {
       this.configuration = configuration;
@@ -183,7 +182,7 @@ public class KafkaReadSchemaTransformProvider
             checkArgumentNotNull(configuration.getConfluentSchemaRegistrySubject());
         KafkaIO.Read<byte[], GenericRecord> kafkaRead;
 
-        if (confluentSchemaRegUrl.contains(GOOGLE_MANAGED_SCHEMA_REGISTRY_PREFIX)) {
+        if (confluentSchemaRegUrl.contains(googleManagedSchemaRegistryPrefix)) {
           // Custom configs to authenticate with Google's Managed Schema Registry
           Map<String, Object> configs = new HashMap<>();
           configs.put(
