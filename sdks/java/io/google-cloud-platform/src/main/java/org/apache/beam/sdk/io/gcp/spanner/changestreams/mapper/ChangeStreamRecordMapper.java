@@ -23,6 +23,7 @@ import com.google.cloud.spanner.Struct;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Value;
 import com.google.protobuf.util.JsonFormat;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -46,6 +47,8 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.TypeCode;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ValueCaptureType;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This class is responsible for transforming a {@link Struct} to a {@link List} of {@link
@@ -55,6 +58,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
  * https://docs.google.com/document/d/1nLlMGvQLIeUSDNmtoLT9vaQo0hVGl4CIf6iCSOkdIbA/edit#bookmark=id.fxgtygh8eony
  */
 public class ChangeStreamRecordMapper {
+
+  private static final Logger LOG = LoggerFactory.getLogger(ChangeStreamRecordMapper.class);
 
   private static final String DATA_CHANGE_RECORD_COLUMN = "data_change_record";
   private static final String HEARTBEAT_RECORD_COLUMN = "heartbeat_record";
@@ -223,15 +228,30 @@ public class ChangeStreamRecordMapper {
       return Collections.singletonList(
           toChangeStreamRecordJson(partition, resultSet.getPgJsonb(0), resultSetMetadata));
     }
+    LOG.info("changliiu toChangeStreamRecords 1 - v1");
     // In GoogleSQL, change stream records are returned as an array of structs.
-    return resultSet.getCurrentRowAsStruct().getStructList(0).stream()
-        .flatMap(struct -> toChangeStreamRecord(partition, struct, resultSetMetadata))
-        .collect(Collectors.toList());
+    List<ChangeStreamRecord> changeStreamRecords = new ArrayList<>();
+    // try{
+    //   changeStreamRecords =  resultSet.getCurrentRowAsStruct().getStructList(0).stream()
+    //       .flatMap(struct -> toChangeStreamRecord(partition, struct, resultSetMetadata))
+    //       .collect(Collectors.toList());
+    // }
+    while (resultSet.next()) {
+      LOG.info("changliiu parsed");
+      com.google.spanner.v1.ChangeStreamRecord changeStreamRecord =
+          resultSet
+              .getResultSet()
+              .getProtoMessage(0, com.google.spanner.v1.ChangeStreamRecord.getDefaultInstance());
+      LOG.info(changeStreamRecord.toString());
+    }
+
+    return changeStreamRecords;
   }
 
   Stream<ChangeStreamRecord> toChangeStreamRecord(
       PartitionMetadata partition, Struct row, ChangeStreamResultSetMetadata resultSetMetadata) {
-
+    LOG.info("changliiu toChangeStreamRecord 2");
+    LOG.info(row.toString());
     final Stream<DataChangeRecord> dataChangeRecords =
         row.getStructList(DATA_CHANGE_RECORD_COLUMN).stream()
             .filter(this::isNonNullDataChangeRecord)
