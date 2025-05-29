@@ -26,6 +26,8 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Map;
 import java.util.Optional;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataResponse.EndpointType;
+import org.apache.beam.runners.dataflow.worker.windmill.WindmillEndpoints.Endpoint;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress.AuthenticatedGcpServiceAddress;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
@@ -46,6 +48,7 @@ public abstract class WindmillEndpoints {
           .setVersion(Long.MAX_VALUE)
           .setWindmillEndpoints(ImmutableSet.of())
           .setGlobalDataEndpoints(ImmutableMap.of())
+          .setEndpointType(EndpointType.UNKNOWN)
           .build();
 
   public static WindmillEndpoints none() {
@@ -75,6 +78,7 @@ public abstract class WindmillEndpoints {
         .setVersion(workerMetadataResponseProto.getMetadataVersion())
         .setGlobalDataEndpoints(globalDataServers)
         .setWindmillEndpoints(windmillServers)
+        .setEndpointType(workerMetadataResponseProto.getEndpointType())
         .build();
   }
 
@@ -155,6 +159,8 @@ public abstract class WindmillEndpoints {
    */
   public abstract ImmutableSet<Endpoint> windmillEndpoints();
 
+  public abstract EndpointType endpointType();
+
   /**
    * Representation of an endpoint in {@link Windmill.WorkerMetadataResponse.Endpoint} proto with
    * the worker_token field, and direct_endpoint field parsed into a {@link WindmillServiceAddress}
@@ -226,6 +232,8 @@ public abstract class WindmillEndpoints {
 
     public abstract Builder setWindmillEndpoints(
         ImmutableSet<WindmillEndpoints.Endpoint> windmillServers);
+
+    public abstract Builder setEndpointType(EndpointType endpointType);
 
     abstract ImmutableSet.Builder<WindmillEndpoints.Endpoint> windmillEndpointsBuilder();
 
