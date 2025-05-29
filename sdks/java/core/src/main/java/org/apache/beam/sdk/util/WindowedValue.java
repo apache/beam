@@ -49,6 +49,7 @@ import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 import org.joda.time.Instant;
 
 /**
@@ -143,21 +144,27 @@ public abstract class WindowedValue<T> {
    * Returns a new {@code WindowedValue} that is a copy of this one, but with a different value,
    * which may have a new type {@code NewT}.
    */
+  @Pure
   public abstract <NewT> WindowedValue<NewT> withValue(NewT value);
 
   /** Returns the value of this {@code WindowedValue}. */
+  @Pure
   public abstract T getValue();
 
   /** Returns the timestamp of this {@code WindowedValue}. */
+  @Pure
   public abstract Instant getTimestamp();
 
   /** Returns the windows of this {@code WindowedValue}. */
+  @Pure
   public abstract Collection<? extends BoundedWindow> getWindows();
 
   /** Returns the pane of this {@code WindowedValue} in its window. */
+  @Pure
   public abstract PaneInfo getPane();
 
   /** Returns {@code true} if this WindowedValue has exactly one window. */
+  @Pure
   public boolean isSingleWindowedValue() {
     return false;
   }
