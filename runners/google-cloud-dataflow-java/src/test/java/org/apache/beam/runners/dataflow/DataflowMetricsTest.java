@@ -296,6 +296,131 @@ public class DataflowMetricsTest {
                 StringSetResult.create(ImmutableSet.of("ab", "cd")))));
   }
 
+  /*
+  @Test
+  public void testSingletonBoundedTrieFromMessage() throws ParseException {
+    String textProto =
+        "  fields {\n"
+            + "    key: \"bound\"\n"
+            + "    value {\n"
+            + "      number_value: 100\n"
+            + "    }\n"
+            + "  }\n"
+            + "  fields {\n"
+            + "    key: \"singleton\"\n"
+            + "    value {\n"
+            + "      list_value {\n"
+            + "        values {\n"
+            + "          string_value: \"pubsub:\"\n"
+            + "        }\n"
+            + "        values {\n"
+            + "          string_value: \"topic:\"\n"
+            + "        }\n"
+            + "        values {\n"
+            + "          string_value: \"`google.com:abc`.\"\n"
+            + "        }\n"
+            + "        values {\n"
+            + "          string_value: \"some-topic\"\n"
+            + "        }\n"
+            + "      }\n"
+            + "    }\n"
+            + "  }";
+    com.google.protobuf.Struct response =
+        TextFormat.parse(textProto, com.google.protobuf.Struct.class);
+    BoundedTrieData result = DataflowMetrics.DataflowMetricResultExtractor.trieFromStruct(response);
+    assertEquals(
+        "BoundedTrieData({'pubsub:topic:`google.com:abc`.some-topicfalse'})", result.toString());
+  }
+
+  @Test
+  public void testNestedBoundedTrieFromMessage() throws ParseException {
+    String textProto =
+        "fields {\n"
+            + "  key: \"bound\"\n"
+            + "  value {\n"
+            + "    number_value: 100\n"
+            + "  }\n"
+            + "}\n"
+            + "fields {\n"
+            + "  key: \"root\"\n"
+            + "  value {\n"
+            + "    struct_value {\n"
+            + "      fields {\n"
+            + "        key: \"children\"\n"
+            + "        value {\n"
+            + "          struct_value {\n"
+            + "            fields {\n"
+            + "              key: \"gcs:\"\n"
+            + "              value {\n"
+            + "                struct_value {\n"
+            + "                  fields {\n"
+            + "                    key: \"children\"\n"
+            + "                    value {\n"
+            + "                      struct_value {\n"
+            + "                        fields {\n"
+            + "                          key: \"some-bucket.\"\n"
+            + "                          value {\n"
+            + "                            struct_value {\n"
+            + "                              fields {\n"
+            + "                                key: \"children\"\n"
+            + "                                value {\n"
+            + "                                  struct_value {\n"
+            + "                                    fields {\n"
+            + "                                      key: \"some-folder/\"\n"
+            + "                                      value {\n"
+            + "                                        struct_value {\n"
+            + "                                          fields {\n"
+            + "                                            key: \"truncated\"\n"
+            + "                                            value {\n"
+            + "                                              bool_value: true\n"
+            + "                                            }\n"
+            + "                                          }\n"
+            + "                                        }\n"
+            + "                                      }\n"
+            + "                                    }\n"
+            + "                                  }\n"
+            + "                                }\n"
+            + "                              }\n"
+            + "                              fields {\n"
+            + "                                key: \"truncated\"\n"
+            + "                                value {\n"
+            + "                                  bool_value: false\n"
+            + "                                }\n"
+            + "                              }\n"
+            + "                            }\n"
+            + "                          }\n"
+            + "                        }\n"
+            + "                      }\n"
+            + "                    }\n"
+            + "                  }\n"
+            + "                  fields {\n"
+            + "                    key: \"truncated\"\n"
+            + "                    value {\n"
+            + "                      bool_value: false\n"
+            + "                    }\n"
+            + "                  }\n"
+            + "                }\n"
+            + "              }\n"
+            + "            }\n"
+            + "          }\n"
+            + "        }\n"
+            + "      }\n"
+            + "      fields {\n"
+            + "        key: \"truncated\"\n"
+            + "        value {\n"
+            + "          bool_value: false\n"
+            + "        }\n"
+            + "      }\n"
+            + "    }\n"
+            + "  }\n"
+            + "}";
+    com.google.protobuf.Struct response =
+        TextFormat.parse(textProto, com.google.protobuf.Struct.class);
+    BoundedTrieData result = DataflowMetrics.DataflowMetricResultExtractor.trieFromStruct(response);
+    assertEquals("BoundedTrieData({'gcs:some-bucket.some-folder/true'})", result.toString());
+  }
+   */
+
   @Test
   public void testSingleBoundedTrieUpdates() throws IOException {
     AppliedPTransform<?, ?, ?> myStep = mock(AppliedPTransform.class);
