@@ -11,7 +11,7 @@ authorPosition: "Software Engineer @Akvelon"
 coauthorPosition: "Director of AI Business Development @Akvelon"
 authorImg: /images/case-study/akvelon/terentyev.png
 coauthorImg: /images/case-study/akvelon/pikle.png
-publishDate: 2024-11-25T00:12:00+00:00
+publishDate: 2025-05-25T00:12:00+00:00
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
