@@ -37,6 +37,7 @@ import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternalsFactory;
+import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -72,6 +73,9 @@ public class SplittableDoFnOperator<InputT, OutputT, RestrictionT>
 
   private static final Logger LOG = LoggerFactory.getLogger(SplittableDoFnOperator.class);
 
+  private final int maxBundleSize;
+  private final long maxBundleTimeMillis;
+
   private transient ScheduledExecutorService executorService;
 
   public SplittableDoFnOperator(
@@ -104,6 +108,10 @@ public class SplittableDoFnOperator<InputT, OutputT, RestrictionT>
         keySelector,
         DoFnSchemaInformation.create(),
         Collections.emptyMap());
+
+    FlinkPipelineOptions flinkOpts = options.as(FlinkPipelineOptions.class);
+    this.maxBundleSize = (int) Math.min(Integer.MAX_VALUE, flinkOpts.getMaxBundleSize());
+    this.maxBundleTimeMillis = flinkOpts.getMaxBundleTimeMills();
   }
 
   @Override
@@ -167,8 +175,8 @@ public class SplittableDoFnOperator<InputT, OutputT, RestrictionT>
                 },
                 sideInputReader,
                 executorService,
-                10000,
-                Duration.standardSeconds(10),
+                maxBundleSize,
+                Duration.millis(maxBundleTimeMillis),
                 this::getBundleFinalizer));
   }
 
