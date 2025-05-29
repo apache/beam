@@ -17,7 +17,6 @@
 #
 
 import datetime
-import json
 import unittest
 import io
 import sys
@@ -26,6 +25,7 @@ from stale_cleaner import (
     GoogleCloudResource,
     StaleCleaner,
     PubSubTopicCleaner,
+    FakeClock,
     DEFAULT_TIME_THRESHOLD,
     PUBSUB_TOPIC_RESOURCE,
     STORAGE_PREFIX
@@ -59,25 +59,26 @@ class GoogleCloudResourceTest(unittest.TestCase):
 
     def test_init_with_default_values(self):
         """Test initialization with default values."""
-        test_time = datetime.datetime(2025, 5, 10, 12, 0, 0)
+        test_time_str = "2025-05-10T12:00:00"
+        fake_clock = FakeClock(test_time_str)
 
-        with mock.patch('datetime.datetime') as mock_datetime:
-            mock_datetime.now.return_value = test_time
-            resource = GoogleCloudResource(resource_name="test-resource")
+        resource = GoogleCloudResource(resource_name="test-resource", clock=fake_clock)
 
-            self.assertEqual(resource.resource_name, "test-resource")
-            self.assertEqual(resource.creation_date, test_time)
-            self.assertEqual(resource.last_update_date, test_time)
+        self.assertEqual(resource.resource_name, "test-resource")
+        self.assertEqual(resource.creation_date, fake_clock())
+        self.assertEqual(resource.last_update_date, fake_clock())
 
     def test_init_with_custom_values(self):
         """Test initialization with custom values."""
         creation_date = datetime.datetime(2025, 1, 1, 12, 0, 0)
         update_date = datetime.datetime(2025, 5, 1, 12, 0, 0)
+        fake_clock = FakeClock("2025-05-10T12:00:00")
 
         resource = GoogleCloudResource(
             resource_name="test-resource",
             creation_date=creation_date,
-            last_update_date=update_date
+            last_update_date=update_date,
+            clock=fake_clock
         )
 
         self.assertEqual(resource.resource_name, "test-resource")
@@ -111,56 +112,80 @@ class GoogleCloudResourceTest(unittest.TestCase):
     def test_update(self):
         """Test update method."""
         creation_date = datetime.datetime(2025, 1, 1, 12, 0, 0)
-        update_date = datetime.datetime(2025, 5, 1, 12, 0, 0)
-        new_update_date = datetime.datetime(2025, 5, 10, 12, 0, 0)
+        initial_update_date = datetime.datetime(2025, 5, 1, 12, 0, 0)
+        fake_clock_initial = FakeClock("2025-01-01T12:00:00")
 
         resource = GoogleCloudResource(
             resource_name="test-resource",
             creation_date=creation_date,
-            last_update_date=update_date
+            last_update_date=initial_update_date,
+            clock=fake_clock_initial
         )
+        self.assertEqual(resource.last_update_date, initial_update_date)
 
         # Test with provided clock
-        resource.update(clock=new_update_date)
-        self.assertEqual(resource.last_update_date, new_update_date)
+        fake_clock_new_update = FakeClock("2025-05-10T12:00:00")
+        resource.update(clock=fake_clock_new_update)
+        self.assertEqual(resource.last_update_date, fake_clock_new_update())
 
-        # Test with default clock
-        with mock.patch('datetime.datetime') as mock_datetime:
-            mock_datetime.now.return_value = datetime.datetime(2025, 6, 1, 12, 0, 0)
-            resource.update()
-            self.assertEqual(resource.last_update_date, datetime.datetime(2025, 6, 1, 12, 0, 0))
+        current_last_update = resource.last_update_date
+        resource.update()
+        self.assertNotEqual(resource.last_update_date, current_last_update)
 
     def test_time_alive(self):
         """Test time_alive method."""
-        creation_date = datetime.datetime(2025, 1, 1, 12, 0, 0)
-        current_time = datetime.datetime(2025, 1, 2, 12, 0, 0)  # 1 day later
+        creation_time_str = "2025-01-01T12:00:00"
+        current_time_str = "2025-01-02T12:00:00"  # 1 day later
+        fake_creation_clock = FakeClock(creation_time_str)
 
         resource = GoogleCloudResource(
             resource_name="test-resource",
-            creation_date=creation_date
+            clock=fake_creation_clock
         )
+        # Ensure creation_date is set by the clock during init
+        self.assertEqual(resource.creation_date, fake_creation_clock())
 
         # Test with provided clock
-        self.assertEqual(resource.time_alive(clock=current_time), 86400)  # 1 day in seconds
+        fake_current_clock = FakeClock(current_time_str)
+        self.assertEqual(resource.time_alive(clock=fake_current_clock), 86400)  # 1 day in seconds
 
 class MockStaleCleaner(StaleCleaner):
     """A mock implementation of StaleCleaner for testing."""
 
     def __init__(self, project_id, resource_type, bucket_name, prefixes=None,
                  time_threshold=DEFAULT_TIME_THRESHOLD, active_resources=None,
-                 stored_resources=None):
-        super().__init__(project_id, resource_type, bucket_name, prefixes, time_threshold)
+                 stored_resources=None, clock=None):
+        super().__init__(project_id, resource_type, bucket_name, prefixes, time_threshold, clock)
         self._active_resources_mock_data = active_resources or {}
         self._stored_resources_mock_data = stored_resources or {}
         self.deleted_resources = []
 
-    def _active_resources(self, clock=None):
+    def _active_resources(self):
         """Override the private method to return mock data."""
-        return self._active_resources_mock_data
+        processed_active_resources = {}
+        for k, v in self._active_resources_mock_data.items():
+            if not isinstance(v, GoogleCloudResource):
+                processed_active_resources[k] = GoogleCloudResource(resource_name=k, clock=self.clock)
+            else:
+                processed_active_resources[k] = v
+        return processed_active_resources
 
     def _stored_resources(self):
         """Override the private method to return mock data."""
-        return self._stored_resources_mock_data
+        processed_stored_resources = {}
+        for k, v_data in self._stored_resources_mock_data.items():
+            if isinstance(v_data, GoogleCloudResource):
+                processed_stored_resources[k] = v_data
+            elif isinstance(v_data, dict) and "resource_name" in v_data and "creation_date" in v_data and "last_update_date" in v_data:
+                processed_stored_resources[k] = GoogleCloudResource(
+                    resource_name=v_data["resource_name"],
+                    creation_date=datetime.datetime.fromisoformat(v_data["creation_date"]),
+                    last_update_date=datetime.datetime.fromisoformat(v_data["last_update_date"]),
+                    clock=self.clock # Ensure clock is passed if re-hydrating
+                )
+            else:
+                processed_stored_resources[k] = GoogleCloudResource(resource_name=k, clock=self.clock)
+        return processed_stored_resources
 
     def _write_resources(self, resources):
         """Override the private method to store resources."""
@@ -183,22 +208,24 @@ class StaleCleanerTest(unittest.TestCase):
         self.time_threshold = 3600  # 1 hour
 
         # Create resources with different ages
-        current_time = datetime.datetime(2025, 5, 10, 12, 0, 0)
+        self.fake_clock = FakeClock("2025-05-10T12:00:00")
 
         # Resource that's fresh (30 minutes old)
-        fresh_resource_time = current_time - datetime.timedelta(minutes=30)
+        fresh_resource_time = FakeClock("2025-05-10T11:30:00")()
         self.fresh_resource = GoogleCloudResource(
             resource_name="fresh-resource",
             creation_date=fresh_resource_time,
-            last_update_date=fresh_resource_time
+            last_update_date=fresh_resource_time,
+            clock=self.fake_clock
         )
 
         # Resource that's stale (2 hours old)
-        stale_resource_time = current_time - datetime.timedelta(hours=2)
+        stale_resource_time = FakeClock("2025-05-10T10:00:00")()
         self.stale_resource = GoogleCloudResource(
             resource_name="stale-resource",
             creation_date=stale_resource_time,
-            last_update_date=stale_resource_time
+            last_update_date=stale_resource_time,
+            clock=self.fake_clock
         )
 
         # Active resources in GCP
@@ -207,8 +234,7 @@ class StaleCleanerTest(unittest.TestCase):
             "stale-resource": self.stale_resource,
             "new-resource": GoogleCloudResource(
                 resource_name="new-resource",
-                creation_date=current_time,
-                last_update_date=current_time
+                clock=self.fake_clock
             )
         }
 
@@ -219,7 +245,8 @@ class StaleCleanerTest(unittest.TestCase):
             "deleted-resource": GoogleCloudResource(
                 resource_name="deleted-resource",
                 creation_date=stale_resource_time,
-                last_update_date=stale_resource_time
+                last_update_date=stale_resource_time,
+                clock=self.fake_clock
             )
         }
 
@@ -230,10 +257,9 @@ class StaleCleanerTest(unittest.TestCase):
             prefixes=self.prefixes,
             time_threshold=self.time_threshold,
             active_resources=self.active_resources_data,
-            stored_resources=self.stored_resources_data
+            stored_resources=self.stored_resources_data,
+            clock=self.fake_clock
         )
-
-        self.current_time = current_time
 
     def test_init(self):
         """Test initialization."""
@@ -247,35 +273,92 @@ class StaleCleanerTest(unittest.TestCase):
         """Test refresh method."""
         # Use SilencePrint to suppress print statements during test
         with SilencePrint():
-            self.cleaner.refresh(clock=self.current_time)
+            self.cleaner.refresh()
 
         # Check that deleted-resource was removed
         self.assertNotIn("deleted-resource", self.cleaner._stored_resources_mock_data)
 
         # Check that new-resource was added
         self.assertIn("new-resource", self.cleaner._stored_resources_mock_data)
+        # Verify its creation and update times are from the fake_clock
+        self.assertEqual(self.cleaner._stored_resources_mock_data["new-resource"].creation_date, self.fake_clock())
+        self.assertEqual(self.cleaner._stored_resources_mock_data["new-resource"].last_update_date, self.fake_clock())
+
 
         # Check that fresh-resource was updated
         self.assertEqual(
             self.cleaner._stored_resources_mock_data["fresh-resource"].last_update_date,
-            self.current_time
+            self.fake_clock()
         )
 
-        # Check that stale-resource is still present
+        # Check that stale-resource is still present (refresh doesn't delete, just updates times)
         self.assertIn("stale-resource", self.cleaner._stored_resources_mock_data)
+        self.assertEqual(
+            self.cleaner._stored_resources_mock_data["stale-resource"].last_update_date,
+            self.fake_clock()
+        )
+
+    def test_refresh_with_time_advance(self):
+        """Test refresh method when the clock time has advanced."""
+        initial_time_str = "2025-05-10T12:00:00"
+        advanced_time_str = "2025-05-10T13:00:00" # 1 hour later
+
+        # Setup cleaner with initial clock
+        tmp_clock = FakeClock(initial_time_str)
+        resource_to_update = GoogleCloudResource(
+            resource_name="resource-to-update",
+            clock=tmp_clock
+        )
+        cleaner = MockStaleCleaner(
+            project_id=self.project_id,
+            resource_type=self.resource_type,
+            bucket_name=self.bucket_name,
+            active_resources={"resource-to-update": resource_to_update},
+            stored_resources={"resource-to-update": resource_to_update},
+            clock=tmp_clock
+        )
+
+        # Verify initial last_update_date
+        self.assertEqual(
+            cleaner._stored_resources_mock_data["resource-to-update"].last_update_date, tmp_clock()
+        )
+
+        # Advance the cleaner's clock
+        tmp_clock.set(advanced_time_str)
+
+        # Use SilencePrint to suppress print statements during test
+        with SilencePrint():
+            cleaner.refresh()
+
+        # Check that the resource's last_update_date was updated to the new clock time
+        self.assertIn("resource-to-update", cleaner._stored_resources_mock_data)
+        self.assertEqual(
+            cleaner._stored_resources_mock_data["resource-to-update"].last_update_date,
+            cleaner.clock()
+        )
+        self.assertEqual(
+            cleaner._stored_resources_mock_data["resource-to-update"].last_update_date,
+            datetime.datetime.fromisoformat(advanced_time_str)
+        )
+        self.assertNotEqual(
+            cleaner._stored_resources_mock_data["resource-to-update"].last_update_date,
+            datetime.datetime.fromisoformat(initial_time_str)
+        )
+
 
     def test_stale_resources(self):
         """Test stale_resources method."""
-        stale = self.cleaner.stale_resources(clock=self.current_time)
+        stale = self.cleaner.stale_resources()
 
         self.assertEqual(len(stale), 2)
         self.assertIn("stale-resource", stale)
         self.assertIn("deleted-resource", stale)
         self.assertNotIn("fresh-resource", stale)
+        self.assertNotIn("new-resource", stale)
 
     def test_fresh_resources(self):
         """Test fresh_resources method."""
-        fresh = self.cleaner.fresh_resources(clock=self.current_time)
+        fresh = self.cleaner.fresh_resources()
 
         self.assertEqual(len(fresh), 1)
         self.assertIn("fresh-resource", fresh)
@@ -285,20 +368,26 @@ class StaleCleanerTest(unittest.TestCase):
     def test_delete_stale_dry_run(self):
         """Test delete_stale method with dry_run=True."""
         with SilencePrint():
-            self.cleaner.delete_stale(clock=self.current_time, dry_run=True)
+            self.cleaner.delete_stale(dry_run=True)
 
-        # Check that no resources were actually deleted
+        # Check that no resources were actually recorded as deleted by MockStaleCleaner
         self.assertEqual(len(self.cleaner.deleted_resources), 0)
 
     def test_delete_stale(self):
         """Test delete_stale method with dry_run=False."""
-        with SilencePrint():
-            self.cleaner.delete_stale(clock=self.current_time, dry_run=False)
+        self.cleaner._active_resources_mock_data = {
+            "fresh-resource": self.fresh_resource,
+            "stale-resource": self.stale_resource, # Stale and active
+            "new-resource": GoogleCloudResource(resource_name="new-resource", clock=self.fake_clock)
+        }
 
-        # Check that stale resources were deleted
-        self.assertEqual(len(self.cleaner.deleted_resources), 2)
+        with SilencePrint():
+            self.cleaner.delete_stale(dry_run=False)
+
+        # Check that only stale and active resources were "deleted"
+        self.assertEqual(len(self.cleaner.deleted_resources), 1)
         self.assertIn("stale-resource", self.cleaner.deleted_resources)
-        self.assertIn("deleted-resource", self.cleaner.deleted_resources)
+        self.assertNotIn("deleted-resource", self.cleaner.deleted_resources)
 
 
 class PubSubTopicCleanerTest(unittest.TestCase):
@@ -310,22 +399,23 @@ class PubSubTopicCleanerTest(unittest.TestCase):
         self.bucket_name = "test-bucket"
         self.prefixes = ["test-prefix"]
         self.time_threshold = 86400  # 1 day
+        self.fake_clock = FakeClock("2025-05-28T10:00:00")
 
         # Mock PubSub client
         self.mock_client_patcher = mock.patch('google.cloud.pubsub_v1.PublisherClient')
-        self.mock_client = self.mock_client_patcher.start()
+        self.MockPublisherClientClass = self.mock_client_patcher.start()
 
         # Create a test cleaner
         self.cleaner = PubSubTopicCleaner(
             project_id=self.project_id,
             bucket_name=self.bucket_name,
             prefixes=self.prefixes,
-            time_threshold=self.time_threshold
+            time_threshold=self.time_threshold,
+            clock=self.fake_clock
         )
 
-        # Override __write_resources and __stored_resources
-        self.cleaner._StaleCleaner__write_resources = mock.MagicMock()
-        self.cleaner._StaleCleaner__stored_resources = mock.MagicMock(return_value={})
+        self.cleaner._write_resources = SilencedMock()
+        self.cleaner._stored_resources = SilencedMock(return_value={})
 
     def tearDown(self):
         """Tear down test fixtures."""
@@ -338,7 +428,8 @@ class PubSubTopicCleanerTest(unittest.TestCase):
         self.assertEqual(self.cleaner.bucket_name, self.bucket_name)
         self.assertEqual(self.cleaner.prefixes, self.prefixes)
         self.assertEqual(self.cleaner.time_threshold, self.time_threshold)
-        self.mock_client.assert_called_once()
+        self.assertEqual(self.cleaner.clock, self.fake_clock)
+        self.MockPublisherClientClass.assert_called_once()
 
     def test_active_resources_with_matching_prefix(self):
         """Test __active_resources method with matching prefix."""
