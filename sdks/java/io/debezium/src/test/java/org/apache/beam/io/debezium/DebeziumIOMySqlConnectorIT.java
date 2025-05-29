@@ -96,16 +96,17 @@ public class DebeziumIOMySqlConnectorIT {
   public static void startContainersAndGrantPrivileges() throws Exception {
     // Start containers. Testcontainers will manage parallel startup.
     Startables.deepStart(Stream.of(MY_SQL_CONTAINER, KAFKA_CONTAINER)).join();
-    
+
     try (Connection conn =
             DriverManager.getConnection(
                 MY_SQL_CONTAINER.getJdbcUrl(),
                 "root", // Connect as root to grant privileges
                 MY_SQL_CONTAINER.getPassword()); // Root password
         Statement stmt = conn.createStatement()) {
-
+      stmt.execute("GRANT REPLICATION CLIENT ON *.* TO 'mysqluser'@'%'");
       stmt.execute(
-          "GRANT SELECT, RELOAD, SHOW DATABASES, REPLICATION SLAVE, REPLICATION CLIENT, LOCK TABLES, FLUSH TABLES, PROCESS ON *.* TO 'mysqluser'@'%'");
+          "GRANT SELECT, RELOAD, FLUSH_TABLES, REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO 'mysqluser'@'%'");
+      stmt.execute("FLUSH PRIVILEGES");
       LOG.info(
           "Granted necessary privileges (SELECT, RELOAD, SHOW DATABASES, REPLICATION SLAVE, REPLICATION CLIENT, LOCK TABLES, FLUSH_TABLES, PROCESS) to 'mysqluser'@'%' in MySQL.");
     } catch (SQLException e) {
