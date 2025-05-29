@@ -47,6 +47,7 @@ from apache_beam.metrics.cells import BoundedTrieCell
 from apache_beam.metrics.cells import CounterCell
 from apache_beam.metrics.cells import DistributionCell
 from apache_beam.metrics.cells import GaugeCell
+from apache_beam.metrics.cells import MetricCellFactory
 from apache_beam.metrics.cells import StringSetCell
 from apache_beam.metrics.cells import StringSetData
 from apache_beam.runners.worker import statesampler
@@ -57,7 +58,6 @@ if TYPE_CHECKING:
   from apache_beam.metrics.cells import GaugeData
   from apache_beam.metrics.cells import DistributionData
   from apache_beam.metrics.cells import MetricCell
-  from apache_beam.metrics.cells import MetricCellFactory
   from apache_beam.metrics.metricbase import MetricName
   from apache_beam.portability.api import metrics_pb2
 
@@ -272,10 +272,24 @@ class MetricsContainer(object):
 
   def get_metric_cell(self, typed_metric_name):
     # type: (_TypedMetricName) -> MetricCell
+    # First check without a lock.
     cell = self.metrics.get(typed_metric_name, None)
     if cell is None:
+      # If not found, acquire lock and check again.
+      # This is to prevent duplicate cell creation in concurrent scenarios.
       with self.lock:
-        cell = self.metrics[typed_metric_name] = typed_metric_name.cell_type()
+        cell = self.metrics.get(typed_metric_name, None)
+        if cell is None:
+          if isinstance(typed_metric_name.cell_type, MetricCellFactory):
+            # If it's a factory, call it without container_lock,
+            # as the factory's __call__ should handle cell creation.
+            cell = self.metrics[
+                typed_metric_name] = typed_metric_name.cell_type()
+          else:
+            # Otherwise, assume it's a MetricCell class and pass container_lock.
+            cell = self.metrics[
+                typed_metric_name] = typed_metric_name.cell_type(
+                    container_lock=self.lock)
     return cell
 
   def get_cumulative(self):
@@ -325,14 +339,14 @@ class MetricsContainer(object):
     """Returns a list of MonitoringInfos for the metrics in this container."""
     with self.lock:
       items = list(self.metrics.items())
-    all_metrics = [
-        cell.to_runner_api_monitoring_info(key.metric_name, transform_id)
-        for key, cell in items
-    ]
-    return {
-        monitoring_infos.to_key(mi): mi
-        for mi in all_metrics if mi is not None
-    }
+      all_metrics = [
+          cell.to_runner_api_monitoring_info(key.metric_name, transform_id)
+          for key, cell in items
+      ]
+      return {
+          monitoring_infos.to_key(mi): mi
+          for mi in all_metrics if mi is not None
+      }
 
   def reset(self):
     # type: () -> None
