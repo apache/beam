@@ -339,7 +339,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
             .map(
                 entry ->
                     CompletableFuture.runAsync(
-                        () -> closeStreamSender(entry.getKey(), (StreamSender) entry.getValue()),
+                        () -> closeStreamSender(entry.getKey(), entry.getValue()),
                         windmillStreamManager));
 
     Set<Endpoint> newGlobalDataEndpoints =
@@ -350,8 +350,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
             .map(
                 sender ->
                     CompletableFuture.runAsync(
-                        () -> closeStreamSender(sender.endpoint(), (StreamSender) sender),
-                        windmillStreamManager));
+                        () -> closeStreamSender(sender.endpoint(), sender), windmillStreamManager));
 
     return CompletableFuture.allOf(
         Streams.concat(closeStreamFutures, closeGlobalDataStreamFutures)

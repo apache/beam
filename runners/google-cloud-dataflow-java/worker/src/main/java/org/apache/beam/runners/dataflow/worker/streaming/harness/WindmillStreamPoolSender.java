@@ -54,7 +54,7 @@ import org.slf4j.LoggerFactory;
  */
 @Internal
 @ThreadSafe
-public final class WindmillStreamPoolSender implements StreamSender, WindmillStreamSender {
+public final class WindmillStreamPoolSender implements WindmillStreamSender {
   private static final Logger LOG = LoggerFactory.getLogger(WindmillStreamPoolSender.class);
   private static final int GET_WORK_STREAM_TIMEOUT_MINUTES = 3;
   private final AtomicReference<GetWorkBudget> getWorkBudget;
