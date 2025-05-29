@@ -26,6 +26,7 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import io.debezium.connector.mysql.MySqlConnector;
 import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -33,6 +34,7 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -47,6 +49,7 @@ import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -56,6 +59,7 @@ import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.containers.wait.strategy.HttpWaitStrategy;
+import org.testcontainers.lifecycle.Startables;
 import org.testcontainers.utility.DockerImageName;
 
 @RunWith(JUnit4.class)
@@ -87,6 +91,28 @@ public class DebeziumIOMySqlConnectorIT {
 
   // Added Kafka Testcontainer for schema history
   @ClassRule public static final KafkaContainer KAFKA_CONTAINER = new KafkaContainer(KAFKA_IMAGE);
+
+  @BeforeClass
+  public static void startContainersAndGrantPrivileges() throws Exception {
+    // Start containers. Testcontainers will manage parallel startup.
+    Startables.deepStart(Stream.of(MY_SQL_CONTAINER, KAFKA_CONTAINER)).join();
+    
+    try (Connection conn =
+            DriverManager.getConnection(
+                MY_SQL_CONTAINER.getJdbcUrl(),
+                "root", // Connect as root to grant privileges
+                MY_SQL_CONTAINER.getPassword()); // Root password
+        Statement stmt = conn.createStatement()) {
+
+      stmt.execute(
+          "GRANT SELECT, RELOAD, SHOW DATABASES, REPLICATION SLAVE, REPLICATION CLIENT, LOCK TABLES, FLUSH TABLES, PROCESS ON *.* TO 'mysqluser'@'%'");
+      LOG.info(
+          "Granted necessary privileges (SELECT, RELOAD, SHOW DATABASES, REPLICATION SLAVE, REPLICATION CLIENT, LOCK TABLES, FLUSH_TABLES, PROCESS) to 'mysqluser'@'%' in MySQL.");
+    } catch (SQLException e) {
+      LOG.error("Failed to grant privileges to 'mysqluser' in MySQL container", e);
+      throw e; // Rethrow to fail fast if setup fails
+    }
+  }
 
   public static DataSource getMysqlDatasource(Void unused) {
     HikariConfig hikariConfig = new HikariConfig();

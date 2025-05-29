@@ -94,7 +94,8 @@ public class DebeziumReadSchemaTransformTest {
                 MY_SQL_CONTAINER.getJdbcUrl(), "root", MY_SQL_CONTAINER.getPassword());
         Statement stmt = conn.createStatement()) {
       stmt.execute("GRANT REPLICATION CLIENT ON *.* TO 'mysqluser'@'%'");
-      stmt.execute("GRANT SELECT, RELOAD, FLUSH_TABLES, REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO 'mysqluser'@'%'");
+      stmt.execute(
+          "GRANT SELECT, RELOAD, FLUSH_TABLES, REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO 'mysqluser'@'%'");
       stmt.execute("FLUSH PRIVILEGES");
       LOG.info("Granted privileges to mysqluser for MySQL.");
     } catch (Exception e) {
