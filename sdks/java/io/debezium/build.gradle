@@ -95,6 +95,36 @@ configurations.named("testRuntimeClasspath") {
     )
 }
 
+def configureTestJvmArgs(Task task) {
+    List<String> currentJvmArgs = task.jvmArgs ? new ArrayList<>(task.jvmArgs) : new ArrayList<>()
+
+    // Filter out potentially problematic inherited jvmArgs if they are too broad
+    // Example: currentJvmArgs.removeAll { arg -> arg.toString().startsWith('--add-opens=c/') }
+    // The original filtering of org.apache.beam.sdk seemed too aggressive.
+    // We will add necessary opens below.
+
+    // Add standard opens required for Jackson, Afterburner, and other reflective frameworks
+    // when dealing with Java Modules or complex classloader scenarios.
+    currentJvmArgs.addAll([
+        '--add-opens=java.base/java.lang=ALL-UNNAMED',
+        '--add-opens=java.base/java.util=ALL-UNNAMED',
+        '--add-opens=java.base/java.util.concurrent=ALL-UNNAMED',
+        '--add-opens=java.base/java.lang.reflect=ALL-UNNAMED',
+        '--add-opens=java.base/java.io=ALL-UNNAMED',
+        '--add-opens=java.base/java.nio=ALL-UNNAMED',
+        '--add-opens=java.base/java.math=ALL-UNNAMED',
+        '--add-opens=java.base/java.time=ALL-UNNAMED', // For JSR310 types
+        // If Beam classes are in a named module and Afterburner is in an unnamed one,
+        // specific opens for Beam packages might be needed.
+        // e.g. '--add-opens=org.apache.beam.sdks.java.core/org.apache.beam.sdk.transforms.display=ALL-UNNAMED'
+        // However, the error log "AutoValue_DisplayData_Item is in unnamed module of loader 'app'"
+        // suggests the Beam classes are also seen as being in an unnamed module from Afterburner's view.
+        // The java.base opens are often the most critical for allowing frameworks to operate across module boundaries.
+    ])
+
+    task.jvmArgs = currentJvmArgs.unique() // Assign the new, filtered list back, removing duplicates
+    project.logger.lifecycle("Task ${task.name} final jvmArgs: ${task.jvmArgs.join(' ')}")
+}
 
 test {
     testLogging {
@@ -102,24 +132,8 @@ test {
         showStandardStreams = true
         exceptionFormat = 'full' 
     }
-    // Filter problematic --add-opens arguments that might be inherited.
-    // Ensure we are working with a mutable list.
-    List<String> initialJvmArgs = jvmArgs ?: []
-    List<String> mutableJvmArgs = new ArrayList<>(initialJvmArgs) // Create a mutable copy
+    configureTestJvmArgs(delegate)
 
-    List<String> filteredJvmArgs = mutableJvmArgs.findAll { arg ->
-        String argStr = arg.toString()
-        // Check if the argument is one of the problematic ones
-        boolean shouldRemove = argStr.startsWith('--add-opens=c/') || argStr.startsWith('--add-opens=org.apache.beam.sdk/')
-        if (shouldRemove) {
-            project.logger.lifecycle("Debezium IO: Filtering out problematic inherited jvmArg for test task: ${argStr}")
-        }
-        return !shouldRemove // Keep the argument if it's NOT one to remove
-    }
-    jvmArgs = filteredJvmArgs // Assign the new, filtered list back
-
-    // If IllegalAccessError with Afterburner persists after other test issues are resolved,
-    // a more targeted solution for JPMS compatibility or Beam's module structure will be needed.
 }
 
 
@@ -163,7 +177,7 @@ task integrationTest(type: Test, dependsOn: processTestResources) {
     }
 }
 
-// Java version configuration (remains the same)
+// The order is intended here - Debezium 3 requires Java 17, or later
 if (project.hasProperty('java17Home')) {
     project.tasks.withType(JavaCompile) {
         setJavaVerOptions(options, '17')
