@@ -91,7 +91,7 @@ public class DebeziumReadSchemaTransformTest {
         MY_SQL_CONTAINER.getJdbcUrl(), "root", MY_SQL_CONTAINER.getPassword());
         Statement stmt = conn.createStatement()) {
       stmt.execute(
-          "GRANT RELOAD, FLUSH_TABLES, LOCK TABLES, PROCESS, REPLICATION CLIENT, REPLICATION SLAVE ON *.* TO 'mysqluser'@'%'");
+          "GRANT RELOAD, FLUSH_TABLES, LOCK TABLES, PROCESS, REPLICATION CLIENT, REPLICATION SLAVE ON *.* TO 'mysqluser'@'%'; FLUSH PRIVILEGES;");
       LOG.info("Granted privileges to mysqluser for MySQL.");
     } catch (Exception e) {
       LOG.error("Failed to grant privileges to mysqluser in MySQL container", e);

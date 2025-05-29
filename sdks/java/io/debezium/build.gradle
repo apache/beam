@@ -130,7 +130,7 @@ test {
     testLogging {
         outputs.upToDateWhen {false}
         showStandardStreams = true
-        exceptionFormat = 'full' 
+        exceptionFormat = 'full'
     }
     configureTestJvmArgs(delegate)
 
@@ -152,7 +152,7 @@ task integrationTest(type: Test, dependsOn: processTestResources) {
 
     useJUnit {
     }
-    
+
     // Ensure jvmArgs for integrationTest are also cleaned or correctly inherited,
     // by applying similar filtering logic.
     List<String> initialIntegrationJvmArgs = jvmArgs ?: []
