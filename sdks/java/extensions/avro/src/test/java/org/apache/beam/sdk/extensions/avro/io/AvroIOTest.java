@@ -988,7 +988,8 @@ public class AvroIOTest implements Serializable {
                     .withPrefix("prefix")
                     .withSuffix(".avro")
                     .withTempDirectory(baseDir.toString())
-                    .withNumShards(2);
+                    .withNumShards(2)
+                    .withMaxNumWritersPerBundle(0);
             break;
           }
 

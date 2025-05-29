@@ -650,6 +650,7 @@ public class TextIOWriteTest {
             .withSuffix("bar")
             .withShardNameTemplate("-SS-of-NN-")
             .withNumShards(100)
+            .withMaxNumWritersPerBundle(5)
             .withFooter("myFooter")
             .withHeader("myHeader");
 
