@@ -145,9 +145,10 @@ if sys.platform == 'win32' and sys.maxsize <= 2**32:
   pyarrow_dependency = ['']
 else:
   pyarrow_dependency = [
-      'pyarrow>=3.0.0,<17.0.0',
+      'pyarrow>=3.0.0,<19.0.0',
       # NOTE(https://github.com/apache/beam/issues/29392): We can remove this
       # once Beam increases the pyarrow lower bound to a version that fixes CVE.
+      # (lower bound >= 14.0.1)
       'pyarrow-hotfix<1'
   ]
 
@@ -353,7 +354,8 @@ if __name__ == '__main__':
           'fastavro>=0.23.6,<2',
           'fasteners>=0.3,<1.0',
           # TODO(https://github.com/grpc/grpc/issues/37710): Unpin grpc
-          'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,<1.66.0',  # pylint: disable=line-too-long
+          'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,<1.66.0; python_version <= "3.12"',  # pylint: disable=line-too-long
+          'grpcio>=1.67.0; python_version >= "3.13"', 
           'hdfs>=2.1.0,<3.0.0',
           'httplib2>=0.8,<0.23.0',
           'jsonschema>=4.0.0,<5.0.0',
@@ -422,15 +424,19 @@ if __name__ == '__main__':
               'sqlalchemy>=1.3,<3.0',
               'psycopg2-binary>=2.8.5,<2.9.10; python_version <= "3.9"',
               'psycopg2-binary>=2.8.5,<3.0; python_version >= "3.10"',
-              'testcontainers[mysql]>=3.0.3,<4.0.0',
+              'testcontainers[mysql,kafka]>=3.0.3,<4.0.0',
               'cryptography>=41.0.2',
               'hypothesis>5.0.0,<7.0.0',
               'virtualenv-clone>=0.5,<1.0',
+              'mysql-connector-python>=9.3.0',
+              'python-tds>=1.16.1',
+              'sqlalchemy-pytds>=1.0.2'
           ],
           'gcp': [
               'cachetools>=3.1.0,<6',
               'google-api-core>=2.0.0,<3',
-              'google-apitools>=0.5.31,<0.5.32',
+              'google-apitools>=0.5.31,<0.5.32; python_version <= "3.12"',
+              'google-apitools>=0.5.32,<0.5.33; python_version >= "3.13"',
               # NOTE: Maintainers, please do not require google-auth>=2.x.x
               # Until this issue is closed
               # https://github.com/googleapis/google-cloud-python/issues/10566
@@ -579,6 +585,7 @@ if __name__ == '__main__':
           'Programming Language :: Python :: 3.10',
           'Programming Language :: Python :: 3.11',
           'Programming Language :: Python :: 3.12',
+          'Programming Language :: Python :: 3.13',
           # When updating version classifiers, also update version warnings
           # above and in apache_beam/__init__.py.
           'Topic :: Software Development :: Libraries',
