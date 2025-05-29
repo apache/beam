@@ -454,18 +454,14 @@ class BeamModulePlugin implements Plugin<Project> {
     return 'beam' + p.path.replace(':', '-')
   }
 
+  /** Get version for Java SDK container */
   static def getSupportedJavaVersion() {
-    if (JavaVersion.current() == JavaVersion.VERSION_1_8) {
-      return 'java8'
-    } else if (JavaVersion.current() == JavaVersion.VERSION_11) {
+    if (JavaVersion.current() <= JavaVersion.VERSION_11) {
       return 'java11'
-    } else if (JavaVersion.current() == JavaVersion.VERSION_17) {
+    } else if (JavaVersion.current() <= JavaVersion.VERSION_17) {
       return 'java17'
-    } else if (JavaVersion.current() == JavaVersion.VERSION_21) {
-      return 'java21'
     } else {
-      String exceptionMessage = "Your Java version is unsupported. You need Java version of 8, 11, 17 or 21 to get started, but your Java version is: " + JavaVersion.current();
-      throw new GradleException(exceptionMessage)
+      return 'java21'
     }
   }
 
