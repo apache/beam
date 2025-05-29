@@ -199,7 +199,8 @@ public class DebeziumReadSchemaTransformTest {
         connectorProps.setProperty("schema.include.list", "inventory");
         connectorProps.setProperty("table.include.list", "inventory." + tableToRead);
         LOG.warn(
-            "PostgreSQL table name '{}' was not fully qualified (schema.table). Assuming schema 'inventory'.",
+            "PostgreSQL table name '{}' was not fully qualified (schema.table). Assuming schema"
+                + " 'inventory'.",
             tableToRead);
       }
       connectorProps.setProperty("publication.autocreate.mode", "filtered");
@@ -324,7 +325,9 @@ public class DebeziumReadSchemaTransformTest {
       level++;
     }
     LOG.warn(
-        "{}: Expected OR keywords '{}' and AND keywords '{}' not found in any single cause message of the exception chain. Full chain:\n{}",
+        "{}: Expected OR keywords '{}' and AND keywords '{}' not found in any single cause message"
+            + " of the exception chain. Full chain:\n"
+            + "{}",
         testNameInfo,
         orKeywords,
         Arrays.toString(andKeywords),
