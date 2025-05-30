@@ -1648,6 +1648,10 @@ keysPerBundle:
 					continue
 				}
 				holdsInBundle[e.holdTimestamp]++
+				if e.timestamp > watermark {
+					// we don't trigger a timer when its firing timestamp is over watermark
+					break
+				}
 				// Clear the "fired" timer so subsequent matches can be ignored.
 				delete(dnt.timers, timerKey{family: e.family, tag: e.tag, window: e.window})
 			}
