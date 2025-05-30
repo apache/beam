@@ -58,7 +58,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.MySQLContainer;
-import org.testcontainers.containers.wait.strategy.HttpWaitStrategy;
+import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.lifecycle.Startables;
 import org.testcontainers.utility.DockerImageName;
 
@@ -83,11 +83,13 @@ public class DebeziumIOMySqlConnectorIT {
           .withPassword("debezium")
           .withUsername("mysqluser")
           .withExposedPorts(3306)
-          .waitingFor(
-              new HttpWaitStrategy()
-                  .forPort(3306)
-                  .forStatusCodeMatching(response -> response == 200)
-                  .withStartupTimeout(Duration.ofMinutes(2)));
+          .withCommand("--wait_timeout=28800")
+          // .waitingFor(
+          //     new HttpWaitStrategy()
+          //         .forPort(3306)
+          //         .forStatusCodeMatching(response -> response == 200)
+          //         .withStartupTimeout(Duration.ofMinutes(2)))
+          .waitingFor(Wait.forLogMessage(".*ready for connections.*\\s", 1));;
 
   // Added Kafka Testcontainer for schema history
   @ClassRule public static final KafkaContainer KAFKA_CONTAINER = new KafkaContainer(KAFKA_IMAGE);
