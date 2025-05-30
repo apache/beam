@@ -773,7 +773,12 @@ class BigQueryWrapper(object):
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_timeout_or_quota_issues_filter)
-  def get_table(self, project_id, dataset_id, table_id, view=BigqueryTablesGetRequest.ViewValueValuesEnum.BASIC):
+  def get_table(
+      self,
+      project_id,
+      dataset_id,
+      table_id,
+      view=BigqueryTablesGetRequest.ViewValueValuesEnum.BASIC):
     """Lookup a table's metadata object.
 
     Args:
@@ -789,10 +794,7 @@ class BigQueryWrapper(object):
       HttpError: if lookup failed.
     """
     request = bigquery.BigqueryTablesGetRequest(
-        projectId=project_id,
-        datasetId=dataset_id,
-        tableId=table_id,
-        view=view)
+        projectId=project_id, datasetId=dataset_id, tableId=table_id, view=view)
     response = self.client.tables.Get(request)
     return response
 
@@ -1397,7 +1399,6 @@ class RowAsDictJsonCoder(coders.Coder):
   This is the default coder for sources and sinks if the coder argument is not
   specified.
   """
-
   def encode(self, table_row):
     # The normal error when dumping NAN/INF values is:
     # ValueError: Out of range float values are not JSON compliant
@@ -1425,7 +1426,6 @@ class JsonRowWriter(io.IOBase):
   A writer which provides an IOBase-like interface for writing table rows
   (represented as dicts) as newline-delimited JSON strings.
   """
-
   def __init__(self, file_handle):
     """Initialize an JsonRowWriter.
 
@@ -1466,7 +1466,6 @@ class AvroRowWriter(io.IOBase):
   A writer which provides an IOBase-like interface for writing table rows
   (represented as dicts) as Avro records.
   """
-
   def __init__(self, file_handle, schema):
     """Initialize an AvroRowWriter.
 
@@ -1560,7 +1559,6 @@ class AppendDestinationsFn(DoFn):
 
   Experimental; no backwards compatibility guarantees.
   """
-
   def __init__(self, destination):
     self._display_destination = destination
     self.destination = AppendDestinationsFn._get_table_fn(destination)
@@ -1667,7 +1665,6 @@ bigquery_v2_messages.TableSchema` format.
 def table_schema_to_dict(table_schema):
   """Create a dictionary representation of table schema for serialization
   """
-
   def get_table_field(field):
     """Create a dictionary representation of a table field
     """
