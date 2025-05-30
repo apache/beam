@@ -40,10 +40,14 @@ import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @AutoService(SchemaTransformProvider.class)
 public class GenerateSequenceSchemaTransformProvider
     extends TypedSchemaTransformProvider<GenerateSequenceConfiguration> {
+  private static final Logger LOG =
+      LoggerFactory.getLogger(GenerateSequenceSchemaTransformProvider.class);
   public static final String OUTPUT_ROWS_TAG = "output";
   public static final Schema OUTPUT_SCHEMA = Schema.builder().addInt64Field("value").build();
 
@@ -188,6 +192,8 @@ public class GenerateSequenceSchemaTransformProvider
         if (rate != null) {
           // Consider logging a warning if rate is also set, as it will be ignored.
           // For now, we just prioritize elementsPerPeriod/period.
+          LOG.warn(
+              "Configuration includes both 'elementsPerPeriod'/'period' and 'rate'. 'rate' will be ignored.");
         }
       } else if (rate != null) {
         checkArgument(
