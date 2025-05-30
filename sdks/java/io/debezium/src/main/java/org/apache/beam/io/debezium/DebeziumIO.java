@@ -75,7 +75,6 @@ import org.slf4j.LoggerFactory;
  *             .withConnectorClass(MySqlConnector.class)
  *             .withConnectionProperty("database.server.id", "184054")
  *             .withConnectionProperty("database.server.name", "serverid")
- *             .withConnectionProperty("database.include.list", "dbname")
  *             .withConnectionProperty("database.history", DebeziumSDFDatabaseHistory.class.getName())
  *             .withConnectionProperty("include.schema.changes", "false");
  *
@@ -554,10 +553,16 @@ public class DebeziumIO {
         configuration.computeIfAbsent(entry.getKey(), k -> entry.getValue());
       }
 
-      // Set default Database History impl. if not provided
+      // Set default Database History impl. if not provided implementation and Kafka topic prefix,
+      // if not provided
       configuration.computeIfAbsent(
           "database.history",
           k -> KafkaSourceConsumerFn.DebeziumSDFDatabaseHistory.class.getName());
+      configuration.computeIfAbsent("topic.prefix", k -> "beam-debezium-connector");
+      configuration.computeIfAbsent(
+          "schema.history.internal.kafka.bootstrap.servers", k -> "localhost:9092");
+      configuration.computeIfAbsent(
+          "schema.history.internal.kafka.topic", k -> "schema-changes.inventory");
 
       String stringProperties = Joiner.on('\n').withKeyValueSeparator(" -> ").join(configuration);
       LOG.debug("---------------- Connector configuration: {}", stringProperties);
