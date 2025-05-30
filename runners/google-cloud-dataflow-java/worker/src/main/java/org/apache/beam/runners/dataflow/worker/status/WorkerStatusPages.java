@@ -27,7 +27,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.beam.runners.dataflow.worker.status.DebugCapture.Capturable;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
-import org.apache.beam.sdk.util.construction.Environments;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletHandler;
@@ -59,9 +58,7 @@ public class WorkerStatusPages {
     addServlet(threadzServlet);
     addServlet(new HealthzServlet(healthyIndicator));
     addServlet(new HeapzServlet(memoryMonitor));
-    if (Environments.getJavaVersion() != Environments.JavaVersion.java8) {
-      addServlet(new JfrzServlet(memoryMonitor));
-    }
+    addServlet(new JfrzServlet(memoryMonitor));
     addServlet(statuszServlet);
 
     // Add default capture pages (threadz, statusz)
