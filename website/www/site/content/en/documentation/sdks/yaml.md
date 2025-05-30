@@ -274,7 +274,8 @@ pipeline:
 ```
 
 If a `chain` pipeline has required error consumption or needs additional
-transforms not supported in a `chain` context, use an `extra_transforms` block.
+transforms not supported in a typical `chain` context, use an
+`extra_transforms` block.
 
 ```
 pipeline:
