@@ -140,6 +140,12 @@ class SwitchingDirectRunner(PipelineRunner):
         # being used.
         if isinstance(transform, TestStream):
           self.supported_by_prism_runner = False
+        if isinstance(transform, beam.ExternalTransform):
+          # TODO(https://github.com/apache/beam/issues/33623): Prism currently
+          # seems to not be able to consistently bring up external transforms.
+          # It does sometimes, but at volume suites start to fail. We will try
+          # to enable this in a future release.
+          self.supported_by_prism_runner = False
         if isinstance(transform, beam.ParDo):
           dofn = transform.dofn
           # TODO(https://github.com/apache/beam/issues/33623): Prism currently
