@@ -27,7 +27,7 @@ limitations under the License.
 <!-- div with class case-study-opinion is displayed at the top left area of the case study page -->
 <div class="case-study-opinion">
     <div class="case-study-opinion-img">
-        <img src="/images/logos/powered-by/acredit-karma.png"/>
+        <img src="/images/logos/powered-by/credit-karma.png"/>
     </div>
     <blockquote class="case-study-quote-block">
       <p class="case-study-quote-text">
