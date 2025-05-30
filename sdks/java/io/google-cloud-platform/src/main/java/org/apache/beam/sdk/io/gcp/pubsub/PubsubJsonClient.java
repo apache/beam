@@ -226,11 +226,11 @@ public class PubsubJsonClient extends PubsubClient {
           com.google.pubsub.v1.PubsubMessage.newBuilder();
       protoMessage.setData(ByteString.copyFrom(elementBytes));
       protoMessage.putAllAttributes(attributes);
-      // PubsubMessage uses `null` to represent no ordering key where we want a default of "".
+      // {@link PubsubMessage} uses `null` or empty string to represent no ordering key.
+      // {@link com.google.pubsub.v1.PubsubMessage} does not track string field presence and uses
+      // empty string as a default.
       if (pubsubMessage.getOrderingKey() != null) {
         protoMessage.setOrderingKey(pubsubMessage.getOrderingKey());
-      } else {
-        protoMessage.setOrderingKey("");
       }
       incomingMessages.add(
           IncomingMessage.of(

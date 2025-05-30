@@ -34,7 +34,6 @@ import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Metadata;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.MethodDescriptor;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Status;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,6 +47,7 @@ public class IsolationChannel extends ManagedChannel {
   private static final Logger LOG = LoggerFactory.getLogger(IsolationChannel.class);
 
   private final Supplier<ManagedChannel> channelFactory;
+  private final int onReadyThresholdBytes;
 
   @GuardedBy("this")
   private final List<ManagedChannel> channelCache;
@@ -55,24 +55,29 @@ public class IsolationChannel extends ManagedChannel {
   @GuardedBy("this")
   private final Set<ManagedChannel> usedChannels;
 
+  private final String authority;
+
   @GuardedBy("this")
   private boolean shutdownStarted = false;
 
-  private final String authority;
-
-  // Expected that supplier returns channels to the same endpoint with the same authority.
-  public static IsolationChannel create(Supplier<ManagedChannel> channelFactory) {
-    return new IsolationChannel(channelFactory);
-  }
-
-  @VisibleForTesting
-  IsolationChannel(Supplier<ManagedChannel> channelFactory) {
+  private IsolationChannel(Supplier<ManagedChannel> channelFactory, int onReadyThresholdBytes) {
     this.channelFactory = channelFactory;
     this.channelCache = new ArrayList<>();
     ManagedChannel channel = channelFactory.get();
     this.authority = channel.authority();
     this.channelCache.add(channel);
     this.usedChannels = new HashSet<>();
+    this.onReadyThresholdBytes = onReadyThresholdBytes;
+  }
+
+  // Expected that supplier returns channels to the same endpoint with the same authority.
+  public static IsolationChannel create(Supplier<ManagedChannel> channelFactory) {
+    return new IsolationChannel(channelFactory, -1);
+  }
+
+  public static IsolationChannel create(
+      Supplier<ManagedChannel> channelFactory, int onReadyThresholdBytes) {
+    return new IsolationChannel(channelFactory, onReadyThresholdBytes);
   }
 
   @Override
@@ -85,7 +90,14 @@ public class IsolationChannel extends ManagedChannel {
   public <ReqT, RespT> ClientCall<ReqT, RespT> newCall(
       MethodDescriptor<ReqT, RespT> methodDescriptor, CallOptions callOptions) {
     ManagedChannel channel = getChannel();
-    return new ReleasingClientCall<>(this, channel, channel.newCall(methodDescriptor, callOptions));
+    return new ReleasingClientCall<>(
+        this,
+        channel,
+        channel.newCall(
+            methodDescriptor,
+            onReadyThresholdBytes > 0
+                ? callOptions.withOnReadyThreshold(onReadyThresholdBytes)
+                : callOptions));
   }
 
   private synchronized ManagedChannel getChannel() {

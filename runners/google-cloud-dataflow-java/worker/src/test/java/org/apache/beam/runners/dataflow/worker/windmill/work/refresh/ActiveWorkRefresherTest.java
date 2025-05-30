@@ -77,7 +77,8 @@ public class ActiveWorkRefresherTest {
         TimeUnit.SECONDS,
         1,
         10000000,
-        new ThreadFactoryBuilder().setNameFormat("DataflowWorkUnits-%d").setDaemon(true).build());
+        new ThreadFactoryBuilder().setNameFormat("DataflowWorkUnits-%d").setDaemon(true).build(),
+        /*useFairMonitor=*/ false);
   }
 
   private static ComputationState createComputationState(int computationIdSuffix) {

@@ -303,6 +303,7 @@ tasks.register("javaPreCommit") {
   dependsOn(":sdks:java:extensions:sketching:build")
   dependsOn(":sdks:java:extensions:sorter:build")
   dependsOn(":sdks:java:extensions:timeseries:build")
+  dependsOn(":sdks:java:extensions:yaml:build")
   dependsOn(":sdks:java:extensions:zetasketch:build")
   dependsOn(":sdks:java:harness:build")
   dependsOn(":sdks:java:harness:jmh:build")
@@ -482,6 +483,7 @@ tasks.register("pythonPreCommit") {
   dependsOn(":sdks:python:test-suites:tox:py310:preCommitPy310")
   dependsOn(":sdks:python:test-suites:tox:py311:preCommitPy311")
   dependsOn(":sdks:python:test-suites:tox:py312:preCommitPy312")
+  dependsOn(":sdks:python:test-suites:tox:py313:preCommitPy313")
 }
 
 tasks.register("pythonPreCommitIT") {
@@ -498,6 +500,7 @@ tasks.register("pythonDockerBuildPreCommit") {
   dependsOn(":sdks:python:container:py310:docker")
   dependsOn(":sdks:python:container:py311:docker")
   dependsOn(":sdks:python:container:py312:docker")
+  dependsOn(":sdks:python:container:py313:docker")
 }
 
 tasks.register("pythonLintPreCommit") {
@@ -545,14 +548,22 @@ tasks.register("python312PostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py312:inferencePostCommitITPy312")
 }
 
+tasks.register("python313PostCommit") {
+  dependsOn(":sdks:python:test-suites:dataflow:py313:postCommitIT")
+  dependsOn(":sdks:python:test-suites:direct:py313:postCommitIT")
+  dependsOn(":sdks:python:test-suites:direct:py313:hdfsIntegrationTest")
+  dependsOn(":sdks:python:test-suites:portable:py313:postCommitPy312")
+  dependsOn(":sdks:python:test-suites:dataflow:py313:inferencePostCommitITPy312")
+}
+
 tasks.register("portablePythonPreCommit") {
   dependsOn(":sdks:python:test-suites:portable:py39:preCommitPy39")
-  dependsOn(":sdks:python:test-suites:portable:py312:preCommitPy312")
+  dependsOn(":sdks:python:test-suites:portable:py313:preCommitPy313")
 }
 
 tasks.register("pythonSparkPostCommit") {
   dependsOn(":sdks:python:test-suites:portable:py39:sparkValidatesRunner")
-  dependsOn(":sdks:python:test-suites:portable:py312:sparkValidatesRunner")
+  dependsOn(":sdks:python:test-suites:portable:py313:sparkValidatesRunner")
 }
 
 tasks.register("websitePreCommit") {
@@ -685,6 +696,11 @@ if (!isSpotlessDisabled) {
 // Generates external transform config
 project.tasks.register("generateExternalTransformsConfig") {
   dependsOn(":sdks:python:generateExternalTransformsConfig")
+}
+
+// Generates the Managed IO Beam web page
+project.tasks.register("generateManagedIOPage") {
+  dependsOn(":sdks:python:generateManagedIOPage")
 }
 
 // Configure the release plugin to do only local work; the release manager determines what, if

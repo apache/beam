@@ -15,27 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.worker.windmill.client.throttling;
 
-import com.google.auto.value.AutoValue;
-
-@AutoValue
-public abstract class StreamingEngineThrottleTimers {
-
-  public static StreamingEngineThrottleTimers create() {
-    return new AutoValue_StreamingEngineThrottleTimers(
-        new ThrottleTimer(), new ThrottleTimer(), new ThrottleTimer());
-  }
-
-  public long getAndResetThrottleTime() {
-    return getWorkThrottleTimer().getAndResetThrottleTime()
-        + getDataThrottleTimer().getAndResetThrottleTime()
-        + commitWorkThrottleTimer().getAndResetThrottleTime();
-  }
-
-  public abstract ThrottleTimer getWorkThrottleTimer();
-
-  public abstract ThrottleTimer getDataThrottleTimer();
-
-  public abstract ThrottleTimer commitWorkThrottleTimer();
-}
+/** Package for managing ClickHouse resources within integration tests. */
+package org.apache.beam.it.clickhouse.conditions;

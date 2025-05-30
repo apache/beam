@@ -139,8 +139,8 @@ class PyTorchInference(unittest.TestCase):
     output_file = '/'.join([output_file_dir, str(uuid.uuid4()), 'result.txt'])
 
     model_state_dict_paths = [
-      'gs://apache-beam-ml/models/torchvision.models.detection.maskrcnn_resnet50_fpn.pth',  # pylint: disable=line-too-long
-      'gs://apache-beam-ml/models/torchvision.models.detection.maskrcnn_resnet50_fpn_v2.pth'  # pylint: disable=line-too-long
+        'gs://apache-beam-ml/models/torchvision.models.detection.maskrcnn_resnet50_fpn.pth',  # pylint: disable=line-too-long
+        'gs://apache-beam-ml/models/torchvision.models.detection.maskrcnn_resnet50_fpn_v2.pth'  # pylint: disable=line-too-long
     ]
     images_dir = 'gs://apache-beam-ml/datasets/coco/raw-data/val2017'
     extra_opts = {

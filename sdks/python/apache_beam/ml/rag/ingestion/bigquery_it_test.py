@@ -139,8 +139,7 @@ class BigQueryVectorWriterConfigTest(unittest.TestCase):
                        }]
         },
         chunk_to_dict_fn=lambda chunk: {
-            'id': chunk.id,
-            'embedding': chunk.embedding.dense_embedding,
+            'id': chunk.id, 'embedding': chunk.embedding.dense_embedding,
             'source': chunk.metadata.get('source')
         })
     config = BigQueryVectorWriterConfig(

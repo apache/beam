@@ -289,7 +289,8 @@ class NumpyTypeHint():
         raise ValueError
     else:
       dtype = value
-      return self.NumpyTypeConstraint(dtype, shape=(N, ))
+      return self.NumpyTypeConstraint(
+          dtype, shape=(N, ))
 
 
 NumpyArray = NumpyTypeHint()
