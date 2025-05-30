@@ -515,6 +515,9 @@ class TestReadFromBigQuery(unittest.TestCase):
       numBytes = 5
       schema = DummySchema()
 
+    # TODO(https://github.com/apache/beam/issues/34549): This test relies on
+    # lineage metrics which Prism doesn't seem to handle correctly. Defaulting
+    # to FnApiRunner instead.
     with mock.patch('time.sleep'), \
             mock.patch.object(bigquery_v2_client.BigqueryV2.TablesService,
                               'Get') as mock_get_table, \
@@ -526,7 +529,7 @@ class TestReadFromBigQuery(unittest.TestCase):
                               'match'), \
             mock.patch.object(FileSystems,
                               'delete'), \
-            beam.Pipeline() as p:
+            beam.Pipeline('FnApiRunner') as p:
       call_counter = 0
 
       def store_callback(unused_request):
@@ -730,11 +733,14 @@ class TestReadFromBigQuery(unittest.TestCase):
     self.assertIn(error_message, exc.exception.args[0])
 
   def test_read_direct_lineage(self):
+    # TODO(https://github.com/apache/beam/issues/34549): This test relies on
+    # lineage metrics which Prism doesn't seem to handle correctly. Defaulting
+    # to FnApiRunner instead.
     with mock.patch.object(bigquery_tools.BigQueryWrapper,
                         '_bigquery_client'),\
          mock.patch.object(bq_storage.BigQueryReadClient,
                         'create_read_session'),\
-        beam.Pipeline() as p:
+        beam.Pipeline('FnApiRunner') as p:
 
       _ = p | ReadFromBigQuery(
           method=ReadFromBigQuery.Method.DIRECT_READ,
@@ -744,8 +750,11 @@ class TestReadFromBigQuery(unittest.TestCase):
         set(["bigquery:project.dataset.table"]))
 
   def test_read_all_lineage(self):
+    # TODO(https://github.com/apache/beam/issues/34549): This test relies on
+    # lineage metrics which Prism doesn't seem to handle correctly. Defaulting
+    # to FnApiRunner instead.
     with mock.patch.object(_BigQueryReadSplit, '_export_files') as export, \
-                            beam.Pipeline() as p:
+                            beam.Pipeline('FnApiRunner') as p:
 
       export.return_value = (None, [])
 
