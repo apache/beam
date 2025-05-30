@@ -831,6 +831,10 @@ class TestReadFromPubSub(unittest.TestCase):
     ]
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
+    # TODO(https://github.com/apache/beam/issues/34549): This test relies on
+    # lineage metrics which Prism doesn't seem to handle correctly. Defaulting
+    # to FnApiRunner instead.
+    options.view_as(StandardOptions).runner = 'FnApiRunner'
     for test_case in ('topic', 'subscription'):
       with TestPipeline(options=options) as p:
         # Direct runner currently overwrites the whole ReadFromPubSub transform.
@@ -1006,6 +1010,10 @@ class TestWriteToPubSub(unittest.TestCase):
 
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
+    # TODO(https://github.com/apache/beam/issues/34549): This test relies on
+    # lineage metrics which Prism doesn't seem to handle correctly. Defaulting
+    # to FnApiRunner instead.
+    options.view_as(StandardOptions).runner = 'FnApiRunner'
     with TestPipeline(options=options) as p:
       pcoll = p | Create(payloads)
       WriteToPubSub(
@@ -1022,6 +1030,10 @@ class TestWriteToPubSub(unittest.TestCase):
 
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
+    # TODO(https://github.com/apache/beam/issues/34549): This test relies on
+    # lineage metrics which Prism doesn't seem to handle correctly. Defaulting
+    # to FnApiRunner instead.
+    options.view_as(StandardOptions).runner = 'FnApiRunner'
     with TestPipeline(options=options) as p:
       pcoll = p | Create(payloads)
       # Avoid direct runner overwrites WriteToPubSub
