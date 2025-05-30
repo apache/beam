@@ -88,7 +88,7 @@ This design provided both Protegrity and its enterprise clients with a reusable,
 ### The Results
 - Enabled data tokenization at scale for regulated industries
 - Accelerated adoption of Dataflow templates across Protegrity’s customer base
-- Delivered an open-source Flex Template that benefits the entire Apache Beam community
+- Delivered an [open-source Flex Template](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/complete/datatokenization/README.md) that benefits the entire Apache Beam community
 
 <blockquote class="case-study-quote-block case-study-quote-wrapped">
   <p class="case-study-quote-text">
