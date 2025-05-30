@@ -18,7 +18,6 @@
 package org.apache.beam.io.debezium;
 
 import static org.apache.beam.io.debezium.DebeziumIOPostgresSqlConnectorIT.TABLE_SCHEMA;
-import static org.apache.beam.sdk.testing.SerializableMatchers.hasItem;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
@@ -79,17 +78,22 @@ public class DebeziumIOMySqlConnectorIT {
   @ClassRule
   public static final MySQLContainer<?> MY_SQL_CONTAINER =
       new MySQLContainer<>(
-              DockerImageName.parse("debezium/example-mysql:3.0.0.Final") // Ensure this image version is compatible with Debezium 3.1.1
+              DockerImageName.parse(
+                      "debezium/example-mysql:3.0.0.Final") // Ensure this image version is
+                  // compatible with Debezium 3.1.1
                   .asCompatibleSubstituteFor("mysql"))
           .withDatabaseName("inventory") // Ensures the 'inventory' database is created.
           .withUsername("root") // Connect as root initially to grant privileges
           .withPassword("debezium") // Root password for this specific Debezium image
           .withExposedPorts(3306)
-          // Add a command to increase the server's connection timeout to prevent dropped connections.
-          .withCommand("--wait_timeout=28800", "--max_allowed_packet=64M") // Added max_allowed_packet
+          // Add a command to increase the server's connection timeout to prevent dropped
+          // connections.
+          .withCommand(
+              "--wait_timeout=28800", "--max_allowed_packet=64M") // Added max_allowed_packet
           // Add a robust wait strategy to ensure the DB is fully ready before tests run.
-          .waitingFor(Wait.forLogMessage(".*ready for connections.*\\s", 2) // Wait for 2 occurrences
-                         .withStartupTimeout(Duration.ofMinutes(3))); // Increase startup timeout
+          .waitingFor(
+              Wait.forLogMessage(".*ready for connections.*\\s", 2) // Wait for 2 occurrences
+                  .withStartupTimeout(Duration.ofMinutes(3))); // Increase startup timeout
 
   @ClassRule public static final KafkaContainer KAFKA_CONTAINER = new KafkaContainer(KAFKA_IMAGE);
 
@@ -98,14 +102,11 @@ public class DebeziumIOMySqlConnectorIT {
     Startables.deepStart(Stream.of(MY_SQL_CONTAINER, KAFKA_CONTAINER)).join();
     try (Connection conn =
             DriverManager.getConnection(
-                MY_SQL_CONTAINER.getJdbcUrl(),
-                "root",
-                MY_SQL_CONTAINER.getPassword());
+                MY_SQL_CONTAINER.getJdbcUrl(), "root", MY_SQL_CONTAINER.getPassword());
         Statement stmt = conn.createStatement()) {
       stmt.execute(
           "GRANT SELECT, RELOAD, SHOW DATABASES, REPLICATION SLAVE, REPLICATION CLIENT, LOCK TABLES, FLUSH TABLES, PROCESS ON *.* TO 'mysqluser'@'%'");
-      LOG.info(
-          "Granted necessary privileges to 'mysqluser'@'%' in MySQL.");
+      LOG.info("Granted necessary privileges to 'mysqluser'@'%' in MySQL.");
     } catch (SQLException e) {
       LOG.error("Failed to grant privileges to 'mysqluser' in MySQL container", e);
       throw e;
@@ -159,7 +160,8 @@ public class DebeziumIOMySqlConnectorIT {
       // Restore the interrupted status
       Thread.currentThread().interrupt();
     } catch (SQLException ex) {
-      // Log SQL exceptions but don't let them kill the test with an unrelated IllegalArgumentException
+      // Log SQL exceptions but don't let them kill the test with an unrelated
+      // IllegalArgumentException
       LOG.error("SQLException in MySQL connection monitoring thread, exiting monitor.", ex);
     }
     LOG.info("Monitoring thread finished for MySQL connections.");
@@ -168,8 +170,9 @@ public class DebeziumIOMySqlConnectorIT {
   @Test
   public void testDebeziumSchemaTransformMysqlRead() throws InterruptedException {
     long writeSize = 500L;
-    // Significantly increased minimum test time to 180 seconds (3 minutes) to allow more time for Debezium snapshot.
-    long testTime = Math.max(writeSize * 300L, 180000L); 
+    // Significantly increased minimum test time to 180 seconds (3 minutes) to allow more time for
+    // Debezium snapshot.
+    long testTime = Math.max(writeSize * 300L, 180000L);
 
     PipelineOptions options = PipelineOptionsFactory.create();
     Pipeline writePipeline = Pipeline.create(options);
@@ -177,8 +180,7 @@ public class DebeziumIOMySqlConnectorIT {
         .apply(
             GenerateSequence.from(0)
                 .to(writeSize)
-                .withRate(
-                    10, org.joda.time.Duration.standardSeconds(1)))
+                .withRate(10, org.joda.time.Duration.standardSeconds(1)))
         .apply(
             MapElements.into(TypeDescriptors.rows())
                 .via(
@@ -197,9 +199,7 @@ public class DebeziumIOMySqlConnectorIT {
         .apply(
             JdbcIO.<Row>write()
                 .withTable("inventory.customers")
-                .withDataSourceProviderFn(
-                    DebeziumIOMySqlConnectorIT
-                        ::getMysqlDatasource));
+                .withDataSourceProviderFn(DebeziumIOMySqlConnectorIT::getMysqlDatasource));
 
     Pipeline readPipeline = Pipeline.create(options);
     PCollection<Row> result =
@@ -215,14 +215,12 @@ public class DebeziumIOMySqlConnectorIT {
                         DebeziumReadSchemaTransformProvider.DebeziumReadSchemaTransformConfiguration
                             .builder()
                             .setDatabase("MYSQL")
-                            .setPassword(
-                                "debezium")
-                            .setUsername(
-                                "mysqluser")
-                            .setHost(
-                                MY_SQL_CONTAINER
-                                    .getHost())
-                            .setTable("inventory.customers") // Table for the ReadSchemaTransform to focus on
+                            .setPassword("debezium")
+                            .setUsername("mysqluser")
+                            .setHost(MY_SQL_CONTAINER.getHost())
+                            .setTable(
+                                "inventory.customers") // Table for the ReadSchemaTransform to focus
+                            // on
                             .setPort(MY_SQL_CONTAINER.getMappedPort(3306))
                             .setDebeziumConnectionProperties(
                                 Lists.newArrayList(
@@ -231,20 +229,25 @@ public class DebeziumIOMySqlConnectorIT {
                                     "schema.history.internal.kafka.topic=schema-history-mysql-transform-"
                                         + System.nanoTime(),
                                     "schema.history.internal=io.debezium.storage.kafka.history.KafkaSchemaHistory",
-                                    "database.server.id=" + (6000 + (int) (Math.random() * 500)), // Wider range for server ID
-                                    "database.server.name=mysql-transform-server-" + System.nanoTime(),
+                                    "database.server.id="
+                                        + (6000
+                                            + (int)
+                                                (Math.random() * 500)), // Wider range for server ID
+                                    "database.server.name=mysql-transform-server-"
+                                        + System.nanoTime(),
                                     "database.include.list=inventory",
-                                    "table.include.list=inventory.customers", // Ensure this aligns with setTable()
+                                    "table.include.list=inventory.customers", // Ensure this aligns
+                                    // with setTable()
                                     "snapshot.mode=initial", // Explicitly 'initial'
                                     "snapshot.locking.mode=none",
-                                    "snapshot.delay.ms=5000", 
+                                    "snapshot.delay.ms=5000",
                                     "snapshot.fetch.size=2048", // Default is 2048, explicit
-                                    "connect.timeout.ms=90000", // Debezium's own connection timeout to DB (90s)
+                                    "connect.timeout.ms=90000", // Debezium's own connection timeout
+                                    // to DB (90s)
                                     "heartbeat.interval.ms=10000", // Add heartbeat
                                     "max.queue.size=8192", // Default
                                     "max.batch.size=2048", // Default
-                                    "database.history.ddl.filter=DROP TABLE.*"
-                                    ))
+                                    "database.history.ddl.filter=DROP TABLE.*"))
                             .build()))
             .get("output");
 
@@ -254,9 +257,7 @@ public class DebeziumIOMySqlConnectorIT {
               assertThat(
                   "Number of rows received",
                   Lists.newArrayList(rows).size(),
-                  equalTo(
-                      Long.valueOf(writeSize + 4)
-                          .intValue())); // Existing 4 + new inserts
+                  equalTo(Long.valueOf(writeSize + 4).intValue())); // Existing 4 + new inserts
               return null;
             });
 
@@ -301,20 +302,19 @@ public class DebeziumIOMySqlConnectorIT {
         "database.server.id",
         String.valueOf(190000 + (int) (Math.random() * 2000))); // Wider range for server ID
     dbzConnectorProps.setProperty("database.server.name", "dbserver1-io-" + System.nanoTime());
-    dbzConnectorProps.setProperty(
-        "database.include.list", "inventory");
+    dbzConnectorProps.setProperty("database.include.list", "inventory");
     dbzConnectorProps.setProperty(
         "table.include.list",
         "inventory.addresses,inventory.customers"); // Check both for this direct IO test
-    dbzConnectorProps.setProperty("snapshot.mode", "initial"); 
+    dbzConnectorProps.setProperty("snapshot.mode", "initial");
     dbzConnectorProps.setProperty("snapshot.locking.mode", "none");
-    dbzConnectorProps.setProperty("snapshot.delay.ms", "5000"); 
+    dbzConnectorProps.setProperty("snapshot.delay.ms", "5000");
     dbzConnectorProps.setProperty("snapshot.fetch.size", "2048");
-    dbzConnectorProps.setProperty("connect.timeout.ms", "90000"); 
+    dbzConnectorProps.setProperty("connect.timeout.ms", "90000");
     dbzConnectorProps.setProperty("heartbeat.interval.ms", "10000");
-    dbzConnectorProps.setProperty("max.queue.size", "8192"); 
-    dbzConnectorProps.setProperty("max.batch.size", "2048"); 
-    dbzConnectorProps.setProperty("database.history.ddl.filter", "DROP TABLE.*"); 
+    dbzConnectorProps.setProperty("max.queue.size", "8192");
+    dbzConnectorProps.setProperty("max.batch.size", "2048");
+    dbzConnectorProps.setProperty("database.history.ddl.filter", "DROP TABLE.*");
 
     dbzConnectorProps.setProperty(
         "schema.history.internal.kafka.bootstrap.servers", kafkaBootstrapServers);
@@ -343,9 +343,7 @@ public class DebeziumIOMySqlConnectorIT {
                 .withCoder(StringUtf8Coder.of()));
 
     String expectedAddressRecordPart =
-        "\"table\":\"addresses\""
-            + ".*\"zip\":\"76036\""
-            + ".*\"customer_id\":1001"; 
+        "\"table\":\"addresses\"" + ".*\"zip\":\"76036\"" + ".*\"customer_id\":1001";
 
     PAssert.that(results)
         .satisfies(
@@ -360,8 +358,11 @@ public class DebeziumIOMySqlConnectorIT {
                   LOG.info("Found matching address record: {}", recordJson);
                 }
               }
-              assertThat("Should have found the specific address record", foundExpectedAddress, equalTo(true));
-              assertThat("Expected initial records from snapshot", recordCount, equalTo(4+4));
+              assertThat(
+                  "Should have found the specific address record",
+                  foundExpectedAddress,
+                  equalTo(true));
+              assertThat("Expected initial records from snapshot", recordCount, equalTo(4 + 4));
               return null;
             });
 
