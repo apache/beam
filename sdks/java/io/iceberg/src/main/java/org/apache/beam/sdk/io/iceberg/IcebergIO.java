@@ -603,7 +603,7 @@ public class IcebergIO {
               .setUseCdc(getUseCdc())
               .setKeepFields(getKeep())
               .setDropFields(getDrop())
-              .setFilter(FilterUtils.convert(getFilter(), table.schema()))
+              .setFilterString(getFilter())
               .build();
       scanConfig.validate(table);
 

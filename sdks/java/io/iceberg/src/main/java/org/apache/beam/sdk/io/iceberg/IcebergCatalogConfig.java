@@ -50,6 +50,8 @@ public abstract class IcebergCatalogConfig implements Serializable {
     return new AutoValue_IcebergCatalogConfig.Builder();
   }
 
+  public abstract Builder toBuilder();
+
   public org.apache.iceberg.catalog.Catalog catalog() {
     if (cachedCatalog == null) {
       String catalogName = getCatalogName();
