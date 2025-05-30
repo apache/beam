@@ -662,6 +662,7 @@ public class TextIOWriteTest {
     assertThat(displayData, hasDisplayItem("fileFooter", "myFooter"));
     assertThat(displayData, hasDisplayItem("shardNameTemplate", "-SS-of-NN-"));
     assertThat(displayData, hasDisplayItem("numShards", 100));
+    assertThat(displayData, hasDisplayItem("maxNumWritersPerBundle", 5));
     assertThat(displayData, hasDisplayItem("writableByteChannelFactory", "UNCOMPRESSED"));
   }
 

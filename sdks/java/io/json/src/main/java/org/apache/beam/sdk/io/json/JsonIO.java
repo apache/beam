@@ -171,6 +171,16 @@ public class JsonIO {
     }
 
     /**
+     * Set the maximum number of writers created in a bundle before spilling to shuffle. See {@link
+     * WriteFiles#withMaxNumWritersPerBundle()}.
+     */
+    public Write<T> withMaxNumWritersPerBundle(@Nullable Integer maxNumWritersPerBundle) {
+      return toBuilder()
+          .setTextIOWrite(getTextIOWrite().withMaxNumWritersPerBundle(maxNumWritersPerBundle))
+          .build();
+    }
+
+    /**
      * Specifies to use a given fixed number of shards per window. See {@link
      * TextIO.Write#withNumShards}.
      */

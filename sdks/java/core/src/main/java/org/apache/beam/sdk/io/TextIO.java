@@ -1071,12 +1071,6 @@ public class TextIO {
     /** Set the maximum number of writers created in a bundle before spilling to shuffle. */
     public TypedWrite<UserT, DestinationT> withMaxNumWritersPerBundle(
         @Nullable Integer maxNumWritersPerBundle) {
-      if (maxNumWritersPerBundle != null) {
-        checkArgument(
-            maxNumWritersPerBundle > 0,
-            "maxNumWritersPerBundle cannot be negative or 0, but was: %s",
-            maxNumWritersPerBundle);
-      }
       return toBuilder().setMaxNumWritersPerBundle(maxNumWritersPerBundle).build();
     }
 
@@ -1208,6 +1202,7 @@ public class TextIO {
       builder
           .addIfNotNull(
               DisplayData.item("numShards", getNumShards()).withLabel("Maximum Output Shards"))
+          .addIfNotNull(DisplayData.item("maxNumWritersPerBundle", getMaxNumWritersPerBundle()))
           .addIfNotNull(
               DisplayData.item("tempDirectory", getTempDirectory())
                   .withLabel("Directory for temporary files"))
