@@ -18,22 +18,21 @@
 
 """Unit tests for LocalFileSystem."""
 import contextlib
-# pytype: skip-file
-
 import filecmp
 import logging
+import mock
 import os
 import shutil
 import tempfile
 import unittest
-
-import mock
 from parameterized import param
 from parameterized import parameterized
 
 from apache_beam.io import localfilesystem
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.options.pipeline_options import PipelineOptions
+
+# pytype: skip-file
 
 
 def _gen_fake_join(separator):
