@@ -89,7 +89,7 @@ public class DebeziumIOMySqlConnectorIT {
           //         .forPort(3306)
           //         .forStatusCodeMatching(response -> response == 200)
           //         .withStartupTimeout(Duration.ofMinutes(2)))
-          .waitingFor(Wait.forLogMessage(".*ready for connections.*\\s", 1));;
+          .waitingFor(Wait.forLogMessage(".*ready for connections.*\\s", 1));
 
   // Added Kafka Testcontainer for schema history
   @ClassRule public static final KafkaContainer KAFKA_CONTAINER = new KafkaContainer(KAFKA_IMAGE);
@@ -165,7 +165,7 @@ public class DebeziumIOMySqlConnectorIT {
   public void testDebeziumSchemaTransformMysqlRead() throws InterruptedException {
     long writeSize = 500L;
     long testTime = Math.max(writeSize * 200L, 120000L);
-    MY_SQL_CONTAINER.start();
+    // MY_SQL_CONTAINER.start();
 
     PipelineOptions options = PipelineOptionsFactory.create();
     Pipeline writePipeline = Pipeline.create(options);
@@ -339,6 +339,6 @@ public class DebeziumIOMySqlConnectorIT {
             });
 
     p.run().waitUntilFinish();
-    MY_SQL_CONTAINER.stop();
+    // MY_SQL_CONTAINER.stop();
   }
 }
