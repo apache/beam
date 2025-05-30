@@ -13,7 +13,7 @@ limitations under the License.
 &lt;!-- div with class case-study-opinion is displayed at the top left area of the case study page -->
 &lt;div class="case-study-opinion">
 &lt;div class="case-study-opinion-img">
-&lt;img src="/images/logos/powered-by/acredit-karma.png"/>
+&lt;img src="/images/logos/powered-by/credit-karma.png"/>
 &lt;/div>
 &lt;blockquote class="case-study-quote-block">
 &lt;p class="case-study-quote-text">
