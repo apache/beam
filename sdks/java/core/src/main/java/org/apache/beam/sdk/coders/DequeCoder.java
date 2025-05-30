@@ -22,15 +22,16 @@ import java.util.Deque;
 import java.util.List;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeParameter;
+import org.checkerframework.checker.nullness.qual.NonNull;
 
 /**
  * A {@link Coder} for {@link Deque}, using the format of {@link IterableLikeCoder}.
  *
  * @param <T> the type of the elements of the Deques being transcoded
  */
-public class DequeCoder<T> extends IterableLikeCoder<T, Deque<T>> {
+public class DequeCoder<T extends @NonNull Object> extends IterableLikeCoder<T, Deque<T>> {
 
-  public static <T> DequeCoder<T> of(Coder<T> elemCoder) {
+  public static <T extends @NonNull Object> DequeCoder<T> of(Coder<T> elemCoder) {
     return new DequeCoder<>(elemCoder);
   }
 
