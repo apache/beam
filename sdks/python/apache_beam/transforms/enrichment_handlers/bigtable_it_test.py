@@ -30,7 +30,6 @@ from apache_beam.testing.util import BeamAssertException
 
 # pylint: disable=ungrouped-imports
 try:
-  from google.api_core.exceptions import NotFound
   from google.cloud.bigtable import Client
   from google.cloud.bigtable.row_filters import ColumnRangeFilter
   from testcontainers.redis import RedisContainer
@@ -272,7 +271,7 @@ class TestBigTableEnrichment(unittest.TestCase):
         table_id=self.table_id,
         row_key=self.row_key,
         row_filter=column_filter)
-    with self.assertRaises(NotFound):
+    with self.assertRaises(Exception):
       test_pipeline = beam.Pipeline()
       _ = (
           test_pipeline

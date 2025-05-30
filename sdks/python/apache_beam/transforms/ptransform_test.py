@@ -1642,9 +1642,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         self.p
         | 'T' >> beam.Create(['some_string'])
         | 'ToStr' >> beam.Map(int_to_string))
-    error_regex = r"TypeCheckError.*"
-    "Runtime type violation detected within ParDo(ToStr): "
-    "Type-hint for argument: 'x' violated. "
+    error_regex = "Type-hint for argument: 'x' violated. "
     "Expected an instance of {}, "
     "instead found some_string, an instance of {}.".format(int, str)
 
