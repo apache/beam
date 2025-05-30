@@ -61,6 +61,7 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.ValueWithMetadataReceiver;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -170,7 +171,7 @@ public class SplittableParDoProcessFnTest {
           new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
               fn,
               tester.getPipelineOptions(),
-              new OutputWindowedValueToDoFnTester<>(tester),
+              new ValueWithMetadataReceiverToDoFnTester<>(tester),
               new SideInputReader() {
                 @Override
                 public <T> T get(PCollectionView<T> view, BoundedWindow window) {
@@ -255,11 +256,11 @@ public class SplittableParDoProcessFnTest {
     }
   }
 
-  private static class OutputWindowedValueToDoFnTester<OutputT>
-      implements OutputWindowedValue<OutputT> {
+  private static class ValueWithMetadataReceiverToDoFnTester<OutputT>
+      implements ValueWithMetadataReceiver<OutputT> {
     private final DoFnTester<?, OutputT> tester;
 
-    private OutputWindowedValueToDoFnTester(DoFnTester<?, OutputT> tester) {
+    private ValueWithMetadataReceiverToDoFnTester(DoFnTester<?, OutputT> tester) {
       this.tester = tester;
     }
 

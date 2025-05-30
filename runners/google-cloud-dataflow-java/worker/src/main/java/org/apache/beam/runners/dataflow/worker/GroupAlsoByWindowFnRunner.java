@@ -20,7 +20,6 @@ package org.apache.beam.runners.dataflow.worker;
 import java.util.Collection;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
-import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -28,6 +27,7 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.ValueWithMetadataReceiver;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Instant;
@@ -96,8 +96,8 @@ public class GroupAlsoByWindowFnRunner<InputT, OutputT> implements DoFnRunner<In
   private void invokeProcessElement(WindowedValue<InputT> elem) {
     // This can contain user code. Wrap it in case it throws an exception.
     try {
-      OutputWindowedValue<OutputT> output =
-          new OutputWindowedValue<OutputT>() {
+      ValueWithMetadataReceiver<OutputT> output =
+          new ValueWithMetadataReceiver<OutputT>() {
             @Override
             public void outputWindowedValue(
                 OutputT output,

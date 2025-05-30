@@ -25,13 +25,13 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
-import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.PeekingReiterator;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.ValueWithMetadataReceiver;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterable;
 import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterator;
@@ -90,7 +90,7 @@ class BatchGroupAlsoByWindowViaIteratorsFn<K, V, W extends BoundedWindow>
       PipelineOptions options,
       StepContext stepContext,
       SideInputReader sideInputReader,
-      OutputWindowedValue<KV<K, Iterable<V>>> output)
+      ValueWithMetadataReceiver<KV<K, Iterable<V>>> output)
       throws Exception {
     K key = element.getKey();
     // This iterable is required to be in order of increasing timestamps

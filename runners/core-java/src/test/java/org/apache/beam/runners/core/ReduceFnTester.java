@@ -56,6 +56,7 @@ import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.AppliedCombineFn;
 import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.sdk.util.ValueWithMetadataReceiver;
 import org.apache.beam.sdk.util.WindowTracing;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.TriggerTranslation;
@@ -94,7 +95,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   private final InMemoryTimerInternals timerInternals = new InMemoryTimerInternals();
 
   private final WindowFn<Object, W> windowFn;
-  private final TestOutputWindowedValue testOutputter;
+  private final TestValueWithMetadataReceiver testOutputter;
   private final SideInputReader sideInputReader;
   private final Coder<OutputT> outputCoder;
   private final WindowingStrategy<Object, W> objectStrategy;
@@ -276,7 +277,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     this.objectStrategy = objectStrategy;
     this.reduceFn = reduceFn;
     this.windowFn = objectStrategy.getWindowFn();
-    this.testOutputter = new TestOutputWindowedValue();
+    this.testOutputter = new TestValueWithMetadataReceiver();
     this.sideInputReader = sideInputReader;
     this.executableTriggerStateMachine = ExecutableTriggerStateMachine.create(triggerStateMachine);
     this.outputCoder = outputCoder;
@@ -597,7 +598,8 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
    * Convey the simulated state and implement {@link #outputWindowedValue} to capture all output
    * elements.
    */
-  private class TestOutputWindowedValue implements OutputWindowedValue<KV<String, OutputT>> {
+  private class TestValueWithMetadataReceiver
+      implements ValueWithMetadataReceiver<KV<String, OutputT>> {
     private List<WindowedValue<KV<String, OutputT>>> outputs = new ArrayList<>();
 
     @Override

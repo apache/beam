@@ -25,6 +25,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.SystemDoFnInternal;
+import org.apache.beam.sdk.util.ValueWithMetadataReceiver;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.TriggerTranslation;
 import org.apache.beam.sdk.values.KV;
@@ -91,8 +92,8 @@ public class GroupAlsoByWindowViaWindowSetNewDoFn<
     this.triggerProto = TriggerTranslation.toProto(windowingStrategy.getTrigger());
   }
 
-  private OutputWindowedValue<KV<K, OutputT>> outputWindowedValue() {
-    return new OutputWindowedValue<KV<K, OutputT>>() {
+  private ValueWithMetadataReceiver<KV<K, OutputT>> outputWindowedValue() {
+    return new ValueWithMetadataReceiver<KV<K, OutputT>>() {
       @Override
       public void outputWindowedValue(
           KV<K, OutputT> output,

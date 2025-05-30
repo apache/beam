@@ -30,7 +30,6 @@ import java.util.Collections;
 import java.util.List;
 import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.NullSideInputReader;
-import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -43,6 +42,7 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
+import org.apache.beam.sdk.util.ValueWithMetadataReceiver;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -604,7 +604,7 @@ public class GroupAlsoByWindowProperties {
     return TimestampedValue.of(res.getValue(), res.getTimestamp());
   }
 
-  private static class TestOutput<K, OutputT> implements OutputWindowedValue<KV<K, OutputT>> {
+  private static class TestOutput<K, OutputT> implements ValueWithMetadataReceiver<KV<K, OutputT>> {
     private final List<WindowedValue<KV<K, OutputT>>> output = new ArrayList<>();
 
     @Override

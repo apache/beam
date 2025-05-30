@@ -111,7 +111,7 @@ class AssignWindowsParDoFnFactory implements ParDoFnFactory {
               });
 
       WindowedValue<T> res =
-          WindowedValue.of(elem.getValue(), elem.getTimestamp(), windows, elem.getPane());
+          WindowedValue.of(elem.getValue(), elem.getTimestamp(), windows, elem.getPaneInfo());
       receiver.process(res);
     }
 

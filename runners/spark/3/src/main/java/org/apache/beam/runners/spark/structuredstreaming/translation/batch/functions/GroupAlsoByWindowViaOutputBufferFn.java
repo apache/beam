@@ -23,7 +23,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.function.Supplier;
 import org.apache.beam.runners.core.InMemoryTimerInternals;
-import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.ReduceFnRunner;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
@@ -35,6 +34,7 @@ import org.apache.beam.runners.core.triggers.TriggerStateMachines;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.ValueWithMetadataReceiver;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.TriggerTranslation;
 import org.apache.beam.sdk.values.KV;
@@ -87,7 +87,7 @@ public class GroupAlsoByWindowViaOutputBufferFn<K, InputT, W extends BoundedWind
     timerInternals.advanceProcessingTime(Instant.now());
     timerInternals.advanceSynchronizedProcessingTime(Instant.now());
     StateInternals stateInternals = stateInternalsFactory.stateInternalsForKey(key);
-    GABWOutputWindowedValue<K, InputT> outputter = new GABWOutputWindowedValue<>();
+    GABWValueWithMetadataReceiver<K, InputT> outputter = new GABWValueWithMetadataReceiver<>();
 
     ReduceFnRunner<K, InputT, Iterable<InputT>, W> reduceFnRunner =
         new ReduceFnRunner<>(
@@ -144,8 +144,8 @@ public class GroupAlsoByWindowViaOutputBufferFn<K, InputT, W extends BoundedWind
     }
   }
 
-  private static class GABWOutputWindowedValue<K, V>
-      implements OutputWindowedValue<KV<K, Iterable<V>>> {
+  private static class GABWValueWithMetadataReceiver<K, V>
+      implements ValueWithMetadataReceiver<KV<K, Iterable<V>>> {
     private final List<WindowedValue<KV<K, Iterable<V>>>> outputs = new ArrayList<>();
 
     @Override

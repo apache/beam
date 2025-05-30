@@ -73,8 +73,11 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.util.OutputBuilderSupplier;
+import org.apache.beam.sdk.util.OutputBuilderSuppliers;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.OutputBuilder;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
@@ -1177,31 +1180,44 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
     @FinishBundle
     public void finishBundle(FinishBundleContext context) throws Exception {
+      OutputBuilderSupplier outputBuilderSupplier = OutputBuilderSuppliers.forFinishBundle(context);
+
       OutputReceiver<BigQueryStorageApiInsertError> failedRowsReceiver =
           new OutputReceiver<BigQueryStorageApiInsertError>() {
             @Override
-            public void output(BigQueryStorageApiInsertError output) {
-              outputWithTimestamp(output, GlobalWindow.INSTANCE.maxTimestamp());
+            public OutputBuilder<BigQueryStorageApiInsertError> builder(
+                BigQueryStorageApiInsertError value) {
+              return outputBuilderSupplier
+                  .builder(failedRowsTag)
+                  .setValue(value)
+                  .setTimestamp(GlobalWindow.INSTANCE.maxTimestamp())
+                  .setWindow(GlobalWindow.INSTANCE);
             }
 
             @Override
-            public void outputWithTimestamp(
-                BigQueryStorageApiInsertError output, org.joda.time.Instant timestamp) {
-              context.output(failedRowsTag, output, timestamp, GlobalWindow.INSTANCE);
+            public <AdditionalOutputT> OutputBuilder<AdditionalOutputT> builder(
+                TupleTag<AdditionalOutputT> tag, AdditionalOutputT value) {
+              throw new UnsupportedOperationException("Cannot output to non-default tag");
             }
           };
+
       @Nullable OutputReceiver<TableRow> successfulRowsReceiver = null;
       if (successfulRowsTag != null) {
         successfulRowsReceiver =
             new OutputReceiver<TableRow>() {
               @Override
-              public void output(TableRow output) {
-                outputWithTimestamp(output, GlobalWindow.INSTANCE.maxTimestamp());
+              public OutputBuilder<TableRow> builder(TableRow value) {
+                return outputBuilderSupplier
+                    .builder(successfulRowsTag)
+                    .setValue(value)
+                    .setTimestamp(GlobalWindow.INSTANCE.maxTimestamp())
+                    .setWindow(GlobalWindow.INSTANCE);
               }
 
               @Override
-              public void outputWithTimestamp(TableRow output, org.joda.time.Instant timestamp) {
-                context.output(successfulRowsTag, output, timestamp, GlobalWindow.INSTANCE);
+              public <AdditionalOutputT> OutputBuilder<AdditionalOutputT> builder(
+                  TupleTag<AdditionalOutputT> tag, AdditionalOutputT value) {
+                throw new UnsupportedOperationException("Cannot output to non-default tag");
               }
             };
       }

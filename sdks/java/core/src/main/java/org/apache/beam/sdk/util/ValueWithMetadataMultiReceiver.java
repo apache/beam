@@ -15,24 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.spark.translation;
+package org.apache.beam.sdk.util;
 
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.spark.api.java.function.Function;
+import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.values.TupleTag;
 
 /**
- * Simple {@link Function} to bring the windowing information into the value from the implicit
- * background representation of the {@link PCollection}.
+ * Encapsulation of a method of output that can output a value with all of its windowing information
+ * to a tagged destination.
  */
-public class ReifyTimestampsAndWindowsFunction<K, V>
-    implements Function<WindowedValue<KV<K, V>>, KV<K, WindowedValue<V>>> {
-  @Override
-  public KV<K, WindowedValue<V>> call(WindowedValue<KV<K, V>> elem) throws Exception {
-    return KV.of(
-        elem.getValue().getKey(),
-        WindowedValue.of(
-            elem.getValue().getValue(), elem.getTimestamp(), elem.getWindows(), elem.getPaneInfo()));
-  }
+@Internal
+public interface ValueWithMetadataMultiReceiver {
+  <OutputT> ValueWithMetadataReceiver<OutputT> forTag(TupleTag<OutputT> tag);
 }

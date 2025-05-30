@@ -77,10 +77,10 @@ class ReifyTimestampAndWindowsParDoFnFactory implements ParDoFnFactory {
                       typedElem.getValue().getValue(),
                       typedElem.getTimestamp(),
                       typedElem.getWindows(),
-                      typedElem.getPane())),
+                      typedElem.getPaneInfo())),
               typedElem.getTimestamp(),
               typedElem.getWindows(),
-              typedElem.getPane()));
+              typedElem.getPaneInfo()));
     }
 
     @Override

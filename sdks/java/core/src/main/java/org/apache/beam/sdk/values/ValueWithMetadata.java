@@ -15,24 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.spark.translation;
+package org.apache.beam.sdk.values;
 
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.spark.api.java.function.Function;
+import java.util.Collection;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.joda.time.Instant;
 
 /**
- * Simple {@link Function} to bring the windowing information into the value from the implicit
- * background representation of the {@link PCollection}.
+ * The main fields for a wrapper value in Beam.
+ *
+ * <p>Not intended to be implemented by Beam users. This interface will be expanded in ways that are
+ * backwards-incompatible, by requiring implementors to add methods.
  */
-public class ReifyTimestampsAndWindowsFunction<K, V>
-    implements Function<WindowedValue<KV<K, V>>, KV<K, WindowedValue<V>>> {
-  @Override
-  public KV<K, WindowedValue<V>> call(WindowedValue<KV<K, V>> elem) throws Exception {
-    return KV.of(
-        elem.getValue().getKey(),
-        WindowedValue.of(
-            elem.getValue().getValue(), elem.getTimestamp(), elem.getWindows(), elem.getPaneInfo()));
-  }
+public interface ValueWithMetadata<T> {
+  T getValue();
+
+  Instant getTimestamp();
+
+  Collection<? extends BoundedWindow> getWindows();
+
+  PaneInfo getPaneInfo();
 }

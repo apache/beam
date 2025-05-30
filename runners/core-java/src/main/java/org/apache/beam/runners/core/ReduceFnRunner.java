@@ -46,6 +46,7 @@ import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.util.ValueWithMetadataReceiver;
 import org.apache.beam.sdk.util.WindowTracing;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
@@ -106,7 +107,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
    */
   private final WindowingStrategy<Object, W> windowingStrategy;
 
-  private final OutputWindowedValue<KV<K, OutputT>> outputter;
+  private final ValueWithMetadataReceiver<KV<K, OutputT>> outputter;
 
   private final StateInternals stateInternals;
 
@@ -214,7 +215,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       ExecutableTriggerStateMachine triggerStateMachine,
       StateInternals stateInternals,
       TimerInternals timerInternals,
-      OutputWindowedValue<KV<K, OutputT>> outputter,
+      ValueWithMetadataReceiver<KV<K, OutputT>> outputter,
       @Nullable SideInputReader sideInputReader,
       ReduceFn<K, InputT, OutputT, W> reduceFn,
       @Nullable PipelineOptions options) {

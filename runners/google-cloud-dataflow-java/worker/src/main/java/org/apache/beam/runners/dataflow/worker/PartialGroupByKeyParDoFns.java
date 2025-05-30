@@ -243,7 +243,7 @@ public class PartialGroupByKeyParDoFns {
       // Ignore timestamp for grouping purposes.
       // The PGBK output will inherit the timestamp of one of its inputs.
       return WindowedValue.of(
-          coder.structuralValue(key.getValue()), ignored, key.getWindows(), key.getPane());
+          coder.structuralValue(key.getValue()), ignored, key.getWindows(), key.getPaneInfo());
     }
   }
 
@@ -304,7 +304,7 @@ public class PartialGroupByKeyParDoFns {
       WindowedValue<KV<K, InputT>> input = (WindowedValue<KV<K, InputT>>) elem;
       for (BoundedWindow w : input.getWindows()) {
         WindowedValue<KV<K, InputT>> windowsExpandedInput =
-            WindowedValue.of(input.getValue(), input.getTimestamp(), w, input.getPane());
+            WindowedValue.of(input.getValue(), input.getTimestamp(), w, input.getPaneInfo());
         groupingTable.put(windowsExpandedInput, receiver);
       }
     }
@@ -361,7 +361,7 @@ public class PartialGroupByKeyParDoFns {
       WindowedValue<KV<K, InputT>> input = (WindowedValue<KV<K, InputT>>) elem;
       for (BoundedWindow w : input.getWindows()) {
         WindowedValue<KV<K, InputT>> windowsExpandedInput =
-            WindowedValue.of(input.getValue(), input.getTimestamp(), w, input.getPane());
+            WindowedValue.of(input.getValue(), input.getTimestamp(), w, input.getPaneInfo());
 
         if (!sideInputFetcher.storeIfBlocked(windowsExpandedInput)) {
           groupingTable.put(windowsExpandedInput, receiver);
