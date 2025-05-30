@@ -224,8 +224,8 @@ public class DebeziumIOMySqlConnectorIT {
                                     "database.include.list=inventory",
                                     "table.include.list=inventory.customers",
                                     "snapshot.locking.mode=none",
-                                    "snapshot.delay.ms=3000" // Added snapshot delay
-                                    ))
+                                    "snapshot.delay.ms=3000",
+                                    "database.history.ddl.filter=DROP TABLE.*"))
                             .build()))
             .get("output");
 
@@ -282,6 +282,8 @@ public class DebeziumIOMySqlConnectorIT {
     // Consider if you really want this false. For robust schema history, true is better.
 
     dbzConnectorProps.setProperty("snapshot.delay.ms", "3000"); // Needed for thread sync
+    dbzConnectorProps.setProperty(
+        "database.history.ddl.filter", "DROP TABLE.*"); // Needed DDL filter
     // --- Kafka Schema History Properties ---
     dbzConnectorProps.setProperty(
         "schema.history.internal.kafka.bootstrap.servers", kafkaBootstrapServers);
