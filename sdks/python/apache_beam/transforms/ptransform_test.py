@@ -1810,19 +1810,10 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     # The type-hinted applied via the 'returns()' method indicates the ParDo
     # should return an instance of type: Tuple[float, int]. However, an instance
     # of 'int' will be generated instead.
-    error_regex = r"TypeCheckError.*"
-
-    if self.p._options.view_as(TypeOptions).runtime_type_check:
-      error_regex += "Runtime type violation detected within "
-      "ParDo(Swap): Tuple type constraint violated. "
-      "Valid object instance must be of type 'tuple'. Instead, "
-      "an instance of 'float' was received."
-
-    if self.p._options.view_as(TypeOptions).performance_runtime_type_check:
-      error_regex += "Runtime type violation detected within "
-      "Swap: Type-hint for argument: 'x_y1' violated: "
-      "Tuple type constraint violated. "
-      "Valid object instance must be of type 'tuple'. "
+    error_regex = "Runtime type violation detected within "
+    "ParDo(Swap): Tuple type constraint violated. "
+    "Valid object instance must be of type 'tuple'. Instead, "
+    "an instance of 'float' was received."
 
     with self.assertRaisesRegex(Exception, error_regex) as e:
       (
