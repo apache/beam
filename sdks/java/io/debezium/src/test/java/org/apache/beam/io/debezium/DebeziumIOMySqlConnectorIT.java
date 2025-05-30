@@ -105,10 +105,13 @@ public class DebeziumIOMySqlConnectorIT {
         Statement stmt = conn.createStatement()) {
       stmt.execute("GRANT REPLICATION CLIENT ON *.* TO 'mysqluser'@'%'");
       stmt.execute(
-          "GRANT SELECT, RELOAD, FLUSH_TABLES, REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO 'mysqluser'@'%'");
+          "GRANT SELECT, RELOAD, FLUSH_TABLES, REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO"
+              + " 'mysqluser'@'%'");
       stmt.execute("FLUSH PRIVILEGES");
       LOG.info(
-          "Granted necessary privileges (SELECT, RELOAD, SHOW DATABASES, REPLICATION SLAVE, REPLICATION CLIENT, LOCK TABLES, FLUSH_TABLES, PROCESS) to 'mysqluser'@'%' in MySQL.");
+          "Granted necessary privileges (SELECT, RELOAD, SHOW DATABASES, REPLICATION SLAVE,"
+              + " REPLICATION CLIENT, LOCK TABLES, FLUSH_TABLES, PROCESS) to 'mysqluser'@'%' in"
+              + " MySQL.");
     } catch (SQLException e) {
       LOG.error("Failed to grant privileges to 'mysqluser' in MySQL container", e);
       throw e; // Rethrow to fail fast if setup fails
@@ -126,22 +129,34 @@ public class DebeziumIOMySqlConnectorIT {
 
   private void monitorEssentialMetrics() {
     DataSource ds = getMysqlDatasource(null);
-    try {
-      Connection conn = ds.getConnection();
-      Statement st = conn.createStatement();
-      while (true) {
-        ResultSet rs = st.executeQuery("SHOW STATUS WHERE `variable_name` = 'Threads_connected'");
-        if (rs.next()) {
-          LOG.info("Open connections: {}", rs.getLong(2));
-          rs.close();
-          Thread.sleep(4000);
-        } else {
-          throw new IllegalArgumentException("OIOI");
+    LOG.info("Monitoring thread started for MySQL connections.");
+    try (Connection conn = ds.getConnection();
+        Statement st = conn.createStatement()) {
+      while (!Thread.currentThread().isInterrupted()) {
+        try (ResultSet rs =
+            st.executeQuery("SHOW STATUS WHERE `variable_name` = 'Threads_connected'")) {
+          if (rs.next()) {
+            LOG.info("MySQL Open connections: {}", rs.getLong(2));
+          } else {
+            LOG.warn("Could not retrieve 'Threads_connected' status from MySQL.");
+            // Consider if breaking the loop is appropriate here or just log and continue
+            break;
+          }
         }
+        // Make sleep interruptible
+        Thread.sleep(4000);
       }
-    } catch (InterruptedException | SQLException ex) {
-      throw new IllegalArgumentException("Oi", ex);
+    } catch (InterruptedException e) {
+      // This is an expected part of shutting down the monitor thread.
+      LOG.info("MySQL connection monitoring thread interrupted normally.");
+      // Restore the interrupted status
+      Thread.currentThread().interrupt();
+    } catch (SQLException ex) {
+      // Log SQL exceptions but don't let them kill the test with an unrelated
+      // IllegalArgumentException
+      LOG.error("SQLException in MySQL connection monitoring thread, exiting monitor.", ex);
     }
+    LOG.info("Monitoring thread finished for MySQL connections.");
   }
 
   @Test
@@ -283,8 +298,8 @@ public class DebeziumIOMySqlConnectorIT {
     String expected =
         "{\"metadata\":{\"connector\":\"mysql\",\"version\":\"1.9.8.Final\",\"name\":\"dbserver1\","
             + "\"database\":\"inventory\",\"schema\":\"mysql-bin.000003\",\"table\":\"addresses\"},\"before\":null,"
-            + "\"after\":{\"fields\":{\"zip\":\"76036\",\"city\":\"Euless\","
-            + "\"street\":\"3183 Moore Avenue\",\"id\":10,\"state\":\"Texas\",\"customer_id\":1001,"
+            + "\"after\":{\"fields\":{\"zip\":\"76036\",\"city\":\"Euless\",\"street\":\"3183 Moore"
+            + " Avenue\",\"id\":10,\"state\":\"Texas\",\"customer_id\":1001,"
             + "\"type\":\"SHIPPING\"}}}";
 
     PAssert.that(results)
