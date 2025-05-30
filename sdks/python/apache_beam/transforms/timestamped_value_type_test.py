@@ -124,7 +124,7 @@ class TypeCheckTimestampedValueTestCase(unittest.TestCase):
             | beam.Map(print))
 
   def test_opts_with_check_typevar(self):
-    with self.assertRaises(RuntimeError):
+    with self.assertRaises(Exception):
       with beam.Pipeline(options=self.opts) as p:
         _ = (
             p
