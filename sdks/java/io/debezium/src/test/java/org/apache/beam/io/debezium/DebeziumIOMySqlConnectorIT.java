@@ -223,8 +223,10 @@ public class DebeziumIOMySqlConnectorIT {
                                         + System.nanoTime(),
                                     "database.include.list=inventory",
                                     "table.include.list=inventory.customers",
+                                    "snapshot.mode=initial",
                                     "snapshot.locking.mode=none",
-                                    "snapshot.delay.ms=3000",
+                                    "snapshot.delay.ms=5000", // Increased snapshot delay
+                                    "connect.timeout.ms=60000",
                                     "database.history.ddl.filter=DROP TABLE.*"))
                             .build()))
             .get("output");
@@ -274,16 +276,22 @@ public class DebeziumIOMySqlConnectorIT {
     dbzConnectorProps.setProperty("database.server.name", "dbserver1");
     dbzConnectorProps.setProperty(
         "database.include.list", "inventory"); // Comma-separated list of databases
-    dbzConnectorProps.setProperty(
-        "table.include.list",
-        "inventory.addresses"); // Comma-separated list of tables (fully qualified)
+    // dbzConnectorProps.setProperty(
+    //     "table.include.list",
+    //     "inventory.addresses"); // Comma-separated list of tables (fully qualified)
     // dbzConnectorProps.setProperty("include.schema.changes", "false"); // Default is true, usually
     // needed for schema history.
     // Consider if you really want this false. For robust schema history, true is better.
 
-    dbzConnectorProps.setProperty("snapshot.delay.ms", "3000"); // Needed for thread sync
     dbzConnectorProps.setProperty(
-        "database.history.ddl.filter", "DROP TABLE.*"); // Needed DDL filter
+        "table.include.list",
+        "inventory.addresses,inventory.customers"); // Check both for this direct IO test
+    dbzConnectorProps.setProperty("snapshot.mode", "initial"); // Explicitly 'initial'
+    dbzConnectorProps.setProperty("snapshot.locking.mode", "none");
+    dbzConnectorProps.setProperty("snapshot.delay.ms", "5000"); // Increased snapshot delay
+    dbzConnectorProps.setProperty(
+        "connect.timeout.ms", "60000"); // Debezium's own connection timeout to DB
+    dbzConnectorProps.setProperty("database.history.ddl.filter", "DROP TABLE.*"); // Keep DDL filter
     // --- Kafka Schema History Properties ---
     dbzConnectorProps.setProperty(
         "schema.history.internal.kafka.bootstrap.servers", kafkaBootstrapServers);
