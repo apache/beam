@@ -43,6 +43,7 @@ from typing import Tuple
 from typing import TypeVar
 from typing import Union
 
+from beam.sdks.python.apache_beam.io.gcp.internal.clients.bigquery.bigquery_v2_messages import BigqueryTablesGetRequest
 import fastavro
 import numpy as np
 import regex
@@ -772,7 +773,7 @@ class BigQueryWrapper(object):
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_timeout_or_quota_issues_filter)
-  def get_table(self, project_id, dataset_id, table_id, view='BASIC'):
+  def get_table(self, project_id, dataset_id, table_id, view=BigqueryTablesGetRequest.ViewValueValuesEnum.BASIC):
     """Lookup a table's metadata object.
 
     Args:
