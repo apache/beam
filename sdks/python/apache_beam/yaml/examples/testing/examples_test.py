@@ -44,6 +44,8 @@ from apache_beam.yaml import yaml_transform
 from apache_beam.yaml.readme_test import TestEnvironment
 from apache_beam.yaml.readme_test import replace_recursive
 
+from . import input_data
+
 
 @beam.ptransform.ptransform_fn
 def test_enrichment(
@@ -135,130 +137,6 @@ def check_output(expected: List[str]):
     assert_matches_stdout(formatted_actual, expected)
 
   return _check_inner
-
-
-def products_csv():
-  return '\n'.join([
-      'transaction_id,product_name,category,price',
-      'T0012,Headphones,Electronics,59.99',
-      'T5034,Leather Jacket,Apparel,109.99',
-      'T0024,Aluminum Mug,Kitchen,29.99',
-      'T0104,Headphones,Electronics,59.99',
-      'T0302,Monitor,Electronics,249.99'
-  ])
-
-
-def spanner_orders_data():
-  return [{
-      'order_id': 1,
-      'customer_id': 1001,
-      'product_id': 2001,
-      'order_date': '24-03-24',
-      'order_amount': 150,
-  },
-          {
-              'order_id': 2,
-              'customer_id': 1002,
-              'product_id': 2002,
-              'order_date': '19-04-24',
-              'order_amount': 90,
-          },
-          {
-              'order_id': 3,
-              'customer_id': 1003,
-              'product_id': 2003,
-              'order_date': '7-05-24',
-              'order_amount': 110,
-          }]
-
-
-def spanner_shipments_data():
-  return [{
-      'shipment_id': 'S1',
-      'customer_id': 'C1',
-      'shipment_date': '2023-05-01',
-      'shipment_cost': 150.0,
-      'customer_name': 'Alice',
-      'customer_email': 'alice@example.com'
-  },
-          {
-              'shipment_id': 'S2',
-              'customer_id': 'C2',
-              'shipment_date': '2023-06-12',
-              'shipment_cost': 300.0,
-              'customer_name': 'Bob',
-              'customer_email': 'bob@example.com'
-          },
-          {
-              'shipment_id': 'S3',
-              'customer_id': 'C1',
-              'shipment_date': '2023-05-10',
-              'shipment_cost': 20.0,
-              'customer_name': 'Alice',
-              'customer_email': 'alice@example.com'
-          },
-          {
-              'shipment_id': 'S4',
-              'customer_id': 'C4',
-              'shipment_date': '2024-07-01',
-              'shipment_cost': 150.0,
-              'customer_name': 'Derek',
-              'customer_email': 'derek@example.com'
-          },
-          {
-              'shipment_id': 'S5',
-              'customer_id': 'C5',
-              'shipment_date': '2023-05-09',
-              'shipment_cost': 300.0,
-              'customer_name': 'Erin',
-              'customer_email': 'erin@example.com'
-          },
-          {
-              'shipment_id': 'S6',
-              'customer_id': 'C4',
-              'shipment_date': '2024-07-02',
-              'shipment_cost': 150.0,
-              'customer_name': 'Derek',
-              'customer_email': 'derek@example.com'
-          }]
-
-
-def bigtable_data():
-  return [{
-      'product_id': '1', 'product_name': 'pixel 5', 'product_stock': '2'
-  }, {
-      'product_id': '2', 'product_name': 'pixel 6', 'product_stock': '4'
-  }, {
-      'product_id': '3', 'product_name': 'pixel 7', 'product_stock': '20'
-  }, {
-      'product_id': '4', 'product_name': 'pixel 8', 'product_stock': '10'
-  }, {
-      'product_id': '5', 'product_name': 'pixel 11', 'product_stock': '3'
-  }, {
-      'product_id': '6', 'product_name': 'pixel 12', 'product_stock': '7'
-  }, {
-      'product_id': '7', 'product_name': 'pixel 13', 'product_stock': '8'
-  }, {
-      'product_id': '8', 'product_name': 'pixel 14', 'product_stock': '3'
-  }]
-
-
-def bigquery_data():
-  return [{
-      'customer_id': 1001,
-      'customer_name': 'Alice',
-      'customer_email': 'alice@gmail.com'
-  },
-          {
-              'customer_id': 1002,
-              'customer_name': 'Bob',
-              'customer_email': 'bob@gmail.com'
-          },
-          {
-              'customer_id': 1003,
-              'customer_name': 'Claire',
-              'customer_email': 'claire@gmail.com'
-          }]
 
 
 def create_test_method(
@@ -647,12 +525,15 @@ def _enrichment_test_preprocessor(
   return test_spec
 
 
-INPUT_FILES = {'products.csv': products_csv()}
+INPUT_FILES = {'products.csv': input_data.products_csv()}
 INPUT_TABLES = {
-    ('shipment-test', 'shipment', 'shipments'): spanner_shipments_data(),
-    ('orders-test', 'order-database', 'orders'): spanner_orders_data(),
-    ('BigTable', 'beam-test', 'bigtable-enrichment-test'): bigtable_data(),
-    ('BigQuery', 'ALL_TEST', 'customers'): bigquery_data()
+    ('shipment-test', 'shipment', 'shipments'): input_data.
+    spanner_shipments_data(),
+    ('orders-test', 'order-database', 'orders'): input_data.
+    spanner_orders_data(),
+    ('BigTable', 'beam-test', 'bigtable-enrichment-test'): input_data.
+    bigtable_data(),
+    ('BigQuery', 'ALL_TEST', 'customers'): input_data.bigquery_data()
 }
 YAML_DOCS_DIR = os.path.join(os.path.dirname(__file__))
 
