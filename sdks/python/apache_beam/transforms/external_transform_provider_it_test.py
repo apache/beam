@@ -144,9 +144,8 @@ class ExternalTransformProviderIT(unittest.TestCase):
 
     with beam.Pipeline() as p:
       numbers = p | provider.GenerateSequence(
-          start=0, end=3, rate={
-              'elements': 1, 'seconds': 1
-          }) | beam.Map(lambda row: row.value)
+          start=0, end=3, rate=beam.Row(
+              elements=1, seconds=1)) | beam.Map(lambda row: row.value)
 
       assert_that(numbers, equal_to([0, 1, 2]))
 
