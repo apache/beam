@@ -162,7 +162,7 @@ public class DebeziumIOMySqlConnectorIT {
   @Test
   public void testDebeziumSchemaTransformMysqlRead() throws InterruptedException {
     long writeSize = 500L;
-    long testTime = writeSize * 200L;
+    long testTime = Math.max(writeSize * 100L, 60000L);
     MY_SQL_CONTAINER.start();
 
     PipelineOptions options = PipelineOptionsFactory.create();
@@ -211,6 +211,21 @@ public class DebeziumIOMySqlConnectorIT {
                             .setHost("localhost")
                             .setTable("inventory.customers")
                             .setPort(MY_SQL_CONTAINER.getMappedPort(3306))
+                            .setDebeziumConnectionProperties(
+                                Lists.newArrayList(
+                                    "schema.history.internal.kafka.bootstrap.servers="
+                                        + KAFKA_CONTAINER.getBootstrapServers(),
+                                    "schema.history.internal.kafka.topic=schema-history-mysql-transform-"
+                                        + System.nanoTime(),
+                                    "schema.history.internal=io.debezium.storage.kafka.history.KafkaSchemaHistory",
+                                    "database.server.id=" + (5400 + (int) (Math.random() * 100)),
+                                    "database.server.name=mysql-transform-server-"
+                                        + System.nanoTime(),
+                                    "database.include.list=inventory",
+                                    "table.include.list=inventory.customers",
+                                    "snapshot.locking.mode=none",
+                                    "snapshot.delay.ms=3000" // Added snapshot delay
+                                    ))
                             .build()))
             .get("output");
 
@@ -266,6 +281,7 @@ public class DebeziumIOMySqlConnectorIT {
     // needed for schema history.
     // Consider if you really want this false. For robust schema history, true is better.
 
+    dbzConnectorProps.setProperty("snapshot.delay.ms", "3000"); // Needed for thread sync
     // --- Kafka Schema History Properties ---
     dbzConnectorProps.setProperty(
         "schema.history.internal.kafka.bootstrap.servers", kafkaBootstrapServers);
