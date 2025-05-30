@@ -959,11 +959,6 @@ func (em *ElementManager) triageTimers(d TentativeData, inputInfo PColInfo, stag
 				for _, e := range ret.elms {
 					keyToTimers[timerKey{key: string(ret.keyBytes), tag: ret.tag, win: e.window}] = e
 				}
-				if len(ret.elms) == 0 {
-					for _, w := range ret.windows {
-						delete(keyToTimers, timerKey{key: string(ret.keyBytes), tag: ret.tag, win: w})
-					}
-				}
 				// Indicate we'd like to continue iterating.
 				return true
 			})
@@ -1345,18 +1340,23 @@ func (*statefulStageKind) addPending(ss *stageState, em *ElementManager, newPend
 		heap.Push(&dnt.elements, e)
 
 		if e.IsTimer() {
-			if lastSet, ok := dnt.timers[timerKey{family: e.family, tag: e.tag, window: e.window}]; ok {
-				// existing timer!
-				// don't increase the count this time, as "this" timer is already pending.
-				count--
-				// clear out the existing hold for accounting purposes.
-				ss.watermarkHolds.Drop(lastSet.hold, 1)
-			}
-			// Update the last set time on the timer.
-			dnt.timers[timerKey{family: e.family, tag: e.tag, window: e.window}] = timerTimes{firing: e.timestamp, hold: e.holdTimestamp}
+			if e.sequence > 0 {
+				if lastSet, ok := dnt.timers[timerKey{family: e.family, tag: e.tag, window: e.window}]; ok {
+					// existing timer!
+					// don't increase the count this time, as "this" timer is already pending.
+					count--
+					// clear out the existing hold for accounting purposes.
+					ss.watermarkHolds.Drop(lastSet.hold, 1)
+				}
+				// Update the last set time on the timer.
+				dnt.timers[timerKey{family: e.family, tag: e.tag, window: e.window}] = timerTimes{firing: e.timestamp, hold: e.holdTimestamp}
 
-			// Mark the hold in the heap.
-			ss.watermarkHolds.Add(e.holdTimestamp, 1)
+				// Mark the hold in the heap.
+				ss.watermarkHolds.Add(e.holdTimestamp, 1)
+			} else {
+				// timer is to be cleared
+				delete(dnt.timers, timerKey{family: e.family, tag: e.tag, window: e.window})
+			}
 		}
 	}
 	return count

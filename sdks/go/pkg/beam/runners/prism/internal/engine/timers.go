@@ -86,7 +86,18 @@ func decodeTimerIter(keyDec func(io.Reader) []byte, winCoder WinCoderType, raw [
 			clear := d.Bool()
 			hold := mtime.MaxTimestamp
 			if clear {
-				if !yield(timerRet{keyBytes, tag, nil, ws}) {
+				var elms []element
+				for _, w := range ws {
+					elms = append(elms, element{
+						tag:      tag,
+						elmBytes: nil, // indicates this is a timer.
+						keyBytes: keyBytes,
+						window:   w,
+						sequence: -1,
+					})
+				}
+
+				if !yield(timerRet{keyBytes, tag, elms, ws}) {
 					return // Halt iteration if yeild returns false.
 				}
 				// Otherwise continue handling the remaining bytes.
