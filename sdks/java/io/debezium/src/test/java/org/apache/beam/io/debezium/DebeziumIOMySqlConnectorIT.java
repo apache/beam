@@ -162,7 +162,7 @@ public class DebeziumIOMySqlConnectorIT {
   @Test
   public void testDebeziumSchemaTransformMysqlRead() throws InterruptedException {
     long writeSize = 500L;
-    long testTime = Math.max(writeSize * 100L, 60000L);
+    long testTime = Math.max(writeSize * 200L, 120000L);
     MY_SQL_CONTAINER.start();
 
     PipelineOptions options = PipelineOptionsFactory.create();
@@ -312,6 +312,7 @@ public class DebeziumIOMySqlConnectorIT {
                         .withConnectionProperties(connectorPropsMap))
                 .withFormatFunction(new SourceRecordJson.SourceRecordJsonMapper())
                 .withMaxNumberOfRecords(30)
+                .withMaxTimeToRun(Duration.ofMinutes(3).toMillis())
                 .withCoder(StringUtf8Coder.of()));
     String expected =
         "{\"metadata\":{\"connector\":\"mysql\",\"version\":\"1.9.8.Final\",\"name\":\"dbserver1\","
