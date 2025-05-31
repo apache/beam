@@ -209,7 +209,14 @@ class DataflowMetrics extends MetricResults {
       if (metricUpdate.getTrie() == null) {
         return BoundedTrieResult.empty();
       }
-      BoundedTrie bTrie = (BoundedTrie) metricUpdate.getTrie();
+      BoundedTrie bTrie;
+      try {
+        bTrie = (BoundedTrie) metricUpdate.getTrie();
+      } catch (ClassCastException cce) {
+        LOG.warn(
+            "Failed to retrieve BoundedTrie metrics from result. Returning empty result.", cce);
+        return BoundedTrieResult.empty();
+      }
       BoundedTrieData trieData = BoundedTrieData.fromProto(bTrie);
       return BoundedTrieResult.create(trieData.extractResult().getResult());
     }
