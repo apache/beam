@@ -93,12 +93,12 @@ func decodeTimerIter(keyDec func(io.Reader) []byte, winCoder WinCoderType, raw [
 						elmBytes: nil, // indicates this is a timer.
 						keyBytes: keyBytes,
 						window:   w,
-						sequence: -1,
+						sequence: -1, // indicates this timer is being cleared.
 					})
 				}
 
 				if !yield(timerRet{keyBytes, tag, elms, ws}) {
-					return // Halt iteration if yeild returns false.
+					return // Halt iteration if yield returns false.
 				}
 				// Otherwise continue handling the remaining bytes.
 				raw = d.UnusedBytes()
@@ -124,7 +124,7 @@ func decodeTimerIter(keyDec func(io.Reader) []byte, winCoder WinCoderType, raw [
 			}
 
 			if !yield(timerRet{keyBytes, tag, elms, ws}) {
-				return // Halt iteration if yeild returns false.
+				return // Halt iteration if yield returns false.
 			}
 			// Otherwise continue handling the remaining bytes.
 			raw = d.UnusedBytes()

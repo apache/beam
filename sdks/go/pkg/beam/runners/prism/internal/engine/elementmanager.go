@@ -53,6 +53,7 @@ type element struct {
 	// No synchronization is required in specifying this,
 	// since keyed elements are only processed by a single bundle at a time,
 	// if stateful stages are concerned.
+	// If a timer element has sequence set to -1, it means it is being cleared.
 	sequence int
 
 	elmBytes []byte // When nil, indicates this is a timer.
@@ -1340,20 +1341,25 @@ func (*statefulStageKind) addPending(ss *stageState, em *ElementManager, newPend
 		heap.Push(&dnt.elements, e)
 
 		if e.IsTimer() {
-			if e.sequence > 0 {
-				if lastSet, ok := dnt.timers[timerKey{family: e.family, tag: e.tag, window: e.window}]; ok {
-					// existing timer!
-					// don't increase the count this time, as "this" timer is already pending.
-					count--
-					// clear out the existing hold for accounting purposes.
-					ss.watermarkHolds.Drop(lastSet.hold, 1)
-				}
+			lastSet, ok := dnt.timers[timerKey{family: e.family, tag: e.tag, window: e.window}]
+			if ok {
+				// existing timer!
+				// don't increase the count this time, as "this" timer is already pending.
+				count--
+				// clear out the existing hold for accounting purposes.
+				ss.watermarkHolds.Drop(lastSet.hold, 1)
+			}
+			if e.sequence >= 0 {
 				// Update the last set time on the timer.
 				dnt.timers[timerKey{family: e.family, tag: e.tag, window: e.window}] = timerTimes{firing: e.timestamp, hold: e.holdTimestamp}
 
 				// Mark the hold in the heap.
 				ss.watermarkHolds.Add(e.holdTimestamp, 1)
 			} else {
+				// we need to decrement the pending count only if the timer to be cleared is in the pending list
+				if ok {
+					count--
+				}
 				// timer is to be cleared
 				delete(dnt.timers, timerKey{family: e.family, tag: e.tag, window: e.window})
 			}
