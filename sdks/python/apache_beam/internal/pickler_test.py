@@ -190,6 +190,46 @@ from apache_beam.internal.module_test import DataClass
 self.assertEqual(DataClass(datum='abc'), loads(dumps(DataClass(datum='abc'))))
     ''')
 
+  @parameterized.expand([
+      param(pickle_lib='dill'),
+      param(pickle_lib='cloudpickle'),
+  ])
+  def test_class_states_not_changed_at_subsequent_loading(self, pickle_lib):
+    pickler.set_library(pickle_lib)
+
+    class Local:
+      def fun(self):
+        pass
+
+    obj = Local()
+
+    serialized = dumps(obj)
+
+    obj2 = loads(serialized)
+    obj2_type_id = id(type(obj2))
+    obj2_func_id = id(obj2.fun.__func__)
+
+    # The obj and obj2 may have different classes (dill) or the same class (
+    # cloudpickle). The cloudpickle tracks the weak references of
+    # dumped/loaded dynamic  classes with class_tracker_id, reusing the same
+    # class as possible if the original class is the same. Besides,
+    # dill creates a new class for each loaded object.
+
+    loads(serialized)  # obj3
+
+    # The obj2 and obj3 may have different classes (dill) or the same class (
+    # cloudpickle) However, the obj2's class states must not be changed after
+    # obj3 loading.
+    # https://github.com/apache/beam/issues/35062
+    self.assertEqual(
+        obj2_type_id,
+        id(type(obj2)),
+        'Class must not changed after subsequent loading.')
+    self.assertEqual(
+        obj2_func_id,
+        id(obj2.fun.__func__),
+        'Class states must not changed after subsequent loading.')
+
   def maybe_get_sets_with_different_iteration_orders(self):
     # Use a mix of types in an attempt to create sets with the same elements
     # whose iteration order is different.

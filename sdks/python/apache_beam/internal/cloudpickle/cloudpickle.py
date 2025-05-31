@@ -93,7 +93,10 @@ _PICKLE_BY_VALUE_MODULES = set()
 # Track the provenance of reconstructed dynamic classes to make it possible to
 # reconstruct instances from the matching singleton class definition when
 # appropriate and preserve the usual "isinstance" semantics of Python objects.
+
+# from class to (class_tracker_id, setstate)
 _DYNAMIC_CLASS_TRACKER_BY_CLASS = weakref.WeakKeyDictionary()
+# from class_tracker_id to class
 _DYNAMIC_CLASS_TRACKER_BY_ID = weakref.WeakValueDictionary()
 _DYNAMIC_CLASS_TRACKER_LOCK = threading.Lock()
 
@@ -112,7 +115,7 @@ def _get_or_create_tracker_id(class_def):
     class_tracker_id = _DYNAMIC_CLASS_TRACKER_BY_CLASS.get(class_def)
     if class_tracker_id is None:
       class_tracker_id = uuid.uuid4().hex
-      _DYNAMIC_CLASS_TRACKER_BY_CLASS[class_def] = class_tracker_id
+      _DYNAMIC_CLASS_TRACKER_BY_CLASS[class_def] = (class_tracker_id, True)
       _DYNAMIC_CLASS_TRACKER_BY_ID[class_tracker_id] = class_def
   return class_tracker_id
 
@@ -120,9 +123,11 @@ def _get_or_create_tracker_id(class_def):
 def _lookup_class_or_track(class_tracker_id, class_def):
   if class_tracker_id is not None:
     with _DYNAMIC_CLASS_TRACKER_LOCK:
-      class_def = _DYNAMIC_CLASS_TRACKER_BY_ID.setdefault(
-          class_tracker_id, class_def)
-      _DYNAMIC_CLASS_TRACKER_BY_CLASS[class_def] = class_tracker_id
+      if class_tracker_id in _DYNAMIC_CLASS_TRACKER_BY_ID:
+        return _DYNAMIC_CLASS_TRACKER_BY_ID[class_tracker_id]
+      else:
+        _DYNAMIC_CLASS_TRACKER_BY_ID[class_tracker_id] = class_def
+        _DYNAMIC_CLASS_TRACKER_BY_CLASS[class_def] = (class_tracker_id, False)
   return class_def
 
 
@@ -1150,6 +1155,15 @@ def _function_setstate(obj, state):
 
 
 def _class_setstate(obj, state):
+  with _DYNAMIC_CLASS_TRACKER_LOCK:
+    tracker_id, setstate = _DYNAMIC_CLASS_TRACKER_BY_CLASS[obj]
+    if setstate:  # the cached class already set the states
+      return
+    _DYNAMIC_CLASS_TRACKER_BY_CLASS[obj] = (tracker_id, True)
+    _class_setstate_unlocked(obj, state)
+
+
+def _class_setstate_unlocked(obj, state):
   state, slotstate = state
   registry = None
   for attrname, attr in state.items():
