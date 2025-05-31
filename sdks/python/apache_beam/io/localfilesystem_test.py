@@ -17,23 +17,22 @@
 #
 
 """Unit tests for LocalFileSystem."""
-
-# pytype: skip-file
-
+import contextlib
 import filecmp
 import logging
+import mock
 import os
 import shutil
 import tempfile
 import unittest
-
-import mock
 from parameterized import param
 from parameterized import parameterized
 
 from apache_beam.io import localfilesystem
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.options.pipeline_options import PipelineOptions
+
+# pytype: skip-file
 
 
 def _gen_fake_join(separator):
@@ -65,9 +64,26 @@ class LocalFileSystemTest(unittest.TestCase):
   def tearDown(self):
     shutil.rmtree(self.tmpdir)
 
+  @contextlib.contextmanager
+  def tmpdir_as_cwd(self):
+    """Context manager that sets the current working directory to a temp dir."""
+    old_cwd = os.getcwd()
+    os.chdir(self.tmpdir)
+    try:
+      yield
+    finally:
+      os.chdir(old_cwd)
+
   def test_scheme(self):
     self.assertIsNone(self.fs.scheme())
     self.assertIsNone(localfilesystem.LocalFileSystem.scheme())
+
+  def test_create_cwd_file(self):
+    with self.tmpdir_as_cwd():
+      with self.fs.create("blah.txt") as f:
+        f.write(b"blah")
+      with open("blah.txt", "rb") as f:
+        assert f.read() == b"blah"
 
   @mock.patch('apache_beam.io.localfilesystem.os')
   def test_unix_path_join(self, *unused_mocks):
