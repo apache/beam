@@ -424,4 +424,15 @@ public interface PipelineOptions extends HasDisplayData {
       return String.format("%s/%s", info.getName(), info.getVersion()).replace(" ", "_");
     }
   }
+
+  /**
+   * The time limit (minute) that an SDK worker allows for a PTransform operation before signaling
+   * the runner harness to restart the SDK worker.
+   */
+  @Description("The time limit (minute) that an SDK worker allows for a PTransform operation "
+      + "before signaling the runner harness to restart the SDK worker.")
+  int getPtransformTimeoutDuration();
+
+  void setPtransformTimeoutDuration(int value);
+
 }
