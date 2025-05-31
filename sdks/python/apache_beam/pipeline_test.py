@@ -702,6 +702,11 @@ class PipelineTest(unittest.TestCase):
     self.assertIs(pcoll2_unbounded.is_bounded, False)
     self.assertIs(merged.is_bounded, False)
 
+  def test_incompatible_pcollection_errmsg(self):
+    with pytest.raises(Exception, match="Expected a PCollection as input"):
+      with beam.Pipeline() as pipeline:
+        _ = (pipeline | beam.Map(print))
+
   def test_incompatible_submission_and_runtime_envs_fail_pipeline(self):
     with mock.patch(
         'apache_beam.transforms.environments.sdk_base_version_capability'
