@@ -1341,10 +1341,9 @@ func (*statefulStageKind) addPending(ss *stageState, em *ElementManager, newPend
 		heap.Push(&dnt.elements, e)
 
 		if e.IsTimer() {
-			lastSet, ok := dnt.timers[timerKey{family: e.family, tag: e.tag, window: e.window}]
-			if ok {
+			if lastSet, ok := dnt.timers[timerKey{family: e.family, tag: e.tag, window: e.window}]; ok {
 				// existing timer!
-				// don't increase the count this time, as "this" timer is already pending.
+				// don't increase the count this time, as "e" is already pending.
 				count--
 				// clear out the existing hold for accounting purposes.
 				ss.watermarkHolds.Drop(lastSet.hold, 1)
@@ -1356,10 +1355,8 @@ func (*statefulStageKind) addPending(ss *stageState, em *ElementManager, newPend
 				// Mark the hold in the heap.
 				ss.watermarkHolds.Add(e.holdTimestamp, 1)
 			} else {
-				// we need to decrement the pending count only if the timer to be cleared is in the pending list
-				if ok {
-					count--
-				}
+				// decrement the pending count since "e" is not a real timer (merely a clearing signal)
+				count--
 				// timer is to be cleared
 				delete(dnt.timers, timerKey{family: e.family, tag: e.tag, window: e.window})
 			}
