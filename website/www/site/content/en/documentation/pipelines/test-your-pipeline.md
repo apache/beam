@@ -287,6 +287,8 @@ The following example code shows how one might test the [WordCount example pipel
 {{< highlight java >}}
 public class WordCountTest {
 
+    @Rule public final transient TestPipeline p = TestPipeline.create();
+
     // Our static input data, which will comprise the initial PCollection.
     static final String[] WORDS_ARRAY = new String[] {
       "hi there", "hi", "hi sue bob",
@@ -301,8 +303,6 @@ public class WordCountTest {
     // Example test that tests the pipeline's transforms.
 
     public void testCountWords() throws Exception {
-      Pipeline p = TestPipeline.create();
-
       // Create a PCollection from the WORDS static input data.
       PCollection<String> input = p.apply(Create.of(WORDS));
 
