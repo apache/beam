@@ -564,7 +564,7 @@ def main():
   parser.add_argument('--include', default='.*')
   parser.add_argument('--exclude', default='')
   parser.add_argument(
-      "--provider-source-file",
+      "--provider_source_file",
       help="Path to a YAML file containing custom providers. "
       "If not provided, uses standard Beam providers.",
   )
