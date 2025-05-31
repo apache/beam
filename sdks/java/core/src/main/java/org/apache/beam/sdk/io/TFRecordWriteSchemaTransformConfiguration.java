@@ -80,6 +80,11 @@ public abstract class TFRecordWriteSchemaTransformConfiguration {
   @Nullable
   public abstract Boolean getNoSpilling();
 
+  @SchemaFieldDescription(
+      "Maximum number of writers created in a bundle before spilling to shuffle.")
+  @Nullable
+  public abstract Integer getMaxNumWritersPerBundle();
+
   @SchemaFieldDescription("This option specifies whether and where to output unwritable rows.")
   @Nullable
   public abstract ErrorHandling getErrorHandling();
@@ -98,6 +103,8 @@ public abstract class TFRecordWriteSchemaTransformConfiguration {
     public abstract Builder setCompression(String value);
 
     public abstract Builder setNoSpilling(Boolean value);
+
+    public abstract Builder setMaxNumWritersPerBundle(@Nullable Integer maxNumWritersPerBundle);
 
     public abstract Builder setErrorHandling(ErrorHandling errorHandling);
 

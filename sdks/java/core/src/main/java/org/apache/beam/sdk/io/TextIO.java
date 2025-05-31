@@ -718,6 +718,9 @@ public class TextIO {
     /** Whether to skip the spilling of data caused by having maxNumWritersPerBundle. */
     abstract boolean getNoSpilling();
 
+    /** Maximum number of writers created in a bundle before spilling to shuffle. */
+    abstract @Nullable Integer getMaxNumWritersPerBundle();
+
     /** Whether to skip writing any output files if the PCollection is empty. */
     abstract boolean getSkipIfEmpty();
 
@@ -778,6 +781,9 @@ public class TextIO {
       abstract Builder<UserT, DestinationT> setAutoSharding(boolean windowedWrites);
 
       abstract Builder<UserT, DestinationT> setNoSpilling(boolean noSpilling);
+
+      abstract Builder<UserT, DestinationT> setMaxNumWritersPerBundle(
+          @Nullable Integer maxNumWritersPerBundle);
 
       abstract Builder<UserT, DestinationT> setSkipIfEmpty(boolean noSpilling);
 
@@ -1062,6 +1068,12 @@ public class TextIO {
       return toBuilder().setNoSpilling(true).build();
     }
 
+    /** Set the maximum number of writers created in a bundle before spilling to shuffle. */
+    public TypedWrite<UserT, DestinationT> withMaxNumWritersPerBundle(
+        @Nullable Integer maxNumWritersPerBundle) {
+      return toBuilder().setMaxNumWritersPerBundle(maxNumWritersPerBundle).build();
+    }
+
     /** See {@link FileIO.Write#withBadRecordErrorHandler(ErrorHandler)} for details on usage. */
     public TypedWrite<UserT, DestinationT> withBadRecordErrorHandler(
         ErrorHandler<BadRecord, ?> errorHandler) {
@@ -1161,6 +1173,9 @@ public class TextIO {
       if (getNoSpilling()) {
         write = write.withNoSpilling();
       }
+      if (getMaxNumWritersPerBundle() != null) {
+        write = write.withMaxNumWritersPerBundle(getMaxNumWritersPerBundle());
+      }
       if (getBadRecordErrorHandler() != null) {
         write = write.withBadRecordErrorHandler(getBadRecordErrorHandler());
       }
@@ -1187,6 +1202,7 @@ public class TextIO {
       builder
           .addIfNotNull(
               DisplayData.item("numShards", getNumShards()).withLabel("Maximum Output Shards"))
+          .addIfNotNull(DisplayData.item("maxNumWritersPerBundle", getMaxNumWritersPerBundle()))
           .addIfNotNull(
               DisplayData.item("tempDirectory", getTempDirectory())
                   .withLabel("Directory for temporary files"))
@@ -1346,6 +1362,11 @@ public class TextIO {
     /** See {@link TypedWrite#withNoSpilling}. */
     public Write withNoSpilling() {
       return new Write(inner.withNoSpilling());
+    }
+
+    /** See {@link TypedWrite#withMaxNumWritersPerBundle(Integer)}. */
+    public Write withMaxNumWritersPerBundle(@Nullable Integer maxNumWritersPerBundle) {
+      return new Write(inner.withMaxNumWritersPerBundle(maxNumWritersPerBundle));
     }
 
     /** See {@link TypedWrite#withBatchSize(Integer)}. */
