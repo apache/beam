@@ -1,0 +1,22 @@
+pipeline:
+  type: chain
+  transforms:
+    - type: ReadFromKafka
+      name: KafkaSource
+      config:
+        topic: "i-topic"
+        bootstrap_servers: "localhost:9092"
+        format: RAW
+        consumer_config:
+          group.id: beam-mirror-001
+          auto.offset.reset: earliest
+
+    - type: WriteToKafka
+      name: MirrorToNTopic
+      config:
+        topic: "o-topic"
+        bootstrap_servers: "localhost:9092"
+        format: RAW
+        producer_config_update:
+          key.serializer:   org.apache.kafka.common.serialization.ByteArraySerializer
+          value.serializer: org.apache.kafka.common.serialization.ByteArraySerializer
