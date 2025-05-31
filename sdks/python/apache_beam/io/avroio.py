@@ -354,8 +354,7 @@ class _FastAvroSource(filebasedsource.FileBasedSource):
       while range_tracker.try_claim(next_block_start):
         block = next(blocks)
         next_block_start = block.offset + block.size
-        for record in block:
-          yield record
+        yield from block
 
 
 _create_avro_source = _FastAvroSource
@@ -375,7 +374,8 @@ class WriteToAvro(beam.transforms.PTransform):
       num_shards=0,
       shard_name_template=None,
       mime_type='application/x-avro',
-      use_fastavro=True):
+      use_fastavro=True,
+      triggering_frequency=None):
     """Initialize a WriteToAvro transform.
 
     Args:
@@ -393,25 +393,44 @@ class WriteToAvro(beam.transforms.PTransform):
         Constraining the number of shards is likely to reduce
         the performance of a pipeline.  Setting this value is not recommended
         unless you require a specific number of output files.
+        In streaming if not set, the service will write a file per bundle.
       shard_name_template: A template string containing placeholders for
-        the shard number and shard count. When constructing a filename for a
-        particular shard number, the upper-case letters 'S' and 'N' are
-        replaced with the 0-padded shard number and shard count respectively.
-        This argument can be '' in which case it behaves as if num_shards was
-        set to 1 and only one file will be generated. The default pattern used
-        is '-SSSSS-of-NNNNN' if None is passed as the shard_name_template.
+        the shard number and shard count. Currently only ``''``,
+        ``'-SSSSS-of-NNNNN'``, ``'-W-SSSSS-of-NNNNN'`` and
+        ``'-V-SSSSS-of-NNNNN'`` are patterns accepted by the service.
+        When constructing a filename for a particular shard number, the
+        upper-case letters ``S`` and ``N`` are replaced with the ``0``-padded
+        shard number and shard count respectively.  This argument can be ``''``
+        in which case it behaves as if num_shards was set to 1 and only one file
+        will be generated. The default pattern used is ``'-SSSSS-of-NNNNN'`` for
+        bounded PCollections and for ``'-W-SSSSS-of-NNNNN'`` unbounded 
+        PCollections.
+        W is used for windowed shard naming and is replaced with 
+        ``[window.start, window.end)``
+        V is used for windowed shard naming and is replaced with 
+        ``[window.start.to_utc_datetime().strftime("%Y-%m-%dT%H-%M-%S"), 
+        window.end.to_utc_datetime().strftime("%Y-%m-%dT%H-%M-%S")``
       mime_type: The MIME type to use for the produced files, if the filesystem
         supports specifying MIME types.
       use_fastavro (bool): This flag is left for API backwards compatibility
         and no longer has an effect. Do not use.
+      triggering_frequency: (int) Every triggering_frequency duration, a window 
+        will be triggered and all bundles in the window will be written.
+        If set it overrides user windowing. Mandatory for GlobalWindow.
 
     Returns:
       A WriteToAvro transform usable for writing.
     """
     self._schema = schema
     self._sink_provider = lambda avro_schema: _create_avro_sink(
-        file_path_prefix, avro_schema, codec, file_name_suffix, num_shards,
-        shard_name_template, mime_type)
+        file_path_prefix,
+        avro_schema,
+        codec,
+        file_name_suffix,
+        num_shards,
+        shard_name_template,
+        mime_type,
+        triggering_frequency)
 
   def expand(self, pcoll):
     if self._schema:
@@ -428,6 +447,15 @@ class WriteToAvro(beam.transforms.PTransform):
       records = pcoll | beam.Map(
           beam_row_to_avro_dict(avro_schema, beam_schema))
     self._sink = self._sink_provider(avro_schema)
+    if (not pcoll.is_bounded and self._sink.shard_name_template ==
+        filebasedsink.DEFAULT_SHARD_NAME_TEMPLATE):
+      self._sink.shard_name_template = (
+          filebasedsink.DEFAULT_WINDOW_SHARD_NAME_TEMPLATE)
+      self._sink.shard_name_format = self._sink._template_to_format(
+          self._sink.shard_name_template)
+      self._sink.shard_name_glob_format = self._sink._template_to_glob_format(
+          self._sink.shard_name_template)
+
     return records | beam.io.iobase.Write(self._sink)
 
   def display_data(self):
@@ -441,7 +469,8 @@ def _create_avro_sink(
     file_name_suffix,
     num_shards,
     shard_name_template,
-    mime_type):
+    mime_type,
+    triggering_frequency=60):
   if "class 'avro.schema" in str(type(schema)):
     raise ValueError(
         'You are using Avro IO with fastavro (default with Beam on '
@@ -454,7 +483,8 @@ def _create_avro_sink(
       file_name_suffix,
       num_shards,
       shard_name_template,
-      mime_type)
+      mime_type,
+      triggering_frequency)
 
 
 class _BaseAvroSink(filebasedsink.FileBasedSink):
@@ -467,7 +497,8 @@ class _BaseAvroSink(filebasedsink.FileBasedSink):
       file_name_suffix,
       num_shards,
       shard_name_template,
-      mime_type):
+      mime_type,
+      triggering_frequency):
     super().__init__(
         file_path_prefix,
         file_name_suffix=file_name_suffix,
@@ -477,7 +508,8 @@ class _BaseAvroSink(filebasedsink.FileBasedSink):
         mime_type=mime_type,
         # Compression happens at the block level using the supplied codec, and
         # not at the file level.
-        compression_type=CompressionTypes.UNCOMPRESSED)
+        compression_type=CompressionTypes.UNCOMPRESSED,
+        triggering_frequency=triggering_frequency)
     self._schema = schema
     self._codec = codec
 
@@ -498,7 +530,8 @@ class _FastAvroSink(_BaseAvroSink):
       file_name_suffix,
       num_shards,
       shard_name_template,
-      mime_type):
+      mime_type,
+      triggering_frequency):
     super().__init__(
         file_path_prefix,
         schema,
@@ -506,7 +539,8 @@ class _FastAvroSink(_BaseAvroSink):
         file_name_suffix,
         num_shards,
         shard_name_template,
-        mime_type)
+        mime_type,
+        triggering_frequency)
     self.file_handle = None
 
   def open(self, temp_path):
