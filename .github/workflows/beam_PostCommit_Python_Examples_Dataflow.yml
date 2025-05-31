@@ -74,7 +74,7 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           java-version: default
-          python-version: 3.12
+          python-version: 3.13
       - name: Run examplesPostCommit script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
