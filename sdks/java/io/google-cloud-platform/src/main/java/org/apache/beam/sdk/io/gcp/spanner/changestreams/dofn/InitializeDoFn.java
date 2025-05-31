@@ -26,6 +26,8 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.InitialPartition;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A DoFn responsible for initializing the change stream Connector. It handles the creation of the
@@ -42,6 +44,7 @@ public class InitializeDoFn extends DoFn<byte[], PartitionMetadata> implements S
   // a change stream query might get stuck.
   private static final long DEFAULT_HEARTBEAT_MILLIS = 2000;
 
+  private static final Logger LOG = LoggerFactory.getLogger(InitializeDoFn.class);
   private final DaoFactory daoFactory;
   private final MapperFactory mapperFactory;
   // The change streams query start time
@@ -62,6 +65,7 @@ public class InitializeDoFn extends DoFn<byte[], PartitionMetadata> implements S
 
   @ProcessElement
   public void processElement(OutputReceiver<PartitionMetadata> receiver) {
+    LOG.info("changliiu InitializeDoFn 1");
     PartitionMetadataDao partitionMetadataDao = daoFactory.getPartitionMetadataDao();
     if (!partitionMetadataDao.tableExists()) {
       // Creates partition metadata table and associated indexes
@@ -73,6 +77,7 @@ public class InitializeDoFn extends DoFn<byte[], PartitionMetadata> implements S
             .map(mapperFactory.partitionMetadataMapper()::from)
             .orElseThrow(
                 () -> new IllegalStateException("Initial partition not found in metadata table."));
+    LOG.info("changliiu InitializeDoFn complete");
     receiver.output(initialPartition);
   }
 
