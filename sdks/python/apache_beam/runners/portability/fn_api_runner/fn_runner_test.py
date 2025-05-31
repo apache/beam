@@ -769,7 +769,7 @@ class FnApiRunnerTest(unittest.TestCase):
       expected = [('fired', ts) for ts in (20, 200)]
       assert_that(actual, equal_to(expected))
 
-  def _run_pardo_timer_timing(
+  def _run_pardo_timer_test(
       self, n, timer_delay, reset_count=True, clear_timer=True, expected=None):
     class AnotherTimerDoFn(beam.DoFn):
       COUNT = userstate.ReadModifyWriteStateSpec(
@@ -805,7 +805,7 @@ class FnApiRunnerTest(unittest.TestCase):
 
       @userstate.on_timer(TIMER)
       def timer_callback(self, t=beam.DoFn.TimestampParam):
-        yield ("timer fired")
+        yield "fired"
 
     with self.create_pipeline() as p:
       actual = (
@@ -814,15 +814,28 @@ class FnApiRunnerTest(unittest.TestCase):
               stop_timestamp=timestamp.Timestamp.now() + 14,
               fire_interval=1)
           | beam.WithKeys(0)
-          | beam.ParDo(AnotherTimerDoFn())
-          | beam.Map(lambda x, ts=beam.DoFn.TimestampParam: (x, ts)))
-      expected = []
+          | beam.ParDo(AnotherTimerDoFn()))
       assert_that(actual, equal_to(expected))
 
-  def test_pardo_timer_with_growing_timestamp(self):
-    # The timer will not fire, because the timer is initially set to T + 10,
-    # but then it is cleared at T + 4 (count == 5)
-    self._run_pardo_timer_timing(5, 10, True, True, [])
+  def test_pardo_timer_with_no_firing(self):
+    # The timer will not fire. It is initially set to T + 10, but then it is
+    # cleared at T + 4 (count == 5), and reset to T + 5 + 10
+    # (count is reset every 5 seconds).
+    self._run_pardo_timer_test(5, 10, True, True, [])
+
+  def test_pardo_timer_with_early_firing(self):
+    # The timer will fire at T + 2, T + 7, T + 12.
+    self._run_pardo_timer_test(5, 2, True, True, ["fired", "fired", "fired"])
+
+  def test_pardo_timer_with_no_reset(self):
+    # The timer will not fire. It is initially set to T + 10, and then it is
+    # cleared at T + 4 and never set again (count is not reset).
+    self._run_pardo_timer_test(5, 10, False, True, [])
+
+  def test_pardo_timer_with_no_reset_and_no_clear(self):
+    # The timer will fire at T + 10. After the timer is set, it is never
+    # cleared or set again.
+    self._run_pardo_timer_test(5, 10, False, False, ["fired"])
 
   def test_pardo_state_timers(self):
     self._run_pardo_state_timers(windowed=False)
