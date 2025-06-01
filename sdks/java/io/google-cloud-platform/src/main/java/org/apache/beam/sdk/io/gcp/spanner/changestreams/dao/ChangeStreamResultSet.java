@@ -108,6 +108,10 @@ public class ChangeStreamResultSet implements AutoCloseable {
     return resultSet.getCurrentRowAsStruct();
   }
 
+  public ResultSet getResultSet() {
+    return resultSet;
+  }
+
   /**
    * Returns the record at the current pointer as {@link JsonB}. It also updates the timestamp at
    * which the record was read.
