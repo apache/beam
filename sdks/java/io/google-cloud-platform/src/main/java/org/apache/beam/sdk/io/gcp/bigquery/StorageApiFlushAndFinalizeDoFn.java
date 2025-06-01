@@ -80,38 +80,48 @@ public class StorageApiFlushAndFinalizeDoFn extends DoFn<KV<String, Operation>, 
   }
 
   /**
-   * Checks if the given throwable is or is caused by an ApiException indicating that an offset is
-   * beyond the end of a BigQuery stream.
+   * Checks if the given throwable indicates that an offset is beyond the end of a BigQuery stream.
+   * It primarily uses {@code io.grpc.Status.fromThrowable} to determine the gRPC status code and
+   * then checks for specific message content.
    */
   private boolean isOffsetBeyondEndOfStreamError(Throwable t) {
     if (t == null) {
       return false;
     }
-    if (t instanceof ApiException) {
-      ApiException apiException = (ApiException) t;
-      if (apiException.getStatusCode().getCode() == Code.OUT_OF_RANGE) {
-        // Check if the cause is gRPC StatusRuntimeException for more specific message check
-        Throwable cause = apiException.getCause();
-        if (cause instanceof io.grpc.StatusRuntimeException) {
-          io.grpc.StatusRuntimeException grpcException = (io.grpc.StatusRuntimeException) cause;
-          return grpcException.getStatus().getCode() == io.grpc.Status.Code.OUT_OF_RANGE
-              && grpcException.getMessage() != null
-              && grpcException
-                  .getMessage()
-                  .toLowerCase()
-                  .contains("is beyond the end of the stream");
+
+    // Status.fromThrowable() searches the cause chain for the most specific gRPC status.
+    io.grpc.Status grpcStatus = io.grpc.Status.fromThrowable(t);
+
+    if (grpcStatus.getCode() == io.grpc.Status.Code.OUT_OF_RANGE) {
+      // The gRPC status is OUT_OF_RANGE.
+      // Now, verify the message content for the specific "is beyond the end of the stream" text.
+      // This text might be in the grpcStatus's description, or in the message of the original
+      // throwable 't', or one of its causes.
+
+      // Check the description from the derived gRPC status first.
+      if (grpcStatus.getDescription() != null
+          && grpcStatus
+              .getDescription()
+              .toLowerCase()
+              .contains("is beyond the end of the stream")) {
+        return true;
+      }
+
+      // If the description didn't match, iterate through the exception chain of 't'
+      // to find a message that confirms the "offset beyond end of stream" scenario.
+      Throwable currentThrowable = t;
+      while (currentThrowable != null) {
+        String message = currentThrowable.getMessage();
+        if (message != null && message.toLowerCase().contains("is beyond the end of the stream")) {
+          // If any exception in the chain has this message, and the overall gRPC status
+          // (determined by Status.fromThrowable(t)) is OUT_OF_RANGE, we consider it a match.
+          return true;
         }
-        // Fallback to checking the ApiException message directly if cause is not gRPC
-        return apiException.getMessage() != null
-            && apiException.getMessage().toLowerCase().contains("is beyond the end of the stream");
+        currentThrowable = currentThrowable.getCause();
       }
     }
-    // Recursively check the cause, as the specific exception might be wrapped.
-    Throwable cause = t.getCause();
-    if (cause == null) {
-      return false;
-    }
-    return isOffsetBeyondEndOfStreamError(cause);
+    // If the gRPC status code was not OUT_OF_RANGE, or if it was but no matching message was found.
+    return false;
   }
 
   @DefaultSchema(JavaFieldSchema.class)
@@ -214,29 +224,6 @@ public class StorageApiFlushAndFinalizeDoFn extends DoFn<KV<String, Operation>, 
             BigQuerySinkMetrics.reportFailedRPCMetrics(
                 failedContext, BigQuerySinkMetrics.RpcMethod.FLUSH_ROWS);
 
-            if (error != null && isOffsetBeyondEndOfStreamError(error)) {
-              flushOperationsOffsetBeyondEnd.inc();
-              LOG.warn(
-                  "Flush of stream {} to offset {} failed because the offset is beyond the end of the stream. "
-                      + "This typically means the stream was finalized or truncated by BQ. "
-                      + "The operation will not be retried on this stream. Error: {}",
-                  streamId,
-                  offset,
-                  error.toString());
-              // This specific error is not retriable on the same stream.
-              // Throwing a runtime exception to break out of the RetryManager and signal
-              // to the Beam runner that the bundle should be retried, which will then
-              // allow an upstream DoFn to create a new stream.
-              throw new RuntimeException(
-                  new StreamOffsetBeyondEndException(
-                      "Offset "
-                          + offset
-                          + " is beyond the end of stream "
-                          + streamId
-                          + ". Stream is considered invalid for further appends.",
-                      error));
-            }
-
             if (error instanceof ApiException) {
               Code statusCode = ((ApiException) error).getStatusCode().getCode();
               if (statusCode.equals(Code.ALREADY_EXISTS)) {
@@ -251,6 +238,20 @@ public class StorageApiFlushAndFinalizeDoFn extends DoFn<KV<String, Operation>, 
                 return RetryType.DONT_RETRY;
               }
               if (statusCode.equals(Code.NOT_FOUND)) {
+                return RetryType.DONT_RETRY;
+              }
+
+              // check the offset beyond the end of the stream
+              if (isOffsetBeyondEndOfStreamError(error)) {
+                flushOperationsOffsetBeyondEnd.inc();
+                LOG.warn(
+                    "Flush of stream {} to offset {} failed because the offset is beyond the end of the stream. "
+                        + "This typically means the stream was finalized or truncated by BQ. "
+                        + "The operation will not be retried on this stream. Error: {}",
+                    streamId,
+                    offset,
+                    error.toString());
+                // This specific error is not retriable on the same stream.
                 return RetryType.DONT_RETRY;
               }
             }
