@@ -668,7 +668,9 @@ class _WriteToPandas(beam.PTransform):
     return pcoll | fileio.WriteToFiles(
         path=dir,
         shards=self.kwargs.pop('num_shards', None),
-        max_writers_per_bundle=self.kwargs.pop('max_writers_per_bundle', fileio.WriteToFiles.MAX_NUM_WRITERS_PER_BUNDLE),
+        max_writers_per_bundle=self.kwargs.pop(
+            'max_writers_per_bundle',
+            fileio.WriteToFiles.MAX_NUM_WRITERS_PER_BUNDLE),
         file_naming=self.kwargs.pop(
             'file_naming', fileio.default_file_naming(name)),
         sink=lambda _: _WriteToPandasFileSink(

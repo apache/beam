@@ -1057,7 +1057,7 @@ try:
     if file_naming is not None:
       kwargs['file_naming'] = file_naming
     if 'max_writers_per_bundle' not in kwargs:
-        kwargs['max_writers_per_bundle'] = 0
+      kwargs['max_writers_per_bundle'] = 0
     if lines is None:
       lines = orient == 'records'
     return 'WriteToJson' >> WriteViaPandas(
