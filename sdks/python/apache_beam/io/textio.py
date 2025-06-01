@@ -1056,7 +1056,8 @@ try:
       kwargs['num_shards'] = num_shards
     if file_naming is not None:
       kwargs['file_naming'] = file_naming
-    kwargs['max_writers_per_bundle'] = 0
+    if 'max_writers_per_bundle' not in kwargs:
+        kwargs['max_writers_per_bundle'] = 0
     if lines is None:
       lines = orient == 'records'
     return 'WriteToJson' >> WriteViaPandas(
