@@ -92,18 +92,18 @@ public class StorageApiFlushAndFinalizeDoFn extends DoFn<KV<String, Operation>, 
     // Status.fromThrowable() searches the cause chain for the most specific gRPC status.
     io.grpc.Status grpcStatus = io.grpc.Status.fromThrowable(t);
 
-    if (grpcStatus.getCode() == io.grpc.Status.Code.OUT_OF_RANGE) {
+    // Check if grpcStatus is valid and the code is OUT_OF_RANGE
+    if (grpcStatus != null && grpcStatus.getCode() == io.grpc.Status.Code.OUT_OF_RANGE) {
       // The gRPC status is OUT_OF_RANGE.
       // Now, verify the message content for the specific "is beyond the end of the stream" text.
       // This text might be in the grpcStatus's description, or in the message of the original
       // throwable 't', or one of its causes.
 
       // Check the description from the derived gRPC status first.
-      if (grpcStatus.getDescription() != null
-          && grpcStatus
-              .getDescription()
-              .toLowerCase()
-              .contains("is beyond the end of the stream")) {
+      // grpcStatus is confirmed not null here.
+      String description = grpcStatus.getDescription();
+      if (description != null
+          && description.toLowerCase().contains("is beyond the end of the stream")) {
         return true;
       }
 
@@ -120,7 +120,8 @@ public class StorageApiFlushAndFinalizeDoFn extends DoFn<KV<String, Operation>, 
         currentThrowable = currentThrowable.getCause();
       }
     }
-    // If the gRPC status code was not OUT_OF_RANGE, or if it was but no matching message was found.
+    // If grpcStatus was null, or the gRPC status code was not OUT_OF_RANGE,
+    // or if it was OUT_OF_RANGE but no matching message was found.
     return false;
   }
 
