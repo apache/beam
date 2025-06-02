@@ -86,9 +86,9 @@ Akvelon designed and implemented a **Dataflow Flex Template** using Apache Beam 
 This design provided both Protegrity and its enterprise clients with a reusable, open-source architecture for scalable data privacy and processing.
 
 ### The Results
-- Enabled data tokenization at scale for regulated industries
-- Accelerated adoption of Dataflow templates across Protegrity’s customer base
-- Delivered an [open-source Flex Template](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/complete/datatokenization/README.md) that benefits the entire Apache Beam community
+- **Enabled data tokenization at** for regulated industries
+- **Accelerated adoption of Dataflow templates** across Protegrity’s customer base
+- **Delivered an [open-source Flex Template](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/complete/datatokenization/README.md)** that benefits the entire Apache Beam community
 
 <blockquote class="case-study-quote-block case-study-quote-wrapped">
   <p class="case-study-quote-text">
