@@ -98,6 +98,165 @@ Staff Machine Learning Engineer @ Credit Karma
 &lt;/div>
 &lt;/div>
 &lt;/div>
+&lt;div class="clear-nav">&lt;/div></description></item><item><title>Case-Studies: Secure and Interoperable Apache Beam Pipelines by Akvelon</title><link>/case-studies/akvelon/</link><pubDate>Sun, 25 May 2025 00:12:00 +0000</pubDate><guid>/case-studies/akvelon/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;div class="case-study-opinion">
+&lt;div class="case-study-opinion-img">
+&lt;img src="/images/logos/powered-by/akvelon.png"/>
+&lt;/div>
+&lt;blockquote class="case-study-quote-block">
+&lt;p class="case-study-quote-text">
+“To support data privacy and pipeline reusability at scale, Akvelon developed Beam-based solutions for Protegrity and a major North American credit reporting company, enabling tokenization with Dataflow Flex Templates. Akvelon also built a CDAP Connector to integrate CDAP plugins with Apache Beam, enabling plugin reuse and multi-runtime compatibility.”
+&lt;/p>
+&lt;div class="case-study-quote-author">
+&lt;div class="case-study-quote-author-img">
+&lt;img src="/images/case-study/akvelon/pikle.png">
+&lt;/div>
+&lt;div class="case-study-quote-author-info">
+&lt;div class="case-study-quote-author-name">
+Ashley Pikle
+&lt;/div>
+&lt;div class="case-study-quote-author-position">
+Director of AI Business Development @Akvelon
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/blockquote>
+&lt;/div>
+&lt;div class="case-study-post">
+&lt;h1 id="secure-and-interoperable-apache-beam-pipelines-by-akvelon">Secure and Interoperable Apache Beam Pipelines by Akvelon&lt;/h1>
+&lt;h2 id="background">Background&lt;/h2>
+&lt;p>To meet growing enterprise needs for secure, scalable, and interoperable data processing pipelines, &lt;strong>Akvelon&lt;/strong> developed multiple Apache Beam-powered solutions tailored for real-world production environments:&lt;/p>
+&lt;ul>
+&lt;li>Data tokenization and detokenization capabilities for &lt;strong>Protegrity&lt;/strong> and a leading North American credit reporting company&lt;/li>
+&lt;li>A connector layer to integrate &lt;strong>CDAP&lt;/strong> plugins into Apache Beam pipelines&lt;/li>
+&lt;/ul>
+&lt;p>By leveraging &lt;a href="https://beam.apache.org/">Apache Beam&lt;/a> and &lt;a href="https://cloud.google.com/products/dataflow?hl=en">Google Cloud Dataflow&lt;/a>, Akvelon enabled its clients to achieve scalable data protection, regulatory compliance, and platform interoperability through reusable, open-source pipeline components.&lt;/p>
+&lt;h2 id="use-case-1-data-tokenization-for-protegrity-and-a-leading-credit-reporting-company">Use Case 1: Data Tokenization for Protegrity and a Leading Credit Reporting Company&lt;/h2>
+&lt;h3 id="the-challenge">The Challenge&lt;/h3>
+&lt;p>&lt;strong>Protegrity&lt;/strong>, a leading enterprise data-security vendor, sought to enhance its data protection platform with scalable tokenization support for batch and streaming data. Their goal: allow customers such as a major North American credit reporting company to tokenize sensitive data using Google Cloud Dataflow. The solution needed to be fast, secure, reusable, and compliant with privacy regulations (e.g., HIPAA, GDPR).&lt;/p>
+&lt;h3 id="the-solution">The Solution&lt;/h3>
+&lt;p>Akvelon designed and implemented a &lt;strong>Dataflow Flex Template&lt;/strong> using Apache Beam that allows users to tokenize and detokenize sensitive data within both batch and streaming pipelines.&lt;/p>
+&lt;div class="post-scheme">
+&lt;a href="/images/case-study/akvelon/diagram-01.png" target="_blank" title="Click to enlarge">
+&lt;img src="/images/case-study/akvelon/diagram-01.png" alt="Protegrity &amp; Equifax Tokenization Pipeline">
+&lt;/a>
+&lt;/div>
+&lt;h3 id="key-features">Key features&lt;/h3>
+&lt;ul>
+&lt;li>&lt;strong>Seamless integration with Protegrity UDFs&lt;/strong>, enabling native tokenization directly within Beam transforms without requiring external service orchestration&lt;/li>
+&lt;li>&lt;strong>Support for multiple data formats&lt;/strong> such as CSV, JSON, Parquet, allowing flexible deployment across diverse data pipelines&lt;/li>
+&lt;li>&lt;strong>Stateful processing with &lt;code>DoFn&lt;/code> and timers&lt;/strong>, which improves streaming reliability and reduces overall pipeline latency&lt;/li>
+&lt;li>&lt;strong>Full compatibility with Google Cloud Dataflow&lt;/strong>, ensuring autoscaling, fault tolerance, and operational simplicity through managed Apache Beam execution&lt;/li>
+&lt;/ul>
+&lt;p>This design provided both Protegrity and its enterprise clients with a reusable, open-source architecture for scalable data privacy and processing.&lt;/p>
+&lt;h3 id="the-results">The Results&lt;/h3>
+&lt;ul>
+&lt;li>&lt;strong>Enabled data tokenization at&lt;/strong> for regulated industries&lt;/li>
+&lt;li>&lt;strong>Accelerated adoption of Dataflow templates&lt;/strong> across Protegrity’s customer base&lt;/li>
+&lt;li>&lt;strong>Delivered an &lt;a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/complete/datatokenization/README.md">open-source Flex Template&lt;/a>&lt;/strong> that benefits the entire Apache Beam community&lt;/li>
+&lt;/ul>
+&lt;blockquote class="case-study-quote-block case-study-quote-wrapped">
+&lt;p class="case-study-quote-text">
+In collaboration with Akvelon, Protegrity utilized a Dataflow Flex template that helps us enable customers to tokenize and detokenize streaming and batch data from a fully managed Google Cloud Dataflow service. We appreciate Akvelon’s support as a trusted partner with Google Cloud expertise.
+&lt;/p>
+&lt;div class="case-study-quote-author">
+&lt;div class="case-study-quote-author-img">
+&lt;img src="/images/case-study/akvelon/chitnis.png">
+&lt;/div>
+&lt;div class="case-study-quote-author-info">
+&lt;div class="case-study-quote-author-name">
+Jay Chitnis
+&lt;/div>
+&lt;div class="case-study-quote-author-position">
+VP of Partners and Business Development @Protegrity
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;/blockquote>
+&lt;h2 id="use-case-2-cdap-connector-for-apache-beam">Use Case 2: CDAP Connector for Apache Beam&lt;/h2>
+&lt;h3 id="the-challenge-1">The Challenge&lt;/h3>
+&lt;p>&lt;strong>CDAP&lt;/strong> had extensive plugin support for Spark but lacked native compatibility with Apache Beam. This limitation prevented organizations from reusing CDAP&amp;rsquo;s rich ecosystem of data connectors (e.g., Salesforce, HubSpot, ServiceNow) within Beam-based pipelines, constraining cross-platform integration.&lt;/p>
+&lt;h3 id="the-solution-1">The Solution&lt;/h3>
+&lt;p>Akvelon engineered a &lt;strong>shim layer&lt;/strong> (CDAP Connector) that bridges CDAP plugins with Apache Beam. This innovation enables CDAP source and sink plugins to operate seamlessly within Beam pipelines.&lt;/p>
+&lt;div class="post-scheme">
+&lt;a href="/images/case-study/akvelon/diagram-02.png" target="_blank" title="Click to enlarge">
+&lt;img src="/images/case-study/akvelon/diagram-02.png" alt="CDAP Connector Integration with Apache Beam">
+&lt;/a>
+&lt;/div>
+&lt;h3 id="highlights">Highlights&lt;/h3>
+&lt;ul>
+&lt;li>Supports &lt;code>StructuredRecord&lt;/code> format conversion to Beam schema (&lt;code>BeamRow&lt;/code>)&lt;/li>
+&lt;li>Enables CDAP plugins to run seamlessly in both Spark and Beam pipelines&lt;/li>
+&lt;li>Facilitates integration testing across third-party data sources (e.g., Salesforce, Zendesk)&lt;/li>
+&lt;li>Complies with Beam’s development and style guide for open-source contributions&lt;/li>
+&lt;/ul>
+&lt;p>The project included prototyping, test infrastructure, and Salesforce plugin pipelines to ensure robustness.&lt;/p>
+&lt;h3 id="the-results-1">The Results&lt;/h3>
+&lt;ul>
+&lt;li>&lt;strong>Enabled seamless reuse of CDAP plugins in Beam&lt;/strong>
+&lt;ul>
+&lt;li>&lt;strong>30+ CDAP plugins&lt;/strong> now work seamlessly with Beam pipelines&lt;/li>
+&lt;li>&lt;strong>Integration time&lt;/strong> reduced &lt;strong>from hours to just a few minutes&lt;/strong>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;strong>Simplified execution and migration of CDAP pipelines to Beam&lt;/strong>
+&lt;ul>
+&lt;li>Enabled &lt;strong>seamless execution&lt;/strong> of CDAP pipelines on the Beam runtime&lt;/li>
+&lt;li>Simplified &lt;strong>migration of existing CDAP pipelines&lt;/strong> to Beam with minimal changes&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;strong>Accelerated delivery and validated performance for Google Cloud customers&lt;/strong>
+&lt;ul>
+&lt;li>Delivered &lt;strong>rapid development cycles&lt;/strong> with standardized plugin configurations&lt;/li>
+&lt;li>Successfully processed &lt;strong>5 million records&lt;/strong> in end-to-end tests for &lt;strong>batch and streaming&lt;/strong>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;h2 id="technology-stack">Technology Stack&lt;/h2>
+&lt;ul>
+&lt;li>Apache Beam&lt;/li>
+&lt;li>Google Cloud Dataflow&lt;/li>
+&lt;li>Protegrity Data Protection Platform&lt;/li>
+&lt;li>CDAP (Cloud Data Fusion)&lt;/li>
+&lt;li>BigQuery&lt;/li>
+&lt;li>Salesforce, Zendesk, HubSpot, ServiceNow plugins&lt;/li>
+&lt;/ul>
+&lt;h2 id="final-words">Final words&lt;/h2>
+&lt;p>Akvelon’s contributions to Apache Beam-based solutions - from advanced tokenization for Protegrity and its enterprise customers to enabling plugin interoperability through the CDAP Connector - demonstrate the value of open-source, cloud-native data engineering. By delivering reusable and secure components, Akvelon supports enterprises in modernizing and unifying their data infrastructure.&lt;/p>
+&lt;h2 id="watch-the-solution-in-action">Watch the Solution in Action&lt;/h2>
+&lt;p>&lt;a href="https://www.youtube.com/watch?v=IQIzdfNIAHk">Architecture Walkthrough Video &lt;/a>&lt;/p>
+&lt;h2 id="about-akvelon-inc">About Akvelon, Inc.&lt;/h2>
+&lt;p>Akvelon guides enterprises through digital transformation on Google Cloud - applying deep expertise in data engineering, AI/ML, cloud infrastructure, and custom application development to design, deploy, and scale modern workloads.&lt;/p>
+&lt;p>At Akvelon, we’ve built a long-standing partnership with Google Cloud—helping software-driven organizations implement, migrate, modernize, automate, and optimize their systems while making the most of cloud technologies.&lt;/p>
+&lt;p>As a &lt;strong>Google Cloud Service&lt;/strong> and &lt;strong>Build Partner&lt;/strong>, we contribute actively to the ecosystem:&lt;/p>
+&lt;ul>
+&lt;li>Contributing code and guidance to &lt;strong>Apache Beam&lt;/strong>—including Playground, Tour of Beam, and the Duet AI training set&lt;/li>
+&lt;li>Improving project infrastructure and supporting the Apache Beam community—now with an official Apache Beam Committer on our team&lt;/li>
+&lt;/ul>
+&lt;p>Backed by deep expertise in data engineering, AI/ML, cloud architecture, and application development, our engineers deliver reusable, secure, and production-ready solutions on Google Cloud for enterprises worldwide.&lt;/p>
+&lt;ul>
+&lt;li>&lt;a href="https://cloud.google.com/find-a-partner/partner/akvelon">Akvelon on Google Cloud&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://github.com/akvelon/DnA_accelerators">Akvelon Data and Analytics Accelerators&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;div class="case-study-feedback" id="case-study-feedback">
+&lt;p class="case-study-feedback-title">Was this information useful?&lt;/p>
+&lt;div>
+&lt;button class="btn case-study-feedback-btn" onclick="sendCaseStudyFeedback(true, 'Akvelon')">Yes&lt;/button>
+&lt;button class="btn case-study-feedback-btn" onclick="sendCaseStudyFeedback(false, 'Akvelon')">No&lt;/button>
+&lt;/div>
+&lt;/div>
+&lt;/div>
 &lt;div class="clear-nav">&lt;/div></description></item><item><title>Case-Studies: Accenture Baltics' Journey with Apache Beam to Streamlined Data Workflows for a Sustainable Energy Leader</title><link>/case-studies/accenture_baltics/</link><pubDate>Mon, 25 Nov 2024 00:12:00 +0000</pubDate><guid>/case-studies/accenture_baltics/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -2562,17 +2721,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 --></description></item><item><title>Case-Studies: Accenture</title><link>/case-studies/accenture/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/accenture/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
---></description></item><item><title>Case-Studies: Akvelon</title><link>/case-studies/akvelon/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/case-studies/akvelon/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
