@@ -48,7 +48,8 @@ class ManagedIcebergIT(unittest.TestCase):
         str_=str(num),
         bytes_=bytes(num),
         bool_=(num % 2 == 0),
-        float_=(num + float(num) / 100))
+        float_=(num + float(num) / 100),
+        arr_=[num, num, num])
 
   def test_write_read_pipeline(self):
     iceberg_config = {

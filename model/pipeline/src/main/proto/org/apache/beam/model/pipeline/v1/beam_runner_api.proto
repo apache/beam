@@ -1677,6 +1677,10 @@ message StandardProtocols {
     // Indicates whether the SDK supports ordered list state.
     ORDERED_LIST_STATE = 10
     [(beam_urn) = "beam:protocol:ordered_list_state:v1"];
+
+    // Indicates support for reading, writing and propagating Element's metadata
+    ELEMENT_METADATA = 11
+    [(beam_urn) = "beam:protocol:element_metadata:v1"];
   }
 }
 

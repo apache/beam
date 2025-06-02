@@ -1211,11 +1211,11 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
    *
    * <ul>
    *   <li>The return type {@code WatermarkEstimatorStateT} defines the watermark state type used
-   *       within this splittable DoFn. All other methods that use a {@link
-   *       WatermarkEstimatorState @WatermarkEstimatorState} parameter must use the same type that
-   *       is used here. It is suggested to use as narrow of a return type definition as possible
-   *       (for example prefer to use a square type over a shape type as a square is a type of a
-   *       shape).
+   *       within this splittable DoFn. The return type is allowed to be nullable. All other methods
+   *       that use a {@link WatermarkEstimatorState @WatermarkEstimatorState} parameter must use
+   *       the same type that is used here. It is suggested to use as narrow of a return type
+   *       definition as possible (for example prefer to use a square type over a shape type as a
+   *       square is a type of a shape).
    *   <li>If one of its arguments is tagged with the {@link Element} annotation, then it will be
    *       passed the current element being processed; the argument must be of type {@code InputT}.
    *       Note that automatic conversion of {@link Row}s and {@link FieldAccess} parameters are
