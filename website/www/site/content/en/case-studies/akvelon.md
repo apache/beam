@@ -151,7 +151,7 @@ The project included prototyping, test infrastructure, and Salesforce plugin pip
 3. **Accelerated delivery and validated performance for Google Cloud customers**
 
    a.  Delivered **rapid development cycles** with standardized plugin configurations
-   
+
    b.  Successfully processed **5 million records** in end-to-end tests for **batch and streaming**
 
 ## Technology Stack
