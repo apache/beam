@@ -71,7 +71,7 @@
 
 ## I/Os
 
-* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Support for streaming writes in IOBase and FileBaseSink (Python)
 
 ## New Features / Improvements
 * Adding Google Storage Requests Pays feature (Golang)([#30747](https://github.com/apache/beam/issues/30747)).
