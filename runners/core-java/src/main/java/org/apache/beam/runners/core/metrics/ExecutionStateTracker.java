@@ -29,6 +29,8 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Tracks the current state of a single execution thread. */
 @SuppressFBWarnings(value = "IS2_INCONSISTENT_SYNC", justification = "Intentional for performance.")
@@ -45,6 +47,8 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
   private static final Map<Long, ExecutionStateTracker> CURRENT_TRACKERS =
       new ConcurrentHashMap<>();
 
+  private static final Logger LOG = LoggerFactory.getLogger(ExecutionStateTracker.class);
+  private static final long FATAL_LULL_REPORT_MS = TimeUnit.MINUTES.toMillis(10);// TODO: access option argument "ptransformTimeoutDuration"
   private static final long LULL_REPORT_MS = TimeUnit.MINUTES.toMillis(5);
   private static final long BUNDLE_LULL_REPORT_MS = TimeUnit.MINUTES.toMillis(10);
   private static final AtomicIntegerFieldUpdater<ExecutionStateTracker> SAMPLING_UPDATER =
@@ -382,6 +386,10 @@ public class ExecutionStateTracker implements Comparable<ExecutionStateTracker> 
     // Because only one thread modifies it, volatile provides enough synchronization.
     millisSinceLastTransition += millisSinceLastSample;
     if (state != null) {
+      if (millisSinceLastTransition > FATAL_LULL_REPORT_MS) {
+        LOG.error("FATAL: the state has been stuck for too long.", e); // Could be more specific, more information can be logged
+      }
+
       if (millisSinceLastTransition > nextLullReportMs) {
         state.reportLull(trackedThread, millisSinceLastTransition);
         nextLullReportMs += LULL_REPORT_MS;
