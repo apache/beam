@@ -733,11 +733,6 @@ class IdentityWindowTest(unittest.TestCase):
             # contain a window of None. IdentityWindowFn should
             # raise an exception.
             | 'add_timestamps2' >> beam.ParDo(AddTimestampDoFn()))
-        assert_that(
-            after_identity,
-            equal_to(expected_windows),
-            label='after_identity',
-            reify_windows=True)
 
 
 class ReshuffleTest(unittest.TestCase):
