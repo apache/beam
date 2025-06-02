@@ -1,0 +1,13 @@
+{
+  "commentedAboutFailingChecks": false,
+  "reviewersAssignedForLabels": {
+    "python": "jrmccluskey",
+    "java": "robertwb",
+    "build": "damccorm",
+    "website": "liferoad"
+  },
+  "nextAction": "Reviewers",
+  "stopReviewerNotifications": false,
+  "remindAfterTestsPass": [],
+  "committerAssigned": false
+}
