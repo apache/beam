@@ -43,7 +43,6 @@ from typing import Tuple
 from typing import TypeVar
 from typing import Union
 
-from beam.sdks.python.apache_beam.io.gcp.internal.clients.bigquery.bigquery_v2_messages import BigqueryTablesGetRequest
 import fastavro
 import numpy as np
 import regex
@@ -67,6 +66,8 @@ from apache_beam.typehints.row_type import RowTypeConstraint
 from apache_beam.typehints.typehints import Any
 from apache_beam.utils import retry
 from apache_beam.utils.histogram import LinearBucket
+from apache_beam.io.gcp.internal.clients.bigquery.bigquery_v2_messages import BigqueryTablesGetRequest
+
 
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
