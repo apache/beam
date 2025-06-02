@@ -136,23 +136,15 @@ The project included prototyping, test infrastructure, and Salesforce plugin pip
 
 ### The Results
 
-1. **Enabled seamless reuse of CDAP plugins in Beam**
-
-   a.  **30+ CDAP plugins** now work seamlessly with Beam pipelines
-
-   b.  **Integration time** reduced **from hours to just a few minutes**
-
-2. **Simplified execution and migration of CDAP pipelines to Beam**
-
-   a.  Enabled **seamless execution** of CDAP pipelines on the Beam runtime
-
-   b.  Simplified **migration of existing CDAP pipelines** to Beam with minimal changes
-
-3. **Accelerated delivery and validated performance for Google Cloud customers**
-
-   a.  Delivered **rapid development cycles** with standardized plugin configurations
-
-   b.  Successfully processed **5 million records** in end-to-end tests for **batch and streaming**
+- **Enabled seamless reuse of CDAP plugins in Beam**
+  - **30+ CDAP plugins** now work seamlessly with Beam pipelines
+  - **Integration time** reduced **from hours to just a few minutes**
+- **Simplified execution and migration of CDAP pipelines to Beam**
+  - Enabled **seamless execution** of CDAP pipelines on the Beam runtime
+  - Simplified **migration of existing CDAP pipelines** to Beam with minimal changes
+- **Accelerated delivery and validated performance for Google Cloud customers**
+  - Delivered **rapid development cycles** with standardized plugin configurations
+  - Successfully processed **5 million records** in end-to-end tests for **batch and streaming**
 
 ## Technology Stack
 
