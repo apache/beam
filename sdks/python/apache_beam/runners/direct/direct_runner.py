@@ -67,8 +67,13 @@ class SwitchingDirectRunner(PipelineRunner):
   which supports streaming execution and certain primitives not yet
   implemented in the FnApiRunner.
   """
+  _is_interactive = False
+
   def is_fnapi_compatible(self):
     return BundleBasedDirectRunner.is_fnapi_compatible()
+  
+  def is_interactive(self):
+    self._is_interactive = True
 
   def run_pipeline(self, pipeline, options):
 
@@ -113,7 +118,7 @@ class SwitchingDirectRunner(PipelineRunner):
 
     class _PrismRunnerSupportVisitor(PipelineVisitor):
       """Visitor determining if a Pipeline can be run on the PrismRunner."""
-      def accept(self, pipeline):
+      def accept(self, pipeline, is_interactive):
         all_options = options.get_all_options()
         self.supported_by_prism_runner = True
         # TODO(https://github.com/apache/beam/issues/33623): Prism currently
@@ -124,7 +129,7 @@ class SwitchingDirectRunner(PipelineRunner):
           self.supported_by_prism_runner = False
         # TODO(https://github.com/apache/beam/issues/33623): Prism currently
         # does not support interactive mode
-        elif is_in_ipython():
+        elif is_in_ipython() or is_interactive:
           self.supported_by_prism_runner = False
         # TODO(https://github.com/apache/beam/issues/33623): Prism currently
         # does not support the update compat flag
@@ -190,7 +195,7 @@ class SwitchingDirectRunner(PipelineRunner):
 
     # Check whether all transforms used in the pipeline are supported by the
     # PrismRunner
-    if _PrismRunnerSupportVisitor().accept(pipeline):
+    if _PrismRunnerSupportVisitor().accept(pipeline, self._is_interactive):
       _LOGGER.info('Running pipeline with PrismRunner.')
       from apache_beam.runners.portability import prism_runner
       runner = prism_runner.PrismRunner()

@@ -80,6 +80,8 @@ class InteractiveRunner(runners.PipelineRunner):
     """
     self._underlying_runner = (
         underlying_runner or direct_runner.DirectRunner())
+    if hasattr(self._underlying_runner, 'is_interactive'):
+      self._underlying_runner.is_interactive()
     self._render_option = render_option
     self._in_session = False
     self._skip_display = skip_display

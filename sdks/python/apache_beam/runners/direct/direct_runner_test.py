@@ -92,7 +92,11 @@ class DirectPipelineResultTest(unittest.TestCase):
             ("a", "b", str(element % 4)))
         return [element]
 
-    p = Pipeline(DirectRunner())
+    # TODO(https://github.com/apache/beam/issues/34549): This test relies on
+    # metrics filtering which doesn't work on Prism yet because Prism renames
+    # steps (e.g. "Do" becomes "ref_AppliedPTransform_Do_7").
+    # https://github.com/apache/beam/blob/5f9cd73b7c9a2f37f83971ace3a399d633201dd1/sdks/python/apache_beam/runners/portability/fn_api_runner/fn_runner.py#L1590
+    p = Pipeline('FnApiRunner')
     pcoll = (
         p | beam.Create([1, 2, 3, 4, 5], reshuffle=False)
         | 'Do' >> beam.ParDo(MyDoFn()))
