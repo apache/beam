@@ -538,6 +538,10 @@ class SchemaTranslation(object):
         return LogicalType.from_runner_api(
             fieldtype_proto.logical_type).language_type()
 
+    elif type_info == "iterable_type":
+      return Sequence[self.typing_from_runner_api(
+          fieldtype_proto.iterable_type.element_type)]
+
     else:
       raise ValueError(f"Unrecognized type_info: {type_info!r}")
 
