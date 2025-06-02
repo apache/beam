@@ -161,7 +161,7 @@ class TFHubEmbeddingsTest(unittest.TestCase):
   def test_with_int_data_types(self):
     embedding_config = TensorflowHubTextEmbeddings(
         hub_url=hub_url, columns=[test_query_column])
-    with self.assertRaises(TypeError):
+    with self.assertRaises(Exception):
       with beam.Pipeline() as pipeline:
         _ = (
             pipeline

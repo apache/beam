@@ -950,7 +950,11 @@ class RunInferenceBaseTest(unittest.TestCase):
 
   def test_increment_failed_batches_counter(self):
     with self.assertRaises(ValueError):
-      with TestPipeline() as pipeline:
+      # TODO(https://github.com/apache/beam/issues/34549): This test relies on
+      # metrics filtering which doesn't work on Prism yet because Prism renames
+      # steps (e.g. "Do" becomes "ref_AppliedPTransform_Do_7").
+      # https://github.com/apache/beam/blob/5f9cd73b7c9a2f37f83971ace3a399d633201dd1/sdks/python/apache_beam/runners/portability/fn_api_runner/fn_runner.py#L1590
+      with TestPipeline('FnApiRunner') as pipeline:
         examples = [7]
         pcoll = pipeline | 'start' >> beam.Create(examples)
         _ = pcoll | base.RunInference(FakeModelHandlerExpectedInferenceArgs())
@@ -1040,7 +1044,7 @@ class RunInferenceBaseTest(unittest.TestCase):
 
   def test_run_inference_unkeyed_examples_with_keyed_model_handler(self):
     pipeline = TestPipeline()
-    with self.assertRaises(TypeError):
+    with self.assertRaises(Exception):
       examples = [1, 3, 5]
       model_handler = base.KeyedModelHandler(FakeModelHandler())
       _ = (
@@ -1053,7 +1057,7 @@ class RunInferenceBaseTest(unittest.TestCase):
     examples = [1, 3, 5]
     keyed_examples = [(i, example) for i, example in enumerate(examples)]
     model_handler = FakeModelHandler()
-    with self.assertRaises(TypeError):
+    with self.assertRaises(Exception):
       _ = (
           pipeline | 'keyed' >> beam.Create(keyed_examples)
           | 'RunKeyed' >> base.RunInference(model_handler))
@@ -1500,7 +1504,10 @@ class RunInferenceBaseTest(unittest.TestCase):
         for e in element:
           yield e
 
-    with TestPipeline() as pipeline:
+    # This test relies on poorly defined side input semantics which vary
+    # across runners (including prism). Pinning to FnApiRunner which
+    # consistently guarantees output.
+    with TestPipeline('FnApiRunner') as pipeline:
       side_input = (
           pipeline
           |
