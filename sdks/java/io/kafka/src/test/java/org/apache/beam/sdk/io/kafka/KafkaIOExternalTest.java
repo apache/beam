@@ -38,8 +38,7 @@ import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
-import org.apache.beam.sdk.transforms.Impulse;
-import org.apache.beam.sdk.transforms.WithKeys;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.construction.ParDoTranslation;
 import org.apache.beam.sdk.util.construction.PipelineTranslation;
@@ -66,7 +65,7 @@ public class KafkaIOExternalTest {
       throws Exception {
     assertThat(
         kafkaSDFReadComposite.getSubtransformsList(),
-        Matchers.hasItem(MatchesPattern.matchesPattern(".*Impulse.*")));
+        Matchers.hasItem(MatchesPattern.matchesPattern(".*Create.*")));
     assertThat(
         kafkaSDFReadComposite.getSubtransformsList(),
         Matchers.hasItem(MatchesPattern.matchesPattern(".*GenerateKafkaSourceDescriptor.*")));
@@ -323,7 +322,7 @@ public class KafkaIOExternalTest {
                 .build());
 
     Pipeline p = Pipeline.create();
-    p.apply(Impulse.create()).apply(WithKeys.of("key"));
+    p.apply(Create.of(ImmutableMap.of("key", new byte[0])));
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
     String inputPCollection =
         Iterables.getOnlyElement(
