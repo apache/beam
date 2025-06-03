@@ -48,13 +48,12 @@ evaluationDependsOn(":sdks:java:io:google-cloud-platform")
 evaluationDependsOn(":sdks:java:core")
 evaluationDependsOn(":examples:java")
 evaluationDependsOn(":runners:google-cloud-dataflow-java:worker")
-evaluationDependsOn(":sdks:java:container:java8")
 evaluationDependsOn(":sdks:java:container:java11")
 
 ext.dataflowLegacyEnvironmentMajorVersion = '8'
 ext.dataflowFnapiEnvironmentMajorVersion = '8'
-ext.dataflowLegacyContainerVersion = 'beam-master-20250326'
-ext.dataflowFnapiContainerVersion = 'beam-master-20250326'
+ext.dataflowLegacyContainerVersion = 'beam-master-20250602'
+ext.dataflowFnapiContainerVersion = 'beam-master-20250602'
 ext.dataflowContainerBaseRepository = 'gcr.io/cloud-dataflow/v1beta3'
 
 processResources {

@@ -180,9 +180,9 @@ func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, c
 	progTick := time.NewTicker(baseTick)
 	defer progTick.Stop()
 	var dataFinished, bundleFinished bool
-	// If we have no data outputs, we still need to have progress & splits
+	// If we have no data outputs and timers, we still need to have progress & splits
 	// while waiting for bundle completion.
-	if b.OutputCount == 0 {
+	if b.OutputCount+len(b.HasTimers) == 0 {
 		dataFinished = true
 	}
 	var resp *fnpb.ProcessBundleResponse
