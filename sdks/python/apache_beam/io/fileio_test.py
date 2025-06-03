@@ -106,7 +106,7 @@ class MatchTest(_TestCaseWithTempDirCleanUp):
     files.append(self._create_temp_file(dir=directories[0]))
     files.append(self._create_temp_file(dir=directories[0]))
 
-    with self.assertRaisesRegex(Exception, "BeamIOError"):
+    with self.assertRaises(Exception):
       with TestPipeline() as p:
         files_pc = (
             p

@@ -1230,7 +1230,10 @@ class RunInferenceBaseTest(unittest.TestCase):
         for e in element:
           yield e
 
-    with TestPipeline() as pipeline:
+    # This test relies on poorly defined side input semantics which vary
+    # across runners (including prism). Pinning to FnApiRunner which
+    # consistently guarantees output.
+    with TestPipeline('FnApiRunner') as pipeline:
       side_input = (
           pipeline
           |
@@ -1328,7 +1331,10 @@ class RunInferenceBaseTest(unittest.TestCase):
         for e in element:
           yield e
 
-    with TestPipeline() as pipeline:
+    # This test relies on poorly defined side input semantics which vary
+    # across runners (including prism). Pinning to FnApiRunner which
+    # consistently guarantees output.
+    with TestPipeline('FnApiRunner') as pipeline:
       side_input = (
           pipeline
           |

@@ -733,7 +733,7 @@ class TestReadFromBigQuery(unittest.TestCase):
           gcs_location="gs://temp_location")
 
     mock_query_job.assert_called()
-    self.assertIn(error_message, exc.exception.args[0])
+    self.assertIn(error_message, str(exc.exception))
 
   def test_read_direct_lineage(self):
     # TODO(https://github.com/apache/beam/issues/34549): This test relies on
