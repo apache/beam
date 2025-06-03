@@ -1527,6 +1527,7 @@ def _finalize_write(
     return (
         window.TimestampedValue(v, timestamp.MAX_TIMESTAMP) for v in outputs)
 
+
 def _finalize_windowed_write(
     unused_element,
     sink,
@@ -1549,6 +1550,7 @@ def _finalize_windowed_write(
 
   if outputs:
     return (window.TimestampedValue(v, w.end) for v in outputs)
+
 
 class _RoundRobinKeyFn(core.DoFn):
   def start_bundle(self):
