@@ -74,25 +74,14 @@ class SizeLimiter(beam.PTransform):
     return {'small_elements': good, self._error_handling['output']: bad}
 
 
-from apache_beam.ml.anomaly.specifiable import Spec
-from apache_beam.ml.anomaly.transforms import AnomalyDetection
-from apache_beam.ml.anomaly.transforms import Specifiable
-
-class SpecifiableTransform(beam.PTransform):
-  def __init__(self, spec: str):
-    self._spec = Spec(type='ZScore')
-
-  def expand(self, pcoll):
-    return pcoll | AnomalyDetection(detector=Specifiable.from_spec(self._spec))
-
 TEST_PROVIDERS = {
     'CreateInts': CreateInts,
     'CreateTimestamped': CreateTimestamped,
     'SumGlobally': SumGlobally,
     'SizeLimiter': SizeLimiter,
     'PyMap': lambda fn: beam.Map(python_callable.PythonCallableWithSource(fn)),
-    'AnomalyDetection': SpecifiableTransform,
 }
+
 
 class YamlTransformE2ETest(unittest.TestCase):
   def test_composite(self):
@@ -165,29 +154,6 @@ class YamlTransformE2ETest(unittest.TestCase):
           ''',
           providers=TEST_PROVIDERS)
       assert_that(result, equal_to([41, 43, 47, 53, 61, 71, 83, 97, 113, 131]))
-
-  def test_specifiable_transform(self):
-    TRAIN_DATA = [
-      (0, beam.Row(x=1)),
-      (0, beam.Row(x=2)),
-      (0, beam.Row(x=4)),
-      (0, beam.Row(x=9)),
-    ]
-    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
-        pickle_library='cloudpickle')) as p:
-      result = p | beam.Create(TRAIN_DATA) | YamlTransform(
-          '''
-          type: chain
-          transforms:
-            - type: AnomalyDetection
-              config:
-                  spec: "type:'Zscore', config:{}"
-            - type: PyMap
-              config:
-                  fn: "lambda x: (x[1].predictions[0].label)"
-          ''',
-          providers=TEST_PROVIDERS)
-      assert_that(result, equal_to([-2, -2, 1, 1]))
 
   def test_chain_with_root(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
