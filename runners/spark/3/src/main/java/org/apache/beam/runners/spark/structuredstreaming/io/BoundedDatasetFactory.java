@@ -19,7 +19,7 @@ package org.apache.beam.runners.spark.structuredstreaming.io;
 
 import static java.util.stream.Collectors.toList;
 import static org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop.emptyList;
-import static org.apache.beam.sdk.util.WindowedValue.timestampedValueInGlobalWindow;
+import static org.apache.beam.sdk.values.WindowedValues.timestampedValueInGlobalWindow;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static scala.collection.JavaConverters.asScalaIterator;
 
@@ -36,7 +36,8 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.AbstractIterator;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.spark.InterruptibleIterator;
@@ -109,7 +110,7 @@ public class BoundedDatasetFactory {
     final Params<T> params;
 
     public BoundedRDD(SparkContext sc, BoundedSource<T> source, Params<T> params) {
-      super(sc, emptyList(), ClassTag.apply(WindowedValue.class));
+      super(sc, emptyList(), ClassTag.apply(WindowedValues.class));
       this.source = source;
       this.params = params;
     }

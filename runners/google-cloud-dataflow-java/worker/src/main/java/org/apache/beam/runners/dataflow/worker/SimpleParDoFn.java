@@ -26,7 +26,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.DoFnRunner;
-import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespaces.WindowNamespace;
@@ -53,9 +52,11 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.DoFnInfo;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
+import org.apache.beam.sdk.util.WindowedValueReceiver;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -249,8 +250,8 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
   private void reallyStartBundle() throws Exception {
     checkState(fnRunner == null, "bundle already started (or not properly finished)");
 
-    OutputManager outputManager =
-        new OutputManager() {
+    WindowedValueMultiReceiver outputManager =
+        new WindowedValueMultiReceiver() {
           final Map<TupleTag<?>, OutputReceiver> undeclaredOutputs = new HashMap<>();
 
           private @Nullable Receiver getReceiverOrNull(TupleTag<?> tag) {
@@ -263,39 +264,44 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
           }
 
           @Override
-          public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
-            outputsPerElementTracker.onOutput();
-            Receiver receiver = getReceiverOrNull(tag);
-            if (receiver == null) {
-              // A new undeclared output.
-              // TODO: plumb through the operationName, so that we can
-              // name implicit outputs after it.
-              String outputName = "implicit-" + tag.getId();
-              // TODO: plumb through the counter prefix, so we can
-              // make it available to the OutputReceiver class in case
-              // it wants to use it in naming output counterFactory.  (It
-              // doesn't today.)
-              OutputReceiver undeclaredReceiver = new OutputReceiver();
+          public <TagT> WindowedValueReceiver<TagT> forTag(TupleTag<TagT> tag) {
+            return new WindowedValueReceiver<TagT>() {
+              @Override
+              public void output(ValueWithMetadata<TagT> output) {
+                outputsPerElementTracker.onOutput();
+                Receiver receiver = getReceiverOrNull(tag);
+                if (receiver == null) {
+                  // A new undeclared output.
+                  // TODO: plumb through the operationName, so that we can
+                  // name implicit outputs after it.
+                  String outputName = "implicit-" + tag.getId();
+                  // TODO: plumb through the counter prefix, so we can
+                  // make it available to the OutputReceiver class in case
+                  // it wants to use it in naming output counterFactory.  (It
+                  // doesn't today.)
+                  OutputReceiver undeclaredReceiver = new OutputReceiver();
 
-              ElementCounter outputCounter =
-                  new DataflowOutputCounter(
-                      outputName, counterFactory, stepContext.getNameContext());
-              undeclaredReceiver.addOutputCounter(outputCounter);
-              undeclaredOutputs.put(tag, undeclaredReceiver);
-              receiver = undeclaredReceiver;
-            }
+                  ElementCounter outputCounter =
+                      new DataflowOutputCounter(
+                          outputName, counterFactory, stepContext.getNameContext());
+                  undeclaredReceiver.addOutputCounter(outputCounter);
+                  undeclaredOutputs.put(tag, undeclaredReceiver);
+                  receiver = undeclaredReceiver;
+                }
 
-            try {
-              receiver.process(output);
-            } catch (RuntimeException | Error e) {
-              // Rethrow unchecked exceptions as-is to avoid excessive nesting
-              // via a chain of DoFn's.
-              throw e;
-            } catch (Exception e) {
-              // This should never happen in practice with DoFn's, but can happen
-              // with other Receivers.
-              throw new RuntimeException(e);
-            }
+                try {
+                  receiver.process(output);
+                } catch (RuntimeException | Error e) {
+                  // Rethrow unchecked exceptions as-is to avoid excessive nesting
+                  // via a chain of DoFn's.
+                  throw e;
+                } catch (Exception e) {
+                  // This should never happen in practice with DoFn's, but can happen
+                  // with other Receivers.
+                  throw new RuntimeException(e);
+                }
+              }
+            };
           }
         };
     fnInfo = (DoFnInfo) doFnInstanceManager.get();

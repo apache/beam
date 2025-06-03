@@ -70,7 +70,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.CoderPropertiesTest.NonDeterministicCoder;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WeightedValue;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicate;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
@@ -580,7 +580,7 @@ public class IsmReaderTest {
       WindowedValue<IsmRecord<byte[]>> lastWindowedValue = readerIterator.getLast();
       if (lastWindowedValue != null) {
         assertIsmEquals(
-            lastWindowedValue.getValue(), sortedBySecondKey.get(encodedPrimaryKey).last());
+            lastWindowedValues.getValue(), sortedBySecondKey.get(encodedPrimaryKey).last());
       }
     }
   }

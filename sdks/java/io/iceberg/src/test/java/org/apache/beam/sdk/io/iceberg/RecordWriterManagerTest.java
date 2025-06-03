@@ -43,8 +43,9 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -117,7 +118,7 @@ public class RecordWriterManagerTest {
             .setFileFormat(FileFormat.PARQUET)
             .setTableIdentifier(tableIdentifier)
             .build();
-    return WindowedValue.of(
+    return WindowedValues.of(
         icebergDestination,
         GlobalWindow.TIMESTAMP_MAX_VALUE,
         GlobalWindow.INSTANCE,
@@ -745,7 +746,7 @@ public class RecordWriterManagerTest {
             .setFileFormat(FileFormat.PARQUET)
             .build();
     WindowedValue<IcebergDestination> singleDestination =
-        WindowedValue.valueInGlobalWindow(destination);
+        WindowedValues.valueInGlobalWindow(destination);
 
     RecordWriterManager writerManager = new RecordWriterManager(catalog, "test_file_name", 1000, 3);
     Row row1 = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", true).build();
@@ -807,7 +808,7 @@ public class RecordWriterManagerTest {
             .setFileFormat(FileFormat.PARQUET)
             .build();
     WindowedValue<IcebergDestination> singleDestination =
-        WindowedValue.valueInGlobalWindow(destination);
+        WindowedValues.valueInGlobalWindow(destination);
 
     RecordWriterManager writerManager = new RecordWriterManager(catalog, "test_file_name", 1000, 3);
     Row row1 = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", true).build();

@@ -34,10 +34,11 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multimap;
@@ -173,7 +174,7 @@ public class PartialReduceBundleOperator<K, InputT, OutputT, AccumT>
       @ProcessElement
       public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
         WindowedValue<KV<K, InputT>> windowedValue =
-            WindowedValue.of(c.element(), c.timestamp(), window, c.pane());
+            WindowedValues.of(c.element(), c.timestamp(), window, c.pane());
         state.put(Objects.requireNonNull(c.element()).getKey(), windowedValue);
       }
     };

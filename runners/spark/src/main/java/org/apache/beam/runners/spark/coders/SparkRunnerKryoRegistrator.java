@@ -65,7 +65,7 @@ public class SparkRunnerKryoRegistrator implements KryoRegistrator {
 
     try {
       kryo.register(
-          Class.forName("org.apache.beam.sdk.util.WindowedValue$TimestampedValueInGlobalWindow"));
+          Class.forName("org.apache.beam.sdk.values.WindowedValue$TimestampedValueInGlobalWindow"));
       kryo.register(
           Class.forName(
               "org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashBasedTable$Factory"));

@@ -34,8 +34,9 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -55,21 +56,21 @@ public class PartitioningShuffleReaderTest {
 
   private static final List<WindowedValue<KV<Integer, String>>> KVS =
       Arrays.asList(
-          WindowedValue.of(KV.of(1, "in 1a"), timestamp, Lists.newArrayList(window), NO_FIRING),
-          WindowedValue.of(KV.of(1, "in 1b"), timestamp, Lists.newArrayList(window), NO_FIRING),
-          WindowedValue.of(KV.of(2, "in 2a"), timestamp, Lists.newArrayList(window), NO_FIRING),
-          WindowedValue.of(KV.of(2, "in 2b"), timestamp, Lists.newArrayList(window), NO_FIRING),
-          WindowedValue.of(KV.of(3, "in 3"), timestamp, Lists.newArrayList(window), NO_FIRING),
-          WindowedValue.of(KV.of(4, "in 4a"), timestamp, Lists.newArrayList(window), NO_FIRING),
-          WindowedValue.of(KV.of(4, "in 4b"), timestamp, Lists.newArrayList(window), NO_FIRING),
-          WindowedValue.of(KV.of(4, "in 4c"), timestamp, Lists.newArrayList(window), NO_FIRING),
-          WindowedValue.of(KV.of(4, "in 4d"), timestamp, Lists.newArrayList(window), NO_FIRING),
-          WindowedValue.of(KV.of(5, "in 5"), timestamp, Lists.newArrayList(window), NO_FIRING));
+          WindowedValues.of(KV.of(1, "in 1a"), timestamp, Lists.newArrayList(window), NO_FIRING),
+          WindowedValues.of(KV.of(1, "in 1b"), timestamp, Lists.newArrayList(window), NO_FIRING),
+          WindowedValues.of(KV.of(2, "in 2a"), timestamp, Lists.newArrayList(window), NO_FIRING),
+          WindowedValues.of(KV.of(2, "in 2b"), timestamp, Lists.newArrayList(window), NO_FIRING),
+          WindowedValues.of(KV.of(3, "in 3"), timestamp, Lists.newArrayList(window), NO_FIRING),
+          WindowedValues.of(KV.of(4, "in 4a"), timestamp, Lists.newArrayList(window), NO_FIRING),
+          WindowedValues.of(KV.of(4, "in 4b"), timestamp, Lists.newArrayList(window), NO_FIRING),
+          WindowedValues.of(KV.of(4, "in 4c"), timestamp, Lists.newArrayList(window), NO_FIRING),
+          WindowedValues.of(KV.of(4, "in 4d"), timestamp, Lists.newArrayList(window), NO_FIRING),
+          WindowedValues.of(KV.of(5, "in 5"), timestamp, Lists.newArrayList(window), NO_FIRING));
 
   private void runTestReadFromShuffle(List<WindowedValue<KV<Integer, String>>> expected)
       throws Exception {
     Coder<WindowedValue<KV<Integer, String>>> elemCoder =
-        WindowedValue.getFullCoder(
+        WindowedValues.getFullCoder(
             KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of()),
             IntervalWindow.getCoder());
 

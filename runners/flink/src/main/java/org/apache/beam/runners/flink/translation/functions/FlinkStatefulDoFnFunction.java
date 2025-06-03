@@ -49,10 +49,11 @@ import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
@@ -120,12 +121,12 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
       throws Exception {
     RuntimeContext runtimeContext = getRuntimeContext();
 
-    DoFnRunners.OutputManager outputManager;
+    WindowedValueMultiReceiver outputManager;
     if (outputMap.size() == 1) {
       outputManager = new FlinkDoFnFunction.DoFnOutputManager(out);
     } else {
       // it has some additional Outputs
-      outputManager = new FlinkDoFnFunction.MultiDoFnOutputManager(out, outputMap);
+      outputManager = new FlinkDoFnFunction.MultiDoFnOutputManagerWindowed(out, outputMap);
     }
 
     final Iterator<WindowedValue<KV<K, V>>> iterator = values.iterator();

@@ -37,9 +37,10 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoder;
@@ -146,7 +147,7 @@ class CombinePerKeyTranslatorBatch<K, InT, AccT, OutT>
   }
 
   private static <K, V> Fun1<Tuple2<K, V>, WindowedValue<KV<K, V>>> globalKV() {
-    return t -> WindowedValue.valueInGlobalWindow(KV.of(t._1, t._2));
+    return t -> WindowedValues.valueInGlobalWindow(KV.of(t._1, t._2));
   }
 
   private Encoder<AccT> accumEncoder(
