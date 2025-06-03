@@ -759,7 +759,8 @@ public class ReduceFnRunnerTest {
                 equalTo(new Instant(1)),
                 equalTo((BoundedWindow) expectedWindow))));
     assertThat(
-        output.get(0).getPane(), equalTo(PaneInfo.createPane(true, false, Timing.EARLY, 0, -1)));
+        output.get(0).getPaneInfo(),
+        equalTo(PaneInfo.createPane(true, false, Timing.EARLY, 0, -1)));
 
     // There is no end-of-window hold, but the timer set by the trigger holds the watermark
     assertThat(tester.getWatermarkHold(), nullValue());
@@ -805,7 +806,8 @@ public class ReduceFnRunnerTest {
                 0, // window start
                 10))); // window end
     assertThat(
-        output.get(0).getPane(), equalTo(PaneInfo.createPane(false, false, Timing.EARLY, 1, -1)));
+        output.get(0).getPaneInfo(),
+        equalTo(PaneInfo.createPane(false, false, Timing.EARLY, 1, -1)));
 
     // Since the element hold is cleared, there is no hold remaining
     assertThat(tester.getWatermarkHold(), nullValue());
@@ -846,7 +848,8 @@ public class ReduceFnRunnerTest {
                 0, // window start
                 10))); // window end
     assertThat(
-        output.get(0).getPane(), equalTo(PaneInfo.createPane(false, false, Timing.ON_TIME, 2, 0)));
+        output.get(0).getPaneInfo(),
+        equalTo(PaneInfo.createPane(false, false, Timing.ON_TIME, 2, 0)));
 
     tester.setAutoAdvanceOutputWatermark(true);
 
@@ -879,7 +882,7 @@ public class ReduceFnRunnerTest {
                 0, // window start
                 10))); // window end
     assertThat(
-        output.get(0).getPane(), equalTo(PaneInfo.createPane(false, true, Timing.LATE, 3, 1)));
+        output.get(0).getPaneInfo(), equalTo(PaneInfo.createPane(false, true, Timing.LATE, 3, 1)));
     assertEquals(new Instant(50), tester.getOutputWatermark());
     assertEquals(null, tester.getWatermarkHold());
 
@@ -1486,7 +1489,8 @@ public class ReduceFnRunnerTest {
             1, // window start
             20)); // window end
     assertThat(
-        output.get(0).getPane(), equalTo(PaneInfo.createPane(true, true, Timing.ON_TIME, 0, 0)));
+        output.get(0).getPaneInfo(),
+        equalTo(PaneInfo.createPane(true, true, Timing.ON_TIME, 0, 0)));
   }
 
   /**
@@ -1527,7 +1531,8 @@ public class ReduceFnRunnerTest {
             1, // window start
             20)); // window end
     assertThat(
-        output.get(0).getPane(), equalTo(PaneInfo.createPane(true, true, Timing.ON_TIME, 0, 0)));
+        output.get(0).getPaneInfo(),
+        equalTo(PaneInfo.createPane(true, true, Timing.ON_TIME, 0, 0)));
   }
 
   /** Ensure a closed trigger has its state recorded in the merge result window. */
@@ -1614,7 +1619,8 @@ public class ReduceFnRunnerTest {
             equalTo((BoundedWindow) mergedWindow)));
 
     assertThat(
-        output.get(0).getPane(), equalTo(PaneInfo.createPane(true, true, Timing.ON_TIME, 0, 0)));
+        output.get(0).getPaneInfo(),
+        equalTo(PaneInfo.createPane(true, true, Timing.ON_TIME, 0, 0)));
   }
 
   /**
@@ -1661,7 +1667,7 @@ public class ReduceFnRunnerTest {
             1, // window start
             18)); // window end
     assertThat(
-        output.get(0).getPane(), equalTo(PaneInfo.createPane(true, true, Timing.EARLY, 0, 0)));
+        output.get(0).getPaneInfo(), equalTo(PaneInfo.createPane(true, true, Timing.EARLY, 0, 0)));
   }
 
   /**
@@ -1702,7 +1708,7 @@ public class ReduceFnRunnerTest {
             2, // window start
             12)); // window end
     assertThat(
-        output.get(0).getPane(), equalTo(PaneInfo.createPane(true, true, Timing.EARLY, 0, 0)));
+        output.get(0).getPaneInfo(), equalTo(PaneInfo.createPane(true, true, Timing.EARLY, 0, 0)));
     assertThat(
         output.get(1),
         isSingleWindowedValue(
@@ -1711,7 +1717,8 @@ public class ReduceFnRunnerTest {
             1, // window start
             13)); // window end
     assertThat(
-        output.get(1).getPane(), equalTo(PaneInfo.createPane(true, true, Timing.ON_TIME, 0, 0)));
+        output.get(1).getPaneInfo(),
+        equalTo(PaneInfo.createPane(true, true, Timing.ON_TIME, 0, 0)));
   }
 
   /**
@@ -1811,7 +1818,7 @@ public class ReduceFnRunnerTest {
     // The late pane has the correct indices.
     assertThat(output.get(1).getValue(), contains(3));
     assertThat(
-        output.get(1).getPane(), equalTo(PaneInfo.createPane(false, true, Timing.LATE, 1, 1)));
+        output.get(1).getPaneInfo(), equalTo(PaneInfo.createPane(false, true, Timing.LATE, 1, 1)));
 
     assertTrue(tester.isMarkedFinished(firstWindow));
     tester.assertHasOnlyGlobalAndFinishedSetsFor(firstWindow);
@@ -1850,7 +1857,8 @@ public class ReduceFnRunnerTest {
     assertThat(output.size(), equalTo(1));
     assertThat(output.get(0), isSingleWindowedValue(containsInAnyOrder(1, 2), 1, 0, 10));
     assertThat(
-        output.get(0).getPane(), equalTo(PaneInfo.createPane(true, false, Timing.ON_TIME, 0, 0)));
+        output.get(0).getPaneInfo(),
+        equalTo(PaneInfo.createPane(true, false, Timing.ON_TIME, 0, 0)));
 
     // Fire another timer with no data; the empty pane should not be output even though the
     // trigger is ready to fire
@@ -1868,7 +1876,7 @@ public class ReduceFnRunnerTest {
     // The late pane has the correct indices.
     assertThat(output.get(0).getValue(), containsInAnyOrder(1, 2, 3));
     assertThat(
-        output.get(0).getPane(), equalTo(PaneInfo.createPane(false, true, Timing.LATE, 1, 1)));
+        output.get(0).getPaneInfo(), equalTo(PaneInfo.createPane(false, true, Timing.LATE, 1, 1)));
 
     assertTrue(tester.isMarkedFinished(firstWindow));
     tester.assertHasOnlyGlobalAndFinishedSetsFor(firstWindow);
@@ -2193,8 +2201,8 @@ public class ReduceFnRunnerTest {
     List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
     assertEquals(n / 3, output.size());
     for (int i = 0; i < output.size(); i++) {
-      assertEquals(Timing.EARLY, output.get(i).getPane().getTiming());
-      assertEquals(i, output.get(i).getPane().getIndex());
+      assertEquals(Timing.EARLY, output.get(i).getPaneInfo().getTiming());
+      assertEquals(i, output.get(i).getPaneInfo().getIndex());
       assertEquals(3, Iterables.size(output.get(i).getValue()));
     }
 
@@ -2202,8 +2210,8 @@ public class ReduceFnRunnerTest {
 
     output = tester.extractOutput();
     assertEquals(1, output.size());
-    assertEquals(Timing.ON_TIME, output.get(0).getPane().getTiming());
-    assertEquals(n / 3, output.get(0).getPane().getIndex());
+    assertEquals(Timing.ON_TIME, output.get(0).getPaneInfo().getTiming());
+    assertEquals(n / 3, output.get(0).getPaneInfo().getIndex());
     assertEquals(n - ((n / 3) * 3), Iterables.size(output.get(0).getValue()));
   }
 
@@ -2231,8 +2239,8 @@ public class ReduceFnRunnerTest {
     List<WindowedValue<Iterable<Integer>>> output = tester.extractOutput();
     assertEquals((n + 3) / 4, output.size());
     for (int i = 0; i < output.size(); i++) {
-      assertEquals(Timing.EARLY, output.get(i).getPane().getTiming());
-      assertEquals(i, output.get(i).getPane().getIndex());
+      assertEquals(Timing.EARLY, output.get(i).getPaneInfo().getTiming());
+      assertEquals(i, output.get(i).getPaneInfo().getIndex());
       assertEquals(4, Iterables.size(output.get(i).getValue()));
     }
 
@@ -2240,8 +2248,8 @@ public class ReduceFnRunnerTest {
 
     output = tester.extractOutput();
     assertEquals(1, output.size());
-    assertEquals(Timing.ON_TIME, output.get(0).getPane().getTiming());
-    assertEquals((n + 3) / 4, output.get(0).getPane().getIndex());
+    assertEquals(Timing.ON_TIME, output.get(0).getPaneInfo().getTiming());
+    assertEquals((n + 3) / 4, output.get(0).getPaneInfo().getIndex());
     assertEquals(0, Iterables.size(output.get(0).getValue()));
   }
 

@@ -375,7 +375,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
 
     @Override
     public PaneInfo pane() {
-      return element.getPane();
+      return element.getPaneInfo();
     }
 
     @Override
@@ -390,7 +390,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
 
     @Override
     public void outputWithTimestamp(OutputT value, Instant timestamp) {
-      outputWindowedValue(value, timestamp, element.getWindows(), element.getPane());
+      outputWindowedValue(value, timestamp, element.getWindows(), element.getPaneInfo());
     }
 
     @Override
@@ -413,7 +413,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
 
     @Override
     public <T> void outputWithTimestamp(TupleTag<T> tag, T value, Instant timestamp) {
-      outputWindowedValue(tag, value, timestamp, element.getWindows(), element.getPane());
+      outputWindowedValue(tag, value, timestamp, element.getWindows(), element.getPaneInfo());
     }
 
     @Override

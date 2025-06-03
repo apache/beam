@@ -120,7 +120,7 @@ public class AssignWindowsRunnerTest implements Serializable {
                 -3,
                 new Instant(-12),
                 ImmutableSet.of(firstWindow, secondWindow),
-                firstValue.getPane())));
+                firstValue.getPaneInfo())));
     WindowedValue<Integer> secondValue =
         WindowedValue.of(
             3,
@@ -135,7 +135,7 @@ public class AssignWindowsRunnerTest implements Serializable {
                 3,
                 new Instant(12),
                 ImmutableSet.of(secondWindow, thirdWindow),
-                secondValue.getPane())));
+                secondValue.getPaneInfo())));
   }
 
   @Test

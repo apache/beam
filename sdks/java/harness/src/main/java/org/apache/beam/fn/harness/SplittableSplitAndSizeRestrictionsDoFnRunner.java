@@ -352,7 +352,7 @@ public class SplittableSplitAndSizeRestrictionsDoFnRunner<
                   size),
               getCurrentElement().getTimestamp(),
               getCurrentWindow(),
-              getCurrentElement().getPane()));
+              getCurrentElement().getPaneInfo()));
     }
   }
 
@@ -411,7 +411,7 @@ public class SplittableSplitAndSizeRestrictionsDoFnRunner<
 
     @Override
     public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
-      return getCurrentElement().getPane();
+      return getCurrentElement().getPaneInfo();
     }
 
     @Override

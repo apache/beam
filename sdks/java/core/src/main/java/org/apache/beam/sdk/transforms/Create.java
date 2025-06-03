@@ -913,7 +913,10 @@ public class Create<T> {
       @ProcessElement
       public void processElement(@Element WindowedValue<T> element, OutputReceiver<T> r) {
         r.outputWindowedValue(
-            element.getValue(), element.getTimestamp(), element.getWindows(), element.getPane());
+            element.getValue(),
+            element.getTimestamp(),
+            element.getWindows(),
+            element.getPaneInfo());
       }
     }
   }

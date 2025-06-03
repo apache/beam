@@ -109,6 +109,6 @@ class AssignWindowsRunner<T, W extends BoundedWindow> {
           }
         };
     Collection<W> windows = windowFn.assignWindows(ctxt);
-    return WindowedValue.of(input.getValue(), input.getTimestamp(), windows, input.getPane());
+    return WindowedValue.of(input.getValue(), input.getTimestamp(), windows, input.getPaneInfo());
   }
 }

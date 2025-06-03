@@ -58,7 +58,7 @@ public class StreamingGroupAlsoByWindowReshuffleFn<K, T>
           KV.of(key, Collections.singletonList(item.getValue())),
           item.getTimestamp(),
           item.getWindows(),
-          item.getPane());
+          item.getPaneInfo());
     }
   }
 }

@@ -57,7 +57,7 @@ public class BatchGroupAlsoByWindowReshuffleFn<K, V, W extends BoundedWindow>
           KV.<K, Iterable<V>>of(key, Collections.singletonList(item.getValue())),
           item.getTimestamp(),
           item.getWindows(),
-          item.getPane());
+          item.getPaneInfo());
     }
   }
 }

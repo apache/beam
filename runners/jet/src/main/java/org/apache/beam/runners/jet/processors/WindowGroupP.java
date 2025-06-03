@@ -134,7 +134,7 @@ public class WindowGroupP<K, V> extends AbstractProcessor {
                         value,
                         windowedValue.getTimestamp(),
                         windowedValue.getWindows(),
-                        windowedValue.getPane());
+                        windowedValue.getPaneInfo());
                 keyManagers
                     .computeIfAbsent(keyBytes, x -> new KeyManager(key))
                     .processElement(updatedWindowedValue);

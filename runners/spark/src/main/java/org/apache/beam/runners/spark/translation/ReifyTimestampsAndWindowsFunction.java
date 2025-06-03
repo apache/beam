@@ -33,6 +33,9 @@ public class ReifyTimestampsAndWindowsFunction<K, V>
     return KV.of(
         elem.getValue().getKey(),
         WindowedValue.of(
-            elem.getValue().getValue(), elem.getTimestamp(), elem.getWindows(), elem.getPane()));
+            elem.getValue().getValue(),
+            elem.getTimestamp(),
+            elem.getWindows(),
+            elem.getPaneInfo()));
   }
 }

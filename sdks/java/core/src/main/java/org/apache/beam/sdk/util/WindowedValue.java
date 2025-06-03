@@ -155,7 +155,7 @@ public abstract class WindowedValue<T> {
   public abstract Collection<? extends BoundedWindow> getWindows();
 
   /** Returns the pane of this {@code WindowedValue} in its window. */
-  public abstract PaneInfo getPane();
+  public abstract PaneInfo getPaneInfo();
 
   /** Returns {@code true} if this WindowedValue has exactly one window. */
   public boolean isSingleWindowedValue() {
@@ -172,7 +172,7 @@ public abstract class WindowedValue<T> {
     }
     ImmutableList.Builder<WindowedValue<T>> windowedValues = ImmutableList.builder();
     for (BoundedWindow w : getWindows()) {
-      windowedValues.add(of(getValue(), getTimestamp(), w, getPane()));
+      windowedValues.add(of(getValue(), getTimestamp(), w, getPaneInfo()));
     }
     return windowedValues.build();
   }
@@ -190,14 +190,14 @@ public abstract class WindowedValue<T> {
       return this.getTimestamp().isEqual(that.getTimestamp())
           && Objects.equals(this.getValue(), that.getValue())
           && Objects.equals(this.getWindows(), that.getWindows())
-          && Objects.equals(this.getPane(), that.getPane());
+          && Objects.equals(this.getPaneInfo(), that.getPaneInfo());
     }
   }
 
   @Override
   public int hashCode() {
     // Hash only the millis of the timestamp to be consistent with equals
-    return Objects.hash(getValue(), getTimestamp().getMillis(), getWindows(), getPane());
+    return Objects.hash(getValue(), getTimestamp().getMillis(), getWindows(), getPaneInfo());
   }
 
   @Override
@@ -228,7 +228,7 @@ public abstract class WindowedValue<T> {
     }
 
     @Override
-    public PaneInfo getPane() {
+    public PaneInfo getPaneInfo() {
       return pane;
     }
 
@@ -260,7 +260,7 @@ public abstract class WindowedValue<T> {
 
     @Override
     public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
-      return new ValueInGlobalWindow<>(newValue, getPane());
+      return new ValueInGlobalWindow<>(newValue, getPaneInfo());
     }
 
     @Override
@@ -282,7 +282,7 @@ public abstract class WindowedValue<T> {
     public boolean equals(@Nullable Object o) {
       if (o instanceof ValueInGlobalWindow) {
         ValueInGlobalWindow<?> that = (ValueInGlobalWindow<?>) o;
-        return Objects.equals(that.getPane(), this.getPane())
+        return Objects.equals(that.getPaneInfo(), this.getPaneInfo())
             && Objects.equals(that.getValue(), this.getValue());
       } else {
         return super.equals(o);
@@ -291,14 +291,14 @@ public abstract class WindowedValue<T> {
 
     @Override
     public int hashCode() {
-      return Objects.hash(getValue(), getPane());
+      return Objects.hash(getValue(), getPaneInfo());
     }
 
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(getClass())
           .add("value", getValue())
-          .add("pane", getPane())
+          .add("pane", getPaneInfo())
           .toString();
     }
   }
@@ -331,7 +331,7 @@ public abstract class WindowedValue<T> {
 
     @Override
     public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
-      return new TimestampedValueInGlobalWindow<>(newValue, getTimestamp(), getPane());
+      return new TimestampedValueInGlobalWindow<>(newValue, getTimestamp(), getPaneInfo());
     }
 
     @Override
@@ -357,7 +357,7 @@ public abstract class WindowedValue<T> {
         // Also compare timestamps according to millis-since-epoch because otherwise expensive
         // comparisons are made on their Chronology objects.
         return this.getTimestamp().isEqual(that.getTimestamp())
-            && Objects.equals(that.getPane(), this.getPane())
+            && Objects.equals(that.getPaneInfo(), this.getPaneInfo())
             && Objects.equals(that.getValue(), this.getValue());
       } else {
         return super.equals(o);
@@ -367,7 +367,7 @@ public abstract class WindowedValue<T> {
     @Override
     public int hashCode() {
       // Hash only the millis of the timestamp to be consistent with equals
-      return Objects.hash(getValue(), getPane(), getTimestamp().getMillis());
+      return Objects.hash(getValue(), getPaneInfo(), getTimestamp().getMillis());
     }
 
     @Override
@@ -375,7 +375,7 @@ public abstract class WindowedValue<T> {
       return MoreObjects.toStringHelper(getClass())
           .add("value", getValue())
           .add("timestamp", getTimestamp())
-          .add("pane", getPane())
+          .add("pane", getPaneInfo())
           .toString();
     }
   }
@@ -397,7 +397,7 @@ public abstract class WindowedValue<T> {
 
     @Override
     public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
-      return new TimestampedValueInSingleWindow<>(newValue, getTimestamp(), window, getPane());
+      return new TimestampedValueInSingleWindow<>(newValue, getTimestamp(), window, getPaneInfo());
     }
 
     @Override
@@ -424,7 +424,7 @@ public abstract class WindowedValue<T> {
         // comparisons are made on their Chronology objects.
         return this.getTimestamp().isEqual(that.getTimestamp())
             && Objects.equals(that.getValue(), this.getValue())
-            && Objects.equals(that.getPane(), this.getPane())
+            && Objects.equals(that.getPaneInfo(), this.getPaneInfo())
             && Objects.equals(that.window, this.window);
       } else {
         return super.equals(o);
@@ -434,7 +434,7 @@ public abstract class WindowedValue<T> {
     @Override
     public int hashCode() {
       // Hash only the millis of the timestamp to be consistent with equals
-      return Objects.hash(getValue(), getTimestamp().getMillis(), getPane(), window);
+      return Objects.hash(getValue(), getTimestamp().getMillis(), getPaneInfo(), window);
     }
 
     @Override
@@ -443,7 +443,7 @@ public abstract class WindowedValue<T> {
           .add("value", getValue())
           .add("timestamp", getTimestamp())
           .add("window", window)
-          .add("pane", getPane())
+          .add("pane", getPaneInfo())
           .toString();
     }
   }
@@ -460,7 +460,8 @@ public abstract class WindowedValue<T> {
 
     @Override
     public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
-      return new TimestampedValueInMultipleWindows<>(newValue, getTimestamp(), windows, getPane());
+      return new TimestampedValueInMultipleWindows<>(
+          newValue, getTimestamp(), windows, getPaneInfo());
     }
 
     @Override
@@ -477,7 +478,7 @@ public abstract class WindowedValue<T> {
         // comparisons are made on their Chronology objects.
         if (this.getTimestamp().isEqual(that.getTimestamp())
             && Objects.equals(that.getValue(), this.getValue())
-            && Objects.equals(that.getPane(), this.getPane())) {
+            && Objects.equals(that.getPaneInfo(), this.getPaneInfo())) {
           ensureWindowsAreASet();
           that.ensureWindowsAreASet();
           return that.windows.equals(this.windows);
@@ -493,7 +494,7 @@ public abstract class WindowedValue<T> {
     public int hashCode() {
       // Hash only the millis of the timestamp to be consistent with equals
       ensureWindowsAreASet();
-      return Objects.hash(getValue(), getTimestamp().getMillis(), getPane(), windows);
+      return Objects.hash(getValue(), getTimestamp().getMillis(), getPaneInfo(), windows);
     }
 
     @Override
@@ -502,7 +503,7 @@ public abstract class WindowedValue<T> {
           .add("value", getValue())
           .add("timestamp", getTimestamp())
           .add("windows", windows)
-          .add("pane", getPane())
+          .add("pane", getPaneInfo())
           .toString();
     }
 
@@ -603,7 +604,7 @@ public abstract class WindowedValue<T> {
         throws CoderException, IOException {
       InstantCoder.of().encode(windowedElem.getTimestamp(), outStream);
       windowsCoder.encode(windowedElem.getWindows(), outStream);
-      PaneInfoCoder.INSTANCE.encode(windowedElem.getPane(), outStream);
+      PaneInfoCoder.INSTANCE.encode(windowedElem.getPaneInfo(), outStream);
       valueCoder.encode(windowedElem.getValue(), outStream, context);
     }
 
@@ -638,7 +639,7 @@ public abstract class WindowedValue<T> {
         throws Exception {
       InstantCoder.of().registerByteSizeObserver(value.getTimestamp(), observer);
       windowsCoder.registerByteSizeObserver(value.getWindows(), observer);
-      PaneInfoCoder.INSTANCE.registerByteSizeObserver(value.getPane(), observer);
+      PaneInfoCoder.INSTANCE.registerByteSizeObserver(value.getPaneInfo(), observer);
       valueCoder.registerByteSizeObserver(value.getValue(), observer);
     }
 
@@ -840,7 +841,7 @@ public abstract class WindowedValue<T> {
     }
 
     public PaneInfo getPane() {
-      return windowedValuePrototype.getPane();
+      return windowedValuePrototype.getPaneInfo();
     }
 
     /** Returns the serialized payload that will be provided when deserializing this coder. */
@@ -877,7 +878,7 @@ public abstract class WindowedValue<T> {
             windowCoder,
             windowedValue.getTimestamp(),
             windowedValue.getWindows(),
-            windowedValue.getPane());
+            windowedValue.getPaneInfo());
       } catch (IOException e) {
         throw new RuntimeException(
             "Unable to decode constant members from payload for ParamWindowedValueCoder: ", e);

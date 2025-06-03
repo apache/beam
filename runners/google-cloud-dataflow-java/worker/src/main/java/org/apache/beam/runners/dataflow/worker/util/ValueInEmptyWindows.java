@@ -45,7 +45,7 @@ public class ValueInEmptyWindows<T> extends WindowedValue<T> {
   }
 
   @Override
-  public PaneInfo getPane() {
+  public PaneInfo getPaneInfo() {
     return PaneInfo.NO_FIRING;
   }
 
@@ -88,7 +88,7 @@ public class ValueInEmptyWindows<T> extends WindowedValue<T> {
   public String toString() {
     return MoreObjects.toStringHelper(getClass())
         .add("value", getValue())
-        .add("pane", getPane())
+        .add("pane", getPaneInfo())
         .toString();
   }
 }
