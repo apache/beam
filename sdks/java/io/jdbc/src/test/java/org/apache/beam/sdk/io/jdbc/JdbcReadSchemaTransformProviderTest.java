@@ -55,7 +55,7 @@ public class JdbcReadSchemaTransformProviderTest {
   public static class ReadFromDerbySchemaTransformProvider extends JdbcReadSchemaTransformProvider {
 
     @Override
-    public @UnknownKeyFor @NonNull @Initialized String identifier() {
+    public String identifier() {
       return "beam:schematransform:org.apache.beam:derby_read:v1";
     }
 
