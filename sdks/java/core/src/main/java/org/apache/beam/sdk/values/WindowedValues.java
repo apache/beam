@@ -538,6 +538,12 @@ public class WindowedValues {
     // Precompute and cache the coder for a list of windows.
     private final Coder<Collection<? extends BoundedWindow>> windowsCoder;
 
+    private static boolean metadataSupported = false;
+
+    public static void setMetadataSupported(){
+      metadataSupported = true;
+    }
+
     public static <T> FullWindowedValueCoder<T> of(
         Coder<T> valueCoder, Coder<? extends BoundedWindow> windowCoder) {
       return new FullWindowedValueCoder<>(valueCoder, windowCoder);
@@ -583,6 +589,7 @@ public class WindowedValues {
       windowsCoder.encode(windowedElem.getWindows(), outStream);
       PaneInfoCoder.INSTANCE.encode(windowedElem.getPane(), outStream);
       valueCoder.encode(windowedElem.getValue(), outStream, context);
+      // todo add support for metadata
     }
 
     @Override
@@ -597,6 +604,7 @@ public class WindowedValues {
       Collection<? extends BoundedWindow> windows = windowsCoder.decode(inStream);
       PaneInfo pane = PaneInfoCoder.INSTANCE.decode(inStream);
       T value = valueCoder.decode(inStream, context);
+      // todo add support for metadata
 
       // Because there are some remaining (incorrect) uses of WindowedValue with no windows,
       // we call this deprecated no-validation path when decoding
