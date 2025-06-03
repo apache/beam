@@ -424,10 +424,13 @@ if __name__ == '__main__':
               'sqlalchemy>=1.3,<3.0',
               'psycopg2-binary>=2.8.5,<2.9.10; python_version <= "3.9"',
               'psycopg2-binary>=2.8.5,<3.0; python_version >= "3.10"',
-              'testcontainers[mysql]>=3.0.3,<4.0.0',
+              'testcontainers[mysql,kafka]>=3.0.3,<4.0.0',
               'cryptography>=41.0.2',
               'hypothesis>5.0.0,<7.0.0',
               'virtualenv-clone>=0.5,<1.0',
+              'mysql-connector-python>=9.3.0',
+              'python-tds>=1.16.1',
+              'sqlalchemy-pytds>=1.0.2'
           ],
           'gcp': [
               'cachetools>=3.1.0,<6',
@@ -582,6 +585,7 @@ if __name__ == '__main__':
           'Programming Language :: Python :: 3.10',
           'Programming Language :: Python :: 3.11',
           'Programming Language :: Python :: 3.12',
+          'Programming Language :: Python :: 3.13',
           # When updating version classifiers, also update version warnings
           # above and in apache_beam/__init__.py.
           'Topic :: Software Development :: Libraries',
