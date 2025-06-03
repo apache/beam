@@ -422,10 +422,6 @@ from apache_beam.typehints.schemas import schema_from_element_type
 from apache_beam.utils import retry
 from apache_beam.utils.annotations import deprecated
 from apache_beam.io.gcp.internal.clients.bigquery.bigquery_v2_messages import BigqueryTablesGetRequest
-from apache_beam.io.gcp.internal.clients.bigquery.bigquery_v2_messages import ViewValueValuesEnum 
-
-
-
 try:
   from apache_beam.io.gcp.internal.clients.bigquery import DatasetReference
   from apache_beam.io.gcp.internal.clients.bigquery import TableReference
@@ -929,7 +925,7 @@ class _CustomBigQuerySource(BoundedSource):
     else:
       table_ref = self.table_reference
     table = bq.get_table(
-       table_ref.projectId, table_ref.datasetId, table_ref.tableId, view=BigqueryTablesGetRequest.ViewValueValuesEnum)
+       table_ref.projectId, table_ref.datasetId, table_ref.tableId, view=BigqueryTablesGetRequest.ViewValueValuesEnum.BASIC)
 
     return table.schema, metadata_list
 
