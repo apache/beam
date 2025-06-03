@@ -21,6 +21,7 @@ import (
 	"io"
 	"reflect"
 	"sort"
+	"strings"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
@@ -32,6 +33,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/worker"
 	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/proto"
 )
 
 // This file retains the logic for the pardo handler
@@ -86,8 +88,7 @@ func (h *runner) PrepareTransform(tid string, t *pipepb.PTransform, comps *pipep
 }
 
 func (h *runner) handleFlatten(tid string, t *pipepb.PTransform, comps *pipepb.Components) prepareResult {
-	if !h.config.SDKFlatten {
-		t.EnvironmentId = ""         // force the flatten to be a runner transform due to configuration.
+	if !h.config.SDKFlatten && !strings.HasPrefix(tid, "ft_") {
 		forcedRoots := []string{tid} // Have runner side transforms be roots.
 
 		// Force runner flatten consumers to be roots.
@@ -107,23 +108,48 @@ func (h *runner) handleFlatten(tid string, t *pipepb.PTransform, comps *pipepb.C
 		// they're written out to the runner in the same fashion.
 		// This may stop being necessary once Flatten Unzipping happens in the optimizer.
 		outPCol := comps.GetPcollections()[outColID]
-		outCoder := comps.GetCoders()[outPCol.GetCoderId()]
-		coderSubs := map[string]*pipepb.Coder{}
-		for _, p := range t.GetInputs() {
+		pcollSubs := map[string]*pipepb.PCollection{}
+		tSubs := map[string]*pipepb.PTransform{}
+
+		ts := proto.Clone(t).(*pipepb.PTransform)
+		ts.EnvironmentId = "" // force the flatten to be a runner transform due to configuration.
+		for localID, p := range t.GetInputs() {
 			inPCol := comps.GetPcollections()[p]
 			if inPCol.CoderId != outPCol.CoderId {
-				coderSubs[inPCol.CoderId] = outCoder
+				// TODO: do the following injection conditionally.
+				// Now we inject an SDK-side flatten between the upstream transform and
+				// the flatten.
+				//   Before: upstream -> [upstream out] -> runner flatten
+				//   After:  upstream -> [upstream out] -> SDK-side flatten -> [SDK-side flatten out] -> runner flatten
+				// Create a PCollection sub
+				fColID := "fc_" + p + "_to_" + outColID
+				fPCol := proto.Clone(outPCol).(*pipepb.PCollection)
+				fPCol.CoderId = outPCol.CoderId // same coder as runner flatten
+				pcollSubs[fColID] = fPCol
+
+				// Create a PTransform sub
+				ftID := "ft_" + p + "_to_" + outColID
+				ft := proto.Clone(t).(*pipepb.PTransform)
+				ft.EnvironmentId = t.EnvironmentId // Set environment to ensure it is a SDK-side transform
+				ft.Inputs = map[string]string{"0": p}
+				ft.Outputs = map[string]string{"0": fColID}
+				tSubs[ftID] = ft
+
+				// Replace the input of runner flatten with the output of SDK-side flatten
+				ts.Inputs[localID] = fColID
+
+				// Force sdk-side flattens to be roots
+				forcedRoots = append(forcedRoots, ftID)
 			}
 		}
+		tSubs[tid] = ts
 
 		// Return the new components which is the transforms consumer
 		return prepareResult{
 			// We sub this flatten with itself, to not drop it.
 			SubbedComps: &pipepb.Components{
-				Transforms: map[string]*pipepb.PTransform{
-					tid: t,
-				},
-				Coders: coderSubs,
+				Transforms:   tSubs,
+				Pcollections: pcollSubs,
 			},
 			RemovedLeaves: nil,
 			ForcedRoots:   forcedRoots,

@@ -18,6 +18,8 @@
 package org.apache.beam.runners.spark;
 
 import java.util.List;
+import org.apache.beam.runners.spark.translation.streaming.CreateStreamingSparkView;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.construction.PTransformMatchers;
@@ -25,6 +27,7 @@ import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.SplittableParDo;
 import org.apache.beam.sdk.util.construction.SplittableParDoNaiveBounded;
 import org.apache.beam.sdk.util.construction.UnsupportedOverrideFactory;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /** {@link PTransform} overrides for Spark runner. */
@@ -50,6 +53,20 @@ public final class SparkTransformOverrides {
               PTransformOverride.of(
                   PTransformMatchers.urnEqualTo(PTransformTranslation.SPLITTABLE_PROCESS_KEYED_URN),
                   new SplittableParDoNaiveBounded.OverrideFactory()));
+    } else {
+      builder.add(
+          PTransformOverride.of(
+              // For streaming pipelines, this override is applied only when the PTransform has the
+              // same URN
+              // as PTransformTranslation.CREATE_VIEW_TRANSFORM and at least one of its inputs is
+              // UNBOUNDED
+              PTransformMatchers.urnEqualTo(PTransformTranslation.CREATE_VIEW_TRANSFORM_URN)
+                  .and(
+                      (AppliedPTransform<?, ?, ?> appliedPTransform) ->
+                          appliedPTransform.getInputs().values().stream()
+                              .anyMatch(
+                                  e -> e.isBounded().equals(PCollection.IsBounded.UNBOUNDED))),
+              CreateStreamingSparkView.Factory.INSTANCE));
     }
     return builder.build();
   }

@@ -317,8 +317,8 @@ def infer_return_type(c, input_types, debug=False, depth=5):
       from apache_beam.typehints import opcodes
       return opcodes._getattr(input_types[0], input_types[1].value)
     elif isinstance(c, python_callable.PythonCallableWithSource):
-      # TODO(BEAM-24755): This can be removed once support for
-      # inference across *args and **kwargs is implemented.
+      # TODO(https://github.com/apache/beam/issues/24755): This can be removed
+      # once support for inference across *args and **kwargs is implemented.
       return infer_return_type(c._callable, input_types, debug, depth)
     else:
       return Any
@@ -353,7 +353,10 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
   if debug:
     print()
     print(f, id(f), input_types)
-    if (sys.version_info.major, sys.version_info.minor) >= (3, 11):
+    ver = (sys.version_info.major, sys.version_info.minor)
+    if ver >= (3, 13):
+      dis.dis(f, show_caches=True, show_offsets=True)
+    elif ver >= (3, 11):
       dis.dis(f, show_caches=True)
     else:
       dis.dis(f)
@@ -413,6 +416,17 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
       print(dis.opname[op].ljust(20), end=' ')
 
     pc += inst_size
+    # Python 3.13 deprecated show_caches and removed cache instruction
+    # outputs, instead putting the cache instructions nested within the
+    # Instruction object.
+    if (sys.version_info.major, sys.version_info.minor) >= (3, 13):
+      cache = instruction.cache_info
+      if cache is not None:
+        # Each entry in cache_info is a tuple with the name of the cached
+        # object, the number of cache calls it produces, and the byte
+        # representation of the cached item.
+        for cache_entry in cache:
+          pc += cache_entry[1] * inst_size
     arg = None
     if op >= dis.HAVE_ARGUMENT:
       arg = instruction.arg
@@ -431,7 +445,19 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
         elif op in dis.hasjrel:
           print('(to ' + repr(pc + (arg * jump_multiplier)) + ')', end=' ')
         elif op in dis.haslocal:
-          print('(' + co.co_varnames[arg] + ')', end=' ')
+          # Args to double-fast opcodes are bit manipulated, correct the arg
+          # for printing + avoid the out-of-index
+          if dis.opname[op] == 'LOAD_FAST_LOAD_FAST':
+            print(
+                '(' + co.co_varnames[arg >> 4] + ', ' +
+                co.co_varnames[arg & 15] + ')',
+                end=' ')
+          elif dis.opname[op] == 'STORE_FAST_LOAD_FAST':
+            print('(' + co.co_varnames[arg & 15] + ')', end=' ')
+          elif dis.opname[op] == 'STORE_FAST_STORE_FAST':
+            pass
+          else:
+            print('(' + co.co_varnames[arg] + ')', end=' ')
         elif op in dis.hascompare:
           if (sys.version_info.major, sys.version_info.minor) >= (3, 12):
             # In 3.12 this arg was bit-shifted. Shifting it back avoids an
@@ -546,8 +572,42 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
         # See https://github.com/python/cpython/issues/102403 for context.
         if (pop_count == 1 and last_real_opname == 'GET_ITER' and
             len(state.stack) > 1 and isinstance(state.stack[-2], Const) and
-            getattr(state.stack[-2].value, '__name__', None) in (
-                '<listcomp>', '<dictcomp>', '<setcomp>', '<genexpr>')):
+            getattr(state.stack[-2].value, '__name__', None)
+            in ('<listcomp>', '<dictcomp>', '<setcomp>', '<genexpr>')):
+          pop_count += 1
+        if depth <= 0 or pop_count > len(state.stack):
+          return_type = Any
+        elif isinstance(state.stack[-pop_count], Const):
+          return_type = infer_return_type(
+              state.stack[-pop_count].value,
+              state.stack[1 - pop_count:],
+              debug=debug,
+              depth=depth - 1)
+        else:
+          return_type = Any
+      state.stack[-pop_count:] = [return_type]
+    # CALL_KW handles all calls with kwargs post-3.13, have to maintain
+    # both paths for now. This call replaces state.kw_names with a tuple
+    # of keyword names at state.stack[-1]
+    elif opname == 'CALL_KW':
+      pop_count = 2 + arg
+      if isinstance(state.stack[-pop_count], Const):
+        from apache_beam.pvalue import Row
+        if state.stack[-pop_count].value == Row:
+          fields = state.stack[-1].value
+          return_type = row_type.RowTypeConstraint.from_fields(
+              list(
+                  zip(fields,
+                      Const.unwrap_all(state.stack[-pop_count + 1:-1]))))
+        else:
+          return_type = Any
+      else:
+        # Handle comprehensions always having an arg of 0 for CALL
+        # See https://github.com/python/cpython/issues/102403 for context.
+        if (pop_count == 1 and last_real_opname == 'GET_ITER' and
+            len(state.stack) > 1 and isinstance(state.stack[-2], Const) and
+            getattr(state.stack[-2].value, '__name__', None)
+            in ('<listcomp>', '<dictcomp>', '<setcomp>', '<genexpr>')):
           pop_count += 1
         if depth <= 0 or pop_count > len(state.stack):
           return_type = Any

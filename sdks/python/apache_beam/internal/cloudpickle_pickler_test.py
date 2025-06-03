@@ -23,14 +23,108 @@ import threading
 import types
 import unittest
 
+from apache_beam.coders import proto2_coder_test_messages_pb2
 from apache_beam.internal import module_test
 from apache_beam.internal.cloudpickle_pickler import dumps
 from apache_beam.internal.cloudpickle_pickler import loads
+from apache_beam.utils import shared
+
+GLOBAL_DICT_REF = module_test.GLOBAL_DICT
+
+
+# Allow weakref to dict
+class DictWrapper(dict):
+  pass
+
+
+MAIN_MODULE_DICT = DictWrapper()
+
+
+def acquire_dict():
+  return DictWrapper()
 
 
 class PicklerTest(unittest.TestCase):
 
   NO_MAPPINGPROXYTYPE = not hasattr(types, "MappingProxyType")
+
+  def test_globals_main_are_pickled_by_value(self):
+    self.assertIsNot(MAIN_MODULE_DICT, loads(dumps(lambda: MAIN_MODULE_DICT))())
+
+  def test_globals_shared_are_pickled_by_reference(self):
+    shared_handler = shared.Shared()
+    original_dict = shared_handler.acquire(acquire_dict)
+
+    unpickled_dict = loads(
+        dumps(lambda: shared_handler.acquire(acquire_dict)))()
+
+    self.assertIs(original_dict, unpickled_dict)
+
+  def test_module_globals_are_pickled_by_value_when_directly_referenced(self):
+    global_dict = loads(dumps(module_test.GLOBAL_DICT))
+
+    self.assertIsNot(module_test.GLOBAL_DICT, global_dict)
+
+  def test_function_main_with_explicit_module_reference_pickles_by_reference(
+      self):
+    def returns_global_dict():
+      return module_test.GLOBAL_DICT
+
+    self.assertIs(module_test.GLOBAL_DICT, loads(dumps(returns_global_dict))())
+
+  def test_function_main_with_indirect_module_reference_pickles_by_value(self):
+    def returns_global_dict():
+      return GLOBAL_DICT_REF
+
+    self.assertIsNot(
+        module_test.GLOBAL_DICT, loads(dumps(returns_global_dict))())
+
+  def test_function_referencing_unpicklable_object_works_when_imported(self):
+    self.assertEqual(
+        module_test.UNPICKLABLE_INSTANCE,
+        loads(dumps(module_test.fn_returns_unpicklable))())
+
+  def test_closure_with_unpicklable_object_fails_when_imported(self):
+    # The entire closure is pickled by value, and therefore module_test is
+    # not imported. Requires the module global to be pickled by value.
+    with self.assertRaises(Exception):
+      loads(dumps(module_test.closure_contains_unpicklable()))
+
+  def test_closure_with_explicit_self_import_can_reference_unpicklable_objects(
+      self):
+    # The closure imports module_test within the function definition
+    # and returns self.UNPICKLABLE_INSTANCE. This allows cloudpickle
+    # to use submimort to reference module_test.UNPICKLABLE_INSTANCE
+    self.assertIs(
+        module_test.UNPICKLABLE_INSTANCE,
+        loads(dumps(module_test.closure_contains_unpicklable_imports_self()))())
+
+  def test_closure_main_can_reference_unpicklable_module_objects(self):
+    def outer():
+      def inner():
+        return module_test.UNPICKLABLE_INSTANCE
+
+      return inner
+
+    # Uses subimport to reference module_test.UNPICKLABLE_INSTANCE rather than
+    # recreate.
+    self.assertIs(module_test.UNPICKLABLE_INSTANCE, loads(dumps(outer()))())
+
+  def test_pickle_nested_enum_descriptor(self):
+    NestedEnum = proto2_coder_test_messages_pb2.MessageD.NestedEnum
+
+    def fn():
+      return NestedEnum.TWO
+
+    self.assertEqual(fn(), loads(dumps(fn))())
+
+  def test_pickle_top_level_enum_descriptor(self):
+    TopLevelEnum = proto2_coder_test_messages_pb2.TopLevelEnum
+
+    def fn():
+      return TopLevelEnum.ONE
+
+    self.assertEqual(fn(), loads(dumps(fn))())
 
   def test_basics(self):
     self.assertEqual([1, 'a', ('z', )], loads(dumps([1, 'a', ('z', )])))
@@ -97,6 +191,12 @@ class PicklerTest(unittest.TestCase):
 
     self.assertIsInstance(loads(dumps(rlock_instance)), rlock_type)
 
+  def test_pickle_lock(self):
+    lock_instance = threading.Lock()
+    lock_type = type(lock_instance)
+
+    self.assertIsInstance(loads(dumps(lock_instance)), lock_type)
+
   @unittest.skipIf(NO_MAPPINGPROXYTYPE, 'test if MappingProxyType introduced')
   def test_dump_and_load_mapping_proxy(self):
     self.assertEqual(
@@ -111,6 +211,14 @@ class PicklerTest(unittest.TestCase):
 from apache_beam.internal.module_test import DataClass
 self.assertEqual(DataClass(datum='abc'), loads(dumps(DataClass(datum='abc'))))
     ''')
+
+  def test_best_effort_determinism_not_implemented(self):
+    with self.assertLogs('apache_beam.internal.cloudpickle_pickler',
+                         "WARNING") as l:
+      dumps(123, enable_best_effort_determinism=True)
+      self.assertIn(
+          'Ignoring unsupported option: enable_best_effort_determinism',
+          '\n'.join(l.output))
 
 
 if __name__ == '__main__':

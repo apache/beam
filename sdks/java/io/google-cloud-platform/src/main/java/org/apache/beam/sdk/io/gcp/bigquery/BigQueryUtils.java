@@ -753,6 +753,15 @@ public class BigQueryUtils {
         return LocalDate.parse(jsonBQString);
       } else if (fieldType.isLogicalType(SqlTypes.TIME.getIdentifier())) {
         return LocalTime.parse(jsonBQString);
+      } else if (fieldType.isLogicalType(SqlTypes.TIMESTAMP.getIdentifier())) {
+        try {
+          long micros = Long.parseLong(jsonBQString);
+          long seconds = micros / 1_000_000;
+          long nanos = (micros % 1_000_000) * 1_000;
+          return java.time.Instant.ofEpochSecond(seconds, nanos);
+        } catch (NumberFormatException e) {
+          return java.time.Instant.parse(jsonBQString);
+        }
       }
     }
 

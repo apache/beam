@@ -53,6 +53,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTimeUtils.MillisProvider;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.joda.time.format.PeriodFormatter;
 import org.joda.time.format.PeriodFormatterBuilder;
 import org.slf4j.Logger;
@@ -266,8 +267,10 @@ public class ExecutionStateSampler {
     private final AtomicReference<@Nullable String> processBundleId;
     // Read by multiple threads, written by the bundle processing thread lazily.
     private final AtomicReference<@Nullable Thread> trackedThread;
+    // Read by multiple threads, written by start.
+    private final AtomicLong startTimeMillis;
     // Read by multiple threads, read and written by the ExecutionStateSampler thread lazily.
-    private final AtomicLong lastTransitionTime;
+    private final AtomicLong lastTransitionTimeMillis;
     // Used to throttle lull logging.
     private long lastLullReport;
     // Read and written by the bundle processing thread frequently.
@@ -291,7 +294,8 @@ public class ExecutionStateSampler {
       this.metricsContainerRegistry = new MetricsContainerStepMap();
       this.executionStates = new ArrayList<>();
       this.trackedThread = new AtomicReference<>();
-      this.lastTransitionTime = new AtomicLong();
+      this.startTimeMillis = new AtomicLong();
+      this.lastTransitionTimeMillis = new AtomicLong();
       this.numTransitionsLazy = new AtomicLong();
       this.currentStateLazy = new AtomicReference<>();
       this.processBundleId = new AtomicReference<>();
@@ -349,10 +353,10 @@ public class ExecutionStateSampler {
       long transitionsAtThisSample = numTransitionsLazy.get();
 
       if (transitionsAtThisSample != transitionsAtLastSample) {
-        lastTransitionTime.lazySet(currentTimeMillis);
+        lastTransitionTimeMillis.lazySet(currentTimeMillis);
         transitionsAtLastSample = transitionsAtThisSample;
       } else {
-        long lullTimeMs = currentTimeMillis - lastTransitionTime.get();
+        long lullTimeMs = currentTimeMillis - lastTransitionTimeMillis.get();
         if (lullTimeMs > MAX_LULL_TIME_MS) {
           if (lullTimeMs < lastLullReport // This must be a new report.
               || lullTimeMs > 1.2 * lastLullReport // Exponential backoff.
@@ -399,20 +403,23 @@ public class ExecutionStateSampler {
       if (thread == null) {
         return null;
       }
-      long lastTransitionTimeMs = lastTransitionTime.get();
+      long startTimeMillisSnapshot = startTimeMillis.get();
+      long lastTransitionTimeMillisSnapshot = lastTransitionTimeMillis.get();
       // We are actively processing a bundle but may have not yet entered into a state.
       ExecutionStateImpl current = currentStateLazy.get();
+      @Nullable String id = null;
+      @Nullable String name = null;
       if (current != null) {
-        return ExecutionStateTrackerStatus.create(
-            current.ptransformId,
-            current.ptransformUniqueName,
-            thread,
-            lastTransitionTimeMs,
-            processBundleId.get());
-      } else {
-        return ExecutionStateTrackerStatus.create(
-            null, null, thread, lastTransitionTimeMs, processBundleId.get());
+        id = current.ptransformId;
+        name = current.ptransformUniqueName;
       }
+      return ExecutionStateTrackerStatus.create(
+          id,
+          name,
+          thread,
+          Instant.ofEpochMilli(startTimeMillisSnapshot),
+          Instant.ofEpochMilli(lastTransitionTimeMillisSnapshot),
+          processBundleId.get());
     }
 
     /** Returns the ptransform id of the currently executing thread. */
@@ -525,7 +532,9 @@ public class ExecutionStateSampler {
     public void start(String processBundleId) {
       BeamFnLoggingMDC.setStateTracker(this);
       this.processBundleId.lazySet(processBundleId);
-      this.lastTransitionTime.lazySet(clock.getMillis());
+      long nowMillis = clock.getMillis();
+      this.startTimeMillis.lazySet(nowMillis);
+      this.lastTransitionTimeMillis.lazySet(nowMillis);
       this.trackedThread.lazySet(Thread.currentThread());
       synchronized (activeStateTrackers) {
         activeStateTrackers.add(this);
@@ -561,9 +570,10 @@ public class ExecutionStateSampler {
       }
       this.processBundleId.lazySet(null);
       this.trackedThread.lazySet(null);
+      this.startTimeMillis.lazySet(0);
       this.numTransitions = 0;
       this.numTransitionsLazy.lazySet(0);
-      this.lastTransitionTime.lazySet(0);
+      this.lastTransitionTimeMillis.lazySet(0);
       this.metricsContainerRegistry.reset();
       this.inErrorState = false;
       BeamFnLoggingMDC.setStateTracker(null);
@@ -576,10 +586,16 @@ public class ExecutionStateSampler {
         @Nullable String ptransformId,
         @Nullable String ptransformUniqueName,
         Thread trackedThread,
-        long lastTransitionTimeMs,
+        Instant startTime,
+        Instant lastTransitionTime,
         @Nullable String processBundleId) {
       return new AutoValue_ExecutionStateSampler_ExecutionStateTrackerStatus(
-          ptransformId, ptransformUniqueName, trackedThread, lastTransitionTimeMs, processBundleId);
+          ptransformId,
+          ptransformUniqueName,
+          trackedThread,
+          startTime,
+          lastTransitionTime,
+          processBundleId);
     }
 
     public abstract @Nullable String getPTransformId();
@@ -588,7 +604,9 @@ public class ExecutionStateSampler {
 
     public abstract Thread getTrackedThread();
 
-    public abstract long getLastTransitionTimeMillis();
+    public abstract Instant getStartTime();
+
+    public abstract Instant getLastTransitionTime();
 
     public abstract @Nullable String getProcessBundleId();
   }

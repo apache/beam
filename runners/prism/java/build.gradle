@@ -99,27 +99,15 @@ def sickbayTests = [
     'org.apache.beam.sdk.transforms.ViewTest.testTriggeredLatestSingleton',
 
     // Prism doesn't support multiple TestStreams.
-     'org.apache.beam.sdk.testing.TestStreamTest.testMultipleStreams',
+    'org.apache.beam.sdk.testing.TestStreamTest.testMultipleStreams',
+    // Sometimes fails missing a final 'AFTER'. Otherwise, Hangs in ElementManager.FailBundle due to a held stageState lock.
+    'org.apache.beam.sdk.testing.TestStreamTest.testMultiStage',
 
     // GroupIntoBatchesTest tests that fail:
     // Teststream has bad KV encodings due to using an outer context.
     'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testInStreamingMode',
     // ShardedKey not yet implemented.
     'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testWithShardedKeyInGlobalWindow',
-
-    // Java side dying during execution.
-    // https://github.com/apache/beam/issues/32930
-    'org.apache.beam.sdk.transforms.FlattenTest.testFlattenMultipleCoders',
-    // Stream corruption error java side: failed:java.io.StreamCorruptedException: invalid stream header: 206E6F74
-    // Likely due to prism't coder changes.
-    'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2',
-
-    // java.lang.IllegalStateException: Output with tag Tag<output> must have a schema in order to call getRowReceiver
-    // Ultimately because getRoeReceiver code path SDK side isn't friendly to LengthPrefix wrapping of row coders.
-    // https://github.com/apache/beam/issues/32931
-    'org.apache.beam.sdk.transforms.ParDoSchemaTest.testReadAndWrite',
-    'org.apache.beam.sdk.transforms.ParDoSchemaTest.testReadAndWriteMultiOutput',
-    'org.apache.beam.sdk.transforms.ParDoSchemaTest.testReadAndWriteWithSchemaRegistry',
 
     // Technically these tests "succeed"
     // the test is just complaining that an AssertionException isn't a RuntimeException

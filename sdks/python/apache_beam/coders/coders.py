@@ -64,6 +64,7 @@ from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.typehints import typehints
 from apache_beam.utils import proto_utils
+from apache_beam.utils import windowed_value
 
 if TYPE_CHECKING:
   from apache_beam.coders.typecoders import CoderRegistry
@@ -113,7 +114,8 @@ __all__ = [
     'WindowedValueCoder',
     'ParamWindowedValueCoder',
     'BigIntegerCoder',
-    'DecimalCoder'
+    'DecimalCoder',
+    'PaneInfoCoder'
 ]
 
 T = TypeVar('T')
@@ -382,9 +384,8 @@ class Coder(object):
     """
     setattr(
         cls,
-        'to_runner_api_parameter',
-        lambda self,
-        unused_context: (urn, None, self._get_component_coders()))
+        'to_runner_api_parameter', lambda self, unused_context:
+        (urn, None, self._get_component_coders()))
 
     # pylint: disable=unused-variable
     @Coder.register_urn(urn, None)
@@ -629,7 +630,7 @@ Coder.register_structured_urn(common_urns.coders.NULLABLE.urn, NullableCoder)
 
 
 class VarIntCoder(FastCoder):
-  """Variable-length integer coder."""
+  """Variable-length integer coder  matches Java SDK's VarLongCoder."""
   def _create_impl(self):
     return coder_impl.VarIntCoderImpl()
 
@@ -648,6 +649,25 @@ class VarIntCoder(FastCoder):
 
 
 Coder.register_structured_urn(common_urns.coders.VARINT.urn, VarIntCoder)
+
+
+class VarInt32Coder(FastCoder):
+  """Variable-length integer coder matches Java SDK's VarIntCoder."""
+  def _create_impl(self):
+    return coder_impl.VarInt32CoderImpl()
+
+  def is_deterministic(self):
+    # type: () -> bool
+    return True
+
+  def to_type_hint(self):
+    return int
+
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return hash(type(self))
 
 
 class BigEndianShortCoder(FastCoder):
@@ -1726,6 +1746,24 @@ class BigIntegerCoder(FastCoder):
 
   def to_type_hint(self):
     return int
+
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return hash(type(self))
+
+
+class PaneInfoCoder(FastCoder):
+  def _create_impl(self):
+    return coder_impl.PaneInfoCoderImpl()
+
+  def is_deterministic(self):
+    # type: () -> bool
+    return True
+
+  def to_type_hint(self):
+    return windowed_value.PaneInfo
 
   def __eq__(self, other):
     return type(self) == type(other)

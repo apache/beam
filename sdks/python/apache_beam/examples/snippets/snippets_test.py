@@ -998,8 +998,8 @@ class SnippetsTest(unittest.TestCase):
     ]
     # [END model_group_by_key_cogroupbykey_tuple_formatted_outputs]
     expected_results = [
-        '%s; %s; %s' % (name, info['emails'], info['phones']) for name,
-        info in results
+        '%s; %s; %s' % (name, info['emails'], info['phones'])
+        for name, info in results
     ]
     self.assertEqual(expected_results, formatted_results)
     self.assertEqual(formatted_results, self.get_output(result_path))
@@ -1441,12 +1441,13 @@ class SlowlyChangingSideInputsTest(unittest.TestCase):
         for j in range(count):
           f.write('f' + idstr + 'a' + str(j) + '\n')
 
-    sample_main_input_elements = ([first_ts - 2, # no output due to no SI
-                                   first_ts + 1,  # First window
-                                   first_ts + 8,  # Second window
-                                   first_ts + 15,  # Third window
-                                   first_ts + 22,  # Fourth window
-                                   ])
+    sample_main_input_elements = ([
+        first_ts - 2,  # no output due to no SI
+        first_ts + 1,  # First window
+        first_ts + 8,  # Second window
+        first_ts + 15,  # Third window
+        first_ts + 22,  # Fourth window
+    ])
 
     pipeline, pipeline_result = snippets.side_input_slow_update(
       src_file_pattern, first_ts, last_ts, interval,
@@ -1465,6 +1466,18 @@ class SlowlyChangingSideInputsTest(unittest.TestCase):
     finally:
       for i in range(-1, 10, 1):
         os.unlink(src_file_pattern + str(first_ts + interval * i))
+
+
+class ValueProviderInfoTest(unittest.TestCase):
+  """Tests for accessing value provider info after run."""
+  def test_accessing_valueprovider_info_after_run(self):
+    with self.assertLogs(level='INFO') as log_capture:
+      snippets.accessing_valueprovider_info_after_run()
+    expected_log_message = "The string value is"
+    self.assertTrue(
+        any(expected_log_message in log for log in log_capture.output),
+        f"Expected log message '{expected_log_message}' not found in logs: "
+        f"{log_capture.output}")
 
 
 if __name__ == '__main__':

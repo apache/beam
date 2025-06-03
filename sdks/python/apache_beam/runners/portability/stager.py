@@ -214,8 +214,8 @@ class Stager(object):
     if not skip_prestaged_dependencies:
       requirements_cache_path = (
           os.path.join(tempfile.gettempdir(), 'dataflow-requirements-cache') if
-          (setup_options.requirements_cache is None) else
-          setup_options.requirements_cache)
+          (setup_options.requirements_cache
+           is None) else setup_options.requirements_cache)
       if (setup_options.requirements_cache != SKIP_REQUIREMENTS_CACHE and
           not os.path.exists(requirements_cache_path)):
         os.makedirs(requirements_cache_path)
@@ -282,15 +282,23 @@ class Stager(object):
           raise RuntimeError(
               'The file %s cannot be found. It was specified in the '
               '--setup_file command line option.' % setup_options.setup_file)
-        if os.path.basename(setup_options.setup_file) != 'setup.py':
+        if os.path.basename(setup_options.setup_file) not in ('setup.py',
+                                                              'pyproject.toml'):
           raise RuntimeError(
               'The --setup_file option expects the full path to a file named '
-              'setup.py instead of %s' % setup_options.setup_file)
+              'setup.py or pyproject.toml instead of %s' %
+              setup_options.setup_file)
         tarball_file = Stager._build_setup_package(
             setup_options.setup_file, temp_dir, build_setup_args)
         resources.append(
             Stager._create_file_stage_to_artifact(
                 tarball_file, WORKFLOW_TARBALL_FILE))
+
+      if setup_options.files_to_stage is not None:
+        for file in setup_options.files_to_stage:
+          resources.append(
+              Stager._create_file_stage_to_artifact(
+                  file, os.path.basename(file)))
 
       # Handle extra local packages that should be staged.
       if setup_options.extra_packages is not None:
@@ -780,11 +788,13 @@ class Stager(object):
       temp_dir: str,
       build_setup_args: Optional[List[str]] = None) -> str:
     saved_current_directory = os.getcwd()
+
     try:
       os.chdir(os.path.dirname(setup_file))
       if build_setup_args is None:
         # if build is installed in the user env, use it to
-        # build the sdist else fallback to legacy setup.py sdist call.
+        # build the sdist else fallback to legacy
+        # setup.py sdist call for setup.py file.
         try:
           build_setup_args = [
               Stager._get_python_executable(),
@@ -799,15 +809,24 @@ class Stager(object):
           _LOGGER.info('Executing command: %s', build_setup_args)
           processes.check_output(build_setup_args)
         except RuntimeError:
-          build_setup_args = [
-              Stager._get_python_executable(),
-              os.path.basename(setup_file),
-              'sdist',
-              '--dist-dir',
-              temp_dir
-          ]
-          _LOGGER.info('Executing command: %s', build_setup_args)
-          processes.check_output(build_setup_args)
+          if setup_file.endswith('setup.py'):
+            build_setup_args = [
+                Stager._get_python_executable(),
+                os.path.basename(setup_file),
+                'sdist',
+                '--dist-dir',
+                temp_dir
+            ]
+            _LOGGER.info('Executing command: %s', build_setup_args)
+            processes.check_output(build_setup_args)
+          else:
+            # If it's pyproject.toml and `python -m build` failed,
+            # there's no direct legacy fallback.
+            raise RuntimeError(
+                f"Failed to build package from '{setup_file}' using . "
+                f"'python -m build'. Please ensure that the 'build' module "
+                f"is installed and your project's build configuration is valid."
+            )
       output_files = glob.glob(os.path.join(temp_dir, '*.tar.gz'))
       if not output_files:
         raise RuntimeError(

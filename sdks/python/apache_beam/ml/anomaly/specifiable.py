@@ -26,15 +26,13 @@ import dataclasses
 import inspect
 import logging
 import os
+from collections.abc import Callable
 from typing import Any
-from typing import ClassVar
-from typing import Dict
-from typing import List
 from typing import Optional
 from typing import Protocol
-from typing import Type
 from typing import TypeVar
 from typing import Union
+from typing import overload
 from typing import runtime_checkable
 
 from typing_extensions import Self
@@ -59,10 +57,11 @@ _ACCEPTED_SUBSPACES = [
 #: `spec_type` when applying the `specifiable` decorator to an existing class.
 _KNOWN_SPECIFIABLE = collections.defaultdict(dict)
 
-SpecT = TypeVar('SpecT', bound='Specifiable')
+T = TypeVar('T', bound=type)
+BUILTIN_TYPES_IN_SPEC = (int, float, complex, str, bytes, bytearray)
 
 
-def _class_to_subspace(cls: Type) -> str:
+def _class_to_subspace(cls: type) -> str:
   """
   Search the class hierarchy to find the subspace: the closest ancestor class in
   the class's method resolution order (MRO) whose name is found in the accepted
@@ -101,36 +100,62 @@ class Spec():
   #: An optional dictionary of keyword arguments for the `__init__` method of
   #: the class. If None, when we materialize this Spec, we only return the
   #: class without instantiate any objects from it.
-  config: Optional[Dict[str, Any]] = dataclasses.field(default_factory=dict)
+  config: Optional[dict[str, Any]] = dataclasses.field(default_factory=dict)
+
+
+def _specifiable_from_spec_helper(v, _run_init):
+  if isinstance(v, Spec):
+    return Specifiable.from_spec(v, _run_init)
+
+  if isinstance(v, list):
+    return [_specifiable_from_spec_helper(e, _run_init) for e in v]
+
+  # TODO: support spec treatment for more types
+  if not isinstance(v, BUILTIN_TYPES_IN_SPEC):
+    logging.warning(
+        "Type %s is not a recognized supported type for the "
+        "specification. It will be included without conversion.",
+        str(type(v)))
+  return v
+
+
+def _specifiable_to_spec_helper(v):
+  if isinstance(v, Specifiable):
+    return v.to_spec()
+
+  if isinstance(v, list):
+    return [_specifiable_to_spec_helper(e) for e in v]
+
+  if inspect.isfunction(v):
+    if not hasattr(v, "spec_type"):
+      _register(v, inject_spec_type=False)
+    return Spec(type=_get_default_spec_type(v), config=None)
+
+  if inspect.isclass(v):
+    if not hasattr(v, "spec_type"):
+      _register(v, inject_spec_type=False)
+    return Spec(type=_get_default_spec_type(v), config=None)
+
+  # TODO: support spec treatment for more types
+  if not isinstance(v, BUILTIN_TYPES_IN_SPEC):
+    logging.warning(
+        "Type %s is not a recognized supported type for the "
+        "specification. It will be included without conversion.",
+        str(type(v)))
+  return v
 
 
 @runtime_checkable
 class Specifiable(Protocol):
   """Protocol that a specifiable class needs to implement."""
-  #: The value of the `type` field in the object's spec for this class.
-  spec_type: ClassVar[str]
-  #: The raw keyword arguments passed to `__init__` method during object
-  #: initialization.
-  init_kwargs: dict[str, Any]
-
-  # a boolean to tell whether the original `__init__` method is called
-  _initialized: bool
-  # a boolean used by new_getattr to tell whether it is in the `__init__` method
-  # call
-  _in_init: bool
-
-  @staticmethod
-  def _from_spec_helper(v, _run_init):
-    if isinstance(v, Spec):
-      return Specifiable.from_spec(v, _run_init)
-
-    if isinstance(v, List):
-      return [Specifiable._from_spec_helper(e, _run_init) for e in v]
-
-    return v
+  @classmethod
+  def spec_type(cls) -> str:
+    pass
 
   @classmethod
-  def from_spec(cls, spec: Spec, _run_init: bool = True) -> Union[Self, type]:
+  def from_spec(cls,
+                spec: Spec,
+                _run_init: bool = True) -> Union[Self, type[Self]]:
     """Generate a `Specifiable` subclass object based on a spec.
 
     Args:
@@ -144,7 +169,7 @@ class Specifiable(Protocol):
       raise ValueError(f"Spec type not found in {spec}")
 
     subspace = _spec_type_to_subspace(spec.type)
-    subclass: Type[Self] = _KNOWN_SPECIFIABLE[subspace].get(spec.type, None)
+    subclass: type[Self] = _KNOWN_SPECIFIABLE[subspace].get(spec.type, None)
 
     if subclass is None:
       raise ValueError(f"Unknown spec type '{spec.type}' in {spec}")
@@ -155,34 +180,13 @@ class Specifiable(Protocol):
       return subclass
 
     kwargs = {
-        k: Specifiable._from_spec_helper(v, _run_init)
-        for k,
-        v in spec.config.items()
+        k: _specifiable_from_spec_helper(v, _run_init)
+        for k, v in spec.config.items()
     }
 
     if _run_init:
       kwargs["_run_init"] = True
     return subclass(**kwargs)
-
-  @staticmethod
-  def _to_spec_helper(v):
-    if isinstance(v, Specifiable):
-      return v.to_spec()
-
-    if isinstance(v, List):
-      return [Specifiable._to_spec_helper(e) for e in v]
-
-    if inspect.isfunction(v):
-      if not hasattr(v, "spec_type"):
-        _register(v, inject_spec_type=False)
-      return Spec(type=_get_default_spec_type(v), config=None)
-
-    if inspect.isclass(v):
-      if not hasattr(v, "spec_type"):
-        _register(v, inject_spec_type=False)
-      return Spec(type=_get_default_spec_type(v), config=None)
-
-    return v
 
   def to_spec(self) -> Spec:
     """Generate a spec from a `Specifiable` subclass object.
@@ -195,12 +199,20 @@ class Specifiable(Protocol):
           f"'{type(self).__name__}' not registered as Specifiable. "
           f"Decorate ({type(self).__name__}) with @specifiable")
 
-    args = {k: self._to_spec_helper(v) for k, v in self.init_kwargs.items()}
+    args = {
+        k: _specifiable_to_spec_helper(v)
+        for k, v in self.init_kwargs.items()
+    }
 
-    return Spec(type=self.__class__.spec_type, config=args)
+    return Spec(type=self.spec_type(), config=args)
 
   def run_original_init(self) -> None:
     """Invoke the original __init__ method with original keyword arguments"""
+    pass
+
+  @classmethod
+  def unspecifiable(cls) -> None:
+    """Resume the class structure prior to specifiable"""
     pass
 
 
@@ -216,7 +228,7 @@ def _get_default_spec_type(cls):
 
 
 # Register a `Specifiable` subclass in `KNOWN_SPECIFIABLE`
-def _register(cls, spec_type=None, inject_spec_type=True) -> None:
+def _register(cls: type, spec_type=None, inject_spec_type=True) -> None:
   assert spec_type is None or inject_spec_type, \
       "need to inject spec_type to class if spec_type is not None"
   if spec_type is None:
@@ -237,7 +249,8 @@ def _register(cls, spec_type=None, inject_spec_type=True) -> None:
     _KNOWN_SPECIFIABLE[subspace][spec_type] = cls
 
   if inject_spec_type:
-    cls.spec_type = spec_type
+    setattr(cls, cls.__name__ + '__spec_type', spec_type)
+    # cls.__spec_type = spec_type
 
 
 # Keep a copy of arguments that are used to call the `__init__` method when the
@@ -250,13 +263,35 @@ def _get_init_kwargs(inst, init_method, *args, **kwargs):
   return params
 
 
+@overload
 def specifiable(
-    my_cls=None,
+    my_cls: None = None,
     /,
     *,
-    spec_type=None,
-    on_demand_init=True,
-    just_in_time_init=True):
+    spec_type: Optional[str] = None,
+    on_demand_init: bool = True,
+    just_in_time_init: bool = True) -> Callable[[T], T]:
+  pass
+
+
+@overload
+def specifiable(
+    my_cls: T,
+    /,
+    *,
+    spec_type: Optional[str] = None,
+    on_demand_init: bool = True,
+    just_in_time_init: bool = True) -> T:
+  pass
+
+
+def specifiable(
+    my_cls: Optional[T] = None,
+    /,
+    *,
+    spec_type: Optional[str] = None,
+    on_demand_init: bool = True,
+    just_in_time_init: bool = True) -> Union[T, Callable[[T], T]]:
   """A decorator that turns a class into a `Specifiable` subclass by
   implementing the `Specifiable` protocol.
 
@@ -285,8 +320,8 @@ def specifiable(
       original `__init__` method will be called when the first time an attribute
       is accessed.
   """
-  def _wrapper(cls):
-    def new_init(self: Specifiable, *args, **kwargs):
+  def _wrapper(cls: T) -> T:
+    def new_init(self, *args, **kwargs):
       self._initialized = False
       self._in_init = False
 
@@ -358,20 +393,40 @@ def specifiable(
           name)
       return self.__getattribute__(name)
 
+    def spec_type_func(cls):
+      return getattr(cls, spec_type_attr_name)
+
+    def unspecifiable(cls):
+      delattr(cls, spec_type_attr_name)
+      cls.__init__ = original_init
+      if just_in_time_init:
+        delattr(cls, '__getattr__')
+      delattr(cls, 'spec_type')
+      delattr(cls, 'run_original_init')
+      delattr(cls, 'to_spec')
+      delattr(cls, 'from_spec')
+      delattr(cls, 'unspecifiable')
+
+    spec_type_attr_name = cls.__name__ + "__spec_type"
+
+    # the class is registered
+    if hasattr(cls, spec_type_attr_name):
+      return cls
+
     # start of the function body of _wrapper
     _register(cls, spec_type)
 
     class_name = cls.__name__
-    original_init = cls.__init__
-    cls.__init__ = new_init
+    original_init = cls.__init__  # type: ignore[misc]
+    cls.__init__ = new_init  # type: ignore[misc]
     if just_in_time_init:
       cls.__getattr__ = new_getattr
 
+    cls.spec_type = classmethod(spec_type_func)
     cls.run_original_init = run_original_init
     cls.to_spec = Specifiable.to_spec
-    cls._to_spec_helper = staticmethod(Specifiable._to_spec_helper)
     cls.from_spec = Specifiable.from_spec
-    cls._from_spec_helper = staticmethod(Specifiable._from_spec_helper)
+    cls.unspecifiable = classmethod(unspecifiable)
 
     return cls
     # end of the function body of _wrapper

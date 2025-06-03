@@ -182,12 +182,12 @@ public class MonitoringInfoEncodings {
     }
   }
 
-  /** Encodes to {@link MonitoringInfoConstants.TypeUrns#PER_WORKER_HISTOGRAM}. */
+  /** Encodes to {@link MonitoringInfoConstants.TypeUrns#HISTOGRAM}. */
   public static ByteString encodeInt64Histogram(HistogramData inputHistogram) {
     return inputHistogram.toProto().toByteString();
   }
 
-  /** Decodes to {@link MonitoringInfoConstants.TypeUrns#PER_WORKER_HISTOGRAM}. */
+  /** Decodes to {@link MonitoringInfoConstants.TypeUrns#HISTOGRAM}. */
   public static HistogramData decodeInt64Histogram(ByteString payload) {
     try {
       return new HistogramData(HistogramValue.parseFrom(payload));

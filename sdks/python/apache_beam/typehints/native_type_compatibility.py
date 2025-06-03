@@ -30,6 +30,11 @@ from typing import TypeVar
 
 from apache_beam.typehints import typehints
 
+try:
+  from typing import is_typeddict
+except ImportError:
+  from typing_extensions import is_typeddict
+
 T = TypeVar('T')
 
 _LOGGER = logging.getLogger(__name__)
@@ -66,7 +71,10 @@ _CONVERTED_COLLECTIONS = [
     collections.abc.MutableSet,
     collections.abc.Collection,
     collections.abc.Sequence,
+    collections.abc.Mapping,
 ]
+
+_CONVERTED_MODULES = ('typing', 'collections', 'collections.abc')
 
 
 def _get_args(typ):
@@ -125,6 +133,10 @@ def _is_primitive(user_type, primitive):
 
 def _match_is_primitive(match_against):
   return lambda user_type: _is_primitive(user_type, match_against)
+
+
+def _match_is_dict(user_type):
+  return _is_primitive(user_type, dict) or _safe_issubclass(user_type, dict)
 
 
 def _match_is_exactly_mapping(user_type):
@@ -352,13 +364,15 @@ def convert_to_beam_type(typ):
     # to the correct type constraint in Beam
     # This is needed to fix https://github.com/apache/beam/issues/33356
     pass
-
-  elif (typ_module != 'typing') and (typ_module !=
-                                     'collections.abc') and not is_builtin(typ):
+  elif is_typeddict(typ):
+    # Special-case for the TypedDict constructor, which is not actually a type,
+    # and therefore fails to be recognised as compatible with Dict or Mapping.
+    return typehints.Dict[str, typehints.Any]
+  elif typ_module not in _CONVERTED_MODULES and not is_builtin(typ):
     # Only translate primitives and types from collections.abc and typing.
     return typ
   if (typ_module == 'collections.abc' and
-      typ.__origin__ not in _CONVERTED_COLLECTIONS):
+      getattr(typ, '__origin__', typ) not in _CONVERTED_COLLECTIONS):
     # TODO(https://github.com/apache/beam/issues/29135):
     # Support more collections types
     return typ
@@ -371,8 +385,7 @@ def convert_to_beam_type(typ):
       # unsupported.
       _TypeMapEntry(match=is_forward_ref, arity=0, beam_type=typehints.Any),
       _TypeMapEntry(match=is_any, arity=0, beam_type=typehints.Any),
-      _TypeMapEntry(
-          match=_match_is_primitive(dict), arity=2, beam_type=typehints.Dict),
+      _TypeMapEntry(match=_match_is_dict, arity=2, beam_type=typehints.Dict),
       _TypeMapEntry(
           match=_match_is_exactly_iterable,
           arity=1,
@@ -414,6 +427,9 @@ def convert_to_beam_type(typ):
           match=_match_is_exactly_sequence,
           arity=1,
           beam_type=typehints.Sequence),
+      _TypeMapEntry(
+          match=_match_is_exactly_mapping, arity=2,
+          beam_type=typehints.Mapping),
   ]
 
   # Find the first matching entry.
@@ -444,6 +460,14 @@ def convert_to_beam_type(typ):
       args = (typehints.TypeVariable('T'), ) * arity
   elif matched_entry.arity == -1:
     arity = len_args
+  # Counters are special dict types that are implicitly parameterized to
+  # [T, int], so we fix cases where they only have one argument to match
+  # a more traditional dict hint.
+  elif len_args == 1 and _safe_issubclass(getattr(typ, '__origin__', typ),
+                                          collections.Counter):
+    args = (args[0], int)
+    len_args = 2
+    arity = matched_entry.arity
   else:
     arity = matched_entry.arity
     if len_args != arity:
@@ -534,6 +558,9 @@ def convert_to_python_type(typ):
     return collections.abc.Sequence[convert_to_python_type(typ.inner_type)]
   if isinstance(typ, typehints.IteratorTypeConstraint):
     return collections.abc.Iterator[convert_to_python_type(typ.yielded_type)]
+  if isinstance(typ, typehints.MappingTypeConstraint):
+    return collections.abc.Mapping[convert_to_python_type(typ.key_type),
+                                   convert_to_python_type(typ.value_type)]
 
   raise ValueError('Failed to convert Beam type: %s' % typ)
 

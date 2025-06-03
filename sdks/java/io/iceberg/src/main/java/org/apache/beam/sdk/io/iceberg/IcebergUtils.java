@@ -101,8 +101,7 @@ public class IcebergUtils {
       case STRUCT:
         return Schema.FieldType.row(icebergStructTypeToBeamSchema(type.asStructType()));
       case LIST:
-        return Schema.FieldType.iterable(
-            icebergTypeToBeamFieldType(type.asListType().elementType()));
+        return Schema.FieldType.array(icebergTypeToBeamFieldType(type.asListType().elementType()));
       case MAP:
         return Schema.FieldType.map(
             icebergTypeToBeamFieldType(type.asMapType().keyType()),

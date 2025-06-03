@@ -151,9 +151,8 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
   @Override
   public boolean advance() throws IOException {
     /* Read first record (if any). we need to loop here because :
-     *  - (a) some records initially need to be skipped if they are before consumedOffset
-     *  - (b) if curBatch is empty, we want to fetch next batch and then advance.
-     *  - (c) curBatch is an iterator of iterators. we interleave the records from each.
+     *  - (a) if curBatch is empty, we want to fetch next batch and then advance.
+     *  - (b) curBatch is an iterator of iterators. we interleave the records from each.
      *        curBatch.next() might return an empty iterator.
      */
     while (true) {
@@ -163,7 +162,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
 
         PartitionState<K, V> pState = curBatch.next();
 
-        if (!pState.recordIter.hasNext()) { // -- (c)
+        if (!pState.recordIter.hasNext()) { // -- (b)
           pState.recordIter = Collections.emptyIterator(); // drop ref
           curBatch.remove();
           continue;
@@ -173,26 +172,6 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
         elementsReadBySplit.inc();
 
         ConsumerRecord<byte[], byte[]> rawRecord = pState.recordIter.next();
-        long expected = pState.nextOffset;
-        long offset = rawRecord.offset();
-
-        if (offset < expected) { // -- (a)
-          // this can happen when compression is enabled in Kafka (seems to be fixed in 0.10)
-          // should we check if the offset is way off from consumedOffset (say > 1M)?
-          LOG.warn(
-              "{}: ignoring already consumed offset {} for {}",
-              this,
-              offset,
-              pState.topicPartition);
-          continue;
-        }
-
-        long offsetGap = offset - expected; // could be > 0 when Kafka log compaction is enabled.
-
-        if (curRecord == null) {
-          LOG.info("{}: first record offset {}", name, offset);
-          offsetGap = 0;
-        }
 
         // Apply user deserializers. User deserializers might throw, which will be propagated up
         // and 'curRecord' remains unchanged. The runner should close this reader.
@@ -219,7 +198,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
         int recordSize =
             (rawRecord.key() == null ? 0 : rawRecord.key().length)
                 + (rawRecord.value() == null ? 0 : rawRecord.value().length);
-        pState.recordConsumed(offset, recordSize, offsetGap);
+        pState.recordConsumed(rawRecord.offset(), recordSize);
         bytesRead.inc(recordSize);
         bytesReadBySplit.inc(recordSize);
 
@@ -230,7 +209,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
 
         kafkaResults.flushBufferedMetrics();
         return true;
-      } else { // -- (b)
+      } else { // -- (a)
         kafkaResults = KafkaSinkMetrics.kafkaMetrics();
         nextBatch();
         kafkaResults.flushBufferedMetrics();
@@ -275,7 +254,9 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
                         p.nextOffset,
                         p.lastWatermark.getMillis()))
             .collect(Collectors.toList()),
-        source.getSpec().isCommitOffsetsInFinalizeEnabled() ? Optional.of(this) : Optional.empty());
+        source.getSpec().isCommitOffsetsInFinalizeEnabled() || offsetBasedDeduplicationSupported()
+            ? Optional.of(this)
+            : Optional.empty());
   }
 
   @Override
@@ -470,8 +451,6 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     private Iterator<ConsumerRecord<byte[], byte[]>> recordIter = Collections.emptyIterator();
 
     private KafkaIOUtils.MovingAvg avgRecordSize = new KafkaIOUtils.MovingAvg();
-    private KafkaIOUtils.MovingAvg avgOffsetGap =
-        new KafkaIOUtils.MovingAvg(); // > 0 only when log compaction is enabled.
 
     PartitionState(
         TopicPartition partition, long nextOffset, TimestampPolicy<K, V> timestampPolicy) {
@@ -487,13 +466,10 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
       return topicPartition;
     }
 
-    // Update consumedOffset, avgRecordSize, and avgOffsetGap
-    void recordConsumed(long offset, int size, long offsetGap) {
+    // Update consumedOffset and avgRecordSize
+    void recordConsumed(long offset, int size) {
       nextOffset = offset + 1;
-
-      // This is always updated from single thread. Probably not worth making atomic.
       avgRecordSize.update(size);
-      avgOffsetGap.update(offsetGap);
     }
 
     synchronized void setLatestOffset(long latestOffset, Instant fetchTime) {
@@ -521,7 +497,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
       if (latestOffset < 0 || nextOffset < 0) {
         return UnboundedReader.BACKLOG_UNKNOWN;
       }
-      double remaining = (latestOffset - nextOffset) / (1 + avgOffsetGap.get());
+      double remaining = latestOffset - nextOffset;
       return Math.max(0, (long) Math.ceil(remaining));
     }
 

@@ -352,11 +352,12 @@ class IOTypeHints(NamedTuple):
       my_type: any,
       has_my_type: Callable[[], bool],
       my_key: str,
-      special_containers: List[
-          Union['PBegin', 'PDone', 'PCollection']], # noqa: F821
+      special_containers: List[Union[
+          'PBegin',  # noqa: F821
+          'PDone',  # noqa: F821
+          'PCollection']],  # noqa: F821
       error_str: str,
-      source_str: str
-      ) -> 'IOTypeHints':
+      source_str: str) -> 'IOTypeHints':
     from apache_beam.pvalue import PCollection
 
     if not has_my_type() or not my_type or len(my_type[0]) != 1:
@@ -571,8 +572,8 @@ def _unpack_positional_arg_hints(arg, hint):
           (arg, tuple_constraint, hint))
     if isinstance(hint, typehints.TupleConstraint):
       return tuple(
-          _unpack_positional_arg_hints(a, t) for a,
-          t in zip(arg, hint.tuple_types))
+          _unpack_positional_arg_hints(a, t)
+          for a, t in zip(arg, hint.tuple_types))
     return (typehints.Any, ) * len(arg)
   return hint
 

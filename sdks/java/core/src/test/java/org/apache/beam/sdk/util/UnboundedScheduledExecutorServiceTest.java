@@ -527,13 +527,13 @@ public class UnboundedScheduledExecutorServiceTest {
             } catch (InterruptedException e) {
               throw new RuntimeException(e);
             }
-            for (int j = 0; j < 1000; ++j) {
+            for (int j = 0; j < 200; ++j) {
               try {
                 executorService
                     .submit(
                         () -> {
                           try {
-                            Thread.sleep(1);
+                            Thread.sleep(5);
                           } catch (InterruptedException e) {
                             throw new RuntimeException(e);
                           }

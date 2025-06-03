@@ -22,6 +22,7 @@
 # should be kept in sync.
 # TODO(yaml): See if this can be enforced programmatically.
 
+# BigQuery
 - type: renaming
   transforms:
     'ReadFromBigQuery': 'ReadFromBigQuery'
@@ -48,6 +49,7 @@
       config:
         gradle_target: 'sdks:java:extensions:sql:expansion-service:shadowJar'
 
+# Kafka
 - type: renaming
   transforms:
     'ReadFromKafka': 'ReadFromKafka'
@@ -82,7 +84,14 @@
         'WriteToKafka': 'beam:schematransform:org.apache.beam:kafka_write:v1'
       config:
         gradle_target: 'sdks:java:io:expansion-service:shadowJar'
+        managed_replacement:
+          # Following transforms may be replaced with equivalent managed transforms,
+          # if the pipelines 'updateCompatibilityBeamVersion' match the provided
+          # version.
+          'ReadFromKafka': '2.65.0'
+          'WriteToKafka': '2.65.0'
 
+# PubSub
 - type: renaming
   transforms:
     'ReadFromPubSubLite': 'ReadFromPubSubLite'
@@ -120,6 +129,10 @@
       config:
         gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'
 
+# TODO(yaml): Tests are assuming python providers are before java ones, hence
+# the order below.  This should be fixed in the future.
+
+# Python Providers
 - type: python
   transforms:
     'ReadFromBigQuery': 'apache_beam.yaml.yaml_io.read_from_bigquery'
@@ -131,7 +144,10 @@
     'WriteToPubSub': 'apache_beam.yaml.yaml_io.write_to_pubsub'
     'ReadFromIceberg': 'apache_beam.yaml.yaml_io.read_from_iceberg'
     'WriteToIceberg': 'apache_beam.yaml.yaml_io.write_to_iceberg'
+    'ReadFromTFRecord': 'apache_beam.yaml.yaml_io.read_from_tfrecord'
+    'WriteToTFRecord': 'apache_beam.yaml.yaml_io.write_to_tfrecord'
 
+# General File Formats
 # Declared as a renaming transform to avoid exposing all
 # (implementation-specific) pandas arguments and aligning with possible Java
 # implementation.
@@ -185,6 +201,7 @@
         'ReadFromAvro': 'apache_beam.io.ReadFromAvro'
         'WriteToAvro': 'apache_beam.io.WriteToAvro'
 
+# BeamJar Providers
 - type: beamJar
   transforms:
     'WriteToCsv': 'beam:schematransform:org.apache.beam:csv_write:v1'
@@ -192,6 +209,7 @@
   config:
     gradle_target: 'sdks:java:extensions:schemaio-expansion-service:shadowJar'
 
+# Databases
 - type: renaming
   transforms:
     'ReadFromJdbc': 'ReadFromJdbc'
@@ -218,6 +236,8 @@
         password: 'password'
         query: 'read_query'
         table: 'location'
+        partition_column : 'partition_column'
+        num_partitions: 'num_partitions'
         type: 'jdbc_type'
         username: 'username'
       'WriteToJdbc':
@@ -296,6 +316,7 @@
       config:
         gradle_target: 'sdks:java:extensions:schemaio-expansion-service:shadowJar'
 
+# Spanner
 - type: renaming
   transforms:
     'ReadFromSpanner': 'ReadFromSpanner'
@@ -324,3 +345,28 @@
         'WriteToSpanner': 'beam:schematransform:org.apache.beam:spanner_write:v1'
       config:
         gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'
+
+# TFRecord
+- type: renaming
+  transforms:
+    'ReadFromTFRecord': 'ReadFromTFRecord'
+    'WriteToTFRecord': 'WriteToTFRecord'
+  config:
+    mappings:
+      'ReadFromTFRecord':
+        file_pattern: 'file_pattern'
+        compression_type: 'compression'
+        validate: 'validate'
+      'WriteToTFRecord':
+        file_path_prefix: 'output_prefix'
+        shard_name_template: 'shard_template'
+        file_name_suffix: 'filename_suffix'
+        num_shards: 'num_shards'
+        compression_type: 'compression'
+    underlying_provider:
+      type: beamJar
+      transforms:
+        'ReadFromTFRecord': 'beam:schematransform:org.apache.beam:tfrecord_read:v1'
+        'WriteToTFRecord': 'beam:schematransform:org.apache.beam:tfrecord_write:v1'
+      config:
+        gradle_target: 'sdks:java:io:expansion-service:shadowJar'

@@ -58,7 +58,10 @@ public class IcebergWriteSchemaTransformProvider
   static final String SNAPSHOTS_TAG = "snapshots";
 
   static final Schema OUTPUT_SCHEMA =
-      Schema.builder().addStringField("table").addFields(SnapshotInfo.SCHEMA.getFields()).build();
+      Schema.builder()
+          .addStringField("table")
+          .addFields(SnapshotInfo.getSchema().getFields())
+          .build();
 
   @Override
   public String description() {
@@ -74,7 +77,9 @@ public class IcebergWriteSchemaTransformProvider
       return new AutoValue_IcebergWriteSchemaTransformProvider_Configuration.Builder();
     }
 
-    @SchemaFieldDescription("Identifier of the Iceberg table.")
+    @SchemaFieldDescription(
+        "A fully-qualified table identifier. You may also provide a template to write to multiple dynamic destinations,"
+            + " for example: `dataset.my_{col1}_{col2.nested}_table`.")
     public abstract String getTable();
 
     @SchemaFieldDescription("Name of the catalog containing the table.")

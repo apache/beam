@@ -180,9 +180,9 @@ func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, c
 	progTick := time.NewTicker(baseTick)
 	defer progTick.Stop()
 	var dataFinished, bundleFinished bool
-	// If we have no data outputs, we still need to have progress & splits
+	// If we have no data outputs and timers, we still need to have progress & splits
 	// while waiting for bundle completion.
-	if b.OutputCount == 0 {
+	if b.OutputCount+len(b.HasTimers) == 0 {
 		dataFinished = true
 	}
 	var resp *fnpb.ProcessBundleResponse
@@ -617,10 +617,9 @@ func buildDescriptor(stg *stage, comps *pipepb.Components, wk *worker.W, em *eng
 	// Update coders for internal collections, and add those collections to the bundle descriptor.
 	for _, pid := range stg.internalCols {
 		col := clonePColToBundle(pid)
-		if newCID, err := lpUnknownCoders(col.GetCoderId(), coders, comps.GetCoders()); err == nil && col.GetCoderId() != newCID {
-			col.CoderId = newCID
-		} else if err != nil {
-			return fmt.Errorf("buildDescriptor: coder  couldn't rewrite coder %q for internal pcollection %q: %w", col.GetCoderId(), pid, err)
+		// Keep the original coder of an internal pcollection without rewriting(LP'ing).
+		if err := retrieveCoders(col.GetCoderId(), coders, comps.GetCoders()); err != nil {
+			return fmt.Errorf("buildDescriptor: couldn't retrieve coder %q for internal pcollection %q: %w", col.GetCoderId(), pid, err)
 		}
 	}
 	// Add coders for all windowing strategies.

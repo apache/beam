@@ -180,7 +180,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
     if self.runner_name == 'TestDataflowRunner':
       self.skipTest('DataflowRunner does not support schema autodetection')
 
-    table_name = 'python_write_table'
+    table_name = 'python_write_table_schema_autodetect'
     table_id = '{}.{}'.format(self.dataset_id, table_name)
 
     input_data = [
@@ -383,7 +383,7 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
     Test that errors returned by beam.io.WriteToBigQuery
     contain both the failed rows and the reason for it failing.
     """
-    table_name = 'python_write_table'
+    table_name = 'python_write_table_insert_errors'
     table_id = '{}.{}'.format(self.dataset_id, table_name)
 
     input_data = [{
@@ -453,8 +453,12 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
 
       assert_that(
           errors[BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS]
-          | 'ParseErrors' >> beam.Map(lambda err: (err[1], err[2])),
-          equal_to(bq_result_errors))
+          | 'ParseErrors' >> beam.Map(lambda err: (err[1], err[2]))
+          | 'ToList' >> beam.combiners.ToList()
+          | 'SortErrors' >> beam.Map(
+              lambda errs: sorted(errs, key=lambda x: x[0].get("number", 0))),
+          equal_to(
+              [sorted(bq_result_errors, key=lambda x: x[0].get("number", 0))]))
 
   @pytest.mark.it_postcommit
   def test_big_query_write_insert_non_transient_api_call_error(self):
@@ -591,8 +595,10 @@ class BigQueryWriteIntegrationTests(unittest.TestCase):
               max_file_size=1,  # bytes
               method=beam.io.WriteToBigQuery.Method.FILE_LOADS,
               additional_bq_parameters={
-                  'schemaUpdateOptions': ['ALLOW_FIELD_ADDITION',
-                                          'ALLOW_FIELD_RELAXATION']},
+                  'schemaUpdateOptions': [
+                      'ALLOW_FIELD_ADDITION', 'ALLOW_FIELD_RELAXATION'
+                  ]
+              },
               temp_file_format=file_format))
 
 

@@ -56,7 +56,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.Throttlin
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcDispatcherClient;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreamFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.ChannelCachingStubFactory;
-import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemScheduler;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudgetDistributor;
@@ -95,7 +94,6 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
   private final GrpcDispatcherClient dispatcherClient;
   private final GetWorkBudgetDistributor getWorkBudgetDistributor;
   private final GetWorkBudget totalGetWorkBudget;
-  private final ThrottleTimer getWorkerMetadataThrottleTimer;
   private final Function<WindmillStream.CommitWorkStream, WorkCommitter> workCommitterFactory;
   private final ThrottlingGetDataMetricTracker getDataMetricTracker;
   private final ExecutorService windmillStreamManager;
@@ -136,7 +134,6 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
     this.backends = new AtomicReference<>(StreamingEngineBackends.EMPTY);
     this.channelCachingStubFactory = channelCachingStubFactory;
     this.dispatcherClient = dispatcherClient;
-    this.getWorkerMetadataThrottleTimer = new ThrottleTimer();
     this.windmillStreamManager =
         Executors.newCachedThreadPool(
             new ThreadFactoryBuilder().setNameFormat(STREAM_MANAGER_THREAD_NAME).build());
@@ -215,9 +212,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
     Preconditions.checkState(!started, "FanOutStreamingEngineWorkerHarness cannot start twice.");
     getWorkerMetadataStream =
         streamFactory.createGetWorkerMetadataStream(
-            dispatcherClient::getWindmillMetadataServiceStubBlocking,
-            getWorkerMetadataThrottleTimer,
-            this::consumeWorkerMetadata);
+            dispatcherClient::getWindmillMetadataServiceStubBlocking, this::consumeWorkerMetadata);
     getWorkerMetadataStream.start();
     started = true;
   }
@@ -298,7 +293,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
         newWindmillEndpoints,
         activeMetadataVersion,
         newWindmillEndpoints.version());
-    closeStreamsNotIn(newWindmillEndpoints);
+    closeStreamsNotIn(newWindmillEndpoints).join();
     ImmutableMap<Endpoint, WindmillStreamSender> newStreams =
         createAndStartNewStreams(newWindmillEndpoints.windmillEndpoints()).join();
     StreamingEngineBackends newBackends =
@@ -380,15 +375,6 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
                     .toCompletableFuture());
   }
 
-  /** Add up all the throttle times of all streams including GetWorkerMetadataStream. */
-  @Override
-  public long getAndResetThrottleTime() {
-    return backends.get().windmillStreams().values().stream()
-            .map(WindmillStreamSender::getAndResetThrottleTime)
-            .reduce(0L, Long::sum)
-        + getWorkerMetadataThrottleTimer.getAndResetThrottleTime();
-  }
-
   public long currentActiveCommitBytes() {
     return backends.get().windmillStreams().values().stream()
         .map(WindmillStreamSender::getCurrentActiveCommitBytes)
@@ -419,8 +405,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
         .orElseGet(
             () ->
                 new GlobalDataStreamSender(
-                    streamFactory.createGetDataStream(
-                        createWindmillStub(keyedEndpoint.getValue()), new ThrottleTimer()),
+                    streamFactory.createGetDataStream(createWindmillStub(keyedEndpoint.getValue())),
                     keyedEndpoint.getValue()));
   }
 

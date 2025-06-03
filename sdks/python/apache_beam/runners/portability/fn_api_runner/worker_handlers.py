@@ -207,10 +207,11 @@ class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
     with self._lock:
       return self._connections_by_worker_id[worker_id]
 
-  def Control(self,
-              iterator,  # type: Iterable[beam_fn_api_pb2.InstructionResponse]
-              context  # type: ServicerContext
-             ):
+  def Control(
+      self,
+      iterator,  # type: Iterable[beam_fn_api_pb2.InstructionResponse]
+      context  # type: ServicerContext
+  ):
     # type: (...) -> Iterator[beam_fn_api_pb2.InstructionRequest]
     with self._lock:
       if self._state == self.DONE_STATE:
@@ -262,12 +263,13 @@ class WorkerHandler(object):
   control_conn = None  # type: ControlConnection
   data_conn = None  # type: data_plane._GrpcDataChannel
 
-  def __init__(self,
-               control_handler,  # type: Any
-               data_plane_handler,  # type: Any
-               state,  # type: sdk_worker.StateHandler
-               provision_info  # type: ExtendedProvisionInfo
-              ):
+  def __init__(
+      self,
+      control_handler,  # type: Any
+      data_plane_handler,  # type: Any
+      state,  # type: sdk_worker.StateHandler
+      provision_info  # type: ExtendedProvisionInfo
+  ):
     # type: (...) -> None
 
     """Initialize a WorkerHandler.
@@ -334,12 +336,13 @@ class WorkerHandler(object):
     return wrapper
 
   @classmethod
-  def create(cls,
-             environment,  # type: beam_runner_api_pb2.Environment
-             state,  # type: sdk_worker.StateHandler
-             provision_info,  # type: ExtendedProvisionInfo
-             grpc_server  # type: GrpcServer
-            ):
+  def create(
+      cls,
+      environment,  # type: beam_runner_api_pb2.Environment
+      state,  # type: sdk_worker.StateHandler
+      provision_info,  # type: ExtendedProvisionInfo
+      grpc_server  # type: GrpcServer
+  ):
     # type: (...) -> WorkerHandler
     constructor, payload_type = cls._registered_environments[environment.urn]
     return constructor(
@@ -355,13 +358,13 @@ class WorkerHandler(object):
 @WorkerHandler.register_environment(python_urns.EMBEDDED_PYTHON, None)
 class EmbeddedWorkerHandler(WorkerHandler):
   """An in-memory worker_handler for fn API control, state and data planes."""
-
-  def __init__(self,
-               unused_payload,  # type: None
-               state,  # type: sdk_worker.StateHandler
-               provision_info,  # type: ExtendedProvisionInfo
-               worker_manager,  # type: WorkerHandlerManager
-              ):
+  def __init__(
+      self,
+      unused_payload,  # type: None
+      state,  # type: sdk_worker.StateHandler
+      provision_info,  # type: ExtendedProvisionInfo
+      worker_manager,  # type: WorkerHandlerManager
+  ):
     # type: (...) -> None
     super().__init__(
         self, data_plane.InMemoryDataChannel(), state, provision_info)
@@ -448,11 +451,12 @@ class GrpcServer(object):
 
   _DEFAULT_SHUTDOWN_TIMEOUT_SECS = 5
 
-  def __init__(self,
-               state,  # type: StateServicer
-               provision_info,  # type: Optional[ExtendedProvisionInfo]
-               worker_manager,  # type: WorkerHandlerManager
-              ):
+  def __init__(
+      self,
+      state,  # type: StateServicer
+      provision_info,  # type: Optional[ExtendedProvisionInfo]
+      worker_manager,  # type: WorkerHandlerManager
+  ):
     # type: (...) -> None
 
     # Options to have no limits (-1) on the size of the messages
@@ -539,12 +543,12 @@ class GrpcServer(object):
 
 class GrpcWorkerHandler(WorkerHandler):
   """An grpc based worker_handler for fn API control, state and data planes."""
-
-  def __init__(self,
-               state,  # type: StateServicer
-               provision_info,  # type: ExtendedProvisionInfo
-               grpc_server  # type: GrpcServer
-              ):
+  def __init__(
+      self,
+      state,  # type: StateServicer
+      provision_info,  # type: ExtendedProvisionInfo
+      grpc_server  # type: GrpcServer
+  ):
     # type: (...) -> None
     self._grpc_server = grpc_server
     super().__init__(
@@ -604,12 +608,13 @@ class GrpcWorkerHandler(WorkerHandler):
 @WorkerHandler.register_environment(
     common_urns.environments.EXTERNAL.urn, beam_runner_api_pb2.ExternalPayload)
 class ExternalWorkerHandler(GrpcWorkerHandler):
-  def __init__(self,
-               external_payload,  # type: beam_runner_api_pb2.ExternalPayload
-               state,  # type: StateServicer
-               provision_info,  # type: ExtendedProvisionInfo
-               grpc_server  # type: GrpcServer
-              ):
+  def __init__(
+      self,
+      external_payload,  # type: beam_runner_api_pb2.ExternalPayload
+      state,  # type: StateServicer
+      provision_info,  # type: ExtendedProvisionInfo
+      grpc_server  # type: GrpcServer
+  ):
     # type: (...) -> None
     super().__init__(state, provision_info, grpc_server)
     self._external_payload = external_payload
@@ -620,6 +625,7 @@ class ExternalWorkerHandler(GrpcWorkerHandler):
     stub = beam_fn_api_pb2_grpc.BeamFnExternalWorkerPoolStub(
         GRPCChannelFactory.insecure_channel(
             self._external_payload.endpoint.url))
+    _LOGGER.info('self.control_address: %s' % self.control_address)
     control_descriptor = endpoints_pb2.ApiServiceDescriptor(
         url=self.control_address)
     response = stub.StartWorker(
@@ -649,12 +655,13 @@ class ExternalWorkerHandler(GrpcWorkerHandler):
 
 @WorkerHandler.register_environment(python_urns.EMBEDDED_PYTHON_GRPC, bytes)
 class EmbeddedGrpcWorkerHandler(GrpcWorkerHandler):
-  def __init__(self,
-               payload,  # type: bytes
-               state,  # type: StateServicer
-               provision_info,  # type: ExtendedProvisionInfo
-               grpc_server  # type: GrpcServer
-              ):
+  def __init__(
+      self,
+      payload,  # type: bytes
+      state,  # type: StateServicer
+      provision_info,  # type: ExtendedProvisionInfo
+      grpc_server  # type: GrpcServer
+  ):
     # type: (...) -> None
     super().__init__(state, provision_info, grpc_server)
 
@@ -690,12 +697,13 @@ SUBPROCESS_LOCK = threading.Lock()
 
 @WorkerHandler.register_environment(python_urns.SUBPROCESS_SDK, bytes)
 class SubprocessSdkWorkerHandler(GrpcWorkerHandler):
-  def __init__(self,
-               worker_command_line,  # type: bytes
-               state,  # type: StateServicer
-               provision_info,  # type: ExtendedProvisionInfo
-               grpc_server  # type: GrpcServer
-              ):
+  def __init__(
+      self,
+      worker_command_line,  # type: bytes
+      state,  # type: StateServicer
+      provision_info,  # type: ExtendedProvisionInfo
+      grpc_server  # type: GrpcServer
+  ):
     # type: (...) -> None
     super().__init__(state, provision_info, grpc_server)
     self._worker_command_line = worker_command_line
@@ -720,12 +728,13 @@ class SubprocessSdkWorkerHandler(GrpcWorkerHandler):
 @WorkerHandler.register_environment(
     common_urns.environments.DOCKER.urn, beam_runner_api_pb2.DockerPayload)
 class DockerSdkWorkerHandler(GrpcWorkerHandler):
-  def __init__(self,
-               payload,  # type: beam_runner_api_pb2.DockerPayload
-               state,  # type: StateServicer
-               provision_info,  # type: ExtendedProvisionInfo
-               grpc_server  # type: GrpcServer
-              ):
+  def __init__(
+      self,
+      payload,  # type: beam_runner_api_pb2.DockerPayload
+      state,  # type: StateServicer
+      provision_info,  # type: ExtendedProvisionInfo
+      grpc_server  # type: GrpcServer
+  ):
     # type: (...) -> None
     super().__init__(state, provision_info, grpc_server)
     self._container_image = payload.container_image
@@ -852,10 +861,11 @@ class WorkerHandlerManager(object):
 
   Caches ``WorkerHandler``s based on environment id.
   """
-  def __init__(self,
-               environments,  # type: Mapping[str, beam_runner_api_pb2.Environment]
-               job_provision_info  # type: ExtendedProvisionInfo
-              ):
+  def __init__(
+      self,
+      environments,  # type: Mapping[str, beam_runner_api_pb2.Environment]
+      job_provision_info  # type: ExtendedProvisionInfo
+  ):
     # type: (...) -> None
     self._environments = environments
     self._job_provision_info = job_provision_info
@@ -989,7 +999,8 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
       return self._underlying
 
   class CopyOnWriteList(object):
-    def __init__(self,
+    def __init__(
+        self,
         underlying,  # type: DefaultDict[bytes, Buffer]
         overlay,  # type: Dict[bytes, Buffer]
         key  # type: bytes
@@ -1063,10 +1074,11 @@ class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer,
     state_key_copy.ordered_list_user_state.range.end = start + 1
     return self._to_key(state_key_copy)
 
-  def get_raw(self,
+  def get_raw(
+      self,
       state_key,  # type: beam_fn_api_pb2.StateKey
       continuation_token=None  # type: Optional[bytes]
-              ):
+  ):
     # type: (...) -> Tuple[bytes, Optional[bytes]]
 
     if state_key.WhichOneof('type') not in self._SUPPORTED_STATE_TYPES:
@@ -1180,10 +1192,11 @@ class GrpcStateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer):
     # type: (StateServicer) -> None
     self._state = state
 
-  def State(self,
+  def State(
+      self,
       request_stream,  # type: Iterable[beam_fn_api_pb2.StateRequest]
       context=None  # type: Any
-            ):
+  ):
     # type: (...) -> Iterator[beam_fn_api_pb2.StateResponse]
     # Note that this eagerly mutates state, assuming any failures are fatal.
     # Thus it is safe to ignore instruction_id.
@@ -1231,10 +1244,11 @@ class SingletonStateHandlerFactory(sdk_worker.StateHandlerFactory):
 
 
 class ControlFuture(object):
-  def __init__(self,
-               instruction_id,  # type: str
-               response=None  # type: Optional[beam_fn_api_pb2.InstructionResponse]
-              ):
+  def __init__(
+      self,
+      instruction_id,  # type: str
+      response=None  # type: Optional[beam_fn_api_pb2.InstructionResponse]
+  ):
     # type: (...) -> None
     self.instruction_id = instruction_id
     self._response = response
