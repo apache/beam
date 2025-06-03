@@ -26,6 +26,7 @@ hashes.
 import os
 import sys
 
+
 def get_relative_path(path):
   """Returns the path of filename relative to the first directory in sys.path
   contained in filename. Returns the unchanged filename if it is not in any
