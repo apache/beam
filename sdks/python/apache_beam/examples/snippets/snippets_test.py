@@ -441,9 +441,8 @@ class TypeHintsTest(unittest.TestCase):
     # pylint: disable=expression-not-assigned
     with self.assertRaisesRegex(Exception, "TypeCheckError"):
       # [START type_hints_runtime_on]
-      p = TestPipeline(options=PipelineOptions(runtime_type_check=True))
-      p | beam.Create(['a']) | beam.Map(lambda x: 3).with_output_types(str)
-      p.run()
+      with TestPipeline(options=PipelineOptions(runtime_type_check=True)) as p:
+        p | beam.Create(['a']) | beam.Map(lambda x: 3).with_output_types(str)
       # [END type_hints_runtime_on]
 
   def test_deterministic_key(self):
