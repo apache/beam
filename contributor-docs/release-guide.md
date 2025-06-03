@@ -232,7 +232,7 @@ The following must be manually done or confirmed:
 - [ ] The `master` branch has the SNAPSHOT/dev version incremented.
 - [ ] The release branch has the SNAPSHOT/dev version to be released.
 - [ ] The Dataflow container image should be modified to the version to be released.
-- [ ] Due to current limitation in the workflow, you must navigate to https://github.com/apache/beam/actions/workflows/beam_Release_NightlySnapshot.yml and click "Run workflow" and select the branch just created (release-2.xx) to build a snapshot.
+- [ ] Due to current limitation in the workflow, you must navigate to https://github.com/apache/beam/actions/workflows/beam_Release_NightlySnapshot.yml and click "Run workflow" and select the **tag** just created (v2.xx.0-RC00) to build a snapshot.
 - [ ] Manually update `CHANGES.md` on `master` by adding a new section for the
   next release
   ([example](https://github.com/apache/beam/commit/96ab1fb3fe07acf7f7dc9d8c829ae36890d1535c)).
