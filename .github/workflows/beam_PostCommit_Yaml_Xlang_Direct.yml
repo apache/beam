@@ -74,6 +74,9 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           python-version: default
+          java-version: '11'
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
       - name: run PostCommit Yaml Xlang Direct script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -92,4 +95,3 @@ jobs:
           comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
           files: '**/pytest*.xml'
           large_files: true
-
