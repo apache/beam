@@ -353,12 +353,9 @@ if __name__ == '__main__':
           'dill>=0.3.1.1,<0.3.2',
           'fastavro>=0.23.6,<2',
           'fasteners>=0.3,<1.0',
-          # NOTE(https://github.com/grpc/grpc/issues/37710):
-          # Some grpc 1.66.0+ versions have a regression,
-          # which might not be reproducible in newer versions.
-          # internal bug number: 372274680
+          # any version between 1.68.0 and 1.73.0 is bad
           # external issue: https://github.com/grpc/grpc/issues/37710
-          'grpcio>=1.33.1,<1.71,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1',  # pylint: disable=line-too-long
+          'grpcio>=1.33.1,<1.74.0,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,!=1.68.*,!=1.69.*,!=1.70.*,!=1.71.*,!=1.72.*,!=1.73.0',  # pylint: disable=line-too-long
           'hdfs>=2.1.0,<3.0.0',
           'httplib2>=0.8,<0.23.0',
           'jsonschema>=4.0.0,<5.0.0',
