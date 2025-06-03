@@ -54,7 +54,7 @@ import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.containers.Network;
-import org.testcontainers.containers.wait.strategy.Wait;
+import org.testcontainers.containers.wait.strategy.HttpWaitStrategy;
 import org.testcontainers.utility.DockerImageName;
 
 @RunWith(JUnit4.class)
@@ -82,8 +82,10 @@ public class DebeziumIOMySqlConnectorIT {
           .withUsername("mysqluser")
           .withPassword("debezium")
           .waitingFor(
-              Wait.forLogMessage(".*ready for connections.*\\s", 2)
-                  .withStartupTimeout(Duration.ofMinutes(3)));
+              new HttpWaitStrategy()
+                  .forPort(3306)
+                  .forStatusCodeMatching(response -> response == 200)
+                  .withStartupTimeout(Duration.ofMinutes(2)));
 
   @ClassRule
   public static final KafkaContainer KAFKA_CONTAINER =
@@ -107,8 +109,8 @@ public class DebeziumIOMySqlConnectorIT {
     LOG.info("Hikari DataSource JDBC URL for mysqluser: {}", jdbcUrl);
 
     hikariConfig.setJdbcUrl(jdbcUrl);
-    hikariConfig.setUsername("mysqluser"); // User with general R/W access to 'inventory'
-    hikariConfig.setPassword("debezium");
+    hikariConfig.setUsername(MY_SQL_CONTAINER.getUsername());
+    hikariConfig.setPassword(MY_SQL_CONTAINER.getPassword());
     hikariConfig.addDataSourceProperty("allowPublicKeyRetrieval", "true");
     hikariConfig.setDriverClassName(MY_SQL_CONTAINER.getDriverClassName());
     return new HikariDataSource(hikariConfig);
@@ -157,9 +159,13 @@ public class DebeziumIOMySqlConnectorIT {
                         Row.withSchema(TABLE_SCHEMA)
                             .withFieldValue(
                                 "id",
+                                // We need this tricky conversion because the original "customers"
+                                // table already
+                                // contains rows 1001, 1002, 1003, 1004.
                                 num <= 1000
                                     ? Long.valueOf(num).intValue()
                                     : Long.valueOf(num).intValue() + 4)
+                            // TODO(pabloem): Add other data types
                             .withFieldValue("first_name", "FN-" + num)
                             .withFieldValue("last_name", "LN-" + (writeSize - num))
                             .withFieldValue("email", num + "@beamail.com")
@@ -177,16 +183,16 @@ public class DebeziumIOMySqlConnectorIT {
             .apply(
                 "ReadFromMySQLDebeziumSchemaTransform",
                 new DebeziumReadSchemaTransformProvider(
-                        true, Long.valueOf(writeSize + 4).intValue(), testTime)
+                        true, Long.valueOf(writeSize).intValue() + 4, testTime)
                     .from(
                         DebeziumReadSchemaTransformProvider.DebeziumReadSchemaTransformConfiguration
                             .builder()
                             .setDatabase("MYSQL")
-                            .setUsername("debezium")
                             .setPassword("dbz")
+                            .setUsername("debezium")
                             .setHost("localhost")
-                            .setPort(MY_SQL_CONTAINER.getMappedPort(3306))
                             .setTable("inventory.customers")
+                            .setPort(MY_SQL_CONTAINER.getMappedPort(3306))
                             .setDebeziumConnectionProperties(
                                 Lists.newArrayList(
                                     "schema.history.internal.kafka.bootstrap.servers="
@@ -195,8 +201,9 @@ public class DebeziumIOMySqlConnectorIT {
                                         + System.nanoTime(),
                                     "schema.history.internal=io.debezium.storage.kafka.history.KafkaSchemaHistory",
                                     "schema.history.internal.store.only.captured.tables.ddl=false",
-                                    "database.server.id="
-                                        + (6000 + (int) (Math.random() * 1000)), // Increased range
+                                    // "database.server.id="
+                                    //     + (6000 + (int) (Math.random() * 1000)), // Increased
+                                    // range
                                     "database.server.name=mysql-transform-server-"
                                         + System.nanoTime(),
                                     "table.include.list=inventory.customers",
