@@ -15,17 +15,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.samza.runtime;
+package org.apache.beam.sdk.util;
 
-import java.io.Serializable;
-import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
+import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.values.WindowedValue;
 
-/** Factory class to create {@link WindowedValueMultiReceiver}. */
-public interface OutputManagerFactory<OutT> extends Serializable {
-  WindowedValueMultiReceiver create(OpEmitter<OutT> emitter);
-
-  default WindowedValueMultiReceiver create(
-      OpEmitter<OutT> emitter, FutureCollector<OutT> collector) {
-    return create(emitter);
-  }
+/** An encapsulated method of output that can output a value with all of its metadata. */
+@Internal
+@FunctionalInterface
+public interface WindowedValueReceiver<OutputT> {
+  /** Outputs a value with windowing information. */
+  void output(WindowedValue<OutputT> output);
 }

@@ -42,7 +42,6 @@ import java.util.stream.IntStream;
 import javax.annotation.CheckReturnValue;
 import javax.annotation.Nonnull;
 import org.apache.beam.runners.core.DoFnRunner;
-import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.NullSideInputReader;
 import org.apache.beam.runners.core.SideInputHandler;
@@ -59,6 +58,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
+import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowedValue;
@@ -325,7 +325,7 @@ abstract class AbstractParDoP<InputT, OutputT> implements Processor {
    * An output manager that stores the output in an ArrayList, one for each output ordinal, and a
    * way to drain to outbox ({@link #tryFlush()}).
    */
-  static class JetOutputManager implements DoFnRunners.OutputManager {
+  static class JetOutputManager implements WindowedValueMultiReceiver {
 
     private final Outbox outbox;
     private final Map<TupleTag<?>, Coder<?>> outputCoders;
