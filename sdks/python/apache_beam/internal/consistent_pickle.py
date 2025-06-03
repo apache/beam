@@ -1,11 +1,8 @@
 """Consistent pickling for lambdas."""
 
-# begin-internal
 import os
-# end-internal
 import sys
 
-# begin-internal
 def get_relative_path(path):
   """Returns the path of filename relative to the first directory in sys.path
   contained in filename. Returns the unchanged filename if it is not in any
@@ -21,16 +18,13 @@ def get_relative_path(path):
     if path.startswith(dir_path):
       return os.path.relpath(path, dir_path)
   return path
-# end-internal
 
 
 def get_normalized_path(path):
   """Returns a normalized path. This function is intended to be overridden."""
-  # begin-internal
   # Use relative paths to make pickling lambdas deterministic for google3
   # This is needed only for code running inside Google on borg.
   if '/borglet/' in path:
     return get_relative_path(path)
-  # end-internal
 
   return path
