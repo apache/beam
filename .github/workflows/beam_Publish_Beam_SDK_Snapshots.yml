@@ -62,7 +62,6 @@ jobs:
         job_phrase: ["N/A"]
         container_task:
           - "go:container"
-          - "java:container:java8"
           - "java:container:java11"
           - "java:container:java17"
           - "java:container:java21"
