@@ -753,6 +753,9 @@ class Sink(HasDisplayData):
   # Whether Beam should skip writing any shards if all are empty.
   skip_if_empty = False
 
+  # the Write triggering frequency in streaming with GlobalWindow
+  triggering_frequency = 0
+
   def initialize_write(self):
     """Initializes the sink before writing begins.
 
