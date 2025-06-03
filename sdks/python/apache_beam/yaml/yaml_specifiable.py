@@ -25,6 +25,7 @@ from apache_beam.yaml.yaml_provider import InlineProvider
 
 
 def dict_to_maybe_specifiable(d: dict):
+  # convert a dictionary itself or its values to specifiables
   def specify_helper(d: dict):
     ret = {}
     for k, v in d.items():
@@ -46,6 +47,7 @@ class SpecifiableTransform(beam.PTransform):
 
   @staticmethod
   def register(typ, cls):
+    '''Register a specifiable transform'''
     SpecifiableTransform.AVAILABlE_TRANSFORMS[typ] = cls
 
   def __init__(self, **kwargs):
@@ -55,16 +57,21 @@ class SpecifiableTransform(beam.PTransform):
     self._kwargs = dict_to_maybe_specifiable(kwargs)
 
   def expand(self, pcoll):
-    if self._typ in SpecifiableTransform.AVAILABlE_TRANSFORMS:
-      return pcoll | SpecifiableTransform.AVAILABlE_TRANSFORMS[self._typ](
-          **self._kwargs)
+    if self._typ not in SpecifiableTransform.AVAILABlE_TRANSFORMS:
+      raise ValueError(f"Unknown specifiable transform {self._typ}")
+
+    return pcoll | SpecifiableTransform.AVAILABlE_TRANSFORMS[self._typ](
+        **self._kwargs)
 
 
-SpecifiableTransform.register("AnomalyDetection", AnomalyDetection)
+class SpecifiableProvider(InlineProvider):
+  def __init__(self, transform_factories):
+    super().__init__(transform_factories=transform_factories)
+    for k, v in self._transform_factories.items():
+      SpecifiableTransform.register(k, v)
+      # All specifiable transforms will use the same factory
+      self._transform_factories[k] = SpecifiableTransform
 
 
 def create_specifiable_providers():
-  return InlineProvider({
-      k: SpecifiableTransform
-      for k in SpecifiableTransform.AVAILABlE_TRANSFORMS
-  })
+  return SpecifiableProvider({"AnomalyDetection": AnomalyDetection})
