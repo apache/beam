@@ -43,6 +43,7 @@ try:
   os.environ["VLLM_CONFIGURE_LOGGING"] = "0"
   import vllm  # pylint: disable=unused-import
   logging.info('vllm module successfully imported.')
+  os.environ["VLLM_CONFIGURE_LOGGING"] = "1"
 except ModuleNotFoundError:
   msg = 'vllm module was not found. This is ok as long as the specified ' \
     'runner has vllm dependencies installed.'
