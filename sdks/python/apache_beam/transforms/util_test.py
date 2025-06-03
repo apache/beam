@@ -707,7 +707,8 @@ class IdentityWindowTest(unittest.TestCase):
       def process(self, element):
         yield window.TimestampedValue(element, expected_timestamp)
 
-    with self.assertRaisesRegex(Exception, r'ValueError.*window.*None.*add_timestamps2'):
+    with self.assertRaisesRegex(Exception,
+                                r'ValueError.*window.*None.*add_timestamps2'):
       with TestPipeline() as pipeline:
         data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
         expected_windows = [
@@ -1096,8 +1097,7 @@ class ReshuffleTest(unittest.TestCase):
             'b', timestamp.Timestamp(0), [GlobalWindow()], on_time_only),
         TestWindowedValue(
             'c', timestamp.Timestamp(33), [GlobalWindow()], late_firing),
-        TestWindowedValue(
-            'd', truncated_gt, [GlobalWindow()], no_firing)
+        TestWindowedValue('d', truncated_gt, [GlobalWindow()], no_firing)
     ]
 
     expected_not_preserved = [
@@ -1108,9 +1108,7 @@ class ReshuffleTest(unittest.TestCase):
         TestWindowedValue(
             'c', timestamp.Timestamp(33), [GlobalWindow()], PANE_INFO_UNKNOWN),
         TestWindowedValue(
-            'd',
-            truncated_gt, [GlobalWindow()],
-            PANE_INFO_UNKNOWN)
+            'd', truncated_gt, [GlobalWindow()], PANE_INFO_UNKNOWN)
     ]
 
     expected = (
@@ -1126,8 +1124,7 @@ class ReshuffleTest(unittest.TestCase):
               'b', timestamp.Timestamp(0), [GlobalWindow()], on_time_only),
           WindowedValue(
               'c', timestamp.Timestamp(33), [GlobalWindow()], late_firing),
-          WindowedValue(
-              'd', truncated_gt, [GlobalWindow()], no_firing)
+          WindowedValue('d', truncated_gt, [GlobalWindow()], no_firing)
       ]
 
       after_reshuffle = (

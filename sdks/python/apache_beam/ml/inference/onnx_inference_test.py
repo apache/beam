@@ -406,8 +406,7 @@ class OnnxPytorchRunInferencePipelineTest(OnnxTestBase):
           equal_to(expected_predictions, equals_fn=_compare_prediction_result))
 
   def test_invalid_input_type(self):
-    with self.assertRaisesRegex(Exception,
-                                "Got invalid dimensions for input"):
+    with self.assertRaisesRegex(Exception, "Got invalid dimensions for input"):
       with TestPipeline() as pipeline:
         examples = [np.array([1], dtype="float32")]
         path = os.path.join(self.tmpdir, 'my_onnx_pytorch_path')
@@ -461,8 +460,7 @@ class OnnxTensorflowRunInferencePipelineTest(OnnxTestBase):
           equal_to(expected_predictions, equals_fn=_compare_prediction_result))
 
   def test_invalid_input_type(self):
-    with self.assertRaisesRegex(Exception,
-                                "Got invalid dimensions for input"):
+    with self.assertRaisesRegex(Exception, "Got invalid dimensions for input"):
       with TestPipeline() as pipeline:
         examples = [np.array([1], dtype="float32")]
         path = os.path.join(self.tmpdir, 'my_onnx_tensorflow_path')

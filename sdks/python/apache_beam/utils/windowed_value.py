@@ -448,10 +448,8 @@ class _IntervalWindowBase(object):
     self_end = min(self._end_micros, MAX_TIMESTAMP.micros)
     other_start = max(other._start_micros, MIN_TIMESTAMP.micros)
     other_end = min(other._end_micros, MAX_TIMESTAMP.micros)
-    
-    return (
-        self_start == other_start and
-        self_end == other_end)
+
+    return (self_start == other_start and self_end == other_end)
 
   def __repr__(self):
     return '[%s, %s)' % (float(self.start), float(self.end))

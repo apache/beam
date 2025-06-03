@@ -71,7 +71,7 @@ class SwitchingDirectRunner(PipelineRunner):
 
   def is_fnapi_compatible(self):
     return BundleBasedDirectRunner.is_fnapi_compatible()
-  
+
   def is_interactive(self):
     self._is_interactive = True
 
@@ -157,7 +157,8 @@ class SwitchingDirectRunner(PipelineRunner):
           # does not seem to handle DoFns using exception handling very well.
           # This may be limited just to subprocess DoFns, but more
           # investigation is needed before making it default
-          if isinstance(dofn, beam.transforms.core._ExceptionHandlingWrapperDoFn):
+          if isinstance(dofn,
+                        beam.transforms.core._ExceptionHandlingWrapperDoFn):
             self.supported_by_prism_runner = False
           # https://github.com/apache/beam/issues/34549
           # Remote once we can support local materialization
@@ -187,7 +188,8 @@ class SwitchingDirectRunner(PipelineRunner):
         # not handle session windows correctly. Examples are:
         # util_test.py::ReshuffleTest::test_reshuffle_window_fn_preserved
         # and util_test.py::ReshuffleTest::test_reshuffle_windows_unchanged
-        if isinstance(transform, beam.WindowInto) and isinstance(transform.get_windowing('').windowfn, beam.window.Sessions):
+        if isinstance(transform, beam.WindowInto) and isinstance(
+            transform.get_windowing('').windowfn, beam.window.Sessions):
           self.supported_by_prism_runner = False
 
     # Use BundleBasedDirectRunner if other runners are missing needed features.

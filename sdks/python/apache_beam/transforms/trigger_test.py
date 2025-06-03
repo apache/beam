@@ -717,17 +717,14 @@ class TriggerPipelineTest(unittest.TestCase):
           | beam.GroupByKey())
 
       expected_dict = {
-        'A': [1, 1, 2, 3, 4, 5, 10, 11],
-        'B': [6, 6, 7, 8, 9, 10, 15, 16]
+          'A': [1, 1, 2, 3, 4, 5, 10, 11], 'B': [6, 6, 7, 8, 9, 10, 15, 16]
       }
       expected = []
       for k, v in expected_dict.items():
         for n in v:
           expected.append((k, [n]))
-      
-      assert_that(
-          result,
-          equal_to(expected))
+
+      assert_that(result, equal_to(expected))
 
   def test_never(self):
     with TestPipeline() as p:

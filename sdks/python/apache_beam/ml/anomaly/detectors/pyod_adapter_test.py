@@ -149,7 +149,8 @@ class PyODIForestTest(unittest.TestCase):
         _ = (
             p | beam.Create(self.get_test_data_with_target())
             | beam.Map(
-                lambda x: beam.Row(**dict(zip(["a", "b", "target"], map(int, x)))))
+                lambda x: beam.Row(
+                    **dict(zip(["a", "b", "target"], map(int, x)))))
             | beam.WithKeys(0)
             | AnomalyDetection(detector=detector))
 

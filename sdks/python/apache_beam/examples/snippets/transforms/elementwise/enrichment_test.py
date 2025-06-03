@@ -68,7 +68,8 @@ def std_out_to_dict(stdout_lines, row_key):
     # evaluated/compared as one. This allows us to compare without
     # considering the order of the stdout or the order that the fields of the
     # row are arranged in.
-    fmtd = '{\"' + stdout_line[4:-1].replace('=', '\": ').replace(', ', ', \"').replace('\"\'', '\'') + "}"
+    fmtd = '{\"' + stdout_line[4:-1].replace('=', '\": ').replace(
+        ', ', ', \"').replace('\"\'', '\'') + "}"
     stdout_dict = eval(fmtd)
     output_dict[stdout_dict[row_key]] = stdout_dict
   return output_dict
@@ -82,7 +83,9 @@ class EnrichmentTest(unittest.TestCase):
     expected = validate_enrichment_with_bigtable()
 
     self.assertEqual(len(output), len(expected))
-    self.assertEqual(std_out_to_dict(output, 'sale_id'), std_out_to_dict(expected, 'sale_id'))
+    self.assertEqual(
+        std_out_to_dict(output, 'sale_id'),
+        std_out_to_dict(expected, 'sale_id'))
 
   def test_enrichment_with_vertex_ai(self, mock_stdout):
     enrichment_with_vertex_ai()
@@ -90,7 +93,9 @@ class EnrichmentTest(unittest.TestCase):
     expected = validate_enrichment_with_vertex_ai()
 
     self.assertEqual(len(output), len(expected))
-    self.assertEqual(std_out_to_dict(output, 'user_id'), std_out_to_dict(expected, 'user_id'))
+    self.assertEqual(
+        std_out_to_dict(output, 'user_id'),
+        std_out_to_dict(expected, 'user_id'))
 
   def test_enrichment_with_vertex_ai_legacy(self, mock_stdout):
     enrichment_with_vertex_ai_legacy()
@@ -99,7 +104,9 @@ class EnrichmentTest(unittest.TestCase):
     self.maxDiff = None
 
     self.assertEqual(len(output), len(expected))
-    self.assertEqual(std_out_to_dict(output, 'entity_id'), std_out_to_dict(expected, 'entity_id'))
+    self.assertEqual(
+        std_out_to_dict(output, 'entity_id'),
+        std_out_to_dict(expected, 'entity_id'))
 
 
 if __name__ == '__main__':

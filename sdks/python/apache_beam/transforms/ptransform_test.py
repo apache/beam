@@ -1780,7 +1780,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
             'ToInt' >> beam.FlatMap(lambda x: [float(x)]).with_input_types(
                 int).with_output_types(int)).get_type_hints())
     error_regex = r"TypeCheckError.*"
-    
+
     if self.p._options.view_as(TypeOptions).runtime_type_check:
       error_regex += "Runtime type violation detected within "
       "ParDo(ToInt): "

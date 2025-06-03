@@ -284,8 +284,7 @@ class YamlMappingTest(unittest.TestCase):
           label='Other')
 
   def test_partition_without_unknown(self):
-    with self.assertRaisesRegex(Exception,
-                                r'.*Unknown output name.*"o".*'):
+    with self.assertRaisesRegex(Exception, r'.*Unknown output name.*"o".*'):
       with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
           pickle_library='cloudpickle')) as p:
         elements = p | beam.Create([

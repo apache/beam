@@ -63,7 +63,7 @@ def _prediction_iterable_is_equal_to(
 
   if len(a_list) != len(b_list):
     return False
-  
+
   a_dict = {}
   b_dict = {}
   for i in a_list:
