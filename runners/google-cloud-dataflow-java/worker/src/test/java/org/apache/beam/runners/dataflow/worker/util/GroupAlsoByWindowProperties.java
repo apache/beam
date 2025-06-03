@@ -43,10 +43,11 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheLoader;
@@ -116,11 +117,11 @@ public class GroupAlsoByWindowProperties {
             gabwFactory,
             windowingStrategy,
             "key",
-            WindowedValue.of(
+            WindowedValues.of(
                 "v1", new Instant(1), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
-            WindowedValue.of(
+            WindowedValues.of(
                 "v2", new Instant(2), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
-            WindowedValue.of(
+            WindowedValues.of(
                 "v3", new Instant(13), Arrays.asList(window(10, 20)), PaneInfo.NO_FIRING));
 
     assertThat(result, hasSize(2));
@@ -154,12 +155,12 @@ public class GroupAlsoByWindowProperties {
             gabwFactory,
             windowingStrategy,
             "key",
-            WindowedValue.of(
+            WindowedValues.of(
                 "v1",
                 new Instant(5),
                 Arrays.asList(window(-10, 10), window(0, 20)),
                 PaneInfo.NO_FIRING),
-            WindowedValue.of(
+            WindowedValues.of(
                 "v2",
                 new Instant(15),
                 Arrays.asList(window(0, 20), window(10, 30)),
@@ -203,17 +204,17 @@ public class GroupAlsoByWindowProperties {
             gabwFactory,
             windowingStrategy,
             "k",
-            WindowedValue.of(
+            WindowedValues.of(
                 1L,
                 new Instant(5),
                 Arrays.asList(window(-10, 10), window(0, 20)),
                 PaneInfo.NO_FIRING),
-            WindowedValue.of(
+            WindowedValues.of(
                 2L,
                 new Instant(15),
                 Arrays.asList(window(0, 20), window(10, 30)),
                 PaneInfo.NO_FIRING),
-            WindowedValue.of(
+            WindowedValues.of(
                 4L,
                 new Instant(18),
                 Arrays.asList(window(0, 20), window(10, 30)),
@@ -252,9 +253,11 @@ public class GroupAlsoByWindowProperties {
             gabwFactory,
             windowingStrategy,
             "key",
-            WindowedValue.of("v1", new Instant(1), Arrays.asList(window(0, 5)), PaneInfo.NO_FIRING),
-            WindowedValue.of("v2", new Instant(4), Arrays.asList(window(1, 5)), PaneInfo.NO_FIRING),
-            WindowedValue.of(
+            WindowedValues.of(
+                "v1", new Instant(1), Arrays.asList(window(0, 5)), PaneInfo.NO_FIRING),
+            WindowedValues.of(
+                "v2", new Instant(4), Arrays.asList(window(1, 5)), PaneInfo.NO_FIRING),
+            WindowedValues.of(
                 "v3", new Instant(4), Arrays.asList(window(0, 5)), PaneInfo.NO_FIRING));
 
     assertThat(result, hasSize(2));
@@ -282,11 +285,11 @@ public class GroupAlsoByWindowProperties {
             gabwFactory,
             windowingStrategy,
             "key",
-            WindowedValue.of(
+            WindowedValues.of(
                 "v1", new Instant(0), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
-            WindowedValue.of(
+            WindowedValues.of(
                 "v2", new Instant(5), Arrays.asList(window(5, 15)), PaneInfo.NO_FIRING),
-            WindowedValue.of(
+            WindowedValues.of(
                 "v3", new Instant(15), Arrays.asList(window(15, 25)), PaneInfo.NO_FIRING));
 
     assertThat(result, hasSize(2));
@@ -319,9 +322,9 @@ public class GroupAlsoByWindowProperties {
             gabwFactory,
             windowingStrategy,
             "k",
-            WindowedValue.of(1L, new Instant(0), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
-            WindowedValue.of(2L, new Instant(5), Arrays.asList(window(5, 15)), PaneInfo.NO_FIRING),
-            WindowedValue.of(
+            WindowedValues.of(1L, new Instant(0), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
+            WindowedValues.of(2L, new Instant(5), Arrays.asList(window(5, 15)), PaneInfo.NO_FIRING),
+            WindowedValues.of(
                 4L, new Instant(15), Arrays.asList(window(15, 25)), PaneInfo.NO_FIRING));
 
     assertThat(result, hasSize(2));
@@ -354,11 +357,11 @@ public class GroupAlsoByWindowProperties {
             gabwFactory,
             windowingStrategy,
             "key",
-            WindowedValue.of(
+            WindowedValues.of(
                 "v1", new Instant(1), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
-            WindowedValue.of(
+            WindowedValues.of(
                 "v2", new Instant(2), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
-            WindowedValue.of(
+            WindowedValues.of(
                 "v3", new Instant(13), Arrays.asList(window(10, 20)), PaneInfo.NO_FIRING));
 
     assertThat(result, hasSize(2));
@@ -391,11 +394,11 @@ public class GroupAlsoByWindowProperties {
             gabwFactory,
             windowingStrategy,
             "k",
-            WindowedValue.of(
+            WindowedValues.of(
                 "v1", new Instant(1), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
-            WindowedValue.of(
+            WindowedValues.of(
                 "v2", new Instant(2), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
-            WindowedValue.of(
+            WindowedValues.of(
                 "v3", new Instant(13), Arrays.asList(window(10, 20)), PaneInfo.NO_FIRING));
 
     assertThat(result, hasSize(2));
@@ -427,11 +430,11 @@ public class GroupAlsoByWindowProperties {
             gabwFactory,
             windowingStrategy,
             "k",
-            WindowedValue.of(
+            WindowedValues.of(
                 "v1", new Instant(0), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
-            WindowedValue.of(
+            WindowedValues.of(
                 "v2", new Instant(5), Arrays.asList(window(5, 15)), PaneInfo.NO_FIRING),
-            WindowedValue.of(
+            WindowedValues.of(
                 "v3", new Instant(15), Arrays.asList(window(15, 25)), PaneInfo.NO_FIRING));
 
     assertThat(result, hasSize(2));
@@ -464,11 +467,11 @@ public class GroupAlsoByWindowProperties {
             gabwFactory,
             windowingStrategy,
             "k",
-            WindowedValue.of(
+            WindowedValues.of(
                 "v1", new Instant(0), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
-            WindowedValue.of(
+            WindowedValues.of(
                 "v2", new Instant(5), Arrays.asList(window(5, 15)), PaneInfo.NO_FIRING),
-            WindowedValue.of(
+            WindowedValues.of(
                 "v3", new Instant(15), Arrays.asList(unmergedWindow), PaneInfo.NO_FIRING));
 
     assertThat(result, hasSize(2));
@@ -504,9 +507,10 @@ public class GroupAlsoByWindowProperties {
             gabwFactory,
             windowingStrategy,
             "k",
-            WindowedValue.of(1L, new Instant(0), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
-            WindowedValue.of(2L, new Instant(5), Arrays.asList(window(5, 15)), PaneInfo.NO_FIRING),
-            WindowedValue.of(4L, new Instant(15), Arrays.asList(secondWindow), PaneInfo.NO_FIRING));
+            WindowedValues.of(1L, new Instant(0), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
+            WindowedValues.of(2L, new Instant(5), Arrays.asList(window(5, 15)), PaneInfo.NO_FIRING),
+            WindowedValues.of(
+                4L, new Instant(15), Arrays.asList(secondWindow), PaneInfo.NO_FIRING));
 
     assertThat(result, hasSize(2));
 
@@ -613,7 +617,7 @@ public class GroupAlsoByWindowProperties {
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo pane) {
-      this.output.add(WindowedValue.of(output, timestamp, windows, pane));
+      this.output.add(WindowedValues.of(output, timestamp, windows, pane));
     }
 
     public List<WindowedValue<KV<K, OutputT>>> getOutput() {

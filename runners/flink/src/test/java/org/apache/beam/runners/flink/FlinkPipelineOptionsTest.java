@@ -36,8 +36,9 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.ExecutionMode;
@@ -112,7 +113,7 @@ public class FlinkPipelineOptionsTest {
   @Test(expected = Exception.class)
   public void parDoBaseClassPipelineOptionsNullTest() {
     TupleTag<String> mainTag = new TupleTag<>("main-output");
-    Coder<WindowedValue<String>> coder = WindowedValue.getValueOnlyCoder(StringUtf8Coder.of());
+    Coder<WindowedValue<String>> coder = WindowedValues.getValueOnlyCoder(StringUtf8Coder.of());
     new DoFnOperator<>(
         new TestDoFn(),
         "stepName",
@@ -138,7 +139,7 @@ public class FlinkPipelineOptionsTest {
 
     TupleTag<String> mainTag = new TupleTag<>("main-output");
 
-    Coder<WindowedValue<String>> coder = WindowedValue.getValueOnlyCoder(StringUtf8Coder.of());
+    Coder<WindowedValue<String>> coder = WindowedValues.getValueOnlyCoder(StringUtf8Coder.of());
     DoFnOperator<String, String, String> doFnOperator =
         new DoFnOperator<>(
             new TestDoFn(),
@@ -174,7 +175,7 @@ public class FlinkPipelineOptionsTest {
     // execute once to access options
     testHarness.processElement(
         new StreamRecord<>(
-            WindowedValue.of(
+            WindowedValues.of(
                 new Object(), Instant.now(), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING)));
 
     testHarness.close();

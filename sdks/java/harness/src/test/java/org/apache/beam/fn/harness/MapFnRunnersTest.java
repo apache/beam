@@ -17,7 +17,7 @@
  */
 package org.apache.beam.fn.harness;
 
-import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
+import static org.apache.beam.sdk.values.WindowedValues.valueInGlobalWindow;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -36,8 +36,9 @@ import org.apache.beam.sdk.function.ThrowingFunction;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.CoderTranslation;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -153,7 +154,7 @@ public class MapFnRunnersTest {
     context
         .getPCollectionConsumer("inputPC")
         .accept(
-            WindowedValue.of(
+            WindowedValues.of(
                 "abc",
                 new Instant(12),
                 ImmutableSet.of(firstWindow, GlobalWindow.INSTANCE, secondWindow),
@@ -162,9 +163,9 @@ public class MapFnRunnersTest {
     assertThat(
         outputConsumer,
         containsInAnyOrder(
-            WindowedValue.timestampedValueInGlobalWindow("ABC", new Instant(12)),
-            WindowedValue.of("ABC", new Instant(12), secondWindow, PaneInfo.NO_FIRING),
-            WindowedValue.of("ABC", new Instant(12), firstWindow, PaneInfo.NO_FIRING)));
+            WindowedValues.timestampedValueInGlobalWindow("ABC", new Instant(12)),
+            WindowedValues.of("ABC", new Instant(12), secondWindow, PaneInfo.NO_FIRING),
+            WindowedValues.of("ABC", new Instant(12), firstWindow, PaneInfo.NO_FIRING)));
   }
 
   public ThrowingFunction<WindowedValue<String>, WindowedValue<String>>

@@ -32,7 +32,8 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.joda.time.Instant;
@@ -73,7 +74,7 @@ public class PubsubDynamicSinkTest {
             SinkRegistry.defaultRegistry()
                 .create(
                     cloudSinkSpec,
-                    WindowedValue.getFullCoder(VoidCoder.of(), IntervalWindow.getCoder()),
+                    WindowedValues.getFullCoder(VoidCoder.of(), IntervalWindow.getCoder()),
                     null,
                     mockContext,
                     null)
@@ -119,14 +120,14 @@ public class PubsubDynamicSinkTest {
                       .toByteString())
               .build());
       writer.add(
-          WindowedValue.timestampedValueInGlobalWindow(
+          WindowedValues.timestampedValueInGlobalWindow(
               new PubsubMessage(payload1, null).withTopic("topic1"), new Instant(baseTimestamp)));
       writer.add(
-          WindowedValue.timestampedValueInGlobalWindow(
+          WindowedValues.timestampedValueInGlobalWindow(
               new PubsubMessage(payload2, null).withTopic("topic2"),
               new Instant(baseTimestamp + 1)));
       writer.add(
-          WindowedValue.timestampedValueInGlobalWindow(
+          WindowedValues.timestampedValueInGlobalWindow(
               new PubsubMessage(payload3, null).withTopic("topic3"),
               new Instant(baseTimestamp + 2)));
     }

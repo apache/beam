@@ -25,8 +25,8 @@ import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.dataflow.worker.util.StreamingGroupAlsoByWindowFn;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.ReshuffleTrigger;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
 /**

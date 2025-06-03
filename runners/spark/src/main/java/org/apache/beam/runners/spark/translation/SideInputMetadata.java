@@ -20,7 +20,7 @@ package org.apache.beam.runners.spark.translation;
 import java.io.Serializable;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
 
 /**
  * Metadata class for side inputs in Spark runner. Contains serialized data, type information and
