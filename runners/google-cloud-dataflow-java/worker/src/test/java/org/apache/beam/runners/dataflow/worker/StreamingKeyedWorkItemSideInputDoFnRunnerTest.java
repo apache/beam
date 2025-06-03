@@ -24,7 +24,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import org.apache.beam.runners.core.DoFnRunner;
-import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItems;
@@ -50,6 +49,7 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.AppliedCombineFn;
+import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowedValue;
@@ -176,7 +176,7 @@ public class StreamingKeyedWorkItemSideInputDoFnRunnerTest {
   @SuppressWarnings("unchecked")
   private StreamingKeyedWorkItemSideInputDoFnRunner<
           String, Integer, KV<String, Integer>, IntervalWindow>
-      createRunner(DoFnRunners.OutputManager outputManager) throws Exception {
+      createRunner(WindowedValueMultiReceiver outputManager) throws Exception {
     CoderRegistry registry = CoderRegistry.createDefault();
     Coder<String> keyCoder = StringUtf8Coder.of();
     Coder<Integer> inputCoder = BigEndianIntegerCoder.of();
@@ -197,8 +197,8 @@ public class StreamingKeyedWorkItemSideInputDoFnRunnerTest {
             PipelineOptionsFactory.create(),
             doFn.asDoFn(),
             mockSideInputReader,
-            outputManager,
-            mainOutputTag,
+            (WindowedValue<KV<String, Integer>> windowedValue) ->
+                outputManager.output(mainOutputTag, windowedValue),
             stepContext);
     return new StreamingKeyedWorkItemSideInputDoFnRunner<
         String, Integer, KV<String, Integer>, IntervalWindow>(

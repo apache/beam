@@ -15,17 +15,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.samza.runtime;
+package org.apache.beam.sdk.util;
 
-import java.io.Serializable;
-import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
+import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
 
-/** Factory class to create {@link WindowedValueMultiReceiver}. */
-public interface OutputManagerFactory<OutT> extends Serializable {
-  WindowedValueMultiReceiver create(OpEmitter<OutT> emitter);
-
-  default WindowedValueMultiReceiver create(
-      OpEmitter<OutT> emitter, FutureCollector<OutT> collector) {
-    return create(emitter);
-  }
+/**
+ * Encapsulation of a method of output that can output a value with all of its windowing information
+ * to a tagged destination.
+ */
+@Internal
+public interface WindowedValueMultiReceiver {
+  /**
+   * Outputs to the given {@link TupleTag}.
+   *
+   * <p>Sometiems it is useful to fix a tag to produce a {@link WindowedValueReceiver}. To do so,
+   * use a lambda to curry this method, as in {@code value -> receiver.output(tag, value)}.
+   */
+  <OutputT> void output(TupleTag<OutputT> tag, WindowedValue<OutputT> value);
 }
