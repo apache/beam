@@ -44,9 +44,10 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -152,7 +153,7 @@ public class StatefulDoFnRunnerTest {
         new IntervalWindow(timestamp, timestamp.plus(Duration.millis(WINDOW_SIZE)));
 
     runner.processElement(
-        WindowedValue.of(KV.of("hello", 1), timestamp, window, PaneInfo.NO_FIRING));
+        WindowedValues.of(KV.of("hello", 1), timestamp, window, PaneInfo.NO_FIRING));
 
     long droppedValues =
         container
@@ -165,7 +166,7 @@ public class StatefulDoFnRunnerTest {
     timerInternals.advanceInputWatermark(timestamp.plus(Duration.millis(ALLOWED_LATENESS + 1)));
 
     runner.processElement(
-        WindowedValue.of(KV.of("hello", 1), timestamp, window, PaneInfo.NO_FIRING));
+        WindowedValues.of(KV.of("hello", 1), timestamp, window, PaneInfo.NO_FIRING));
 
     droppedValues =
         container
@@ -195,7 +196,7 @@ public class StatefulDoFnRunnerTest {
     Instant timestamp = new Instant(0);
 
     runner.processElement(
-        WindowedValue.of(KV.of("hello", 1), timestamp, window, PaneInfo.NO_FIRING));
+        WindowedValues.of(KV.of("hello", 1), timestamp, window, PaneInfo.NO_FIRING));
 
     long droppedValues =
         container
@@ -220,7 +221,7 @@ public class StatefulDoFnRunnerTest {
 
     // first element, key is hello, WINDOW_1
     runner.processElement(
-        WindowedValue.of(KV.of("hello", 1), elementTime, WINDOW_1, PaneInfo.NO_FIRING));
+        WindowedValues.of(KV.of("hello", 1), elementTime, WINDOW_1, PaneInfo.NO_FIRING));
 
     if (ordered) {
       // move forward in time so that the input might get flushed
@@ -232,14 +233,14 @@ public class StatefulDoFnRunnerTest {
 
     // second element, key is hello, WINDOW_2
     runner.processElement(
-        WindowedValue.of(
+        WindowedValues.of(
             KV.of("hello", 1),
             elementTime.plus(Duration.millis(WINDOW_SIZE)),
             WINDOW_2,
             PaneInfo.NO_FIRING));
 
     runner.processElement(
-        WindowedValue.of(
+        WindowedValues.of(
             KV.of("hello", 1),
             elementTime.plus(Duration.millis(WINDOW_SIZE)),
             WINDOW_2,
@@ -306,9 +307,9 @@ public class StatefulDoFnRunnerTest {
 
     // write two elements, with descending timestamps
     runner.processElement(
-        WindowedValue.of(KV.of("hello", 1), elementTime, WINDOW_1, PaneInfo.NO_FIRING));
+        WindowedValues.of(KV.of("hello", 1), elementTime, WINDOW_1, PaneInfo.NO_FIRING));
     runner.processElement(
-        WindowedValue.of(
+        WindowedValues.of(
             KV.of("hello", 2),
             elementTime.minus(Duration.millis(1)),
             WINDOW_1,
@@ -327,17 +328,17 @@ public class StatefulDoFnRunnerTest {
           Arrays.asList(
               KV.of(
                   outputTag,
-                  WindowedValue.of(
+                  WindowedValues.of(
                       2, elementTime.minus(Duration.millis(1)), WINDOW_1, PaneInfo.NO_FIRING)),
-              KV.of(outputTag, WindowedValue.of(3, elementTime, WINDOW_1, PaneInfo.NO_FIRING))),
+              KV.of(outputTag, WindowedValues.of(3, elementTime, WINDOW_1, PaneInfo.NO_FIRING))),
           outputs);
     } else {
       assertEquals(
           Arrays.asList(
-              KV.of(outputTag, WindowedValue.of(1, elementTime, WINDOW_1, PaneInfo.NO_FIRING)),
+              KV.of(outputTag, WindowedValues.of(1, elementTime, WINDOW_1, PaneInfo.NO_FIRING)),
               KV.of(
                   outputTag,
-                  WindowedValue.of(
+                  WindowedValues.of(
                       3, elementTime.minus(Duration.millis(1)), WINDOW_1, PaneInfo.NO_FIRING))),
           outputs);
     }
@@ -346,17 +347,17 @@ public class StatefulDoFnRunnerTest {
     // another window
     elementTime = elementTime.plus(Duration.millis(WINDOW_SIZE));
     runner.processElement(
-        WindowedValue.of(KV.of("hello", 1), elementTime, WINDOW_2, PaneInfo.NO_FIRING));
+        WindowedValues.of(KV.of("hello", 1), elementTime, WINDOW_2, PaneInfo.NO_FIRING));
 
     runner.processElement(
-        WindowedValue.of(
+        WindowedValues.of(
             KV.of("hello", 2),
             elementTime.minus(Duration.millis(1)),
             WINDOW_2,
             PaneInfo.NO_FIRING));
 
     runner.processElement(
-        WindowedValue.of(
+        WindowedValues.of(
             KV.of("hello", 3),
             elementTime.minus(Duration.millis(2)),
             WINDOW_2,
@@ -375,25 +376,25 @@ public class StatefulDoFnRunnerTest {
           Arrays.asList(
               KV.of(
                   outputTag,
-                  WindowedValue.of(
+                  WindowedValues.of(
                       3, elementTime.minus(Duration.millis(2)), WINDOW_2, PaneInfo.NO_FIRING)),
               KV.of(
                   outputTag,
-                  WindowedValue.of(
+                  WindowedValues.of(
                       5, elementTime.minus(Duration.millis(1)), WINDOW_2, PaneInfo.NO_FIRING)),
-              KV.of(outputTag, WindowedValue.of(6, elementTime, WINDOW_2, PaneInfo.NO_FIRING))),
+              KV.of(outputTag, WindowedValues.of(6, elementTime, WINDOW_2, PaneInfo.NO_FIRING))),
           outputs);
     } else {
       assertEquals(
           Arrays.asList(
-              KV.of(outputTag, WindowedValue.of(1, elementTime, WINDOW_2, PaneInfo.NO_FIRING)),
+              KV.of(outputTag, WindowedValues.of(1, elementTime, WINDOW_2, PaneInfo.NO_FIRING)),
               KV.of(
                   outputTag,
-                  WindowedValue.of(
+                  WindowedValues.of(
                       3, elementTime.minus(Duration.millis(1)), WINDOW_2, PaneInfo.NO_FIRING)),
               KV.of(
                   outputTag,
-                  WindowedValue.of(
+                  WindowedValues.of(
                       6, elementTime.minus(Duration.millis(2)), WINDOW_2, PaneInfo.NO_FIRING))),
           outputs);
     }

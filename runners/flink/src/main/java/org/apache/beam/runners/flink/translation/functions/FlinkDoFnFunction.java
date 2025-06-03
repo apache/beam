@@ -36,9 +36,10 @@ import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
@@ -219,7 +220,7 @@ public class FlinkDoFnFunction<InputT, OutputT> extends AbstractRichFunction
     public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
       Objects.requireNonNull(collector)
           .collect(
-              WindowedValue.of(
+              WindowedValues.of(
                   new RawUnionValue(0 /* single output */, output.getValue()),
                   output.getTimestamp(),
                   output.getWindows(),
@@ -252,7 +253,7 @@ public class FlinkDoFnFunction<InputT, OutputT> extends AbstractRichFunction
     public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
       Objects.requireNonNull(collector)
           .collect(
-              WindowedValue.of(
+              WindowedValues.of(
                   new RawUnionValue(outputMap.get(tag), output.getValue()),
                   output.getTimestamp(),
                   output.getWindows(),
