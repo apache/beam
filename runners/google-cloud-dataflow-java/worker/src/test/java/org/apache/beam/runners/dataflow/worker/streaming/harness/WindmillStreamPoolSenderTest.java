@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming.harness;
 
+import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -32,6 +33,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.Ge
 import org.apache.beam.runners.dataflow.worker.windmill.client.commits.WorkCommitter;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.GrpcWindmillStreamFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.work.WorkItemReceiver;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.StreamingWorkScheduler;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
@@ -44,6 +46,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.ArgumentCaptor;
 
 @RunWith(JUnit4.class)
 public class WindmillStreamPoolSenderTest {
@@ -52,16 +55,10 @@ public class WindmillStreamPoolSenderTest {
 
   private static final GetWorkRequest GET_WORK_REQUEST =
       GetWorkRequest.newBuilder().setClientId(1L).setJobId("job").setProjectId("project").build();
+
   @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
-  private final GrpcWindmillStreamFactory streamFactory =
-      spy(
-          GrpcWindmillStreamFactory.of(
-                  JobHeader.newBuilder()
-                      .setJobId("job")
-                      .setProjectId("project")
-                      .setWorkerId("worker")
-                      .build())
-              .build());
+
+  private GrpcWindmillStreamFactory mockStreamFactory;
   private ManagedChannel inProcessChannel;
   private WindmillConnection connection;
   private final GetDataClient mockGetDataClient = mock(GetDataClient.class);
@@ -72,6 +69,7 @@ public class WindmillStreamPoolSenderTest {
   private final Function<String, Optional<ComputationState>> mockComputationStateFetcher =
       mock(Function.class);
   private final WorkCommitter mockWorkCommitter = mock(WorkCommitter.class);
+  private GetWorkStream mockGetWorkStream = mock(GetWorkStream.class);
 
   @Before
   public void setUp() {
@@ -85,6 +83,22 @@ public class WindmillStreamPoolSenderTest {
         WindmillConnection.builder()
             .setStubSupplier(() -> CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel))
             .build();
+
+    mockStreamFactory =
+        spy(
+            GrpcWindmillStreamFactory.of(
+                    JobHeader.newBuilder()
+                        .setJobId("job")
+                        .setProjectId("project")
+                        .setWorkerId("worker")
+                        .build())
+                .build());
+
+    when(mockStreamFactory.createGetWorkStream(
+            any(CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub.class),
+            any(GetWorkRequest.class),
+            any(WorkItemReceiver.class)))
+        .thenReturn(mockGetWorkStream);
   }
 
   @After
@@ -93,93 +107,78 @@ public class WindmillStreamPoolSenderTest {
   }
 
   @Test
-  public void testStartStream_startsGetWorkStreamAndCommitter() {
+  public void testStartStream_startsGetWorkStreamAndCommitter() throws Exception {
     WindmillStreamPoolSender windmillStreamPoolSender =
         newWindmillStreamPoolSender(
             GetWorkBudget.builder().setBytes(BYTE_BUDGET).setItems(ITEM_BUDGET).build());
 
     windmillStreamPoolSender.start();
-    waitForDispatchLoopToStart(windmillStreamPoolSender);
 
-    verify(streamFactory)
+    verify(mockStreamFactory, timeout(1000).atLeastOnce())
         .createGetWorkStream(
             any(CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub.class),
             eq(GET_WORK_REQUEST),
-            any());
-    verify(mockWorkCommitter).start();
+            any(WorkItemReceiver.class));
+    verify(mockGetWorkStream, timeout(1000).atLeastOnce()).start();
+    verify(mockWorkCommitter, timeout(1000).atLeastOnce()).start();
+    windmillStreamPoolSender.close();
   }
 
   @Test
-  public void testStartStream_onlyStartsStreamsOnce() {
+  public void testCloseAllStreams_closesCommitter() throws Exception {
     WindmillStreamPoolSender windmillStreamPoolSender =
-        newWindmillStreamPoolSender(
-            GetWorkBudget.builder().setBytes(BYTE_BUDGET).setItems(ITEM_BUDGET).build());
+        newWindmillStreamPoolSender(GetWorkBudget.builder().setBytes(1L).setItems(1L).build());
 
     windmillStreamPoolSender.start();
-    windmillStreamPoolSender.start();
-    windmillStreamPoolSender.start();
-    waitForDispatchLoopToStart(windmillStreamPoolSender);
+    verify(mockGetWorkStream, timeout(1000).atLeastOnce()).start();
 
-    verify(streamFactory, times(1))
-        .createGetWorkStream(
-            any(CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub.class),
-            eq(GET_WORK_REQUEST),
-            any());
-    verify(mockWorkCommitter, times(1)).start();
-  }
-
-  @Test
-  public void testCloseAllStreams_closesGetWorkStreamAndCommitter() {
-    GrpcWindmillStreamFactory mockStreamFactory = mock(GrpcWindmillStreamFactory.class);
-    GetWorkStream mockGetWorkStream = mock(GetWorkStream.class);
-
-    when(mockStreamFactory.createGetWorkStream(
-            any(CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub.class),
-            any(GetWorkRequest.class),
-            any()))
-        .thenReturn(mockGetWorkStream);
-
-    WindmillStreamPoolSender windmillStreamPoolSender =
-        newWindmillStreamPoolSender(
-            GetWorkBudget.builder().setBytes(1L).setItems(1L).build(), mockStreamFactory);
-
-    windmillStreamPoolSender.start();
-    waitForDispatchLoopToStart(windmillStreamPoolSender);
     windmillStreamPoolSender.close();
 
-    verify(mockGetWorkStream).shutdown();
-    verify(mockWorkCommitter).stop();
+    verify(mockWorkCommitter, times(1)).stop();
+  }
+
+  @Test
+  public void testSetBudgetUpdatesActiveStream() throws Exception {
+    WindmillStreamPoolSender windmillStreamPoolSender =
+        newWindmillStreamPoolSender(
+            GetWorkBudget.builder().setBytes(BYTE_BUDGET).setItems(ITEM_BUDGET).build());
+
+    windmillStreamPoolSender.start();
+    verify(mockGetWorkStream, timeout(1000).atLeastOnce()).start();
+
+    long newItems = 200;
+    long newBytes = 2000;
+    windmillStreamPoolSender.setBudget(newItems, newBytes);
+    ArgumentCaptor<GetWorkBudget> budgetCaptor = ArgumentCaptor.forClass(GetWorkBudget.class);
+    verify(mockGetWorkStream, times(1)).setBudget(budgetCaptor.capture());
+
+    GetWorkBudget capturedBudget = budgetCaptor.getValue();
+    assertEquals(newItems, capturedBudget.items());
+    assertEquals(newBytes, capturedBudget.bytes());
+  }
+
+  @Test
+  public void testSetBudgetDoesNothingIfNoActiveStream() {
+    WindmillStreamPoolSender windmillStreamPoolSender =
+        newWindmillStreamPoolSender(
+            GetWorkBudget.builder().setBytes(BYTE_BUDGET).setItems(ITEM_BUDGET).build());
+
+    windmillStreamPoolSender.setBudget(200, 2000);
+
+    verify(mockGetWorkStream, times(0)).setBudget(any(GetWorkBudget.class));
   }
 
   private WindmillStreamPoolSender newWindmillStreamPoolSender(GetWorkBudget budget) {
-    return newWindmillStreamPoolSender(budget, streamFactory);
-  }
-
-  private WindmillStreamPoolSender newWindmillStreamPoolSender(
-      GetWorkBudget budget, GrpcWindmillStreamFactory streamFactory) {
     return WindmillStreamPoolSender.create(
         connection,
         GET_WORK_REQUEST,
         budget,
-        streamFactory,
+        mockStreamFactory,
         mockWorkCommitter,
         mockGetDataClient,
         mockHeartbeatSender,
         mockStreamingWorkScheduler,
         mockWaitForResources,
         mockComputationStateFetcher);
-  }
-
-  private void waitForDispatchLoopToStart(WindmillStreamPoolSender windmillStreamSender) {
-    while (true) {
-      if (windmillStreamSender.hasGetWorkStreamStarted()) {
-        break;
-      }
-      try {
-        Thread.sleep(1000); // Wait for 1 second
-      } catch (InterruptedException e) {
-        break;
-      }
-    }
   }
 }

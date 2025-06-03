@@ -112,7 +112,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
   private long pendingMetadataVersion;
 
   @GuardedBy("metadataLock")
-  private EndpointType activeEndpointType = EndpointType.DIRECTPATH;
+  private EndpointType activeEndpointType = EndpointType.UNKNOWN;
 
   @GuardedBy("this")
   private boolean started;
@@ -280,10 +280,11 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
     synchronized (metadataLock) {
       // Only process versions greater than what we currently have to prevent double processing of
       // metadata. workerMetadataConsumer is single-threaded so we maintain ordering.
-      // But in case the endpoint type in worker metadata is different from the active endpoint
-      // type, also process those endpoints
+      // But in case the endpoint type in worker metadata is different from the active
+      // endpoint type, also process those endpoints
       if (windmillEndpoints.version() > pendingMetadataVersion
-          || windmillEndpoints.endpointType() != activeEndpointType) {
+          || (windmillEndpoints.version() == pendingMetadataVersion
+              && windmillEndpoints.endpointType() != activeEndpointType)) {
         pendingMetadataVersion = windmillEndpoints.version();
         workerMetadataConsumer.execute(() -> consumeWindmillWorkerEndpoints(windmillEndpoints));
       }
@@ -296,8 +297,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
     // the endpoints if they are the most current version, or if the endpoint type is different
     // from currently active endpoints.
     synchronized (metadataLock) {
-      if (newWindmillEndpoints.version() < pendingMetadataVersion
-          && newWindmillEndpoints.endpointType() == activeEndpointType) {
+      if (newWindmillEndpoints.version() < pendingMetadataVersion) {
         return;
       }
       activeEndpointType = newWindmillEndpoints.endpointType();

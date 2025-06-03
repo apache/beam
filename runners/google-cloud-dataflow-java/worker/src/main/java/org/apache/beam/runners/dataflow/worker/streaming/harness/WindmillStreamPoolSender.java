@@ -17,20 +17,11 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming.harness;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
-
-import com.google.common.annotations.VisibleForTesting;
 import java.util.Optional;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
-import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
-import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillConnection;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkStream;
@@ -42,11 +33,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudge
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.StreamingWorkScheduler;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Owns and maintains a pool of streams used to fetch {@link
@@ -54,9 +41,8 @@ import org.slf4j.LoggerFactory;
  */
 @Internal
 @ThreadSafe
+@SuppressWarnings("unused")
 public final class WindmillStreamPoolSender implements WindmillStreamSender {
-  private static final Logger LOG = LoggerFactory.getLogger(WindmillStreamPoolSender.class);
-  private static final int GET_WORK_STREAM_TIMEOUT_MINUTES = 3;
   private final AtomicReference<GetWorkBudget> getWorkBudget;
   private final WindmillConnection connection;
   private final GetWorkRequest getWorkRequest;
@@ -67,10 +53,8 @@ public final class WindmillStreamPoolSender implements WindmillStreamSender {
   private final StreamingWorkScheduler streamingWorkScheduler;
   private final Runnable waitForResources;
   private final Function<String, Optional<ComputationState>> computationStateFetcher;
-  private final ExecutorService workProviderExecutor;
-  private final AtomicBoolean isRunning;
-  private final AtomicBoolean hasGetWorkStreamStarted;
   private @Nullable GetWorkStream getWorkStream;
+  private @Nullable SingleSourceWorkerHarness singleSourceWorkerHarness;
 
   private WindmillStreamPoolSender(
       WindmillConnection connection,
@@ -83,8 +67,6 @@ public final class WindmillStreamPoolSender implements WindmillStreamSender {
       StreamingWorkScheduler streamingWorkScheduler,
       Runnable waitForResources,
       Function<String, Optional<ComputationState>> computationStateFetcher) {
-    this.isRunning = new AtomicBoolean(false);
-    this.hasGetWorkStreamStarted = new AtomicBoolean(false);
     this.connection = connection;
     this.getWorkRequest = getWorkRequest;
     this.getWorkBudget = getWorkBudget;
@@ -95,13 +77,6 @@ public final class WindmillStreamPoolSender implements WindmillStreamSender {
     this.waitForResources = waitForResources;
     this.computationStateFetcher = computationStateFetcher;
     this.workCommitter = workCommitter;
-    this.workProviderExecutor =
-        Executors.newSingleThreadExecutor(
-            new ThreadFactoryBuilder()
-                .setDaemon(true)
-                .setPriority(Thread.MIN_PRIORITY)
-                .setNameFormat("DispatchThread")
-                .build());
   }
 
   public static WindmillStreamPoolSender create(
@@ -115,101 +90,56 @@ public final class WindmillStreamPoolSender implements WindmillStreamSender {
       StreamingWorkScheduler streamingWorkScheduler,
       Runnable waitForResources,
       Function<String, Optional<ComputationState>> computationStateFetcher) {
-    return new WindmillStreamPoolSender(
-        connection,
-        getWorkRequest,
-        new AtomicReference<>(getWorkBudget),
-        streamingEngineStreamFactory,
-        workCommitter,
-        getDataClient,
-        heartbeatSender,
-        streamingWorkScheduler,
-        waitForResources,
-        computationStateFetcher);
+    WindmillStreamPoolSender windmillStreamPoolSender =
+        new WindmillStreamPoolSender(
+            connection,
+            getWorkRequest,
+            new AtomicReference<>(getWorkBudget),
+            streamingEngineStreamFactory,
+            workCommitter,
+            getDataClient,
+            heartbeatSender,
+            streamingWorkScheduler,
+            waitForResources,
+            computationStateFetcher);
+    windmillStreamPoolSender.singleSourceWorkerHarness =
+        SingleSourceWorkerHarness.builder()
+            .setWorkCommitter(workCommitter)
+            .setGetDataClient(getDataClient)
+            .setHeartbeatSender(heartbeatSender)
+            .setStreamingWorkScheduler(streamingWorkScheduler)
+            .setWaitForResources(waitForResources)
+            .setComputationStateFetcher(computationStateFetcher)
+            .setGetWorkSender(
+                SingleSourceWorkerHarness.GetWorkSender.forStreamingEngine(
+                    windmillStreamPoolSender::createGetWorkStream))
+            .build();
+    return windmillStreamPoolSender;
   }
 
-  private void dispatchLoop() {
-    while (isRunning.get()) {
-      this.getWorkStream =
-          streamingEngineStreamFactory.createGetWorkStream(
-              connection.currentStub(), getWorkRequest, getWorkItemReceiver());
-      this.getWorkStream.start();
-      this.hasGetWorkStreamStarted.set(true);
-
-      try {
-        // Reconnect every now and again to enable better load balancing.
-        // If at any point the server closes the stream, we will reconnect immediately;
-        // otherwise
-        // we half-close the stream after some time and create a new one.
-        if (this.getWorkStream != null
-            && !this.getWorkStream.awaitTermination(
-                GET_WORK_STREAM_TIMEOUT_MINUTES, TimeUnit.MINUTES)) {
-          if (this.getWorkStream != null) {
-            this.getWorkStream.halfClose();
-          }
-        }
-      } catch (InterruptedException e) {
-        // Continue processing
-      }
-    }
+  private GetWorkStream createGetWorkStream(WorkItemReceiver workItemReceiver) {
+    // Creating a local variable first instead of directly assigning it to the instance variable
+    // to keep the compiler happy which otherwise complains NonNull value is being assinged to
+    // Nullable.
+    GetWorkStream workStream =
+        streamingEngineStreamFactory.createGetWorkStream(
+            connection.currentStub(), getWorkRequest, workItemReceiver);
+    workStream.start();
+    this.getWorkStream = workStream;
+    return workStream;
   }
 
-  private WorkItemReceiver getWorkItemReceiver() {
-    return (computationId,
-        inputDataWatermark,
-        synchronizedProcessingTime,
-        workItem,
-        serializedWorkItemSize,
-        getWorkStreamLatencies) ->
-        this.computationStateFetcher
-            .apply(computationId)
-            .ifPresent(
-                computationState -> {
-                  this.waitForResources.run();
-                  this.streamingWorkScheduler.scheduleWork(
-                      computationState,
-                      workItem,
-                      serializedWorkItemSize,
-                      Watermarks.builder()
-                          .setInputDataWatermark(Preconditions.checkNotNull(inputDataWatermark))
-                          .setSynchronizedProcessingTime(synchronizedProcessingTime)
-                          .setOutputDataWatermark(workItem.getOutputDataWatermark())
-                          .build(),
-                      Work.createProcessingContext(
-                          computationId,
-                          this.getDataClient,
-                          workCommitter::commit,
-                          this.heartbeatSender),
-                      getWorkStreamLatencies);
-                });
-  }
-
-  @SuppressWarnings("ReturnValueIgnored")
   @Override
   public synchronized void start() {
-    if (!isRunning.get()) {
-      checkState(
-          !workProviderExecutor.isShutdown(),
-          "WindmillStreamPoolSender has already been shutdown.");
-      workCommitter.start();
-      isRunning.set(true);
-      workProviderExecutor.execute(
-          () -> {
-            LOG.info("Starting dispatch.");
-            dispatchLoop();
-            LOG.info("Dispatch done");
-          });
+    if (singleSourceWorkerHarness != null) {
+      singleSourceWorkerHarness.start();
     }
   }
 
   @Override
   public synchronized void close() {
-    if (isRunning.get() && this.getWorkStream != null) {
-      getWorkStream.shutdown();
-      workProviderExecutor.shutdownNow();
-      workCommitter.stop();
-      isRunning.set(false);
-      hasGetWorkStreamStarted.set(false);
+    if (singleSourceWorkerHarness != null) {
+      singleSourceWorkerHarness.shutdown();
     }
   }
 
@@ -217,7 +147,7 @@ public final class WindmillStreamPoolSender implements WindmillStreamSender {
   public synchronized void setBudget(long items, long bytes) {
     GetWorkBudget budget = GetWorkBudget.builder().setItems(items).setBytes(bytes).build();
     getWorkBudget.set(budget);
-    if (isRunning.get() && this.getWorkStream != null) {
+    if (this.getWorkStream != null) {
       getWorkStream.setBudget(budget);
     }
   }
@@ -225,10 +155,5 @@ public final class WindmillStreamPoolSender implements WindmillStreamSender {
   @Override
   public long getCurrentActiveCommitBytes() {
     return workCommitter.currentActiveCommitBytes();
-  }
-
-  @VisibleForTesting
-  public boolean hasGetWorkStreamStarted() {
-    return hasGetWorkStreamStarted.get();
   }
 }
