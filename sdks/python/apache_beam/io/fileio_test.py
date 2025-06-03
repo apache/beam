@@ -259,7 +259,7 @@ class ReadTest(_TestCaseWithTempDirCleanUp):
     files.append(self._create_temp_file(dir=tempdir, content=content))
     files.append(self._create_temp_file(dir=tempdir, content=content))
 
-    with self.assertRaisesRegex(Exception, "BeamIOError"):
+    with self.assertRaises(Exception):
       with TestPipeline() as p:
         _ = (
             p

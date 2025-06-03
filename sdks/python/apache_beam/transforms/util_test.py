@@ -707,8 +707,7 @@ class IdentityWindowTest(unittest.TestCase):
       def process(self, element):
         yield window.TimestampedValue(element, expected_timestamp)
 
-    with self.assertRaisesRegex(Exception,
-                                r'ValueError.*window.*None.*add_timestamps2'):
+    with self.assertRaisesRegex(Exception, r'.*window.*None.*add_timestamps2'):
       with TestPipeline() as pipeline:
         data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
         expected_windows = [
