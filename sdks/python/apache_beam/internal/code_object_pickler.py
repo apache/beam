@@ -15,7 +15,13 @@
 # limitations under the License.
 #
 
-"""Consistent pickling for lambdas."""
+"""Customizations to how Python code objects are pickled.
+
+This module provides functions to pickle code objects, especially lambdas, in a
+consistent way. It addresses issues with non-deterministic pickling by creating
+stable references to code objects using their qualified names and bytecode
+hashes.
+"""
 
 import os
 import sys
