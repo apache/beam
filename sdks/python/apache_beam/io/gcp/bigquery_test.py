@@ -679,6 +679,9 @@ class TestReadFromBigQuery(unittest.TestCase):
   ])
   def test_query_job_exception(self, exception_type, error_message):
 
+    # TODO(https://github.com/apache/beam/issues/34549): This test relies on
+    # mocking which prism doesn't seem to fully handle correctly (mocks get
+    # mixed between test runs). Pinning to FnApiRunner for now.
     with mock.patch.object(beam.io.gcp.bigquery._CustomBigQuerySource,
                            'estimate_size') as mock_estimate,\
       mock.patch.object(BigQueryWrapper,
@@ -688,7 +691,7 @@ class TestReadFromBigQuery(unittest.TestCase):
       mock.patch.object(bigquery_v2_client.BigqueryV2.DatasetsService, 'Get'), \
       mock.patch('time.sleep'), \
       self.assertRaises(Exception) as exc, \
-      beam.Pipeline() as p:
+      beam.Pipeline('FnApiRunner') as p:
 
       mock_estimate.return_value = None
       mock_query_location.return_value = None

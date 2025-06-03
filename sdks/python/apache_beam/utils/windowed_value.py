@@ -432,13 +432,26 @@ class _IntervalWindowBase(object):
     return self._end_object
 
   def __hash__(self):
-    return hash((self._start_micros, self._end_micros))
+    # Cut of window at start/end timestamps for comparison purposes since some
+    # portable runners do this already.
+    start = max(self._start_micros, MIN_TIMESTAMP.micros)
+    end = min(self._end_micros, MAX_TIMESTAMP.micros)
+    return hash((start, end))
 
   def __eq__(self, other):
+    if type(self) != type(other):
+      return False
+
+    # Cut of window at start/end timestamps for comparison purposes since some
+    # portable runners do this already.
+    self_start = max(self._start_micros, MIN_TIMESTAMP.micros)
+    self_end = min(self._end_micros, MAX_TIMESTAMP.micros)
+    other_start = max(other._start_micros, MIN_TIMESTAMP.micros)
+    other_end = min(other._end_micros, MAX_TIMESTAMP.micros)
+    
     return (
-        type(self) == type(other) and
-        self._start_micros == other._start_micros and
-        self._end_micros == other._end_micros)
+        self_start == other_start and
+        self_end == other_end)
 
   def __repr__(self):
     return '[%s, %s)' % (float(self.start), float(self.end))

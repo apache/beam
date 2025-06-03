@@ -124,7 +124,7 @@ class TestCaller(unittest.TestCase):
             test_pipeline
             | beam.Create(["sample_request"])
             | RequestResponseIO(caller=caller))
-    self.assertRegex(cm.exception.message, 'retries = 2')
+    self.assertRegex(str(cm.exception), 'retries = 2')
 
   def test_caller_no_retry_strategy(self):
     caller = CallerThatRetries()
@@ -134,7 +134,7 @@ class TestCaller(unittest.TestCase):
             test_pipeline
             | beam.Create(["sample_request"])
             | RequestResponseIO(caller=caller, repeater=None))
-    self.assertRegex(cm.exception.message, 'retries = 0')
+    self.assertRegex(str(cm.exception), 'retries = 0')
 
   @retry(
       retry=retry_if_exception_type(IndexError),

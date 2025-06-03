@@ -78,7 +78,7 @@ class NonInteractiveRunnerTest(unittest.TestCase):
     clear_side_effect()
     # This test relies on the pipeline cache being populated. Prism doesn't
     # consistently populate this cache, forcing FnApiRunner
-    p = beam.Pipeline(direct_runner.DirectRunner('FnApiRunner'))
+    p = beam.Pipeline('FnApiRunner')
 
     # Initial collection runs the pipeline.
     pcoll1 = p | beam.Create(['a', 'b', 'c']) | beam.Map(cause_side_effect)
