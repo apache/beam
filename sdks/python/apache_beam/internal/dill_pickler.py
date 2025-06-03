@@ -52,7 +52,6 @@ settings = {'dill_byref': None}
 
 patch_save_code = sys.version_info >= (3, 10) and dill.__version__ == "0.3.1.1"
 
-
 if patch_save_code:
   # The following function is based on 'save_code' from 'dill'
   # Author: Mike McKerns (mmckerns @caltech and @uqfoundation)
