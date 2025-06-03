@@ -135,7 +135,7 @@ public class DebeziumReadSchemaTransformProvider
             String[] parts = connectionProperty.split("=", -1);
             String key = parts[0];
             String value = parts[1];
-            connectorConfiguration.withConnectionProperty(key, value);
+            connectorConfiguration = connectorConfiguration.withConnectionProperty(key, value);
           }
         }
 

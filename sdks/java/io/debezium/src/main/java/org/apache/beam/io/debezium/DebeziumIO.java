@@ -509,12 +509,21 @@ public class DebeziumIO {
     public ConnectorConfiguration withConnectionProperty(String key, String value) {
       checkArgument(key != null, "key can not be null");
       checkArgument(value != null, "value can not be null");
-      checkArgument(
-          getConnectionProperties().get() != null, "connectionProperties can not be null");
+      Map<String, String> currentRawMap = null;
+      if (getConnectionProperties() != null && getConnectionProperties().isAccessible()) {
+        currentRawMap = getConnectionProperties().get();
+      }
 
-      ConnectorConfiguration config = builder().build();
-      config.getConnectionProperties().get().putIfAbsent(key, value);
-      return config;
+      // Create a new map, copying existing properties if they exist, or starting fresh.
+      Map<String, String> newRawMap =
+          (currentRawMap == null) ? new HashMap<>() : new HashMap<>(currentRawMap);
+      newRawMap.put(key, value);
+      // Create a new ValueProvider for the updated map.
+      ValueProvider<Map<String, String>> newConnectionPropertiesProvider =
+          ValueProvider.StaticValueProvider.of(newRawMap);
+      // Use the builder to create a new ConnectorConfiguration instance,
+      // replacing only the connectionProperties field.
+      return builder().setConnectionProperties(newConnectionPropertiesProvider).build();
     }
 
     /**

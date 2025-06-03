@@ -18,6 +18,7 @@
 package org.apache.beam.io.debezium;
 
 import static org.apache.beam.io.debezium.DebeziumIOPostgresSqlConnectorIT.TABLE_SCHEMA;
+import static org.apache.beam.sdk.testing.SerializableMatchers.hasItem;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
@@ -25,15 +26,10 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import io.debezium.connector.mysql.MySqlConnector;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Duration;
-import java.util.Map;
-import java.util.Properties;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -48,7 +44,6 @@ import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -58,121 +53,95 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.MySQLContainer;
+import org.testcontainers.containers.Network;
 import org.testcontainers.containers.wait.strategy.Wait;
-import org.testcontainers.lifecycle.Startables;
 import org.testcontainers.utility.DockerImageName;
 
 @RunWith(JUnit4.class)
 public class DebeziumIOMySqlConnectorIT {
 
   private static final Logger LOG = LoggerFactory.getLogger(DebeziumIOMySqlConnectorIT.class);
-
-  private static final DockerImageName KAFKA_IMAGE =
-      DockerImageName.parse("confluentinc/cp-kafka:7.6.0");
-
   /**
    * Debezium - MySqlContainer
    *
    * <p>Creates a docker container using the image used by the debezium tutorial.
    */
+  private static final DockerImageName KAFKA_IMAGE =
+      DockerImageName.parse("confluentinc/cp-kafka:7.6.0");
+
+  @ClassRule public static Network network = Network.newNetwork();
+
   @ClassRule
   public static final MySQLContainer<?> MY_SQL_CONTAINER =
       new MySQLContainer<>(
-              DockerImageName.parse(
-                      "debezium/example-mysql:3.0.0.Final") // Ensure this image version is
-                  // compatible with Debezium 3.1.1
+              DockerImageName.parse("quay.io/debezium/example-mysql:3.1.1.Final")
                   .asCompatibleSubstituteFor("mysql"))
-          .withDatabaseName("inventory") // Ensures the 'inventory' database is created.
-          .withUsername("root") // Connect as root initially to grant privileges
-          .withPassword("debezium") // Root password for this specific Debezium image
+          .withNetwork(network)
+          .withNetworkAliases("mysql")
           .withExposedPorts(3306)
-          // Add a command to increase the server's connection timeout to prevent dropped
-          // connections.
-          .withCommand(
-              "--wait_timeout=28800", "--max_allowed_packet=64M") // Added max_allowed_packet
-          // Add a robust wait strategy to ensure the DB is fully ready before tests run.
+          .withUsername("mysqluser")
+          .withPassword("debezium")
           .waitingFor(
-              Wait.forLogMessage(".*ready for connections.*\\s", 2) // Wait for 2 occurrences
-                  .withStartupTimeout(Duration.ofMinutes(3))); // Increase startup timeout
+              Wait.forLogMessage(".*ready for connections.*\\s", 2)
+                  .withStartupTimeout(Duration.ofMinutes(3)));
 
-  @ClassRule public static final KafkaContainer KAFKA_CONTAINER = new KafkaContainer(KAFKA_IMAGE);
+  @ClassRule
+  public static final KafkaContainer KAFKA_CONTAINER =
+      new KafkaContainer(KAFKA_IMAGE)
+          .withNetwork(network)
+          .withNetworkAliases("kafka")
+          .dependsOn(MY_SQL_CONTAINER);
 
   @BeforeClass
   public static void startContainersAndGrantPrivileges() throws Exception {
-    Startables.deepStart(Stream.of(MY_SQL_CONTAINER, KAFKA_CONTAINER)).join();
-    try (Connection conn =
-            DriverManager.getConnection(
-                MY_SQL_CONTAINER.getJdbcUrl(), "root", MY_SQL_CONTAINER.getPassword());
-        Statement stmt = conn.createStatement()) {
-      stmt.execute(
-          "GRANT SELECT, RELOAD, SHOW DATABASES, REPLICATION SLAVE, REPLICATION CLIENT, LOCK TABLES, FLUSH TABLES, PROCESS ON *.* TO 'mysqluser'@'%'");
-      LOG.info("Granted necessary privileges to 'mysqluser'@'%' in MySQL.");
-    } catch (SQLException e) {
-      LOG.error("Failed to grant privileges to 'mysqluser' in MySQL container", e);
-      throw e;
-    }
-  }
-
-  @AfterClass
-  public static void stopContainers() {
-    if (KAFKA_CONTAINER != null && KAFKA_CONTAINER.isRunning()) {
-      KAFKA_CONTAINER.stop();
-    }
-    if (MY_SQL_CONTAINER != null && MY_SQL_CONTAINER.isRunning()) {
-      MY_SQL_CONTAINER.stop();
-    }
+    LOG.info("Containers started by @ClassRule. Initial SQL setup by image.");
   }
 
   public static DataSource getMysqlDatasource(Void unused) {
     HikariConfig hikariConfig = new HikariConfig();
-    hikariConfig.setJdbcUrl(MY_SQL_CONTAINER.getJdbcUrl());
-    hikariConfig.setUsername("mysqluser");
+
+    String jdbcUrl =
+        String.format(
+            "jdbc:mysql://%s:%d/inventory?allowPublicKeyRetrieval=true",
+            MY_SQL_CONTAINER.getHost(), MY_SQL_CONTAINER.getMappedPort(3306));
+    LOG.info("Hikari DataSource JDBC URL for mysqluser: {}", jdbcUrl);
+
+    hikariConfig.setJdbcUrl(jdbcUrl);
+    hikariConfig.setUsername("mysqluser"); // User with general R/W access to 'inventory'
     hikariConfig.setPassword("debezium");
+    hikariConfig.addDataSourceProperty("allowPublicKeyRetrieval", "true");
     hikariConfig.setDriverClassName(MY_SQL_CONTAINER.getDriverClassName());
-    hikariConfig.setConnectionTimeout(30000); // 30 seconds
-    hikariConfig.setIdleTimeout(60000); // 1 minute
-    hikariConfig.setMaxLifetime(180000); // 3 minutes
     return new HikariDataSource(hikariConfig);
   }
 
   private void monitorEssentialMetrics() {
     DataSource ds = getMysqlDatasource(null);
-    LOG.info("Monitoring thread started for MySQL connections.");
-    try (Connection conn = ds.getConnection();
-        Statement st = conn.createStatement()) {
-      while (!Thread.currentThread().isInterrupted()) {
-        try (ResultSet rs =
-            st.executeQuery("SHOW STATUS WHERE `variable_name` = 'Threads_connected'")) {
-          if (rs.next()) {
-            LOG.info("MySQL Open connections: {}", rs.getLong(2));
-          } else {
-            LOG.warn("Could not retrieve 'Threads_connected' status from MySQL.");
-            // Consider if breaking the loop is appropriate here or just log and continue
-            break;
-          }
+    try {
+      Connection conn = ds.getConnection();
+      Statement st = conn.createStatement();
+      while (true) {
+        ResultSet rs = st.executeQuery("SHOW STATUS WHERE `variable_name` = 'Threads_connected'");
+        if (rs.next()) {
+          LOG.info("Open connections: {}", rs.getLong(2));
+          rs.close();
+          Thread.sleep(4000);
+        } else {
+          throw new IllegalArgumentException(
+              "Illegal Argument Exception in monitorEssentialMetrics.");
         }
-        // Make sleep interruptible
-        Thread.sleep(4000);
       }
-    } catch (InterruptedException e) {
-      // This is an expected part of shutting down the monitor thread.
-      LOG.info("MySQL connection monitoring thread interrupted normally.");
-      // Restore the interrupted status
-      Thread.currentThread().interrupt();
     } catch (SQLException ex) {
-      // Log SQL exceptions but don't let them kill the test with an unrelated
-      // IllegalArgumentException
-      LOG.error("SQLException in MySQL connection monitoring thread, exiting monitor.", ex);
+      LOG.error("SQL error in monitoring thread. Shutting down.", ex);
+    } catch (InterruptedException ex) {
+      LOG.info("Monitoring thread interrupted. Shutting down.");
+      Thread.currentThread().interrupt();
     }
-    LOG.info("Monitoring thread finished for MySQL connections.");
   }
 
-  @Test
+  @Test(timeout = 300000L)
   public void testDebeziumSchemaTransformMysqlRead() throws InterruptedException {
     long writeSize = 500L;
-    // Significantly increased minimum test time to 180 seconds (3 minutes) to allow more time for
-    // Debezium snapshot.
-    long testTime = Math.max(writeSize * 300L, 180000L);
+    long testTime = writeSize * 200L;
 
     PipelineOptions options = PipelineOptionsFactory.create();
     Pipeline writePipeline = Pipeline.create(options);
@@ -197,6 +166,7 @@ public class DebeziumIOMySqlConnectorIT {
                             .build()))
         .setRowSchema(TABLE_SCHEMA)
         .apply(
+            "WriteToCustomers",
             JdbcIO.<Row>write()
                 .withTable("inventory.customers")
                 .withDataSourceProviderFn(DebeziumIOMySqlConnectorIT::getMysqlDatasource));
@@ -205,23 +175,18 @@ public class DebeziumIOMySqlConnectorIT {
     PCollection<Row> result =
         PCollectionRowTuple.empty(readPipeline)
             .apply(
-                "ReadFromMySQLDebeziumSchemaTransform", // Ensure unique name
+                "ReadFromMySQLDebeziumSchemaTransform",
                 new DebeziumReadSchemaTransformProvider(
-                        true, // isStreaming
-                        Long.valueOf(writeSize + 4)
-                            .intValue(), // numMessagesToAssert (initial 4 in DB + writes)
-                        testTime) // maxSecondsToFinish (milliseconds for the provider)
+                        true, Long.valueOf(writeSize + 4).intValue(), testTime)
                     .from(
                         DebeziumReadSchemaTransformProvider.DebeziumReadSchemaTransformConfiguration
                             .builder()
                             .setDatabase("MYSQL")
-                            .setPassword("debezium")
-                            .setUsername("mysqluser")
-                            .setHost(MY_SQL_CONTAINER.getHost())
-                            .setTable(
-                                "inventory.customers") // Table for the ReadSchemaTransform to focus
-                            // on
+                            .setUsername("debezium")
+                            .setPassword("dbz")
+                            .setHost("localhost")
                             .setPort(MY_SQL_CONTAINER.getMappedPort(3306))
+                            .setTable("inventory.customers")
                             .setDebeziumConnectionProperties(
                                 Lists.newArrayList(
                                     "schema.history.internal.kafka.bootstrap.servers="
@@ -229,25 +194,13 @@ public class DebeziumIOMySqlConnectorIT {
                                     "schema.history.internal.kafka.topic=schema-history-mysql-transform-"
                                         + System.nanoTime(),
                                     "schema.history.internal=io.debezium.storage.kafka.history.KafkaSchemaHistory",
+                                    "schema.history.internal.store.only.captured.tables.ddl=false",
                                     "database.server.id="
-                                        + (6000
-                                            + (int)
-                                                (Math.random() * 500)), // Wider range for server ID
+                                        + (6000 + (int) (Math.random() * 1000)), // Increased range
                                     "database.server.name=mysql-transform-server-"
                                         + System.nanoTime(),
-                                    "database.include.list=inventory",
-                                    "table.include.list=inventory.customers", // Ensure this aligns
-                                    // with setTable()
-                                    "snapshot.mode=initial", // Explicitly 'initial'
-                                    "snapshot.locking.mode=none",
-                                    "snapshot.delay.ms=5000",
-                                    "snapshot.fetch.size=2048", // Default is 2048, explicit
-                                    "connect.timeout.ms=90000", // Debezium's own connection timeout
-                                    // to DB (90s)
-                                    "heartbeat.interval.ms=10000", // Add heartbeat
-                                    "max.queue.size=8192", // Default
-                                    "max.batch.size=2048", // Default
-                                    "database.history.ddl.filter=DROP TABLE.*"))
+                                    "table.include.list=inventory.customers",
+                                    "snapshot.mode=initial_only"))
                             .build()))
             .get("output");
 
@@ -257,7 +210,7 @@ public class DebeziumIOMySqlConnectorIT {
               assertThat(
                   "Number of rows received",
                   Lists.newArrayList(rows).size(),
-                  equalTo(Long.valueOf(writeSize + 4).intValue())); // Existing 4 + new inserts
+                  equalTo(Long.valueOf(writeSize + 4).intValue()));
               return null;
             });
 
@@ -273,101 +226,70 @@ public class DebeziumIOMySqlConnectorIT {
     monitorThread.start();
     writeThread.start();
 
+    writeThread.join();
+    LOG.info("Write thread for SchemaTransform test joined.");
+
     LOG.info("Starting read pipeline for SchemaTransform test...");
     readPipeline.run().waitUntilFinish();
     LOG.info("Read pipeline for SchemaTransform test finished.");
 
-    writeThread.join();
-    LOG.info("Write thread for SchemaTransform test joined.");
     monitorThread.interrupt();
     monitorThread.join();
     LOG.info("Monitor thread for SchemaTransform test joined.");
   }
 
-  @Test
+  @Test(timeout = 300000L)
   public void testDebeziumIOMySql() {
-    String host = MY_SQL_CONTAINER.getHost();
-    String port = MY_SQL_CONTAINER.getMappedPort(3306).toString();
+
     String kafkaBootstrapServers = KAFKA_CONTAINER.getBootstrapServers();
     String schemaHistoryTopic = "mysql-schema-history-io-" + System.nanoTime();
-    String username = "mysqluser";
-    String password = "debezium";
 
-    Properties dbzConnectorProps = new Properties();
-    dbzConnectorProps.setProperty("database.hostname", host);
-    dbzConnectorProps.setProperty("database.port", port);
-    dbzConnectorProps.setProperty("database.user", username);
-    dbzConnectorProps.setProperty("database.password", password);
-    dbzConnectorProps.setProperty(
-        "database.server.id",
-        String.valueOf(190000 + (int) (Math.random() * 2000))); // Wider range for server ID
-    dbzConnectorProps.setProperty("database.server.name", "dbserver1-io-" + System.nanoTime());
-    dbzConnectorProps.setProperty("database.include.list", "inventory");
-    dbzConnectorProps.setProperty(
-        "table.include.list",
-        "inventory.addresses,inventory.customers"); // Check both for this direct IO test
-    dbzConnectorProps.setProperty("snapshot.mode", "initial");
-    dbzConnectorProps.setProperty("snapshot.locking.mode", "none");
-    dbzConnectorProps.setProperty("snapshot.delay.ms", "5000");
-    dbzConnectorProps.setProperty("snapshot.fetch.size", "2048");
-    dbzConnectorProps.setProperty("connect.timeout.ms", "90000");
-    dbzConnectorProps.setProperty("heartbeat.interval.ms", "10000");
-    dbzConnectorProps.setProperty("max.queue.size", "8192");
-    dbzConnectorProps.setProperty("max.batch.size", "2048");
-    dbzConnectorProps.setProperty("database.history.ddl.filter", "DROP TABLE.*");
-
-    dbzConnectorProps.setProperty(
-        "schema.history.internal.kafka.bootstrap.servers", kafkaBootstrapServers);
-    dbzConnectorProps.setProperty("schema.history.internal.kafka.topic", schemaHistoryTopic);
-    dbzConnectorProps.setProperty(
-        "schema.history.internal", "io.debezium.storage.kafka.history.KafkaSchemaHistory");
-
-    Map<String, String> connectorPropsMap =
-        dbzConnectorProps.entrySet().stream()
-            .collect(Collectors.toMap(e -> (String) e.getKey(), e -> (String) e.getValue()));
+    String host = MY_SQL_CONTAINER.getHost();
+    String port = MY_SQL_CONTAINER.getMappedPort(3306).toString();
 
     PipelineOptions options = PipelineOptionsFactory.create();
     Pipeline p = Pipeline.create(options);
     PCollection<String> results =
         p.apply(
-            "ReadFromMySQLDebeziumDirectIO", // Ensure unique name
             DebeziumIO.<String>read()
                 .withConnectorConfiguration(
                     DebeziumIO.ConnectorConfiguration.create()
+                        .withUsername("debezium")
+                        .withPassword("dbz")
                         .withConnectorClass(MySqlConnector.class)
-                        .withConnectionProperties(connectorPropsMap))
+                        .withHostName(host)
+                        .withPort(port)
+                        .withConnectionProperty("database.server.id", "184054")
+                        .withConnectionProperty("database.server.name", "dbserver1")
+                        .withConnectionProperty("database.include.list", "inventory")
+                        .withConnectionProperty("include.schema.changes", "false")
+                        .withConnectionProperty(
+                            "schema.history.internal.kafka.bootstrap.servers",
+                            kafkaBootstrapServers)
+                        .withConnectionProperty(
+                            "schema.history.internal.kafka.topic", schemaHistoryTopic)
+                        .withConnectionProperty(
+                            "schema.history.internal",
+                            "io.debezium.storage.kafka.history.KafkaSchemaHistory")
+                        .withConnectionProperty(
+                            "schema.history.internal.store.only.captured.tables.ddl", "true"))
                 .withFormatFunction(new SourceRecordJson.SourceRecordJsonMapper())
-                .withMaxNumberOfRecords(
-                    4 + 4) // Expect 4 from addresses, 4 from customers from initial dataset
-                .withMaxTimeToRun(5 * 60 * 1000L) // 5 minutes in milliseconds. Keep this long.
+                .withMaxNumberOfRecords(30)
                 .withCoder(StringUtf8Coder.of()));
-
-    String expectedAddressRecordPart =
-        "\"table\":\"addresses\"" + ".*\"zip\":\"76036\"" + ".*\"customer_id\":1001";
+    String expected =
+        "{\"metadata\":{\"connector\":\"mysql\",\"version\":\"3.1.1.Final\",\"name\":\"beam-debezium-connector\","
+            + "\"database\":\"inventory\",\"schema\":\"binlog.000002\",\"table\":\"addresses\"},\"before\":null,"
+            + "\"after\":{\"fields\":{\"zip\":\"76036\",\"city\":\"Euless\","
+            + "\"street\":\"3183 Moore Avenue\",\"id\":10,\"state\":\"Texas\",\"customer_id\":1001,"
+            + "\"type\":\"SHIPPING\"}}}";
 
     PAssert.that(results)
         .satisfies(
             (Iterable<String> res) -> {
-              boolean foundExpectedAddress = false;
-              int recordCount = 0;
-              for (String recordJson : res) {
-                recordCount++;
-                LOG.debug("DebeziumIO MySQL Received: {}", recordJson);
-                if (recordJson.matches("(?s).*" + expectedAddressRecordPart + ".*")) {
-                  foundExpectedAddress = true;
-                  LOG.info("Found matching address record: {}", recordJson);
-                }
-              }
-              assertThat(
-                  "Should have found the specific address record",
-                  foundExpectedAddress,
-                  equalTo(true));
-              assertThat("Expected initial records from snapshot", recordCount, equalTo(4 + 4));
+              assertThat(res, hasItem(expected));
               return null;
             });
 
-    LOG.info("Starting DebeziumIO MySQL direct read pipeline...");
     p.run().waitUntilFinish();
-    LOG.info("DebeziumIO MySQL direct read pipeline finished.");
   }
 }
