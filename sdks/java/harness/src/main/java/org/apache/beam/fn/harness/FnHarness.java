@@ -49,6 +49,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
+import org.apache.beam.model.pipeline.v1.RunnerApi.StandardProtocols;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.ShortIdMap;
 import org.apache.beam.sdk.fn.IdGenerator;
@@ -64,6 +65,8 @@ import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.SdkHarnessOptions;
+import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.construction.BeamUrns;
 import org.apache.beam.sdk.util.construction.CoderTranslation;
 import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.TextFormat;
@@ -194,6 +197,10 @@ public class FnHarness {
         runnerCapabilitesOrNull == null
             ? Collections.emptySet()
             : ImmutableSet.copyOf(runnerCapabilitesOrNull.split("\\s+"));
+
+    if(runnerCapabilites.contains(BeamUrns.getUrn(StandardProtocols.Enum.ELEMENT_METADATA))){
+      WindowedValue.FullWindowedValueCoder.setMetadataSupported();
+    }
 
     main(
         id,
