@@ -15,63 +15,32 @@
 # limitations under the License.
 #
 
-import inspect
-
-import apache_beam as beam
 from apache_beam.ml.anomaly.specifiable import Spec
 from apache_beam.ml.anomaly.transforms import AnomalyDetection
 from apache_beam.ml.anomaly.transforms import Specifiable
 from apache_beam.yaml.yaml_provider import InlineProvider
 
 
-def dict_to_maybe_specifiable(d: dict):
-  # convert a dictionary itself or its values to specifiables
-  def specify_helper(d: dict):
-    ret = {}
-    for k, v in d.items():
-      if isinstance(v, dict):
-        ret[k] = dict_to_maybe_specifiable(v)
-      else:
-        ret[k] = v
-    return ret
-
-  if "type" in d and "config" in d and isinstance(d["config"], dict):
-    return Specifiable.from_spec(
-        Spec(type=d["type"], config=specify_helper(d["config"])))
+def maybe_make_specifiable(v):
+  if isinstance(v, dict):
+    if "type" in v and "config" in v:
+      return Specifiable.from_spec(
+          Spec(type=v["type"], config=maybe_make_specifiable(v["config"])))
+    else:
+      ret = {k: maybe_make_specifiable(v[k]) for k in v}
+      return ret
   else:
-    return specify_helper(d)
+    return v
 
 
-class SpecifiableTransform(beam.PTransform):
-  AVAILABlE_TRANSFORMS = {}
-
-  @staticmethod
-  def register(typ, cls):
-    '''Register a specifiable transform'''
-    SpecifiableTransform.AVAILABlE_TRANSFORMS[typ] = cls
-
-  def __init__(self, **kwargs):
-    self._typ = inspect.currentframe().f_back.f_locals.get("type", None)
-    assert self._typ is not None
-
-    self._kwargs = dict_to_maybe_specifiable(kwargs)
-
-  def expand(self, pcoll):
-    if self._typ not in SpecifiableTransform.AVAILABlE_TRANSFORMS:
-      raise ValueError(f"Unknown specifiable transform {self._typ}")
-
-    return pcoll | SpecifiableTransform.AVAILABlE_TRANSFORMS[self._typ](
-        **self._kwargs)
-
-
-class SpecifiableProvider(InlineProvider):
-  def __init__(self, transform_factories):
-    super().__init__(transform_factories=transform_factories)
-    for k, v in self._transform_factories.items():
-      SpecifiableTransform.register(k, v)
-      # All specifiable transforms will use the same factory
-      self._transform_factories[k] = SpecifiableTransform
+class SpecProvider(InlineProvider):
+  def create_transform(self, type, args, yaml_create_transform):
+    return self._transform_factories[type](
+        **{
+            k: maybe_make_specifiable(v)
+            for k, v in args.items()
+        })
 
 
 def create_specifiable_providers():
-  return SpecifiableProvider({"AnomalyDetection": AnomalyDetection})
+  return SpecProvider({"AnomalyDetection": AnomalyDetection})
