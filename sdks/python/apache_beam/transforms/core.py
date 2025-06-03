@@ -29,6 +29,7 @@ import time
 import traceback
 import types
 import typing
+from collections.abc import Iterable
 from itertools import dropwhile
 from typing import Generic
 
@@ -695,7 +696,7 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn, Generic[InputT, Outp
   def default_label(self):
     return self.__class__.__name__
 
-  def process(self, element:InputT, *args, **kwargs) -> OutputT:
+  def process(self, element:InputT, *args, **kwargs) -> Iterable[OutputT]:
     """Method to use for processing elements.
 
     This is invoked by ``DoFnRunner`` for each element of a input
