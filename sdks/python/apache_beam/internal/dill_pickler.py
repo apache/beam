@@ -44,11 +44,9 @@ from typing import Tuple
 
 import dill
 
-from apache_beam.internal import set_pickler
-from apache_beam.internal import consistent_pickle
-
-save_set = set_pickler.save_set
-save_frozenset = set_pickler.save_frozenset
+from apache_beam.internal.consistent_pickle import get_normalized_path
+from apache_beam.internal.set_pickler import save_frozenset
+from apache_beam.internal.set_pickler import save_set
 
 settings = {'dill_byref': None}
 
