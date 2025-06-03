@@ -476,6 +476,8 @@ class PubSubTopicCleanerTest(unittest.TestCase):
         """Test __delete_resource method."""
         # Create a resource name
         resource_name = "projects/test-project/topics/test-topic"
+        # Set the clock to a specific time
+        self.cleaner.clock.set("2025-05-28T10:00:00")
 
         # Call the private method using name mangling
         with mock.patch('builtins.print') as mock_print:
@@ -485,7 +487,7 @@ class PubSubTopicCleanerTest(unittest.TestCase):
             self.cleaner.client.delete_topic.assert_called_once_with(name=resource_name)
 
             # Check that correct message was printed
-            mock_print.assert_called_once_with("Deleting PubSub topic test-topic")
+            mock_print.assert_called_once_with(f"{self.cleaner.clock()} - Deleting PubSub topic test-topic")
 
 if __name__ == '__main__':
     unittest.main()
