@@ -304,3 +304,34 @@ class PubSubTopicCleaner(StaleCleaner):
         topic_name = resource_name.split('/')[-1]
         print(f"{self.clock()} - Deleting PubSub topic {topic_name}")
         self.client.delete_topic(name=resource_name)
+
+if __name__ == "__main__":
+    project_id = DEFAULT_PROJECT_ID
+    bucket_name = DEFAULT_BUCKET_NAME
+
+    # Prefixes found after analyzing the PubSub topics in the project
+    prefixes = [
+        "psit_topic_input",
+        "psit_topic_output",
+        "wc_topic_input",
+        "wc_topic_output",
+        "leader_board_it_input_topic",
+        "leader_board_it_output_topic",
+        "exercise_streaming_metrics_topic_input",
+        "exercise_streaming_metrics_topic_output",
+        "pubsub_io_performance",
+        "testing",
+        "pubsubNamespace",
+        "game_stats_it_input_topic",
+        "game_stats_it_output_topic"
+    ]
+
+    # Create a PubSubTopicCleaner instance
+    cleaner = PubSubTopicCleaner(project_id=project_id, bucket_name=bucket_name,
+                                 prefixes=prefixes, time_threshold=DEFAULT_PUBSUB_TOPIC_THRESHOLD)
+
+    # Refresh resources
+    cleaner.refresh()
+
+    # Delete stale resources (dry run)
+    cleaner.delete_stale(dry_run=True)
