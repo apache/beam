@@ -44,7 +44,7 @@ from typing import Tuple
 
 import dill
 
-from apache_beam.internal.consistent_pickle import get_normalized_path
+from apache_beam.internal.code_object_pickler import get_normalized_path
 from apache_beam.internal.set_pickler import save_frozenset
 from apache_beam.internal.set_pickler import save_set
 
