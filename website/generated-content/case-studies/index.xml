@@ -152,7 +152,7 @@ Director of AI Business Development @Akvelon
 &lt;img src="/images/case-study/akvelon/diagram-01.png" alt="Protegrity &amp; Equifax Tokenization Pipeline">
 &lt;/a>
 &lt;/div>
-&lt;h3 id="key-features">Key features&lt;/h3>
+&lt;h3 id="key-features">Key Features&lt;/h3>
 &lt;ul>
 &lt;li>&lt;strong>Seamless integration with Protegrity UDFs&lt;/strong>, enabling native tokenization directly within Beam transforms without requiring external service orchestration&lt;/li>
 &lt;li>&lt;strong>Support for multiple data formats&lt;/strong> such as CSV, JSON, Parquet, allowing flexible deployment across diverse data pipelines&lt;/li>
@@ -223,26 +223,17 @@ VP of Partners and Business Development @Protegrity
 &lt;/ul>
 &lt;/li>
 &lt;/ul>
-&lt;h2 id="technology-stack">Technology Stack&lt;/h2>
-&lt;ul>
-&lt;li>Apache Beam&lt;/li>
-&lt;li>Google Cloud Dataflow&lt;/li>
-&lt;li>Protegrity Data Protection Platform&lt;/li>
-&lt;li>CDAP (Cloud Data Fusion)&lt;/li>
-&lt;li>BigQuery&lt;/li>
-&lt;li>Salesforce, Zendesk, HubSpot, ServiceNow plugins&lt;/li>
-&lt;/ul>
-&lt;h2 id="final-words">Final words&lt;/h2>
+&lt;h2 id="final-words">Final Words&lt;/h2>
 &lt;p>Akvelon’s contributions to Apache Beam-based solutions - from advanced tokenization for Protegrity and its enterprise customers to enabling plugin interoperability through the CDAP Connector - demonstrate the value of open-source, cloud-native data engineering. By delivering reusable and secure components, Akvelon supports enterprises in modernizing and unifying their data infrastructure.&lt;/p>
 &lt;h2 id="watch-the-solution-in-action">Watch the Solution in Action&lt;/h2>
 &lt;p>&lt;a href="https://www.youtube.com/watch?v=IQIzdfNIAHk">Architecture Walkthrough Video &lt;/a>&lt;/p>
 &lt;h2 id="about-akvelon-inc">About Akvelon, Inc.&lt;/h2>
 &lt;p>Akvelon guides enterprises through digital transformation on Google Cloud - applying deep expertise in data engineering, AI/ML, cloud infrastructure, and custom application development to design, deploy, and scale modern workloads.&lt;/p>
-&lt;p>At Akvelon, we’ve built a long-standing partnership with Google Cloud—helping software-driven organizations implement, migrate, modernize, automate, and optimize their systems while making the most of cloud technologies.&lt;/p>
+&lt;p>At Akvelon, we’ve built a long-standing partnership with Google Cloud - helping software-driven organizations implement, migrate, modernize, automate, and optimize their systems while making the most of cloud technologies.&lt;/p>
 &lt;p>As a &lt;strong>Google Cloud Service&lt;/strong> and &lt;strong>Build Partner&lt;/strong>, we contribute actively to the ecosystem:&lt;/p>
 &lt;ul>
-&lt;li>Contributing code and guidance to &lt;strong>Apache Beam&lt;/strong>—including Playground, Tour of Beam, and the Duet AI training set&lt;/li>
-&lt;li>Improving project infrastructure and supporting the Apache Beam community—now with an official Apache Beam Committer on our team&lt;/li>
+&lt;li>Contributing code and guidance to &lt;strong>Apache Beam&lt;/strong> - including &lt;a href="https://github.com/apache/beam/blob/master/playground/README.md">Playground&lt;/a>, &lt;a href="https://github.com/apache/beam/blob/master/learning/tour-of-beam/README.md">Tour of Beam&lt;/a>, and the &lt;a href="https://github.com/apache/beam/blob/master/learning/prompts/README.md">Duet AI training set&lt;/a>&lt;/li>
+&lt;li>Improving project infrastructure and supporting the Apache Beam community - now with an official Apache Beam Committer on our team&lt;/li>
 &lt;/ul>
 &lt;p>Backed by deep expertise in data engineering, AI/ML, cloud architecture, and application development, our engineers deliver reusable, secure, and production-ready solutions on Google Cloud for enterprises worldwide.&lt;/p>
 &lt;ul>
