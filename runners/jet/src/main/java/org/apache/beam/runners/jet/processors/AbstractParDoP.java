@@ -59,9 +59,10 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 
@@ -132,7 +133,7 @@ abstract class AbstractParDoP<InputT, OutputT> implements Processor {
                     Map.Entry::getKey,
                     e ->
                         Utils.deriveIterableValueCoder(
-                            (WindowedValue.FullWindowedValueCoder) e.getValue())));
+                            (WindowedValues.FullWindowedValueCoder) e.getValue())));
     this.outputCoders = outputCoders;
     this.inputValueCoder = inputValueCoder;
     this.outputValueCoders = outputValueCoders;

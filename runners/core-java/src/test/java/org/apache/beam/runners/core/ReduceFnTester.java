@@ -57,11 +57,12 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.AppliedCombineFn;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowTracing;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.TriggerTranslation;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Equivalence;
@@ -552,7 +553,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
                         windowFn.assignWindows(
                             new TestAssignContext<W>(
                                 windowFn, value, timestamp, GlobalWindow.INSTANCE));
-                    return WindowedValue.of(value, timestamp, windows, PaneInfo.NO_FIRING);
+                    return WindowedValues.of(value, timestamp, windows, PaneInfo.NO_FIRING);
                   } catch (Exception e) {
                     throw new RuntimeException(e);
                   }
@@ -610,7 +611,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
       KV<String, OutputT> copy =
           SerializableUtils.ensureSerializableByCoder(
               KvCoder.of(StringUtf8Coder.of(), outputCoder), output, "outputForWindow");
-      WindowedValue<KV<String, OutputT>> value = WindowedValue.of(copy, timestamp, windows, pane);
+      WindowedValue<KV<String, OutputT>> value = WindowedValues.of(copy, timestamp, windows, pane);
       outputs.add(value);
     }
 

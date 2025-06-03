@@ -22,7 +22,8 @@ import java.util.logging.Logger;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 
 /** doc. */
 @SuppressWarnings({
@@ -59,7 +60,7 @@ public final class TranslationUtils {
    * @return Deserialized object.
    */
   public static <T> WindowedValue<T> fromByteArray(
-      byte[] serialized, WindowedValue.WindowedValueCoder<T> coder) {
+      byte[] serialized, WindowedValues.WindowedValueCoder<T> coder) {
     try {
       return CoderUtils.decodeFromByteArray(coder, serialized);
     } catch (CoderException e) {

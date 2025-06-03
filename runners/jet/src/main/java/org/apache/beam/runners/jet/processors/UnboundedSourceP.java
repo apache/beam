@@ -36,7 +36,7 @@ import org.apache.beam.runners.jet.Utils;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 
 /**
  * Jet {@link com.hazelcast.jet.core.Processor} implementation for reading from an unbounded Beam
@@ -81,7 +81,7 @@ public class UnboundedSourceP<T, CmT extends UnboundedSource.CheckpointMark>
     Function<UnboundedSource.UnboundedReader<T>, byte[]> mapFn =
         (reader) ->
             Utils.encode(
-                WindowedValue.timestampedValueInGlobalWindow(
+                WindowedValues.timestampedValueInGlobalWindow(
                     reader.getCurrent(), reader.getCurrentTimestamp()),
                 outputCoder);
 

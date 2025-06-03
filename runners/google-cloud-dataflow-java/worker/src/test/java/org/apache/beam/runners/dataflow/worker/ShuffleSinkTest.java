@@ -36,8 +36,9 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.joda.time.Duration;
@@ -87,7 +88,7 @@ public class ShuffleSinkTest {
 
   private void runTestWriteUngroupingShuffleSink(List<Integer> expected) throws Exception {
     Coder<WindowedValue<Integer>> windowedValueCoder =
-        WindowedValue.getFullCoder(BigEndianIntegerCoder.of(), new GlobalWindows().windowCoder());
+        WindowedValues.getFullCoder(BigEndianIntegerCoder.of(), new GlobalWindows().windowCoder());
     BatchModeExecutionContext executionContext =
         BatchModeExecutionContext.forTesting(PipelineOptionsFactory.create(), "STAGE");
     ShuffleSink<Integer> shuffleSink =
@@ -104,7 +105,7 @@ public class ShuffleSinkTest {
     try (Sink.SinkWriter<WindowedValue<Integer>> shuffleSinkWriter =
         shuffleSink.writer(shuffleWriter, "dataset")) {
       for (Integer value : expected) {
-        actualSizes.add(shuffleSinkWriter.add(WindowedValue.valueInGlobalWindow(value)));
+        actualSizes.add(shuffleSinkWriter.add(WindowedValues.valueInGlobalWindow(value)));
       }
     }
 
@@ -132,7 +133,7 @@ public class ShuffleSinkTest {
             PipelineOptionsFactory.create(),
             null,
             ShuffleSink.ShuffleKind.GROUP_KEYS,
-            WindowedValue.getFullCoder(
+            WindowedValues.getFullCoder(
                 KvCoder.of(BigEndianIntegerCoder.of(), StringUtf8Coder.of()),
                 IntervalWindow.getCoder()),
             executionContext,
@@ -145,7 +146,7 @@ public class ShuffleSinkTest {
       for (KV<Integer, String> kv : expected) {
         actualSizes.add(
             shuffleSinkWriter.add(
-                WindowedValue.of(
+                WindowedValues.of(
                     KV.of(kv.getKey(), kv.getValue()),
                     timestamp,
                     Lists.newArrayList(window),
@@ -181,7 +182,7 @@ public class ShuffleSinkTest {
             PipelineOptionsFactory.create(),
             null,
             ShuffleSink.ShuffleKind.GROUP_KEYS_AND_SORT_VALUES,
-            WindowedValue.getFullCoder(
+            WindowedValues.getFullCoder(
                 KvCoder.of(
                     BigEndianIntegerCoder.of(),
                     KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())),
@@ -194,7 +195,7 @@ public class ShuffleSinkTest {
     try (Sink.SinkWriter<WindowedValue<KV<Integer, KV<String, Integer>>>> shuffleSinkWriter =
         shuffleSink.writer(shuffleWriter, "dataset")) {
       for (KV<Integer, KV<String, Integer>> kv : expected) {
-        actualSizes.add(shuffleSinkWriter.add(WindowedValue.valueInGlobalWindow(kv)));
+        actualSizes.add(shuffleSinkWriter.add(WindowedValues.valueInGlobalWindow(kv)));
       }
     }
 

@@ -27,7 +27,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.apache.beam.runners.samza.runtime.OpMessage;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.samza.Partition;
 import org.apache.samza.config.Config;
 import org.apache.samza.metrics.MetricsRegistry;
@@ -118,7 +118,7 @@ public class SamzaImpulseSystemFactory implements SystemFactory {
               ssp,
               DUMMY_OFFSET,
               /* key */ null,
-              OpMessage.ofElement(WindowedValue.valueInGlobalWindow(new byte[0])));
+              OpMessage.ofElement(WindowedValues.valueInGlobalWindow(new byte[0])));
 
       final IncomingMessageEnvelope watermarkMessage =
           IncomingMessageEnvelope.buildWatermarkEnvelope(

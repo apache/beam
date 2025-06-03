@@ -169,14 +169,15 @@ import org.apache.beam.sdk.util.DoFnInfo;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.StringUtils;
 import org.apache.beam.sdk.util.VarInt;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.util.construction.Environments;
 import org.apache.beam.sdk.util.construction.SdkComponents;
 import org.apache.beam.sdk.util.construction.WindowingStrategyTranslation;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueWithRecordId;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
+import org.apache.beam.sdk.values.WindowedValues.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
@@ -434,7 +435,7 @@ public class StreamingDataflowWorkerTest {
                         .setSpec(CloudObject.forClass(UngroupedWindmillReader.class))
                         .setCodec(
                             CloudObjects.asCloudObject(
-                                WindowedValue.getFullCoder(coder, IntervalWindow.getCoder()),
+                                WindowedValues.getFullCoder(coder, IntervalWindow.getCoder()),
                                 /* sdkComponents= */ null))))
         .setOutputs(
             Collections.singletonList(
@@ -444,7 +445,7 @@ public class StreamingDataflowWorkerTest {
                     .setSystemName(DEFAULT_OUTPUT_SYSTEM_NAME)
                     .setCodec(
                         CloudObjects.asCloudObject(
-                            WindowedValue.getFullCoder(coder, IntervalWindow.getCoder()),
+                            WindowedValues.getFullCoder(coder, IntervalWindow.getCoder()),
                             /* sdkComponents= */ null))));
   }
 
@@ -489,7 +490,7 @@ public class StreamingDataflowWorkerTest {
                     .setSystemName(DEFAULT_OUTPUT_SYSTEM_NAME)
                     .setCodec(
                         CloudObjects.asCloudObject(
-                            WindowedValue.getFullCoder(
+                            WindowedValues.getFullCoder(
                                 outputCoder, windowingStrategy.getWindowFn().windowCoder()),
                             /* sdkComponents= */ null))));
   }
@@ -526,7 +527,7 @@ public class StreamingDataflowWorkerTest {
                         .setSpec(spec)
                         .setCodec(
                             CloudObjects.asCloudObject(
-                                WindowedValue.getFullCoder(coder, windowCoder),
+                                WindowedValues.getFullCoder(coder, windowCoder),
                                 /* sdkComponents= */ null))));
   }
 
@@ -1562,7 +1563,7 @@ public class StreamingDataflowWorkerTest {
                         .setName("output")
                         .setCodec(
                             CloudObjects.asCloudObject(
-                                WindowedValue.getFullCoder(
+                                WindowedValues.getFullCoder(
                                     StringUtf8Coder.of(), IntervalWindow.getCoder()),
                                 /* sdkComponents= */ null))));
 
@@ -2401,7 +2402,7 @@ public class StreamingDataflowWorkerTest {
     options.setNumWorkers(1);
     CloudObject codec =
         CloudObjects.asCloudObject(
-            WindowedValue.getFullCoder(
+            WindowedValues.getFullCoder(
                 ValueWithRecordId.ValueWithRecordIdCoder.of(
                     KvCoder.of(VarIntCoder.of(), VarIntCoder.of())),
                 GlobalWindow.Coder.INSTANCE),
@@ -3241,7 +3242,7 @@ public class StreamingDataflowWorkerTest {
 
     CloudObject codec =
         CloudObjects.asCloudObject(
-            WindowedValue.getFullCoder(
+            WindowedValues.getFullCoder(
                 ValueWithRecordId.ValueWithRecordIdCoder.of(
                     KvCoder.of(VarIntCoder.of(), VarIntCoder.of())),
                 GlobalWindow.Coder.INSTANCE),

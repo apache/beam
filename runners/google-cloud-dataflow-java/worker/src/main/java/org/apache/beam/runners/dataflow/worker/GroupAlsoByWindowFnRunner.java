@@ -28,8 +28,9 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.joda.time.Instant;
 
 /**
@@ -104,7 +105,7 @@ public class GroupAlsoByWindowFnRunner<InputT, OutputT> implements DoFnRunner<In
                 Instant timestamp,
                 Collection<? extends BoundedWindow> windows,
                 PaneInfo pane) {
-              WindowedValue<OutputT> windowed = WindowedValue.of(output, timestamp, windows, pane);
+              WindowedValue<OutputT> windowed = WindowedValues.of(output, timestamp, windows, pane);
               outputManager.output(mainOutputTag, windowed);
             }
 
