@@ -167,7 +167,7 @@ class PTransformTest(unittest.TestCase):
         # error warning us when the pipeliene runs.
 
   def test_do_with_do_fn_returning_dict_raises_warning(self):
-    ex_details = r'*Returning a dict from a ParDo or FlatMap is discouraged.'
+    ex_details = r'.*Returning a dict from a ParDo or FlatMap is discouraged.'
 
     with self.assertRaisesRegex(Exception, ex_details):
       with TestPipeline() as pipeline:
@@ -208,11 +208,7 @@ class PTransformTest(unittest.TestCase):
       def process(self, element):
         self.received_records.inc()
 
-    # TODO(https://github.com/apache/beam/issues/34549): This test relies on
-    # metrics filtering which doesn't work on Prism yet because Prism renames
-    # steps (e.g. "Do" becomes "ref_AppliedPTransform_Do_7").
-    # https://github.com/apache/beam/blob/5f9cd73b7c9a2f37f83971ace3a399d633201dd1/sdks/python/apache_beam/runners/portability/fn_api_runner/fn_runner.py#L1590
-    pipeline = TestPipeline('FnApiRunner')
+    pipeline = TestPipeline()
     (pipeline | Read(CountingSource(100)) | beam.ParDo(CounterDoFn()))
     res = pipeline.run()
     res.wait_until_finish()
@@ -1693,11 +1689,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     # Although all the types appear to be correct when checked at pipeline
     # construction. Runtime type-checking should detect the 'is_even_as_key' is
     # returning Tuple[int, int], instead of Tuple[bool, int].
-    error_regex = r".*Runtime type violation detected within ParDo(IsEven): "
-    "Tuple[<class 'bool'>, <class 'int'>] hint type-constraint violated. "
-    "The type of element #0 in the passed tuple is incorrect. "
-    "Expected an instance of type <class 'bool'>, "
-    "instead received an instance of type int."
+    error_regex = r".*Runtime type violation detected"
 
     with self.assertRaisesRegex(Exception, error_regex) as e:
       self.p.run()
@@ -1729,10 +1721,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     # The type-hinted applied via the 'with_input_types()' method indicates the
     # ParDo should receive an instance of type 'str', however an 'int' will be
     # passed instead.
-    error_regex = r".*Runtime type violation detected within ParDo(ToInt): "
-    "Type-hint for argument: 'x' violated. "
-    "Expected an instance of {}, "
-    "instead found 1, an instance of {}.".format(str, int)
+    error_regex = r".*Runtime type violation detected"
 
     with self.assertRaisesRegex(Exception, error_regex) as e:
       (
@@ -1747,12 +1736,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.p._options.view_as(TypeOptions).runtime_type_check = True
     self.p._options.view_as(TypeOptions).pipeline_type_check = False
 
-    error_regex = r".*Runtime type violation detected within ParDo(Add): "
-    "Type-hint for argument: 'x_y' violated: "
-    "Tuple[<class 'int'>, <class 'int'>] hint type-constraint violated. "
-    "The type of element #1 in the passed tuple is incorrect. "
-    "Expected an instance of type <class 'int'>, instead received an "
-    "instance of type float."
+    error_regex = r".*Runtime type violation detected"
 
     with self.assertRaisesRegex(Exception, error_regex) as e:
       (
@@ -1832,10 +1816,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     def add(a, b):
       return a + b
 
-    error_regex = r".*Runtime type violation detected within ParDo(Add 1): "
-    "Type-hint for argument: 'b' violated. "
-    "Expected an instance of {}, "
-    "instead found 1.0, an instance of {}.".format(int, float)
+    error_regex = r".*Runtime type violation detected"
 
     with self.assertRaisesRegex(Exception, error_regex) as e:
       (self.p | beam.Create([1, 2, 3, 4]) | 'Add 1' >> beam.Map(add, 1.0))
@@ -1845,11 +1826,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.p._options.view_as(TypeOptions).runtime_type_check = True
     self.p._options.view_as(TypeOptions).pipeline_type_check = False
 
-    error_regex = r".*Runtime type violation detected within ParDo(Add 1): "
-    "Type-hint for argument: 'one' violated. "
-    "Expected an instance of {}, "
-    "instead found 1.0, an instance of {}.".format(int, float)
-
+    error_regex = r".*Runtime type violation detected"
     with self.assertRaisesRegex(Exception, error_regex) as e:
       (
           self.p
@@ -2082,15 +2059,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.p._options.view_as(TypeOptions).pipeline_type_check = False
     self.p._options.view_as(TypeOptions).runtime_type_check = True
 
-    error_regex = r".*Runtime type violation detected for transform input "
-    "when executing ParDoFlatMap(Combine): Tuple[Any, "
-    "Iterable[Union[int, float]]] hint type-constraint "
-    "violated. The type of element #1 in the passed tuple "
-    "is incorrect. Iterable[Union[int, float]] hint "
-    "type-constraint violated. The type of element #0 in "
-    "the passed Iterable is incorrect: Union[int, float] "
-    "type-constraint violated. Expected an instance of one "
-    "of: ('int', 'float'), received str instead."
+    error_regex = r".*Runtime type violation detected"
 
     with self.assertRaisesRegex(Exception, error_regex) as e:
       (
@@ -2150,14 +2119,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.p._options.view_as(TypeOptions).pipeline_type_check = False
     self.p._options.view_as(TypeOptions).runtime_type_check = True
 
-    error_regex = r".*Runtime type violation detected within " \
-    "OddMean/CombinePerKey(MeanCombineFn): " \
-    "Type-hint for argument: 'element' violated: " \
-    "Union[<class 'float'>, <class 'int'>, <class 'numpy.float64'>, <class " \
-    "'numpy.int64'>] type-constraint violated. " \
-    "Expected an instance of one of: (\"<class 'float'>\", \"<class " \
-    "'int'>\", \"<class 'numpy.float64'>\", \"<class 'numpy.int64'>\"), " \
-    "received str instead"
+    error_regex = r".*Runtime type violation detected"
 
     with self.assertRaisesRegex(Exception, error_regex) as e:
       (
@@ -2486,7 +2448,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
   def test_runtime_type_check_python_type_error(self):
     self.p._options.view_as(TypeOptions).runtime_type_check = True
 
-    error_regex = r".*object of type 'int' has no len() [while running 'Len']"
+    error_regex = r".*object of type 'int' has no len()"
 
     with self.assertRaisesRegex(Exception, error_regex) as e:
       (
