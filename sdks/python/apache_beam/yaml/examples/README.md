@@ -246,3 +246,6 @@ gcloud dataflow yaml run $JOB_NAME \
 
 These examples leverage the built-in `Enrichment` transform for performing
 ML enrichments.
+
+More information can be found about aggregation transforms
+[here](https://beam.apache.org/documentation/sdks/yaml-combine/).
