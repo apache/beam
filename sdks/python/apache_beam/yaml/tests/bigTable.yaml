@@ -52,23 +52,19 @@ pipelines:
         name: CreateSampleMutations
         config:
           elements:
-            - key: b'row1' # Base64 encoded string for bytes, or ensure test runner handles 'b' prefix
-              mutations:
-                - type: b'SetCell'
-                  family_name: b'cf1'
-                  column_qualifier: b'cq1'
-                  value: b'value1_from_yaml'
-                  timestamp_micros: -1
-                - type: b'SetCell'
-                  family_name: b'cf1'
-                  column_qualifier: b'cq2'
-                  value: b'value2_from_yaml'
-            - key: b'row2'
-              mutations:
-                - type: b'SetCell'
-                  family_name: b'cf2'
-                  column_qualifier: b'cq_other'
-                  value: b'another_value_yaml'
+            - row:
+              - key: b'row1' # Base64 encoded string for bytes, or ensure test runner handles 'b' prefix
+              - type: b'SetCell'
+              - family_name: b'cf1'
+              - column_qualifier: b'cq1'
+              - value: b'value1_from_yaml'
+              - timestamp_micros: -1
+            - row:
+              - key: b'row2'
+              - type: b'SetCell'
+              - family_name: b'cf2'
+              - column_qualifier: b'cq_other'
+              - value: b'another_value_yaml'
       - type: WriteToBigTable
         name: WriteBigTableData
         input: CreateSampleMutations

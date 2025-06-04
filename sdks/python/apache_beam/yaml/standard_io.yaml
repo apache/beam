@@ -386,18 +386,11 @@
         project: 'projectId'
         instance: 'instanceId'
         table: 'tableId'
-        key: ""
-        type: ""
-        value: ""
-        columnQual: ""
-        familyName: ""
-        timestamp_micros: ""
-        start_timestamp_micros: ""
-        end_timestamp_micros: ""
+        Rows: "rows"
     underlying_provider:
       type: beamJar
       transforms:
         'ReadFromBigTable': 'beam:schematransform:org.apache.beam:bigtable_read:v1'
-        'WriteToBigTable': 'beam:schematransform:org.apache.beam:bigtable_write:v1'
+        'WriteToBigTable': 'beam:schematransform:org.apache.beam:bigtable_simple_write:v1'
       config:
         gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'

@@ -55,13 +55,13 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
 from google.cloud.bigtable import client
+from google.cloud.bigtable_admin_v2.types import instance
 
 _LOGGER = logging.getLogger(__name__)
 
 # Protect against environments where bigtable library is not available.
 try:
     from apitools.base.py.exceptions import HttpError
-    from google.cloud.bigtable import client
     from google.cloud.bigtable.row_filters import TimestampRange
     from google.cloud.bigtable.row import DirectRow, PartialRowData, Cell
     from google.cloud.bigtable.table import Table
@@ -124,20 +124,20 @@ def temp_bigtable_table(project, prefix='yaml_bt_it_'):
 
     clientT = client.Client(admin=True, project=project)
     # create cluster and instance
-    instance = clientT.instance(
+    instanceT = clientT.instance(
         instance_id,
         display_name=INSTANCE,
         instance_type=instance.Instance.Type.DEVELOPMENT)
-    cluster = instance.cluster("test-cluster", "us-central1-a")
-    operation = instance.create(clusters=[cluster])
+    cluster = instanceT.cluster("test-cluster", "us-central1-a")
+    operation = instanceT.create(clusters=[cluster])
     operation.result(timeout=500)
     _LOGGER.info(
         "Created instance [%s] in project [%s]",
-        instance.instance_id,
+        instance_id,
         project)
 
     # create table inside instance
-    table = instance.table(TABLE_ID)
+    table = instanceT.table(TABLE_ID)
     table.create()
     _LOGGER.info("Created table [%s]", table.table_id)
     if (os.environ.get('TRANSFORM_SERVICE_PORT')):
@@ -145,15 +145,9 @@ def temp_bigtable_table(project, prefix='yaml_bt_it_'):
                 'localhost:' + os.environ.get('TRANSFORM_SERVICE_PORT'))
     else:
         _transform_service_address = None
-    bigquery_client = BigQueryWrapper()
-    dataset_id = '%s_%s' % (prefix, uuid.uuid4().hex)
-    bigquery_client.get_or_create_dataset(project, dataset_id)
-    logging.info("Created dataset %s in project %s", dataset_id, project)
-    yield f'{project}.{dataset_id}.tmp_table'
-    request = bigquery.BigqueryDatasetsDeleteRequest(
-        projectId=project, datasetId=dataset_id, deleteContents=True)
-    logging.info("Deleting dataset %s in project %s", dataset_id, project)
-    bigquery_client.client.datasets.Delete(request)
+
+    yield f'{instance_id}.{project}.tmp_table'
+
 
 
 
