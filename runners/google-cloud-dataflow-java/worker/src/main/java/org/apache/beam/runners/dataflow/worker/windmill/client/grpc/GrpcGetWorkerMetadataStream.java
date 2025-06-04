@@ -101,29 +101,13 @@ public final class GrpcGetWorkerMetadataStream
     extractWindmillEndpointsFrom(response).ifPresent(serverMappingConsumer);
   }
 
-  /**
-   * Acquires the {@link #metadataLock} Returns {@link Optional<WindmillEndpoints>} if the
-   * metadataVersion in the response is not stale (older or equal to current {@link
-   * WorkerMetadataResponse#getMetadataVersion()}), else returns empty {@link Optional}.
-   */
+  /** Acquires the {@link #metadataLock} Returns {@link Optional<WindmillEndpoints>}. */
   private Optional<WindmillEndpoints> extractWindmillEndpointsFrom(
       WorkerMetadataResponse response) {
     synchronized (metadataLock) {
-      if (response.getMetadataVersion() > latestResponse.getMetadataVersion()) {
-        this.latestResponse = response;
-        return Optional.of(WindmillEndpoints.from(response));
-      } else {
-        // If the currentMetadataVersion is greater than or equal to one in the response, the
-        // response data is stale, and we do not want to do anything.
-        LOG.debug(
-            "Received metadata version={}; Current metadata version={}. "
-                + "Skipping update because received stale metadata",
-            response.getMetadataVersion(),
-            latestResponse.getMetadataVersion());
-      }
+      this.latestResponse = response;
+      return Optional.of(WindmillEndpoints.from(response));
     }
-
-    return Optional.empty();
   }
 
   @Override
@@ -148,7 +132,7 @@ public final class GrpcGetWorkerMetadataStream
   protected void appendSpecificHtml(PrintWriter writer) {
     synchronized (metadataLock) {
       writer.format(
-          "GetWorkerMetadataStream:  job_header=[%s], current_metadata=[%s]",
+          "GetWorkerMetadataStream:  job_header=[%s], latest_recieved_metadata=[%s]",
           workerMetadataRequest.getHeader(), latestResponse);
     }
   }
