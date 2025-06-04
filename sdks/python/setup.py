@@ -468,7 +468,7 @@ if __name__ == '__main__':
           'interactive': [
               'facets-overview>=1.1.0,<2',
               'google-cloud-dataproc>=5.0.0,<6',
-              'ipython>=8,<9',
+              'ipython>=7,<9',
               'ipykernel>=6,<7',
               'ipywidgets>=8,<9',
               # Skip version 6.1.13 due to
