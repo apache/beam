@@ -669,6 +669,7 @@ def create_test_methods(spec):
 # Add bigTable, if not big table it skips (temporarily)
 def parse_test_files(filepattern):
   for path in glob.glob(filepattern):
+      # get rid of this before PR
     if "bigTable" in path:
         with open(path) as fin:
           suite_name = os.path.splitext(os.path.basename(path))[0].title().replace(
