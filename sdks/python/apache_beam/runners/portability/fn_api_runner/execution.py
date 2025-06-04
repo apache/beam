@@ -251,7 +251,8 @@ class GroupingBuffer(object):
                 index=0,
                 nonspeculative_index=0)).with_value
         windowed_key_values = lambda key, values: [
-            globally_window((key, values))]
+            globally_window((key, values))
+        ]
       else:
         # TODO(pabloem, BEAM-7514): Trigger driver needs access to the clock
         #   note that this only comes through if windowing is default - but what
@@ -1169,8 +1170,8 @@ class BundleContextManager(object):
           input_pcoll in proto.outputs.values()):
         return read_id
       # The GrpcRead is followed by the SDF/Truncate -> SDF/Process.
-      if (proto.spec.urn ==
-          common_urns.sdf_components.TRUNCATE_SIZED_RESTRICTION.urn and
+      if (proto.spec.urn
+          == common_urns.sdf_components.TRUNCATE_SIZED_RESTRICTION.urn and
           input_pcoll in proto.outputs.values()):
         read_input = list(
             self.process_bundle_descriptor.transforms[read_id].inputs.values()

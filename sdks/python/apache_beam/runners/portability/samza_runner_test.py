@@ -145,7 +145,9 @@ class SamzaRunnerTest(portable_runner_test.PortableRunnerTest):
   def test_flatten_and_gbk(self):
     # Blocked on support for transcoding
     # https://github.com/apache/beam/issues/20984
-    super().test_flatten_and_gbk(with_transcoding=False)
+    # Also blocked on support of flatten and groupby sharing the same input
+    # https://github.com/apache/beam/issues/34647
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/34647")
 
   def test_pack_combiners(self):
     # Stages produced by translations.pack_combiners are fused
@@ -183,6 +185,9 @@ class SamzaRunnerTest(portable_runner_test.PortableRunnerTest):
 
   def test_custom_window_type(self):
     raise unittest.SkipTest("https://github.com/apache/beam/issues/21049")
+
+  def test_reshuffle_after_custom_window(self):
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/34831")
 
 
 if __name__ == '__main__':

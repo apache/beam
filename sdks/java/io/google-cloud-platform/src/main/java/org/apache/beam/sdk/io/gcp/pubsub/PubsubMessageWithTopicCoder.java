@@ -30,7 +30,12 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/** A coder for PubsubMessage including the topic from the PubSub server. */
+/**
+ * A coder for PubsubMessage including the topic from the PubSub server.
+ *
+ * <p>Maintainers should prefer {@link PubsubMessageSchemaCoder} over this coder when adding
+ * features to {@link PubsubIO}.
+ */
 public class PubsubMessageWithTopicCoder extends CustomCoder<PubsubMessage> {
   // A message's payload cannot be null
   private static final Coder<byte[]> PAYLOAD_CODER = ByteArrayCoder.of();

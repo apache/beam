@@ -164,7 +164,7 @@ public class BeamFnDataWriteRunnerTest {
                     .build())
             .build();
 
-    new BeamFnDataWriteRunner.Factory<String>().createRunnerForPTransform(context);
+    new BeamFnDataWriteRunner.Factory().addRunnerForPTransform(context);
 
     assertThat(context.getPCollectionConsumers().keySet(), containsInAnyOrder(localInputId));
 

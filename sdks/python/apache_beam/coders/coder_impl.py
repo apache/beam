@@ -679,8 +679,7 @@ class MapCoderImpl(StreamCoderImpl):
       self,
       key_coder,  # type: CoderImpl
       value_coder,  # type: CoderImpl
-      is_deterministic = False
-  ):
+      is_deterministic=False):
     self._key_coder = key_coder
     self._value_coder = value_coder
     self._is_deterministic = is_deterministic
@@ -1061,8 +1060,8 @@ class AbstractComponentCoderImpl(StreamCoderImpl):
     # type: (create_InputStream, bool) -> Any
     return self._construct_from_components([
         c.decode_from_stream(
-            in_stream, nested or i + 1 < len(self._coder_impls)) for i,
-        c in enumerate(self._coder_impls)
+            in_stream, nested or i + 1 < len(self._coder_impls))
+        for i, c in enumerate(self._coder_impls)
     ])
 
   def estimate_size(self, value, nested=False):
@@ -1890,8 +1889,7 @@ class RowCoderImpl(StreamCoderImpl):
         RowColumnEncoder.create(
             self.schema.fields[i].type.atomic_type,
             self.components[i],
-            columns[name]) for i,
-        name in enumerate(self.field_names)
+            columns[name]) for i, name in enumerate(self.field_names)
     ]
 
   def encode_batch_to_stream(self, columns: Dict[str, np.ndarray], out):

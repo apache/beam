@@ -71,6 +71,7 @@ public class EvaluationContext {
       new HashMap<>();
   private final PipelineOptions options;
   private final SerializablePipelineOptions serializableOptions;
+  private boolean streamingSideInput = false;
 
   public EvaluationContext(JavaSparkContext jsc, Pipeline pipeline, PipelineOptions options) {
     this.jsc = jsc;
@@ -357,5 +358,32 @@ public class EvaluationContext {
 
   public String storageLevel() {
     return serializableOptions.get().as(SparkPipelineOptions.class).getStorageLevel();
+  }
+
+  /**
+   * Checks if any of the side inputs in the pipeline are streaming side inputs.
+   *
+   * <p>If at least one of the side inputs is a streaming side input, this method returns true. When
+   * streaming side inputs are present, the {@link
+   * org.apache.beam.runners.spark.util.CachedSideInputReader} will not be used.
+   *
+   * @return true if any of the side inputs in the pipeline are streaming side inputs, false
+   *     otherwise
+   */
+  public boolean isStreamingSideInput() {
+    return streamingSideInput;
+  }
+
+  /**
+   * Marks that the pipeline contains at least one streaming side input.
+   *
+   * <p>When this method is called, it sets the streamingSideInput flag to true, indicating that the
+   * {@link org.apache.beam.runners.spark.util.CachedSideInputReader} should not be used for
+   * processing side inputs.
+   */
+  public void useStreamingSideInput() {
+    if (!this.streamingSideInput) {
+      this.streamingSideInput = true;
+    }
   }
 }

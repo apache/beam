@@ -128,7 +128,7 @@ public class PartitionMetadataAdminDao {
               + COLUMN_PARTITION_TOKEN
               + "\" text NOT NULL,\""
               + COLUMN_PARENT_TOKENS
-              + "\" text[] NOT NULL,\""
+              + "\" text[],\""
               + COLUMN_START_TIMESTAMP
               + "\" timestamptz NOT NULL,\""
               + COLUMN_END_TIMESTAMP
@@ -184,7 +184,7 @@ public class PartitionMetadataAdminDao {
               + COLUMN_PARTITION_TOKEN
               + " STRING(MAX) NOT NULL,"
               + COLUMN_PARENT_TOKENS
-              + " ARRAY<STRING(MAX)> NOT NULL,"
+              + " ARRAY<STRING(MAX)>,"
               + COLUMN_START_TIMESTAMP
               + " TIMESTAMP NOT NULL,"
               + COLUMN_END_TIMESTAMP

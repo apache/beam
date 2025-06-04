@@ -31,7 +31,6 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -72,6 +71,7 @@ import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.schemas.transforms.Convert;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.Impulse;
@@ -95,6 +95,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.WallTim
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.construction.PTransformMatchers;
 import org.apache.beam.sdk.util.construction.ReplacementOutputs;
+import org.apache.beam.sdk.util.construction.TransformUpgrader;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -106,7 +107,6 @@ import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Comparators;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.kafka.clients.CommonClientConfigs;
@@ -744,6 +744,9 @@ public class KafkaIO {
     @Pure
     public abstract long getConsumerPollingTimeout();
 
+    @Pure
+    public abstract @Nullable Boolean getLogTopicVerification();
+
     abstract Builder<K, V> toBuilder();
 
     @AutoValue.Builder
@@ -809,6 +812,8 @@ public class KafkaIO {
       }
 
       abstract Builder<K, V> setConsumerPollingTimeout(long consumerPollingTimeout);
+
+      abstract Builder<K, V> setLogTopicVerification(@Nullable Boolean logTopicVerification);
 
       abstract Read<K, V> build();
 
@@ -1483,6 +1488,10 @@ public class KafkaIO {
               "org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required;"));
     }
 
+    public Read<K, V> withTopicVerificationLogging(boolean logTopicVerification) {
+      return toBuilder().setLogTopicVerification(logTopicVerification).build();
+    }
+
     /** Returns a {@link PTransform} for PCollection of {@link KV}, dropping Kafka metatdata. */
     public PTransform<PBegin, PCollection<KV<K, V>>> withoutMetadata() {
       return new TypedWithoutMetadata<>(this);
@@ -1834,11 +1843,27 @@ public class KafkaIO {
                       kafkaRead.getStartReadTime(),
                       kafkaRead.getStopReadTime()));
         } else {
-          output =
+          String requestedVersionString =
               input
                   .getPipeline()
-                  .apply(Impulse.create())
-                  .apply(ParDo.of(new GenerateKafkaSourceDescriptor(kafkaRead)));
+                  .getOptions()
+                  .as(StreamingOptions.class)
+                  .getUpdateCompatibilityVersion();
+          if (requestedVersionString != null
+              && TransformUpgrader.compareVersions(requestedVersionString, "2.66.0") < 0) {
+            // Use discouraged Impulse for backwards compatibility with previous released versions.
+            output =
+                input
+                    .getPipeline()
+                    .apply(Impulse.create())
+                    .apply(ParDo.of(new GenerateKafkaSourceDescriptor(kafkaRead)));
+          } else {
+            output =
+                input
+                    .getPipeline()
+                    .apply(Create.of(new byte[0]).withCoder(ByteArrayCoder.of()))
+                    .apply(ParDo.of(new GenerateKafkaSourceDescriptor(kafkaRead)));
+          }
         }
         if (kafkaRead.isRedistributed()) {
           PCollection<KafkaRecord<K, V>> pcol =
@@ -1874,6 +1899,7 @@ public class KafkaIO {
         this.topicPattern = read.getTopicPattern();
         this.startReadTime = read.getStartReadTime();
         this.stopReadTime = read.getStopReadTime();
+        this.logTopicVerification = read.getLogTopicVerification();
       }
 
       private final SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
@@ -1890,6 +1916,7 @@ public class KafkaIO {
       @VisibleForTesting final @Nullable List<String> topics;
 
       private final @Nullable Pattern topicPattern;
+      private final @Nullable Boolean logTopicVerification;
 
       @ProcessElement
       public void processElement(OutputReceiver<KafkaSourceDescriptor> receiver) {
@@ -1910,7 +1937,22 @@ public class KafkaIO {
               }
             } else {
               for (String topic : topics) {
-                for (PartitionInfo p : consumer.partitionsFor(topic)) {
+                List<PartitionInfo> partitionInfoList = consumer.partitionsFor(topic);
+                if (logTopicVerification == null || !logTopicVerification) {
+                  checkState(
+                      partitionInfoList != null && !partitionInfoList.isEmpty(),
+                      "Could not find any partitions info for topic "
+                          + topic
+                          + ". Please check Kafka configuration and make sure "
+                          + "that provided topics exist.");
+                } else {
+                  LOG.warn(
+                      "Could not find any partitions info for topic {}. Please check Kafka configuration "
+                          + "and make sure that the provided topics exist.",
+                      topic);
+                }
+
+                for (PartitionInfo p : partitionInfoList) {
                   partitions.add(new TopicPartition(p.topic(), p.partition()));
                 }
               }
@@ -2779,30 +2821,24 @@ public class KafkaIO {
                 .getOptions()
                 .as(StreamingOptions.class)
                 .getUpdateCompatibilityVersion();
-        if (requestedVersionString != null) {
-          List<String> requestedVersion = Arrays.asList(requestedVersionString.split("\\."));
-          List<String> targetVersion = Arrays.asList("2", "60", "0");
+        if (requestedVersionString != null
+            && TransformUpgrader.compareVersions(requestedVersionString, "2.60.0") < 0) {
+          // Redistribute is not allowed with commits prior to 2.59.0, since there is a Reshuffle
+          // prior to the redistribute. The reshuffle will occur before commits are offsetted and
+          // before outputting KafkaRecords. Adding a redistribute then afterwards doesn't provide
+          // additional performance benefit.
+          checkArgument(
+              !isRedistribute(),
+              "Can not enable isRedistribute() while committing offsets prior to 2.60.0");
 
-          if (Comparators.lexicographical(Comparator.<String>naturalOrder())
-                  .compare(requestedVersion, targetVersion)
-              < 0) {
-            // Redistribute is not allowed with commits prior to 2.59.0, since there is a Reshuffle
-            // prior to the redistribute. The reshuffle will occur before commits are offsetted and
-            // before outputting KafkaRecords. Adding a redistribute then afterwards doesn't provide
-            // additional performance benefit.
-            checkArgument(
-                !isRedistribute(),
-                "Can not enable isRedistribute() while committing offsets prior to "
-                    + String.join(".", targetVersion));
-
-            return expand259Commits(
-                outputWithDescriptor, recordCoder, input.getPipeline().getSchemaRegistry());
-          }
+          return expand259Commits(
+              outputWithDescriptor, recordCoder, input.getPipeline().getSchemaRegistry());
+        } else {
+          outputWithDescriptor.apply(new KafkaCommitOffset<>(this, false)).setCoder(VoidCoder.of());
+          return outputWithDescriptor
+              .apply(MapElements.into(new TypeDescriptor<KafkaRecord<K, V>>() {}).via(KV::getValue))
+              .setCoder(recordCoder);
         }
-        outputWithDescriptor.apply(new KafkaCommitOffset<>(this, false)).setCoder(VoidCoder.of());
-        return outputWithDescriptor
-            .apply(MapElements.into(new TypeDescriptor<KafkaRecord<K, V>>() {}).via(KV::getValue))
-            .setCoder(recordCoder);
       } catch (NoSuchSchemaException e) {
         throw new RuntimeException(e.getMessage());
       }

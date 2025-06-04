@@ -51,8 +51,7 @@ def map_side_inputs_iter(test=None):
             '# 🥔Potato\n',
         ])
         | 'Strip header' >> beam.Map(
-            lambda text,
-            chars: text.strip(''.join(chars)),
+            lambda text, chars: text.strip(''.join(chars)),
             chars=beam.pvalue.AsIter(chars),
         )
         | beam.Map(print))

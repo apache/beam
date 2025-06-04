@@ -397,9 +397,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     pc = p | beam.Create([])
 
     transform = beam.Map(
-        lambda x,
-        y,
-        z: (x, y, z),
+        lambda x, y, z: (x, y, z),
         beam.pvalue.AsSingleton(pc),
         beam.pvalue.AsMultiMap(pc))
     applied_transform = AppliedPTransform(

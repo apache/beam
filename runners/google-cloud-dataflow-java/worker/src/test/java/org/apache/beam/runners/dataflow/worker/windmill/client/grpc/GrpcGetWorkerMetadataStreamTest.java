@@ -38,7 +38,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataR
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillEndpoints;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException;
-import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.inprocess.InProcessChannelBuilder;
@@ -93,7 +92,6 @@ public class GrpcGetWorkerMetadataStreamTest {
         (GrpcGetWorkerMetadataStream)
             streamFactory.createGetWorkerMetadataStream(
                 () -> CloudWindmillMetadataServiceV1Alpha1Grpc.newStub(inProcessChannel),
-                new ThrottleTimer(),
                 endpointsConsumer);
     getWorkerMetadataStream.start();
     return getWorkerMetadataStream;

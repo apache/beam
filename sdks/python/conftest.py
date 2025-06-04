@@ -22,7 +22,7 @@ import sys
 from apache_beam.options import pipeline_options
 from apache_beam.testing.test_pipeline import TestPipeline
 
-MAX_SUPPORTED_PYTHON_VERSION = (3, 8)
+MAX_SUPPORTED_PYTHON_VERSION = (3, 13)
 
 
 def pytest_addoption(parser):

@@ -34,6 +34,8 @@ on:
       - '.github/workflows/tour_of_beam_backend_integration.yml'
       - 'learning/tour-of-beam/backend/**'
       - 'playground/backend/**'
+  schedule:
+    - cron: '0 10 * * 6'
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:

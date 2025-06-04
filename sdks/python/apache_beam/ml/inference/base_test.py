@@ -23,12 +23,11 @@ import sys
 import tempfile
 import time
 import unittest
+from collections.abc import Iterable
+from collections.abc import Mapping
+from collections.abc import Sequence
 from typing import Any
-from typing import Dict
-from typing import Iterable
-from typing import Mapping
 from typing import Optional
-from typing import Sequence
 from typing import Union
 
 import pytest
@@ -773,9 +772,8 @@ class RunInferenceBaseTest(unittest.TestCase):
     with TestPipeline() as pipeline:
       examples = [1, 5, 3, 10]
       keyed_examples = [(i, example) for i, example in enumerate(examples)]
-      expected = [
-          (i, ((example * 2) + 1) * 2) for i, example in enumerate(examples)
-      ]
+      expected = [(i, ((example * 2) + 1) * 2)
+                  for i, example in enumerate(examples)]
       pcoll = pipeline | 'start' >> beam.Create(keyed_examples)
       actual = pcoll | base.RunInference(
           base.KeyedModelHandler(FakeModelHandler()).with_preprocess_fn(
@@ -793,9 +791,8 @@ class RunInferenceBaseTest(unittest.TestCase):
       examples = [1, 5, 3, 10]
       keyed_examples = [(i, example) for i, example in enumerate(examples)]
       expected = [((2 * example) + 1) * 2 for example in examples]
-      keyed_expected = [
-          (i, ((2 * example) + 1) * 2) for i, example in enumerate(examples)
-      ]
+      keyed_expected = [(i, ((2 * example) + 1) * 2)
+                        for i, example in enumerate(examples)]
       model_handler = base.MaybeKeyedModelHandler(FakeModelHandler())
 
       pcoll = pipeline | 'Unkeyed' >> beam.Create(examples)
@@ -1081,7 +1078,7 @@ class RunInferenceBaseTest(unittest.TestCase):
           self,
           batch: Sequence[int],
           model: FakeModel,
-          inference_args: Optional[Dict[str, Any]] = None) -> Iterable[int]:
+          inference_args: Optional[dict[str, Any]] = None) -> Iterable[int]:
         yield 0
 
       def get_num_bytes(self, batch: Sequence[int]) -> int:
@@ -1097,7 +1094,7 @@ class RunInferenceBaseTest(unittest.TestCase):
         return {}
 
       def validate_inference_args(
-          self, inference_args: Optional[Dict[str, Any]]):
+          self, inference_args: Optional[dict[str, Any]]):
         pass
 
     # This test passes if calling these methods does not cause

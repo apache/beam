@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubIO.ENABLE_CUSTOM_PUBSUB_SINK;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubIO.ENABLE_CUSTOM_PUBSUB_SOURCE;
+import static org.apache.beam.sdk.options.ExperimentalOptions.hasExperiment;
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
 import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
@@ -491,23 +492,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               + "' invalid. Please make sure the value is non-negative.");
     }
 
-    // Verify that if recordJfrOnGcThrashing is set, the pipeline is at least on java 11
-    if (dataflowOptions.getRecordJfrOnGcThrashing()
-        && Environments.getJavaVersion() == Environments.JavaVersion.java8) {
-      throw new IllegalArgumentException(
-          "recordJfrOnGcThrashing is only supported on java 9 and up.");
-    }
-
     if (dataflowOptions.isStreaming() && dataflowOptions.getGcsUploadBufferSizeBytes() == null) {
       dataflowOptions.setGcsUploadBufferSizeBytes(GCS_UPLOAD_BUFFER_SIZE_BYTES_DEFAULT);
     }
 
     // Adding the Java version to the SDK name for user's and support convenience.
-    String agentJavaVer = "(JRE 8 environment)";
-    if (Environments.getJavaVersion() != Environments.JavaVersion.java8) {
-      agentJavaVer =
-          String.format("(JRE %s environment)", Environments.getJavaVersion().specification());
-    }
+    String agentJavaVer =
+        String.format("(JRE %s environment)", Environments.getJavaVersion().specification());
 
     DataflowRunnerInfo dataflowRunnerInfo = DataflowRunnerInfo.getDataflowRunnerInfo();
     String userAgentName = dataflowRunnerInfo.getName();
@@ -2150,6 +2141,15 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         PubsubUnboundedSink overriddenTransform,
         StepTranslationContext stepContext,
         PCollection input) {
+      if (overriddenTransform.getPublishBatchWithOrderingKey()) {
+        throw new UnsupportedOperationException(
+            String.format(
+                "The DataflowRunner does not currently support publishing to Pubsub with ordering keys. "
+                    + "%s is required to support publishing with ordering keys. "
+                    + "Set the pipeline option --experiments=%s to use this PTransform. "
+                    + "See https://issuetracker.google.com/issues/200955424 for current status.",
+                PubsubUnboundedSink.class.getSimpleName(), ENABLE_CUSTOM_PUBSUB_SINK));
+      }
       stepContext.addInput(PropertyNames.FORMAT, "pubsub");
       if (overriddenTransform.getTopicProvider() != null) {
         if (overriddenTransform.getTopicProvider().isAccessible()) {

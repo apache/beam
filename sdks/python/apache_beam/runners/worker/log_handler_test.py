@@ -316,8 +316,7 @@ data = {
 def _create_test(name, num_logs):
   setattr(
       FnApiLogRecordHandlerTest,
-      'test_%s' % name,
-      lambda self: self._verify_fn_log_handler(num_logs))
+      'test_%s' % name, lambda self: self._verify_fn_log_handler(num_logs))
 
 
 for test_name, num_logs_entries in data.items():

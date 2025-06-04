@@ -18,8 +18,14 @@ limitations under the License.
 
 # Pytorch Vision Classification with Resnet 152 Performance
 
+**Model**: PyTorch Vision Classification — ResNet-152
+**Accelerator**: CPU only
+**Host**: 75 × n1-standard-2 (2 vCPUs, 7.5 GB RAM)
+
 The following graphs show various metrics when running Pytorch Vision Classification with Resnet 152 pipeline.
 See the [glossary](/performance/glossary) for definitions.
+
+Full pipeline implementation is available [here](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/pytorch_image_classification.py).
 
 ## What is the estimated cost to run the pipeline?
 
