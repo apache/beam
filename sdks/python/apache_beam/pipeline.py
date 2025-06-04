@@ -797,6 +797,11 @@ class Pipeline(HasDisplayData):
       type_options = self._options.view_as(TypeOptions)
       if type_options.pipeline_type_check:
         transform.type_check_inputs(pvalueish)
+      if isinstance(pvalueish, pvalue.PBegin) and isinstance(transform, ParDo):
+        full_label = self._current_transform().full_label
+        raise TypeCheckError(
+            f"Transform '{full_label}' expects a PCollection as input. "
+            "Got a PBegin/Pipeline instead.")
 
       pvalueish_result = self.runner.apply(transform, pvalueish, self._options)
 
