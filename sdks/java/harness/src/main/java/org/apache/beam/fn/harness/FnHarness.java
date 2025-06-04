@@ -65,6 +65,7 @@ import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.SdkHarnessOptions;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.BeamUrns;
 import org.apache.beam.sdk.util.construction.CoderTranslation;
@@ -198,8 +199,9 @@ public class FnHarness {
             ? Collections.emptySet()
             : ImmutableSet.copyOf(runnerCapabilitesOrNull.split("\\s+"));
 
-    if(runnerCapabilites.contains(BeamUrns.getUrn(StandardProtocols.Enum.ELEMENT_METADATA))){
+    if (runnerCapabilites.contains(BeamUrns.getUrn(StandardProtocols.Enum.ELEMENT_METADATA))) {
       WindowedValue.FullWindowedValueCoder.setMetadataSupported();
+      PaneInfo.PaneInfoCoder.setMetadataSupported();
     }
 
     main(
