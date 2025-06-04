@@ -544,14 +544,12 @@ public final class FirestoreV1 {
      */
     public Write withProjectId(String projectId) {
       checkArgument(projectId != null, "projectId can not be null");
-      // return new Write(projectId, this.databaseId);
       this.projectId = projectId;
       return this;
     }
 
     public Write withDatabaseId(String databaseId) {
       checkArgument(databaseId != null, "databaseId can not be null");
-      // return new Write(this.projectId, databaseId);
       this.databaseId = databaseId;
       return this;
     }
