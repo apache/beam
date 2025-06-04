@@ -17,9 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.protobuf;
 
-import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
-
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.Descriptors.EnumValueDescriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
@@ -44,6 +41,8 @@ import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.NanosDuration;
 import org.apache.beam.sdk.schemas.logicaltypes.NanosInstant;
 import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
@@ -207,7 +206,7 @@ class ProtoSchemaTranslator {
         subFields.add(
             withFieldNumber(
                 Field.nullable(fieldDescriptor.getName(), fieldType), fieldDescriptor.getNumber()));
-        checkArgument(
+        Preconditions.checkArgument(
             enumIds.putIfAbsent(fieldDescriptor.getName(), fieldDescriptor.getNumber()) == null);
       }
       FieldType oneOfType = FieldType.logicalType(OneOfType.create(subFields, enumIds));
@@ -382,34 +381,38 @@ class ProtoSchemaTranslator {
     Schema.Options.Builder optionsBuilder = Schema.Options.builder();
     for (Map.Entry<FieldDescriptor, Object> entry : allFields.entrySet()) {
       FieldDescriptor fieldDescriptor = entry.getKey();
-      FieldType fieldType = beamFieldTypeFromProtoField(fieldDescriptor);
-
-      switch (fieldType.getTypeName()) {
-        case BYTE:
-        case BYTES:
-        case INT16:
-        case INT32:
-        case INT64:
-        case DECIMAL:
-        case FLOAT:
-        case DOUBLE:
-        case STRING:
-        case BOOLEAN:
-        case LOGICAL_TYPE:
-        case ROW:
-        case ARRAY:
-        case ITERABLE:
-          Field field = Field.of("OPTION", fieldType);
-          ProtoDynamicMessageSchema schema = ProtoDynamicMessageSchema.forSchema(Schema.of(field));
-          @SuppressWarnings("rawtypes")
-          ProtoDynamicMessageSchema.Convert convert = schema.createConverter(field);
-          Object value = checkArgumentNotNull(convert.convertFromProtoValue(entry.getValue()));
-          optionsBuilder.setOption(prefix + fieldDescriptor.getFullName(), fieldType, value);
-          break;
-        case MAP:
-        case DATETIME:
-        default:
-          throw new IllegalStateException("These datatypes are not possible in extentions.");
+      try {
+        FieldType fieldType = beamFieldTypeFromProtoField(fieldDescriptor);
+        switch (fieldType.getTypeName()) {
+          case BYTE:
+          case BYTES:
+          case INT16:
+          case INT32:
+          case INT64:
+          case DECIMAL:
+          case FLOAT:
+          case DOUBLE:
+          case STRING:
+          case BOOLEAN:
+          case LOGICAL_TYPE:
+          case ROW:
+          case ARRAY:
+          case ITERABLE:
+            @SuppressWarnings("unchecked")
+            ProtoBeamConverter.BeamConverter<Object, ?> beamConverter =
+                (ProtoBeamConverter.BeamConverter<Object, ?>)
+                    ProtoBeamConverter.createBeamConverter(fieldType);
+            Object value = Preconditions.checkNotNull(beamConverter.convert(entry.getValue()));
+            optionsBuilder.setOption(prefix + fieldDescriptor.getFullName(), fieldType, value);
+            break;
+          case MAP:
+          case DATETIME:
+          default:
+            throw new IllegalStateException("These datatypes are not possible in extentions.");
+        }
+      } catch (RuntimeException e) {
+        throw new RuntimeException(
+            Strings.lenientFormat("Failed to parse option for %s", fieldDescriptor.getName()), e);
       }
     }
     return optionsBuilder;
