@@ -124,7 +124,7 @@ tasks.register("generateYamlDocs") {
   outputs.file "${buildDir}/yaml-examples.html"
 }
 
-tasks.register("preCommitYamlIntegrationTests") {
+tasks.register("yamlIntegrationTests") {
   description "Runs precommit integration tests for yaml pipelines."
 
   dependsOn installGcpTest
