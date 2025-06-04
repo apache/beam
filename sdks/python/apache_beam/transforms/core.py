@@ -810,8 +810,7 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn, Generic[InputT, Outp
           != typehints.decorators.IOTypeHints.empty().output_types):
         if (process_type_hints.output_types
             != typehints.decorators.IOTypeHints.empty().output_types and
-            process_batch_type_hints.output_types
-            != process_type_hints.output_types):
+            issubclass(process_batch_type_hints.output_types, process_type_hints.output_types)):
           raise TypeError(
               f"DoFn {self!r} yields element from both process and "
               "process_batch, but they have mismatched output typehints:\n"
