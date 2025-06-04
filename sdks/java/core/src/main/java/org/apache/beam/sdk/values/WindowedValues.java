@@ -71,8 +71,6 @@ public class WindowedValues {
       @Nullable ElementMetadata elementMetadata) {
     checkArgument(pane != null, "WindowedValue requires PaneInfo, but it was null");
     checkArgument(windows.size() > 0, "WindowedValue requires windows, but there were none");
-    checkArgument(
-        pane.isElementMetadata() == (elementMetadata != null), "Element metadata mismatch");
     if (windows.size() == 1) {
       return of(value, timestamp, windows.iterator().next(), pane, elementMetadata);
     } else {
@@ -689,7 +687,7 @@ public class WindowedValues {
       PaneInfoCoder.INSTANCE.encode(windowedElem.getPane(), outStream);
       if (metadataSupported) {
         // propagate metadata only if runner and other environments support this capability
-        ElementMetadata elementMetadata = windowedElem.getElementMetadata();
+        // ElementMetadata elementMetadata = windowedElem.getElementMetadata();
         BeamFnApi.Elements.ElementMetadata.Builder builder =
             BeamFnApi.Elements.ElementMetadata.newBuilder();
         BeamFnApi.Elements.ElementMetadata em = builder.build();
@@ -713,9 +711,12 @@ public class WindowedValues {
       ElementMetadata elementMetadata = ElementMetadata.create();
       if (metadataSupported && pane.isElementMetadata()) {
         // read metadata only if runner and other environments support this capability
+        // read metadata only if pane has provided information about additional metadata
         BeamFnApi.Elements.ElementMetadata metadata =
             BeamFnApi.Elements.ElementMetadata.parseDelimitedFrom(inStream);
-        elementMetadata = ElementMetadata.create();
+        if (metadata != null) {
+          elementMetadata = ElementMetadata.create();
+        }
       }
       T value = valueCoder.decode(inStream, context);
       // todo add support for metadata
