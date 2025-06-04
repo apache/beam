@@ -53,6 +53,7 @@ type element struct {
 	// No synchronization is required in specifying this,
 	// since keyed elements are only processed by a single bundle at a time,
 	// if stateful stages are concerned.
+	// If a timer element has sequence set to -1, it means it is being cleared.
 	sequence int
 
 	elmBytes []byte // When nil, indicates this is a timer.
@@ -959,11 +960,6 @@ func (em *ElementManager) triageTimers(d TentativeData, inputInfo PColInfo, stag
 				for _, e := range ret.elms {
 					keyToTimers[timerKey{key: string(ret.keyBytes), tag: ret.tag, win: e.window}] = e
 				}
-				if len(ret.elms) == 0 {
-					for _, w := range ret.windows {
-						delete(keyToTimers, timerKey{key: string(ret.keyBytes), tag: ret.tag, win: w})
-					}
-				}
 				// Indicate we'd like to continue iterating.
 				return true
 			})
@@ -1347,16 +1343,23 @@ func (*statefulStageKind) addPending(ss *stageState, em *ElementManager, newPend
 		if e.IsTimer() {
 			if lastSet, ok := dnt.timers[timerKey{family: e.family, tag: e.tag, window: e.window}]; ok {
 				// existing timer!
-				// don't increase the count this time, as "this" timer is already pending.
+				// don't increase the count this time, as "e" is already pending.
 				count--
 				// clear out the existing hold for accounting purposes.
 				ss.watermarkHolds.Drop(lastSet.hold, 1)
 			}
-			// Update the last set time on the timer.
-			dnt.timers[timerKey{family: e.family, tag: e.tag, window: e.window}] = timerTimes{firing: e.timestamp, hold: e.holdTimestamp}
+			if e.sequence >= 0 {
+				// Update the last set time on the timer.
+				dnt.timers[timerKey{family: e.family, tag: e.tag, window: e.window}] = timerTimes{firing: e.timestamp, hold: e.holdTimestamp}
 
-			// Mark the hold in the heap.
-			ss.watermarkHolds.Add(e.holdTimestamp, 1)
+				// Mark the hold in the heap.
+				ss.watermarkHolds.Add(e.holdTimestamp, 1)
+			} else {
+				// decrement the pending count since "e" is not a real timer (merely a clearing signal)
+				count--
+				// timer is to be cleared
+				delete(dnt.timers, timerKey{family: e.family, tag: e.tag, window: e.window})
+			}
 		}
 	}
 	return count
@@ -1646,6 +1649,12 @@ keysPerBundle:
 				if e.timestamp != lastSet.firing {
 					timerCleared = true
 					continue
+				}
+				if e.timestamp > watermark {
+					// We don't trigger a timer when its firing timestamp is over watermark.
+					// Push the timer back so we won't lose it.
+					heap.Push(&dnt.elements, e)
+					break
 				}
 				holdsInBundle[e.holdTimestamp]++
 				// Clear the "fired" timer so subsequent matches can be ignored.

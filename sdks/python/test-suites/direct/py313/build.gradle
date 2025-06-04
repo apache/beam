@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-project.ext {
-    imageJavaVersion = '8'
-}
+plugins { id 'org.apache.beam.module' }
+applyPythonNature()
 
-// Load the main build script which contains all build logic.
-apply from: "../common.gradle"
+// Required to setup a Python 3 virtualenv and task names.
+pythonVersion = '3.13'
+apply from: '../common.gradle'

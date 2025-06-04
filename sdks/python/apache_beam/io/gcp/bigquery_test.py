@@ -46,6 +46,7 @@ from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.gcp import bigquery as beam_bq
 from apache_beam.io.gcp import bigquery_tools
+from apache_beam.io.gcp.bigquery import MAX_INSERT_RETRIES
 from apache_beam.io.gcp.bigquery import ReadFromBigQuery
 from apache_beam.io.gcp.bigquery import TableRowJsonCoder
 from apache_beam.io.gcp.bigquery import WriteToBigQuery
@@ -1092,6 +1093,23 @@ class TestWriteToBigQuery(unittest.TestCase):
       expected_failed_rows = [(table, rows[2])]
       assert_that(failed_rows.failed_rows, equal_to(expected_failed_rows))
     self.assertEqual(2, mock_insert.call_count)
+
+  def test_max_retries_exceeds_limit(self):
+    table = 'project:dataset.table'
+    rows = [{'columnA': 'value1'}, {'columnA': 'value2'}]
+    with beam.Pipeline() as p:
+      data = p | beam.Create(rows)
+
+      with self.assertRaises(ValueError) as context:
+        _ = data | 'WriteToBQ' >> WriteToBigQuery(
+            table=table,
+            schema='columnA:STRING',
+            method='STREAMING_INSERTS',
+            max_retries=MAX_INSERT_RETRIES + 1  # Exceeds the limit of 10000
+        )
+
+        self.assertIn(
+            'max_retries cannot be more than 10000', str(context.exception))
 
   @parameterized.expand([
       param(
