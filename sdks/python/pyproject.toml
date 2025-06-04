@@ -36,7 +36,6 @@ requires = [
     # also update Jinja2 bounds in test-suites/xlang/build.gradle (look for xlangWrapperValidation task)
     "jinja2>=2.7.1,<4.0.0",
     'yapf==0.43.0',
-    'importlib-resources==6.5.2'
 ]
 
 
