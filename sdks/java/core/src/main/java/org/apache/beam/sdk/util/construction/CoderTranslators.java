@@ -249,8 +249,9 @@ class CoderTranslators {
         overrideEncodingPositions(Preconditions.checkArgumentNotNull(fieldType.getMapValueType()));
         break;
       case LOGICAL_TYPE:
-        Schema.LogicalType logicalType =
-            Preconditions.checkArgumentNotNull(fieldType.getLogicalType());
+        Schema.LogicalType<Object, Object> logicalType =
+            (Schema.LogicalType<Object, Object>)
+                Preconditions.checkArgumentNotNull(fieldType.getLogicalType());
         @Nullable Schema.FieldType argumentType = logicalType.getArgumentType();
         if (argumentType != null) {
           overrideEncodingPositions(argumentType);
