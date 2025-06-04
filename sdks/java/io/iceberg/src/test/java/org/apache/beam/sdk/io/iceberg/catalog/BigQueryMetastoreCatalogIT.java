@@ -126,9 +126,8 @@ public class BigQueryMetastoreCatalogIT extends IcebergCatalogBaseIT {
     pipeline.run().waitUntilFinish();
 
     // Fetch records using a BigQuery query and validate
-    BigqueryClient bqClient = new BigqueryClient(getClass().getSimpleName());
     String query = String.format("SELECT * FROM `%s.%s`", OPTIONS.getProject(), tableId());
-    List<TableRow> rows = bqClient.queryUnflattened(query, OPTIONS.getProject(), true, true);
+    List<TableRow> rows = BQ_CLIENT.queryUnflattened(query, OPTIONS.getProject(), true, true);
     List<Row> beamRows =
         rows.stream()
             .map(tr -> BigQueryUtils.toBeamRow(BEAM_SCHEMA, tr))
@@ -138,7 +137,7 @@ public class BigQueryMetastoreCatalogIT extends IcebergCatalogBaseIT {
 
     String queryByPartition =
         String.format("SELECT bool_field, datetime FROM `%s.%s`", OPTIONS.getProject(), tableId());
-    rows = bqClient.queryUnflattened(queryByPartition, OPTIONS.getProject(), true, true);
+    rows = BQ_CLIENT.queryUnflattened(queryByPartition, OPTIONS.getProject(), true, true);
     RowFilter rowFilter = new RowFilter(BEAM_SCHEMA).keep(Arrays.asList("bool_field", "datetime"));
     beamRows =
         rows.stream()
