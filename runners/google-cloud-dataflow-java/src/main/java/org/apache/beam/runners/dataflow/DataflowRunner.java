@@ -18,8 +18,6 @@
 package org.apache.beam.runners.dataflow;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi;
-import static org.apache.beam.model.pipeline.v1.RunnerApi.StandardProtocols.Enum.ELEMENT_METADATA;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubIO.ENABLE_CUSTOM_PUBSUB_SINK;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubIO.ENABLE_CUSTOM_PUBSUB_SOURCE;
 import static org.apache.beam.sdk.options.ExperimentalOptions.hasExperiment;
@@ -1314,13 +1312,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     // The SdkComponents for portable an non-portable job submission must be kept distinct. Both
     // need the default environment.
     SdkComponents portableComponents = SdkComponents.create();
-    Set<String> javaCapabilities = Environments.getJavaCapabilities();
-    javaCapabilities.add(BeamUrns.getUrn(ELEMENT_METADATA));
     portableComponents.registerEnvironment(
         defaultEnvironmentForDataflow
             .toBuilder()
             .addAllDependencies(getDefaultArtifacts())
-            .addAllCapabilities(javaCapabilities)
+            .addAllCapabilities(Environments.getJavaCapabilities())
             .build());
 
     RunnerApi.Pipeline portablePipelineProto =
@@ -1359,7 +1355,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         defaultEnvironmentForDataflow
             .toBuilder()
             .addAllDependencies(getDefaultArtifacts())
-            .addAllCapabilities(javaCapabilities)
+            .addAllCapabilities(Environments.getJavaCapabilities())
             .build());
     // No need to perform transform upgrading for the Runner v1 proto.
     RunnerApi.Pipeline dataflowV1PipelineProto =
