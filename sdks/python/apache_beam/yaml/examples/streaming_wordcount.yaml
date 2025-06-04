@@ -1,0 +1,97 @@
+# coding=utf-8
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+pipeline:
+  type: chain
+  transforms:
+    # Assuming the given topic exists with the following message JSON schema,
+    # read the records from Kafka
+    - type: ReadFromKafka
+      config:
+        format: JSON
+        schema: |
+          {
+            "type": "object",
+            "properties": {
+              "value": {"type": "string"}
+            }
+          }
+        topic: {{ TOPIC }}
+        bootstrap_servers: {{ BOOTSTRAP_SERVERS }}
+        auto_offset_reset_config: earliest
+        consumer_config:
+          sasl.jaas.config: "org.apache.kafka.common.security.plain.PlainLoginModule required \
+            username={{ USERNAME }} \
+            password={{ PASSWORD }};"
+          security.protocol: "SASL_PLAINTEXT"
+          sasl.mechanism: "PLAIN"
+
+    # Split line field in each row into list of words.
+    - type: MapToFields
+      config:
+        language: python
+        fields:
+          words:
+            callable: |
+              import re
+              def my_mapping(row):
+                return re.findall(r"[A-Za-z\']+", row.value.lower())
+
+    # Explode each list of words into separate rows.
+    - type: Explode
+      config:
+        fields: words
+
+    # Since each word is now distinct row, rename field to "word".
+    - type: MapToFields
+      config:
+        fields:
+          word: words
+
+    # With an unbounded source such as Kafka, a window is required for
+    # any subsequent GroupBy transform.
+    - type: WindowInto
+      name: Windowing
+      windowing:
+        type: fixed
+        size: 3s
+
+    # Group by distinct words in the collection and add field "count" that
+    # contains number of instances, or count, for each word in the collection.
+    - type: Combine
+      config:
+        language: python
+        group_by: word
+        combine:
+          count:
+            value: word
+            fn: count
+
+    - type: LogForTesting
+
+# Expected:
+#  Row(word='king', count=311)
+#  Row(word='lear', count=253)
+#  Row(word='dramatis', count=1)
+#  Row(word='personae', count=1)
+#  Row(word='of', count=483)
+#  Row(word='britain', count=2)
+#  Row(word='france', count=32)
+#  Row(word='duke', count=26)
+#  Row(word='burgundy', count=20)
+#  Row(word='cornwall', count=75)
