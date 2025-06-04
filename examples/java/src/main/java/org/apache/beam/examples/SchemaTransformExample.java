@@ -15,10 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.sql;
+package org.apache.beam.examples;
 
 // beam-playground:
-//   name: Group.ByFields
+//   name: SchemaTransformGroupByFields
 //   description: Demonstration of Schema transform usage.
 //   multifile: false
 //   default_example: false
