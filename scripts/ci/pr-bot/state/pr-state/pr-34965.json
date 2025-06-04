@@ -1,10 +1,10 @@
 {
   "commentedAboutFailingChecks": false,
   "reviewersAssignedForLabels": {
-    "python": "shunping",
-    "java": "m-trieu",
-    "build": "Abacn",
-    "kafka": "fozzie15",
+    "python": "jrmccluskey",
+    "java": "ahmedabu98",
+    "build": "damccorm",
+    "kafka": "johnjcasey",
     "spanner": "nielm"
   },
   "nextAction": "Reviewers",
