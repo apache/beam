@@ -110,8 +110,8 @@ public class ValueInEmptyWindows<T> implements WindowedValue<T> {
   @Override
   public String toString() {
     return MoreObjects.toStringHelper(getClass())
-            .add("value", getValue())
-            .add("pane", getPane())
-            .toString();
+        .add("value", getValue())
+        .add("pane", getPane())
+        .toString();
   }
 }
