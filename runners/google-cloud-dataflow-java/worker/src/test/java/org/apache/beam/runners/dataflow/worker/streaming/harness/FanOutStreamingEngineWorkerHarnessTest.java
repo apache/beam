@@ -356,7 +356,7 @@ public class FanOutStreamingEngineWorkerHarnessTest {
 
     WorkerMetadataResponse secondWorkerMetadata =
         WorkerMetadataResponse.newBuilder()
-            .setMetadataVersion(2)
+            .setMetadataVersion(1)
             .addWorkEndpoints(
                 WorkerMetadataResponse.Endpoint.newBuilder()
                     .setDirectEndpoint(
