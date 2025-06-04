@@ -68,7 +68,6 @@ from apache_beam.utils import retry
 from apache_beam.utils.histogram import LinearBucket
 from apache_beam.io.gcp.internal.clients.bigquery.bigquery_v2_messages import BigqueryTablesGetRequest
 
-
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:

@@ -925,7 +925,10 @@ class _CustomBigQuerySource(BoundedSource):
     else:
       table_ref = self.table_reference
     table = bq.get_table(
-       table_ref.projectId, table_ref.datasetId, table_ref.tableId, view=BigqueryTablesGetRequest.ViewValueValuesEnum.BASIC)
+        table_ref.projectId,
+        table_ref.datasetId,
+        table_ref.tableId,
+        view=BigqueryTablesGetRequest.ViewValueValuesEnum.BASIC)
 
     return table.schema, metadata_list
 
