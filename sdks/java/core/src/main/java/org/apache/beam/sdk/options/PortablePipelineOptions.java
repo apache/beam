@@ -98,7 +98,7 @@ public interface PortablePipelineOptions extends PipelineOptions, FileStagingOpt
 
   @Description(
       "Options for configuring the default environment of portable workers. This environment will be used for all executable stages except for external transforms. Recognized options depend on the value of defaultEnvironmentType:\n"
-          + "DOCKER: docker_container_image (optional), e.g. 'apache/beam_java8_sdk:latest'. If unset, will default to the latest official release of the Beam Java SDK corresponding to your Java runtime version (8 or 11).\n"
+          + "DOCKER: docker_container_image (optional), e.g. 'apache/beam_java21_sdk:latest'. If unset, will default to the latest official release of the Beam Java SDK corresponding to your Java runtime version (11, 17 or 21).\n"
           + "EXTERNAL: external_service_address (required), e.g. 'localhost:50000'\n"
           + "PROCESS: process_command (required), process_variables (optional). process_command must be the location of an executable file that starts a Beam SDK worker. process_variables is a comma-separated list of environment variable assignments which will be set before running the process, e.g. 'FOO=a,BAR=b'\n\n"
           + "environmentOptions and defaultEnvironmentConfig are mutually exclusive. Prefer environmentOptions.")
