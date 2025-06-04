@@ -46,7 +46,7 @@ def to_filename(name: str) -> str:
 
 
 def normalize_path(filename):
-    return os.path.normcase(os.path.realpath(os.path.normpath(filename)))
+  return os.path.normcase(os.path.realpath(os.path.normpath(filename)))
 
 
 class mypy(Command):
@@ -361,7 +361,7 @@ if __name__ == '__main__':
           'fasteners>=0.3,<1.0',
           # TODO(https://github.com/grpc/grpc/issues/37710): Unpin grpc
           'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,<1.66.0; python_version <= "3.12"',  # pylint: disable=line-too-long
-          'grpcio>=1.67.0; python_version >= "3.13"', 
+          'grpcio>=1.67.0; python_version >= "3.13"',
           'hdfs>=2.1.0,<3.0.0',
           'httplib2>=0.8,<0.23.0',
           'jsonschema>=4.0.0,<5.0.0',
