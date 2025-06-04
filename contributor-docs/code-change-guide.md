@@ -417,12 +417,12 @@ If you're using the standard Dataflow runner (not Runner v2), and the worker har
     ```
     ./gradlew :runners:google-cloud-dataflow-java:worker:shadowJar
     ```
-    The jar is located in the build output.
+    The jar is located in the build output (`<beam root>/runners/google-cloud-dataflow-java/worker/build/libs`).
 
-2. Use the following command to pass `pipelineOption`:
+2. Add the following `pipelineOption` to your pipeline invocation:
 
     ```
-    --dataflowWorkerJar=/.../beam-runners-google-cloud-dataflow-java-legacy-worker-2.XX.0-SNAPSHOT.jar
+    --dataflowWorkerJar=<full-path-to>/beam-runners-google-cloud-dataflow-java-legacy-worker-2.XX.0-SNAPSHOT.jar
     ```
 
 If you're using Dataflow Runner v2 and `sdks/java/harness` or its dependencies (like `sdks/java/core`) have changed, do the following:
