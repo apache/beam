@@ -242,7 +242,7 @@ public final class FirestoreV1FnBatchWriteWithSummaryTest
   @Test
   public void testWithProjectId_thenWithDatabaseId() {
     FirestoreV1.Write beamWrite =
-        new FirestoreV1.Write().withProjectId("my-project").withDatabaseId("(default)");
+        FirestoreIO.v1().write().withProjectId("my-project").withDatabaseId("(default)");
 
     assertEquals("my-project", beamWrite.batchWrite().getProjectId());
     assertEquals("(default)", beamWrite.batchWrite().getDatabaseId());

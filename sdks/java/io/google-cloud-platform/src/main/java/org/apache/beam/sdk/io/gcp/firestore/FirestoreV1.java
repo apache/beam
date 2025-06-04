@@ -507,14 +507,9 @@ public final class FirestoreV1 {
     private @Nullable String projectId;
     private @Nullable String databaseId;
 
-    public static final Write INSTANCE = new Write(null, null);
+    private static final Write INSTANCE = new Write();
 
-    public Write() {}
-
-    public Write(@Nullable String projectId, @Nullable String databaseId) {
-      this.projectId = projectId;
-      this.databaseId = databaseId;
-    }
+    private Write() {}
 
     /**
      * Factory method to create a new type safe builder for {@link com.google.firestore.v1.Write}
@@ -549,12 +544,16 @@ public final class FirestoreV1 {
      */
     public Write withProjectId(String projectId) {
       checkArgument(projectId != null, "projectId can not be null");
-      return new Write(projectId, this.databaseId);
+      // return new Write(projectId, this.databaseId);
+      this.projectId = projectId;
+      return this;
     }
 
     public Write withDatabaseId(String databaseId) {
       checkArgument(databaseId != null, "databaseId can not be null");
-      return new Write(this.projectId, databaseId);
+      // return new Write(this.projectId, databaseId);
+      this.databaseId = databaseId;
+      return this;
     }
 
     public BatchWriteWithSummary.Builder batchWrite() {
@@ -1447,13 +1446,13 @@ public final class FirestoreV1 {
       }
 
       /** Set the GCP project ID to be used by the Firestore client. */
-      public Builder setProjectId(@Nullable String projectId) {
+      private Builder setProjectId(@Nullable String projectId) {
         this.projectId = projectId;
         return this;
       }
 
       /** Set the Firestore database ID (e.g., "(default)"). */
-      public Builder setDatabaseId(@Nullable String databaseId) {
+      private Builder setDatabaseId(@Nullable String databaseId) {
         this.databaseId = databaseId;
         return this;
       }
@@ -1601,12 +1600,12 @@ public final class FirestoreV1 {
         super();
       }
 
-      public Builder setProjectId(@Nullable String projectId) {
+      private Builder setProjectId(@Nullable String projectId) {
         this.projectId = projectId;
         return this;
       }
 
-      public Builder setDatabaseId(@Nullable String databaseId) {
+      private Builder setDatabaseId(@Nullable String databaseId) {
         this.databaseId = databaseId;
         return this;
       }
