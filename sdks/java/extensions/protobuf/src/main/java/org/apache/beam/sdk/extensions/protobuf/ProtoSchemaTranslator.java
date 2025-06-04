@@ -149,6 +149,17 @@ class ProtoSchemaTranslator {
   private static Map<Descriptors.Descriptor, @Nullable Schema> alreadyVisitedSchemas =
       new HashMap<Descriptors.Descriptor, @Nullable Schema>();
 
+  /**
+   * Returns {@code true} if the proto field converts to a nullable Beam field type, {@code false}
+   * otherwise.
+   */
+  static boolean isNullable(FieldDescriptor fieldDescriptor) {
+    // Set nullable for fields with presence (proto3 optional, message, group, extension,
+    // oneof-contained or explicit presence -- proto2 optional or required), but not
+    // "required" (to exclude proto2 required).
+    return fieldDescriptor.hasPresence() && !fieldDescriptor.isRequired();
+  }
+
   /** Attach a proto field number to a type. */
   static Field withFieldNumber(Field field, int number) {
     return field.withOptions(

@@ -22,6 +22,9 @@ import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.ExtensionRegistry;
 import com.google.protobuf.ExtensionRegistry.ExtensionInfo;
 import com.google.protobuf.Message;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.util.HashSet;
 import java.util.Set;
@@ -87,6 +90,21 @@ class ProtobufUtil {
         }
       }
     }
+  }
+
+  static void serializeDescriptor(ObjectOutputStream oos, Descriptor descriptor)
+      throws IOException {
+    String messageFullName = descriptor.getFullName();
+    ProtoDomain protoDomain = ProtoDomain.buildFrom(descriptor);
+    oos.writeObject(protoDomain);
+    oos.writeObject(messageFullName);
+  }
+
+  static Descriptor deserializeDescriptor(ObjectInputStream ois)
+      throws IOException, ClassNotFoundException {
+    ProtoDomain protoDomain = (ProtoDomain) ois.readObject();
+    String messageFullName = (String) ois.readObject();
+    return protoDomain.getDescriptor(messageFullName);
   }
 
   ////////////////////////////////////////////////////////////////////////////////////////////////
