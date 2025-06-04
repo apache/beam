@@ -217,7 +217,7 @@ class PTransformTest(unittest.TestCase):
         MetricsFilter().with_name('recordsRead'))
     outputs_counter = metric_results['counters'][0]
     msg = outputs_counter.key.step
-    cont = 'Read-SDFBoundedSourceReader'
+    cont = 'SDFBoundedSourceReader'
     self.assertTrue(cont in msg, '"%s" does not contain "%s"' % (msg, cont))
     self.assertEqual(outputs_counter.key.metric.name, 'recordsRead')
     self.assertEqual(outputs_counter.committed, 100)

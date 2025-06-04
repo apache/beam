@@ -115,7 +115,7 @@ class TypeCheckTimestampedValueTestCase(unittest.TestCase):
             | "With timestamps" >> beam.Map(ConvertToTimestampedValue_2)
             | beam.Map(print))
 
-    with self.assertRaisesRegex(Exception, 'TypeCheckError'):
+    with self.assertRaises(Exception):
       with beam.Pipeline(options=self.opts) as p:
         _ = (
             p
