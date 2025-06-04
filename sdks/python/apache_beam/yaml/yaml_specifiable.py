@@ -18,6 +18,8 @@
 from apache_beam.ml.anomaly.specifiable import Spec
 from apache_beam.ml.anomaly.transforms import AnomalyDetection
 from apache_beam.ml.anomaly.transforms import Specifiable
+from apache_beam.io.filesystems import FileSystems
+from apache_beam.utils import python_callable
 from apache_beam.yaml.yaml_provider import InlineProvider
 
 
@@ -26,9 +28,20 @@ def maybe_make_specifiable(v):
     if "type" in v and "config" in v:
       return Specifiable.from_spec(
           Spec(type=v["type"], config=maybe_make_specifiable(v["config"])))
-    else:
-      ret = {k: maybe_make_specifiable(v[k]) for k in v}
-      return ret
+
+    if "callable" in v:
+      if "path" in v or "name" in v:
+        raise ValueError(
+            "Cannot specify 'callable' with 'path' and 'name' for function.")
+      else:
+        return python_callable.PythonCallableWithSource(v["callable"])
+
+    if "path" in v and "name" in v:
+      return python_callable.PythonCallableWithSource.load_from_script(
+          FileSystems.open(v["path"]).read().decode(), v["name"])
+
+    ret = {k: maybe_make_specifiable(v[k]) for k in v}
+    return ret
   else:
     return v
 
