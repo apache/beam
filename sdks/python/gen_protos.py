@@ -21,6 +21,7 @@ Generates Python proto modules and grpc stubs for Beam protos.
 import argparse
 import contextlib
 import glob
+import importlib.resources
 import inspect
 import logging
 import os
@@ -30,8 +31,6 @@ import shutil
 import sys
 from collections import defaultdict
 from importlib import import_module
-
-import importlib.resources
 
 LOG = logging.getLogger()
 LOG.setLevel(logging.INFO)
