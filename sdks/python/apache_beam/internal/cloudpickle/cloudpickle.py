@@ -148,7 +148,7 @@ def register_pickle_by_value(module):
     """
   if not isinstance(module, types.ModuleType):
     raise ValueError(
-        f"Input should be a module object, got {str(module)} instead")
+      f"Input should be a module object, got {str(module)} instead")
   # In the future, cloudpickle may need a way to access any module registered
   # for pickling by value in order to introspect relative imports inside
   # functions pickled by value. (see
@@ -161,8 +161,8 @@ def register_pickle_by_value(module):
   # later, we still enforce the presence of module inside sys.modules.
   if module.__name__ not in sys.modules:
     raise ValueError(
-        f"{module} was not imported correctly, have you used an "
-        "`import` statement to access it?")
+      f"{module} was not imported correctly, have you used an "
+      "`import` statement to access it?")
   _PICKLE_BY_VALUE_MODULES.add(module.__name__)
 
 
@@ -170,7 +170,7 @@ def unregister_pickle_by_value(module):
   """Unregister that the input module should be pickled by value."""
   if not isinstance(module, types.ModuleType):
     raise ValueError(
-        f"Input should be a module object, got {str(module)} instead")
+      f"Input should be a module object, got {str(module)} instead")
   if module.__name__ not in _PICKLE_BY_VALUE_MODULES:
     raise ValueError(f"{module} is not registered for pickle by value")
   else:
@@ -267,7 +267,7 @@ def _should_pickle_by_reference(obj, name=None):
     return obj.__name__ in sys.modules
   else:
     raise TypeError(
-        "cannot check importability of {} instances".format(type(obj).__name__))
+      "cannot check importability of {} instances".format(type(obj).__name__))
 
 
 def _lookup_module_and_qualname(obj, name=None):
@@ -443,10 +443,10 @@ def is_tornado_coroutine(func):
     Running coroutines are not supported.
     """
   warnings.warn(
-      "is_tornado_coroutine is deprecated in cloudpickle 3.0 and will be "
-      "removed in cloudpickle 4.0. Use tornado.gen.is_coroutine_function "
-      "directly instead.",
-      category=DeprecationWarning,
+    "is_tornado_coroutine is deprecated in cloudpickle 3.0 and will be "
+    "removed in cloudpickle 4.0. Use tornado.gen.is_coroutine_function "
+    "directly instead.",
+    category=DeprecationWarning,
   )
   if "tornado.gen" not in sys.modules:
     return False
@@ -545,8 +545,8 @@ def _make_skeleton_class(
   type_kwargs = {sys.intern(k): v for k, v in type_kwargs.items()}
 
   skeleton_class = types.new_class(
-      name,
-      bases, {"metaclass": type_constructor}, lambda ns: ns.update(type_kwargs))
+    name,
+    bases, {"metaclass": type_constructor}, lambda ns: ns.update(type_kwargs))
 
   return _lookup_class_or_track(class_tracker_id, skeleton_class)
 
@@ -584,23 +584,23 @@ def _make_skeleton_enum(
 def _make_typevar(
     name, bound, constraints, covariant, contravariant, class_tracker_id):
   tv = typing.TypeVar(
-      name,
-      *constraints,
-      bound=bound,
-      covariant=covariant,
-      contravariant=contravariant,
+    name,
+    *constraints,
+    bound=bound,
+    covariant=covariant,
+    contravariant=contravariant,
   )
   return _lookup_class_or_track(class_tracker_id, tv)
 
 
 def _decompose_typevar(obj):
   return (
-      obj.__name__,
-      obj.__bound__,
-      obj.__constraints__,
-      obj.__covariant__,
-      obj.__contravariant__,
-      _get_or_create_tracker_id(obj),
+    obj.__name__,
+    obj.__bound__,
+    obj.__constraints__,
+    obj.__covariant__,
+    obj.__contravariant__,
+    _get_or_create_tracker_id(obj),
   )
 
 
@@ -666,25 +666,25 @@ def _class_getnewargs(obj):
     type_kwargs["__dict__"] = __dict__
 
   return (
-      type(obj),
-      obj.__name__,
-      _get_bases(obj),
-      type_kwargs,
-      _get_or_create_tracker_id(obj),
-      None,
+    type(obj),
+    obj.__name__,
+    _get_bases(obj),
+    type_kwargs,
+    _get_or_create_tracker_id(obj),
+    None,
   )
 
 
 def _enum_getnewargs(obj):
   members = {e.name: e.value for e in obj}
   return (
-      obj.__bases__,
-      obj.__name__,
-      obj.__qualname__,
-      members,
-      obj.__module__,
-      _get_or_create_tracker_id(obj),
-      None,
+    obj.__bases__,
+    obj.__name__,
+    obj.__qualname__,
+    members,
+    obj.__module__,
+    _get_or_create_tracker_id(obj),
+    None,
   )
 
 
@@ -706,22 +706,22 @@ def _function_getstate(func):
   #   unpickling time by iterating over slotstate and calling setattr(func,
   #   slotname, slotvalue)
   slotstate = {
-      # Hack to circumvent non-predictable memoization caused by string interning.
-      # See the inline comment in _class_setstate for details.
-      "__name__": "".join(func.__name__),
-      "__qualname__": "".join(func.__qualname__),
-      "__annotations__": func.__annotations__,
-      "__kwdefaults__": func.__kwdefaults__,
-      "__defaults__": func.__defaults__,
-      "__module__": func.__module__,
-      "__doc__": func.__doc__,
-      "__closure__": func.__closure__,
+    # Hack to circumvent non-predictable memoization caused by string interning.
+    # See the inline comment in _class_setstate for details.
+    "__name__": "".join(func.__name__),
+    "__qualname__": "".join(func.__qualname__),
+    "__annotations__": func.__annotations__,
+    "__kwdefaults__": func.__kwdefaults__,
+    "__defaults__": func.__defaults__,
+    "__module__": func.__module__,
+    "__doc__": func.__doc__,
+    "__closure__": func.__closure__,
   }
 
   f_globals_ref = _extract_code_globals(func.__code__)
   f_globals = {
-      k: func.__globals__[k]
-      for k in f_globals_ref if k in func.__globals__
+    k: func.__globals__[k]
+    for k in f_globals_ref if k in func.__globals__
   }
 
   if func.__closure__ is not None:
@@ -734,7 +734,7 @@ def _function_getstate(func):
   # trigger the side effect of importing these modules at unpickling time
   # (which is necessary for func to work correctly once depickled)
   slotstate["_cloudpickle_submodules"] = _find_imported_submodules(
-      func.__code__, itertools.chain(f_globals.values(), closure_values))
+    func.__code__, itertools.chain(f_globals.values(), closure_values))
   slotstate["__globals__"] = f_globals
 
   # Hack to circumvent non-predictable memoization caused by string interning.
@@ -762,7 +762,7 @@ def _class_getstate(obj):
       (registry, _, _, _) = abc._get_dump(obj)
 
       clsdict["_abc_impl"] = [
-          subclass_weakref() for subclass_weakref in registry
+        subclass_weakref() for subclass_weakref in registry
       ]
     else:
       # In the above if clause, registry is a set of weakrefs -- in
@@ -791,11 +791,11 @@ def _enum_getstate(obj):
   # Cleanup the clsdict that will be passed to _make_skeleton_enum:
   # Those attributes are already handled by the metaclass.
   for attrname in [
-      "_generate_next_value_",
-      "_member_names_",
-      "_member_map_",
-      "_member_type_",
-      "_value2member_map_",
+    "_generate_next_value_",
+    "_member_names_",
+    "_member_map_",
+    "_member_type_",
+    "_value2member_map_",
   ]:
     clsdict.pop(attrname, None)
   for member in members:
@@ -839,90 +839,90 @@ def _code_reduce(obj):
     # Python 3.11 and later: there are some new attributes
     # related to the enhanced exceptions.
     args = (
-        obj.co_argcount,
-        obj.co_posonlyargcount,
-        obj.co_kwonlyargcount,
-        obj.co_nlocals,
-        obj.co_stacksize,
-        obj.co_flags,
-        obj.co_code,
-        obj.co_consts,
-        co_names,
-        co_varnames,
-        obj.co_filename,
-        co_name,
-        obj.co_qualname,
-        obj.co_firstlineno,
-        obj.co_linetable,
-        obj.co_exceptiontable,
-        co_freevars,
-        co_cellvars,
+      obj.co_argcount,
+      obj.co_posonlyargcount,
+      obj.co_kwonlyargcount,
+      obj.co_nlocals,
+      obj.co_stacksize,
+      obj.co_flags,
+      obj.co_code,
+      obj.co_consts,
+      co_names,
+      co_varnames,
+      obj.co_filename,
+      co_name,
+      obj.co_qualname,
+      obj.co_firstlineno,
+      obj.co_linetable,
+      obj.co_exceptiontable,
+      co_freevars,
+      co_cellvars,
     )
   elif hasattr(obj, "co_linetable"):
     # Python 3.10 and later: obj.co_lnotab is deprecated and constructor
     # expects obj.co_linetable instead.
     args = (
-        obj.co_argcount,
-        obj.co_posonlyargcount,
-        obj.co_kwonlyargcount,
-        obj.co_nlocals,
-        obj.co_stacksize,
-        obj.co_flags,
-        obj.co_code,
-        obj.co_consts,
-        co_names,
-        co_varnames,
-        obj.co_filename,
-        co_name,
-        obj.co_firstlineno,
-        obj.co_linetable,
-        co_freevars,
-        co_cellvars,
+      obj.co_argcount,
+      obj.co_posonlyargcount,
+      obj.co_kwonlyargcount,
+      obj.co_nlocals,
+      obj.co_stacksize,
+      obj.co_flags,
+      obj.co_code,
+      obj.co_consts,
+      co_names,
+      co_varnames,
+      obj.co_filename,
+      co_name,
+      obj.co_firstlineno,
+      obj.co_linetable,
+      co_freevars,
+      co_cellvars,
     )
   elif hasattr(obj, "co_nmeta"):  # pragma: no cover
     # "nogil" Python: modified attributes from 3.9
     args = (
-        obj.co_argcount,
-        obj.co_posonlyargcount,
-        obj.co_kwonlyargcount,
-        obj.co_nlocals,
-        obj.co_framesize,
-        obj.co_ndefaultargs,
-        obj.co_nmeta,
-        obj.co_flags,
-        obj.co_code,
-        obj.co_consts,
-        co_varnames,
-        obj.co_filename,
-        co_name,
-        obj.co_firstlineno,
-        obj.co_lnotab,
-        obj.co_exc_handlers,
-        obj.co_jump_table,
-        co_freevars,
-        co_cellvars,
-        obj.co_free2reg,
-        obj.co_cell2reg,
+      obj.co_argcount,
+      obj.co_posonlyargcount,
+      obj.co_kwonlyargcount,
+      obj.co_nlocals,
+      obj.co_framesize,
+      obj.co_ndefaultargs,
+      obj.co_nmeta,
+      obj.co_flags,
+      obj.co_code,
+      obj.co_consts,
+      co_varnames,
+      obj.co_filename,
+      co_name,
+      obj.co_firstlineno,
+      obj.co_lnotab,
+      obj.co_exc_handlers,
+      obj.co_jump_table,
+      co_freevars,
+      co_cellvars,
+      obj.co_free2reg,
+      obj.co_cell2reg,
     )
   else:
     # Backward compat for 3.8 and 3.9
     args = (
-        obj.co_argcount,
-        obj.co_posonlyargcount,
-        obj.co_kwonlyargcount,
-        obj.co_nlocals,
-        obj.co_stacksize,
-        obj.co_flags,
-        obj.co_code,
-        obj.co_consts,
-        co_names,
-        co_varnames,
-        obj.co_filename,
-        co_name,
-        obj.co_firstlineno,
-        obj.co_lnotab,
-        co_freevars,
-        co_cellvars,
+      obj.co_argcount,
+      obj.co_posonlyargcount,
+      obj.co_kwonlyargcount,
+      obj.co_nlocals,
+      obj.co_stacksize,
+      obj.co_flags,
+      obj.co_code,
+      obj.co_consts,
+      co_names,
+      co_varnames,
+      obj.co_filename,
+      co_name,
+      obj.co_firstlineno,
+      obj.co_lnotab,
+      co_freevars,
+      co_cellvars,
     )
   return types.CodeType, args
 
@@ -948,7 +948,7 @@ def _file_reduce(obj):
 
   if not hasattr(obj, "name") or not hasattr(obj, "mode"):
     raise pickle.PicklingError(
-        "Cannot pickle files that do not map to an actual file")
+      "Cannot pickle files that do not map to an actual file")
   if obj is sys.stdout:
     return getattr, (sys, "stdout")
   if obj is sys.stderr:
@@ -961,7 +961,7 @@ def _file_reduce(obj):
     raise pickle.PicklingError("Cannot pickle files that map to tty objects")
   if "r" not in obj.mode and "+" not in obj.mode:
     raise pickle.PicklingError(
-        "Cannot pickle files that are not opened for reading: %s" % obj.mode)
+      "Cannot pickle files that are not opened for reading: %s" % obj.mode)
 
   name = obj.name
 
@@ -975,7 +975,7 @@ def _file_reduce(obj):
     obj.seek(curloc)
   except OSError as e:
     raise pickle.PicklingError(
-        "Cannot pickle file %s as it cannot be read" % name) from e
+      "Cannot pickle file %s as it cannot be read" % name) from e
   retval.write(contents)
   retval.seek(curloc)
 
@@ -1037,21 +1037,21 @@ def _dynamic_class_reduce(obj):
     """
   if Enum is not None and issubclass(obj, Enum):
     return (
-        _make_skeleton_enum,
-        _enum_getnewargs(obj),
-        _enum_getstate(obj),
-        None,
-        None,
-        _class_setstate,
+      _make_skeleton_enum,
+      _enum_getnewargs(obj),
+      _enum_getstate(obj),
+      None,
+      None,
+      _class_setstate,
     )
   else:
     return (
-        _make_skeleton_class,
-        _class_getnewargs(obj),
-        _class_getstate(obj),
-        None,
-        None,
-        _class_setstate,
+      _make_skeleton_class,
+      _class_getnewargs(obj),
+      _class_getstate(obj),
+      None,
+      None,
+      _class_setstate,
     )
 
 
@@ -1202,9 +1202,9 @@ def _class_setstate(obj, state):
 # use to retrieve its identity at unpickling time.
 
 _DATACLASSE_FIELD_TYPE_SENTINELS = {
-    dataclasses._FIELD.name: dataclasses._FIELD,
-    dataclasses._FIELD_CLASSVAR.name: dataclasses._FIELD_CLASSVAR,
-    dataclasses._FIELD_INITVAR.name: dataclasses._FIELD_INITVAR,
+  dataclasses._FIELD.name: dataclasses._FIELD,
+  dataclasses._FIELD_CLASSVAR.name: dataclasses._FIELD_CLASSVAR,
+  dataclasses._FIELD_INITVAR.name: dataclasses._FIELD_INITVAR,
 }
 
 
@@ -1412,12 +1412,12 @@ class Pickler(pickle.Pickler):
       save = self.save
       write = self.write
       self.save_reduce(
-          func,
-          args,
-          state=None,
-          listitems=listitems,
-          dictitems=dictitems,
-          obj=obj,
+        func,
+        args,
+        state=None,
+        listitems=listitems,
+        dictitems=dictitems,
+        obj=obj,
       )
       # backport of the Python 3.8 state_setter pickle operations
       save(state_setter)
@@ -1440,16 +1440,16 @@ class Pickler(pickle.Pickler):
             """
       if obj is type(None):  # noqa
         return self.save_reduce(
-            type, (None, ), obj=obj)
+          type, (None, ), obj=obj)
       elif obj is type(Ellipsis):
         return self.save_reduce(
-            type, (Ellipsis, ), obj=obj)
+          type, (Ellipsis, ), obj=obj)
       elif obj is type(NotImplemented):
         return self.save_reduce(
-            type, (NotImplemented, ), obj=obj)
+          type, (NotImplemented, ), obj=obj)
       elif obj in _BUILTIN_TYPE_NAMES:
         return self.save_reduce(
-            _builtin_type, (_BUILTIN_TYPE_NAMES[obj], ), obj=obj)
+          _builtin_type, (_BUILTIN_TYPE_NAMES[obj], ), obj=obj)
 
       if name is not None:
         super().save_global(obj, name=name)
@@ -1472,7 +1472,7 @@ class Pickler(pickle.Pickler):
         return self.save_pypy_builtin_func(obj)
       else:
         return self._save_reduce_pickle5(
-            *self._dynamic_function_reduce(obj), obj=obj)
+          *self._dynamic_function_reduce(obj), obj=obj)
 
     def save_pypy_builtin_func(self, obj):
       """Save pypy equivalent of builtin functions.
@@ -1493,9 +1493,9 @@ class Pickler(pickle.Pickler):
             3.6 and later.
             """
       rv = (
-          types.FunctionType,
-          (obj.__code__, {}, obj.__name__, obj.__defaults__, obj.__closure__),
-          obj.__dict__,
+        types.FunctionType,
+        (obj.__code__, {}, obj.__name__, obj.__defaults__, obj.__closure__),
+        obj.__dict__,
       )
       self.save_reduce(*rv, obj=obj)
 
