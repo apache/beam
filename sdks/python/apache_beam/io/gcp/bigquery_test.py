@@ -967,7 +967,7 @@ class TestWriteToBigQuery(unittest.TestCase):
         schema=schema)
 
     # pylint: disable=expression-not-assigned
-    p | 'MyWriteToBigQuery' >> original
+    p | beam.Create([]) | 'MyWriteToBigQuery' >> original
 
     # Run the pipeline through to generate a pipeline proto from an empty
     # context. This ensures that the serialization code ran.
