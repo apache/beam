@@ -29,7 +29,12 @@ the coders.*PickleCoder classes should be used instead.
 """
 
 from apache_beam.internal import cloudpickle_pickler
-from apache_beam.internal import dill_pickler
+
+try:
+  from apache_beam.internal import dill_pickler
+  DILL_AVAILABLE = True
+except ImportError:
+  DILL_AVAILABLE = False
 
 USE_CLOUDPICKLE = 'cloudpickle'
 USE_DILL = 'dill'
@@ -43,7 +48,6 @@ def dumps(
     enable_trace=True,
     use_zlib=False,
     enable_best_effort_determinism=False) -> bytes:
-
   return desired_pickle_lib.dumps(
       o,
       enable_trace=enable_trace,
@@ -73,9 +77,16 @@ def load_session(file_path):
 
 def set_library(selected_library=DEFAULT_PICKLE_LIB):
   """ Sets pickle library that will be used. """
+  if selected_library == USE_DILL and not DILL_AVAILABLE:
+    if not DILL_AVAILABLE:
+      raise ImportError(
+          "Dill is not installed. To use DillCoder, please install "
+          "apache-beam[dill] or install dill separately.")
+
   global desired_pickle_lib
   # If switching to or from dill, update the pickler hook overrides.
-  if (selected_library == USE_DILL) != (desired_pickle_lib == dill_pickler):
+  if DILL_AVAILABLE and ((selected_library == USE_DILL) !=
+                         (desired_pickle_lib == dill_pickler)):
     dill_pickler.override_pickler_hooks(selected_library == USE_DILL)
 
   if selected_library == 'default':
