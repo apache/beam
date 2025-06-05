@@ -20,17 +20,17 @@
 
 import logging
 import os
+import pytest
 import tempfile
 import unittest
 from typing import TypeVar
-
-import pytest
 
 import apache_beam as beam
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.window import FixedWindows
-from apache_beam.typehints import typehints, TypeCheckError
+from apache_beam.typehints import TypeCheckError
+from apache_beam.typehints import typehints
 
 RETURN_NONE_PARTIAL_WARNING = "No iterator is returned"
 
