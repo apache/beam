@@ -702,6 +702,23 @@ class PipelineTest(unittest.TestCase):
     self.assertIs(pcoll2_unbounded.is_bounded, False)
     self.assertIs(merged.is_bounded, False)
 
+  def test_incompatible_pcollection_errmsg(self):
+    with pytest.raises(Exception,
+                       match=r".*Map\(print\).*Got a PBegin/Pipeline instead."):
+      with beam.Pipeline() as pipeline:
+        _ = (pipeline | beam.Map(print))
+
+    class ParentTransform(PTransform):
+      def expand(self, pcoll):
+        return pcoll | beam.Map(print)
+
+    with pytest.raises(
+        Exception,
+        match=r".*ParentTransform/Map\(print\).*Got a PBegin/Pipeline instead."
+    ):
+      with beam.Pipeline() as pipeline:
+        _ = (pipeline | ParentTransform())
+
   def test_incompatible_submission_and_runtime_envs_fail_pipeline(self):
     with mock.patch(
         'apache_beam.transforms.environments.sdk_base_version_capability'
