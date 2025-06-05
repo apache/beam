@@ -1566,7 +1566,6 @@ def get_yielded_type(type_hint):
   if isinstance(type_hint, TypeVariable):
     raise ValueError('%s is not iterable' % type_hint)
   if isinstance(type_hint, AnyTypeConstraint):
-    print(f"{type_hint} is considered a AnyTypeConstraint")
     return type_hint
   if is_consistent_with(type_hint, Iterator[Any]):
     return type_hint.yielded_type
