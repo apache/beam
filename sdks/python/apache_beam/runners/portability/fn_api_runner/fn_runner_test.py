@@ -769,11 +769,12 @@ class FnApiRunnerTest(unittest.TestCase):
       expected = [('fired', ts) for ts in (20, 200)]
       assert_that(actual, equal_to(expected))
 
-  def _run_pardo_timer_test(
+  def _run_pardo_et_timer_test(
       self, n, timer_delay, reset_count=True, clear_timer=True, expected=None):
-    class AnotherTimerDoFn(beam.DoFn):
+    class EventTimeTimerDoFn(beam.DoFn):
       COUNT = userstate.ReadModifyWriteStateSpec(
           'count', coders.VarInt32Coder())
+      # event-time timer
       TIMER = userstate.TimerSpec('timer', userstate.TimeDomain.WATERMARK)
 
       def __init__(self):
@@ -790,21 +791,28 @@ class FnApiRunnerTest(unittest.TestCase):
           timer=beam.DoFn.TimerParam(TIMER)):
         local_count = count.read() or 0
         local_count += 1
+
+        _LOGGER.info(f"get element {element_pair[1]}, count={local_count}")
         if local_count == 1:
+          _LOGGER.info(f"set timer to {t+self._timer_delay}")
           timer.set(t + self._timer_delay)
 
         if local_count == self._n:
           if self._reset_count:
+            _LOGGER.info("reset count")
             local_count = 0
 
           # don't need the timer now
           if self._clear_timer:
+            _LOGGER.info("clear timer")
             timer.clear()
 
         count.write(local_count)
 
       @userstate.on_timer(TIMER)
       def timer_callback(self, t=beam.DoFn.TimestampParam):
+        _LOGGER.error("Timer should not fire here")
+        _LOGGER.info(f"timer callback start (timestamp={t})")
         yield "fired"
 
     with self.create_pipeline() as p:
@@ -814,28 +822,48 @@ class FnApiRunnerTest(unittest.TestCase):
               stop_timestamp=timestamp.Timestamp.now() + 14,
               fire_interval=1)
           | beam.WithKeys(0)
-          | beam.ParDo(AnotherTimerDoFn()))
+          | beam.ParDo(EventTimeTimerDoFn()))
       assert_that(actual, equal_to(expected))
 
-  def test_pardo_timer_with_no_firing(self):
+  def test_pardo_et_timer_with_no_firing(self):
+    if type(self) in [FnApiRunnerTest,
+                      FnApiRunnerTestWithGrpc,
+                      FnApiRunnerTestWithGrpcAndMultiWorkers,
+                      FnApiRunnerTestWithDisabledCaching,
+                      FnApiRunnerTestWithMultiWorkers,
+                      FnApiRunnerTestWithBundleRepeat,
+                      FnApiRunnerTestWithBundleRepeatAndMultiWorkers,
+                      "PortableRunnerTest"]:
+      raise unittest.SkipTest("https://github.com/apache/beam/issues/35168")
+
     # The timer will not fire. It is initially set to T + 10, but then it is
     # cleared at T + 4 (count == 5), and reset to T + 5 + 10
     # (count is reset every 5 seconds).
-    self._run_pardo_timer_test(5, 10, True, True, [])
+    self._run_pardo_et_timer_test(5, 10, True, True, [])
 
-  def test_pardo_timer_with_early_firing(self):
+  def test_pardo_et_timer_with_early_firing(self):
     # The timer will fire at T + 2, T + 7, T + 12.
-    self._run_pardo_timer_test(5, 2, True, True, ["fired", "fired", "fired"])
+    self._run_pardo_et_timer_test(5, 2, True, True, ["fired", "fired", "fired"])
 
-  def test_pardo_timer_with_no_reset(self):
+  def test_pardo_et_timer_with_no_reset(self):
+    if type(self) in [FnApiRunnerTest,
+                      FnApiRunnerTestWithGrpc,
+                      FnApiRunnerTestWithGrpcAndMultiWorkers,
+                      FnApiRunnerTestWithDisabledCaching,
+                      FnApiRunnerTestWithMultiWorkers,
+                      FnApiRunnerTestWithBundleRepeat,
+                      FnApiRunnerTestWithBundleRepeatAndMultiWorkers,
+                      "PortableRunnerTest"]:
+      raise unittest.SkipTest("https://github.com/apache/beam/issues/35168")
+
     # The timer will not fire. It is initially set to T + 10, and then it is
     # cleared at T + 4 and never set again (count is not reset).
-    self._run_pardo_timer_test(5, 10, False, True, [])
+    self._run_pardo_et_timer_test(5, 10, False, True, [])
 
-  def test_pardo_timer_with_no_reset_and_no_clear(self):
+  def test_pardo_et_timer_with_no_reset_and_no_clear(self):
     # The timer will fire at T + 10. After the timer is set, it is never
     # cleared or set again.
-    self._run_pardo_timer_test(5, 10, False, False, ["fired"])
+    self._run_pardo_et_timer_test(5, 10, False, False, ["fired"])
 
   def test_pardo_state_timers(self):
     self._run_pardo_state_timers(windowed=False)
