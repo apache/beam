@@ -53,6 +53,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.utils import python_callable
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml import yaml_transform
+from apache_beam.yaml.conftest import yaml_test_files_dir
 
 
 @contextlib.contextmanager
@@ -603,8 +604,15 @@ def parse_test_files(filepattern):
       globals()[suite_name] = type(suite_name, (unittest.TestCase, ), methods)
 
 
+# Logging setup
 logging.getLogger().setLevel(logging.INFO)
-parse_test_files(os.path.join(os.path.dirname(__file__), 'tests', '*.yaml'))
+
+# Dynamically create test methods from the tests directory.
+# yaml_test_files_dir comes from conftest.py and set by pytest_configure.
+_test_files_dir = yaml_test_files_dir
+_file_pattern = os.path.join(
+    os.path.dirname(__file__), _test_files_dir, '*.yaml')
+parse_test_files(_file_pattern)
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
