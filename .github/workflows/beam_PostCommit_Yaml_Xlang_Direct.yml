@@ -13,27 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: PreCommit YAML Xlang Direct
+name: PostCommit YAML Xlang Direct
 
 on:
-  pull_request_target:
-    paths: ['release/trigger_all_tests.json', 'model/**', 'sdks/python/**']
-  issue_comment:
-    types: [created]
-  push:
-    tags: ['v*']
-    branches: ['master', 'release-*']
-    paths:
-      - "model/**"
-      - "release/**"
-      - "sdks/python/**"
-      - "sdks/java/extensions/schemaio-expansion-service/**"
-      - "sdks/java/extensions/sql/**"
-      - "sdks/java/io/expansion-service/**"
-      - "sdks/java/io/google-cloud-platform/**"
-      - ".github/workflows/beam_PreCommit_Yaml_Xlang_Direct.yml"
   schedule:
     - cron: '30 5/6 * * *'
+  pull_request_target:
+    paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Yaml_Xlang_Direct.json']
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -63,19 +49,18 @@ env:
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
 jobs:
-  beam_PreCommit_Yaml_Xlang_Direct:
+  beam_PostCommit_Yaml_Xlang_Direct:
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'pull_request_target' ||
-      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
-      github.event.comment.body == 'Run Yaml_Xlang_Direct PreCommit'
-    runs-on: [self-hosted, ubuntu-20.04, main]
+      (github.event_name == 'schedule' && github.repository == 'apache/beam')
+    runs-on: [self-hosted, ubuntu-latest, main]
     timeout-minutes: 100
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     strategy:
       matrix:
-        job_name: ["beam_PreCommit_Yaml_Xlang_Direct"]
-        job_phrase: ["Run Yaml_Xlang_Direct PreCommit"]
+        job_name: ["beam_PostCommit_Yaml_Xlang_Direct"]
+        job_phrase: ["Run Yaml_Xlang_Direct PostCommit"]
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository
@@ -88,10 +73,13 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           python-version: default
-      - name: run PreCommit Yaml Xlang Direct script
+          java-version: '11'
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+      - name: run PostCommit Yaml Xlang Direct script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:python:yamlIntegrationTests -PbeamPythonExtra=ml_test
+          gradle-command: :sdks:python:postCommitYamlIntegrationTests -PbeamPythonExtra=ml_test
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v4
         if: failure()
