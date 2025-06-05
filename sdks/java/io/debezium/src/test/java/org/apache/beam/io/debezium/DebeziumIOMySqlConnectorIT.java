@@ -94,11 +94,6 @@ public class DebeziumIOMySqlConnectorIT {
           .withNetworkAliases("kafka")
           .dependsOn(MY_SQL_CONTAINER);
 
-  @BeforeClass
-  public static void startContainersAndGrantPrivileges() throws Exception {
-    LOG.info("Containers started by @ClassRule. Initial SQL setup by image.");
-  }
-
   public static DataSource getMysqlDatasource(Void unused) {
     HikariConfig hikariConfig = new HikariConfig();
 
