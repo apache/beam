@@ -20,11 +20,12 @@
 import contextlib
 import filecmp
 import logging
-import mock
 import os
 import shutil
 import tempfile
 import unittest
+
+import mock
 from parameterized import param
 from parameterized import parameterized
 
