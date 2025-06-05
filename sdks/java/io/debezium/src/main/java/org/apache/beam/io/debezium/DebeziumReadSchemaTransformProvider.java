@@ -111,12 +111,10 @@ public class DebeziumReadSchemaTransformProvider
                 .withConnectionProperty("table.include.list", configuration.getTable())
                 .withConnectionProperty("include.schema.changes", "false")
                 .withConnectionProperty("database.server.name", "beam-pipeline-server");
-
         if (configuration.getDatabase().equals("POSTGRES")) {
           LOG.info(
               "As Database is POSTGRES, we set the `database.dbname` property to {}.",
               configuration.getTable().substring(0, configuration.getTable().indexOf(".")));
-
           connectorConfiguration =
               connectorConfiguration.withConnectionProperty(
                   "database.dbname",

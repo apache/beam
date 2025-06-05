@@ -165,10 +165,10 @@ public class DebeziumIOMySqlConnectorIT {
                                 num <= 1000
                                     ? Long.valueOf(num).intValue()
                                     : Long.valueOf(num).intValue() + 4)
-                            // TODO(pabloem): Add other data types
                             .withFieldValue("first_name", Long.toString(num))
                             .withFieldValue("last_name", Long.toString(writeSize - num))
                             .withFieldValue("email", Long.toString(num) + "@beamail.com")
+                            // TODO(pabloem): Add other data types
                             .build()))
         .setRowSchema(TABLE_SCHEMA)
         .apply(
@@ -214,7 +214,6 @@ public class DebeziumIOMySqlConnectorIT {
             });
     Thread writeThread = new Thread(() -> writePipeline.run().waitUntilFinish());
     Thread monitorThread = new Thread(this::monitorEssentialMetrics);
-
     monitorThread.start();
     writeThread.start();
 
