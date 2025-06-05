@@ -539,7 +539,8 @@ class PipelineResult(runner.PipelineResult):
         else:
           current_state = message.state_response.state
           if current_state != previous_state:
-            _LOGGER.info(
+            # TODO - change back to original logging
+            _LOGGER.warning(
                 "Job state changed to %s",
                 self.runner_api_state_to_pipeline_state(current_state))
             previous_state = current_state
