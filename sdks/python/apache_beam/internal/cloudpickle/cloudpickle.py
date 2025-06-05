@@ -93,11 +93,9 @@ _PICKLE_BY_VALUE_MODULES = set()
 # Track the provenance of reconstructed dynamic classes to make it possible to
 # reconstruct instances from the matching singleton class definition when
 # appropriate and preserve the usual "isinstance" semantics of Python objects.
-
-# from class to (class_tracker_id, setstate)
 _DYNAMIC_CLASS_TRACKER_BY_CLASS = weakref.WeakKeyDictionary()
-# from class_tracker_id to class
 _DYNAMIC_CLASS_TRACKER_BY_ID = weakref.WeakValueDictionary()
+_DYNAMIC_CLASS_STATE_TRACKER_BY_CLASS = weakref.WeakKeyDictionary()
 _DYNAMIC_CLASS_TRACKER_LOCK = threading.Lock()
 
 PYPY = platform.python_implementation() == "PyPy"
@@ -115,7 +113,7 @@ def _get_or_create_tracker_id(class_def):
     class_tracker_id = _DYNAMIC_CLASS_TRACKER_BY_CLASS.get(class_def)
     if class_tracker_id is None:
       class_tracker_id = uuid.uuid4().hex
-      _DYNAMIC_CLASS_TRACKER_BY_CLASS[class_def] = (class_tracker_id, True)
+      _DYNAMIC_CLASS_TRACKER_BY_CLASS[class_def] = class_tracker_id
       _DYNAMIC_CLASS_TRACKER_BY_ID[class_tracker_id] = class_def
   return class_tracker_id
 
@@ -123,11 +121,9 @@ def _get_or_create_tracker_id(class_def):
 def _lookup_class_or_track(class_tracker_id, class_def):
   if class_tracker_id is not None:
     with _DYNAMIC_CLASS_TRACKER_LOCK:
-      if class_tracker_id in _DYNAMIC_CLASS_TRACKER_BY_ID:
-        return _DYNAMIC_CLASS_TRACKER_BY_ID[class_tracker_id]
-      else:
-        _DYNAMIC_CLASS_TRACKER_BY_ID[class_tracker_id] = class_def
-        _DYNAMIC_CLASS_TRACKER_BY_CLASS[class_def] = (class_tracker_id, False)
+      class_def = _DYNAMIC_CLASS_TRACKER_BY_ID.setdefault(
+        class_tracker_id, class_def)
+      _DYNAMIC_CLASS_TRACKER_BY_CLASS[class_def] = class_tracker_id
   return class_def
 
 
@@ -1155,48 +1151,46 @@ def _function_setstate(obj, state):
 
 
 def _class_setstate(obj, state):
+  # This breaks the ability to modify the state of a dynamic type in the main
+  # process wth the assumption that the type is updatable in the child process.
   with _DYNAMIC_CLASS_TRACKER_LOCK:
-    tracker_id, setstate = _DYNAMIC_CLASS_TRACKER_BY_CLASS[obj]
-    if setstate:  # the cached class already set the states
-      return
-    _DYNAMIC_CLASS_TRACKER_BY_CLASS[obj] = (tracker_id, True)
-    _class_setstate_unlocked(obj, state)
+    if obj in _DYNAMIC_CLASS_STATE_TRACKER_BY_CLASS:
+      return obj
+    _DYNAMIC_CLASS_STATE_TRACKER_BY_CLASS[obj] = True
 
+    state, slotstate = state
+    registry = None
+    for attrname, attr in state.items():
+      if attrname == "_abc_impl":
+        registry = attr
+      else:
+        # Note: setting attribute names on a class automatically triggers their
+        # interning in CPython:
+        # https://github.com/python/cpython/blob/v3.12.0/Objects/object.c#L957
+        #
+        # This means that to get deterministic pickling for a dynamic class that
+        # was initially defined in a different Python process, the pickler
+        # needs to ensure that dynamic class and function attribute names are
+        # systematically copied into a non-interned version to avoid
+        # unpredictable pickle payloads.
+        #
+        # Indeed the Pickler's memoizer relies on physical object identity to break
+        # cycles in the reference graph of the object being serialized.
+        setattr(obj, attrname, attr)
 
-def _class_setstate_unlocked(obj, state):
-  state, slotstate = state
-  registry = None
-  for attrname, attr in state.items():
-    if attrname == "_abc_impl":
-      registry = attr
-    else:
-      # Note: setting attribute names on a class automatically triggers their
-      # interning in CPython:
-      # https://github.com/python/cpython/blob/v3.12.0/Objects/object.c#L957
-      #
-      # This means that to get deterministic pickling for a dynamic class that
-      # was initially defined in a different Python process, the pickler
-      # needs to ensure that dynamic class and function attribute names are
-      # systematically copied into a non-interned version to avoid
-      # unpredictable pickle payloads.
-      #
-      # Indeed the Pickler's memoizer relies on physical object identity to break
-      # cycles in the reference graph of the object being serialized.
-      setattr(obj, attrname, attr)
+    if sys.version_info >= (3, 13) and "__firstlineno__" in state:
+      # Set the Python 3.13+ only __firstlineno__  attribute one more time, as it
+      # will be automatically deleted by the `setattr(obj, attrname, attr)` call
+      # above when `attrname` is "__firstlineno__". We assume that preserving this
+      # information might be important for some users and that it not stale in the
+      # context of cloudpickle usage, hence legitimate to propagate. Furthermore it
+      # is necessary to do so to keep deterministic chained pickling as tested in
+      # test_deterministic_str_interning_for_chained_dynamic_class_pickling.
+      obj.__firstlineno__ = state["__firstlineno__"]
 
-  if sys.version_info >= (3, 13) and "__firstlineno__" in state:
-    # Set the Python 3.13+ only __firstlineno__  attribute one more time, as it
-    # will be automatically deleted by the `setattr(obj, attrname, attr)` call
-    # above when `attrname` is "__firstlineno__". We assume that preserving this
-    # information might be important for some users and that it not stale in the
-    # context of cloudpickle usage, hence legitimate to propagate. Furthermore it
-    # is necessary to do so to keep deterministic chained pickling as tested in
-    # test_deterministic_str_interning_for_chained_dynamic_class_pickling.
-    obj.__firstlineno__ = state["__firstlineno__"]
-
-  if registry is not None:
-    for subclass in registry:
-      obj.register(subclass)
+    if registry is not None:
+      for subclass in registry:
+        obj.register(subclass)
 
   return obj
 
