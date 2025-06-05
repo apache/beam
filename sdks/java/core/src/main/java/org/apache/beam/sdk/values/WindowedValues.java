@@ -607,10 +607,14 @@ public class WindowedValues {
   /** Abstract class for {@code WindowedValue} coder. */
   public abstract static class WindowedValueCoder<T> extends StructuredCoder<WindowedValue<T>> {
     final Coder<T> valueCoder;
-    protected static boolean metadataSupported = false;
+    private static boolean metadataSupported = false;
 
     public static void setMetadataSupported() {
       metadataSupported = true;
+    }
+
+    public static boolean isMetadataSupported() {
+      return metadataSupported;
     }
 
     WindowedValueCoder(Coder<T> valueCoder) {
@@ -685,7 +689,7 @@ public class WindowedValues {
       InstantCoder.of().encode(windowedElem.getTimestamp(), outStream);
       windowsCoder.encode(windowedElem.getWindows(), outStream);
       PaneInfoCoder.INSTANCE.encode(windowedElem.getPane(), outStream);
-      if (metadataSupported) {
+      if (isMetadataSupported()) {
         // propagate metadata only if runner and other environments support this capability
         // ElementMetadata elementMetadata = windowedElem.getElementMetadata();
         BeamFnApi.Elements.ElementMetadata.Builder builder =
@@ -709,7 +713,7 @@ public class WindowedValues {
       Collection<? extends BoundedWindow> windows = windowsCoder.decode(inStream);
       PaneInfo pane = PaneInfoCoder.INSTANCE.decode(inStream);
       ElementMetadata elementMetadata = ElementMetadata.create();
-      if (metadataSupported && pane.isElementMetadata()) {
+      if (isMetadataSupported() && pane.isElementMetadata()) {
         // read metadata only if runner and other environments support this capability
         // read metadata only if pane has provided information about additional metadata
         BeamFnApi.Elements.ElementMetadata metadata =
