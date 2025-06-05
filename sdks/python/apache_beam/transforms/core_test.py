@@ -21,7 +21,9 @@
 import logging
 import os
 import tempfile
+import typing
 import unittest
+from typing import TypeVar
 
 import pytest
 
@@ -288,6 +290,16 @@ class FlatMapTest(unittest.TestCase):
           | beam.Create(['abc', 'def'], reshuffle=False)
           | beam.FlatMap())
       assert_that(letters, equal_to(['a', 'b', 'c', 'd', 'e', 'f']))
+
+  def test_callablewrapper_typehint(self):
+    T = TypeVar("T")
+
+    def identity(x: T) -> T:
+      return x
+
+    dofn = beam.core.CallableWrapperDoFn(identity)
+    assert dofn.get_type_hints() is None
+    assert dofn.get_type_hints().strip_iterable()[1][0][0] is typing.Any
 
   def test_default_with_typehint(self):
     with beam.Pipeline() as pipeline:

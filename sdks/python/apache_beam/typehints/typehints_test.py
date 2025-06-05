@@ -1662,6 +1662,8 @@ class TestGetYieldedType(unittest.TestCase):
   def test_not_iterable(self):
     with self.assertRaisesRegex(ValueError, r'not iterable'):
       typehints.get_yielded_type(int)
+    with self.assertRaisesRegex(ValueError, r'not iterable'):
+      typehints.get_yielded_type(T)
 
   def test_union_not_iterable(self):
     with self.assertRaisesRegex(ValueError, r'not iterable'):
