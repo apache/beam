@@ -424,6 +424,13 @@ class IOTypeHints(NamedTuple):
           output_type = types[0]
         except ValueError:
           pass
+    # if output_type == T, we can't strip it.
+    print(
+        'output_type:',
+        output_type,
+        f"{isinstance(output_type, typehints.TypeVariable) = }")
+    if isinstance(output_type, typehints.TypeVariable):
+      return self
 
     yielded_type = typehints.get_yielded_type(output_type)
     return self._replace(
