@@ -158,7 +158,7 @@ class PipelineTest(unittest.TestCase):
       pcoll3 = pcoll2 | 'do' >> FlatMap(lambda x: [x + 10])
       assert_that(pcoll3, equal_to([14, 15, 16]), label='pcoll3')
 
-  def test_PEnd_errmsg(self):
+  def test_unexpected_PDone_errmsg(self):
     """
     Test that a nice error message is raised if a transform that
     returns None (i.e. produces no PCollection) is used as input
