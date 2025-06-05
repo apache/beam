@@ -162,7 +162,7 @@ Director of AI Business Development @Akvelon
 &lt;p>This design provided both Protegrity and its enterprise clients with a reusable, open-source architecture for scalable data privacy and processing.&lt;/p>
 &lt;h3 id="the-results">The Results&lt;/h3>
 &lt;ul>
-&lt;li>&lt;strong>Enabled data tokenization at&lt;/strong> for regulated industries&lt;/li>
+&lt;li>&lt;strong>Enabled data tokenization at scale&lt;/strong> for regulated industries&lt;/li>
 &lt;li>&lt;strong>Accelerated adoption of Dataflow templates&lt;/strong> across Protegrity’s customer base&lt;/li>
 &lt;li>&lt;strong>Delivered an &lt;a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/complete/datatokenization/README.md">open-source Flex Template&lt;/a>&lt;/strong> that benefits the entire Apache Beam community&lt;/li>
 &lt;/ul>
