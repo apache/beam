@@ -110,18 +110,13 @@ public class DebeziumReadSchemaTransformProvider
             connectorConfiguration
                 .withConnectionProperty("table.include.list", configuration.getTable())
                 .withConnectionProperty("include.schema.changes", "false")
-                .withConnectionProperty("database.server.name", "beam-pipeline-server")
-                // add random unique name/identifier for server to identify connector
-                .withConnectionProperty("database.server.name", "beam-pipeline-server")
-                .withConnectionProperty("database.server.id", "579676")
-                .withConnectionProperty(
-                    "schema.history.internal", "io.debezium.storage.file.history.FileSchemaHistory")
-                .withConnectionProperty(
-                    "schema.history.internal.file.filename", "data/schema_history.dat");
+                .withConnectionProperty("database.server.name", "beam-pipeline-server");
+
         if (configuration.getDatabase().equals("POSTGRES")) {
           LOG.info(
               "As Database is POSTGRES, we set the `database.dbname` property to {}.",
               configuration.getTable().substring(0, configuration.getTable().indexOf(".")));
+
           connectorConfiguration =
               connectorConfiguration.withConnectionProperty(
                   "database.dbname",

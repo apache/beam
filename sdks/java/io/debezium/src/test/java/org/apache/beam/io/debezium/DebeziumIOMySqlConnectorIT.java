@@ -76,11 +76,11 @@ public class DebeziumIOMySqlConnectorIT {
       new MySQLContainer<>(
               DockerImageName.parse("quay.io/debezium/example-mysql:3.1.1.Final")
                   .asCompatibleSubstituteFor("mysql"))
+          .withPassword("debezium")
+          .withUsername("mysqluser")
           .withNetwork(network)
           .withNetworkAliases("mysql")
           .withExposedPorts(3306)
-          .withUsername("mysqluser")
-          .withPassword("debezium")
           .waitingFor(
               new HttpWaitStrategy()
                   .forPort(3306)
@@ -140,7 +140,7 @@ public class DebeziumIOMySqlConnectorIT {
     }
   }
 
-  @Test(timeout = 300000L)
+  @Test
   public void testDebeziumSchemaTransformMysqlRead() throws InterruptedException {
     long writeSize = 500L;
     long testTime = writeSize * 200L;
@@ -166,13 +166,12 @@ public class DebeziumIOMySqlConnectorIT {
                                     ? Long.valueOf(num).intValue()
                                     : Long.valueOf(num).intValue() + 4)
                             // TODO(pabloem): Add other data types
-                            .withFieldValue("first_name", "FN-" + num)
-                            .withFieldValue("last_name", "LN-" + (writeSize - num))
-                            .withFieldValue("email", num + "@beamail.com")
+                            .withFieldValue("first_name", Long.toString(num))
+                            .withFieldValue("last_name", Long.toString(writeSize - num))
+                            .withFieldValue("email", Long.toString(num) + "@beamail.com")
                             .build()))
         .setRowSchema(TABLE_SCHEMA)
         .apply(
-            "WriteToCustomers",
             JdbcIO.<Row>write()
                 .withTable("inventory.customers")
                 .withDataSourceProviderFn(DebeziumIOMySqlConnectorIT::getMysqlDatasource));
@@ -181,7 +180,6 @@ public class DebeziumIOMySqlConnectorIT {
     PCollection<Row> result =
         PCollectionRowTuple.empty(readPipeline)
             .apply(
-                "ReadFromMySQLDebeziumSchemaTransform",
                 new DebeziumReadSchemaTransformProvider(
                         true, Long.valueOf(writeSize).intValue() + 4, testTime)
                     .from(
@@ -195,17 +193,13 @@ public class DebeziumIOMySqlConnectorIT {
                             .setPort(MY_SQL_CONTAINER.getMappedPort(3306))
                             .setDebeziumConnectionProperties(
                                 Lists.newArrayList(
+                                    "database.server.id=1849055",
                                     "schema.history.internal.kafka.bootstrap.servers="
                                         + KAFKA_CONTAINER.getBootstrapServers(),
                                     "schema.history.internal.kafka.topic=schema-history-mysql-transform-"
                                         + System.nanoTime(),
                                     "schema.history.internal=io.debezium.storage.kafka.history.KafkaSchemaHistory",
                                     "schema.history.internal.store.only.captured.tables.ddl=false",
-                                    // "database.server.id="
-                                    //     + (6000 + (int) (Math.random() * 1000)), // Increased
-                                    // range
-                                    "database.server.name=mysql-transform-server-"
-                                        + System.nanoTime(),
                                     "table.include.list=inventory.customers",
                                     "snapshot.mode=initial_only"))
                             .build()))
@@ -215,19 +209,10 @@ public class DebeziumIOMySqlConnectorIT {
         .satisfies(
             rows -> {
               assertThat(
-                  "Number of rows received",
-                  Lists.newArrayList(rows).size(),
-                  equalTo(Long.valueOf(writeSize + 4).intValue()));
+                  Lists.newArrayList(rows).size(), equalTo(Long.valueOf(writeSize + 4).intValue()));
               return null;
             });
-
-    Thread writeThread =
-        new Thread(
-            () -> {
-              LOG.info("Starting write pipeline for SchemaTransform test...");
-              writePipeline.run().waitUntilFinish();
-              LOG.info("Write pipeline for SchemaTransform test finished.");
-            });
+    Thread writeThread = new Thread(() -> writePipeline.run().waitUntilFinish());
     Thread monitorThread = new Thread(this::monitorEssentialMetrics);
 
     monitorThread.start();
@@ -245,7 +230,12 @@ public class DebeziumIOMySqlConnectorIT {
     LOG.info("Monitor thread for SchemaTransform test joined.");
   }
 
-  @Test(timeout = 300000L)
+  /**
+   * Debezium - MySQL connector Test.
+   *
+   * <p>Tests that connector can actually connect to the database
+   */
+  @Test
   public void testDebeziumIOMySql() {
 
     String kafkaBootstrapServers = KAFKA_CONTAINER.getBootstrapServers();
@@ -267,7 +257,6 @@ public class DebeziumIOMySqlConnectorIT {
                         .withHostName(host)
                         .withPort(port)
                         .withConnectionProperty("database.server.id", "184054")
-                        .withConnectionProperty("database.server.name", "dbserver1")
                         .withConnectionProperty("database.include.list", "inventory")
                         .withConnectionProperty("include.schema.changes", "false")
                         .withConnectionProperty(
@@ -284,7 +273,7 @@ public class DebeziumIOMySqlConnectorIT {
                 .withMaxNumberOfRecords(30)
                 .withCoder(StringUtf8Coder.of()));
     String expected =
-        "{\"metadata\":{\"connector\":\"mysql\",\"version\":\"3.1.1.Final\",\"name\":\"beam-debezium-connector\","
+        "{\"metadata\":{\"connector\":\"mysql\",\"version\":\"3.1.1.Final\",\"name\":\"beam-pipeline-server\","
             + "\"database\":\"inventory\",\"schema\":\"binlog.000002\",\"table\":\"addresses\"},\"before\":null,"
             + "\"after\":{\"fields\":{\"zip\":\"76036\",\"city\":\"Euless\","
             + "\"street\":\"3183 Moore Avenue\",\"id\":10,\"state\":\"Texas\",\"customer_id\":1001,"
