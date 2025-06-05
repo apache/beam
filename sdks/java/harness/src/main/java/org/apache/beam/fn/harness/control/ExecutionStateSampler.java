@@ -65,6 +65,7 @@ public class ExecutionStateSampler {
   private static final Logger LOG = LoggerFactory.getLogger(ExecutionStateSampler.class);
   private static final int DEFAULT_SAMPLING_PERIOD_MS = 200;
   private static final long MAX_LULL_TIME_MS = TimeUnit.MINUTES.toMillis(5);
+  private static final int MIN_LULL_TIME_MINUTE_FOR_RESTART = 10; // Open to change.
   private static final PeriodFormatter DURATION_FORMATTER =
       new PeriodFormatterBuilder()
           .appendDays()
@@ -80,6 +81,7 @@ public class ExecutionStateSampler {
           .toFormatter();
   private final int periodMs;
   private final MillisProvider clock;
+  private final int maxLullTimeMinuteForRestart;
 
   @GuardedBy("activeStateTrackers")
   private final Set<ExecutionStateTracker> activeStateTrackers;
@@ -97,6 +99,8 @@ public class ExecutionStateSampler {
             : Integer.parseInt(samplingPeriodMills);
     this.clock = clock;
     this.activeStateTrackers = new HashSet<>();
+    this.maxLullTimeMinuteForRestart = setMaxLullTimeForRestart(
+        options.getPtransformTimeoutDuration());
     // We specifically synchronize to ensure that this object can complete
     // being published before the state sampler thread starts.
     synchronized (this) {
@@ -147,6 +151,16 @@ public class ExecutionStateSampler {
     } catch (ExecutionException e) {
       throw new RuntimeException("Exception in state sampler", e);
     }
+  }
+
+  private static long setMaxLullTimeForRestart(int timeoutDurationMinuteFromOptions) {
+    int res = Math.max(timeoutDurationMinuteFromOptions,
+        ExecutionStateSampler.MIN_LULL_TIME_MIN_FOR_RESTART);
+    if (timeoutDurationMinuteFromOptions < ExecutionStateSampler.MIN_LULL_TIME_MINUTE_FOR_RESTART) {
+      LOG.info(String.format("The user defined ptransformTimeoutDuration might be too small for "
+          + "a pTransform operation and has been set to %d minutes"), res);
+    }
+    return res;
   }
 
   /** Entry point for the state sampling thread. */
