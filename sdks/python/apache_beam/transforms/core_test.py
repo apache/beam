@@ -289,6 +289,16 @@ class FlatMapTest(unittest.TestCase):
           | beam.FlatMap())
       assert_that(letters, equal_to(['a', 'b', 'c', 'd', 'e', 'f']))
 
+  def test_default_with_typehint(self):
+    with beam.Pipeline() as pipeline:
+      letters = (
+          pipeline
+          | beam.Create([["abc"]], reshuffle=False)
+          | beam.FlatMap()
+          | beam.Map(lambda s: s.upper()).with_input_types(str))
+
+      assert_that(letters, equal_to(["ABC"]))
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
