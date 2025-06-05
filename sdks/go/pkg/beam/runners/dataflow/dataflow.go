@@ -468,7 +468,14 @@ func checkSoftDeletePolicyEnabled(ctx context.Context, bucketName string, locati
 		log.Warnf(ctx, "Error parsing bucket name: %v", err)
 		return
 	}
-	if enabled, err_msg := gcsx.SoftDeletePolicyEnabled(ctx, bucket); err_msg != nil {
+	client, err := storage.NewClient(ctx)
+	if err != nil {
+		log.Warnf(ctx, "Error creating GCS client: %v", err)
+		return
+	}
+	defer client.Close()
+
+	if enabled, err_msg := gcsx.SoftDeletePolicyEnabled(ctx, client, bucket); err_msg != nil {
 		log.Warnf(ctx, "Error checking SoftDeletePolicy: %v", err_msg)
 	} else if enabled {
 		log.Warnf(ctx, "Bucket %s specified in %s has soft-delete policy enabled. "+

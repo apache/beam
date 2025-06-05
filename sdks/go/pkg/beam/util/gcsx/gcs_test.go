@@ -115,7 +115,7 @@ func TestSoftDeletePolicyWhenEnabled(t *testing.T) {
 	defer func() { getBucketAttrs = original }()
 
 	// Inject mock behavior
-	getBucketAttrs = func(ctx context.Context, bucketName string) (*storage.BucketAttrs, error) {
+	getBucketAttrs = func(ctx context.Context, client *storage.Client, bucketName string) (*storage.BucketAttrs, error) {
 		return &storage.BucketAttrs{
 			SoftDeletePolicy: &storage.SoftDeletePolicy{
 				RetentionDuration: 1029,
@@ -123,7 +123,8 @@ func TestSoftDeletePolicyWhenEnabled(t *testing.T) {
 		}, nil
 	}
 
-	enabled, err := SoftDeletePolicyEnabled(context.Background(), "mock-bucket")
+	// You can pass nil for client because the mock ignores it
+	enabled, err := SoftDeletePolicyEnabled(context.Background(), nil, "mock-bucket")
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -136,7 +137,7 @@ func TestSoftDeletePolicyWhenDisabled(t *testing.T) {
 	original := getBucketAttrs
 	defer func() { getBucketAttrs = original }()
 
-	getBucketAttrs = func(ctx context.Context, bucketName string) (*storage.BucketAttrs, error) {
+	getBucketAttrs = func(ctx context.Context, client *storage.Client, bucketName string) (*storage.BucketAttrs, error) {
 		return &storage.BucketAttrs{
 			SoftDeletePolicy: &storage.SoftDeletePolicy{
 				RetentionDuration: 0,
@@ -144,7 +145,7 @@ func TestSoftDeletePolicyWhenDisabled(t *testing.T) {
 		}, nil
 	}
 
-	enabled, err := SoftDeletePolicyEnabled(context.Background(), "mock-bucket")
+	enabled, err := SoftDeletePolicyEnabled(context.Background(), nil, "mock-bucket")
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
