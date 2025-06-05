@@ -1456,12 +1456,12 @@ public final class FirestoreV1 {
       }
 
       @VisibleForTesting
-      public @Nullable String getProjectId() {
+      @Nullable String getProjectId() {
         return this.projectId;
       }
 
       @VisibleForTesting
-      public @Nullable String getDatabaseId() {
+      @Nullable String getDatabaseId() {
         return this.databaseId;
       }
 
@@ -1609,12 +1609,12 @@ public final class FirestoreV1 {
       }
 
       @VisibleForTesting
-      public @Nullable String getProjectId() {
+      @Nullable String getProjectId() {
         return this.projectId;
       }
 
       @VisibleForTesting
-      public @Nullable String getDatabaseId() {
+      @Nullable String getDatabaseId() {
         return this.databaseId;
       }
 
