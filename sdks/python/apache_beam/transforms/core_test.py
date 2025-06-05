@@ -20,10 +20,11 @@
 
 import logging
 import os
-import pytest
 import tempfile
 import unittest
 from typing import TypeVar
+
+import pytest
 
 import apache_beam as beam
 from apache_beam.testing.util import assert_that
