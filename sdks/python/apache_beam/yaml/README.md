@@ -50,14 +50,14 @@ The integration_tests.py dynamically creates test methods based on the yaml
 files provided in the `tests` and `extended_tests` directories and runs the
 pipeline. It also contains context managers for setting up test environments for
 both precommit tests (e.g. `tests` folder) and postcommit tests
-(e.g. `extended_tests` folder).  
+(e.g. `extended_tests` folder).
 
 To run the precommit tests:
 
 ```bash
 pytest -v integration_tests.py
 
-or 
+or
 
 pytest -v integration_tests.py::<yaml_file_name_without_extension>Test
 ```
