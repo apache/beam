@@ -21,7 +21,6 @@
 import logging
 import os
 import tempfile
-import typing
 import unittest
 from typing import TypeVar
 
@@ -31,6 +30,7 @@ import apache_beam as beam
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.window import FixedWindows
+from apache_beam.typehints import typehints
 
 RETURN_NONE_PARTIAL_WARNING = "No iterator is returned"
 
@@ -298,8 +298,7 @@ class FlatMapTest(unittest.TestCase):
       return x
 
     dofn = beam.core.CallableWrapperDoFn(identity)
-    assert dofn.get_type_hints() is None
-    assert dofn.get_type_hints().strip_iterable()[1][0][0] is typing.Any
+    assert dofn.get_type_hints().strip_iterable()[1][0][0] == typehints.Any
 
   def test_default_with_typehint(self):
     with beam.Pipeline() as pipeline:
