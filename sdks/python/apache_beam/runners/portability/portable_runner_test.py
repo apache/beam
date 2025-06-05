@@ -223,8 +223,7 @@ class PortableRunnerTest(fn_runner_test.FnApiRunnerTest):
     raise unittest.SkipTest("Portable runners don't support drain yet.")
 
   def test_pardo_et_timer_with_no_firing(self):
-    if type(self) in [
-                      PortableRunnerTest,
+    if type(self) in [PortableRunnerTest,
                       PortableRunnerTestWithSubprocesses,
                       PortableRunnerTestWithSubprocessesAndMultiWorkers,
                       PortableRunnerTestWithExternalEnv,

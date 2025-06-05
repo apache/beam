@@ -792,9 +792,10 @@ class FnApiRunnerTest(unittest.TestCase):
         local_count = count.read() or 0
         local_count += 1
 
-        _LOGGER.info(f"get element {element_pair[1]}, count={local_count}")
+        _LOGGER.info(
+            "get element %s, count=%d", str(element_pair[1]), local_count)
         if local_count == 1:
-          _LOGGER.info(f"set timer to {t+self._timer_delay}")
+          _LOGGER.info("set timer to %s", str(t + self._timer_delay))
           timer.set(t + self._timer_delay)
 
         if local_count == self._n:
@@ -812,7 +813,7 @@ class FnApiRunnerTest(unittest.TestCase):
       @userstate.on_timer(TIMER)
       def timer_callback(self, t=beam.DoFn.TimestampParam):
         _LOGGER.error("Timer should not fire here")
-        _LOGGER.info(f"timer callback start (timestamp={t})")
+        _LOGGER.info("timer callback start (timestamp=%s)", str(t))
         yield "fired"
 
     with self.create_pipeline() as p:
