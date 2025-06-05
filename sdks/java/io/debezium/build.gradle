@@ -142,45 +142,6 @@ task integrationTest(type: Test, dependsOn: processTestResources) {
 
   useJUnit {
   }
-// task integrationTest(type: Test, dependsOn: processTestResources) {
-//     group = "Verification"
-//     // Use fully qualified name for JsonOutput to ensure it's resolved
-//     systemProperty "beamTestPipelineOptions", groovy.json.JsonOutput.toJson([
-//             "--runner=DirectRunner",
-//     ])
-
-//     outputs.upToDateWhen { false }
-
-//     include '**/*IT.class'
-//     classpath = sourceSets.test.runtimeClasspath
-//     testClassesDirs = sourceSets.test.output.classesDirs
-
-//     useJUnit {
-//     }
-
-    // Ensure jvmArgs for integrationTest are also cleaned or correctly inherited,
-    // by applying similar filtering logic.
-    // List<String> initialIntegrationJvmArgs = jvmArgs ?: []
-    // List<String> mutableIntegrationJvmArgs = new ArrayList<>(initialIntegrationJvmArgs)
-
-    // List<String> filteredIntegrationJvmArgs = mutableIntegrationJvmArgs.findAll { arg ->
-    //     String argStr = arg.toString()
-    //     boolean shouldRemove = argStr.startsWith('--add-opens=c/') || argStr.startsWith('--add-opens=org.apache.beam.sdk/')
-    //     // Optional: add logging here too if needed for debugging integrationTest specifically
-    //     if (shouldRemove) {
-    //         project.logger.lifecycle("Debezium IO: Filtering out problematic inherited jvmArg for integrationTest task: ${argStr}")
-    //     }
-    //     return !shouldRemove
-    // }
-    // jvmArgs = filteredIntegrationJvmArgs
-
-
-    // testLogging {
-    //     outputs.upToDateWhen {false}
-    //     showStandardStreams = true
-    //     exceptionFormat = 'full'
-    // }
-}
 
 // The order is intended here - Debezium 3 requires Java 17, or later
 if (project.hasProperty('java17Home')) {
