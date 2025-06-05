@@ -35,17 +35,14 @@ import org.junit.Test;
 /** UnitTest for {@link IcebergTableProvider}. */
 public class IcebergTableProviderTest {
   private final IcebergTableProvider provider =
-      IcebergTableProvider.create()
-          .withCatalogProperties(
-              ImmutableMap.of(
-                  "catalog-impl", "org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog",
-                  "io-impl", "org.apache.iceberg.gcp.gcs.GCSFileIO",
-                  "warehouse", "gs://bucket/warehouse"))
-          .withHadoopConfProperties(
-              ImmutableMap.of(
-                  "fs.gs.project.id", "apache-beam-testing",
-                  "foo", "bar"))
-          .withCatalogName("my_catalog");
+      IcebergTableProvider.create(
+          "test_catalog",
+          ImmutableMap.of(
+              "catalog-impl", "org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog",
+              "io-impl", "org.apache.iceberg.gcp.gcs.GCSFileIO",
+              "warehouse", "gs://bucket/warehouse",
+              "beam.catalog.test_catalog.hadoop.fs.gs.project.id", "apache-beam-testing",
+              "beam.catalog.test_catalog.hadoop.foo", "bar"));
 
   @Test
   public void testGetTableType() {

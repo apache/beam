@@ -62,7 +62,7 @@ public class PubsubToIcebergIT implements Serializable {
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
   @Rule public transient TestPubsub pubsub = TestPubsub.create();
-
+  private static final IcebergTableProvider PROVIDER = IcebergTableProvider.create();
   private static final BigqueryClient BQ_CLIENT = new BigqueryClient("PubsubToIcebergIT");
   static final String DATASET = "sql_pubsub_to_iceberg_it_" + System.nanoTime();
   static String warehouse;
@@ -78,15 +78,6 @@ public class PubsubToIcebergIT implements Serializable {
             TestPipeline.testingPipelineOptions().getTempLocation(),
             PubsubToIcebergIT.class.getSimpleName(),
             UUID.randomUUID());
-    BQ_CLIENT.createNewDataset(OPTIONS.getProject(), DATASET);
-  }
-
-  private String tableIdentifier;
-  private Map<String, String> icebergConfig;
-
-  @Before
-  public void setup() {
-    tableIdentifier = DATASET + "." + testName.getMethodName();
     icebergConfig =
         ImmutableMap.of(
             "catalog-impl", "org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog",
@@ -94,6 +85,16 @@ public class PubsubToIcebergIT implements Serializable {
             "warehouse", warehouse,
             "gcp_project", OPTIONS.getProject(),
             "gcp_region", "us-central1");
+    PROVIDER.initialize(PubsubToIcebergIT.class.getSimpleName(), icebergConfig);
+    BQ_CLIENT.createNewDataset(OPTIONS.getProject(), DATASET);
+  }
+
+  private String tableIdentifier;
+  private static Map<String, String> icebergConfig;
+
+  @Before
+  public void setup() {
+    tableIdentifier = DATASET + "." + testName.getMethodName();
   }
 
   @AfterClass
@@ -137,8 +138,7 @@ public class PubsubToIcebergIT implements Serializable {
         SqlTransform.query(insertStatement)
             .withDdlString(pubsubTableString)
             .withDdlString(icebergTableString)
-            .withTableProvider(
-                "iceberg", IcebergTableProvider.create().withCatalogProperties(icebergConfig)));
+            .withTableProvider("iceberg", PROVIDER));
     pipeline.run();
 
     // Block until a subscription for this topic exists
@@ -187,8 +187,7 @@ public class PubsubToIcebergIT implements Serializable {
         SqlTransform.query(insertStatement)
             .withDdlString(pubsubTableString)
             .withDdlString(bqTableString)
-            .withTableProvider(
-                "iceberg", IcebergTableProvider.create().withCatalogProperties(icebergConfig)));
+            .withTableProvider("iceberg", PROVIDER));
     pipeline.run();
 
     validateRowsWritten();

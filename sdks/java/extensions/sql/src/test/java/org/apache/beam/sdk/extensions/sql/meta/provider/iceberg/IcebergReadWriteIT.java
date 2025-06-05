@@ -86,7 +86,7 @@ public class IcebergReadWriteIT {
   @Rule public transient TestPipeline writePipeline = TestPipeline.create();
   @Rule public transient TestPipeline readPipeline = TestPipeline.create();
   @Rule public TestName testName = new TestName();
-  private static IcebergTableProvider provider;
+  private static final IcebergTableProvider PROVIDER = IcebergTableProvider.create();
 
   private static final BigqueryClient BQ_CLIENT = new BigqueryClient("IcebergReadWriteIT");
   static final String DATASET = "iceberg_sql_tests_" + System.nanoTime();
@@ -102,15 +102,14 @@ public class IcebergReadWriteIT {
             TestPipeline.testingPipelineOptions().getTempLocation(),
             IcebergReadWriteIT.class.getSimpleName(),
             UUID.randomUUID());
-    provider =
-        IcebergTableProvider.create()
-            .withCatalogProperties(
-                ImmutableMap.of(
-                    "catalog-impl", "org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog",
-                    "io-impl", "org.apache.iceberg.gcp.gcs.GCSFileIO",
-                    "warehouse", warehouse,
-                    "gcp_project", OPTIONS.getProject(),
-                    "gcp_region", "us-central1"));
+    PROVIDER.initialize(
+        IcebergReadWriteIT.class.getSimpleName(),
+        ImmutableMap.of(
+            "catalog-impl", "org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog",
+            "io-impl", "org.apache.iceberg.gcp.gcs.GCSFileIO",
+            "warehouse", warehouse,
+            "gcp_project", OPTIONS.getProject(),
+            "gcp_region", "us-central1"));
     BQ_CLIENT.createNewDataset(OPTIONS.getProject(), DATASET);
   }
 
@@ -121,7 +120,7 @@ public class IcebergReadWriteIT {
 
   @Test
   public void testSqlWriteAndRead() throws IOException, InterruptedException {
-    BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(provider);
+    BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(PROVIDER);
     String tableIdentifier = DATASET + "." + testName.getMethodName();
 
     // 1) create beam table
@@ -199,7 +198,7 @@ public class IcebergReadWriteIT {
 
   @Test
   public void testSQLReadWithProjectAndFilterPushDown() {
-    BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(provider);
+    BeamSqlEnv sqlEnv = BeamSqlEnv.inMemory(PROVIDER);
     String tableIdentifier = DATASET + "." + testName.getMethodName();
 
     String createTableStatement =

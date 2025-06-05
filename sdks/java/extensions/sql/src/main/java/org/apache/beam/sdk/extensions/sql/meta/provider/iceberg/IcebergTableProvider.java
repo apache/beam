@@ -23,27 +23,41 @@ import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.InMemoryMetaTableProvider;
 import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 public class IcebergTableProvider extends InMemoryMetaTableProvider {
+  private static final String BEAM_HADOOP_PREFIX = "beam.catalog.%s.hadoop";
   @VisibleForTesting IcebergCatalogConfig catalogConfig = IcebergCatalogConfig.builder().build();
 
   public static IcebergTableProvider create() {
     return new IcebergTableProvider();
   }
 
-  public IcebergTableProvider withCatalogProperties(Map<String, String> catalogProperties) {
-    catalogConfig = catalogConfig.toBuilder().setCatalogProperties(catalogProperties).build();
-    return this;
+  static IcebergTableProvider create(String name, Map<String, String> properties) {
+    IcebergTableProvider provider = new IcebergTableProvider();
+    provider.initialize(name, properties);
+    return provider;
   }
 
-  public IcebergTableProvider withHadoopConfProperties(Map<String, String> hadoopConfProperties) {
-    catalogConfig = catalogConfig.toBuilder().setConfigProperties(hadoopConfProperties).build();
-    return this;
-  }
+  public void initialize(String name, Map<String, String> properties) {
+    ImmutableMap.Builder<String, String> catalogProps = ImmutableMap.builder();
+    ImmutableMap.Builder<String, String> hadoopProps = ImmutableMap.builder();
+    String hadoopPrefix = String.format(BEAM_HADOOP_PREFIX, name);
 
-  public IcebergTableProvider withCatalogName(String name) {
-    catalogConfig = catalogConfig.toBuilder().setCatalogName(name).build();
-    return this;
+    for (Map.Entry<String, String> entry : properties.entrySet()) {
+      if (entry.getKey().startsWith(hadoopPrefix)) {
+        hadoopProps.put(entry.getKey(), entry.getValue());
+      } else {
+        catalogProps.put(entry.getKey(), entry.getValue());
+      }
+    }
+
+    catalogConfig =
+        IcebergCatalogConfig.builder()
+            .setCatalogName(name)
+            .setCatalogProperties(catalogProps.build())
+            .setConfigProperties(hadoopProps.build())
+            .build();
   }
 
   @Override
