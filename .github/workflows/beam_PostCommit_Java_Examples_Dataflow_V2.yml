@@ -99,7 +99,7 @@ jobs:
               -PdisableSpotlessCheck=true \
               -PdisableCheckStyle=true \
               -PskipCheckerFramework \
-              -PtestJavaVersion=java17 \
+              -PtestJavaVersion=17 \
               -Pjava17Home=$JAVA_HOME_17_X64 \
               -PdockerTag=${{ env.DOCKER_TAG }} \
       - name: Archive JUnit Test Results
