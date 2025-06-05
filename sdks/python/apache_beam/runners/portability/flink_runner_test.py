@@ -327,6 +327,9 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
   def test_custom_window_type(self):
     raise unittest.SkipTest("https://github.com/apache/beam/issues/20641")
 
+  def test_pardo_et_timer_with_early_firing(self):
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/35176")
+
   # Inherits all other tests.
 
 
