@@ -53,7 +53,7 @@ pipelines:
     
   # Postgres read pipeline without driver_class_name
   # This is to prevent https://github.com/apache/beam/issues/35122 from
-  # happenning again.
+  # happening again.
   - pipeline:
       type: chain
       transforms:
