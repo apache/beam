@@ -798,7 +798,19 @@ class Pipeline(HasDisplayData):
       if type_options.pipeline_type_check:
         transform.type_check_inputs(pvalueish)
 
+      if isinstance(pvalueish, pvalue.PDone) and isinstance(transform, ParDo):
+        # If the input is a PDone, we cannot apply a ParDo transform.
+        full_label = self._current_transform().full_label
+        producer_label = pvalueish.producer.full_label
+        raise TypeCheckError(
+            f'Transform "{full_label}" was applied to the output of '
+            f'"{producer_label}" but "{producer_label.split("/")[-1]}" '
+            'produces no PCollections.')
+
       pvalueish_result = self.runner.apply(transform, pvalueish, self._options)
+      if pvalueish_result is None:
+        pvalueish_result = pvalue.PDone(self)
+        pvalueish_result.producer = current
 
       if type_options is not None and type_options.pipeline_type_check:
         transform.type_check_outputs(pvalueish_result)

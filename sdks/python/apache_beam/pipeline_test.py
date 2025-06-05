@@ -61,6 +61,7 @@ from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import IntervalWindow
 from apache_beam.transforms.window import SlidingWindows
 from apache_beam.transforms.window import TimestampedValue
+from apache_beam.typehints import TypeCheckError
 from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 
@@ -156,6 +157,26 @@ class PipelineTest(unittest.TestCase):
       pcoll2 = pipeline | 'label2' >> Create(iter((4, 5, 6)))
       pcoll3 = pcoll2 | 'do' >> FlatMap(lambda x: [x + 10])
       assert_that(pcoll3, equal_to([14, 15, 16]), label='pcoll3')
+
+  def test_PEnd_errmsg(self):
+    """
+    Test that a nice error message is raised if a transform that
+    returns None (i.e. produces no PCollection) is used as input
+    to a PTransform.
+    """
+    class DoNothingTransform(PTransform):
+      def expand(self, pcoll):
+        return None
+
+    class ParentTransform(PTransform):
+      def expand(self, pcoll):
+        return pcoll | DoNothingTransform()
+
+    with pytest.raises(
+        TypeCheckError,
+        match=r".*applied to the output.*ParentTransform/DoNothingTransform"):
+      with TestPipeline() as pipeline:
+        _ = pipeline | ParentTransform() | beam.Map(lambda x: x + 1)
 
   @mock.patch('logging.info')
   def test_runner_overrides_default_pickler(self, mock_info):
