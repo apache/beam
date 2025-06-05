@@ -192,7 +192,7 @@ class WriteToBigTable(beam.PTransform):
   multi-language transforms framework to inject the Java native write transform
   into the pipeline.
   """
-  URN = "beam:schematransform:org.apache.beam:bigtable_simple_write"
+  URN = "beam:schematransform:org.apache.beam:bigtable_write:v1"
 
   def __init__(
       self,

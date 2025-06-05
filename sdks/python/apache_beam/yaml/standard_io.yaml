@@ -379,13 +379,13 @@
   config:
     mappings:
       'ReadFromBigTable':
-        project: 'projectId'
+        project: 'project_Id'
         instance: 'instanceId'
         table: 'tableId'
       'WriteToBigTable':
-        project: 'projectId'
-        instance: 'instanceId'
-        table: 'tableId'
+        project: 'project_id'
+        instance: 'instance_id'
+        table: 'table_id'
         Rows: "rows"
     underlying_provider:
       type: beamJar
