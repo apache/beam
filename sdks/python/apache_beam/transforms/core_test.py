@@ -281,6 +281,16 @@ class ExceptionHandlingTest(unittest.TestCase):
       self.assertFalse(os.path.isfile(tmp_path))
 
 
+def test_callablewrapper_typehint():
+  T = TypeVar("T")
+
+  def identity(x: T) -> T:
+    return x
+
+  dofn = beam.core.CallableWrapperDoFn(identity)
+  assert dofn.get_type_hints().strip_iterable()[1][0][0] == typehints.Any
+
+
 class FlatMapTest(unittest.TestCase):
   def test_default(self):
 
@@ -290,15 +300,6 @@ class FlatMapTest(unittest.TestCase):
           | beam.Create(['abc', 'def'], reshuffle=False)
           | beam.FlatMap())
       assert_that(letters, equal_to(['a', 'b', 'c', 'd', 'e', 'f']))
-
-  def test_callablewrapper_typehint(self):
-    T = TypeVar("T")
-
-    def identity(x: T) -> T:
-      return x
-
-    dofn = beam.core.CallableWrapperDoFn(identity)
-    assert dofn.get_type_hints().strip_iterable()[1][0][0] == typehints.Any
 
   def test_default_identity_function_with_typehint(self):
     with beam.Pipeline() as pipeline:
