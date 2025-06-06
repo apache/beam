@@ -618,12 +618,6 @@ public class WindowedValues {
     // Precompute and cache the coder for a list of windows.
     private final Coder<Collection<? extends BoundedWindow>> windowsCoder;
 
-    private static boolean metadataSupported = false;
-
-    public static void setMetadataSupported() {
-      metadataSupported = true;
-    }
-
     public static <T> FullWindowedValueCoder<T> of(
         Coder<T> valueCoder, Coder<? extends BoundedWindow> windowCoder) {
       return new FullWindowedValueCoder<>(valueCoder, windowCoder);
