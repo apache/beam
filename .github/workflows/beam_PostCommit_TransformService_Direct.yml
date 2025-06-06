@@ -62,7 +62,7 @@ jobs:
       matrix:
         job_name: ["beam_PostCommit_TransformService_Direct"]
         job_phrase: ["Run TransformService_Direct PostCommit"]
-        python_version: ['3.9','3.12']
+        python_version: ['3.9','3.13']
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository
