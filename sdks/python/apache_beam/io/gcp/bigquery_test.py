@@ -446,13 +446,14 @@ class TestReadFromBigQuery(unittest.TestCase):
   ])
   def test_create_temp_dataset_exception(self, exception_type, error_message):
 
+    # Uses the FnApiRunner to ensure errors are mocked/passed through correctly
     with mock.patch.object(bigquery_v2_client.BigqueryV2.JobsService,
                            'Insert'),\
       mock.patch.object(BigQueryWrapper,
                         'get_or_create_dataset') as mock_insert, \
       mock.patch('time.sleep'), \
       self.assertRaises(Exception) as exc,\
-      beam.Pipeline() as p:
+      beam.Pipeline('FnApiRunner') as p:
 
       mock_insert.side_effect = exception_type(error_message)
 

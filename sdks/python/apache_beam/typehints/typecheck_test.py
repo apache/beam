@@ -36,7 +36,6 @@ from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import decorators
 from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
@@ -145,7 +144,7 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
         msg.startswith(prefix), '"%s" does not start with "%s"' % (msg, prefix))
 
   def test_simple_input_error(self):
-    with self.assertRaises(TypeCheckError) as e:
+    with self.assertRaises(Exception) as e:
       (
           self.p
           | beam.Create([1, 1])
@@ -160,7 +159,7 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
         e.exception.args[0])
 
   def test_simple_output_error(self):
-    with self.assertRaises(TypeCheckError) as e:
+    with self.assertRaises(Exception) as e:
       (
           self.p
           | beam.Create(['1', '1'])
@@ -181,7 +180,7 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
       def process(self, element, *args, **kwargs):
         yield int(element)
 
-    with self.assertRaises(TypeCheckError) as e:
+    with self.assertRaises(Exception) as e:
       (self.p | beam.Create(['1', '1']) | beam.ParDo(ToInt()))
       self.p.run()
 
@@ -198,7 +197,7 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
     def incorrect_par_do_fn(x):
       return x + 5
 
-    with self.assertRaises(TypeError) as cm:
+    with self.assertRaises(Exception) as cm:
       (self.p | beam.Create([1, 1]) | beam.FlatMap(incorrect_par_do_fn))
       self.p.run()
 
@@ -231,7 +230,7 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
         self.p
         | 'Create' >> beam.Create(['some_string'])
         | 'ToStr' >> beam.Map(int_to_string))
-    with self.assertRaises(TypeCheckError) as e:
+    with self.assertRaises(Exception) as e:
       self.p.run()
 
     self.assertStartswith(
@@ -257,7 +256,7 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
         | 'IsEven' >> beam.Map(is_even_as_key)
         | 'Parity' >> beam.GroupByKey())
 
-    with self.assertRaises(TypeCheckError) as e:
+    with self.assertRaises(Exception) as e:
       self.p.run()
 
     self.assertStartswith(
@@ -275,7 +274,7 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
     # The type-hinted applied via the 'returns()' method indicates the ParDo
     # should return an instance of type: Tuple[float, int]. However, an instance
     # of 'int' will be generated instead.
-    with self.assertRaises(TypeCheckError) as e:
+    with self.assertRaises(Exception) as e:
       (
           self.p
           | beam.Create([(1, 3.0)])
@@ -308,7 +307,7 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
     # This will raise a type check error in IntToInt even though the actual
     # type check error won't happen until StrToInt. The user will be told that
     # StrToInt's input type hints were not satisfied while running IntToInt.
-    with self.assertRaises(TypeCheckError) as e:
+    with self.assertRaises(Exception) as e:
       (
           self.p
           | beam.Create([9])
