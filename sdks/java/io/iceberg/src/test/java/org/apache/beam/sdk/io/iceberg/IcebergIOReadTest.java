@@ -32,6 +32,7 @@ import static org.junit.Assume.assumeTrue;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -357,7 +358,6 @@ public class IcebergIOReadTest {
     TableIdentifier tableId =
         TableIdentifier.of("default", "table" + Long.toString(UUID.randomUUID().hashCode(), 16));
     Table simpleTable = warehouse.createTable(tableId, TestFixtures.SCHEMA);
-    final Schema schema = icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
 
     List<List<Record>> expectedRecords = warehouse.commitData(simpleTable);
 
@@ -365,24 +365,26 @@ public class IcebergIOReadTest {
         IcebergIO.readRows(catalogConfig())
             .from(tableId)
             .withFilter(
-                "\"id\" < 10 AND \"id\" >= 2 AND  \"data\" <> 'clammy' AND \"data\" <> 'brainy'");
+                "\"id\" < 10 AND \"id\" >= 2 AND  \"data\" <> 'clammy' AND \"data\" <> 'brainy'")
+            .keeping(Arrays.asList("id"));
 
     if (useIncrementalScan) {
       read = read.withCdc().toSnapshot(simpleTable.currentSnapshot().snapshotId());
     }
+    final Schema outputSchema = icebergSchemaToBeamSchema(TestFixtures.SCHEMA.select("id"));
     final List<Row> expectedRows =
         expectedRecords.stream()
             .flatMap(List::stream)
-            .map(record -> IcebergUtils.icebergRecordToBeamRow(schema, record))
             .filter(
-                row -> {
-                  long id = checkStateNotNull(row.getInt64("id"));
-                  String data = checkStateNotNull(row.getString("data"));
+                record -> {
+                  long id = checkStateNotNull((Long) record.getField("id"));
+                  String data = checkStateNotNull((String) record.getField("data"));
                   return id < 10
                       && id >= 2
                       && !Objects.equals(data, "clammy")
                       && !Objects.equals(data, "brainy");
                 })
+            .map(record -> IcebergUtils.icebergRecordToBeamRow(outputSchema, record))
             .collect(Collectors.toList());
 
     PCollection<Row> output = testPipeline.apply(read).apply(new PrintRow());
