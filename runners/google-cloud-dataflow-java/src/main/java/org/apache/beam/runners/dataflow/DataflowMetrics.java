@@ -180,7 +180,6 @@ class DataflowMetrics extends MetricResults {
         StringSetResult value = getStringSetValue(committed);
         stringSetResults.add(MetricResult.create(metricKey, !isStreamingJob, value));
       } else if (committed.getBoundedTrie() != null && attempted.getBoundedTrie() != null) {
-        LOG.info("DO NOT MERGE: get bounded trie: {}", committed.getBoundedTrie());
         BoundedTrieResult value = getBoundedTrieValue(committed);
         boundedTrieResults.add(MetricResult.create(metricKey, !isStreamingJob, value));
       } else {
@@ -218,10 +217,7 @@ class DataflowMetrics extends MetricResults {
         BoundedTrie bTrie = (BoundedTrie) metricUpdate.getBoundedTrie();
         trieData = BoundedTrieData.fromProto(bTrie);
       } else if (trieFromResponse instanceof ArrayMap) {
-        LOG.info("DO NOT MERGE try to resolve ArrayMap");
         trieData = trieFromArrayMap((ArrayMap) trieFromResponse);
-      } else {
-        LOG.info("DO NOT MERGE bounded trie is of type {}", trieFromResponse.getClass().getName());
       }
 
       if (trieData != null) {
@@ -246,9 +242,6 @@ class DataflowMetrics extends MetricResults {
     /** Translate ArrayMap returned by Dataflow API client to BoundedTrieData. */
     @VisibleForTesting
     static BoundedTrieData trieFromArrayMap(ArrayMap fieldsMap) {
-      // {root={truncated=false, children={gcs:={children={yathu_test.={truncated=false,
-      // children={temp/2={truncated=false}, temp/1={truncated=false}, temp/3={truncated=false}}}},
-      // truncated=false}}}, bound=100}
       int bound = 0;
       List<String> singleton = null;
       Object maybeBound = fieldsMap.get("bound");

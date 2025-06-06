@@ -25,6 +25,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
@@ -296,130 +297,39 @@ public class DataflowMetricsTest {
                 StringSetResult.create(ImmutableSet.of("ab", "cd")))));
   }
 
-  /*
   @Test
-  public void testSingletonBoundedTrieFromMessage() throws ParseException {
-    String textProto =
-        "  fields {\n"
-            + "    key: \"bound\"\n"
-            + "    value {\n"
-            + "      number_value: 100\n"
-            + "    }\n"
-            + "  }\n"
-            + "  fields {\n"
-            + "    key: \"singleton\"\n"
-            + "    value {\n"
-            + "      list_value {\n"
-            + "        values {\n"
-            + "          string_value: \"pubsub:\"\n"
-            + "        }\n"
-            + "        values {\n"
-            + "          string_value: \"topic:\"\n"
-            + "        }\n"
-            + "        values {\n"
-            + "          string_value: \"`google.com:abc`.\"\n"
-            + "        }\n"
-            + "        values {\n"
-            + "          string_value: \"some-topic\"\n"
-            + "        }\n"
-            + "      }\n"
-            + "    }\n"
-            + "  }";
-    com.google.protobuf.Struct response =
-        TextFormat.parse(textProto, com.google.protobuf.Struct.class);
-    BoundedTrieData result = DataflowMetrics.DataflowMetricResultExtractor.trieFromStruct(response);
+  public void testParseBoundedTrieWithSingleton() {
+    ArrayMap arrayMap = ArrayMap.create();
+    arrayMap.put("bound", 100);
+    arrayMap.put(
+        "singleton", ImmutableList.of("pubsub:", "topic:", "`google.com:abc`.", "some-topic"));
+
+    BoundedTrieData result =
+        DataflowMetrics.DataflowMetricResultExtractor.trieFromArrayMap(arrayMap);
     assertEquals(
         "BoundedTrieData({'pubsub:topic:`google.com:abc`.some-topicfalse'})", result.toString());
   }
 
   @Test
-  public void testNestedBoundedTrieFromMessage() throws ParseException {
-    String textProto =
-        "fields {\n"
-            + "  key: \"bound\"\n"
-            + "  value {\n"
-            + "    number_value: 100\n"
-            + "  }\n"
-            + "}\n"
-            + "fields {\n"
-            + "  key: \"root\"\n"
-            + "  value {\n"
-            + "    struct_value {\n"
-            + "      fields {\n"
-            + "        key: \"children\"\n"
-            + "        value {\n"
-            + "          struct_value {\n"
-            + "            fields {\n"
-            + "              key: \"gcs:\"\n"
-            + "              value {\n"
-            + "                struct_value {\n"
-            + "                  fields {\n"
-            + "                    key: \"children\"\n"
-            + "                    value {\n"
-            + "                      struct_value {\n"
-            + "                        fields {\n"
-            + "                          key: \"some-bucket.\"\n"
-            + "                          value {\n"
-            + "                            struct_value {\n"
-            + "                              fields {\n"
-            + "                                key: \"children\"\n"
-            + "                                value {\n"
-            + "                                  struct_value {\n"
-            + "                                    fields {\n"
-            + "                                      key: \"some-folder/\"\n"
-            + "                                      value {\n"
-            + "                                        struct_value {\n"
-            + "                                          fields {\n"
-            + "                                            key: \"truncated\"\n"
-            + "                                            value {\n"
-            + "                                              bool_value: true\n"
-            + "                                            }\n"
-            + "                                          }\n"
-            + "                                        }\n"
-            + "                                      }\n"
-            + "                                    }\n"
-            + "                                  }\n"
-            + "                                }\n"
-            + "                              }\n"
-            + "                              fields {\n"
-            + "                                key: \"truncated\"\n"
-            + "                                value {\n"
-            + "                                  bool_value: false\n"
-            + "                                }\n"
-            + "                              }\n"
-            + "                            }\n"
-            + "                          }\n"
-            + "                        }\n"
-            + "                      }\n"
-            + "                    }\n"
-            + "                  }\n"
-            + "                  fields {\n"
-            + "                    key: \"truncated\"\n"
-            + "                    value {\n"
-            + "                      bool_value: false\n"
-            + "                    }\n"
-            + "                  }\n"
-            + "                }\n"
-            + "              }\n"
-            + "            }\n"
-            + "          }\n"
-            + "        }\n"
-            + "      }\n"
-            + "      fields {\n"
-            + "        key: \"truncated\"\n"
-            + "        value {\n"
-            + "          bool_value: false\n"
-            + "        }\n"
-            + "      }\n"
-            + "    }\n"
-            + "  }\n"
-            + "}";
-    com.google.protobuf.Struct response =
-        TextFormat.parse(textProto, com.google.protobuf.Struct.class);
-    BoundedTrieData result = DataflowMetrics.DataflowMetricResultExtractor.trieFromStruct(response);
-    assertEquals("BoundedTrieData({'gcs:some-bucket.some-folder/true'})", result.toString());
+  @SuppressWarnings("unchecked") // assemble ArrayMap from scratch for testing
+  public void testParseBoundedTrieWithRoot() {
+    ArrayMap arrayMap = ArrayMap.create();
+    arrayMap.put("bound", 100);
+    ArrayMap root = ArrayMap.create();
+    root.put("truncated", false);
+    ArrayMap children = ArrayMap.create();
+    ArrayMap leaf = ArrayMap.create();
+    leaf.put("1", ArrayMap.of("truncated", false));
+    leaf.put("2", ArrayMap.of("truncated", false));
+    leaf.put("3", ArrayMap.of("truncated", false));
+    children.put("gcs:some-bucket.some-folder/", leaf);
+    root.put("children", children);
+    arrayMap.put("root", root);
+
+    BoundedTrieData result =
+        DataflowMetrics.DataflowMetricResultExtractor.trieFromArrayMap(arrayMap);
+    assertEquals("BoundedTrieData({'gcs:some-bucket.some-folder/false'})", result.toString());
   }
-   */
 
   @Test
   public void testSingleBoundedTrieUpdates() throws IOException {
