@@ -37,6 +37,7 @@ from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import ValueProvider
 from apache_beam.transforms.display import HasDisplayData
+from apache_beam.utils import logs
 from apache_beam.utils import proto_utils
 
 __all__ = [
@@ -422,9 +423,10 @@ class PipelineOptions(HasDisplayData):
     known_args, unknown_args = parser.parse_known_args(self._flags)
     if retain_unknown_options:
       if unknown_args:
-        _LOGGER.warning(
-            'Unknown pipeline options received: %s. Ignore if flags are '
-            'used for internal purposes.' % (','.join(unknown_args)))
+        if logs.allow_log_once():
+          _LOGGER.warning(
+              'Unknown pipeline options received: %s. Ignore if flags are '
+              'used for internal purposes.' % (','.join(unknown_args)))
 
       seen = set()
 
@@ -466,7 +468,8 @@ class PipelineOptions(HasDisplayData):
       parsed_args, _ = parser.parse_known_args(self._flags)
     else:
       if unknown_args:
-        _LOGGER.warning("Discarding unparseable args: %s", unknown_args)
+        if logs.allow_log_once():
+          _LOGGER.warning("Discarding unparseable args: %s", unknown_args)
       parsed_args = known_args
     result = vars(parsed_args)
 
@@ -1051,7 +1054,7 @@ class GoogleCloudOptions(PipelineOptions):
       return None
     bucket = gcsio.get_or_create_default_gcs_bucket(self)
     if bucket:
-      return 'gs://%s' % bucket.id
+      return 'gs://%s/' % bucket.id
     else:
       return None
 
@@ -1064,17 +1067,21 @@ class GoogleCloudOptions(PipelineOptions):
       return
 
     gcs_path = getattr(self, arg_name, None)
+    if not gcs_path or not gcs_path.startswith("gs://"):
+      return
     try:
       from apache_beam.io.gcp import gcsio
       if gcsio.GcsIO().is_soft_delete_enabled(gcs_path):
-        _LOGGER.warning(
-            "Bucket specified in %s has soft-delete policy enabled."
-            " To avoid being billed for unnecessary storage costs, turn"
-            " off the soft delete feature on buckets that your Dataflow"
-            " jobs use for temporary and staging storage. For more"
-            " information, see"
-            " https://cloud.google.com/storage/docs/use-soft-delete"
-            "#remove-soft-delete-policy." % arg_name)
+        # Use bucket name in message_id to still emit logs for different buckets
+        if logs.allow_log_once("soft-delete warning" + str(gcs_path)):
+          _LOGGER.warning(
+              "Bucket specified in %s has soft-delete policy enabled."
+              " To avoid being billed for unnecessary storage costs, turn"
+              " off the soft delete feature on buckets that your Dataflow"
+              " jobs use for temporary and staging storage. For more"
+              " information, see"
+              " https://cloud.google.com/storage/docs/use-soft-delete"
+              "#remove-soft-delete-policy." % arg_name)
     except ImportError:
       _LOGGER.warning('Unable to check soft delete policy due to import error.')
 
