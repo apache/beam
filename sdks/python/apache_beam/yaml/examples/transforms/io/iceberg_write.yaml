@@ -33,7 +33,7 @@ pipeline:
       name: WriteToAnIcebergTable
       config:
         # Dynamic destinations
-        table: "demo.users.{zip}"
+        table: "db.users.{zip}"
         catalog_name: "hadoop_catalog"
         catalog_properties:
           type: "hadoop"
@@ -43,3 +43,8 @@ pipeline:
         config_properties:
           "fs.gs.auth.type": "SERVICE_ACCOUNT_JSON_KEYFILE"
           "fs.gs.auth.service.account.json.keyfile": "/path/to/service/account/key.json"
+
+# Expected:
+#  Row(id=1, name='John', email='john@example.com', zip='WA')
+#  Row(id=2, name='Jane', email='jane@example.com', zip='CA')
+#  Row(id=3, name='Beamberg', email='beamberg@example.com', zip='NY')

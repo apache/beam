@@ -22,20 +22,23 @@ pipeline:
     - type: ReadFromIceberg
       name: ReadFromAnIcebergTable
       config:
-        table: "demo.users.NY"
+        table: "db.users.NY"
         catalog_name: "hadoop_catalog"
         catalog_properties:
           type: "hadoop"
-          warehouse: "gs://MY-WAREHOUSE"
+          warehouse: "gs://my-warehouse"
         # Hadoop catalog config required to run pipeline locally
         # Omit if run on Dataflow
-        config_properties:
-          "fs.gs.auth.type": "SERVICE_ACCOUNT_JSON_KEYFILE"
-          "fs.gs.auth.service.account.json.keyfile": "/path/to/service/account/key.json"
+#        config_properties:
+#          "fs.gs.auth.type": "SERVICE_ACCOUNT_JSON_KEYFILE"
+#          "fs.gs.auth.service.account.json.keyfile": "/path/to/service/account/key.json"
 
     - type: LogForTesting
 
     - type: WriteToCsv
       name: OutputToCSVFile
       config:
-        path: "gs://MY-WAREHOUSE/tmp/my-csv.csv"
+        path: "gs://my-warehouse/tmp/my-csv.csv"
+
+# Expected:
+#  Row(id=3, name='Beamberg', email='beamberg@example.com', zip='NY')

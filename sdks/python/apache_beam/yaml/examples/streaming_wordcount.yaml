@@ -17,22 +17,43 @@
 #
 
 pipeline:
-  type: chain
   transforms:
-    # Assuming the given topic exists with the following message JSON schema,
-    # read the records from Kafka
-    - type: ReadFromKafka
+    # Read text file into a collection of rows, each with one field, `line`.
+    - type: ReadFromText
+      name: ReadFromGCS
       config:
-        format: JSON
+        path: gs://dataflow-samples/shakespeare/kinglear.txt
+
+    # Write the rows as JSON-encoded records to a given Kafka topic.
+    - type: WriteToKafka
+      name: WriteToKafkaTopic
+      input: ReadFromGCS
+      config:
+        bootstrap_servers: "{{ BOOTSTRAP_SERVERS }}"
+        topic: "{{ TOPIC }}"
+        format: "JSON"
+        producer_config_updates:
+          sasl.jaas.config: "org.apache.kafka.common.security.plain.PlainLoginModule required \
+            username={{ USERNAME }} \
+            password={{ PASSWORD }};"
+          security.protocol: "SASL_PLAINTEXT"
+          sasl.mechanism: "PLAIN"
+
+    # Read records from a given Kafka topic into a collection of rows, with
+    # fields corresponding to the following Kafka message JSON schema.
+    - type: ReadFromKafka
+      name: ReadFromKafkaTopic
+      config:
+        format: "JSON"
         schema: |
           {
             "type": "object",
             "properties": {
-              "value": {"type": "string"}
+              "line": {"type": "string"}
             }
           }
-        topic: {{ TOPIC }}
-        bootstrap_servers: {{ BOOTSTRAP_SERVERS }}
+        topic: "{{ TOPIC }}"
+        bootstrap_servers: "{{ BOOTSTRAP_SERVERS }}"
         auto_offset_reset_config: earliest
         consumer_config:
           sasl.jaas.config: "org.apache.kafka.common.security.plain.PlainLoginModule required \
@@ -41,8 +62,10 @@ pipeline:
           security.protocol: "SASL_PLAINTEXT"
           sasl.mechanism: "PLAIN"
 
-    # Split line field in each row into list of words.
+    # Split `line` field in each row into list of words.
     - type: MapToFields
+      name: MapToListOfWords
+      input: ReadFromKafkaTopic
       config:
         language: python
         fields:
@@ -50,15 +73,19 @@ pipeline:
             callable: |
               import re
               def my_mapping(row):
-                return re.findall(r"[A-Za-z\']+", row.value.lower())
+                return re.findall(r"[A-Za-z\']+", row.line.lower())
 
     # Explode each list of words into separate rows.
     - type: Explode
+      name: ExplodeIntoRows
+      input: MapToListOfWords
       config:
         fields: words
 
     # Since each word is now distinct row, rename field to "word".
     - type: MapToFields
+      name: RenameFields
+      input: ExplodeIntoRows
       config:
         fields:
           word: words
@@ -67,13 +94,17 @@ pipeline:
     # any subsequent GroupBy transform.
     - type: WindowInto
       name: Windowing
+      input: RenameFields
       windowing:
         type: fixed
-        size: 3s
+        size: 15s
 
-    # Group by distinct words in the collection and add field "count" that
-    # contains number of instances, or count, for each word in the collection.
+    # Group by distinct words within a window of the collection and add field
+    # "count" that contains number of instances, or count, for each word in
+    # that window of the collection.
     - type: Combine
+      name: GroupByDistinctWords
+      input: Windowing
       config:
         language: python
         group_by: word
@@ -83,15 +114,25 @@ pipeline:
             fn: count
 
     - type: LogForTesting
+      input: GroupByDistinctWords
 
 # Expected:
-#  Row(word='king', count=311)
-#  Row(word='lear', count=253)
-#  Row(word='dramatis', count=1)
-#  Row(word='personae', count=1)
-#  Row(word='of', count=483)
-#  Row(word='britain', count=2)
-#  Row(word='france', count=32)
-#  Row(word='duke', count=26)
-#  Row(word='burgundy', count=20)
-#  Row(word='cornwall', count=75)
+#  Row(word='fool', count=1)
+#  Row(word='thou', count=2)
+#  Row(word='shouldst', count=1)
+#  Row(word='not', count=1)
+#  Row(word='have', count=1)
+#  Row(word='been', count=2)
+#  Row(word='old', count=1)
+#  Row(word='till', count=1)
+#  Row(word='hadst', count=1)
+#  Row(word='wise', count=1)
+#  Row(word='king', count=1)
+#  Row(word='lear', count=1)
+#  Row(word='nothing', count=2)
+#  Row(word='will', count=1)
+#  Row(word='come', count=1)
+#  Row(word='of', count=1)
+#  Row(word='speak', count=1)
+#  Row(word='again', count=1)
+#  Row(word='never', count=5)

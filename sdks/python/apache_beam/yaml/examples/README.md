@@ -136,10 +136,10 @@ gcloud compute instances describe kafka-vm-0 \
   --format='value[](metadata.items.kafka-password)'
 ```
 
-Beam pipeline [Streaming Wordcount](streaming_wordcount.yaml) reads from an
-existing Kafka topic `MY-TOPIC` containing lines of text and then applies
-transformation logic similar to [Wordcount](wordcount_minimal.yaml) example,
-before finally logs out the output. Run the pipeline:
+Beam pipeline [Streaming Wordcount](streaming_wordcount.yaml) writes to a 
+Kafka topic `MY-TOPIC` with lines of text and reads from the same topic to 
+apply the [Wordcount](wordcount_minimal.yaml) transformation logic, before 
+finally logs out the output. Run the pipeline:
 
 ```sh
 export PROJECT="$(gcloud config get-value project)"
