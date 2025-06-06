@@ -705,9 +705,12 @@ public class JdbcIO {
           basicDataSource.setDriverClassLoader(getDriverClassLoader());
         }
         if (getDriverJars() != null) {
-          URLClassLoader classLoader =
-              URLClassLoader.newInstance(JdbcUtil.saveFilesLocally(getDriverJars().get()));
-          basicDataSource.setDriverClassLoader(classLoader);
+          String driverJars = getDriverJars().get();
+          if (!Strings.isNullOrEmpty(driverJars)) {
+            URLClassLoader classLoader =
+                URLClassLoader.newInstance(JdbcUtil.saveFilesLocally(driverJars));
+            basicDataSource.setDriverClassLoader(classLoader);
+          }
         }
 
         return basicDataSource;
