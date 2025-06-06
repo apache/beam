@@ -16,6 +16,15 @@
 # limitations under the License.
 #
 
+# The pipeline reads from Iceberg table 'db.users.NY' on GCS with Hadoop catalog
+# configured. The table, if not exists already, can be created and populated
+# using the iceberg_write.yaml pipeline.
+#
+# Replace 'gs://MY-WAREHOUSE' with the correct GCS bucket name.
+# If this example is run locally then replace '/path/to/service/account/key.json'
+# with the correct path to your service account key .json file on your machine.
+# Otherwise, if Dataflow runner is used then omit the 'config_properties' field.
+
 pipeline:
   type: chain
   transforms:
@@ -26,19 +35,20 @@ pipeline:
         catalog_name: "hadoop_catalog"
         catalog_properties:
           type: "hadoop"
-          warehouse: "gs://my-warehouse"
+          warehouse: "gs://MY-WAREHOUSE"
         # Hadoop catalog config required to run pipeline locally
-        # Omit if run on Dataflow
-#        config_properties:
-#          "fs.gs.auth.type": "SERVICE_ACCOUNT_JSON_KEYFILE"
-#          "fs.gs.auth.service.account.json.keyfile": "/path/to/service/account/key.json"
+        # Omit if running on Dataflow
+        config_properties:
+          "fs.gs.auth.type": "SERVICE_ACCOUNT_JSON_KEYFILE"
+          "fs.gs.auth.service.account.json.keyfile": "/path/to/service/account/key.json"
 
     - type: LogForTesting
 
     - type: WriteToCsv
       name: OutputToCSVFile
       config:
-        path: "gs://my-warehouse/tmp/my-csv.csv"
+        path: "gs://MY-WAREHOUSE/my-csv.csv"
 
 # Expected:
-#  Row(id=3, name='Beamberg', email='beamberg@example.com', zip='NY')
+#  Row(id=3, name='Smith', email='smith@example.com', zip='NY')
+#  Row(id=4, name='Beamberg', email='beamberg@example.com', zip='NY')

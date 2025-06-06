@@ -100,17 +100,19 @@ These examples leverage the built-in mapping transforms including `MapToFields`,
 
 Examples [Spanner Read](transforms/io/spanner_read.yaml) and [Spanner Write](
 transforms/io/spanner_write.yaml) leverage the built-in `Spanner_Read` and
-`Spanner_Write` transform for performing simple reads and writes from a spanner
-DB.
+`Spanner_Write` transforms for performing simple reads and writes from a
+Google Spanner database.
 
 #### Kafka
 
-Examples involving Kafka such as [Streaming Wordcount](streaming_wordcount.yaml)
-and [Kafka Read Write](transforms/io/kafka.yaml) require users to set up
-a Kafka cluster that Dataflow runner executing the
-Beam pipeline has access to. See
-issue [here](https://github.com/apache/beam/issues/22809) for context on running
-streaming pipelines with Kafka on Dataflow runner vs. portable runners.
+Examples involving Kafka such as [Kafka Read Write](transforms/io/kafka.yaml)
+require users to set up a Kafka cluster that Dataflow runner executing the
+Beam pipeline has access to.
+Please note that `ReadFromKafka` transform has
+a [known issue](https://github.com/apache/beam/issues/22809) when
+using non-Dataflow portable runners where reading may get stuck in streaming
+pipelines. Hence using the Dataflow runner is recommended for examples that
+involve reading from Kafka in a streaming pipeline.
 
 See [here](https://kafka.apache.org/quickstart) for general instructions on
 setting up a Kafka cluster. An option is to use [Click to Deploy](
@@ -136,33 +138,9 @@ gcloud compute instances describe kafka-vm-0 \
   --format='value[](metadata.items.kafka-password)'
 ```
 
-Beam pipeline [Streaming Wordcount](streaming_wordcount.yaml) writes to a 
-Kafka topic `MY-TOPIC` with lines of text and reads from the same topic to 
-apply the [Wordcount](wordcount_minimal.yaml) transformation logic, before 
-finally logs out the output. Run the pipeline:
-
-```sh
-export PROJECT="$(gcloud config get-value project)"
-export TEMP_LOCATION="gs://MY-BUCKET/tmp"
-export REGION="us-central1"
-export JOB_NAME="streaming-wordcount-`date +%Y%m%d-%H%M%S`"
-export NUM_WORKERS="1"
-
-python -m apache_beam.yaml.main \
-  --yaml_pipeline_file streaming_wordcount.yaml \
-  --runner DataflowRunner \
-  --temp_location $TEMP_LOCATION \
-  --project $PROJECT \
-  --region $REGION \
-  --num_workers $NUM_WORKERS \
-  --job_name $JOB_NAME \
-  --jinja_variables '{ "BOOTSTRAP_SERVERS": "123.45.67.89:9092",
-    "TOPIC": "MY-TOPIC", "USERNAME": "USERNAME", "PASSWORD": "PASSWORD" }'
-```
-
-Beam pipeline [Kafka Read Write](transforms/io/kafka.yaml) is a non-linear
-pipeline that both writes to and reads from the same Kafka topic. Run the
-pipeline:
+Beam pipeline [Kafka Read Write](transforms/io/kafka.yaml) first writes data to
+the Kafka topic using the `WriteToKafka` transform and then reads that data back
+using the `ReadFromKafka` transform. Run the pipeline:
 
 ```sh
 export PROJECT="$(gcloud config get-value project)"
@@ -192,12 +170,14 @@ Run the commands above without specifying the username and password in
 
 #### Iceberg
 
-Beam pipelines [Iceberg Read](transforms/io/iceberg_read.yaml) and
-[Iceberg Write](transforms/io/iceberg_write.yaml) are examples of how to
-interact with Iceberg tables on GCS storage and with Hadoop catalog configured.
+Beam pipelines [Iceberg Write](transforms/io/iceberg_write.yaml) and
+[Iceberg Read](transforms/io/iceberg_read.yaml) are examples of how to interact
+with Iceberg tables on GCS storage and with Hadoop catalog configured.
 
-To run the pipelines locally, an option is to
-create a service account key in order to access GCS (see
+To create a GCS bucket as our warehouse storage,
+see [here](https://cloud.google.com/storage/docs/creating-buckets#command-line).
+To run the pipelines locally, an option is to create a service account key in
+order to access GCS (see
 [here](https://cloud.google.com/iam/docs/keys-create-delete#creating)).
 Within the pipelines, specify GCS bucket name and the path to the saved service
 account key .json file.
@@ -206,36 +186,43 @@ account key .json file.
 See [here](https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md)
 for full list of configuration options for Hadoop catalog when use with GCS.
 
-Run the pipelines:
-
-```sh
-python -m apache_beam.yaml.main \
-  --yaml_pipeline_file transforms/io/iceberg_read.yaml
-```
+To create and write to Iceberg tables on GCS, run:
 
 ```sh
 python -m apache_beam.yaml.main \
   --yaml_pipeline_file transforms/io/iceberg_write.yaml
 ```
 
-**_Optional_**: To run the pipeline on Dataflow, service account key is [not
-needed](
-https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/INSTALL.md
-). Omit the authentication settings in the Hadoop catalog configuration `
+The pipeline uses [Dynamic destinations](
+https://cloud.google.com/dataflow/docs/guides/managed-io#dynamic-destinations)
+write to dynamically create and select a table destination based on field 
+values in the incoming records.
+
+To read from a created Iceberg table on GCS, run:
+
+```sh
+python -m apache_beam.yaml.main \
+  --yaml_pipeline_file transforms/io/iceberg_read.yaml
+```
+
+**_Optional_**: To run the pipeline on Dataflow, service account key is
+[not needed](
+https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/INSTALL.md).
+Omit the authentication settings in the Hadoop catalog configuration `
 config_properties`, and run:
 
 ```sh
 export REGION="us-central1"
-export JOB_NAME="demo-iceberg_read-`date +%Y%m%d-%H%M%S`"
+export JOB_NAME="demo-iceberg_write-`date +%Y%m%d-%H%M%S`"
 
 gcloud dataflow yaml run $JOB_NAME \
-  --yaml-pipeline-file transforms/io/iceberg_read.yaml \
+  --yaml-pipeline-file transforms/io/iceberg_write.yaml \
   --region $REGION
 ```
 
 ```sh
 export REGION="us-central1"
-export JOB_NAME="demo-iceberg_write-`date +%Y%m%d-%H%M%S`"
+export JOB_NAME="demo-iceberg_read-`date +%Y%m%d-%H%M%S`"
 
 gcloud dataflow yaml run $JOB_NAME \
   --yaml-pipeline-file transforms/io/iceberg_read.yaml \

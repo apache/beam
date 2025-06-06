@@ -16,6 +16,16 @@
 # limitations under the License.
 #
 
+# The pipeline uses Dynamic destinations (see
+# https://cloud.google.com/dataflow/docs/guides/managed-io#dynamic-destinations)
+# to dynamically create and select a table destination based on field values in
+# the incoming records.
+#
+# Replace 'gs://MY-WAREHOUSE' with the correct GCS bucket name.
+# If this example is run locally then replace '/path/to/service/account/key.json'
+# with the correct path to your service account key .json file on your machine.
+# Otherwise, if Dataflow runner is used then omit the 'config_properties' field.
+
 pipeline:
   type: chain
   transforms:
@@ -25,7 +35,8 @@ pipeline:
         elements:
           - { id: 1, name: "John", email: "john@example.com", zip: "WA" }
           - { id: 2, name: "Jane", email: "jane@example.com", zip: "CA" }
-          - { id: 3, name: "Beamberg", email: "beamberg@example.com", zip: "NY" }
+          - { id: 3, name: "Smith", email: "smith@example.com",zip: "NY"}
+          - { id: 4, name: "Beamberg", email: "beamberg@example.com", zip: "NY" }
 
     - type: LogForTesting
 
@@ -39,7 +50,7 @@ pipeline:
           type: "hadoop"
           warehouse: "gs://MY-WAREHOUSE"
         # Hadoop catalog config required to run pipeline locally
-        # Omit if run on Dataflow
+        # Omit if running on Dataflow
         config_properties:
           "fs.gs.auth.type": "SERVICE_ACCOUNT_JSON_KEYFILE"
           "fs.gs.auth.service.account.json.keyfile": "/path/to/service/account/key.json"
@@ -47,4 +58,5 @@ pipeline:
 # Expected:
 #  Row(id=1, name='John', email='john@example.com', zip='WA')
 #  Row(id=2, name='Jane', email='jane@example.com', zip='CA')
-#  Row(id=3, name='Beamberg', email='beamberg@example.com', zip='NY')
+#  Row(id=3, name='Smith', email='smith@example.com', zip='NY')
+#  Row(id=4, name='Beamberg', email='beamberg@example.com', zip='NY')

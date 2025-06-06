@@ -385,48 +385,6 @@ def _wordcount_test_preprocessor(
       env.input_file('kinglear.txt', '\n'.join(lines)))
 
 
-@YamlExamplesTestSuite.register_test_preprocessor(
-  'test_streaming_wordcount_yaml')
-def _streaming_wordcount_test_preprocessor(
-    test_spec: dict, expected: List[str], env: TestEnvironment):
-
-  test_spec = replace_recursive(
-      test_spec,
-      'ReadFromText',
-      'path',
-      env.input_file('kinglear.txt', input_data.text_data())
-  )
-
-  if pipeline := test_spec.get('pipeline', None):
-    for transform in pipeline.get('transforms', []):
-      if transform.get('type', '') == 'WriteToKafka':
-        config = transform['config']
-        transform['type'] = 'LogForTesting'
-        transform['config'] = {
-            k: v
-            for (k, v) in config.items()
-            if k.startswith('__')
-        }
-        transform['windowing'] = {
-            'type': 'fixed',
-            'size': '15s'
-        }
-      elif transform.get('type', '') == 'ReadFromKafka':
-        config = transform['config']
-        transform['type'] = 'Create'
-        transform['config'] = {
-            k: v
-            for k, v in config.items() if k.startswith('__')
-        }
-        elements = [
-            { 'line': line }
-            for line in input_data.text_data().split('\n')
-        ]
-        transform['config']['elements'] = elements
-
-  return test_spec
-
-
 @YamlExamplesTestSuite.register_test_preprocessor('test_kafka_yaml')
 def _kafka_test_preprocessor(
     test_spec: dict, expected: List[str], env: TestEnvironment):

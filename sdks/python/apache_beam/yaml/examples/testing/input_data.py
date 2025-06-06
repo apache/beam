@@ -33,7 +33,9 @@ def text_data():
 
 def iceberg_dynamic_destinations_users_data():
   return [{
-    'id': 3, 'name': 'Beamberg', 'email': 'beamberg@example.com', 'zip': 'NY'
+    'id': 3, 'name': 'Smith', 'email': 'smith@example.com', 'zip': 'NY'
+  }, {
+    'id': 4, 'name': 'Beamberg', 'email': 'beamberg@example.com', 'zip': 'NY'
   }]
 
 
