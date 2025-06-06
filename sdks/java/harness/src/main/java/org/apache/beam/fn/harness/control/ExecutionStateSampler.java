@@ -153,7 +153,7 @@ public class ExecutionStateSampler {
     }
   }
 
-  private static int setMaxLullTimeForRestart(int timeoutDurationMinuteFromOptions) {
+  private int setMaxLullTimeForRestart(int timeoutDurationMinuteFromOptions) {
     int res = Math.max(timeoutDurationMinuteFromOptions,
         ExecutionStateSampler.MIN_LULL_TIME_MINUTE_FOR_RESTART);
     if (timeoutDurationMinuteFromOptions < ExecutionStateSampler.MIN_LULL_TIME_MINUTE_FOR_RESTART) {
