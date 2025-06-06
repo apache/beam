@@ -100,7 +100,16 @@ public class ExecutionStateSampler {
             : Integer.parseInt(samplingPeriodMills);
     this.clock = clock;
     this.activeStateTrackers = new HashSet<>();
-    this.lullTimeMinuteForRestart = setLullTimeForRestart(options.getPtransformTimeoutDuration());
+    this.lullTimeMinuteForRestart = Math.max(
+        options.getPtransformTimeoutDuration,
+        ExecutionStateSampler.MIN_LULL_TIME_MINUTE_FOR_RESTART);
+    if (options.getPtransformTimeoutDuration
+        < ExecutionStateSampler.MIN_LULL_TIME_MINUTE_FOR_RESTART) {
+      LOG.info(
+          String.format(
+              "The user defined ptransformTimeoutDuration might be too small for "
+                  + "a pTransform operation and has been set to %d minutes", res));
+    }
     // We specifically synchronize to ensure that this object can complete
     // being published before the state sampler thread starts.
     synchronized (this) {
@@ -151,20 +160,6 @@ public class ExecutionStateSampler {
     } catch (ExecutionException e) {
       throw new RuntimeException("Exception in state sampler", e);
     }
-  }
-
-  private int setLullTimeForRestart(int timeoutDurationMinuteFromOptions) {
-    int res =
-        Math.max(
-            timeoutDurationMinuteFromOptions,
-            ExecutionStateSampler.MIN_LULL_TIME_MINUTE_FOR_RESTART);
-    if (timeoutDurationMinuteFromOptions < ExecutionStateSampler.MIN_LULL_TIME_MINUTE_FOR_RESTART) {
-      LOG.info(
-          String.format(
-              "The user defined ptransformTimeoutDuration might be too small for "
-                  + "a pTransform operation and has been set to %d minutes", res));
-    }
-    return res;
   }
 
   @VisibleForTesting
