@@ -20,12 +20,12 @@ import unittest
 from typing import Callable
 
 import apache_beam as beam
+from apache_beam.ml.anomaly.base import AnomalyDetector
+from apache_beam.ml.anomaly.specifiable import specifiable
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.utils import python_callable
 from apache_beam.yaml.yaml_transform import YamlTransform
-from apache_beam.ml.anomaly.base import AnomalyDetector
-from apache_beam.ml.anomaly.specifiable import specifiable
 
 TEST_PROVIDERS = {
     'PyMap': lambda fn: beam.Map(python_callable.PythonCallableWithSource(fn)),

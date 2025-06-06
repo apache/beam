@@ -15,10 +15,10 @@
 # limitations under the License.
 #
 
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.anomaly.specifiable import Spec
 from apache_beam.ml.anomaly.transforms import AnomalyDetection
 from apache_beam.ml.anomaly.transforms import Specifiable
-from apache_beam.io.filesystems import FileSystems
 from apache_beam.utils import python_callable
 from apache_beam.yaml.yaml_provider import InlineProvider
 
