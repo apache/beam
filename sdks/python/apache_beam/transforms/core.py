@@ -29,7 +29,10 @@ import time
 import traceback
 import types
 import typing
+from collections.abc import Iterable
 from itertools import dropwhile
+from typing import Generic
+from typing import Optional
 
 from apache_beam import coders
 from apache_beam import pvalue
@@ -114,6 +117,8 @@ __all__ = [
 T = typing.TypeVar('T')
 K = typing.TypeVar('K')
 V = typing.TypeVar('V')
+InputT = typing.TypeVar('InputT')
+OutputT = typing.TypeVar('OutputT')
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -590,7 +595,7 @@ class _SetupContextParam(_ContextParam):
   """
 
 
-class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
+class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn, Generic[InputT, OutputT]):
   """A function object used by a transform with custom processing.
 
   The ParDo transform is such a transform. The ParDo.apply
@@ -692,7 +697,7 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   def default_label(self):
     return self.__class__.__name__
 
-  def process(self, element, *args, **kwargs):
+  def process(self, element:InputT, *args, **kwargs) -> Optional[Iterable[OutputT]]:
     """Method to use for processing elements.
 
     This is invoked by ``DoFnRunner`` for each element of a input
@@ -805,8 +810,7 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
           != typehints.decorators.IOTypeHints.empty().output_types):
         if (process_type_hints.output_types
             != typehints.decorators.IOTypeHints.empty().output_types and
-            process_batch_type_hints.output_types
-            != process_type_hints.output_types):
+            issubclass(process_batch_type_hints.output_types, process_type_hints.output_types)):
           raise TypeError(
               f"DoFn {self!r} yields element from both process and "
               "process_batch, but they have mismatched output typehints:\n"
