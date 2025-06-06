@@ -385,12 +385,15 @@ public class ExecutionStateSampler {
         long lullTimeMs = currentTimeMillis - lastTransitionTimeMillis.get();
 
         try {
-          if (lullTimeMs > TimeUnit.MINUTES.toMillis(maxLullTimeMinuteForRestart)) {
-            throw new TimeoutException(String.format("The ptransform has been stuck for more "
-                + "than %d minutes, the SDK worker will restart", maxLullTimeMinuteForRestart));
-          } catch (TimeoutException e) {
-            LOG.error(String.format("Exception caught: %s", e));
+          if (lullTimeMs > TimeUnit.MINUTES.toMillis(lullTimeMinuteForRestart)) {
+            throw new TimeoutException(
+                String.format(
+                    "The ptransform has been stuck for more than %d minutes, the SDK worker will"
+                        + " restart",
+                    lullTimeMinuteForRestart));
           }
+        } catch (TimeoutException e) {
+          LOG.error(e.getMessage());
         }
 
         if (lullTimeMs > MAX_LULL_TIME_MS) {
