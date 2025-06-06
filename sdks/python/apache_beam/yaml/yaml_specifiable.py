@@ -55,5 +55,5 @@ class SpecProvider(InlineProvider):
         })
 
 
-def create_specifiable_providers():
+def create_spec_providers():
   return SpecProvider({"AnomalyDetection": AnomalyDetection})
