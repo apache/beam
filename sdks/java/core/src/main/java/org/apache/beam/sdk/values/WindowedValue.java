@@ -20,6 +20,8 @@ package org.apache.beam.sdk.values;
 import java.util.Collection;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.ElementMetadata;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -33,6 +35,9 @@ public interface WindowedValue<T> {
 
   /** The timestamp of this value in event time. */
   Instant getTimestamp();
+
+  @Nullable
+  ElementMetadata getElementMetadata();
 
   /** Returns the windows of this {@code WindowedValue}. */
   Collection<? extends BoundedWindow> getWindows();
@@ -57,4 +62,6 @@ public interface WindowedValue<T> {
    * value.
    */
   <OtherT> WindowedValue<OtherT> withValue(OtherT value);
+
+  WindowedValue<T> withElementMetadata(@Nullable ElementMetadata elementMetadata);
 }

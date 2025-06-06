@@ -46,6 +46,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
+import org.apache.beam.sdk.util.ElementMetadata;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -166,24 +167,6 @@ public class WindowedValues {
     }
   }
 
-  /**
-   * Returns a new {@code WindowedValue} that is a copy of this one, but with a different value,
-   * which may have a new type {@code NewT}.
-   */
-  public abstract <NewT> WindowedValue<NewT> withValue(NewT value);
-
-  /** Returns the value of this {@code WindowedValue}. */
-  public abstract T getValue();
-
-  /** Returns the timestamp of this {@code WindowedValue}. */
-  public abstract Instant getTimestamp();
-
-  /** Returns the windows of this {@code WindowedValue}. */
-  public abstract Collection<? extends BoundedWindow> getWindows();
-
-  /** Returns the pane of this {@code WindowedValue} in its window. */
-  public abstract PaneInfo getPane();
-
   /** Returns {@code true} if this WindowedValue has exactly one window. */
   public boolean isSingleWindowedValue() {
     return false;
@@ -195,9 +178,9 @@ public class WindowedValues {
       return right == null;
     }
 
-      if (right == null) {
-          return false;
-      }
+    if (right == null) {
+      return false;
+    }
 
     // Compare timestamps first as they are most likely to differ.
     // Also compare timestamps according to millis-since-epoch because otherwise expensive
@@ -319,11 +302,6 @@ public class WindowedValues {
     }
 
     @Override
-    public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
-      return new ValueInGlobalWindow<>(newValue, getPane());
-    }
-
-    @Override
     public boolean equals(@Nullable Object o) {
       if (o instanceof ValueInGlobalWindow) {
         ValueInGlobalWindow<?> that = (ValueInGlobalWindow<?>) o;
@@ -400,11 +378,6 @@ public class WindowedValues {
     @Override
     public BoundedWindow getWindow() {
       return GlobalWindow.INSTANCE;
-    }
-
-    @Override
-    public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
-      return new TimestampedValueInGlobalWindow<>(newValue, getTimestamp(), getPane());
     }
 
     @Override
@@ -545,12 +518,6 @@ public class WindowedValues {
     }
 
     @Override
-    public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
-      return new TimestampedValueInMultipleWindows<>(
-          newValue, getTimestamp(), getWindows(), getPane());
-    }
-
-    @Override
     public boolean equals(@Nullable Object o) {
       if (o instanceof TimestampedValueInMultipleWindows) {
         TimestampedValueInMultipleWindows<?> that = (TimestampedValueInMultipleWindows<?>) o;
@@ -653,7 +620,7 @@ public class WindowedValues {
 
     private static boolean metadataSupported = false;
 
-    public static void setMetadataSupported(){
+    public static void setMetadataSupported() {
       metadataSupported = true;
     }
 
@@ -934,7 +901,7 @@ public class WindowedValues {
     @Override
     public WindowedValue<T> decode(InputStream inStream, Context context)
         throws CoderException, IOException {
-      return WindowedValues.withValue(windowedValuePrototype, valueCoder.decode(inStream, context));
+      return windowedValuePrototype.withValue(valueCoder.decode(inStream, context));
     }
 
     @Override
