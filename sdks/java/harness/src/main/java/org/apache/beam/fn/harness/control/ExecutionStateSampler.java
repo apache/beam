@@ -153,9 +153,9 @@ public class ExecutionStateSampler {
     }
   }
 
-  private static long setMaxLullTimeForRestart(int timeoutDurationMinuteFromOptions) {
+  private static int setMaxLullTimeForRestart(int timeoutDurationMinuteFromOptions) {
     int res = Math.max(timeoutDurationMinuteFromOptions,
-        ExecutionStateSampler.MIN_LULL_TIME_MIN_FOR_RESTART);
+        ExecutionStateSampler.MIN_LULL_TIME_MINUTE_FOR_RESTART);
     if (timeoutDurationMinuteFromOptions < ExecutionStateSampler.MIN_LULL_TIME_MINUTE_FOR_RESTART) {
       LOG.info(String.format("The user defined ptransformTimeoutDuration might be too small for "
           + "a pTransform operation and has been set to %d minutes"), res);
