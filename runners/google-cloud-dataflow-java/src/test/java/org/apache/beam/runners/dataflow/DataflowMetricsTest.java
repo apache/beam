@@ -50,6 +50,7 @@ import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.storage.NoopPathValidator;
 import org.apache.beam.sdk.metrics.BoundedTrieResult;
 import org.apache.beam.sdk.metrics.DistributionResult;
+import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.metrics.StringSetResult;
@@ -60,6 +61,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashBi
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -611,5 +613,70 @@ public class DataflowMetricsTest {
         "The result of template creation should not be used.",
         UnsupportedOperationException.class,
         () -> metrics.queryMetrics(MetricsFilter.builder().build()));
+  }
+
+  @Test
+  public void testSingleGaugeUpdates() throws IOException {
+    AppliedPTransform<?, ?, ?> myStep = mock(AppliedPTransform.class);
+    when(myStep.getFullName()).thenReturn("myStepName");
+    BiMap<AppliedPTransform<?, ?, ?>, String> transformStepNames = HashBiMap.create();
+    transformStepNames.put(myStep, "s1");
+
+    JobMetrics jobMetrics = new JobMetrics();
+    DataflowPipelineJob job = mock(DataflowPipelineJob.class);
+    DataflowPipelineOptions options = mock(DataflowPipelineOptions.class);
+    when(options.isStreaming()).thenReturn(false);
+    when(job.getDataflowOptions()).thenReturn(options);
+    when(job.getState()).thenReturn(State.RUNNING);
+    when(job.getJobId()).thenReturn(JOB_ID);
+    when(job.getTransformStepNames()).thenReturn(transformStepNames);
+
+    // Create gauge metric updates with timestamp in context
+    String timestampStr = "2025-03-15T10:00:00Z";
+    MetricUpdate committedUpdate = new MetricUpdate();
+    committedUpdate.setGauge(new BigDecimal(42L));
+    MetricStructuredName committedName = new MetricStructuredName();
+    committedName.setName("gaugeName");
+    committedName.setOrigin("user");
+    committedName.setContext(
+        ImmutableMap.of(
+            "step", "s1",
+            "namespace", "gaugeNamespace",
+            "timestamp", timestampStr));
+    committedUpdate.setName(committedName);
+
+    MetricUpdate tentativeUpdate = new MetricUpdate();
+    tentativeUpdate.setGauge(new BigDecimal(42L));
+    MetricStructuredName tentativeName = new MetricStructuredName();
+    tentativeName.setName("gaugeName");
+    tentativeName.setOrigin("user");
+    tentativeName.setContext(
+        ImmutableMap.of(
+            "step", "s1",
+            "namespace", "gaugeNamespace",
+            "timestamp", timestampStr,
+            "tentative", "true"));
+    tentativeUpdate.setName(tentativeName);
+
+    jobMetrics.setMetrics(ImmutableList.of(committedUpdate, tentativeUpdate));
+    DataflowClient dataflowClient = mock(DataflowClient.class);
+    when(dataflowClient.getJobMetrics(JOB_ID)).thenReturn(jobMetrics);
+
+    DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
+    MetricQueryResults result = dataflowMetrics.allMetrics();
+
+    Instant expectedTimestamp = Instant.parse(timestampStr);
+    GaugeResult expectedGaugeResult = GaugeResult.create(42L, expectedTimestamp);
+
+    assertThat(
+        result.getGauges(),
+        containsInAnyOrder(
+            attemptedMetricsResult(
+                "gaugeNamespace", "gaugeName", "myStepName", expectedGaugeResult)));
+    assertThat(
+        result.getGauges(),
+        containsInAnyOrder(
+            committedMetricsResult(
+                "gaugeNamespace", "gaugeName", "myStepName", expectedGaugeResult)));
   }
 }
