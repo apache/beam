@@ -100,9 +100,10 @@ public class ExecutionStateSampler {
             : Integer.parseInt(samplingPeriodMills);
     this.clock = clock;
     this.activeStateTrackers = new HashSet<>();
-    this.lullTimeMinuteForRestart = Math.max(
-        options.getPtransformTimeoutDuration(),
-        ExecutionStateSampler.MIN_LULL_TIME_MINUTE_FOR_RESTART);
+    this.lullTimeMinuteForRestart =
+        Math.max(
+            options.getPtransformTimeoutDuration(),
+            ExecutionStateSampler.MIN_LULL_TIME_MINUTE_FOR_RESTART);
     if (options.getPtransformTimeoutDuration()
         < ExecutionStateSampler.MIN_LULL_TIME_MINUTE_FOR_RESTART) {
       LOG.info(
