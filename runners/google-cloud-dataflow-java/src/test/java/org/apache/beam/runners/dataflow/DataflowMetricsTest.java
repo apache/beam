@@ -203,7 +203,7 @@ public class DataflowMetricsTest {
   private MetricUpdate makeBoundedTrieMetricUpdate(
       String name, String namespace, String step, BoundedTrie data, boolean tentative) {
     MetricUpdate update = new MetricUpdate();
-    update.setTrie(data);
+    update.setBoundedTrie(data);
     return setStructuredName(update, name, namespace, step, tentative);
   }
 
