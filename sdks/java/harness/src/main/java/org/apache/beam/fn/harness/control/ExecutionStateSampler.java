@@ -17,10 +17,7 @@
  */
 package org.apache.beam.fn.harness.control;
 
-import static com.google.common.annotations.VisibleForTesting.Visibility.PRIVATE;
-
 import com.google.auto.value.AutoValue;
-import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -52,6 +49,7 @@ import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTimeUtils.MillisProvider;
@@ -170,7 +168,7 @@ public class ExecutionStateSampler {
     return res;
   }
 
-  @VisibleForTesting(productionVisibility = PRIVATE)
+  @VisibleForTesting
   public int getLullTimeMinuteForRestart() {
     return this.lullTimeMinuteForRestart;
   }
