@@ -29,7 +29,7 @@ import java.util.function.Function;
 import javax.annotation.Nonnull;
 import org.apache.beam.runners.jet.Utils;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 
 /**
  * /** * Jet {@link com.hazelcast.jet.core.Processor} implementation for Beam's Impulse primitive.
@@ -55,7 +55,7 @@ public class ImpulseP extends AbstractProcessor {
   @Override
   public boolean complete() {
     if (active) {
-      return tryEmit(Utils.encode(WindowedValue.valueInGlobalWindow(new byte[0]), outputCoder));
+      return tryEmit(Utils.encode(WindowedValues.valueInGlobalWindow(new byte[0]), outputCoder));
     } else {
       return true;
     }

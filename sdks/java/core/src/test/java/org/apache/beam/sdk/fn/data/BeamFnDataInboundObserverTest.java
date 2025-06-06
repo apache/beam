@@ -36,7 +36,8 @@ import org.apache.beam.sdk.fn.test.TestExecutors;
 import org.apache.beam.sdk.fn.test.TestExecutors.TestExecutorService;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -46,7 +47,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class BeamFnDataInboundObserverTest {
   private static final Coder<WindowedValue<String>> CODER =
-      WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
+      WindowedValues.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
   private static final String TRANSFORM_ID = "transformId";
   private static final String TIMER_FAMILY_ID = "timerFamilyId";
 
@@ -94,13 +95,13 @@ public class BeamFnDataInboundObserverTest {
     assertThat(
         values,
         contains(
-            WindowedValue.valueInGlobalWindow("ABC"),
-            WindowedValue.valueInGlobalWindow("DEF"),
-            WindowedValue.valueInGlobalWindow("GHI")));
+            WindowedValues.valueInGlobalWindow("ABC"),
+            WindowedValues.valueInGlobalWindow("DEF"),
+            WindowedValues.valueInGlobalWindow("GHI")));
     assertThat(
         timers,
         contains(
-            WindowedValue.valueInGlobalWindow("UVW"), WindowedValue.valueInGlobalWindow("XYZ")));
+            WindowedValues.valueInGlobalWindow("UVW"), WindowedValues.valueInGlobalWindow("XYZ")));
     future.get();
   }
 
@@ -220,7 +221,7 @@ public class BeamFnDataInboundObserverTest {
   private BeamFnApi.Elements dataWith(String... values) throws Exception {
     ByteStringOutputStream output = new ByteStringOutputStream();
     for (String value : values) {
-      CODER.encode(WindowedValue.valueInGlobalWindow(value), output);
+      CODER.encode(WindowedValues.valueInGlobalWindow(value), output);
     }
     return BeamFnApi.Elements.newBuilder()
         .addData(
@@ -239,7 +240,7 @@ public class BeamFnDataInboundObserverTest {
   private BeamFnApi.Elements timerWith(String... values) throws Exception {
     ByteStringOutputStream output = new ByteStringOutputStream();
     for (String value : values) {
-      CODER.encode(WindowedValue.valueInGlobalWindow(value), output);
+      CODER.encode(WindowedValues.valueInGlobalWindow(value), output);
     }
     return BeamFnApi.Elements.newBuilder()
         .addTimers(

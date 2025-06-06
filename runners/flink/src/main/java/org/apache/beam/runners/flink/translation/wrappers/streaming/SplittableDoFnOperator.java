@@ -44,10 +44,11 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -152,7 +153,7 @@ public class SplittableDoFnOperator<InputT, OutputT, RestrictionT>
                       Collection<? extends BoundedWindow> windows,
                       PaneInfo pane) {
                     outputManager.output(
-                        mainOutputTag, WindowedValue.of(output, timestamp, windows, pane));
+                        mainOutputTag, WindowedValues.of(output, timestamp, windows, pane));
                   }
 
                   @Override
@@ -162,7 +163,7 @@ public class SplittableDoFnOperator<InputT, OutputT, RestrictionT>
                       Instant timestamp,
                       Collection<? extends BoundedWindow> windows,
                       PaneInfo pane) {
-                    outputManager.output(tag, WindowedValue.of(output, timestamp, windows, pane));
+                    outputManager.output(tag, WindowedValues.of(output, timestamp, windows, pane));
                   }
                 },
                 sideInputReader,
@@ -181,7 +182,7 @@ public class SplittableDoFnOperator<InputT, OutputT, RestrictionT>
       return;
     }
     doFnRunner.processElement(
-        WindowedValue.valueInGlobalWindow(
+        WindowedValues.valueInGlobalWindow(
             KeyedWorkItems.timersWorkItem(
                 (byte[]) keyedStateInternals.getKey(), Collections.singletonList(timer))));
   }

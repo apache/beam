@@ -32,8 +32,9 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -115,7 +116,7 @@ public class HashingFlinkCombineRunner<K, InputT, AccumT, OutputT, W extends Bou
       AccumT accumulator = entry.getValue().f0;
       Instant windowTimestamp = entry.getValue().f1;
       out.collect(
-          WindowedValue.of(
+          WindowedValues.of(
               KV.of(
                   key,
                   flinkCombiner.extractOutput(

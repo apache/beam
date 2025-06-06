@@ -25,10 +25,10 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.SystemDoFnInternal;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.TriggerTranslation;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Instant;
 
@@ -99,7 +99,7 @@ public class GroupAlsoByWindowViaWindowSetNewDoFn<
           Instant timestamp,
           Collection<? extends BoundedWindow> windows,
           PaneInfo pane) {
-        outputManager.output(mainTag, WindowedValue.of(output, timestamp, windows, pane));
+        outputManager.output(mainTag, WindowedValues.of(output, timestamp, windows, pane));
       }
 
       @Override
@@ -109,7 +109,7 @@ public class GroupAlsoByWindowViaWindowSetNewDoFn<
           Instant timestamp,
           Collection<? extends BoundedWindow> windows,
           PaneInfo pane) {
-        outputManager.output(tag, WindowedValue.of(output, timestamp, windows, pane));
+        outputManager.output(tag, WindowedValues.of(output, timestamp, windows, pane));
       }
     };
   }

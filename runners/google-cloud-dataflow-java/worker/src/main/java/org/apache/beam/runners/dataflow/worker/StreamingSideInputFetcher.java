@@ -48,8 +48,9 @@ import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Parser;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -91,7 +92,7 @@ public class StreamingSideInputFetcher<InputT, W extends BoundedWindow> {
     this.blockedMapAddr = blockedMapAddr(mainWindowCoder);
     this.elementsAddr =
         StateTags.makeSystemTagInternal(
-            StateTags.bag("elem", WindowedValue.getFullCoder(inputCoder, mainWindowCoder)));
+            StateTags.bag("elem", WindowedValues.getFullCoder(inputCoder, mainWindowCoder)));
     this.oldTimersAddr =
         StateTags.makeSystemTagInternal(StateTags.bag("timer", TimerDataCoder.of(mainWindowCoder)));
     this.timersAddr =

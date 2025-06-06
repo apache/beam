@@ -51,11 +51,12 @@ import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.util.construction.TriggerTranslation;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
+import org.apache.beam.sdk.values.WindowedValues.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicate;
@@ -110,7 +111,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
         final Instant timestamp,
         final Collection<? extends BoundedWindow> windows,
         final PaneInfo pane) {
-      windowedValues.add(WindowedValue.of(output, timestamp, windows, pane));
+      windowedValues.add(WindowedValues.of(output, timestamp, windows, pane));
     }
 
     private List<WindowedValue<KV<K, Iterable<V>>>> getWindowedValues() {

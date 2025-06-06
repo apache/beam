@@ -35,7 +35,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CountDownLatch;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.samza.operators.Scheduler;
 import org.joda.time.Instant;
 import org.junit.Before;

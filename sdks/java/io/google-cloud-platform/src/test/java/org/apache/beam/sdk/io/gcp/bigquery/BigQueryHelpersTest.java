@@ -43,7 +43,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.joda.time.Duration;
@@ -175,7 +175,7 @@ public class BigQueryHelpersTest {
   @Test
   public void testComplexCoderSerializable() {
     CoderProperties.coderSerializable(
-        WindowedValue.getFullCoder(
+        WindowedValues.getFullCoder(
             KvCoder.of(
                 ShardedKeyCoder.of(StringUtf8Coder.of()),
                 TableRowInfoCoder.of(TableRowJsonCoder.of())),
