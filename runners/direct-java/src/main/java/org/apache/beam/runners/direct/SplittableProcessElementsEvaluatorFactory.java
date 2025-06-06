@@ -36,11 +36,11 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheLoader;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -155,7 +155,7 @@ class SplittableProcessElementsEvaluatorFactory<
               Collection<? extends BoundedWindow> windows,
               PaneInfo pane) {
             outputManager.output(
-                transform.getMainOutputTag(), WindowedValue.of(output, timestamp, windows, pane));
+                transform.getMainOutputTag(), WindowedValues.of(output, timestamp, windows, pane));
           }
 
           @Override
@@ -165,7 +165,7 @@ class SplittableProcessElementsEvaluatorFactory<
               Instant timestamp,
               Collection<? extends BoundedWindow> windows,
               PaneInfo pane) {
-            outputManager.output(tag, WindowedValue.of(output, timestamp, windows, pane));
+            outputManager.output(tag, WindowedValues.of(output, timestamp, windows, pane));
           }
         };
     SideInputReader sideInputReader =

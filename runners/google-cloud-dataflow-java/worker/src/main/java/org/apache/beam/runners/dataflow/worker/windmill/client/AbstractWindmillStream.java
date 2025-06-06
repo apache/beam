@@ -28,9 +28,11 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverCancelledException;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.TerminatingStreamObserver;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.api.client.util.Sleeper;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Status;
@@ -83,6 +85,8 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   private final int logEveryNStreamFailures;
   private final String backendWorkerToken;
   private final ResettableThrowingStreamObserver<RequestT> requestObserver;
+
+  private final Supplier<TerminatingStreamObserver<RequestT>> requestObserverFactory;
   private final StreamDebugMetrics debugMetrics;
   private final AtomicBoolean isHealthCheckScheduled;
 
@@ -120,13 +124,11 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     this.isHealthCheckScheduled = new AtomicBoolean(false);
     this.finishLatch = new CountDownLatch(1);
     this.logger = logger;
-    this.requestObserver =
-        new ResettableThrowingStreamObserver<>(
-            () ->
-                streamObserverFactory.from(
-                    clientFactory,
-                    new AbstractWindmillStream<RequestT, ResponseT>.ResponseObserver()),
-            logger);
+    this.requestObserver = new ResettableThrowingStreamObserver<>(logger);
+    this.requestObserverFactory =
+        () ->
+            streamObserverFactory.from(
+                clientFactory, new AbstractWindmillStream<RequestT, ResponseT>.ResponseObserver());
     this.sleeper = Sleeper.DEFAULT;
     this.debugMetrics = StreamDebugMetrics.create();
   }
@@ -145,13 +147,6 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
 
   /** Returns whether there are any pending requests that should be retried on a stream break. */
   protected abstract boolean hasPendingRequests();
-
-  /**
-   * Called when the client side stream is throttled due to resource exhausted errors. Will be
-   * called for each resource exhausted error not just the first. onResponse() must stop throttling
-   * on receipt of the first good message.
-   */
-  protected abstract void startThrottleTimer();
 
   /** Try to send a request to the server. Returns true if the request was successfully sent. */
   @CanIgnoreReturnValue
@@ -191,7 +186,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
       try {
         synchronized (this) {
           debugMetrics.recordStart();
-          requestObserver.reset();
+          requestObserver.reset(requestObserverFactory.get());
           onNewStream();
           if (clientClosed) {
             halfClose();
@@ -397,11 +392,6 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
 
       Status errorStatus = Status.fromThrowable(t);
       recordStreamStatus(errorStatus);
-
-      // If the stream was stopped due to a resource exhausted error then we are throttled.
-      if (errorStatus.getCode() == Status.Code.RESOURCE_EXHAUSTED) {
-        startThrottleTimer();
-      }
 
       try {
         long sleep = backoff.nextBackOffMillis();

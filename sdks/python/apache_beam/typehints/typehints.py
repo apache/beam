@@ -708,8 +708,8 @@ class TupleHint(CompositeTypeHint):
       return (
           isinstance(sub, self.__class__) and
           len(sub.tuple_types) == len(self.tuple_types) and all(
-              is_consistent_with(sub_elem, elem) for sub_elem,
-              elem in zip(sub.tuple_types, self.tuple_types)))
+              is_consistent_with(sub_elem, elem)
+              for sub_elem, elem in zip(sub.tuple_types, self.tuple_types)))
 
     def type_check(self, tuple_instance):
       if not isinstance(tuple_instance, tuple):
@@ -1497,8 +1497,6 @@ def is_consistent_with(sub, base):
   if sub == base:
     # Common special case.
     return True
-  if isinstance(sub, AnyTypeConstraint) or isinstance(base, AnyTypeConstraint):
-    return True
   # Per PEP484, ints are considered floats and complexes and
   # floats are considered complexes.
   if sub is int and base in (float, complex):
@@ -1507,7 +1505,9 @@ def is_consistent_with(sub, base):
     return True
   sub = normalize(sub, none_as_type=True)
   base = normalize(base, none_as_type=True)
-  if isinstance(sub, UnionConstraint):
+  if isinstance(sub, AnyTypeConstraint) or isinstance(base, AnyTypeConstraint):
+    return True
+  elif isinstance(sub, UnionConstraint):
     return all(is_consistent_with(c, base) for c in sub.union_types)
   elif isinstance(base, TypeConstraint):
     return base._consistent_with_check_(sub)

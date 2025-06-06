@@ -27,6 +27,7 @@ import hamcrest as hc
 import mock
 
 import apache_beam as beam
+from apache_beam import Pipeline
 from apache_beam.io import Read
 from apache_beam.io import Write
 from apache_beam.io.gcp.pubsub import MultipleReadFromPubSub
@@ -329,9 +330,9 @@ class TestMultiReadFromPubSubOverride(unittest.TestCase):
         PubSubSourceDescriptor(
             source=source,
             id_label=id_label,
-            timestamp_attribute=timestamp_attribute) for source,
-        id_label,
-        timestamp_attribute in zip(sources, id_labels, timestamp_attributes)
+            timestamp_attribute=timestamp_attribute)
+        for source, id_label, timestamp_attribute in zip(
+            sources, id_labels, timestamp_attributes)
     ]
 
     pcoll = (p | MultipleReadFromPubSub(pubsub_sources) | beam.Map(lambda x: x))
@@ -364,6 +365,7 @@ class TestMultiReadFromPubSubOverride(unittest.TestCase):
 
 @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
 class TestWriteStringsToPubSubOverride(unittest.TestCase):
+  @mock.patch.object(Pipeline, '_assert_not_applying_PDone', mock.Mock())
   def test_expand_deprecated(self):
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True
@@ -385,6 +387,7 @@ class TestWriteStringsToPubSubOverride(unittest.TestCase):
     # Ensure that the properties passed through correctly
     self.assertEqual('a_topic', write_transform.dofn.short_topic_name)
 
+  @mock.patch.object(Pipeline, '_assert_not_applying_PDone', mock.Mock())
   def test_expand(self):
     options = PipelineOptions([])
     options.view_as(StandardOptions).streaming = True

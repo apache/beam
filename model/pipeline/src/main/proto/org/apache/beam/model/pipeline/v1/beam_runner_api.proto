@@ -1677,6 +1677,10 @@ message StandardProtocols {
     // Indicates whether the SDK supports ordered list state.
     ORDERED_LIST_STATE = 10
     [(beam_urn) = "beam:protocol:ordered_list_state:v1"];
+
+    // Indicates support for reading, writing and propagating Element's metadata
+    ELEMENT_METADATA = 11
+    [(beam_urn) = "beam:protocol:element_metadata:v1"];
   }
 }
 
@@ -2026,5 +2030,9 @@ message StandardResourceHints {
     // SDKs should accept and validate a positive integer count.
     // Payload: ASCII encoded string of the base 10 representation of an integer number of CPUs.
     CPU_COUNT = 2 [(beam_urn) = "beam:resources:cpu_count:v1"];
+    // Describes max number of active bundles per worker in transform's execution environment.
+    // SDKs should accept and validate a positive integer count.
+    // Payload: ASCII encoded string of the base 10 representation of an integer number of active bundles.
+    MAX_ACTIVE_BUNDLES_PER_WORKER = 3 [(beam_urn) = "beam:resources:max_active_bundles_per_worker:v1"];
   }
 }

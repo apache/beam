@@ -20,7 +20,8 @@ package org.apache.beam.runners.samza.runtime;
 import java.util.Collection;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 
 /** Samza operator for {@link org.apache.beam.sdk.transforms.windowing.Window.Assign}. */
 public class WindowAssignOp<T, W extends BoundedWindow> implements Op<T, T, Void> {
@@ -42,7 +43,7 @@ public class WindowAssignOp<T, W extends BoundedWindow> implements Op<T, T, Void
     windows.stream()
         .map(
             window ->
-                WindowedValue.of(
+                WindowedValues.of(
                     inputElement.getValue(),
                     inputElement.getTimestamp(),
                     window,

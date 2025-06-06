@@ -34,6 +34,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableProperties;
@@ -42,7 +43,10 @@ import org.apache.iceberg.data.Record;
 import org.apache.iceberg.data.parquet.GenericParquetReaders;
 import org.apache.iceberg.encryption.EncryptedFiles;
 import org.apache.iceberg.encryption.EncryptedInputFile;
+import org.apache.iceberg.expressions.Evaluator;
+import org.apache.iceberg.expressions.Expression;
 import org.apache.iceberg.hadoop.HadoopInputFile;
+import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.mapping.NameMapping;
@@ -67,7 +71,7 @@ public class ReadUtils {
           "parquet.read.support.class",
           "parquet.crypto.factory.class");
 
-  static ParquetReader<Record> createReader(FileScanTask task, Table table) {
+  static ParquetReader<Record> createReader(FileScanTask task, Table table, Schema schema) {
     String filePath = task.file().path().toString();
     InputFile inputFile;
     try (FileIO io = table.io()) {
@@ -100,11 +104,11 @@ public class ReadUtils {
 
     return new ParquetReader<>(
         inputFile,
-        table.schema(),
+        schema,
         optionsBuilder.build(),
         // TODO(ahmedabu98): Implement a Parquet-to-Beam Row reader, bypassing conversion to Iceberg
         // Record
-        fileSchema -> GenericParquetReaders.buildReader(table.schema(), fileSchema, idToConstants),
+        fileSchema -> GenericParquetReaders.buildReader(schema, fileSchema, idToConstants),
         mapping,
         task.residual(),
         false,
@@ -190,5 +194,15 @@ public class ReadUtils {
             .collect(Collectors.toList());
 
     return snapshotIds;
+  }
+
+  public static CloseableIterable<Record> maybeApplyFilter(
+      CloseableIterable<Record> iterable, IcebergScanConfig scanConfig) {
+    Expression filter = scanConfig.getFilter();
+    Evaluator evaluator = scanConfig.getEvaluator();
+    if (filter != null && evaluator != null && filter.op() != Expression.Operation.TRUE) {
+      return CloseableIterable.filter(iterable, evaluator::eval);
+    }
+    return iterable;
   }
 }

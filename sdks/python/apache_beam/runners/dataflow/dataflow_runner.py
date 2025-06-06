@@ -98,6 +98,9 @@ class DataflowRunner(PipelineRunner):
   def __init__(self, cache=None):
     self._default_environment = None
 
+  def default_pickle_library_override(self):
+    return 'cloudpickle'
+
   def is_fnapi_compatible(self):
     return False
 
@@ -166,8 +169,8 @@ class DataflowRunner(PipelineRunner):
 
           # Check that job is in a post-preparation state before starting the
           # final countdown.
-          if (str(response.currentState) not in ('JOB_STATE_PENDING',
-                                                 'JOB_STATE_QUEUED')):
+          if (str(response.currentState)
+              not in ('JOB_STATE_PENDING', 'JOB_STATE_QUEUED')):
             # The job has failed; ensure we see any final error messages.
             sleep_secs = 1.0  # poll faster during the final countdown
             final_countdown_timer_secs -= sleep_secs

@@ -19,8 +19,8 @@ package org.apache.beam.runners.direct;
 
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.WindowedValue;
 
 /**
  * Enforcement tools that verify that executing code conforms to the model.

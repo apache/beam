@@ -92,10 +92,16 @@ class KafkaUnboundedSource<K, V> extends UnboundedSource<KafkaRecord<K, V>, Kafk
         } else {
           for (String topic : topics) {
             List<PartitionInfo> partitionInfoList = consumer.partitionsFor(topic);
-            checkState(
-                partitionInfoList != null && !partitionInfoList.isEmpty(),
-                "Could not find any partitions info. Please check Kafka configuration and make sure "
-                    + "that provided topics exist.");
+            if (spec.getLogTopicVerification() == null || !spec.getLogTopicVerification()) {
+              checkState(
+                  partitionInfoList != null && !partitionInfoList.isEmpty(),
+                  "Could not find any partitions info. Please check Kafka configuration and make sure "
+                      + "that provided topics exist.");
+            } else {
+              LOG.warn(
+                  "Could not find any partitions info. Please check Kafka configuration and make sure that the "
+                      + "provided topics exist.");
+            }
             for (PartitionInfo p : partitionInfoList) {
               partitions.add(new TopicPartition(p.topic(), p.partition()));
             }
@@ -108,6 +114,7 @@ class KafkaUnboundedSource<K, V> extends UnboundedSource<KafkaRecord<K, V>, Kafk
       for (TopicPartition p : partitions) {
         topicsAndPartitions.computeIfAbsent(p.topic(), k -> new ArrayList<>()).add(p.partition());
       }
+
       try (Consumer<?, ?> consumer = spec.getConsumerFactoryFn().apply(spec.getConsumerConfig())) {
         for (Map.Entry<String, List<Integer>> e : topicsAndPartitions.entrySet()) {
           final String providedTopic = e.getKey();
@@ -118,20 +125,38 @@ class KafkaUnboundedSource<K, V> extends UnboundedSource<KafkaRecord<K, V>, Kafk
                 consumer.partitionsFor(providedTopic).stream()
                     .map(PartitionInfo::partition)
                     .collect(Collectors.toSet());
-            for (Integer p : providedPartitions) {
-              checkState(
-                  partitionsForTopic.contains(p),
-                  "Partition "
-                      + p
-                      + " does not exist for topic "
-                      + providedTopic
-                      + ". Please check Kafka configuration.");
+            if (spec.getLogTopicVerification() == null || !spec.getLogTopicVerification()) {
+              for (Integer p : providedPartitions) {
+                checkState(
+                    partitionsForTopic.contains(p),
+                    "Partition "
+                        + p
+                        + " does not exist for topic "
+                        + providedTopic
+                        + ". Please check Kafka configuration.");
+              }
+            } else {
+              for (Integer p : providedPartitions) {
+                if (!partitionsForTopic.contains(p)) {
+                  LOG.warn(
+                      "Partition {} does not exist for topic {}. Please check Kafka configuration.",
+                      p,
+                      providedTopic);
+                }
+              }
             }
           } catch (KafkaException exception) {
             LOG.warn("Unable to access cluster. Skipping fail fast checks.");
           }
           Lineage.getSources().add("kafka", ImmutableList.of(bootStrapServers, providedTopic));
         }
+      } catch (KafkaException exception) {
+        LOG.warn(
+            "WARN: Failed to connect to kafka for running pre-submit validation of kafka "
+                + "topic and partition configuration. This may be due to local permissions or "
+                + "connectivity to the kafka bootstrap server, or due to misconfiguration of "
+                + "KafkaIO. This validation is not required, and this warning may be ignored "
+                + "if the Beam job runs successfully.");
       }
     }
 

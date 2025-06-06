@@ -208,8 +208,10 @@ public abstract class SpannerSchema implements Serializable {
             return Type.bytes();
           }
           if (spannerType.startsWith("ARRAY")) {
-            // Substring "ARRAY<xxx>"
-            Pattern pattern = Pattern.compile("ARRAY<([^>(]+)>");
+            // find 'xxx' in string ARRAY<xxxxx>
+            // Graph DBs may have suffixes, eg ARRAY<FLOAT32>(vector_length=>256)
+            //
+            Pattern pattern = Pattern.compile("ARRAY<([^>]+)>");
             Matcher matcher = pattern.matcher(originalSpannerType);
 
             if (matcher.find()) {
@@ -235,10 +237,12 @@ public abstract class SpannerSchema implements Serializable {
           }
           throw new IllegalArgumentException("Unknown spanner type " + spannerType);
         case POSTGRESQL:
-          if (spannerType.endsWith("[]")) {
-            // Substring "xxx[]"
+          Pattern pattern = Pattern.compile("([^\\[]+)\\[\\]");
+          Matcher m = pattern.matcher(spannerType);
+          if (m.find()) {
+            // Substring "xxx[]" or "xxx[] vector length yyy"
             // Must check array type first
-            String spannerArrayType = spannerType.substring(0, spannerType.length() - 2);
+            String spannerArrayType = m.group(1);
             Type itemType = parseSpannerType(spannerArrayType, dialect);
             return Type.array(itemType);
           }

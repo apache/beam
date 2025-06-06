@@ -52,10 +52,11 @@ import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowTracing;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.TriggerTranslation;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
@@ -95,7 +96,7 @@ public class WindowGroupP<K, V> extends AbstractProcessor {
 
   private WindowGroupP(
       SerializablePipelineOptions pipelineOptions,
-      WindowedValue.WindowedValueCoder<KV<K, V>> inputCoder,
+      WindowedValues.WindowedValueCoder<KV<K, V>> inputCoder,
       Coder outputCoder,
       WindowingStrategy<V, BoundedWindow> windowingStrategy,
       String ownerId) {
@@ -130,7 +131,7 @@ public class WindowGroupP<K, V> extends AbstractProcessor {
                 Utils.ByteArrayKey keyBytes =
                     new Utils.ByteArrayKey(Utils.encode(key, inputValueCoder.getKeyCoder()));
                 WindowedValue<V> updatedWindowedValue =
-                    WindowedValue.of(
+                    WindowedValues.of(
                         value,
                         windowedValue.getTimestamp(),
                         windowedValue.getWindows(),
@@ -146,7 +147,7 @@ public class WindowGroupP<K, V> extends AbstractProcessor {
   @SuppressWarnings("unchecked")
   public static <K, V> SupplierEx<Processor> supplier(
       SerializablePipelineOptions pipelineOptions,
-      WindowedValue.WindowedValueCoder<KV<K, V>> inputCoder,
+      WindowedValues.WindowedValueCoder<KV<K, V>> inputCoder,
       Coder outputCoder,
       WindowingStrategy windowingStrategy,
       String ownerId) {
@@ -234,7 +235,7 @@ public class WindowGroupP<K, V> extends AbstractProcessor {
                     Collection<? extends BoundedWindow> windows,
                     PaneInfo pane) {
                   WindowedValue<KV<K, Iterable<V>>> windowedValue =
-                      WindowedValue.of(output, timestamp, windows, pane);
+                      WindowedValues.of(output, timestamp, windows, pane);
                   byte[] encodedValue = Utils.encode(windowedValue, outputCoder);
                   //noinspection ResultOfMethodCallIgnored
                   appendableTraverser.append(encodedValue);

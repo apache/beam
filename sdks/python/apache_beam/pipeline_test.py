@@ -41,6 +41,7 @@ from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.pvalue import AsSingleton
 from apache_beam.pvalue import TaggedOutput
+from apache_beam.runners.runner import PipelineRunner
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -60,6 +61,7 @@ from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import IntervalWindow
 from apache_beam.transforms.window import SlidingWindows
 from apache_beam.transforms.window import TimestampedValue
+from apache_beam.typehints import TypeCheckError
 from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 
@@ -155,6 +157,41 @@ class PipelineTest(unittest.TestCase):
       pcoll2 = pipeline | 'label2' >> Create(iter((4, 5, 6)))
       pcoll3 = pcoll2 | 'do' >> FlatMap(lambda x: [x + 10])
       assert_that(pcoll3, equal_to([14, 15, 16]), label='pcoll3')
+
+  def test_unexpected_PDone_errmsg(self):
+    """
+    Test that a nice error message is raised if a transform that
+    returns None (i.e. produces no PCollection) is used as input
+    to a PTransform.
+    """
+    class DoNothingTransform(PTransform):
+      def expand(self, pcoll):
+        return None
+
+    class ParentTransform(PTransform):
+      def expand(self, pcoll):
+        return pcoll | DoNothingTransform()
+
+    with pytest.raises(
+        TypeCheckError,
+        match=r".*applied to the output.*ParentTransform/DoNothingTransform"):
+      with TestPipeline() as pipeline:
+        _ = pipeline | ParentTransform() | beam.Map(lambda x: x + 1)
+
+  @mock.patch('logging.info')
+  def test_runner_overrides_default_pickler(self, mock_info):
+    with mock.patch.object(PipelineRunner,
+                           'default_pickle_library_override') as mock_fn:
+      mock_fn.return_value = 'dill'
+      with TestPipeline() as pipeline:
+        pcoll = pipeline | 'label1' >> Create([1, 2, 3])
+        assert_that(pcoll, equal_to([1, 2, 3]))
+
+        from apache_beam.internal import pickler
+        from apache_beam.internal import dill_pickler
+        self.assertIs(pickler.desired_pickle_lib, dill_pickler)
+    mock_info.assert_any_call(
+        'Runner defaulting to pickling library: %s.', 'dill')
 
   def test_flatmap_builtin(self):
     with TestPipeline() as pipeline:
@@ -279,7 +316,7 @@ class PipelineTest(unittest.TestCase):
     with Pipeline(runner='DirectRunner',
                   options=PipelineOptions(["--no_wait_until_finish"])) as p:
       _ = p | beam.Create(['test'])
-    mock_info.assert_called_once_with(
+    mock_info.assert_any_call(
         'Job execution continues without waiting for completion. '
         'Use "wait_until_finish" in PipelineResult to block until finished.')
     p.result.wait_until_finish()
@@ -287,9 +324,19 @@ class PipelineTest(unittest.TestCase):
   def test_auto_unique_labels(self):
 
     opts = PipelineOptions(["--auto_unique_labels"])
-    with mock.patch.object(uuid, 'uuid4') as mock_uuid_gen:
-      mock_uuids = [mock.Mock(hex='UUID01XXX'), mock.Mock(hex='UUID02XXX')]
-      mock_uuid_gen.side_effect = mock_uuids
+
+    mock_uuids = [mock.Mock(hex='UUID01XXX'), mock.Mock(hex='UUID02XXX')]
+    mock_uuid_gen = mock.Mock(side_effect=mock_uuids)
+
+    original_generate_unique_label = Pipeline._generate_unique_label
+
+    def patched_generate_unique_label(self, transform):
+      with mock.patch.object(uuid, 'uuid4', return_value=mock_uuid_gen()):
+        return original_generate_unique_label(self, transform)
+
+    with mock.patch.object(Pipeline,
+                           '_generate_unique_label',
+                           patched_generate_unique_label):
       with TestPipeline(options=opts) as pipeline:
         pcoll = pipeline | 'pcoll' >> Create([1, 2, 3])
 
@@ -675,6 +722,23 @@ class PipelineTest(unittest.TestCase):
     self.assertIs(pcoll1_unbounded.is_bounded, False)
     self.assertIs(pcoll2_unbounded.is_bounded, False)
     self.assertIs(merged.is_bounded, False)
+
+  def test_incompatible_pcollection_errmsg(self):
+    with pytest.raises(Exception,
+                       match=r".*Map\(print\).*Got a PBegin/Pipeline instead."):
+      with beam.Pipeline() as pipeline:
+        _ = (pipeline | beam.Map(print))
+
+    class ParentTransform(PTransform):
+      def expand(self, pcoll):
+        return pcoll | beam.Map(print)
+
+    with pytest.raises(
+        Exception,
+        match=r".*ParentTransform/Map\(print\).*Got a PBegin/Pipeline instead."
+    ):
+      with beam.Pipeline() as pipeline:
+        _ = (pipeline | ParentTransform())
 
   def test_incompatible_submission_and_runtime_envs_fail_pipeline(self):
     with mock.patch(
@@ -1416,33 +1480,31 @@ class RunnerApiTest(unittest.TestCase):
                     dependencies=[file_artifact('a1', 'x', 'dest')]),
                 'e2': beam_runner_api_pb2.Environment(
                     dependencies=[file_artifact('a2', 'x', 'dest')]),
-                # Different hash.
                 'e3': beam_runner_api_pb2.Environment(
-                    dependencies=[file_artifact('a3', 'y', 'dest')]),
-                # Different destination.
+                    dependencies=[file_artifact('a3', 'y', 'dest')
+                                  ]),  # Different hash.
                 'e4': beam_runner_api_pb2.Environment(
-                    dependencies=[file_artifact('a4', 'y', 'dest2')]),
-                # Multiple files with same hash and destinations.
+                    dependencies=[file_artifact('a4', 'y', 'dest2')
+                                  ]),  # Different destination.
                 'e5': beam_runner_api_pb2.Environment(
                     dependencies=[
                         file_artifact('a1', 'x', 'dest'),
                         file_artifact('b1', 'xb', 'destB')
-                    ]),
+                    ]),  # Multiple files with same hash and destinations.
                 'e6': beam_runner_api_pb2.Environment(
                     dependencies=[
                         file_artifact('a2', 'x', 'dest'),
                         file_artifact('b2', 'xb', 'destB')
                     ]),
-                # Overlapping, but not identical, files.
                 'e7': beam_runner_api_pb2.Environment(
                     dependencies=[
                         file_artifact('a1', 'x', 'dest'),
                         file_artifact('b2', 'y', 'destB')
-                    ]),
-                # Same files as first, but differing other properties.
+                    ]),  # Overlapping, but not identical, files.
                 'e0': beam_runner_api_pb2.Environment(
                     resource_hints={'hint': b'value'},
-                    dependencies=[file_artifact('a1', 'x', 'dest')]),
+                    dependencies=[file_artifact('a1', 'x', 'dest')]
+                ),  # Same files as first, but differing other properties.
             }))
     Pipeline.merge_compatible_environments(proto)
 

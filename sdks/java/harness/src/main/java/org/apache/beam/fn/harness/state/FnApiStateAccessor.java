@@ -31,11 +31,13 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.Cache;
 import org.apache.beam.fn.harness.Caches;
+import org.apache.beam.fn.harness.PTransformRunnerFactory;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest.CacheToken;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.SideInputReader;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
@@ -60,16 +62,23 @@ import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
+import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.util.construction.BeamUrns;
+import org.apache.beam.sdk.util.construction.PCollectionViewTranslation;
+import org.apache.beam.sdk.util.construction.RehydratedComponents;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValues;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
@@ -79,6 +88,155 @@ import org.joda.time.Instant;
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
+
+  public interface MutatingStateContext<K, W> {
+    K getCurrentKey();
+
+    W getCurrentWindow();
+  }
+
+  /**
+   * A factory that takes all the immutable parameters to create a {@link FnApiStateAccessor}.
+   * Later, once in a particular mutable context, it can create a {@link FnApiStateAccessor}
+   * connected to a given mutating context.
+   */
+  public static class Factory<K> {
+    private final PipelineOptions pipelineOptions;
+    private final BeamFnStateClient beamFnStateClient;
+    private final String ptransformId;
+    private final Set<String> runnerCapabilities;
+    private final Supplier<String> processBundleInstructionId;
+    private final Supplier<List<CacheToken>> cacheTokens;
+    private final Supplier<Cache<?, ?>> bundleCache;
+    private final Cache<?, ?> processWideCache;
+    private final Map<TupleTag<?>, SideInputSpec> sideInputSpecMap;
+    private final Coder<K> keyCoder;
+    private final Coder<BoundedWindow> windowCoder;
+
+    public Factory(
+        PipelineOptions pipelineOptions,
+        Set<String> runnerCapabilites,
+        String ptransformId,
+        Supplier<String> processBundleInstructionId,
+        Supplier<List<CacheToken>> cacheTokens,
+        Supplier<Cache<?, ?>> bundleCache,
+        Cache<?, ?> processWideCache,
+        Map<TupleTag<?>, SideInputSpec> sideInputSpecMap,
+        BeamFnStateClient beamFnStateClient,
+        Coder<K> keyCoder,
+        Coder<BoundedWindow> windowCoder) {
+      this.pipelineOptions = pipelineOptions;
+      this.runnerCapabilities = runnerCapabilites;
+      this.ptransformId = ptransformId;
+      this.processBundleInstructionId = processBundleInstructionId;
+      this.cacheTokens = cacheTokens;
+      this.bundleCache = bundleCache;
+      this.processWideCache = processWideCache;
+      this.sideInputSpecMap = sideInputSpecMap;
+      this.beamFnStateClient = beamFnStateClient;
+      this.keyCoder = keyCoder;
+      this.windowCoder = windowCoder;
+    }
+
+    public static <K> Factory<K> factoryForPTransformContext(
+        PTransformRunnerFactory.Context context) throws IOException {
+
+      RehydratedComponents rehydratedComponents =
+          RehydratedComponents.forComponents(context.getComponents())
+              .withPipeline(Pipeline.create());
+      RunnerApi.ParDoPayload parDoPayload =
+          RunnerApi.ParDoPayload.parseFrom(context.getPTransform().getSpec().getPayload());
+
+      @SuppressWarnings("rawtypes") // passed to FnApiStateAccessor which uses rawtypes
+      ImmutableMap.Builder<TupleTag<?>, SideInputSpec> tagToSideInputSpecMapBuilder =
+          ImmutableMap.builder();
+      for (Map.Entry<String, RunnerApi.SideInput> entry :
+          parDoPayload.getSideInputsMap().entrySet()) {
+        String sideInputTag = entry.getKey();
+        RunnerApi.SideInput sideInput = entry.getValue();
+        RunnerApi.PCollection sideInputPCollection =
+            context
+                .getComponents()
+                .getPcollectionsMap()
+                .get(context.getPTransform().getInputsOrThrow(sideInputTag));
+        WindowingStrategy<?, ?> sideInputWindowingStrategy =
+            rehydratedComponents.getWindowingStrategy(
+                sideInputPCollection.getWindowingStrategyId());
+        tagToSideInputSpecMapBuilder.put(
+            new TupleTag<>(entry.getKey()),
+            SideInputSpec.create(
+                sideInput.getAccessPattern().getUrn(),
+                rehydratedComponents.getCoder(sideInputPCollection.getCoderId()),
+                (Coder<BoundedWindow>) sideInputWindowingStrategy.getWindowFn().windowCoder(),
+                PCollectionViewTranslation.viewFnFromProto(entry.getValue().getViewFn()),
+                (WindowMappingFn<BoundedWindow>)
+                    PCollectionViewTranslation.windowMappingFnFromProto(
+                        entry.getValue().getWindowMappingFn())));
+      }
+      @SuppressWarnings("rawtypes") // passed to FnApiStateAccessor which uses rawtypes
+      Map<TupleTag<?>, SideInputSpec> tagToSideInputSpecMap = tagToSideInputSpecMapBuilder.build();
+
+      Coder<K> keyCoder;
+      String mainInputTag =
+          Iterables.getOnlyElement(
+              Sets.difference(
+                  context.getPTransform().getInputsMap().keySet(),
+                  parDoPayload.getSideInputsMap().keySet()));
+      RunnerApi.PCollection mainInput =
+          context
+              .getComponents()
+              .getPcollectionsMap()
+              .get(context.getPTransform().getInputsOrThrow(mainInputTag));
+      Coder<?> maybeWindowedValueInputCoder = rehydratedComponents.getCoder(mainInput.getCoderId());
+      Coder<?> inputCoder;
+      if (maybeWindowedValueInputCoder instanceof WindowedValues.WindowedValueCoder) {
+        inputCoder =
+            ((WindowedValues.WindowedValueCoder<?>) maybeWindowedValueInputCoder).getValueCoder();
+      } else {
+        inputCoder = maybeWindowedValueInputCoder;
+      }
+      if (inputCoder instanceof KvCoder) {
+        keyCoder = ((KvCoder<K, ?>) inputCoder).getKeyCoder();
+      } else {
+        keyCoder = null;
+      }
+
+      // can get window coder generically
+      WindowingStrategy<?, ?> windowingStrategy =
+          rehydratedComponents.getWindowingStrategy(mainInput.getWindowingStrategyId());
+      Coder<BoundedWindow> windowCoder =
+          (Coder<BoundedWindow>) windowingStrategy.getWindowFn().windowCoder();
+
+      return new Factory<>(
+          context.getPipelineOptions(),
+          context.getRunnerCapabilities(),
+          context.getPTransformId(),
+          context.getProcessBundleInstructionIdSupplier(),
+          context.getCacheTokensSupplier(),
+          context.getBundleCacheSupplier(),
+          context.getProcessWideCache(),
+          tagToSideInputSpecMap,
+          context.getBeamFnStateClient(),
+          keyCoder,
+          windowCoder);
+    }
+
+    public FnApiStateAccessor<K> create() {
+      return new FnApiStateAccessor<>(
+          pipelineOptions,
+          runnerCapabilities,
+          ptransformId,
+          processBundleInstructionId,
+          cacheTokens,
+          bundleCache,
+          processWideCache,
+          sideInputSpecMap,
+          beamFnStateClient,
+          keyCoder,
+          windowCoder);
+    }
+  }
+
   private final PipelineOptions pipelineOptions;
   private final Set<String> runnerCapabilites;
   private final Map<StateKey, Object> stateKeyObjectCache;
@@ -90,11 +248,12 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
   private final Supplier<Cache<?, ?>> bundleCache;
   private final Cache<?, ?> processWideCache;
   private final Collection<ThrowingRunnable> stateFinalizers;
+  private final Coder<K> keyCoder;
+  private final Coder<BoundedWindow> windowCoder;
 
-  private final Supplier<BoundedWindow> currentWindowSupplier;
-
-  private final Supplier<ByteString> encodedCurrentKeySupplier;
-  private final Supplier<ByteString> encodedCurrentWindowSupplier;
+  private @Nullable Supplier<BoundedWindow> currentWindowSupplier;
+  private @Nullable Supplier<ByteString> encodedCurrentKeySupplier;
+  private @Nullable Supplier<ByteString> encodedCurrentWindowSupplier;
 
   public FnApiStateAccessor(
       PipelineOptions pipelineOptions,
@@ -107,9 +266,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
       Map<TupleTag<?>, SideInputSpec> sideInputSpecMap,
       BeamFnStateClient beamFnStateClient,
       Coder<K> keyCoder,
-      Coder<BoundedWindow> windowCoder,
-      Supplier<K> currentKeySupplier,
-      Supplier<BoundedWindow> currentWindowSupplier) {
+      Coder<BoundedWindow> windowCoder) {
     this.pipelineOptions = pipelineOptions;
     this.runnerCapabilites = runnerCapabilites;
     this.stateKeyObjectCache = Maps.newHashMap();
@@ -120,11 +277,16 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
     this.cacheTokens = cacheTokens;
     this.bundleCache = bundleCache;
     this.processWideCache = processWideCache;
+    this.keyCoder = keyCoder;
+    this.windowCoder = windowCoder;
     this.stateFinalizers = new ArrayList<>();
-    this.currentWindowSupplier = currentWindowSupplier;
+  }
+
+  public void setKeyAndWindowContext(MutatingStateContext<K, BoundedWindow> keyAndWindowContext) {
+    this.currentWindowSupplier = keyAndWindowContext::getCurrentWindow;
     this.encodedCurrentKeySupplier =
         memoizeFunction(
-            currentKeySupplier,
+            keyAndWindowContext::getCurrentKey,
             key -> {
               checkState(
                   keyCoder != null, "Accessing state in unkeyed context, no key coder available");
@@ -172,7 +334,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
   }
 
   @Override
-  public @Nullable <T> T get(PCollectionView<T> view, BoundedWindow window) {
+  public <T> T get(PCollectionView<T> view, BoundedWindow window) {
     TupleTag<?> tag = view.getTagInternal();
 
     SideInputSpec sideInputSpec = sideInputSpecMap.get(tag);

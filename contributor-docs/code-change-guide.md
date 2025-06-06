@@ -395,6 +395,8 @@ Follow these steps for Gradle projects.
 
     ```groovy
     repositories {
+    mavenCentral()
+    mavenLocal()
     maven { url "https://repository.apache.org/content/groups/snapshots" }
     }
     ```
@@ -415,12 +417,12 @@ If you're using the standard Dataflow runner (not Runner v2), and the worker har
     ```
     ./gradlew :runners:google-cloud-dataflow-java:worker:shadowJar
     ```
-    The jar is located in the build output.
+    The jar is located in the build output (`<beam root>/runners/google-cloud-dataflow-java/worker/build/libs`).
 
-2. Use the following command to pass `pipelineOption`:
+2. Add the following `pipelineOption` to your pipeline invocation:
 
     ```
-    --dataflowWorkerJar=/.../beam-runners-google-cloud-dataflow-java-legacy-worker-2.XX.0-SNAPSHOT.jar
+    --dataflowWorkerJar=<full-path-to>/beam-runners-google-cloud-dataflow-java-legacy-worker-2.XX.0-SNAPSHOT.jar
     ```
 
 If you're using Dataflow Runner v2 and `sdks/java/harness` or its dependencies (like `sdks/java/core`) have changed, do the following:
@@ -428,18 +430,18 @@ If you're using Dataflow Runner v2 and `sdks/java/harness` or its dependencies (
 1. Use the following command to build the SDK harness container:
 
     ```shell
-    ./gradlew :sdks:java:container:java11:docker # java8, java11, java17, etc
-    # change version number to the actual tag below
-    docker tag apache/beam_java8_sdk:2.64.0.dev \
-      "us.gcr.io/apache-beam-testing/beam_java11_sdk:2.64.0-custom"  # change to your container registry
-    docker push "us.gcr.io/apache-beam-testing/beam_java11_sdk:2.64.0-custom"
+    ./gradlew :sdks:java:harness:publishToMavenLocal -Ppublishing
     ```
 
-2. Run the pipeline with the following options:
+2. add `org.apache.beam:beam-sdks-java-harness:2.XX.0-SNAPSHOT` as your project dependency. e.g. for Gradle project, add
+    ```
+    implementation("org.apache.beam:beam-sdks-java-harness:2.XX.0-SNAPSHOT")
+    ```
+
+3. Run the pipeline with the following options:
 
     ```
-    --experiments=use_runner_v2 \
-    --sdkContainerImage="us.gcr.io/apache-beam-testing/beam_java11_sdk:2.49.0-custom"
+    --experiments=use_runner_v2,use_staged_dataflow_worker_jar
     ```
 
 #### Snapshot Version Containers
@@ -453,7 +455,7 @@ This SNAPSHOT version will use the final containers published on [DockerHub](htt
 
 Certain runners may override this snapshot behavior; for example, the Dataflow runner overrides all SNAPSHOT containers into a [single registry](https://console.cloud.google.com/gcr/images/cloud-dataflow/GLOBAL/v1beta3). The same downtime will still be incurred, however, when switching to the final container
 
-## Python guide
+## Python development guide
 
 The Beam Python SDK is distributed as a single wheel, which is more straightforward than the Java SDK.
 
@@ -527,7 +529,7 @@ To run an integration test on the Direct Runner, use the following command:
 ```shell
 python -m pytest -o log_cli=True -o log_level=Info \
   apache_beam/ml/inference/pytorch_inference_it_test.py::PyTorchInference \
-  --test-pipeline-options='--runner=TestDirectRunner’
+  --test-pipeline-options='--runner=TestDirectRunner'
 ```
 
 If you're preparing a PR, for test-suites to run in PostCommit Python, add tests paths under [`batchTests`](https://github.com/apache/beam/blob/2012107a0fa2bb3fedf1b5aedcb49445534b2dad/sdks/python/test-suites/direct/common.gradle#L44) in the `common.gradle` file.
@@ -550,7 +552,7 @@ To run an integration test on the Dataflow Runner, follow these steps:
   --test-pipeline-options='--runner=TestDataflowRunner --project=<project>
                            --temp_location=gs://<bucket>/tmp
                            --sdk_location=dist/apache-beam-2.35.0.dev0.tar.gz
-                           --region=us-central1’
+                           --region=us-central1'
   ```
 
 3. If you're preparing a PR, to include integration tests in the Python PostCommit test
@@ -577,7 +579,7 @@ python -m pytest  -o log_cli=True -o log_level=Info \
   --test-pipeline-options='--runner=TestDataflowRunner --project=<project>
                            --temp_location=gs://<bucket>/tmp
                            --sdk_container_image=us.gcr.io/apache-beam-testing/beam-sdk/beam:dev
-                           --region=us-central1’
+                           --region=us-central1'
 ```
 
 #### Specify additional test dependencies
@@ -593,7 +595,7 @@ python -m pytest  -o log_cli=True -o log_level=Info \
                            --temp_location=gs://<bucket>/tmp
                            --sdk_location=us.gcr.io/apache-beam-testing/beam-sdk/beam:dev
                            --region=us-central1
-                           –requirements_file=requirements.txt’
+                           –requirements_file=requirements.txt'
 ```
 
 If you're using the Dataflow runner, use [custom containers](https://cloud.google.com/dataflow/docs/guides/using-custom-containers).

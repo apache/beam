@@ -58,6 +58,10 @@ dependencies {
     implementation "org.apache.iceberg:iceberg-orc:$iceberg_version"
     implementation "org.apache.iceberg:iceberg-data:$iceberg_version"
     implementation library.java.hadoop_common
+    // TODO(https://github.com/apache/beam/issues/21156): Determine how to build without this dependency
+    provided "org.immutables:value:2.8.8"
+    permitUnusedDeclared "org.immutables:value:2.8.8"
+    implementation library.java.vendored_calcite_1_28_0
     runtimeOnly "org.apache.iceberg:iceberg-gcp:$iceberg_version"
 
     testImplementation project(":sdks:java:managed")
@@ -91,6 +95,7 @@ dependencies {
     testRuntimeOnly library.java.slf4j_jdk14
     testImplementation project(path: ":runners:direct-java", configuration: "shadow")
     testRuntimeOnly project(path: ":runners:google-cloud-dataflow-java")
+    testRuntimeOnly project(path: ":sdks:java:harness")
     hadoopVersions.each {kv ->
         "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-client:$kv.value"
         "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-minicluster:$kv.value"
@@ -148,7 +153,7 @@ task integrationTest(type: Test) {
         exclude '**/BigQueryMetastoreCatalogIT.class'
     }
 
-    maxParallelForks 4
+    maxParallelForks 1
     classpath = sourceSets.test.runtimeClasspath
     testClassesDirs = sourceSets.test.output.classesDirs
 }
@@ -161,7 +166,7 @@ task dataflowIntegrationTest(type: Test) {
             "--project=${gcpProject}",
             "--tempLocation=${gcpTempLocation}",
             "--tempRoot=${gcpTempLocation}",
-            "--experiments=use_runner_v2"
+            "--experiments=use_runner_v2,use_staged_dataflow_worker_jar"
     ]
     if (project.hasProperty('enableManagedTransforms')) {
         args.add("--experiments=enable_managed_transforms")
@@ -173,6 +178,7 @@ task dataflowIntegrationTest(type: Test) {
 
     filter {
         includeTestsMatching 'org.apache.beam.sdk.io.iceberg.catalog.BigQueryMetastoreCatalogIT.testRead'
+        includeTestsMatching 'org.apache.beam.sdk.io.iceberg.catalog.BigQueryMetastoreCatalogIT.testReadWithFilter'
         includeTestsMatching 'org.apache.beam.sdk.io.iceberg.catalog.BigQueryMetastoreCatalogIT.testStreamingRead'
         includeTestsMatching 'org.apache.beam.sdk.io.iceberg.catalog.BigQueryMetastoreCatalogIT.testWrite'
         includeTestsMatching 'org.apache.beam.sdk.io.iceberg.catalog.BigQueryMetastoreCatalogIT.testWriteRead'

@@ -50,7 +50,6 @@ import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.util.DoFnWithExecutionInformation;
 import org.apache.beam.sdk.util.SerializableUtils;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.Environments;
 import org.apache.beam.sdk.util.construction.ParDoTranslation;
 import org.apache.beam.sdk.util.construction.RehydratedComponents;
@@ -58,6 +57,7 @@ import org.apache.beam.sdk.util.construction.SdkComponents;
 import org.apache.beam.sdk.util.construction.WindowingStrategyTranslation;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.InvalidProtocolBufferException;
 

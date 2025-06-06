@@ -23,6 +23,11 @@ more optimal/updated version without requiring the user to do anything. It may
 also replace the transform with something entirely different if it chooses to.
 By default, however, the specified transform will remain unchanged.
 
+Available transforms
+====================
+Please check the Managed IO configuration page:
+https://beam.apache.org/documentation/io/managed-io/
+
 Using Managed Transforms
 ========================
 Managed turnkey transforms have a defined configuration and can be built using
@@ -50,18 +55,9 @@ Simply provide the location to the file like so::
                     beam.managed.KAFKA,
                     config_url="path/to/config.yaml")
 
-Available transforms
-====================
-Available transforms are:
-
-- **Kafka Read and Write**
-- **Iceberg Read and Write**
 
 **Note:** inputs and outputs need to be PCollection(s) of Beam
 :py:class:`apache_beam.pvalue.Row` elements.
-
-**Note:** Today, all managed transforms are essentially cross-language
-transforms, and Java's ManagedSchemaTransform is used under the hood.
 
 Runner specific features
 ========================
@@ -77,20 +73,18 @@ from typing import Optional
 import yaml
 
 from apache_beam.portability.common_urns import ManagedTransforms
+from apache_beam.transforms.external import MANAGED_SCHEMA_TRANSFORM_IDENTIFIER
+from apache_beam.transforms.external import MANAGED_TRANSFORM_URN_TO_JAR_TARGET_MAPPING
 from apache_beam.transforms.external import BeamJarExpansionService
 from apache_beam.transforms.external import SchemaAwareExternalTransform
 from apache_beam.transforms.ptransform import PTransform
 
 ICEBERG = "iceberg"
+# TODO(https://github.com/apache/beam/issues/34212): keep ICEBERG_CDC private
+#  until we vet it with integration tests
+_ICEBERG_CDC = "iceberg_cdc"
 KAFKA = "kafka"
 BIGQUERY = "bigquery"
-_MANAGED_IDENTIFIER = "beam:transform:managed:v1"
-_EXPANSION_SERVICE_JAR_TARGETS = {
-    "sdks:java:io:expansion-service:shadowJar": [KAFKA, ICEBERG],
-    "sdks:java:io:google-cloud-platform:expansion-service:shadowJar": [
-        BIGQUERY
-    ]
-}
 
 __all__ = ["ICEBERG", "KAFKA", "BIGQUERY", "Read", "Write"]
 
@@ -99,6 +93,7 @@ class Read(PTransform):
   """Read using Managed Transforms"""
   _READ_TRANSFORMS = {
       ICEBERG: ManagedTransforms.Urns.ICEBERG_READ.urn,
+      _ICEBERG_CDC: ManagedTransforms.Urns.ICEBERG_CDC_READ.urn,
       KAFKA: ManagedTransforms.Urns.KAFKA_READ.urn,
       BIGQUERY: ManagedTransforms.Urns.BIGQUERY_READ.urn
   }
@@ -125,7 +120,7 @@ class Read(PTransform):
 
   def expand(self, input):
     return input | SchemaAwareExternalTransform(
-        identifier=_MANAGED_IDENTIFIER,
+        identifier=MANAGED_SCHEMA_TRANSFORM_IDENTIFIER,
         expansion_service=self._expansion_service,
         rearrange_based_on_discovery=True,
         transform_identifier=self._underlying_identifier,
@@ -166,7 +161,7 @@ class Write(PTransform):
 
   def expand(self, input):
     return input | SchemaAwareExternalTransform(
-        identifier=_MANAGED_IDENTIFIER,
+        identifier=MANAGED_SCHEMA_TRANSFORM_IDENTIFIER,
         expansion_service=self._expansion_service,
         rearrange_based_on_discovery=True,
         transform_identifier=self._underlying_identifier,
@@ -182,13 +177,11 @@ def _resolve_expansion_service(
   if expansion_service:
     return expansion_service
 
-  default_target = None
-  for gradle_target, transforms in _EXPANSION_SERVICE_JAR_TARGETS.items():
-    if transform_name.lower() in transforms:
-      default_target = gradle_target
-      break
-  if not default_target:
+  gradle_target = None
+  if identifier in MANAGED_TRANSFORM_URN_TO_JAR_TARGET_MAPPING:
+    gradle_target = MANAGED_TRANSFORM_URN_TO_JAR_TARGET_MAPPING.get(identifier)
+  if not gradle_target:
     raise ValueError(
         "No expansion service was specified and could not find a "
         f"default expansion service for {transform_name}: '{identifier}'.")
-  return BeamJarExpansionService(default_target)
+  return BeamJarExpansionService(gradle_target)

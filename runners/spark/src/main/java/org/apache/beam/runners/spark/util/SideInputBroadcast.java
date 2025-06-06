@@ -20,6 +20,7 @@ package org.apache.beam.runners.spark.util;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.Serializable;
+import org.apache.beam.runners.spark.translation.SparkPCollectionView;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.broadcast.Broadcast;
@@ -41,14 +42,18 @@ public class SideInputBroadcast<T> implements Serializable {
   private final Coder<T> coder;
   private transient T value;
   private transient byte[] bytes = null;
+  private SparkPCollectionView.Type sparkPCollectionViewType;
 
-  private SideInputBroadcast(byte[] bytes, Coder<T> coder) {
+  private SideInputBroadcast(
+      byte[] bytes, Coder<T> coder, SparkPCollectionView.Type sparkPCollectionViewType) {
     this.bytes = bytes;
     this.coder = coder;
+    this.sparkPCollectionViewType = sparkPCollectionViewType;
   }
 
-  public static <T> SideInputBroadcast<T> create(byte[] bytes, Coder<T> coder) {
-    return new SideInputBroadcast<>(bytes, coder);
+  public static <T> SideInputBroadcast<T> create(
+      byte[] bytes, SparkPCollectionView.Type type, Coder<T> coder) {
+    return new SideInputBroadcast<>(bytes, coder, type);
   }
 
   public synchronized T getValue() {
@@ -60,6 +65,10 @@ public class SideInputBroadcast<T> implements Serializable {
 
   public void broadcast(JavaSparkContext jsc) {
     this.bcast = jsc.broadcast(bytes);
+  }
+
+  public SparkPCollectionView.Type getSparkPCollectionViewType() {
+    return sparkPCollectionViewType;
   }
 
   public void unpersist() {

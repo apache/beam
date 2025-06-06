@@ -20,9 +20,9 @@ package org.apache.beam.runners.samza.util;
 import java.io.IOException;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.fnexecution.wire.WireCoders;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.graph.PipelineNode;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.WindowedValues;
 
 /** Utilities for pipeline translation. */
 @SuppressWarnings({
@@ -31,12 +31,12 @@ import org.apache.beam.sdk.values.PCollection;
 public final class SamzaPipelineTranslatorUtils {
   private SamzaPipelineTranslatorUtils() {}
 
-  public static WindowedValue.WindowedValueCoder instantiateCoder(
+  public static WindowedValues.WindowedValueCoder instantiateCoder(
       String collectionId, RunnerApi.Components components) {
     PipelineNode.PCollectionNode collectionNode =
         PipelineNode.pCollection(collectionId, components.getPcollectionsOrThrow(collectionId));
     try {
-      return (WindowedValue.WindowedValueCoder)
+      return (WindowedValues.WindowedValueCoder)
           WireCoders.instantiateRunnerWireCoder(collectionNode, components);
     } catch (IOException e) {
       throw new RuntimeException(e);

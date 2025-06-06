@@ -32,6 +32,7 @@ from apache_beam.utils.python_callable import PythonCallableWithSource
 from apache_beam.version import __version__ as beam_version
 from apache_beam.yaml import json_utils
 from apache_beam.yaml import yaml_provider
+from apache_beam.yaml import yaml_utils
 from apache_beam.yaml.yaml_errors import ErrorHandlingConfig
 
 
@@ -234,8 +235,7 @@ def transform_docs(transform_base, transforms, providers, extra_docs=''):
       longest(
           lambda t: longest(
               lambda p: add_transform_links(
-                  t, p.description(t), providers.keys()),
-              providers[t]),
+                  t, p.description(t), providers.keys()), providers[t]),
           transforms).replace('::\n', '\n\n    :::yaml\n'),
       '',
       extra_docs,
@@ -264,7 +264,12 @@ def create_index(include, exclude, options):
   with subprocess_server.SubprocessServer.cache_subprocesses():
     json_config_schemas = []
     markdown_out = io.StringIO()
-    providers = yaml_provider.standard_providers()
+    if options.provider_source_file:
+      providers = yaml_provider.merge_providers(
+          yaml_provider.load_providers(
+              yaml_utils.locate_data_file(options.provider_source_file)))
+    else:
+      providers = yaml_provider.standard_providers()
     for transform_base, transforms in itertools.groupby(
         sorted(providers.keys(), key=io_grouping_key),
         key=lambda s: s.split('-')[0]):
@@ -519,6 +524,7 @@ def markdown_to_html(title, markdown_content, header=''):
   return f'''
             <html>
               <head>
+                <meta charset="UTF-8">
                 <title>{title}</title>
                 <style>
                 {pygments_style}
@@ -557,6 +563,11 @@ def main():
   parser.add_argument('--schema_file')
   parser.add_argument('--include', default='.*')
   parser.add_argument('--exclude', default='')
+  parser.add_argument(
+      "--provider_source_file",
+      help="Path to a YAML file containing custom providers. "
+      "If not provided, uses standard Beam providers.",
+  )
   options = parser.parse_args()
   include = re.compile(options.include).match
   exclude = (
@@ -593,6 +604,9 @@ def main():
                 <a href="https://github.com/apache/beam/tree/master/sdks/'''
               '''python/apache_beam/yaml/examples">github</a>.
                 </p>
+                <p>Note: These examples below are automatically tested for
+                correctness and may be used as a starting point for your own
+                pipelines.</p>
           '''))
 
 

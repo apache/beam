@@ -18,6 +18,8 @@
 
 import groovy.json.JsonOutput
 
+import static org.apache.beam.gradle.BeamModulePlugin.getSupportedJavaVersion
+
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.runners.dataflow',
@@ -47,7 +49,6 @@ evaluationDependsOn(":sdks:java:io:google-cloud-platform")
 evaluationDependsOn(":sdks:java:core")
 evaluationDependsOn(":examples:java")
 evaluationDependsOn(":runners:google-cloud-dataflow-java:worker")
-evaluationDependsOn(":sdks:java:container:java8")
 evaluationDependsOn(":sdks:java:container:java11")
 
 processResources {
@@ -80,10 +81,7 @@ dependencies {
     examplesJavaIntegrationTest project(path: ":examples:java", configuration: "testRuntimeMigration")
 }
 
-def javaVer = "java8"
-if (project.hasProperty('testJavaVersion')) {
-  javaVer = "java${project.getProperty('testJavaVersion')}"
-}
+def javaVer = getSupportedJavaVersion(project.findProperty('testJavaVersion') as String)
 def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
 def gcpRegion = project.findProperty('gcpRegion') ?: 'us-central1'
 def dataflowValidatesTempRoot = project.findProperty('gcpTempRoot') ?: 'gs://temp-storage-for-validates-runner-tests'

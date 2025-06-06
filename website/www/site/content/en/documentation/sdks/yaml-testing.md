@@ -29,7 +29,7 @@ pipeline can be expected to be well tested, it can be important to have tests
 that ensure the pipeline as a whole behaves as expected.  This is particularly
 true for transforms that contain non-trivial UDF logic.
 
-# Whole pipeline tests
+## Whole pipeline tests
 
 For example, consider the example word count pipeline.
 
@@ -126,10 +126,8 @@ python -m apache_beam.yaml.main \
     --test_suite=test_file.yaml
 ```
 
-Neither the actual Read transform nor Write transform from the original
-pipelines are executed when running the test, but all intermediate transforms
-are.  For hermeticity, we require that all inputs (with the exception of
-`Create` that are needed to compute the expected outputs are explicitly mocked;
+For hermeticity, we require that all inputs (with the exception of
+`Create`) that are needed to compute the expected outputs are explicitly mocked;
 to explicitly allow a sources to be executed as part of a test their names or
 types can be enumerated in an `allowed_sources` attribute of the test
 specification.
@@ -137,7 +135,7 @@ specification.
 
 ## Pipeline fragment tests
 
-One can also tests a portion of a pipeline using the `mock_inputs` and
+One can also test a portion of a pipeline using the `mock_inputs` and
 `expected_outputs` section of a test, for example
 
 ```
@@ -182,7 +180,7 @@ tests:
 As before, each test only executes the portion of the pipeline between the
 mock inputs and expected outputs.  Note that the named transform in a
 `mock_inputs` specification *is* executed, while the named transform of a
-`mock_oupputs` specification is not.
+`mock_outputs` specification is not.
 Similarly, the named transform of a `expected_inputs` specification is *not*
 executed, while the named transform of an `expected_outputs` necessarily is.
 
@@ -227,10 +225,10 @@ are meaningful and as expected.)
 
 ## Branching pipelines
 
-For complex, branching pipelines, any number of `mock_inputs` and `mock_outupts`
+For complex, branching pipelines, any number of `mock_inputs` and `mock_outputs`
 may be enumerated to provide the input data, and any number of `expected_inputs`
 and `expected_outputs` validations may be specified as well.
-In both the `mock_outupts` and `expected_outputs` block, multiple outputs can
+In both the `mock_outputs` and `expected_outputs` block, multiple outputs can
 be disambiguated with the `TransformName.output_name` notation just as when
 authoring a yaml pipeline.
 

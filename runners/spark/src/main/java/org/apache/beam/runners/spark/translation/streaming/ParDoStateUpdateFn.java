@@ -38,20 +38,20 @@ import org.apache.beam.runners.spark.translation.DoFnRunnerWithMetrics;
 import org.apache.beam.runners.spark.translation.SparkInputDataProcessor;
 import org.apache.beam.runners.spark.translation.SparkProcessContext;
 import org.apache.beam.runners.spark.util.ByteArray;
-import org.apache.beam.runners.spark.util.CachedSideInputReader;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
-import org.apache.beam.runners.spark.util.SparkSideInputReader;
+import org.apache.beam.runners.spark.util.SideInputReaderFactory;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.SerializableUtils;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.spark.streaming.State;
@@ -94,7 +94,7 @@ public class ParDoStateUpdateFn<KeyT, ValueT, InputT extends KV<KeyT, ValueT>, O
   private final String stepName;
   private final DoFn<InputT, OutputT> doFn;
   private final Coder<KeyT> keyCoder;
-  private final WindowedValue.FullWindowedValueCoder<ValueT> wvCoder;
+  private final WindowedValues.FullWindowedValueCoder<ValueT> wvCoder;
   private transient boolean wasSetupCalled;
   private final SerializablePipelineOptions options;
   private final TupleTag<?> mainOutputTag;
@@ -109,13 +109,15 @@ public class ParDoStateUpdateFn<KeyT, ValueT, InputT extends KV<KeyT, ValueT>, O
   private final Map<Integer, GlobalWatermarkHolder.SparkWatermarks> watermarks;
   private final List<Integer> sourceIds;
   private final TimerInternals.TimerDataCoderV2 timerDataCoder;
+  // for sideInput
+  private final boolean useStreamingSideInput;
 
   public ParDoStateUpdateFn(
       MetricsContainerStepMapAccumulator metricsAccum,
       String stepName,
       DoFn<InputT, OutputT> doFn,
       Coder<KeyT> keyCoder,
-      WindowedValue.FullWindowedValueCoder<ValueT> wvCoder,
+      WindowedValues.FullWindowedValueCoder<ValueT> wvCoder,
       SerializablePipelineOptions options,
       TupleTag<?> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
@@ -126,7 +128,8 @@ public class ParDoStateUpdateFn<KeyT, ValueT, InputT extends KV<KeyT, ValueT>, O
       DoFnSchemaInformation doFnSchemaInformation,
       Map<String, PCollectionView<?>> sideInputMapping,
       Map<Integer, GlobalWatermarkHolder.SparkWatermarks> watermarks,
-      List<Integer> sourceIds) {
+      List<Integer> sourceIds,
+      boolean useStreamingSideInput) {
     this.metricsAccum = metricsAccum;
     this.stepName = stepName;
     this.doFn = SerializableUtils.clone(doFn);
@@ -145,6 +148,7 @@ public class ParDoStateUpdateFn<KeyT, ValueT, InputT extends KV<KeyT, ValueT>, O
     this.sourceIds = sourceIds;
     this.timerDataCoder =
         TimerInternals.TimerDataCoderV2.of(windowingStrategy.getWindowFn().windowCoder());
+    this.useStreamingSideInput = useStreamingSideInput;
   }
 
   @Override
@@ -199,7 +203,7 @@ public class ParDoStateUpdateFn<KeyT, ValueT, InputT extends KV<KeyT, ValueT>, O
         DoFnRunners.simpleRunner(
             options.get(),
             doFn,
-            CachedSideInputReader.of(new SparkSideInputReader(sideInputs)),
+            SideInputReaderFactory.create(this.useStreamingSideInput, this.sideInputs),
             processor.getOutputManager(),
             (TupleTag<OutputT>) mainOutputTag,
             additionalOutputTags,
@@ -254,8 +258,8 @@ public class ParDoStateUpdateFn<KeyT, ValueT, InputT extends KV<KeyT, ValueT>, O
                           (Coder<OutputT>) outputCoders.get(tupleTag);
 
                       @SuppressWarnings("nullness")
-                      final WindowedValue.FullWindowedValueCoder<OutputT> outputWindowCoder =
-                          WindowedValue.FullWindowedValueCoder.of(outputCoder, windowCoder);
+                      final WindowedValues.FullWindowedValueCoder<OutputT> outputWindowCoder =
+                          WindowedValues.FullWindowedValueCoder.of(outputCoder, windowCoder);
 
                       return Tuple2.apply(
                           tupleTag,
