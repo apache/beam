@@ -34,6 +34,9 @@
 
 
 def pardo_dofn_methods(test=None):
+  # Portable runners do not guarantee that teardown will be executed, so we
+  # use FnApiRunner instead of prism.
+  runner = 'FnApiRunner'
   # [START pardo_dofn_methods]
   import apache_beam as beam
 
@@ -60,9 +63,13 @@ def pardo_dofn_methods(test=None):
       )
 
     def teardown(self):
+      # Teardown is best effort and not guaranteed to be executed by all
+      # runners in all cases (for example, it may be skipped if the pipeline
+      # can otherwise complete). It should be used for best effort resource
+      # cleanup.
       print('teardown')
 
-  with beam.Pipeline() as pipeline:
+  with beam.Pipeline(runner) as pipeline:
     results = (
         pipeline
         | 'Create inputs' >> beam.Create(['🍓', '🥕', '🍆', '🍅', '🥔'])

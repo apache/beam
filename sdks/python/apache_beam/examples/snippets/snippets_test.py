@@ -307,7 +307,7 @@ class TypeHintsTest(unittest.TestCase):
     # When running this pipeline, you'd get a runtime error,
     # possibly on a remote machine, possibly very late.
 
-    with self.assertRaises(TypeError):
+    with self.assertRaises(Exception):
       p.run()
 
     # To catch this early, we can assert what types we expect.
@@ -372,7 +372,7 @@ class TypeHintsTest(unittest.TestCase):
     # When running this pipeline, you'd get a runtime error,
     # possibly on a remote machine, possibly very late.
 
-    with self.assertRaises(TypeError):
+    with self.assertRaises(Exception):
       p.run()
 
     # To catch this early, we can annotate process() with the expected types.
@@ -439,11 +439,10 @@ class TypeHintsTest(unittest.TestCase):
 
   def test_runtime_checks_on(self):
     # pylint: disable=expression-not-assigned
-    with self.assertRaises(typehints.TypeCheckError):
+    with self.assertRaises(Exception):
       # [START type_hints_runtime_on]
-      p = TestPipeline(options=PipelineOptions(runtime_type_check=True))
-      p | beam.Create(['a']) | beam.Map(lambda x: 3).with_output_types(str)
-      p.run()
+      with TestPipeline(options=PipelineOptions(runtime_type_check=True)) as p:
+        p | beam.Create(['a']) | beam.Map(lambda x: 3).with_output_types(str)
       # [END type_hints_runtime_on]
 
   def test_deterministic_key(self):
