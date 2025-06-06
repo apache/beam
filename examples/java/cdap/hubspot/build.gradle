@@ -73,7 +73,6 @@ dependencies {
         // circular dependency to Beam component
         exclude group: "org.apache.beam", module: "beam-sdks-java-io-sparkreceiver"
     }
-    // implementation project(":sdks:java:io:sparkreceiver:3")
     implementation library.java.spark3_streaming
     permitUnusedDeclared library.java.spark3_streaming
     implementation library.java.google_code_gson
