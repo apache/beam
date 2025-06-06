@@ -131,6 +131,7 @@ class IOTypeHintsTest(unittest.TestCase):
   def test_strip_iterable(self):
     self._test_strip_iterable(None, None)
     self._test_strip_iterable(typehints.Any, typehints.Any)
+    self._test_strip_iterable(T, typehints.Any)
     self._test_strip_iterable(typehints.Iterable[str], str)
     self._test_strip_iterable(typehints.List[str], str)
     self._test_strip_iterable(typehints.Iterator[str], str)

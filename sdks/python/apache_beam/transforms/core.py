@@ -2016,7 +2016,7 @@ class StatelessDoFnInfo(DoFnInfo):
     return beam_runner_api_pb2.FunctionSpec(urn=self._urn)
 
 
-def identity(x: T) -> T:
+def identity(x):
   return x
 
 
@@ -2053,6 +2053,7 @@ def FlatMap(fn=identity, *args, **kwargs):  # pylint: disable=invalid-name
 
   pardo = ParDo(CallableWrapperDoFn(fn), *args, **kwargs)
   pardo.label = label
+
   return pardo
 
 

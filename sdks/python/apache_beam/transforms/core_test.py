@@ -22,6 +22,7 @@ import logging
 import os
 import tempfile
 import unittest
+from typing import TypeVar
 
 import pytest
 
@@ -29,6 +30,8 @@ import apache_beam as beam
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.window import FixedWindows
+from apache_beam.typehints import TypeCheckError
+from apache_beam.typehints import typehints
 
 RETURN_NONE_PARTIAL_WARNING = "No iterator is returned"
 
@@ -279,6 +282,16 @@ class ExceptionHandlingTest(unittest.TestCase):
       self.assertFalse(os.path.isfile(tmp_path))
 
 
+def test_callablewrapper_typehint():
+  T = TypeVar("T")
+
+  def identity(x: T) -> T:
+    return x
+
+  dofn = beam.core.CallableWrapperDoFn(identity)
+  assert dofn.get_type_hints().strip_iterable()[1][0][0] == typehints.Any
+
+
 class FlatMapTest(unittest.TestCase):
   def test_default(self):
 
@@ -288,6 +301,25 @@ class FlatMapTest(unittest.TestCase):
           | beam.Create(['abc', 'def'], reshuffle=False)
           | beam.FlatMap())
       assert_that(letters, equal_to(['a', 'b', 'c', 'd', 'e', 'f']))
+
+  def test_default_identity_function_with_typehint(self):
+    with beam.Pipeline() as pipeline:
+      letters = (
+          pipeline
+          | beam.Create([["abc"]], reshuffle=False)
+          | beam.FlatMap()
+          | beam.Map(lambda s: s.upper()).with_input_types(str))
+
+      assert_that(letters, equal_to(["ABC"]))
+
+  def test_typecheck_with_default(self):
+    with pytest.raises(TypeCheckError):
+      with beam.Pipeline() as pipeline:
+        _ = (
+            pipeline
+            | beam.Create([[1, 2, 3]], reshuffle=False)
+            | beam.FlatMap()
+            | beam.Map(lambda s: s.upper()).with_input_types(str))
 
 
 if __name__ == '__main__':

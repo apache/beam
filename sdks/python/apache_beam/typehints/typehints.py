@@ -1563,6 +1563,8 @@ def get_yielded_type(type_hint):
   Raises:
     ValueError if not iterable.
   """
+  if isinstance(type_hint, typing.TypeVar):
+    return typing.Any
   if isinstance(type_hint, AnyTypeConstraint):
     return type_hint
   if is_consistent_with(type_hint, Iterator[Any]):
