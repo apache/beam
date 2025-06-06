@@ -37,7 +37,7 @@ try:
   from testcontainers.mssql import SqlServerContainer
   from testcontainers.redis import RedisContainer
   from sqlalchemy import (
-      create_engine, MetaData, Table, Column, Integer, String, Engine)
+      create_engine, MetaData, Table, Column, Integer, VARCHAR, Engine)
   from apache_beam.transforms.enrichment import Enrichment
   from apache_beam.transforms.enrichment_handlers.cloudsql import (
       CloudSQLEnrichmentHandler,
@@ -245,7 +245,7 @@ class BaseTestCloudSQLEnrichment(unittest.TestCase):
     """Returns fresh column objects each time it's called."""
     return [
         Column("id", Integer, primary_key=True),
-        Column("name", String(255), nullable=False),
+        Column("name", VARCHAR(255), nullable=False),
         Column("quantity", Integer, nullable=False),
         Column("distribution_center_id", Integer, nullable=False),
     ]
