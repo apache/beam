@@ -24,7 +24,6 @@ import static org.hamcrest.Matchers.greaterThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
@@ -799,22 +798,22 @@ public class ExecutionStateSamplerTest {
               }
             });
 
-    TimeoutException actualException =
-        assertThrows(
-            TimeoutException.class,
-            () -> {
-              tracker.start("bundleId");
-              state.activate();
-              waitTillActive.countDown();
-              waitForSamples.await();
-              state.deactivate();
-              tracker.reset();
-              sampler.stop();
-            });
-    assertThat(
-        actualException.getMessage(),
-        equalTo(
-            "The ptransform has been stuck for more than 10 minutes, the SDK worker will restart"));
+    boolean exceptionThrown = false;
+    try {
+      tracker.start("bundleId");
+      state.activate();
+      waitTillActive.countDown();
+      waitForSamples.await();
+      state.deactivate();
+      tracker.reset();
+      sampler.stop();
+    } catch (TimeoutException e) {
+      exceptionThrown = true;
+    }
+
+    assertTrue(exceptionThrown);
+    expectedLogs.verifyError(
+        "The ptransform has been stuck for more than 10 minutes, the SDK worker will restart");
   }
 
   @Test
