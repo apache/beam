@@ -137,8 +137,8 @@ public class PipelineOptionsTest {
 
   @Test
   public void testUserDefinedPTransformTimeoutDuration() {
-    PipelineOptions options = PipelineOptionsFactory.fromArgs("--ptransformTimeoutDuration=20").create();
+    PipelineOptions options =
+        PipelineOptionsFactory.fromArgs("--ptransformTimeoutDuration=20").create();
     assertEquals(20, options.getPtransformTimeoutDuration());
   }
-
 }
