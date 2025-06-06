@@ -31,9 +31,7 @@ from pathlib import Path
 
 # pylint: disable=ungrouped-imports
 import setuptools
-from pkg_resources import normalize_path
-from pkg_resources import parse_version
-from pkg_resources import to_filename
+from packaging.version import parse
 from setuptools import Command
 
 # pylint: disable=wrong-import-order
@@ -41,6 +39,14 @@ from setuptools import Command
 # using legacy behavior from distutils.
 # https://setuptools.readthedocs.io/en/latest/history.html#v48-0-0
 from distutils.errors import DistutilsError  # isort:skip
+
+
+def to_filename(name: str) -> str:
+  return name.replace('-', '_')
+
+
+def normalize_path(filename):
+  return os.path.normcase(os.path.realpath(os.path.normpath(filename)))
 
 
 class mypy(Command):
@@ -101,7 +107,7 @@ different technologies and user communities.
 RECOMMENDED_MIN_PIP_VERSION = '19.3.0'
 try:
   _PIP_VERSION = distribution('pip').version
-  if parse_version(_PIP_VERSION) < parse_version(RECOMMENDED_MIN_PIP_VERSION):
+  if parse(_PIP_VERSION) < parse(RECOMMENDED_MIN_PIP_VERSION):
     warnings.warn(
         "You are using version {0} of pip. " \
         "However, the recommended min version is {1}.".format(
@@ -116,7 +122,7 @@ except PackageNotFoundError:
 REQUIRED_CYTHON_VERSION = '3.0.0'
 try:
   _CYTHON_VERSION = distribution('cython').version
-  if parse_version(_CYTHON_VERSION) < parse_version(REQUIRED_CYTHON_VERSION):
+  if parse(_CYTHON_VERSION) < parse(REQUIRED_CYTHON_VERSION):
     warnings.warn(
         "You are using version {0} of cython. " \
         "However, version {1} is recommended.".format(
@@ -355,7 +361,7 @@ if __name__ == '__main__':
           'fasteners>=0.3,<1.0',
           # TODO(https://github.com/grpc/grpc/issues/37710): Unpin grpc
           'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,<1.66.0; python_version <= "3.12"',  # pylint: disable=line-too-long
-          'grpcio>=1.67.0; python_version >= "3.13"', 
+          'grpcio>=1.67.0; python_version >= "3.13"',
           'hdfs>=2.1.0,<3.0.0',
           'httplib2>=0.8,<0.23.0',
           'jsonschema>=4.0.0,<5.0.0',

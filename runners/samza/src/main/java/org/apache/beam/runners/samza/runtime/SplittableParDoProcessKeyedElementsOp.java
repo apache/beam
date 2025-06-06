@@ -44,11 +44,12 @@ import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.SplittableParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.samza.config.Config;
@@ -178,7 +179,7 @@ public class SplittableParDoProcessKeyedElementsOp<
                   Instant timestamp,
                   Collection<? extends BoundedWindow> windows,
                   PaneInfo pane) {
-                outputManager.output(tag, WindowedValue.of(output, timestamp, windows, pane));
+                outputManager.output(tag, WindowedValues.of(output, timestamp, windows, pane));
               }
             },
             NullSideInputReader.empty(),
@@ -260,7 +261,7 @@ public class SplittableParDoProcessKeyedElementsOp<
   private void fireTimer(byte[] key, TimerData timer) {
     LOG.debug("Firing timer {} for key {}", timer, key);
     fnRunner.processElement(
-        WindowedValue.valueInGlobalWindow(
+        WindowedValues.valueInGlobalWindow(
             KeyedWorkItems.timersWorkItem(key, Collections.singletonList(timer))));
   }
 }

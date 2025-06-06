@@ -17,7 +17,7 @@
  */
 package org.apache.beam.fn.harness;
 
-import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
+import static org.apache.beam.sdk.values.WindowedValues.valueInGlobalWindow;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -58,7 +58,6 @@ import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.ParDoTranslation;
 import org.apache.beam.sdk.util.construction.PipelineTranslation;
@@ -68,6 +67,8 @@ import org.apache.beam.sdk.util.construction.graph.SplittableParDoExpander;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -127,7 +128,7 @@ public class SplittablePairWithRestrictionDoFnRunnerTest implements Serializable
 
     private <T> WindowedValue<T> valueInWindows(
         T value, BoundedWindow window, BoundedWindow... windows) {
-      return WindowedValue.of(
+      return WindowedValues.of(
           value,
           window.maxTimestamp(),
           ImmutableList.<BoundedWindow>builder().add(window).add(windows).build(),
@@ -353,7 +354,7 @@ public class SplittablePairWithRestrictionDoFnRunnerTest implements Serializable
       assertThat(
           mainOutputValues,
           contains(
-              WindowedValue.of(
+              WindowedValues.of(
                   KV.of(
                       "5",
                       KV.of(
@@ -362,7 +363,7 @@ public class SplittablePairWithRestrictionDoFnRunnerTest implements Serializable
                   firstValue.getTimestamp(),
                   window1,
                   firstValue.getPane()),
-              WindowedValue.of(
+              WindowedValues.of(
                   KV.of(
                       "5",
                       KV.of(
@@ -371,7 +372,7 @@ public class SplittablePairWithRestrictionDoFnRunnerTest implements Serializable
                   firstValue.getTimestamp(),
                   window2,
                   firstValue.getPane()),
-              WindowedValue.of(
+              WindowedValues.of(
                   KV.of(
                       "2",
                       KV.of(
@@ -380,7 +381,7 @@ public class SplittablePairWithRestrictionDoFnRunnerTest implements Serializable
                   secondValue.getTimestamp(),
                   window1,
                   secondValue.getPane()),
-              WindowedValue.of(
+              WindowedValues.of(
                   KV.of(
                       "2",
                       KV.of(
@@ -468,7 +469,7 @@ public class SplittablePairWithRestrictionDoFnRunnerTest implements Serializable
       assertThat(
           mainOutputValues,
           contains(
-              WindowedValue.of(
+              WindowedValues.of(
                   KV.of(
                       "5",
                       KV.of(
@@ -477,7 +478,7 @@ public class SplittablePairWithRestrictionDoFnRunnerTest implements Serializable
                   firstValue.getTimestamp(),
                   ImmutableList.of(window1, window2),
                   firstValue.getPane()),
-              WindowedValue.of(
+              WindowedValues.of(
                   KV.of(
                       "2",
                       KV.of(

@@ -38,9 +38,10 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -158,11 +159,11 @@ public class BatchGroupAlsoByWindowReshuffleDoFnTest {
             gabwFactory,
             windowingStrategy,
             "key",
-            WindowedValue.of(
+            WindowedValues.of(
                 "v1", new Instant(1), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
-            WindowedValue.of(
+            WindowedValues.of(
                 "v2", new Instant(2), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
-            WindowedValue.of(
+            WindowedValues.of(
                 "v3", new Instant(13), Arrays.asList(window(10, 20)), PaneInfo.NO_FIRING));
 
     assertThat(result.size(), equalTo(3));

@@ -61,12 +61,13 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -208,7 +209,7 @@ public class SplittableParDoProcessFnTest {
     /** Performs a seed {@link DoFn.ProcessElement} call feeding the element and restriction. */
     void startElement(InputT element, RestrictionT restriction) throws Exception {
       startElement(
-          WindowedValue.of(
+          WindowedValues.of(
               KV.of(element, restriction),
               currentProcessingTime,
               GlobalWindow.INSTANCE,
@@ -324,7 +325,7 @@ public class SplittableParDoProcessFnTest {
             MAX_OUTPUTS_PER_BUNDLE,
             MAX_BUNDLE_DURATION);
     tester.startElement(
-        WindowedValue.of(
+        WindowedValues.of(
             KV.of(42, new SomeRestriction()),
             base,
             Collections.singletonList(w),

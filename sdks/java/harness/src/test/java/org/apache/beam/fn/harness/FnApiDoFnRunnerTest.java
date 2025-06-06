@@ -19,8 +19,8 @@ package org.apache.beam.fn.harness;
 
 import static java.util.Arrays.asList;
 import static org.apache.beam.sdk.options.ExperimentalOptions.addExperiment;
-import static org.apache.beam.sdk.util.WindowedValue.timestampedValueInGlobalWindow;
-import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
+import static org.apache.beam.sdk.values.WindowedValues.timestampedValueInGlobalWindow;
+import static org.apache.beam.sdk.values.WindowedValues.valueInGlobalWindow;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
@@ -116,7 +116,6 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.UserCodeException;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.CoderTranslation;
 import org.apache.beam.sdk.util.construction.CoderTranslation.TranslationContext;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
@@ -132,6 +131,8 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.util.Durations;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -1166,7 +1167,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
     private <T> WindowedValue<T> valueInWindows(
         T value, BoundedWindow window, BoundedWindow... windows) {
-      return WindowedValue.of(
+      return WindowedValues.of(
           value,
           window.maxTimestamp(),
           ImmutableList.<BoundedWindow>builder().add(window).add(windows).build(),
@@ -1413,7 +1414,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       RehydratedComponents rehydratedComponents =
           RehydratedComponents.forComponents(pProto.getComponents());
       Coder<WindowedValue> inputCoder =
-          WindowedValue.getFullCoder(
+          WindowedValues.getFullCoder(
               CoderTranslation.fromProto(
                   pProto.getComponents().getCodersOrThrow(inputPCollection.getCoderId()),
                   rehydratedComponents,
@@ -1707,7 +1708,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       RehydratedComponents rehydratedComponents =
           RehydratedComponents.forComponents(pProto.getComponents());
       Coder<WindowedValue> inputCoder =
-          WindowedValue.getFullCoder(
+          WindowedValues.getFullCoder(
               CoderTranslation.fromProto(
                   pProto.getComponents().getCodersOrThrow(inputPCollection.getCoderId()),
                   rehydratedComponents,
@@ -1921,7 +1922,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       RehydratedComponents rehydratedComponents =
           RehydratedComponents.forComponents(pProto.getComponents());
       Coder<WindowedValue> inputCoder =
-          WindowedValue.getFullCoder(
+          WindowedValues.getFullCoder(
               CoderTranslation.fromProto(
                   pProto.getComponents().getCodersOrThrow(inputPCollection.getCoderId()),
                   rehydratedComponents,
@@ -2120,7 +2121,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       RehydratedComponents rehydratedComponents =
           RehydratedComponents.forComponents(pProto.getComponents());
       Coder<WindowedValue> inputCoder =
-          WindowedValue.getFullCoder(
+          WindowedValues.getFullCoder(
               CoderTranslation.fromProto(
                   pProto.getComponents().getCodersOrThrow(inputPCollection.getCoderId()),
                   rehydratedComponents,
@@ -2256,7 +2257,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
         assertEquals(
             decode(inputCoder, primaryRoot.getElement()),
-            WindowedValue.of(
+            WindowedValues.of(
                 KV.of(
                     KV.of(
                         "5",
@@ -2269,7 +2270,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
                 firstValue.getPane()));
         assertEquals(
             decode(inputCoder, residualRoot.getApplication().getElement()),
-            WindowedValue.of(
+            WindowedValues.of(
                 KV.of(
                     KV.of(
                         "5",
@@ -2282,7 +2283,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
                 firstValue.getPane()));
         assertEquals(
             decode(inputCoder, residualRootForUnprocessedWindows.getApplication().getElement()),
-            WindowedValue.of(
+            WindowedValues.of(
                 KV.of(
                     KV.of(
                         "5",
@@ -2315,37 +2316,37 @@ public class FnApiDoFnRunnerTest implements Serializable {
         assertThat(
             mainOutputValues,
             contains(
-                WindowedValue.of(
+                WindowedValues.of(
                     "5:5",
                     GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(5)),
                     window1,
                     firstValue.getPane()),
-                WindowedValue.of(
+                WindowedValues.of(
                     "5:6",
                     GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(6)),
                     window1,
                     firstValue.getPane()),
-                WindowedValue.of(
+                WindowedValues.of(
                     "5:7",
                     GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(7)),
                     window1,
                     firstValue.getPane()),
-                WindowedValue.of(
+                WindowedValues.of(
                     "2:0",
                     GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(0)),
                     window1,
                     firstValue.getPane()),
-                WindowedValue.of(
+                WindowedValues.of(
                     "2:1",
                     GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(1)),
                     window1,
                     firstValue.getPane()),
-                WindowedValue.of(
+                WindowedValues.of(
                     "2:0",
                     GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(0)),
                     window2,
                     firstValue.getPane()),
-                WindowedValue.of(
+                WindowedValues.of(
                     "2:1",
                     GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(1)),
                     window2,
@@ -2407,22 +2408,22 @@ public class FnApiDoFnRunnerTest implements Serializable {
         assertThat(
             mainOutputValues,
             contains(
-                WindowedValue.of(
+                WindowedValues.of(
                     "7:0",
                     GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(0)),
                     window1,
                     splitValue.getPane()),
-                WindowedValue.of(
+                WindowedValues.of(
                     "7:1",
                     GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(1)),
                     window1,
                     splitValue.getPane()),
-                WindowedValue.of(
+                WindowedValues.of(
                     "7:2",
                     GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(2)),
                     window1,
                     splitValue.getPane()),
-                WindowedValue.of(
+                WindowedValues.of(
                     "7:3",
                     GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(3)),
                     window1,
@@ -2490,7 +2491,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
         assertEquals(
             expectedOutputWatermarkMap, residualRoot.getApplication().getOutputWatermarksMap());
         assertEquals(
-            WindowedValue.of(
+            WindowedValues.of(
                 KV.of(
                     KV.of(
                         "7",
@@ -2625,7 +2626,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       RehydratedComponents rehydratedComponents =
           RehydratedComponents.forComponents(pProto.getComponents());
       Coder<WindowedValue> inputCoder =
-          WindowedValue.getFullCoder(
+          WindowedValues.getFullCoder(
               CoderTranslation.fromProto(
                   pProto.getComponents().getCodersOrThrow(inputPCollection.getCoderId()),
                   rehydratedComponents,
@@ -2710,14 +2711,14 @@ public class FnApiDoFnRunnerTest implements Serializable {
       assertThat(
           mainOutputValues,
           contains(
-              WindowedValue.of(
+              WindowedValues.of(
                   KV.of(
                       KV.of("7", KV.of(new OffsetRange(0, 3), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                       3.0),
                   splitValue.getTimestamp(),
                   window1,
                   splitValue.getPane()),
-              WindowedValue.of(
+              WindowedValues.of(
                   KV.of(
                       KV.of("7", KV.of(new OffsetRange(0, 3), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                       3.0),
@@ -2730,7 +2731,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
           Iterables.getOnlyElement(expectedElementSplit.getPrimaryRoots());
       ByteStringOutputStream primaryBytes = new ByteStringOutputStream();
       inputCoder.encode(
-          WindowedValue.of(
+          WindowedValues.of(
               KV.of(
                   KV.of("7", KV.of(new OffsetRange(0, 6), GlobalWindow.TIMESTAMP_MIN_VALUE)), 6.0),
               splitValue.getTimestamp(),
@@ -2747,7 +2748,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
           Iterables.getOnlyElement(expectedElementSplit.getResidualRoots());
       ByteStringOutputStream residualBytes = new ByteStringOutputStream();
       inputCoder.encode(
-          WindowedValue.of(
+          WindowedValues.of(
               KV.of(
                   KV.of("7", KV.of(new OffsetRange(0, 6), GlobalWindow.TIMESTAMP_MIN_VALUE)), 6.0),
               splitValue.getTimestamp(),
@@ -3020,28 +3021,28 @@ public class FnApiDoFnRunnerTest implements Serializable {
       assertThat(
           mainOutputValues,
           contains(
-              WindowedValue.of(
+              WindowedValues.of(
                   KV.of(
                       KV.of("5", KV.of(new OffsetRange(0, 2), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                       2.0),
                   firstValue.getTimestamp(),
                   window1,
                   firstValue.getPane()),
-              WindowedValue.of(
+              WindowedValues.of(
                   KV.of(
                       KV.of("5", KV.of(new OffsetRange(0, 2), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                       2.0),
                   firstValue.getTimestamp(),
                   window2,
                   firstValue.getPane()),
-              WindowedValue.of(
+              WindowedValues.of(
                   KV.of(
                       KV.of("2", KV.of(new OffsetRange(0, 1), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                       1.0),
                   firstValue.getTimestamp(),
                   window1,
                   firstValue.getPane()),
-              WindowedValue.of(
+              WindowedValues.of(
                   KV.of(
                       KV.of("2", KV.of(new OffsetRange(0, 1), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                       1.0),
@@ -3143,14 +3144,14 @@ public class FnApiDoFnRunnerTest implements Serializable {
       assertThat(
           mainOutputValues,
           contains(
-              WindowedValue.of(
+              WindowedValues.of(
                   KV.of(
                       KV.of("5", KV.of(new OffsetRange(0, 2), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                       2.0),
                   firstValue.getTimestamp(),
                   ImmutableList.of(window1, window2),
                   firstValue.getPane()),
-              WindowedValue.of(
+              WindowedValues.of(
                   KV.of(
                       KV.of("2", KV.of(new OffsetRange(0, 1), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                       1.0),
@@ -3333,14 +3334,14 @@ public class FnApiDoFnRunnerTest implements Serializable {
     private KV<WindowedValue, WindowedValue> createSplitInWindow(
         OffsetRange primaryRestriction, OffsetRange residualRestriction, BoundedWindow window) {
       return KV.of(
-          WindowedValue.of(
+          WindowedValues.of(
               KV.of(
                   currentElement.getValue(),
                   KV.of(primaryRestriction, currentWatermarkEstimatorState)),
               currentElement.getTimestamp(),
               window,
               currentElement.getPane()),
-          WindowedValue.of(
+          WindowedValues.of(
               KV.of(
                   currentElement.getValue(),
                   KV.of(residualRestriction, watermarkAndState.getValue())),
@@ -3354,7 +3355,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       return KV.of(
           primaryWindows.isEmpty()
               ? null
-              : WindowedValue.of(
+              : WindowedValues.of(
                   KV.of(
                       currentElement.getValue(),
                       KV.of(currentRestriction, currentWatermarkEstimatorState)),
@@ -3363,7 +3364,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
                   currentElement.getPane()),
           residualWindows.isEmpty()
               ? null
-              : WindowedValue.of(
+              : WindowedValues.of(
                   KV.of(
                       currentElement.getValue(),
                       KV.of(currentRestriction, currentWatermarkEstimatorState)),
@@ -3375,7 +3376,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
     private KV<WindowedValue, WindowedValue> createSplitWithSizeInWindow(
         OffsetRange primaryRestriction, OffsetRange residualRestriction, BoundedWindow window) {
       return KV.of(
-          WindowedValue.of(
+          WindowedValues.of(
               KV.of(
                   KV.of(
                       currentElement.getValue(),
@@ -3384,7 +3385,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
               currentElement.getTimestamp(),
               window,
               currentElement.getPane()),
-          WindowedValue.of(
+          WindowedValues.of(
               KV.of(
                   KV.of(
                       currentElement.getValue(),
@@ -3400,7 +3401,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       return KV.of(
           primaryWindows.isEmpty()
               ? null
-              : WindowedValue.of(
+              : WindowedValues.of(
                   KV.of(
                       KV.of(
                           currentElement.getValue(),
@@ -3411,7 +3412,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
                   currentElement.getPane()),
           residualWindows.isEmpty()
               ? null
-              : WindowedValue.of(
+              : WindowedValues.of(
                   KV.of(
                       KV.of(
                           currentElement.getValue(),
@@ -3428,7 +3429,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       window2 = new IntervalWindow(Instant.ofEpochMilli(10), Instant.ofEpochMilli(20));
       window3 = new IntervalWindow(Instant.ofEpochMilli(20), Instant.ofEpochMilli(30));
       currentElement =
-          WindowedValue.of(
+          WindowedValues.of(
               "a",
               Instant.ofEpochMilli(57),
               ImmutableList.of(window1, window2, window3),
@@ -4188,13 +4189,13 @@ public class FnApiDoFnRunnerTest implements Serializable {
       FnApiDoFnRunner.constructSplitResult(
           WindowedSplitResult.forRoots(
               null,
-              WindowedValue.valueInGlobalWindow("elementPrimary"),
-              WindowedValue.valueInGlobalWindow("elementResidual"),
+              WindowedValues.valueInGlobalWindow("elementPrimary"),
+              WindowedValues.valueInGlobalWindow("elementResidual"),
               null),
           HandlesSplits.SplitResult.of(
               ImmutableList.of(BundleApplication.getDefaultInstance()),
               ImmutableList.of(DelayedBundleApplication.getDefaultInstance())),
-          WindowedValue.getFullCoder(VoidCoder.of(), GlobalWindow.Coder.INSTANCE),
+          WindowedValues.getFullCoder(VoidCoder.of(), GlobalWindow.Coder.INSTANCE),
           Instant.now(),
           null,
           "ptransformId",
@@ -4209,7 +4210,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
           KvCoder.of(
               KvCoder.of(elementCoder, KvCoder.of(restrictionCoder, watermarkStateCoder)),
               DoubleCoder.of());
-      return WindowedValue.getFullCoder(inputCoder, windowCoder);
+      return WindowedValues.getFullCoder(inputCoder, windowCoder);
     }
 
     private HandlesSplits.SplitResult getProcessElementSplit(String transformId, String inputId) {
