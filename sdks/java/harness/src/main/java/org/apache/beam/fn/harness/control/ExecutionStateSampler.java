@@ -162,8 +162,7 @@ public class ExecutionStateSampler {
       LOG.info(
           String.format(
               "The user defined ptransformTimeoutDuration might be too small for "
-                  + "a pTransform operation and has been set to %d minutes"),
-          res);
+                  + "a pTransform operation and has been set to %d minutes", res));
     }
     return res;
   }
