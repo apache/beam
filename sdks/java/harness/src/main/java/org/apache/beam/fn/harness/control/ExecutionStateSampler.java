@@ -17,7 +17,10 @@
  */
 package org.apache.beam.fn.harness.control;
 
+import static com.google.common.annotations.VisibleForTesting.Visibility.PRIVATE;
+
 import com.google.auto.value.AutoValue;
+import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -81,7 +84,7 @@ public class ExecutionStateSampler {
           .toFormatter();
   private final int periodMs;
   private final MillisProvider clock;
-  private final int maxLullTimeMinuteForRestart;
+  private final int lullTimeMinuteForRestart;
 
   @GuardedBy("activeStateTrackers")
   private final Set<ExecutionStateTracker> activeStateTrackers;
@@ -99,8 +102,7 @@ public class ExecutionStateSampler {
             : Integer.parseInt(samplingPeriodMills);
     this.clock = clock;
     this.activeStateTrackers = new HashSet<>();
-    this.maxLullTimeMinuteForRestart = setMaxLullTimeForRestart(
-        options.getPtransformTimeoutDuration());
+    this.lullTimeMinuteForRestart = setLullTimeForRestart(options.getPtransformTimeoutDuration());
     // We specifically synchronize to ensure that this object can complete
     // being published before the state sampler thread starts.
     synchronized (this) {
@@ -153,14 +155,24 @@ public class ExecutionStateSampler {
     }
   }
 
-  private int setMaxLullTimeForRestart(int timeoutDurationMinuteFromOptions) {
-    int res = Math.max(timeoutDurationMinuteFromOptions,
-        ExecutionStateSampler.MIN_LULL_TIME_MINUTE_FOR_RESTART);
+  private int setLullTimeForRestart(int timeoutDurationMinuteFromOptions) {
+    int res =
+        Math.max(
+            timeoutDurationMinuteFromOptions,
+            ExecutionStateSampler.MIN_LULL_TIME_MINUTE_FOR_RESTART);
     if (timeoutDurationMinuteFromOptions < ExecutionStateSampler.MIN_LULL_TIME_MINUTE_FOR_RESTART) {
-      LOG.info(String.format("The user defined ptransformTimeoutDuration might be too small for "
-          + "a pTransform operation and has been set to %d minutes"), res);
+      LOG.info(
+          String.format(
+              "The user defined ptransformTimeoutDuration might be too small for "
+                  + "a pTransform operation and has been set to %d minutes"),
+          res);
     }
     return res;
+  }
+
+  @VisibleForTesting(productionVisibility = PRIVATE)
+  public int getLullTimeMinuteForRestart() {
+    return this.lullTimeMinuteForRestart;
   }
 
   /** Entry point for the state sampling thread. */
