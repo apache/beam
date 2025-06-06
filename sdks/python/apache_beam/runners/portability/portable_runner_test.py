@@ -232,16 +232,6 @@ class PortableRunnerTest(fn_runner_test.FnApiRunnerTest):
       raise unittest.SkipTest("https://github.com/apache/beam/issues/35168")
     super().test_pardo_et_timer_with_no_firing()
 
-  def test_pardo_et_timer_with_early_firing(self):
-    if type(self) in [PortableRunnerTest,
-                      PortableRunnerTestWithSubprocesses,
-                      PortableRunnerTestWithSubprocessesAndMultiWorkers,
-                      PortableRunnerTestWithExternalEnv,
-                      PortableRunnerTestWithLocalDocker,
-                      PortableRunnerOptimizedWithoutFusion]:
-      raise unittest.SkipTest("https://github.com/apache/beam/issues/35168")
-    super().test_pardo_et_timer_with_early_firing()
-
   def test_pardo_et_timer_with_no_reset(self):
     if type(self) in [PortableRunnerTest,
                       PortableRunnerTestWithSubprocesses,

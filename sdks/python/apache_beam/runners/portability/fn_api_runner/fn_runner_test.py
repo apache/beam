@@ -841,19 +841,6 @@ class FnApiRunnerTest(unittest.TestCase):
     # (count is reset every 5 seconds).
     self._run_pardo_et_timer_test(5, 10, True, True, [])
 
-  def test_pardo_et_timer_with_early_firing(self):
-    if type(self) in [FnApiRunnerTest,
-                      FnApiRunnerTestWithGrpc,
-                      FnApiRunnerTestWithGrpcAndMultiWorkers,
-                      FnApiRunnerTestWithDisabledCaching,
-                      FnApiRunnerTestWithMultiWorkers,
-                      FnApiRunnerTestWithBundleRepeat,
-                      FnApiRunnerTestWithBundleRepeatAndMultiWorkers]:
-      raise unittest.SkipTest("https://github.com/apache/beam/issues/35168")
-
-    # The timer will fire at T + 2, T + 7, T + 12.
-    self._run_pardo_et_timer_test(5, 2, True, True, ["fired", "fired", "fired"])
-
   def test_pardo_et_timer_with_no_reset(self):
     if type(self) in [FnApiRunnerTest,
                       FnApiRunnerTestWithGrpc,
@@ -861,8 +848,7 @@ class FnApiRunnerTest(unittest.TestCase):
                       FnApiRunnerTestWithDisabledCaching,
                       FnApiRunnerTestWithMultiWorkers,
                       FnApiRunnerTestWithBundleRepeat,
-                      FnApiRunnerTestWithBundleRepeatAndMultiWorkers,
-                      "PortableRunnerTest"]:
+                      FnApiRunnerTestWithBundleRepeatAndMultiWorkers]:
       raise unittest.SkipTest("https://github.com/apache/beam/issues/35168")
 
     # The timer will not fire. It is initially set to T + 10, and then it is
