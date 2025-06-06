@@ -110,16 +110,22 @@ def test_enrichment(
 
   return pcoll | beam.Map(_fn)
 
+
 @beam.ptransform.ptransform_fn
-def test_kafka_read(pcoll, format, topic, bootstrap_servers,
-                    auto_offset_reset_config, consumer_config):
-  return (pcoll | beam.Create(input_data.text_data().split('\n'))
-                | beam.Map(lambda element:
-                           beam.Row(payload=element.encode('utf-8'))))
+def test_kafka_read(
+    pcoll,
+    format,
+    topic,
+    bootstrap_servers,
+    auto_offset_reset_config,
+    consumer_config):
+  return (
+      pcoll | beam.Create(input_data.text_data().split('\n'))
+      | beam.Map(lambda element: beam.Row(payload=element.encode('utf-8'))))
+
 
 TEST_PROVIDERS = {
-    'TestEnrichment': test_enrichment,
-    'TestReadFromKafka': test_kafka_read
+    'TestEnrichment': test_enrichment, 'TestReadFromKafka': test_kafka_read
 }
 
 INPUT_TRANSFORM_TEST_PROVIDERS = ['TestReadFromKafka']
@@ -194,9 +200,10 @@ def create_test_method(
             yaml_transform.expand_pipeline(
                 p,
                 pipeline_spec,
-                [yaml_provider.InlineProvider(
-                    TEST_PROVIDERS, INPUT_TRANSFORM_TEST_PROVIDERS)]
-            )
+                [
+                    yaml_provider.InlineProvider(
+                        TEST_PROVIDERS, INPUT_TRANSFORM_TEST_PROVIDERS)
+                ])
         ]
         if not actual[0]:
           actual = list(p.transforms_stack[0].parts[-1].outputs.values())
@@ -393,8 +400,7 @@ def _kafka_test_preprocessor(
       test_spec,
       'ReadFromText',
       'path',
-      env.input_file('kinglear.txt', input_data.text_data())
-  )
+      env.input_file('kinglear.txt', input_data.text_data()))
 
   if pipeline := test_spec.get('pipeline', None):
     for transform in pipeline.get('transforms', []):
@@ -514,7 +520,8 @@ def _iceberg_io_read_test_preprocessor(
             for k, v in config.items() if k.startswith('__')
         }
         transform['config']['elements'] = INPUT_TABLES[(
-            str(db_name), str(table_name),
+            str(db_name),
+            str(table_name),
             str(field_value_dynamic_destinations))]
 
   return test_spec
