@@ -117,7 +117,8 @@ class CloudSQLEnrichmentTestHelper:
               image="mcr.microsoft.com/mssql/server:2022-latest",
               user=user,
               password=password,
-              dbname=db_id)
+              dbname=db_id,
+              dialect=database_type.to_sqlalchemy_dialect())
           sql_db_container.start()
           host = sql_db_container.get_container_host_ip()
           port = sql_db_container.get_exposed_port(1433)

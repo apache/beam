@@ -90,7 +90,7 @@ QueryConfig = Union[CustomQueryConfig,
 class DatabaseTypeAdapter(Enum):
   POSTGRESQL = "psycopg2"
   MYSQL = "pymysql"
-  SQLSERVER = "pymssql"
+  SQLSERVER = "pytds"
 
   def to_sqlalchemy_dialect(self):
     """Map the adapter type to its corresponding SQLAlchemy dialect.

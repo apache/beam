@@ -124,7 +124,6 @@ protobuf==5.29.4
 psycopg2-binary==2.9.9
 pyarrow==18.1.0
 pyarrow-hotfix==0.7
-pymssql==2.3.4
 pyasn1==0.6.1
 pyasn1_modules==0.4.2
 pycparser==2.22
