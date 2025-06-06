@@ -22,7 +22,6 @@ import java.util.Collections;
 import java.util.Objects;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.util.ElementMetadata;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
@@ -55,11 +54,6 @@ public class ValueInEmptyWindows<T> implements WindowedValue<T> {
   @Override
   public PaneInfo getPane() {
     return PaneInfo.NO_FIRING;
-  }
-
-  @Override
-  public Iterable<WindowedValue<T>> explodeWindows() {
-    return Collections.emptyList();
   }
 
   @Override

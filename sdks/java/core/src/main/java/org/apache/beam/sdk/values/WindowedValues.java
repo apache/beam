@@ -170,13 +170,23 @@ public class WindowedValues {
    * Returns a new {@code WindowedValue} that is a copy of this one, but with a different value,
    * which may have a new type {@code NewT}.
    */
-  public static <OldT, NewT> WindowedValue<NewT> withValue(
-      WindowedValue<OldT> windowedValue, NewT newValue) {
-    return WindowedValues.of(
-        newValue,
-        windowedValue.getTimestamp(),
-        windowedValue.getWindows(),
-        windowedValue.getPaneInfo());
+  public abstract <NewT> WindowedValue<NewT> withValue(NewT value);
+
+  /** Returns the value of this {@code WindowedValue}. */
+  public abstract T getValue();
+
+  /** Returns the timestamp of this {@code WindowedValue}. */
+  public abstract Instant getTimestamp();
+
+  /** Returns the windows of this {@code WindowedValue}. */
+  public abstract Collection<? extends BoundedWindow> getWindows();
+
+  /** Returns the pane of this {@code WindowedValue} in its window. */
+  public abstract PaneInfo getPane();
+
+  /** Returns {@code true} if this WindowedValue has exactly one window. */
+  public boolean isSingleWindowedValue() {
+    return false;
   }
 
   public static <T> boolean equals(
@@ -265,8 +275,9 @@ public class WindowedValues {
 
   /** The abstract superclass of WindowedValue representations where timestamp == MIN. */
   private abstract static class MinTimestampWindowedValue<T> extends SimpleWindowedValue<T> {
-    public MinTimestampWindowedValue(T value, PaneInfo pane) {
-      super(value, pane);
+    public MinTimestampWindowedValue(
+        T value, PaneInfo pane, @Nullable ElementMetadata elementMetadata) {
+      super(value, pane, elementMetadata);
     }
 
     @Override
@@ -501,6 +512,7 @@ public class WindowedValues {
     }
   }
 
+  /** The representation of a WindowedValue, excluding the special cases captured above. */
   /** The representation of a WindowedValue, excluding the special cases captured above. */
   private static class TimestampedValueInMultipleWindows<T> extends TimestampedWindowedValue<T> {
     private Collection<? extends BoundedWindow> windows;

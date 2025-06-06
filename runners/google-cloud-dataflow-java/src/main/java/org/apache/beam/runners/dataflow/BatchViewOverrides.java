@@ -1384,6 +1384,11 @@ class BatchViewOverrides {
     }
 
     @Override
+    public WindowedValue<T> withElementMetadata(@Nullable ElementMetadata elementMetadata) {
+      return new ValueInEmptyWindows<>(this.getValue(), elementMetadata);
+    }
+
+    @Override
     public T getValue() {
       return value;
     }
@@ -1401,11 +1406,6 @@ class BatchViewOverrides {
     @Override
     public PaneInfo getPane() {
       return PaneInfo.NO_FIRING;
-    }
-
-    @Override
-    public Iterable<WindowedValue<T>> explodeWindows() {
-      return Collections.emptyList();
     }
 
     @Override
