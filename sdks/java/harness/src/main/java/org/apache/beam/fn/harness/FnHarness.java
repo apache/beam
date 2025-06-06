@@ -66,10 +66,10 @@ import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.BeamUrns;
 import org.apache.beam.sdk.util.construction.CoderTranslation;
 import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -200,7 +200,7 @@ public class FnHarness {
             : ImmutableSet.copyOf(runnerCapabilitesOrNull.split("\\s+"));
 
     if (runnerCapabilites.contains(BeamUrns.getUrn(StandardProtocols.Enum.ELEMENT_METADATA))) {
-      WindowedValue.FullWindowedValueCoder.setMetadataSupported();
+      WindowedValues.FullWindowedValueCoder.setMetadataSupported();
       PaneInfo.PaneInfoCoder.setMetadataSupported();
     }
 
