@@ -475,8 +475,8 @@ func checkSoftDeletePolicyEnabled(ctx context.Context, bucketName string, locati
 	}
 	defer client.Close()
 
-	if enabled, err_msg := gcsx.SoftDeletePolicyEnabled(ctx, client, bucket); err_msg != nil {
-		log.Warnf(ctx, "Error checking SoftDeletePolicy: %v", err_msg)
+	if enabled, errMsg := gcsx.SoftDeletePolicyEnabled(ctx, client, bucket); errMsg != nil {
+		log.Warnf(ctx, "Error checking SoftDeletePolicy: %v", errMsg)
 	} else if enabled {
 		log.Warnf(ctx, "Bucket %s specified in %s has soft-delete policy enabled. "+
 			"Dataflow jobs use Cloud Storage to store temporary files during pipeline execution. "+
