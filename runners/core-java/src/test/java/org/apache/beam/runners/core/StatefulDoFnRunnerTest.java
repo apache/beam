@@ -27,7 +27,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.BiFunction;
-import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -44,6 +43,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowedValue;
@@ -291,7 +291,8 @@ public class StatefulDoFnRunnerTest {
 
   private void testOutput(
       boolean ordered,
-      BiFunction<MyDoFn, OutputManager, DoFnRunner<KV<String, Integer>, Integer>> runnerFactory)
+      BiFunction<MyDoFn, WindowedValueMultiReceiver, DoFnRunner<KV<String, Integer>, Integer>>
+          runnerFactory)
       throws Exception {
 
     timerInternals.advanceInputWatermark(new Instant(1L));
@@ -300,7 +301,7 @@ public class StatefulDoFnRunnerTest {
     StateTag<ValueState<Integer>> stateTag = StateTags.tagForSpec(MyDoFn.STATE_ID, fn.intState());
 
     List<KV<TupleTag<?>, WindowedValue<?>>> outputs = new ArrayList<>();
-    OutputManager output = asOutputManager(outputs);
+    WindowedValueMultiReceiver output = asOutputManager(outputs);
     DoFnRunner<KV<String, Integer>, Integer> runner = runnerFactory.apply(fn, output);
 
     Instant elementTime = new Instant(5);
@@ -405,13 +406,13 @@ public class StatefulDoFnRunnerTest {
   }
 
   private DoFnRunner createStatefulDoFnRunner(
-      DoFn<KV<String, Integer>, Integer> fn, OutputManager outputManager) {
+      DoFn<KV<String, Integer>, Integer> fn, WindowedValueMultiReceiver outputManager) {
     return createStatefulDoFnRunner(fn, outputManager, true);
   }
 
   private DoFnRunner createStatefulDoFnRunner(
       DoFn<KV<String, Integer>, Integer> fn,
-      OutputManager outputManager,
+      WindowedValueMultiReceiver outputManager,
       boolean supportTimeSortedInput) {
     return DoFnRunners.defaultStatefulDoFnRunner(
         fn,
@@ -426,7 +427,7 @@ public class StatefulDoFnRunnerTest {
   }
 
   private DoFnRunner<KV<String, Integer>, Integer> getDoFnRunner(
-      DoFn<KV<String, Integer>, Integer> fn, @Nullable OutputManager outputManager) {
+      DoFn<KV<String, Integer>, Integer> fn, @Nullable WindowedValueMultiReceiver outputManager) {
     return new SimpleDoFnRunner<>(
         null,
         fn,
@@ -442,10 +443,10 @@ public class StatefulDoFnRunnerTest {
         Collections.emptyMap());
   }
 
-  private OutputManager discardingOutputManager() {
-    return new OutputManager() {
+  private WindowedValueMultiReceiver discardingOutputManager() {
+    return new WindowedValueMultiReceiver() {
       @Override
-      public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
+      public <OutputT> void output(TupleTag<OutputT> tag, WindowedValue<OutputT> output) {
         // discard
       }
     };
@@ -471,11 +472,13 @@ public class StatefulDoFnRunnerTest {
     }
   }
 
-  private static OutputManager asOutputManager(List<KV<TupleTag<?>, WindowedValue<?>>> outputs) {
-    return new OutputManager() {
+  private static WindowedValueMultiReceiver asOutputManager(
+      List<KV<TupleTag<?>, WindowedValue<?>>> outputs) {
+    return new WindowedValueMultiReceiver() {
       @Override
-      public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
-        outputs.add(KV.of(tag, output));
+      public <OutputT> void output(TupleTag<OutputT> tag, WindowedValue<OutputT> output) {
+        // silly cast needed to forget the inner type parameter
+        outputs.add((KV<TupleTag<?>, WindowedValue<?>>) (Object) KV.of(tag, output));
       }
     };
   }

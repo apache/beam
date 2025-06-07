@@ -15,31 +15,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core;
+package org.apache.beam.sdk.values;
 
 import java.util.Collection;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Instant;
 
 /**
- * An object that can output a value with all of its windowing information to the main output or any
- * tagged output.
+ * A builder for an output, to set all the fields and extended metadata of a Beam value.
+ *
+ * <p>Which fields are required or allowed to be set depends on the context of the builder.
+ *
+ * <p>It is allowed to modify an instance and then call {@link #output()} again.
+ *
+ * <p>Not intended to be implemented by Beam users. This interface will be expanded in ways that are
+ * backwards-incompatible, by requiring implementors to add methods.
  */
-public interface OutputWindowedValue<OutputT> {
-  /** Outputs a value with windowing information to the main output. */
-  void outputWindowedValue(
-      OutputT output,
-      Instant timestamp,
-      Collection<? extends BoundedWindow> windows,
-      PaneInfo pane);
+public interface OutputBuilder<T> extends WindowedValue<T> {
+  OutputBuilder<T> setValue(T value);
 
-  /** Outputs a value with windowing information to a tagged output. */
-  <AdditionalOutputT> void outputWindowedValue(
-      TupleTag<AdditionalOutputT> tag,
-      AdditionalOutputT output,
-      Instant timestamp,
-      Collection<? extends BoundedWindow> windows,
-      PaneInfo pane);
+  OutputBuilder<T> setTimestamp(Instant timestamp);
+
+  OutputBuilder<T> setWindow(BoundedWindow window);
+
+  OutputBuilder<T> setWindows(Collection<? extends BoundedWindow> windows);
+
+  OutputBuilder<T> setPaneInfo(PaneInfo paneInfo);
+
+  void output();
 }

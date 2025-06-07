@@ -98,15 +98,19 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
+import org.apache.beam.sdk.util.OutputBuilderSupplier;
+import org.apache.beam.sdk.util.OutputBuilderSuppliers;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.ParDoTranslation;
 import org.apache.beam.sdk.util.construction.RehydratedComponents;
 import org.apache.beam.sdk.util.construction.Timer;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.OutputBuilder;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowedValues.WindowedValueCoder;
@@ -1975,6 +1979,18 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       extends WindowObservingProcessBundleContextBase {
 
     @Override
+    public OutputBuilder<OutputT> builder() {
+      return WindowedValues.builder(
+          new WindowedValueReceiver<OutputT>() {
+            @Override
+            public void output(WindowedValue.Builder<OutputT> outputBuilder) {
+              // HACK: we know this is not just an OutputBuilder but a WindowedValue.Builder
+              outputTo(mainOutputConsumer, outputBuilder.build());
+            }
+          });
+    }
+
+    @Override
     public void output(OutputT output) {
       // Don't need to check timestamp since we can always output using the input timestamp.
       outputTo(
@@ -2281,37 +2297,57 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
 
     @Override
-    // OutputT == RestrictionT
-    public void output(OutputT output) {
-      double size =
-          doFnInvoker.invokeGetSize(
-              new DelegatingArgumentProvider<InputT, OutputT>(
-                  this, errorContextPrefix + "/GetSize") {
+    public OutputBuilder<OutputT> builder() {
+      OutputBuilder<OutputT> builder =
+          WindowedValues.builder(
+              new WindowedValueReceiver<OutputT>() {
                 @Override
-                public Object restriction() {
-                  return output;
-                }
+                public void output(WindowedValue.Builder<OutputT> outputBuilder) {
+                  checkTimestamp(outputBuilder.getTimestamp());
+                  OutputT output = outputBuilder.getValue();
+                  double size =
+                      doFnInvoker.invokeGetSize(
+                          new DelegatingArgumentProvider<InputT, OutputT>(
+                              SizedRestrictionNonWindowObservingProcessBundleContext.this,
+                              errorContextPrefix + "/GetSize") {
+                            @Override
+                            public Object restriction() {
+                              return output;
+                            }
 
-                @Override
-                public Instant timestamp(DoFn<InputT, OutputT> doFn) {
-                  return currentElement.getTimestamp();
-                }
+                            @Override
+                            public Instant timestamp(DoFn<InputT, OutputT> doFn) {
+                              return currentElement.getTimestamp();
+                            }
 
-                @Override
-                public RestrictionTracker<?, ?> restrictionTracker() {
-                  return doFnInvoker.invokeNewTracker(this);
+                            @Override
+                            public RestrictionTracker<?, ?> restrictionTracker() {
+                              return doFnInvoker.invokeNewTracker(this);
+                            }
+                          });
+
+                  outputTo(
+                      mainOutputConsumer,
+                      (WindowedValue<OutputT>)
+                          currentElement.withValue(
+                              KV.of(
+                                  KV.of(
+                                      currentElement.getValue(),
+                                      KV.of(output, currentWatermarkEstimatorState)),
+                                  size)));
                 }
               });
 
-      // Don't need to check timestamp since we can always output using the input timestamp.
-      outputTo(
-          mainOutputConsumer,
-          (WindowedValue<OutputT>)
-              currentElement.withValue(
-                  KV.of(
-                      KV.of(
-                          currentElement.getValue(), KV.of(output, currentWatermarkEstimatorState)),
-                      size)));
+      return builder
+          .setTimestamp(currentElement.getTimestamp())
+          .setWindows(currentWindows)
+          .setPaneInfo(currentElement.getPane());
+    }
+
+    @Override
+    // OutputT == RestrictionT
+    public void output(OutputT output) {
+      builder().setValue(output).output();
     }
 
     @Override
@@ -2326,37 +2362,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     // OutputT == RestrictionT
     public void outputWithTimestamp(OutputT output, Instant timestamp) {
       checkTimestamp(timestamp);
-      double size =
-          doFnInvoker.invokeGetSize(
-              new DelegatingArgumentProvider<InputT, OutputT>(
-                  this, errorContextPrefix + "/GetSize") {
-                @Override
-                public Object restriction() {
-                  return output;
-                }
-
-                @Override
-                public Instant timestamp(DoFn<InputT, OutputT> doFn) {
-                  return timestamp;
-                }
-
-                @Override
-                public RestrictionTracker<?, ?> restrictionTracker() {
-                  return doFnInvoker.invokeNewTracker(this);
-                }
-              });
-
-      outputTo(
-          mainOutputConsumer,
-          (WindowedValue<OutputT>)
-              WindowedValues.of(
-                  KV.of(
-                      KV.of(
-                          currentElement.getValue(), KV.of(output, currentWatermarkEstimatorState)),
-                      size),
-                  timestamp,
-                  currentElement.getWindows(),
-                  currentElement.getPane()));
+      builder().setValue(output).setTimestamp(timestamp).output();
     }
 
     @Override
@@ -2366,37 +2372,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo) {
       checkTimestamp(timestamp);
-      double size =
-          doFnInvoker.invokeGetSize(
-              new DelegatingArgumentProvider<InputT, OutputT>(
-                  this, errorContextPrefix + "/GetSize") {
-                @Override
-                public Object restriction() {
-                  return output;
-                }
-
-                @Override
-                public Instant timestamp(DoFn<InputT, OutputT> doFn) {
-                  return timestamp;
-                }
-
-                @Override
-                public RestrictionTracker<?, ?> restrictionTracker() {
-                  return doFnInvoker.invokeNewTracker(this);
-                }
-              });
-
-      outputTo(
-          mainOutputConsumer,
-          (WindowedValue<OutputT>)
-              WindowedValues.of(
-                  KV.of(
-                      KV.of(
-                          currentElement.getValue(), KV.of(output, currentWatermarkEstimatorState)),
-                      size),
-                  timestamp,
-                  windows,
-                  paneInfo));
+      builder()
+          .setValue(output)
+          .setTimestamp(timestamp)
+          .setWindows(windows)
+          .setPaneInfo(paneInfo)
+          .output();
     }
 
     @Override
@@ -2426,6 +2407,18 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       extends NonWindowObservingProcessBundleContextBase {
 
     @Override
+    public OutputBuilder<OutputT> builder() {
+      return WindowedValues.builder(
+          new WindowedValueReceiver<OutputT>() {
+            @Override
+            public void output(WindowedValue.Builder<OutputT> outputBuilder) {
+              checkTimestamp(outputBuilder.getTimestamp());
+              outputTo(mainOutputConsumer, outputBuilder.build());
+            }
+          });
+    }
+
+    @Override
     public void output(OutputT output) {
       // Don't need to check timestamp since we can always output using the input timestamp.
       if (currentElement == null) {
@@ -2448,11 +2441,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public void outputWithTimestamp(OutputT output, Instant timestamp) {
-      checkTimestamp(timestamp);
-      outputTo(
-          mainOutputConsumer,
-          WindowedValues.of(
-              output, timestamp, currentElement.getWindows(), currentElement.getPane()));
+      builder().setValue(output).setTimestamp(timestamp).output();
     }
 
     @Override
@@ -2461,8 +2450,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo) {
-      checkTimestamp(timestamp);
-      outputTo(mainOutputConsumer, WindowedValues.of(output, timestamp, windows, paneInfo));
+      builder()
+          .setValue(output)
+          .setTimestamp(timestamp)
+          .setWindows(windows)
+          .setPaneInfo(paneInfo)
+          .output();
     }
 
     @Override
@@ -2612,6 +2605,21 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             : new OutputReceiver<Row>() {
               private final SerializableFunction<Row, OutputT> fromRowFunction =
                   mainOutputSchemaCoder.getFromRowFunction();
+
+              @Override
+              public OutputBuilder<Row> builder() {
+                return WindowedValues.builder(
+                    new WindowedValueReceiver<Row>() {
+                      @Override
+                      public void output(WindowedValue.Builder<Row> outputBuilder) {
+                        ProcessBundleContextBase.this.outputWindowedValue(
+                            fromRowFunction.apply(outputBuilder.getValue()),
+                            outputBuilder.getTimestamp(),
+                            outputBuilder.getWindows(),
+                            outputBuilder.getPane());
+                      }
+                    });
+              }
 
               @Override
               public void output(Row output) {
@@ -2807,8 +2815,37 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private class OnWindowExpirationContext<K> extends BaseArgumentProvider<InputT, OutputT> {
     private class Context extends DoFn<InputT, OutputT>.OnWindowExpirationContext
         implements OutputReceiver<OutputT> {
+
+      private final OutputBuilderSupplier builderSuppler;
+
       private Context() {
         doFn.super();
+        this.builderSuppler =
+            OutputBuilderSuppliers.forReceiver(
+                new WindowedValueMultiReceiver() {
+                  @Override
+                  public <AdditionalOutputT> WindowedValueReceiver<AdditionalOutputT> forTag(
+                      TupleTag<AdditionalOutputT> tag) {
+                    FnDataReceiver<WindowedValue<AdditionalOutputT>> consumer =
+                        (FnDataReceiver) localNameToConsumer.get(tag.getId());
+                    if (consumer == null) {
+                      throw new IllegalArgumentException(
+                          String.format("Unknown output tag %s", tag));
+                    }
+                    return new WindowedValueReceiver<AdditionalOutputT>() {
+                      @Override
+                      public void output(WindowedValue<OutputT> builder) {
+                        outputTo(
+                            consumer,
+                            WindowedValue.of(
+                                builder.getValue(),
+                                builder.getTimestamp(),
+                                builder.getWindows(),
+                                builder.getPane()));
+                      }
+                    };
+                  }
+                });
       }
 
       @Override
@@ -2822,29 +2859,16 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       }
 
       @Override
-      public void output(OutputT output) {
-        outputTo(
-            mainOutputConsumer,
-            WindowedValues.of(
-                output, currentTimer.getHoldTimestamp(), currentWindow, currentTimer.getPane()));
+      public OutputBuilder<OutputT> builder(OutputT value) {
+        return builderSuppler.builder(mainOutputTag).setValue(value);
+        // outputTo(mainOutputConsumer, WindowedValue.of(builder.getValue(),
+        // currentTimer.getHoldTimestamp(), currentWindow, currentTimer.getPane()));
       }
 
       @Override
-      public void outputWithTimestamp(OutputT output, Instant timestamp) {
-        checkOnWindowExpirationTimestamp(timestamp);
-        outputTo(
-            mainOutputConsumer,
-            WindowedValues.of(output, timestamp, currentWindow, currentTimer.getPane()));
-      }
-
-      @Override
-      public void outputWindowedValue(
-          OutputT output,
-          Instant timestamp,
-          Collection<? extends BoundedWindow> windows,
-          PaneInfo paneInfo) {
-        checkOnWindowExpirationTimestamp(timestamp);
-        outputTo(mainOutputConsumer, WindowedValues.of(output, timestamp, windows, paneInfo));
+      public <AdditionalOutputT> OutputBuilder<AdditionalOutputT> builder(
+          TupleTag<AdditionalOutputT> tag, AdditionalOutputT value) {
+        return builderSupplier.builder(tag).setValue(value);
       }
 
       @Override

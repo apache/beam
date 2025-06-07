@@ -15,17 +15,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.samza.runtime;
+package org.apache.beam.sdk.util;
 
-import java.io.Serializable;
-import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
+import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.values.OutputBuilder;
+import org.apache.beam.sdk.values.TupleTag;
 
-/** Factory class to create {@link WindowedValueMultiReceiver}. */
-public interface OutputManagerFactory<OutT> extends Serializable {
-  WindowedValueMultiReceiver create(OpEmitter<OutT> emitter);
-
-  default WindowedValueMultiReceiver create(
-      OpEmitter<OutT> emitter, FutureCollector<OutT> collector) {
-    return create(emitter);
-  }
+/**
+ * An object that vends new {@link OutputBuilder} instances. It encapsulates:
+ *
+ * <ul>
+ *   <li>The element metadata context, such as the currently-in-process element.
+ *   <li>The destinations where the vended {@link OutputBuilder} can be sent.
+ * </ul>
+ */
+@Internal
+@FunctionalInterface
+public interface OutputBuilderSupplier {
+  /** Outputs a value with windowing information to a tagged output. */
+  <OutputT> OutputBuilder<OutputT> builder(TupleTag<OutputT> tag);
 }

@@ -48,6 +48,9 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.OutputBuilderSupplier;
+import org.apache.beam.sdk.util.OutputBuilderSuppliers;
+import org.apache.beam.sdk.values.OutputBuilder;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -340,26 +343,23 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
     // support for an {@link OutputReceiver}
     private static class OutputReceiverForFinishBundle implements OutputReceiver<Row> {
 
-      private final FinishBundleContext c;
       private final BoundedWindow w;
-
       private final TupleTag<Row> tag;
+      private final OutputBuilderSupplier outputBuilderSupplier;
+      private final DoFn<?, ?>.FinishBundleContext c;
 
       private OutputReceiverForFinishBundle(
           FinishBundleContext c, BoundedWindow w, TupleTag<Row> tag) {
         this.c = c;
         this.w = w;
         this.tag = tag;
+
+        this.outputBuilderSupplier = OutputBuilderSuppliers.forFinishBundle(c);
       }
 
       @Override
-      public void output(Row output) {
-        throw new RuntimeException("Unsupported");
-      }
-
-      @Override
-      public void outputWithTimestamp(Row output, Instant timestamp) {
-        c.output(tag, output, timestamp, w);
+      public OutputBuilder<Row> builder(Row value) {
+        return this.outputBuilderSupplier.builder(tag).setValue(value).setWindow(w);
       }
     }
 

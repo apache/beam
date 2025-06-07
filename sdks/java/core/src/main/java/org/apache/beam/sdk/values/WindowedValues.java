@@ -17,9 +17,11 @@
  */
 package org.apache.beam.sdk.values;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.auto.value.AutoBuilder;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -46,8 +48,12 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
+import org.apache.beam.sdk.values.OutputBuilder;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
@@ -60,6 +66,94 @@ import org.joda.time.Instant;
 @Internal
 public class WindowedValues {
   private WindowedValues() {} // non-instantiable utility class
+
+
+  /**
+   * Create a Builder that will output to the given outputter and take element metadata from the
+   * provideed delegate.
+   */
+  public static <T> Builder<T> builder(
+      WindowedValue<T> delegate, WindowedValueReceiver<T> outputter) {
+    return delegate.toBuilder().setReceiver(outputter);
+  }
+
+  // HACK: this should not be public but for temporary ease of demonstration in FnApiDoFnRunner
+  @AutoBuilder(callMethod = "of", ofClass = WindowedValue.class)
+  public abstract static class Builder<T> implements OutputBuilder<T> {
+
+    private @MonotonicNonNull WindowedValueReceiver<T> receiver;
+
+    @Override
+    public abstract Builder<T> setValue(T value);
+
+    @Override
+    public abstract Builder<T> setTimestamp(Instant timestamp);
+
+    @Override
+    public abstract Builder<T> setWindows(Collection<? extends BoundedWindow> windows);
+
+    @Override
+    public abstract Builder<T> setPaneInfo(PaneInfo pane);
+
+    @Override
+    public Builder<T> setWindow(BoundedWindow window) {
+      return setWindows(Collections.singleton(window));
+    }
+
+    public Builder<T> setReceiver(WindowedValueReceiver<T> receiver) {
+      this.receiver = receiver;
+      return this;
+    }
+
+    abstract WindowedValue<T> autoBuild();
+
+    @Override
+    public void output() {
+      checkStateNotNull(receiver, "Cannot output until OutputBuilderReceiver set").output(this);
+    }
+
+    @Override
+    public abstract T getValue();
+
+    @Override
+    public abstract Instant getTimestamp();
+
+    @Override
+    public abstract Collection<? extends BoundedWindow> getWindows();
+
+    @Override
+    public abstract PaneInfo getPaneInfo();
+
+    public WindowedValue<T> build() {
+      if (getWindows().size() > 1) {
+        return autoBuild();
+      }
+
+      BoundedWindow window = Iterables.getOnlyElement(getWindows());
+
+      if (!GlobalWindow.INSTANCE.equals(window)) {
+        return new TimestampedValueInSingleWindow<>(
+            getValue(), getTimestamp(), window, getPaneInfo());
+      }
+
+      if (BoundedWindow.TIMESTAMP_MIN_VALUE.equals(getTimestamp())) {
+        return new ValueInGlobalWindow<>(getValue(), getPaneInfo());
+      }
+
+      return new TimestampedValueInGlobalWindow<>(getValue(), getTimestamp(), getPaneInfo());
+    };
+  }
+
+  public Builder<T> toBuilder() {
+    // AutoBuilder should automatically create a copy constructor, but it doesn't seem to for this
+    // setup and
+    // I cannot determine why.
+    return new AutoBuilder_WindowedValue_Builder<T>()
+        .setValue(getValue())
+        .setTimestamp(getTimestamp())
+        .setWindows(getWindows())
+        .setPaneInfo(getPane());
+  }
 
   /** Returns a {@code WindowedValue} with the given value, timestamp, and windows. */
   public static <T> WindowedValue<T> of(
