@@ -39,11 +39,13 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.io.JsonEncoder;
+import org.apache.avro.protobuf.ProtobufData;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.parquet.ParquetIO.GenericRecordPassthroughFn;
+import org.apache.beam.sdk.io.parquet.ParquetIO.ReaderFormat;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.testing.PAssert;
@@ -135,6 +137,32 @@ public class ParquetIOTest implements Serializable {
                 .withProjection(REQUESTED_SCHEMA, REQUESTED_ENCODER_SCHEMA));
     PAssert.that(readBack).containsInAnyOrder(requestRecords);
     readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testParquetProtobufReadError() {
+    ProtobufData protoData = new ProtobufData() {};
+    Exception thrown =
+        assertThrows(RuntimeException.class, () -> protoData.getSchema(GenericData.Record.class));
+    assertTrue(
+        "Error message should mention 'getDescriptor'",
+        thrown.getMessage().contains("org.apache.avro.generic.GenericData$Record.getDescriptor"));
+  }
+
+  @Test
+  public void testReadFilesWithProtoReaderFlag() {
+    // Create a ReadFiles transform with the proto-reader enabled.
+    ParquetIO.ReadFiles readFiles = ParquetIO.readFiles(SCHEMA).withProtoReader();
+    assertEquals(
+        "Proto reader flag should be enabled", ReaderFormat.PROTO, readFiles.getReaderFormat());
+  }
+
+  @Test
+  public void testReadFilesDisplayDataWithProtoReader() {
+    // Create a ReadFiles transform with proto-reader enabled.
+    ParquetIO.ReadFiles readFiles = ParquetIO.readFiles(SCHEMA).withProtoReader();
+    DisplayData displayData = DisplayData.from(readFiles);
+    assertThat(displayData, hasDisplayItem("readerFormat", ReaderFormat.PROTO.name()));
   }
 
   @Test
