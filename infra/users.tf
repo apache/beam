@@ -19,12 +19,37 @@
 # configures the corresponding users in the GCP project.
 
 locals {
-    users = yamldecode(file("${path.module}/users.yml"))
+  users = yamldecode(file("${path.module}/users.yml"))
+
+  user_permissions = flatten([
+    for user in (local.users == null ? [] : local.users) : [
+      for perm in (user.permissions == null ? [] : user.permissions) :
+        {
+          username              = user.username
+          email                 = user.email
+          role                  = perm.role
+          request_description   = lookup(perm, "request_description", null)
+          expiry_date           = lookup(perm, "expiry_date", null)
+        } if perm != null && lookup(perm, "role", null) != null
+    ]
+  ])
 }
 
 resource "google_project_iam_member" "project_members" {
-  for_each = { for user in local.users : user.email => user }
-  project  = var.project_id
-  role     = each.value.role
-  member   = "user:${each.value.email}"
+  for_each = {
+    for up in local.user_permissions : "${up.email}-${up.role}" => up
+  }
+  project = var.project_id
+  role    = each.value.role
+  member  = "user:${each.value.email}"
+
+  dynamic "condition" {
+    # Condition is only created if expiry_date is set
+    for_each = each.value.expiry_date != null && each.value.expiry_date != "" ? [true] : []
+    content {
+      title       = "${each.value.title}"
+      description = "${each.value.description}"
+      expression  = "request.time < timestamp('${each.value.expiry_date}T00:00:00Z')"
+    }
+  }
 }
