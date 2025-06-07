@@ -58,7 +58,7 @@ def test_enrichment(
 
   This PTransform simulates the behavior of the Enrichment transform by
   looking up data from predefined in-memory tables based on the provided
-  `enrichment_handler` and `handler_config`.  
+  `enrichment_handler` and `handler_config`.
 
   Note: The Github action that invokes these tests does not have gcp
   dependencies installed which is a prerequisite to
@@ -111,9 +111,24 @@ def test_enrichment(
   return pcoll | beam.Map(_fn)
 
 
+@beam.ptransform.ptransform_fn
+def test_kafka_read(
+    pcoll,
+    format,
+    topic,
+    bootstrap_servers,
+    auto_offset_reset_config,
+    consumer_config):
+  return (
+      pcoll | beam.Create(input_data.text_data().split('\n'))
+      | beam.Map(lambda element: beam.Row(payload=element.encode('utf-8'))))
+
+
 TEST_PROVIDERS = {
-    'TestEnrichment': test_enrichment,
+    'TestEnrichment': test_enrichment, 'TestReadFromKafka': test_kafka_read
 }
+
+INPUT_TRANSFORM_TEST_PROVIDERS = ['TestReadFromKafka']
 
 
 def check_output(expected: List[str]):
@@ -184,7 +199,11 @@ def create_test_method(
         actual = [
             yaml_transform.expand_pipeline(
                 p,
-                pipeline_spec, [yaml_provider.InlineProvider(TEST_PROVIDERS)])
+                pipeline_spec,
+                [
+                    yaml_provider.InlineProvider(
+                        TEST_PROVIDERS, INPUT_TRANSFORM_TEST_PROVIDERS)
+                ])
         ]
         if not actual[0]:
           actual = list(p.transforms_stack[0].parts[-1].outputs.values())
@@ -373,9 +392,30 @@ def _wordcount_test_preprocessor(
       env.input_file('kinglear.txt', '\n'.join(lines)))
 
 
+@YamlExamplesTestSuite.register_test_preprocessor('test_kafka_yaml')
+def _kafka_test_preprocessor(
+    test_spec: dict, expected: List[str], env: TestEnvironment):
+
+  test_spec = replace_recursive(
+      test_spec,
+      'ReadFromText',
+      'path',
+      env.input_file('kinglear.txt', input_data.text_data()))
+
+  if pipeline := test_spec.get('pipeline', None):
+    for transform in pipeline.get('transforms', []):
+      if transform.get('type', '') == 'ReadFromKafka':
+        transform['type'] = 'TestReadFromKafka'
+
+  return test_spec
+
+
 @YamlExamplesTestSuite.register_test_preprocessor([
     'test_simple_filter_yaml',
     'test_simple_filter_and_combine_yaml',
+    'test_iceberg_read_yaml',
+    'test_iceberg_write_yaml',
+    'test_kafka_yaml',
     'test_spanner_read_yaml',
     'test_spanner_write_yaml',
     'test_enrich_spanner_with_bigquery_yaml'
@@ -417,9 +457,10 @@ def _io_write_test_preprocessor(
 def _file_io_read_test_preprocessor(
     test_spec: dict, expected: List[str], env: TestEnvironment):
   """
-  This preprocessor replaces any ReadFrom transform with a Create transform
-  that reads from a predefined in-memory dictionary. This allows the test
-  to verify the pipeline's correctness without relying on external files.
+  This preprocessor replaces any file IO ReadFrom transform with a Create
+  transform that reads from a predefined in-memory dictionary. This allows
+  the test to verify the pipeline's correctness without relying on external
+  files.
 
   Args:
     test_spec: The dictionary representation of the YAML pipeline specification.
@@ -441,6 +482,47 @@ def _file_io_read_test_preprocessor(
             transform['type'],
             'path',
             env.input_file(file_name, INPUT_FILES[file_name]))
+
+  return test_spec
+
+
+@YamlExamplesTestSuite.register_test_preprocessor(['test_iceberg_read_yaml'])
+def _iceberg_io_read_test_preprocessor(
+    test_spec: dict, expected: List[str], env: TestEnvironment):
+  """
+  Preprocessor for tests that involve reading from Iceberg.
+
+  This preprocessor replaces any ReadFromIceberg transform with a Create
+  transform that reads from a predefined in-memory dictionary. This allows
+  the test to verify the pipeline's correctness without relying on Iceberg
+  tables stored externally.
+
+  Args:
+    test_spec: The dictionary representation of the YAML pipeline specification.
+    expected: A list of strings representing the expected output of the
+      pipeline.
+    env: The TestEnvironment object providing utilities for creating temporary
+      files.
+
+  Returns:
+    The modified test_spec dictionary with ReadFromIceberg transforms replaced.
+  """
+  if pipeline := test_spec.get('pipeline', None):
+    for transform in pipeline.get('transforms', []):
+      if transform.get('type', '') == 'ReadFromIceberg':
+        config = transform['config']
+        (db_name, table_name,
+         field_value_dynamic_destinations) = config['table'].split('.')
+
+        transform['type'] = 'Create'
+        transform['config'] = {
+            k: v
+            for k, v in config.items() if k.startswith('__')
+        }
+        transform['config']['elements'] = INPUT_TABLES[(
+            str(db_name),
+            str(table_name),
+            str(field_value_dynamic_destinations))]
 
   return test_spec
 
@@ -531,6 +613,7 @@ INPUT_TABLES = {
     spanner_shipments_data(),
     ('orders-test', 'order-database', 'orders'): input_data.
     spanner_orders_data(),
+    ('db', 'users', 'NY'): input_data.iceberg_dynamic_destinations_users_data(),
     ('BigTable', 'beam-test', 'bigtable-enrichment-test'): input_data.
     bigtable_data(),
     ('BigQuery', 'ALL_TEST', 'customers'): input_data.bigquery_data()
