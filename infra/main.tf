@@ -15,7 +15,14 @@
 # limitations under the License.
 #
 # This file defines the general configuration for the Terraform project.
-
+terraform {
+  required_providers {
+    google = {
+      source  = "hashicorp/google"
+      version = "6.37.0"
+    }
+  }
+}
 variable "project_id" {
   description = "The GCP project ID."
   type        = string
