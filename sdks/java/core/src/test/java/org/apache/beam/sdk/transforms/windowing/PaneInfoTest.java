@@ -53,6 +53,22 @@ public class PaneInfoTest {
   }
 
   @Test
+  public void testEncodingRoundTripWithElementMetadata() throws Exception {
+    Coder<PaneInfo> coder = PaneInfo.PaneInfoCoder.INSTANCE;
+    for (Timing timing : Timing.values()) {
+      long onTimeIndex = timing == Timing.EARLY ? -1 : 37;
+      CoderProperties.coderDecodeEncodeEqual(
+          coder, PaneInfo.createPane(false, false, timing, 389, onTimeIndex, true));
+      CoderProperties.coderDecodeEncodeEqual(
+          coder, PaneInfo.createPane(false, true, timing, 5077, onTimeIndex, true));
+      CoderProperties.coderDecodeEncodeEqual(
+          coder, PaneInfo.createPane(true, false, timing, 0, 0, true));
+      CoderProperties.coderDecodeEncodeEqual(
+          coder, PaneInfo.createPane(true, true, timing, 0, 0, true));
+    }
+  }
+
+  @Test
   public void testEncodings() {
     assertEquals(
         "PaneInfo encoding assumes that there are only 4 Timing values.",
@@ -82,5 +98,9 @@ public class PaneInfoTest {
         "PaneInfo encoding should remain the same.",
         0xF,
         PaneInfo.createPane(true, true, Timing.UNKNOWN).getEncodedByte());
+    assertEquals(
+        "PaneInfo encoding should remain the same.",
+        0x1,
+        PaneInfo.createPane(true, false, Timing.EARLY, 1, -1, true).getEncodedByte());
   }
 }

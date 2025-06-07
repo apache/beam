@@ -63,6 +63,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.ElementMetadata;
 import org.apache.beam.sdk.util.SystemDoFnInternal;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -1365,14 +1366,26 @@ class BatchViewOverrides {
   private static class ValueInEmptyWindows<T> implements WindowedValue<T> {
 
     private final T value;
+    private final @Nullable ElementMetadata elementMetadata;
 
     private ValueInEmptyWindows(T value) {
       this.value = value;
+      this.elementMetadata = null;
+    }
+
+    private ValueInEmptyWindows(T value, @Nullable ElementMetadata elementMetadata) {
+      this.value = value;
+      this.elementMetadata = elementMetadata;
     }
 
     @Override
     public <NewT> WindowedValue<NewT> withValue(NewT value) {
       return new ValueInEmptyWindows<>(value);
+    }
+
+    @Override
+    public WindowedValue<T> withElementMetadata(@Nullable ElementMetadata elementMetadata) {
+      return new ValueInEmptyWindows<>(this.getValue(), elementMetadata);
     }
 
     @Override
@@ -1398,6 +1411,11 @@ class BatchViewOverrides {
     @Override
     public Iterable<WindowedValue<T>> explodeWindows() {
       return Collections.emptyList();
+    }
+
+    @Override
+    public @Nullable ElementMetadata getElementMetadata() {
+      return elementMetadata;
     }
 
     @Override
