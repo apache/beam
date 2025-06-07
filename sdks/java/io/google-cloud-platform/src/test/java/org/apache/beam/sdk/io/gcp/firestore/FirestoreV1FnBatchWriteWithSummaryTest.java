@@ -201,7 +201,8 @@ public final class FirestoreV1FnBatchWriteWithSummaryTest
     when(callable.call(requestCaptor1.capture())).thenReturn(response1);
 
     BaseBatchWriteFn<WriteSuccessSummary> fn =
-        new BatchWriteFnWithSummary(clock, ff, options, CounterFactory.DEFAULT);
+        new BatchWriteFnWithSummary(
+            clock, ff, options, CounterFactory.DEFAULT, "testing-project", "(default)");
     fn.setup();
     fn.startBundle(startBundleContext);
     fn.processElement(processContext, window); // write0
@@ -238,6 +239,15 @@ public final class FirestoreV1FnBatchWriteWithSummaryTest
     verifyNoMoreInteractions(callable);
   }
 
+  @Test
+  public void testWithProjectId_thenWithDatabaseId() {
+    FirestoreV1.Write beamWrite =
+        FirestoreIO.v1().write().withProjectId("my-project").withDatabaseId("(default)");
+
+    assertEquals("my-project", beamWrite.batchWrite().getProjectId());
+    assertEquals("(default)", beamWrite.batchWrite().getDatabaseId());
+  }
+
   @Override
   protected BatchWriteFnWithSummary getFn(
       JodaClock clock,
@@ -245,6 +255,6 @@ public final class FirestoreV1FnBatchWriteWithSummaryTest
       RpcQosOptions rpcQosOptions,
       CounterFactory counterFactory,
       DistributionFactory distributionFactory) {
-    return new BatchWriteFnWithSummary(clock, ff, rpcQosOptions, counterFactory);
+    return new BatchWriteFnWithSummary(clock, ff, rpcQosOptions, counterFactory, null, null);
   }
 }
