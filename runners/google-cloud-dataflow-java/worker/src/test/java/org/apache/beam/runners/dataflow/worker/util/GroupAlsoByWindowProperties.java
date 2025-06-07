@@ -30,7 +30,6 @@ import java.util.Collections;
 import java.util.List;
 import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.NullSideInputReader;
-import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -43,9 +42,9 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
+import org.apache.beam.sdk.util.WindowedValueReceiver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -608,30 +607,16 @@ public class GroupAlsoByWindowProperties {
     return TimestampedValue.of(res.getValue(), res.getTimestamp());
   }
 
-  private static class TestOutput<K, OutputT> implements OutputWindowedValue<KV<K, OutputT>> {
+  private static class TestOutput<K, OutputT> implements WindowedValueReceiver<KV<K, OutputT>> {
     private final List<WindowedValue<KV<K, OutputT>>> output = new ArrayList<>();
 
     @Override
-    public void outputWindowedValue(
-        KV<K, OutputT> output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo pane) {
-      this.output.add(WindowedValues.of(output, timestamp, windows, pane));
+    public void output(WindowedValue<KV<K, OutputT>> valueWithMetadata) {
+      this.output.add(valueWithMetadata);
     }
 
     public List<WindowedValue<KV<K, OutputT>>> getOutput() {
       return output;
-    }
-
-    @Override
-    public <AdditionalOutputT> void outputWindowedValue(
-        TupleTag<AdditionalOutputT> tag,
-        AdditionalOutputT output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo pane) {
-      throw new UnsupportedOperationException();
     }
   }
 }
