@@ -195,7 +195,7 @@ python -m apache_beam.yaml.main \
 
 The pipeline uses [Dynamic destinations](
 https://cloud.google.com/dataflow/docs/guides/managed-io#dynamic-destinations)
-write to dynamically create and select a table destination based on field 
+write to dynamically create and select a table destination based on field
 values in the incoming records.
 
 To read from a created Iceberg table on GCS, run:
