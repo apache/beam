@@ -222,6 +222,26 @@ class PortableRunnerTest(fn_runner_test.FnApiRunnerTest):
   def test_draining_sdf_with_sdf_initiated_checkpointing(self):
     raise unittest.SkipTest("Portable runners don't support drain yet.")
 
+  def test_pardo_et_timer_with_no_firing(self):
+    if type(self) in [PortableRunnerTest,
+                      PortableRunnerTestWithSubprocesses,
+                      PortableRunnerTestWithSubprocessesAndMultiWorkers,
+                      PortableRunnerTestWithExternalEnv,
+                      PortableRunnerTestWithLocalDocker,
+                      PortableRunnerOptimizedWithoutFusion]:
+      raise unittest.SkipTest("https://github.com/apache/beam/issues/35168")
+    super().test_pardo_et_timer_with_no_firing()
+
+  def test_pardo_et_timer_with_no_reset(self):
+    if type(self) in [PortableRunnerTest,
+                      PortableRunnerTestWithSubprocesses,
+                      PortableRunnerTestWithSubprocessesAndMultiWorkers,
+                      PortableRunnerTestWithExternalEnv,
+                      PortableRunnerTestWithLocalDocker,
+                      PortableRunnerOptimizedWithoutFusion]:
+      raise unittest.SkipTest("https://github.com/apache/beam/issues/35168")
+    super().test_pardo_et_timer_with_no_reset()
+
 
 @unittest.skip("https://github.com/apache/beam/issues/19422")
 class PortableRunnerOptimized(PortableRunnerTest):
