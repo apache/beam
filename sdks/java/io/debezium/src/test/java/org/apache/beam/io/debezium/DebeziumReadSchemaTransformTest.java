@@ -20,6 +20,7 @@ package org.apache.beam.io.debezium;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertThrows;
 
+import io.debezium.DebeziumException;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.stream.Collectors;
@@ -28,7 +29,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.kafka.connect.errors.ConnectException;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.hamcrest.Matchers;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -104,6 +105,11 @@ public class DebeziumReadSchemaTransformTest {
                 // is "database.table".
                 .setTable("inventory.customers")
                 .setPort(port)
+                .setDebeziumConnectionProperties(
+                    Lists.newArrayList(
+                        "database.server.id=579676",
+                        "schema.history.internal=io.debezium.storage.file.history.FileSchemaHistory",
+                        "schema.history.internal.file.filename=data/schema_history.dat"))
                 .build());
   }
 
@@ -124,15 +130,16 @@ public class DebeziumReadSchemaTransformTest {
         result.getSchema().getFields().stream()
             .map(field -> field.getName())
             .collect(Collectors.toList()),
-        Matchers.containsInAnyOrder("before", "after", "source", "op", "ts_ms", "transaction"));
+        Matchers.containsInAnyOrder(
+            "before", "after", "source", "transaction", "op", "ts_ms", "ts_us", "ts_ns"));
   }
 
   @Test
   public void testWrongUser() {
     Pipeline readPipeline = Pipeline.create();
-    ConnectException ex =
+    DebeziumException ex =
         assertThrows(
-            ConnectException.class,
+            DebeziumException.class,
             () -> {
               PCollectionRowTuple.empty(readPipeline)
                   .apply(
@@ -151,9 +158,9 @@ public class DebeziumReadSchemaTransformTest {
   @Test
   public void testWrongPassword() {
     Pipeline readPipeline = Pipeline.create();
-    ConnectException ex =
+    DebeziumException ex =
         assertThrows(
-            ConnectException.class,
+            DebeziumException.class,
             () -> {
               PCollectionRowTuple.empty(readPipeline)
                   .apply(
@@ -172,9 +179,9 @@ public class DebeziumReadSchemaTransformTest {
   @Test
   public void testWrongPort() {
     Pipeline readPipeline = Pipeline.create();
-    ConnectException ex =
+    DebeziumException ex =
         assertThrows(
-            ConnectException.class,
+            DebeziumException.class,
             () -> {
               PCollectionRowTuple.empty(readPipeline)
                   .apply(makePtransform(userName, password, database, 12345, "localhost"))
