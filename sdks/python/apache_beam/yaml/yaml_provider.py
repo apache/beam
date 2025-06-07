@@ -1475,6 +1475,7 @@ def standard_providers():
   from apache_beam.yaml.yaml_mapping import create_mapping_providers
   from apache_beam.yaml.yaml_join import create_join_providers
   from apache_beam.yaml.yaml_io import io_providers
+  from apache_beam.yaml.yaml_specifiable import create_spec_providers
 
   return merge_providers(
       YamlProviders.create_builtin_provider(),
@@ -1483,6 +1484,7 @@ def standard_providers():
       create_combine_providers(),
       create_join_providers(),
       io_providers(),
+      create_spec_providers(),
       load_providers(yaml_utils.locate_data_file('standard_providers.yaml')))
 
 
