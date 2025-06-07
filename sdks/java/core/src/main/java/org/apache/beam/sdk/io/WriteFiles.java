@@ -292,6 +292,13 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   /** Set the maximum number of writers created in a bundle before spilling to shuffle. */
   public WriteFiles<UserT, DestinationT, OutputT> withMaxNumWritersPerBundle(
       int maxNumWritersPerBundle) {
+    checkArgument(
+        getMaxNumWritersPerBundle() != -1,
+        "Cannot use withMaxNumWritersPerBundle() after withNoSpilling() has been set.");
+    checkArgument(
+        maxNumWritersPerBundle > 0 && maxNumWritersPerBundle <= DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE,
+        "maxNumWritersPerBundle must be greater than 0 and less than or equal to %s",
+        DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE);
     return toBuilder().setMaxNumWritersPerBundle(maxNumWritersPerBundle).build();
   }
 

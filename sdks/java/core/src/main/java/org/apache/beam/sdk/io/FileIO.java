@@ -1043,6 +1043,8 @@ public class FileIO {
 
     abstract boolean getNoSpilling();
 
+    abstract @Nullable Integer getMaxNumWritersPerBundle();
+
     abstract @Nullable ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 
     abstract Builder<DestinationT, UserT> toBuilder();
@@ -1092,6 +1094,9 @@ public class FileIO {
       abstract Builder<DestinationT, UserT> setAutoSharding(boolean autosharding);
 
       abstract Builder<DestinationT, UserT> setNoSpilling(boolean noSpilling);
+
+      abstract Builder<DestinationT, UserT> setMaxNumWritersPerBundle(
+          @Nullable Integer maxNumWritersPerBundle);
 
       abstract Builder<DestinationT, UserT> setBadRecordErrorHandler(
           @Nullable ErrorHandler<BadRecord, ?> badRecordErrorHandler);
@@ -1327,6 +1332,15 @@ public class FileIO {
     }
 
     /**
+     * Set the maximum number of writers created in a bundle before spilling to shuffle. See {@link
+     * WriteFiles#withMaxNumWritersPerBundle()}.
+     */
+    public Write<DestinationT, UserT> withMaxNumWritersPerBundle(
+        @Nullable Integer maxNumWritersPerBundle) {
+      return toBuilder().setMaxNumWritersPerBundle(maxNumWritersPerBundle).build();
+    }
+
+    /**
      * Configures a new {@link Write} with an ErrorHandler. For configuring an ErrorHandler, see
      * {@link ErrorHandler}. Whenever a record is formatted, or a lookup for a dynamic destination
      * is performed, and that operation fails, the exception is passed to the error handler. This is
@@ -1424,6 +1438,9 @@ public class FileIO {
       resolvedSpec.setIgnoreWindowing(getIgnoreWindowing());
       resolvedSpec.setAutoSharding(getAutoSharding());
       resolvedSpec.setNoSpilling(getNoSpilling());
+      if (getMaxNumWritersPerBundle() != null) {
+        resolvedSpec.setMaxNumWritersPerBundle(getMaxNumWritersPerBundle());
+      }
 
       Write<DestinationT, UserT> resolved = resolvedSpec.build();
       WriteFiles<UserT, DestinationT, ?> writeFiles =
@@ -1444,6 +1461,9 @@ public class FileIO {
       }
       if (getNoSpilling()) {
         writeFiles = writeFiles.withNoSpilling();
+      }
+      if (getMaxNumWritersPerBundle() != null) {
+        writeFiles = writeFiles.withMaxNumWritersPerBundle(getMaxNumWritersPerBundle());
       }
       if (getBadRecordErrorHandler() != null) {
         writeFiles = writeFiles.withBadRecordErrorHandler(getBadRecordErrorHandler());
