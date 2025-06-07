@@ -49,6 +49,7 @@ import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTimeUtils.MillisProvider;
@@ -65,6 +66,7 @@ public class ExecutionStateSampler {
   private static final Logger LOG = LoggerFactory.getLogger(ExecutionStateSampler.class);
   private static final int DEFAULT_SAMPLING_PERIOD_MS = 200;
   private static final long MAX_LULL_TIME_MS = TimeUnit.MINUTES.toMillis(5);
+  private static final int MIN_LULL_TIME_MINUTE_FOR_RESTART = 10; // Open to change.
   private static final PeriodFormatter DURATION_FORMATTER =
       new PeriodFormatterBuilder()
           .appendDays()
@@ -80,6 +82,7 @@ public class ExecutionStateSampler {
           .toFormatter();
   private final int periodMs;
   private final MillisProvider clock;
+  private final int lullTimeMinuteForRestart;
 
   @GuardedBy("activeStateTrackers")
   private final Set<ExecutionStateTracker> activeStateTrackers;
@@ -97,6 +100,18 @@ public class ExecutionStateSampler {
             : Integer.parseInt(samplingPeriodMills);
     this.clock = clock;
     this.activeStateTrackers = new HashSet<>();
+    this.lullTimeMinuteForRestart =
+        Math.max(
+            options.getPtransformTimeoutDuration(),
+            ExecutionStateSampler.MIN_LULL_TIME_MINUTE_FOR_RESTART);
+    if (options.getPtransformTimeoutDuration()
+        < ExecutionStateSampler.MIN_LULL_TIME_MINUTE_FOR_RESTART) {
+      LOG.info(
+          String.format(
+              "The user defined ptransformTimeoutDuration might be too small for "
+                  + "a pTransform operation and has been set to %d minutes",
+              this.lullTimeMinuteForRestart));
+    }
     // We specifically synchronize to ensure that this object can complete
     // being published before the state sampler thread starts.
     synchronized (this) {
@@ -147,6 +162,11 @@ public class ExecutionStateSampler {
     } catch (ExecutionException e) {
       throw new RuntimeException("Exception in state sampler", e);
     }
+  }
+
+  @VisibleForTesting
+  public int getLullTimeMinuteForRestart() {
+    return this.lullTimeMinuteForRestart;
   }
 
   /** Entry point for the state sampling thread. */
@@ -357,6 +377,19 @@ public class ExecutionStateSampler {
         transitionsAtLastSample = transitionsAtThisSample;
       } else {
         long lullTimeMs = currentTimeMillis - lastTransitionTimeMillis.get();
+
+        try {
+          if (lullTimeMs > TimeUnit.MINUTES.toMillis(lullTimeMinuteForRestart)) {
+            throw new TimeoutException(
+                String.format(
+                    "The ptransform has been stuck for more than %d minutes, the SDK worker will"
+                        + " restart",
+                    lullTimeMinuteForRestart));
+          }
+        } catch (TimeoutException e) {
+          LOG.error(e.getMessage());
+        }
+
         if (lullTimeMs > MAX_LULL_TIME_MS) {
           if (lullTimeMs < lastLullReport // This must be a new report.
               || lullTimeMs > 1.2 * lastLullReport // Exponential backoff.
