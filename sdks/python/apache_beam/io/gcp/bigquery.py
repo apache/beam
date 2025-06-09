@@ -1581,6 +1581,21 @@ class BigQueryWriteFn(DoFn):
         additional_create_parameters=self.additional_bq_parameters)
     _KNOWN_TABLES.add(str_table_reference)
 
+  def _check_row_size(self, row_and_insert_id) -> Tuple[int, Optional[str]]:
+    """Returns error string when the row estimated size is too big"""
+    row_byte_size = get_deep_size(row_and_insert_id)
+
+    # Check if individual row exceeds size limit
+    if row_byte_size >= self._max_insert_payload_size:
+      row_mb_size = row_byte_size / 1_000_000
+      max_mb_size = self._max_insert_payload_size / 1_000_000
+      return (
+          row_byte_size,
+          (
+              f"Received row with size {row_mb_size}MB that exceeds "
+              f"the maximum insert payload size set ({max_mb_size}MB)."))
+    return (row_byte_size, None)
+
   def process(
       self, element, window_value=DoFn.WindowedValueParam, *schema_side_inputs):
     destination = bigquery_tools.get_hashable_destination(element[0])
@@ -1597,20 +1612,15 @@ class BigQueryWriteFn(DoFn):
 
     if not self.with_batched_input:
       row_and_insert_id = element[1]
-      row_byte_size = get_deep_size(row_and_insert_id)
+      row_byte_size, row_too_big_error = self._check_row_size(row_and_insert_id)
 
       # send large rows that exceed BigQuery insert limits to DLQ
-      if row_byte_size >= self._max_insert_payload_size:
-        row_mb_size = row_byte_size / 1_000_000
-        max_mb_size = self._max_insert_payload_size / 1_000_000
-        error = (
-            f"Received row with size {row_mb_size}MB that exceeds "
-            f"the maximum insert payload size set ({max_mb_size}MB).")
+      if row_too_big_error is not None:
         return [
             pvalue.TaggedOutput(
                 BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS,
                 window_value.with_value(
-                    (destination, row_and_insert_id[0], error))),
+                    (destination, row_and_insert_id[0], row_too_big_error))),
             pvalue.TaggedOutput(
                 BigQueryWriteFn.FAILED_ROWS,
                 window_value.with_value((destination, row_and_insert_id[0])))
@@ -1634,11 +1644,50 @@ class BigQueryWriteFn(DoFn):
       if self._total_buffered_rows >= self._max_buffered_rows:
         return self._flush_all_batches()
     else:
-      # The input is already batched per destination, flush the rows now.
+      # The input is already batched per destination
+      # but we verify the payload size.
+      # The batch might be split into smaller batches
       batched_rows = element[1]
-      for r in batched_rows:
-        self._rows_buffer[destination].append((r, window_value))
-      return self._flush_batch(destination)
+      failed_outputs = []
+      current_batch = []
+      current_batch_size = 0
+
+      for row in batched_rows:
+        row_byte_size, row_too_big_error = self._check_row_size(row)
+        # Check if individual row exceeds size limit
+        if row_too_big_error is not None:
+          failed_outputs.extend([
+              pvalue.TaggedOutput(
+                  BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS,
+                  window_value.with_value(
+                      (destination, row[0], row_too_big_error))),
+              pvalue.TaggedOutput(
+                  BigQueryWriteFn.FAILED_ROWS,
+                  window_value.with_value((destination, row[0])))
+          ])
+          continue
+
+        # Check if adding this row would exceed batch size limit
+        if (len(current_batch) != 0 and
+            current_batch_size + row_byte_size > self._max_insert_payload_size):
+
+          self._rows_buffer[destination].extend(
+              ((batch_row, window_value) for batch_row in current_batch))
+          failed_outputs.extend(self._flush_batch(destination))
+
+          # Start new batch with current row
+          current_batch = [row]
+          current_batch_size = row_byte_size
+        else:
+          current_batch.append(row)
+          current_batch_size += row_byte_size
+
+      if current_batch:
+        for batch_row in current_batch:
+          self._rows_buffer[destination].append((batch_row, window_value))
+        failed_outputs.extend(self._flush_batch(destination))
+
+      return failed_outputs
 
   def finish_bundle(self):
     bigquery_tools.BigQueryWrapper.HISTOGRAM_METRIC_LOGGER.log_metrics(

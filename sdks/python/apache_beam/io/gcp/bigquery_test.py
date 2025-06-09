@@ -1931,6 +1931,147 @@ class BigQueryStreamingInsertsErrorHandling(unittest.TestCase):
       assert_that(failed_values, equal_to(failed_rows))
 
 
+def test_with_batched_input_exceeds_size_limit(self):
+  from apache_beam.utils.windowed_value import WindowedValue
+  from apache_beam.transforms import window
+
+  client = mock.Mock()
+  client.tables.Get.return_value = bigquery.Table(
+      tableReference=bigquery.TableReference(
+          projectId='project-id', datasetId='dataset_id', tableId='table_id'))
+  client.insert_rows_json.return_value = []
+  fn = beam.io.gcp.bigquery.BigQueryWriteFn(
+      batch_size=10,
+      create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+      write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
+      kms_key=None,
+      with_batched_input=True,
+      max_insert_payload_size=500,  # Small size to trigger the check
+      test_client=client)
+
+  fn.start_bundle()
+
+  # Create rows where the third one exceeds the size limit
+  rows = [
+      ({
+          'month': 1
+      }, 'insertid1'),
+      ({
+          'month': 2
+      }, 'insertid2'),
+      ({
+          'columnA': 'large_string' * 100
+      }, 'insertid3')  # This exceeds 500 bytes
+  ]
+
+  # Create a windowed value for testing
+  test_window = window.GlobalWindow()
+  test_timestamp = window.MIN_TIMESTAMP
+  windowed_value = WindowedValue(None, test_timestamp, [test_window])
+
+  # Process the batched input
+  result = fn.process(('project-id:dataset_id.table_id', rows), windowed_value)
+
+  # Convert generator to list to check results
+  failed_rows = list(result)
+
+  # Should have 2 failed outputs (FAILED_ROWS_WITH_ERRORS and FAILED_ROWS)
+  self.assertEqual(len(failed_rows), 2)
+
+  # Check that the large row was sent to DLQ
+  failed_with_errors = [
+      r for r in failed_rows if r.tag == fn.FAILED_ROWS_WITH_ERRORS
+  ]
+  failed_without_errors = [r for r in failed_rows if r.tag == fn.FAILED_ROWS]
+
+  self.assertEqual(len(failed_with_errors), 1)
+  self.assertEqual(len(failed_without_errors), 1)
+
+  # Verify the error message
+  destination, row, error = failed_with_errors[0].value.value
+  self.assertEqual(destination, 'project-id:dataset_id.table_id')
+  self.assertEqual(row, {'columnA': 'large_string' * 100})
+  self.assertIn('exceeds the maximum insert payload size', error)
+
+  # Verify that only the valid rows were sent to BigQuery
+  self.assertTrue(client.insert_rows_json.called)
+  # Check that the rows were inserted (might be in multiple batches)
+  total_rows = []
+  for call in client.insert_rows_json.call_args_list:
+    total_rows.extend(call[1]['json_rows'])
+
+  self.assertEqual(len(total_rows), 2)
+  self.assertEqual(total_rows[0], {'month': 1})
+  self.assertEqual(total_rows[1], {'month': 2})
+
+
+def test_with_batched_input_splits_large_batch(self):
+  from apache_beam.utils.windowed_value import WindowedValue
+  from apache_beam.transforms import window
+
+  client = mock.Mock()
+  client.tables.Get.return_value = bigquery.Table(
+      tableReference=bigquery.TableReference(
+          projectId='project-id', datasetId='dataset_id', tableId='table_id'))
+  client.insert_rows_json.return_value = []
+  create_disposition = beam.io.BigQueryDisposition.CREATE_IF_NEEDED
+  write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
+
+  fn = beam.io.gcp.bigquery.BigQueryWriteFn(
+      batch_size=10,
+      create_disposition=create_disposition,
+      write_disposition=write_disposition,
+      kms_key=None,
+      with_batched_input=True,
+      max_insert_payload_size=800,  # Small size to force batch splitting
+      test_client=client)
+
+  fn.start_bundle()
+
+  # Create rows that together exceed the batch size limit.
+  # Each row with 'data' * 10 is about 200 bytes
+  # So 2 rows should fit, 3rd should cause flush.
+  rows = [
+      ({
+          'data': 'x' * 10
+      }, 'insertid1'),
+      ({
+          'data': 'y' * 10
+      }, 'insertid2'),
+      ({
+          'data': 'z' * 10
+      }, 'insertid3'),  # This should go in second batch
+  ]
+
+  # Create a windowed value for testing
+  test_window = window.GlobalWindow()
+  test_timestamp = window.MIN_TIMESTAMP
+  windowed_value = WindowedValue(None, test_timestamp, [test_window])
+
+  # Process the batched input
+  result = fn.process(('project-id:dataset_id.table_id', rows), windowed_value)
+
+  # Convert generator to list (should be empty as no failures)
+  failed_rows = list(result)
+  self.assertEqual(len(failed_rows), 0)
+
+  # With 800 byte limit and ~341 byte rows
+  # we should be able to fit 2 rows per batch.
+  # So we expect 2 calls: [row1, row2] and [row3]
+  self.assertEqual(client.insert_rows_json.call_count, 2)
+
+  # Check first batch (2 rows)
+  first_call = client.insert_rows_json.call_args_list[0][1]
+  self.assertEqual(len(first_call['json_rows']), 2)
+  self.assertEqual(first_call['json_rows'][0], {'data': 'x' * 10})
+  self.assertEqual(first_call['json_rows'][1], {'data': 'y' * 10})
+
+  # Check second batch (1 row)
+  second_call = client.insert_rows_json.call_args_list[1][1]
+  self.assertEqual(len(second_call['json_rows']), 1)
+  self.assertEqual(second_call['json_rows'][0], {'data': 'z' * 10})
+
+
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class BigQueryStreamingInsertTransformTests(unittest.TestCase):
   def test_dofn_client_process_performs_batching(self):
