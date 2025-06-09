@@ -232,7 +232,7 @@ public final class TransformTranslator {
                                 in.getValue().getValue(), sparkCombineFn.ctxtForValue(in))),
                         in.getTimestamp(),
                         in.getWindows(),
-                        in.getPane()));
+                        in.getPaneInfo()));
         context.putDataset(transform, new BoundedDataset<>(outRDD));
       }
 
@@ -699,7 +699,10 @@ public final class TransformTranslator {
                 WindowedValue<V> wv = CoderHelpers.fromByteArray(read._2(), wvCoder);
                 consumed();
                 return WindowedValues.of(
-                    KV.of(key, wv.getValue()), wv.getTimestamp(), wv.getWindows(), wv.getPane());
+                    KV.of(key, wv.getValue()),
+                    wv.getTimestamp(),
+                    wv.getWindows(),
+                    wv.getPaneInfo());
               }
             }
             return endOfData();

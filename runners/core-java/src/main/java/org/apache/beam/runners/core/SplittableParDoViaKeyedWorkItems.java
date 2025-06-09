@@ -431,7 +431,7 @@ public class SplittableParDoViaKeyedWorkItems {
 
                   @Override
                   public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
-                    return elementAndRestriction.getKey().getPane();
+                    return elementAndRestriction.getKey().getPaneInfo();
                   }
 
                   @Override
@@ -491,7 +491,7 @@ public class SplittableParDoViaKeyedWorkItems {
 
                 @Override
                 public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
-                  return elementAndRestriction.getKey().getPane();
+                  return elementAndRestriction.getKey().getPaneInfo();
                 }
 
                 @Override
@@ -545,7 +545,7 @@ public class SplittableParDoViaKeyedWorkItems {
 
                 @Override
                 public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
-                  return elementAndRestriction.getKey().getPane();
+                  return elementAndRestriction.getKey().getPaneInfo();
                 }
 
                 @Override
