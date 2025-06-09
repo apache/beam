@@ -1050,7 +1050,7 @@ class RunInferenceBaseTest(unittest.TestCase):
       _ = (
           pipeline | 'Unkeyed' >> beam.Create(examples)
           | 'RunUnkeyed' >> base.RunInference(model_handler))
-      pipeline.run()
+      pipeline.run().wait_until_finish()
 
   def test_run_inference_keyed_examples_with_unkeyed_model_handler(self):
     pipeline = TestPipeline()

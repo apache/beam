@@ -308,7 +308,7 @@ class TypeHintsTest(unittest.TestCase):
     # possibly on a remote machine, possibly very late.
 
     with self.assertRaises(Exception):
-      p.run()
+      p.run().wait_until_finish()
 
     # To catch this early, we can assert what types we expect.
     with self.assertRaises(typehints.TypeCheckError):
@@ -373,7 +373,7 @@ class TypeHintsTest(unittest.TestCase):
     # possibly on a remote machine, possibly very late.
 
     with self.assertRaises(Exception):
-      p.run()
+      p.run().wait_until_finish()
 
     # To catch this early, we can annotate process() with the expected types.
     # Beam will then use these as type hints and perform type checking before
@@ -443,7 +443,9 @@ class TypeHintsTest(unittest.TestCase):
       # [START type_hints_runtime_on]
       with TestPipeline(options=PipelineOptions(runtime_type_check=True)) as p:
         p | beam.Create(['a']) | beam.Map(lambda x: 3).with_output_types(str)
+      result = p.run()
       # [END type_hints_runtime_on]
+      result.wait_until_finish()
 
   def test_deterministic_key(self):
     with TestPipeline() as p:
