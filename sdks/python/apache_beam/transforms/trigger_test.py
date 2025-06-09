@@ -700,12 +700,13 @@ class TriggerPipelineTest(unittest.TestCase):
               }.items())))
 
   def test_always(self):
-    # Pin to FnApiRunner since portable runner could trigger differently if
-    # using bundle sizes of greater than 1.
     with TestPipeline('FnApiRunner') as p:
 
       def construct_timestamped(k, t):
         return TimestampedValue((k, t), t)
+
+      def format_result(k, vs):
+        return ('%s-%s' % (k, len(list(vs))), set(vs))
 
       result = (
           p
@@ -716,17 +717,17 @@ class TriggerPipelineTest(unittest.TestCase):
               FixedWindows(10),
               trigger=Always(),
               accumulation_mode=AccumulationMode.DISCARDING)
-          | beam.GroupByKey())
-
-      expected_dict = {
-          'A': [1, 1, 2, 3, 4, 5, 10, 11], 'B': [6, 6, 7, 8, 9, 10, 15, 16]
-      }
-      expected = []
-      for k, v in expected_dict.items():
-        for n in v:
-          expected.append((k, [n]))
-
-      assert_that(result, equal_to(expected))
+          | beam.GroupByKey()
+          | beam.MapTuple(format_result))
+      assert_that(
+          result,
+          equal_to(
+              list({
+                  'A-2': {10, 11},  # Elements out of windows are also emitted.
+                  'A-6': {1, 2, 3, 4, 5},  # A,1 is emitted twice.
+                  'B-5': {6, 7, 8, 9},  # B,6 is emitted twice.
+                  'B-3': {10, 15, 16},
+              }.items())))
 
   def test_never(self):
     with TestPipeline() as p:
