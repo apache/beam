@@ -39,7 +39,7 @@ from google.cloud import pubsub_v1
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
 from testcontainers.google import PubSubContainer
-from testcontainers.kafka import RedpandaContainer
+from testcontainers.kafka import KafkaContainer
 from testcontainers.mssql import SqlServerContainer
 from testcontainers.mysql import MySqlContainer
 from testcontainers.postgres import PostgresContainer
@@ -440,12 +440,12 @@ def temp_kafka_server():
       Exception: If there's an error starting the Kafka container or
                  interacting with the temporary Kafka server.
   """
-  try:
-    with RedpandaContainer() as kafka_container:
+  with KafkaContainer().with_kraft() as kafka_container:
+    try:
       yield kafka_container.get_bootstrap_server()
-  except Exception as err:
-    logging.error("Error interacting with temporary Kakfa Server: %s", err)
-    raise err
+    except Exception as err:
+      logging.error("Error interacting with temporary Kakfa Server: %s", err)
+      raise err
 
 
 @contextlib.contextmanager
