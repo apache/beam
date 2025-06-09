@@ -1391,7 +1391,7 @@ class BatchViewOverrides {
     }
 
     @Override
-    public PaneInfo getPane() {
+    public PaneInfo getPaneInfo() {
       return PaneInfo.NO_FIRING;
     }
 
