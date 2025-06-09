@@ -36,6 +36,9 @@ import com.google.protobuf.StringValue;
 import com.google.protobuf.Timestamp;
 import com.google.protobuf.UInt32Value;
 import com.google.protobuf.UInt64Value;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -992,15 +995,19 @@ class ProtoByteBuddyUtils {
           JavaBeanUtils.createGetter(fieldValueTypeInformation, typeConversionsFactory);
 
       // Handle nullable field
+      String fieldName = field.getName();
+
       @SuppressWarnings("unchecked")
       Descriptors.FieldDescriptor fieldDescriptor =
-          ProtobufUtil.getDescriptorForClass((Class<Message>) clazz)
-              .findFieldByName(field.getName());
+          ProtobufUtil.getDescriptorForClass((Class<Message>) clazz).findFieldByName(fieldName);
+
       if (ProtoSchemaTranslator.isNullable(fieldDescriptor)) {
         return new FieldValueGetter<@NonNull ProtoT, Object>() {
+          transient Descriptors.FieldDescriptor field = fieldDescriptor;
+
           @Override
           public @Nullable Object get(@NonNull ProtoT object) {
-            if (((Message) object).hasField(fieldDescriptor)) {
+            if (((Message) object).hasField(field)) {
               return getter.get(object);
             } else {
               return null;
@@ -1010,6 +1017,18 @@ class ProtoByteBuddyUtils {
           @Override
           public String name() {
             return getter.name();
+          }
+
+          private void writeObject(ObjectOutputStream out) throws IOException {
+            out.writeObject(clazz);
+            out.writeUTF(fieldName);
+          }
+
+          private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+            @SuppressWarnings("unchecked")
+            Class<? extends Message> clazz = (Class<? extends Message>) in.readObject();
+            String fieldName = in.readUTF();
+            field = ProtobufUtil.getDescriptorForClass(clazz).findFieldByName(fieldName);
           }
         };
       } else {
