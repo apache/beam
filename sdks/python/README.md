@@ -1,36 +1,7 @@
-<!--
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
--->
-
 # Apache Beam
 
 [Apache Beam](http://beam.apache.org/) is a unified model for defining both batch and streaming data-parallel processing pipelines, as well as a set of language-specific SDKs for constructing pipelines and Runners for executing them on distributed processing backends, including [Apache Flink](http://flink.apache.org/), [Apache Spark](http://spark.apache.org/), [Google Cloud Dataflow](http://cloud.google.com/dataflow/), and [Hazelcast Jet](https://jet.hazelcast.org/).
 
-## Status
-
-[![Maven Version](https://maven-badges.herokuapp.com/maven-central/org.apache.beam/beam-sdks-java-core/badge.svg)](http://search.maven.org/#search|gav|1|g:"org.apache.beam")
-[![PyPI version](https://badge.fury.io/py/apache-beam.svg)](https://badge.fury.io/py/apache-beam)
-[![Go version](https://pkg.go.dev/badge/github.com/apache/beam/sdks/v2/go.svg)](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go)
-[![Python coverage](https://codecov.io/gh/apache/beam/branch/master/graph/badge.svg)](https://codecov.io/gh/apache/beam)
-[![Build python source distribution and wheels](https://github.com/apache/beam/actions/workflows/build_wheels.yml/badge.svg?event=schedule&&?branch=master)](https://github.com/apache/beam/actions?query=workflow%3A%22Build+python+source+distribution+and+wheels%22+branch%3Amaster+event%3Aschedule)
-[![Python tests](https://github.com/apache/beam/actions/workflows/python_tests.yml/badge.svg?event=schedule&&?branch=master)](https://github.com/apache/beam/actions?query=workflow%3A%22Python+Tests%22+branch%3Amaster+event%3Aschedule)
-[![Java tests](https://github.com/apache/beam/actions/workflows/java_tests.yml/badge.svg?event=schedule&&?branch=master)](https://github.com/apache/beam/actions?query=workflow%3A%22Java+Tests%22+branch%3Amaster+event%3Aschedule)
-[![Go tests](https://github.com/apache/beam/actions/workflows/go_tests.yml/badge.svg?event=schedule&&?branch=master)](https://github.com/apache/beam/actions?query=workflow%3A%22Go+Tests%22+branch%3Amaster+event%3Aschedule)
 
 ## Overview
 
@@ -39,6 +10,7 @@ Beam provides a general approach to expressing [embarrassingly parallel](https:/
 1. _End Users_: Writing pipelines with an existing SDK, running it on an existing runner. These users want to focus on writing their application logic and have everything else just work.
 2. _SDK Writers_: Developing a Beam SDK targeted at a specific user community (Java, Python, Scala, Go, R, graphical, etc). These users are language geeks and would prefer to be shielded from all the details of various runners and their implementations.
 3. _Runner Writers_: Have an execution environment for distributed processing and would like to support programs written against the Beam Model. Would prefer to be shielded from details of multiple SDKs.
+
 
 ### The Beam Model
 
@@ -52,18 +24,6 @@ The key concepts in the Beam programming model are:
 * `PTransform`: represents a computation that transforms input PCollections into output PCollections.
 * `Pipeline`: manages a directed acyclic graph of PTransforms and PCollections that is ready for execution.
 * `PipelineRunner`: specifies where and how the pipeline should execute.
-
-### SDKs
-
-Beam supports multiple language-specific SDKs for writing pipelines against the Beam Model.
-
-Currently, this repository contains SDKs for Java, Python and Go.
-
-Have ideas for new SDKs or DSLs? See the [sdk-ideas label](https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Asdk-ideas).
-
-#### Specific SDK Readmes
-
-* [Python SDK readme](./sdks/python/README.md)
 
 ### Runners
 
@@ -80,8 +40,50 @@ Beam supports executing programs on multiple distributed processing backends thr
 Have ideas for new Runners? See the [runner-ideas label](https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Arunner-ideas).
 
 
-Instructions for building and testing Beam itself
-are in the [contribution guide](./CONTRIBUTING.md).
+## Get started with the Python SDK
+
+Get started with the [Beam Python SDK quickstart](/get-started/quickstart-py) to set up your Python development environment, get the Beam SDK for Python, and run an example pipeline. Then, read through the [Beam programming guide](/documentation/programming-guide) to learn the basic concepts that apply to all SDKs in Beam.
+
+See the [Python API reference](https://beam.apache.org/releases/pydoc/) for more information on individual APIs.
+
+## Python streaming pipelines
+
+Python [streaming pipeline execution](https://beam.apache.org/documentation/sdks/python-streaming)
+is available (with some [limitations](https://beam.apache.org//documentation/sdks/python-streaming/#unsupported-features))
+starting with Beam SDK version 2.5.0.
+
+## Python type safety
+
+Python is a dynamically-typed language with no static type checking. The Beam SDK for Python uses type hints during pipeline construction and runtime to try to emulate the correctness guarantees achieved by true static typing. [Ensuring Python Type Safety](https://beam.apache.org/documentation/sdks/python-type-safety) walks through how to use type hints, which help you to catch potential bugs up front with the [Direct Runner](https://beam.apache.org//documentation/runners/direct/).
+
+## Managing Python pipeline dependencies
+
+When you run your pipeline locally, the packages that your pipeline depends on are available because they are installed on your local machine. However, when you want to run your pipeline remotely, you must make sure these dependencies are available on the remote machines. [Managing Python Pipeline Dependencies](https://beam.apache.org/documentation/sdks/python-pipeline-dependencies) shows you how to make your dependencies available to the remote workers.
+
+## Developing new I/O connectors for Python
+
+The Beam SDK for Python provides an extensible API that you can use to create
+new I/O connectors. See the [Developing I/O connectors overview](https://beam.apache.org/documentation/io/developing-io-overview)
+for information about developing new I/O connectors and links to
+language-specific implementation guidance.
+
+## Making machine learning inferences with Python
+
+To integrate machine learning models into your pipelines for making inferences, use the RunInference API for PyTorch and Scikit-learn models. If you are using TensorFlow models, you can make use of the
+[library from `tfx_bsl`](https://github.com/tensorflow/tfx-bsl/tree/master/tfx_bsl/beam).
+
+You can create multiple types of transforms using the RunInference API: the API takes multiple types of setup parameters from model handlers, and the parameter type determines the model implementation. For more information,
+see [About Beam ML](https://beam.apache.org/documentation/ml/about-ml).
+
+[TensorFlow Extended (TFX)](https://www.tensorflow.org/tfx) is an end-to-end platform for deploying production ML pipelines. TFX is integrated with Beam. For more information, see [TFX user guide](https://www.tensorflow.org/tfx/guide).
+
+## Python multi-language pipelines quickstart
+
+Apache Beam lets you combine transforms written in any supported SDK language and use them in one multi-language pipeline. To learn how to create a multi-language pipeline using the Python SDK, see the [Python multi-language pipelines quickstart](https://beam.apache.org/documentation/sdks/python-multi-language-pipelines).
+
+## Unrecoverable Errors in Beam Python
+
+Some common errors can occur during worker start-up and prevent jobs from starting. To learn about these errors and how to troubleshoot them in the Python SDK, see [Unrecoverable Errors in Beam Python](https://beam.apache.org/documentation/sdks/python-unrecoverable-errors).
 
 ## 📚 Learn More
 
@@ -99,16 +101,8 @@ Here are some resources actively maintained by the Beam community to help you ge
     <td>Our website discussing the project, and it's specifics.</td>
   </tr>
   <tr>
-    <td><a href="https://beam.apache.org/get-started/quickstart-java" target="_blank" rel="noopener noreferrer">Java Quickstart</a></td>
-    <td>A guide to getting started with the Java SDK.</td>
-  </tr>
-  <tr>
     <td><a href="https://beam.apache.org/get-started/quickstart-py" target="_blank" rel="noopener noreferrer">Python Quickstart</a></td>
     <td>A guide to getting started with the Python SDK.</td>
-  </tr>
-  <tr>
-    <td><a href="https://beam.apache.org/get-started/quickstart-go" target="_blank" rel="noopener noreferrer">Go Quickstart </a></td>
-    <td>A guide to getting started with the Go SDK.</td>
   </tr>
   <tr>
     <td><a href="https://tour.beam.apache.org/" target="_blank" rel="noopener noreferrer">Tour of Beam </a></td>
@@ -124,6 +118,12 @@ Here are some resources actively maintained by the Beam community to help you ge
   </tr>
 </tbody>
 </table>
+
+
+## Contribution
+
+Instructions for building and testing Beam itself
+are in the [contribution guide](https://beam.apache.org/contribute).
 
 ## Contact Us
 
