@@ -448,7 +448,11 @@ class SpannerWriteTest(unittest.TestCase):
             [('1234', "mutations-inset-1233-updated")]),
     ]
 
-    p = TestPipeline()
+    # TODO(https://github.com/apache/beam/issues/34549): This test relies on
+    # metrics filtering which doesn't work on Prism yet because Prism renames
+    # steps (e.g. "Do" becomes "ref_AppliedPTransform_Do_7").
+    # https://github.com/apache/beam/blob/5f9cd73b7c9a2f37f83971ace3a399d633201dd1/sdks/python/apache_beam/runners/portability/fn_api_runner/fn_runner.py#L1590
+    p = TestPipeline('FnApiRunner')
     _ = (
         p
         | beam.Create(mutations)
@@ -475,7 +479,11 @@ class SpannerWriteTest(unittest.TestCase):
         WriteMutation.insert(
             "roles", ("key", "rolename"), [('1234', "mutations-inset-1234")])
     ] * 50
-    p = TestPipeline()
+    # TODO(https://github.com/apache/beam/issues/34549): This test relies on
+    # metrics filtering which doesn't work on Prism yet because Prism renames
+    # steps (e.g. "Do" becomes "ref_AppliedPTransform_Do_7").
+    # https://github.com/apache/beam/blob/5f9cd73b7c9a2f37f83971ace3a399d633201dd1/sdks/python/apache_beam/runners/portability/fn_api_runner/fn_runner.py#L1590
+    p = TestPipeline('FnApiRunner')
     _ = (
         p
         | beam.Create(mutations)
@@ -514,7 +522,11 @@ class SpannerWriteTest(unittest.TestCase):
         MutationGroup([WriteMutation.delete("roles", ks)])
     ]
 
-    p = TestPipeline()
+    # TODO(https://github.com/apache/beam/issues/34549): This test relies on
+    # metrics filtering which doesn't work on Prism yet because Prism renames
+    # steps (e.g. "Do" becomes "ref_AppliedPTransform_Do_7").
+    # https://github.com/apache/beam/blob/5f9cd73b7c9a2f37f83971ace3a399d633201dd1/sdks/python/apache_beam/runners/portability/fn_api_runner/fn_runner.py#L1590
+    p = TestPipeline('FnApiRunner')
     _ = (
         p
         | beam.Create(mutation_groups)
