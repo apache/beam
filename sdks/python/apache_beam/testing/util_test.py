@@ -20,6 +20,7 @@
 # pytype: skip-file
 
 import unittest
+from typing import NamedTuple
 
 import apache_beam as beam
 from apache_beam import Create
@@ -39,7 +40,6 @@ from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import IntervalWindow
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
-from typing import NamedTuple
 
 
 class UtilTest(unittest.TestCase):
@@ -289,7 +289,7 @@ class UtilTest(unittest.TestCase):
     self.assertFalse(
         row_namedtuple_equals_fn(beam.Row(a='123'), RowTuple(a='123', b=4567)))
     self.assertFalse(row_namedtuple_equals_fn(beam.Row(a='123'), '123'))
-    self.assertFalse(row_namedtuple_equals_fn('123', RowTuple(a='123', b=4567)))
+    self.assertFalse(row_namedtuple_equals_fn('123', RowTuple(a='123', b=456)))
 
     class NestedNamedTuple(NamedTuple):
       a: str
