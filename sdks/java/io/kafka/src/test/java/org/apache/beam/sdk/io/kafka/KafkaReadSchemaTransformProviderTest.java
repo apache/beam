@@ -198,6 +198,24 @@ public class KafkaReadSchemaTransformProviderTest {
   }
 
   @Test
+  public void testBuildTransformWithStringFormat() {
+    ServiceLoader<SchemaTransformProvider> serviceLoader =
+        ServiceLoader.load(SchemaTransformProvider.class);
+    List<SchemaTransformProvider> providers =
+        StreamSupport.stream(serviceLoader.spliterator(), false)
+            .filter(provider -> provider.getClass() == KafkaReadSchemaTransformProvider.class)
+            .collect(Collectors.toList());
+    KafkaReadSchemaTransformProvider kafkaProvider =
+        (KafkaReadSchemaTransformProvider) providers.get(0);
+    kafkaProvider.from(
+        KafkaReadSchemaTransformConfiguration.builder()
+            .setTopic("anytopic")
+            .setBootstrapServers("anybootstrap")
+            .setFormat("STRING")
+            .build());
+  }
+
+  @Test
   public void testBuildTransformWithProtoFormat() {
     ServiceLoader<SchemaTransformProvider> serviceLoader =
         ServiceLoader.load(SchemaTransformProvider.class);
@@ -300,15 +318,16 @@ public class KafkaReadSchemaTransformProviderTest {
     List<String> configs =
         Arrays.asList(
             "topic: topic_1\n" + "bootstrap_servers: some bootstrap\n" + "format: RAW",
-            "topic: topic_2\n"
+            "topic: topic_2\n" + "bootstrap_servers: some bootstrap\n" + "format: STRING",
+            "topic: topic_3\n"
                 + "bootstrap_servers: some bootstrap\n"
                 + "schema: '{\"type\":\"record\",\"name\":\"my_record\",\"fields\":[{\"name\":\"bool\",\"type\":\"boolean\"}]}'",
-            "topic: topic_3\n"
+            "topic: topic_4\n"
                 + "bootstrap_servers: some bootstrap\n"
                 + "schema_registry_url: some-url\n"
                 + "schema_registry_subject: some-subject\n"
                 + "format: RAW",
-            "topic: topic_4\n"
+            "topic: topic_5\n"
                 + "bootstrap_servers: some bootstrap\n"
                 + "format: PROTO\n"
                 + "schema: '"
