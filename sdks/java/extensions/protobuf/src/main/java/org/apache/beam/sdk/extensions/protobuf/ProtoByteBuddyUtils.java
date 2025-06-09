@@ -22,23 +22,18 @@ import static org.apache.beam.sdk.extensions.protobuf.ProtoSchemaTranslator.getF
 import com.google.protobuf.BoolValue;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.BytesValue;
-import com.google.protobuf.Descriptors;
 import com.google.protobuf.DoubleValue;
 import com.google.protobuf.Duration;
 import com.google.protobuf.FloatValue;
 import com.google.protobuf.Int32Value;
 import com.google.protobuf.Int64Value;
 import com.google.protobuf.Internal.EnumLite;
-import com.google.protobuf.Message;
 import com.google.protobuf.MessageLite;
 import com.google.protobuf.ProtocolMessageEnum;
 import com.google.protobuf.StringValue;
 import com.google.protobuf.Timestamp;
 import com.google.protobuf.UInt32Value;
 import com.google.protobuf.UInt64Value;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -83,6 +78,7 @@ import net.bytebuddy.jar.asm.ClassWriter;
 import net.bytebuddy.jar.asm.Label;
 import net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
+import org.apache.beam.sdk.schemas.FieldValueHaver;
 import org.apache.beam.sdk.schemas.FieldValueSetter;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.schemas.Schema;
@@ -191,6 +187,7 @@ class ProtoByteBuddyUtils {
           TypeName.MAP, "putAll");
   private static final String DEFAULT_PROTO_GETTER_PREFIX = "get";
   private static final String DEFAULT_PROTO_SETTER_PREFIX = "set";
+  private static final String DEFAULT_PROTO_HAVER_PREFIX = "has";
 
   // https://github.com/apache/beam/issues/21626: there is a slight difference between 'protoc' and
   // Guava CaseFormat regarding the camel case conversion
@@ -250,6 +247,11 @@ class ProtoByteBuddyUtils {
 
   static String protoSetterPrefix(FieldType fieldType) {
     return PROTO_SETTER_PREFIX.getOrDefault(fieldType.getTypeName(), DEFAULT_PROTO_SETTER_PREFIX);
+  }
+
+  static String protoHaverName(String name) {
+    String camel = convertProtoPropertyNameToJavaPropertyName(name);
+    return DEFAULT_PROTO_HAVER_PREFIX + camel;
   }
 
   static class ProtoConvertType extends ConvertType {
@@ -994,41 +996,21 @@ class ProtoByteBuddyUtils {
       FieldValueGetter<@NonNull ProtoT, Object> getter =
           JavaBeanUtils.createGetter(fieldValueTypeInformation, typeConversionsFactory);
 
-      // Handle nullable field
-      String fieldName = field.getName();
-
-      @SuppressWarnings("unchecked")
-      Descriptors.FieldDescriptor fieldDescriptor =
-          ProtobufUtil.getDescriptorForClass((Class<Message>) clazz).findFieldByName(fieldName);
-
-      if (ProtoSchemaTranslator.isNullable(fieldDescriptor)) {
+      @Nullable Method hasMethod = getProtoHaver(methods, field.getName());
+      if (hasMethod != null) {
+        FieldValueHaver<ProtoT> haver = JavaBeanUtils.createHaver(clazz, hasMethod);
         return new FieldValueGetter<@NonNull ProtoT, Object>() {
-          transient Descriptors.FieldDescriptor field = fieldDescriptor;
-
           @Override
           public @Nullable Object get(@NonNull ProtoT object) {
-            if (((Message) object).hasField(field)) {
+            if (haver.has(object)) {
               return getter.get(object);
-            } else {
-              return null;
             }
+            return null;
           }
 
           @Override
           public String name() {
             return getter.name();
-          }
-
-          private void writeObject(ObjectOutputStream out) throws IOException {
-            out.writeObject(clazz);
-            out.writeUTF(fieldName);
-          }
-
-          private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
-            @SuppressWarnings("unchecked")
-            Class<? extends Message> clazz = (Class<? extends Message>) in.readObject();
-            String fieldName = in.readUTF();
-            field = ProtobufUtil.getDescriptorForClass(clazz).findFieldByName(fieldName);
           }
         };
       } else {
@@ -1065,6 +1047,13 @@ class ProtoByteBuddyUtils {
         .filter(m -> m.getParameterCount() == 0)
         .findAny()
         .orElseThrow(IllegalArgumentException::new);
+  }
+
+  static @Nullable Method getProtoHaver(Multimap<String, Method> methods, String name) {
+    return methods.get(protoHaverName(name)).stream()
+        .filter(m -> m.getParameterCount() == 0)
+        .findAny()
+        .orElse(null);
   }
 
   public static @Nullable <ProtoBuilderT extends MessageLite.Builder>
