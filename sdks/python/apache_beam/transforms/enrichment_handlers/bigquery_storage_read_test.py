@@ -225,8 +225,7 @@ class TestBigQueryStorageEnrichmentHandler(unittest.TestCase):
 
   @mock.patch(
       'apache_beam.transforms.enrichment_handlers.'
-      'bigquery_storage_read.BigQueryReadClient'
-  )
+      'bigquery_storage_read.BigQueryReadClient')
   def test_max_stream_count_passed_to_bq_api(self, mock_client_class):
     """Test that max_stream_count is passed to BigQuery API request."""
     handler = self.make_handler(max_stream_count=25)
