@@ -22,12 +22,14 @@ import static org.apache.beam.sdk.extensions.protobuf.ProtoSchemaTranslator.getF
 import com.google.protobuf.BoolValue;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.BytesValue;
+import com.google.protobuf.Descriptors;
 import com.google.protobuf.DoubleValue;
 import com.google.protobuf.Duration;
 import com.google.protobuf.FloatValue;
 import com.google.protobuf.Int32Value;
 import com.google.protobuf.Int64Value;
 import com.google.protobuf.Internal.EnumLite;
+import com.google.protobuf.Message;
 import com.google.protobuf.MessageLite;
 import com.google.protobuf.ProtocolMessageEnum;
 import com.google.protobuf.StringValue;
@@ -986,7 +988,33 @@ class ProtoByteBuddyUtils {
       return createOneOfGetter(
           fieldValueTypeInformation, oneOfGetters, clazz, oneOfType, caseMethod);
     } else {
-      return JavaBeanUtils.createGetter(fieldValueTypeInformation, typeConversionsFactory);
+      FieldValueGetter<@NonNull ProtoT, Object> getter =
+          JavaBeanUtils.createGetter(fieldValueTypeInformation, typeConversionsFactory);
+
+      // Handle nullable field
+      @SuppressWarnings("unchecked")
+      Descriptors.FieldDescriptor fieldDescriptor =
+          ProtobufUtil.getDescriptorForClass((Class<Message>) clazz)
+              .findFieldByName(field.getName());
+      if (ProtoSchemaTranslator.isNullable(fieldDescriptor)) {
+        return new FieldValueGetter<@NonNull ProtoT, Object>() {
+          @Override
+          public @Nullable Object get(@NonNull ProtoT object) {
+            if (((Message) object).hasField(fieldDescriptor)) {
+              return getter.get(object);
+            } else {
+              return null;
+            }
+          }
+
+          @Override
+          public String name() {
+            return getter.name();
+          }
+        };
+      } else {
+        return getter;
+      }
     }
   }
 
@@ -1107,10 +1135,13 @@ class ProtoByteBuddyUtils {
     }
 
     @Override
-    public Object create(Object... params) {
+    public Object create(@Nullable Object... params) {
       ProtoBuilderT builder = builderCreator.get();
       for (int i = 0; i < params.length; ++i) {
-        setters.get(i).set(builder, params[i]);
+        @Nullable Object param = params[i];
+        if (param != null) {
+          setters.get(i).set(builder, param);
+        }
       }
       return builder.build();
     }
