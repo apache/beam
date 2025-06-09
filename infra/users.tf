@@ -28,6 +28,8 @@ locals {
           username              = user.username
           email                 = user.email
           role                  = perm.role
+          title                 = lookup(perm, "title", null)
+          description           = lookup(perm, "description", null)
           request_description   = lookup(perm, "request_description", null)
           expiry_date           = lookup(perm, "expiry_date", null)
         } if perm != null && lookup(perm, "role", null) != null
