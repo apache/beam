@@ -47,9 +47,11 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowTracing;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValueReceiver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -106,7 +108,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
    */
   private final WindowingStrategy<Object, W> windowingStrategy;
 
-  private final OutputWindowedValue<KV<K, OutputT>> outputter;
+  private final WindowedValueReceiver<KV<K, OutputT>> outputter;
 
   private final StateInternals stateInternals;
 
@@ -214,7 +216,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       ExecutableTriggerStateMachine triggerStateMachine,
       StateInternals stateInternals,
       TimerInternals timerInternals,
-      OutputWindowedValue<KV<K, OutputT>> outputter,
+      WindowedValueReceiver<KV<K, OutputT>> outputter,
       @Nullable SideInputReader sideInputReader,
       ReduceFn<K, InputT, OutputT, W> reduceFn,
       @Nullable PipelineOptions options) {
@@ -1055,7 +1057,8 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
                 }
 
                 // Output the actual value.
-                outputter.outputWindowedValue(KV.of(key, toOutput), outputTimestamp, windows, pane);
+                outputter.output(
+                    WindowedValues.of(KV.of(key, toOutput), outputTimestamp, windows, pane));
               });
 
       reduceFn.onTrigger(renamedTriggerContext);

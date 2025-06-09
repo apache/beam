@@ -214,7 +214,7 @@ public class JdbcReadSchemaTransformProvider
 
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
-      config.validate();
+      config.validate(jdbcType);
       // If we define a partition column, we follow a different route.
       @Nullable String partitionColumn = config.getPartitionColumn();
       @Nullable String location = config.getLocation();

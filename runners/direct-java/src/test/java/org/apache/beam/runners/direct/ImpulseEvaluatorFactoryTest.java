@@ -32,8 +32,9 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -64,7 +65,7 @@ public class ImpulseEvaluatorFactoryTest {
 
     ImpulseEvaluatorFactory factory = new ImpulseEvaluatorFactory(context);
 
-    WindowedValue<ImpulseShard> inputShard = WindowedValue.valueInGlobalWindow(new ImpulseShard());
+    WindowedValue<ImpulseShard> inputShard = WindowedValues.valueInGlobalWindow(new ImpulseShard());
     CommittedBundle<ImpulseShard> inputShardBundle =
         bundleFactory.<ImpulseShard>createRootBundle().add(inputShard).commit(Instant.now());
 

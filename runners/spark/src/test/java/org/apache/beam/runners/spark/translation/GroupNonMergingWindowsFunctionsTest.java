@@ -34,9 +34,10 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
+import org.apache.beam.sdk.values.WindowedValues.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Bytes;
 import org.joda.time.Duration;
@@ -123,8 +124,8 @@ public class GroupNonMergingWindowsFunctionsTest {
       throws Coder.NonDeterministicException {
 
     StringUtf8Coder keyCoder = StringUtf8Coder.of();
-    final WindowedValue.FullWindowedValueCoder<KV<String, Integer>> winValCoder =
-        WindowedValue.getFullCoder(
+    final WindowedValues.FullWindowedValueCoder<KV<String, Integer>> winValCoder =
+        WindowedValues.getFullCoder(
             KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()),
             winStrategy.getWindowFn().windowCoder());
 
@@ -157,7 +158,7 @@ public class GroupNonMergingWindowsFunctionsTest {
     }
 
     private final Coder<K> keyCoder;
-    private final WindowedValue.FullWindowedValueCoder<KV<K, V>> winValCoder;
+    private final WindowedValues.FullWindowedValueCoder<KV<K, V>> winValCoder;
     private final byte[] windowBytes;
     private final W window;
 
@@ -178,7 +179,7 @@ public class GroupNonMergingWindowsFunctionsTest {
 
       byte[] windowedValue =
           CoderHelpers.toByteArray(
-              WindowedValue.of(
+              WindowedValues.of(
                   KV.of(key, value), Instant.now(), window, PaneInfo.ON_TIME_AND_ONLY_FIRING),
               winValCoder);
       return new Tuple2<>(kaw, windowedValue);

@@ -30,7 +30,8 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -84,7 +85,7 @@ public class PubsubReaderTest {
         (PubsubReader<String>)
             factory.create(
                 cloudSourceSpec,
-                WindowedValue.getFullCoder(StringUtf8Coder.of(), IntervalWindow.getCoder()),
+                WindowedValues.getFullCoder(StringUtf8Coder.of(), IntervalWindow.getCoder()),
                 null,
                 mockContext,
                 null);
@@ -92,13 +93,13 @@ public class PubsubReaderTest {
     NativeReader.NativeReaderIterator<WindowedValue<String>> iter = reader.iterator();
     assertTrue(iter.start());
     assertEquals(
-        iter.getCurrent(), WindowedValue.timestampedValueInGlobalWindow("e0", new Instant(0)));
+        iter.getCurrent(), WindowedValues.timestampedValueInGlobalWindow("e0", new Instant(0)));
     assertTrue(iter.advance());
     assertEquals(
-        iter.getCurrent(), WindowedValue.timestampedValueInGlobalWindow("e1", new Instant(1)));
+        iter.getCurrent(), WindowedValues.timestampedValueInGlobalWindow("e1", new Instant(1)));
     assertTrue(iter.advance());
     assertEquals(
-        iter.getCurrent(), WindowedValue.timestampedValueInGlobalWindow("e2", new Instant(2)));
+        iter.getCurrent(), WindowedValues.timestampedValueInGlobalWindow("e2", new Instant(2)));
     assertFalse(iter.advance());
   }
 

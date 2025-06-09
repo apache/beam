@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
@@ -36,9 +37,6 @@ import org.joda.time.Instant;
 
 /** Common {@link OutputReceiver} and {@link MultiOutputReceiver} classes. */
 @Internal
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class DoFnOutputReceivers {
   private static class RowOutputReceiver<T> implements OutputReceiver<Row> {
     WindowedContextOutputReceiver<T> outputReceiver;
@@ -139,7 +137,7 @@ public class DoFnOutputReceivers {
     @Override
     public <T> OutputReceiver<Row> getRowReceiver(TupleTag<T> tag) {
       Coder<T> outputCoder = (Coder<T>) checkNotNull(outputCoders).get(tag);
-      checkState(outputCoder != null, "No output tag for " + tag);
+      checkStateNotNull(outputCoder, "No output tag for " + tag);
       checkState(
           outputCoder instanceof SchemaCoder,
           "Output with tag " + tag + " must have a schema in order to call getRowReceiver");
