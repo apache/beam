@@ -15,6 +15,7 @@
 
 import unittest
 from unittest import mock
+
 from apache_beam.pvalue import Row as BeamRow
 
 try:

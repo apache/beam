@@ -24,16 +24,16 @@ row selection.
 """
 import concurrent.futures  # For parallel stream reading
 import logging
+import pyarrow as pa
 import re
 from collections.abc import Callable, Mapping
+from google.api_core.exceptions import BadRequest, GoogleAPICallError, NotFound
+from google.cloud.bigquery_storage import BigQueryReadClient, types
 from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, Union
 
 # Import Row explicitly for type checking where needed
 from apache_beam.pvalue import Row as BeamRow
 from apache_beam.transforms.enrichment import EnrichmentSourceHandler
-from google.api_core.exceptions import BadRequest, NotFound, GoogleAPICallError
-from google.cloud.bigquery_storage import BigQueryReadClient, types
-import pyarrow as pa
 
 # --- Configure Logging ---
 logger = logging.getLogger(__name__)
