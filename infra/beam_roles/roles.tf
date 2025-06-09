@@ -14,21 +14,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# This file defines the general configuration for the Terraform project.
-terraform {
-  required_providers {
-    google = {
-      source  = "hashicorp/google"
-      version = "6.37.0"
-    }
+
+# This file ingests the roles defined in the directory and
+# configures the corresponding roles in the GCP project.
+
+# Find all .role.yaml files in the current directory
+locals {
+  role_files = fileset(path.module, "*.role.yaml")
+  roles_data = {
+    for f in local.role_files :
+    trimsuffix(f, ".role.yaml") => yamldecode(file("${path.module}/${f}"))
   }
 }
+
 variable "project_id" {
   description = "The GCP project ID."
   type        = string
 }
 
-module "beam_roles" {
-  source     = "./beam_roles"
-  project_id = var.project_id
+resource "google_project_iam_custom_role" "custom_roles" {
+  for_each = local.roles_data
+
+  project     = var.project_id
+  role_id     = each.value.role_id
+  title       = each.value.title
+  description = lookup(each.value, "description", null)
+  permissions = each.value.permissions
+  stage       = lookup(each.value, "stage", "GA")
 }
