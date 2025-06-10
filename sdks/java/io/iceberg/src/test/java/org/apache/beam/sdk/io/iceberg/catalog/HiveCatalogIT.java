@@ -102,6 +102,7 @@ public class HiveCatalogIT extends IcebergCatalogBaseIT {
     Map<String, String> confProperties =
         ImmutableMap.<String, String>builder()
             .put(HiveConf.ConfVars.METASTOREURIS.varname, metastoreUri)
+            .put(HiveConf.ConfVars.METASTOREWAREHOUSE.varname, warehouse)
             .build();
 
     return ImmutableMap.<String, Object>builder()
