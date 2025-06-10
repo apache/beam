@@ -132,7 +132,7 @@ public class PipelineOptionsTest {
   @Test
   public void testDefaultPTransformTimeoutDuration() {
     PipelineOptions options = PipelineOptionsFactory.create();
-    assertEquals(Integer.MAX_VALUE, options.getPtransformTimeoutDuration());
+    assertEquals(0, options.getPtransformTimeoutDuration());
   }
 
   @Test

@@ -429,7 +429,6 @@ public interface PipelineOptions extends HasDisplayData {
    * The time limit (minute) that an SDK worker allows for a PTransform operation before signaling
    * the runner harness to restart the SDK worker.
    */
-  @Default.Integer(Integer.MAX_VALUE)
   @Description(
       "The time limit (minute) that an SDK worker allows for a PTransform operation "
           + "before signaling the runner harness to restart the SDK worker.")
