@@ -126,16 +126,31 @@ A     B
       pcoll = p | beam.io.ReadFromCsv(f'{input}tmp.csv', dtype=str)
       assert_that(pcoll | beam.Map(max), equal_to(['99']))
 
-  def test_sharding_parameters(self):
+  def test_sharding_parameters_for_single_file_naming(self):
     data = pd.DataFrame({'label': ['11a', '37a', '389a'], 'rank': [0, 1, 2]})
     output = self.temp_dir()
     with beam.Pipeline() as p:
-      df = convert.to_dataframe(p | beam.Create([data]), proxy=data[:0])
+      df = convert.to_dataframe(
+          p | beam.Create([data, data, data, data]), proxy=data[:0])
       df.to_csv(
           output,
           num_shards=1,
           file_naming=fileio.single_file_naming('out.csv'))
-    self.assertEqual(glob.glob(output + '*'), [output + 'out.csv'])
+    self.assertCountEqual(glob.glob(output + '*'), [output + 'out.csv'])
+
+  def test_sharding_parameters_multiple_shards(self):
+    data = pd.DataFrame({'label': ['11a', '37a', '389a'], 'rank': [0, 1, 2]})
+    output = self.temp_dir()
+    with beam.Pipeline() as p:
+      df = convert.to_dataframe(
+          p | beam.Create([data, data, data]), proxy=data[:0])
+      df.to_csv(
+          output,
+          num_shards=3,
+          file_naming=fileio.default_file_naming('out', suffix='.csv'))
+    self.assertCountEqual(
+        glob.glob(output + '*'),
+        [f'{output}out-0000{i}-of-00003.csv' for i in range(3)])
 
   @pytest.mark.uses_pyarrow
   @unittest.skipIf(
