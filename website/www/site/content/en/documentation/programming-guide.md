@@ -6977,7 +6977,7 @@ Timer output timestamps is not yet supported in Python SDK. See https://github.c
 The following parameters are provided for the timer callback methods which could be used for debuging.
 
 1. Window: This can provide the window object to access the window start and end time.
-2. Timestamp: This can provide the timestamp of the element.
+2. Timestamp: This can provide the timestamp at which the timer was set to fire.
 3. Key: The key was associated with the element.
 
 {{< highlight py >}}
