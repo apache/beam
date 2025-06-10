@@ -214,8 +214,7 @@ class DataflowMetrics extends MetricResults {
       Object trieFromResponse = metricUpdate.getBoundedTrie();
       // Fail-safely cast Trie returned by dataflow API to BoundedTrieResult
       if (trieFromResponse instanceof BoundedTrie) {
-        BoundedTrie bTrie = (BoundedTrie) metricUpdate.getBoundedTrie();
-        trieData = BoundedTrieData.fromProto(bTrie);
+        trieData = BoundedTrieData.fromProto((BoundedTrie) trieFromResponse);
       } else if (trieFromResponse instanceof ArrayMap) {
         trieData = trieFromArrayMap((ArrayMap) trieFromResponse);
       }
