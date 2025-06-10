@@ -103,7 +103,7 @@ public class ExecutionStateSampler {
     this.activeStateTrackers = new HashSet<>();
 
     if (options.getPtransformTimeoutDuration() <= 0) {
-      this.userAllowedLullTimeMsForRestart = 0;
+      this.userAllowedLullTimeMsForRestart = 0L;
       this.userAllowedTimeoutForRestart = false;
     } else {
       this.userAllowedTimeoutForRestart = true;
