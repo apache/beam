@@ -80,8 +80,7 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
     self.read_test_pipeline = TestPipeline(is_integration_test=True)
     self._runner = type(self.read_test_pipeline.runner).__name__
 
-    self.default_table_name = "default_embeddings"
-    f"{self.POSTGRES_TABLE_PREFIX}" \
+    self.default_table_name = f"{self.POSTGRES_TABLE_PREFIX}" \
       f"{self.table_suffix}"
 
     self.jdbc_url = f'jdbc:postgresql://{self.host}:{self.port}/{self.database}'
