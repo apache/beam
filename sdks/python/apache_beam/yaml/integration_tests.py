@@ -440,7 +440,7 @@ def temp_kafka_server():
       Exception: If there's an error starting the Kafka container or
                  interacting with the temporary Kafka server.
   """
-  with KafkaContainer().with_kraft() as kafka_container:
+  with KafkaContainer() as kafka_container:
     try:
       yield kafka_container.get_bootstrap_server()
     except Exception as err:
