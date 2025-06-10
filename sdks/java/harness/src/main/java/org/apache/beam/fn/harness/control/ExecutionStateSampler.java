@@ -391,7 +391,7 @@ public class ExecutionStateSampler {
               String.format(
                   "The ptransform has been stuck for more than %d minutes, the SDK worker will"
                       + " restart",
-                  lullTimeMinuteForRestart)
+                  TimeUnit.MILLISECONDS.toMinutes(this.userAllowedLullTimeMsForRestart))
           );
         }
 
