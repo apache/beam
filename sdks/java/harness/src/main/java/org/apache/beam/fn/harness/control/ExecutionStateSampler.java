@@ -66,7 +66,7 @@ public class ExecutionStateSampler {
   private static final Logger LOG = LoggerFactory.getLogger(ExecutionStateSampler.class);
   private static final int DEFAULT_SAMPLING_PERIOD_MS = 200;
   private static final long MAX_LULL_TIME_MS = TimeUnit.MINUTES.toMillis(5);
-  private static final int MIN_LULL_TIME_MINUTE_FOR_RESTART = 10; // Open to change.
+  private static final long MIN_LULL_TIME_MS_FOR_RESTART = TimeUnit.MINUTES.toMillis(10);
   private static final PeriodFormatter DURATION_FORMATTER =
       new PeriodFormatterBuilder()
           .appendDays()
@@ -82,7 +82,7 @@ public class ExecutionStateSampler {
           .toFormatter();
   private final int periodMs;
   private final MillisProvider clock;
-  private final int lullTimeMinuteForRestart;
+  private final Long userAllowedLullTimeMsForRestart;
 
   @GuardedBy("activeStateTrackers")
   private final Set<ExecutionStateTracker> activeStateTrackers;
@@ -100,18 +100,25 @@ public class ExecutionStateSampler {
             : Integer.parseInt(samplingPeriodMills);
     this.clock = clock;
     this.activeStateTrackers = new HashSet<>();
-    this.lullTimeMinuteForRestart =
-        Math.max(
-            options.getPtransformTimeoutDuration(),
-            ExecutionStateSampler.MIN_LULL_TIME_MINUTE_FOR_RESTART);
-    if (options.getPtransformTimeoutDuration()
-        < ExecutionStateSampler.MIN_LULL_TIME_MINUTE_FOR_RESTART) {
-      LOG.info(
-          String.format(
-              "The user defined ptransformTimeoutDuration might be too small for "
-                  + "a pTransform operation and has been set to %d minutes",
-              this.lullTimeMinuteForRestart));
+
+    if (options.getPtransformTimeoutDuration() == 0) {
+      this.userAllowedLullTimeMsForRestart = null;
+    } else {
+      int timeout = options.getPtransformTimeoutDuration();
+      long timeoutMs = TimeUnit.MINUTES.toMillis(timeout);
+      this.userAllowedLullTimeMsForRestart =
+          Math.max(
+              timeoutMs,
+              ExecutionStateSampler.MIN_LULL_TIME_MS_FOR_RESTART);
+      if (timeoutMs < ExecutionStateSampler.MIN_LULL_TIME_MS_FOR_RESTART) {
+        LOG.info(
+            String.format(
+                "The user defined ptransformTimeoutDuration is too short for "
+                    + "a pTransform operation and has been set to %d minutes",
+                TimeUnit.MILLISECONDS.toMinutes(this.userAllowedLullTimeMsForRestart)));
+      }
     }
+
     // We specifically synchronize to ensure that this object can complete
     // being published before the state sampler thread starts.
     synchronized (this) {
@@ -378,16 +385,14 @@ public class ExecutionStateSampler {
       } else {
         long lullTimeMs = currentTimeMillis - lastTransitionTimeMillis.get();
 
-        try {
-          if (lullTimeMs > TimeUnit.MINUTES.toMillis(lullTimeMinuteForRestart)) {
-            throw new TimeoutException(
-                String.format(
-                    "The ptransform has been stuck for more than %d minutes, the SDK worker will"
-                        + " restart",
-                    lullTimeMinuteForRestart));
-          }
-        } catch (TimeoutException e) {
-          LOG.error(e.getMessage());
+        if (userAllowedLullTimeMsForRestart != null
+            && lullTimeMs > userAllowedLullTimeMsForRestart) {
+          throw new RuntimeException(
+              String.format(
+                  "The ptransform has been stuck for more than %d minutes, the SDK worker will"
+                      + " restart",
+                  lullTimeMinuteForRestart)
+          );
         }
 
         if (lullTimeMs > MAX_LULL_TIME_MS) {
