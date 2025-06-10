@@ -110,9 +110,7 @@ public class ExecutionStateSampler {
       int timeout = options.getPtransformTimeoutDuration();
       long timeoutMs = TimeUnit.MINUTES.toMillis(timeout);
       this.userAllowedLullTimeMsForRestart =
-          Math.max(
-              timeoutMs,
-              ExecutionStateSampler.MIN_LULL_TIME_MS_FOR_RESTART);
+          Math.max(timeoutMs, ExecutionStateSampler.MIN_LULL_TIME_MS_FOR_RESTART);
       if (timeoutMs < ExecutionStateSampler.MIN_LULL_TIME_MS_FOR_RESTART) {
         LOG.info(
             String.format(
@@ -393,13 +391,12 @@ public class ExecutionStateSampler {
       } else {
         long lullTimeMs = currentTimeMillis - lastTransitionTimeMillis.get();
 
-        if (userAllowedTimeoutForRestart&& lullTimeMs > userAllowedLullTimeMsForRestart) {
+        if (userAllowedTimeoutForRestart && lullTimeMs > userAllowedLullTimeMsForRestart) {
           throw new RuntimeException(
               String.format(
                   "The ptransform has been stuck for more than %d minutes, the SDK worker will"
                       + " restart",
-                  TimeUnit.MILLISECONDS.toMinutes(userAllowedLullTimeMsForRestart))
-          );
+                  TimeUnit.MILLISECONDS.toMinutes(userAllowedLullTimeMsForRestart)));
         }
 
         if (lullTimeMs > MAX_LULL_TIME_MS) {

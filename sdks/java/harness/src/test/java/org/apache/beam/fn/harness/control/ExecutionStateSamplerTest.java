@@ -864,8 +864,8 @@ public class ExecutionStateSamplerTest {
     ExecutionStateSampler sampler =
         new ExecutionStateSampler(
             PipelineOptionsFactory.fromArgs("--ptransformTimeoutDuration=5").create(), clock);
-    assertThat(sampler.getUserAllowedLullTimeMsForRestart(),
-        equalTo(TimeUnit.MINUTES.toMillis(10)));
+    assertThat(
+        sampler.getUserAllowedLullTimeMsForRestart(), equalTo(TimeUnit.MINUTES.toMillis(10)));
     assertThat(sampler.getUserAllowedTimeoutForRestart(), equalTo(true));
     expectedLogs.verifyInfo(
         "The user defined ptransformTimeoutDuration is too short for "
@@ -878,8 +878,8 @@ public class ExecutionStateSamplerTest {
     ExecutionStateSampler sampler =
         new ExecutionStateSampler(
             PipelineOptionsFactory.fromArgs("--ptransformTimeoutDuration=20").create(), clock);
-    assertThat(sampler.getUserAllowedLullTimeMsForRestart(),
-        equalTo(TimeUnit.MINUTES.toMillis(20)));
+    assertThat(
+        sampler.getUserAllowedLullTimeMsForRestart(), equalTo(TimeUnit.MINUTES.toMillis(20)));
   }
 
   @Test
