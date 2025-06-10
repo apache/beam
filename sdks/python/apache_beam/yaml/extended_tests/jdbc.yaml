@@ -16,9 +16,9 @@
 #
 
 
-# fixtures:
-#   - name: TEMP_DB
-#     type: "apache_beam.yaml.integration_tests.temp_sqlite_database"
+fixtures:
+  - name: TEMP_DB
+    type: "apache_beam.yaml.integration_tests.temp_sqlite_database"
 
 pipelines:
   # Jdbc write pipeline
@@ -31,25 +31,25 @@ pipelines:
               - {value: 123, rank: 0}
               - {value: 456, rank: 1}
               - {value: 789, rank: 2}
-  #       - type: WriteToJdbc
-  #         config:
-  #           url: "{TEMP_DB}"
-  #           driver_class_name: "org.sqlite.JDBC"
-  #           query: "INSERT INTO tmp_table (value, rank) VALUES(?,?)"
+        - type: WriteToJdbc
+          config:
+            url: "{TEMP_DB}"
+            driver_class_name: "org.sqlite.JDBC"
+            query: "INSERT INTO tmp_table (value, rank) VALUES(?,?)"
 
-  # # Jdbc read pipeline
-  # - pipeline:
-  #     type: chain
-  #     transforms:
-  #       - type: ReadFromJdbc
-  #         config:
-  #           url: "{TEMP_DB}"
-  #           driver_class_name: "org.sqlite.JDBC"
-  #           query: "SELECT * FROM tmp_table"
-  #       - type: AssertEqual
-  #         config:
-  #           elements:
-  #             - {value: 123, rank: 0}
-  #             - {value: 456, rank: 1}
-  #             - {value: 789, rank: 2}
+  # Jdbc read pipeline
+  - pipeline:
+      type: chain
+      transforms:
+        - type: ReadFromJdbc
+          config:
+            url: "{TEMP_DB}"
+            driver_class_name: "org.sqlite.JDBC"
+            query: "SELECT * FROM tmp_table"
+        - type: AssertEqual
+          config:
+            elements:
+              - {value: 123, rank: 0}
+              - {value: 456, rank: 1}
+              - {value: 789, rank: 2}
     

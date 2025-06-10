@@ -15,9 +15,9 @@
 # limitations under the License.
 #
 
-# fixtures:
-#   - name: TEMP_DB
-#     type: "apache_beam.yaml.integration_tests.temp_postgres_database"
+fixtures:
+  - name: TEMP_DB
+    type: "apache_beam.yaml.integration_tests.temp_postgres_database"
 
 pipelines:
   # Postgres write pipeline
@@ -30,40 +30,40 @@ pipelines:
               - {value: 123, rank: 0}
               - {value: 456, rank: 1}
               - {value: 789, rank: 2}
-  #       - type: WriteToPostgres
-  #         config:
-  #           url: "{TEMP_DB}"
-  #           query: "INSERT INTO tmp_table (value, rank) VALUES(?,?)"
+        - type: WriteToPostgres
+          config:
+            url: "{TEMP_DB}"
+            query: "INSERT INTO tmp_table (value, rank) VALUES(?,?)"
 
-  # # Postgres read pipeline with driver_class_name
-  # - pipeline:
-  #     type: chain
-  #     transforms:
-  #       - type: ReadFromPostgres
-  #         config:
-  #           url: "{TEMP_DB}"
-  #           query: "SELECT * FROM tmp_table"
-  #           driver_class_name: "org.postgresql.Driver"
-  #       - type: AssertEqual
-  #         config:
-  #           elements:
-  #             - {value: 123, rank: 0}
-  #             - {value: 456, rank: 1}
-  #             - {value: 789, rank: 2}
+  # Postgres read pipeline with driver_class_name
+  - pipeline:
+      type: chain
+      transforms:
+        - type: ReadFromPostgres
+          config:
+            url: "{TEMP_DB}"
+            query: "SELECT * FROM tmp_table"
+            driver_class_name: "org.postgresql.Driver"
+        - type: AssertEqual
+          config:
+            elements:
+              - {value: 123, rank: 0}
+              - {value: 456, rank: 1}
+              - {value: 789, rank: 2}
     
-  # # Postgres read pipeline without driver_class_name
-  # # This is to prevent https://github.com/apache/beam/issues/35122 from
-  # # happening again.
-  # - pipeline:
-  #     type: chain
-  #     transforms:
-  #       - type: ReadFromPostgres
-  #         config:
-  #           url: "{TEMP_DB}"
-  #           query: "SELECT * FROM tmp_table"
-  #       - type: AssertEqual
-  #         config:
-  #           elements:
-  #             - {value: 123, rank: 0}
-  #             - {value: 456, rank: 1}
-  #             - {value: 789, rank: 2}
+  # Postgres read pipeline without driver_class_name
+  # This is to prevent https://github.com/apache/beam/issues/35122 from
+  # happening again.
+  - pipeline:
+      type: chain
+      transforms:
+        - type: ReadFromPostgres
+          config:
+            url: "{TEMP_DB}"
+            query: "SELECT * FROM tmp_table"
+        - type: AssertEqual
+          config:
+            elements:
+              - {value: 123, rank: 0}
+              - {value: 456, rank: 1}
+              - {value: 789, rank: 2}

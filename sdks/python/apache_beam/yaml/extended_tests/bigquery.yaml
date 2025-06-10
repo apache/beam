@@ -15,16 +15,16 @@
 # limitations under the License.
 #
 
-# fixtures:
-#   - name: BQ_TABLE
-#     type: "apache_beam.yaml.integration_tests.temp_bigquery_table"
-#     config:
-#       project: "apache-beam-testing"
-#   - name: TEMP_DIR
-#     # Need distributed filesystem to be able to read and write from a container.
-#     type: "apache_beam.yaml.integration_tests.gcs_temp_dir"
-#     config:
-#       bucket: "gs://temp-storage-for-end-to-end-tests/temp-it"
+fixtures:
+  - name: BQ_TABLE
+    type: "apache_beam.yaml.integration_tests.temp_bigquery_table"
+    config:
+      project: "apache-beam-testing"
+  - name: TEMP_DIR
+    # Need distributed filesystem to be able to read and write from a container.
+    type: "apache_beam.yaml.integration_tests.gcs_temp_dir"
+    config:
+      bucket: "gs://temp-storage-for-end-to-end-tests/temp-it"
 
 pipelines:
   - pipeline:
@@ -36,42 +36,42 @@ pipelines:
               - {label: "11a", rank: 0}
               - {label: "37a", rank: 1}
               - {label: "389a", rank: 2}
-    #     - type: WriteToBigQuery
-    #       config:
-    #         table: "{BQ_TABLE}"
-    # options:
-    #   project: "apache-beam-testing"
-    #   temp_location: "{TEMP_DIR}"
+        - type: WriteToBigQuery
+          config:
+            table: "{BQ_TABLE}"
+    options:
+      project: "apache-beam-testing"
+      temp_location: "{TEMP_DIR}"
 
-  # - pipeline:
-  #     type: chain
-  #     transforms:
-  #       - type: ReadFromBigQuery
-  #         config:
-  #           table: "{BQ_TABLE}"
-  #       - type: AssertEqual
-  #         config:
-  #           elements:
-  #             - {label: "11a", rank: 0}
-  #             - {label: "37a", rank: 1}
-  #             - {label: "389a", rank: 2}
-  #   options:
-  #     project: "apache-beam-testing"
-  #     temp_location: "{TEMP_DIR}"
+  - pipeline:
+      type: chain
+      transforms:
+        - type: ReadFromBigQuery
+          config:
+            table: "{BQ_TABLE}"
+        - type: AssertEqual
+          config:
+            elements:
+              - {label: "11a", rank: 0}
+              - {label: "37a", rank: 1}
+              - {label: "389a", rank: 2}
+    options:
+      project: "apache-beam-testing"
+      temp_location: "{TEMP_DIR}"
 
-  # - pipeline:
-  #     type: chain
-  #     transforms:
-  #       - type: ReadFromBigQuery
-  #         config:
-  #           table: "{BQ_TABLE}"
-  #           fields: ["label"]
-  #           row_restriction: "rank > 0"
-  #       - type: AssertEqual
-  #         config:
-  #           elements:
-  #             - {label: "37a"}
-  #             - {label: "389a"}
-  #   options:
-  #     project: "apache-beam-testing"
-  #     temp_location: "{TEMP_DIR}"
+  - pipeline:
+      type: chain
+      transforms:
+        - type: ReadFromBigQuery
+          config:
+            table: "{BQ_TABLE}"
+            fields: ["label"]
+            row_restriction: "rank > 0"
+        - type: AssertEqual
+          config:
+            elements:
+              - {label: "37a"}
+              - {label: "389a"}
+    options:
+      project: "apache-beam-testing"
+      temp_location: "{TEMP_DIR}"

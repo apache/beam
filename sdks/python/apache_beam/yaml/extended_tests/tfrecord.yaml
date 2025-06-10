@@ -15,9 +15,9 @@
 # limitations under the License.
 #
 
-# fixtures:
-#   - name: TEMP_DIR
-#     type: "tempfile.TemporaryDirectory"
+fixtures:
+  - name: TEMP_DIR
+    type: "tempfile.TemporaryDirectory"
 
 pipelines:
   - pipeline:
@@ -27,40 +27,40 @@ pipelines:
           config:
             elements:
               - {name: "foo"}
-  #       - type: MapToFields
-  #         config:
-  #           language: python
-  #           fields:
-  #             record: 
-  #               callable: |
-  #                 def process(row):
-  #                   return row.name.encode('utf-8')
-  #               output_type: bytes
-  #       - type: WriteToTFRecord
-  #         config:
-  #           file_path_prefix: "{TEMP_DIR}"
-  #           file_name_suffix: ".tfrecords"
-  #           compression_type: "UNCOMPRESSED"
-  #           num_shards: 1
+        - type: MapToFields
+          config:
+            language: python
+            fields:
+              record: 
+                callable: |
+                  def process(row):
+                    return row.name.encode('utf-8')
+                output_type: bytes
+        - type: WriteToTFRecord
+          config:
+            file_path_prefix: "{TEMP_DIR}"
+            file_name_suffix: ".tfrecords"
+            compression_type: "UNCOMPRESSED"
+            num_shards: 1
 
-  # - pipeline:
-  #     type: chain
-  #     transforms:
-  #       - type: ReadFromTFRecord
-  #         config:
-  #           file_pattern: "{TEMP_DIR}*"
-  #           compression_type: "AUTO"
-  #           validate: true
-  #       - type: MapToFields
-  #         config:
-  #           language: python
-  #           fields:
-  #             record: 
-  #               callable: |
-  #                 def process(row):
-  #                   return row.record.decode('utf-8')
-  #               output_type: string
-  #       - type: AssertEqual
-  #         config:
-  #           elements:
-  #             - {record: "foo"}
+  - pipeline:
+      type: chain
+      transforms:
+        - type: ReadFromTFRecord
+          config:
+            file_pattern: "{TEMP_DIR}*"
+            compression_type: "AUTO"
+            validate: true
+        - type: MapToFields
+          config:
+            language: python
+            fields:
+              record: 
+                callable: |
+                  def process(row):
+                    return row.record.decode('utf-8')
+                output_type: string
+        - type: AssertEqual
+          config:
+            elements:
+              - {record: "foo"}
