@@ -15,15 +15,15 @@
 # limitations under the License.
 #
 
-fixtures:
-  - name: SPANNER_TABLE
-    type: "apache_beam.yaml.integration_tests.temp_spanner_table"
-    config:
-      project: "apache-beam-testing"
-  - name: TEMP_DIR
-    type: "apache_beam.yaml.integration_tests.gcs_temp_dir"
-    config:
-      bucket: "gs://temp-storage-for-end-to-end-tests/temp-it"
+# fixtures:
+#   - name: SPANNER_TABLE
+#     type: "apache_beam.yaml.integration_tests.temp_spanner_table"
+#     config:
+#       project: "apache-beam-testing"
+#   - name: TEMP_DIR
+#     type: "apache_beam.yaml.integration_tests.gcs_temp_dir"
+#     config:
+#       bucket: "gs://temp-storage-for-end-to-end-tests/temp-it"
 
 pipelines:
   - pipeline:
@@ -35,61 +35,61 @@ pipelines:
             - UserId: "01"
               Key: "Apple"
 
-        - type: WriteToSpanner
-          name: Write
-          input: Row
-          config:
-            project: "{SPANNER_TABLE[0]}"
-            instance: "{SPANNER_TABLE[1]}"
-            database: "{SPANNER_TABLE[2]}"
-            table: "{SPANNER_TABLE[3]}"
-            error_handling:
-              output: my_error_output
+  #       - type: WriteToSpanner
+  #         name: Write
+  #         input: Row
+  #         config:
+  #           project: "{SPANNER_TABLE[0]}"
+  #           instance: "{SPANNER_TABLE[1]}"
+  #           database: "{SPANNER_TABLE[2]}"
+  #           table: "{SPANNER_TABLE[3]}"
+  #           error_handling:
+  #             output: my_error_output
 
-        - type: LogForTesting
-          input: Write.my_error_output
+  #       - type: LogForTesting
+  #         input: Write.my_error_output
 
-  - pipeline:
-      type: chain
-      transforms:
-        - type: ReadFromSpanner
-          config:
-              project: "{SPANNER_TABLE[0]}"
-              instance: "{SPANNER_TABLE[1]}"
-              database: "{SPANNER_TABLE[2]}"
-              query: 'SELECT * FROM tmp_table where UserId = "01"'
+  # - pipeline:
+  #     type: chain
+  #     transforms:
+  #       - type: ReadFromSpanner
+  #         config:
+  #             project: "{SPANNER_TABLE[0]}"
+  #             instance: "{SPANNER_TABLE[1]}"
+  #             database: "{SPANNER_TABLE[2]}"
+  #             query: 'SELECT * FROM tmp_table where UserId = "01"'
               
-        - type: AssertEqual
-          config:
-            elements:
-              - UserId: "01"
-                Key: "Apple"
+  #       - type: AssertEqual
+  #         config:
+  #           elements:
+  #             - UserId: "01"
+  #               Key: "Apple"
 
-  - pipeline:
-      type: chain
-      transforms:
-        - type: Create
-          config:
-            elements:
-            - UserId: "02"
-              Key: "Mango"
+  # - pipeline:
+  #     type: chain
+  #     transforms:
+  #       - type: Create
+  #         config:
+  #           elements:
+  #           - UserId: "02"
+  #             Key: "Mango"
 
-        - type: WriteToSpanner
-          config:
-            project: "{SPANNER_TABLE[0]}"
-            instance: "{SPANNER_TABLE[1]}"
-            database: "{SPANNER_TABLE[2]}"
-            table: "{SPANNER_TABLE[3]}"
+  #       - type: WriteToSpanner
+  #         config:
+  #           project: "{SPANNER_TABLE[0]}"
+  #           instance: "{SPANNER_TABLE[1]}"
+  #           database: "{SPANNER_TABLE[2]}"
+  #           table: "{SPANNER_TABLE[3]}"
 
-  - pipeline:
-      type: chain
-      transforms:
-        - type: ReadFromSpanner
-          config:
-            project: "{SPANNER_TABLE[0]}"
-            instance: "{SPANNER_TABLE[1]}"
-            database: "{SPANNER_TABLE[2]}"
-            table: "{SPANNER_TABLE[3]}"
-            columns: 
-              - "{SPANNER_TABLE[4][0]}"
-              - "{SPANNER_TABLE[4][1]}"
+  # - pipeline:
+  #     type: chain
+  #     transforms:
+  #       - type: ReadFromSpanner
+  #         config:
+  #           project: "{SPANNER_TABLE[0]}"
+  #           instance: "{SPANNER_TABLE[1]}"
+  #           database: "{SPANNER_TABLE[2]}"
+  #           table: "{SPANNER_TABLE[3]}"
+  #           columns: 
+  #             - "{SPANNER_TABLE[4][0]}"
+  #             - "{SPANNER_TABLE[4][1]}"

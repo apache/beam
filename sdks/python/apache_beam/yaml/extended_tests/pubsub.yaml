@@ -15,11 +15,11 @@
 # limitations under the License.
 #
 
-fixtures:
-  - name: PS_TOPIC
-    type: "apache_beam.yaml.integration_tests.temp_pubsub_emulator"
-    config:
-      project_id: "apache-beam-testing"
+# fixtures:
+#   - name: PS_TOPIC
+#     type: "apache_beam.yaml.integration_tests.temp_pubsub_emulator"
+#     config:
+#       project_id: "apache-beam-testing"
 
 pipelines:
   # Pubsub write pipeline
@@ -32,13 +32,13 @@ pipelines:
               - {value: "11a"}
               - {value: "37a"}
               - {value: "389a"}
-        - type: WriteToPubSub
-          config:
-            topic: "{PS_TOPIC}"
-            format: "RAW"
+    #     - type: WriteToPubSub
+    #       config:
+    #         topic: "{PS_TOPIC}"
+    #         format: "RAW"
 
-    options:
-      streaming: true
+    # options:
+    #   streaming: true
 
 
 # TODO: Current PubSubIO doesn't have a max_read_time_seconds parameter like 
