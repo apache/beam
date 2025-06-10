@@ -234,7 +234,6 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
   }
 
   public SqlTransform withTableProvider(String name, TableProvider tableProvider) {
-    catalogManager().registerTableProvider(name, tableProvider);
     Map<String, TableProvider> map = new HashMap<>(tableProviderMap());
     map.put(name, tableProvider);
     return toBuilder().setTableProviderMap(ImmutableMap.copyOf(map)).build();
