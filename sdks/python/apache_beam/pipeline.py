@@ -856,8 +856,8 @@ class Pipeline(HasDisplayData):
       pvalueish,  # type: Optional[pvalue.PValue]
       transform  # type: ptransform.PTransform
   ):
-    if isinstance(pvalueish, pvalue.PDone) or pvalueish is None:
-      if isinstance(transform, ParDo):
+    if isinstance(transform, ParDo):
+      if isinstance(pvalueish, pvalue.PDone):
         # If the input is a PDone, we cannot apply a ParDo transform.
         full_label = self._current_transform().full_label
         producer_label = pvalueish.producer.full_label
@@ -865,6 +865,11 @@ class Pipeline(HasDisplayData):
             f'Transform "{full_label}" was applied to the output of '
             f'"{producer_label}" but "{producer_label.split("/")[-1]}" '
             'produces no PCollections.')
+      if pvalueish is None:
+        full_label = self._current_transform().full_label
+        raise TypeCheckError(
+            f'Transform "{full_label}" was applied to the output of '
+            f'an object of type None.')
 
   def _generate_unique_label(
       self,
