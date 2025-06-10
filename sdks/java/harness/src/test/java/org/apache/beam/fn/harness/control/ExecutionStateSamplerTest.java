@@ -864,10 +864,11 @@ public class ExecutionStateSamplerTest {
     ExecutionStateSampler sampler =
         new ExecutionStateSampler(
             PipelineOptionsFactory.fromArgs("--ptransformTimeoutDuration=5").create(), clock);
-    assertThat(sampler.getLullTimeMinuteForRestart(), equalTo(10));
+    assertThat(sampler.getUserAllowedLullTimeMsForRestart(),
+        equalTo(TimeUnit.MINUTES.toMillis(10)));
     expectedLogs.verifyInfo(
-        "The user defined ptransformTimeoutDuration might be too small for "
-            + "a pTransform operation and has been set to 10 minutes");
+        "The user defined ptransformTimeoutDuration is too short for "
+            + "a PTransform operation and has been set to 10 minutes");
   }
 
   @Test
@@ -876,7 +877,8 @@ public class ExecutionStateSamplerTest {
     ExecutionStateSampler sampler =
         new ExecutionStateSampler(
             PipelineOptionsFactory.fromArgs("--ptransformTimeoutDuration=20").create(), clock);
-    assertThat(sampler.getLullTimeMinuteForRestart(), equalTo(20));
+    assertThat(sampler.getUserAllowedLullTimeMsForRestart(),
+        equalTo(TimeUnit.MINUTES.toMillis(20)));
   }
 
   @Test
@@ -884,6 +886,6 @@ public class ExecutionStateSamplerTest {
     MillisProvider clock = mock(MillisProvider.class);
     ExecutionStateSampler sampler =
         new ExecutionStateSampler(PipelineOptionsFactory.create(), clock);
-    assertThat(sampler.getLullTimeMinuteForRestart(), equalTo(Integer.MAX_VALUE));
+    assertThat(sampler.getUserAllowedLullTimeMsForRestart(), equalTo(null));
   }
 }

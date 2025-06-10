@@ -114,7 +114,7 @@ public class ExecutionStateSampler {
         LOG.info(
             String.format(
                 "The user defined ptransformTimeoutDuration is too short for "
-                    + "a pTransform operation and has been set to %d minutes",
+                    + "a PTransform operation and has been set to %d minutes",
                 TimeUnit.MILLISECONDS.toMinutes(this.userAllowedLullTimeMsForRestart)));
       }
     }
@@ -172,8 +172,8 @@ public class ExecutionStateSampler {
   }
 
   @VisibleForTesting
-  public int getLullTimeMinuteForRestart() {
-    return this.lullTimeMinuteForRestart;
+  public Long getUserAllowedLullTimeMsForRestart() {
+    return this.userAllowedLullTimeMsForRestart;
   }
 
   /** Entry point for the state sampling thread. */
