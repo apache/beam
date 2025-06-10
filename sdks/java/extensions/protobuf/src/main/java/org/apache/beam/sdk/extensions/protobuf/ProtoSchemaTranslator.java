@@ -404,10 +404,9 @@ class ProtoSchemaTranslator {
           case ARRAY:
           case ITERABLE:
             @SuppressWarnings("unchecked")
-            ProtoBeamConverter.BeamConverter<Object, ?> beamConverter =
-                (ProtoBeamConverter.BeamConverter<Object, ?>)
-                    ProtoBeamConverter.createBeamConverter(fieldType);
-            Object value = Preconditions.checkNotNull(beamConverter.convert(entry.getValue()));
+            ProtoBeamConverter.ProtoToBeamConverter<Object, Object> protoToBeamConverter =
+                ProtoBeamConverter.createProtoToBeamConverter(fieldType);
+            Object value = protoToBeamConverter.convert(entry.getValue());
             optionsBuilder.setOption(prefix + fieldDescriptor.getFullName(), fieldType, value);
             break;
           case MAP:

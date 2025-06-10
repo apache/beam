@@ -33,6 +33,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.NanosDuration;
@@ -55,47 +56,65 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class ProtoBeamConverter {
 
   /** Returns a conversion method from Beam Row to Protobuf Message. */
-  public static SerializableFunction<@NonNull Row, @NonNull Message> toProto(
-      Descriptors.Descriptor descriptor) {
+  public static SerializableFunction<Row, Message> toProto(Descriptors.Descriptor descriptor) {
     return new ToProto(descriptor);
   }
 
   /** Returns a conversion method from Protobuf Message to Beam Row. */
-  public static SerializableFunction<@NonNull Message, @NonNull Row> toRow(Schema schema) {
+  public static SerializableFunction<Message, Row> toRow(Schema schema) {
     return new FromProto(schema);
   }
 
-  static BeamConverter<?, ?> createBeamConverter(Schema.FieldType fieldType) {
+  static ProtoToBeamConverter<Object, Object> createProtoToBeamConverter(
+      Schema.FieldType fieldType) {
     switch (fieldType.getTypeName()) {
-      case BYTE:
-        throw new UnsupportedOperationException();
-      case INT16:
-        throw new UnsupportedOperationException();
       case INT32:
-        return new BeamPassThroughConverter<>();
       case INT64:
-        return new BeamPassThroughConverter<>();
-      case DECIMAL:
-        throw new UnsupportedOperationException();
       case FLOAT:
-        return new BeamPassThroughConverter<>();
       case DOUBLE:
-        return new BeamPassThroughConverter<>();
       case STRING:
-        return new BeamPassThroughConverter<>();
-      case DATETIME:
-        throw new UnsupportedOperationException();
       case BOOLEAN:
-        return new BeamPassThroughConverter<>();
+        return createWrappableProtoToBeamConverter(ProtoToBeamConverter.identity());
       case BYTES:
-        return new BeamBytesConverter();
+        return createWrappableProtoToBeamConverter(ByteString::toByteArray);
       case ARRAY:
       case ITERABLE:
-        return new BeamListConverter<>(fieldType);
+        ProtoToBeamConverter<Object, Object> elementConverter =
+            createProtoToBeamConverter(
+                Preconditions.checkNotNull(fieldType.getCollectionElementType()));
+        return proto ->
+            ((List<Object>) proto)
+                .stream()
+                    .map(element -> Preconditions.checkNotNull(elementConverter.convert(element)))
+                    .collect(Collectors.toList());
       case MAP:
-        return new BeamMapConverter<>(fieldType);
+        ProtoToBeamConverter<Object, Object> keyConverter =
+            createProtoToBeamConverter(Preconditions.checkNotNull(fieldType.getMapKeyType()));
+        ProtoToBeamConverter<Object, Object> valueConverter =
+            createProtoToBeamConverter(Preconditions.checkNotNull(fieldType.getMapValueType()));
+
+        return proto -> {
+          List<Message> list = (List<Message>) proto;
+          if (list.isEmpty()) {
+            return Collections.emptyMap();
+          }
+          Descriptors.Descriptor descriptor = list.get(0).getDescriptorForType();
+          Descriptors.FieldDescriptor keyFieldDescriptor = descriptor.findFieldByNumber(1);
+          Descriptors.FieldDescriptor valueFieldDescriptor = descriptor.findFieldByNumber(2);
+          return list.stream()
+              .collect(
+                  Collectors.toMap(
+                      protoElement ->
+                          keyConverter.convert(protoElement.getField(keyFieldDescriptor)),
+                      protoElement ->
+                          valueConverter.convert(protoElement.getField(valueFieldDescriptor)),
+                      (a, b) -> b));
+        };
       case ROW:
-        return new BeamRowConverter(fieldType);
+        SerializableFunction<Message, Row> converter =
+            toRow(Preconditions.checkNotNull(fieldType.getRowSchema()));
+        return message -> converter.apply((Message) message);
+
       case LOGICAL_TYPE:
         switch (Preconditions.checkNotNull(fieldType.getLogicalType()).getIdentifier()) {
           case ProtoSchemaLogicalTypes.UInt32.IDENTIFIER:
@@ -106,35 +125,86 @@ public class ProtoBeamConverter {
           case ProtoSchemaLogicalTypes.SInt64.IDENTIFIER:
           case ProtoSchemaLogicalTypes.Fixed64.IDENTIFIER:
           case ProtoSchemaLogicalTypes.SFixed64.IDENTIFIER:
-            return new BeamPassThroughConverter<>();
+            return createWrappableProtoToBeamConverter(ProtoToBeamConverter.identity());
           case NanosDuration.IDENTIFIER:
-            return new BeamNanosDurationConverter();
+            return proto -> {
+              Message message = (Message) proto;
+              Descriptors.Descriptor durationDescriptor = message.getDescriptorForType();
+              Descriptors.FieldDescriptor secondsFieldDescriptor =
+                  durationDescriptor.findFieldByNumber(1);
+              Descriptors.FieldDescriptor nanosFieldDescriptor =
+                  durationDescriptor.findFieldByNumber(2);
+              long seconds = (long) message.getField(secondsFieldDescriptor);
+              int nanos = (int) message.getField(nanosFieldDescriptor);
+              return Duration.ofSeconds(seconds, nanos);
+            };
           case NanosInstant.IDENTIFIER:
-            return new BeamNanosInstantConverter();
+            return proto -> {
+              Message message = (Message) proto;
+              Descriptors.Descriptor timestampDescriptor = message.getDescriptorForType();
+              Descriptors.FieldDescriptor secondsFieldDescriptor =
+                  timestampDescriptor.findFieldByNumber(1);
+              Descriptors.FieldDescriptor nanosFieldDescriptor =
+                  timestampDescriptor.findFieldByNumber(2);
+              long seconds = (long) message.getField(secondsFieldDescriptor);
+              int nanos = (int) message.getField(nanosFieldDescriptor);
+              return Instant.ofEpochSecond(seconds, nanos);
+            };
           case EnumerationType.IDENTIFIER:
-            return new BeamEnumerationConverter(fieldType);
+            EnumerationType enumerationType = fieldType.getLogicalType(EnumerationType.class);
+            return enumValue ->
+                enumerationType.toInputType(
+                    ((Descriptors.EnumValueDescriptor) enumValue).getNumber());
           default:
             throw new UnsupportedOperationException();
         }
       default:
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException(
+            "Unsupported field type: " + fieldType.getTypeName());
     }
   }
 
-  static @NonNull ProtoConverter<?, ?> createToProtoConverter(
+  static BeamToProtoConverter<Object, Object> createBeamToProtoConverter(
       Descriptors.FieldDescriptor fieldDescriptor) {
     if (fieldDescriptor.isRepeated()) {
       if (fieldDescriptor.isMapField()) {
-        return new ProtoMapConverter<>(fieldDescriptor);
+        Descriptors.Descriptor mapDescriptor = fieldDescriptor.getMessageType();
+        Descriptors.FieldDescriptor keyDescriptor = mapDescriptor.findFieldByNumber(1);
+        Descriptors.FieldDescriptor valueDescriptor = mapDescriptor.findFieldByNumber(2);
+        BeamToProtoConverter<Object, Object> keyToProto =
+            createBeamToProtoSingularConverter(keyDescriptor);
+        BeamToProtoConverter<Object, Object> valueToProto =
+            createBeamToProtoSingularConverter(valueDescriptor);
+        return map -> {
+          ImmutableList.Builder<Message> protoList = ImmutableList.builder();
+          ((Map<Object, Object>) map)
+              .forEach(
+                  (k, v) -> {
+                    DynamicMessage.Builder message = DynamicMessage.newBuilder(mapDescriptor);
+                    Object protoKey = Preconditions.checkNotNull(keyToProto.convert(k));
+                    message.setField(keyDescriptor, protoKey);
+                    Object protoValue = Preconditions.checkNotNull(valueToProto.convert(v));
+                    message.setField(valueDescriptor, protoValue);
+                    protoList.add(message.build());
+                  });
+          return protoList.build();
+        };
       } else {
-        return new ProtoListConverter<>(fieldDescriptor);
+        BeamToProtoConverter<Object, Object> converter =
+            createBeamToProtoSingularConverter(fieldDescriptor);
+        return list ->
+            ((List<Object>) list)
+                .stream()
+                    .map(beamElement -> converter.convert(beamElement))
+                    .collect(Collectors.toList());
       }
     } else {
-      return createToProtoSingularConverter(fieldDescriptor);
+      return createBeamToProtoSingularConverter(fieldDescriptor);
     }
   }
 
-  static @NonNull ProtoConverter<?, ?> createToProtoSingularConverter(
+  @SuppressWarnings({"JavaInstantGetSecondsGetNano", "JavaDurationGetSecondsGetNano"})
+  static BeamToProtoConverter<Object, Object> createBeamToProtoSingularConverter(
       Descriptors.FieldDescriptor fieldDescriptor) {
     switch (fieldDescriptor.getJavaType()) {
       case INT:
@@ -143,11 +213,16 @@ public class ProtoBeamConverter {
       case DOUBLE:
       case BOOLEAN:
       case STRING:
-        return new ProtoPassThroughConverter<>(fieldDescriptor);
+        return createWrappableBeamToProtoConverter(
+            fieldDescriptor, BeamToProtoConverter.identity());
       case BYTE_STRING:
-        return new ProtoByteStringConverter(fieldDescriptor);
+        return createWrappableBeamToProtoConverter(
+            fieldDescriptor, bytes -> ByteString.copyFrom((byte[]) bytes));
       case ENUM:
-        return new ProtoEnumConverter(fieldDescriptor);
+        return value ->
+            fieldDescriptor
+                .getEnumType()
+                .findValueByNumber(((EnumerationType.Value) value).getValue());
       case MESSAGE:
         String fullName = fieldDescriptor.getMessageType().getFullName();
         switch (fullName) {
@@ -159,17 +234,33 @@ public class ProtoBeamConverter {
           case "google.protobuf.DoubleValue":
           case "google.protobuf.StringValue":
           case "google.protobuf.BoolValue":
-            return new ProtoPassThroughConverter<>(fieldDescriptor);
+            return createWrappableBeamToProtoConverter(
+                fieldDescriptor, BeamToProtoConverter.identity());
           case "google.protobuf.BytesValue":
-            return new ProtoByteStringConverter(fieldDescriptor);
+            return createWrappableBeamToProtoConverter(
+                fieldDescriptor, bytes -> ByteString.copyFrom((byte[]) bytes));
           case "google.protobuf.Timestamp":
-            return new ProtoTimestampConverter(fieldDescriptor);
+            return beam -> {
+              Instant instant = (Instant) beam;
+              return Timestamp.newBuilder()
+                  .setSeconds(instant.getEpochSecond())
+                  .setNanos(instant.getNano())
+                  .build();
+            };
           case "google.protobuf.Duration":
-            return new ProtoDurationConverter(fieldDescriptor);
+            return beam -> {
+              Duration duration = (Duration) beam;
+              return com.google.protobuf.Duration.newBuilder()
+                  .setSeconds(duration.getSeconds())
+                  .setNanos(duration.getNano())
+                  .build();
+            };
           case "google.protobuf.Any":
             throw new UnsupportedOperationException("google.protobuf.Any is not supported");
           default:
-            return new ProtoMessageConverter(fieldDescriptor);
+            SerializableFunction<Row, Message> converter =
+                toProto(fieldDescriptor.getMessageType());
+            return value -> converter.apply((Row) value);
         }
       default:
         throw new UnsupportedOperationException(
@@ -177,106 +268,32 @@ public class ProtoBeamConverter {
     }
   }
 
-  interface FromProtoGetter<BeamT> {
-    @Nullable
-    BeamT getFromProto(Message message);
-  }
-
-  interface ToProtoSetter<BeamT> {
-    void setToProto(Message.Builder message, Schema.FieldType fieldType, BeamT beamFieldValue);
-  }
-
-  abstract static class BeamConverter<ProtoT, BeamT> {
-    abstract @Nullable BeamT convert(@Nullable ProtoT protoValue);
-  }
-
-  abstract static class BeamNoWrapConverter<ProtoT, BeamT> extends BeamConverter<ProtoT, BeamT> {
-    @Override
-    @Nullable
-    BeamT convert(@Nullable ProtoT protoValue) {
-      if (protoValue == null) {
-        return null;
-      }
-
-      return convertNonNull(protoValue);
-    }
-
-    abstract @NonNull BeamT convertNonNull(@NonNull ProtoT protoValue);
-  }
-
-  abstract static class BeamWrapConverter<ProtoT, ProtoUnwrappedT, BeamT>
-      extends BeamConverter<ProtoT, BeamT> {
-
-    @SuppressWarnings("unchecked")
-    @Override
-    public @Nullable BeamT convert(@Nullable ProtoT protoValue) {
-      if (protoValue == null) {
-        return null;
-      }
-
-      @NonNull ProtoUnwrappedT unwrappedProtoValue;
+  static <@NonNull ProtoUnwrappedT, @NonNull BeamT>
+      ProtoToBeamConverter<Object, BeamT> createWrappableProtoToBeamConverter(
+          ProtoToBeamConverter<ProtoUnwrappedT, BeamT> converter) {
+    return protoValue -> {
+      ProtoUnwrappedT unwrappedProtoValue;
       if (protoValue instanceof Message) {
         // A google protobuf wrapper
         Message protoWrapper = (Message) protoValue;
         Descriptors.FieldDescriptor wrapperValueFieldDescriptor =
             protoWrapper.getDescriptorForType().findFieldByNumber(1);
         unwrappedProtoValue =
-            (@NonNull ProtoUnwrappedT)
+            (ProtoUnwrappedT)
                 Preconditions.checkNotNull(protoWrapper.getField(wrapperValueFieldDescriptor));
       } else {
-        unwrappedProtoValue = (@NonNull ProtoUnwrappedT) protoValue;
+        unwrappedProtoValue = (ProtoUnwrappedT) protoValue;
       }
-      return convertNonNullUnwrapped(unwrappedProtoValue);
-    }
-
-    abstract @NonNull BeamT convertNonNullUnwrapped(@NonNull ProtoUnwrappedT protoValue);
+      return converter.convert(unwrappedProtoValue);
+    };
   }
 
-  abstract static class ProtoConverter<BeamT, ProtoT> {
-    private transient Descriptors.FieldDescriptor fieldDescriptor;
-
-    ProtoConverter(Descriptors.FieldDescriptor fieldDescriptor) {
-      this.fieldDescriptor = fieldDescriptor;
-    }
-
-    public abstract @Nullable ProtoT convert(@Nullable BeamT beamValue);
-
-    public Descriptors.FieldDescriptor getFieldDescriptor() {
-      return fieldDescriptor;
-    }
-  }
-
-  abstract static class ProtoNoWrapConverter<BeamT, ProtoT> extends ProtoConverter<BeamT, ProtoT> {
-    ProtoNoWrapConverter(Descriptors.FieldDescriptor fieldDescriptor) {
-      super(fieldDescriptor);
-    }
-
-    @Override
-    public @Nullable ProtoT convert(@Nullable BeamT beamValue) {
-      if (beamValue != null) {
-        return convertNonNull(beamValue);
-      } else {
-        return null;
-      }
-    }
-
-    protected abstract @NonNull ProtoT convertNonNull(@NonNull BeamT beamValue);
-  }
-
-  abstract static class ProtoWrapConverter<BeamT, ProtoUnwrappedT>
-      extends ProtoConverter<BeamT, Object> {
-    ProtoWrapConverter(Descriptors.FieldDescriptor fieldDescriptor) {
-      super(fieldDescriptor);
-    }
-
-    @Override
-    public @Nullable Object convert(@Nullable BeamT beamValue) {
-      Descriptors.FieldDescriptor fieldDescriptor = getFieldDescriptor();
-      if (beamValue == null) {
-        return null;
-      }
-
-      ProtoUnwrappedT protoValue = convertNonNullUnwrapped(beamValue);
+  static <@NonNull BeamT, ProtoUnwrappedT extends @NonNull Object>
+      BeamToProtoConverter<BeamT, Object> createWrappableBeamToProtoConverter(
+          Descriptors.FieldDescriptor fieldDescriptor,
+          BeamToProtoConverter<BeamT, ProtoUnwrappedT> converter) {
+    return beamValue -> {
+      ProtoUnwrappedT protoValue = converter.convert(beamValue);
       if (fieldDescriptor.getJavaType() == Descriptors.FieldDescriptor.JavaType.MESSAGE) {
         // A google.protobuf wrapper
         Descriptors.Descriptor wrapperDescriptor = fieldDescriptor.getMessageType();
@@ -288,144 +305,36 @@ public class ProtoBeamConverter {
       } else {
         return protoValue;
       }
-    }
-
-    protected abstract @NonNull ProtoUnwrappedT convertNonNullUnwrapped(@NonNull BeamT beamValue);
+    };
   }
 
-  static class BeamBytesConverter extends BeamWrapConverter<Object, ByteString, byte[]> {
+  interface BeamToProtoConverter<@NonNull BeamT, @NonNull ProtoT> {
+    BeamToProtoConverter<?, ?> IDENTITY = value -> value;
 
-    @Override
-    protected byte @NonNull [] convertNonNullUnwrapped(@NonNull ByteString protoValue) {
-      return protoValue.toByteArray();
+    static <@NonNull T> BeamToProtoConverter<T, T> identity() {
+      return (BeamToProtoConverter<T, T>) IDENTITY;
     }
+
+    ProtoT convert(BeamT value);
   }
 
-  static class BeamEnumerationConverter
-      extends BeamNoWrapConverter<Descriptors.EnumValueDescriptor, EnumerationType.Value> {
-    private final EnumerationType enumerationType;
-
-    BeamEnumerationConverter(Schema.FieldType fieldType) {
-      enumerationType = fieldType.getLogicalType(EnumerationType.class);
-    }
-
-    @Override
-    protected EnumerationType.@NonNull Value convertNonNull(
-        Descriptors.@NonNull EnumValueDescriptor protoValue) {
-      int number = protoValue.getNumber();
-      return enumerationType.toInputType(number);
-    }
+  interface FromProtoGetter<@Nullable BeamT> {
+    BeamT getFromProto(Message message);
   }
 
-  static class BeamListConverter<ProtoT, BeamT>
-      extends BeamNoWrapConverter<List<@NonNull ProtoT>, List<@NonNull BeamT>> {
-    private final BeamConverter<ProtoT, BeamT> elementConverter;
+  @FunctionalInterface
+  interface ProtoToBeamConverter<@NonNull ProtoT, @NonNull BeamT> {
+    ProtoToBeamConverter<?, ?> IDENTITY = protoValue -> protoValue;
 
-    @SuppressWarnings("unchecked")
-    public BeamListConverter(Schema.FieldType fieldType) {
-      elementConverter =
-          (BeamConverter<ProtoT, BeamT>)
-              createBeamConverter(Preconditions.checkNotNull(fieldType.getCollectionElementType()));
+    static <@NonNull T> ProtoToBeamConverter<T, T> identity() {
+      return (ProtoToBeamConverter<T, T>) IDENTITY;
     }
 
-    @Override
-    protected @NonNull List<@NonNull BeamT> convertNonNull(
-        @NonNull List<@NonNull ProtoT> protoList) {
-      List<@NonNull BeamT> beamList = new ArrayList<>();
-      for (@NonNull ProtoT element : protoList) {
-        beamList.add(Preconditions.checkNotNull(elementConverter.convert(element)));
-      }
-      return beamList;
-    }
+    BeamT convert(ProtoT protoValue);
   }
 
-  static class BeamMapConverter<ProtoKeyT, ProtoValueT, BeamKeyT, BeamValueT>
-      extends BeamNoWrapConverter<
-          List<@NonNull Message>, Map<@NonNull BeamKeyT, @NonNull BeamValueT>> {
-    private final BeamConverter<ProtoKeyT, BeamKeyT> keyConverter;
-    private final BeamConverter<ProtoValueT, BeamValueT> valueConverter;
-
-    @SuppressWarnings("unchecked")
-    public BeamMapConverter(Schema.FieldType fieldType) {
-      keyConverter =
-          (BeamConverter<ProtoKeyT, BeamKeyT>)
-              createBeamConverter(Preconditions.checkNotNull(fieldType.getMapKeyType()));
-      valueConverter =
-          (BeamConverter<ProtoValueT, BeamValueT>)
-              createBeamConverter(Preconditions.checkNotNull(fieldType.getMapValueType()));
-    }
-
-    @SuppressWarnings("unchecked")
-    @Override
-    protected @NonNull Map<@NonNull BeamKeyT, @NonNull BeamValueT> convertNonNull(
-        @NonNull List<@NonNull Message> protoList) {
-      if (protoList.isEmpty()) {
-        return Collections.emptyMap();
-      }
-      Descriptors.Descriptor descriptor = protoList.get(0).getDescriptorForType();
-      Descriptors.FieldDescriptor keyFieldDescriptor = descriptor.findFieldByNumber(1);
-      Descriptors.FieldDescriptor valueFieldDescriptor = descriptor.findFieldByNumber(2);
-      Map<@NonNull BeamKeyT, @NonNull BeamValueT> beamMap = new HashMap<>();
-      protoList.forEach(
-          protoElement -> {
-            ProtoKeyT protoKey =
-                Preconditions.checkNotNull((ProtoKeyT) protoElement.getField(keyFieldDescriptor));
-            ProtoValueT protoValue =
-                Preconditions.checkNotNull(
-                    (ProtoValueT) protoElement.getField(valueFieldDescriptor));
-            BeamKeyT beamKey = Preconditions.checkNotNull(keyConverter.convert(protoKey));
-            BeamValueT beamValue = Preconditions.checkNotNull(valueConverter.convert(protoValue));
-            beamMap.put(beamKey, beamValue);
-          });
-      return beamMap;
-    }
-  }
-
-  static class BeamNanosDurationConverter extends BeamNoWrapConverter<Message, Duration> {
-
-    @Override
-    protected @NonNull Duration convertNonNull(@NonNull Message protoValue) {
-      Descriptors.Descriptor durationDescriptor = protoValue.getDescriptorForType();
-      Descriptors.FieldDescriptor secondsFieldDescriptor = durationDescriptor.findFieldByNumber(1);
-      Descriptors.FieldDescriptor nanosFieldDescriptor = durationDescriptor.findFieldByNumber(2);
-      long seconds = (long) protoValue.getField(secondsFieldDescriptor);
-      int nanos = (int) protoValue.getField(nanosFieldDescriptor);
-      return Duration.ofSeconds(seconds, nanos);
-    }
-  }
-
-  static class BeamNanosInstantConverter extends BeamNoWrapConverter<Message, Instant> {
-
-    @Override
-    protected @NonNull Instant convertNonNull(@NonNull Message protoValue) {
-      Descriptors.Descriptor timestampDescriptor = protoValue.getDescriptorForType();
-      Descriptors.FieldDescriptor secondsFieldDescriptor = timestampDescriptor.findFieldByNumber(1);
-      Descriptors.FieldDescriptor nanosFieldDescriptor = timestampDescriptor.findFieldByNumber(2);
-      long seconds = (long) protoValue.getField(secondsFieldDescriptor);
-      int nanos = (int) protoValue.getField(nanosFieldDescriptor);
-      return Instant.ofEpochSecond(seconds, nanos);
-    }
-  }
-
-  static class BeamPassThroughConverter<T> extends BeamWrapConverter<Object, T, T> {
-    @Override
-    protected @NonNull T convertNonNullUnwrapped(@NonNull T protoValue) {
-      return protoValue;
-    }
-  }
-
-  static class BeamRowConverter extends BeamNoWrapConverter<Message, Row> {
-    private final SerializableFunction<@NonNull Message, @NonNull Row> converter;
-
-    public BeamRowConverter(Schema.FieldType fieldType) {
-      Schema rowSchema = Preconditions.checkNotNull(fieldType.getRowSchema());
-      converter = toRow(rowSchema);
-    }
-
-    @Override
-    protected @NonNull Row convertNonNull(@NonNull Message protoValue) {
-      return converter.apply(protoValue);
-    }
+  interface ToProtoSetter<@Nullable BeamT> {
+    void setToProto(Message.Builder message, Schema.FieldType fieldType, BeamT beamFieldValue);
   }
 
   static class FromProto implements SerializableFunction<Message, Row> {
@@ -468,14 +377,15 @@ public class ProtoBeamConverter {
     }
   }
 
-  static class FromProtoFieldGetter<ProtoT, BeamT> implements FromProtoGetter<BeamT> {
+  static class FromProtoFieldGetter<@NonNull ProtoT, @NonNull BeamT>
+      implements FromProtoGetter<@Nullable BeamT> {
     private final Schema.Field field;
-    private final BeamConverter<ProtoT, BeamT> converter;
+    private final ProtoToBeamConverter<ProtoT, BeamT> converter;
 
     @SuppressWarnings("unchecked")
     FromProtoFieldGetter(Schema.Field field) {
       this.field = field;
-      converter = (BeamConverter<ProtoT, BeamT>) createBeamConverter(field.getType());
+      converter = (ProtoToBeamConverter<ProtoT, BeamT>) createProtoToBeamConverter(field.getType());
     }
 
     @SuppressWarnings("unchecked")
@@ -498,7 +408,7 @@ public class ProtoBeamConverter {
           protoValue = message.getField(fieldDescriptor);
         }
 
-        return converter.convert((ProtoT) protoValue);
+        return protoValue != null ? converter.convert((ProtoT) protoValue) : null;
       } catch (RuntimeException e) {
         throw new RuntimeException(
             String.format("Failed to get field from proto. field: %s", field.getName()), e);
@@ -506,10 +416,10 @@ public class ProtoBeamConverter {
     }
   }
 
-  static class FromProtoOneOfGetter implements FromProtoGetter<OneOfType.Value> {
+  static class FromProtoOneOfGetter implements FromProtoGetter<OneOfType.@Nullable Value> {
     private final Schema.Field field;
     private final OneOfType oneOfType;
-    private final Map<String, BeamConverter<Object, ?>> converter;
+    private final Map<String, ProtoToBeamConverter<Object, Object>> converter;
 
     FromProtoOneOfGetter(Schema.Field field) {
       this.field = field;
@@ -517,12 +427,11 @@ public class ProtoBeamConverter {
       this.converter = createConverters(oneOfType.getOneOfSchema());
     }
 
-    @SuppressWarnings("unchecked")
-    private static Map<String, BeamConverter<Object, ?>> createConverters(Schema schema) {
-      Map<String, BeamConverter<Object, ?>> converters = new HashMap<>();
+    private static Map<String, ProtoToBeamConverter<Object, Object>> createConverters(
+        Schema schema) {
+      Map<String, ProtoToBeamConverter<Object, Object>> converters = new HashMap<>();
       for (Schema.Field field : schema.getFields()) {
-        converters.put(
-            field.getName(), (BeamConverter<Object, ?>) createBeamConverter(field.getType()));
+        converters.put(field.getName(), createProtoToBeamConverter(field.getType()));
       }
       return converters;
     }
@@ -530,13 +439,13 @@ public class ProtoBeamConverter {
     @Override
     public OneOfType.@Nullable Value getFromProto(Message message) {
       Descriptors.Descriptor descriptor = message.getDescriptorForType();
-      for (Map.Entry<String, BeamConverter<Object, ?>> entry : converter.entrySet()) {
+      for (Map.Entry<String, ProtoToBeamConverter<Object, Object>> entry : converter.entrySet()) {
         String subFieldName = entry.getKey();
         try {
-          BeamConverter<Object, ?> value = entry.getValue();
+          ProtoToBeamConverter<Object, Object> value = entry.getValue();
           Descriptors.FieldDescriptor fieldDescriptor = descriptor.findFieldByName(subFieldName);
           if (message.hasField(fieldDescriptor)) {
-            Object protoValue = Preconditions.checkNotNull(message.getField(fieldDescriptor));
+            Object protoValue = message.getField(fieldDescriptor);
             return oneOfType.createValue(subFieldName, value.convert(protoValue));
           }
         } catch (RuntimeException e) {
@@ -551,147 +460,9 @@ public class ProtoBeamConverter {
     }
   }
 
-  static class ProtoByteStringConverter extends ProtoWrapConverter<byte[], ByteString> {
-    ProtoByteStringConverter(Descriptors.FieldDescriptor fieldDescriptor) {
-      super(fieldDescriptor);
-    }
-
-    @Override
-    protected @NonNull ByteString convertNonNullUnwrapped(byte @NonNull [] beamValue) {
-      return ByteString.copyFrom(beamValue);
-    }
-  }
-
-  static class ProtoDurationConverter
-      extends ProtoNoWrapConverter<Duration, com.google.protobuf.Duration> {
-    ProtoDurationConverter(Descriptors.FieldDescriptor fieldDescriptor) {
-      super(fieldDescriptor);
-    }
-
-    @Override
-    protected com.google.protobuf.@NonNull Duration convertNonNull(@NonNull Duration beamValue) {
-      return com.google.protobuf.Duration.newBuilder()
-          .setSeconds(beamValue.getSeconds())
-          .setNanos(beamValue.getNano())
-          .build();
-    }
-  }
-
-  static class ProtoEnumConverter
-      extends ProtoNoWrapConverter<EnumerationType.Value, Descriptors.EnumValueDescriptor> {
-    ProtoEnumConverter(Descriptors.FieldDescriptor fieldDescriptor) {
-      super(fieldDescriptor);
-    }
-
-    @Override
-    protected Descriptors.@NonNull EnumValueDescriptor convertNonNull(
-        EnumerationType.@NonNull Value beamValue) {
-      return getFieldDescriptor().getEnumType().findValueByNumber(beamValue.getValue());
-    }
-  }
-
-  static class ProtoListConverter<BeamT, ProtoT>
-      extends ProtoNoWrapConverter<Iterable<@NonNull BeamT>, List<@NonNull ProtoT>> {
-    private final @NonNull ProtoConverter<BeamT, ProtoT> converter;
-
-    @SuppressWarnings("unchecked")
-    ProtoListConverter(Descriptors.FieldDescriptor fieldDescriptor) {
-      super(fieldDescriptor);
-      converter = (ProtoConverter<BeamT, ProtoT>) createToProtoSingularConverter(fieldDescriptor);
-    }
-
-    @Override
-    protected @NonNull List<@NonNull ProtoT> convertNonNull(
-        @NonNull Iterable<@NonNull BeamT> beamValue) {
-      List<@NonNull ProtoT> protoList = new ArrayList<>();
-      for (@NonNull BeamT beamElement : beamValue) {
-        ProtoT protoElement = Preconditions.checkNotNull(converter.convert(beamElement));
-        protoList.add(protoElement);
-      }
-      return protoList;
-    }
-  }
-
-  static class ProtoMapConverter<BeamKeyT, BeamValueT, ProtoKeyT, ProtoValueT>
-      extends ProtoNoWrapConverter<Map<BeamKeyT, BeamValueT>, List<@NonNull Message>> {
-
-    private final Descriptors.Descriptor mapDescriptor;
-    private final Descriptors.FieldDescriptor keyDescriptor;
-    private final Descriptors.FieldDescriptor valueDescriptor;
-    private final ProtoConverter<BeamKeyT, ProtoKeyT> keyToProto;
-    private final ProtoConverter<BeamValueT, ProtoValueT> valueToProto;
-
-    @SuppressWarnings("unchecked")
-    ProtoMapConverter(Descriptors.FieldDescriptor fieldDescriptor) {
-      super(fieldDescriptor);
-      mapDescriptor = fieldDescriptor.getMessageType();
-      keyDescriptor = mapDescriptor.findFieldByNumber(1);
-      valueDescriptor = mapDescriptor.findFieldByNumber(2);
-      keyToProto =
-          (ProtoConverter<BeamKeyT, ProtoKeyT>) createToProtoSingularConverter(keyDescriptor);
-      valueToProto =
-          (ProtoConverter<BeamValueT, ProtoValueT>) createToProtoSingularConverter(valueDescriptor);
-    }
-
-    @Override
-    protected @NonNull List<@NonNull Message> convertNonNull(
-        @NonNull Map<BeamKeyT, BeamValueT> beamValue) {
-      ImmutableList.Builder<Message> protoList = ImmutableList.builder();
-      beamValue.forEach(
-          (k, v) -> {
-            DynamicMessage.Builder message = DynamicMessage.newBuilder(mapDescriptor);
-            Object protoKey = Preconditions.checkNotNull(keyToProto.convert(k));
-            message.setField(keyDescriptor, protoKey);
-            Object protoValue = Preconditions.checkNotNull(valueToProto.convert(v));
-            message.setField(valueDescriptor, protoValue);
-            protoList.add(message.build());
-          });
-      return protoList.build();
-    }
-  }
-
-  static class ProtoMessageConverter extends ProtoNoWrapConverter<Row, Message> {
-    private final SerializableFunction<Row, Message> converter;
-
-    ProtoMessageConverter(Descriptors.FieldDescriptor fieldDescriptor) {
-      super(fieldDescriptor);
-      this.converter = toProto(fieldDescriptor.getMessageType());
-    }
-
-    @Override
-    protected @NonNull Message convertNonNull(@NonNull Row beamValue) {
-      return converter.apply(beamValue);
-    }
-  }
-
-  static class ProtoPassThroughConverter<T> extends ProtoWrapConverter<T, T> {
-    ProtoPassThroughConverter(Descriptors.FieldDescriptor fieldDescriptor) {
-      super(fieldDescriptor);
-    }
-
-    @Override
-    protected @NonNull T convertNonNullUnwrapped(@NonNull T beamValue) {
-      return beamValue;
-    }
-  }
-
-  static class ProtoTimestampConverter extends ProtoNoWrapConverter<Instant, Timestamp> {
-    ProtoTimestampConverter(Descriptors.FieldDescriptor fieldDescriptor) {
-      super(fieldDescriptor);
-    }
-
-    @Override
-    protected @NonNull Timestamp convertNonNull(@NonNull Instant beamValue) {
-      return com.google.protobuf.Timestamp.newBuilder()
-          .setSeconds(beamValue.getEpochSecond())
-          .setNanos(beamValue.getNano())
-          .build();
-    }
-  }
-
   static class ToProto implements SerializableFunction<Row, Message> {
     private transient Descriptors.Descriptor descriptor;
-    private transient Map<String, ToProtoSetter<?>> toProtos;
+    private transient Map<String, ToProtoSetter<@Nullable Object>> toProtos;
 
     public ToProto(Descriptors.Descriptor descriptor) {
       initialize(descriptor);
@@ -707,14 +478,12 @@ public class ProtoBeamConverter {
           Descriptors.OneofDescriptor realContainingOneof =
               fieldDescriptor.getRealContainingOneof();
           if (realContainingOneof.getField(0) == fieldDescriptor) {
-            toProtos.put(
-                realContainingOneof.getName(), new ToProtoOneOfSetter(realContainingOneof));
+            ToProtoSetter<?> setter = new ToProtoOneOfSetter(realContainingOneof);
+            toProtos.put(realContainingOneof.getName(), (ToProtoSetter<@Nullable Object>) setter);
           }
           // continue
         } else {
-          toProtos.put(
-              fieldDescriptor.getName(),
-              new ToProtoFieldSetter<Object, Object>(fieldDescriptor) {});
+          toProtos.put(fieldDescriptor.getName(), new ToProtoFieldSetter<>(fieldDescriptor));
         }
       }
     }
@@ -723,10 +492,10 @@ public class ProtoBeamConverter {
     public Message apply(Row row) {
       Schema schema = row.getSchema();
       DynamicMessage.Builder message = DynamicMessage.newBuilder(descriptor);
-      for (Map.Entry<String, ToProtoSetter<?>> entry : toProtos.entrySet()) {
+      for (Map.Entry<String, ToProtoSetter<@Nullable Object>> entry : toProtos.entrySet()) {
         String fieldName = entry.getKey();
         @SuppressWarnings("unchecked")
-        ToProtoSetter<Object> converter = (ToProtoSetter<Object>) entry.getValue();
+        ToProtoSetter<@Nullable Object> converter = entry.getValue();
         converter.setToProto(
             message, schema.getField(fieldName).getType(), row.getValue(fieldName));
       }
@@ -744,32 +513,34 @@ public class ProtoBeamConverter {
     }
   }
 
-  static class ToProtoFieldSetter<BeamT, ProtoT> implements ToProtoSetter<BeamT> {
-    private final @NonNull ProtoConverter<BeamT, ProtoT> converter;
+  static class ToProtoFieldSetter<@NonNull BeamT, ProtoT extends @NonNull Object>
+      implements ToProtoSetter<@Nullable BeamT> {
+    private final Descriptors.FieldDescriptor fieldDescriptor;
+    private final BeamToProtoConverter<BeamT, ProtoT> converter;
 
     @SuppressWarnings("unchecked")
     ToProtoFieldSetter(Descriptors.FieldDescriptor fieldDescriptor) {
-      this.converter = (ProtoConverter<BeamT, ProtoT>) createToProtoConverter(fieldDescriptor);
+      this.fieldDescriptor = fieldDescriptor;
+      this.converter =
+          (BeamToProtoConverter<BeamT, ProtoT>) createBeamToProtoConverter(fieldDescriptor);
     }
 
     @Override
     public void setToProto(
-        Message.Builder message, Schema.FieldType fieldType, BeamT beamFieldValue) {
+        Message.Builder message, Schema.FieldType fieldType, @Nullable BeamT beamFieldValue) {
       try {
-        @Nullable ProtoT protoValue = converter.convert(beamFieldValue);
-        if (protoValue != null) {
-          message.setField(converter.getFieldDescriptor(), protoValue);
+        if (beamFieldValue != null) {
+          ProtoT protoValue = converter.convert(beamFieldValue);
+          message.setField(fieldDescriptor, protoValue);
         }
       } catch (RuntimeException e) {
         throw new RuntimeException(
-            String.format(
-                "Failed to set field to proto. field:%s", converter.getFieldDescriptor().getName()),
-            e);
+            String.format("Failed to set field to proto. field:%s", fieldDescriptor.getName()), e);
       }
     }
   }
 
-  static class ToProtoOneOfSetter implements ToProtoSetter<OneOfType.Value> {
+  static class ToProtoOneOfSetter implements ToProtoSetter<OneOfType.@Nullable Value> {
     private final Descriptors.OneofDescriptor oneofDescriptor;
     private final Map<String, ToProtoFieldSetter<Object, Object>> protoSetters;
 
@@ -790,7 +561,7 @@ public class ProtoBeamConverter {
 
     @Override
     public void setToProto(
-        Message.Builder message, Schema.FieldType fieldType, OneOfType.Value oneOfValue) {
+        Message.Builder message, Schema.FieldType fieldType, OneOfType.@Nullable Value oneOfValue) {
       if (oneOfValue != null) {
         OneOfType oneOfType = fieldType.getLogicalType(OneOfType.class);
         int number = oneOfValue.getCaseType().getValue();
