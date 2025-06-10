@@ -20,7 +20,7 @@ package org.apache.beam.runners.direct;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**

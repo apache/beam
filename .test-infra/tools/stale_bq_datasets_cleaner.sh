@@ -64,8 +64,7 @@ for dataset in ${BQ_DATASETS[@]}; do
   done
 done
 
-# fail the script if failed_calls is nonzero
+# Print warning but do not fail the script if failed_calls is nonzero
 if [[ failed_calls -ne 0 ]]; then
-  echo "Failed delete $failed_calls datasets"
-  exit 1
+  echo "WARNING: Failed delete $failed_calls datasets"
 fi

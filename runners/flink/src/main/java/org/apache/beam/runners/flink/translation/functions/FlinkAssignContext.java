@@ -19,7 +19,8 @@ package org.apache.beam.runners.flink.translation.functions;
 
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.joda.time.Instant;
 
@@ -35,7 +36,7 @@ class FlinkAssignContext<InputT, W extends BoundedWindow>
       throw new IllegalArgumentException(
           String.format(
               "%s passed to window assignment must be in a single window, but it was in %s: %s",
-              WindowedValue.class.getSimpleName(),
+              WindowedValues.class.getSimpleName(),
               Iterables.size(value.getWindows()),
               value.getWindows()));
     }

@@ -32,9 +32,10 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -249,6 +250,6 @@ public class SideInputHandlerTest {
   @SuppressWarnings({"unchecked", "rawtypes"})
   private WindowedValue<Iterable<?>> valuesInWindow(
       List<Object> values, Instant timestamp, BoundedWindow window) {
-    return (WindowedValue) WindowedValue.of(values, timestamp, window, PaneInfo.NO_FIRING);
+    return (WindowedValue) WindowedValues.of(values, timestamp, window, PaneInfo.NO_FIRING);
   }
 }

@@ -18,13 +18,13 @@
 package org.apache.beam.runners.samza.runtime;
 
 import java.io.Serializable;
-import org.apache.beam.runners.core.DoFnRunners;
+import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 
-/** Factory class to create {@link DoFnRunners.OutputManager}. */
+/** Factory class to create {@link WindowedValueMultiReceiver}. */
 public interface OutputManagerFactory<OutT> extends Serializable {
-  DoFnRunners.OutputManager create(OpEmitter<OutT> emitter);
+  WindowedValueMultiReceiver create(OpEmitter<OutT> emitter);
 
-  default DoFnRunners.OutputManager create(
+  default WindowedValueMultiReceiver create(
       OpEmitter<OutT> emitter, FutureCollector<OutT> collector) {
     return create(emitter);
   }

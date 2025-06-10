@@ -20,7 +20,8 @@ package org.apache.beam.runners.flink.translation.functions;
 import java.util.Collection;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.util.Collector;
 
@@ -43,7 +44,7 @@ public class FlinkAssignWindows<T, W extends BoundedWindow>
     Collection<W> windows = windowFn.assignWindows(new FlinkAssignContext<>(windowFn, input));
     for (W window : windows) {
       collector.collect(
-          WindowedValue.of(input.getValue(), input.getTimestamp(), window, input.getPane()));
+          WindowedValues.of(input.getValue(), input.getTimestamp(), window, input.getPaneInfo()));
     }
   }
 }

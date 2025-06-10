@@ -24,7 +24,6 @@ import static org.hamcrest.Matchers.equalTo;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.runners.core.DoFnRunner;
-import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.NullSideInputReader;
 import org.apache.beam.runners.core.StateInternals;
@@ -38,9 +37,11 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValueReceiver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -86,7 +87,8 @@ public class BatchGroupAlsoByWindowReshuffleDoFnTest {
     ListOutputManager outputManager = new ListOutputManager();
 
     DoFnRunner<KV<K, Iterable<WindowedValue<InputT>>>, KV<K, OutputT>> runner =
-        makeRunner(gabwFactory, windowingStrategy, outputTag, outputManager);
+        makeRunner(
+            gabwFactory, windowingStrategy, output -> outputManager.output(outputTag, output));
 
     runner.startBundle();
 
@@ -114,8 +116,7 @@ public class BatchGroupAlsoByWindowReshuffleDoFnTest {
       DoFnRunner<KV<K, Iterable<WindowedValue<InputT>>>, KV<K, OutputT>> makeRunner(
           GroupAlsoByWindowDoFnFactory<K, InputT, OutputT> fnFactory,
           WindowingStrategy<?, W> windowingStrategy,
-          TupleTag<KV<K, OutputT>> outputTag,
-          DoFnRunners.OutputManager outputManager) {
+          WindowedValueReceiver<KV<K, OutputT>> outputManager) {
 
     final StepContext stepContext = new TestStepContext(STEP_NAME);
 
@@ -129,7 +130,6 @@ public class BatchGroupAlsoByWindowReshuffleDoFnTest {
         fn,
         NullSideInputReader.empty(),
         outputManager,
-        outputTag,
         stepContext);
   }
 
@@ -158,11 +158,11 @@ public class BatchGroupAlsoByWindowReshuffleDoFnTest {
             gabwFactory,
             windowingStrategy,
             "key",
-            WindowedValue.of(
+            WindowedValues.of(
                 "v1", new Instant(1), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
-            WindowedValue.of(
+            WindowedValues.of(
                 "v2", new Instant(2), Arrays.asList(window(0, 10)), PaneInfo.NO_FIRING),
-            WindowedValue.of(
+            WindowedValues.of(
                 "v3", new Instant(13), Arrays.asList(window(10, 20)), PaneInfo.NO_FIRING));
 
     assertThat(result.size(), equalTo(3));
