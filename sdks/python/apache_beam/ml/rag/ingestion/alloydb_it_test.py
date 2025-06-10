@@ -134,6 +134,8 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
     # Drop test table
     with self.conn.cursor() as cursor:
       cursor.execute(f"DROP TABLE IF EXISTS {self.default_table_name}")
+      cursor.execute(f"DROP TABLE IF EXISTS {self.custom_table_name}")
+      cursor.execute(f"DROP TABLE IF EXISTS {self.metadata_conflicts_table}")
     _LOGGER = logging.getLogger(__name__)
     _LOGGER.info("Dropped table %s", self.default_table_name)
 
