@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql.meta.catalog;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class ReadOnlyCatalogManager implements CatalogManager {
   private final InMemoryCatalog EMPTY = new InMemoryCatalog("default", ImmutableMap.of());
@@ -37,8 +38,8 @@ public class ReadOnlyCatalogManager implements CatalogManager {
   }
 
   @Override
-  public boolean catalogExists(String name) {
-    return name.equals(EMPTY.name());
+  public @Nullable Catalog getCatalog(String name) {
+    return name.equalsIgnoreCase(EMPTY.name()) ? EMPTY : null;
   }
 
   @Override

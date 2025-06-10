@@ -138,7 +138,7 @@ public class SqlCreateCatalog extends SqlCreate implements BeamSqlParser.Executa
     }
 
     // check if catalog already exists
-    if (catalogManager.catalogExists(name)) {
+    if (catalogManager.getCatalog(name) != null) {
       if (getReplace()) {
         LOG.info("Replacing existing catalog '{}'", name);
         catalogManager.removeCatalog(name);

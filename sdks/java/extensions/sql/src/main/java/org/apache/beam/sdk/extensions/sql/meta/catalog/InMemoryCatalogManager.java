@@ -24,8 +24,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.ServiceLoader;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class InMemoryCatalogManager implements CatalogManager {
   private final Map<String, Catalog> catalogs = new HashMap<>();
@@ -68,8 +68,8 @@ public class InMemoryCatalogManager implements CatalogManager {
   }
 
   @Override
-  public boolean catalogExists(String name) {
-    return catalogs.containsKey(name);
+  public @Nullable Catalog getCatalog(String name) {
+    return catalogs.get(name);
   }
 
   @Override
@@ -81,10 +81,5 @@ public class InMemoryCatalogManager implements CatalogManager {
   public void registerTableProvider(String name, TableProvider tableProvider) {
     tableProviderMap.put(name, tableProvider);
     catalogs.values().forEach(catalog -> catalog.metaStore().registerProvider(tableProvider));
-  }
-
-  @VisibleForTesting
-  public Catalog getCatalog(String name) {
-    return checkStateNotNull(catalogs.get(name));
   }
 }

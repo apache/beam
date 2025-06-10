@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.meta.catalog;
 
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public interface CatalogManager {
   void createCatalog(String name, String type, Map<String, String> properties);
@@ -27,7 +28,8 @@ public interface CatalogManager {
 
   Catalog currentCatalog();
 
-  boolean catalogExists(String name);
+  @Nullable
+  Catalog getCatalog(String name);
 
   void removeCatalog(String name);
 

@@ -82,7 +82,7 @@ public class SqlDropCatalog extends SqlDrop implements BeamSqlParser.ExecutableS
                   "Unexpected 'DROP CATALOG' call for Schema '%s' that is not a Catalog.", name)));
     }
 
-    if (!catalogManager.catalogExists(name)) {
+    if (catalogManager.getCatalog(name) == null) {
       if (!ifExists) {
         throw SqlUtil.newContextException(
             catalogName.getParserPosition(),

@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.extensions.sql.meta.catalog.Catalog;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.CatalogManager;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.linq4j.tree.Expression;
@@ -146,18 +147,30 @@ public class BeamCalciteSchema implements Schema {
     return resolveMetastore().getSubProviders();
   }
 
+  /**
+   * If this is the root schema (in other words, a {@link CatalogManager}), the sub schema will be a
+   * {@link Catalog}'s metastore.
+   *
+   * <p>Otherwise, the sub-schema is derived from the {@link TableProvider} implementation.
+   */
   @Override
   public Schema getSubSchema(String name) {
     if (!subSchemas.containsKey(name)) {
-      TableProvider subProvider = resolveMetastore().getSubProvider(name);
-      BeamCalciteSchema subSchema =
-          subProvider == null ? null : new BeamCalciteSchema(connection, subProvider);
+      BeamCalciteSchema subSchema;
+      if (tableProvider != null) {
+        @Nullable TableProvider subProvider = tableProvider.getSubProvider(name);
+        subSchema = subProvider != null ? new BeamCalciteSchema(connection, subProvider) : null;
+      } else {
+        @Nullable Catalog catalog = checkStateNotNull(catalogManager).getCatalog(name);
+        subSchema = catalog != null ? new BeamCalciteSchema(connection, catalog.metaStore()) : null;
+      }
       subSchemas.put(name, subSchema);
     }
+
     return subSchemas.get(name);
   }
 
-  private TableProvider resolveMetastore() {
+  public TableProvider resolveMetastore() {
     if (tableProvider != null) {
       return tableProvider;
     }

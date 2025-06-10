@@ -83,7 +83,7 @@ public class SqlSetCatalog extends SqlSetOption implements BeamSqlParser.Executa
                   "Unexpected 'SET CATALOG' call for Schema '%s' that is not a Catalog.", name)));
     }
 
-    if (!catalogManager.catalogExists(name)) {
+    if (catalogManager.getCatalog(name) == null) {
       throw SqlUtil.newContextException(
           catalogName.getParserPosition(),
           RESOURCE.internal(String.format("Cannot set catalog: '%s' not found.", name)));

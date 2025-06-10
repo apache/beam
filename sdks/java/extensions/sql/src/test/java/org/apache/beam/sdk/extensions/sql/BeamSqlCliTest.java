@@ -25,11 +25,9 @@ import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -261,7 +259,7 @@ public class BeamSqlCliTest {
     InMemoryCatalogManager catalogManager = new InMemoryCatalogManager();
     BeamSqlCli cli = new BeamSqlCli().catalogManager(catalogManager);
 
-    assertFalse(catalogManager.catalogExists("my_catalog"));
+    assertNull(catalogManager.getCatalog("my_catalog"));
     cli.execute(
         "CREATE CATALOG my_catalog \n"
             + "TYPE `local` \n"
@@ -270,7 +268,7 @@ public class BeamSqlCliTest {
             + "  'abc' = 'xyz', \n"
             + "  'beam.test.prop' = '123'\n"
             + ")");
-    assertTrue(catalogManager.catalogExists("my_catalog"));
+    assertNotNull(catalogManager.getCatalog("my_catalog"));
     // we only created the catalog, but have not switched to it
     assertNotEquals("my_catalog", catalogManager.currentCatalog().name());
 
@@ -301,8 +299,8 @@ public class BeamSqlCliTest {
     InMemoryCatalogManager catalogManager = new InMemoryCatalogManager();
     BeamSqlCli cli = new BeamSqlCli().catalogManager(catalogManager);
 
-    assertFalse(catalogManager.catalogExists("catalog_1"));
-    assertFalse(catalogManager.catalogExists("catalog_2"));
+    assertNull(catalogManager.getCatalog("catalog_1"));
+    assertNull(catalogManager.getCatalog("catalog_2"));
     Map<String, String> catalog1Props =
         ImmutableMap.of("foo", "bar", "abc", "xyz", "beam.test.prop", "123");
     Map<String, String> catalog2Props = ImmutableMap.of("a", "b", "c", "d");
@@ -321,8 +319,8 @@ public class BeamSqlCliTest {
             + "  'a' = 'b', \n"
             + "  'c' = 'd' \n"
             + ")");
-    assertTrue(catalogManager.catalogExists("catalog_1"));
-    assertTrue(catalogManager.catalogExists("catalog_2"));
+    assertNotNull(catalogManager.getCatalog("catalog_1"));
+    assertNotNull(catalogManager.getCatalog("catalog_2"));
 
     // catalog manager always starts with a "default" catalog
     assertEquals("default", catalogManager.currentCatalog().name());
@@ -364,7 +362,7 @@ public class BeamSqlCliTest {
     InMemoryCatalogManager catalogManager = new InMemoryCatalogManager();
     BeamSqlCli cli = new BeamSqlCli().catalogManager(catalogManager);
 
-    assertFalse(catalogManager.catalogExists("my_catalog"));
+    assertNull(catalogManager.getCatalog("my_catalog"));
     cli.execute(
         "CREATE CATALOG my_catalog \n"
             + "TYPE `local` \n"
@@ -373,11 +371,11 @@ public class BeamSqlCliTest {
             + "  'abc' = 'xyz', \n"
             + "  'beam.test.prop' = '123'\n"
             + ")");
-    assertTrue(catalogManager.catalogExists("my_catalog"));
+    assertNotNull(catalogManager.getCatalog("my_catalog"));
 
     assertNotEquals("my_catalog", catalogManager.currentCatalog().name());
     cli.execute("DROP CATALOG my_catalog");
-    assertFalse(catalogManager.catalogExists("my_catalog"));
+    assertNull(catalogManager.getCatalog("my_catalog"));
   }
 
   @Test
