@@ -35,8 +35,10 @@ from apache_beam.ml.rag.ingestion import test_utils
 from apache_beam.ml.rag.ingestion.alloydb import AlloyDBLanguageConnectorConfig
 from apache_beam.ml.rag.ingestion.alloydb import AlloyDBVectorWriterConfig
 from apache_beam.ml.rag.ingestion.base import VectorDatabaseWriteTransform
+from apache_beam.ml.rag.ingestion.postgres_common import ColumnSpec
 from apache_beam.ml.rag.ingestion.postgres_common import ColumnSpecsBuilder
 from apache_beam.ml.rag.ingestion.postgres_common import ConflictResolution
+from apache_beam.ml.rag.ingestion.postgres_common import chunk_embedding_fn
 from apache_beam.ml.rag.types import Chunk
 from apache_beam.ml.rag.types import Content
 from apache_beam.ml.rag.types import Embedding
@@ -116,8 +118,6 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
 
     self.default_table_name = f"{self.ALLOYDB_TABLE_PREFIX}" \
       f"{self.table_suffix}"
-    self.default_table_name = f"{self.ALLOYDB_TABLE_PREFIX}" \
-      f"{self.table_suffix}"
     self.custom_table_name = f"{self.ALLOYDB_TABLE_PREFIX}" \
       f"_custom_{self.table_suffix}"
     self.metadata_conflicts_table = f"{self.ALLOYDB_TABLE_PREFIX}" \
@@ -157,7 +157,6 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
                     UNIQUE (source, timestamp)
                 )
             """)
-    _LOGGER = logging.getLogger(__name__)
     _LOGGER.info("Created table %s", self.default_table_name)
 
   def tearDown(self):
@@ -166,7 +165,6 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
       cursor.execute(f"DROP TABLE IF EXISTS {self.default_table_name}")
       cursor.execute(f"DROP TABLE IF EXISTS {self.custom_table_name}")
       cursor.execute(f"DROP TABLE IF EXISTS {self.metadata_conflicts_table}")
-    _LOGGER = logging.getLogger(__name__)
     _LOGGER.info("Dropped table %s", self.default_table_name)
 
   @classmethod
