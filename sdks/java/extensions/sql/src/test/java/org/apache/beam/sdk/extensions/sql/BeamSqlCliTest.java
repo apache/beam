@@ -234,7 +234,7 @@ public class BeamSqlCliTest {
     BeamSqlCli cli = new BeamSqlCli().catalogManager(catalogManager);
 
     thrown.expect(UnsupportedOperationException.class);
-    thrown.expectMessage("Could not create catalog 'invalid_catalog' of unknown type: 'abcdef'");
+    thrown.expectMessage("Could not find type 'abcdef' for catalog 'invalid_catalog'.");
     cli.execute("CREATE CATALOG invalid_catalog TYPE abcdef");
   }
 

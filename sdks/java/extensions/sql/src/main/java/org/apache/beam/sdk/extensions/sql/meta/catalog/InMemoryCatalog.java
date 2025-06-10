@@ -22,23 +22,14 @@ import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.extensions.sql.meta.store.MetaStore;
 import org.apache.beam.sdk.util.Preconditions;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 @AutoService(Catalog.class)
 public class InMemoryCatalog implements Catalog {
-  private @Nullable String name;
-  private @Nullable Map<String, String> properties;
+  private final String name;
+  private final Map<String, String> properties;
   private final InMemoryMetaStore metaStore = new InMemoryMetaStore();
 
-  public InMemoryCatalog() {}
-
   public InMemoryCatalog(String name, Map<String, String> properties) {
-    this.name = name;
-    this.properties = properties;
-  }
-
-  @Override
-  public void initialize(String name, Map<String, String> properties) {
     this.name = name;
     this.properties = properties;
   }

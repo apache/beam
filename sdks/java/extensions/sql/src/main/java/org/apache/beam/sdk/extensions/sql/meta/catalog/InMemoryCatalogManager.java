@@ -21,10 +21,12 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class InMemoryCatalogManager implements CatalogManager {
@@ -41,17 +43,10 @@ public class InMemoryCatalogManager implements CatalogManager {
   public void createCatalog(String name, String type, Map<String, String> properties) {
     Preconditions.checkState(
         !catalogs.containsKey(name), "Catalog with name '%s' already exists.", name);
-    for (Catalog catalog : ServiceLoader.load(Catalog.class, getClass().getClassLoader())) {
-      if (catalog.type().equalsIgnoreCase(type)) {
-        catalog.initialize(name, properties);
-        tableProviderMap.values().forEach(catalog.metaStore()::registerProvider);
-        catalogs.put(name, catalog);
-        return;
-      }
-    }
 
-    throw new UnsupportedOperationException(
-        String.format("Could not create catalog '%s' of unknown type: '%s'", name, type));
+    Catalog catalog = findAndCreateCatalog(name, type, properties);
+    tableProviderMap.values().forEach(catalog.metaStore()::registerProvider);
+    catalogs.put(name, catalog);
   }
 
   @Override
@@ -81,5 +76,43 @@ public class InMemoryCatalogManager implements CatalogManager {
   public void registerTableProvider(String name, TableProvider tableProvider) {
     tableProviderMap.put(name, tableProvider);
     catalogs.values().forEach(catalog -> catalog.metaStore().registerProvider(tableProvider));
+  }
+
+  private Catalog findAndCreateCatalog(String name, String type, Map<String, String> properties) {
+    ImmutableList.Builder<Catalog> list = ImmutableList.builder();
+    for (CatalogRegistrar catalogRegistrar :
+        ServiceLoader.load(CatalogRegistrar.class, getClass().getClassLoader())) {
+      for (Class<? extends Catalog> catalogClass : catalogRegistrar.getCatalogs()) {
+        Catalog catalog = createCatalogInstance(catalogClass, name, properties);
+        if (catalog.type().equalsIgnoreCase(type)) {
+          list.add(catalog);
+        }
+      }
+    }
+
+    List<Catalog> foundCatalogs = list.build();
+
+    if (foundCatalogs.size() > 1) {
+      throw new IllegalStateException(
+          String.format(
+              "Could not create catalog '%s': "
+                  + "expected only one implementation for type '%s' but found %s",
+              name, type, foundCatalogs.size()));
+    } else if (foundCatalogs.isEmpty()) {
+      throw new UnsupportedOperationException(
+          String.format("Could not find type '%s' for catalog '%s'.", type, name));
+    }
+
+    return foundCatalogs.get(0);
+  }
+
+  private Catalog createCatalogInstance(
+      Class<? extends Catalog> catalogClass, String name, Map<String, String> properties) {
+    try {
+      return catalogClass.getConstructor(String.class, Map.class).newInstance(name, properties);
+    } catch (ReflectiveOperationException e) {
+      throw new RuntimeException(
+          String.format("Encountered an error when constructing Catalog '%s'", name), e);
+    }
   }
 }

@@ -17,24 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.catalog;
 
-import java.util.Map;
-import org.apache.beam.sdk.extensions.sql.meta.store.MetaStore;
-
 /**
- * Represents a named and configurable container for managing tables. Is defined with a type and
- * configuration properties. Uses an underlying {@link MetaStore} to manage tables and table
- * providers.
+ * Over-arching registrar to capture available {@link Catalog}s. Implementations should be marked
+ * with {@link com.google.auto.service.AutoService} to be available to {@link
+ * java.util.ServiceLoader}s.
  */
-public interface Catalog {
-  /** A type that defines this catalog. */
-  String type();
-
-  /** The underlying {@link MetaStore} that actually manages tables. */
-  MetaStore metaStore();
-
-  /** The name of this catalog, specified by the user. */
-  String name();
-
-  /** User-specified configuration properties. */
-  Map<String, String> properties();
+public interface CatalogRegistrar {
+  Iterable<Class<? extends Catalog>> getCatalogs();
 }

@@ -17,24 +17,13 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.catalog;
 
-import java.util.Map;
-import org.apache.beam.sdk.extensions.sql.meta.store.MetaStore;
+import com.google.auto.service.AutoService;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
-/**
- * Represents a named and configurable container for managing tables. Is defined with a type and
- * configuration properties. Uses an underlying {@link MetaStore} to manage tables and table
- * providers.
- */
-public interface Catalog {
-  /** A type that defines this catalog. */
-  String type();
-
-  /** The underlying {@link MetaStore} that actually manages tables. */
-  MetaStore metaStore();
-
-  /** The name of this catalog, specified by the user. */
-  String name();
-
-  /** User-specified configuration properties. */
-  Map<String, String> properties();
+@AutoService(CatalogRegistrar.class)
+public class InMemoryCatalogRegistrar implements CatalogRegistrar {
+  @Override
+  public Iterable<Class<? extends Catalog>> getCatalogs() {
+    return ImmutableList.of(InMemoryCatalog.class);
+  }
 }
