@@ -19,23 +19,13 @@ import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
 
-// The order is intended here - Debezium 3 requires Java 17, or later
-// Overwrite javaVersion global property if corresponding project property specified
-if (project.hasProperty('java17Home')) {
-    javaVersion = "1.17"
-} else if (project.hasProperty('java21Home')) {
-    javaVersion = "1.21"
-} else if (JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0) {
-    // Otherwise, compile the project with java11 spec
-    javaVersion = "1.17"
-}
-
 applyJavaNature(
         automaticModuleName: 'org.apache.beam.sdk.io.debezium',
         mavenRepositories: [
                 [id: 'io.confluent', url: 'https://packages.confluent.io/maven/']
         ],
         enableSpotbugs: false,
+        requireJavaVersion: JavaVersion.VERSION_17,
 )
 provideIntegrationTestingDependencies()
 
@@ -53,8 +43,6 @@ dependencies {
 
     // Kafka connect dependencies
     implementation "org.apache.kafka:connect-api:3.9.0"
-    implementation "org.apache.kafka:connect-json:3.9.0"
-    permitUnusedDeclared "org.apache.kafka:connect-json:3.9.0"
 
     // Debezium dependencies
     implementation group: 'io.debezium', name: 'debezium-core', version: '3.1.1.Final'
@@ -80,7 +68,15 @@ dependencies {
     testImplementation group: 'io.debezium', name: 'debezium-connector-postgres', version: '3.1.1.Final'
 }
 
+// TODO: Remove pin after Beam has unpinned it
+// Pin the Antlr version
+configurations.all {
+    resolutionStrategy {
+        force 'org.antlr:antlr4:4.10', 'org.antlr:antlr4-runtime:4.10'
+    }
+}
 
+// TODO: Remove pin after upgrading Beam's Jackson version
 // Force Jackson versions for the test runtime classpath
 configurations.named("testRuntimeClasspath") {
     resolutionStrategy.force (
@@ -137,23 +133,6 @@ task integrationTest(type: Test, dependsOn: processTestResources) {
 
   useJUnit {
   }
-}
-
-// The order is intended here - Debezium 3 requires Java 17, or later
-if (project.hasProperty('java17Home')) {
-    project.tasks.withType(JavaCompile) {
-        setJavaVerOptions(options, '17')
-    }
-    project.tasks.withType(Javadoc) {
-        executable = project.findProperty('java17Home') + '/bin/javadoc'
-    }
-} else if (project.hasProperty('java21Home')) {
-    project.tasks.withType(JavaCompile) {
-        setJavaVerOptions(options, '21')
-    }
-    project.tasks.withType(Javadoc) {
-        executable = project.findProperty('java21Home') + '/bin/javadoc'
-    }
 }
 
 project.tasks.each {

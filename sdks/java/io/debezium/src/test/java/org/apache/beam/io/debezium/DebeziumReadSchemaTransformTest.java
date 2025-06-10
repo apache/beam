@@ -33,6 +33,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.hamcrest.Matchers;
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.testcontainers.containers.Container;
@@ -43,6 +44,8 @@ import org.testcontainers.utility.DockerImageName;
 
 @RunWith(Parameterized.class)
 public class DebeziumReadSchemaTransformTest {
+
+  @ClassRule public static TemporaryFolder tempFolder = new TemporaryFolder();
 
   @ClassRule
   public static final PostgreSQLContainer<?> POSTGRES_SQL_CONTAINER =
@@ -109,7 +112,9 @@ public class DebeziumReadSchemaTransformTest {
                     Lists.newArrayList(
                         "database.server.id=579676",
                         "schema.history.internal=io.debezium.storage.file.history.FileSchemaHistory",
-                        "schema.history.internal.file.filename=data/schema_history.dat"))
+                        String.format(
+                            "schema.history.internal.file.filename=%s",
+                            tempFolder.getRoot().toPath().resolve("schema_history.dat"))))
                 .build());
   }
 

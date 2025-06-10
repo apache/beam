@@ -21,6 +21,7 @@ import static org.apache.beam.io.debezium.DebeziumIOPostgresSqlConnectorIT.TABLE
 import static org.apache.beam.sdk.testing.SerializableMatchers.hasItem;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
@@ -110,7 +111,7 @@ public class DebeziumIOMySqlConnectorIT {
     return new HikariDataSource(hikariConfig);
   }
 
-  private void monitorEssentialMetrics() {
+  private void monitorEssentialMetrics() throws SQLException {
     DataSource ds = getMysqlDatasource(null);
     try {
       Connection conn = ds.getConnection();
@@ -128,6 +129,7 @@ public class DebeziumIOMySqlConnectorIT {
       }
     } catch (SQLException ex) {
       LOG.error("SQL error in monitoring thread. Shutting down.", ex);
+      throw (ex);
     } catch (InterruptedException ex) {
       LOG.info("Monitoring thread interrupted. Shutting down.");
       Thread.currentThread().interrupt();
@@ -207,7 +209,16 @@ public class DebeziumIOMySqlConnectorIT {
               return null;
             });
     Thread writeThread = new Thread(() -> writePipeline.run().waitUntilFinish());
-    Thread monitorThread = new Thread(this::monitorEssentialMetrics);
+    Thread monitorThread =
+        new Thread(
+            () -> {
+              try {
+                monitorEssentialMetrics();
+              } catch (SQLException e) {
+                e.printStackTrace();
+                fail("Failed because of SQLException in monitorEssentialMetrics!");
+              }
+            });
     monitorThread.start();
     writeThread.start();
 

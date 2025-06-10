@@ -20,22 +20,12 @@ apply plugin: 'org.apache.beam.module'
 apply plugin: 'application'
 mainClassName = "org.apache.beam.sdk.expansion.service.ExpansionService"
 
-// The order is intended here - Debezium 3 requires Java 17, or later
-// Overwrite javaVersion global property if corresponding project property specified
-if (project.hasProperty('java17Home')) {
-    javaVersion = "1.17"
-} else if (project.hasProperty('java21Home')) {
-    javaVersion = "1.21"
-} else if (JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0) {
-    // Otherwise, compile the project with java11 spec
-    javaVersion = "1.17"
-}
-
 applyJavaNature(
         automaticModuleName: 'org.apache.beam.sdk.io.debezium.expansion.service',
         exportJavadoc: false,
         validateShadowJar: false,
         shadowClosure: {},
+        requireJavaVersion: JavaVersion.VERSION_17,
 )
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Debezium :: Expansion Service"
@@ -55,23 +45,6 @@ dependencies {
     runtimeOnly group: 'io.debezium', name: 'debezium-connector-sqlserver', version: debezium_version
     runtimeOnly group: 'io.debezium', name: 'debezium-connector-oracle', version: debezium_version
     runtimeOnly group: 'io.debezium', name: 'debezium-connector-db2', version: debezium_version
-}
-
-// The order is intended here - Debezium 3 requires Java 17, or later
-if (project.hasProperty('java17Home')) {
-    project.tasks.withType(JavaCompile) {
-        setJavaVerOptions(options, '17')
-    }
-    project.tasks.withType(Javadoc) {
-        executable = project.findProperty('java17Home') + '/bin/javadoc'
-    }
-} else if (project.hasProperty('java21Home')) {
-    project.tasks.withType(JavaCompile) {
-        setJavaVerOptions(options, '21')
-    }
-    project.tasks.withType(Javadoc) {
-        executable = project.findProperty('java21Home') + '/bin/javadoc'
-    }
 }
 
 // Module classes requires JDK > 8
