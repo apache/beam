@@ -6972,6 +6972,40 @@ Timer output timestamps is not yet supported in Python SDK. See https://github.c
 {{< code_sample "sdks/go/examples/snippets/04transforms.go" timer_output_timestamps_good >}}
 {{< /highlight >}}
 
+
+#### 11.3.5 Timer Callback Parameters {#timer-callback-parameters}
+The following parameters are provided for the timer callback methods which could be used for debuging.
+
+1. Window: This can provide the window object to access the window start and end time.
+2. Timestamp: This can provide the timestamp of the element.
+3. Key: The key was associated with the element.
+
+{{< highlight py >}}
+class TimerDoFn(DoFn):
+  ALL_ELEMENTS = BagStateSpec('buffer', coders.VarIntCoder())
+  TIMER = TimerSpec('timer', TimeDomain.REAL_TIME)
+
+  def process(self,
+              element_pair,
+              buffer = DoFn.StateParam(ALL_ELEMENTS),
+              timer = DoFn.TimerParam(TIMER)):
+    ...
+
+  @on_timer(TIMER)
+  def expiry_callback(self,
+                      buffer = DoFn.StateParam(ALL_ELEMENTS),
+                      window=DoFn.WindowParam,
+                      timestamp=DoFn.TimestampParam,
+                      key=DoFn.KeyParam):
+    # You can potentlly print these parameter to get more information for debugging.
+    buffer.clear()
+    yield (timer_tag, 'fired')
+
+_ = (p | 'Read per user' >> ReadPerUser()
+       | 'ProcessingTime timer pardo' >> beam.ParDo(TimerDoFn()))
+{{< /highlight >}}
+
+
 ### 11.4. Garbage collecting state {#garbage-collecting-state}
 Per-key state needs to be garbage collected, or eventually the increasing size of state may negatively impact
 performance. There are two common strategies for garbage collecting state.

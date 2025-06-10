@@ -63,8 +63,9 @@ class StateSpec(object):
     raise NotImplementedError
 
 
-class ReadModifyWriteStateSpec(StateSpec):  #TODO: This state is missing from the programming guide.
-  """Specification for a user DoFn value state cell."""
+class ReadModifyWriteStateSpec(StateSpec):
+  """Specification for a user DoFn value state cell.
+     Read more about ReadModifyWriteState (ValueState) here: https://beam.apache.org/documentation/programming-guide/#valuestate"""
   def to_runner_api(
       self, context: 'PipelineContext') -> beam_runner_api_pb2.StateSpec:
     return beam_runner_api_pb2.StateSpec(
