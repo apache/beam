@@ -766,6 +766,12 @@ class Pipeline(HasDisplayData):
             'streaming jobs.' % full_label)
     self.applied_labels.add(full_label)
 
+    if pvalueish is None:
+        full_label = self._current_transform().full_label
+        raise TypeCheckError(
+            f'Transform "{full_label}" was applied to the output of '
+            f'an object of type None.')
+
     pvalueish, inputs = transform._extract_input_pvalues(pvalueish)
     try:
       if not isinstance(inputs, dict):
@@ -865,11 +871,6 @@ class Pipeline(HasDisplayData):
             f'Transform "{full_label}" was applied to the output of '
             f'"{producer_label}" but "{producer_label.split("/")[-1]}" '
             'produces no PCollections.')
-      if pvalueish is None:
-        full_label = self._current_transform().full_label
-        raise TypeCheckError(
-            f'Transform "{full_label}" was applied to the output of '
-            f'an object of type None.')
 
   def _generate_unique_label(
       self,
