@@ -941,7 +941,7 @@ public class FileIO {
        */
       String getFilename(
           BoundedWindow window,
-          PaneInfo pane,
+          PaneInfo paneInfo,
           int numShards,
           int shardIndex,
           Compression compression);
@@ -958,9 +958,9 @@ public class FileIO {
      */
     public static FileNaming defaultNaming(
         final ValueProvider<String> prefix, final ValueProvider<String> suffix) {
-      return (window, pane, numShards, shardIndex, compression) -> {
+      return (window, paneInfo, numShards, shardIndex, compression) -> {
         checkArgument(window != null, "window can not be null");
-        checkArgument(pane != null, "pane can not be null");
+        checkArgument(paneInfo != null, "pane can not be null");
         checkArgument(compression != null, "compression can not be null");
         StringBuilder res = new StringBuilder(prefix.get());
         if (window != GlobalWindow.INSTANCE) {
@@ -976,12 +976,12 @@ public class FileIO {
           IntervalWindow iw = (IntervalWindow) window;
           res.append(iw.start().toString()).append("-").append(iw.end().toString());
         }
-        boolean isOnlyFiring = pane.isFirst() && pane.isLast();
+        boolean isOnlyFiring = paneInfo.isFirst() && paneInfo.isLast();
         if (!isOnlyFiring) {
           if (res.length() > 0) {
             res.append("-");
           }
-          res.append(pane.getIndex());
+          res.append(paneInfo.getIndex());
         }
         if (res.length() > 0) {
           res.append("-");
@@ -999,10 +999,10 @@ public class FileIO {
 
     public static FileNaming relativeFileNaming(
         final ValueProvider<String> baseDirectory, final FileNaming innerNaming) {
-      return (window, pane, numShards, shardIndex, compression) ->
+      return (window, paneInfo, numShards, shardIndex, compression) ->
           FileSystems.matchNewResource(baseDirectory.get(), true /* isDirectory */)
               .resolve(
-                  innerNaming.getFilename(window, pane, numShards, shardIndex, compression),
+                  innerNaming.getFilename(window, paneInfo, numShards, shardIndex, compression),
                   RESOLVE_FILE)
               .toString();
     }

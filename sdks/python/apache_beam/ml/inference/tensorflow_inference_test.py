@@ -221,7 +221,10 @@ class TFRunInferenceTest(unittest.TestCase):
     model = _create_mult2_model()
     model_path = os.path.join(self.tmpdir, f'mult2_{uuid.uuid4()}.keras')
     tf.keras.models.save_model(model, model_path)
-    with TestPipeline() as pipeline:
+    # TODO(https://github.com/apache/beam/issues/34549): This test relies on a
+    # runner producing a single bundle or bundles of even size, neither of
+    # which prism seems to do here
+    with TestPipeline('FnApiRunner') as pipeline:
 
       def fake_batching_inference_fn(
           model: tf.Module,

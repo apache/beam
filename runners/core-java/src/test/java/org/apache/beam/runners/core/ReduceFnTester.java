@@ -57,11 +57,12 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.AppliedCombineFn;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowTracing;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValueReceiver;
 import org.apache.beam.sdk.util.construction.TriggerTranslation;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Equivalence;
@@ -94,7 +95,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   private final InMemoryTimerInternals timerInternals = new InMemoryTimerInternals();
 
   private final WindowFn<Object, W> windowFn;
-  private final TestOutputWindowedValue testOutputter;
+  private final TestWindowedValueReceiver testOutputter;
   private final SideInputReader sideInputReader;
   private final Coder<OutputT> outputCoder;
   private final WindowingStrategy<Object, W> objectStrategy;
@@ -276,7 +277,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     this.objectStrategy = objectStrategy;
     this.reduceFn = reduceFn;
     this.windowFn = objectStrategy.getWindowFn();
-    this.testOutputter = new TestOutputWindowedValue();
+    this.testOutputter = new TestWindowedValueReceiver();
     this.sideInputReader = sideInputReader;
     this.executableTriggerStateMachine = ExecutableTriggerStateMachine.create(triggerStateMachine);
     this.outputCoder = outputCoder;
@@ -552,7 +553,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
                         windowFn.assignWindows(
                             new TestAssignContext<W>(
                                 windowFn, value, timestamp, GlobalWindow.INSTANCE));
-                    return WindowedValue.of(value, timestamp, windows, PaneInfo.NO_FIRING);
+                    return WindowedValues.of(value, timestamp, windows, PaneInfo.NO_FIRING);
                   } catch (Exception e) {
                     throw new RuntimeException(e);
                   }
@@ -593,35 +594,18 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     runner.persist();
   }
 
-  /**
-   * Convey the simulated state and implement {@link #outputWindowedValue} to capture all output
-   * elements.
-   */
-  private class TestOutputWindowedValue implements OutputWindowedValue<KV<String, OutputT>> {
+  private class TestWindowedValueReceiver implements WindowedValueReceiver<KV<String, OutputT>> {
     private List<WindowedValue<KV<String, OutputT>>> outputs = new ArrayList<>();
 
     @Override
-    public void outputWindowedValue(
-        KV<String, OutputT> output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo pane) {
+    public void output(WindowedValue<KV<String, OutputT>> output) {
       // Copy the output value (using coders) before capturing it.
       KV<String, OutputT> copy =
           SerializableUtils.ensureSerializableByCoder(
-              KvCoder.of(StringUtf8Coder.of(), outputCoder), output, "outputForWindow");
-      WindowedValue<KV<String, OutputT>> value = WindowedValue.of(copy, timestamp, windows, pane);
+              KvCoder.of(StringUtf8Coder.of(), outputCoder), output.getValue(), "outputForWindow");
+      WindowedValue<KV<String, OutputT>> value =
+          WindowedValues.of(copy, output.getTimestamp(), output.getWindows(), output.getPaneInfo());
       outputs.add(value);
-    }
-
-    @Override
-    public <AdditionalOutputT> void outputWindowedValue(
-        TupleTag<AdditionalOutputT> tag,
-        AdditionalOutputT output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo pane) {
-      throw new UnsupportedOperationException("GroupAlsoByWindow should not use tagged outputs");
     }
   }
 

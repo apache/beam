@@ -18,15 +18,15 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly.GroupAlsoByWindow;
-import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.util.WindowedValueReceiver;
 
 /**
  * An interface for functions that execute {@link GroupAlsoByWindow}-like machinery and need access
- * to worker internals, such as {@link TimerInternals} and {@link OutputWindowedValue}.
+ * to worker internals, such as {@link TimerInternals} and {@link WindowedValueReceiver}.
  */
 public abstract class GroupAlsoByWindowFn<InputT, OutputT> {
   /** Processes one input element. */
@@ -35,6 +35,6 @@ public abstract class GroupAlsoByWindowFn<InputT, OutputT> {
       PipelineOptions options,
       StepContext stepContext,
       SideInputReader sideInputReader,
-      OutputWindowedValue<OutputT> output)
+      WindowedValueReceiver<OutputT> output)
       throws Exception;
 }

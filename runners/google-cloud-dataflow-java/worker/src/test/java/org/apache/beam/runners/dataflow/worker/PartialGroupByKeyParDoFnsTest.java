@@ -66,10 +66,11 @@ import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.AppliedCombineFn;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
@@ -114,7 +115,7 @@ public class PartialGroupByKeyParDoFnsTest {
     TestOutputReceiver receiver =
         new TestOutputReceiver(
             new ElementByteSizeObservableCoder(
-                WindowedValue.getValueOnlyCoder(
+                WindowedValues.getValueOnlyCoder(
                     KvCoder.of(keyCoder, IterableCoder.of(valueCoder)))),
             counterSet,
             NameContextsForTests.nameContextForTest());
@@ -124,27 +125,27 @@ public class PartialGroupByKeyParDoFnsTest {
             GroupingTables.buffering(
                 new WindowingCoderGroupingKeyCreator(keyCoder),
                 PairInfo.create(),
-                new CoderSizeEstimator(WindowedValue.getValueOnlyCoder(keyCoder)),
+                new CoderSizeEstimator(WindowedValues.getValueOnlyCoder(keyCoder)),
                 new CoderSizeEstimator(valueCoder)),
             receiver);
 
     pgbkParDoFn.startBundle(receiver);
 
-    pgbkParDoFn.processElement(WindowedValue.valueInGlobalWindow(KV.of("hi", 4)));
-    pgbkParDoFn.processElement(WindowedValue.valueInGlobalWindow(KV.of("there", 5)));
-    pgbkParDoFn.processElement(WindowedValue.valueInGlobalWindow(KV.of("hi", 6)));
-    pgbkParDoFn.processElement(WindowedValue.valueInGlobalWindow(KV.of("joe", 7)));
-    pgbkParDoFn.processElement(WindowedValue.valueInGlobalWindow(KV.of("there", 8)));
-    pgbkParDoFn.processElement(WindowedValue.valueInGlobalWindow(KV.of("hi", 9)));
+    pgbkParDoFn.processElement(WindowedValues.valueInGlobalWindow(KV.of("hi", 4)));
+    pgbkParDoFn.processElement(WindowedValues.valueInGlobalWindow(KV.of("there", 5)));
+    pgbkParDoFn.processElement(WindowedValues.valueInGlobalWindow(KV.of("hi", 6)));
+    pgbkParDoFn.processElement(WindowedValues.valueInGlobalWindow(KV.of("joe", 7)));
+    pgbkParDoFn.processElement(WindowedValues.valueInGlobalWindow(KV.of("there", 8)));
+    pgbkParDoFn.processElement(WindowedValues.valueInGlobalWindow(KV.of("hi", 9)));
 
     pgbkParDoFn.finishBundle();
 
     assertThat(
         receiver.outputElems,
         IsIterableContainingInAnyOrder.<Object>containsInAnyOrder(
-            WindowedValue.valueInGlobalWindow(KV.of("hi", Arrays.asList(4, 6, 9))),
-            WindowedValue.valueInGlobalWindow(KV.of("there", Arrays.asList(5, 8))),
-            WindowedValue.valueInGlobalWindow(KV.of("joe", Arrays.asList(7)))));
+            WindowedValues.valueInGlobalWindow(KV.of("hi", Arrays.asList(4, 6, 9))),
+            WindowedValues.valueInGlobalWindow(KV.of("there", Arrays.asList(5, 8))),
+            WindowedValues.valueInGlobalWindow(KV.of("joe", Arrays.asList(7)))));
 
     // Exact counter values depend on size of encoded data.  If encoding
     // changes, then these expected counters should change to match.
@@ -167,7 +168,7 @@ public class PartialGroupByKeyParDoFnsTest {
     TestOutputReceiver receiver =
         new TestOutputReceiver(
             new ElementByteSizeObservableCoder(
-                WindowedValue.getValueOnlyCoder(KvCoder.of(keyCoder, valueCoder))),
+                WindowedValues.getValueOnlyCoder(KvCoder.of(keyCoder, valueCoder))),
             counterSet,
             NameContextsForTests.nameContextForTest());
 
@@ -179,27 +180,27 @@ public class PartialGroupByKeyParDoFnsTest {
                 new WindowingCoderGroupingKeyCreator(keyCoder),
                 PairInfo.create(),
                 combineFn,
-                new CoderSizeEstimator(WindowedValue.getValueOnlyCoder(keyCoder)),
+                new CoderSizeEstimator(WindowedValues.getValueOnlyCoder(keyCoder)),
                 new CoderSizeEstimator(valueCoder)),
             receiver);
 
     pgbkParDoFn.startBundle(receiver);
 
-    pgbkParDoFn.processElement(WindowedValue.valueInGlobalWindow(KV.of("hi", 4)));
-    pgbkParDoFn.processElement(WindowedValue.valueInGlobalWindow(KV.of("there", 5)));
-    pgbkParDoFn.processElement(WindowedValue.valueInGlobalWindow(KV.of("hi", 6)));
-    pgbkParDoFn.processElement(WindowedValue.valueInGlobalWindow(KV.of("joe", 7)));
-    pgbkParDoFn.processElement(WindowedValue.valueInGlobalWindow(KV.of("there", 8)));
-    pgbkParDoFn.processElement(WindowedValue.valueInGlobalWindow(KV.of("hi", 9)));
+    pgbkParDoFn.processElement(WindowedValues.valueInGlobalWindow(KV.of("hi", 4)));
+    pgbkParDoFn.processElement(WindowedValues.valueInGlobalWindow(KV.of("there", 5)));
+    pgbkParDoFn.processElement(WindowedValues.valueInGlobalWindow(KV.of("hi", 6)));
+    pgbkParDoFn.processElement(WindowedValues.valueInGlobalWindow(KV.of("joe", 7)));
+    pgbkParDoFn.processElement(WindowedValues.valueInGlobalWindow(KV.of("there", 8)));
+    pgbkParDoFn.processElement(WindowedValues.valueInGlobalWindow(KV.of("hi", 9)));
 
     pgbkParDoFn.finishBundle();
 
     assertThat(
         receiver.outputElems,
         IsIterableContainingInAnyOrder.<Object>containsInAnyOrder(
-            WindowedValue.valueInGlobalWindow(KV.of("hi", 19)),
-            WindowedValue.valueInGlobalWindow(KV.of("there", 13)),
-            WindowedValue.valueInGlobalWindow(KV.of("joe", 7))));
+            WindowedValues.valueInGlobalWindow(KV.of("hi", 19)),
+            WindowedValues.valueInGlobalWindow(KV.of("there", 13)),
+            WindowedValues.valueInGlobalWindow(KV.of("joe", 7))));
 
     // Exact counter values depend on size of encoded data.  If encoding
     // changes, then these expected counters should change to match.
@@ -222,7 +223,7 @@ public class PartialGroupByKeyParDoFnsTest {
     TestOutputReceiver receiver =
         new TestOutputReceiver(
             new ElementByteSizeObservableCoder(
-                WindowedValue.getValueOnlyCoder(KvCoder.of(keyCoder, valueCoder))),
+                WindowedValues.getValueOnlyCoder(KvCoder.of(keyCoder, valueCoder))),
             counterSet,
             NameContextsForTests.nameContextForTest());
 
@@ -234,7 +235,7 @@ public class PartialGroupByKeyParDoFnsTest {
                 new WindowingCoderGroupingKeyCreator(keyCoder),
                 PairInfo.create(),
                 combineFn,
-                new CoderSizeEstimator(WindowedValue.getValueOnlyCoder(keyCoder)),
+                new CoderSizeEstimator(WindowedValues.getValueOnlyCoder(keyCoder)),
                 new CoderSizeEstimator(valueCoder)),
             receiver,
             mockSideInputFetcher);
@@ -246,27 +247,27 @@ public class PartialGroupByKeyParDoFnsTest {
     when(elemsBag.read())
         .thenReturn(
             ImmutableList.of(
-                WindowedValue.valueInGlobalWindow(KV.of("hi", 4)),
-                WindowedValue.valueInGlobalWindow(KV.of("there", 5))));
+                WindowedValues.valueInGlobalWindow(KV.of("hi", 4)),
+                WindowedValues.valueInGlobalWindow(KV.of("there", 5))));
     when(mockSideInputFetcher.storeIfBlocked(
             ArgumentMatchers.<WindowedValue<KV<String, Integer>>>any()))
         .thenReturn(false, false, false, true);
 
     pgbkParDoFn.startBundle(receiver);
 
-    pgbkParDoFn.processElement(WindowedValue.valueInGlobalWindow(KV.of("hi", 6)));
-    pgbkParDoFn.processElement(WindowedValue.valueInGlobalWindow(KV.of("joe", 7)));
-    pgbkParDoFn.processElement(WindowedValue.valueInGlobalWindow(KV.of("there", 8)));
-    pgbkParDoFn.processElement(WindowedValue.valueInGlobalWindow(KV.of("hi", 9)));
+    pgbkParDoFn.processElement(WindowedValues.valueInGlobalWindow(KV.of("hi", 6)));
+    pgbkParDoFn.processElement(WindowedValues.valueInGlobalWindow(KV.of("joe", 7)));
+    pgbkParDoFn.processElement(WindowedValues.valueInGlobalWindow(KV.of("there", 8)));
+    pgbkParDoFn.processElement(WindowedValues.valueInGlobalWindow(KV.of("hi", 9)));
 
     pgbkParDoFn.finishBundle();
 
     assertThat(
         receiver.outputElems,
         IsIterableContainingInAnyOrder.<Object>containsInAnyOrder(
-            WindowedValue.valueInGlobalWindow(KV.of("hi", 10)),
-            WindowedValue.valueInGlobalWindow(KV.of("there", 13)),
-            WindowedValue.valueInGlobalWindow(KV.of("joe", 7))));
+            WindowedValues.valueInGlobalWindow(KV.of("hi", 10)),
+            WindowedValues.valueInGlobalWindow(KV.of("there", 13)),
+            WindowedValues.valueInGlobalWindow(KV.of("joe", 7))));
 
     // Exact counter values depend on size of encoded data.  If encoding
     // changes, then these expected counters should change to match.
@@ -291,7 +292,7 @@ public class PartialGroupByKeyParDoFnsTest {
 
     TestOutputReceiver receiver =
         new TestOutputReceiver(
-            new ElementByteSizeObservableCoder(WindowedValue.getValueOnlyCoder(kvCoder)),
+            new ElementByteSizeObservableCoder(WindowedValues.getValueOnlyCoder(kvCoder)),
             counterSet,
             NameContextsForTests.nameContextForTest());
 
@@ -328,7 +329,7 @@ public class PartialGroupByKeyParDoFnsTest {
 
     TestOutputReceiver receiver =
         new TestOutputReceiver(
-            new ElementByteSizeObservableCoder(WindowedValue.getValueOnlyCoder(kvCoder)),
+            new ElementByteSizeObservableCoder(WindowedValues.getValueOnlyCoder(kvCoder)),
             counterSet,
             NameContextsForTests.nameContextForTest());
 
@@ -355,7 +356,7 @@ public class PartialGroupByKeyParDoFnsTest {
 
     TestOutputReceiver receiver =
         new TestOutputReceiver(
-            new ElementByteSizeObservableCoder(WindowedValue.getValueOnlyCoder(kvCoder)),
+            new ElementByteSizeObservableCoder(WindowedValues.getValueOnlyCoder(kvCoder)),
             counterSet,
             NameContextsForTests.nameContextForTest());
 

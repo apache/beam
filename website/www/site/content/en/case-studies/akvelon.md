@@ -77,7 +77,7 @@ Akvelon designed and implemented a **Dataflow Flex Template** using Apache Beam 
     </a>
 </div>
 
-### Key features
+### Key Features
 - **Seamless integration with Protegrity UDFs**, enabling native tokenization directly within Beam transforms without requiring external service orchestration
 - **Support for multiple data formats** such as CSV, JSON, Parquet, allowing flexible deployment across diverse data pipelines
 - **Stateful processing with `DoFn` and timers**, which improves streaming reliability and reduces overall pipeline latency
@@ -86,7 +86,7 @@ Akvelon designed and implemented a **Dataflow Flex Template** using Apache Beam 
 This design provided both Protegrity and its enterprise clients with a reusable, open-source architecture for scalable data privacy and processing.
 
 ### The Results
-- **Enabled data tokenization at** for regulated industries
+- **Enabled data tokenization at scale** for regulated industries
 - **Accelerated adoption of Dataflow templates** across Protegrity’s customer base
 - **Delivered an [open-source Flex Template](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/complete/datatokenization/README.md)** that benefits the entire Apache Beam community
 
@@ -146,16 +146,7 @@ The project included prototyping, test infrastructure, and Salesforce plugin pip
   - Delivered **rapid development cycles** with standardized plugin configurations
   - Successfully processed **5 million records** in end-to-end tests for **batch and streaming**
 
-## Technology Stack
-
-- Apache Beam
-- Google Cloud Dataflow
-- Protegrity Data Protection Platform
-- CDAP (Cloud Data Fusion)
-- BigQuery
-- Salesforce, Zendesk, HubSpot, ServiceNow plugins
-
-## Final words
+## Final Words
 
 Akvelon’s contributions to Apache Beam-based solutions - from advanced tokenization for Protegrity and its enterprise customers to enabling plugin interoperability through the CDAP Connector - demonstrate the value of open-source, cloud-native data engineering. By delivering reusable and secure components, Akvelon supports enterprises in modernizing and unifying their data infrastructure.
 
@@ -167,11 +158,11 @@ Akvelon’s contributions to Apache Beam-based solutions - from advanced tokeniz
 
 Akvelon guides enterprises through digital transformation on Google Cloud - applying deep expertise in data engineering, AI/ML, cloud infrastructure, and custom application development to design, deploy, and scale modern workloads.
 
-At Akvelon, we’ve built a long-standing partnership with Google Cloud—helping software-driven organizations implement, migrate, modernize, automate, and optimize their systems while making the most of cloud technologies.
+At Akvelon, we’ve built a long-standing partnership with Google Cloud - helping software-driven organizations implement, migrate, modernize, automate, and optimize their systems while making the most of cloud technologies.
 
 As a **Google Cloud Service** and **Build Partner**, we contribute actively to the ecosystem:
-- Contributing code and guidance to **Apache Beam**—including Playground, Tour of Beam, and the Duet AI training set
-- Improving project infrastructure and supporting the Apache Beam community—now with an official Apache Beam Committer on our team
+- Contributing code and guidance to **Apache Beam** - including [Playground](https://github.com/apache/beam/blob/master/playground/README.md), [Tour of Beam](https://github.com/apache/beam/blob/master/learning/tour-of-beam/README.md), and the [Duet AI training set](https://github.com/apache/beam/blob/master/learning/prompts/README.md)
+- Improving project infrastructure and supporting the Apache Beam community - now with an official Apache Beam Committer on our team
 
 Backed by deep expertise in data engineering, AI/ML, cloud architecture, and application development, our engineers deliver reusable, secure, and production-ready solutions on Google Cloud for enterprises worldwide.
 

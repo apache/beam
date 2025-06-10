@@ -84,7 +84,9 @@ class MyDoFnBadAnnotation(MyDoFn):
 
 class RuntimeTypeCheckTest(unittest.TestCase):
   def setUp(self):
+    # Use FnApiRunner since it guarantees all lifecycle methods will be called.
     self.p = TestPipeline(
+        'FnApiRunner',
         options=PipelineOptions(
             runtime_type_check=True, performance_runtime_type_check=False))
 

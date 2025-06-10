@@ -34,7 +34,6 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.Preconditions;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -42,6 +41,8 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
@@ -239,7 +240,7 @@ public class BeamFlinkDataStreamAdapter {
                     Collector<WindowedValue<InputT>> out)
                     throws Exception {
                   out.collect(
-                      WindowedValue.timestampedValueInGlobalWindow(
+                      WindowedValues.timestampedValueInGlobalWindow(
                           value,
                           ctx.timestamp() == null
                               ? BoundedWindow.TIMESTAMP_MIN_VALUE
@@ -247,7 +248,7 @@ public class BeamFlinkDataStreamAdapter {
                 }
               },
               BeamAdapterCoderUtils.coderToTypeInformation(
-                  WindowedValue.getFullCoder(
+                  WindowedValues.getFullCoder(
                       BeamAdapterCoderUtils.typeInformationToCoder(
                           flinkInput.getType(), coderRegistry),
                       GlobalWindow.Coder.INSTANCE),

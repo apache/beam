@@ -95,6 +95,7 @@ dependencies {
     testRuntimeOnly library.java.slf4j_jdk14
     testImplementation project(path: ":runners:direct-java", configuration: "shadow")
     testRuntimeOnly project(path: ":runners:google-cloud-dataflow-java")
+    testRuntimeOnly project(path: ":sdks:java:harness")
     hadoopVersions.each {kv ->
         "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-client:$kv.value"
         "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-minicluster:$kv.value"
@@ -165,7 +166,7 @@ task dataflowIntegrationTest(type: Test) {
             "--project=${gcpProject}",
             "--tempLocation=${gcpTempLocation}",
             "--tempRoot=${gcpTempLocation}",
-            "--experiments=use_runner_v2"
+            "--experiments=use_runner_v2,use_staged_dataflow_worker_jar"
     ]
     if (project.hasProperty('enableManagedTransforms')) {
         args.add("--experiments=enable_managed_transforms")
