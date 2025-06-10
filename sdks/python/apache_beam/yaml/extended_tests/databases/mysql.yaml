@@ -15,9 +15,9 @@
 # limitations under the License.
 #
 
-# fixtures:
-#   - name: TEMP_DB
-#     type: "apache_beam.yaml.integration_tests.temp_mysql_database"
+fixtures:
+  - name: TEMP_DB
+    type: "apache_beam.yaml.integration_tests.temp_mysql_database"
 
 pipelines:
   # MySql write pipeline
