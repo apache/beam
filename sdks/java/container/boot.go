@@ -52,9 +52,11 @@ const (
 	disableJammAgentOption              = "disable_jamm_agent"
 	enableGoogleCloudProfilerOption     = "enable_google_cloud_profiler"
 	enableGoogleCloudHeapSamplingOption = "enable_google_cloud_heap_sampling"
+	enableOpenTelemetryAgentOption      = "enable_open_telemetry_agent"
 	googleCloudProfilerAgentBaseArgs    = "-agentpath:/opt/google_cloud_profiler/profiler_java_agent.so=-logtostderr,-cprof_service=%s,-cprof_service_version=%s"
 	googleCloudProfilerAgentHeapArgs    = googleCloudProfilerAgentBaseArgs + ",-cprof_enable_heap_sampling,-cprof_heap_sampling_interval=2097152"
 	jammAgentArgs                       = "-javaagent:/opt/apache/beam/jars/jamm.jar"
+	openTelemetryAgentArgs              = "-javaagent:/opt/apache/beam/jars/opentelemetry-javaagent.jar"
 )
 
 func main() {
@@ -222,6 +224,13 @@ func main() {
 	} else {
 		args = append(args, jammAgentArgs)
 	}
+
+	enableOpenTelemetryAgent := strings.Contains(options, enableOpenTelemetryAgentOption)
+	if enableOpenTelemetryAgent {
+		args = append(args, openTelemetryAgentArgs)
+		logger.Printf(ctx, "Enabling OpenTelemetry agent.")
+	}
+
 	// Apply meta options
 	const metaDir = "/opt/apache/beam/options"
 
