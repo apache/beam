@@ -72,10 +72,10 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
   public static ByteString encodeMetadata(
       Coder<Collection<? extends BoundedWindow>> windowsCoder,
       Collection<? extends BoundedWindow> windows,
-      PaneInfo pane)
+      PaneInfo paneInfo)
       throws IOException {
     ByteStringOutputStream stream = new ByteStringOutputStream();
-    PaneInfoCoder.INSTANCE.encode(pane, stream);
+    PaneInfoCoder.INSTANCE.encode(paneInfo, stream);
     windowsCoder.encode(windows, stream, Coder.Context.OUTER);
     return stream.toByteString();
   }
@@ -155,7 +155,7 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
     public long add(WindowedValue<T> data) throws IOException {
       ByteString key, value;
       ByteString id = ByteString.EMPTY;
-      ByteString metadata = encodeMetadata(windowsCoder, data.getWindows(), data.getPane());
+      ByteString metadata = encodeMetadata(windowsCoder, data.getWindows(), data.getPaneInfo());
       if (valueCoder instanceof KvCoder) {
         KvCoder kvCoder = (KvCoder) valueCoder;
         KV kv = (KV) data.getValue();

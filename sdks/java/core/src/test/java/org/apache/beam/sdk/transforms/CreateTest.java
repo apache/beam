@@ -367,7 +367,7 @@ public class CreateTest {
                                     windowedValue.getValue(),
                                     windowedValue.getTimestamp(),
                                     w,
-                                    windowedValue.getPane())))
+                                    windowedValue.getPaneInfo())))
             .collect(Collectors.toList());
 
     PCollection<String> output =

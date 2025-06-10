@@ -486,7 +486,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
                 valueMapper.apply(res),
                 windowedValue.getTimestamp(),
                 windowedValue.getWindows(),
-                windowedValue.getPane()));
+                windowedValue.getPaneInfo()));
   }
 
   /**

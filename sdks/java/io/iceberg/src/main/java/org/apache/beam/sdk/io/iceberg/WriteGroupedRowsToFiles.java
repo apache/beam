@@ -93,13 +93,13 @@ class WriteGroupedRowsToFiles
         ProcessContext c,
         @Element KV<ShardedKey<String>, Iterable<Row>> element,
         BoundedWindow window,
-        PaneInfo pane)
+        PaneInfo paneInfo)
         throws Exception {
 
       String tableIdentifier = element.getKey().getKey();
       IcebergDestination destination = dynamicDestinations.instantiateDestination(tableIdentifier);
       WindowedValue<IcebergDestination> windowedDestination =
-          WindowedValues.of(destination, window.maxTimestamp(), window, pane);
+          WindowedValues.of(destination, window.maxTimestamp(), window, paneInfo);
       RecordWriterManager writer;
       try (RecordWriterManager openWriter =
           new RecordWriterManager(getCatalog(), filePrefix, maxFileSize, Integer.MAX_VALUE)) {

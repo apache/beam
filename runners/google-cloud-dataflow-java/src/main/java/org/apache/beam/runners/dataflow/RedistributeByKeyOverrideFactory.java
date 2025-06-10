@@ -21,11 +21,7 @@ import java.util.Collections;
 import org.apache.beam.runners.dataflow.internal.DataflowGroupByKey;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
-import org.apache.beam.sdk.runners.PTransformOverrideFactory.PTransformReplacement;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.Element;
-import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
-import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Redistribute.RedistributeByKey;
@@ -143,7 +139,7 @@ class RedistributeByKeyOverrideFactory<K, V>
                       KV.of(kv.getKey(), kv.getValue().getValue()),
                       kv.getValue().getTimestamp(),
                       Collections.singleton(kv.getValue().getWindow()),
-                      kv.getValue().getPane());
+                      kv.getValue().getPaneInfo());
                 }
               }));
     }
