@@ -30,7 +30,7 @@ import static org.mockito.Mockito.mock;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionState;
 import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionStateTracker;
 import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionStateTrackerStatus;
@@ -807,7 +807,7 @@ public class ExecutionStateSamplerTest {
       state.deactivate();
       tracker.reset();
       sampler.stop();
-    } catch (TimeoutException e) {
+    } catch (RuntimeException e) {
       exceptionThrown = true;
     }
 
