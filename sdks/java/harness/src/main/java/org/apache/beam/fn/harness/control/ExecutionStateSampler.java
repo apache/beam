@@ -82,7 +82,8 @@ public class ExecutionStateSampler {
           .toFormatter();
   private final int periodMs;
   private final MillisProvider clock;
-  private final Long userAllowedLullTimeMsForRestart;
+  private final long userAllowedLullTimeMsForRestart;
+  private final boolean userAllowedTimeoutForRestart;
 
   @GuardedBy("activeStateTrackers")
   private final Set<ExecutionStateTracker> activeStateTrackers;
@@ -101,9 +102,11 @@ public class ExecutionStateSampler {
     this.clock = clock;
     this.activeStateTrackers = new HashSet<>();
 
-    if (options.getPtransformTimeoutDuration() == 0) {
-      this.userAllowedLullTimeMsForRestart = null;
+    if (options.getPtransformTimeoutDuration() <= 0) {
+      this.userAllowedLullTimeMsForRestart = 0;
+      this.userAllowedTimeoutForRestart = false;
     } else {
+      this.userAllowedTimeoutForRestart = true;
       int timeout = options.getPtransformTimeoutDuration();
       long timeoutMs = TimeUnit.MINUTES.toMillis(timeout);
       this.userAllowedLullTimeMsForRestart =
@@ -172,7 +175,12 @@ public class ExecutionStateSampler {
   }
 
   @VisibleForTesting
-  public Long getUserAllowedLullTimeMsForRestart() {
+  public boolean getUserAllowedTimeoutForRestart() {
+    return this.userAllowedTimeoutForRestart;
+  }
+
+  @VisibleForTesting
+  public long getUserAllowedLullTimeMsForRestart() {
     return this.userAllowedLullTimeMsForRestart;
   }
 
@@ -385,8 +393,7 @@ public class ExecutionStateSampler {
       } else {
         long lullTimeMs = currentTimeMillis - lastTransitionTimeMillis.get();
 
-        if (userAllowedLullTimeMsForRestart != null
-            && lullTimeMs > userAllowedLullTimeMsForRestart) {
+        if (userAllowedTimeoutForRestart&& lullTimeMs > userAllowedLullTimeMsForRestart) {
           throw new RuntimeException(
               String.format(
                   "The ptransform has been stuck for more than %d minutes, the SDK worker will"
