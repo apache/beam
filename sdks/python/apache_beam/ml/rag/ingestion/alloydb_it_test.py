@@ -48,7 +48,7 @@ _LOGGER = logging.getLogger(__name__)
     os.environ.get('ALLOYDB_PASSWORD'),
     "ALLOYDB_PASSWORD environment var is not provided")
 class AlloydbVectorWriterConfigTest(unittest.TestCase):
-  POSTGRES_TABLE_PREFIX = 'python_rag_postgres_'
+  ALLOYDB_TABLE_PREFIX = 'python_rag_postgres_'
 
   @classmethod
   def setUpClass(cls):
