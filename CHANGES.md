@@ -75,6 +75,8 @@
 ## I/Os
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* [IcebergIO] Support reading with column pruning ([#34856](https://github.com/apache/beam/pull/34856))
+* [IcebergIO] Support reading with pushdown filtering ([#34827](https://github.com/apache/beam/pull/34827))
 
 ## New Features / Improvements
 * Adding Google Storage Requests Pays feature (Golang)([#30747](https://github.com/apache/beam/issues/30747)).
