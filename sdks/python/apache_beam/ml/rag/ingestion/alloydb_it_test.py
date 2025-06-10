@@ -196,7 +196,7 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
       count_result = rows | "Count All" >> beam.combiners.Count.Globally()
       assert_that(count_result, equal_to([num_records]), label='count_check')
 
-      chunks = (rows | "To Chunks" >> beam.Map(row_to_chunk))
+      chunks = (rows | "To Chunks" >> beam.Map(test_utils.row_to_chunk))
       chunk_hashes = chunks | "Hash Chunks" >> beam.CombineGlobally(
           test_utils.HashingFn())
       assert_that(
@@ -567,7 +567,7 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
               query=read_query,
               classpath=connection_config.additional_jdbc_args()['classpath']))
 
-      chunks = rows | "To Chunks" >> beam.Map(row_to_chunk)
+      chunks = rows | "To Chunks" >> beam.Map(test_utils.row_to_chunk)
 
       # Create expected chunks with None values
       expected_chunks = test_utils.ChunkTestUtils.get_expected_values(
@@ -759,7 +759,7 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
 
       chunks = (
           rows
-          | "To Chunks" >> beam.Map(row_to_chunk)
+          | "To Chunks" >> beam.Map(test_utils.row_to_chunk)
           | "Key on Index" >> beam.Map(test_utils.key_on_id)
           | "Get First 500" >> beam.transforms.combiners.Top.Of(
               num_records, key=lambda x: x[0], reverse=True)
@@ -790,7 +790,7 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
 
       chunks = (
           rows
-          | "To Chunks 2" >> beam.Map(row_to_chunk)
+          | "To Chunks 2" >> beam.Map(test_utils.row_to_chunk)
           | "Key on Index 2" >> beam.Map(test_utils.key_on_id)
           | "Get First 500 2" >> beam.transforms.combiners.Top.Of(
               num_records, key=lambda x: x[0], reverse=True)
@@ -848,7 +848,7 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
 
       chunks = (
           rows
-          | "To Chunks" >> beam.Map(row_to_chunk)
+          | "To Chunks" >> beam.Map(test_utils.row_to_chunk)
           | "Key on Index" >> beam.Map(test_utils.key_on_id)
           | "Get First 500" >> beam.transforms.combiners.Top.Of(
               num_records, key=lambda x: x[0], reverse=True)
@@ -879,7 +879,7 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
 
       chunks = (
           rows
-          | "To Chunks 2" >> beam.Map(row_to_chunk)
+          | "To Chunks 2" >> beam.Map(test_utils.row_to_chunk)
           | "Key on Index 2" >> beam.Map(test_utils.key_on_id)
           | "Get First 500 2" >> beam.transforms.combiners.Top.Of(
               num_records, key=lambda x: x[0], reverse=True)
@@ -946,7 +946,7 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
 
       chunks = (
           rows
-          | "To Chunks" >> beam.Map(row_to_chunk)
+          | "To Chunks" >> beam.Map(test_utils.row_to_chunk)
           | "Key on Index" >> beam.Map(test_utils.key_on_id)
           | "Get First 500" >> beam.transforms.combiners.Top.Of(
               num_records, key=lambda x: x[0], reverse=True)
@@ -994,7 +994,7 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
 
       chunks = (
           rows
-          | "To Chunks 2" >> beam.Map(row_to_chunk)
+          | "To Chunks 2" >> beam.Map(test_utils.row_to_chunk)
           | "Key on Index 2" >> beam.Map(test_utils.key_on_id)
           | "Get First 500 2" >> beam.transforms.combiners.Top.Of(
               num_records, key=lambda x: x[0], reverse=True)
