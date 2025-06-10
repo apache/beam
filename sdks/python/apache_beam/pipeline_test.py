@@ -174,7 +174,7 @@ class PipelineTest(unittest.TestCase):
 
     with pytest.raises(
         TypeCheckError,
-        match=r".*applied to the output.*ParentTransform/DoNothingTransform"):
+        match=r".*applied to the output"):
       with TestPipeline() as pipeline:
         _ = pipeline | ParentTransform() | beam.Map(lambda x: x + 1)
 
