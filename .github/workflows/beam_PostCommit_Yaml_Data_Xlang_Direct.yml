@@ -49,7 +49,7 @@ env:
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
 jobs:
-  beam_PostCommit_Yaml_Xlang_Direct:
+  beam_PostCommit_Yaml_Data_Xlang_Direct:
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'pull_request_target' ||
