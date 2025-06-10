@@ -76,6 +76,9 @@ test {
 dependencies {
   // antlr is used to generate code from sdks/java/core/src/main/antlr/
   antlr "org.antlr:antlr4:$antlr_version"
+  permitUnusedDeclared "org.antlr:antlr4:$antlr_version"
+  // alrady shaded and repackaged
+  permitUsedUndeclared "org.antlr:antlr4-runtime:$antlr_version"
   // Required to load constants from the model, e.g. max timestamp for global window
   shadow project(path: ":model:pipeline", configuration: "shadow")
   shadow project(path: ":model:fn-execution", configuration: "shadow")
