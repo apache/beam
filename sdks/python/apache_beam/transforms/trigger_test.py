@@ -700,7 +700,9 @@ class TriggerPipelineTest(unittest.TestCase):
               }.items())))
 
   def test_always(self):
-    with TestPipeline() as p:
+    # Pin to FnApiRunner since portable runner could trigger differently if
+    # using bundle sizes of greater than 1.
+    with TestPipeline('FnApiRunner') as p:
 
       def construct_timestamped(k, t):
         return TimestampedValue((k, t), t)
