@@ -854,6 +854,7 @@ class BeamModulePlugin implements Plugin<Project> {
         netty_tcnative_boringssl_static             : "io.netty:netty-tcnative-boringssl-static:2.0.52.Final",
         netty_transport                             : "io.netty:netty-transport:$netty_version",
         netty_transport_native_epoll                : "io.netty:netty-transport-native-epoll:$netty_version",
+        opentelemetry_api                           : "io.opentelemetry:opentelemetry-api", // opentelemetry_instrumentation_bom sets version
         opentelemetry_instrumentation_bom           : "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom:$opentelemetry_instrumentation_version",
         opentelemetry_javaagent                     : "io.opentelemetry.javaagent:opentelemetry-javaagent", // opentelemetry_instrumentation_bom sets version
         postgres                                    : "org.postgresql:postgresql:$postgres_version",
