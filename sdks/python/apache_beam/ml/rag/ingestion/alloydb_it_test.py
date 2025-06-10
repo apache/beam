@@ -15,16 +15,21 @@
 # limitations under the License.
 #
 
+import json
 import logging
 import os
 import secrets
 import time
 import unittest
+from typing import List
+from typing import NamedTuple
 
 import psycopg2
 import pytest
 
 import apache_beam as beam
+from apache_beam.coders import registry
+from apache_beam.coders.row_coder import RowCoder
 from apache_beam.io.jdbc import ReadFromJdbc
 from apache_beam.ml.rag.ingestion import test_utils
 from apache_beam.ml.rag.ingestion.alloydb import AlloyDBLanguageConnectorConfig
@@ -32,11 +37,36 @@ from apache_beam.ml.rag.ingestion.alloydb import AlloyDBVectorWriterConfig
 from apache_beam.ml.rag.ingestion.base import VectorDatabaseWriteTransform
 from apache_beam.ml.rag.ingestion.postgres_common import ColumnSpecsBuilder
 from apache_beam.ml.rag.ingestion.postgres_common import ConflictResolution
+from apache_beam.ml.rag.types import Chunk
+from apache_beam.ml.rag.types import Content
+from apache_beam.ml.rag.types import Embedding
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
 _LOGGER = logging.getLogger(__name__)
+
+CustomSpecsRow = NamedTuple(
+    'CustomSpecsRow',
+    [
+        ('custom_id', str),  # For id_spec test
+        ('embedding_vec', List[float]),  # For embedding_spec test
+        ('content_col', str),  # For content_spec test
+        ('metadata', str)
+    ])
+registry.register_coder(CustomSpecsRow, RowCoder)
+
+MetadataConflictRow = NamedTuple(
+    'MetadataConflictRow',
+    [
+        ('id', str),
+        ('source', str),  # For metadata_spec and composite key
+        ('timestamp', str),  # For metadata_spec and composite key
+        ('content', str),
+        ('embedding', List[float]),
+        ('metadata', str)
+    ])
+registry.register_coder(MetadataConflictRow, RowCoder)
 
 
 @pytest.mark.uses_gcp_java_expansion_service
