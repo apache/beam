@@ -31,7 +31,6 @@ import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamPCollectionTable;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
-import org.apache.beam.sdk.extensions.sql.meta.catalog.CatalogManager;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.InMemoryCatalogManager;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
@@ -127,8 +126,6 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
 
   abstract boolean autoLoading();
 
-  abstract CatalogManager catalogManager();
-
   abstract Map<String, TableProvider> tableProviderMap();
 
   abstract @Nullable String defaultTableProvider();
@@ -139,7 +136,7 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
   public PCollection<Row> expand(PInput input) {
     TableProvider inputTableProvider =
         new ReadOnlyTableProvider(PCOLLECTION_NAME, toTableMap(input));
-    CatalogManager catalogManager = catalogManager();
+    InMemoryCatalogManager catalogManager = new InMemoryCatalogManager();
     catalogManager.registerTableProvider(PCOLLECTION_NAME, inputTableProvider);
     BeamSqlEnvBuilder sqlEnvBuilder = BeamSqlEnv.builder(catalogManager);
 
@@ -311,7 +308,6 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
 
   static Builder builder() {
     return new AutoValue_SqlTransform.Builder()
-        .setCatalogManager(new InMemoryCatalogManager())
         .setQueryParameters(QueryParameters.ofNone())
         .setDdlStrings(Collections.emptyList())
         .setUdafDefinitions(Collections.emptyList())
@@ -334,8 +330,6 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
     abstract Builder setUdafDefinitions(List<UdafDefinition> udafDefinitions);
 
     abstract Builder setAutoLoading(boolean autoLoading);
-
-    abstract Builder setCatalogManager(CatalogManager catalogManager);
 
     abstract Builder setTableProviderMap(Map<String, TableProvider> tableProviderMap);
 
