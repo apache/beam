@@ -24,8 +24,8 @@ import java.util.Properties;
 import java.util.ServiceLoader;
 import java.util.Set;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.CatalogManager;
+import org.apache.beam.sdk.extensions.sql.meta.catalog.EmptyCatalogManager;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.InMemoryCatalogManager;
-import org.apache.beam.sdk.extensions.sql.meta.catalog.ReadOnlyCatalogManager;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
@@ -127,7 +127,7 @@ class BeamCalciteSchemaFactory {
 
     private static final TableProvider READ_ONLY_TABLE_PROVIDER =
         new ReadOnlyTableProvider("empty", ImmutableMap.of());
-    private static final CatalogManager READ_ONLY_CATALOG_MANAGER = new ReadOnlyCatalogManager();
+    private static final CatalogManager READ_ONLY_CATALOG_MANAGER = new EmptyCatalogManager();
 
     /**
      * We call this in {@link #fromInitialEmptySchema(JdbcConnection)} to convert the schema created

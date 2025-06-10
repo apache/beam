@@ -73,7 +73,7 @@ public class InMemoryCatalogManager implements CatalogManager {
   }
 
   @Override
-  public void removeCatalog(String name) {
+  public void dropCatalog(String name) {
     catalogs.remove(name);
   }
 

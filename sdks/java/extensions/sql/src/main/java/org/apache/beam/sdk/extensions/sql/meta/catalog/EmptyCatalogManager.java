@@ -22,12 +22,12 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-public class ReadOnlyCatalogManager implements CatalogManager {
+public class EmptyCatalogManager implements CatalogManager {
   private static final InMemoryCatalog EMPTY = new InMemoryCatalog("default", ImmutableMap.of());
 
   @Override
   public void useCatalog(String name) {
-    if (!EMPTY.name().equals(name)) {
+    if (!EMPTY.name().equalsIgnoreCase(name)) {
       throw new IllegalArgumentException("Catalog not found: " + name);
     }
   }
@@ -43,7 +43,7 @@ public class ReadOnlyCatalogManager implements CatalogManager {
   }
 
   @Override
-  public void removeCatalog(String name) {
+  public void dropCatalog(String name) {
     throw new UnsupportedOperationException(
         "ReadOnlyCatalogManager does not support removing a catalog");
   }

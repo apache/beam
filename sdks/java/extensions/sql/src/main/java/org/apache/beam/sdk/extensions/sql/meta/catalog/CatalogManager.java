@@ -46,8 +46,8 @@ public interface CatalogManager {
   @Nullable
   Catalog getCatalog(String name);
 
-  /** Drops the catalog with this name. */
-  void removeCatalog(String name);
+  /** Drops the catalog with this name. No-op if the catalog already does not exist. */
+  void dropCatalog(String name);
 
   /**
    * Registers a {@link TableProvider} and propagates it to all the {@link Catalog} instances

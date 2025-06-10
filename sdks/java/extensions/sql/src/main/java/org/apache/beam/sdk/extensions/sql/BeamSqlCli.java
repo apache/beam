@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql;
 
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.ParseException;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamEnumerableConverter;
@@ -31,6 +32,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@Internal
 public class BeamSqlCli {
   private BeamSqlEnv env;
   /** The store which persists all the table meta data. */

@@ -101,7 +101,7 @@ public class SqlDropCatalog extends SqlDrop implements BeamSqlParser.ExecutableS
                   name)));
     }
 
-    catalogManager.removeCatalog(name);
+    catalogManager.dropCatalog(name);
     LOG.info("Successfully dropped catalog '{}'", name);
   }
 
