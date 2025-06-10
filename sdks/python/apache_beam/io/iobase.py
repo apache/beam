@@ -859,31 +859,9 @@ class Sink(HasDisplayData):
     raise NotImplementedError
 
   def finalize_windowed_write(
-      self, init_result, writer_results, pre_finalize_result, w=None):
-    """Finalizes the sink after all data is written to it for a window.
-
-    Given the result of initialization and an iterable of results from bundle
-    writes, performs finalization after writing and closes the sink. Called
-    after all bundle writes are complete.
-
-    The bundle write results that are passed to finalize are those returned by
-    bundles that completed successfully. Although bundles may have been run
-    multiple times (for fault-tolerance), only one writer result will be passed
-    to finalize for each bundle. An implementation of finalize should perform
-    clean up of any failed and successfully retried bundles.  Note that these
-    failed bundles will not have their writer result passed to finalize, so
-    finalize should be capable of locating any temporary/partial output written
-    by failed bundles.
-
-    If all retries of a bundle fails, the whole pipeline will fail *without*
-    finalize_write() being invoked.
-
-    A best practice is to make finalize atomic. If this is impossible given the
-    semantics of the sink, finalize should be idempotent, as it may be called
-    multiple times in the case of failure/retry or for redundancy.
-
-    Note that the iteration order of the writer results is not guaranteed to be
-    consistent if finalize is called multiple times.
+      self, init_result, writer_results, pre_finalize_result, window=None):
+    """Finalizes the sink after all data is written to it for a window. Similar
+    to ``finalize_write()``.
 
     Args:
       init_result: the result of ``initialize_write()`` invocation.
@@ -892,7 +870,7 @@ class Sink(HasDisplayData):
         will only contain the result of a single successful write for a given
         bundle.
       pre_finalize_result: the result of ``pre_finalize()`` invocation.
-      w: DoFn window
+      window: DoFn window
     """
     raise NotImplementedError
 
