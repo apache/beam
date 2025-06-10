@@ -30,6 +30,7 @@ import apache_beam as beam
 from apache_beam.metrics.metric import Metrics
 from apache_beam.runners import DirectRunner
 from apache_beam.runners import create_runner
+from apache_beam.runners.portability.fn_api_runner import FnApiRunner
 
 
 class RunnerTest(unittest.TestCase):
@@ -55,7 +56,7 @@ class RunnerTest(unittest.TestCase):
 
   def test_run_api(self):
     my_metric = Metrics.counter('namespace', 'my_metric')
-    runner = DirectRunner()
+    runner = FnApiRunner()
     result = runner.run(
         beam.Create([1, 10, 100]) | beam.Map(lambda x: my_metric.inc(x)))
     result.wait_until_finish()
@@ -72,7 +73,7 @@ class RunnerTest(unittest.TestCase):
           | beam.Create([1, 10, 100])
           | beam.Map(lambda x: my_metric.inc(x)))
 
-    runner = DirectRunner()
+    runner = FnApiRunner()
     result = runner.run(fn)
     result.wait_until_finish()
     # Use counters to assert the pipeline actually ran.
