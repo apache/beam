@@ -24,9 +24,9 @@ from __future__ import absolute_import
 from typing import Sequence
 from typing import Tuple
 
+from cachetools.func import ttl_cache
 from google.api_core.retry import Retry
 
-from cachetools.func import ttl_cache
 from apache_beam import pvalue
 from apache_beam.metrics import Metrics
 from apache_beam.options.pipeline_options import GoogleCloudOptions
