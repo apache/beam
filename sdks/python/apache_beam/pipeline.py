@@ -767,10 +767,10 @@ class Pipeline(HasDisplayData):
     self.applied_labels.add(full_label)
 
     if pvalueish is None:
-        full_label = self._current_transform().full_label
-        raise TypeCheckError(
-            f'Transform "{full_label}" was applied to the output of '
-            f'an object of type None.')
+      full_label = self._current_transform().full_label
+      raise TypeCheckError(
+          f'Transform "{full_label}" was applied to the output of '
+          f'an object of type None.')
 
     pvalueish, inputs = transform._extract_input_pvalues(pvalueish)
     try:
