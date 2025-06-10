@@ -23,7 +23,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class ReadOnlyCatalogManager implements CatalogManager {
-  private final InMemoryCatalog EMPTY = new InMemoryCatalog("default", ImmutableMap.of());
+  private static final InMemoryCatalog EMPTY = new InMemoryCatalog("default", ImmutableMap.of());
 
   @Override
   public void useCatalog(String name) {
