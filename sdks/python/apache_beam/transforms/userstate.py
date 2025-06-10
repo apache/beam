@@ -65,7 +65,9 @@ class StateSpec(object):
 
 class ReadModifyWriteStateSpec(StateSpec):
   """Specification for a user DoFn value state cell.
-     Read more about ReadModifyWriteState (ValueState) here: https://beam.apache.org/documentation/programming-guide/#valuestate"""
+     Read more about ReadModifyWriteState (ValueState) here:
+     https://beam.apache.org/documentation/programming-guide/#valuestate
+  """
   def to_runner_api(
       self, context: 'PipelineContext') -> beam_runner_api_pb2.StateSpec:
     return beam_runner_api_pb2.StateSpec(
@@ -77,7 +79,9 @@ class ReadModifyWriteStateSpec(StateSpec):
 
 class BagStateSpec(StateSpec):
   """Specification for a user DoFn bag state cell.
-     Read more about BagState here: https://beam.apache.org/documentation/programming-guide/#bagstate"""
+  Read more about BagState here:
+  https://beam.apache.org/documentation/programming-guide/#bagstate
+  """
   def to_runner_api(
       self, context: 'PipelineContext') -> beam_runner_api_pb2.StateSpec:
     return beam_runner_api_pb2.StateSpec(
@@ -89,7 +93,9 @@ class BagStateSpec(StateSpec):
 
 class SetStateSpec(StateSpec):
   """Specification for a user DoFn Set State cell.
-    Read more about SetState here: https://beam.apache.org/documentation/programming-guide/#setstate"""
+  Read more about SetState here:
+  https://beam.apache.org/documentation/programming-guide/#setstate
+  """
   def to_runner_api(
       self, context: 'PipelineContext') -> beam_runner_api_pb2.StateSpec:
     return beam_runner_api_pb2.StateSpec(
@@ -101,7 +107,9 @@ class SetStateSpec(StateSpec):
 
 class CombiningValueStateSpec(StateSpec):
   """Specification for a user DoFn combining value state cell.
-     Read more about CombiningValueState here: https://beam.apache.org/documentation/programming-guide/#combiningstate"""
+  Read more about CombiningValueState here:
+  https://beam.apache.org/documentation/programming-guide/#combiningstate
+  """
   def __init__(
       self,
       name: str,
@@ -153,7 +161,9 @@ class CombiningValueStateSpec(StateSpec):
 
 class OrderedListStateSpec(StateSpec):
   """Specification for a user DoFn ordered list state cell.
-     Read more about OrderedListState here: https://beam.apache.org/documentation/programming-guide/#orderliststate"""
+     Read more about OrderedListState here:
+     https://beam.apache.org/documentation/programming-guide/#orderliststate
+  """
   def to_runner_api(
       self, context: 'PipelineContext') -> beam_runner_api_pb2.StateSpec:
     return beam_runner_api_pb2.StateSpec(
@@ -180,7 +190,9 @@ Timer = NamedTuple(
 # TODO(BEAM-9562): Plumb through actual key_coder and window_coder.
 class TimerSpec(object):
   """Specification for a user stateful DoFn timer.
-     Read more about Timers here: https://beam.apache.org/documentation/programming-guide/#timers"""
+     Read more about Timers here:
+     https://beam.apache.org/documentation/programming-guide/#timers
+  """
   prefix = "ts-"
 
   def __init__(self, name: str, time_domain: str) -> None:
@@ -376,22 +388,30 @@ class AccumulatingRuntimeState(RuntimeState):
 
 class BagRuntimeState(AccumulatingRuntimeState):
   """Bag state interface object passed to user code.
-    Read more about BagState here: https://beam.apache.org/documentation/programming-guide/#bagstate"""
+  Read more about BagState here:
+  https://beam.apache.org/documentation/programming-guide/#bagstate
+  """
 
 
 class SetRuntimeState(AccumulatingRuntimeState):
   """Set state interface object passed to user code.
-     Read more about SetState here: https://beam.apache.org/documentation/programming-guide/#setstate"""
+  Read more about SetState here:
+  https://beam.apache.org/documentation/programming-guide/#setstate
+  """
 
 
 class CombiningValueRuntimeState(AccumulatingRuntimeState):
   """Combining value state interface object passed to user code.
-     Read more about CombiningValueState here: https://beam.apache.org/documentation/programming-guide/#combiningstate"""
+  Read more about CombiningValueState here:
+  https://beam.apache.org/documentation/programming-guide/#combiningstate
+  """
 
 
 class OrderedListRuntimeState(AccumulatingRuntimeState):
   """Ordered list state interface object passed to user code.
-     Read more about OrderedListState here: https://beam.apache.org/documentation/programming-guide/#orderliststate"""
+  Read more about OrderedListState here:
+  https://beam.apache.org/documentation/programming-guide/#orderliststate
+  """
   def read(self) -> Iterable[tuple[Timestamp, Any]]:
     raise NotImplementedError(type(self))
 
