@@ -18,21 +18,41 @@
 package org.apache.beam.sdk.extensions.sql.meta.catalog;
 
 import java.util.Map;
+import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteSchema;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+/**
+ * Top-level authority that manages {@link Catalog}s. Used inside the root {@link
+ * BeamCalciteSchema}.
+ *
+ * <p>Implementations should have a way of determining which catalog is currently active, and
+ * produce it when {@link #currentCatalog()} is invoked.
+ *
+ * <p>When {@link #registerTableProvider(String, TableProvider)} is called, the provider should
+ * become available for all catalogs.
+ */
 public interface CatalogManager {
+  /** Creates and stores a catalog of a particular type. */
   void createCatalog(String name, String type, Map<String, String> properties);
 
+  /** Switches the active catalog. */
   void useCatalog(String name);
 
+  /** Produces the currently active catalog. */
   Catalog currentCatalog();
 
+  /** Attempts to fetch the catalog with this name. May produce null if it does not exist. */
   @Nullable
   Catalog getCatalog(String name);
 
+  /** Drops the catalog with this name. */
   void removeCatalog(String name);
 
+  /**
+   * Registers a {@link TableProvider} and propagates it to all the {@link Catalog} instances
+   * available to this manager.
+   */
   void registerTableProvider(String name, TableProvider tableProvider);
 
   default void registerTableProvider(TableProvider tp) {
