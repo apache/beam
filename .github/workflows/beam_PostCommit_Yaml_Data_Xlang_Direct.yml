@@ -13,13 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: PostCommit YAML Xlang Direct
+name: PostCommit YAML Data Xlang Direct
 
 on:
   schedule:
     - cron: '30 5/6 * * *'
   pull_request_target:
-    paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Yaml_Xlang_Direct.json']
+    paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Yaml_Data_Xlang_Direct.json']
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -59,8 +59,8 @@ jobs:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     strategy:
       matrix:
-        job_name: ["beam_PostCommit_Yaml_Xlang_Direct"]
-        job_phrase: ["Run Yaml_Xlang_Direct PostCommit"]
+        job_name: ["beam_PostCommit_Yaml_Data_Xlang_Direct"]
+        job_phrase: ["Run Yaml_Data_Xlang_Direct PostCommit"]
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository
@@ -76,10 +76,10 @@ jobs:
           java-version: '11'
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
-      - name: run PostCommit Yaml Xlang Direct script
+      - name: run PostCommit Yaml Data Xlang Direct script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:python:postCommitYamlIntegrationTests -PbeamPythonExtra=ml_test
+          gradle-command: :sdks:python:postCommitYamlDataIntegrationTests -PbeamPythonExtra=ml_test
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v4
         if: failure()
