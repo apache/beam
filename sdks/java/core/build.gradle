@@ -91,7 +91,7 @@ dependencies {
   shadow library.java.jackson_core
   shadow library.java.jackson_annotations
   shadow library.java.jackson_databind
-  implementation platform(library.java.opentelemetry_instrumentation_bom)
+  shadow platform(library.java.opentelemetry_instrumentation_bom)
   shadow library.java.opentelemetry_api
   shadow library.java.slf4j_api
   shadow library.java.snappy_java
