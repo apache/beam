@@ -43,7 +43,7 @@ import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.InvalidProtocolBu
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /** {@link CoderTranslator} implementations for known coder types. */
-class CoderTranslators {
+public class CoderTranslators {
   private CoderTranslators() {}
 
   static <T extends Coder<?>> CoderTranslator<T> atomic(final Class<T> clazz) {
@@ -224,7 +224,7 @@ class CoderTranslators {
     };
   }
 
-  static void overrideEncodingPositions(Schema schema) {
+  public static void overrideEncodingPositions(Schema schema) {
     @Nullable UUID uuid = schema.getUUID();
     if (schema.isEncodingPositionsOverridden() && uuid != null) {
       RowCoder.overrideEncodingPositions(uuid, schema.getEncodingPositions());
