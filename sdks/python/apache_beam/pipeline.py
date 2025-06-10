@@ -805,9 +805,6 @@ class Pipeline(HasDisplayData):
       self._assert_not_applying_PDone(pvalueish, transform)
 
       pvalueish_result = self.runner.apply(transform, pvalueish, self._options)
-      if pvalueish_result is None:
-        pvalueish_result = pvalue.PDone(self)
-        pvalueish_result.producer = current
 
       if type_options is not None and type_options.pipeline_type_check:
         transform.type_check_outputs(pvalueish_result)
