@@ -136,6 +136,109 @@ Schema.Field Field() :
     }
 }
 
+SqlNodeList PropertyList() :
+{
+    SqlNodeList list = new SqlNodeList(getPos());
+    SqlNode property;
+}
+{
+    property = Property() { list.add(property); }
+    (
+        <COMMA> property = Property() { list.add(property); }
+    )*
+    {
+        return list;
+    }
+}
+
+
+SqlNode Property() :
+{
+    SqlNode key;
+    SqlNode value;
+}
+{
+    key = StringLiteral()
+    <EQ>
+    value = StringLiteral()
+    {
+        SqlNodeList pair = new SqlNodeList(getPos());
+        pair.add(key);
+        pair.add(value);
+        return pair;
+    }
+}
+
+/**
+ * CREATE CATALOG ( IF NOT EXISTS )? catalog_name
+ *   TYPE type_name
+ *   ( PROPERTIES '(' key = value ( ',' key = value )* ')' )?
+ */
+SqlCreate SqlCreateCatalog(Span s, boolean replace) :
+{
+    final boolean ifNotExists;
+    final SqlIdentifier catalogName;
+    final SqlIdentifier type;
+    SqlNodeList properties = null;
+}
+{
+
+    <CATALOG> {
+        s.add(this);
+    }
+
+    ifNotExists = IfNotExistsOpt()
+    catalogName = CompoundIdentifier()
+    <TYPE>
+    type = CompoundIdentifier()
+    [ <PROPERTIES> <LPAREN> properties = PropertyList() <RPAREN> ]
+
+    {
+        return new SqlCreateCatalog(
+            s.end(this),
+            replace,
+            ifNotExists,
+            catalogName,
+            type,
+            properties);
+    }
+}
+
+/**
+ * SET CATALOG catalog_name
+ */
+SqlCall SqlSetCatalog(Span s, String scope) :
+{
+    final SqlIdentifier catalogName;
+}
+{
+    <SET> {
+        s.add(this);
+    }
+    <CATALOG>
+    catalogName = CompoundIdentifier()
+    {
+        return new SqlSetCatalog(
+            s.end(this),
+            scope,
+            catalogName);
+    }
+}
+
+
+SqlDrop SqlDropCatalog(Span s, boolean replace) :
+{
+    final boolean ifExists;
+    final SqlIdentifier catalogName;
+}
+{
+    <CATALOG> ifExists = IfExistsOpt()
+    catalogName = CompoundIdentifier()
+    {
+        return new SqlDropCatalog(s.end(this), ifExists, catalogName);
+    }
+}
+
 /**
  * Note: This example is probably out of sync with the code.
  *

@@ -31,9 +31,10 @@ import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamPCollectionTable;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.meta.catalog.CatalogManager;
+import org.apache.beam.sdk.extensions.sql.meta.catalog.InMemoryCatalogManager;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
-import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -126,6 +127,8 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
 
   abstract boolean autoLoading();
 
+  abstract CatalogManager catalogManager();
+
   abstract Map<String, TableProvider> tableProviderMap();
 
   abstract @Nullable String defaultTableProvider();
@@ -136,9 +139,9 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
   public PCollection<Row> expand(PInput input) {
     TableProvider inputTableProvider =
         new ReadOnlyTableProvider(PCOLLECTION_NAME, toTableMap(input));
-    InMemoryMetaStore metaTableProvider = new InMemoryMetaStore();
-    metaTableProvider.registerProvider(inputTableProvider);
-    BeamSqlEnvBuilder sqlEnvBuilder = BeamSqlEnv.builder(metaTableProvider);
+    CatalogManager catalogManager = catalogManager();
+    catalogManager.registerTableProvider(PCOLLECTION_NAME, inputTableProvider);
+    BeamSqlEnvBuilder sqlEnvBuilder = BeamSqlEnv.builder(catalogManager);
 
     // TODO: validate duplicate functions.
     registerFunctions(sqlEnvBuilder);
@@ -147,7 +150,7 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
     // the same names are reused.
     if (autoLoading()) {
       sqlEnvBuilder.autoLoadUserDefinedFunctions();
-      ServiceLoader.load(TableProvider.class).forEach(metaTableProvider::registerProvider);
+      ServiceLoader.load(TableProvider.class).forEach(catalogManager::registerTableProvider);
     }
 
     tableProviderMap().forEach(sqlEnvBuilder::addSchema);
@@ -231,6 +234,7 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
   }
 
   public SqlTransform withTableProvider(String name, TableProvider tableProvider) {
+    catalogManager().registerTableProvider(name, tableProvider);
     Map<String, TableProvider> map = new HashMap<>(tableProviderMap());
     map.put(name, tableProvider);
     return toBuilder().setTableProviderMap(ImmutableMap.copyOf(map)).build();
@@ -308,6 +312,7 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
 
   static Builder builder() {
     return new AutoValue_SqlTransform.Builder()
+        .setCatalogManager(new InMemoryCatalogManager())
         .setQueryParameters(QueryParameters.ofNone())
         .setDdlStrings(Collections.emptyList())
         .setUdafDefinitions(Collections.emptyList())
@@ -330,6 +335,8 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
     abstract Builder setUdafDefinitions(List<UdafDefinition> udafDefinitions);
 
     abstract Builder setAutoLoading(boolean autoLoading);
+
+    abstract Builder setCatalogManager(CatalogManager catalogManager);
 
     abstract Builder setTableProviderMap(Map<String, TableProvider> tableProviderMap);
 

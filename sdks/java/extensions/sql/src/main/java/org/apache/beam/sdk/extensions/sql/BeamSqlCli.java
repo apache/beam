@@ -22,6 +22,7 @@ import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.ParseException;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamEnumerableConverter;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
+import org.apache.beam.sdk.extensions.sql.meta.catalog.CatalogManager;
 import org.apache.beam.sdk.extensions.sql.meta.store.MetaStore;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -35,14 +36,19 @@ public class BeamSqlCli {
   /** The store which persists all the table meta data. */
   private MetaStore metaStore;
 
-  public BeamSqlCli metaStore(MetaStore metaStore) {
-    return metaStore(metaStore, false, PipelineOptionsFactory.create());
+  public BeamSqlCli catalogManager(CatalogManager catalogManager) {
+    return build(BeamSqlEnv.builder(catalogManager), false, PipelineOptionsFactory.create());
   }
 
-  public BeamSqlCli metaStore(
-      MetaStore metaStore, boolean autoLoadUdfUdaf, PipelineOptions pipelineOptions) {
+  public BeamSqlCli metaStore(MetaStore metaStore) {
     this.metaStore = metaStore;
-    BeamSqlEnv.BeamSqlEnvBuilder builder = BeamSqlEnv.builder(metaStore);
+    return build(BeamSqlEnv.builder(metaStore), false, PipelineOptionsFactory.create());
+  }
+
+  public BeamSqlCli build(
+      BeamSqlEnv.BeamSqlEnvBuilder builder,
+      boolean autoLoadUdfUdaf,
+      PipelineOptions pipelineOptions) {
     if (autoLoadUdfUdaf) {
       builder.autoLoadUserDefinedFunctions();
     }
