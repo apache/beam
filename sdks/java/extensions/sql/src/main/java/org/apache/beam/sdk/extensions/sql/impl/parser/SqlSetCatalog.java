@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.parser;
 
-import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.Static.RESOURCE;
 
 import java.util.Collections;
@@ -46,9 +45,9 @@ public class SqlSetCatalog extends SqlSetOption implements BeamSqlParser.Executa
 
   private static final SqlOperator OPERATOR = new SqlSpecialOperator("SET CATALOG", SqlKind.OTHER);
 
-  public SqlSetCatalog(SqlParserPos pos, String scope, SqlIdentifier catalogName) {
-    super(pos, scope, catalogName, null);
-    this.catalogName = checkArgumentNotNull(catalogName);
+  public SqlSetCatalog(SqlParserPos pos, String scope, SqlNode catalogName) {
+    super(pos, scope, SqlDdlNodes.getIdentifier(catalogName, pos), null);
+    this.catalogName = SqlDdlNodes.getIdentifier(catalogName, pos);
   }
 
   @Override

@@ -235,7 +235,7 @@ public class BeamSqlCliTest {
 
     thrown.expect(UnsupportedOperationException.class);
     thrown.expectMessage("Could not create catalog 'invalid_catalog' of unknown type: 'abcdef'");
-    cli.execute("CREATE CATALOG invalid_catalog TYPE `abcdef`");
+    cli.execute("CREATE CATALOG invalid_catalog TYPE abcdef");
   }
 
   @Test
@@ -243,15 +243,15 @@ public class BeamSqlCliTest {
     InMemoryCatalogManager catalogManager = new InMemoryCatalogManager();
     BeamSqlCli cli = new BeamSqlCli().catalogManager(catalogManager);
 
-    cli.execute("CREATE CATALOG my_catalog TYPE `local`");
+    cli.execute("CREATE CATALOG my_catalog TYPE 'local'");
 
     // this should be fine.
-    cli.execute("CREATE CATALOG IF NOT EXISTS my_catalog TYPE `local`");
+    cli.execute("CREATE CATALOG IF NOT EXISTS my_catalog TYPE 'local'");
 
     // without "IF NOT EXISTS", Beam will throw an error
     thrown.expect(CalciteContextException.class);
     thrown.expectMessage("Catalog 'my_catalog' already exists.");
-    cli.execute("CREATE CATALOG my_catalog TYPE `local`");
+    cli.execute("CREATE CATALOG my_catalog TYPE 'local'");
   }
 
   @Test
@@ -262,7 +262,7 @@ public class BeamSqlCliTest {
     assertNull(catalogManager.getCatalog("my_catalog"));
     cli.execute(
         "CREATE CATALOG my_catalog \n"
-            + "TYPE `local` \n"
+            + "TYPE 'local' \n"
             + "PROPERTIES (\n"
             + "  'foo' = 'bar', \n"
             + "  'abc' = 'xyz', \n"
@@ -306,7 +306,7 @@ public class BeamSqlCliTest {
     Map<String, String> catalog2Props = ImmutableMap.of("a", "b", "c", "d");
     cli.execute(
         "CREATE CATALOG catalog_1 \n"
-            + "TYPE `local` \n"
+            + "TYPE 'local' \n"
             + "PROPERTIES (\n"
             + "  'foo' = 'bar', \n"
             + "  'abc' = 'xyz', \n"
@@ -314,7 +314,7 @@ public class BeamSqlCliTest {
             + ")");
     cli.execute(
         "CREATE CATALOG catalog_2 \n"
-            + "TYPE `local` \n"
+            + "TYPE 'local' \n"
             + "PROPERTIES (\n"
             + "  'a' = 'b', \n"
             + "  'c' = 'd' \n"
@@ -332,7 +332,7 @@ public class BeamSqlCliTest {
     assertEquals(catalog2Props, catalogManager.currentCatalog().properties());
 
     // DEFAULT is a reserved keyword, so need to encapsulate in backticks
-    cli.execute("SET CATALOG `default`");
+    cli.execute("SET CATALOG 'default'");
     assertEquals("default", catalogManager.currentCatalog().name());
   }
 
@@ -343,7 +343,7 @@ public class BeamSqlCliTest {
 
     thrown.expect(CalciteContextException.class);
     thrown.expectMessage("Cannot drop catalog: 'my_catalog' not found.");
-    cli.execute("DROP CATALOG my_catalog");
+    cli.execute("DROP CATALOG 'my_catalog'");
   }
 
   @Test
@@ -354,7 +354,7 @@ public class BeamSqlCliTest {
     thrown.expect(CalciteContextException.class);
     thrown.expectMessage(
         "Unable to drop active catalog 'default'. Please switch to another catalog first.");
-    cli.execute("DROP CATALOG `default`");
+    cli.execute("DROP CATALOG 'default'");
   }
 
   @Test
@@ -365,7 +365,7 @@ public class BeamSqlCliTest {
     assertNull(catalogManager.getCatalog("my_catalog"));
     cli.execute(
         "CREATE CATALOG my_catalog \n"
-            + "TYPE `local` \n"
+            + "TYPE 'local' \n"
             + "PROPERTIES (\n"
             + "  'foo' = 'bar', \n"
             + "  'abc' = 'xyz', \n"
@@ -384,7 +384,7 @@ public class BeamSqlCliTest {
     catalogManager.registerTableProvider(new TextTableProvider());
     BeamSqlCli cli = new BeamSqlCli().catalogManager(catalogManager);
 
-    cli.execute("CREATE CATALOG my_catalog TYPE `local`");
+    cli.execute("CREATE CATALOG my_catalog TYPE 'local'");
     cli.execute("SET CATALOG my_catalog");
     cli.execute(
         "CREATE EXTERNAL TABLE person (\n" + "id int, name varchar, age int) \n" + "TYPE 'text'");
@@ -392,7 +392,7 @@ public class BeamSqlCliTest {
     assertEquals("my_catalog", catalogManager.currentCatalog().name());
     assertNotNull(catalogManager.currentCatalog().metaStore().getTables().get("person"));
 
-    cli.execute("CREATE CATALOG my_other_catalog TYPE `local`");
+    cli.execute("CREATE CATALOG my_other_catalog TYPE 'local'");
     cli.execute("SET CATALOG my_other_catalog");
     assertEquals("my_other_catalog", catalogManager.currentCatalog().name());
     assertNull(catalogManager.currentCatalog().metaStore().getTables().get("person"));

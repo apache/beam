@@ -46,9 +46,9 @@ public class SqlDropCatalog extends SqlDrop implements BeamSqlParser.ExecutableS
       new SqlSpecialOperator("DROP CATALOG", SqlKind.OTHER_DDL);
   private final SqlIdentifier catalogName;
 
-  public SqlDropCatalog(SqlParserPos pos, boolean ifExists, SqlIdentifier catalogName) {
+  public SqlDropCatalog(SqlParserPos pos, boolean ifExists, SqlNode catalogName) {
     super(OPERATOR, pos, ifExists);
-    this.catalogName = catalogName;
+    this.catalogName = SqlDdlNodes.getIdentifier(catalogName, pos);
   }
 
   @Override

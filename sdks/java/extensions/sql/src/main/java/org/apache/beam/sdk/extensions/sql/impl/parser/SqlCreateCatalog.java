@@ -59,11 +59,11 @@ public class SqlCreateCatalog extends SqlCreate implements BeamSqlParser.Executa
       SqlParserPos pos,
       boolean replace,
       boolean ifNotExists,
-      SqlIdentifier catalogName,
+      SqlNode catalogName,
       SqlNode type,
       SqlNodeList properties) {
     super(OPERATOR, pos, replace, ifNotExists);
-    this.catalogName = checkArgumentNotNull(catalogName, "Need to specify a catalog name");
+    this.catalogName = SqlDdlNodes.getIdentifier(catalogName, pos);
     this.type = checkArgumentNotNull(type, "Need to specify a TYPE for catalog '%s'", catalogName);
     this.properties = properties;
   }

@@ -177,8 +177,8 @@ SqlNode Property() :
 SqlCreate SqlCreateCatalog(Span s, boolean replace) :
 {
     final boolean ifNotExists;
-    final SqlIdentifier catalogName;
-    final SqlIdentifier type;
+    final SqlNode catalogName;
+    final SqlNode type;
     SqlNodeList properties = null;
 }
 {
@@ -188,9 +188,17 @@ SqlCreate SqlCreateCatalog(Span s, boolean replace) :
     }
 
     ifNotExists = IfNotExistsOpt()
-    catalogName = CompoundIdentifier()
+    (
+        catalogName = StringLiteral()
+        |
+        catalogName = SimpleIdentifier()
+    )
     <TYPE>
-    type = CompoundIdentifier()
+    (
+        type = StringLiteral()
+        |
+        type = SimpleIdentifier()
+    )
     [ <PROPERTIES> <LPAREN> properties = PropertyList() <RPAREN> ]
 
     {
@@ -209,14 +217,18 @@ SqlCreate SqlCreateCatalog(Span s, boolean replace) :
  */
 SqlCall SqlSetCatalog(Span s, String scope) :
 {
-    final SqlIdentifier catalogName;
+    final SqlNode catalogName;
 }
 {
     <SET> {
         s.add(this);
     }
     <CATALOG>
-    catalogName = CompoundIdentifier()
+    (
+        catalogName = StringLiteral()
+        |
+        catalogName = SimpleIdentifier()
+    )
     {
         return new SqlSetCatalog(
             s.end(this),
@@ -229,11 +241,15 @@ SqlCall SqlSetCatalog(Span s, String scope) :
 SqlDrop SqlDropCatalog(Span s, boolean replace) :
 {
     final boolean ifExists;
-    final SqlIdentifier catalogName;
+    final SqlNode catalogName;
 }
 {
     <CATALOG> ifExists = IfExistsOpt()
-    catalogName = CompoundIdentifier()
+    (
+        catalogName = StringLiteral()
+        |
+        catalogName = SimpleIdentifier()
+    )
     {
         return new SqlDropCatalog(s.end(this), ifExists, catalogName);
     }
