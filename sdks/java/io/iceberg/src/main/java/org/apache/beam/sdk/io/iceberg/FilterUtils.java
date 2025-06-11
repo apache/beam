@@ -24,9 +24,11 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlBasicCall;
@@ -72,6 +74,55 @@ class FilterUtils {
           .put(SqlKind.OR, Operation.OR)
           .build();
 
+  /**
+   * Parses a SQL filter expression string and returns a set of all field names referenced within
+   * it.
+   */
+  static Set<String> getReferencedFieldNames(@Nullable String filter) {
+    if (filter == null || filter.trim().isEmpty()) {
+      return new HashSet<>();
+    }
+
+    SqlParser parser = SqlParser.create(filter);
+    try {
+      SqlNode expression = parser.parseExpression();
+      Set<String> fieldNames = new HashSet<>();
+      extractFieldNames(expression, fieldNames);
+      return fieldNames;
+    } catch (Exception exception) {
+      throw new RuntimeException(
+          String.format("Encountered an error when parsing filter: '%s'", filter), exception);
+    }
+  }
+
+  private static void extractFieldNames(SqlNode node, Set<String> fieldNames) {
+    if (node instanceof SqlIdentifier) {
+      fieldNames.add(((SqlIdentifier) node).getSimple());
+    } else if (node instanceof SqlBasicCall) {
+      // recursively check operands
+      SqlBasicCall call = (SqlBasicCall) node;
+      for (SqlNode operand : call.getOperandList()) {
+        extractFieldNames(operand, fieldNames);
+      }
+    } else if (node instanceof SqlNodeList) {
+      // For IN clauses, the right-hand side is a SqlNodeList, so iterate through its elements
+      SqlNodeList nodeList = (SqlNodeList) node;
+      for (SqlNode element : nodeList.getList()) {
+        if (element != null) {
+          extractFieldNames(element, fieldNames);
+        }
+      }
+    }
+    // SqlLiteral nodes do not contain field names, so we can ignore them.
+  }
+
+  /**
+   * parses a SQL filter expression string into an Iceberg {@link Expression} that can be used for
+   * data pruning.
+   *
+   * <p>Note: This utility currently supports only top-level fields within the filter expression.
+   * Nested field references are not supported.
+   */
   static Expression convert(@Nullable String filter, Schema schema) {
     if (filter == null) {
       return Expressions.alwaysTrue();
