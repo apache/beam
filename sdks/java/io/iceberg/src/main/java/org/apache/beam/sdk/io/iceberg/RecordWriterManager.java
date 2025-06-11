@@ -55,6 +55,7 @@ import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.InternalRecordWrapper;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.exceptions.AlreadyExistsException;
+import org.apache.iceberg.exceptions.NoSuchTableException;
 import org.apache.iceberg.transforms.Transforms;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
@@ -300,10 +301,12 @@ class RecordWriterManager implements AutoCloseable {
         }
       }
 
-      // if table exists, just load it
-      if (catalog.listTables(namespace).contains(identifier)) {
+      // If table exists, just load it
+      // Note: the implementation of catalog.tableExists() will load the table to check its
+      // existence. We don't use it here to avoid double loadTable() calls.
+      try {
         table = catalog.loadTable(identifier);
-      } else { // Otherwise, create the table
+      } catch (NoSuchTableException e) { // Otherwise, create the table
         org.apache.iceberg.Schema tableSchema = IcebergUtils.beamSchemaToIcebergSchema(dataSchema);
         try {
           // TODO(ahmedabu98): support creating a table with a specified partition spec
