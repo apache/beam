@@ -30,8 +30,9 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.IllegalMutationException;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
@@ -65,11 +66,11 @@ public class ImmutabilityCheckingBundleFactoryTest {
   public void rootBundleSucceeds() {
     UncommittedBundle<byte[]> root = factory.createRootBundle();
     byte[] array = new byte[] {0, 1, 2};
-    root.add(WindowedValue.valueInGlobalWindow(array));
+    root.add(WindowedValues.valueInGlobalWindow(array));
     CommittedBundle<byte[]> committed = root.commit(Instant.now());
 
     assertThat(
-        committed.getElements(), containsInAnyOrder(WindowedValue.valueInGlobalWindow(array)));
+        committed.getElements(), containsInAnyOrder(WindowedValues.valueInGlobalWindow(array)));
   }
 
   @Test
@@ -78,7 +79,7 @@ public class ImmutabilityCheckingBundleFactoryTest {
         factory.createKeyedBundle(StructuralKey.of("mykey", StringUtf8Coder.of()), transformed);
 
     WindowedValue<byte[]> windowedArray =
-        WindowedValue.of(
+        WindowedValues.of(
             new byte[] {4, 8, 12},
             new Instant(891L),
             new IntervalWindow(new Instant(0), new Instant(1000)),
@@ -94,7 +95,7 @@ public class ImmutabilityCheckingBundleFactoryTest {
     UncommittedBundle<byte[]> intermediate = factory.createBundle(transformed);
 
     WindowedValue<byte[]> windowedArray =
-        WindowedValue.of(
+        WindowedValues.of(
             new byte[] {4, 8, 12},
             new Instant(891L),
             new IntervalWindow(new Instant(0), new Instant(1000)),
@@ -113,7 +114,7 @@ public class ImmutabilityCheckingBundleFactoryTest {
     byte[] array = new byte[] {4, 8, 12};
     array[0] = Byte.MAX_VALUE;
     WindowedValue<byte[]> windowedArray =
-        WindowedValue.of(
+        WindowedValues.of(
             array,
             new Instant(891L),
             new IntervalWindow(new Instant(0), new Instant(1000)),
@@ -130,7 +131,7 @@ public class ImmutabilityCheckingBundleFactoryTest {
 
     byte[] array = new byte[] {4, 8, 12};
     WindowedValue<byte[]> windowedArray =
-        WindowedValue.of(
+        WindowedValues.of(
             array,
             new Instant(891L),
             new IntervalWindow(new Instant(0), new Instant(1000)),
@@ -149,7 +150,7 @@ public class ImmutabilityCheckingBundleFactoryTest {
 
     byte[] array = new byte[] {4, 8, 12};
     WindowedValue<byte[]> windowedArray =
-        WindowedValue.of(
+        WindowedValues.of(
             array,
             new Instant(891L),
             new IntervalWindow(new Instant(0), new Instant(1000)),
@@ -168,7 +169,7 @@ public class ImmutabilityCheckingBundleFactoryTest {
 
     byte[] array = new byte[] {4, 8, 12};
     WindowedValue<byte[]> windowedArray =
-        WindowedValue.of(
+        WindowedValues.of(
             array,
             new Instant(891L),
             new IntervalWindow(new Instant(0), new Instant(1000)),

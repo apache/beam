@@ -45,8 +45,9 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -183,12 +184,13 @@ public class EncoderHelpers {
   public static <T, W extends BoundedWindow> Encoder<WindowedValue<T>> windowedValueEncoder(
       Encoder<T> value, Encoder<W> window) {
     Encoder<Instant> timestamp = encoderOf(Instant.class);
-    Encoder<PaneInfo> pane = encoderOf(PaneInfo.class);
+    Encoder<PaneInfo> paneInfo = encoderOf(PaneInfo.class);
     Encoder<Collection<W>> windows = collectionEncoder(window);
     Expression serializer =
-        serializeWindowedValue(rootRef(WINDOWED_VALUE, true), value, timestamp, windows, pane);
+        serializeWindowedValue(rootRef(WINDOWED_VALUE, true), value, timestamp, windows, paneInfo);
     Expression deserializer =
-        deserializeWindowedValue(rootCol(serializer.dataType()), value, timestamp, windows, pane);
+        deserializeWindowedValue(
+            rootCol(serializer.dataType()), value, timestamp, windows, paneInfo);
     return EncoderFactory.create(serializer, deserializer, WindowedValue.class);
   }
 
@@ -332,7 +334,7 @@ public class EncoderHelpers {
         tuple("value", serializeField(in, valueEnc, "getValue")),
         tuple("timestamp", serializeField(in, timestampEnc, "getTimestamp")),
         tuple("windows", serializeField(in, windowsEnc, "getWindows")),
-        tuple("pane", serializeField(in, paneEnc, "getPane")));
+        tuple("paneInfo", serializeField(in, paneEnc, "getPaneInfo")));
   }
 
   private static Expression serializerObject(Expression in, Tuple2<String, Expression>... fields) {
@@ -348,13 +350,13 @@ public class EncoderHelpers {
     Expression value = deserializeField(in, valueEnc, 0, "value");
     Expression windows = deserializeField(in, windowsEnc, 2, "windows");
     Expression timestamp = deserializeField(in, timestampEnc, 1, "timestamp");
-    Expression pane = deserializeField(in, paneEnc, 3, "pane");
+    Expression paneInfo = deserializeField(in, paneEnc, 3, "paneInfo");
     // set timestamp to end of window (maxTimestamp) if null
     timestamp =
         ifNotNull(timestamp, invoke(Utils.class, "maxTimestamp", timestamp.dataType(), windows));
-    Expression[] fields = new Expression[] {value, timestamp, windows, pane};
+    Expression[] fields = new Expression[] {value, timestamp, windows, paneInfo};
 
-    return nullSafe(pane, invoke(WindowedValue.class, "of", WINDOWED_VALUE, fields));
+    return nullSafe(paneInfo, invoke(WindowedValues.class, "of", WINDOWED_VALUE, fields));
   }
 
   private static <K, V> Expression serializeMutablePair(
@@ -543,8 +545,8 @@ public class EncoderHelpers {
       return CoderHelpers.fromByteArray(bytes, PaneInfoCoder.of());
     }
 
-    public static byte[] paneInfoToBytes(PaneInfo pane) {
-      return CoderHelpers.toByteArray(pane, PaneInfoCoder.of());
+    public static byte[] paneInfoToBytes(PaneInfo paneInfo) {
+      return CoderHelpers.toByteArray(paneInfo, PaneInfoCoder.of());
     }
 
     /** The end of the only window (max timestamp). */

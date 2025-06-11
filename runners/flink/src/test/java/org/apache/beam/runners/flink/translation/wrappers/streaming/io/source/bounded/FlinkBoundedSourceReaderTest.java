@@ -33,8 +33,8 @@ import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.Fl
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.FlinkSourceSplit;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.SourceTestMetrics.TestMetricGroup;
 import org.apache.beam.sdk.io.Source;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceReader;

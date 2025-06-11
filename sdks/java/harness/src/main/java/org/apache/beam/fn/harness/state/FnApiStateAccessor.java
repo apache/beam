@@ -65,13 +65,13 @@ import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.CombineFnUtil;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.BeamUrns;
 import org.apache.beam.sdk.util.construction.PCollectionViewTranslation;
 import org.apache.beam.sdk.util.construction.RehydratedComponents;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -189,9 +189,9 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
               .get(context.getPTransform().getInputsOrThrow(mainInputTag));
       Coder<?> maybeWindowedValueInputCoder = rehydratedComponents.getCoder(mainInput.getCoderId());
       Coder<?> inputCoder;
-      if (maybeWindowedValueInputCoder instanceof WindowedValue.WindowedValueCoder) {
+      if (maybeWindowedValueInputCoder instanceof WindowedValues.WindowedValueCoder) {
         inputCoder =
-            ((WindowedValue.WindowedValueCoder<?>) maybeWindowedValueInputCoder).getValueCoder();
+            ((WindowedValues.WindowedValueCoder<?>) maybeWindowedValueInputCoder).getValueCoder();
       } else {
         inputCoder = maybeWindowedValueInputCoder;
       }
@@ -207,7 +207,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
       Coder<BoundedWindow> windowCoder =
           (Coder<BoundedWindow>) windowingStrategy.getWindowFn().windowCoder();
 
-      return new Factory<K>(
+      return new Factory<>(
           context.getPipelineOptions(),
           context.getRunnerCapabilities(),
           context.getPTransformId(),
@@ -221,8 +221,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
           windowCoder);
     }
 
-    public FnApiStateAccessor<K> create(
-        MutatingStateContext<K, BoundedWindow> mutatingStateContext) {
+    public FnApiStateAccessor<K> create() {
       return new FnApiStateAccessor<>(
           pipelineOptions,
           runnerCapabilities,
@@ -234,8 +233,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
           sideInputSpecMap,
           beamFnStateClient,
           keyCoder,
-          windowCoder,
-          mutatingStateContext);
+          windowCoder);
     }
   }
 
@@ -250,11 +248,12 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
   private final Supplier<Cache<?, ?>> bundleCache;
   private final Cache<?, ?> processWideCache;
   private final Collection<ThrowingRunnable> stateFinalizers;
+  private final Coder<K> keyCoder;
+  private final Coder<BoundedWindow> windowCoder;
 
-  private final Supplier<BoundedWindow> currentWindowSupplier;
-
-  private final Supplier<ByteString> encodedCurrentKeySupplier;
-  private final Supplier<ByteString> encodedCurrentWindowSupplier;
+  private @Nullable Supplier<BoundedWindow> currentWindowSupplier;
+  private @Nullable Supplier<ByteString> encodedCurrentKeySupplier;
+  private @Nullable Supplier<ByteString> encodedCurrentWindowSupplier;
 
   public FnApiStateAccessor(
       PipelineOptions pipelineOptions,
@@ -267,8 +266,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
       Map<TupleTag<?>, SideInputSpec> sideInputSpecMap,
       BeamFnStateClient beamFnStateClient,
       Coder<K> keyCoder,
-      Coder<BoundedWindow> windowCoder,
-      MutatingStateContext<K, BoundedWindow> keyAndWindowContext) {
+      Coder<BoundedWindow> windowCoder) {
     this.pipelineOptions = pipelineOptions;
     this.runnerCapabilites = runnerCapabilites;
     this.stateKeyObjectCache = Maps.newHashMap();
@@ -279,7 +277,12 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
     this.cacheTokens = cacheTokens;
     this.bundleCache = bundleCache;
     this.processWideCache = processWideCache;
+    this.keyCoder = keyCoder;
+    this.windowCoder = windowCoder;
     this.stateFinalizers = new ArrayList<>();
+  }
+
+  public void setKeyAndWindowContext(MutatingStateContext<K, BoundedWindow> keyAndWindowContext) {
     this.currentWindowSupplier = keyAndWindowContext::getCurrentWindow;
     this.encodedCurrentKeySupplier =
         memoizeFunction(
@@ -331,7 +334,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
   }
 
   @Override
-  public @Nullable <T> T get(PCollectionView<T> view, BoundedWindow window) {
+  public <T> T get(PCollectionView<T> view, BoundedWindow window) {
     TupleTag<?> tag = view.getTagInternal();
 
     SideInputSpec sideInputSpec = sideInputSpecMap.get(tag);

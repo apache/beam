@@ -30,9 +30,10 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
+import org.apache.beam.sdk.values.WindowedValues.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.AbstractIterator;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -87,7 +88,7 @@ public class GroupNonMergingWindowsFunctions {
           Partitioner partitioner) {
     final Coder<W> windowCoder = windowingStrategy.getWindowFn().windowCoder();
     FullWindowedValueCoder<KV<K, V>> windowedKvCoder =
-        WindowedValue.FullWindowedValueCoder.of(KvCoder.of(keyCoder, valueCoder), windowCoder);
+        WindowedValues.FullWindowedValueCoder.of(KvCoder.of(keyCoder, valueCoder), windowCoder);
     JavaPairRDD<ByteArray, byte[]> windowInKey =
         bringWindowToKey(
             rdd, keyCoder, windowCoder, wv -> CoderHelpers.toByteArray(wv, windowedKvCoder));
@@ -131,7 +132,8 @@ public class GroupNonMergingWindowsFunctions {
                 final W window = (W) Iterables.getOnlyElement(item.getWindows());
                 final byte[] windowBytes = CoderHelpers.toByteArray(window, windowCoder);
                 WindowedValue<KV<K, V>> valueOut =
-                    WindowedValue.of(item.getValue(), item.getTimestamp(), window, item.getPane());
+                    WindowedValues.of(
+                        item.getValue(), item.getTimestamp(), window, item.getPaneInfo());
                 final ByteArray windowedKey = new ByteArray(Bytes.concat(keyBytes, windowBytes));
                 return new Tuple2<>(windowedKey, mappingFn.apply(valueOut));
               });
@@ -179,7 +181,7 @@ public class GroupNonMergingWindowsFunctions {
         Iterator<Tuple2<ByteArray, byte[]>> inner,
         Coder<K> keyCoder,
         WindowingStrategy<?, W> windowingStrategy,
-        WindowedValue.FullWindowedValueCoder<KV<K, V>> windowedValueCoder)
+        WindowedValues.FullWindowedValueCoder<KV<K, V>> windowedValueCoder)
         throws Coder.NonDeterministicException {
 
       this.inner = Iterators.peekingIterator(inner);
@@ -258,7 +260,7 @@ public class GroupNonMergingWindowsFunctions {
       final Instant timestamp =
           windowingStrategy.getTimestampCombiner().assign(window, windowedValue.getTimestamp());
       // BEAM-7341: Elements produced by GbK are always ON_TIME and ONLY_FIRING
-      return WindowedValue.of(
+      return WindowedValues.of(
           KV.of(key, value), timestamp, window, PaneInfo.ON_TIME_AND_ONLY_FIRING);
     }
   }
@@ -297,7 +299,7 @@ public class GroupNonMergingWindowsFunctions {
             Iterators.transform(
                 iter,
                 kvs ->
-                    WindowedValue.timestampedValueInGlobalWindow(
+                    WindowedValues.timestampedValueInGlobalWindow(
                         KV.of(
                             CoderHelpers.fromByteArray(kvs._1.getValue(), keyCoder),
                             Iterables.transform(

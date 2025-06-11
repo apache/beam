@@ -232,7 +232,7 @@ The following must be manually done or confirmed:
 - [ ] The `master` branch has the SNAPSHOT/dev version incremented.
 - [ ] The release branch has the SNAPSHOT/dev version to be released.
 - [ ] The Dataflow container image should be modified to the version to be released.
-- [ ] Due to current limitation in the workflow, you must navigate to https://github.com/apache/beam/actions/workflows/beam_Release_NightlySnapshot.yml and click "Run workflow" and select the branch just created (release-2.xx) to build a snapshot.
+- [ ] Due to current limitation in the workflow, you must navigate to https://github.com/apache/beam/actions/workflows/beam_Release_NightlySnapshot.yml and click "Run workflow" and select the **tag** just created (v2.xx.0-RC00) to build a snapshot.
 - [ ] Manually update `CHANGES.md` on `master` by adding a new section for the
   next release
   ([example](https://github.com/apache/beam/commit/96ab1fb3fe07acf7f7dc9d8c829ae36890d1535c)).
@@ -587,7 +587,7 @@ Verify that third party licenses are included in Docker. You can do this with a 
           -c 'ls -al /opt/apache/beam/third_party_licenses/ | wc -l'
     done
 
-    for javaver in 8 11 17; do
+    for javaver in 8 11 17 21; do
       docker run --rm --entrypoint sh \
           apache/beam_java${javaver}_sdk:${RC_TAG} \
           -c 'ls -al /opt/apache/beam/third_party_licenses/ | wc -l'
@@ -646,8 +646,8 @@ redirects for the 'current' version, merge these PRs in the order listed.  Once
 the PR is merged, the new contents will get picked up automatically and served
 to the Beam website, usually within an hour.  A committer can manually trigger
 the
-[beam_PostCommit_Website_Publish](https://ci-beam.apache.org/job/beam_PostCommit_Website_Publish/)
-task in Jenkins to avoid waiting.
+[beam_Publish Website](https://github.com/apache/beam/actions/workflows/beam_Publish_Website.yml)
+task in GitHub Actions to avoid waiting.
 
 **PR 1: apache/beam-site**
 
@@ -802,7 +802,7 @@ You can (optionally) also do additional verification by:
 - [ ] Check signatures (e.g. `gpg --verify apache-beam-1.2.3-python.tar.gz.asc
   apache-beam-1.2.3-python.tar.gz`)
 - [ ] `grep` for legal headers in each file.
-- [ ] Run all jenkins suites and include links to passing tests in the voting
+- [ ] Run all GitHub Action suites and include links to passing tests in the voting
   email.
 - [ ] Pull docker images to make sure they are pullable. (e.g. `docker pull apache/beam_python3.12_sdk:2.64.0rc2`)
 - [ ] [Google Internal] You have performed the internal Dataflow container release workflows (these take ~3 hours).
@@ -1189,7 +1189,7 @@ A PR should have already been created (and possibly merged) by github-actions bo
 by looking at open PRs from that bot - https://github.com/apache/beam/pulls/app%2Fgithub-actions
 
 If a PR has not been merged, drive it to completion.
-If no PR was created, triage any failures in https://github.com/apache/beam/actions/workflows/beam_Publish_Website.yml and manually regenerate dependencies,
+If no PR was created, triage any failures in https://github.com/apache/beam/actions/workflows/update_python_dependencies.yml and manually regenerate dependencies,
 following https://cwiki.apache.org/confluence/display/BEAM/Python+Tips#PythonTips-HowtoupdatedependenciesthatareinstalledinPythoncontainerimages
 
 ### Update the Java starter repo

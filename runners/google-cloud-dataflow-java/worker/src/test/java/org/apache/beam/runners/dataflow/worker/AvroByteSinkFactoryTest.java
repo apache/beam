@@ -27,7 +27,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.hamcrest.core.IsInstanceOf;
 import org.junit.Assert;
 import org.junit.Test;
@@ -58,7 +58,7 @@ public class AvroByteSinkFactoryTest {
   @Test
   public void testCreateAvroByteSink() throws Exception {
     Coder<?> coder =
-        WindowedValue.getFullCoder(BigEndianIntegerCoder.of(), GlobalWindow.Coder.INSTANCE);
+        WindowedValues.getFullCoder(BigEndianIntegerCoder.of(), GlobalWindow.Coder.INSTANCE);
     Sink<?> sink = runTestCreateAvroSink(pathToAvroFile, coder);
 
     assertThat(sink, new IsInstanceOf(AvroByteSink.class));

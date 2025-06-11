@@ -31,9 +31,10 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashMultiset;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Multiset;
@@ -91,12 +92,12 @@ public class GroupByKeyEvaluatorFactoryTest {
         new GroupByKeyOnlyEvaluatorFactory(evaluationContext)
             .forApplication(DirectGraphs.getProducer(groupedKvs), inputBundle);
 
-    evaluator.processElement(WindowedValue.valueInGlobalWindow(firstFoo));
-    evaluator.processElement(WindowedValue.valueInGlobalWindow(secondFoo));
-    evaluator.processElement(WindowedValue.valueInGlobalWindow(thirdFoo));
-    evaluator.processElement(WindowedValue.valueInGlobalWindow(firstBar));
-    evaluator.processElement(WindowedValue.valueInGlobalWindow(secondBar));
-    evaluator.processElement(WindowedValue.valueInGlobalWindow(firstBaz));
+    evaluator.processElement(WindowedValues.valueInGlobalWindow(firstFoo));
+    evaluator.processElement(WindowedValues.valueInGlobalWindow(secondFoo));
+    evaluator.processElement(WindowedValues.valueInGlobalWindow(thirdFoo));
+    evaluator.processElement(WindowedValues.valueInGlobalWindow(firstBar));
+    evaluator.processElement(WindowedValues.valueInGlobalWindow(secondBar));
+    evaluator.processElement(WindowedValues.valueInGlobalWindow(firstBaz));
 
     evaluator.finishBundle();
 
@@ -107,9 +108,9 @@ public class GroupByKeyEvaluatorFactoryTest {
                 KeyedWorkItems.elementsWorkItem(
                     "foo",
                     ImmutableSet.of(
-                        WindowedValue.valueInGlobalWindow(-1),
-                        WindowedValue.valueInGlobalWindow(1),
-                        WindowedValue.valueInGlobalWindow(3))),
+                        WindowedValues.valueInGlobalWindow(-1),
+                        WindowedValues.valueInGlobalWindow(1),
+                        WindowedValues.valueInGlobalWindow(3))),
                 keyCoder)));
     assertThat(
         barBundle.commit(Instant.now()).getElements(),
@@ -118,15 +119,15 @@ public class GroupByKeyEvaluatorFactoryTest {
                 KeyedWorkItems.elementsWorkItem(
                     "bar",
                     ImmutableSet.of(
-                        WindowedValue.valueInGlobalWindow(12),
-                        WindowedValue.valueInGlobalWindow(22))),
+                        WindowedValues.valueInGlobalWindow(12),
+                        WindowedValues.valueInGlobalWindow(22))),
                 keyCoder)));
     assertThat(
         bazBundle.commit(Instant.now()).getElements(),
         contains(
             new KeyedWorkItemMatcher<>(
                 KeyedWorkItems.elementsWorkItem(
-                    "baz", ImmutableSet.of(WindowedValue.valueInGlobalWindow(Integer.MAX_VALUE))),
+                    "baz", ImmutableSet.of(WindowedValues.valueInGlobalWindow(Integer.MAX_VALUE))),
                 keyCoder)));
   }
 

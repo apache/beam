@@ -24,8 +24,9 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaRDDLike;
@@ -56,7 +57,7 @@ public class BoundedDataset<T> implements Dataset {
   }
 
   BoundedDataset(Iterable<T> values, JavaSparkContext jsc, Coder<T> coder) {
-    this.windowedValues = Iterables.transform(values, WindowedValue::valueInGlobalWindow);
+    this.windowedValues = Iterables.transform(values, WindowedValues::valueInGlobalWindow);
     this.jsc = jsc;
     this.coder = coder;
   }
@@ -64,8 +65,8 @@ public class BoundedDataset<T> implements Dataset {
   @SuppressWarnings("ConstantConditions")
   public JavaRDD<WindowedValue<T>> getRDD() {
     if (rdd == null) {
-      WindowedValue.ValueOnlyWindowedValueCoder<T> windowCoder =
-          WindowedValue.getValueOnlyCoder(coder);
+      WindowedValues.ValueOnlyWindowedValueCoder<T> windowCoder =
+          WindowedValues.getValueOnlyCoder(coder);
       rdd =
           jsc.parallelize(CoderHelpers.toByteArrays(windowedValues, windowCoder))
               .map(CoderHelpers.fromByteFunction(windowCoder));
@@ -73,7 +74,7 @@ public class BoundedDataset<T> implements Dataset {
     return rdd;
   }
 
-  List<byte[]> getBytes(WindowedValue.WindowedValueCoder<T> wvCoder) {
+  List<byte[]> getBytes(WindowedValues.WindowedValueCoder<T> wvCoder) {
     if (clientBytes == null) {
       JavaRDDLike<byte[], ?> bytesRDD = rdd.map(CoderHelpers.toByteFunction(wvCoder));
       clientBytes = bytesRDD.collect();
@@ -85,12 +86,12 @@ public class BoundedDataset<T> implements Dataset {
     if (windowedValues == null) {
       WindowFn<?, ?> windowFn = pcollection.getWindowingStrategy().getWindowFn();
       Coder<? extends BoundedWindow> windowCoder = windowFn.windowCoder();
-      final WindowedValue.WindowedValueCoder<T> windowedValueCoder;
+      final WindowedValues.WindowedValueCoder<T> windowedValueCoder;
       if (windowFn instanceof GlobalWindows) {
-        windowedValueCoder = WindowedValue.ValueOnlyWindowedValueCoder.of(pcollection.getCoder());
+        windowedValueCoder = WindowedValues.ValueOnlyWindowedValueCoder.of(pcollection.getCoder());
       } else {
         windowedValueCoder =
-            WindowedValue.FullWindowedValueCoder.of(pcollection.getCoder(), windowCoder);
+            WindowedValues.FullWindowedValueCoder.of(pcollection.getCoder(), windowCoder);
       }
       JavaRDDLike<byte[], ?> bytesRDD = rdd.map(CoderHelpers.toByteFunction(windowedValueCoder));
       List<byte[]> clientBytes = bytesRDD.collect();
