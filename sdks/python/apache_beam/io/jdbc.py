@@ -401,7 +401,7 @@ class JdbcDateType(LogicalType[datetime.date, MillisInstant, str]):
 
   @classmethod
   def representation_type(cls) -> type:
-    return Timestamp
+    return MillisInstant
 
   @classmethod
   def urn(cls):
@@ -417,7 +417,6 @@ class JdbcDateType(LogicalType[datetime.date, MillisInstant, str]):
             value, datetime.datetime.min.time(), tzinfo=datetime.timezone.utc))
 
   def to_language_type(self, value: Timestamp) -> datetime.date:
-
     return value.to_utc_datetime().date()
 
   @classmethod
