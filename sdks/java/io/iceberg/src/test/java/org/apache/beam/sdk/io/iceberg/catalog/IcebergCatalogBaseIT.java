@@ -132,7 +132,7 @@ import org.slf4j.LoggerFactory;
  *
  * <ul>
  *   <li>{@link #catalogSetup()}
- *   <li>{@link #catalogCleanup()}
+ *   <li>{@link #catalogCleanup(List)}
  * </ul>
  *
  * <p>1,000 records are used for each test by default. You can change this by overriding {@link
@@ -145,16 +145,33 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
   public abstract Map<String, Object> managedIcebergConfig(String tableId);
 
-  public void catalogSetup() throws Exception {}
+  public abstract String type();
 
-  public void catalogCleanup() throws Exception {}
+  public void catalogSetup() {
+    ((SupportsNamespaces) catalog).createNamespace(Namespace.of(namespace()));
+  }
+
+  public void catalogCleanup(List<Namespace> namespaces) throws IOException {
+    for (Namespace namespace : namespaces) {
+      for (TableIdentifier identifier : catalog.listTables(namespace)) {
+        catalog.dropTable(identifier);
+      }
+      if (catalog instanceof SupportsNamespaces) {
+        ((SupportsNamespaces) catalog).dropNamespace(namespace);
+      }
+    }
+  }
 
   public Integer numRecords() {
     return OPTIONS.getRunner().equals(DirectRunner.class) ? 10 : 1000;
   }
 
+  public String namespace() {
+    return catalogName + "_" + testName.getMethodName();
+  }
+
   public String tableId() {
-    return testName.getMethodName() + ".test_table";
+    return namespace() + ".test_table";
   }
 
   public static String warehouse(Class<? extends IcebergCatalogBaseIT> testClass) {
@@ -163,32 +180,23 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
         TestPipeline.testingPipelineOptions().getTempLocation(), testClass.getSimpleName(), RANDOM);
   }
 
-  public String catalogName = "test_catalog_" + System.nanoTime();
+  public String catalogName = type() + "_test_catalog_" + System.currentTimeMillis();
 
   @Before
   public void setUp() throws Exception {
-    catalogName += System.nanoTime();
     OPTIONS.as(DirectOptions.class).setTargetParallelism(1);
-    warehouse =
-        String.format(
-            "%s/%s/%s",
-            TestPipeline.testingPipelineOptions().getTempLocation(),
-            getClass().getSimpleName(),
-            RANDOM);
     warehouse = warehouse(getClass());
-    catalogSetup();
+    namespacesToCleanup.add(namespace());
     catalog = createCatalog();
+    catalogSetup();
     Thread.sleep(SETUP_TEARDOWN_SLEEP_MS);
   }
 
   @After
   public void cleanUp() throws Exception {
-    try {
-      catalogCleanup();
-      Thread.sleep(SETUP_TEARDOWN_SLEEP_MS);
-    } catch (Exception e) {
-      LOG.warn("Catalog cleanup failed.", e);
-    }
+    catalogCleanup(namespacesToCleanup.stream().map(Namespace::of).collect(Collectors.toList()));
+    LOG.info("Successfully cleaned up namespaces: {}", namespacesToCleanup);
+    Thread.sleep(SETUP_TEARDOWN_SLEEP_MS);
 
     try {
       GcsUtil gcsUtil = OPTIONS.as(GcsOptions.class).getGcsUtil();
@@ -219,6 +227,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   }
 
   protected static String warehouse;
+  protected List<String> namespacesToCleanup = new ArrayList<>();
   public Catalog catalog;
   protected static final GcpOptions OPTIONS =
       TestPipeline.testingPipelineOptions().as(GcpOptions.class);
@@ -862,18 +871,16 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     // run this test only on catalogs that support namespace management
     assumeTrue(catalog instanceof SupportsNamespaces);
 
-    long salt = System.currentTimeMillis();
-    String tableIdentifierTemplate =
-        String.format("namespace_{modulo_5}_%s.table_{bool_field}", salt);
+    String tableIdentifierTemplate = namespace() + "_{modulo_5}.table_{bool_field}";
     Map<String, Object> writeConfig = new HashMap<>(managedIcebergConfig(tableIdentifierTemplate));
     // override with table template
     writeConfig.put("table", tableIdentifierTemplate);
 
-    Namespace namespace0 = Namespace.of("namespace_0_" + salt);
-    Namespace namespace1 = Namespace.of("namespace_1_" + salt);
-    Namespace namespace2 = Namespace.of("namespace_2_" + salt);
-    Namespace namespace3 = Namespace.of("namespace_3_" + salt);
-    Namespace namespace4 = Namespace.of("namespace_4_" + salt);
+    Namespace namespace0 = Namespace.of(namespace() + "_0");
+    Namespace namespace1 = Namespace.of(namespace() + "_1");
+    Namespace namespace2 = Namespace.of(namespace() + "_2");
+    Namespace namespace3 = Namespace.of(namespace() + "_3");
+    Namespace namespace4 = Namespace.of(namespace() + "_4");
 
     TableIdentifier tableId0true = TableIdentifier.of(namespace0, "table_true");
     TableIdentifier tableId0false = TableIdentifier.of(namespace0, "table_false");
@@ -957,11 +964,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
       assertThat(records, containsInAnyOrder(expectedRecords.toArray()));
     }
 
-    try {
-      namespaces.forEach(sN::dropNamespace);
-    } catch (Exception e) {
-      LOG.error("Test passed but threw an error when cleaning up namespaces.", e);
-    }
+    namespaces.stream().map(Namespace::toString).forEach(namespacesToCleanup::add);
   }
 
   public void runReadBetween(boolean useSnapshotBoundary, boolean streaming) throws Exception {
