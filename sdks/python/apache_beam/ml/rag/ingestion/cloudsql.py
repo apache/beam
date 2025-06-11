@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from dataclasses import asdict
 from dataclasses import dataclass
 from typing import Any
 from typing import Dict
@@ -29,27 +30,26 @@ from apache_beam.ml.rag.ingestion.postgres_common import ConflictResolution
 
 
 @dataclass
-class AlloyDBLanguageConnectorConfig:
-  """Configuration options for AlloyDB language connector.
+class LanguageConnectorConfig:
+  """Configuration options for CloudSQL Java language connector.
     
-    Contains all parameters needed to configure a connection using the AlloyDB
-    Java connector via JDBC. For details see
-    https://github.com/GoogleCloudPlatform/alloydb-java-connector/blob/main/docs/jdbc.md
+    Set parameters to connect connection to a CloudSQL instance using
+    Java language connector connector. For details see
+    https://github.com/GoogleCloudPlatform/cloud-sql-jdbc-socket-factory/blob/main/docs/jdbc.md
     
     Attributes:
         username: Database username.
         password: Database password. Can be empty string when using IAM.
         database_name: Name of the database to connect to.
-        instance_name: Fullly qualified instance. Format: 
-            'projects/<PROJECT>/locations/<REGION>/clusters/<CLUSTER>/instances
-            /<INSTANCE>'
-        ip_type: IP type to use for connection. Either 'PRIVATE' (default), 
-            'PUBLIC' 'PSC.
+        instance_name: Instance connection name. Format: 
+            '<PROJECT>:<REGION>:<INSTANCE>'
+        ip_type: Preferred order of IP types used to connect via a comma
+            list of strings.
         enable_iam_auth: Whether to enable IAM authentication. Default is False
         target_principal: Optional service account to impersonate for
             connection.
-        delegates: Optional comma-separated list of service accounts for
-            delegated impersonation.
+        delegates: Optional list of service accounts for delegated
+            impersonation.
         admin_service_endpoint: Optional custom API service endpoint.
         quota_project: Optional project ID for quota and billing.
         connection_properties: Optional JDBC connection properties dict.
@@ -61,48 +61,42 @@ class AlloyDBLanguageConnectorConfig:
   password: str
   database_name: str
   instance_name: str
-  ip_type: str = "PRIVATE"
+  ip_types: Optional[List[str]] = None
   enable_iam_auth: bool = False
   target_principal: Optional[str] = None
   delegates: Optional[List[str]] = None
-  admin_service_endpoint: Optional[str] = None
   quota_project: Optional[str] = None
   connection_properties: Optional[Dict[str, str]] = None
   additional_properties: Optional[Dict[str, Any]] = None
 
-  def to_jdbc_url(self) -> str:
-    """Convert options to a properly formatted JDBC URL.
-      
-      Returns:
-          JDBC URL string configured with all options.
-      """
-    # Base URL with database name
-    url = f"jdbc:postgresql:///{self.database_name}?"
+  def _base_jdbc_properties(self) -> Dict[str, Any]:
+    properties = {"cloudSqlInstance": self.instance_name}
 
-    # Add required properties
-    properties = {
-        "socketFactory": "com.google.cloud.alloydb.SocketFactory",
-        "alloydbInstanceName": self.instance_name,
-        "alloydbIpType": self.ip_type
-    }
+    if self.ip_types:
+      properties["ipTypes"] = ",".join(self.ip_types)
 
     if self.enable_iam_auth:
-      properties["alloydbEnableIAMAuth"] = "true"
+      properties["enableIamAuth"] = "true"
 
     if self.target_principal:
-      properties["alloydbTargetPrincipal"] = self.target_principal
+      properties["cloudSqlTargetPrincipal"] = self.target_principal
 
     if self.delegates:
-      properties["alloydbDelegates"] = ",".join(self.delegates)
-
-    if self.admin_service_endpoint:
-      properties["alloydbAdminServiceEndpoint"] = self.admin_service_endpoint
+      properties["cloudSqlDelegates"] = ",".join(self.delegates)
 
     if self.quota_project:
-      properties["alloydbQuotaProject"] = self.quota_project
+      properties["cloudSqlAdminQuotaProject"] = self.quota_project
 
     if self.additional_properties:
       properties.update(self.additional_properties)
+
+    return properties
+
+  def _build_jdbc_url(self, socketFactory, database_type):
+    url = f"jdbc:{database_type}:///{self.database_name}?"
+
+    properties = self._base_jdbc_properties()
+    properties['socketFactory'] = socketFactory
 
     property_string = "&".join(f"{k}={v}" for k, v in properties.items())
     return url + property_string
@@ -116,18 +110,38 @@ class AlloyDBLanguageConnectorConfig:
         additional_jdbc_args=self.additional_jdbc_args())
 
   def additional_jdbc_args(self) -> Dict[str, List[Any]]:
+    return {}
+
+
+@dataclass
+class _PostgresConnectorConfig(LanguageConnectorConfig):
+  def to_jdbc_url(self) -> str:
+    """Convert options to a properly formatted JDBC URL.
+      
+      Returns:
+          JDBC URL string configured with all options.
+      """
+    return self._build_jdbc_url(
+        socketFactory="com.google.cloud.sql.postgres.SocketFactory",
+        database_type="postgresql")
+
+  def additional_jdbc_args(self) -> Dict[str, List[Any]]:
     return {
         'classpath': [
             "org.postgresql:postgresql:42.2.16",
-            "com.google.cloud:alloydb-jdbc-connector:1.2.0"
+            "com.google.cloud.sql:postgres-socket-factory:1.25.0"
         ]
     }
 
+  @classmethod
+  def from_base_config(cls, config: LanguageConnectorConfig):
+    return cls(**asdict(config))
 
-class AlloyDBVectorWriterConfig(PostgresVectorWriterConfig):
+
+class CloudSQLPostgresVectorWriterConfig(PostgresVectorWriterConfig):
   def __init__(
       self,
-      connection_config: AlloyDBLanguageConnectorConfig,
+      connection_config: LanguageConnectorConfig,
       table_name: str,
       *,
       # pylint: disable=dangerous-default-value
@@ -136,13 +150,13 @@ class AlloyDBVectorWriterConfig(PostgresVectorWriterConfig):
       ),
       conflict_resolution: Optional[ConflictResolution] = ConflictResolution(
           on_conflict_fields=[], action='IGNORE')):
-    """Configuration for writing vectors to AlloyDB.
+    """Configuration for writing vectors to ClouSQL Postgres.
     
     Supports flexible schema configuration through column specifications and
     conflict resolution strategies.
 
     Args:
-        connection_config: AlloyDB connection configuration.
+        connection_config: :class:`LanguageConnectorConfig`.
         table_name: Target table name.
         write_config: JdbcIO :class:`~.jdbc_common.WriteConfig` to control
           batch sizes, authosharding, etc.
@@ -158,8 +172,8 @@ class AlloyDBVectorWriterConfig(PostgresVectorWriterConfig):
     Examples:
         Basic usage with default schema:
 
-        >>> config = AlloyDBVectorWriterConfig(
-        ...     connection_config=AlloyDBConnectionConfig(...),
+        >>> config = PostgresVectorWriterConfig(
+        ...     connection_config=PostgresConnectionConfig(...),
         ...     table_name='embeddings'
         ... )
 
@@ -190,14 +204,16 @@ class AlloyDBVectorWriterConfig(PostgresVectorWriterConfig):
         ...     .with_embedding_spec()
         ...     .build())
 
-        >>> config = AlloyDBVectorWriterConfig(
-        ...     connection_config=AlloyDBConnectionConfig(...),
+        >>> config = CloudSQLPostgresVectorWriterConfig(
+        ...     connection_config=PostgresConnectionConfig(...),
         ...     table_name='embeddings',
         ...     column_specs=specs
         ... )
     """
+    self.connector_config = _PostgresConnectorConfig.from_base_config(
+        connection_config)
     super().__init__(
-        connection_config=connection_config.to_connection_config(),
+        connection_config=self.connector_config.to_connection_config(),
         write_config=write_config,
         table_name=table_name,
         column_specs=column_specs,
