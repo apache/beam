@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import static org.apache.beam.sdk.io.iceberg.FilterUtils.convert;
+import static org.apache.beam.sdk.io.iceberg.FilterUtils.getReferencedFieldNames;
 import static org.apache.iceberg.expressions.Expressions.and;
 import static org.apache.iceberg.expressions.Expressions.equal;
 import static org.apache.iceberg.expressions.Expressions.greaterThan;
@@ -46,11 +47,13 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.apache.iceberg.AppendFiles;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.FileScanTask;
@@ -506,6 +509,22 @@ public class FilterUtilsTest {
       actualFiles.add(fileName);
     }
     assertEquals(expectedFiles, actualFiles.build());
+  }
+
+  @Test
+  public void testReferencedFieldsInFilter() {
+    List<Pair<String, Set<String>>> cases =
+        Arrays.asList(
+            Pair.of("field_1 < 35", Sets.newHashSet("FIELD_1")),
+            Pair.of("\"field_1\" in (1, 2, 3)", Sets.newHashSet("field_1")),
+            Pair.of("field_1 < 35 and \"fiELd_2\" = TRUE", Sets.newHashSet("FIELD_1", "fiELd_2")),
+            Pair.of(
+                "(\"field_1\" < 35 and \"field_2\" = TRUE) or \"field_3\" in ('a', 'b')",
+                Sets.newHashSet("field_1", "field_2", "field_3")));
+
+    for (Pair<String, Set<String>> pair : cases) {
+      assertEquals(pair.getRight(), getReferencedFieldNames(pair.getLeft()));
+    }
   }
 
   @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
