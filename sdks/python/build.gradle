@@ -143,8 +143,8 @@ tasks.register("yamlIntegrationTests") {
   }
 }
 
-tasks.register("postCommitYamlDataIntegrationTests") {
-  description "Runs postcommit integration tests for yaml pipelines dealing with data formats or processing."
+tasks.register("postCommitYamlIntegrationTests") {
+  description "Runs postcommit integration tests for yaml pipelines - parameterized by yamlTestSet."
 
   dependsOn installGcpTest
   // Need to build all expansion services referenced in apache_beam/yaml/*.*
@@ -155,47 +155,24 @@ tasks.register("postCommitYamlDataIntegrationTests") {
   dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:build"
 
   doLast {
-    exec {
-      executable 'sh'
-      args '-c', "${envdir}/bin/pytest -v apache_beam/yaml/integration_tests.py --test_files_dir='extended_tests/data'"
+    def testSet = project.findProperty('yamlTestSet') ?: 'data'
+    def test_files_dir
+    switch (testSet) {
+      case 'data':
+        test_files_dir = 'extended_tests/data'
+        break
+      case 'databases':
+        test_files_dir = 'extended_tests/databases'
+        break
+      case 'messaging':
+        test_files_dir = 'extended_tests/messaging'
+        break
+      default:
+        throw StopExecutionException("Unknown yamlTestSet: ${testSet}. Must be one of 'data', 'databases', or 'messaging'.")
     }
-  }
-}
-
-tasks.register("postCommitYamlDatabasesIntegrationTests") {
-  description "Runs postcommit integration tests for yaml pipelines dealing with databases."
-
-  dependsOn installGcpTest
-  // Need to build all expansion services referenced in apache_beam/yaml/*.*
-  // grep -oh 'sdk.*Jar' sdks/python/apache_beam/yaml/*.yaml | sort | uniq
-  dependsOn ":sdks:java:extensions:schemaio-expansion-service:shadowJar"
-  dependsOn ":sdks:java:extensions:sql:expansion-service:shadowJar"
-  dependsOn ":sdks:java:io:expansion-service:build"
-  dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:build"
-
-  doLast {
     exec {
       executable 'sh'
-      args '-c', "${envdir}/bin/pytest -v apache_beam/yaml/integration_tests.py --deselect apache_beam/yaml/integration_tests.py::BigqueryTest::test_ReadFromBigQuery_ExternalJavaProvider_0 --test_files_dir='extended_tests/databases'"
-    }
-  }
-}
-
-tasks.register("postCommitYamlMessagingIntegrationTests") {
-  description "Runs postcommit integration tests for yaml pipelines dealing with messaging."
-
-  dependsOn installGcpTest
-  // Need to build all expansion services referenced in apache_beam/yaml/*.*
-  // grep -oh 'sdk.*Jar' sdks/python/apache_beam/yaml/*.yaml | sort | uniq
-  dependsOn ":sdks:java:extensions:schemaio-expansion-service:shadowJar"
-  dependsOn ":sdks:java:extensions:sql:expansion-service:shadowJar"
-  dependsOn ":sdks:java:io:expansion-service:build"
-  dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:build"
-
-  doLast {
-    exec {
-      executable 'sh'
-      args '-c', "${envdir}/bin/pytest -v apache_beam/yaml/integration_tests.py --test_files_dir='extended_tests/messaging'"
+      args '-c', "${envdir}/bin/pytest -v apache_beam/yaml/integration_tests.py --test_files_dir='${test_files_dir}'"
     }
   }
 }

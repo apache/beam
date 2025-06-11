@@ -68,9 +68,9 @@ jobs:
           - "Run Yaml_Databases_Xlang_Direct PostCommit"
           - "Run Yaml_Messaging_Xlang_Direct PostCommit"
         gradle_command:
-          - ":sdks:python:postCommitYamlDataIntegrationTests -PbeamPythonExtra=ml_test"
-          - ":sdks:python:postCommitYamlDatabasesIntegrationTests -PbeamPythonExtra=ml_test"
-          - ":sdks:python:postCommitYamlMessagingIntegrationTests -PbeamPythonExtra=ml_test"
+          - ":sdks:python:postCommitYamlDataIntegrationTests -PyamlTestSet=data -PbeamPythonExtra=ml_test"
+          - ":sdks:python:postCommitYamlDatabasesIntegrationTests -PyamlTestSet=databases -PbeamPythonExtra=ml_test"
+          - ":sdks:python:postCommitYamlMessagingIntegrationTests -PyamlTestSet=messaging -PbeamPythonExtra=ml_test"
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository
