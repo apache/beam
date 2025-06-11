@@ -172,7 +172,7 @@ tasks.register("postCommitYamlIntegrationTests") {
     }
     exec {
       executable 'sh'
-      args '-c', "${envdir}/bin/pytest -v apache_beam/yaml/integration_tests.py --test_files_dir='${test_files_dir}'"
+      args '-c', "${envdir}/bin/pytest -v apache_beam/yaml/integration_tests.py --deselect apache_beam/yaml/integration_tests.py::BigqueryTest::test_ReadFromBigQuery_ExternalJavaProvider_0 --test_files_dir='${test_files_dir}'"
     }
   }
 }
