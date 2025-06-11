@@ -93,7 +93,6 @@ public class FilterUtils {
       SqlNode expression = parser.parseExpression();
       Set<String> fieldNames = new HashSet<>();
       extractFieldNames(expression, fieldNames);
-      System.out.println("xxx fields in filter: " + fieldNames);
       return fieldNames;
     } catch (Exception exception) {
       throw new RuntimeException(

@@ -46,6 +46,10 @@ import org.joda.time.Duration;
 @AutoValue
 public abstract class IcebergScanConfig implements Serializable {
   private transient @MonotonicNonNull Table cachedTable;
+  private transient org.apache.iceberg.@MonotonicNonNull Schema cachedProjectedSchema;
+  private transient org.apache.iceberg.@MonotonicNonNull Schema cachedRequiredSchema;
+  private transient @MonotonicNonNull Evaluator cachedEvaluator;
+  private transient @MonotonicNonNull Expression cachedFilter;
 
   public enum ScanType {
     TABLE,
@@ -93,6 +97,9 @@ public abstract class IcebergScanConfig implements Serializable {
           schema.columns().stream().map(Types.NestedField::name).collect(Collectors.toSet());
       drop.forEach(fields::remove);
       selectedFieldsBuilder.addAll(fields);
+    } else {
+      // default: include all columns
+      return schema;
     }
 
     if (fieldsInFilter != null && !fieldsInFilter.isEmpty()) {
@@ -104,7 +111,6 @@ public abstract class IcebergScanConfig implements Serializable {
     return selectedFields.isEmpty() ? schema : schema.select(selectedFields);
   }
 
-  private org.apache.iceberg.@Nullable Schema cachedProjectedSchema;
   /** Returns the projected Schema after applying column pruning. */
   public org.apache.iceberg.Schema getProjectedSchema() {
     if (cachedProjectedSchema == null) {
@@ -113,10 +119,9 @@ public abstract class IcebergScanConfig implements Serializable {
     return cachedProjectedSchema;
   }
 
-  private org.apache.iceberg.@Nullable Schema cachedRequiredSchema;
   /**
-   * Returns a Schema that includes explicitly selected fields and fields referenced in the filter
-   * statement.
+   * Returns a Schema that includes all the fields required for a successful read. This includes
+   * explicitly selected fields and fields referenced in the filter statement.
    */
   public org.apache.iceberg.Schema getRequiredSchema() {
     if (cachedRequiredSchema == null) {
@@ -143,8 +148,6 @@ public abstract class IcebergScanConfig implements Serializable {
     return cachedEvaluator;
   }
 
-  private transient @Nullable Evaluator cachedEvaluator;
-
   @Pure
   @Nullable
   public Expression getFilter() {
@@ -153,8 +156,6 @@ public abstract class IcebergScanConfig implements Serializable {
     }
     return cachedFilter;
   }
-
-  private transient @Nullable Expression cachedFilter;
 
   @Pure
   public abstract @Nullable String getFilterString();
@@ -262,7 +263,7 @@ public abstract class IcebergScanConfig implements Serializable {
 
     public abstract Builder setSchema(Schema schema);
 
-    public abstract Builder setFilterString(@Nullable String filterString);
+    public abstract Builder setFilterString(@Nullable String filter);
 
     public abstract Builder setCaseSensitive(@Nullable Boolean caseSensitive);
 
