@@ -134,9 +134,3 @@ task integrationTest(type: Test, dependsOn: processTestResources) {
   useJUnit {
   }
 }
-
-project.tasks.each {
-    it.onlyIf {project.hasProperty('java17Home') || project.hasProperty('java21Home')
-                || JavaVersion.VERSION_17.compareTo(JavaVersion.current()) <= 0
-    }
-}

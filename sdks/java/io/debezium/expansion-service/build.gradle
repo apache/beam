@@ -46,10 +46,3 @@ dependencies {
     runtimeOnly group: 'io.debezium', name: 'debezium-connector-oracle', version: debezium_version
     runtimeOnly group: 'io.debezium', name: 'debezium-connector-db2', version: debezium_version
 }
-
-// Module classes requires JDK > 8
-project.tasks.each {
-    it.onlyIf {project.hasProperty('java17Home') || project.hasProperty('java21Home')
-                || JavaVersion.VERSION_17.compareTo(JavaVersion.current()) <= 0
-    }
-}
