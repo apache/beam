@@ -47,6 +47,7 @@ import org.apache.beam.sdk.metrics.StringSet;
 import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -102,13 +103,13 @@ public class ExecutionStateSampler {
     this.clock = clock;
     this.activeStateTrackers = new HashSet<>();
 
-    if (options.getPtransformTimeoutDuration() <= 0) {
+    int timeoutOption = options.as(SdkHarnessOptions.class).getPtransformTimeoutDuration();
+    if (timeoutOption <= 0) {
       this.userAllowedLullTimeMsForRestart = 0L;
       this.userAllowedTimeoutForRestart = false;
     } else {
       this.userAllowedTimeoutForRestart = true;
-      int timeout = options.getPtransformTimeoutDuration();
-      long timeoutMs = TimeUnit.MINUTES.toMillis(timeout);
+      long timeoutMs = TimeUnit.MINUTES.toMillis(timeoutOption);
       this.userAllowedLullTimeMsForRestart =
           Math.max(timeoutMs, ExecutionStateSampler.MIN_LULL_TIME_MS_FOR_RESTART);
       if (timeoutMs < ExecutionStateSampler.MIN_LULL_TIME_MS_FOR_RESTART) {
@@ -393,10 +394,11 @@ public class ExecutionStateSampler {
 
         if (userAllowedTimeoutForRestart && lullTimeMs > userAllowedLullTimeMsForRestart) {
           throw new RuntimeException(
-              String.format(
-                  "The ptransform has been stuck for more than %d minutes, the SDK worker will"
-                      + " restart",
-                  TimeUnit.MILLISECONDS.toMinutes(userAllowedLullTimeMsForRestart)));
+              new TimeoutException(
+                  String.format(
+                      "The ptransform has been stuck for more than %d minutes, the SDK worker will"
+                          + " restart",
+                      TimeUnit.MILLISECONDS.toMinutes(userAllowedLullTimeMsForRestart))));
         }
 
         if (lullTimeMs > MAX_LULL_TIME_MS) {
