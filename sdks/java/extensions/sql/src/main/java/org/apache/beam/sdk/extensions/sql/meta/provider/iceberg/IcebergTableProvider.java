@@ -27,19 +27,9 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 
 public class IcebergTableProvider extends InMemoryMetaTableProvider {
   private static final String BEAM_HADOOP_PREFIX = "beam.catalog.%s.hadoop";
-  @VisibleForTesting IcebergCatalogConfig catalogConfig = IcebergCatalogConfig.builder().build();
+  @VisibleForTesting final IcebergCatalogConfig catalogConfig;
 
-  public static IcebergTableProvider create() {
-    return new IcebergTableProvider();
-  }
-
-  static IcebergTableProvider create(String name, Map<String, String> properties) {
-    IcebergTableProvider provider = new IcebergTableProvider();
-    provider.initialize(name, properties);
-    return provider;
-  }
-
-  public void initialize(String name, Map<String, String> properties) {
+  public IcebergTableProvider(String name, Map<String, String> properties) {
     ImmutableMap.Builder<String, String> catalogProps = ImmutableMap.builder();
     ImmutableMap.Builder<String, String> hadoopProps = ImmutableMap.builder();
     String hadoopPrefix = String.format(BEAM_HADOOP_PREFIX, name);

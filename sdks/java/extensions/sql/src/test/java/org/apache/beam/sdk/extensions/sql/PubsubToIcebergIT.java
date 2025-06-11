@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
+import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.INT64;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.STRING;
@@ -25,11 +26,9 @@ import com.google.api.services.bigquery.model.TableRow;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
-import org.apache.beam.sdk.extensions.sql.meta.provider.iceberg.IcebergTableProvider;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.TestPubsub;
@@ -62,7 +61,6 @@ public class PubsubToIcebergIT implements Serializable {
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
   @Rule public transient TestPubsub pubsub = TestPubsub.create();
-  private static final IcebergTableProvider PROVIDER = IcebergTableProvider.create();
   private static final BigqueryClient BQ_CLIENT = new BigqueryClient("PubsubToIcebergIT");
   static final String DATASET = "sql_pubsub_to_iceberg_it_" + System.nanoTime();
   static String warehouse;
@@ -78,19 +76,22 @@ public class PubsubToIcebergIT implements Serializable {
             TestPipeline.testingPipelineOptions().getTempLocation(),
             PubsubToIcebergIT.class.getSimpleName(),
             UUID.randomUUID());
-    icebergConfig =
-        ImmutableMap.of(
-            "catalog-impl", "org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog",
-            "io-impl", "org.apache.iceberg.gcp.gcs.GCSFileIO",
-            "warehouse", warehouse,
-            "gcp_project", OPTIONS.getProject(),
-            "gcp_region", "us-central1");
-    PROVIDER.initialize(PubsubToIcebergIT.class.getSimpleName(), icebergConfig);
     BQ_CLIENT.createNewDataset(OPTIONS.getProject(), DATASET);
+    createCatalogDdl =
+        "CREATE CATALOG my_catalog \n"
+            + "TYPE iceberg \n"
+            + "PROPERTIES (\n"
+            + "  'catalog-impl' = 'org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog', \n"
+            + "  'io-impl' = 'org.apache.iceberg.gcp.gcs.GCSFileIO', \n"
+            + format("  'warehouse' = '%s', \n", warehouse)
+            + format("  'gcp_project' = '%s', \n", OPTIONS.getProject())
+            + "  'gcp_region' = 'us-central1')";
+    setCatalogDdl = "SET CATALOG my_catalog";
   }
 
   private String tableIdentifier;
-  private static Map<String, String> icebergConfig;
+  private static String createCatalogDdl;
+  private static String setCatalogDdl;
 
   @Before
   public void setup() {
@@ -136,9 +137,10 @@ public class PubsubToIcebergIT implements Serializable {
             + "FROM pubsub_topic";
     pipeline.apply(
         SqlTransform.query(insertStatement)
+            .withDdlString(createCatalogDdl)
+            .withDdlString(setCatalogDdl)
             .withDdlString(pubsubTableString)
-            .withDdlString(icebergTableString)
-            .withTableProvider("iceberg", PROVIDER));
+            .withDdlString(icebergTableString));
     pipeline.run();
 
     // Block until a subscription for this topic exists
@@ -185,10 +187,20 @@ public class PubsubToIcebergIT implements Serializable {
 
     pipeline.apply(
         SqlTransform.query(insertStatement)
+            .withDdlString(createCatalogDdl)
+            .withDdlString(setCatalogDdl)
             .withDdlString(pubsubTableString)
-            .withDdlString(bqTableString)
-            .withTableProvider("iceberg", PROVIDER));
+            .withDdlString(bqTableString));
     pipeline.run();
+
+    // Block until a subscription for this topic exists
+    pubsub.assertSubscriptionEventuallyCreated(
+        pipeline.getOptions().as(GcpOptions.class).getProject(), Duration.standardMinutes(5));
+
+    List<PubsubMessage> messages =
+        ImmutableList.of(
+            message(ts(1), 3, "foo"), message(ts(2), 5, "bar"), message(ts(3), 7, "baz"));
+    pubsub.publish(messages);
 
     validateRowsWritten();
   }
@@ -209,19 +221,22 @@ public class PubsubToIcebergIT implements Serializable {
             .backoff();
     Sleeper sleeper = Sleeper.DEFAULT;
     do {
-      List<TableRow> returnedRows = ImmutableList.of();
+      List<TableRow> returnedRows;
       try {
         returnedRows = BQ_CLIENT.queryUnflattened(query, OPTIONS.getProject(), true, true);
-      } catch (Exception ignored) {
+      } catch (Exception e) {
+        throw new RuntimeException(e);
       }
       List<Row> beamRows =
           returnedRows.stream()
               .map(r -> BigQueryUtils.toBeamRow(SOURCE_SCHEMA, r))
               .collect(Collectors.toList());
       if (beamRows.containsAll(expectedRows)) {
-        break;
+        return;
       }
     } while (BackOffUtils.next(sleeper, backOff));
+
+    throw new RuntimeException("Polled for 5 minutes and could not find all rows in table.");
   }
 
   private Row row(Schema schema, Object... values) {

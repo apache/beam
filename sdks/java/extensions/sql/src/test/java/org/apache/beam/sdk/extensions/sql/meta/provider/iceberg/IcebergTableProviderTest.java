@@ -35,7 +35,7 @@ import org.junit.Test;
 /** UnitTest for {@link IcebergTableProvider}. */
 public class IcebergTableProviderTest {
   private final IcebergTableProvider provider =
-      IcebergTableProvider.create(
+      new IcebergTableProvider(
           "test_catalog",
           ImmutableMap.of(
               "catalog-impl", "org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog",

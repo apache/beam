@@ -15,19 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.meta.catalog;
+package org.apache.beam.sdk.extensions.sql.meta.provider.iceberg;
 
-import com.google.auto.service.AutoService;
-import org.apache.beam.sdk.extensions.sql.meta.provider.iceberg.IcebergCatalog;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import java.util.Map;
+import org.apache.beam.sdk.extensions.sql.meta.catalog.InMemoryCatalog;
 
-@AutoService(CatalogRegistrar.class)
-public class InMemoryCatalogRegistrar implements CatalogRegistrar {
+public class IcebergCatalog extends InMemoryCatalog {
+  public IcebergCatalog(String name, Map<String, String> properties) {
+    super(name, properties);
+    metaStore.registerProvider(new IcebergTableProvider(name, properties));
+  }
+
   @Override
-  public Iterable<Class<? extends Catalog>> getCatalogs() {
-    return ImmutableList.<Class<? extends Catalog>>builder()
-        .add(InMemoryCatalog.class)
-        .add(IcebergCatalog.class)
-        .build();
+  public String type() {
+    return "iceberg";
   }
 }

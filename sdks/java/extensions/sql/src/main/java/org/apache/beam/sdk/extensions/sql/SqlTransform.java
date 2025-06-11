@@ -149,12 +149,6 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
       sqlEnvBuilder.autoLoadUserDefinedFunctions();
       ServiceLoader.load(TableProvider.class).forEach(catalogManager::registerTableProvider);
     }
-    // register user-specified providers
-    for (Map.Entry<String, TableProvider> entry : tableProviderMap().entrySet()) {
-      if (!metaTableProvider.hasProvider(entry.getValue())) {
-        metaTableProvider.registerProvider(entry.getValue());
-      }
-    }
 
     tableProviderMap().forEach(sqlEnvBuilder::addSchema);
 
