@@ -71,11 +71,11 @@ org.eclipse.jgit:
     type: "Eclipse Distribution License - v1.0"
 opentelemetry-bom:
   '1.47.0':
-    license: "https://github.com/open-telemetry/opentelemetry-java/blob/v1.47.0/LICENSE"
+    license: "https://raw.githubusercontent.com/open-telemetry/opentelemetry-java/v1.47.0/LICENSE"
     type: "Apache License 2.0"
 opentelemetry-instrumentation-bom:
   '2.13.0':
-    license: "https://github.com/open-telemetry/opentelemetry-java-instrumentation/blob/v2.13.0/LICENSE"
+    license: "https://raw.githubusercontent.com/open-telemetry/opentelemetry-java-instrumentation/v2.13.0/LICENSE"
     type: "Apache License 2.0"
 zstd-jni:
   '1.5.2-5':
