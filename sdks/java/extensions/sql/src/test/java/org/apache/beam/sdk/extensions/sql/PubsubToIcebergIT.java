@@ -22,9 +22,12 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.INT64;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.STRING;
 
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
+import com.google.api.client.http.HttpStatusCodes;
 import com.google.api.services.bigquery.model.TableRow;
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -221,11 +224,13 @@ public class PubsubToIcebergIT implements Serializable {
             .backoff();
     Sleeper sleeper = Sleeper.DEFAULT;
     do {
-      List<TableRow> returnedRows;
+      List<TableRow> returnedRows = new ArrayList<>();
       try {
         returnedRows = BQ_CLIENT.queryUnflattened(query, OPTIONS.getProject(), true, true);
-      } catch (Exception e) {
-        throw new RuntimeException(e);
+      } catch (GoogleJsonResponseException e) {
+        if (e.getStatusCode() != HttpStatusCodes.STATUS_CODE_NOT_FOUND) {
+          throw new RuntimeException(e);
+        }
       }
       List<Row> beamRows =
           returnedRows.stream()
