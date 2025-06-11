@@ -22,6 +22,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.joda.time.Instant;
 
 /** Base class for IO Stress tests. */
@@ -83,6 +84,15 @@ public class IOStressTestBase extends IOLoadTestBase {
     public long getPeriodEndMillis() {
       return periodEndMillis;
     }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(LoadPeriod.class)
+          .add("start_millis", periodStartMillis)
+          .add("end_millis", periodEndMillis)
+          .add("multiplier", loadIncreaseMultiplier)
+          .toString();
+    }
   }
 
   /**
@@ -92,7 +102,7 @@ public class IOStressTestBase extends IOLoadTestBase {
    */
   protected static class MultiplierDoFn<T> extends DoFn<T, T> {
     private final int startMultiplier;
-    private final long startTimesMillis;
+    private long startTimesMillis;
     private final List<LoadPeriod> loadPeriods;
 
     public MultiplierDoFn(int startMultiplier, List<LoadPeriod> loadPeriods) {
@@ -101,12 +111,16 @@ public class IOStressTestBase extends IOLoadTestBase {
       this.loadPeriods = loadPeriods;
     }
 
+    @Setup
+    public void start() {
+      this.startTimesMillis = Instant.now().getMillis();
+    }
+
     @DoFn.ProcessElement
-    public void processElement(
-        @Element T element, OutputReceiver<T> outputReceiver, @DoFn.Timestamp Instant timestamp) {
+    public void processElement(@Element T element, OutputReceiver<T> outputReceiver) {
 
       int multiplier = this.startMultiplier;
-      long elapsedTimeMillis = timestamp.getMillis() - startTimesMillis;
+      long elapsedTimeMillis = Instant.now().getMillis() - startTimesMillis;
 
       for (LoadPeriod loadPeriod : loadPeriods) {
         if (elapsedTimeMillis >= loadPeriod.getPeriodStartMillis()
