@@ -62,7 +62,7 @@ jobs:
       matrix:
         job_name: ["beam_PostCommit_XVR_Spark3"]
         job_phrase: ["Run XVR_Spark3 PostCommit"]
-        python_version: ['3.9','3.12']
+        python_version: ['3.9','3.13']
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository
