@@ -61,7 +61,7 @@ jobs:
       matrix:
         job_name: ["beam_PostCommit_Yaml_Xlang_Direct"]
         job_phrase: ["Run Yaml_Xlang_Direct PostCommit"]
-        test_set: ["data", databases", "messaging"]
+        test_set: ["data", "databases", "messaging"]
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository
