@@ -47,7 +47,7 @@
         'ReadFromBigQuery': 'beam:schematransform:org.apache.beam:bigquery_storage_read:v1'
         'WriteToBigQuery': 'beam:schematransform:org.apache.beam:bigquery_storage_write:v2'
       config:
-        gradle_target: 'sdks:java:extensions:sql:expansion-service:shadowJar'
+        gradle_target: 'sdks:java:extensions:sql:expansion-service:shadowJar'       
 
 # Kafka
 - type: renaming
@@ -332,6 +332,7 @@
         columns: 'columns'
         index: 'index'
         batching: 'batching'
+        error_handing: 'error_handling'
       'WriteToSpanner':
         project: 'project_id'
         instance: 'instance_id'
