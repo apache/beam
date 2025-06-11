@@ -78,6 +78,7 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
+          java-version: 21
           python-version: ${{ matrix.python_version }}
       - name: Install docker compose
         run: |
