@@ -55,22 +55,22 @@ jobs:
       github.event_name == 'pull_request_target' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam')
     runs-on: ubuntu-latest
-    timeout-minutes: 120 # Adjusted timeout for potentially longer total run time
+    timeout-minutes: 120
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     strategy:
       matrix:
         job_name:
           - "beam_PostCommit_Yaml_Data_Xlang_Direct"
-          - "beam_PostCommit_Yaml_Messaging_Xlang_Direct"
           - "beam_PostCommit_Yaml_Databases_Xlang_Direct"
+          - "beam_PostCommit_Yaml_Messaging_Xlang_Direct"
         job_phrase:
           - "Run Yaml_Data_Xlang_Direct PostCommit"
-          - "Run Yaml_Messaging_Xlang_Direct PostCommit"
           - "Run Yaml_Databases_Xlang_Direct PostCommit"
+          - "Run Yaml_Messaging_Xlang_Direct PostCommit"
         gradle_command:
           - ":sdks:python:postCommitYamlDataIntegrationTests -PbeamPythonExtra=ml_test"
-          - ":sdks:python:postCommitYamlMessagingIntegrationTests -PbeamPythonExtra=ml_test"
           - ":sdks:python:postCommitYamlDatabasesIntegrationTests -PbeamPythonExtra=ml_test"
+          - ":sdks:python:postCommitYamlMessagingIntegrationTests -PbeamPythonExtra=ml_test"
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository
