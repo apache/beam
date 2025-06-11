@@ -131,7 +131,7 @@ public class SqlCreateExternalTable extends SqlCreate implements BeamSqlParser.E
           RESOURCE.internal("Schema is not instanceof BeamCalciteSchema"));
     }
     BeamCalciteSchema schema = (BeamCalciteSchema) pair.left.schema;
-    schema.getTableProvider().createTable(toTable());
+    schema.resolveMetastore().createTable(toTable());
   }
 
   private void unparseColumn(SqlWriter writer, Schema.Field column) {
