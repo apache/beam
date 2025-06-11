@@ -106,8 +106,9 @@ public class IcebergUtils {
         return Schema.FieldType.map(
             icebergTypeToBeamFieldType(type.asMapType().keyType()),
             icebergTypeToBeamFieldType(type.asMapType().valueType()));
+      default:
+        throw new RuntimeException("Unrecognized Iceberg Type: " + type.typeId());
     }
-    throw new RuntimeException("Unrecognized IcebergIO Type");
   }
 
   private static Schema.Field icebergFieldToBeamField(final Types.NestedField field) {
@@ -349,6 +350,9 @@ public class IcebergUtils {
         break;
       case MAP:
         Optional.ofNullable(value.getMap(name)).ifPresent(v -> rec.setField(name, v));
+        break;
+      default:
+        // Do nothing for unsupported types
         break;
     }
   }
