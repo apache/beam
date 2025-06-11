@@ -279,12 +279,21 @@ class RecordWriterManager implements AutoCloseable {
    * implementation. Although it is expected, some implementations may not support creating a table
    * using the Iceberg API.
    */
-  private Table getOrCreateTable(TableIdentifier identifier, Schema dataSchema) {
-    Namespace namespace = identifier.namespace();
+  private Table getOrCreateTable(IcebergDestination destination, Schema dataSchema) {
+    TableIdentifier identifier = destination.getTableIdentifier();
     @Nullable Table table = TABLE_CACHE.getIfPresent(identifier);
     if (table != null) {
+      // If fetching from cache, refresh the table to avoid working with stale metadata
+      // (e.g. partition spec)
       table.refresh();
       return table;
+    }
+
+    Namespace namespace = identifier.namespace();
+    @Nullable IcebergTableCreateConfig createConfig = destination.getTableCreateConfig();
+    PartitionSpec partitionSpec = PartitionSpec.unpartitioned();
+    if (createConfig != null && createConfig.getPartitionSpec() != null) {
+      partitionSpec = createConfig.getPartitionSpec();
     }
 
     synchronized (TABLE_CACHE) {
@@ -309,9 +318,12 @@ class RecordWriterManager implements AutoCloseable {
       } catch (NoSuchTableException e) { // Otherwise, create the table
         org.apache.iceberg.Schema tableSchema = IcebergUtils.beamSchemaToIcebergSchema(dataSchema);
         try {
-          // TODO(ahmedabu98): support creating a table with a specified partition spec
-          table = catalog.createTable(identifier, tableSchema);
-          LOG.info("Created Iceberg table '{}' with schema: {}", identifier, tableSchema);
+          table = catalog.createTable(identifier, tableSchema, partitionSpec);
+          LOG.info(
+              "Created Iceberg table '{}' with schema: {}\n, partition spec: {}",
+              identifier,
+              tableSchema,
+              partitionSpec);
         } catch (AlreadyExistsException ignored) {
           // race condition: another worker already created this table
           table = catalog.loadTable(identifier);
@@ -335,9 +347,9 @@ class RecordWriterManager implements AutoCloseable {
         destinations.computeIfAbsent(
             icebergDestination,
             destination -> {
-              TableIdentifier identifier = destination.getValue().getTableIdentifier();
-              Table table = getOrCreateTable(identifier, row.getSchema());
-              return new DestinationState(destination.getValue(), table);
+              IcebergDestination dest = destination.getValue();
+              Table table = getOrCreateTable(dest, row.getSchema());
+              return new DestinationState(dest, table);
             });
 
     Record icebergRecord = IcebergUtils.beamRowToIcebergRecord(destinationState.schema, row);
