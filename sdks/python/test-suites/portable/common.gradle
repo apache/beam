@@ -412,7 +412,20 @@ project.tasks.register("postCommitPy${pythonVersionSuffix}IT") {
             "pipeline_opts": pipelineOpts.join(" "),
     ])
     def kafkaJar = project(":sdks:java:testing:kafka-service:").buildTestKafkaServiceJar.archivePath
+
+    String fork_java_home = null
+    if (JavaVersion.current() < JavaVersion.VERSION_17) {
+      if (project.hasProperty("java17Home")) {
+        fork_java_home = project.getProperty("java17Home")
+      } else if (project.hasProperty("java21Home")) {
+        fork_java_home = project.getProperty("java21Home")
+      }
+    }
+
     exec {
+      if (fork_java_home != null) {
+        environment "JAVA_HOME", fork_java_home
+      }
       environment "LOCAL_KAFKA_JAR", kafkaJar
       executable 'sh'
       args '-c', ". ${envdir}/bin/activate && ${pythonRootDir}/scripts/run_integration_test.sh $cmdArgs"
