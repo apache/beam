@@ -672,7 +672,7 @@ class LogicalTypeRegistry(object):
   def get_logical_type_by_urn(self, urn):
     return self.by_urn.get(urn, None)
 
-  def get_urn_by_logial_type(self, logical_type):
+  def get_urn_by_logical_type(self, logical_type):
     return self.by_logical_type.get(logical_type, None)
 
   def get_logical_type_by_language_type(self, representation_type):
@@ -813,7 +813,7 @@ class LogicalType(Generic[LanguageT, RepresentationT, ArgT]):
 
   @classmethod
   def is_known_logical_type(cls, logical_type):
-    return cls._known_logical_types.get_urn_by_logial_type(
+    return cls._known_logical_types.get_urn_by_logical_type(
         logical_type) is not None
 
 
