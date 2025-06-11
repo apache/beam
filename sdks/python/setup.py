@@ -316,8 +316,16 @@ if __name__ == '__main__':
   else:
     extensions = []
 
-  long_description = ((Path(__file__).parent / "README.md")  # pragma: no cover
-                      .read_text(encoding='utf-8'))  # pragma: no cover
+  try:
+    long_description = ((Path(__file__).parent /
+                         "README.md").read_text(encoding='utf-8'))
+  except FileNotFoundError:
+    long_description = (
+        'Apache Beam is a unified programming model for both batch and '
+        'streaming data processing, enabling efficient execution across '
+        'diverse distributed execution engines and providing extensibility '
+        'points for connecting to different technologies and user '
+        'communities.')
 
   # Keep all dependencies inlined in the setup call, otherwise Dependabot won't
   # be able to parse it.
