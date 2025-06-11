@@ -59,9 +59,11 @@ import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -207,7 +209,7 @@ public class StreamingSideInputDoFnRunnerTest {
     long timestamp = 1L;
 
     WindowedValue<String> elem =
-        WindowedValue.of(
+        WindowedValues.of(
             "e", new Instant(timestamp), Arrays.asList(window1, window2), PaneInfo.NO_FIRING);
 
     runner.startBundle();
@@ -382,19 +384,17 @@ public class StreamingSideInputDoFnRunnerTest {
     assertThat(sideInputFetcher.elementBag(createWindow(0)).read(), Matchers.emptyIterable());
   }
 
-  @SuppressWarnings("unchecked")
   private <ReceiverT> StreamingSideInputDoFnRunner<String, String, IntervalWindow> createRunner(
-      DoFnRunners.OutputManager outputManager,
+      WindowedValueMultiReceiver outputManager,
       List<PCollectionView<String>> views,
       StreamingSideInputFetcher<String, IntervalWindow> sideInputFetcher)
       throws Exception {
     return createRunner(WINDOW_FN, outputManager, views, sideInputFetcher);
   }
 
-  @SuppressWarnings("unchecked")
   private <ReceiverT> StreamingSideInputDoFnRunner<String, String, IntervalWindow> createRunner(
       WindowFn<?, ?> windowFn,
-      DoFnRunners.OutputManager outputManager,
+      WindowedValueMultiReceiver outputManager,
       List<PCollectionView<String>> views,
       StreamingSideInputFetcher<String, IntervalWindow> sideInputFetcher)
       throws Exception {
@@ -449,7 +449,7 @@ public class StreamingSideInputDoFnRunnerTest {
   }
 
   private WindowedValue<String> createDatum(String element, long timestamp) {
-    return WindowedValue.of(
+    return WindowedValues.of(
         element,
         new Instant(timestamp),
         Arrays.asList(createWindow(timestamp)),

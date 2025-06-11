@@ -20,6 +20,8 @@ package org.apache.beam.sdk.util;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.not;
 
 import java.util.Arrays;
 import org.apache.beam.sdk.coders.Coder;
@@ -31,6 +33,8 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.joda.time.Duration;
@@ -52,7 +56,7 @@ public class WindowedValueTest {
   public void testWindowedValueCoder() throws CoderException {
     Instant timestamp = new Instant(1234);
     WindowedValue<String> value =
-        WindowedValue.of(
+        WindowedValues.of(
             "abc",
             new Instant(1234),
             Arrays.asList(
@@ -62,7 +66,7 @@ public class WindowedValueTest {
             PaneInfo.NO_FIRING);
 
     Coder<WindowedValue<String>> windowedValueCoder =
-        WindowedValue.getFullCoder(StringUtf8Coder.of(), IntervalWindow.getCoder());
+        WindowedValues.getFullCoder(StringUtf8Coder.of(), IntervalWindow.getCoder());
 
     byte[] encodedValue = CoderUtils.encodeToByteArray(windowedValueCoder, value);
     WindowedValue<String> decodedValue =
@@ -76,24 +80,25 @@ public class WindowedValueTest {
   @Test
   public void testFullWindowedValueCoderIsSerializableWithWellKnownCoderType() {
     CoderProperties.coderSerializable(
-        WindowedValue.getFullCoder(GlobalWindow.Coder.INSTANCE, GlobalWindow.Coder.INSTANCE));
+        WindowedValues.getFullCoder(GlobalWindow.Coder.INSTANCE, GlobalWindow.Coder.INSTANCE));
   }
 
   @Test
   public void testParamWindowedValueCoderIsSerializableWithWellKnownCoderType() {
     CoderProperties.coderSerializable(
-        WindowedValue.getParamWindowedValueCoder(GlobalWindow.Coder.INSTANCE));
+        WindowedValues.getParamWindowedValueCoder(GlobalWindow.Coder.INSTANCE));
   }
 
   @Test
   public void testValueOnlyWindowedValueCoderIsSerializableWithWellKnownCoderType() {
-    CoderProperties.coderSerializable(WindowedValue.getValueOnlyCoder(GlobalWindow.Coder.INSTANCE));
+    CoderProperties.coderSerializable(
+        WindowedValues.getValueOnlyCoder(GlobalWindow.Coder.INSTANCE));
   }
 
   @Test
   public void testExplodeWindowsInNoWindowsCrash() {
     thrown.expect(IllegalArgumentException.class);
-    WindowedValue.of("foo", Instant.now(), ImmutableList.of(), PaneInfo.NO_FIRING);
+    WindowedValues.of("foo", Instant.now(), ImmutableList.of(), PaneInfo.NO_FIRING);
   }
 
   @Test
@@ -102,7 +107,7 @@ public class WindowedValueTest {
     BoundedWindow window =
         new IntervalWindow(now.minus(Duration.millis(1000L)), now.plus(Duration.millis(1000L)));
     WindowedValue<String> value =
-        WindowedValue.of("foo", now, window, PaneInfo.ON_TIME_AND_ONLY_FIRING);
+        WindowedValues.of("foo", now, window, PaneInfo.ON_TIME_AND_ONLY_FIRING);
 
     assertThat(Iterables.getOnlyElement(value.explodeWindows()), equalTo(value));
   }
@@ -117,40 +122,40 @@ public class WindowedValueTest {
     BoundedWindow futureWindow =
         new IntervalWindow(now.minus(Duration.millis(500L)), now.plus(Duration.millis(1500L)));
     BoundedWindow futureFutureWindow = new IntervalWindow(now, now.plus(Duration.millis(2000L)));
-    PaneInfo pane = PaneInfo.createPane(false, false, Timing.ON_TIME, 3L, 0L);
+    PaneInfo paneInfo = PaneInfo.createPane(false, false, Timing.ON_TIME, 3L, 0L);
     WindowedValue<String> value =
-        WindowedValue.of(
+        WindowedValues.of(
             "foo",
             now,
             ImmutableList.of(pastWindow, centerWindow, futureWindow, futureFutureWindow),
-            pane);
+            paneInfo);
 
     assertThat(
         value.explodeWindows(),
         containsInAnyOrder(
-            WindowedValue.of("foo", now, futureFutureWindow, pane),
-            WindowedValue.of("foo", now, futureWindow, pane),
-            WindowedValue.of("foo", now, centerWindow, pane),
-            WindowedValue.of("foo", now, pastWindow, pane)));
+            WindowedValues.of("foo", now, futureFutureWindow, paneInfo),
+            WindowedValues.of("foo", now, futureWindow, paneInfo),
+            WindowedValues.of("foo", now, centerWindow, paneInfo),
+            WindowedValues.of("foo", now, pastWindow, paneInfo)));
 
-    assertThat(value.isSingleWindowedValue(), equalTo(false));
+    assertThat(value, not(instanceOf(WindowedValues.SingleWindowedValue.class)));
   }
 
   @Test
   public void testSingleWindowedValueInGlobalWindow() {
     WindowedValue<Integer> value =
-        WindowedValue.of(1, Instant.now(), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING);
-    assertThat(value.isSingleWindowedValue(), equalTo(true));
+        WindowedValues.of(1, Instant.now(), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING);
+    assertThat(value, instanceOf(WindowedValues.SingleWindowedValue.class));
     assertThat(
-        ((WindowedValue.SingleWindowedValue) value).getWindow(), equalTo(GlobalWindow.INSTANCE));
+        ((WindowedValues.SingleWindowedValue) value).getWindow(), equalTo(GlobalWindow.INSTANCE));
   }
 
   @Test
   public void testSingleWindowedValueInFixedWindow() {
     Instant now = Instant.now();
     BoundedWindow w = new IntervalWindow(now, now.plus(Duration.millis(1)));
-    WindowedValue<Integer> value = WindowedValue.of(1, now, w, PaneInfo.NO_FIRING);
-    assertThat(value.isSingleWindowedValue(), equalTo(true));
-    assertThat(((WindowedValue.SingleWindowedValue) value).getWindow(), equalTo(w));
+    WindowedValue<Integer> value = WindowedValues.of(1, now, w, PaneInfo.NO_FIRING);
+    assertThat(value, instanceOf(WindowedValues.SingleWindowedValue.class));
+    assertThat(((WindowedValues.SingleWindowedValue) value).getWindow(), equalTo(w));
   }
 }

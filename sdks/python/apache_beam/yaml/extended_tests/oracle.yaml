@@ -17,10 +17,10 @@
 
 fixtures:
   - name: TEMP_DB
-    type: "apache_beam.yaml.integration_tests.temp_postgres_database"
+    type: "apache_beam.yaml.integration_tests.temp_oracle_database"
 
 pipelines:
-  # Postgres write pipeline
+  # Oracle write pipeline
   - pipeline:
       type: chain
       transforms:
@@ -30,24 +30,34 @@ pipelines:
               - {value: 123, rank: 0}
               - {value: 456, rank: 1}
               - {value: 789, rank: 2}
-        - type: WriteToPostgres
+        - type: WriteToOracle
           config:
             url: "{TEMP_DB}"
             query: "INSERT INTO tmp_table (value, rank) VALUES(?,?)"
 
-  # Postgres read pipeline
+  # Oracle read pipeline
+  # Need a separate read pipeline to make sure the write pipeline is flushed
   - pipeline:
       type: chain
       transforms:
-        - type: ReadFromPostgres
+        - type: ReadFromOracle
           config:
             url: "{TEMP_DB}"
             query: "SELECT * FROM tmp_table"
-            driver_class_name: "org.postgresql.Driver"
+            driver_class_name: "oracle.jdbc.OracleDriver"
+        - type: MapToFields
+          config:
+            language: python
+            fields:
+              value:
+                callable: "lambda x: int(x.VALUE)"
+                output_type: integer
+              rank:
+                callable: "lambda x: int(x.RANK)"
+                output_type: integer
         - type: AssertEqual
           config:
             elements:
               - {value: 123, rank: 0}
               - {value: 456, rank: 1}
               - {value: 789, rank: 2}
-    

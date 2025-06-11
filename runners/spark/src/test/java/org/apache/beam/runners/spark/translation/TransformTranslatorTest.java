@@ -43,12 +43,13 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
@@ -81,8 +82,8 @@ public class TransformTranslatorTest implements Serializable {
   @Test
   public void testSplitBySameKey() {
     VarIntCoder coder = VarIntCoder.of();
-    WindowedValue.WindowedValueCoder<Integer> wvCoder =
-        WindowedValue.FullWindowedValueCoder.of(coder, GlobalWindow.Coder.INSTANCE);
+    WindowedValues.WindowedValueCoder<Integer> wvCoder =
+        WindowedValues.FullWindowedValueCoder.of(coder, GlobalWindow.Coder.INSTANCE);
     Instant now = Instant.now();
     List<GlobalWindow> window = Collections.singletonList(GlobalWindow.INSTANCE);
     PaneInfo paneInfo = PaneInfo.NO_FIRING;
@@ -90,23 +91,25 @@ public class TransformTranslatorTest implements Serializable {
         Arrays.asList(
             new Tuple2(
                 new ByteArray(CoderHelpers.toByteArrayWithTs(1, coder, now)),
-                CoderHelpers.toByteArray(WindowedValue.of(1, now, window, paneInfo), wvCoder)),
+                CoderHelpers.toByteArray(WindowedValues.of(1, now, window, paneInfo), wvCoder)),
             new Tuple2(
                 new ByteArray(
                     CoderHelpers.toByteArrayWithTs(1, coder, now.plus(Duration.millis(1)))),
                 CoderHelpers.toByteArray(
-                    WindowedValue.of(2, now.plus(Duration.millis(1)), window, paneInfo), wvCoder)));
+                    WindowedValues.of(2, now.plus(Duration.millis(1)), window, paneInfo),
+                    wvCoder)));
 
     List<Tuple2<ByteArray, byte[]>> secondKey =
         Arrays.asList(
             new Tuple2(
                 new ByteArray(CoderHelpers.toByteArrayWithTs(2, coder, now)),
-                CoderHelpers.toByteArray(WindowedValue.of(3, now, window, paneInfo), wvCoder)),
+                CoderHelpers.toByteArray(WindowedValues.of(3, now, window, paneInfo), wvCoder)),
             new Tuple2(
                 new ByteArray(
                     CoderHelpers.toByteArrayWithTs(2, coder, now.plus(Duration.millis(2)))),
                 CoderHelpers.toByteArray(
-                    WindowedValue.of(4, now.plus(Duration.millis(2)), window, paneInfo), wvCoder)));
+                    WindowedValues.of(4, now.plus(Duration.millis(2)), window, paneInfo),
+                    wvCoder)));
 
     Iterable<Tuple2<ByteArray, byte[]>> concat = Iterables.concat(firstKey, secondKey);
     Iterator<Iterator<WindowedValue<KV<Integer, Integer>>>> keySplit;
@@ -120,15 +123,15 @@ public class TransformTranslatorTest implements Serializable {
         // first key
         assertEquals(
             Arrays.asList(
-                WindowedValue.of(KV.of(1, 1), now, window, paneInfo),
-                WindowedValue.of(KV.of(1, 2), now.plus(Duration.millis(1)), window, paneInfo)),
+                WindowedValues.of(KV.of(1, 1), now, window, paneInfo),
+                WindowedValues.of(KV.of(1, 2), now.plus(Duration.millis(1)), window, paneInfo)),
             list);
       } else {
         // second key
         assertEquals(
             Arrays.asList(
-                WindowedValue.of(KV.of(2, 3), now, window, paneInfo),
-                WindowedValue.of(KV.of(2, 4), now.plus(Duration.millis(2)), window, paneInfo)),
+                WindowedValues.of(KV.of(2, 3), now, window, paneInfo),
+                WindowedValues.of(KV.of(2, 4), now.plus(Duration.millis(2)), window, paneInfo)),
             list);
       }
     }

@@ -23,7 +23,9 @@ import glob
 import itertools
 import logging
 import os
+import random
 import sqlite3
+import string
 import unittest
 import uuid
 
@@ -33,6 +35,11 @@ import psycopg2
 import pytds
 import sqlalchemy
 import yaml
+from google.cloud import pubsub_v1
+from testcontainers.core.container import DockerContainer
+from testcontainers.core.waiting_utils import wait_for_logs
+from testcontainers.google import PubSubContainer
+from testcontainers.kafka import KafkaContainer
 from testcontainers.mssql import SqlServerContainer
 from testcontainers.mysql import MySqlContainer
 from testcontainers.postgres import PostgresContainer
@@ -46,6 +53,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.utils import python_callable
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml import yaml_transform
+from apache_beam.yaml.conftest import yaml_test_files_dir
 
 
 @contextlib.contextmanager
@@ -351,6 +359,129 @@ def temp_sqlserver_database():
       raise err
 
 
+class OracleTestContainer(DockerContainer):
+  """
+    OracleTestContainer is an updated version of OracleDBContainer that goes
+    ahead and sets the oracle password, waits for logs to establish that the 
+    container is ready before calling get_exposed_port, and uses a more modern
+    oracle driver.  
+    """
+  def __init__(self):
+    super().__init__("gvenzl/oracle-xe:21-slim")
+    self.with_env("ORACLE_PASSWORD", "oracle")
+    self.with_exposed_ports(1521)
+
+  def start(self):
+    super().start()
+    wait_for_logs(self, "DATABASE IS READY TO USE!", timeout=300)
+    return self
+
+  def get_connection_url(self):
+    port = self.get_exposed_port(1521)
+    return \
+      f"oracle+oracledb://system:oracle@localhost:{port}/?service_name=XEPDB1"
+
+
+@contextlib.contextmanager
+def temp_oracle_database():
+  """Context manager to provide a temporary Oracle database for testing.
+
+  This function utilizes the 'testcontainers' library to spin up an
+  Oracle Database instance within a Docker container. It then connects
+  to this temporary database using 'oracledb', creates a predefined
+
+  NOTE: A custom OracleTestContainer class was created due to the current
+  version (OracleDBContainer) that calls get_exposed_port too soon causing the
+  service to hang until timeout.
+
+  Yields:
+      str: A JDBC connection string for the temporary Oracle database.
+           Example format:
+           "jdbc:oracle:thin:system/oracle@localhost:{port}/XEPDB1"
+
+  Raises:
+      oracledb.Error: If there's an error connecting to or interacting with
+                      the Oracle database during setup.
+      Exception: Any other exception encountered during the setup process.
+  """
+  with OracleTestContainer() as oracle:
+    engine = sqlalchemy.create_engine(oracle.get_connection_url())
+    with engine.connect() as connection:
+      connection.execute(
+          sqlalchemy.text(
+              """
+                CREATE TABLE tmp_table (
+                    value NUMBER PRIMARY KEY,
+                    rank NUMBER
+                )
+            """))
+      connection.commit()
+    port = oracle.get_exposed_port(1521)
+    yield f"jdbc:oracle:thin:system/oracle@localhost:{port}/XEPDB1"
+
+
+@contextlib.contextmanager
+def temp_kafka_server():
+  """Context manager to provide a temporary Kafka server for testing.
+
+  This function utilizes the 'testcontainers' library to spin up a Kafka
+  instance within a Docker container. It then yields the bootstrap server
+  string, which can be used by Kafka clients to connect to this temporary
+  server.
+
+  The Docker container and the Kafka instance are automatically managed
+  and torn down when the context manager exits.
+
+  Yields:
+      str: The bootstrap server string for the temporary Kafka instance.
+           Example format: "localhost:XXXXX" or "PLAINTEXT://localhost:XXXXX"
+
+  Raises:
+      Exception: If there's an error starting the Kafka container or
+                 interacting with the temporary Kafka server.
+  """
+  try:
+    with KafkaContainer() as kafka_container:
+      yield kafka_container.get_bootstrap_server()
+  except Exception as err:
+    logging.error("Error interacting with temporary Kakfa Server: %s", err)
+    raise err
+
+
+@contextlib.contextmanager
+def temp_pubsub_emulator(project_id="apache-beam-testing"):
+  """
+  Context manager to provide a temporary Pub/Sub emulator for testing.
+
+  This function uses 'testcontainers' to spin up a Google Cloud SDK
+  container running the Pub/Sub emulator. It yields the emulator host
+  string (e.g., "localhost:xxxxx") that can be used to configure Pub/Sub
+  clients.
+
+  The Docker container is automatically managed and torn down when the
+  context manager exits.
+
+  Args:
+      project_id (str): The GCP project ID to be used by the emulator.
+                        This doesn't need to be a real project for the emulator.
+
+  Yields:
+      str: The host and port for the Pub/Sub emulator (e.g., "localhost:xxxx").
+            This will be the address to point your Pub/Sub client to.
+
+  Raises:
+      Exception: If the container fails to start or the emulator isn't ready.
+  """
+  with PubSubContainer(project=project_id) as pubsub_container:
+    publisher = pubsub_v1.PublisherClient()
+    random_front_charactor = random.choice(string.ascii_lowercase)
+    topic_id = f"{random_front_charactor}{uuid.uuid4().hex[:8]}"
+    topic_name_to_create = \
+      f"projects/{pubsub_container.project}/topics/{topic_id}"
+    created_topic_object = publisher.create_topic(name=topic_name_to_create)
+    yield created_topic_object.name
+
+
 def replace_recursive(spec, vars):
   if isinstance(spec, dict):
     return {
@@ -359,7 +490,10 @@ def replace_recursive(spec, vars):
     }
   elif isinstance(spec, list):
     return [replace_recursive(value, vars) for value in spec]
-  elif isinstance(spec, str) and '{' in spec and '{\n' not in spec:
+  # TODO(https://github.com/apache/beam/issues/35067): Consider checking for
+  # callable in the if branch above instead of checking lambda here.
+  elif isinstance(
+      spec, str) and '{' in spec and '{\n' not in spec and 'lambda' not in spec:
     try:
       return spec.format(**vars)
     except Exception as exn:
@@ -470,8 +604,15 @@ def parse_test_files(filepattern):
       globals()[suite_name] = type(suite_name, (unittest.TestCase, ), methods)
 
 
+# Logging setup
 logging.getLogger().setLevel(logging.INFO)
-parse_test_files(os.path.join(os.path.dirname(__file__), 'tests', '*.yaml'))
+
+# Dynamically create test methods from the tests directory.
+# yaml_test_files_dir comes from conftest.py and set by pytest_configure.
+_test_files_dir = yaml_test_files_dir
+_file_pattern = os.path.join(
+    os.path.dirname(__file__), _test_files_dir, '*.yaml')
+parse_test_files(_file_pattern)
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

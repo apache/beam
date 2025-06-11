@@ -46,6 +46,7 @@ from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.gcp import bigquery as beam_bq
 from apache_beam.io.gcp import bigquery_tools
+from apache_beam.io.gcp.bigquery import MAX_INSERT_RETRIES
 from apache_beam.io.gcp.bigquery import ReadFromBigQuery
 from apache_beam.io.gcp.bigquery import TableRowJsonCoder
 from apache_beam.io.gcp.bigquery import WriteToBigQuery
@@ -445,13 +446,14 @@ class TestReadFromBigQuery(unittest.TestCase):
   ])
   def test_create_temp_dataset_exception(self, exception_type, error_message):
 
+    # Uses the FnApiRunner to ensure errors are mocked/passed through correctly
     with mock.patch.object(bigquery_v2_client.BigqueryV2.JobsService,
                            'Insert'),\
       mock.patch.object(BigQueryWrapper,
                         'get_or_create_dataset') as mock_insert, \
       mock.patch('time.sleep'), \
       self.assertRaises(Exception) as exc,\
-      beam.Pipeline() as p:
+      beam.Pipeline('FnApiRunner') as p:
 
       mock_insert.side_effect = exception_type(error_message)
 
@@ -461,7 +463,7 @@ class TestReadFromBigQuery(unittest.TestCase):
           gcs_location='gs://temp_location')
 
     mock_insert.assert_called()
-    self.assertIn(error_message, exc.exception.args[0])
+    self.assertIn(error_message, str(exc.exception))
 
   @parameterized.expand([
       # read without exception
@@ -514,6 +516,9 @@ class TestReadFromBigQuery(unittest.TestCase):
       numBytes = 5
       schema = DummySchema()
 
+    # TODO(https://github.com/apache/beam/issues/34549): This test relies on
+    # lineage metrics which Prism doesn't seem to handle correctly. Defaulting
+    # to FnApiRunner instead.
     with mock.patch('time.sleep'), \
             mock.patch.object(bigquery_v2_client.BigqueryV2.TablesService,
                               'Get') as mock_get_table, \
@@ -525,7 +530,7 @@ class TestReadFromBigQuery(unittest.TestCase):
                               'match'), \
             mock.patch.object(FileSystems,
                               'delete'), \
-            beam.Pipeline() as p:
+            beam.Pipeline('FnApiRunner') as p:
       call_counter = 0
 
       def store_callback(unused_request):
@@ -675,6 +680,9 @@ class TestReadFromBigQuery(unittest.TestCase):
   ])
   def test_query_job_exception(self, exception_type, error_message):
 
+    # TODO(https://github.com/apache/beam/issues/34549): This test relies on
+    # mocking which prism doesn't seem to fully handle correctly (mocks get
+    # mixed between test runs). Pinning to FnApiRunner for now.
     with mock.patch.object(beam.io.gcp.bigquery._CustomBigQuerySource,
                            'estimate_size') as mock_estimate,\
       mock.patch.object(BigQueryWrapper,
@@ -684,7 +692,7 @@ class TestReadFromBigQuery(unittest.TestCase):
       mock.patch.object(bigquery_v2_client.BigqueryV2.DatasetsService, 'Get'), \
       mock.patch('time.sleep'), \
       self.assertRaises(Exception) as exc, \
-      beam.Pipeline() as p:
+      beam.Pipeline('FnApiRunner') as p:
 
       mock_estimate.return_value = None
       mock_query_location.return_value = None
@@ -726,14 +734,17 @@ class TestReadFromBigQuery(unittest.TestCase):
           gcs_location="gs://temp_location")
 
     mock_query_job.assert_called()
-    self.assertIn(error_message, exc.exception.args[0])
+    self.assertIn(error_message, str(exc.exception))
 
   def test_read_direct_lineage(self):
+    # TODO(https://github.com/apache/beam/issues/34549): This test relies on
+    # lineage metrics which Prism doesn't seem to handle correctly. Defaulting
+    # to FnApiRunner instead.
     with mock.patch.object(bigquery_tools.BigQueryWrapper,
                         '_bigquery_client'),\
          mock.patch.object(bq_storage.BigQueryReadClient,
                         'create_read_session'),\
-        beam.Pipeline() as p:
+        beam.Pipeline('FnApiRunner') as p:
 
       _ = p | ReadFromBigQuery(
           method=ReadFromBigQuery.Method.DIRECT_READ,
@@ -743,8 +754,11 @@ class TestReadFromBigQuery(unittest.TestCase):
         set(["bigquery:project.dataset.table"]))
 
   def test_read_all_lineage(self):
+    # TODO(https://github.com/apache/beam/issues/34549): This test relies on
+    # lineage metrics which Prism doesn't seem to handle correctly. Defaulting
+    # to FnApiRunner instead.
     with mock.patch.object(_BigQueryReadSplit, '_export_files') as export, \
-                            beam.Pipeline() as p:
+                            beam.Pipeline('FnApiRunner') as p:
 
       export.return_value = (None, [])
 
@@ -967,7 +981,7 @@ class TestWriteToBigQuery(unittest.TestCase):
         schema=schema)
 
     # pylint: disable=expression-not-assigned
-    p | 'MyWriteToBigQuery' >> original
+    p | beam.Create([]) | 'MyWriteToBigQuery' >> original
 
     # Run the pipeline through to generate a pipeline proto from an empty
     # context. This ensures that the serialization code ran.
@@ -1092,6 +1106,23 @@ class TestWriteToBigQuery(unittest.TestCase):
       expected_failed_rows = [(table, rows[2])]
       assert_that(failed_rows.failed_rows, equal_to(expected_failed_rows))
     self.assertEqual(2, mock_insert.call_count)
+
+  def test_max_retries_exceeds_limit(self):
+    table = 'project:dataset.table'
+    rows = [{'columnA': 'value1'}, {'columnA': 'value2'}]
+    with beam.Pipeline() as p:
+      data = p | beam.Create(rows)
+
+      with self.assertRaises(ValueError) as context:
+        _ = data | 'WriteToBQ' >> WriteToBigQuery(
+            table=table,
+            schema='columnA:STRING',
+            method='STREAMING_INSERTS',
+            max_retries=MAX_INSERT_RETRIES + 1  # Exceeds the limit of 10000
+        )
+
+        self.assertIn(
+            'max_retries cannot be more than 10000', str(context.exception))
 
   @parameterized.expand([
       param(
