@@ -18,7 +18,6 @@
 import groovy.json.JsonOutput
 
 plugins { id 'org.apache.beam.module' }
-
 applyJavaNature(
         automaticModuleName: 'org.apache.beam.sdk.io.debezium',
         mavenRepositories: [
@@ -68,7 +67,7 @@ dependencies {
     testImplementation group: 'io.debezium', name: 'debezium-connector-postgres', version: '3.1.1.Final'
 }
 
-// TODO: Remove pin after Beam has unpinned it
+// TODO: Remove pin after Beam has unpinned it (PR #35231)
 // Pin the Antlr version
 configurations.all {
     resolutionStrategy {
