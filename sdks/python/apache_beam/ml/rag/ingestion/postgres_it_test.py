@@ -32,9 +32,9 @@ from apache_beam.coders import registry
 from apache_beam.coders.row_coder import RowCoder
 from apache_beam.io.jdbc import ReadFromJdbc
 from apache_beam.ml.rag.ingestion import test_utils
-from apache_beam.ml.rag.ingestion.alloydb import AlloyDBLanguageConnectorConfig
-from apache_beam.ml.rag.ingestion.alloydb import AlloyDBVectorWriterConfig
-from apache_beam.ml.rag.ingestion.base import VectorDatabaseWriteTransform
+from apache_beam.ml.rag.ingestion.jdbc_common import ConnectionConfig
+from apache_beam.ml.rag.ingestion.jdbc_common import WriteConfig
+from apache_beam.ml.rag.ingestion.postgres import PostgresVectorWriterConfig
 from apache_beam.ml.rag.ingestion.postgres_common import ColumnSpec
 from apache_beam.ml.rag.ingestion.postgres_common import ColumnSpecsBuilder
 from apache_beam.ml.rag.ingestion.postgres_common import ConflictResolution
@@ -45,8 +45,6 @@ from apache_beam.ml.rag.types import Embedding
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-
-_LOGGER = logging.getLogger(__name__)
 
 CustomSpecsRow = NamedTuple(
     'CustomSpecsRow',
@@ -79,8 +77,8 @@ registry.register_coder(MetadataConflictRow, RowCoder)
 @unittest.skipUnless(
     os.environ.get('ALLOYDB_PASSWORD'),
     "ALLOYDB_PASSWORD environment var is not provided")
-class AlloydbVectorWriterConfigTest(unittest.TestCase):
-  ALLOYDB_TABLE_PREFIX = 'python_rag_postgres_'
+class PostgresVectorWriterConfigTest(unittest.TestCase):
+  POSTGRES_TABLE_PREFIX = 'python_rag_postgres_'
 
   @classmethod
   def setUpClass(cls):
@@ -116,11 +114,13 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
     self.read_test_pipeline2 = TestPipeline(is_integration_test=True)
     self._runner = type(self.read_test_pipeline.runner).__name__
 
-    self.default_table_name = f"{self.ALLOYDB_TABLE_PREFIX}" \
+    self.default_table_name = f"{self.POSTGRES_TABLE_PREFIX}" \
       f"{self.table_suffix}"
-    self.custom_table_name = f"{self.ALLOYDB_TABLE_PREFIX}" \
+    self.default_table_name = f"{self.POSTGRES_TABLE_PREFIX}" \
+      f"{self.table_suffix}"
+    self.custom_table_name = f"{self.POSTGRES_TABLE_PREFIX}" \
       f"_custom_{self.table_suffix}"
-    self.metadata_conflicts_table = f"{self.ALLOYDB_TABLE_PREFIX}" \
+    self.metadata_conflicts_table = f"{self.POSTGRES_TABLE_PREFIX}" \
       f"_meta_conf_{self.table_suffix}"
 
     self.jdbc_url = f'jdbc:postgresql://{self.host}:{self.port}/{self.database}'
@@ -157,6 +157,7 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
                     UNIQUE (source, timestamp)
                 )
             """)
+    _LOGGER = logging.getLogger(__name__)
     _LOGGER.info("Created table %s", self.default_table_name)
 
   def tearDown(self):
@@ -165,6 +166,7 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
       cursor.execute(f"DROP TABLE IF EXISTS {self.default_table_name}")
       cursor.execute(f"DROP TABLE IF EXISTS {self.custom_table_name}")
       cursor.execute(f"DROP TABLE IF EXISTS {self.metadata_conflicts_table}")
+    _LOGGER = logging.getLogger(__name__)
     _LOGGER.info("Dropped table %s", self.default_table_name)
 
   @classmethod
@@ -174,16 +176,14 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
 
   def test_default_schema(self):
     """Test basic write with default schema."""
-    connection_config = AlloyDBLanguageConnectorConfig(
-        username=self.username,
-        password=self.password,
-        database_name=self.database,
-        instance_name="projects/apache-beam-testing/locations/us-central1/\
-            clusters/testing-psc/instances/testing-psc-1",
-        ip_type="PSC")
+    jdbc_url = f'jdbc:postgresql://{self.host}:{self.port}/{self.database}'
+    connection_config = ConnectionConfig(
+        jdbc_url=jdbc_url, username=self.username, password=self.password)
 
-    config = AlloyDBVectorWriterConfig(
-        connection_config=connection_config, table_name=self.default_table_name)
+    config = PostgresVectorWriterConfig(
+        connection_config=connection_config,
+        table_name=self.default_table_name,
+        write_config=WriteConfig(write_batch_size=100))
 
     # Create test chunks
     num_records = 1500
@@ -215,98 +215,10 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
           | ReadFromJdbc(
               table_name=self.default_table_name,
               driver_class_name="org.postgresql.Driver",
-              jdbc_url=connection_config.to_connection_config().jdbc_url,
+              jdbc_url=jdbc_url,
               username=self.username,
               password=self.password,
-              query=read_query,
-              classpath=connection_config.additional_jdbc_args()['classpath']))
-
-      count_result = rows | "Count All" >> beam.combiners.Count.Globally()
-      assert_that(count_result, equal_to([num_records]), label='count_check')
-
-      chunks = (rows | "To Chunks" >> beam.Map(test_utils.row_to_chunk))
-      chunk_hashes = chunks | "Hash Chunks" >> beam.CombineGlobally(
-          test_utils.HashingFn())
-      assert_that(
-          chunk_hashes,
-          equal_to([test_utils.generate_expected_hash(num_records)]),
-          label='hash_check')
-
-      # Sample validation
-      first_n = (
-          chunks
-          | "Key on Index" >> beam.Map(test_utils.key_on_id)
-          | f"Get First {sample_size}" >> beam.transforms.combiners.Top.Of(
-              sample_size, key=lambda x: x[0], reverse=True)
-          | "Remove Keys 1" >> beam.Map(lambda xs: [x[1] for x in xs]))
-      expected_first_n = test_utils.ChunkTestUtils.get_expected_values(
-          0, sample_size)
-      assert_that(
-          first_n,
-          equal_to([expected_first_n]),
-          label=f"first_{sample_size}_check")
-
-      last_n = (
-          chunks
-          | "Key on Index 2" >> beam.Map(test_utils.key_on_id)
-          | f"Get Last {sample_size}" >> beam.transforms.combiners.Top.Of(
-              sample_size, key=lambda x: x[0])
-          | "Remove Keys 2" >> beam.Map(lambda xs: [x[1] for x in xs]))
-      expected_last_n = test_utils.ChunkTestUtils.get_expected_values(
-          num_records - sample_size, num_records)[::-1]
-      assert_that(
-          last_n,
-          equal_to([expected_last_n]),
-          label=f"last_{sample_size}_check")
-
-  def test_language_connector(self):
-    """Test language connector."""
-    self.skip_if_dataflow_runner()
-
-    connection_config = AlloyDBLanguageConnectorConfig(
-        username=self.username,
-        password=self.password,
-        database_name=self.database,
-        instance_name="projects/apache-beam-testing/locations/us-central1/\
-            clusters/testing-psc/instances/testing-psc-1",
-        ip_type="PSC")
-    writer_config = AlloyDBVectorWriterConfig(
-        connection_config=connection_config, table_name=self.default_table_name)
-
-    # Create test chunks
-    num_records = 150
-    sample_size = min(500, num_records // 2)
-    chunks = test_utils.ChunkTestUtils.get_expected_values(0, num_records)
-
-    self.write_test_pipeline.not_use_test_runner_api = True
-
-    with self.write_test_pipeline as p:
-      _ = (
-          p
-          | beam.Create(chunks)
-          | VectorDatabaseWriteTransform(writer_config))
-
-    self.read_test_pipeline.not_use_test_runner_api = True
-    read_query = f"""
-          SELECT 
-              CAST(id AS VARCHAR(255)),
-              CAST(content AS VARCHAR(255)),
-              CAST(embedding AS text),
-              CAST(metadata AS text)
-          FROM {self.default_table_name}
-          """
-
-    with self.read_test_pipeline as p:
-      rows = (
-          p
-          | ReadFromJdbc(
-              table_name=self.default_table_name,
-              driver_class_name="org.postgresql.Driver",
-              jdbc_url=connection_config.to_connection_config().jdbc_url,
-              username=self.username,
-              password=self.password,
-              query=read_query,
-              classpath=connection_config.additional_jdbc_args()['classpath']))
+              query=read_query))
 
       count_result = rows | "Count All" >> beam.combiners.Count.Globally()
       assert_that(count_result, equal_to([num_records]), label='count_check')
@@ -367,15 +279,10 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
                         f"{len(chunk.content.text)}:{chunk.content.text}")).
         with_metadata_spec().build())
 
-    connection_config = AlloyDBLanguageConnectorConfig(
-        username=self.username,
-        password=self.password,
-        database_name=self.database,
-        instance_name="projects/apache-beam-testing/locations/us-central1/\
-            clusters/testing-psc/instances/testing-psc-1",
-        ip_type="PSC")
+    connection_config = ConnectionConfig(
+        jdbc_url=self.jdbc_url, username=self.username, password=self.password)
 
-    writer_config = AlloyDBVectorWriterConfig(
+    writer_config = PostgresVectorWriterConfig(
         connection_config=connection_config,
         table_name=self.custom_table_name,
         column_specs=specs)
@@ -394,8 +301,7 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
     self.write_test_pipeline.not_use_test_runner_api = True
     with self.write_test_pipeline as p:
       _ = (
-          p | beam.Create(test_chunks)
-          | VectorDatabaseWriteTransform(writer_config))
+          p | beam.Create(test_chunks) | writer_config.create_write_transform())
 
     # Read and verify
     read_query = f"""
@@ -436,11 +342,10 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
           | ReadFromJdbc(
               table_name=self.custom_table_name,
               driver_class_name="org.postgresql.Driver",
-              jdbc_url=connection_config.to_connection_config().jdbc_url,
+              jdbc_url=self.jdbc_url,
               username=self.username,
               password=self.password,
-              query=read_query,
-              classpath=connection_config.additional_jdbc_args()['classpath']))
+              query=read_query))
 
       # Verify count
       count_result = rows | "Count All" >> beam.combiners.Count.Globally()
@@ -465,15 +370,10 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
             ).with_embedding_spec(
                 column_name="embedding_vec").with_metadata_spec().build())
 
-    connection_config = AlloyDBLanguageConnectorConfig(
-        username=self.username,
-        password=self.password,
-        database_name=self.database,
-        instance_name="projects/apache-beam-testing/locations/us-central1/\
-            clusters/testing-psc/instances/testing-psc-1",
-        ip_type="PSC")
+    connection_config = ConnectionConfig(
+        jdbc_url=self.jdbc_url, username=self.username, password=self.password)
 
-    writer_config = AlloyDBVectorWriterConfig(
+    writer_config = PostgresVectorWriterConfig(
         connection_config=connection_config,
         table_name=self.custom_table_name,
         column_specs=specs)
@@ -492,8 +392,7 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
     self.write_test_pipeline.not_use_test_runner_api = True
     with self.write_test_pipeline as p:
       _ = (
-          p | beam.Create(test_chunks)
-          | VectorDatabaseWriteTransform(writer_config))
+          p | beam.Create(test_chunks) | writer_config.create_write_transform())
 
     # Read and verify
     read_query = f"""
@@ -529,11 +428,10 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
           | ReadFromJdbc(
               table_name=self.custom_table_name,
               driver_class_name="org.postgresql.Driver",
-              jdbc_url=connection_config.to_connection_config().jdbc_url,
+              jdbc_url=self.jdbc_url,
               username=self.username,
               password=self.password,
-              query=read_query,
-              classpath=connection_config.additional_jdbc_args()['classpath']))
+              query=read_query))
 
       # Verify count
       count_result = rows | "Count All" >> beam.combiners.Count.Globally()
@@ -546,19 +444,14 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
     """Test with only default id and embedding specs, others set to None."""
     self.skip_if_dataflow_runner()
     num_records = 20
-    connection_config = AlloyDBLanguageConnectorConfig(
-        username=self.username,
-        password=self.password,
-        database_name=self.database,
-        instance_name="projects/apache-beam-testing/locations/us-central1/\
-            clusters/testing-psc/instances/testing-psc-1",
-        ip_type="PSC")
+    connection_config = ConnectionConfig(
+        jdbc_url=self.jdbc_url, username=self.username, password=self.password)
     specs = (
         ColumnSpecsBuilder().with_id_spec()  # Use default id spec
         .with_embedding_spec()  # Use default embedding spec
         .build())
 
-    writer_config = AlloyDBVectorWriterConfig(
+    writer_config = PostgresVectorWriterConfig(
         connection_config=connection_config,
         table_name=self.default_table_name,
         column_specs=specs)
@@ -570,8 +463,7 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
     self.write_test_pipeline.not_use_test_runner_api = True
     with self.write_test_pipeline as p:
       _ = (
-          p | beam.Create(test_chunks)
-          | VectorDatabaseWriteTransform(writer_config))
+          p | beam.Create(test_chunks) | writer_config.create_write_transform())
 
     # Read and verify only id and embedding
     read_query = f"""
@@ -589,11 +481,10 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
           | ReadFromJdbc(
               table_name=self.default_table_name,
               driver_class_name="org.postgresql.Driver",
-              jdbc_url=connection_config.to_connection_config().jdbc_url,
+              jdbc_url=self.jdbc_url,
               username=self.username,
               password=self.password,
-              query=read_query,
-              classpath=connection_config.additional_jdbc_args()['classpath']))
+              query=read_query))
 
       chunks = rows | "To Chunks" >> beam.Map(test_utils.row_to_chunk)
 
@@ -627,14 +518,9 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
         on_conflict_fields=["source", "timestamp"],
         action="UPDATE",
         update_fields=["embedding", "content"])
-    connection_config = AlloyDBLanguageConnectorConfig(
-        username=self.username,
-        password=self.password,
-        database_name=self.database,
-        instance_name="projects/apache-beam-testing/locations/us-central1/\
-            clusters/testing-psc/instances/testing-psc-1",
-        ip_type="PSC")
-    writer_config = AlloyDBVectorWriterConfig(
+    connection_config = ConnectionConfig(
+        jdbc_url=self.jdbc_url, username=self.username, password=self.password)
+    writer_config = PostgresVectorWriterConfig(
         connection_config=connection_config,
         table_name=self.metadata_conflicts_table,
         column_specs=specs,
@@ -656,7 +542,7 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
     with self.write_test_pipeline as p:
       _ = (
           p | "Write Initial" >> beam.Create(initial_chunks)
-          | VectorDatabaseWriteTransform(writer_config))
+          | writer_config.create_write_transform())
 
     # Generate conflicting chunks (same source+timestamp, different content)
     conflicting_chunks = [
@@ -675,7 +561,7 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
     with self.write_test_pipeline2 as p:
       _ = (
           p | "Write Conflicts" >> beam.Create(conflicting_chunks)
-          | VectorDatabaseWriteTransform(writer_config))
+          | writer_config.create_write_transform())
 
     # Read and verify
     read_query = f"""
@@ -721,11 +607,10 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
           | ReadFromJdbc(
               table_name=self.metadata_conflicts_table,
               driver_class_name="org.postgresql.Driver",
-              jdbc_url=connection_config.to_connection_config().jdbc_url,
+              jdbc_url=self.jdbc_url,
               username=self.username,
               password=self.password,
-              query=read_query,
-              classpath=connection_config.additional_jdbc_args()['classpath']))
+              query=read_query))
 
       chunks = rows | "To Chunks" >> beam.Map(metadata_row_to_chunk)
       assert_that(chunks, equal_to(expected_chunks), label='chunks_check')
@@ -735,20 +620,15 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
     self.skip_if_dataflow_runner()
     num_records = 20
 
-    connection_config = AlloyDBLanguageConnectorConfig(
-        username=self.username,
-        password=self.password,
-        database_name=self.database,
-        instance_name="projects/apache-beam-testing/locations/us-central1/\
-            clusters/testing-psc/instances/testing-psc-1",
-        ip_type="PSC")
+    connection_config = ConnectionConfig(
+        jdbc_url=self.jdbc_url, username=self.username, password=self.password)
 
     conflict_resolution = ConflictResolution(
         on_conflict_fields="id",
         action="UPDATE",
         update_fields=["embedding", "content"])
 
-    config = AlloyDBVectorWriterConfig(
+    config = PostgresVectorWriterConfig(
         connection_config=connection_config,
         table_name=self.default_table_name,
         conflict_resolution=conflict_resolution)
@@ -779,11 +659,10 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
           | ReadFromJdbc(
               table_name=self.default_table_name,
               driver_class_name="org.postgresql.Driver",
-              jdbc_url=connection_config.to_connection_config().jdbc_url,
+              jdbc_url=self.jdbc_url,
               username=self.username,
               password=self.password,
-              query=read_query,
-              classpath=connection_config.additional_jdbc_args()['classpath']))
+              query=read_query))
 
       chunks = (
           rows
@@ -810,11 +689,10 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
           | "Read Updated chunks" >> ReadFromJdbc(
               table_name=self.default_table_name,
               driver_class_name="org.postgresql.Driver",
-              jdbc_url=connection_config.to_connection_config().jdbc_url,
+              jdbc_url=self.jdbc_url,
               username=self.username,
               password=self.password,
-              query=read_query,
-              classpath=connection_config.additional_jdbc_args()['classpath']))
+              query=read_query))
 
       chunks = (
           rows
@@ -831,15 +709,10 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
     self.skip_if_dataflow_runner()
     num_records = 20
 
-    connection_config = AlloyDBLanguageConnectorConfig(
-        username=self.username,
-        password=self.password,
-        database_name=self.database,
-        instance_name="projects/apache-beam-testing/locations/us-central1/\
-            clusters/testing-psc/instances/testing-psc-1",
-        ip_type="PSC")
+    connection_config = ConnectionConfig(
+        jdbc_url=self.jdbc_url, username=self.username, password=self.password)
 
-    config = AlloyDBVectorWriterConfig(
+    config = PostgresVectorWriterConfig(
         connection_config=connection_config, table_name=self.default_table_name)
 
     # Generate initial test chunks
@@ -868,11 +741,10 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
           | ReadFromJdbc(
               table_name=self.default_table_name,
               driver_class_name="org.postgresql.Driver",
-              jdbc_url=connection_config.to_connection_config().jdbc_url,
+              jdbc_url=self.jdbc_url,
               username=self.username,
               password=self.password,
-              query=read_query,
-              classpath=connection_config.additional_jdbc_args()['classpath']))
+              query=read_query))
 
       chunks = (
           rows
@@ -899,11 +771,10 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
           | "Read Updated chunks" >> ReadFromJdbc(
               table_name=self.default_table_name,
               driver_class_name="org.postgresql.Driver",
-              jdbc_url=connection_config.to_connection_config().jdbc_url,
+              jdbc_url=self.jdbc_url,
               username=self.username,
               password=self.password,
-              query=read_query,
-              classpath=connection_config.additional_jdbc_args()['classpath']))
+              query=read_query))
 
       chunks = (
           rows
@@ -920,20 +791,15 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
     self.skip_if_dataflow_runner()
     num_records = 20
 
-    connection_config = AlloyDBLanguageConnectorConfig(
-        username=self.username,
-        password=self.password,
-        database_name=self.database,
-        instance_name="projects/apache-beam-testing/locations/us-central1/\
-            clusters/testing-psc/instances/testing-psc-1",
-        ip_type="PSC")
+    connection_config = ConnectionConfig(
+        jdbc_url=self.jdbc_url, username=self.username, password=self.password)
 
     # Create a conflict resolution with only the conflict field specified
     # No update_fields specified - should default to all non-conflict fields
     conflict_resolution = ConflictResolution(
         on_conflict_fields="id", action="UPDATE")
 
-    config = AlloyDBVectorWriterConfig(
+    config = PostgresVectorWriterConfig(
         connection_config=connection_config,
         table_name=self.default_table_name,
         conflict_resolution=conflict_resolution)
@@ -966,11 +832,10 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
           | ReadFromJdbc(
               table_name=self.default_table_name,
               driver_class_name="org.postgresql.Driver",
-              jdbc_url=connection_config.to_connection_config().jdbc_url,
+              jdbc_url=self.jdbc_url,
               username=self.username,
               password=self.password,
-              query=read_query,
-              classpath=connection_config.additional_jdbc_args()['classpath']))
+              query=read_query))
 
       chunks = (
           rows
@@ -1014,11 +879,10 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
           | "Read Updated chunks" >> ReadFromJdbc(
               table_name=self.default_table_name,
               driver_class_name="org.postgresql.Driver",
-              jdbc_url=connection_config.to_connection_config().jdbc_url,
+              jdbc_url=self.jdbc_url,
               username=self.username,
               password=self.password,
-              query=read_query,
-              classpath=connection_config.additional_jdbc_args()['classpath']))
+              query=read_query))
 
       chunks = (
           rows
