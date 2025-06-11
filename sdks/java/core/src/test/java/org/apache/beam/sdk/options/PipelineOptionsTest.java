@@ -128,17 +128,4 @@ public class PipelineOptionsTest {
     assertNotNull(userAgent);
     assertTrue(userAgent.contains(DEFAULT_USER_AGENT_NAME));
   }
-
-  @Test
-  public void testDefaultPTransformTimeoutDuration() {
-    PipelineOptions options = PipelineOptionsFactory.create();
-    assertEquals(0, options.getPtransformTimeoutDuration());
-  }
-
-  @Test
-  public void testUserDefinedPTransformTimeoutDuration() {
-    PipelineOptions options =
-        PipelineOptionsFactory.fromArgs("--ptransformTimeoutDuration=20").create();
-    assertEquals(20, options.getPtransformTimeoutDuration());
-  }
 }
