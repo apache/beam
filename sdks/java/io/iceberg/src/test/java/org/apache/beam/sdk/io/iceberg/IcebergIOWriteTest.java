@@ -19,6 +19,8 @@ package org.apache.beam.sdk.io.iceberg;
 
 import static org.apache.beam.sdk.io.iceberg.IcebergUtils.beamRowToIcebergRecord;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import java.io.Serializable;
 import java.util.List;
@@ -44,6 +46,8 @@ import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.catalog.Namespace;
+import org.apache.iceberg.catalog.SupportsNamespaces;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.IcebergGenerics;
@@ -99,6 +103,38 @@ public class IcebergIOWriteTest implements Serializable {
 
     LOG.info("Executing pipeline");
     testPipeline.run().waitUntilFinish();
+    LOG.info("Done running pipeline");
+
+    Table table = warehouse.loadTable(tableId);
+    List<Record> writtenRecords = ImmutableList.copyOf(IcebergGenerics.read(table).build());
+
+    assertThat(writtenRecords, Matchers.containsInAnyOrder(TestFixtures.FILE1SNAPSHOT1.toArray()));
+  }
+
+  @Test
+  public void testCreateNamespaceAndTable() {
+    Namespace newNamespace = Namespace.of("new_namespace");
+    TableIdentifier tableId =
+        TableIdentifier.of(newNamespace, "table" + Long.toString(UUID.randomUUID().hashCode(), 16));
+
+    Map<String, String> catalogProps =
+        ImmutableMap.<String, String>builder()
+            .put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
+            .put("warehouse", warehouse.location)
+            .build();
+
+    IcebergCatalogConfig catalog =
+        IcebergCatalogConfig.builder().setCatalogProperties(catalogProps).build();
+
+    testPipeline
+        .apply("Records To Add", Create.of(TestFixtures.asRows(TestFixtures.FILE1SNAPSHOT1)))
+        .setRowSchema(IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA))
+        .apply("Append To Table", IcebergIO.writeRows(catalog).to(tableId));
+
+    assertFalse(((SupportsNamespaces) catalog.catalog()).namespaceExists(newNamespace));
+    LOG.info("Executing pipeline");
+    testPipeline.run().waitUntilFinish();
+    assertTrue(((SupportsNamespaces) catalog.catalog()).namespaceExists(newNamespace));
     LOG.info("Done running pipeline");
 
     Table table = warehouse.loadTable(tableId);
