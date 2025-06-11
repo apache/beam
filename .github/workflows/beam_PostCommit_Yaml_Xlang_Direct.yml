@@ -49,28 +49,111 @@ env:
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
 jobs:
-  beam_PostCommit_Yaml_Xlang_Direct:
+  beam_PostCommit_Yaml_Data_Xlang_Direct:
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'pull_request_target' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam')
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 100
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     strategy:
       matrix:
-        job_name:
-          - "beam_PostCommit_Yaml_Data_Xlang_Direct"
-          - "beam_PostCommit_Yaml_Databases_Xlang_Direct"
-          - "beam_PostCommit_Yaml_Messaging_Xlang_Direct"
-        job_phrase:
-          - "Run Yaml_Data_Xlang_Direct PostCommit"
-          - "Run Yaml_Databases_Xlang_Direct PostCommit"
-          - "Run Yaml_Messaging_Xlang_Direct PostCommit"
-        gradle_command:
-          - ":sdks:python:postCommitYamlIntegrationTests -PyamlTestSet=data -PbeamPythonExtra=ml_test"
-          - ":sdks:python:postCommitYamlIntegrationTests -PyamlTestSet=databases -PbeamPythonExtra=ml_test"
-          - ":sdks:python:postCommitYamlIntegrationTests -PyamlTestSet=messaging -PbeamPythonExtra=ml_test"
+        job_name: ["beam_PostCommit_Yaml_Data_Xlang_Direct"]
+        job_phrase: ["Run Yaml_Data_Xlang_Direct PostCommit"]
+        gradle_command: [":sdks:python:postCommitYamlIntegrationTests -PyamlTestSet=data -PbeamPythonExtra=ml_test"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup repository
+        uses: ./.github/actions/setup-action
+        with:
+          comment_phrase: ${{ matrix.job_phrase }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
+        with:
+          python-version: default
+          java-version: '11'
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+      - name: run PostCommit Yaml Xlang Direct script
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: ${{ matrix.gradle_command }}
+      - name: Archive Python Test Results
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: Python Test Results
+          path: '**/pytest*.xml'
+      - name: Publish Python Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          commit: '${{ env.prsha || env.GITHUB_SHA }}'
+          comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
+          files: '**/pytest*.xml'
+          large_files: true
+  beam_PostCommit_Yaml_Databases_Xlang_Direct:
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'pull_request_target' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam')
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+    strategy:
+      matrix:
+        job_name: ["beam_PostCommit_Yaml_Databases_Xlang_Direct"]
+        job_phrase: ["Run Yaml_Databases_Xlang_Direct PostCommit"]
+        gradle_command: [":sdks:python:postCommitYamlIntegrationTests -PyamlTestSet=databases -PbeamPythonExtra=ml_test"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup repository
+        uses: ./.github/actions/setup-action
+        with:
+          comment_phrase: ${{ matrix.job_phrase }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
+        with:
+          python-version: default
+          java-version: '11'
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+      - name: run PostCommit Yaml Xlang Direct script
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: ${{ matrix.gradle_command }}
+      - name: Archive Python Test Results
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: Python Test Results
+          path: '**/pytest*.xml'
+      - name: Publish Python Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          commit: '${{ env.prsha || env.GITHUB_SHA }}'
+          comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
+          files: '**/pytest*.xml'
+          large_files: true
+  beam_PostCommit_Yaml_Messaging_Xlang_Direct:
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'pull_request_target' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam')
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+    strategy:
+      matrix:
+        job_name: ["beam_PostCommit_Yaml_Messaging_Xlang_Direct"]
+        job_phrase: ["Run Yaml_Messaging_Xlang_Direct PostCommit"]
+        gradle_command: [":sdks:python:postCommitYamlIntegrationTests -PyamlTestSet=messaging -PbeamPythonExtra=ml_test"]
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository
