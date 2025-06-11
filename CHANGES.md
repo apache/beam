@@ -75,7 +75,6 @@
 ## I/Os
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
-* [Java] Iceberg IO has been upgraded to version 1.9.0 and now requires Java 11 to run ([#35037](https://github.com/apache/beam/issues/35037)).
 
 ## New Features / Improvements
 * Adding Google Storage Requests Pays feature (Golang)([#30747](https://github.com/apache/beam/issues/30747)).
