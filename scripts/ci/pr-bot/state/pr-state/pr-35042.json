@@ -1,7 +1,7 @@
 {
   "commentedAboutFailingChecks": true,
   "reviewersAssignedForLabels": {
-    "java": "m-trieu",
+    "java": "chamikaramj",
     "spanner": "nielm"
   },
   "nextAction": "Reviewers",
