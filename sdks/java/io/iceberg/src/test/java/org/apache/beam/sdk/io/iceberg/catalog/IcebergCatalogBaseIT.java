@@ -424,7 +424,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   }
 
   @Test
-  public void testReadAndKeepSomeFields() throws Exception {
+  public void testReadWithColumnPruning_keep() throws Exception {
     Table table = catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA);
 
     List<Row> expectedRows = populateTable(table);
@@ -442,8 +442,11 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   }
 
   @Test
-  public void testReadWithFilter() throws Exception {
+  public void testReadWithFilterAndColumnPruning_keep() throws Exception {
     Table table = catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA);
+
+    List<String> keepFields = Arrays.asList("bool_field", "modulo_5", "str");
+    RowFilter rowFilter = new RowFilter(BEAM_SCHEMA).keep(keepFields);
 
     List<Row> expectedRows =
         populateTable(table).stream()
@@ -451,13 +454,16 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
                 row ->
                     row.getBoolean("bool_field")
                         && (row.getInt32("int_field") < 500 || row.getInt32("modulo_5") == 3))
+            .map(rowFilter::filter)
             .collect(Collectors.toList());
 
     Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
     config.put("filter", "\"bool_field\" = TRUE AND (\"int_field\" < 500 OR \"modulo_5\" = 3)");
+    config.put("keep", keepFields);
 
     PCollection<Row> rows =
         pipeline.apply(Managed.read(ICEBERG).withConfig(config)).getSinglePCollection();
+    assertEquals(rowFilter.outputSchema(), rows.getSchema());
 
     PAssert.that(rows).containsInAnyOrder(expectedRows);
     pipeline.run().waitUntilFinish();
@@ -489,7 +495,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   }
 
   @Test
-  public void testStreamingReadAndDropSomeFields() throws Exception {
+  public void testStreamingReadWithColumnPruning_drop() throws Exception {
     Table table = catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA);
 
     List<Row> expectedRows = populateTable(table);

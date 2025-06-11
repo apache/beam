@@ -97,6 +97,9 @@ public abstract class IcebergScanConfig implements Serializable {
           schema.columns().stream().map(Types.NestedField::name).collect(Collectors.toSet());
       drop.forEach(fields::remove);
       selectedFieldsBuilder.addAll(fields);
+    } else {
+      // default: include all columns
+      return schema;
     }
 
     if (fieldsInFilter != null && !fieldsInFilter.isEmpty()) {
@@ -117,8 +120,8 @@ public abstract class IcebergScanConfig implements Serializable {
   }
 
   /**
-   * Returns a Schema that includes explicitly selected fields and fields referenced in the filter
-   * statement.
+   * Returns a Schema that includes all the fields required for a successful read. This includes
+   * explicitly selected fields and fields referenced in the filter statement.
    */
   public org.apache.iceberg.Schema getRequiredSchema() {
     if (cachedRequiredSchema == null) {
