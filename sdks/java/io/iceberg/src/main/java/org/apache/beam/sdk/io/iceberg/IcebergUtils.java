@@ -28,7 +28,6 @@ import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -39,6 +38,7 @@ import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.Record;
@@ -350,15 +350,16 @@ public class IcebergUtils {
                         copyRowIntoRecord(GenericRecord.create(field.type().asStructType()), row)));
         break;
       case LIST:
-        Collection<@NonNull ?> icebergList = value.getArray(name);
+        Iterable<@NonNull ?> icebergList = value.getIterable(name);
         Type collectionType = ((Types.ListType) field.type()).elementType();
 
         if (collectionType.isStructType() && icebergList != null) {
           org.apache.iceberg.Schema innerSchema = collectionType.asStructType().asSchema();
-          icebergList =
-              icebergList.stream()
-                  .map(v -> beamRowToIcebergRecord(innerSchema, (Row) v))
-                  .collect(Collectors.toList());
+          ImmutableList.Builder<Record> builder = ImmutableList.builder();
+          for (Row v : (Iterable<Row>) icebergList) {
+            builder.add(beamRowToIcebergRecord(innerSchema, v));
+          }
+          icebergList = builder.build();
         }
         Optional.ofNullable(icebergList).ifPresent(list -> rec.setField(name, list));
         break;
@@ -457,7 +458,6 @@ public class IcebergUtils {
           rowBuilder.addValue(icebergValue);
           break;
         case ARRAY:
-        case ITERABLE:
           checkState(
               icebergValue instanceof List,
               "Expected List type for field '%s' but received %s",
@@ -475,6 +475,26 @@ public class IcebergUtils {
                     .collect(Collectors.toList());
           }
           rowBuilder.addValue(beamList);
+          break;
+        case ITERABLE:
+          checkState(
+              icebergValue instanceof Iterable,
+              "Expected Iterable type for field '%s' but received %s",
+              field.getName(),
+              icebergValue.getClass());
+          Iterable<@NonNull ?> beamIterable = (Iterable<@NonNull ?>) icebergValue;
+          Schema.FieldType iterableCollectionType =
+              checkStateNotNull(field.getType().getCollectionElementType());
+          // recurse on struct types
+          if (iterableCollectionType.getTypeName().isCompositeType()) {
+            Schema innerSchema = checkStateNotNull(iterableCollectionType.getRowSchema());
+            ImmutableList.Builder<Row> builder = ImmutableList.builder();
+            for (Record v : (Iterable<@NonNull Record>) icebergValue) {
+              builder.add(icebergRecordToBeamRow(innerSchema, v));
+            }
+            beamIterable = builder.build();
+          }
+          rowBuilder.addValue(beamIterable);
           break;
         case MAP:
           checkState(
