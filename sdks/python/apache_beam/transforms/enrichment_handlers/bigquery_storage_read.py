@@ -29,7 +29,16 @@ import pyarrow as pa
 import re
 from collections.abc import Callable, Mapping
 from google.api_core.exceptions import BadRequest, GoogleAPICallError, NotFound
-from google.cloud.bigquery_storage import BigQueryReadClient, types
+from google.cloud.bigquery_storage import BigQueryReadClient
+try:
+    from google.cloud.bigquery_storage.types import ReadRowsResponse, ReadSession, DataFormat
+    from google.cloud.bigquery_storage import types
+except ImportError:
+    # Fallback for older versions where types might be in different location
+    from google.cloud.bigquery_storage import types
+    ReadRowsResponse = types.ReadRowsResponse
+    ReadSession = types.ReadSession
+    DataFormat = types.DataFormat
 from typing import Any, Dict, Iterator, List, Optional, Set, Tuple, Union
 
 # Import Row explicitly for type checking where needed
@@ -64,23 +73,23 @@ def _validate_bigquery_metadata(
     condition_value_fn,
     additional_condition_fields,
 ):
-  """Validates parameters for Storage API usage."""
-  if not project:
-    raise ValueError("`project` must be provided.")
-  if not table_name:
-    raise ValueError("`table_name` must be provided.")
-  if (row_restriction_template and
-      row_restriction_template_fn) or (not row_restriction_template and
-                                       not row_restriction_template_fn):
-    raise ValueError(
-        "Provide exactly one of `row_restriction_template` or "
-        "`row_restriction_template_fn`.")
-  if (fields and condition_value_fn) or (not fields and not condition_value_fn):
-    raise ValueError("Provide exactly one of `fields` or `condition_value_fn`.")
-  if additional_condition_fields and condition_value_fn:
-    raise ValueError(
-        "`additional_condition_fields` cannot be used with `condition_value_fn`."
-    )
+    """Validates parameters for Storage API usage."""
+    if not project:
+        raise ValueError("`project` must be provided.")
+    if not table_name:
+        raise ValueError("`table_name` must be provided.")
+    if (row_restriction_template and
+        row_restriction_template_fn) or (not row_restriction_template and
+                                         not row_restriction_template_fn):
+        raise ValueError(
+            "Provide exactly one of `row_restriction_template` or "
+            "`row_restriction_template_fn`.")
+    if (fields and condition_value_fn) or (not fields and not condition_value_fn):
+        raise ValueError("Provide exactly one of `fields` or `condition_value_fn`.")
+    if additional_condition_fields and condition_value_fn:
+        raise ValueError(
+            "`additional_condition_fields` cannot be used with `condition_value_fn`."
+        )
 
 
 class BigQueryStorageEnrichmentHandler(
@@ -352,7 +361,7 @@ class BigQueryStorageEnrichmentHandler(
     return {self._rename_map.get(k, k): v for k, v in bq_row_dict.items()}
 
   def _arrow_to_dicts(self,
-                      response: types.ReadRowsResponse) -> Iterator[BQRowDict]:
+                      response: ReadRowsResponse) -> Iterator[BQRowDict]:
     # Now uses self._arrow_schema directly
     if response.arrow_record_batch:
       if not self._arrow_schema:
@@ -395,10 +404,10 @@ class BigQueryStorageEnrichmentHandler(
       # data volume, and query complexity for optimal performance
       req = {
           "parent": f"projects/{parent_project}",
-          "read_session": types.ReadSession(
+          "read_session": ReadSession(
               table=table_resource,
-              data_format=types.DataFormat.ARROW,
-              read_options=types.ReadSession.TableReadOptions(
+              data_format=DataFormat.ARROW,
+              read_options=ReadSession.TableReadOptions(
                   row_restriction=combined_row_filter,
                   selected_fields=self._bq_select_columns,
               ),
@@ -701,7 +710,7 @@ class BigQueryStorageEnrichmentHandler(
         )
     return (req_row, response_row)
 
-  def __call__(
+  def __call__(  # type: ignore[override]
       self, request: Union[BeamRow, list[BeamRow]], *args, **kwargs
   ) -> Union[Tuple[BeamRow, BeamRow], List[Tuple[BeamRow, BeamRow]]]:
     self._arrow_schema = None  # Reset schema
@@ -717,11 +726,13 @@ class BigQueryStorageEnrichmentHandler(
       self._client = None
 
   def get_cache_key(
-      self, request: Union[BeamRow, list[BeamRow]]) -> Union[str, List[str]]:
+      self, request: Union[BeamRow, list[BeamRow]]) -> str:
     if isinstance(request, list):
-      return [
+      # For batch requests, create a composite key
+      keys = [
           str(self.create_row_key(req) or "__invalid_key__") for req in request
       ]
+      return "|".join(keys)
     else:
       return str(self.create_row_key(request) or "__invalid_key__")
 
