@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
+import io.confluent.kafka.serializers.KafkaAvroSerializer;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.HashMap;
@@ -168,19 +169,16 @@ public class KafkaWriteSchemaTransformProvider
       private Long errorsInBundle = 0L;
       private final boolean handleErrors;
       private final Schema errorSchema;
-      // private final TupleTag<KV<byte[], GenericRecord>> recordOutputTag;
 
       public RecordErrorCounterFn(
           String name,
           SerializableFunction<Row, GenericRecord> toRecordsFn,
           Schema errorSchema,
-          boolean handleErrors /*,
-          TupleTag<KV<byte[], GenericRecord>> recordOutputTag*/) {
+          boolean handleErrors) {
         this.toRecordsFn = toRecordsFn;
         this.errorCounter = Metrics.counter(KafkaWriteSchemaTransformProvider.class, name);
         this.handleErrors = handleErrors;
         this.errorSchema = errorSchema;
-        // this.recordOutputTag = recordOutputTag;
       }
 
       @ProcessElement
@@ -197,7 +195,8 @@ public class KafkaWriteSchemaTransformProvider
           receiver.get(ERROR_TAG).output(ErrorHandling.errorRecord(errorSchema, row, e));
         }
         if (output != null) {
-          // receiver.get(this.recordOutputTag).output(output);
+          TupleTag<KV<byte[], GenericRecord>> recordOutputTag = new TupleTag<>();
+          receiver.get(recordOutputTag).output(output);
         }
       }
 
@@ -215,6 +214,7 @@ public class KafkaWriteSchemaTransformProvider
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       Schema inputSchema = input.get("input").getSchema();
       final SerializableFunction<Row, byte[]> toBytesFn;
+      SerializableFunction<Row, GenericRecord> toRecordsFn = null;
       if (configuration.getFormat().equals("RAW")) {
         int numFields = inputSchema.getFields().size();
         if (numFields != 1) {
@@ -247,46 +247,59 @@ public class KafkaWriteSchemaTransformProvider
         }
 
       } else {
-        toBytesFn = AvroUtils.getRowToAvroBytesFunction(inputSchema);
+        if (configuration.getProducerConfigUpdates() == null) {
+          LOG.info("NO CONFIG UPDATE MAP FOUND.");
+        } else if (!configuration.getProducerConfigUpdates().containsKey("schema.registry.url")) {
+          LOG.info("NO SCHEMA REGISTRY DETECTED.");
+        }
+        if (configuration.getProducerConfigUpdates() != null
+            && configuration.getProducerConfigUpdates().containsKey("schema.registry.url")) {
+          toRecordsFn =
+              AvroUtils.getRowToGenericRecordFunction(AvroUtils.toAvroSchema(inputSchema));
+          toBytesFn = null;
+          LOG.info("USING SCHEMA REGISTRY");
+        } else {
+          toBytesFn = AvroUtils.getRowToAvroBytesFunction(inputSchema);
+          LOG.info("NOT USING SCHEMA REGISTRY");
+        }
       }
 
       boolean handleErrors = ErrorHandling.hasOutput(configuration.getErrorHandling());
       final Map<String, String> configOverrides = configuration.getProducerConfigUpdates();
       Schema errorSchema = ErrorHandling.errorSchema(inputSchema);
       PCollectionTuple outputTuple;
-      SerializableFunction<Row, GenericRecord> toRecordsFn = null;
       if (toRecordsFn != null) {
         LOG.info("Convert to GenericRecord");
-        //        final TupleTag<KV<byte[], GenericRecord>> recordOutputTag =
-        //            new TupleTag<KV<byte[], GenericRecord>>() {};
-        //        LOG.info("recordOutputTag created: {}", recordOutputTag.toString());
-        outputTuple = null;
-        //        outputTuple =
-        //            input
-        //                .get("input")
-        //                .apply(
-        //                    "Map rows to Kafka messages",
-        //                    ParDo.of(
-        //                            new RecordErrorCounterFn(
-        //                                "Kafka-write-error-counter",
-        //                                toRecordsFn,
-        //                                errorSchema,
-        //                                handleErrors,
-        //                                recordOutputTag))
-        //                        .withOutputTags(recordOutputTag, TupleTagList.of(ERROR_TAG)));
+        final TupleTag<KV<byte[], GenericRecord>> recordOutputTag =
+            new TupleTag<KV<byte[], GenericRecord>>() {};
+        LOG.info("recordOutputTag created: {}", recordOutputTag.toString());
+        //        outputTuple = null;
+        outputTuple =
+            input
+                .get("input")
+                .apply(
+                    "Map rows to Kafka messages",
+                    ParDo.of(
+                            new RecordErrorCounterFn(
+                                "Kafka-write-error-counter",
+                                toRecordsFn,
+                                errorSchema,
+                                handleErrors))
+                        .withOutputTags(recordOutputTag, TupleTagList.of(ERROR_TAG)));
 
-        //        outputTuple
-        //            .get(recordOutputTag)
-        //            .apply(
-        //                KafkaIO.<byte[], GenericRecord>write()
-        //                    .withTopic(configuration.getTopic())
-        //                    .withBootstrapServers(configuration.getBootstrapServers())
-        //                    .withProducerConfigUpdates(
-        //                        configOverrides == null
-        //                            ? new HashMap<>()
-        //                            : new HashMap<String, Object>(configOverrides))
-        //                    .withKeySerializer(ByteArraySerializer.class)
-        //                    .withValueSerializer((Class) KafkaAvroSerializer.class));
+        outputTuple
+            .get(recordOutputTag)
+            .apply(
+                "Map Rows to GenericRecords",
+                KafkaIO.<byte[], GenericRecord>write()
+                    .withTopic(configuration.getTopic())
+                    .withBootstrapServers(configuration.getBootstrapServers())
+                    .withProducerConfigUpdates(
+                        configOverrides == null
+                            ? new HashMap<>()
+                            : new HashMap<String, Object>(configOverrides))
+                    .withKeySerializer(ByteArraySerializer.class)
+                    .withValueSerializer((Class) KafkaAvroSerializer.class));
       } else {
         outputTuple =
             input
