@@ -69,12 +69,14 @@
 
 ## Highlights
 
-* New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
-* New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
+* [Python] Several quality-of-life improvements to the vLLM model handler. If you use Beam RunInference with vLLM model handlers, we strongly recommend updating past this release.
+
 
 ## I/Os
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* [IcebergIO] Support reading with column pruning ([#34856](https://github.com/apache/beam/pull/34856))
+* [IcebergIO] Support reading with pushdown filtering ([#34827](https://github.com/apache/beam/pull/34827))
 
 ## New Features / Improvements
 * Adding Google Storage Requests Pays feature (Golang)([#30747](https://github.com/apache/beam/issues/30747)).
@@ -82,6 +84,8 @@
 * [Python] Prism runner now auto-enabled for some Python pipelines using the direct runner ([#34921](https://github.com/apache/beam/pull/34921)).
 * [YAML] WriteToTFRecord and ReadFromTFRecord Beam YAML support
 * Python: Added JupyterLab 4.x extension compatibility for enhanced notebook integration ([#34495](https://github.com/apache/beam/pull/34495)).
+* [IcebergIO] Create tables with a specified partition spec ([#34966](https://github.com/apache/beam/pull/34966))
+* [IcebergIO] Dynamically create namespaces if needed ([#35228](https://github.com/apache/beam/pull/35228))
 
 ## Breaking Changes
 
@@ -90,6 +94,7 @@
 * Python: Added JupyterLab 4.x extension compatibility for enhanced notebook integration ([#34495](https://github.com/apache/beam/pull/34495)).
 * Python: Argument abbreviation is no longer enabled within Beam. If you previously abbreviated arguments (e.g. `--r` for `--runner`), you will now need to specify the whole argument ([#34934](https://github.com/apache/beam/pull/34934)).
 * Java: Users of ReadFromKafkaViaSDF transform might encounter pipeline graph compatibility issues when updating the pipeline. To mitigate, set the `updateCompatibilityVersion` option to the SDK version used for the original pipeline, example `--updateCompatabilityVersion=2.64.0`
+* Python: Updated `AlloyDBVectorWriterConfig` API to align with new `PostgresVectorWriter` transform. Heres a quick guide to update your code: ([#35225](https://github.com/apache/beam/issues/35225))
 
 ## Deprecations
 
@@ -99,10 +104,12 @@
 
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * (Java) Fixed cassandraIO ReadAll does not let a pipeline handle or retry exceptions ([#34191](https://github.com/apache/beam/pull/34191)).
-* [Python] Fixed vLLM breaks dataflow logging. ([35053](https://github.com/apache/beam/pull/35053))
-* [Python] Fixed vLLM leaks connections causing a throughput bottleneck and underutilization of GPU ([35053](https://github.com/apache/beam/pull/35053))
+* [Python] Fixed vLLM model handlers breaking Beam logging. ([#35053](https://github.com/apache/beam/pull/35053)).
+* [Python] Fixed vLLM connection leaks that caused a throughput bottleneck and underutilization of GPU ([#35053](https://github.com/apache/beam/pull/35053)).
+* [Python] Fixed vLLM server recovery mechanism in the event of a process termination ([#35234](https://github.com/apache/beam/pull/35234)).
 * (Python) Fixed cloudpickle overwriting class states every time loading a same object of dynamic class ([#35062](https://github.com/apache/beam/issues/35062)).
 * [Python] Fixed pip install apache-beam[interactive] causes crash on google colab ([#35148](https://github.com/apache/beam/pull/35148)).
+* [IcebergIO] Fixed Beam <-> Iceberg conversion logic for arrays of structs and maps of structs ([#35230](https://github.com/apache/beam/pull/35230)).
 
 ## Security Fixes
 * Fixed [CVE-YYYY-NNNN](https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN) (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
