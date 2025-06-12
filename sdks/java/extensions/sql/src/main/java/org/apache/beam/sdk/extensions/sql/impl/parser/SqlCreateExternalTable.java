@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.impl.parser;
 
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.Static.RESOURCE;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.List;
@@ -149,7 +150,17 @@ public class SqlCreateExternalTable extends SqlCreate implements BeamSqlParser.E
           name.getParserPosition(),
           RESOURCE.internal("Schema is not instanceof BeamCalciteSchema"));
     }
+
     BeamCalciteSchema schema = (BeamCalciteSchema) pair.left.schema;
+    if (partitionFields != null) {
+      checkArgument(
+          schema.resolveMetastore().supportsPartitioning(),
+          "Invalid use of 'PARTITIONED BY()': Table '%s' of type '%s' "
+              + "does not support partitioning.",
+          SqlDdlNodes.name(name),
+          SqlDdlNodes.getString(type));
+    }
+
     schema.resolveMetastore().createTable(toTable());
   }
 
