@@ -52,8 +52,6 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** A provider for reading from Cloud Spanner using a Schema Transform Provider. */
 @SuppressWarnings({
@@ -74,9 +72,6 @@ import org.slf4j.LoggerFactory;
 public class SpannerReadSchemaTransformProvider
     extends TypedSchemaTransformProvider<
         SpannerReadSchemaTransformProvider.SpannerReadSchemaTransformConfiguration> {
-
-  private static final Logger LOG =
-      LoggerFactory.getLogger(SpannerReadSchemaTransformProvider.class);
 
   public static final TupleTag<Row> OUTPUT_TAG = new TupleTag<Row>() {};
   public static final TupleTag<Row> ERROR_TAG = new TupleTag<Row>() {};
