@@ -26,16 +26,17 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 public class IcebergTableProvider extends InMemoryMetaTableProvider {
-  private static final String BEAM_HADOOP_PREFIX = "beam.catalog.%s.hadoop";
+  // TODO(ahmedabu98): extend this to the IO implementation so
+  //  other SDKs can make use of it too
+  private static final String BEAM_HADOOP_PREFIX = "beam.catalog.hadoop";
   @VisibleForTesting final IcebergCatalogConfig catalogConfig;
 
   public IcebergTableProvider(String name, Map<String, String> properties) {
     ImmutableMap.Builder<String, String> catalogProps = ImmutableMap.builder();
     ImmutableMap.Builder<String, String> hadoopProps = ImmutableMap.builder();
-    String hadoopPrefix = String.format(BEAM_HADOOP_PREFIX, name);
 
     for (Map.Entry<String, String> entry : properties.entrySet()) {
-      if (entry.getKey().startsWith(hadoopPrefix)) {
+      if (entry.getKey().startsWith(BEAM_HADOOP_PREFIX)) {
         hadoopProps.put(entry.getKey(), entry.getValue());
       } else {
         catalogProps.put(entry.getKey(), entry.getValue());
