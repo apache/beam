@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.meta.catalog;
 
 import java.util.Map;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.meta.store.MetaStore;
 
 /**
@@ -25,6 +26,7 @@ import org.apache.beam.sdk.extensions.sql.meta.store.MetaStore;
  * configuration properties. Uses an underlying {@link MetaStore} to manage tables and table
  * providers.
  */
+@Internal
 public interface Catalog {
   /** A type that defines this catalog. */
   String type();
