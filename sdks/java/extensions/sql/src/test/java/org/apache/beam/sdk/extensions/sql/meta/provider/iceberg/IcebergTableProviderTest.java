@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.iceberg;
 
-import static java.lang.String.format;
 import static org.apache.beam.sdk.extensions.sql.meta.provider.iceberg.IcebergTable.TRIGGERING_FREQUENCY_FIELD;
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.junit.Assert.assertEquals;
@@ -25,7 +24,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.util.List;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.sql.TableUtils;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
@@ -92,9 +90,7 @@ public class IcebergTableProviderTest {
             + "  id INTEGER,\n"
             + "  name VARCHAR) \n"
             + "TYPE 'iceberg' \n"
-            + "PARTITIONED BY ("
-            + partitionFields.stream().map(s -> format("`%s`", s)).collect(Collectors.joining(","))
-            + ") \n"
+            + "PARTITIONED BY ('id', 'truncate(name, 3)') \n"
             + "LOCATION 'namespace.test_partitioned_table'");
 
     Table result = catalogManager.currentCatalog().metaStore().getTable("test_partitioned_table");
