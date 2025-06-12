@@ -118,8 +118,7 @@ class AsyncWrapper(beam.DoFn):
     with AsyncWrapper._lock:
       if not self._uuid in AsyncWrapper._pool:
         AsyncWrapper._pool[self._uuid] = ThreadPoolExecutor(
-            max_workers=self._parallelism
-        )
+            max_workers=self._parallelism)
         AsyncWrapper._processing_elements[self._uuid] = {}
         AsyncWrapper._items_in_buffer[self._uuid] = 0
 
@@ -208,7 +207,7 @@ class AsyncWrapper(beam.DoFn):
 
     If the queue is full will block until room opens up.
 
-    After calling processing_elements_ will contain a future pointing to the
+    After calling AsyncWrapper will hold a future pointing to the
     result of this processing
 
     Args:
@@ -240,15 +239,13 @@ class AsyncWrapper(beam.DoFn):
 
   def next_time_to_fire(self):
     return (
-        floor((time() + self._timer_frequency) / self._timer_frequency)
-        * self._timer_frequency
-    )
+        floor((time() + self._timer_frequency) / self._timer_frequency) *
+        self._timer_frequency)
 
   def accepting_items(self):
     with AsyncWrapper._lock:
       return (
-          AsyncWrapper._items_in_buffer[self._uuid] < self._max_items_to_buffer
-      )
+          AsyncWrapper._items_in_buffer[self._uuid] < self._max_items_to_buffer)
 
   def is_empty(self):
     with AsyncWrapper._lock:
@@ -261,8 +258,7 @@ class AsyncWrapper(beam.DoFn):
       timer=beam.DoFn.TimerParam(TIMER),
       to_process=beam.DoFn.StateParam(TO_PROCESS),
       *args,
-      **kwargs
-  ):
+      **kwargs):
     """Add the input elements to the list of items to be processed asynchronously.
 
     Performs additional bookkeeping to maintain exactly once and set timers to
@@ -336,8 +332,7 @@ class AsyncWrapper(beam.DoFn):
     else:
       logging.error(
           'no elements in state during timer callback. Timer should not have'
-          ' been set.'
-      )
+          ' been set.')
     if self._verbose_logging:
       logging.info('procesing timer for key: %s', key)
     # processing state is per key so we expect this state to only contain a
@@ -350,8 +345,7 @@ class AsyncWrapper(beam.DoFn):
           cancelled = AsyncWrapper._processing_elements[self._uuid][x].cancel()
           to_remove.append(x)
           logging.info(
-              'cancelling item %s which is no longer in processing state', x
-          )
+              'cancelling item %s which is no longer in processing state', x)
       for x in to_remove:
         AsyncWrapper._processing_elements[self._uuid].pop(x)
 
@@ -363,8 +357,7 @@ class AsyncWrapper(beam.DoFn):
         if x in AsyncWrapper._processing_elements[self._uuid]:
           if AsyncWrapper._processing_elements[self._uuid][x].done():
             to_return.append(
-                AsyncWrapper._processing_elements[self._uuid][x].result()
-            )
+                AsyncWrapper._processing_elements[self._uuid][x].result())
             finished_items.append(x)
             AsyncWrapper._processing_elements[self._uuid].pop(x)
             items_finished += 1
@@ -373,9 +366,7 @@ class AsyncWrapper(beam.DoFn):
         else:
           logging.info(
               'item %s found in processing state but not local state,'
-              ' scheduling now',
-              x,
-          )
+              ' scheduling now', x)
           self.schedule_item(x, ignore_buffer=True)
           items_rescheduled += 1
 
@@ -392,8 +383,7 @@ class AsyncWrapper(beam.DoFn):
     logging.info('items cancelled %d', items_cancelled)
     logging.info('items in processing state %d', items_in_processing_state)
     logging.info(
-        'items in buffer %d', AsyncWrapper._items_in_buffer[self._uuid]
-    )
+        'items in buffer %d', AsyncWrapper._items_in_buffer[self._uuid])
 
     # If there are items not yet finished then set a timer to fire in the
     # future.

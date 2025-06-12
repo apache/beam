@@ -12,7 +12,6 @@ from google3.testing.pybase import googletest
 
 
 class BasicDofn(beam.DoFn):
-
   def __init__(self, sleep_time=0):
     self.processed = 0
     self.sleep_time = sleep_time
@@ -36,7 +35,6 @@ class BasicDofn(beam.DoFn):
 
 # Used for testing multiple elements produced by a single input element.
 class MultiElementDoFn(beam.DoFn):
-
   def finish_bundle(self):
     yield ('key', 'bundle end')
 
@@ -46,7 +44,6 @@ class MultiElementDoFn(beam.DoFn):
 
 
 class FakeBagState:
-
   def __init__(self, items):
     self.items = items
     # Normally SE would have a lock on the BT row protecting this from multiple
@@ -67,7 +64,6 @@ class FakeBagState:
 
 
 class FakeTimer:
-
   def __init__(self, time):
     self.time = time
 
@@ -76,7 +72,6 @@ class FakeTimer:
 
 
 class AsyncTest(unittest.TestCase):
-
   def setUp(self):
     super().setUp()
     async_lib.AsyncWrapper.reset_state()
@@ -118,8 +113,7 @@ class AsyncTest(unittest.TestCase):
     fake_timer = FakeTimer(0)
     msg = ('key1', 1)
     result = async_dofn.process(
-        msg, to_process=fake_bag_state, timer=fake_timer
-    )
+        msg, to_process=fake_bag_state, timer=fake_timer)
 
     # nothing should be produced because this is async.
     self.assertEqual(result, [])
@@ -310,8 +304,7 @@ class AsyncTest(unittest.TestCase):
     # Test that the buffer stops accepting items when it is full.
     dofn = BasicDofn(5)
     async_dofn = async_lib.AsyncWrapper(
-        dofn, parallelism=1, max_items_to_buffer=5
-    )
+        dofn, parallelism=1, max_items_to_buffer=5)
     async_dofn.setup()
     fake_timer = FakeTimer(0)
     fake_bag_state = FakeBagState([])
@@ -326,9 +319,7 @@ class AsyncTest(unittest.TestCase):
         expected_output.append(item)
         pool.submit(
             lambda: async_dofn.process(
-                item, to_process=fake_bag_state, timer=fake_timer
-            )
-        )
+                item, to_process=fake_bag_state, timer=fake_timer))
 
       add_item(i)
 
@@ -399,10 +390,7 @@ class AsyncTest(unittest.TestCase):
         futures.append(
             pool.submit(
                 lambda: async_dofn.process(
-                    item, to_process=bag_states[item[0]], timer=timers[item[0]]
-                )
-            )
-        )
+                    item, to_process=bag_states[item[0]], timer=timers[item[0]])))
 
       add_item(i)
       time.sleep(random.random())
@@ -434,11 +422,9 @@ class AsyncTest(unittest.TestCase):
 
     for i in range(0, 10):
       result = async_dofn.commit_finished_items(
-          bag_states['key' + str(i)], timers['key' + str(i)]
-      )
+          bag_states['key' + str(i)], timers['key' + str(i)])
       logging.info('pre_crash_results %s', pre_crash_results[i])
       logging.info('result %s', result)
       self.check_output(
-          pre_crash_results[i] + result, expected_outputs['key' + str(i)]
-      )
+          pre_crash_results[i] + result, expected_outputs['key' + str(i)])
       self.assertEqual(bag_states['key' + str(i)].items, [])
