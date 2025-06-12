@@ -16,7 +16,6 @@
 #
 
 import argparse
-import contextlib
 import json
 import os
 import sys
@@ -27,8 +26,6 @@ import yaml
 import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.transforms import resources
-from apache_beam.typehints.schemas import LogicalType
-from apache_beam.typehints.schemas import MillisInstant
 from apache_beam.yaml import yaml_testing
 from apache_beam.yaml import yaml_transform
 from apache_beam.yaml import yaml_utils
