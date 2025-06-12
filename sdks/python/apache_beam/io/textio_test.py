@@ -2049,8 +2049,8 @@ class WriteStreamingTest(unittest.TestCase):
     print("Found files matching expected pattern:", file_names)
     self.assertEqual(
         len(file_names),
-        num_shards*3, #25s of data covered by 3 10s windows
-        "expected %d files, but got: %d" % (num_shards*3, len(file_names)))
+        num_shards * 3, #25s of data covered by 3 10s windows
+        "expected %d files, but got: %d" % (num_shards * 3, len(file_names)))
 
   def test_write_streaming_undef_shards_default_shard_name_template_windowed_pcoll(  # pylint: disable=line-too-long
       self):
@@ -2091,8 +2091,8 @@ class WriteStreamingTest(unittest.TestCase):
     print("Found files matching expected pattern:", file_names)
     self.assertGreaterEqual(
         len(file_names),
-        1*3, #25s of data covered by 3 10s windows
-        "expected %d files, but got: %d" % (1*3, len(file_names)))
+        1 * 3, #25s of data covered by 3 10s windows
+        "expected %d files, but got: %d" % (1 * 3, len(file_names)))
 
   def test_write_streaming_undef_shards_default_shard_name_template_windowed_pcoll_and_trig_freq(  # pylint: disable=line-too-long
       self):
@@ -2134,8 +2134,8 @@ class WriteStreamingTest(unittest.TestCase):
     print("Found files matching expected pattern:", file_names)
     self.assertGreaterEqual(
         len(file_names),
-        1*3, #25s of data covered by 3 10s windows
-        "expected %d files, but got: %d" % (1*3, len(file_names)))
+        1 * 3, #25s of data covered by 3 10s windows
+        "expected %d files, but got: %d" % (1 * 3, len(file_names)))
 
   def test_write_streaming_undef_shards_default_shard_name_template_global_window_pcoll(  # pylint: disable=line-too-long
       self):
@@ -2145,7 +2145,7 @@ class WriteStreamingTest(unittest.TestCase):
       output2 = output | 'TextIO WriteToText' >> beam.io.WriteToText(
           file_path_prefix=self.tempdir + "/ouput_WriteToText",
           file_name_suffix=".txt",
-          num_shards=0, #0 means undef nb of shards, same as omitted/default
+          num_shards=0,  #0 means undef nb of shards, same as omitted/default
           triggering_frequency=60,
       )
       _ = output2 | 'LogElements after WriteToText' >> LogElements(
@@ -2170,8 +2170,8 @@ class WriteStreamingTest(unittest.TestCase):
     print("Found files matching expected pattern:", file_names)
     self.assertGreaterEqual(
         len(file_names),
-        1*3, #25s of data covered by 3 10s windows
-        "expected %d files, but got: %d" % (1*3, len(file_names)))
+        1 * 3, #25s of data covered by 3 10s windows
+        "expected %d files, but got: %d" % (1 * 3, len(file_names)))
 
   def test_write_streaming_2_shards_custom_shard_name_template(
       self, num_shards=2, shard_name_template='-V-SSSSS-of-NNNNN'):
