@@ -356,7 +356,7 @@ class TestWriteToBigtableXlangIT(unittest.TestCase):
     # create two column families
     col_fam = self.table.column_family('col_fam-1')
     col_fam.create()
-    col_fam = self.table.column_family('col_fam-2')2
+    col_fam = self.table.column_family('col_fam-2')
     col_fam.create()
     # write a row with values in both column families to the table beforehand.
     write_row: DirectRow = DirectRow('key-1', self.table)
