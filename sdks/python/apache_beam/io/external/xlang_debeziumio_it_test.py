@@ -45,7 +45,7 @@ def _disable_debezium_test():
                             capture_output=True,
                             text=True)
     version_line = result.stderr.splitlines()[0]
-
+    # Example output: openjdk version "21.0.6" 2025-01-21
     version = version_line.split()[2].strip('\"')
     if int(version.split(".")[0]) < 17:
       return True
