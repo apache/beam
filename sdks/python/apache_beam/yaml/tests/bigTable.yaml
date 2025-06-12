@@ -37,7 +37,7 @@ pipelines:
         - type: Create
           config:
             elements:
-            - {key: b'row1',type: b'SetCell',family_name: b'cf1',column_qualifier: b'cq1',value: b'value1_from_yaml',timestamp_micros: -1}
+            - {key: 'row1',type: 'SetCell',family_name: 'cf1',column_qualifier: 'cq1',value: 'value1_from_yaml',timestamp_micros: -1}
 #            - rows:
 #                - key: b'row2'
 #                - type: b'SetCell'
@@ -46,9 +46,9 @@ pipelines:
 #                - value: b'another_value_yaml'
         - type: WriteToBigTable
           config:
-            project: 'dummy-project-id' # These will likely be overridden or mocked by the test runner
-            instance: 'dummy-instance-id'
-            table: 'dummy-table-id'
+            project: 'apache-beam-testing' # These will likely be overridden or mocked by the test runner
+            instance: 'bt-write-tests'
+            table: 'test-table'
 #      options:
 #          project: "apache-beam-testing"
 #          temp_location: "{TEMP_DIR}"

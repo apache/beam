@@ -24,21 +24,19 @@ import com.google.auto.service.AutoService;
 import com.google.bigtable.v2.Mutation;
 import com.google.bigtable.v2.TimestampRange;
 import com.google.protobuf.ByteString;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
+import java.util.Objects;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteSchemaTransformProvider.BigtableWriteSchemaTransformConfiguration;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Longs;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 
 /**
  * An implementation of {@link TypedSchemaTransformProvider} for Bigtable Write jobs configured via
@@ -83,7 +81,6 @@ public class BigtableSimpleWriteSchemaTransformProvider
           input.has(INPUT_TAG),
           String.format(
               "Could not find expected input [%s] to %s.", INPUT_TAG, getClass().getSimpleName()));
-
       PCollection<KV<ByteString, Iterable<Mutation>>> bigtableMutations =
           changeMutationInput(input);
 
@@ -97,121 +94,115 @@ public class BigtableSimpleWriteSchemaTransformProvider
     }
 
     public PCollection<KV<ByteString, Iterable<Mutation>>> changeMutationInput(
-        PCollectionRowTuple input) {
-      PCollection<Row> beamRowMutationsList = input.getSinglePCollection();
-
+        PCollectionRowTuple inputR) {
+      PCollection<Row> beamRowMutationsList = inputR.getSinglePCollection();
       // convert all row inputs into KV<ByteString, Mutation>
       PCollection<KV<ByteString, Mutation>> changedBeamRowMutationsList =
           beamRowMutationsList.apply(
-              ParDo.of(
-                  new DoFn<Row, KV<ByteString, Mutation>>() {
-                    @ProcessElement
-                    public void processElement(
-                        @Element Row input, OutputReceiver<KV<ByteString, Mutation>> out) {
-                      ByteString key = ByteString.copyFrom(ofNullable(input.getBytes("key")).get());
+              MapElements.into(
+                      TypeDescriptors.kvs(
+                          TypeDescriptor.of(ByteString.class), TypeDescriptor.of(Mutation.class)))
+                  .via(
+                      (Row input) -> {
+                        @SuppressWarnings("nullness")
+                        ByteString key =
+                            ByteString.copyFromUtf8(
+                                (Objects.requireNonNull(input.getString("key"))));
 
-                      Mutation bigtableMutation;
-                      switch (new String(
-                          ofNullable(input.getBytes("type")).get(), StandardCharsets.UTF_8)) {
-                        case "SetCell":
-                          Mutation.SetCell.Builder setMutation =
-                              Mutation.SetCell.newBuilder()
-                                  .setValue(
-                                      ByteString.copyFrom(
-                                          ofNullable(input.getBytes("value")).get()))
-                                  .setColumnQualifier(
-                                      ByteString.copyFrom(
-                                          ofNullable(input.getBytes("column_qualifier")).get()))
-                                  .setFamilyNameBytes(
-                                      ByteString.copyFrom(
-                                          ofNullable(input.getBytes("family_name")).get()))
-                                  // Use timestamp if provided, else default to -1 (current Bigtable
-                                  // server time)
-                                  .setTimestampMicros(
-                                      ByteString.copyFrom(
-                                                  ofNullable(input.getBytes("timestamp_micros"))
-                                                      .get())
-                                              .isEmpty()
-                                          ? Longs.fromByteArray(
-                                              ofNullable(input.getBytes("timestamp_micros")).get())
-                                          : -1);
-                          bigtableMutation =
-                              Mutation.newBuilder().setSetCell(setMutation.build()).build();
-                          break;
-                        case "DeleteFromColumn":
-                          // set timestamp range if applicable
+                        Mutation bigtableMutation;
+                        String mutationType =
+                            input.getString("type"); // Direct call, can return null
+                        if (mutationType == null) {
+                          throw new IllegalArgumentException("Mutation type cannot be null.");
+                        }
+                        switch (mutationType) {
+                          case "SetCell":
+                            @SuppressWarnings("nullness")
+                            Mutation.SetCell.Builder setMutation =
+                                Mutation.SetCell.newBuilder()
+                                    .setValue(
+                                        ByteString.copyFromUtf8(
+                                            (Objects.requireNonNull(input.getString("value")))))
+                                    .setColumnQualifier(
+                                        ByteString.copyFromUtf8(
+                                            (Objects.requireNonNull(
+                                                input.getString("column_qualifier")))))
+                                    .setFamilyNameBytes(
+                                        ByteString.copyFromUtf8(
+                                            (Objects.requireNonNull(
+                                                input.getString("family_name")))));
+                            // Use timestamp if provided, else default to -1 (current
+                            // Bigtable
+                            // server time)
+                            // Timestamp (optional, assuming Long type in Row schema)
+                            Long timestampMicros = input.getInt64("timestamp_micros");
+                            setMutation.setTimestampMicros(
+                                timestampMicros != null ? timestampMicros : -1);
 
-                          Mutation.DeleteFromColumn.Builder deleteMutation =
-                              Mutation.DeleteFromColumn.newBuilder()
-                                  .setColumnQualifier(
-                                      ByteString.copyFrom(
-                                          ofNullable(input.getBytes("column_qualifier")).get()))
-                                  .setFamilyNameBytes(
-                                      ByteString.copyFrom(
-                                          ofNullable(input.getBytes("family_name")).get()));
+                            bigtableMutation =
+                                Mutation.newBuilder().setSetCell(setMutation.build()).build();
+                            break;
+                          case "DeleteFromColumn":
+                            // set timestamp range if applicable
+                            @SuppressWarnings("nullness")
+                            Mutation.DeleteFromColumn.Builder deleteMutation =
+                                Mutation.DeleteFromColumn.newBuilder()
+                                    .setColumnQualifier(
+                                        ByteString.copyFromUtf8(
+                                            String.valueOf(
+                                                ofNullable(input.getString("column_qualifier")))))
+                                    .setFamilyNameBytes(
+                                        ByteString.copyFromUtf8(
+                                            String.valueOf(
+                                                ofNullable(input.getString("family_name")))));
 
-                          // if start or end timestop provided
-                          if (ByteString.copyFrom(
-                                      ofNullable(input.getBytes("start_timestamp_micros")).get())
-                                  .isEmpty()
-                              || ByteString.copyFrom(
-                                      ofNullable(input.getBytes("end_timestamp_micros")).get())
-                                  .isEmpty()) {
-                            TimestampRange.Builder timeRange = TimestampRange.newBuilder();
-                            if (ByteString.copyFrom(
-                                    ofNullable(input.getBytes("start_timestamp_micros")).get())
-                                .isEmpty()) {
-                              Long startMicros =
-                                  ByteBuffer.wrap(
-                                          ofNullable(input.getBytes("start_timestamp_micros"))
-                                              .get())
-                                      .getLong();
-                              timeRange.setStartTimestampMicros(startMicros);
+                            // if start or end timestop provided
+                            // Timestamp Range (optional, assuming Long type in Row schema)
+                            Long startTimestampMicros = input.getInt64("start_timestamp_micros");
+                            Long endTimestampMicros = input.getInt64("end_timestamp_micros");
+
+                            if (startTimestampMicros != null || endTimestampMicros != null) {
+                              TimestampRange.Builder timeRange = TimestampRange.newBuilder();
+                              if (startTimestampMicros != null) {
+                                timeRange.setStartTimestampMicros(startTimestampMicros);
+                              }
+                              if (endTimestampMicros != null) {
+                                timeRange.setEndTimestampMicros(endTimestampMicros);
+                              }
+                              deleteMutation.setTimeRange(timeRange.build());
                             }
-                            if (ByteString.copyFrom(
-                                    ofNullable(input.getBytes("end_timestamp_micros")).get())
-                                .isEmpty()) {
-                              Long endMicros =
-                                  ByteBuffer.wrap(
-                                          ofNullable(input.getBytes("end_timestamp_micros")).get())
-                                      .getLong();
-                              timeRange.setEndTimestampMicros(endMicros);
-                            }
-                            deleteMutation.setTimeRange(timeRange.build());
-                          }
-                          bigtableMutation =
-                              Mutation.newBuilder()
-                                  .setDeleteFromColumn(deleteMutation.build())
-                                  .build();
-                          break;
-                        case "DeleteFromFamily":
-                          bigtableMutation =
-                              Mutation.newBuilder()
-                                  .setDeleteFromFamily(
-                                      Mutation.DeleteFromFamily.newBuilder()
-                                          .setFamilyNameBytes(
-                                              ByteString.copyFrom(
-                                                  ofNullable(input.getBytes("family_name")).get()))
-                                          .build())
-                                  .build();
-                          break;
-                        case "DeleteFromRow":
-                          bigtableMutation =
-                              Mutation.newBuilder()
-                                  .setDeleteFromRow(Mutation.DeleteFromRow.newBuilder().build())
-                                  .build();
-                          break;
-                        default:
-                          throw new RuntimeException(
-                              String.format(
-                                  "Unexpected mutation type [%s]: %s",
-                                  Arrays.toString(ofNullable(input.getBytes("type")).get()),
-                                  input));
-                      }
-
-                      out.output(KV.of(key, bigtableMutation));
-                    }
-                  }));
+                            bigtableMutation =
+                                Mutation.newBuilder()
+                                    .setDeleteFromColumn(deleteMutation.build())
+                                    .build();
+                            break;
+                          case "DeleteFromFamily":
+                            // delete from
+                            bigtableMutation =
+                                Mutation.newBuilder()
+                                    .setDeleteFromFamily(
+                                        Mutation.DeleteFromFamily.newBuilder()
+                                            .setFamilyNameBytes(
+                                                ByteString.copyFromUtf8(
+                                                    (String.valueOf(
+                                                        ofNullable(input.getString("type"))))))
+                                            .build())
+                                    .build();
+                            break;
+                          case "DeleteFromRow":
+                            bigtableMutation =
+                                Mutation.newBuilder()
+                                    .setDeleteFromRow(Mutation.DeleteFromRow.newBuilder().build())
+                                    .build();
+                            break;
+                          default:
+                            throw new RuntimeException(
+                                String.format(
+                                    "Unexpected mutation type [%s]: %s",
+                                    ((input.getString("type"))), input));
+                        }
+                        return KV.of(key, bigtableMutation);
+                      }));
       // now we need to make the KV into a PCollection of KV<ByteString, Iterable<Mutation>>
       return changedBeamRowMutationsList.apply(GroupByKey.create());
     }

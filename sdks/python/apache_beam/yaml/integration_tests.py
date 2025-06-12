@@ -181,13 +181,13 @@ def instance_prefix(instance):
 
 @contextlib.contextmanager
 def temp_bigtable_table(project, prefix='yaml_bt_it_'):
-    INSTANCE = "bt-read-tests"
+    INSTANCE = "bt-write-tests"
     TABLE_ID = "test-table"
     # test_pipeline = TestPipeline(is_integration_test=True)
     # args = test_pipeline.get_full_options_as_args()
     # project = test_pipeline.get_option('project')
 
-    instance_id = instance_prefix(INSTANCE)
+    instance_id = (INSTANCE)
 
     clientT = client.Client(admin=True, project=project)
     # create cluster and instance
@@ -206,6 +206,11 @@ def temp_bigtable_table(project, prefix='yaml_bt_it_'):
     # create table inside instance
     table = instanceT.table(TABLE_ID)
     table.create()
+    col_fam = table.column_family('cf1')
+    col_fam.create()
+
+    col_fam = table.column_family('col_fam-2')
+    col_fam.create()
     _LOGGER.info("Created table [%s]", table.table_id)
     if (os.environ.get('TRANSFORM_SERVICE_PORT')):
         _transform_service_address = (
@@ -214,6 +219,16 @@ def temp_bigtable_table(project, prefix='yaml_bt_it_'):
         _transform_service_address = None
 
     yield f'{instance_id}.{project}.tmp_table'
+    try:
+        _LOGGER.info("Deleting table [%s]", table.table_id)
+        table.delete()
+    except HttpError:
+        _LOGGER.warning("Failed to clean up table [%s]", table.table_id)
+
+
+
+
+
 
 
 
