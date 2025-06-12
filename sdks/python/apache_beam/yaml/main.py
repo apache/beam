@@ -136,25 +136,12 @@ def _pipeline_spec_from_args(known_args):
   return pipeline_yaml
 
 
-@contextlib.contextmanager
-def _fix_xlang_instant_coding():
-  # Scoped workaround for https://github.com/apache/beam/issues/28151.
-  old_registry = LogicalType._known_logical_types
-  LogicalType._known_logical_types = old_registry.copy()
-  try:
-    LogicalType.register_logical_type(MillisInstant)
-    yield
-  finally:
-    LogicalType._known_logical_types = old_registry
-
-
 def run(argv=None):
   options, constructor, display_data = build_pipeline_components_from_argv(argv)
-  with _fix_xlang_instant_coding():
-    with beam.Pipeline(options=options, display_data=display_data) as p:
-      print('Building pipeline...')
-      constructor(p)
-      print('Running pipeline...')
+  with beam.Pipeline(options=options, display_data=display_data) as p:
+    print('Building pipeline...')
+    constructor(p)
+    print('Running pipeline...')
 
 
 def run_tests(argv=None, exit=True):
@@ -185,14 +172,13 @@ def run_tests(argv=None, exit=True):
           "If you haven't added a set of tests yet, you can get started by "
           'running your pipeline with the --create_test flag enabled.')
 
-    with _fix_xlang_instant_coding():
-      tests = [
-          yaml_testing.YamlTestCase(
-              pipeline_spec, test_spec, options, known_args.fix_tests)
-          for test_spec in test_specs
-      ]
-      suite = unittest.TestSuite(tests)
-      result = unittest.TextTestRunner().run(suite)
+    tests = [
+        yaml_testing.YamlTestCase(
+            pipeline_spec, test_spec, options, known_args.fix_tests)
+        for test_spec in test_specs
+    ]
+    suite = unittest.TestSuite(tests)
+    result = unittest.TextTestRunner().run(suite)
 
   if known_args.fix_tests or known_args.create_test:
     update_tests(known_args, pipeline_yaml, pipeline_spec, options, tests)
