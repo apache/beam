@@ -25,6 +25,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 
 try:
   import google.auth as gauth
+  import google_auth_httplib2  # pylint: disable=unused-import
 except ImportError:
   gauth = None  # type: ignore
 

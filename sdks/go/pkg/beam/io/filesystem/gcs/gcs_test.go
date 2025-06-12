@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/hooks"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem"
 	"github.com/fsouza/fake-gcs-server/fakestorage"
 	"github.com/google/go-cmp/cmp"
@@ -43,6 +44,28 @@ func TestGCS_FilesystemNew(t *testing.T) {
 }
 
 func TestGCS_direct(t *testing.T) {
+	testGCS_direct(t)
+}
+
+func TestGCS_BillingProjectHookEnable(t *testing.T) {
+	billingProject := "whatever"
+	RequesterBillingProject(billingProject)
+	_, err := hooks.RunInitHooks(context.Background())
+	if err != nil {
+		t.Errorf("error to init hooks = %v", err)
+	}
+	projectBillingHook := "beam:go:hook:filesystem:billingproject"
+	projectBillingHookIsEnable, hookValue := hooks.IsEnabled(projectBillingHook)
+	if !projectBillingHookIsEnable {
+		t.Error("project billing hook isn't enable")
+	}
+	if hookValue[0] != billingProject {
+		t.Errorf("projectBillingHook value wrong / want {%s} got {%s}", billingProject, hookValue[0])
+	}
+
+}
+
+func testGCS_direct(t *testing.T) {
 	ctx := context.Background()
 	dirPath := "gs://beamgogcsfilesystemtest"
 	filePath := dirPath + "/file.txt"

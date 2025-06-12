@@ -40,11 +40,12 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
@@ -102,14 +103,14 @@ public final class TranslationUtils {
     @Override
     public WindowedValue<KV<K, OutputT>> call(WindowedValue<KV<K, Iterable<InputT>>> windowedKv)
         throws Exception {
-      return WindowedValue.of(
+      return WindowedValues.of(
           KV.of(
               windowedKv.getValue().getKey(),
               fn.getCombineFn()
                   .apply(windowedKv.getValue().getValue(), fn.ctxtForValue(windowedKv))),
           windowedKv.getTimestamp(),
           windowedKv.getWindows(),
-          windowedKv.getPane());
+          windowedKv.getPaneInfo());
     }
   }
 
@@ -414,7 +415,7 @@ public final class TranslationUtils {
           pCollection.getWindowingStrategy().getWindowFn().windowCoder();
       @SuppressWarnings("unchecked")
       Coder<WindowedValue<?>> windowedValueCoder =
-          (Coder<WindowedValue<?>>) (Coder<?>) WindowedValue.getFullCoder(coder, wCoder);
+          (Coder<WindowedValue<?>>) (Coder<?>) WindowedValues.getFullCoder(coder, wCoder);
       coderMap.put(output.getKey(), windowedValueCoder);
     }
     return coderMap;

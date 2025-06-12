@@ -44,6 +44,8 @@ from apache_beam.yaml import yaml_transform
 from apache_beam.yaml.readme_test import TestEnvironment
 from apache_beam.yaml.readme_test import replace_recursive
 
+from . import input_data
+
 
 @beam.ptransform.ptransform_fn
 def test_enrichment(
@@ -56,7 +58,7 @@ def test_enrichment(
 
   This PTransform simulates the behavior of the Enrichment transform by
   looking up data from predefined in-memory tables based on the provided
-  `enrichment_handler` and `handler_config`.  
+  `enrichment_handler` and `handler_config`.
 
   Note: The Github action that invokes these tests does not have gcp
   dependencies installed which is a prerequisite to
@@ -109,9 +111,24 @@ def test_enrichment(
   return pcoll | beam.Map(_fn)
 
 
+@beam.ptransform.ptransform_fn
+def test_kafka_read(
+    pcoll,
+    format,
+    topic,
+    bootstrap_servers,
+    auto_offset_reset_config,
+    consumer_config):
+  return (
+      pcoll | beam.Create(input_data.text_data().split('\n'))
+      | beam.Map(lambda element: beam.Row(payload=element.encode('utf-8'))))
+
+
 TEST_PROVIDERS = {
-    'TestEnrichment': test_enrichment,
+    'TestEnrichment': test_enrichment, 'TestReadFromKafka': test_kafka_read
 }
+
+INPUT_TRANSFORM_TEST_PROVIDERS = ['TestReadFromKafka']
 
 
 def check_output(expected: List[str]):
@@ -135,130 +152,6 @@ def check_output(expected: List[str]):
     assert_matches_stdout(formatted_actual, expected)
 
   return _check_inner
-
-
-def products_csv():
-  return '\n'.join([
-      'transaction_id,product_name,category,price',
-      'T0012,Headphones,Electronics,59.99',
-      'T5034,Leather Jacket,Apparel,109.99',
-      'T0024,Aluminum Mug,Kitchen,29.99',
-      'T0104,Headphones,Electronics,59.99',
-      'T0302,Monitor,Electronics,249.99'
-  ])
-
-
-def spanner_orders_data():
-  return [{
-      'order_id': 1,
-      'customer_id': 1001,
-      'product_id': 2001,
-      'order_date': '24-03-24',
-      'order_amount': 150,
-  },
-          {
-              'order_id': 2,
-              'customer_id': 1002,
-              'product_id': 2002,
-              'order_date': '19-04-24',
-              'order_amount': 90,
-          },
-          {
-              'order_id': 3,
-              'customer_id': 1003,
-              'product_id': 2003,
-              'order_date': '7-05-24',
-              'order_amount': 110,
-          }]
-
-
-def spanner_shipments_data():
-  return [{
-      'shipment_id': 'S1',
-      'customer_id': 'C1',
-      'shipment_date': '2023-05-01',
-      'shipment_cost': 150.0,
-      'customer_name': 'Alice',
-      'customer_email': 'alice@example.com'
-  },
-          {
-              'shipment_id': 'S2',
-              'customer_id': 'C2',
-              'shipment_date': '2023-06-12',
-              'shipment_cost': 300.0,
-              'customer_name': 'Bob',
-              'customer_email': 'bob@example.com'
-          },
-          {
-              'shipment_id': 'S3',
-              'customer_id': 'C1',
-              'shipment_date': '2023-05-10',
-              'shipment_cost': 20.0,
-              'customer_name': 'Alice',
-              'customer_email': 'alice@example.com'
-          },
-          {
-              'shipment_id': 'S4',
-              'customer_id': 'C4',
-              'shipment_date': '2024-07-01',
-              'shipment_cost': 150.0,
-              'customer_name': 'Derek',
-              'customer_email': 'derek@example.com'
-          },
-          {
-              'shipment_id': 'S5',
-              'customer_id': 'C5',
-              'shipment_date': '2023-05-09',
-              'shipment_cost': 300.0,
-              'customer_name': 'Erin',
-              'customer_email': 'erin@example.com'
-          },
-          {
-              'shipment_id': 'S6',
-              'customer_id': 'C4',
-              'shipment_date': '2024-07-02',
-              'shipment_cost': 150.0,
-              'customer_name': 'Derek',
-              'customer_email': 'derek@example.com'
-          }]
-
-
-def bigtable_data():
-  return [{
-      'product_id': '1', 'product_name': 'pixel 5', 'product_stock': '2'
-  }, {
-      'product_id': '2', 'product_name': 'pixel 6', 'product_stock': '4'
-  }, {
-      'product_id': '3', 'product_name': 'pixel 7', 'product_stock': '20'
-  }, {
-      'product_id': '4', 'product_name': 'pixel 8', 'product_stock': '10'
-  }, {
-      'product_id': '5', 'product_name': 'pixel 11', 'product_stock': '3'
-  }, {
-      'product_id': '6', 'product_name': 'pixel 12', 'product_stock': '7'
-  }, {
-      'product_id': '7', 'product_name': 'pixel 13', 'product_stock': '8'
-  }, {
-      'product_id': '8', 'product_name': 'pixel 14', 'product_stock': '3'
-  }]
-
-
-def bigquery_data():
-  return [{
-      'customer_id': 1001,
-      'customer_name': 'Alice',
-      'customer_email': 'alice@gmail.com'
-  },
-          {
-              'customer_id': 1002,
-              'customer_name': 'Bob',
-              'customer_email': 'bob@gmail.com'
-          },
-          {
-              'customer_id': 1003,
-              'customer_name': 'Claire',
-              'customer_email': 'claire@gmail.com'
-          }]
 
 
 def create_test_method(
@@ -306,7 +199,11 @@ def create_test_method(
         actual = [
             yaml_transform.expand_pipeline(
                 p,
-                pipeline_spec, [yaml_provider.InlineProvider(TEST_PROVIDERS)])
+                pipeline_spec,
+                [
+                    yaml_provider.InlineProvider(
+                        TEST_PROVIDERS, INPUT_TRANSFORM_TEST_PROVIDERS)
+                ])
         ]
         if not actual[0]:
           actual = list(p.transforms_stack[0].parts[-1].outputs.values())
@@ -495,9 +392,30 @@ def _wordcount_test_preprocessor(
       env.input_file('kinglear.txt', '\n'.join(lines)))
 
 
+@YamlExamplesTestSuite.register_test_preprocessor('test_kafka_yaml')
+def _kafka_test_preprocessor(
+    test_spec: dict, expected: List[str], env: TestEnvironment):
+
+  test_spec = replace_recursive(
+      test_spec,
+      'ReadFromText',
+      'path',
+      env.input_file('kinglear.txt', input_data.text_data()))
+
+  if pipeline := test_spec.get('pipeline', None):
+    for transform in pipeline.get('transforms', []):
+      if transform.get('type', '') == 'ReadFromKafka':
+        transform['type'] = 'TestReadFromKafka'
+
+  return test_spec
+
+
 @YamlExamplesTestSuite.register_test_preprocessor([
     'test_simple_filter_yaml',
     'test_simple_filter_and_combine_yaml',
+    'test_iceberg_read_yaml',
+    'test_iceberg_write_yaml',
+    'test_kafka_yaml',
     'test_spanner_read_yaml',
     'test_spanner_write_yaml',
     'test_enrich_spanner_with_bigquery_yaml'
@@ -539,9 +457,10 @@ def _io_write_test_preprocessor(
 def _file_io_read_test_preprocessor(
     test_spec: dict, expected: List[str], env: TestEnvironment):
   """
-  This preprocessor replaces any ReadFrom transform with a Create transform
-  that reads from a predefined in-memory dictionary. This allows the test
-  to verify the pipeline's correctness without relying on external files.
+  This preprocessor replaces any file IO ReadFrom transform with a Create
+  transform that reads from a predefined in-memory dictionary. This allows
+  the test to verify the pipeline's correctness without relying on external
+  files.
 
   Args:
     test_spec: The dictionary representation of the YAML pipeline specification.
@@ -563,6 +482,47 @@ def _file_io_read_test_preprocessor(
             transform['type'],
             'path',
             env.input_file(file_name, INPUT_FILES[file_name]))
+
+  return test_spec
+
+
+@YamlExamplesTestSuite.register_test_preprocessor(['test_iceberg_read_yaml'])
+def _iceberg_io_read_test_preprocessor(
+    test_spec: dict, expected: List[str], env: TestEnvironment):
+  """
+  Preprocessor for tests that involve reading from Iceberg.
+
+  This preprocessor replaces any ReadFromIceberg transform with a Create
+  transform that reads from a predefined in-memory dictionary. This allows
+  the test to verify the pipeline's correctness without relying on Iceberg
+  tables stored externally.
+
+  Args:
+    test_spec: The dictionary representation of the YAML pipeline specification.
+    expected: A list of strings representing the expected output of the
+      pipeline.
+    env: The TestEnvironment object providing utilities for creating temporary
+      files.
+
+  Returns:
+    The modified test_spec dictionary with ReadFromIceberg transforms replaced.
+  """
+  if pipeline := test_spec.get('pipeline', None):
+    for transform in pipeline.get('transforms', []):
+      if transform.get('type', '') == 'ReadFromIceberg':
+        config = transform['config']
+        (db_name, table_name,
+         field_value_dynamic_destinations) = config['table'].split('.')
+
+        transform['type'] = 'Create'
+        transform['config'] = {
+            k: v
+            for k, v in config.items() if k.startswith('__')
+        }
+        transform['config']['elements'] = INPUT_TABLES[(
+            str(db_name),
+            str(table_name),
+            str(field_value_dynamic_destinations))]
 
   return test_spec
 
@@ -647,12 +607,16 @@ def _enrichment_test_preprocessor(
   return test_spec
 
 
-INPUT_FILES = {'products.csv': products_csv()}
+INPUT_FILES = {'products.csv': input_data.products_csv()}
 INPUT_TABLES = {
-    ('shipment-test', 'shipment', 'shipments'): spanner_shipments_data(),
-    ('orders-test', 'order-database', 'orders'): spanner_orders_data(),
-    ('BigTable', 'beam-test', 'bigtable-enrichment-test'): bigtable_data(),
-    ('BigQuery', 'ALL_TEST', 'customers'): bigquery_data()
+    ('shipment-test', 'shipment', 'shipments'): input_data.
+    spanner_shipments_data(),
+    ('orders-test', 'order-database', 'orders'): input_data.
+    spanner_orders_data(),
+    ('db', 'users', 'NY'): input_data.iceberg_dynamic_destinations_users_data(),
+    ('BigTable', 'beam-test', 'bigtable-enrichment-test'): input_data.
+    bigtable_data(),
+    ('BigQuery', 'ALL_TEST', 'customers'): input_data.bigquery_data()
 }
 YAML_DOCS_DIR = os.path.join(os.path.dirname(__file__))
 

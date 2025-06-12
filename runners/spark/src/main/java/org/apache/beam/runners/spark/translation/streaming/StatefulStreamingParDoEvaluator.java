@@ -45,12 +45,13 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.ParDoTranslation;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
@@ -126,8 +127,8 @@ public class StatefulStreamingParDoEvaluator<KeyT, ValueT, OutputT>
     final Coder<KeyT> keyCoder = inputCoder.getKeyCoder();
     final Coder<ValueT> valueCoder = inputCoder.getValueCoder();
 
-    final WindowedValue.FullWindowedValueCoder<ValueT> wvCoder =
-        WindowedValue.FullWindowedValueCoder.of(valueCoder, windowFn.windowCoder());
+    final WindowedValues.FullWindowedValueCoder<ValueT> wvCoder =
+        WindowedValues.FullWindowedValueCoder.of(valueCoder, windowFn.windowCoder());
 
     final MetricsContainerStepMapAccumulator metricsAccum = MetricsAccumulator.getInstance();
     final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs =
@@ -173,7 +174,7 @@ public class StatefulStreamingParDoEvaluator<KeyT, ValueT, OutputT>
                         stepName,
                         doFn,
                         keyCoder,
-                        (WindowedValue.FullWindowedValueCoder) wvCoder,
+                        (WindowedValues.FullWindowedValueCoder) wvCoder,
                         options,
                         transform.getMainOutputTag(),
                         transform.getAdditionalOutputTags().getAll(),
@@ -198,7 +199,7 @@ public class StatefulStreamingParDoEvaluator<KeyT, ValueT, OutputT>
                       final WindowedValue<?> windowedValue =
                           CoderHelpers.fromByteArray(
                               tuple._2(),
-                              WindowedValue.FullWindowedValueCoder.of(
+                              WindowedValues.FullWindowedValueCoder.of(
                                   outputCoder, windowFn.windowCoder()));
                       return Tuple2.apply(tuple._1(), windowedValue);
                     }));

@@ -59,6 +59,7 @@ from google.protobuf import message
 
 from apache_beam.coders import coder_impl
 from apache_beam.coders.avro_record import AvroRecord
+from apache_beam.internal import cloudpickle_pickler
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
@@ -93,6 +94,7 @@ __all__ = [
     'AvroGenericCoder',
     'BooleanCoder',
     'BytesCoder',
+    'CloudpickleCoder',
     'DillCoder',
     'FastPrimitivesCoder',
     'FloatCoder',
@@ -900,6 +902,13 @@ class DillCoder(_PickleCoderBase):
   """Coder using dill's pickle functionality."""
   def _create_impl(self):
     return coder_impl.CallbackCoderImpl(maybe_dill_dumps, maybe_dill_loads)
+
+
+class CloudpickleCoder(_PickleCoderBase):
+  """Coder using Apache Beam's vendored Cloudpickle pickler."""
+  def _create_impl(self):
+    return coder_impl.CallbackCoderImpl(
+        cloudpickle_pickler.dumps, cloudpickle_pickler.loads)
 
 
 class DeterministicFastPrimitivesCoder(FastCoder):

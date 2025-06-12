@@ -81,6 +81,16 @@
   logoUrl: /images/logos/powered-by/accenture.png
   linkUrl: case-studies/accenture_baltics/index.html
   linkText: Learn more
+- text: Akvelon built Beam-based solutions for Protegrity and a major North American credit reporting company, enabling tokenization with Dataflow Flex Templates and reducing infrastructure and deployment complexity.
+  icon: icons/quote-icon.svg
+  logoUrl: /images/logos/powered-by/akvelon.png
+  linkUrl: case-studies/akvelon/index.html
+  linkText: Learn more
+- text: With Apache Beam and Dataflow, Credit Karma achieved a 99% uptime for critical data pipelines, a significant jump from 80%. This reliability, coupled with faster development (1 engineer vs. 3 estimated), has been crucial for enabling real-time financial insights for our more than 140 million members.
+  icon: icons/quote-icon.svg
+  logoUrl: images/logos/powered-by/credit-karma.png
+  linkUrl: case-studies/creditkarmainsights/index.html
+  linkText: Learn more
 - text: Have a story to share? Your logo could be here.
   icon: icons/quote-icon.svg
   logoUrl: images/logos/powered-by/blank.jpg

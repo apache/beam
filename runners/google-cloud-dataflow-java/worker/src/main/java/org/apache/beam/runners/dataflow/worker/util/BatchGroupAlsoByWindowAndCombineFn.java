@@ -19,13 +19,11 @@ package org.apache.beam.runners.dataflow.worker.util;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.PriorityQueue;
-import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -36,9 +34,11 @@ import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValueReceiver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
@@ -76,7 +76,7 @@ class BatchGroupAlsoByWindowAndCombineFn<K, InputT, AccumT, OutputT, W extends B
       PipelineOptions options,
       StepContext stepContext,
       SideInputReader sideInputReader,
-      OutputWindowedValue<KV<K, OutputT>> output)
+      WindowedValueReceiver<KV<K, OutputT>> output)
       throws Exception {
     final PerKeyCombineFnRunner<K, InputT, AccumT, OutputT> perKeyCombineFnRunner;
     if (perKeyCombineFn instanceof CombineFn) {
@@ -190,15 +190,16 @@ class BatchGroupAlsoByWindowAndCombineFn<K, InputT, AccumT, OutputT, W extends B
       W window,
       Map<W, AccumT> accumulators,
       Map<W, Instant> accumulatorOutputTimes,
-      OutputWindowedValue<KV<K, OutputT>> output) {
+      WindowedValueReceiver<KV<K, OutputT>> output) {
     AccumT accum = accumulators.remove(window);
     Instant timestamp = accumulatorOutputTimes.remove(window);
     checkState(accum != null && timestamp != null);
-    output.outputWindowedValue(
-        KV.of(key, perKeyCombineFnRunner.extractOutput(accum, window)),
-        timestamp,
-        Arrays.asList(window),
-        PaneInfo.ON_TIME_AND_ONLY_FIRING);
+    output.output(
+        WindowedValues.of(
+            KV.of(key, perKeyCombineFnRunner.extractOutput(accum, window)),
+            timestamp,
+            window,
+            PaneInfo.ON_TIME_AND_ONLY_FIRING));
   }
 
   private interface PerKeyCombineFnRunner<K, InputT, AccumT, OutputT> {
