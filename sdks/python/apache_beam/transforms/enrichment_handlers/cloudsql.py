@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from abc import abstractmethod, ABC
 from collections.abc import Callable
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -23,8 +24,15 @@ from typing import List
 from typing import Optional
 from typing import Union
 
+import pymysql
+import pg8000
+import pytds
 from sqlalchemy import create_engine
 from sqlalchemy import text
+from sqlalchemy.engine import Connection as DBAPIConnection
+from google.cloud.sql.connector.enums import RefreshStrategy
+from google.cloud.sql.connector import Connector as CloudSQLConnector
+from google.cloud.sql.connector import IPTypes
 
 import apache_beam as beam
 from apache_beam.transforms.enrichment import EnrichmentSourceHandler
@@ -82,13 +90,8 @@ class TableFunctionQueryConfig:
           "TableFunctionQueryConfig must provide " + "where_clause_value_fn")
 
 
-QueryConfig = Union[CustomQueryConfig,
-                    TableFieldsQueryConfig,
-                    TableFunctionQueryConfig]
-
-
 class DatabaseTypeAdapter(Enum):
-  POSTGRESQL = "psycopg2"
+  POSTGRESQL = "pg8000"
   MYSQL = "pymysql"
   SQLSERVER = "pytds"
 
@@ -105,7 +108,141 @@ class DatabaseTypeAdapter(Enum):
     elif self == DatabaseTypeAdapter.SQLSERVER:
       return f"mssql+{self.value}"
     else:
-      raise ValueError(f"Unsupported adapter type: {self.name}")
+      raise ValueError(f"Unsupported database adapter type: {self.name}")
+
+
+@dataclass
+class SQLClientConnectionHandler:
+  connector: Callable[[], DBAPIConnection]
+  connection_closer: Callable[[], None]
+
+
+class ConnectionConfig(ABC):
+  @abstractmethod
+  def get_connector_handler(self) -> SQLClientConnectionHandler:
+    pass
+
+  @abstractmethod
+  def get_db_url(self) -> str:
+    pass
+
+
+class CloudSQLConnectionConfig(ConnectionConfig):
+  """Connects to Google Cloud SQL using Cloud SQL Python Connector."""
+  SUPPORTED_ADAPTERS = {
+      DatabaseTypeAdapter.POSTGRESQL,
+      DatabaseTypeAdapter.MYSQL,
+      DatabaseTypeAdapter.SQLSERVER,
+  }
+
+  def __init__(
+      self,
+      db_adapter: DatabaseTypeAdapter,
+      instance_connection_name: str,
+      user: str,
+      db_id: str,
+      enable_iam_auth: bool = True,
+      password: Optional[str] = None,  # fallback if IAM not used
+      ip_type: IPTypes = IPTypes.PUBLIC,
+      refresh_strategy: RefreshStrategy = RefreshStrategy.LAZY,
+      *,
+      connector_kwargs: dict = {},
+      connect_kwargs: dict = {},
+  ):
+    self._validate_metadata(db_adapter=db_adapter)
+    self._db_adapter = db_adapter
+    self._instance_connection_name = instance_connection_name
+    self._user = user
+    self._db_id = db_id
+    self._enable_iam_auth = enable_iam_auth
+    self._password = password
+    self._ip_type = ip_type
+    self._refresh_strategy = refresh_strategy
+    self.connector_kwargs = connector_kwargs
+    self.connect_kwargs = connect_kwargs
+
+  def get_connector_handler(self) -> SQLClientConnectionHandler:
+    cloudsql_client = CloudSQLConnector(
+        ip_type=self._ip_type,
+        refresh_strategy=self._refresh_strategy,
+        **self.connector_kwargs)
+
+    cloudsql_connector = lambda: cloudsql_client.connect(
+        instance_connection_string=self._instance_connection_name, driver=self.
+        _db_adapter.value, user=self._user, db=self._db_id, enable_iam_auth=self
+        ._enable_iam_auth, password=self.password, **self.connect_kwargs)
+
+    connection_closer = lambda: cloudsql_client.close()
+
+    return SQLClientConnectionHandler(
+        connector=cloudsql_connector, connection_closer=connection_closer)
+
+  def get_db_url(self) -> str:
+    return self._db_adapter.to_sqlalchemy_dialect() + "://"
+
+  def _validate_metadata(self, db_adapter: DatabaseTypeAdapter):
+    if db_adapter not in self.SUPPORTED_ADAPTERS:
+      raise ValueError(
+          f"Unsupported DB adapter for CloudSQLConnectionConfig: {db_adapter}. "
+          f"Supported: {[a.name for a in self.SUPPORTED_ADAPTERS]}")
+
+  @property
+  def password(self):
+    return self._password if not self._enable_iam_auth else None
+
+
+class ExternalSQLDBConnectionConfig(ConnectionConfig):
+  """Connects to External SQL databases (PostgreSQL, MySQL, etc.) over TCP."""
+  def __init__(
+      self,
+      db_adapter: DatabaseTypeAdapter,
+      host: str,
+      user: str,
+      password: str,
+      db_id: str,
+      port: int,
+      **kwargs):
+    self._db_adapter = db_adapter
+    self._host = host
+    self._user = user
+    self._password = password
+    self._db_id = db_id
+    self._port = port
+    self.kwargs = kwargs
+
+  def get_connector_handler(
+      self,
+  ) -> SQLClientConnectionHandler:
+    if self._db_adapter == DatabaseTypeAdapter.POSTGRESQL:
+      # It is automatically closed upstream by sqlalchemy.
+      connector = lambda: pg8000.connect(
+          host=self._host, user=self._user, password=self._password, database=
+          self._db_id, port=self._port, **self.kwargs)
+      connection_closer = lambda: None
+    elif self._db_adapter == DatabaseTypeAdapter.MYSQL:
+      # It is automatically closed upstream by sqlalchemy.
+      connector = lambda: pymysql.connect(
+          host=self._host, user=self._user, password=self._password, database=
+          self._db_id, port=self._port, **self.kwargs)
+      connection_closer = lambda: None
+    elif self._db_adapter == DatabaseTypeAdapter.SQLSERVER:
+      # It is automatically closed upstream by sqlalchemy.
+      connector = lambda: pytds.connect(
+          server=self._host, database=self._db_id, user=self._user, password=
+          self._password, port=self._port, **self.kwargs)
+      connection_closer = lambda: None
+    else:
+      raise ValueError(f"Unsupported DB adapter: {self._db_adapter}")
+
+    return SQLClientConnectionHandler(connector, connection_closer)
+
+  def get_db_url(self) -> str:
+    return self._db_adapter.to_sqlalchemy_dialect() + "://"
+
+
+QueryConfig = Union[CustomQueryConfig,
+                    TableFieldsQueryConfig,
+                    TableFunctionQueryConfig]
 
 
 class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
@@ -132,11 +269,7 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
   """
   def __init__(
       self,
-      database_type_adapter: DatabaseTypeAdapter,
-      database_address: str,
-      database_user: str,
-      database_password: str,
-      database_id: str,
+      connection_config: ConnectionConfig,
       *,
       query_config: QueryConfig,
       column_names: Optional[list[str]] = None,
@@ -147,24 +280,17 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
     """
     Example Usage:
       handler = CloudSQLEnrichmentHandler(
-          database_type_adapter=adapter,
-          database_address='127.0.0.1:5432',
-          database_user='user',
-          database_password='password',
-          database_id='my_database',
+          connection_config=CloudSQLConnectionConfig(...),
           query_config=TableFieldsQueryConfig('my_table',"id = '{}'",['id']),
           min_batch_size=2,
           max_batch_size=100)
 
     Args:
-      database_type_adapter: Adapter to handle specific database type operations
-        (e.g., MySQL, PostgreSQL).
-      database_address (str): Address or hostname of the Cloud SQL database, in
-        the form `<ip>:<port>`. The port is optional if the database uses
-        the default port.
-      database_user (str): Username for accessing the database.
-      database_password (str): Password for accessing the database.
-      database_id (str): Identifier for the database to query.
+      connection_config (ConnectionConfig): Configuration for connecting to
+        the SQL database. Must be an instance of a subclass of
+        `ConnectionConfig`, such as `CloudSQLConnectionConfig` or
+        `ExternalSQLDBConnectionConfig`. This determines how the handler
+        connects to the target SQL database.
       query_config: Configuration for database queries. Must be one of:
         * CustomQueryConfig: For providing a custom query function
         * TableFieldsQueryConfig: specifies table, where clause, and field names
@@ -185,11 +311,7 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
       * Ensure that the database user has the necessary permissions to query the
         specified table.
     """
-    self._database_type_adapter = database_type_adapter
-    self._database_id = database_id
-    self._database_user = database_user
-    self._database_password = database_password
-    self._database_address = database_address
+    self._connection_config = connection_config
     self._query_config = query_config
     self._column_names = ",".join(column_names) if column_names else "*"
     self.kwargs = kwargs
@@ -204,16 +326,11 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
       self._batching_kwargs['max_batch_size'] = max_batch_size
 
   def __enter__(self):
-    db_url = self._get_db_url()
-    self._engine = create_engine(db_url)
+    self._sql_client_handler = self._connection_config.get_connector_handler()
+    self._engine = create_engine(
+        url=self._connection_config.get_db_url(),
+        creator=self._sql_client_handler.connector)
     self._connection = self._engine.connect()
-
-  def _get_db_url(self) -> str:
-    dialect = self._database_type_adapter.to_sqlalchemy_dialect()
-    url = (
-        f"{dialect}://{self._database_user}:{self._database_password}"
-        f"@{self._database_address}/{self._database_id}")
-    return url
 
   def _execute_query(self, query: str, is_batch: bool, **params):
     try:
@@ -318,6 +435,7 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
 
   def __exit__(self, exc_type, exc_val, exc_tb):
     self._connection.close()
+    self._sql_client_handler.connection_closer()
     self._engine.dispose(close=True)
     self._engine, self._connection = None, None
 

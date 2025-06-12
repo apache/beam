@@ -21,13 +21,14 @@
 import os
 import unittest
 from io import StringIO
+from typing import Tuple
 
 import mock
 import pytest
 
 # pylint: disable=unused-import
 try:
-  from sqlalchemy import Column, Integer, String, Engine
+  from sqlalchemy import Column, Integer, String, Engine, MetaData
   from apache_beam.examples.snippets.transforms.elementwise.enrichment import (
       enrichment_with_bigtable, enrichment_with_vertex_ai_legacy)
   from apache_beam.examples.snippets.transforms.elementwise.enrichment import (
@@ -35,7 +36,10 @@ try:
   from apache_beam.transforms.enrichment_handlers.cloudsql import (
       DatabaseTypeAdapter)
   from apache_beam.transforms.enrichment_handlers.cloudsql_it_test import (
-      CloudSQLEnrichmentTestHelper, SQLDBContainerInfo)
+      CloudSQLEnrichmentTestHelper,
+      SQLDBContainerInfo,
+      ExternalSQLDBConnectionConfig,
+      SQLClientConnectionHandler)
   from apache_beam.io.requestresponse import RequestResponseIO
 except ImportError:
   raise unittest.SkipTest('RequestResponseIO dependencies are not installed')
@@ -89,7 +93,7 @@ class EnrichmentTest(unittest.TestCase):
   def test_enrichment_with_cloudsql(self, mock_stdout):
     db, engine = None, None
     try:
-      db, engine = self.pre_cloudsql_enrichment_test()
+      db, handler, metadata, engine = self.pre_cloudsql_enrichment_test()
       enrichment_with_cloudsql()
       output = mock_stdout.getvalue().splitlines()
       expected = validate_enrichment_with_cloudsql()
@@ -98,7 +102,11 @@ class EnrichmentTest(unittest.TestCase):
       self.fail(f"Test failed with unexpected error: {e}")
     finally:
       if db and engine:
-        self.post_cloudsql_enrichment_test(db, engine)
+        self.post_cloudsql_enrichment_test(
+            db=db,
+            sql_client_connection_handler=handler,
+            metadata=metadata,
+            engine=engine)
 
   def test_enrichment_with_vertex_ai(self, mock_stdout):
     enrichment_with_vertex_ai()
@@ -134,27 +142,48 @@ class EnrichmentTest(unittest.TestCase):
             "product_id": 3, "name": "C", 'quantity': 10, 'region_id': 4
         },
     ]
+    metadata = MetaData()
     db_adapter = DatabaseTypeAdapter.POSTGRESQL
     db = CloudSQLEnrichmentTestHelper.start_sql_db_container(db_adapter)
     os.environ['SQL_DB_TYPE'] = db.adapter.name
-    os.environ['SQL_DB_ADDRESS'] = db.address
+    os.environ['SQL_DB_HOST'] = db.host
+    os.environ['SQL_DB_PORT'] = str(db.port)
     os.environ['SQL_DB_USER'] = db.user
     os.environ['SQL_DB_PASSWORD'] = db.password
     os.environ['SQL_DB_ID'] = db.id
     os.environ['SQL_DB_URL'] = db.url
-    engine = CloudSQLEnrichmentTestHelper.create_table(
-        db_url=os.environ.get("SQL_DB_URL"),
+    connection_config = ExternalSQLDBConnectionConfig(
+        db_adapter=db_adapter,
+        host=db.host,
+        port=db.port,
+        user=db.user,
+        password=db.password,
+        db_id=db.id)
+    handler = CloudSQLEnrichmentTestHelper.create_table(
         table_id=table_id,
+        connection_config=connection_config,
         columns=columns,
-        table_data=table_data)
-    return db, engine
+        table_data=table_data,
+        metadata=metadata)
+
+    handler: Tuple[SQLClientConnectionHandler, Engine]
+
+    sql_client_connection_handler, engine = handler
+    return db, sql_client_connection_handler, metadata, engine
 
   def post_cloudsql_enrichment_test(
-      self, db: SQLDBContainerInfo, engine: Engine):
+      self,
+      db: SQLDBContainerInfo,
+      sql_client_connection_handler: SQLClientConnectionHandler,
+      metadata: MetaData,
+      engine: Engine):
+    metadata.drop_all(engine)
+    sql_client_connection_handler.connection_closer()
     engine.dispose(close=True)
     CloudSQLEnrichmentTestHelper.stop_sql_db_container(db)
     os.environ.pop('SQL_DB_TYPE', None)
-    os.environ.pop('SQL_DB_ADDRESS', None)
+    os.environ.pop('SQL_DB_HOST', None)
+    os.environ.pop('SQL_DB_PORT', None)
     os.environ.pop('SQL_DB_USER', None)
     os.environ.pop('SQL_DB_PASSWORD', None)
     os.environ.pop('SQL_DB_ID', None)

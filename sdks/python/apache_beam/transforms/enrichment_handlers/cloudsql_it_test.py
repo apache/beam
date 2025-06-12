@@ -19,6 +19,7 @@ import logging
 import unittest
 from dataclasses import dataclass
 from typing import Optional
+from typing import Tuple
 from unittest.mock import MagicMock
 
 import pytest
@@ -31,6 +32,7 @@ from apache_beam.testing.util import equal_to
 
 # pylint: disable=ungrouped-imports
 try:
+  from google.cloud.sql.connector import IPTypes
   from testcontainers.core.generic import DbContainer
   from testcontainers.postgres import PostgresContainer
   from testcontainers.mysql import MySqlContainer
@@ -44,7 +46,11 @@ try:
       DatabaseTypeAdapter,
       CustomQueryConfig,
       TableFieldsQueryConfig,
-      TableFunctionQueryConfig)
+      TableFunctionQueryConfig,
+      CloudSQLConnectionConfig,
+      ExternalSQLDBConnectionConfig,
+      ConnectionConfig,
+      SQLClientConnectionHandler)
 except ImportError:
   raise unittest.SkipTest('Google Cloud SQL dependencies are not installed.')
 
@@ -75,8 +81,7 @@ class SQLDBContainerInfo:
 
   @property
   def url(self) -> str:
-    dialect = self.adapter.to_sqlalchemy_dialect()
-    return f"{dialect}://{self.user}:{self.password}@{self.address}/{self.id}"
+    return self.adapter.to_sqlalchemy_dialect() + "://"
 
 
 class CloudSQLEnrichmentTestHelper:
@@ -97,7 +102,7 @@ class CloudSQLEnrichmentTestHelper:
               driver=database_type.value)
           sql_db_container.start()
           host = sql_db_container.get_container_host_ip()
-          port = sql_db_container.get_exposed_port(5432)
+          port = int(sql_db_container.get_exposed_port(5432))
 
         elif database_type == DatabaseTypeAdapter.MYSQL:
           user, password, db_id = "test", "test", "test"
@@ -109,7 +114,7 @@ class CloudSQLEnrichmentTestHelper:
               MYSQL_DATABASE=db_id)
           sql_db_container.start()
           host = sql_db_container.get_container_host_ip()
-          port = sql_db_container.get_exposed_port(3306)
+          port = int(sql_db_container.get_exposed_port(3306))
 
         elif database_type == DatabaseTypeAdapter.SQLSERVER:
           user, password, db_id = "SA", "A_Str0ng_Required_Password", "tempdb"
@@ -121,7 +126,7 @@ class CloudSQLEnrichmentTestHelper:
               dialect=database_type.to_sqlalchemy_dialect())
           sql_db_container.start()
           host = sql_db_container.get_container_host_ip()
-          port = sql_db_container.get_exposed_port(1433)
+          port = int(sql_db_container.get_exposed_port(1433))
         else:
           raise ValueError(f"Unsupported database type: {database_type}")
 
@@ -170,11 +175,14 @@ class CloudSQLEnrichmentTestHelper:
   @staticmethod
   def create_table(
       table_id: str,
-      db_url: str,
+      connection_config: ConnectionConfig,
       columns: list[Column],
       table_data: list[dict],
-      metadata: MetaData = MetaData()) -> Engine:
-    engine = create_engine(db_url)
+      metadata: MetaData) -> Tuple[SQLClientConnectionHandler, Engine]:
+    sql_client_handler = connection_config.get_connector_handler()
+    engine = create_engine(
+        url=connection_config.get_db_url(),
+        creator=sql_client_handler.connector)
     table = Table(table_id, metadata, *columns)
     metadata.create_all(engine)
 
@@ -188,15 +196,7 @@ class CloudSQLEnrichmentTestHelper:
         transaction.rollback()
         raise e
 
-    return engine
-
-
-def init_db_type(db_type):
-  def wrapper(cls):
-    cls.db_type = db_type
-    return cls
-
-  return wrapper
+    return sql_client_handler, engine
 
 
 @pytest.mark.uses_testcontainer
@@ -227,17 +227,27 @@ class BaseTestCloudSQLEnrichment(unittest.TestCase):
           "id": 8, "name": "D", 'quantity': 4, 'distribution_center_id': 1
       },
   ]
-  db = None
-  _engine = None
 
   @classmethod
   def setUpClass(cls):
-    if not hasattr(cls, 'db_type'):
+    if not hasattr(cls, 'connection_config') or not hasattr(cls, '_metadata'):
       # Skip setup for the base class.
-      raise unittest.SkipTest("Base class - no db_type defined")
-    cls.db = CloudSQLEnrichmentTestHelper.start_sql_db_container(cls.db_type)
-    cls._engine = CloudSQLEnrichmentTestHelper.create_table(
-        cls._table_id, cls.db.url, cls.get_columns(), cls._table_data)
+      raise unittest.SkipTest(
+          "Base class - no connection_config or metadata defined")
+
+    # Type hint data from subclasses.
+    cls._table_id: str
+    cls.connection_config: ConnectionConfig
+    cls._metadata: MetaData
+
+    handler = CloudSQLEnrichmentTestHelper.create_table(
+        table_id=cls._table_id,
+        connection_config=cls.connection_config,
+        columns=cls.get_columns(),
+        table_data=cls._table_data,
+        metadata=cls._metadata)
+
+    cls._sql_client_handler, cls._engine = handler
     cls._cache_client_retries = 3
 
   @classmethod
@@ -281,8 +291,8 @@ class BaseTestCloudSQLEnrichment(unittest.TestCase):
 
   @classmethod
   def tearDownClass(cls):
+    cls._metadata.drop_all(cls._engine)
     cls._engine.dispose(close=True)
-    CloudSQLEnrichmentTestHelper.stop_sql_db_container(cls.db)
     cls._engine = None
 
   def test_cloudsql_enrichment(self):
@@ -302,11 +312,7 @@ class BaseTestCloudSQLEnrichment(unittest.TestCase):
         where_clause_fields=fields)
 
     handler = CloudSQLEnrichmentHandler(
-        database_type_adapter=self.db.adapter,
-        database_address=self.db.address,
-        database_user=self.db.user,
-        database_password=self.db.id,
-        database_id=self.db.id,
+        connection_config=self.connection_config,
         query_config=query_config,
         min_batch_size=1,
         max_batch_size=100,
@@ -333,11 +339,7 @@ class BaseTestCloudSQLEnrichment(unittest.TestCase):
         where_clause_fields=fields)
 
     handler = CloudSQLEnrichmentHandler(
-        database_type_adapter=self.db.adapter,
-        database_address=self.db.address,
-        database_user=self.db.user,
-        database_password=self.db.password,
-        database_id=self.db.id,
+        connection_config=self.connection_config,
         query_config=query_config,
         min_batch_size=2,
         max_batch_size=100,
@@ -364,11 +366,7 @@ class BaseTestCloudSQLEnrichment(unittest.TestCase):
         where_clause_fields=fields)
 
     handler = CloudSQLEnrichmentHandler(
-        database_type_adapter=self.db.adapter,
-        database_address=self.db.address,
-        database_user=self.db.user,
-        database_password=self.db.password,
-        database_id=self.db.id,
+        connection_config=self.connection_config,
         query_config=query_config,
         min_batch_size=8,
         max_batch_size=100,
@@ -392,12 +390,7 @@ class BaseTestCloudSQLEnrichment(unittest.TestCase):
     query_config = CustomQueryConfig(query_fn=fn)
 
     handler = CloudSQLEnrichmentHandler(
-        database_type_adapter=self.db.adapter,
-        database_address=self.db.address,
-        database_user=self.db.user,
-        database_password=self.db.password,
-        database_id=self.db.id,
-        query_config=query_config)
+        connection_config=self.connection_config, query_config=query_config)
     with TestPipeline(is_integration_test=True) as test_pipeline:
       pcoll = (test_pipeline | beam.Create(requests) | Enrichment(handler))
 
@@ -419,11 +412,7 @@ class BaseTestCloudSQLEnrichment(unittest.TestCase):
         where_clause_value_fn=where_clause_value_fn)
 
     handler = CloudSQLEnrichmentHandler(
-        database_type_adapter=self.db.adapter,
-        database_address=self.db.address,
-        database_user=self.db.user,
-        database_password=self.db.password,
-        database_id=self.db.id,
+        connection_config=self.connection_config,
         query_config=query_config,
         min_batch_size=2,
         max_batch_size=100)
@@ -444,11 +433,7 @@ class BaseTestCloudSQLEnrichment(unittest.TestCase):
         where_clause_value_fn=where_clause_value_fn)
 
     handler = CloudSQLEnrichmentHandler(
-        database_type_adapter=self.db.adapter,
-        database_address=self.db.address,
-        database_user=self.db.user,
-        database_password=self.db.password,
-        database_id=self.db.id,
+        connection_config=self.connection_config,
         query_config=query_config,
         column_names=["wrong_column"],
     )
@@ -478,11 +463,7 @@ class BaseTestCloudSQLEnrichment(unittest.TestCase):
         where_clause_value_fn=where_clause_value_fn)
 
     handler = CloudSQLEnrichmentHandler(
-        database_type_adapter=self.db.adapter,
-        database_address=self.db.address,
-        database_user=self.db.user,
-        database_password=self.db.password,
-        database_id=self.db.id,
+        connection_config=self.connection_config,
         query_config=query_config,
         min_batch_size=2,
         max_batch_size=100)
@@ -520,22 +501,104 @@ class BaseTestCloudSQLEnrichment(unittest.TestCase):
     CloudSQLEnrichmentHandler.__call__ = actual
 
 
-@init_db_type(DatabaseTypeAdapter.POSTGRESQL)
+class BaseCloudSQLDBEnrichment(BaseTestCloudSQLEnrichment):
+  @classmethod
+  def setUpClass(cls):
+    if not hasattr(cls, '_db_adapter'):
+      # Skip setup for the base class.
+      raise unittest.SkipTest("Base class - no db_adapter defined")
+
+    # Type hint data from subclasses.
+    cls._db_adapter: DatabaseTypeAdapter
+    cls._instance_name: str
+
+    # GCP project configuration.
+    gcp_project_id = "apache-beam-testing"
+    region = "us-central1"
+
+    # Full instance connection name used for connecting via Cloud SQL.
+    instance_connection_name = f"{gcp_project_id}:{region}:{cls._instance_name}"
+
+    # IAM user for Cloud SQL IAM DB authentication.
+    user = "beam"
+
+    # Target database name within the Cloud SQL instance.
+    db_id = "testDB"
+
+    # Type of IP address used to connect to the instance.
+    ip_type = IPTypes.PUBLIC
+
+    cls.connection_config = CloudSQLConnectionConfig(
+        db_adapter=cls._db_adapter,
+        instance_connection_name=instance_connection_name,
+        user=user,
+        db_id=db_id,
+        enable_iam_auth=True,
+        password=None,
+        ip_type=ip_type)
+    super().setUpClass()
+
+  @classmethod
+  def tearDownClass(cls):
+    super().tearDownClass()
+    cls._db = None
+
+
+class TestCloudSQLPostgresEnrichment(BaseCloudSQLDBEnrichment):
+  _db_adapter = DatabaseTypeAdapter.POSTGRESQL
+  _instance_name = "test-postgres-instance"
+  _table_id = "product_details_cloudsql_pg_enrichment"
+  _metadata = MetaData()
+
+
 @pytest.mark.uses_testcontainer
-class TestCloudSQLEnrichmentPostgres(BaseTestCloudSQLEnrichment):
-  _table_id = "product_details_pg"
+class BaseExternalSQLDBEnrichment(BaseTestCloudSQLEnrichment):
+  @classmethod
+  def setUpClass(cls):
+    if not hasattr(cls, '_db_adapter'):
+      # Skip setup for the base class.
+      raise unittest.SkipTest("Base class - no db_adapter defined")
+
+    # Type hint data from subclasses.
+    cls._db_adapter: DatabaseTypeAdapter
+
+    cls._db = CloudSQLEnrichmentTestHelper.start_sql_db_container(
+        cls._db_adapter)
+    cls.connection_config = ExternalSQLDBConnectionConfig(
+        db_adapter=cls._db_adapter,
+        host=cls._db.host,
+        user=cls._db.user,
+        password=cls._db.password,
+        db_id=cls._db.id,
+        port=cls._db.port)
+    super().setUpClass()
+
+  @classmethod
+  def tearDownClass(cls):
+    super().tearDownClass()
+    CloudSQLEnrichmentTestHelper.stop_sql_db_container(cls._db)
+    cls._db = None
 
 
-@init_db_type(DatabaseTypeAdapter.MYSQL)
 @pytest.mark.uses_testcontainer
-class TestCloudSQLEnrichmentMySQL(BaseTestCloudSQLEnrichment):
-  _table_id = "product_details_mysql"
+class TestExternalPostgresEnrichment(BaseExternalSQLDBEnrichment):
+  _db_adapter = DatabaseTypeAdapter.POSTGRESQL
+  _table_id = "product_details_external_pg_enrichment"
+  _metadata = MetaData()
 
 
-@init_db_type(DatabaseTypeAdapter.SQLSERVER)
 @pytest.mark.uses_testcontainer
-class TestCloudSQLEnrichmentSQLServer(BaseTestCloudSQLEnrichment):
-  _table_id = "product_details_mssql"
+class TestExternalMySQLEnrichment(BaseExternalSQLDBEnrichment):
+  _db_adapter = DatabaseTypeAdapter.MYSQL
+  _table_id = "product_details_external_mysql_enrichment"
+  _metadata = MetaData()
+
+
+@pytest.mark.uses_testcontainer
+class TestExternalSQLServerEnrichment(BaseExternalSQLDBEnrichment):
+  _db_adapter = DatabaseTypeAdapter.SQLSERVER
+  _table_id = "product_details_external_mssql_enrichment"
+  _metadata = MetaData()
 
 
 if __name__ == "__main__":

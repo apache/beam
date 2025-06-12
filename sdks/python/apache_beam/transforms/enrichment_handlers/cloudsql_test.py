@@ -25,7 +25,8 @@ try:
       DatabaseTypeAdapter,
       CustomQueryConfig,
       TableFieldsQueryConfig,
-      TableFunctionQueryConfig)
+      TableFunctionQueryConfig,
+      ExternalSQLDBConnectionConfig)
   from apache_beam.transforms.enrichment_handlers.cloudsql_it_test import (
       query_fn,
       where_clause_value_fn,
@@ -95,19 +96,24 @@ class TestCloudSQLEnrichment(unittest.TestCase):
   def test_invalid_query_config(
       self, create_config, min_batch_size, max_batch_size, expected_error_msg):
     """Test that validation errors are raised for invalid query configs.
-    
+
     The test verifies both that the appropriate ValueError is raised and that
     the error message contains the expected text.
     """
     with self.assertRaises(ValueError) as context:
       # Call the lambda to create the config.
       query_config = create_config()
+
+      connection_config = ExternalSQLDBConnectionConfig(
+          db_adapter=DatabaseTypeAdapter.POSTGRESQL,
+          host='',
+          port=5432,
+          user='',
+          password='',
+          db_id='')
+
       _ = CloudSQLEnrichmentHandler(
-          database_type_adapter=DatabaseTypeAdapter.POSTGRESQL,
-          database_address='',
-          database_user='',
-          database_password='',
-          database_id='',
+          connection_config=connection_config,
           query_config=query_config,
           min_batch_size=min_batch_size,
           max_batch_size=max_batch_size,
@@ -123,12 +129,16 @@ class TestCloudSQLEnrichment(unittest.TestCase):
         where_clause_template="id = '{}'",
         where_clause_fields=["id"])
 
+    connection_config = ExternalSQLDBConnectionConfig(
+        db_adapter=DatabaseTypeAdapter.POSTGRESQL,
+        host='localhost',
+        port=5432,
+        user='user',
+        password='password',
+        db_id='db')
+
     handler1 = CloudSQLEnrichmentHandler(
-        database_type_adapter=DatabaseTypeAdapter.POSTGRESQL,
-        database_address='localhost',
-        database_user='user',
-        database_password='password',
-        database_id='db',
+        connection_config=connection_config,
         query_config=table_fields_config,
         min_batch_size=1,
         max_batch_size=10)
@@ -143,11 +153,7 @@ class TestCloudSQLEnrichment(unittest.TestCase):
         where_clause_value_fn=where_clause_value_fn)
 
     handler2 = CloudSQLEnrichmentHandler(
-        database_type_adapter=DatabaseTypeAdapter.POSTGRESQL,
-        database_address='localhost',
-        database_user='user',
-        database_password='password',
-        database_id='db',
+        connection_config=connection_config,
         query_config=table_function_config,
         min_batch_size=1,
         max_batch_size=10)
@@ -159,12 +165,7 @@ class TestCloudSQLEnrichment(unittest.TestCase):
     custom_config = CustomQueryConfig(query_fn=query_fn)
 
     handler3 = CloudSQLEnrichmentHandler(
-        database_type_adapter=DatabaseTypeAdapter.POSTGRESQL,
-        database_address='localhost',
-        database_user='user',
-        database_password='password',
-        database_id='db',
-        query_config=custom_config)
+        connection_config=connection_config, query_config=custom_config)
 
     # Verify that batching kwargs are empty for CustomQueryConfig.
     self.assertEqual(handler3.batch_elements_kwargs(), {})
@@ -173,13 +174,16 @@ class TestCloudSQLEnrichment(unittest.TestCase):
     """Test get_cache_key raises NotImplementedError with CustomQueryConfig."""
     custom_config = CustomQueryConfig(query_fn=query_fn)
 
+    connection_config = ExternalSQLDBConnectionConfig(
+        db_adapter=DatabaseTypeAdapter.POSTGRESQL,
+        host='localhost',
+        port=5432,
+        user='user',
+        password='password',
+        db_id='db')
+
     handler = CloudSQLEnrichmentHandler(
-        database_type_adapter=DatabaseTypeAdapter.POSTGRESQL,
-        database_address='localhost',
-        database_user='user',
-        database_password='password',
-        database_id='db',
-        query_config=custom_config)
+        connection_config=connection_config, query_config=custom_config)
 
     # Create a dummy request
     import apache_beam as beam
