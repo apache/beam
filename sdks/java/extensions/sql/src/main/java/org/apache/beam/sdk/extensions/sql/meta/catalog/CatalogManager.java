@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.extensions.sql.meta.catalog;
 
 import java.util.Map;
-
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteSchema;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
