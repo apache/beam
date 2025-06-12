@@ -15,16 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.meta.catalog;
 
-import org.apache.beam.sdk.annotations.Internal;
-
-/**
- * Over-arching registrar to capture available {@link Catalog}s. Implementations should be marked
- * with {@link com.google.auto.service.AutoService} to be available to {@link
- * java.util.ServiceLoader}s.
- */
-@Internal
-public interface CatalogRegistrar {
-  Iterable<Class<? extends Catalog>> getCatalogs();
-}
+/** Table schema for Iceberg. */
+package org.apache.beam.sdk.extensions.sql.meta.provider.iceberg;
