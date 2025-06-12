@@ -1,14 +1,18 @@
-import unittest
 from concurrent.futures import ThreadPoolExecutor
+import unittest
 import logging
 import random
 from threading import Lock
 import time
 
 import apache_beam as beam
-from async_dofn import AsyncWrapper
+from apache_beam.integration import basic_run_async as async_lib
+
+from google3.testing.pybase import googletest
+
 
 class BasicDofn(beam.DoFn):
+
   def __init__(self, sleep_time=0):
     self.processed = 0
     self.sleep_time = sleep_time
@@ -29,8 +33,10 @@ class BasicDofn(beam.DoFn):
     self.lock.release()
     return result
 
+
 # Used for testing multiple elements produced by a single input element.
 class MultiElementDoFn(beam.DoFn):
+
   def finish_bundle(self):
     yield ('key', 'bundle end')
 
@@ -39,7 +45,8 @@ class MultiElementDoFn(beam.DoFn):
     yield element
 
 
-class FakeBagState():
+class FakeBagState:
+
   def __init__(self, items):
     self.items = items
     # Normally SE would have a lock on the BT row protecting this from multiple
@@ -59,22 +66,25 @@ class FakeBagState():
       return self.items.copy()
 
 
-class FakeTimer():
+class FakeTimer:
+
   def __init__(self, time):
     self.time = time
 
   def set(self, time):
     self.time = time
 
+
 class AsyncTest(unittest.TestCase):
+
   def setUp(self):
     super().setUp()
-    AsyncWrapper.reset_state()
+    async_lib.AsyncWrapper.reset_state()
 
   def wait_for_empty(self, async_dofn, timeout=10):
     count = 0
     increment = 1
-    while(not async_dofn.is_empty()):
+    while not async_dofn.is_empty():
       time.sleep(1)
       count += increment
       if count > timeout:
@@ -95,14 +105,14 @@ class AsyncTest(unittest.TestCase):
 
   def check_items_in_buffer(self, async_dofn, expected_count):
     self.assertEqual(
-        AsyncWrapper._items_in_buffer[async_dofn._uuid],
+        async_lib.AsyncWrapper._items_in_buffer[async_dofn._uuid],
         expected_count,
     )
 
   def test_basic(self):
     # Setup an async dofn and send a message in to process.
     dofn = BasicDofn()
-    async_dofn = AsyncWrapper(dofn)
+    async_dofn = async_lib.AsyncWrapper(dofn)
     async_dofn.setup()
     fake_bag_state = FakeBagState([])
     fake_timer = FakeTimer(0)
@@ -130,13 +140,13 @@ class AsyncTest(unittest.TestCase):
   def test_multi_key(self):
     # Send in two messages with different keys..
     dofn = BasicDofn()
-    async_dofn = AsyncWrapper(dofn)
+    async_dofn = async_lib.AsyncWrapper(dofn)
     async_dofn.setup()
     fake_bag_state_key1 = FakeBagState([])
     fake_bag_state_key2 = FakeBagState([])
     fake_timer = FakeTimer(0)
-    msg1 = ('key1', 1) 
-    msg2 = ('key2', 2) 
+    msg1 = ('key1', 1)
+    msg2 = ('key2', 2)
     async_dofn.process(msg1, to_process=fake_bag_state_key1, timer=fake_timer)
     async_dofn.process(msg2, to_process=fake_bag_state_key2, timer=fake_timer)
     self.wait_for_empty(async_dofn)
@@ -158,11 +168,11 @@ class AsyncTest(unittest.TestCase):
   def test_long_item(self):
     # Test that everything still works with a long running time for the dofn.
     dofn = BasicDofn(sleep_time=5)
-    async_dofn = AsyncWrapper(dofn)
+    async_dofn = async_lib.AsyncWrapper(dofn)
     async_dofn.setup()
     fake_bag_state = FakeBagState([])
     fake_timer = FakeTimer(0)
-    msg = ('key1', 1) 
+    msg = ('key1', 1)
     async_dofn.process(msg, to_process=fake_bag_state, timer=fake_timer)
 
     result = async_dofn.commit_finished_items(fake_bag_state, fake_timer)
@@ -181,10 +191,10 @@ class AsyncTest(unittest.TestCase):
     # Setup an element in the bag stat thats not in processing state.
     # The async dofn should reschedule this element.
     dofn = BasicDofn()
-    async_dofn = AsyncWrapper(dofn)
+    async_dofn = async_lib.AsyncWrapper(dofn)
     async_dofn.setup()
     fake_timer = FakeTimer(0)
-    msg = ('key1', 1) 
+    msg = ('key1', 1)
     fake_bag_state = FakeBagState([msg])
 
     result = async_dofn.commit_finished_items(fake_bag_state, fake_timer)
@@ -199,7 +209,7 @@ class AsyncTest(unittest.TestCase):
     # it is not present in the bag state. Either this item moved or a commit
     # failed making the local state and bag stat inconsistent.
     dofn = BasicDofn()
-    async_dofn = AsyncWrapper(dofn)
+    async_dofn = async_lib.AsyncWrapper(dofn)
     async_dofn.setup()
     msg = ('key1', 1)
     msg2 = ('key1', 2)
@@ -219,11 +229,11 @@ class AsyncTest(unittest.TestCase):
     # Test that async works when a dofn produces multiple elements in process
     # and finish_bundle.
     dofn = MultiElementDoFn()
-    async_dofn = AsyncWrapper(dofn)
+    async_dofn = async_lib.AsyncWrapper(dofn)
     async_dofn.setup()
     fake_bag_state = FakeBagState([])
     fake_timer = FakeTimer(0)
-    msg = ('key1', 1) 
+    msg = ('key1', 1)
     async_dofn.process(msg, to_process=fake_bag_state, timer=fake_timer)
 
     self.wait_for_empty(async_dofn)
@@ -236,11 +246,11 @@ class AsyncTest(unittest.TestCase):
     # Test that async will produce a single output when a given input is sent
     # multiple times.
     dofn = BasicDofn(5)
-    async_dofn = AsyncWrapper(dofn)
+    async_dofn = async_lib.AsyncWrapper(dofn)
     async_dofn.setup()
     fake_bag_state = FakeBagState([])
     fake_timer = FakeTimer(0)
-    msg = ('key1', 1) 
+    msg = ('key1', 1)
     async_dofn.process(msg, to_process=fake_bag_state, timer=fake_timer)
     # SE will only deliver the message again if the commit failed and so bag
     # state should still be empty.
@@ -257,11 +267,11 @@ class AsyncTest(unittest.TestCase):
     # Test that async will produce a single output when a given input is sent
     # multiple times.
     dofn = BasicDofn(5)
-    async_dofn = AsyncWrapper(dofn)
+    async_dofn = async_lib.AsyncWrapper(dofn)
     async_dofn.setup()
     fake_bag_state = FakeBagState([])
     fake_timer = FakeTimer(0)
-    msg = ('key1', 1) 
+    msg = ('key1', 1)
     async_dofn.process(msg, to_process=fake_bag_state, timer=fake_timer)
     time.sleep(10)
     # SE will only deliver the message again if the commit failed and so bag
@@ -282,7 +292,7 @@ class AsyncTest(unittest.TestCase):
   def test_buffer_count(self):
     # Test that the buffer count is correctly incremented when adding items.
     dofn = BasicDofn(5)
-    async_dofn = AsyncWrapper(dofn)
+    async_dofn = async_lib.AsyncWrapper(dofn)
     async_dofn.setup()
     msg = ('key1', 1)
     fake_timer = FakeTimer(0)
@@ -299,7 +309,7 @@ class AsyncTest(unittest.TestCase):
   def test_buffer_stops_accepting_items(self):
     # Test that the buffer stops accepting items when it is full.
     dofn = BasicDofn(5)
-    async_dofn = AsyncWrapper(
+    async_dofn = async_lib.AsyncWrapper(
         dofn, parallelism=1, max_items_to_buffer=5
     )
     async_dofn.setup()
@@ -336,7 +346,7 @@ class AsyncTest(unittest.TestCase):
 
   def test_buffer_with_cancellation(self):
     dofn = BasicDofn(3)
-    async_dofn = AsyncWrapper(dofn)
+    async_dofn = async_lib.AsyncWrapper(dofn)
     async_dofn.setup()
     msg = ('key1', 1)
     msg2 = ('key1', 2)
@@ -368,7 +378,7 @@ class AsyncTest(unittest.TestCase):
     # Test AsyncDofn over heavy load.
     dofn = BasicDofn(1)
     max_sleep = 10
-    async_dofn = AsyncWrapper(dofn, max_wait_time=max_sleep)
+    async_dofn = async_lib.AsyncWrapper(dofn, max_wait_time=max_sleep)
     async_dofn.setup()
     bag_states = {}
     timers = {}
@@ -403,9 +413,11 @@ class AsyncTest(unittest.TestCase):
     # Commit some stuff
     pre_crash_results = []
     for i in range(0, 10):
-      pre_crash_results.append(async_dofn.commit_finished_items(
-          bag_states['key' + str(i)], timers['key' + str(i)]
-      ))
+      pre_crash_results.append(
+          async_dofn.commit_finished_items(
+              bag_states['key' + str(i)], timers['key' + str(i)]
+          )
+      )
 
     # Wait for all items to at least make it into the buffer.
     done = False
@@ -430,7 +442,3 @@ class AsyncTest(unittest.TestCase):
           pre_crash_results[i] + result, expected_outputs['key' + str(i)]
       )
       self.assertEqual(bag_states['key' + str(i)].items, [])
-
-
-if __name__ == '__main__':
-  googletest.main()

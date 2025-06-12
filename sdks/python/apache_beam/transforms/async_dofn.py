@@ -1,3 +1,31 @@
+from __future__ import absolute_import
+
+from concurrent.futures import ThreadPoolExecutor
+from itertools import chain
+import logging
+from math import floor
+from multiprocessing import pool
+import random
+from threading import RLock
+from threading import Timer
+from time import sleep
+from time import time
+from types import GeneratorType
+from typing import Any, Dict, Iterable, Optional, Sequence
+import uuid
+
+import apache_beam as beam
+from apache_beam import DoFn
+from apache_beam import ParDo
+from apache_beam import TimeDomain
+from apache_beam.coders import coders
+from apache_beam.transforms.userstate import BagStateSpec
+from apache_beam.transforms.userstate import on_timer
+from apache_beam.transforms.userstate import ReadModifyWriteStateSpec
+from apache_beam.transforms.userstate import TimerSpec
+from apache_beam.utils.timestamp import Duration
+from apache_beam.utils.timestamp import Timestamp
+
 # A wrapper around a dofn that processes that dofn in an asynchronous manner.
 class AsyncWrapper(beam.DoFn):
   """Class that wraps a dofn and converts it from one which process elements synchronously to one which processes them asynchronously.
@@ -9,11 +37,12 @@ class AsyncWrapper(beam.DoFn):
   should be considered when the default parallelism is not correct and/or items
   are expected to take longer than a few seconds to process.
   """
+
   TIMER = TimerSpec('timer', TimeDomain.REAL_TIME)
   TIMER_SET = ReadModifyWriteStateSpec('timer_set', coders.BooleanCoder())
   TO_PROCESS = BagStateSpec(
       'to_process',
-      coders.TupleCoder([coders.StrUtf8Coder(), coders.StrUtf8Coder()])
+      coders.TupleCoder([coders.StrUtf8Coder(), coders.StrUtf8Coder()]),
   )
   _timer_frequency = 20
   # The below items are one per dofn (not instance) so are maps of UUID to
@@ -99,8 +128,8 @@ class AsyncWrapper(beam.DoFn):
     self._sync_fn.teardown()
 
   def sync_fn_process(self, element, *args, **kwargs):
-    """
-    Makes the call to the wrapped dofn's start_bundle, process and finish_bundle
+    """Makes the call to the wrapped dofn's start_bundle, process and finish_bundle
+
     methods.  It will then combine the results into a single generator.
 
     Args:
@@ -110,6 +139,7 @@ class AsyncWrapper(beam.DoFn):
       **kwargs: Any additional keyword arguments to pass to the wrapped dofn's
         process method.  Will be the same kwargs that the async wrapper is
         called with.
+
     Returns:
       A generator of elements produced by the input element.
     """
@@ -136,7 +166,7 @@ class AsyncWrapper(beam.DoFn):
     for x in bundle_result:
       to_return.append(x)
 
-    return to_return 
+    return to_return
 
   def decrement_items_in_buffer(self, future):
     with AsyncWrapper._lock:
@@ -144,7 +174,7 @@ class AsyncWrapper(beam.DoFn):
 
   def schedule_if_room(self, element, ignore_buffer=False, *args, **kwargs):
     """Schedules an item to be processed asynchronously if there is room.
-    
+
     Args:
       element: The element to process.
       ignore_buffer: If true will ignore the buffer limit and schedule the item
@@ -152,16 +182,17 @@ class AsyncWrapper(beam.DoFn):
         front such as retries.
       *args: arguments that the wrapped dofn requires.
       **kwargs: keyword arguments that the wrapped dofn requires.
+
     Returns:
       True if the item was scheduled False otherwise.
     """
     with AsyncWrapper._lock:
-      if(element in AsyncWrapper._processing_elements[self._uuid]):
+      if element in AsyncWrapper._processing_elements[self._uuid]:
         logging.info('item %s already in processing elements', element)
         return True
-      if(self.accepting_items() or ignore_buffer):
+      if self.accepting_items() or ignore_buffer:
         result = AsyncWrapper._pool[self._uuid].submit(
-          lambda: self.sync_fn_process(element, *args, **kwargs),
+            lambda: self.sync_fn_process(element, *args, **kwargs),
         )
         result.add_done_callback(self.decrement_items_in_buffer)
         AsyncWrapper._processing_elements[self._uuid][element] = result
@@ -207,7 +238,6 @@ class AsyncWrapper(beam.DoFn):
         total_sleep += sleep_time
         sleep(sleep_time)
 
-
   def next_time_to_fire(self):
     return (
         floor((time() + self._timer_frequency) / self._timer_frequency)
@@ -237,13 +267,14 @@ class AsyncWrapper(beam.DoFn):
 
     Performs additional bookkeeping to maintain exactly once and set timers to
     commit item after it has finished processing.
-    
+
     Args:
       element: The element to process.
       timer: Callback timer that will commit elements.
       to_process: State that keeps track of queued items for exactly once.
       *args: arguments that the wrapped dofn requires.
       **kwargs: keyword arguments that the wrapped dofn requires.
+
     Returns:
       An empty list. The elements will be output asynchronously.
     """
@@ -264,8 +295,11 @@ class AsyncWrapper(beam.DoFn):
   # Synchronises local state (processing_elements_) with SE state (to_process).
   # Then outputs all finished elements. Finally, sets a timer to fire on the
   # next round increment of timer_frequency_.
-  def commit_finished_items(self, to_process=beam.DoFn.StateParam(TO_PROCESS),
-                            timer=beam.DoFn.TimerParam(TIMER)):
+  def commit_finished_items(
+      self,
+      to_process=beam.DoFn.StateParam(TO_PROCESS),
+      timer=beam.DoFn.TimerParam(TIMER),
+  ):
     """Commits finished items and synchronizes local state with runner state.
 
     Note timer firings are per key while local state contains messages for all
@@ -357,7 +391,9 @@ class AsyncWrapper(beam.DoFn):
     logging.info('items rescheduled %d', items_rescheduled)
     logging.info('items cancelled %d', items_cancelled)
     logging.info('items in processing state %d', items_in_processing_state)
-    logging.info('items in buffer %d', AsyncWrapper._items_in_buffer[self._uuid]) 
+    logging.info(
+        'items in buffer %d', AsyncWrapper._items_in_buffer[self._uuid]
+    )
 
     # If there are items not yet finished then set a timer to fire in the
     # future.
@@ -380,11 +416,12 @@ class AsyncWrapper(beam.DoFn):
       timer=beam.DoFn.TimerParam(TIMER),
   ):
     """Helper method to commit finished items in response to timer firing.
-    
+
     Args:
       to_process: State that keeps track of queued items for exactly once.
       timer: Timer that initiated this commit and can be reset if not all items
         have finished.
+
     Returns:
       A generator of elements that have finished processing for this key.
     """
