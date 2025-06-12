@@ -2091,7 +2091,7 @@ class WriteStreamingTest(unittest.TestCase):
     print("Found files matching expected pattern:", file_names)
     self.assertGreaterEqual(
         len(file_names),
-        1 * 3, #25s of data covered by 3 10s windows
+        1 * 3,  #25s of data covered by 3 10s windows
         "expected %d files, but got: %d" % (1 * 3, len(file_names)))
 
   def test_write_streaming_undef_shards_default_shard_name_template_windowed_pcoll_and_trig_freq(  # pylint: disable=line-too-long
@@ -2134,7 +2134,7 @@ class WriteStreamingTest(unittest.TestCase):
     print("Found files matching expected pattern:", file_names)
     self.assertGreaterEqual(
         len(file_names),
-        1 * 3, #25s of data covered by 3 10s windows
+        1 * 3,  #25s of data covered by 3 10s windows
         "expected %d files, but got: %d" % (1 * 3, len(file_names)))
 
   def test_write_streaming_undef_shards_default_shard_name_template_global_window_pcoll(  # pylint: disable=line-too-long
@@ -2170,7 +2170,7 @@ class WriteStreamingTest(unittest.TestCase):
     print("Found files matching expected pattern:", file_names)
     self.assertGreaterEqual(
         len(file_names),
-        1 * 3, #25s of data covered by 3 10s windows
+        1 * 3,  #25s of data covered by 3 10s windows
         "expected %d files, but got: %d" % (1 * 3, len(file_names)))
 
   def test_write_streaming_2_shards_custom_shard_name_template(
