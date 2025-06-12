@@ -78,7 +78,7 @@ public class BeamFnStatusClient implements AutoCloseable {
     // Start the rpc after all the initialization is complete as the InboundObserver
     // may be called any time after this.
     this.outboundObserver =
-            BeamFnWorkerStatusGrpc.newStub(channel).workerStatus(new InboundObserver());
+        BeamFnWorkerStatusGrpc.newStub(channel).workerStatus(new InboundObserver());
   }
 
   @Override
