@@ -18,22 +18,15 @@
 from __future__ import absolute_import
 
 from concurrent.futures import ThreadPoolExecutor
-from itertools import chain
 import logging
 from math import floor
-from multiprocessing import pool
-import random
 from threading import RLock
-from threading import Timer
 from time import sleep
 from time import time
 from types import GeneratorType
-from typing import Any, Dict, Iterable, Optional, Sequence
 import uuid
 
 import apache_beam as beam
-from apache_beam import DoFn
-from apache_beam import ParDo
 from apache_beam import TimeDomain
 from apache_beam.coders import coders
 from apache_beam.transforms.userstate import BagStateSpec
@@ -46,7 +39,8 @@ from apache_beam.utils.timestamp import Timestamp
 
 # A wrapper around a dofn that processes that dofn in an asynchronous manner.
 class AsyncWrapper(beam.DoFn):
-  """Class that wraps a dofn and converts it from one which process elements synchronously to one which processes them asynchronously.
+  """Class that wraps a dofn and converts it from one which process elements
+  synchronously to one which processes them asynchronously.
 
   For synchronous dofns the default settings mean that many (100s) of elements
   will be processed in parallel and that processing an element will block all
@@ -145,7 +139,7 @@ class AsyncWrapper(beam.DoFn):
     self._sync_fn.teardown()
 
   def sync_fn_process(self, element, *args, **kwargs):
-    """Makes the call to the wrapped dofn's start_bundle, process and finish_bundle
+    """Makes the call to the wrapped dofn's start_bundle, process
 
     methods.  It will then combine the results into a single generator.
 
@@ -277,7 +271,7 @@ class AsyncWrapper(beam.DoFn):
       to_process=beam.DoFn.StateParam(TO_PROCESS),
       *args,
       **kwargs):
-    """Add the input elements to the list of items to be processed asynchronously.
+    """Add the elements to the list of items to be processed asynchronously.
 
     Performs additional bookkeeping to maintain exactly once and set timers to
     commit item after it has finished processing.
@@ -360,7 +354,7 @@ class AsyncWrapper(beam.DoFn):
       for x in AsyncWrapper._processing_elements[self._uuid]:
         if x[0] == key and x not in to_process_local:
           items_cancelled += 1
-          cancelled = AsyncWrapper._processing_elements[self._uuid][x].cancel()
+          AsyncWrapper._processing_elements[self._uuid][x].cancel()
           to_remove.append(x)
           logging.info(
               'cancelling item %s which is no longer in processing state', x)

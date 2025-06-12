@@ -23,9 +23,7 @@ from threading import Lock
 import time
 
 import apache_beam as beam
-from apache_beam.integration import basic_run_async as async_lib
-
-from google3.testing.pybase import googletest
+import async_dofn as async_lib
 
 
 class BasicDofn(beam.DoFn):
