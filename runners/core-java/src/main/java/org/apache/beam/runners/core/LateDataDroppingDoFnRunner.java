@@ -142,7 +142,7 @@ public class LateDataDroppingDoFnRunner<K, InputT, OutputT, W extends BoundedWin
           } else {
             nonLateElements.add(
                 WindowedValues.of(
-                    element.getValue(), element.getTimestamp(), window, element.getPane()));
+                    element.getValue(), element.getTimestamp(), window, element.getPaneInfo()));
           }
         }
       }

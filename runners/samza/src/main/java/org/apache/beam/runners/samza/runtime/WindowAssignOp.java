@@ -47,7 +47,7 @@ public class WindowAssignOp<T, W extends BoundedWindow> implements Op<T, T, Void
                     inputElement.getValue(),
                     inputElement.getTimestamp(),
                     window,
-                    inputElement.getPane()))
+                    inputElement.getPaneInfo()))
         .forEach(outputElement -> emitter.emitElement(outputElement));
   }
 }

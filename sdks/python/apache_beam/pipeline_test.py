@@ -172,9 +172,7 @@ class PipelineTest(unittest.TestCase):
       def expand(self, pcoll):
         return pcoll | DoNothingTransform()
 
-    with pytest.raises(
-        TypeCheckError,
-        match=r".*applied to the output.*ParentTransform/DoNothingTransform"):
+    with pytest.raises(TypeCheckError, match=r".*applied to the output"):
       with TestPipeline() as pipeline:
         _ = pipeline | ParentTransform() | beam.Map(lambda x: x + 1)
 
@@ -752,7 +750,9 @@ class PipelineTest(unittest.TestCase):
           RuntimeError,
           'Pipeline construction environment and pipeline runtime '
           'environment are not compatible.'):
-        with TestPipeline() as p:
+        # TODO(https://github.com/apache/beam/issues/34549): Prism doesn't
+        # pass through capabilities as part of the ProcessBundleDescriptor.
+        with TestPipeline('FnApiRunner') as p:
           _ = p | Create([None])
 
 

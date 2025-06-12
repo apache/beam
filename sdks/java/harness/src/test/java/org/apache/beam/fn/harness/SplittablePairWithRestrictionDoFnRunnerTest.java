@@ -362,7 +362,7 @@ public class SplittablePairWithRestrictionDoFnRunnerTest implements Serializable
                           GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(1)))),
                   firstValue.getTimestamp(),
                   window1,
-                  firstValue.getPane()),
+                  firstValue.getPaneInfo()),
               WindowedValues.of(
                   KV.of(
                       "5",
@@ -371,7 +371,7 @@ public class SplittablePairWithRestrictionDoFnRunnerTest implements Serializable
                           GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(1)))),
                   firstValue.getTimestamp(),
                   window2,
-                  firstValue.getPane()),
+                  firstValue.getPaneInfo()),
               WindowedValues.of(
                   KV.of(
                       "2",
@@ -380,7 +380,7 @@ public class SplittablePairWithRestrictionDoFnRunnerTest implements Serializable
                           GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(1)))),
                   secondValue.getTimestamp(),
                   window1,
-                  secondValue.getPane()),
+                  secondValue.getPaneInfo()),
               WindowedValues.of(
                   KV.of(
                       "2",
@@ -389,7 +389,7 @@ public class SplittablePairWithRestrictionDoFnRunnerTest implements Serializable
                           GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(1)))),
                   secondValue.getTimestamp(),
                   window2,
-                  secondValue.getPane())));
+                  secondValue.getPaneInfo())));
       mainOutputValues.clear();
 
       assertTrue(context.getFinishBundleFunctions().isEmpty());
@@ -477,7 +477,7 @@ public class SplittablePairWithRestrictionDoFnRunnerTest implements Serializable
                           GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(1)))),
                   firstValue.getTimestamp(),
                   ImmutableList.of(window1, window2),
-                  firstValue.getPane()),
+                  firstValue.getPaneInfo()),
               WindowedValues.of(
                   KV.of(
                       "2",
@@ -486,7 +486,7 @@ public class SplittablePairWithRestrictionDoFnRunnerTest implements Serializable
                           GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(1)))),
                   secondValue.getTimestamp(),
                   ImmutableList.of(window1, window2),
-                  secondValue.getPane())));
+                  secondValue.getPaneInfo())));
       mainOutputValues.clear();
 
       assertTrue(context.getFinishBundleFunctions().isEmpty());

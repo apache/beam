@@ -711,11 +711,12 @@ public class StreamingDataflowWorkerTest {
 
   /** Sets the metadata of all the contained messages in this WorkItemCommitRequest. */
   private WorkItemCommitRequest.Builder setMessagesMetadata(
-      PaneInfo pane, byte[] windowBytes, WorkItemCommitRequest.Builder builder) throws Exception {
+      PaneInfo paneInfo, byte[] windowBytes, WorkItemCommitRequest.Builder builder)
+      throws Exception {
     if (windowBytes != null) {
       KeyedMessageBundle.Builder bundles = builder.getOutputMessagesBuilder(0).getBundlesBuilder(0);
       for (int i = 0; i < bundles.getMessagesCount(); i++) {
-        bundles.getMessagesBuilder(i).setMetadata(addPaneTag(pane, windowBytes));
+        bundles.getMessagesBuilder(i).setMetadata(addPaneTag(paneInfo, windowBytes));
       }
     }
     return builder;
@@ -832,9 +833,9 @@ public class StreamingDataflowWorkerTest {
     return config;
   }
 
-  private ByteString addPaneTag(PaneInfo pane, byte[] windowBytes) throws IOException {
+  private ByteString addPaneTag(PaneInfo paneInfo, byte[] windowBytes) throws IOException {
     ByteStringOutputStream output = new ByteStringOutputStream();
-    PaneInfo.PaneInfoCoder.INSTANCE.encode(pane, output, Context.OUTER);
+    PaneInfo.PaneInfoCoder.INSTANCE.encode(paneInfo, output, Context.OUTER);
     output.write(windowBytes);
     return output.toByteString();
   }
@@ -1747,7 +1748,7 @@ public class StreamingDataflowWorkerTest {
     String window = "/gAAAAAAAA-joBw/";
     String timerTagPrefix = "/s" + window + "+0";
     ByteString bufferTag = ByteString.copyFromUtf8(window + "+ubuf");
-    ByteString paneInfoTag = ByteString.copyFromUtf8(window + "+upane");
+    ByteString paneInfoTag = ByteString.copyFromUtf8(window + "+upaneInfo");
     String watermarkDataHoldTag = window + "+uhold";
     String watermarkExtraHoldTag = window + "+uextra";
     String stateFamily = "MergeWindows";
@@ -2036,7 +2037,7 @@ public class StreamingDataflowWorkerTest {
     String window = "/gAAAAAAAA-joBw/";
     String timerTagPrefix = "/s" + window + "+0";
     ByteString bufferTag = ByteString.copyFromUtf8(window + "+ubuf");
-    ByteString paneInfoTag = ByteString.copyFromUtf8(window + "+upane");
+    ByteString paneInfoTag = ByteString.copyFromUtf8(window + "+upaneInfo");
     String watermarkDataHoldTag = window + "+uhold";
     String watermarkExtraHoldTag = window + "+uextra";
     String stateFamily = "MergeWindows";
