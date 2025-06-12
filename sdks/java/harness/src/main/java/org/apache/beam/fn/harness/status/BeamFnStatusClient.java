@@ -65,8 +65,6 @@ public class BeamFnStatusClient implements AutoCloseable {
       PipelineOptions options,
       Cache<?, ?> cache) {
     this.channel = channelFactory.apply(apiServiceDescriptor);
-    this.outboundObserver =
-        BeamFnWorkerStatusGrpc.newStub(channel).workerStatus(new InboundObserver());
     this.processBundleCache = processBundleCache;
     this.memoryMonitor = MemoryMonitor.fromOptions(options);
     this.cache = cache;
@@ -76,6 +74,11 @@ public class BeamFnStatusClient implements AutoCloseable {
     thread.setPriority(Thread.MIN_PRIORITY);
     thread.setName("MemoryMonitor");
     thread.start();
+
+    // Start the rpc after all the initialization is complete as the InboundObserver
+    // may be called any time after this.
+    this.outboundObserver =
+            BeamFnWorkerStatusGrpc.newStub(channel).workerStatus(new InboundObserver());
   }
 
   @Override
