@@ -7,6 +7,7 @@
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [
+    "mohamedawnallah",
     "mohamedawnallah"
   ],
   "committerAssigned": false
