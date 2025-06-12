@@ -49,8 +49,8 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for {@link org.apache.beam.sdk.io.gcp.spanner.SpannerReadSchemaTransformProvider}
- * and {@link org.apache.beam.sdk.io.gcp.spanner.SpannerWriteSchemaTransformProvider}.
+ * Tests for {@link org.apache.beam.sdk.io.gcp.spanner.SpannerReadSchemaTransformProvider} and
+ * {@link org.apache.beam.sdk.io.gcp.spanner.SpannerWriteSchemaTransformProvider}.
  */
 @RunWith(JUnit4.class)
 public class SpannerSchemaTransformProviderTest {
