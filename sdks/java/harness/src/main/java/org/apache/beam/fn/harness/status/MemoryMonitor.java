@@ -343,9 +343,9 @@ public class MemoryMonitor implements Runnable {
           remoteDest = remoteDest + ".gz";
         }
         LOG.warn(
-            "Heap dump {} of {} bytes detected, attempting to upload file to {}",
+            "Heap dump {} of {}MB detected, attempting to upload file to {}",
             localSource,
-            localSource.getTotalSpace(),
+            localSource.length() / 1024 / 1024,
             remoteDest);
         ResourceId resource = FileSystems.matchNewResource(remoteDest, false);
         try {
