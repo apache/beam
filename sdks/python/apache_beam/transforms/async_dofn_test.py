@@ -23,7 +23,7 @@ from threading import Lock
 import time
 
 import apache_beam as beam
-import async_dofn as async_lib
+import apache_beam.transforms.async_dofn as async_lib
 
 
 class BasicDofn(beam.DoFn):
