@@ -17,18 +17,25 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.iceberg;
 
+import static java.lang.String.format;
 import static org.apache.beam.sdk.extensions.sql.meta.provider.iceberg.IcebergTable.TRIGGERING_FREQUENCY_FIELD;
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import java.util.List;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.sql.TableUtils;
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.extensions.sql.meta.catalog.InMemoryCatalogManager;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.calcite.v1_28_0.com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Test;
 
@@ -55,7 +62,10 @@ public class IcebergTableProviderTest {
 
     ObjectMapper mapper = new ObjectMapper();
     String propertiesString = mapper.writeValueAsString(properties);
-    Table table = fakeTableWithProperties("my_table", propertiesString);
+    Table table =
+        fakeTableBuilder("my_table")
+            .properties(TableUtils.parseProperties(propertiesString))
+            .build();
     BeamSqlTable sqlTable = provider.buildBeamSqlTable(table);
 
     assertNotNull(sqlTable);
@@ -66,18 +76,43 @@ public class IcebergTableProviderTest {
     assertEquals(provider.catalogConfig, icebergTable.catalogConfig);
   }
 
-  private static Table fakeTableWithProperties(String name, String properties) {
+  @Test
+  public void testBuildBeamSqlTableWithPartitionFields() {
+    List<String> partitionFields = ImmutableList.of("id", "truncate(name, 3)");
+    InMemoryCatalogManager catalogManager = new InMemoryCatalogManager();
+    BeamSqlEnv sqlEnv =
+        BeamSqlEnv.builder(catalogManager)
+            .setPipelineOptions(PipelineOptionsFactory.create())
+            .build();
+
+    sqlEnv.executeDdl("CREATE CATALOG my_catalog TYPE iceberg");
+    sqlEnv.executeDdl("SET CATALOG my_catalog");
+    sqlEnv.executeDdl(
+        "CREATE EXTERNAL TABLE test_partitioned_table(\n"
+            + "  id INTEGER,\n"
+            + "  name VARCHAR) \n"
+            + "TYPE 'iceberg' \n"
+            + "PARTITIONED BY ("
+            + partitionFields.stream().map(s -> format("`%s`", s)).collect(Collectors.joining(","))
+            + ") \n"
+            + "LOCATION 'namespace.test_partitioned_table'");
+
+    Table result = catalogManager.currentCatalog().metaStore().getTable("test_partitioned_table");
+    Table expected =
+        fakeTableBuilder("test_partitioned_table").partitionFields(partitionFields).build();
+
+    assertEquals(expected, result);
+  }
+
+  private static Table.Builder fakeTableBuilder(String name) {
     return Table.builder()
         .name(name)
-        .comment(name + " table")
-        .location("namespace.table")
+        .location("namespace." + name)
         .schema(
             Stream.of(
                     Schema.Field.nullable("id", Schema.FieldType.INT32),
                     Schema.Field.nullable("name", Schema.FieldType.STRING))
                 .collect(toSchema()))
-        .type("iceberg")
-        .properties(TableUtils.parseProperties(properties))
-        .build();
+        .type("iceberg");
   }
 }

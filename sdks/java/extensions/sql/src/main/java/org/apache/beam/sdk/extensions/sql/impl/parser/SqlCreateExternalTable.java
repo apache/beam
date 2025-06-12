@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.Sta
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.List;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.TableUtils;
 import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteSchema;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
@@ -33,12 +34,14 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlCreate;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlIdentifier;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlKind;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlNode;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlNodeList;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlOperator;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlUtil;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlWriter;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.Pair;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Parse tree for {@code CREATE EXTERNAL TABLE} statement. */
 @SuppressWarnings({
@@ -51,6 +54,7 @@ public class SqlCreateExternalTable extends SqlCreate implements BeamSqlParser.E
   private final SqlNode comment;
   private final SqlNode location;
   private final SqlNode tblProperties;
+  private final @Nullable SqlNodeList partitionFields;
 
   private static final SqlOperator OPERATOR =
       new SqlSpecialOperator("CREATE EXTERNAL TABLE", SqlKind.OTHER_DDL);
@@ -63,6 +67,7 @@ public class SqlCreateExternalTable extends SqlCreate implements BeamSqlParser.E
       SqlIdentifier name,
       List<Schema.Field> columnList,
       SqlNode type,
+      SqlNodeList partitionFields,
       SqlNode comment,
       SqlNode location,
       SqlNode tblProperties) {
@@ -70,6 +75,7 @@ public class SqlCreateExternalTable extends SqlCreate implements BeamSqlParser.E
     this.name = checkNotNull(name);
     this.columnList = columnList; // may be null
     this.type = checkNotNull(type);
+    this.partitionFields = partitionFields;
     this.comment = comment; // may be null
     this.location = location; // may be null
     this.tblProperties = tblProperties; // may be null
@@ -98,6 +104,19 @@ public class SqlCreateExternalTable extends SqlCreate implements BeamSqlParser.E
     }
     writer.keyword("TYPE");
     type.unparse(writer, 0, 0);
+    if (partitionFields != null) {
+      writer.keyword("PARTITIONED");
+      writer.keyword("BY");
+      writer.sep("(");
+      for (int i = 0; i < partitionFields.size(); i++) {
+        if (i > 0) {
+          writer.sep(",");
+        }
+        SqlNode field = partitionFields.get(i);
+        field.unparse(writer, 0, 0);
+      }
+      writer.sep(")");
+    }
     if (comment != null) {
       writer.keyword("COMMENT");
       comment.unparse(writer, 0, 0);
@@ -149,11 +168,19 @@ public class SqlCreateExternalTable extends SqlCreate implements BeamSqlParser.E
     }
   }
 
+  private @Nullable List<String> parsePartitionFields() {
+    if (partitionFields == null) {
+      return null;
+    }
+    return partitionFields.stream().map(SqlDdlNodes::getString).collect(Collectors.toList());
+  }
+
   private Table toTable() {
     return Table.builder()
         .type(SqlDdlNodes.getString(type))
         .name(SqlDdlNodes.name(name))
         .schema(columnList.stream().collect(toSchema()))
+        .partitionFields(parsePartitionFields())
         .comment(SqlDdlNodes.getString(comment))
         .location(SqlDdlNodes.getString(location))
         .properties(
