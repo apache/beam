@@ -81,7 +81,9 @@ public class LateDataUtils {
               if (input == null) {
                 return null;
               }
-              return input.explodeWindows();
+              // The generics in this chain of calls line up best if we drop the covariance
+              // in the return value of explodeWindows()
+              return (Iterable<WindowedValue<V>>) input.explodeWindows();
             })
         .filter(
             input -> {

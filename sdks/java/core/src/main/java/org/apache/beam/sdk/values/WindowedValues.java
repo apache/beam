@@ -17,9 +17,11 @@
  */
 package org.apache.beam.sdk.values;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.auto.value.AutoBuilder;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -34,6 +36,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -45,14 +48,16 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
+import org.apache.beam.sdk.util.WindowedValueReceiver;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
- * Implementations of {@link WindowedValue} and static utility methods.
+ * Implementations of {@link org.apache.beam.sdk.values.WindowedValue} and static utility methods.
  *
  * <p>These are primarily intended for internal use by Beam SDK developers and runner developers.
  * Backwards incompatible changes will likely occur.
@@ -60,6 +65,85 @@ import org.joda.time.Instant;
 @Internal
 public class WindowedValues {
   private WindowedValues() {} // non-instantiable utility class
+
+  public static <T> Builder<T> builder() {
+    return new AutoBuilder_WindowedValues_Builder<>();
+  }
+
+  /** Create a Builder that takes element metadata from the provideed delegate. */
+  public static <T> Builder<T> builder(WindowedValue<T> template) {
+    return new AutoBuilder_WindowedValues_Builder<T>()
+        .setValue(template.getValue())
+        .setTimestamp(template.getTimestamp())
+        .setWindows(template.getWindows())
+        .setPaneInfo(template.getPaneInfo());
+  }
+
+  @AutoBuilder(callMethod = "of")
+  public abstract static class Builder<T> implements OutputBuilder<T> {
+
+    private @MonotonicNonNull WindowedValueReceiver<T> receiver;
+
+    @Override
+    public abstract Builder<T> setValue(T value);
+
+    @Override
+    public abstract Builder<T> setTimestamp(Instant timestamp);
+
+    @Override
+    public abstract Builder<T> setWindows(Collection<? extends BoundedWindow> windows);
+
+    @Override
+    public abstract Builder<T> setPaneInfo(PaneInfo pane);
+
+    @Override
+    public Builder<T> setWindow(BoundedWindow window) {
+      return setWindows(Collections.singleton(window));
+    }
+
+    public Builder<T> setReceiver(WindowedValueReceiver<T> receiver) {
+      this.receiver = receiver;
+      return this;
+    }
+
+    @Override
+    public void output() {
+      try {
+        checkStateNotNull(receiver, "A WindowedValueReceiver must be set via setReceiver()")
+            .output(this);
+      } catch (Exception exc) {
+        throw new RuntimeException("Exception thrown when outputting WindowedValue", exc);
+      }
+    }
+
+    @Override
+    public abstract T getValue();
+
+    @Override
+    public abstract Instant getTimestamp();
+
+    @Override
+    public abstract Collection<? extends BoundedWindow> getWindows();
+
+    @Override
+    public abstract PaneInfo getPaneInfo();
+
+    @Override
+    public Collection<Builder<T>> explodeWindows() {
+      return getWindows().stream()
+          .map(window -> builder(this).setWindow(window))
+          .collect(Collectors.toList());
+    }
+
+    @Override
+    public <OtherT> Builder<OtherT> withValue(OtherT newValue) {
+      // because of erasure, this type system lie is safe
+      return ((Builder<OtherT>) builder(this)).setValue(newValue);
+    }
+
+    @Internal
+    public abstract WindowedValue<T> build();
+  }
 
   /** Returns a {@code WindowedValue} with the given value, timestamp, and windows. */
   public static <T> WindowedValue<T> of(
@@ -227,6 +311,20 @@ public class WindowedValues {
             WindowedValues.of(this.getValue(), this.getTimestamp(), w, this.getPaneInfo()));
       }
       return windowedValues.build();
+    }
+
+    @Override
+    public boolean equals(@Nullable Object other) {
+      if (!(other instanceof WindowedValue)) {
+        return false;
+      }
+
+      return WindowedValues.equals(this, (WindowedValue<T>) other);
+    }
+
+    @Override
+    public int hashCode() {
+      return WindowedValues.hashCode(this);
     }
   }
 

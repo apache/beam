@@ -447,8 +447,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo) {
-      SimpleDoFnRunner.this.outputWindowedValue(
-          tag, WindowedValues.of(output, timestamp, windows, paneInfo));
+      WindowedValues.builder(elem)
+          .withValue(output)
+          .setTimestamp(timestamp)
+          .setWindows(windows)
+          .setPaneInfo(paneInfo)
+          .setReceiver(wv -> SimpleDoFnRunner.this.outputWindowedValue(tag, wv))
+          .output();
     }
 
     @Override
@@ -638,6 +643,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     private final TimeDomain timeDomain;
     private final String timerId;
     private final KeyT key;
+    private final WindowedValues.Builder<Object> outputTemplate;
 
     /** Lazily initialized; should only be accessed via {@link #getNamespace()}. */
     private @Nullable StateNamespace namespace;
@@ -670,6 +676,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       this.timestamp = timestamp;
       this.timeDomain = timeDomain;
       this.key = key;
+      this.outputTemplate = WindowedValues.builder(null).setWindow(window).setTimestamp(timestamp);
     }
 
     @Override
@@ -888,8 +895,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo) {
       checkTimestamp(timestamp(), timestamp);
-      SimpleDoFnRunner.this.outputWindowedValue(
-          tag, WindowedValues.of(output, timestamp, windows, paneInfo));
+      WindowedValues.builder(outputTemplate)
+          .withValue(output)
+          .setTimestamp(timestamp)
+          .setWindows(windows)
+          .setPaneInfo(paneInfo)
+          .setReceiver(wv -> SimpleDoFnRunner.this.outputWindowedValue(tag, wv))
+          .output();
     }
 
     @Override
@@ -909,6 +921,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     private final BoundedWindow window;
     private final Instant timestamp;
     private final KeyT key;
+    private final WindowedValues.Builder<Void> outputTemplate;
+
     /** Lazily initialized; should only be accessed via {@link #getNamespace()}. */
     private @Nullable StateNamespace namespace;
 
@@ -931,6 +945,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       this.window = window;
       this.timestamp = timestamp;
       this.key = key;
+      this.outputTemplate =
+          WindowedValues.<Void>builder().setWindow(window).setTimestamp(timestamp);
     }
 
     @Override
@@ -1117,8 +1133,13 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo) {
       checkTimestamp(this.timestamp, timestamp);
-      SimpleDoFnRunner.this.outputWindowedValue(
-          tag, WindowedValues.of(output, timestamp, windows, paneInfo));
+      WindowedValues.builder(outputTemplate)
+          .withValue(output)
+          .setTimestamp(timestamp)
+          .setWindows(windows)
+          .setPaneInfo(paneInfo)
+          .setReceiver(wv -> SimpleDoFnRunner.this.outputWindowedValue(tag, wv))
+          .output();
     }
 
     @Override

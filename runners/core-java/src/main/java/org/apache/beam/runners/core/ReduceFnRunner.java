@@ -1057,8 +1057,13 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
                 }
 
                 // Output the actual value.
-                outputter.output(
-                    WindowedValues.of(KV.of(key, toOutput), outputTimestamp, windows, paneInfo));
+                WindowedValues.builder()
+                    .withValue(KV.of(key, toOutput))
+                    .setTimestamp(outputTimestamp)
+                    .setWindows(windows)
+                    .setPaneInfo(paneInfo)
+                    .setReceiver(outputter::output)
+                    .output();
               });
 
       reduceFn.onTrigger(renamedTriggerContext);

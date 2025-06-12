@@ -66,6 +66,7 @@ import org.apache.beam.sdk.util.construction.ParDoTranslation.ParDoLikeTimerFami
 import org.apache.beam.sdk.util.construction.ReadTranslation.BoundedReadPayloadTranslator;
 import org.apache.beam.sdk.util.construction.ReadTranslation.UnboundedReadPayloadTranslator;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.OutputBuilder;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -74,6 +75,7 @@ import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -662,13 +664,12 @@ public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorSt
                     DoFn<InputT, RestrictionT> doFn) {
                   return new OutputReceiver<RestrictionT>() {
                     @Override
-                    public void output(RestrictionT part) {
-                      c.output(KV.of(c.element().getKey(), part));
-                    }
-
-                    @Override
-                    public void outputWithTimestamp(RestrictionT part, Instant timestamp) {
-                      throw new UnsupportedOperationException();
+                    public OutputBuilder<RestrictionT> builder(RestrictionT restriction) {
+                      return WindowedValues.<RestrictionT>builder()
+                          .setValue(restriction)
+                          .setReceiver(
+                              windowedValue ->
+                                  c.output(KV.of(c.element().getKey(), windowedValue.getValue())));
                     }
                   };
                 }
