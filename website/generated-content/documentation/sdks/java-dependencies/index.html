@@ -69,11 +69,11 @@ artifacts that help dependency management tools select compatible combinations.<
 When a project import contains unspecified or ambiguous dependencies,
 the BOM provides the information that the SDK needs to use the correct
 dependency version.</p><p>Apache Beam provides two BOMs:</p><ul><li><code>beam-sdks-java-bom</code>: manages Apache Beam dependencies, which allows
-you to specify the version only one time</li><li><code>beam-sdks-java-io-google-cloud-platform-bom</code>: manages Apache Beam, Google Cloud,
+you to specify the version only one time</li><li><code>beam-sdks-java-google-cloud-platform-bom</code>: manages Apache Beam, Google Cloud,
 and third-party dependencies</li></ul><p>Because errors are more likely to occur when you use third-party dependencies,
-the <code>beam-sdks-java-io-google-cloud-platform-bom</code> BOM is recommended.</p><h3 id=import-the-bom>Import the BOM</h3><p>To use a BOM, import the BOM into your Maven or Gradle
+the <code>beam-sdks-java-google-cloud-platform-bom</code> BOM is recommended.</p><h3 id=import-the-bom>Import the BOM</h3><p>To use a BOM, import the BOM into your Maven or Gradle
 dependency configuration. For example, to
-use <code>beam-sdks-java-io-google-cloud-platform-bom</code>,
+use <code>beam-sdks-java-google-cloud-platform-bom</code>,
 make the following changes in the <code>pom.xml</code> file of your SDK artifact.
 In the following examples, replace <em>BEAM_VERSION</em> with the appropriate
 Apache Beam SDK version.</p><p><strong>Maven</strong></p><div class=highlight><pre tabindex=0 class=chroma><code class=language-xml data-lang=xml><span class=line><span class=cl><span class=nt>&lt;dependencyManagement&gt;</span>
