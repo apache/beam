@@ -2049,7 +2049,7 @@ class WriteStreamingTest(unittest.TestCase):
     print("Found files matching expected pattern:", file_names)
     self.assertEqual(
         len(file_names),
-        num_shards * 3, #25s of data covered by 3 10s windows
+        num_shards * 3,  #25s of data covered by 3 10s windows
         "expected %d files, but got: %d" % (num_shards * 3, len(file_names)))
 
   def test_write_streaming_undef_shards_default_shard_name_template_windowed_pcoll(  # pylint: disable=line-too-long
