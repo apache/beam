@@ -17,22 +17,22 @@
 
 from __future__ import absolute_import
 
-from concurrent.futures import ThreadPoolExecutor
 import logging
+import uuid
+from concurrent.futures import ThreadPoolExecutor
 from math import floor
 from threading import RLock
 from time import sleep
 from time import time
 from types import GeneratorType
-import uuid
 
 import apache_beam as beam
 from apache_beam import TimeDomain
 from apache_beam.coders import coders
 from apache_beam.transforms.userstate import BagStateSpec
-from apache_beam.transforms.userstate import on_timer
 from apache_beam.transforms.userstate import ReadModifyWriteStateSpec
 from apache_beam.transforms.userstate import TimerSpec
+from apache_beam.transforms.userstate import on_timer
 from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import Timestamp
 

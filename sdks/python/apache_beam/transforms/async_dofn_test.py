@@ -15,12 +15,12 @@
 # limitations under the License.
 #
 
-from concurrent.futures import ThreadPoolExecutor
-import unittest
 import logging
 import random
-from threading import Lock
 import time
+import unittest
+from concurrent.futures import ThreadPoolExecutor
+from threading import Lock
 
 import apache_beam as beam
 import apache_beam.transforms.async_dofn as async_lib
