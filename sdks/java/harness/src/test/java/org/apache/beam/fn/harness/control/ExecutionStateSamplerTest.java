@@ -23,14 +23,23 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionState;
 import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionStateTracker;
 import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionStateTrackerStatus;
@@ -78,6 +87,7 @@ public class ExecutionStateSamplerTest {
   private static final Histogram TEST_USER_HISTOGRAM =
       new DelegatingHistogram(
           MetricName.named("foo", "histogram"), HistogramData.LinearBuckets.of(0, 100, 1), false);
+  private ExecutorService executor;
 
   @Rule public ExpectedLogs expectedLogs = ExpectedLogs.none(ExecutionStateSampler.class);
 
@@ -767,53 +777,46 @@ public class ExecutionStateSamplerTest {
 
   @Test
   public void testUserDefinedPtransformTimeoutDurationExceptionThrown() throws Exception {
-    MillisProvider clock = mock(MillisProvider.class);
+    executor = Executors.newSingleThreadExecutor();
+    MillisProvider clock = new AcceleratedMillisProvider(120.0, System.currentTimeMillis());
     ExecutionStateSampler sampler =
         new ExecutionStateSampler(
             PipelineOptionsFactory.fromArgs("--ptransformTimeoutDuration=10").create(), clock);
     ExecutionStateTracker tracker = sampler.create();
     ExecutionState state = tracker.create("shortId", "ptransformId", "ptransformIdName", "process");
 
-    CountDownLatch waitTillActive = new CountDownLatch(1);
-    CountDownLatch waitForSamples = new CountDownLatch(10);
-    Thread testThread = Thread.currentThread();
-    Mockito.when(clock.getMillis())
-        .thenAnswer(
-            new Answer<Long>() {
-              private long currentTime;
+    Callable<Void> task =
+        () -> {
+          tracker.start("bundleId");
+          state.activate();
+          Thread.sleep(10000);
+          return null;
+        };
 
-              @Override
-              public Long answer(InvocationOnMock invocation) throws Throwable {
-                if (Thread.currentThread().equals(testThread)) {
-                  return 0L;
-                } else {
-                  // Block the state sampling thread till the state is active
-                  // and unblock the state transition once a certain number of samples
-                  // have been taken.
-                  waitTillActive.await();
-                  waitForSamples.countDown();
-                  currentTime += Duration.standardMinutes(2).getMillis();
-                  return currentTime;
-                }
-              }
+    Future<Void> futureFromWorkerCallable = executor.submit(task);
+
+    try {
+      futureFromWorkerCallable.get(20, TimeUnit.SECONDS);
+    } catch (ExecutionException | InterruptedException | TimeoutException e) {
+      System.out.println(e.getMessage());
+    }
+    RuntimeException caughtExecutionException =
+        assertThrows(
+            RuntimeException.class,
+            () -> {
+              sampler.stop();
             });
 
-    boolean exceptionThrown = false;
-    try {
-      tracker.start("bundleId");
-      state.activate();
-      waitTillActive.countDown();
-      waitForSamples.await();
-      state.deactivate();
-      tracker.reset();
-      sampler.stop();
-    } catch (RuntimeException e) {
-      exceptionThrown = true;
-    }
-
-    assertTrue(exceptionThrown);
-    expectedLogs.verifyError(
-        "The ptransform has been stuck for more than 10 minutes, the SDK worker will restart");
+    Throwable cause1st = caughtExecutionException.getCause();
+    assertNotNull(cause1st);
+    assertTrue(cause1st instanceof ExecutionException);
+    Throwable cause2nd = cause1st.getCause();
+    assertNotNull(cause2nd);
+    assertTrue(cause2nd instanceof RuntimeException);
+    Throwable cause3rd = cause2nd.getCause();
+    assertNotNull(cause3rd);
+    assertTrue(cause3rd instanceof TimeoutException);
+    assertTrue(cause3rd.getMessage().contains("The SDK worker will restart"));
   }
 
   @Test
@@ -828,7 +831,7 @@ public class ExecutionStateSamplerTest {
     CountDownLatch waitTillActive = new CountDownLatch(1);
     CountDownLatch waitForSamples = new CountDownLatch(10);
     Thread testThread = Thread.currentThread();
-    Mockito.when(clock.getMillis())
+    when(clock.getMillis())
         .thenAnswer(
             new Answer<Long>() {
               private long currentTime;
@@ -889,5 +892,27 @@ public class ExecutionStateSamplerTest {
         new ExecutionStateSampler(PipelineOptionsFactory.create(), clock);
     assertThat(sampler.getUserAllowedLullTimeMsForRestart(), equalTo(0L));
     assertThat(sampler.getUserAllowedTimeoutForRestart(), equalTo(false));
+  }
+
+  private static class AcceleratedMillisProvider implements MillisProvider {
+    private final double timeMultiplier;
+    private final long startTimeReal;
+    private final long startTimeSimulated;
+
+    public AcceleratedMillisProvider(double timeMultiplier, long simulatedStartTimeMillis) {
+      if (timeMultiplier <= 0) {
+        throw new IllegalArgumentException("Time multiplier must be positive.");
+      }
+      this.timeMultiplier = timeMultiplier;
+      this.startTimeReal = System.currentTimeMillis();
+      this.startTimeSimulated = simulatedStartTimeMillis;
+    }
+
+    @Override
+    public long getMillis() {
+      long realElapsedMillis = System.currentTimeMillis() - startTimeReal;
+      long simulatedElapsedMillis = (long) (realElapsedMillis * timeMultiplier);
+      return startTimeSimulated + simulatedElapsedMillis;
+    }
   }
 }
