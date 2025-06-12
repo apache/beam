@@ -33,6 +33,8 @@
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Add support for streaming writes in IOBase (Python)
+* Implement support for streaming writes in FileBasedSink (Python)
+* Expose support for streaming writes in TextIO (Python)
 
 ## New Features / Improvements
 
