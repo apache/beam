@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.parser;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+
 import java.util.List;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalcitePrepare;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalciteSchema;
@@ -82,6 +84,14 @@ public class SqlDdlNodes {
 
     NlsString literalValue = (NlsString) SqlLiteral.value(n);
     return literalValue == null ? null : literalValue.getValue();
+  }
+
+  static SqlIdentifier getIdentifier(SqlNode n, SqlParserPos pos) {
+    if (n instanceof SqlIdentifier) {
+      return (SqlIdentifier) n;
+    }
+
+    return new SqlIdentifier(checkArgumentNotNull(getString(n)), pos);
   }
 }
 

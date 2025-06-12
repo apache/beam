@@ -29,6 +29,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.model.pipeline.v1.MetricsApi.BoundedTrie;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.metrics.BoundedTrieData;
@@ -44,9 +45,11 @@ import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.metrics.StringSetResult;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Objects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
@@ -133,7 +136,8 @@ class DataflowMetrics extends MetricResults {
     return result;
   }
 
-  private static class DataflowMetricResultExtractor {
+  @VisibleForTesting
+  static class DataflowMetricResultExtractor {
     private final ImmutableList.Builder<MetricResult<Long>> counterResults;
     private final ImmutableList.Builder<MetricResult<DistributionResult>> distributionResults;
     private final ImmutableList.Builder<MetricResult<GaugeResult>> gaugeResults;
@@ -175,7 +179,7 @@ class DataflowMetrics extends MetricResults {
         // stringset metric
         StringSetResult value = getStringSetValue(committed);
         stringSetResults.add(MetricResult.create(metricKey, !isStreamingJob, value));
-      } else if (committed.getTrie() != null && attempted.getTrie() != null) {
+      } else if (committed.getBoundedTrie() != null && attempted.getBoundedTrie() != null) {
         BoundedTrieResult value = getBoundedTrieValue(committed);
         boundedTrieResults.add(MetricResult.create(metricKey, !isStreamingJob, value));
       } else {
@@ -206,12 +210,20 @@ class DataflowMetrics extends MetricResults {
     }
 
     private BoundedTrieResult getBoundedTrieValue(MetricUpdate metricUpdate) {
-      if (metricUpdate.getTrie() == null) {
+      BoundedTrieData trieData = null;
+      Object trieFromResponse = metricUpdate.getBoundedTrie();
+      // Fail-safely cast Trie returned by dataflow API to BoundedTrieResult
+      if (trieFromResponse instanceof BoundedTrie) {
+        trieData = BoundedTrieData.fromProto((BoundedTrie) trieFromResponse);
+      } else if (trieFromResponse instanceof ArrayMap) {
+        trieData = trieFromArrayMap((ArrayMap) trieFromResponse);
+      }
+
+      if (trieData != null) {
+        return BoundedTrieResult.create(trieData.extractResult().getResult());
+      } else {
         return BoundedTrieResult.empty();
       }
-      BoundedTrie bTrie = (BoundedTrie) metricUpdate.getTrie();
-      BoundedTrieData trieData = BoundedTrieData.fromProto(bTrie);
-      return BoundedTrieResult.create(trieData.extractResult().getResult());
     }
 
     private DistributionResult getDistributionValue(MetricUpdate metricUpdate) {
@@ -224,6 +236,62 @@ class DataflowMetrics extends MetricResults {
       long max = checkArgumentNotNull(((Number) distributionMap.get("max"))).longValue();
       long sum = checkArgumentNotNull(((Number) distributionMap.get("sum"))).longValue();
       return DistributionResult.create(sum, count, min, max);
+    }
+
+    /** Translate ArrayMap returned by Dataflow API client to BoundedTrieData. */
+    @VisibleForTesting
+    static BoundedTrieData trieFromArrayMap(ArrayMap fieldsMap) {
+      int bound = 0;
+      List<String> singleton = null;
+      Object maybeBound = fieldsMap.get("bound");
+      if (maybeBound instanceof Number) {
+        bound = ((Number) maybeBound).intValue();
+      }
+      Object maybeSingleton = fieldsMap.get("singleton");
+      if (maybeSingleton instanceof List) {
+        List valueList = (List) maybeSingleton;
+        ImmutableList.Builder<String> builder = ImmutableList.builder();
+        for (Object stringValue : valueList) {
+          builder.add((String) stringValue);
+        }
+        singleton = builder.build();
+      }
+      Object maybeRoot = fieldsMap.get("root");
+      BoundedTrieData.BoundedTrieNode root = null;
+      if (maybeRoot instanceof Map) {
+        root = trieNodeFromMap((Map) maybeRoot);
+      }
+      return new BoundedTrieData(singleton, root, bound);
+    }
+
+    /** Translate Map returned by Dataflow API client to BoundedTrieData.BoundedTrieNode. */
+    private static BoundedTrieData.BoundedTrieNode trieNodeFromMap(Map fieldsMap) {
+      boolean truncated = false;
+      Object mayTruncated = fieldsMap.get("truncated");
+      if (mayTruncated instanceof Boolean) {
+        truncated = (boolean) mayTruncated;
+      }
+      int childrenSize = 0;
+      ImmutableMap.Builder<String, BoundedTrieData.BoundedTrieNode> builder =
+          ImmutableMap.builder();
+      Object maybeChildren = fieldsMap.get("children");
+      if (maybeChildren instanceof Map) {
+        Map allChildren = (Map) maybeChildren;
+        for (Object maybeChildValue : allChildren.entrySet()) {
+          Map.Entry childValue = (Map.Entry) maybeChildValue;
+          Object maybeChild = childValue.getValue();
+          if (maybeChild instanceof Map) {
+            BoundedTrieData.BoundedTrieNode child = trieNodeFromMap((Map) maybeChild);
+            Object maybeKey = childValue.getKey();
+            if (maybeKey instanceof String) {
+              builder.put((String) maybeKey, child);
+            }
+            childrenSize += child.getSize();
+          }
+        }
+      }
+      Map<String, BoundedTrieData.BoundedTrieNode> children = builder.build();
+      return new BoundedTrieData.BoundedTrieNode(children, truncated, Math.max(1, childrenSize));
     }
 
     public Iterable<MetricResult<DistributionResult>> getDistributionResults() {

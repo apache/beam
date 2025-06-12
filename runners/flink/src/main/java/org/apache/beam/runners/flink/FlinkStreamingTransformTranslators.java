@@ -1405,7 +1405,7 @@ class FlinkStreamingTransformTranslators {
         OutputT originalValue = element.getValue().getValue();
         WindowedValue<OutputT> output =
             WindowedValues.of(
-                originalValue, element.getTimestamp(), element.getWindows(), element.getPane());
+                originalValue, element.getTimestamp(), element.getWindows(), element.getPaneInfo());
         ctx.collect(output);
       }
 
@@ -1415,7 +1415,7 @@ class FlinkStreamingTransformTranslators {
         OutputT originalValue = element.getValue().getValue();
         WindowedValue<OutputT> output =
             WindowedValues.of(
-                originalValue, element.getTimestamp(), element.getWindows(), element.getPane());
+                originalValue, element.getTimestamp(), element.getWindows(), element.getPaneInfo());
         ctx.collectWithTimestamp(output, timestamp);
       }
 

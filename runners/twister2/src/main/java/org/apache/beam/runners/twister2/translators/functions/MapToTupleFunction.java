@@ -69,10 +69,10 @@ public class MapToTupleFunction<K, V>
                     input.getValue().getValue(),
                     input.getTimestamp(),
                     input.getWindows(),
-                    input.getPane())),
+                    input.getPaneInfo())),
             input.getTimestamp(),
             input.getWindows(),
-            input.getPane());
+            input.getPaneInfo());
     try {
       element =
           new Tuple<>(

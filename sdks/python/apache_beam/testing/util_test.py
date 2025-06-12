@@ -20,6 +20,7 @@
 # pytype: skip-file
 
 import unittest
+from typing import NamedTuple
 
 import apache_beam as beam
 from apache_beam import Create

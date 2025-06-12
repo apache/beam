@@ -280,7 +280,7 @@ class GroupByKeyTranslatorBatch<K, V>
   }
 
   private static List<Expression> windowDetails(Expression windows) {
-    return seqOf(lit("windows"), windows, lit("pane"), PANE_NO_FIRING).toList();
+    return seqOf(lit("windows"), windows, lit("paneInfo"), PANE_NO_FIRING).toList();
   }
 
   private static <T extends @NonNull Object> Expression lit(T t) {

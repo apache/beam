@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.firestore;
 
 import static java.util.Objects.requireNonNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.firestore.v1.BatchGetDocumentsRequest;
 import com.google.firestore.v1.BatchGetDocumentsResponse;
@@ -67,6 +68,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
@@ -502,6 +504,9 @@ public final class FirestoreV1 {
    */
   @Immutable
   public static final class Write {
+    private @Nullable String projectId;
+    private @Nullable String databaseId;
+
     private static final Write INSTANCE = new Write();
 
     private Write() {}
@@ -537,8 +542,20 @@ public final class FirestoreV1 {
      * @see <a target="_blank" rel="noopener noreferrer"
      *     href="https://cloud.google.com/firestore/docs/reference/rpc/google.firestore.v1#google.firestore.v1.BatchWriteResponse">google.firestore.v1.BatchWriteResponse</a>
      */
+    public Write withProjectId(String projectId) {
+      checkArgument(projectId != null, "projectId can not be null");
+      this.projectId = projectId;
+      return this;
+    }
+
+    public Write withDatabaseId(String databaseId) {
+      checkArgument(databaseId != null, "databaseId can not be null");
+      this.databaseId = databaseId;
+      return this;
+    }
+
     public BatchWriteWithSummary.Builder batchWrite() {
-      return new BatchWriteWithSummary.Builder();
+      return new BatchWriteWithSummary.Builder().setProjectId(projectId).setDatabaseId(databaseId);
     }
   }
 
@@ -1348,11 +1365,18 @@ public final class FirestoreV1 {
           BatchWriteWithSummary,
           BatchWriteWithSummary.Builder> {
 
-    private BatchWriteWithSummary(
+    private final @Nullable String projectId;
+    private final @Nullable String databaseId;
+
+    public BatchWriteWithSummary(
         JodaClock clock,
         FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
-        RpcQosOptions rpcQosOptions) {
+        RpcQosOptions rpcQosOptions,
+        @Nullable String projectId,
+        @Nullable String databaseId) {
       super(clock, firestoreStatefulComponentFactory, rpcQosOptions);
+      this.projectId = projectId;
+      this.databaseId = databaseId;
     }
 
     @Override
@@ -1365,7 +1389,9 @@ public final class FirestoreV1 {
                   clock,
                   firestoreStatefulComponentFactory,
                   rpcQosOptions,
-                  CounterFactory.DEFAULT)));
+                  CounterFactory.DEFAULT,
+                  projectId,
+                  databaseId)));
     }
 
     @Override
@@ -1403,6 +1429,9 @@ public final class FirestoreV1 {
             BatchWriteWithSummary,
             BatchWriteWithSummary.Builder> {
 
+      private @Nullable String projectId;
+      private @Nullable String databaseId;
+
       private Builder() {
         super();
       }
@@ -1414,9 +1443,35 @@ public final class FirestoreV1 {
         super(clock, firestoreStatefulComponentFactory, rpcQosOptions);
       }
 
+      /** Set the GCP project ID to be used by the Firestore client. */
+      private Builder setProjectId(@Nullable String projectId) {
+        this.projectId = projectId;
+        return this;
+      }
+
+      /** Set the Firestore database ID (e.g., "(default)"). */
+      private Builder setDatabaseId(@Nullable String databaseId) {
+        this.databaseId = databaseId;
+        return this;
+      }
+
+      @VisibleForTesting
+      @Nullable
+      String getProjectId() {
+        return this.projectId;
+      }
+
+      @VisibleForTesting
+      @Nullable
+      String getDatabaseId() {
+        return this.databaseId;
+      }
+
       public BatchWriteWithDeadLetterQueue.Builder withDeadLetterQueue() {
         return new BatchWriteWithDeadLetterQueue.Builder(
-            clock, firestoreStatefulComponentFactory, rpcQosOptions);
+                clock, firestoreStatefulComponentFactory, rpcQosOptions)
+            .setProjectId(projectId)
+            .setDatabaseId(databaseId);
       }
 
       @Override
@@ -1429,7 +1484,8 @@ public final class FirestoreV1 {
           JodaClock clock,
           FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
           RpcQosOptions rpcQosOptions) {
-        return new BatchWriteWithSummary(clock, firestoreStatefulComponentFactory, rpcQosOptions);
+        return new BatchWriteWithSummary(
+            clock, firestoreStatefulComponentFactory, rpcQosOptions, projectId, databaseId);
       }
     }
   }
@@ -1474,11 +1530,18 @@ public final class FirestoreV1 {
           BatchWriteWithDeadLetterQueue,
           BatchWriteWithDeadLetterQueue.Builder> {
 
+    private final @Nullable String projectId;
+    private final @Nullable String databaseId;
+
     private BatchWriteWithDeadLetterQueue(
         JodaClock clock,
         FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
-        RpcQosOptions rpcQosOptions) {
+        RpcQosOptions rpcQosOptions,
+        @Nullable String projectId,
+        @Nullable String databaseId) {
       super(clock, firestoreStatefulComponentFactory, rpcQosOptions);
+      this.projectId = projectId;
+      this.databaseId = databaseId;
     }
 
     @Override
@@ -1490,7 +1553,9 @@ public final class FirestoreV1 {
                   clock,
                   firestoreStatefulComponentFactory,
                   rpcQosOptions,
-                  CounterFactory.DEFAULT)));
+                  CounterFactory.DEFAULT,
+                  projectId,
+                  databaseId)));
     }
 
     @Override
@@ -1528,8 +1593,33 @@ public final class FirestoreV1 {
             BatchWriteWithDeadLetterQueue,
             BatchWriteWithDeadLetterQueue.Builder> {
 
+      private @Nullable String projectId;
+      private @Nullable String databaseId;
+
       private Builder() {
         super();
+      }
+
+      private Builder setProjectId(@Nullable String projectId) {
+        this.projectId = projectId;
+        return this;
+      }
+
+      private Builder setDatabaseId(@Nullable String databaseId) {
+        this.databaseId = databaseId;
+        return this;
+      }
+
+      @VisibleForTesting
+      @Nullable
+      String getProjectId() {
+        return this.projectId;
+      }
+
+      @VisibleForTesting
+      @Nullable
+      String getDatabaseId() {
+        return this.databaseId;
       }
 
       private Builder(
@@ -1550,7 +1640,7 @@ public final class FirestoreV1 {
           FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
           RpcQosOptions rpcQosOptions) {
         return new BatchWriteWithDeadLetterQueue(
-            clock, firestoreStatefulComponentFactory, rpcQosOptions);
+            clock, firestoreStatefulComponentFactory, rpcQosOptions, projectId, databaseId);
       }
     }
   }
