@@ -30,6 +30,7 @@ pipelines:
               - {value: 123}
               - {value: 456}
               - {value: 789}
+# TODO(#35272) - fix kafka test
         # - type: MapToFields
         #   config:
         #     language: python
