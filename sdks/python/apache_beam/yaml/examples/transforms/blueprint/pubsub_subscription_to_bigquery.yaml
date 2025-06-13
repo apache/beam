@@ -17,7 +17,7 @@
 
 # This is an example of a Beam YAML pipeline that reads messages from Pub/Sub
 # and writes them to BigQuery.  This matches the Dataflow Template located
-# here - https://cloud.google.com/dataflow/docs/guides/templates/provided/pubsub-to-bigquery
+# here - https://cloud.google.com/dataflow/docs/guides/templates/provided/pubsub-subscription-to-bigquery
 
 pipeline:
   type: composite
