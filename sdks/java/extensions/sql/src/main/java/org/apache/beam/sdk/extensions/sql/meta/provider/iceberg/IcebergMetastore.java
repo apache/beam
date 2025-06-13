@@ -15,16 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.meta.catalog;
+package org.apache.beam.sdk.extensions.sql.meta.provider.iceberg;
 
-import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 
-/**
- * Over-arching registrar to capture available {@link Catalog}s. Implementations should be marked
- * with {@link com.google.auto.service.AutoService} to be available to {@link
- * java.util.ServiceLoader}s.
- */
-@Internal
-public interface CatalogRegistrar {
-  Iterable<Class<? extends Catalog>> getCatalogs();
+public class IcebergMetastore extends InMemoryMetaStore {
+  @Override
+  public boolean supportsPartitioning() {
+    return true;
+  }
 }

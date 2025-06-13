@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.meta.catalog;
 
 import java.util.Map;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteSchema;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -32,6 +33,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>When {@link #registerTableProvider(String, TableProvider)} is called, the provider should
  * become available for all catalogs.
  */
+@Internal
 public interface CatalogManager {
   /** Creates and stores a catalog of a particular type. */
   void createCatalog(String name, String type, Map<String, String> properties);

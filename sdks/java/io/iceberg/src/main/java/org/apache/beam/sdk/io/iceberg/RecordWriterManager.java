@@ -298,7 +298,7 @@ class RecordWriterManager implements AutoCloseable {
 
     synchronized (TABLE_CACHE) {
       // Create namespace if it does not exist yet
-      if (catalog instanceof SupportsNamespaces) {
+      if (!namespace.isEmpty() && catalog instanceof SupportsNamespaces) {
         SupportsNamespaces supportsNamespaces = (SupportsNamespaces) catalog;
         if (!supportsNamespaces.namespaceExists(namespace)) {
           try {

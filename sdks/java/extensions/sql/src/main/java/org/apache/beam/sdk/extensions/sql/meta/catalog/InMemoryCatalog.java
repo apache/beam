@@ -17,13 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.catalog;
 
-import com.google.auto.service.AutoService;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.extensions.sql.meta.store.MetaStore;
 import org.apache.beam.sdk.util.Preconditions;
 
-@AutoService(Catalog.class)
 public class InMemoryCatalog implements Catalog {
   private final String name;
   private final Map<String, String> properties;
@@ -41,7 +39,8 @@ public class InMemoryCatalog implements Catalog {
 
   @Override
   public String name() {
-    return Preconditions.checkStateNotNull(name, "InMemoryCatalog has not been initialized");
+    return Preconditions.checkStateNotNull(
+        name, getClass().getSimpleName() + " has not been initialized");
   }
 
   @Override
