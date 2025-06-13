@@ -48,12 +48,19 @@ import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.InMemoryCatalogManager;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
+import org.apache.beam.sdk.io.iceberg.IcebergUtils;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.iceberg.CatalogUtil;
+import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.Table;
+import org.apache.iceberg.catalog.Catalog;
+import org.apache.iceberg.catalog.TableIdentifier;
 import org.joda.time.Duration;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -90,6 +97,8 @@ public class IcebergReadWriteIT {
   @Rule public TestName testName = new TestName();
 
   private static final BigqueryClient BQ_CLIENT = new BigqueryClient("IcebergReadWriteIT");
+  private static final String BQMS_CATALOG =
+      "org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog";
   static final String DATASET = "iceberg_sql_tests_" + System.nanoTime();
   static String warehouse;
   protected static final GcpOptions OPTIONS =
@@ -113,6 +122,16 @@ public class IcebergReadWriteIT {
 
   @Test
   public void testSqlWriteAndRead() throws IOException, InterruptedException {
+    runSqlWriteAndRead(false);
+  }
+
+  @Test
+  public void testSqlWriteWithPartitionFieldsAndRead() throws IOException, InterruptedException {
+    runSqlWriteAndRead(true);
+  }
+
+  public void runSqlWriteAndRead(boolean withPartitionFields)
+      throws IOException, InterruptedException {
     BeamSqlEnv sqlEnv =
         BeamSqlEnv.builder(new InMemoryCatalogManager())
             .setPipelineOptions(PipelineOptionsFactory.create())
@@ -124,7 +143,7 @@ public class IcebergReadWriteIT {
         "CREATE CATALOG my_catalog \n"
             + "TYPE iceberg \n"
             + "PROPERTIES (\n"
-            + "  'catalog-impl' = 'org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog', \n"
+            + format("  'catalog-impl' = '%s', \n", BQMS_CATALOG)
             + "  'io-impl' = 'org.apache.iceberg.gcp.gcs.GCSFileIO', \n"
             + format("  'warehouse' = '%s', \n", warehouse)
             + format("  'gcp_project' = '%s', \n", OPTIONS.getProject())
@@ -136,6 +155,10 @@ public class IcebergReadWriteIT {
     sqlEnv.executeDdl(setCatalog);
 
     // 3) create beam table
+    String partitionFields =
+        withPartitionFields
+            ? "PARTITIONED BY ('bucket(c_integer, 5)', 'c_boolean', 'hour(c_timestamp)', 'truncate(c_varchar, 3)') \n"
+            : "";
     String createTableStatement =
         "CREATE EXTERNAL TABLE TEST( \n"
             + "   c_bigint BIGINT, \n"
@@ -150,6 +173,7 @@ public class IcebergReadWriteIT {
             + "   c_arr_struct ARRAY<ROW<c_arr_struct_arr ARRAY<VARCHAR>, c_arr_struct_integer INTEGER>> \n"
             + ") \n"
             + "TYPE 'iceberg' \n"
+            + partitionFields
             + "LOCATION '"
             + tableIdentifier
             + "'";
@@ -206,6 +230,30 @@ public class IcebergReadWriteIT {
     PAssert.that(output).containsInAnyOrder(expectedRow);
     PipelineResult.State state = readPipeline.run().waitUntilFinish();
     assertThat(state, equalTo(PipelineResult.State.DONE));
+
+    // 6) verify the table was created with the right partition spec
+    Catalog icebergCatalog =
+        CatalogUtil.loadCatalog(
+            BQMS_CATALOG,
+            "my_catalog",
+            ImmutableMap.<String, String>builder()
+                .put("gcp_project", OPTIONS.getProject())
+                .put("gcp_location", "us-central1")
+                .put("warehouse", warehouse)
+                .build(),
+            null);
+    PartitionSpec expectedSpec = PartitionSpec.unpartitioned();
+    if (withPartitionFields) {
+      expectedSpec =
+          PartitionSpec.builderFor(IcebergUtils.beamSchemaToIcebergSchema(SOURCE_SCHEMA))
+              .bucket("c_integer", 5)
+              .identity("c_boolean")
+              .hour("c_timestamp")
+              .truncate("c_varchar", 3)
+              .build();
+    }
+    Table table = icebergCatalog.loadTable(TableIdentifier.parse(tableIdentifier));
+    assertEquals(expectedSpec, table.spec());
   }
 
   @Test

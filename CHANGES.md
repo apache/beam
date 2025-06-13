@@ -81,7 +81,7 @@
 * [IcebergIO] Now available with Beam SQL! ([#34799](https://github.com/apache/beam/pull/34799))
 * [IcebergIO] Support reading with column pruning ([#34856](https://github.com/apache/beam/pull/34856))
 * [IcebergIO] Support reading with pushdown filtering ([#34827](https://github.com/apache/beam/pull/34827))
-* [IcebergIO] Create tables with a specified partition spec ([#34966](https://github.com/apache/beam/pull/34966))
+* [IcebergIO] Create tables with a specified partition spec ([#34966](https://github.com/apache/beam/pull/34966), [#35268](https://github.com/apache/beam/pull/35268))
 * [IcebergIO] Dynamically create namespaces if needed ([#35228](https://github.com/apache/beam/pull/35228))
 
 ## New Features / Improvements
