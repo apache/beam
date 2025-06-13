@@ -93,7 +93,6 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
 
     // This nullness annotation is incorrect, but the most expedient way to work with Iceberg's APIs
     // which are not null-safe.
-    @SuppressWarnings("nullness")
     org.apache.iceberg.Schema requiredSchema = source.getScanConfig().getRequiredSchema();
     @Nullable
     String nameMapping = source.getTable().properties().get(TableProperties.DEFAULT_NAME_MAPPING);
