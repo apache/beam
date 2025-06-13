@@ -416,7 +416,7 @@ class YamlMappingTest(unittest.TestCase):
             ''')
 
   def test_partition_bad_runtime_type(self):
-    with self.assertRaises(Exception):
+    with self.assertRaisesRegex(Exception, 'unknown error'):
       with beam.Pipeline('PrismRunner', options=beam.options.pipeline_options.PrismRunnerOptions(
           pickle_library='cloudpickle', prism_location='https://storage.googleapis.com/apache-beam-damccorm/prism/prism')) as p:
         elements = p | beam.Create([
