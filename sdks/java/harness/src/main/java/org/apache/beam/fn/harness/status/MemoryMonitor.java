@@ -29,7 +29,6 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.attribute.PosixFilePermission;
-import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayDeque;
 import java.util.Queue;
 import java.util.UUID;
@@ -268,9 +267,7 @@ public class MemoryMonitor implements Runnable {
 
     if (canDumpHeap) {
       try {
-        Files.createDirectories(
-            localDumpFolder.toPath(),
-            PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwxr-x---")));
+        Files.createDirectories(localDumpFolder.toPath());
       } catch (Exception e) {
         LOG.warn(
             "Encountered exception creating directory for heap dumps, disabling heap dumping.", e);
