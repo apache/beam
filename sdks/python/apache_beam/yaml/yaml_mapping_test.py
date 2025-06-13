@@ -417,8 +417,8 @@ class YamlMappingTest(unittest.TestCase):
 
   def test_partition_bad_runtime_type(self):
     with self.assertRaises(Exception):
-      with beam.Pipeline('PrismRunner', options=beam.options.pipeline_options.PipelineOptions(
-          pickle_library='cloudpickle')) as p:
+      with beam.Pipeline('PrismRunner', options=beam.options.pipeline_options.PrismRunnerOptions(
+          pickle_library='cloudpickle', prism_location='https://storage.googleapis.com/apache-beam-damccorm/prism/prism')) as p:
         elements = p | beam.Create([
             beam.Row(element='apple', texture='smooth'),
             beam.Row(element='banana', texture='smooth'),
