@@ -112,4 +112,19 @@ public class SdkHarnessOptionsTest {
         testValue,
         MAPPER.writeValueAsString(MAPPER.readValue(testValue, SdkHarnessLogLevelOverrides.class)));
   }
+
+  @Test
+  public void testDefaultPTransformTimeoutDuration() {
+    PipelineOptions options = PipelineOptionsFactory.create();
+    SdkHarnessOptions sdkHarnessOptions = options.as(SdkHarnessOptions.class);
+    assertEquals(0, sdkHarnessOptions.getPtransformTimeoutDuration());
+  }
+
+  @Test
+  public void testUserDefinedPTransformTimeoutDuration() {
+    PipelineOptions options =
+        PipelineOptionsFactory.fromArgs("--ptransformTimeoutDuration=20").create();
+    SdkHarnessOptions sdkHarnessOptions = options.as(SdkHarnessOptions.class);
+    assertEquals(20, sdkHarnessOptions.getPtransformTimeoutDuration());
+  }
 }
