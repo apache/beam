@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper;
 
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.util.TestJsonMapper.recordToJson;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.util.TestProtoMapper.recordToProto;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.util.TestStructMapper.recordsToStructWithJson;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.util.TestStructMapper.recordsToStructWithStrings;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.util.TestStructMapper.recordsWithUnknownModTypeAndValueCaptureType;
@@ -29,6 +30,7 @@ import static org.mockito.Mockito.when;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.Struct;
+import com.google.cloud.spanner.Value;
 import java.util.Arrays;
 import java.util.Collections;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamResultSet;
@@ -41,8 +43,13 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.HeartbeatRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.InitialPartition;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.Mod;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ModType;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.MoveInEvent;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.MoveOutEvent;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionEndRecord;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionEventRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionStartRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.TypeCode;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ValueCaptureType;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
@@ -929,5 +936,81 @@ public class ChangeStreamRecordMapperTest {
     assertEquals(
         Collections.singletonList(childPartitionsRecord),
         mapperPostgres.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
+  }
+
+  @Test
+  public void testMappingProtoRowToPartitionStartRecord() {
+    PartitionStartRecord partitionStartChangeStreamRecord =
+        new PartitionStartRecord(
+            Timestamp.MIN_VALUE,
+            "fakeRecordSequence",
+            Arrays.asList("partitionToken1", "partitionToken2"),
+            null);
+    com.google.spanner.v1.ChangeStreamRecord changeStreamRecordProto =
+        recordToProto(partitionStartChangeStreamRecord);
+    assertNotNull(changeStreamRecordProto);
+    ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
+    Struct changeStreamRecordProtoWrapper =
+        Struct.newBuilder().add(Value.protoMessage(changeStreamRecordProto)).build();
+
+    when(resultSet.getCurrentRowAsStruct()).thenReturn(changeStreamRecordProtoWrapper);
+    assertEquals(
+        Collections.singletonList(partitionStartChangeStreamRecord),
+        mapper.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
+  }
+
+  @Test
+  public void testMappingProtoRowToPartitionEndRecord() {
+    PartitionEndRecord partitionEndChangeStreamRecord =
+        new PartitionEndRecord(Timestamp.MIN_VALUE, "fakeRecordSequence", null);
+    com.google.spanner.v1.ChangeStreamRecord changeStreamRecordProto =
+        recordToProto(partitionEndChangeStreamRecord);
+    assertNotNull(changeStreamRecordProto);
+    ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
+    Struct changeStreamRecordProtoWrapper =
+        Struct.newBuilder().add(Value.protoMessage(changeStreamRecordProto)).build();
+
+    when(resultSet.getCurrentRowAsStruct()).thenReturn(changeStreamRecordProtoWrapper);
+    assertEquals(
+        Collections.singletonList(partitionEndChangeStreamRecord),
+        mapper.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
+  }
+
+  @Test
+  public void testMappingProtoRowToPartitionEventRecord() {
+    PartitionEventRecord partitionEventChangeStreamRecord =
+        new PartitionEventRecord(
+            Timestamp.MIN_VALUE,
+            "fakeRecordSequence",
+            Arrays.asList(new MoveInEvent("token1"), new MoveInEvent("token2")),
+            Arrays.asList(new MoveOutEvent("token1"), new MoveOutEvent("token2")),
+            null);
+    com.google.spanner.v1.ChangeStreamRecord changeStreamRecordProto =
+        recordToProto(partitionEventChangeStreamRecord);
+    assertNotNull(changeStreamRecordProto);
+    ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
+    Struct changeStreamRecordProtoWrapper =
+        Struct.newBuilder().add(Value.protoMessage(changeStreamRecordProto)).build();
+
+    when(resultSet.getCurrentRowAsStruct()).thenReturn(changeStreamRecordProtoWrapper);
+    assertEquals(
+        Collections.singletonList(partitionEventChangeStreamRecord),
+        mapper.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
+  }
+
+  @Test
+  public void testMappingProtoRowToHeartRecord() {
+    HeartbeatRecord HeartbeatChangeStreamRecord = new HeartbeatRecord(Timestamp.MIN_VALUE, null);
+    com.google.spanner.v1.ChangeStreamRecord changeStreamRecordProto =
+        recordToProto(HeartbeatChangeStreamRecord);
+    assertNotNull(changeStreamRecordProto);
+    ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
+    Struct changeStreamRecordProtoWrapper =
+        Struct.newBuilder().add(Value.protoMessage(changeStreamRecordProto)).build();
+
+    when(resultSet.getCurrentRowAsStruct()).thenReturn(changeStreamRecordProtoWrapper);
+    assertEquals(
+        Collections.singletonList(HeartbeatChangeStreamRecord),
+        mapper.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
   }
 }
