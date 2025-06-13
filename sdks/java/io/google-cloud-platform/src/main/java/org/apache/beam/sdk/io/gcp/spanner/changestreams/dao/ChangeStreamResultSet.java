@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.dao;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Struct;
+import com.google.cloud.spanner.Type;
 import org.joda.time.Duration;
 
 /**
@@ -106,6 +107,48 @@ public class ChangeStreamResultSet implements AutoCloseable {
   public Struct getCurrentRowAsStruct() {
     recordReadAt = Timestamp.now();
     return resultSet.getCurrentRowAsStruct();
+  }
+
+  /**
+   * Returns the change stream record proto at the current pointer of the result set. It also
+   * updates the timestamp at which the record was read. This function enhances the getProtoMessage
+   * function but only focus on the ChangeStreamRecord type.
+   *
+   * @param columnIndex Index of the column.
+   * @return a change stream record as a proto or null
+   */
+  public com.google.spanner.v1.ChangeStreamRecord getProtoChangeStreamRecord(int columnIndex) {
+    recordReadAt = Timestamp.now();
+    return resultSet.getProtoMessage(
+        columnIndex, com.google.spanner.v1.ChangeStreamRecord.getDefaultInstance());
+  }
+
+  /**
+   * Get the column count at the current pointer of the result set.
+   *
+   * @return the number of columns in the underlying data
+   */
+  public int getColumnCount() {
+    return resultSet.getColumnCount();
+  }
+
+  /**
+   * If the column at the current pointer of the result set indexed by the columnIndex is null.
+   *
+   * @return true if a column contains a NULL value
+   */
+  public boolean isNull(int columnIndex) {
+    return resultSet.isNull(columnIndex);
+  }
+
+  /**
+   * Returns the column type at the current pointer of the result set indexed by the columnIndex.
+   *
+   * @param columnIndex Index of the column
+   * @return the type of a column
+   */
+  public Type getColumnType(int columnIndex) {
+    return resultSet.getColumnType(columnIndex);
   }
 
   /**
