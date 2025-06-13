@@ -543,15 +543,21 @@ public class ExecutionStateSampler {
 
     @Override
     public void updateIntermediateMonitoringData(Map<String, ByteString> monitoringData) {
-      for (ExecutionStateImpl executionState : executionStates) {
-        executionState.updateMonitoringData(monitoringData);
+      // executionState may get reset in reset() call below
+      synchronized (activeStateTrackers) {
+        for (ExecutionStateImpl executionState : executionStates) {
+          executionState.updateMonitoringData(monitoringData);
+        }
       }
     }
 
     @Override
     public void updateFinalMonitoringData(Map<String, ByteString> monitoringData) {
-      for (ExecutionStateImpl executionState : executionStates) {
-        executionState.updateMonitoringData(monitoringData);
+      // executionState may get reset in reset() call below
+      synchronized (activeStateTrackers) {
+        for (ExecutionStateImpl executionState : executionStates) {
+          executionState.updateMonitoringData(monitoringData);
+        }
       }
     }
 
