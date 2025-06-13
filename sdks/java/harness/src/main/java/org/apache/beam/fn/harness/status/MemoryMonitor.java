@@ -21,6 +21,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
 import java.nio.channels.Channels;
@@ -33,6 +34,7 @@ import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.zip.GZIPOutputStream;
 import javax.management.InstanceNotFoundException;
 import javax.management.MBeanException;
 import javax.management.MBeanServer;
@@ -194,13 +196,26 @@ public class MemoryMonitor implements Runnable {
 
   private final File localDumpFolder;
 
+  private final boolean gzipCompress;
+
   public static MemoryMonitor fromOptions(PipelineOptions options) {
     SdkHarnessOptions sdkHarnessOptions = options.as(SdkHarnessOptions.class);
-    String uploadFilePath = options.getTempLocation();
+    @Nullable String uploadFilePath = sdkHarnessOptions.getRemoteHeapDumpLocation();
+    if (uploadFilePath == null) {
+      uploadFilePath = options.getTempLocation();
+    }
     PortablePipelineOptions portableOptions = options.as(PortablePipelineOptions.class);
-    boolean canDumpHeap = uploadFilePath != null && portableOptions.getEnableHeapDumps();
+    boolean canDumpHeap = false;
+    if (portableOptions.getEnableHeapDumps()) {
+      if (uploadFilePath == null) {
+        LOG.warn(
+            "Heap dumps are requested with --enableHeapDumps but neither --remoteHeapDumpLocation nor "
+                + "--tempLocation was provided to specify where to copy captured heap dumps to.");
+      } else {
+        canDumpHeap = true;
+      }
+    }
     double gcThrashingPercentagePerPeriod = sdkHarnessOptions.getGCThrashingPercentagePerPeriod();
-
     return new MemoryMonitor(
         new SystemGCStatsProvider(),
         DEFAULT_SLEEP_TIME_MILLIS,
@@ -208,7 +223,8 @@ public class MemoryMonitor implements Runnable {
         canDumpHeap,
         gcThrashingPercentagePerPeriod,
         uploadFilePath,
-        getLoggingDir());
+        getHeapDumpDir(),
+        sdkHarnessOptions.getGzipCompressHeapDumps());
   }
 
   @VisibleForTesting
@@ -219,7 +235,8 @@ public class MemoryMonitor implements Runnable {
       boolean canDumpHeap,
       double gcThrashingPercentagePerPeriod,
       @Nullable String uploadFilePath,
-      File localDumpFolder) {
+      File localDumpFolder,
+      boolean gzipCompress) {
     return new MemoryMonitor(
         gcStatsProvider,
         sleepTimeMillis,
@@ -227,7 +244,8 @@ public class MemoryMonitor implements Runnable {
         canDumpHeap,
         gcThrashingPercentagePerPeriod,
         uploadFilePath,
-        localDumpFolder);
+        localDumpFolder,
+        gzipCompress);
   }
 
   private MemoryMonitor(
@@ -237,14 +255,26 @@ public class MemoryMonitor implements Runnable {
       boolean canDumpHeap,
       double gcThrashingPercentagePerPeriod,
       @Nullable String uploadFilePath,
-      File localDumpFolder) {
+      File localDumpFolder,
+      boolean gzipCompress) {
     this.gcStatsProvider = gcStatsProvider;
     this.sleepTimeMillis = sleepTimeMillis;
     this.shutDownAfterNumGCThrashing = shutDownAfterNumGCThrashing;
-    this.canDumpHeap = canDumpHeap;
     this.gcThrashingPercentagePerPeriod = gcThrashingPercentagePerPeriod;
     this.uploadFilePath = uploadFilePath;
     this.localDumpFolder = localDumpFolder;
+    this.gzipCompress = gzipCompress;
+
+    if (canDumpHeap) {
+      try {
+        Files.createDirectories(localDumpFolder.toPath());
+      } catch (Exception e) {
+        LOG.warn(
+            "Encountered exception creating directory for heap dumps, disabling heap dumping.", e);
+        canDumpHeap = false;
+      }
+    }
+    this.canDumpHeap = canDumpHeap;
   }
 
   /** For testing only: Wait for the monitor to be running. */
@@ -297,42 +327,56 @@ public class MemoryMonitor implements Runnable {
 
   @VisibleForTesting
   boolean tryUploadHeapDumpIfItExists() {
-    if (uploadFilePath == null) {
-      return false;
-    }
-
     boolean uploadedHeapDump = false;
     File localSource = getDefaultHeapDumpPath();
     LOG.info("Looking for heap dump at {}", localSource);
     if (localSource.exists()) {
-      LOG.warn("Heap dump {} detected, attempting to upload file to ", localSource);
-      String remoteDest =
-          String.format("%s/heap_dump%s.hprof", uploadFilePath, UUID.randomUUID().toString());
-      ResourceId resource = FileSystems.matchNewResource(remoteDest, false);
-      try {
-        uploadFile(localSource, resource);
-        uploadedHeapDump = true;
-        LOG.warn("Heap dump {} uploaded to {}", localSource, remoteDest);
-      } catch (IOException e) {
-        LOG.error("Error uploading heap dump to {}", remoteDest, e);
-      }
+      if (uploadFilePath == null) {
+        LOG.warn("Heap dump {} detected but no upload directory was provided.", localSource);
+      } else {
+        String remoteDest =
+            String.format("%s/heap_dump%s.hprof", uploadFilePath, UUID.randomUUID());
+        if (gzipCompress) {
+          remoteDest = remoteDest + ".gz";
+        }
+        LOG.warn(
+            "Heap dump {} of {}MB detected, attempting to upload file to {}",
+            localSource,
+            localSource.length() / 1024 / 1024,
+            remoteDest);
+        ResourceId resource = FileSystems.matchNewResource(remoteDest, false);
+        try {
+          uploadFile(localSource, resource, gzipCompress);
+          uploadedHeapDump = true;
+          LOG.warn("Heap dump {} uploaded to {}", localSource, remoteDest);
+        } catch (IOException e) {
+          LOG.error("Error uploading heap dump to {}", remoteDest, e);
+        }
 
-      try {
-        Files.delete(localSource.toPath());
-        LOG.info("Deleted local heap dump {}", localSource);
-      } catch (IOException e) {
-        LOG.warn("Unable to delete local heap dump {}", localSource, e);
+        try {
+          Files.delete(localSource.toPath());
+          LOG.info("Deleted local heap dump {}", localSource);
+        } catch (IOException e) {
+          LOG.warn("Unable to delete local heap dump {}", localSource, e);
+        }
       }
     }
 
     return uploadedHeapDump;
   }
 
-  private void uploadFile(File srcPath, ResourceId destination) throws IOException {
+  private void uploadFile(File srcPath, ResourceId destination, boolean gzipCompress)
+      throws IOException {
     StandardCreateOptions createOptions =
         StandardCreateOptions.builder().setMimeType("application/octet-stream").build();
-    try (WritableByteChannel dst = FileSystems.create(destination, createOptions)) {
-      try (ReadableByteChannel src = Channels.newChannel(new FileInputStream(srcPath))) {
+    try (WritableByteChannel dst = FileSystems.create(destination, createOptions);
+        ReadableByteChannel src = Channels.newChannel(new FileInputStream(srcPath))) {
+      if (gzipCompress) {
+        try (OutputStream os = new GZIPOutputStream(Channels.newOutputStream(dst));
+            WritableByteChannel gzipDst = Channels.newChannel(os)) {
+          ByteStreams.copy(src, gzipDst);
+        }
+      } else {
         ByteStreams.copy(src, dst);
       }
     }
@@ -560,7 +604,11 @@ public class MemoryMonitor implements Runnable {
   }
 
   /** Return the path for logging heap dumps. */
-  private static File getLoggingDir() {
+  private static File getHeapDumpDir() {
+    @Nullable String heapDumpDir = System.getProperty("beam.fn.heap_dump_dir");
+    if (heapDumpDir != null) {
+      return new File(heapDumpDir);
+    }
     return new File(System.getProperty("java.io.tmpdir"));
   }
 
@@ -573,6 +621,7 @@ public class MemoryMonitor implements Runnable {
   public File dumpHeap()
       throws MalformedObjectNameException, InstanceNotFoundException, ReflectionException,
           MBeanException, IOException {
+    Preconditions.checkState(canDumpHeap);
     return dumpHeap(localDumpFolder);
   }
 
@@ -582,10 +631,10 @@ public class MemoryMonitor implements Runnable {
    * <p>NOTE: We deliberately don't salt the heap dump filename so as to minimize disk impact of
    * repeated dumps. These files can be of comparable size to the local disk.
    */
-  @VisibleForTesting
-  static synchronized File dumpHeap(File directory)
+  private static synchronized File dumpHeap(File directory)
       throws MalformedObjectNameException, InstanceNotFoundException, ReflectionException,
           MBeanException, IOException {
+
     boolean liveObjectsOnly = false;
     File fileName = new File(directory, "heap_dump.hprof");
     if (fileName.exists() && !fileName.delete()) {

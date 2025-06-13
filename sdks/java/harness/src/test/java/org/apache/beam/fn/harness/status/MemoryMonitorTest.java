@@ -23,10 +23,12 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.zip.GZIPInputStream;
 import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Rule;
@@ -61,21 +63,20 @@ public class MemoryMonitorTest {
 
   private FakeGCStatsProvider provider;
   private File localDumpFolder;
-  private MemoryMonitor monitor;
-  private Thread thread;
 
   @Before
   public void setup() throws IOException {
     provider = new FakeGCStatsProvider();
     localDumpFolder = tempFolder.newFolder();
-    // Update every 10ms, never shutdown VM.
-    monitor = MemoryMonitor.forTest(provider, 10, 0, false, 50.0, null, localDumpFolder);
-    thread = new Thread(monitor);
-    thread.start();
   }
 
   @Test(timeout = 1000)
   public void detectGCThrashing() throws InterruptedException {
+    // Update every 10ms, never shutdown VM.
+    MemoryMonitor monitor =
+        MemoryMonitor.forTest(provider, 10, 0, false, 50.0, null, localDumpFolder, false);
+    Thread thread = new Thread(monitor);
+    thread.start();
     monitor.waitForRunning();
     monitor.waitForResources("Test1");
     provider.inGCThrashingState.set(true);
@@ -92,38 +93,52 @@ public class MemoryMonitorTest {
     monitor.waitForThrashingState(false);
     assertTrue(s.tryAcquire(100, TimeUnit.MILLISECONDS));
     monitor.waitForResources("Test3");
+    monitor.stop();
+    thread.join();
   }
 
   @Test
   public void heapDumpOnce() throws Exception {
-    File folder = tempFolder.newFolder();
-
-    File dump1 = MemoryMonitor.dumpHeap(folder);
+    MemoryMonitor monitor =
+        MemoryMonitor.forTest(provider, 10, 0, true, 50.0, null, localDumpFolder, false);
+    File dump1 = monitor.dumpHeap();
     assertNotNull(dump1);
     assertTrue(dump1.exists());
-    assertThat(dump1.getParentFile(), Matchers.equalTo(folder));
+    assertThat(dump1.getParentFile(), Matchers.equalTo(localDumpFolder));
+  }
+
+  @Test
+  public void heapDumpToNonexistentDir() throws Exception {
+    File subfolder = localDumpFolder.toPath().resolve("subfolder_for_dumps").toFile();
+    MemoryMonitor monitor =
+        MemoryMonitor.forTest(provider, 10, 0, true, 50.0, null, subfolder, false);
+    File dump1 = monitor.dumpHeap();
+    assertNotNull(dump1);
+    assertTrue(dump1.exists());
+    assertThat(dump1.getParentFile(), Matchers.equalTo(subfolder));
   }
 
   @Test
   public void heapDumpTwice() throws Exception {
-    File folder = tempFolder.newFolder();
-
-    File dump1 = MemoryMonitor.dumpHeap(folder);
+    MemoryMonitor monitor =
+        MemoryMonitor.forTest(provider, 10, 0, true, 50.0, null, localDumpFolder, false);
+    File dump1 = monitor.dumpHeap();
     assertNotNull(dump1);
     assertTrue(dump1.exists());
-    assertThat(dump1.getParentFile(), Matchers.equalTo(folder));
+    assertThat(dump1.getParentFile(), Matchers.equalTo(localDumpFolder));
 
-    File dump2 = MemoryMonitor.dumpHeap(folder);
+    File dump2 = monitor.dumpHeap();
     assertNotNull(dump2);
     assertTrue(dump2.exists());
-    assertThat(dump2.getParentFile(), Matchers.equalTo(folder));
+    assertThat(dump2.getParentFile(), Matchers.equalTo(localDumpFolder));
   }
 
   @Test
   public void uploadFile() throws Exception {
     File remoteFolder = tempFolder.newFolder();
-    monitor =
-        MemoryMonitor.forTest(provider, 10, 0, true, 50.0, remoteFolder.getPath(), localDumpFolder);
+    MemoryMonitor monitor =
+        MemoryMonitor.forTest(
+            provider, 10, 0, true, 50.0, remoteFolder.getPath(), localDumpFolder, false);
 
     // Force the monitor to generate a local heap dump
     monitor.dumpHeap();
@@ -138,8 +153,33 @@ public class MemoryMonitorTest {
   }
 
   @Test
+  public void uploadFileGzip() throws Exception {
+    File remoteFolder = tempFolder.newFolder();
+    MemoryMonitor monitor =
+        MemoryMonitor.forTest(
+            provider, 10, 0, true, 50.0, remoteFolder.getPath(), localDumpFolder, true);
+
+    // Force the monitor to generate a local heap dump
+    monitor.dumpHeap();
+
+    // Try to upload the heap dump
+    assertTrue(monitor.tryUploadHeapDumpIfItExists());
+
+    File[] files = remoteFolder.listFiles();
+    assertThat(files, Matchers.arrayWithSize(1));
+    assertThat(files[0].getAbsolutePath(), Matchers.containsString("heap_dump"));
+    assertThat(files[0].getAbsolutePath(), Matchers.containsString("hprof.gz"));
+
+    try (FileInputStream f = new FileInputStream(files[0]);
+        GZIPInputStream g = new GZIPInputStream(f)) {
+      assertThat(g.read(), Matchers.not(Matchers.is(-1)));
+    }
+  }
+
+  @Test
   public void uploadFileDisabled() throws Exception {
-    monitor = MemoryMonitor.forTest(provider, 10, 0, true, 50.0, null, localDumpFolder);
+    MemoryMonitor monitor =
+        MemoryMonitor.forTest(provider, 10, 0, true, 50.0, null, localDumpFolder, false);
 
     // Force the monitor to generate a local heap dump
     monitor.dumpHeap();
@@ -150,8 +190,14 @@ public class MemoryMonitorTest {
 
   @Test
   public void disableMemoryMonitor() throws Exception {
+    // Update every 10ms, never shutdown VM.
+    MemoryMonitor monitor =
+        MemoryMonitor.forTest(provider, 10, 0, false, 50.0, null, localDumpFolder, false);
+    Thread thread = new Thread(monitor);
+    thread.start();
+
     MemoryMonitor disabledMonitor =
-        MemoryMonitor.forTest(provider, 10, 0, true, 100.0, null, localDumpFolder);
+        MemoryMonitor.forTest(provider, 10, 0, true, 100.0, null, localDumpFolder, false);
     Thread disabledMonitorThread = new Thread(disabledMonitor);
     disabledMonitorThread.start();
 
@@ -162,5 +208,7 @@ public class MemoryMonitorTest {
 
     // Enabled monitor thread should still be running.
     assertTrue(thread.isAlive());
+    monitor.stop();
+    thread.join();
   }
 }
