@@ -70,8 +70,6 @@ jobs:
           comment_phrase: ${{ matrix.job_phrase }} ${{ matrix.test_set }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_job: ${{ matrix.job_name }} ${{ matrix.test_set }} (${{ matrix.job_phrase }} ${{ matrix.test_set }})
-      - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@v1.3.0
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
