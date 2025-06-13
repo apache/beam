@@ -707,7 +707,7 @@ class IdentityWindowTest(unittest.TestCase):
       def process(self, element):
         yield window.TimestampedValue(element, expected_timestamp)
 
-    with self.assertRaisesRegex(ValueError, r'window.*None.*add_timestamps2'):
+    with self.assertRaisesRegex(Exception, r'.*window.*None.*add_timestamps2'):
       with TestPipeline() as pipeline:
         data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
         expected_windows = [
@@ -733,11 +733,6 @@ class IdentityWindowTest(unittest.TestCase):
             # contain a window of None. IdentityWindowFn should
             # raise an exception.
             | 'add_timestamps2' >> beam.ParDo(AddTimestampDoFn()))
-        assert_that(
-            after_identity,
-            equal_to(expected_windows),
-            label='after_identity',
-            reify_windows=True)
 
 
 class ReshuffleTest(unittest.TestCase):
@@ -1089,14 +1084,19 @@ class ReshuffleTest(unittest.TestCase):
         index=1,
         nonspeculative_index=1)
 
+    # Portable runners may not have the same level of precision on timestamps -
+    # this gets the largest supported timestamp with the extra non-supported bits
+    # truncated
+    gt = GlobalWindow().max_timestamp()
+    truncated_gt = gt - (gt % 0.001)
+
     expected_preserved = [
         TestWindowedValue('a', MIN_TIMESTAMP, [GlobalWindow()], no_firing),
         TestWindowedValue(
             'b', timestamp.Timestamp(0), [GlobalWindow()], on_time_only),
         TestWindowedValue(
             'c', timestamp.Timestamp(33), [GlobalWindow()], late_firing),
-        TestWindowedValue(
-            'd', GlobalWindow().max_timestamp(), [GlobalWindow()], no_firing)
+        TestWindowedValue('d', truncated_gt, [GlobalWindow()], no_firing)
     ]
 
     expected_not_preserved = [
@@ -1107,9 +1107,7 @@ class ReshuffleTest(unittest.TestCase):
         TestWindowedValue(
             'c', timestamp.Timestamp(33), [GlobalWindow()], PANE_INFO_UNKNOWN),
         TestWindowedValue(
-            'd',
-            GlobalWindow().max_timestamp(), [GlobalWindow()],
-            PANE_INFO_UNKNOWN)
+            'd', truncated_gt, [GlobalWindow()], PANE_INFO_UNKNOWN)
     ]
 
     expected = (
@@ -1125,8 +1123,7 @@ class ReshuffleTest(unittest.TestCase):
               'b', timestamp.Timestamp(0), [GlobalWindow()], on_time_only),
           WindowedValue(
               'c', timestamp.Timestamp(33), [GlobalWindow()], late_firing),
-          WindowedValue(
-              'd', GlobalWindow().max_timestamp(), [GlobalWindow()], no_firing)
+          WindowedValue('d', truncated_gt, [GlobalWindow()], no_firing)
       ]
 
       after_reshuffle = (

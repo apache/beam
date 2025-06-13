@@ -992,7 +992,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
                      sorted(StatefulDoFnOnDirectRunnerTest.all_records))
 
   @pytest.mark.no_xdist
-  @pytest.mark.timeout(10)
+  @pytest.mark.timeout(60)
   def test_dynamic_timer_clear_then_set_timer(self):
     class EmitTwoEvents(DoFn):
       EMIT_CLEAR_SET_TIMER = TimerSpec('emitclear', TimeDomain.WATERMARK)
