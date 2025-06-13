@@ -46,6 +46,8 @@ pipelines:
             producer_config_updates:
               linger.ms: "0"
 
+  # TODO(#35272): Figure out why this times out when running on github.
+  # Locally runs fine.
   # Kafka read pipeline
   # Need a separate read pipeline to make sure the write pipeline is flushed
   - pipeline:
@@ -75,6 +77,9 @@ pipelines:
               - {value: "123"}
               - {value: "456"}
               - {value: "789"}
+
+    options:
+      streaming: true
 
 # TODO: Error handling hard to trigger upon initial investigations.  Need to
 # investigate more.
