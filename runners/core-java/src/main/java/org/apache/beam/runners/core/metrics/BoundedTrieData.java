@@ -311,7 +311,7 @@ public class BoundedTrieData implements Serializable {
    * intended to be used directly outside of {@link BoundedTrieData} with multiple threads.
    */
   @VisibleForTesting
-  public static class BoundedTrieNode implements Serializable {
+  static class BoundedTrieNode implements Serializable {
 
     public static final String TRUNCATED_TRUE = String.valueOf(true);
     public static final String TRUNCATED_FALSE = String.valueOf(false);
@@ -334,7 +334,7 @@ public class BoundedTrieData implements Serializable {
     private int size;
 
     /** Constructs an empty `BoundedTrieNode` with size 1 and not truncated. */
-    public BoundedTrieNode() {
+    BoundedTrieNode() {
       this(new HashMap<>(), false, 1);
     }
 
@@ -345,8 +345,7 @@ public class BoundedTrieData implements Serializable {
      * @param truncated Whether this node is truncated.
      * @param size The size of the subtree rooted at this node.
      */
-    public BoundedTrieNode(
-        @Nonnull Map<String, BoundedTrieNode> children, boolean truncated, int size) {
+    BoundedTrieNode(@Nonnull Map<String, BoundedTrieNode> children, boolean truncated, int size) {
       this.children = children;
       this.size = size;
       this.truncated = truncated;
@@ -562,7 +561,7 @@ public class BoundedTrieData implements Serializable {
      *
      * @return The size of the subtree.
      */
-    public int getSize() {
+    int getSize() {
       return size;
     }
 
