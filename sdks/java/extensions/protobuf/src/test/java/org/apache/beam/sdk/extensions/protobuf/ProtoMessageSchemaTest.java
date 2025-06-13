@@ -25,6 +25,9 @@ import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NESTED_RO
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NESTED_SCHEMA;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NONCONTIGUOUS_ONEOF_PROTO;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NONCONTIGUOUS_ONEOF_ROW;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NULLABLE_PRIMITIVE_PROTO;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NULLABLE_PRIMITIVE_ROW;
+import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NULLABLE_PRIMITIVE_SCHEMA;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NULL_MAP_PRIMITIVE_PROTO;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NULL_MAP_PRIMITIVE_ROW;
 import static org.apache.beam.sdk.extensions.protobuf.TestProtoSchemas.NULL_REPEATED_PROTO;
@@ -75,6 +78,7 @@ import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.EnumMessage;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.MapPrimitive;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.Nested;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.NonContiguousOneOf;
+import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.NullablePrimitive;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.OneOf;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.OuterOneOf;
 import org.apache.beam.sdk.extensions.protobuf.Proto3SchemaMessages.Primitive;
@@ -114,6 +118,26 @@ public class ProtoMessageSchemaTest {
     SerializableFunction<Row, Primitive> fromRow =
         new ProtoMessageSchema().fromRowFunction(TypeDescriptor.of(Primitive.class));
     assertEquals(PRIMITIVE_PROTO, fromRow.apply(PRIMITIVE_ROW));
+  }
+
+  @Test
+  public void testNullablePrimitiveSchema() {
+    Schema schema = new ProtoMessageSchema().schemaFor(TypeDescriptor.of(NullablePrimitive.class));
+    assertEquals(NULLABLE_PRIMITIVE_SCHEMA, schema);
+  }
+
+  @Test
+  public void testNullablePrimitiveProtoToRow() {
+    SerializableFunction<NullablePrimitive, Row> toRow =
+        new ProtoMessageSchema().toRowFunction(TypeDescriptor.of(NullablePrimitive.class));
+    assertEquals(NULLABLE_PRIMITIVE_ROW, toRow.apply(NULLABLE_PRIMITIVE_PROTO));
+  }
+
+  @Test
+  public void testNullablePrimitiveRowToProto() {
+    SerializableFunction<Row, NullablePrimitive> fromRow =
+        new ProtoMessageSchema().fromRowFunction(TypeDescriptor.of(NullablePrimitive.class));
+    assertEquals(NULLABLE_PRIMITIVE_PROTO, fromRow.apply(NULLABLE_PRIMITIVE_ROW));
   }
 
   @Test
