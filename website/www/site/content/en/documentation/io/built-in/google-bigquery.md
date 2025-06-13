@@ -971,8 +971,7 @@ options when you run the job:
     <td>
       Maximum size of a single append to the Storage Write API (best effort).
     </td>
-  </tr>
-  
+  </tr> 
   <tr>
     <td>
       <p><code>storageApiAppendThresholdRecordCount</code></p>
