@@ -416,10 +416,9 @@ class YamlMappingTest(unittest.TestCase):
             ''')
 
   def test_partition_bad_runtime_type(self):
-    with self.assertRaisesRegex(ValueError,
-                                r'.*Returned output name.*must be a string.*'):
-      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
-          pickle_library='cloudpickle')) as p:
+    with self.assertRaisesRegex(Exception, 'UNKNOWN:Error received from peer'):
+      with beam.Pipeline('PrismRunner', options=beam.options.pipeline_options.PrismRunnerOptions(
+          pickle_library='cloudpickle', prism_location='gs://apache-beam-damccorm/prism_binary/prism')) as p:
         elements = p | beam.Create([
             beam.Row(element='apple', texture='smooth'),
             beam.Row(element='banana', texture='smooth'),
