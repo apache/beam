@@ -70,7 +70,7 @@ public class IcebergTableProviderTest {
     assertTrue(sqlTable instanceof IcebergTable);
 
     IcebergTable icebergTable = (IcebergTable) sqlTable;
-    assertEquals("namespace.table", icebergTable.tableIdentifier);
+    assertEquals("namespace.my_table", icebergTable.tableIdentifier);
     assertEquals(provider.catalogConfig, icebergTable.catalogConfig);
   }
 
