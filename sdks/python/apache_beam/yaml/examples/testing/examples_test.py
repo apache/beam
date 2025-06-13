@@ -701,7 +701,7 @@ def _jdbc_io_read_test_preprocessor(
                 for column in element if column in columns
             } for element in elements]
         transform['config']['elements'] = elements
-        # import pdb; pdb.set_trace()
+
   return test_spec
 
 
