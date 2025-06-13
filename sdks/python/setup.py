@@ -446,7 +446,7 @@ if __name__ == '__main__':
               'python-tds>=1.16.1',
               'sqlalchemy-pytds>=1.0.2',
               'pg8000>=1.31.1',
-              "PyMySQL>=1.1.0"
+              "PyMySQL>=1.1.0",
               'oracledb>=3.1.1'
           ],
           'gcp': [
