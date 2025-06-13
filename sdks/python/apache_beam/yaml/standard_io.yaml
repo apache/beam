@@ -332,6 +332,7 @@
         columns: 'columns'
         index: 'index'
         batching: 'batching'
+        error_handling: 'error_handling'
       'WriteToSpanner':
         project: 'project_id'
         instance: 'instance_id'

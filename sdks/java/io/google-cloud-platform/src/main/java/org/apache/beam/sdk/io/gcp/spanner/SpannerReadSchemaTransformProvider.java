@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
@@ -24,9 +25,12 @@ import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.spanner.Struct;
 import java.io.Serializable;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
@@ -34,11 +38,19 @@ import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
-import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.FinishBundle;
+import org.apache.beam.sdk.transforms.DoFn.FinishBundleContext;
+import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
+import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 
 /** A provider for reading from Cloud Spanner using a Schema Transform Provider. */
@@ -60,6 +72,11 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 public class SpannerReadSchemaTransformProvider
     extends TypedSchemaTransformProvider<
         SpannerReadSchemaTransformProvider.SpannerReadSchemaTransformConfiguration> {
+
+  public static final TupleTag<Row> OUTPUT_TAG = new TupleTag<Row>() {};
+  public static final TupleTag<Row> ERROR_TAG = new TupleTag<Row>() {};
+  public static final Schema ERROR_SCHEMA =
+      Schema.builder().addStringField("error").addStringField("row").build();
 
   @Override
   public String identifier() {
@@ -133,6 +150,7 @@ public class SpannerReadSchemaTransformProvider
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       checkNotNull(input, "Input to SpannerReadSchemaTransform cannot be null.");
+      boolean handleErrors = ErrorHandling.hasOutput(configuration.getErrorHandling());
       SpannerIO.Read read =
           SpannerIO.readWithSchema()
               .withProjectId(configuration.getProjectId())
@@ -152,12 +170,66 @@ public class SpannerReadSchemaTransformProvider
       }
       PCollection<Struct> spannerRows = input.getPipeline().apply(read);
       Schema schema = spannerRows.getSchema();
-      PCollection<Row> rows =
-          spannerRows.apply(
-              MapElements.into(TypeDescriptor.of(Row.class))
-                  .via((Struct struct) -> StructUtils.structToBeamRow(struct, schema)));
 
-      return PCollectionRowTuple.of("output", rows.setRowSchema(schema));
+      PCollectionTuple outputTuple =
+          spannerRows.apply(
+              ParDo.of(
+                      new ErrorFn("spanner-read-error-counter", ERROR_SCHEMA, schema, handleErrors))
+                  .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
+
+      PCollectionRowTuple outputRows =
+          PCollectionRowTuple.of("output", outputTuple.get(OUTPUT_TAG).setRowSchema(schema));
+
+      // Error handling
+      PCollection<Row> errorOutput = outputTuple.get(ERROR_TAG).setRowSchema(ERROR_SCHEMA);
+      if (handleErrors) {
+        outputRows =
+            outputRows.and(
+                checkArgumentNotNull(configuration.getErrorHandling()).getOutput(), errorOutput);
+      }
+
+      return outputRows;
+    }
+  }
+
+  public static class ErrorFn extends DoFn<Struct, Row> {
+    private final Counter errorCounter;
+    private Long errorsInBundle = 0L;
+    private final boolean handleErrors;
+    private final Schema errorSchema;
+    private final Schema schema;
+
+    public ErrorFn(String name, Schema errorSchema, Schema schema, boolean handleErrors) {
+      this.errorCounter = Metrics.counter(SpannerReadSchemaTransformProvider.class, name);
+      this.handleErrors = handleErrors;
+      this.errorSchema = errorSchema;
+      this.schema = schema;
+    }
+
+    @ProcessElement
+    public void processElement(@DoFn.Element Struct struct, MultiOutputReceiver receiver) {
+      Row mappedRow = null;
+      try {
+        mappedRow = StructUtils.structToBeamRow(struct, schema);
+      } catch (Exception e) {
+        if (!handleErrors) {
+          throw new RuntimeException(e);
+        }
+        errorsInBundle += 1;
+        receiver
+            .get(ERROR_TAG)
+            .output(
+                Row.withSchema(errorSchema).addValues(e.getMessage(), struct.toString()).build());
+      }
+      if (mappedRow != null) {
+        receiver.get(OUTPUT_TAG).output(mappedRow);
+      }
+    }
+
+    @FinishBundle
+    public void finish(FinishBundleContext c) {
+      errorCounter.inc(errorsInBundle);
+      errorsInBundle = 0L;
     }
   }
 
@@ -168,7 +240,7 @@ public class SpannerReadSchemaTransformProvider
 
   @Override
   public List<String> outputCollectionNames() {
-    return Collections.singletonList("output");
+    return Arrays.asList("output", "errors");
   }
 
   @DefaultSchema(AutoValueSchema.class)
@@ -192,6 +264,8 @@ public class SpannerReadSchemaTransformProvider
       public abstract Builder setIndex(String index);
 
       public abstract Builder setBatching(Boolean batching);
+
+      public abstract Builder setErrorHandling(ErrorHandling errorHandling);
 
       public abstract SpannerReadSchemaTransformConfiguration build();
     }
@@ -261,6 +335,10 @@ public class SpannerReadSchemaTransformProvider
         "Set to false to disable batching. Useful when using a query that is not compatible with the PartitionQuery API. Defaults to true.")
     @Nullable
     public abstract Boolean getBatching();
+
+    @SchemaFieldDescription("This option specifies whether and where to output unwritable rows.")
+    @Nullable
+    public abstract ErrorHandling getErrorHandling();
   }
 
   @Override
