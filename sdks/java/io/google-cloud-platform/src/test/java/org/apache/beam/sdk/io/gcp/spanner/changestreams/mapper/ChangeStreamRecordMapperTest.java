@@ -930,4 +930,26 @@ public class ChangeStreamRecordMapperTest {
         Collections.singletonList(childPartitionsRecord),
         mapperPostgres.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
   }
+
+  @Test
+  public void testMappingProtoRowToPartitionStartRecord() {
+    com.google.spanner.v1.ChangeStreamRecord.PartitionStartRecord partitionStartRecord =
+        com.google.spanner.v1.ChangeStreamRecord.PartitionStartRecord.newBuilder()
+            .setRecordSequence("sequence")
+            .addPartitionTokens("partitionTokens")
+            .build();
+    com.google.spanner.v1.ChangeStreamRecord record =
+        com.google.spanner.v1.ChangeStreamRecord.newBuilder()
+            .setPartitionStartRecord(partitionStartRecord)
+            .build();
+
+    assertNotNull(record);
+    ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
+
+    Struct ret = Struct.newBuilder().set("ChangeStreamRecord").to(record).build();
+    when(resultSet.getCurrentRowAsStruct()).thenReturn(ret);
+    assertEquals(
+        Collections.singletonList(partitionStartRecord),
+        mapper.toChangeStreamRecords(partition, resultSet, resultSetMetadata));
+  }
 }

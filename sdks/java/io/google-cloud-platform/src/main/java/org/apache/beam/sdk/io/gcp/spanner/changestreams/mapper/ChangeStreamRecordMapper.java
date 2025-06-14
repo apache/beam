@@ -23,6 +23,7 @@ import com.google.cloud.spanner.Struct;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Value;
 import com.google.protobuf.util.JsonFormat;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -42,10 +43,14 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.HeartbeatRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.InitialPartition;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.Mod;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ModType;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionEndRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionStartRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.TypeCode;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ValueCaptureType;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This class is responsible for transforming a {@link Struct} to a {@link List} of {@link
@@ -56,6 +61,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
  */
 public class ChangeStreamRecordMapper {
 
+  private static final Logger LOG = LoggerFactory.getLogger(ChangeStreamRecordMapper.class);
   private static final String DATA_CHANGE_RECORD_COLUMN = "data_change_record";
   private static final String HEARTBEAT_RECORD_COLUMN = "heartbeat_record";
   private static final String CHILD_PARTITIONS_RECORD_COLUMN = "child_partitions_record";
@@ -223,10 +229,98 @@ public class ChangeStreamRecordMapper {
       return Collections.singletonList(
           toChangeStreamRecordJson(partition, resultSet.getPgJsonb(0), resultSetMetadata));
     }
+
+    if (maybeV2ChangeRecord(resultSet.getCurrentRowAsStruct())) {
+      return Arrays.asList(
+          toV2ChangeStreamRecord(partition, resultSetMetadata, resultSet.getCurrentRowAsStruct()));
+    }
+
     // In GoogleSQL, change stream records are returned as an array of structs.
     return resultSet.getCurrentRowAsStruct().getStructList(0).stream()
         .flatMap(struct -> toChangeStreamRecord(partition, struct, resultSetMetadata))
         .collect(Collectors.toList());
+  }
+
+  boolean maybeV2ChangeRecord(Struct currentRow) {
+    return currentRow.getColumnCount() == 1
+        && !currentRow.isNull(0)
+        && currentRow.getColumnType(0).getCode() == com.google.cloud.spanner.Type.Code.PROTO;
+  }
+
+  ChangeStreamRecord toV2ChangeStreamRecord(
+      PartitionMetadata partition,
+      ChangeStreamResultSetMetadata resultSetMetadata,
+      Struct currentRow) {
+    com.google.spanner.v1.ChangeStreamRecord changeStreamRecordProto =
+        currentRow.getProtoMessage(
+            0, com.google.spanner.v1.ChangeStreamRecord.getDefaultInstance());
+    if (changeStreamRecordProto.hasPartitionStartRecord()) {
+      return parseV2PartitionStartRecord(
+          partition, resultSetMetadata, changeStreamRecordProto.getPartitionStartRecord());
+    } else if (changeStreamRecordProto.hasPartitionEndRecord()) {
+      return parseV2PartitionEndRecord(
+          partition, resultSetMetadata, changeStreamRecordProto.getPartitionEndRecord());
+    } else if (changeStreamRecordProto.hasPartitionEventRecord()) {
+      return parseV2PartitionEventRecord(
+          partition, resultSetMetadata, changeStreamRecordProto.getPartitionEventRecord());
+    } else if (changeStreamRecordProto.hasHeartbeatRecord()) {
+      return parseV2HeartbeatRecord(
+          partition, resultSetMetadata, changeStreamRecordProto.getHeartbeatRecord());
+    }
+
+    // todo data change record
+    return new PartitionEndRecord(
+        Timestamp.MIN_VALUE,
+        "xxxx",
+        changeStreamRecordMetadataFrom(partition, Timestamp.MIN_VALUE, resultSetMetadata));
+  }
+
+  ChangeStreamRecord parseV2PartitionStartRecord(
+      PartitionMetadata partition,
+      ChangeStreamResultSetMetadata resultSetMetadata,
+      com.google.spanner.v1.ChangeStreamRecord.PartitionStartRecord partitionStartRecordProto) {
+    final Timestamp startTimestamp =
+        Timestamp.fromProto(partitionStartRecordProto.getStartTimestamp());
+    return new PartitionStartRecord(
+        startTimestamp,
+        partitionStartRecordProto.getRecordSequence(),
+        partitionStartRecordProto.getPartitionTokensList(),
+        changeStreamRecordMetadataFrom(partition, startTimestamp, resultSetMetadata));
+  }
+
+  ChangeStreamrecord parseV2PartitionEndRecord(
+      PartitionMetadata partition,
+      ChangeStreamResultSetMetadata resultSetMetadata,
+      com.google.spanner.v1.ChangeStreamRecord.PartitionEndRecord partitionEndRecordProto) {
+    final Timestamp endTimestamp = Timestamp.fromProto(partitionEndRecordProto.getEndTimestamp());
+    return new PartitionEndRecord(
+        endTimestamp,
+        partitionEndRecordProto.getRecordSequence(),
+        changeStreamRecordMetadataFrom(partition, endTimestamp, resultSetMetadata));
+  }
+
+  ChangeStreamrecord parseV2PartitionEventRecord(
+      PartitionMetadata partition,
+      ChangeStreamResultSetMetadata resultSetMetadata,
+      com.google.spanner.v1.ChangeStreamRecord.PartitionEventRecord partitionEventRecordProto) {
+    final Timestamp commitTimestamp =
+        Timestamp.fromProto(partitionEndRecordProto.getCommitTimestamp());
+    return new PartitionEventRecord(
+        commitTimestamp,
+        partitionEventRecordProto.getRecordSequence(),
+        partitionEventRecordProto.getMoveInEventsList(),
+        partitionEventRecordProto.getMoveOutEventsList(),
+        changeStreamRecordMetadataFrom(partition, commitTimestamp, resultSetMetadata));
+  }
+
+  ChangeStreamRecord parseV2HeartbeatRecord(
+      PartitionMetadata partition,
+      ChangeStreamResultSetMetadata resultSetMetadata,
+      com.google.spanner.v1.ChangeStreamRecord.HeartbeatRecord heartbeatRecordProto) {
+    final Timestamp heartbeatTimestamp = Timestamp.fromProto(heartbeatRecordProto.getTimestamp());
+    return new HeartbeatRecord(
+        heartbeatTimestamp,
+        changeStreamRecordMetadataFrom(partition, heartbeatTimestamp, resultSetMetadata));
   }
 
   Stream<ChangeStreamRecord> toChangeStreamRecord(
