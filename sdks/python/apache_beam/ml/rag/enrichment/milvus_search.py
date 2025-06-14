@@ -72,6 +72,9 @@ class MilvusConnectionParameters:
   # If None, the client's default timeout is used.
   timeout: Optional[float] = None
 
+  # Optional keyword arguments for additional connection parameters.
+  kwargs: Dict[str, Any] = field(default_factory=dict)
+
   def __post_init__(self):
     if not self.uri:
       raise ValueError("URI must be provided for Milvus connection")
@@ -108,19 +111,24 @@ class BaseSearchParameters:
 class VectorSearchParameters(BaseSearchParameters):
   """Parameters for vector search."""
   # Inherits all fields from BaseSearchParameters.
-  # Can add vector-specific parameters here.
 
+  # Optional keyword arguments for additional vector search parameters. Useful
+  # for forward compatibility without modifying current code.
+  kwargs: Dict[str, Any] = field(default_factory=dict)
 
 @dataclass
 class KeywordSearchParameters(BaseSearchParameters):
   """Parameters for keyword search."""
   # Inherits all fields from BaseSearchParameters.
-  # Can add keyword-specific parameters here.
 
+  # Optional keyword arguments for additional keyword search parameters. Useful
+  # for forward compatibility without modifying current code.
+  kwargs: Dict[str, Any] = field(default_factory=dict)
 
 @dataclass
 class HybridSearchParameters:
   """Parameters for hybrid (vector + keyword) search."""
+
   # Ranker for combining vector and keyword search results.
   # Example: RRFRanker(weight_vector=0.6, weight_keyword=0.4).
   ranker: MilvusBaseRanker
@@ -129,13 +137,35 @@ class HybridSearchParameters:
   # Must be a positive integer.
   limit: int = 3
 
-  def __post_init__(self):
+  # Optional keyword arguments for additional hybrid search parameters. It is
+  # useful for forward compatibility without modifiying current implementation. 
+  kwargs: Dict[str, Any] = field(default_factory=dict)
+
+  def __post__init__(self):
     if not self.ranker:
       raise ValueError("Ranker must be provided for hybrid search")
 
     if self.limit <= 0:
       raise ValueError(f"Search limit must be positive, got {self.limit}")
 
+@dataclass
+class HybridSearchNamespace:
+  """Namespace for hybrid (vector + keyword) search."""
+
+  # Parameters for vector search.
+  vector: VectorSearchParameters
+
+  # Parameters for keyword search.
+  keyword: KeywordSearchParameters
+
+  # Parameters for hybrid search.
+  hybrid: HybridSearchParameters
+
+  def __post_init__(self):
+    if not self.vector or not self.keyword or not self.hybrid:
+      raise ValueError(
+          "Vector, Keyword, and Hybrid search parameters must be provided for "
+          "Hybrid search strategy")
 
 @dataclass
 class MilvusSearchParameters:
@@ -145,21 +175,9 @@ class MilvusSearchParameters:
   collection_name: str
 
   # Type of search to perform (VECTOR, KEYWORD, or HYBRID).
-  # Specifies the search approach that determines which parameters and Milvus
-  # APIs will be utilized.
-  search_strategy: SearchStrategy
+  search_strategy: Union[VectorSearchParameters, KeywordSearchParameters, HybridSearchNamespace]
 
-  # Parameters for vector search.
-  # Required when search_strategy is VECTOR or HYBRID.
-  vector: Optional[VectorSearchParameters] = None
-
-  # Parameters for keyword search.
-  # Required when search_strategy is KEYWORD or HYBRID.
-  keyword: Optional[KeywordSearchParameters] = None
-
-  # Parameters for hybrid search.
-  # Required when search_strategy is HYBRID.
-  hybrid: Optional[HybridSearchParameters] = None
+  # Common fields between all search strategies.
 
   # List of partition names to restrict the search to.
   # If None or empty, all partitions will be searched.
@@ -178,39 +196,13 @@ class MilvusSearchParameters:
   round_decimal: int = -1
 
   def __post_init__(self):
-    # Validate that collection_name is set
+    # Validate that collection_name is set.
     if not self.collection_name:
       raise ValueError("Collection name must be provided")
 
-    # Validate that search_strategy is set
+    # Validate that search_strategy is set.
     if not self.search_strategy:
       raise ValueError("Search strategy must be provided")
-
-    # Validate that the search_strategy variant chosen has all parameters it needs.
-    if self.search_strategy == SearchStrategy.VECTOR and not self.vector:
-      raise ValueError(
-          "Vector search parameters must be provided for VECTOR search strategy"
-      )
-
-    if self.search_strategy == SearchStrategy.KEYWORD and not self.keyword:
-      raise ValueError(
-          "Keyword search parameters must be provided for KEYWORD search strategy"
-      )
-
-    if self.search_strategy == SearchStrategy.HYBRID:
-      if not self.vector:
-        raise ValueError(
-            "Vector search parameters must be provided for HYBRID search strategy"
-        )
-      if not self.keyword:
-        raise ValueError(
-            "Keyword search parameters must be provided for HYBRID search strategy"
-        )
-      if not self.hybrid:
-        raise ValueError(
-            "Hybrid search parameters must be provided for HYBRID search strategy"
-        )
-
 
 @dataclass
 class MilvusCollectionLoadParameters:
@@ -232,6 +224,9 @@ class MilvusCollectionLoadParameters:
   # Use this to save memory when dynamic fields aren't needed for queries.
   skip_load_dynamic_field: bool = field(default_factory=bool)
 
+  # Optional keyword arguments for additional collection load parameters. Useful
+  # for forward compatibility without modifying current code.
+  kwargs: Dict[str, Any] = field(default_factory=dict)
 
 class MilvusSearchEnrichmentHandler(
     EnrichmentSourceHandler[Union[Chunk, List[Chunk]],
@@ -256,23 +251,26 @@ class MilvusSearchEnrichmentHandler(
     self.use_custom_types = True
 
   def __enter__(self):
-    self._client = MilvusClient(**self._connection_parameters.__dict__)
+    connectionParams = unpack_dataclass_with_kwargs(self._connection_parameters)
+    loadCollectionParams = unpack_dataclass_with_kwargs(
+      self._collection_load_parameters)
+    self._client = MilvusClient(**connectionParams)
     self._client.load_collection(
         collection_name=self.collection_name,
         partition_names=self.partition_names,
-        **self._collection_load_parameters.__dict__)
+        **loadCollectionParams)
 
   def __call__(self, request: Union[Chunk, List[Chunk]], *args,
                **kwargs) -> List[Tuple[Chunk, Dict[str, Any]]]:
     reqs = request if isinstance(request, list) else [request]
-    search_result = self._search_documents(reqs, self._search_parameters)
+    search_result = self._search_documents(reqs)
     return self._get_call_response(reqs, search_result)
 
-  def _search_documents(
-      self, chunks: List[Chunk], search_parameters: MilvusSearchParameters):
-    if self.search_strategy == SearchStrategy.HYBRID:
-      data = self._get_hybrid_search_data(
-          chunks, search_parameters.vector, search_parameters.keyword)
+  def _search_documents(self, chunks: List[Chunk]):
+    if isinstance(self.search_strategy, HybridSearchNamespace):
+      data = self._get_hybrid_search_data(chunks)
+      hybridSearchParmas = unpack_dataclass_with_kwargs(
+        self.search_strategy.hybrid)
       return self._client.hybrid_search(
           collection_name=self.collection_name,
           partition_names=self.partition_names,
@@ -280,9 +278,10 @@ class MilvusSearchEnrichmentHandler(
           timeout=self.timeout,
           round_decimal=self.round_decimal,
           reqs=data,
-          **search_parameters.hybrid.__dict__)
-    elif self.search_strategy == SearchStrategy.VECTOR:
+          **hybridSearchParmas)
+    elif isinstance(self.search_strategy, VectorSearchParameters):
       data = list(map(self._get_vector_search_data, chunks))
+      vectorSearchParams = unpack_dataclass_with_kwargs(self.search_strategy)
       return self._client.search(
           collection_name=self.collection_name,
           partition_names=self.partition_names,
@@ -290,9 +289,10 @@ class MilvusSearchEnrichmentHandler(
           timeout=self.timeout,
           round_decimal=self.round_decimal,
           data=data,
-          **search_parameters.vector.__dict__)
-    elif self.search_strategy == SearchStrategy.KEYWORD:
+          **vectorSearchParams)
+    elif isinstance(self.search_strategy, KeywordSearchParameters):
       data = list(map(self._get_keyword_search_data, chunks))
+      keywordSearchParams = unpack_dataclass_with_kwargs(self.search_strategy)
       return self._client.search(
           collection_name=self.collection_name,
           partition_names=self.partition_names,
@@ -300,32 +300,28 @@ class MilvusSearchEnrichmentHandler(
           timeout=self.timeout,
           round_decimal=self.round_decimal,
           data=data,
-          **search_parameters.keyword.__dict__)
+          **keywordSearchParams)
     else:
       raise ValueError(
           f"Not supported search strategy yet: {self.search_strategy}")
 
-  def _get_hybrid_search_data(
-      self,
-      chunks: List[Chunk],
-      vector_search_params: VectorSearchParameters,
-      keyword_search_params: KeywordSearchParameters):
+  def _get_hybrid_search_data(self, chunks: List[Chunk]):
     vector_search_data = list(map(self._get_vector_search_data, chunks))
     keyword_search_data = list(map(self._get_keyword_search_data, chunks))
 
     vector_search_req = AnnSearchRequest(
         data=vector_search_data,
-        anns_field=vector_search_params.anns_field,
-        param=vector_search_params.search_params,
-        limit=vector_search_params.limit,
-        expr=vector_search_params.filter)
+        anns_field=self.search_strategy.vector.anns_field,
+        param=self.search_strategy.vector.search_params,
+        limit=self.search_strategy.vector.limit,
+        expr=self.search_strategy.vector.filter)
 
     keyword_search_req = AnnSearchRequest(
         data=keyword_search_data,
-        anns_field=keyword_search_params.anns_field,
-        param=keyword_search_params.search_params,
-        limit=keyword_search_params.limit,
-        expr=keyword_search_params.filter)
+        anns_field=self.search_strategy.keyword.anns_field,
+        param=self.search_strategy.keyword.search_params,
+        limit=self.search_strategy.keyword.limit,
+        expr=self.search_strategy.keyword.filter)
 
     reqs = [vector_search_req, keyword_search_req]
     return reqs
@@ -370,8 +366,8 @@ class MilvusSearchEnrichmentHandler(
 
   def _normalize_milvus_value(self, value: Any):
     # Convert Milvus-specific types to Python native types.
-    if isinstance(value, Sequence) and not isinstance(value,
-                                                      (str, dict, bytes)):
+    is_not_string_dict_or_bytes = not isinstance(value, (str, dict, bytes))
+    if isinstance(value, Sequence) and is_not_string_dict_or_bytes:
       return list(value)
     elif hasattr(value, 'DESCRIPTOR'):
       # Handle protobuf messages.
@@ -423,3 +419,14 @@ class MilvusSearchEnrichmentHandler(
 def join_fn(left: Embedding, right: Dict[str, Any]) -> Embedding:
   left.metadata['enrichment_data'] = right
   return left
+
+def unpack_dataclass_with_kwargs(dataclass_instance):
+  # Create a copy of the dataclass's __dict__.
+  params_dict: dict = dataclass_instance.__dict__.copy()
+  
+  # Extract the nested kwargs dictionary.
+  nested_kwargs = params_dict.pop('kwargs', {})
+  
+  # Merge the dictionaries, with nested_kwargs taking precedence
+  # in case of duplicate keys
+  return {**params_dict, **nested_kwargs}
