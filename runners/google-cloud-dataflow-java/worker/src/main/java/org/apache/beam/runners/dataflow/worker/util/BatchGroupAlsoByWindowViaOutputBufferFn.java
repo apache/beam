@@ -21,7 +21,6 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.runners.core.InMemoryTimerInternals;
 import org.apache.beam.runners.core.NullSideInputReader;
-import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.ReduceFnRunner;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StateInternals;
@@ -33,6 +32,7 @@ import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachines;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.WindowedValueReceiver;
 import org.apache.beam.sdk.util.construction.TriggerTranslation;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowedValue;
@@ -65,7 +65,7 @@ public class BatchGroupAlsoByWindowViaOutputBufferFn<K, InputT, OutputT, W exten
       PipelineOptions options,
       StepContext stepContext,
       SideInputReader sideInputReader,
-      OutputWindowedValue<KV<K, OutputT>> output)
+      WindowedValueReceiver<KV<K, OutputT>> output)
       throws Exception {
     K key = element.getKey();
     // Used with Batch, we know that all the data is available for this key. We can't use the

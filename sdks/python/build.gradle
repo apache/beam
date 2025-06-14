@@ -138,13 +138,13 @@ tasks.register("yamlIntegrationTests") {
   doLast {
     exec {
       executable 'sh'
-      args '-c', "${envdir}/bin/pytest -v apache_beam/yaml/integration_tests.py --deselect apache_beam/yaml/integration_tests.py::BigqueryTest::test_ReadFromBigQuery_ExternalJavaProvider_0"
+      args '-c', "${envdir}/bin/pytest -v apache_beam/yaml/integration_tests.py"
     }
   }
 }
 
 tasks.register("postCommitYamlIntegrationTests") {
-  description "Runs postcommit integration tests for yaml pipelines."
+  description "Runs postcommit integration tests for yaml pipelines - parameterized by yamlTestSet."
 
   dependsOn installGcpTest
   // Need to build all expansion services referenced in apache_beam/yaml/*.*
@@ -155,9 +155,28 @@ tasks.register("postCommitYamlIntegrationTests") {
   dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:build"
 
   doLast {
-    exec {
-      executable 'sh'
-      args '-c', "${envdir}/bin/pytest -v apache_beam/yaml/integration_tests.py --deselect apache_beam/yaml/integration_tests.py::BigqueryTest::test_ReadFromBigQuery_ExternalJavaProvider_0 --test_files_dir='extended_tests'"
+    def testSetInput = project.findProperty('yamlTestSet') ?: 'data,databases,messaging'
+    def testSetsToRun = testSetInput.tokenize(',').collect { it.trim() }.findAll { !it.isEmpty() }
+    testSetsToRun.each { currentTestSet ->
+      def test_files_dir
+
+      switch (currentTestSet) {
+        case 'data':
+          test_files_dir = 'extended_tests/data'
+          break
+        case 'databases':
+          test_files_dir = 'extended_tests/databases'
+          break
+        case 'messaging':
+          test_files_dir = 'extended_tests/messaging'
+          break
+        default:
+          throw StopExecutionException("Unknown yamlTestSet: ${testSet}. Must be one of 'data', 'databases', or 'messaging'.")
+      }
+      exec {
+        executable 'sh'
+        args '-c', "${envdir}/bin/pytest -v apache_beam/yaml/integration_tests.py --deselect apache_beam/yaml/integration_tests.py::BigqueryTest::test_ReadFromBigQuery_ExternalJavaProvider_0 --test_files_dir='${test_files_dir}'"
+      }
     }
   }
 }

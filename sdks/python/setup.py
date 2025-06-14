@@ -97,12 +97,6 @@ PACKAGE_DOWNLOAD_URL = 'https://pypi.python.org/pypi/apache-beam'
 PACKAGE_AUTHOR = 'Apache Software Foundation'
 PACKAGE_EMAIL = 'dev@beam.apache.org'
 PACKAGE_KEYWORDS = 'apache beam'
-PACKAGE_LONG_DESCRIPTION = '''
-Apache Beam is a unified programming model for both batch and streaming
-data processing, enabling efficient execution across diverse distributed
-execution engines and providing extensibility points for connecting to
-different technologies and user communities.
-'''
 
 RECOMMENDED_MIN_PIP_VERSION = '19.3.0'
 try:
@@ -321,13 +315,26 @@ if __name__ == '__main__':
     ])
   else:
     extensions = []
+
+  try:
+    long_description = ((Path(__file__).parent /
+                         "README.md").read_text(encoding='utf-8'))
+  except FileNotFoundError:
+    long_description = (
+        'Apache Beam is a unified programming model for both batch and '
+        'streaming data processing, enabling efficient execution across '
+        'diverse distributed execution engines and providing extensibility '
+        'points for connecting to different technologies and user '
+        'communities.')
+
   # Keep all dependencies inlined in the setup call, otherwise Dependabot won't
   # be able to parse it.
   setuptools.setup(
       name=PACKAGE_NAME,
       version=PACKAGE_VERSION,
       description=PACKAGE_DESCRIPTION,
-      long_description=PACKAGE_LONG_DESCRIPTION,
+      long_description=long_description,
+      long_description_content_type='text/markdown',
       url=PACKAGE_URL,
       download_url=PACKAGE_DOWNLOAD_URL,
       author=PACKAGE_AUTHOR,
@@ -413,6 +420,7 @@ if __name__ == '__main__':
               'virtualenv-clone>=0.5,<1.0',
           ],
           'test': [
+              'cloud-sql-python-connector[pg8000]>=1.0.0,<2.0.0',
               'docstring-parser>=0.15,<1.0',
               'freezegun>=0.3.12',
               'jinja2>=3.0,<3.2',
@@ -437,7 +445,8 @@ if __name__ == '__main__':
               'virtualenv-clone>=0.5,<1.0',
               'mysql-connector-python>=9.3.0',
               'python-tds>=1.16.1',
-              'sqlalchemy-pytds>=1.0.2'
+              'sqlalchemy-pytds>=1.0.2',
+              'oracledb>=3.1.1'
           ],
           'gcp': [
               'cachetools>=3.1.0,<6',
@@ -475,7 +484,7 @@ if __name__ == '__main__':
           'interactive': [
               'facets-overview>=1.1.0,<2',
               'google-cloud-dataproc>=5.0.0,<6',
-              'ipython>=8,<9',
+              'ipython>=7,<9',
               'ipykernel>=6,<7',
               'ipywidgets>=8,<9',
               # Skip version 6.1.13 due to

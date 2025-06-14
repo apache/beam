@@ -83,12 +83,15 @@ final class PaneExtractors {
     public Iterable<T> apply(Iterable<ValueInSingleWindow<T>> input) {
       List<T> outputs = new ArrayList<>();
       for (ValueInSingleWindow<T> value : input) {
-        if (!value.getPane().isFirst() || !value.getPane().isLast()) {
+        if (!value.getPaneInfo().isFirst() || !value.getPaneInfo().isLast()) {
           throw site.wrap(
               String.format(
                   "Expected elements to be produced by a trigger that fires at most once, but got "
                       + "a value %s in a pane that is %s.",
-                  value, value.getPane().isFirst() ? "not the last pane" : "not the first pane"));
+                  value,
+                  value.getPaneInfo().isFirst()
+                      ? "not the last paneInfo"
+                      : "not the first paneInfo"));
         }
         outputs.add(value.getValue());
       }
@@ -102,7 +105,7 @@ final class PaneExtractors {
     public Iterable<T> apply(Iterable<ValueInSingleWindow<T>> input) {
       List<T> outputs = new ArrayList<>();
       for (ValueInSingleWindow<T> value : input) {
-        if (value.getPane().getTiming().equals(Timing.ON_TIME)) {
+        if (value.getPaneInfo().getTiming().equals(Timing.ON_TIME)) {
           outputs.add(value.getValue());
         }
       }
@@ -116,7 +119,7 @@ final class PaneExtractors {
     public Iterable<T> apply(Iterable<ValueInSingleWindow<T>> input) {
       List<T> outputs = new ArrayList<>();
       for (ValueInSingleWindow<T> value : input) {
-        if (value.getPane().isLast()) {
+        if (value.getPaneInfo().isLast()) {
           outputs.add(value.getValue());
         }
       }
@@ -142,7 +145,7 @@ final class PaneExtractors {
     public Iterable<T> apply(Iterable<ValueInSingleWindow<T>> input) {
       List<T> outputs = new ArrayList<>();
       for (ValueInSingleWindow<T> value : input) {
-        if (value.getPane().getTiming() != PaneInfo.Timing.LATE) {
+        if (value.getPaneInfo().getTiming() != PaneInfo.Timing.LATE) {
           outputs.add(value.getValue());
         }
       }
@@ -156,7 +159,7 @@ final class PaneExtractors {
     public Iterable<T> apply(Iterable<ValueInSingleWindow<T>> input) {
       List<T> outputs = new ArrayList<>();
       for (ValueInSingleWindow<T> value : input) {
-        if (value.getPane().getTiming() == PaneInfo.Timing.EARLY) {
+        if (value.getPaneInfo().getTiming() == PaneInfo.Timing.EARLY) {
           outputs.add(value.getValue());
         }
       }
@@ -170,7 +173,7 @@ final class PaneExtractors {
     public Iterable<T> apply(Iterable<ValueInSingleWindow<T>> input) {
       List<T> outputs = new ArrayList<>();
       for (ValueInSingleWindow<T> value : input) {
-        if (value.getPane().getTiming() == PaneInfo.Timing.LATE) {
+        if (value.getPaneInfo().getTiming() == PaneInfo.Timing.LATE) {
           outputs.add(value.getValue());
         }
       }
