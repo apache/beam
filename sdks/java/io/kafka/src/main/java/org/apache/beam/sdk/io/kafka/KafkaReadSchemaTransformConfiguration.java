@@ -71,6 +71,9 @@ public abstract class KafkaReadSchemaTransformConfiguration {
     } else if (dataFormat != null && dataFormat.equals("RAW")) {
       checkArgument(
           inputSchema == null, "To read from Kafka in RAW format, you can't provide a schema.");
+    } else if (dataFormat != null && dataFormat.equals("STRING")) {
+      checkArgument(
+          inputSchema == null, "To read from Kafka in STRING format, you can't provide a schema.");
     } else if (dataFormat != null && dataFormat.equals("JSON")) {
       checkNotNull(inputSchema, "To read from Kafka in JSON format, you must provide a schema.");
     } else if (dataFormat != null && dataFormat.equals("PROTO")) {
