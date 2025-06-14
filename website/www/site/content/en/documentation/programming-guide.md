@@ -6972,6 +6972,69 @@ Timer output timestamps is not yet supported in Python SDK. See https://github.c
 {{< code_sample "sdks/go/examples/snippets/04transforms.go" timer_output_timestamps_good >}}
 {{< /highlight >}}
 
+
+#### 11.3.5 Timer Callback Parameters {#timer-callback-parameters}
+The following parameters are provided for the timer callback methods which could be used for debuging.
+
+1. Window: This can provide the window object to access the window start and end time.
+2. Timestamp: This can provide the timestamp at which the timer was set to fire.
+3. Key: The key was associated with the element.
+
+{{< highlight java >}}
+
+
+@OnTimer(END_OF_WINDOW_ID)
+public void onWindowTimer(
+        OutputReceiver<KV<K, Iterable<InputT>>> receiver,
+        @Timestamp Instant timestamp,
+        @Key K key,
+        @StateId(BATCH_ID) BagState<InputT> batch,
+        BoundedWindow window) {
+
+      // You can write your debug code here.
+      LOG.debug(
+          "*** END OF WINDOW *** for key {} and timer timestamp {} in windows {}",
+          key.toString(),
+          timestamp.toString(),
+          window.toString());
+}
+{{< /highlight >}}
+
+{{< highlight py >}}
+class TimerDoFn(DoFn):
+  BAG_STATE = BagStateSpec('buffer', coders.VarIntCoder())
+  TIMER = TimerSpec('timer', TimeDomain.REAL_TIME)
+
+  def process(self,
+              element_pair,
+              bag_state=DoFn.StateParam(BAG_STATE),
+              timer=DoFn.TimerParam(TIMER)):
+    ...
+
+  @on_timer(TIMER)
+  def expiry_callback(self,
+                      bag_state=DoFn.StateParam(BAG_STATE),
+                      window=DoFn.WindowParam,
+                      timestamp=DoFn.TimestampParam,
+                      key=DoFn.KeyParam):
+    # You can potentlly print these parameter to get more information for debugging.
+    bag_state.clear()
+    log.info(f"Key: {key}, timestamp: {timestamp}, window: {window}")
+    yield (timer_tag, 'fired')
+
+{{< /highlight >}}
+{{< highlight go >}}
+
+func (s *Stateful) ProcessElement(ctx context.Context, ts beam.EventTime, sp state.Provider, tp timers.Provider, key, word string, _ func(beam.EventTime, string, string)) error {
+	s.ElementBag.Add(sp, word)
+	s.MinTime.Add(sp, int64(ts))
+  // Process the element here.
+}
+func (s *Stateful) OnTimer(ctx context.Context, ts beam.EventTime, sp state.Provider, tp timers.Provider, key string, timer timers.Context, emit func(beam.EventTime, string, string)) {
+	log.Infof(ctx, "Timer fired for key %q, for family %q and tag %q", key, timer.Family, timer.Tag)
+}
+{{< /highlight >}}
+
 ### 11.4. Garbage collecting state {#garbage-collecting-state}
 Per-key state needs to be garbage collected, or eventually the increasing size of state may negatively impact
 performance. There are two common strategies for garbage collecting state.
