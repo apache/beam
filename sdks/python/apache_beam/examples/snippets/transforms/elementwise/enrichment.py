@@ -51,6 +51,59 @@ def enrichment_with_bigtable():
   # [END enrichment_with_bigtable]
 
 
+def enrichment_with_cloudsql():
+  # [START enrichment_with_cloudsql]
+  import apache_beam as beam
+  from apache_beam.transforms.enrichment import Enrichment
+  from apache_beam.transforms.enrichment_handlers.cloudsql import (
+      CloudSQLEnrichmentHandler,
+      DatabaseTypeAdapter,
+      TableFieldsQueryConfig,
+      ExternalSQLDBConnectionConfig)
+  import os
+
+  database_type_adapter = DatabaseTypeAdapter[os.environ.get("SQL_DB_TYPE")]
+  database_host = os.environ.get("SQL_DB_HOST")
+  database_port = int(os.environ.get("SQL_DB_PORT"))
+  database_user = os.environ.get("SQL_DB_USER")
+  database_password = os.environ.get("SQL_DB_PASSWORD")
+  database_id = os.environ.get("SQL_DB_ID")
+  table_id = "products"
+  where_clause_template = "product_id = {}"
+  where_clause_fields = ["product_id"]
+
+  data = [
+      beam.Row(product_id=1, name='A'),
+      beam.Row(product_id=2, name='B'),
+      beam.Row(product_id=3, name='C'),
+  ]
+
+  connection_config = ExternalSQLDBConnectionConfig(
+      db_adapter=database_type_adapter,
+      host=database_host,
+      port=database_port,
+      user=database_user,
+      password=database_password,
+      db_id=database_id)
+
+  query_config = TableFieldsQueryConfig(
+      table_id=table_id,
+      where_clause_template=where_clause_template,
+      where_clause_fields=where_clause_fields)
+
+  cloudsql_handler = CloudSQLEnrichmentHandler(
+      connection_config=connection_config,
+      table_id=table_id,
+      query_config=query_config)
+  with beam.Pipeline() as p:
+    _ = (
+        p
+        | "Create" >> beam.Create(data)
+        | "Enrich W/ CloudSQL" >> Enrichment(cloudsql_handler)
+        | "Print" >> beam.Map(print))
+  # [END enrichment_with_cloudsql]
+
+
 def enrichment_with_vertex_ai():
   # [START enrichment_with_vertex_ai]
   import apache_beam as beam
