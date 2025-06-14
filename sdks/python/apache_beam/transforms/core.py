@@ -2685,14 +2685,8 @@ def Filter(fn, *args, **kwargs):  # pylint: disable=invalid-name
     wrapper = with_input_types(
         *type_hints.input_types[0], **type_hints.input_types[1])(
             wrapper)
-  output_hint = type_hints.simple_output_type(label)
-  if (output_hint is None and get_type_hints(wrapper).input_types and
-      get_type_hints(wrapper).input_types[0]):
-    output_hint = get_type_hints(wrapper).input_types[0][0]
-  if output_hint:
-    wrapper = with_output_types(
-        typehints.Iterable[_strip_output_annotations(output_hint)])(
-            wrapper)
+    input_hint = type_hints.input_types[0][0]
+    wrapper = with_output_types(typehints.Iterable[input_hint])(wrapper)
   # pylint: disable=protected-access
   wrapper._argspec_fn = fn
   # pylint: enable=protected-access
