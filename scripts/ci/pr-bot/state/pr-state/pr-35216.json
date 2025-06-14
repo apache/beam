@@ -3,7 +3,7 @@
   "reviewersAssignedForLabels": {
     "python": "liferoad"
   },
-  "nextAction": "Reviewers",
+  "nextAction": "Author",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
   "committerAssigned": false
