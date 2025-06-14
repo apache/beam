@@ -39,8 +39,7 @@ try:
       BigQueryStorageEnrichmentHandler, )
 except ImportError:
   raise unittest.SkipTest(
-      "Google Cloud BigQuery or BigQuery Storage dependencies are not installed."
-  )
+      "Google Cloud BigQuery dependencies are not installed.")
 
 _LOGGER = logging.getLogger(__name__)
 
