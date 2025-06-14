@@ -172,26 +172,34 @@ def json_to_row(beam_type: schema_pb2.FieldType) -> Callable[[Any], Any]:
     return lambda value: value
   elif type_info == "array_type":
     element_converter = json_to_row(beam_type.array_type.element_type)
-    return lambda value: [element_converter(e) for e in value]
+    return lambda value: [
+        element_converter(e) for e in value
+    ] if value is not None else None
   elif type_info == "iterable_type":
     element_converter = json_to_row(beam_type.iterable_type.element_type)
-    return lambda value: [element_converter(e) for e in value]
+    return lambda value: [
+        element_converter(e) for e in value
+    ] if value is not None else None
   elif type_info == "map_type":
     if beam_type.map_type.key_type.atomic_type != schema_pb2.STRING:
       raise TypeError(
           f'Only strings allowd as map keys when converting from JSON, '
           f'found {beam_type}')
     value_converter = json_to_row(beam_type.map_type.value_type)
-    return lambda value: {k: value_converter(v) for (k, v) in value.items()}
+    return lambda value: {
+        k: value_converter(v)
+        for (k, v) in value.items()
+    } if value is not None else None
   elif type_info == "row_type":
     converters = {
         field.name: json_to_row(field.type)
         for field in beam_type.row_type.schema.fields
     }
     return lambda value: beam.Row(
-        **
-        {name: convert(value[name])
-         for (name, convert) in converters.items()})
+        **{
+            name: convert(value.get(name))
+            for (name, convert) in converters.items()
+        }) if value is not None else None
   elif type_info == "logical_type":
     return lambda value: value
   else:
