@@ -6621,6 +6621,29 @@ _ = (p | 'Read per user' >> ReadPerUser()
        | 'Set state pardo' >> beam.ParDo(OrderedListStateDoFn()))
 {{< /highlight >}}
 
+#### MultimapState {#multimap-state}
+`MultimapState` allow one key mapped to different values but the key value could be unordered.
+
+{{< highlight java >}}
+
+  @StateId(stateId)
+  private final StateSpec<MultimapState<String, Integer>> multimapState =
+      StateSpecs.multimap(StringUtf8Coder.of(), VarIntCoder.of());
+
+@ProcessElement
+public void processElement(
+    ProcessContext c,
+    @Element KV<String, KV<String, Integer>> element,
+    @StateId(stateId) MultimapState<String, Integer> state,
+    @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
+    OutputReceiver<KV<String, Integer>> r) {
+  ReadableState<Boolean> isEmptyView = state.isEmpty();
+  boolean isEmpty = state.isEmpty().read();
+
+  KV<String, Integer> value = element.getValue();
+  state.put(value.getKey(), value.getValue());
+}
+{{< /highlight >}}
 ### 11.2. Deferred state reads {#deferred-state-reads}
 
 When a `DoFn` contains multiple state specifications, reading each one in order can be slow. Calling the `read()` function
