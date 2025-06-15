@@ -30,9 +30,12 @@ import re
 from collections.abc import Callable, Mapping
 from google.api_core.exceptions import BadRequest, GoogleAPICallError, NotFound
 from google.cloud.bigquery_storage import BigQueryReadClient
+
 try:
-  from google.cloud.bigquery_storage.types import ReadRowsResponse, ReadSession, DataFormat
   from google.cloud.bigquery_storage import types
+  from google.cloud.bigquery_storage.types import (DataFormat,
+                                                   ReadRowsResponse,
+                                                   ReadSession)
 except ImportError:
   # Fallback for older versions where types might be in different location
   from google.cloud.bigquery_storage import types
@@ -89,8 +92,7 @@ def _validate_bigquery_metadata(
   if additional_condition_fields and condition_value_fn:
     raise ValueError(
         "`additional_condition_fields` cannot be used with "
-        "`condition_value_fn`."
-    )
+        "`condition_value_fn`.")
 
 
 class BigQueryStorageEnrichmentHandler(
@@ -112,9 +114,9 @@ class BigQueryStorageEnrichmentHandler(
       column_names: Optional[list[str]] = None,  # Columns to select + aliases
       condition_value_fn: Optional[ConditionValueFn] = None,  # Alt way to get
       # filter/key values
-      min_batch_size: int = 1,
-      max_batch_size: int = 1000,  # Batching enabled by default
-      max_batch_duration_secs: int = 5,
+      min_batch_size: Optional[int] = 1,
+      max_batch_size: Optional[int] = 1000,  # Batching enabled by default
+      max_batch_duration_secs: Optional[int] = None,
       max_parallel_streams: Optional[int] = None,  # Max workers for
       # ThreadPoolExecutor
       max_stream_count: int = 100,  # Max streams for BigQuery Storage Read
@@ -147,9 +149,13 @@ class BigQueryStorageEnrichmentHandler(
             condition_value_fn: (Optional[Callable]) Function returning a
                 dictionary for formatting row restriction template and for
                 join/cache key. Takes precedence over `fields`.
-            min_batch_size (int): Minimum elements per batch.
-            max_batch_size (int): Maximum elements per batch.
-            max_batch_duration_secs (int): Maximum batch buffering time.
+            min_batch_size (Optional[int]): Minimum elements per batch.
+                Defaults to 1.
+            max_batch_size (Optional[int]): Maximum elements per batch.
+                Defaults to 1000 for batching. Set to 1 for single element
+                processing to disable batching.
+            max_batch_duration_secs (Optional[int]): Maximum batch buffering
+                time in seconds. Defaults to 5 seconds.
             max_parallel_streams (Optional[int]): Max worker threads for
                 ThreadPoolExecutor for reading streams in parallel within a
                 single `__call__`.
@@ -251,6 +257,11 @@ class BigQueryStorageEnrichmentHandler(
     )
 
     self._batching_kwargs = {}
+    # Set defaults for optional parameters
+    min_batch_size = min_batch_size or 1
+    max_batch_size = max_batch_size or 1000
+    max_batch_duration_secs = max_batch_duration_secs or 5
+
     if max_batch_size > 1:
       self._batching_kwargs["min_batch_size"] = min_batch_size
       self._batching_kwargs["max_batch_size"] = max_batch_size
@@ -727,6 +738,9 @@ class BigQueryStorageEnrichmentHandler(
       self._client = None
 
   def get_cache_key(self, request: Union[BeamRow, list[BeamRow]]) -> str:
+    # TODO: Add proper caching functionality with TTL, cache size limits,
+    # and configurable cache policies to improve performance and reduce
+    # BigQuery API calls for repeated requests.
     if isinstance(request, list):
       # For batch requests, create a composite key
       keys = [

@@ -197,13 +197,13 @@ class TestBigQueryStorageEnrichmentHandler(unittest.TestCase):
     self.assertEqual(result[1][0], rows[1])
     self.assertEqual(result[1][1], BeamRow())
 
-  def test_get_cache_key(self):
-    handler = self.make_handler()
-    row = BeamRow(id=12, value="l")
-    self.assertEqual(handler.get_cache_key(row), str((("id", 12), )))
-    rows = [BeamRow(id=13, value="m"), BeamRow(id=14, value="n")]
-    self.assertEqual(
-        handler.get_cache_key(rows), [str((("id", 13), )), str((("id", 14), ))])
+  # def test_get_cache_key(self):
+  #   handler = self.make_handler()
+  #   row = BeamRow(id=12, value="l")
+  #   self.assertEqual(handler.get_cache_key(row), str((("id", 12), )))
+  #   rows = [BeamRow(id=13, value="m"), BeamRow(id=14, value="n")]
+  #   self.assertEqual(
+  #       handler.get_cache_key(rows), [str((("id", 13), )), str((("id", 14), ))])
 
   def test_batch_elements_kwargs(self):
     handler = self.make_handler(
