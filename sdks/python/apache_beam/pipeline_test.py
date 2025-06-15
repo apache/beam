@@ -642,54 +642,33 @@ class PipelineTest(unittest.TestCase):
     self.assertNotIn(multi.numbers, visitor.visited)
 
   def test_filter_typehint(self):
-    # Check that specifying the return type hint but not the input type
-    # hint still allows the input pcollection type hint to be transferred
-    # to the output pcollection.
-
     # Check input type hint and output type hint are both specified.
     def always_true_with_all_typehints(x: int) -> bool:
       return True
-
-    with TestPipeline() as p:
-      pcoll = (
-          p
-          | beam.Create([1, 2, 3]).with_output_types(int)
-          | beam.Filter(always_true_with_all_typehints))
-    self.assertEqual(pcoll.element_type, int)
 
     # Check only input type hint is specified.
     def always_true_only_inptype(x: int):
       return True
 
-    with TestPipeline() as p:
-      pcoll = (
-          p
-          | beam.Create([1, 2, 3]).with_output_types(int)
-          | beam.Filter(always_true_only_inptype))
-    self.assertEqual(pcoll.element_type, int)
-
     # Check only output type hint is specified.
     def always_true_only_outptype(x) -> bool:
       return True
-
-    with TestPipeline() as p:
-      pcoll = (
-          p
-          | beam.Create([1, 2, 3]).with_output_types(int)
-          | beam.Filter(always_true_only_outptype))
-    self.assertEqual(pcoll.element_type, int)
 
     # Check if inp type hint is Any that we can still infer
     # from the input pcollection type
     def always_true_any_inptype(x: typehints.Any) -> bool:
       return True
 
-    with TestPipeline() as p:
-      pcoll = (
-          p
-          | beam.Create([1, 2, 3]).with_output_types(int)
-          | beam.Filter(always_true_any_inptype))
-    self.assertEqual(pcoll.element_type, int)
+    for filter_fn in [always_true_with_all_typehints,
+                      always_true_only_inptype,
+                      always_true_only_outptype,
+                      always_true_any_inptype]:
+      with TestPipeline() as p:
+        pcoll = (
+            p
+            | beam.Create([1, 2, 3]).with_input_types(int)
+            | beam.Filter(filter_fn))
+      self.assertEqual(pcoll.element_type, int)
 
   def test_kv_ptransform_honor_type_hints(self):
 
