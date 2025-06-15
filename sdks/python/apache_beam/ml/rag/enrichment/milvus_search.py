@@ -245,6 +245,7 @@ SearchStrategyType = Union[VectorSearchParameters,
                            KeywordSearchParameters,
                            HybridSearchNamespace]
 
+
 @dataclass
 class MilvusSearchParameters:
   """Parameters configuring Milvus search operations.
@@ -307,9 +308,10 @@ class MilvusCollectionLoadParameters:
   kwargs: Dict[str, Any] = field(default_factory=dict)
 
 
-EnrichmentType = Union[Chunk, List[Chunk]], List[Tuple[Chunk, Dict[str, Any]]]
+InputT = Union[Chunk, List[Chunk]]
+OutputT = List[Tuple[Chunk, Dict[str, Any]]]
 
-class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[EnrichmentType]):
+class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT,OutputT]):
   """Enrichment handler for Milvus vector database searches.
 
   This handler is designed to work with the
@@ -465,15 +467,16 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[EnrichmentType]):
     return reqs
 
   def _get_vector_search_data(self, chunk: Chunk):
-    if not getattr(chunk.embedding, 'dense_embedding', None):
+    dense_vector_found = chunk.embedding and chunk.embedding.dense_embedding
+    if not dense_vector_found:
       raise ValueError(
           f"Chunk {chunk.id} missing dense embedding required for vector search"
       )
     return chunk.embedding.dense_embedding
 
   def _get_keyword_search_data(self, chunk: Chunk):
-    if not chunk.content.text and not getattr(
-        chunk.embedding, 'sparse_embedding', None):
+    sparse_vector_found = chunk.embedding and chunk.embedding.sparse_embedding
+    if not chunk.content.text and not sparse_vector_found:
       raise ValueError(
           f"Chunk {chunk.id} missing both text content and sparse embedding "
           "required for keyword search")
@@ -486,8 +489,8 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[EnrichmentType]):
       chunk = chunks[i]
       hits: Hits = search_result[i]
       result = defaultdict(list)
-      for hit in hits:
-        hit: Hit
+      for i in range(len(hits)):
+        hit: Hit = hits[i]
         normalized_fields = self._normalize_milvus_fields(hit.fields)
         result["id"].append(hit.id)
         result["distance"].append(hit.distance)
