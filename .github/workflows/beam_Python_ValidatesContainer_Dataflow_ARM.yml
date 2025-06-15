@@ -74,6 +74,9 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           python-version: ${{ matrix.python_version }}
+          post-setup-commands: |
+            python -m pip install --upgrade pip
+            pip install --upgrade setuptools
       - name: Authenticate on GCP
         uses: google-github-actions/auth@v2
         with:

@@ -85,6 +85,9 @@ jobs:
           java-version: default
           python-version: ${{ matrix.python_version }}
           go-version: default
+          post-setup-commands: |
+            python -m pip install --upgrade pip
+            pip install --upgrade setuptools
       - name: Setup Buildx
         uses: docker/setup-buildx-action@v2
         with:
