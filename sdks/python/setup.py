@@ -360,7 +360,6 @@ if __name__ == '__main__':
           'numpy>=1.14.3,<2.3.0',  # Update pyproject.toml as well.
           'objsize>=0.6.1,<0.8.0',
           'packaging>=22.0',
-          'pymongo>=3.8.0,<5.0.0',
           'proto-plus>=1.7.1,<2',
           # 1. Use a tighter upper bound in protobuf dependency to make sure
           # the minor version at job submission
@@ -534,6 +533,9 @@ if __name__ == '__main__':
               # installed first, and then `.[dask]` installed second, with the
               # `--update` / `-U` flag to replace the dask release brought in
               # by distributed.
+          ],
+          'mongodb': [
+              'pymongo>=3.8.0,<5.0.0'
           ],
           'yaml': [
               'docstring-parser>=0.15,<1.0',
