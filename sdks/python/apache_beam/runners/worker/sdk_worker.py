@@ -53,6 +53,7 @@ import grpc
 from apache_beam.coders import coder_impl
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricsEnvironment
+from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.portability.api import metrics_pb2
@@ -176,6 +177,7 @@ class SdkHarness(object):
       # that should be reported to the runner when proocessing the first bundle.
       deferred_exception=None,  # type: Optional[Exception]
       runner_capabilities=frozenset(),  # type: FrozenSet[str]
+      options=None,  # type: Optional[WorkerOptions]
   ):
     # type: (...) -> None
     self._alive = True
@@ -207,6 +209,7 @@ class SdkHarness(object):
     self._profiler_factory = profiler_factory
     self.data_sampler = data_sampler
     self.runner_capabilities = runner_capabilities
+    self._options = options
 
     def default_factory(id):
       # type: (str) -> beam_fn_api_pb2.ProcessBundleDescriptor
@@ -230,7 +233,8 @@ class SdkHarness(object):
             status_address,
             self._bundle_processor_cache,
             self._state_cache,
-            enable_heap_dump)  # type: Optional[FnApiWorkerStatusHandler]
+            enable_heap_dump,  # type: Optional[FnApiWorkerStatusHandler]
+            options=self._options)  # type: Optional[WorkerOptions]
       except Exception:
         traceback_string = traceback.format_exc()
         _LOGGER.warning(
