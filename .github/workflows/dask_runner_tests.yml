@@ -45,10 +45,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: 3.9
-      - name: Upgrade pip and setuptools
-        run: |
-          python -m pip install --upgrade pip
-          pip install --upgrade setuptools
       - name: Build source
         working-directory: ./sdks/python
         run: pip install -U build && python -m build --sdist
@@ -79,14 +75,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.params.py_ver }}
-      - name: Upgrade pip and setuptools
-        run: |
-          python -m pip install --upgrade pip
-          pip install --upgrade setuptools
-      - name: Upgrade pip and setuptools
-        run: |
-          python -m pip install --upgrade pip
-          pip install --upgrade setuptools
       - name: Install tox
         run: pip install tox
       - name: Install SDK with dask
