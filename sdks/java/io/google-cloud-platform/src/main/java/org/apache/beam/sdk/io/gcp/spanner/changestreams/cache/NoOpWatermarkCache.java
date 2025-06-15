@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.cache;
 
 import com.google.cloud.Timestamp;
+import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
 
@@ -35,6 +36,6 @@ public class NoOpWatermarkCache implements WatermarkCache {
 
   @Override
   public @Nullable Timestamp getUnfinishedMinWatermark() {
-    return dao.getUnfinishedMinWatermark();
+    return dao.getUnfinishedMinWatermark(Optional.empty());
   }
 }
