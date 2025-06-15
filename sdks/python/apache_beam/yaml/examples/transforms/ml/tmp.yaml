@@ -1,0 +1,89 @@
+pipeline:
+  transforms:
+#    - type: ReadFromCsv
+#      name: ReadFromGCS
+#      config:
+#        path: gs://my-warehouse/youtube-comments.csv
+
+    - type: PyTransform
+      name: ReadFromGCS
+      input: {}
+      config:
+        constructor: apache_beam.io.ReadFromCsv
+        kwargs:
+          path: 'gs://my-warehouse/youtube-comments.csv'
+          # path: 'out.csv'
+          sep: ','
+          skip_blank_lines: True
+          true_values: [ 'yes' ]
+          false_values: [ 'no' ]
+          comment: '#'
+          on_bad_lines: "skip"
+          binary: False
+          splittable: False
+          dtype:
+            'video_id': str
+            'comment_text': str
+            'likes': Int32
+            'replies': Int32
+          converters:
+            'likes': |
+              lambda x : x
+#        error_handling:
+#          output: errors
+
+    - type: MapToFields
+      name: Mapping
+      input: ReadFromGCS
+      config:
+        language: python
+        fields:
+          video_id:
+            expression: video_id
+            output_type: string
+          comment_text:
+            expression: comment_text
+            output_type: string
+          likes:
+#            callable: |
+#              def fn(row):
+#                return row.likes
+            expression: likes
+            output_type: integer
+          replies:
+            expression: replies
+            output_type: integer
+        error_handling:
+          output: errors
+
+    - type: LogForTesting
+      name: Logging
+      input: Mapping
+#      config:
+#        error_handling:
+#          output: errors
+
+    - type: StripErrorMetadata
+      name: RecoverOriginalElements
+      input: Mapping.errors
+
+    - type: WriteToJson
+      name: WriteErrors
+      input: RecoverOriginalElements
+      config:
+        path: ~/beam/errors.json
+
+#    - type: LogForTesting
+#      name: Debugging
+#      input: RecoverOriginalElements
+#      config:
+#        prefix: "DEBUGGING!!!!!!!!"
+#        level: ERROR
+#        error_handling:
+#          output: errors
+
+#    - type: WriteToCsv
+#      name: WriteToFile
+#      input: ReadFromGCS
+#      config:
+#        path: "out.csv"

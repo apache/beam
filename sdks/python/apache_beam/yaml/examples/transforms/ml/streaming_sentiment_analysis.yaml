@@ -1,0 +1,172 @@
+# coding=utf-8
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+
+pipeline:
+  transforms:
+#    - type: ReadFromCsv
+#      name: ReadFromGCS
+#      config:
+#        path: gs://my-warehouse/youtube-comments.csv
+
+    - type: PyTransform
+      name: ReadFromGCS
+      input: {}
+      config:
+        constructor: apache_beam.io.ReadFromCsv
+        kwargs:
+          path: 'gs://my-warehouse/youtube-comments.csv'
+          sep: ','
+          skip_blank_lines: True
+          true_values: [ 'yes' ]
+          false_values: [ 'no' ]
+          comment: '#'
+          on_bad_lines: 'skip'
+          binary: False
+          splittable: False
+
+    - type: WriteToKafka
+      name: SendRecordsToKafka
+      input: ReadFromGCS
+      config:
+        format: "JSON"
+        topic: "{{ TOPIC }}"
+        bootstrap_servers: "{{ BOOTSTRAP_SERVERS }}"
+        producer_config_updates:
+          sasl.jaas.config: "org.apache.kafka.common.security.plain.PlainLoginModule required \
+            username={{ USERNAME }} \
+            password={{ PASSWORD }};"
+          security.protocol: "SASL_PLAINTEXT"
+          sasl.mechanism: "PLAIN"
+
+    - type: ReadFromKafka
+      name: ReadFromMyTopic
+      config:
+        format: "JSON"
+        schema: |
+          {
+            "type": "object",
+            "properties": {
+              "video_id": { "type": "string" },
+              "comment_text": { "type": "string" },
+              "likes": { "type": "integer" },
+              "replies": { "type": "integer" }
+            }
+          }
+        topic: "{{ TOPIC }}"
+        bootstrap_servers: "{{ BOOTSTRAP_SERVERS }}"
+        auto_offset_reset_config: earliest
+        consumer_config:
+          sasl.jaas.config: "org.apache.kafka.common.security.plain.PlainLoginModule required \
+            username={{ USERNAME }} \
+            password={{ PASSWORD }};"
+          security.protocol: "SASL_PLAINTEXT"
+          sasl.mechanism: "PLAIN"
+
+    - type: MapToFields
+      name: RemoveWeirdCharacters
+      input: ReadFromMyTopic
+      config:
+        language: python
+        fields:
+          video_id: video_id
+          comment_text:
+            callable: |
+              import re
+              def filter(row):
+                # Match letters, digits, whitespace and common punctuation
+                allowed = r"A-Za-z0-9\s.,;:!?\'\"()\[\]{}\-_"
+                pattern = re.compile(fr"[^{allowed}]")
+                return pattern.sub("", row.comment_text).strip()
+          likes: likes
+          replies: replies
+
+    - type: Filter
+      name: FilterForProperComments
+      input: RemoveWeirdCharacters
+      config:
+        language: python
+        keep:
+          callable: |
+            def filter(row):
+              return len(row.comment_text) > 0
+
+    - type: RunInference
+      name: DistilBERTRemoteInference
+      input: FilterForProperComments
+      config:
+        inference_tag: "inference"
+        model_handler:
+          type: "VertexAIModelHandlerJSON"
+          config:
+            endpoint_id: 1320167118796226560
+            project: "silicon-synapse-460717-a0"
+            location: "us-central1"
+            preprocess:
+              callable: 'lambda x: x.comment_text'
+
+    - type: MapToFields
+      name: FormatInferenceOutput
+      input: DistilBERTRemoteInference
+      config:
+        language: python
+        fields:
+          video_id:
+            expression: video_id
+            output_type: string
+          comment_text:
+            callable: "lambda x: x.comment_text"
+            output_type: string
+          label:
+            callable: "lambda x: x.inference.inference[0]['label']"
+            output_type: string
+          score:
+            callable: "lambda x: x.inference.inference[0]['score']"
+            output_type: number
+          likes:
+            expression: likes
+            output_type: integer
+          replies:
+            expression: replies
+            output_type: integer
+
+    - type: WindowInto
+      name: Windowing
+      input: FormatInferenceOutput
+      config:
+        windowing:
+          type: fixed
+          size: 30s
+
+    - type: WriteToBigQuery
+      name: WriteInferenceResultsToBigQuery
+      input: Windowing
+      config:
+        table: "{{ PROJECT }}.{{ DATASET }}.{{ TABLE }}"
+        create_disposition: CREATE_IF_NEEDED
+        write_disposition: WRITE_APPEND
+
+options:
+  yaml_experimental_features: ML
+
+# Expected:
+#  Row(video_id='XpVt6Z1Gjjo', comment_text='I am happy 😊', likes=1, replies=1)
+#  Row(video_id='XpVt6Z1Gjjo', comment_text='I am sad ☹️', likes=1, replies=1)
+#  Row(video_id='XpVt6Z1Gjjo', comment_text='🤗😁', likes=1, replies=1)
+#  Row(video_id='XpVt6Z1Gjjo', comment_text='I am happy', label='POSITIVE', score=0.95, likes=1, replies=1)
+#  Row(video_id='XpVt6Z1Gjjo', comment_text='I am sad', label='NEGATIVE', score=0.95, likes=1, replies=1)
