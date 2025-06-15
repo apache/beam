@@ -136,7 +136,7 @@ class BigQueryStorageEnrichmentHandler(
                 from `fields` and `additional_condition_fields`.
             row_restriction_template_fn: (Optional[Callable]) Function that takes
                 (condition_values_dict, primary_keys, request_row) and returns
-                a fully formatted filter string or a template to be formatted.
+                a fully formatted filter string or template to be formatted.
             fields: (Optional[list[str]]) Input `beam.Row` field names used to
                 generate the dictionary for formatting the row restriction
                 template AND for generating the internal join/cache key.
