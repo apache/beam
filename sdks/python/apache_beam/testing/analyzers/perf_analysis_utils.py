@@ -214,6 +214,7 @@ def find_latest_change_point_index(
   change_points_indices = filter_change_points_by_median_threshold(
       metric_values,
       change_points_indices,
+      threshold=0.1,
       median_abs_deviation_threshold=median_abs_deviation_threshold)
   # Consider the latest change point.
   if not change_points_indices:
