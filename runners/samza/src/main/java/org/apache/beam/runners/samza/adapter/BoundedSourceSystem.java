@@ -42,7 +42,8 @@ import org.apache.beam.runners.samza.runtime.OpMessage;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.samza.Partition;
 import org.apache.samza.SamzaException;
@@ -314,7 +315,7 @@ public class BoundedSourceSystem {
       private void enqueueMessage(BoundedReader<T> reader) throws InterruptedException {
         final T value = reader.getCurrent();
         final WindowedValue<T> windowedValue =
-            WindowedValue.timestampedValueInGlobalWindow(value, reader.getCurrentTimestamp());
+            WindowedValues.timestampedValueInGlobalWindow(value, reader.getCurrentTimestamp());
         final SystemStreamPartition ssp = readerToSsp.get(reader);
         final IncomingMessageEnvelope envelope =
             new IncomingMessageEnvelope(

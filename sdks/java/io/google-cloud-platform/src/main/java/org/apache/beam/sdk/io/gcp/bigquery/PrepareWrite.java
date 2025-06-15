@@ -62,11 +62,11 @@ public class PrepareWrite<InputT, DestinationT extends @NonNull Object, OutputT>
                       @Element InputT element,
                       @Timestamp Instant timestamp,
                       BoundedWindow window,
-                      PaneInfo pane)
+                      PaneInfo paneInfo)
                       throws IOException {
                     dynamicDestinations.setSideInputAccessorFromProcessContext(context);
                     ValueInSingleWindow<InputT> windowedElement =
-                        ValueInSingleWindow.of(element, timestamp, window, pane);
+                        ValueInSingleWindow.of(element, timestamp, window, paneInfo);
                     DestinationT tableDestination =
                         dynamicDestinations.getDestination(windowedElement);
                     checkArgument(

@@ -99,6 +99,6 @@ export class Inspectables extends React.Component<
 
   private _inspectKernelCode: string;
   private _model: KernelModel;
-  private _queryKernelTimerId: number;
-  private _updateRenderTimerId: number;
+  private _queryKernelTimerId: ReturnType<typeof setInterval>;
+  private _updateRenderTimerId: ReturnType<typeof setInterval>;
 }

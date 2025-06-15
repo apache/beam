@@ -117,7 +117,8 @@ public class IcebergCdcReadSchemaTransformProvider
               .withStartingStrategy(strategy)
               .streaming(configuration.getStreaming())
               .keeping(configuration.getKeep())
-              .dropping(configuration.getDrop());
+              .dropping(configuration.getDrop())
+              .withFilter(configuration.getFilter());
 
       @Nullable Integer pollIntervalSeconds = configuration.getPollIntervalSeconds();
       if (pollIntervalSeconds != null) {
@@ -180,6 +181,12 @@ public class IcebergCdcReadSchemaTransformProvider
     abstract @Nullable Integer getPollIntervalSeconds();
 
     @SchemaFieldDescription(
+        "SQL-like predicate to filter data at scan time. Example: \"id > 5 AND status = 'ACTIVE'\". "
+            + "Uses Apache Calcite syntax: https://calcite.apache.org/docs/reference.html")
+    @Nullable
+    abstract String getFilter();
+
+    @SchemaFieldDescription(
         "A subset of column names to read exclusively. If null or empty, all columns will be read.")
     abstract @Nullable List<String> getKeep();
 
@@ -214,6 +221,8 @@ public class IcebergCdcReadSchemaTransformProvider
       abstract Builder setKeep(List<String> keep);
 
       abstract Builder setDrop(List<String> drop);
+
+      abstract Builder setFilter(String filter);
 
       abstract Configuration build();
     }

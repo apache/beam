@@ -20,12 +20,12 @@ package org.apache.beam.runners.dataflow.worker;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.DoFnRunner;
-import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
+import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -43,7 +43,7 @@ interface DoFnRunnerFactory<InputT, OutputT> {
       WindowingStrategy<?, ?> windowingStrategy,
       DataflowExecutionContext.DataflowStepContext stepContext,
       DataflowExecutionContext.DataflowStepContext userStepContext,
-      OutputManager outputManager,
+      WindowedValueMultiReceiver outputManager,
       DoFnSchemaInformation doFnSchemaInformation,
       Map<String, PCollectionView<?>> sideInputMapping);
 }

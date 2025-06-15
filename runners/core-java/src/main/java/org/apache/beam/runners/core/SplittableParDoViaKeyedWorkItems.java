@@ -45,7 +45,6 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.PTransformReplacements;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.PTransformTranslation.RawPTransform;
@@ -59,6 +58,8 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -295,7 +296,7 @@ public class SplittableParDoViaKeyedWorkItems {
       this.elementTag =
           StateTags.value(
               "element",
-              WindowedValue.getFullCoder(
+              WindowedValues.getFullCoder(
                   elementCoder, inputWindowingStrategy.getWindowFn().windowCoder()));
       this.restrictionTag = StateTags.value("restriction", restrictionCoder);
       this.watermarkEstimatorStateTag =
@@ -430,7 +431,7 @@ public class SplittableParDoViaKeyedWorkItems {
 
                   @Override
                   public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
-                    return elementAndRestriction.getKey().getPane();
+                    return elementAndRestriction.getKey().getPaneInfo();
                   }
 
                   @Override
@@ -490,7 +491,7 @@ public class SplittableParDoViaKeyedWorkItems {
 
                 @Override
                 public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
-                  return elementAndRestriction.getKey().getPane();
+                  return elementAndRestriction.getKey().getPaneInfo();
                 }
 
                 @Override
@@ -544,7 +545,7 @@ public class SplittableParDoViaKeyedWorkItems {
 
                 @Override
                 public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
-                  return elementAndRestriction.getKey().getPane();
+                  return elementAndRestriction.getKey().getPaneInfo();
                 }
 
                 @Override

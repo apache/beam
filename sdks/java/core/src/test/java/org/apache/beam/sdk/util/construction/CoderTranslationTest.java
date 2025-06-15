@@ -52,9 +52,9 @@ import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
 import org.apache.beam.sdk.util.ShardedKey;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.util.construction.CoderTranslation.TranslationContext;
+import org.apache.beam.sdk.values.WindowedValues;
+import org.apache.beam.sdk.values.WindowedValues.FullWindowedValueCoder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.hamcrest.Matchers;
@@ -85,7 +85,7 @@ public class CoderTranslationTest {
           .add(
               FullWindowedValueCoder.of(
                   IterableCoder.of(VarLongCoder.of()), IntervalWindowCoder.of()))
-          .add(WindowedValue.ParamWindowedValueCoder.of(IterableCoder.of(VarLongCoder.of())))
+          .add(WindowedValues.ParamWindowedValueCoder.of(IterableCoder.of(VarLongCoder.of())))
           .add(DoubleCoder.of())
           .add(
               RowCoder.of(

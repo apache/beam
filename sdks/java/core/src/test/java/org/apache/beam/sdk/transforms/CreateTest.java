@@ -62,13 +62,14 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.SerializableUtils;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -347,9 +348,9 @@ public class CreateTest {
   public void testCreateWindowedValues() {
     List<WindowedValue<String>> data =
         Arrays.asList(
-            WindowedValue.of("a", new Instant(1L), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING),
-            WindowedValue.of("b", new Instant(2L), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING),
-            WindowedValue.of(
+            WindowedValues.of("a", new Instant(1L), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING),
+            WindowedValues.of("b", new Instant(2L), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING),
+            WindowedValues.of(
                 "c", new Instant(3L), GlobalWindow.INSTANCE, PaneInfo.ON_TIME_AND_ONLY_FIRING));
 
     // The easiest way to directly check the created PCollection with PAssert and without relying on
@@ -366,7 +367,7 @@ public class CreateTest {
                                     windowedValue.getValue(),
                                     windowedValue.getTimestamp(),
                                     w,
-                                    windowedValue.getPane())))
+                                    windowedValue.getPaneInfo())))
             .collect(Collectors.toList());
 
     PCollection<String> output =

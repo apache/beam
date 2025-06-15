@@ -34,7 +34,7 @@ import org.apache.beam.runners.samza.translation.TranslationContext;
 import org.apache.beam.runners.samza.util.FutureUtils;
 import org.apache.beam.runners.samza.util.SamzaPipelineExceptionListener;
 import org.apache.beam.sdk.util.UserCodeException;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.samza.config.Config;
 import org.apache.samza.context.Context;
 import org.apache.samza.operators.Scheduler;

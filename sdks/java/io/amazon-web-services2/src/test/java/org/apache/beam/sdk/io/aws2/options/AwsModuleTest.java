@@ -41,6 +41,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import java.util.function.Supplier;
+import org.apache.beam.sdk.io.aws2.auth.StsAssumeRoleForFederatedCredentialsProvider;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.util.ThrowingSupplier;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
@@ -277,6 +278,57 @@ public class AwsModuleTest {
         (Supplier<AssumeRoleWithWebIdentityRequest>)
             readField(deserializedProvider, "assumeRoleWithWebIdentityRequest", true);
     assertThat(requestSupplier.get()).isEqualTo(req);
+  }
+
+  @Test
+  public void testStsAssumeRoleWithDynamicWebIdentityCredentialsProviderSerDe() {
+    String roleArn = "roleArn";
+    String audience = "audience";
+    String webTokenProviderFQCN = "some.class.Name";
+    Integer sessionDurationSecs = 30;
+    AwsCredentialsProvider provider =
+        StsAssumeRoleForFederatedCredentialsProvider.builder()
+            .setAssumedRoleArn(roleArn)
+            .setAudience(audience)
+            .setWebIdTokenProviderFQCN(webTokenProviderFQCN)
+            .setSessionDurationSecs(sessionDurationSecs)
+            .build();
+
+    // Deserialize without credentials from system properties
+    AwsCredentialsProvider deserializedProvider = serializeAndDeserialize(provider);
+
+    assertThat(deserializedProvider)
+        .isInstanceOf(StsAssumeRoleForFederatedCredentialsProvider.class);
+    StsAssumeRoleForFederatedCredentialsProvider castedProvider =
+        (StsAssumeRoleForFederatedCredentialsProvider) deserializedProvider;
+    assertThat(castedProvider.assumedRoleArn()).isEqualTo(roleArn);
+    assertThat(castedProvider.audience()).isEqualTo(audience);
+    assertThat(castedProvider.webIdTokenProviderFQCN()).isEqualTo(webTokenProviderFQCN);
+    assertThat(castedProvider.sessionDurationSecs()).isEqualTo(sessionDurationSecs);
+  }
+
+  @Test
+  public void testStsAssumeRoleWithDynamicWebIdentityCredentialsProviderSerDeNoSessionDuration() {
+    String roleArn = "roleArn";
+    String audience = "audience";
+    String webTokenProviderFQCN = "some.class.Name";
+    AwsCredentialsProvider provider =
+        StsAssumeRoleForFederatedCredentialsProvider.builder()
+            .setAssumedRoleArn(roleArn)
+            .setAudience(audience)
+            .setWebIdTokenProviderFQCN(webTokenProviderFQCN)
+            .build();
+
+    // Deserialize without credentials from system properties
+    AwsCredentialsProvider deserializedProvider = serializeAndDeserialize(provider);
+
+    assertThat(deserializedProvider)
+        .isInstanceOf(StsAssumeRoleForFederatedCredentialsProvider.class);
+    StsAssumeRoleForFederatedCredentialsProvider castedProvider =
+        (StsAssumeRoleForFederatedCredentialsProvider) deserializedProvider;
+    assertThat(castedProvider.assumedRoleArn()).isEqualTo(roleArn);
+    assertThat(castedProvider.audience()).isEqualTo(audience);
+    assertThat(castedProvider.webIdTokenProviderFQCN()).isEqualTo(webTokenProviderFQCN);
   }
 
   @Test

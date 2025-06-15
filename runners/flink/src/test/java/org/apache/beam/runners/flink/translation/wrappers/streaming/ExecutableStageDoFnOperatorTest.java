@@ -97,10 +97,11 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.NoopLock;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.Timer;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Struct;
@@ -249,7 +250,7 @@ public class ExecutableStageDoFnOperatorTest {
     doThrow(expected).when(bundle).close();
     thrown.expectCause(is(expected));
 
-    operator.processElement(new StreamRecord<>(WindowedValue.valueInGlobalWindow(0)));
+    operator.processElement(new StreamRecord<>(WindowedValues.valueInGlobalWindow(0)));
     testHarness.close();
   }
 
@@ -272,9 +273,9 @@ public class ExecutableStageDoFnOperatorTest {
     FnDataReceiver<WindowedValue<?>> receiver = Mockito.mock(FnDataReceiver.class);
     when(bundle.getInputReceivers()).thenReturn(ImmutableMap.of("input", receiver));
 
-    WindowedValue<Integer> one = WindowedValue.valueInGlobalWindow(1);
-    WindowedValue<Integer> two = WindowedValue.valueInGlobalWindow(2);
-    WindowedValue<Integer> three = WindowedValue.valueInGlobalWindow(3);
+    WindowedValue<Integer> one = WindowedValues.valueInGlobalWindow(1);
+    WindowedValue<Integer> two = WindowedValues.valueInGlobalWindow(2);
+    WindowedValue<Integer> three = WindowedValues.valueInGlobalWindow(3);
 
     OneInputStreamOperatorTestHarness<WindowedValue<Integer>, WindowedValue<Integer>> testHarness =
         new OneInputStreamOperatorTestHarness<>(operator);
@@ -296,8 +297,8 @@ public class ExecutableStageDoFnOperatorTest {
   @Test
   public void outputsAreTaggedCorrectly() throws Exception {
 
-    WindowedValue.ValueOnlyWindowedValueCoder<Integer> coder =
-        WindowedValue.getValueOnlyCoder(VarIntCoder.of());
+    WindowedValues.ValueOnlyWindowedValueCoder<Integer> coder =
+        WindowedValues.getValueOnlyCoder(VarIntCoder.of());
 
     TupleTag<Integer> mainOutput = new TupleTag<>("main-output");
     TupleTag<Integer> additionalOutput1 = new TupleTag<>("output-1");
@@ -332,10 +333,10 @@ public class ExecutableStageDoFnOperatorTest {
             tagsToIds,
             new SerializablePipelineOptions(FlinkPipelineOptions.defaults()));
 
-    WindowedValue<Integer> zero = WindowedValue.valueInGlobalWindow(0);
-    WindowedValue<Integer> three = WindowedValue.valueInGlobalWindow(3);
-    WindowedValue<Integer> four = WindowedValue.valueInGlobalWindow(4);
-    WindowedValue<Integer> five = WindowedValue.valueInGlobalWindow(5);
+    WindowedValue<Integer> zero = WindowedValues.valueInGlobalWindow(0);
+    WindowedValue<Integer> three = WindowedValues.valueInGlobalWindow(3);
+    WindowedValue<Integer> four = WindowedValues.valueInGlobalWindow(4);
+    WindowedValue<Integer> five = WindowedValues.valueInGlobalWindow(5);
 
     // We use a real StageBundleFactory here in order to exercise the output receiver factory.
     StageBundleFactory stageBundleFactory =
@@ -462,7 +463,7 @@ public class ExecutableStageDoFnOperatorTest {
             outputManagerFactory,
             WindowingStrategy.of(FixedWindows.of(Duration.millis(10))),
             StringUtf8Coder.of(),
-            WindowedValue.getFullCoder(
+            WindowedValues.getFullCoder(
                 KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()), IntervalWindow.getCoder()));
 
     KeyedOneInputStreamOperatorTestHarness<
@@ -498,7 +499,7 @@ public class ExecutableStageDoFnOperatorTest {
     // Trigger a new bundle
     IntervalWindow intervalWindow = new IntervalWindow(new Instant(0), new Instant(9));
     WindowedValue<KV<String, Integer>> windowedValue =
-        WindowedValue.of(KV.of("one", 1), Instant.now(), intervalWindow, PaneInfo.NO_FIRING);
+        WindowedValues.of(KV.of("one", 1), Instant.now(), intervalWindow, PaneInfo.NO_FIRING);
     testHarness.processElement(new StreamRecord<>(windowedValue));
 
     // The output watermark should be held back during the bundle
@@ -636,7 +637,7 @@ public class ExecutableStageDoFnOperatorTest {
             outputManagerFactory,
             WindowingStrategy.globalDefault(),
             keyCoder,
-            WindowedValue.getFullCoder(keyCoder, GlobalWindow.Coder.INSTANCE));
+            WindowedValues.getFullCoder(keyCoder, GlobalWindow.Coder.INSTANCE));
 
     KeyedOneInputStreamOperatorTestHarness<Integer, WindowedValue<Integer>, WindowedValue<Integer>>
         testHarness =
@@ -760,7 +761,7 @@ public class ExecutableStageDoFnOperatorTest {
             outputManagerFactory,
             windowingStrategy,
             keyCoder,
-            WindowedValue.getFullCoder(kvCoder, windowingStrategy.getWindowFn().windowCoder()));
+            WindowedValues.getFullCoder(kvCoder, windowingStrategy.getWindowFn().windowCoder()));
 
     @SuppressWarnings("unchecked")
     RemoteBundle bundle = Mockito.mock(RemoteBundle.class);
@@ -771,7 +772,7 @@ public class ExecutableStageDoFnOperatorTest {
     IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(1000));
     IntervalWindow.IntervalWindowCoder windowCoder = IntervalWindow.IntervalWindowCoder.of();
     WindowedValue<KV<String, Integer>> windowedValue =
-        WindowedValue.of(
+        WindowedValues.of(
             KV.of("one", 1), window.maxTimestamp(), ImmutableList.of(window), PaneInfo.NO_FIRING);
 
     FnDataReceiver receiver = Mockito.mock(FnDataReceiver.class);
@@ -933,7 +934,7 @@ public class ExecutableStageDoFnOperatorTest {
             outputManagerFactory,
             windowingStrategy,
             keyCoder,
-            WindowedValue.getFullCoder(kvCoder, windowCoder));
+            WindowedValues.getFullCoder(kvCoder, windowCoder));
 
     KeyedOneInputStreamOperatorTestHarness<
             FlinkKey, WindowedValue<KV<String, Integer>>, WindowedValue<Integer>>
@@ -1094,8 +1095,8 @@ public class ExecutableStageDoFnOperatorTest {
 
   @Test
   public void testSerialization() {
-    WindowedValue.ValueOnlyWindowedValueCoder<Integer> coder =
-        WindowedValue.getValueOnlyCoder(VarIntCoder.of());
+    WindowedValues.ValueOnlyWindowedValueCoder<Integer> coder =
+        WindowedValues.getValueOnlyCoder(VarIntCoder.of());
 
     TupleTag<Integer> mainOutput = new TupleTag<>("main-output");
     TupleTag<Integer> additionalOutput = new TupleTag<>("additional-output");
@@ -1129,7 +1130,7 @@ public class ExecutableStageDoFnOperatorTest {
     ExecutableStageDoFnOperator<Integer, Integer> operator =
         new ExecutableStageDoFnOperator<>(
             "transform",
-            WindowedValue.getValueOnlyCoder(VarIntCoder.of()),
+            WindowedValues.getValueOnlyCoder(VarIntCoder.of()),
             Collections.emptyMap(),
             mainOutput,
             ImmutableList.of(additionalOutput),
@@ -1166,7 +1167,7 @@ public class ExecutableStageDoFnOperatorTest {
             outputManagerFactory,
             WindowingStrategy.globalDefault(),
             null,
-            WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE),
+            WindowedValues.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE),
             stagePayloadWithStableInput,
             options);
 
@@ -1189,7 +1190,7 @@ public class ExecutableStageDoFnOperatorTest {
         outputManagerFactory,
         WindowingStrategy.globalDefault(),
         null,
-        WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE));
+        WindowedValues.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE));
   }
 
   private ExecutableStageDoFnOperator getOperator(

@@ -31,9 +31,11 @@ import org.apache.beam.sdk.io.iceberg.IcebergIO.ReadRows.StartingStrategy;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.expressions.Evaluator;
 import org.apache.iceberg.expressions.Expression;
 import org.apache.iceberg.types.Types;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
@@ -44,6 +46,10 @@ import org.joda.time.Duration;
 @AutoValue
 public abstract class IcebergScanConfig implements Serializable {
   private transient @MonotonicNonNull Table cachedTable;
+  private transient org.apache.iceberg.@MonotonicNonNull Schema cachedProjectedSchema;
+  private transient org.apache.iceberg.@MonotonicNonNull Schema cachedRequiredSchema;
+  private transient @MonotonicNonNull Evaluator cachedEvaluator;
+  private transient @MonotonicNonNull Expression cachedFilter;
 
   public enum ScanType {
     TABLE,
@@ -74,23 +80,85 @@ public abstract class IcebergScanConfig implements Serializable {
   @VisibleForTesting
   static org.apache.iceberg.Schema resolveSchema(
       org.apache.iceberg.Schema schema, @Nullable List<String> keep, @Nullable List<String> drop) {
+    return resolveSchema(schema, keep, drop, null);
+  }
+
+  @VisibleForTesting
+  static org.apache.iceberg.Schema resolveSchema(
+      org.apache.iceberg.Schema schema,
+      @Nullable List<String> keep,
+      @Nullable List<String> drop,
+      @Nullable Set<String> fieldsInFilter) {
+    ImmutableList.Builder<String> selectedFieldsBuilder = ImmutableList.builder();
     if (keep != null && !keep.isEmpty()) {
-      schema = schema.select(keep);
+      selectedFieldsBuilder.addAll(keep);
     } else if (drop != null && !drop.isEmpty()) {
       Set<String> fields =
           schema.columns().stream().map(Types.NestedField::name).collect(Collectors.toSet());
       drop.forEach(fields::remove);
-      schema = schema.select(fields);
+      selectedFieldsBuilder.addAll(fields);
+    } else {
+      // default: include all columns
+      return schema;
     }
-    return schema;
+
+    if (fieldsInFilter != null && !fieldsInFilter.isEmpty()) {
+      fieldsInFilter.stream()
+          .map(f -> schema.caseInsensitiveFindField(f).name())
+          .forEach(selectedFieldsBuilder::add);
+    }
+    ImmutableList<String> selectedFields = selectedFieldsBuilder.build();
+    return selectedFields.isEmpty() ? schema : schema.select(selectedFields);
   }
 
+  /** Returns the projected Schema after applying column pruning. */
   public org.apache.iceberg.Schema getProjectedSchema() {
-    return resolveSchema(getTable().schema(), getKeepFields(), getDropFields());
+    if (cachedProjectedSchema == null) {
+      cachedProjectedSchema = resolveSchema(getTable().schema(), getKeepFields(), getDropFields());
+    }
+    return cachedProjectedSchema;
+  }
+
+  /**
+   * Returns a Schema that includes all the fields required for a successful read. This includes
+   * explicitly selected fields and fields referenced in the filter statement.
+   */
+  public org.apache.iceberg.Schema getRequiredSchema() {
+    if (cachedRequiredSchema == null) {
+      cachedRequiredSchema =
+          resolveSchema(
+              getTable().schema(),
+              getKeepFields(),
+              getDropFields(),
+              FilterUtils.getReferencedFieldNames(getFilterString()));
+    }
+    return cachedRequiredSchema;
   }
 
   @Pure
-  public abstract @Nullable Expression getFilter();
+  @Nullable
+  public Evaluator getEvaluator() {
+    @Nullable Expression filter = getFilter();
+    if (filter == null) {
+      return null;
+    }
+    if (cachedEvaluator == null) {
+      cachedEvaluator = new Evaluator(getRequiredSchema().asStruct(), filter);
+    }
+    return cachedEvaluator;
+  }
+
+  @Pure
+  @Nullable
+  public Expression getFilter() {
+    if (cachedFilter == null) {
+      cachedFilter = FilterUtils.convert(getFilterString(), getTable().schema());
+    }
+    return cachedFilter;
+  }
+
+  @Pure
+  public abstract @Nullable String getFilterString();
 
   @Pure
   public abstract @Nullable Boolean getCaseSensitive();
@@ -156,7 +224,7 @@ public abstract class IcebergScanConfig implements Serializable {
   public static Builder builder() {
     return new AutoValue_IcebergScanConfig.Builder()
         .setScanType(ScanType.TABLE)
-        .setFilter(null)
+        .setFilterString(null)
         .setCaseSensitive(null)
         .setOptions(ImmutableMap.of())
         .setSnapshot(null)
@@ -195,7 +263,7 @@ public abstract class IcebergScanConfig implements Serializable {
 
     public abstract Builder setSchema(Schema schema);
 
-    public abstract Builder setFilter(@Nullable Expression filter);
+    public abstract Builder setFilterString(@Nullable String filter);
 
     public abstract Builder setCaseSensitive(@Nullable Boolean caseSensitive);
 

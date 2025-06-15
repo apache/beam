@@ -19,7 +19,7 @@ package org.apache.beam.runners.direct;
 
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

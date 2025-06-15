@@ -86,7 +86,6 @@ public class InitializeDoFn extends DoFn<byte[], PartitionMetadata> implements S
     PartitionMetadata parentPartition =
         PartitionMetadata.newBuilder()
             .setPartitionToken(InitialPartition.PARTITION_TOKEN)
-            .setParentTokens(InitialPartition.PARENT_TOKENS)
             .setStartTimestamp(startTimestamp)
             .setEndTimestamp(endTimestamp)
             .setHeartbeatMillis(DEFAULT_HEARTBEAT_MILLIS)

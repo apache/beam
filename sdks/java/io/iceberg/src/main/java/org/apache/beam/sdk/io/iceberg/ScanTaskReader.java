@@ -50,7 +50,6 @@ import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.mapping.NameMappingParser;
 import org.apache.iceberg.orc.ORC;
 import org.apache.iceberg.parquet.Parquet;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,7 +57,6 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
   private static final Logger LOG = LoggerFactory.getLogger(ScanTaskReader.class);
 
   private final ScanTaskSource source;
-  private final org.apache.iceberg.Schema project;
   private final Schema beamSchema;
 
   transient @Nullable FileIO io;
@@ -69,8 +67,7 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
 
   public ScanTaskReader(ScanTaskSource source) {
     this.source = source;
-    this.project = source.getSchema();
-    this.beamSchema = icebergSchemaToBeamSchema(project);
+    this.beamSchema = icebergSchemaToBeamSchema(source.getScanConfig().getProjectedSchema());
   }
 
   @Override
@@ -96,8 +93,7 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
 
     // This nullness annotation is incorrect, but the most expedient way to work with Iceberg's APIs
     // which are not null-safe.
-    @SuppressWarnings("nullness")
-    org.apache.iceberg.@NonNull Schema project = this.project;
+    org.apache.iceberg.Schema requiredSchema = source.getScanConfig().getRequiredSchema();
     @Nullable
     String nameMapping = source.getTable().properties().get(TableProperties.DEFAULT_NAME_MAPPING);
 
@@ -125,7 +121,8 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
       DataFile file = fileTask.file();
       InputFile input = decryptor.getInputFile(fileTask);
       Map<Integer, ?> idToConstants =
-          ReadUtils.constantsMap(fileTask, IdentityPartitionConverters::convertConstant, project);
+          ReadUtils.constantsMap(
+              fileTask, IdentityPartitionConverters::convertConstant, requiredSchema);
 
       CloseableIterable<Record> iterable;
       switch (file.format()) {
@@ -134,10 +131,10 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
           ORC.ReadBuilder orcReader =
               ORC.read(input)
                   .split(fileTask.start(), fileTask.length())
-                  .project(project)
+                  .project(requiredSchema)
                   .createReaderFunc(
                       fileSchema ->
-                          GenericOrcReader.buildReader(project, fileSchema, idToConstants))
+                          GenericOrcReader.buildReader(requiredSchema, fileSchema, idToConstants))
                   .filter(fileTask.residual());
 
           if (nameMapping != null) {
@@ -151,10 +148,11 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
           Parquet.ReadBuilder parquetReader =
               Parquet.read(input)
                   .split(fileTask.start(), fileTask.length())
-                  .project(project)
+                  .project(requiredSchema)
                   .createReaderFunc(
                       fileSchema ->
-                          GenericParquetReaders.buildReader(project, fileSchema, idToConstants))
+                          GenericParquetReaders.buildReader(
+                              requiredSchema, fileSchema, idToConstants))
                   .filter(fileTask.residual());
 
           if (nameMapping != null) {
@@ -168,9 +166,9 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
           Avro.ReadBuilder avroReader =
               Avro.read(input)
                   .split(fileTask.start(), fileTask.length())
-                  .project(project)
+                  .project(requiredSchema)
                   .createReaderFunc(
-                      fileSchema -> DataReader.create(project, fileSchema, idToConstants));
+                      fileSchema -> DataReader.create(requiredSchema, fileSchema, idToConstants));
 
           if (nameMapping != null) {
             avroReader.withNameMapping(NameMappingParser.fromJson(nameMapping));
@@ -182,9 +180,12 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
           throw new UnsupportedOperationException("Cannot read format: " + file.format());
       }
       GenericDeleteFilter deleteFilter =
-          new GenericDeleteFilter(checkStateNotNull(io), fileTask, fileTask.schema(), project);
-      currentIterator = deleteFilter.filter(iterable).iterator();
+          new GenericDeleteFilter(
+              checkStateNotNull(io), fileTask, fileTask.schema(), requiredSchema);
+      iterable = deleteFilter.filter(iterable);
 
+      iterable = ReadUtils.maybeApplyFilter(iterable, source.getScanConfig());
+      currentIterator = iterable.iterator();
     } while (true);
 
     return false;
