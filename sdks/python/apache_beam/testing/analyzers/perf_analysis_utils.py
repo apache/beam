@@ -67,6 +67,8 @@ class ChangePointConfig:
       constants._DEFAULT_MIN_RUNS_BETWEEN_CHANGE_POINTS)
   num_runs_in_change_point_window: int = (
       constants._DEFAULT_NUM_RUMS_IN_CHANGE_POINT_WINDOW)
+  median_abs_deviation_threshold: int = (
+      constants._DEFAULT_MEDIAN_ABS_DEVIATION_THRESHOLD)
 
 
 @dataclass
@@ -197,7 +199,9 @@ def find_change_points(metric_values: List[Union[float, int]]):
   return e_divisive(metric_values)
 
 
-def find_latest_change_point_index(metric_values: List[Union[float, int]]):
+def find_latest_change_point_index(
+    metric_values: List[Union[float, int]],
+    median_abs_deviation_threshold: int = 2):
   """
   Args:
    metric_values: Metric values used to run change point analysis.
@@ -208,7 +212,10 @@ def find_latest_change_point_index(metric_values: List[Union[float, int]]):
   # reduce noise in the change point analysis by filtering out
   # the change points that are not significant enough.
   change_points_indices = filter_change_points_by_median_threshold(
-      metric_values, change_points_indices)
+      metric_values,
+      change_points_indices,
+      threshold=0.1,
+      median_abs_deviation_threshold=median_abs_deviation_threshold)
   # Consider the latest change point.
   if not change_points_indices:
     return None
@@ -289,6 +296,7 @@ def filter_change_points_by_median_threshold(
     data: List[Union[int, float]],
     change_points: List[int],
     threshold: float = 0.05,
+    median_abs_deviation_threshold: int = 2,
 ):
   """
   Reduces the number of change points by filtering out the ones that are
@@ -307,6 +315,22 @@ def filter_change_points_by_median_threshold(
 
     left_value = median(left_segment)
     right_value = median(right_segment)
+
+    # MAD (Median Absolute Deviation) is a robust measure of variability.
+    # A low MAD indicates that the data points are tightly clustered around the
+    # median, while a high MAD suggests greater spread.
+    left_mad = median([abs(x - left_value) for x in left_segment])
+    right_mad = median([abs(x - right_value) for x in right_segment])
+
+    # The change is considered significant only if the absolute difference
+    # between the medians of the two segments is greater than a threshold
+    # times the median absolute deviation (MAD) of the respective segments.
+    # This approach helps to filter out changes that are not statistically
+    # significant, making the detection more robust to noise and outliers.
+    if abs(right_value - left_value) > (median_abs_deviation_threshold *
+                                        (left_mad + right_mad)):
+      valid_change_points.append(idx)
+      continue
 
     relative_change = abs(right_value - left_value) / (left_value + epsilon)
 
