@@ -341,16 +341,19 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[EnrichmentType]):
       **kwargs):
     """
     Example Usage:
-      handler = MilvusSearchEnrichmentHandler(
-          connection_parameters=MilvusConnectionParameters(
-              uri="http://localhost:19530"),
-          search_parameters=MilvusSearchParameters(
-              collection_name="my_collection",
-              search_strategy=VectorSearchParameters(anns_field="embedding")),
-          collection_load_parameters=MilvusCollectionLoadParameters(
-              load_fields=["embedding", "metadata"]),
-          min_batch_size=10,
-          max_batch_size=100)
+      connection_paramters = MilvusConnectionParameters(
+        uri="http://localhost:19530")
+      search_parameters = MilvusSearchParameters(
+        collection_name="my_collection",
+        search_strategy=VectorSearchParameters(anns_field="embedding"))
+      collection_load_parameters = MilvusCollectionLoadParameters(
+        load_fields=["embedding", "metadata"]),
+      milvus_handler = MilvusSearchEnrichmentHandler(
+        connection_paramters,
+        search_parameters,
+        collection_load_parameters,
+        min_batch_size=10,
+        max_batch_size=100)
 
     Args:
       connection_parameters (MilvusConnectionParameters): Configuration for
