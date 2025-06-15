@@ -88,7 +88,8 @@ def _validate_bigquery_metadata(
     raise ValueError("Provide exactly one of `fields` or `condition_value_fn`.")
   if additional_condition_fields and condition_value_fn:
     raise ValueError(
-        "`additional_condition_fields` cannot be used with `condition_value_fn`."
+        "`additional_condition_fields` cannot be used with "
+        "`condition_value_fn`."
     )
 
 
@@ -132,8 +133,8 @@ class BigQueryStorageEnrichmentHandler(
                 is not provided, this template will be formatted with values
                 from `fields` and `additional_condition_fields`.
             row_restriction_template_fn: (Optional[Callable]) Function that takes
-                (condition_values_dict, primary_keys, request_row) and returns a
-                fully formatted filter string or a template to be formatted.
+                (condition_values_dict, primary_keys, request_row) and returns
+                a fully formatted filter string or a template to be formatted.
             fields: (Optional[list[str]]) Input `beam.Row` field names used to
                 generate the dictionary for formatting the row restriction
                 template AND for generating the internal join/cache key.
@@ -596,7 +597,8 @@ class BigQueryStorageEnrichmentHandler(
             request: List of BeamRow objects to enrich with BigQuery data
 
         Returns:
-            List of tuples containing (original_request, enriched_response) pairs
+            List of tuples containing (original_request, enriched_response)
+            pairs
         """
     # Initialize collections for processing
     batch_responses: List[Tuple[BeamRow, BeamRow]] = []  # Final results
