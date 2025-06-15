@@ -86,31 +86,22 @@ class MilvusEnrichmentTestHelper:
           "Error encountered while stopping milvus db container: %s", e)
 
 
-# Define a session-level fixture to manage the container.
-@pytest.fixture(scope="session")
-def milvus_container():
-  # Start the container before any tests run.
-  container = MilvusEnrichmentTestHelper.start_milvus_search_db_container()
-
-  # Yield the container to the tests.
-  yield container
-
-  # Clean up after all tests are done.
-  MilvusEnrichmentTestHelper.stop_milvus_search_db_container(container)
-
-
 @pytest.mark.uses_testcontainer
 class TestMilvusSearchEnrichment(unittest.TestCase):
-  """Tests for general search functionality across all search strategies"""
-  @pytest.fixture(autouse=True)
-  def setup_milvus(self, milvus_container):
-    self.db = milvus_container
+  """Tests for search functionality across all search strategies"""
 
-  def test_filtered_search(self):
-    pass
+  _db: MilvusSearchDBContainerInfo
+  _milvus_db_version = "milvusdb/milvus:v2.5.10"
 
-  def test_chunks_batching(self):
-    pass
+  @classmethod
+  def setUpClass(cls):
+    cls._db = MilvusEnrichmentTestHelper.start_milvus_search_db_container(
+        image=cls._milvus_db_version)
+
+  @classmethod
+  def tearDownClass(cls):
+    MilvusEnrichmentTestHelper.stop_milvus_search_db_container(cls._db)
+    cls._db = None
 
   def test_invalid_query(self):
     pass
@@ -118,69 +109,23 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
   def test_empty_input_chunks(self):
     pass
 
+  def test_filtered_search(self):
+    pass
 
-# Use the fixture in your test classes.
-@pytest.mark.uses_testcontainer
-class TestMilvusVectorSearchEnrichment(unittest.TestCase):
-  """Tests specific to vector search functionality"""
-  @pytest.fixture(autouse=True)
-  def setup_milvus(self, milvus_container):
-    self.db = milvus_container
+  def test_chunks_batching(self):
+    pass
 
   def test_vector_search_COSINE(self):
     pass
 
-  def test_vector_search_L2(self):
+  def test_vector_search_EUCLIDEAN_DISTANCE(self):
     pass
 
-  def test_vector_search_IP(self):
+  def test_vector_search_INNER_PRODUCT(self):
     pass
-
-  def test_missing_dense_embedding(self):
-    pass
-
-
-@pytest.mark.uses_testcontainer
-class TestMilvusKeywordSearchEnrichment(unittest.TestCase):
-  """Tests specific to keyword search functionality"""
-  @pytest.fixture(autouse=True)
-  def setup_milvus(self, milvus_container):
-    self.db = milvus_container
 
   def test_keyword_search_BM25(self):
     pass
 
-  def test_missing_content_and_sparse_embedding(self):
-    pass
-
-  def test_missing_content_only(self):
-    pass
-
-  def test_missing_sparse_embedding_only(self):
-    pass
-
-
-@pytest.mark.uses_testcontainer
-class TestMilvusHybridSearchEnrichment(unittest.TestCase):
-  """Tests specific to hybrid search functionality"""
-  @pytest.fixture(autouse=True)
-  def setup_milvus(self, milvus_container):
-    self.db = milvus_container
-
   def test_hybrid_search(self):
-    pass
-
-  def test_missing_dense_embedding_for_vector_search(self):
-    pass
-
-  def test_missing_content_and_sparse_embedding_for_keyword_search(self):
-    pass
-
-  def test_missing_content_and_sparse_embedding_for_keyword_search(self):
-    pass
-
-  def test_missing_content_only_for_keyword_search(self):
-    pass
-
-  def test_missing_sparse_embedding_only_for_keyword_search(self):
     pass
