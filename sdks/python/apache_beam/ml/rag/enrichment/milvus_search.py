@@ -134,7 +134,7 @@ class BaseSearchParameters:
   """Base parameters for both vector and keyword search operations.
 
   Args:
-    anns_field: Approximate nearest neighbors field indicates field name
+    anns_field: Approximate nearest neighbor search field indicates field name
       containing the embedding to search. Required for both vector and keyword
       search.
     limit: Maximum number of results to return per query. Must be positive.
@@ -156,7 +156,7 @@ class BaseSearchParameters:
   def __post_init__(self):
     if not self.anns_field:
       raise ValueError(
-          "Approximate Nearest Neighbors (ANNS) field must be provided")
+          "Approximate Nearest Neighbor Search (ANNS) field must be provided")
 
     if self.limit <= 0:
       raise ValueError(f"Search limit must be positive, got {self.limit}")

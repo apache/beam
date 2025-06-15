@@ -132,7 +132,7 @@ class TestMilvusVectorSearchEnrichment(unittest.TestCase):
       # Missing anns_field in vector search parameters.
       (
           lambda: VectorSearchParameters(anns_field=None),  # type: ignore[arg-type]
-          "Approximate Nearest Neighbors (ANNS) field must be provided"
+          "Approximate Nearest Neighbor Search (ANNS) field must be provided"
       ),
   ])
   def test_invalid_search_parameters(self, create_params, expected_error_msg):
@@ -188,7 +188,7 @@ class TestMilvusKeywordSearchEnrichment(unittest.TestCase):
       # Missing anns_field in keyword search parameters.
       (
           lambda: KeywordSearchParameters(anns_field=None),  # type: ignore[arg-type]
-          "Approximate Nearest Neighbors (ANNS) field must be provided"
+          "Approximate Nearest Neighbor Search (ANNS) field must be provided"
       ),
   ])
   def test_invalid_search_parameters(self, create_params, expected_error_msg):
