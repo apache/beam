@@ -207,9 +207,7 @@ class TestBigQueryStorageEnrichmentHandler(unittest.TestCase):
 
   def test_batch_elements_kwargs(self):
     handler = self.make_handler(
-        min_batch_size=2, 
-        max_batch_size=5, 
-        max_batch_duration_secs=10)
+        min_batch_size=2, max_batch_size=5, max_batch_duration_secs=10)
     self.assertEqual(
         handler.batch_elements_kwargs(),
         {
