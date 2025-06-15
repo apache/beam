@@ -308,7 +308,9 @@ class MilvusCollectionLoadParameters:
   kwargs: Dict[str, Any] = field(default_factory=dict)
 
 
-InputT, OutputT= Union[Chunk, List[Chunk]], List[Tuple[Chunk, Dict[str, Any]]]
+InputT, OutputT = Union[Chunk, List[Chunk]], List[Tuple[Chunk, Dict[str, Any]]]
+
+
 class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
   """Enrichment handler for Milvus vector database searches.
 
