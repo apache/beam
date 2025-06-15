@@ -32,9 +32,10 @@ import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.CreatePCollectionViewTranslation;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
 /** PCollectionView translator. */
@@ -74,8 +75,8 @@ public class PCollectionViewTranslatorBatch<ElemT, ViewT>
       case Materializations.MULTIMAP_MATERIALIZATION_URN:
         KvCoder kvCoder = (KvCoder<?, ?>) coder;
         final Coder keyCoder = kvCoder.getKeyCoder();
-        final WindowedValue.WindowedValueCoder kvwvCoder =
-            WindowedValue.FullWindowedValueCoder.of(
+        final WindowedValues.WindowedValueCoder kvwvCoder =
+            WindowedValues.FullWindowedValueCoder.of(
                 kvCoder.getValueCoder(), windowFn.windowCoder());
         BatchTSet<WindowedValue<ElemT>> multimapMaterialization =
             inputDataSet
@@ -86,8 +87,8 @@ public class PCollectionViewTranslatorBatch<ElemT, ViewT>
         context.setSideInputDataSet(input.getTagInternal().getId(), multimapMaterialization);
         break;
       case Materializations.ITERABLE_MATERIALIZATION_URN:
-        final WindowedValue.WindowedValueCoder wvCoder =
-            WindowedValue.FullWindowedValueCoder.of(coder, windowFn.windowCoder());
+        final WindowedValues.WindowedValueCoder wvCoder =
+            WindowedValues.FullWindowedValueCoder.of(coder, windowFn.windowCoder());
         BatchTSet<WindowedValue<ElemT>> iterableMaterialization =
             inputDataSet
                 .direct()

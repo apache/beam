@@ -21,7 +21,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Instant;
 import org.junit.Test;
@@ -39,7 +39,7 @@ public class WindowMatchersTest {
     long windowEnd = 200;
 
     assertThat(
-        WindowedValue.of(
+        WindowedValues.of(
             "hello",
             new Instant(timestamp),
             new IntervalWindow(new Instant(windowStart), new Instant(windowEnd)),
@@ -60,7 +60,7 @@ public class WindowMatchersTest {
     long windowEnd2 = 150;
 
     assertThat(
-        WindowedValue.of(
+        WindowedValues.of(
             "hello",
             new Instant(timestamp),
             ImmutableList.of(

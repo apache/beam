@@ -15,31 +15,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core;
+package org.apache.beam.sdk.values;
 
 import java.util.Collection;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Instant;
 
 /**
- * An object that can output a value with all of its windowing information to the main output or any
- * tagged output.
+ * A value along with Beam's windowing information and all other metadata.
+ *
+ * @param <T> the type of the primary data for the value.
  */
-public interface OutputWindowedValue<OutputT> {
-  /** Outputs a value with windowing information to the main output. */
-  void outputWindowedValue(
-      OutputT output,
-      Instant timestamp,
-      Collection<? extends BoundedWindow> windows,
-      PaneInfo pane);
+public interface WindowedValue<T> {
+  /** The primary data for this value. */
+  T getValue();
 
-  /** Outputs a value with windowing information to a tagged output. */
-  <AdditionalOutputT> void outputWindowedValue(
-      TupleTag<AdditionalOutputT> tag,
-      AdditionalOutputT output,
-      Instant timestamp,
-      Collection<? extends BoundedWindow> windows,
-      PaneInfo pane);
+  /** The timestamp of this value in event time. */
+  Instant getTimestamp();
+
+  /** Returns the windows of this {@code WindowedValue}. */
+  Collection<? extends BoundedWindow> getWindows();
+
+  /** The {@link PaneInfo} associated with this WindowedValue. */
+  PaneInfo getPaneInfo();
+
+  /**
+   * A representation of each of the actual values represented by this compressed {@link
+   * WindowedValue}, one per window.
+   */
+  Iterable<WindowedValue<T>> explodeWindows();
+
+  /**
+   * A {@link WindowedValue} with identical metadata to the current one, but with the provided
+   * value.
+   */
+  <OtherT> WindowedValue<OtherT> withValue(OtherT value);
 }

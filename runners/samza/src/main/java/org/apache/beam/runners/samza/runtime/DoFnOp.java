@@ -30,7 +30,6 @@ import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.DoFnRunner;
-import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.SideInputHandler;
 import org.apache.beam.runners.core.SimplePushbackSideInputDoFnRunner;
@@ -52,11 +51,13 @@ import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.util.construction.graph.ExecutableStage;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
 import org.apache.samza.config.Config;
@@ -481,15 +482,15 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
       Function<T, OutT> valueMapper) {
     return valueFuture.thenApply(
         res ->
-            WindowedValue.of(
+            WindowedValues.of(
                 valueMapper.apply(res),
                 windowedValue.getTimestamp(),
                 windowedValue.getWindows(),
-                windowedValue.getPane()));
+                windowedValue.getPaneInfo()));
   }
 
   /**
-   * Factory class to create an {@link org.apache.beam.runners.core.DoFnRunners.OutputManager} that
+   * Factory class to create an {@link org.apache.beam.sdk.util.WindowedValueMultiReceiver} that
    * emits values to the main output only, which is a single {@link
    * org.apache.beam.sdk.values.PCollection}.
    *
@@ -497,19 +498,19 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
    */
   public static class SingleOutputManagerFactory<OutT> implements OutputManagerFactory<OutT> {
     @Override
-    public DoFnRunners.OutputManager create(OpEmitter<OutT> emitter) {
+    public WindowedValueMultiReceiver create(OpEmitter<OutT> emitter) {
       return createOutputManager(emitter, null);
     }
 
     @Override
-    public DoFnRunners.OutputManager create(
+    public WindowedValueMultiReceiver create(
         OpEmitter<OutT> emitter, FutureCollector<OutT> collector) {
       return createOutputManager(emitter, collector);
     }
 
-    private DoFnRunners.OutputManager createOutputManager(
+    private WindowedValueMultiReceiver createOutputManager(
         OpEmitter<OutT> emitter, FutureCollector<OutT> collector) {
-      return new DoFnRunners.OutputManager() {
+      return new WindowedValueMultiReceiver() {
         @Override
         @SuppressWarnings("unchecked")
         public <T> void output(TupleTag<T> tupleTag, WindowedValue<T> windowedValue) {
@@ -529,7 +530,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
   }
 
   /**
-   * Factory class to create an {@link org.apache.beam.runners.core.DoFnRunners.OutputManager} that
+   * Factory class to create an {@link org.apache.beam.runners.core.WindowedValueMultiReceiver} that
    * emits values to the main output as well as the side outputs via union type {@link
    * RawUnionValue}.
    */
@@ -541,19 +542,19 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     }
 
     @Override
-    public DoFnRunners.OutputManager create(OpEmitter<RawUnionValue> emitter) {
+    public WindowedValueMultiReceiver create(OpEmitter<RawUnionValue> emitter) {
       return createOutputManager(emitter, null);
     }
 
     @Override
-    public DoFnRunners.OutputManager create(
+    public WindowedValueMultiReceiver create(
         OpEmitter<RawUnionValue> emitter, FutureCollector<RawUnionValue> collector) {
       return createOutputManager(emitter, collector);
     }
 
-    private DoFnRunners.OutputManager createOutputManager(
+    private WindowedValueMultiReceiver createOutputManager(
         OpEmitter<RawUnionValue> emitter, FutureCollector<RawUnionValue> collector) {
-      return new DoFnRunners.OutputManager() {
+      return new WindowedValueMultiReceiver() {
         @Override
         @SuppressWarnings("unchecked")
         public <T> void output(TupleTag<T> tupleTag, WindowedValue<T> windowedValue) {

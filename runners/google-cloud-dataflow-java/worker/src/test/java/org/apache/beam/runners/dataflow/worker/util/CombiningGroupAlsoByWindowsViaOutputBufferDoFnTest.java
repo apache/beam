@@ -41,7 +41,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class CombiningGroupAlsoByWindowsViaOutputBufferDoFnTest {
 
-  private class CombiningGABWViaOutputBufferDoFnFactory<K, InputT, AccumT, OutputT>
+  private static class CombiningGABWViaOutputBufferDoFnFactory<K, InputT, AccumT, OutputT>
       implements GroupAlsoByWindowDoFnFactory<K, InputT, OutputT> {
 
     private final Coder<K> keyCoder;

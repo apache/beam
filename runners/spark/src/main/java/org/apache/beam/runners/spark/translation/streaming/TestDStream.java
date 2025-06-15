@@ -32,8 +32,9 @@ import org.apache.beam.sdk.testing.TestStream.ProcessingTimeEvent;
 import org.apache.beam.sdk.testing.TestStream.WatermarkEvent;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.Preconditions;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.JavaSparkContext$;
@@ -61,7 +62,7 @@ public class TestDStream<T> extends InputDStream<WindowedValue<T>> {
 
   public TestDStream(TestStream<T> test, StreamingContext ssc) {
     super(ssc, classTag());
-    this.coder = WindowedValue.getFullCoder(test.getValueCoder(), GlobalWindow.Coder.INSTANCE);
+    this.coder = WindowedValues.getFullCoder(test.getValueCoder(), GlobalWindow.Coder.INSTANCE);
     this.events = test.getEvents();
   }
 
@@ -126,7 +127,7 @@ public class TestDStream<T> extends InputDStream<WindowedValue<T>> {
     List<byte[]> binaryData = new ArrayList<>();
     for (TimestampedValue<T> elem : event.getElements()) {
       WindowedValue<T> wv =
-          WindowedValue.timestampedValueInGlobalWindow(elem.getValue(), elem.getTimestamp());
+          WindowedValues.timestampedValueInGlobalWindow(elem.getValue(), elem.getTimestamp());
       binaryData.add(CoderHelpers.toByteArray(wv, coder));
     }
 

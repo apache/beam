@@ -19,14 +19,11 @@ package org.apache.beam.runners.direct;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
-import java.util.Collection;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import org.apache.beam.runners.core.DoFnRunners;
-import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.OutputAndTimeBoundedSplittableProcessElementInvoker;
-import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.ProcessFnRunner;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessElements;
@@ -34,18 +31,13 @@ import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessFn;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheLoader;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Duration;
-import org.joda.time.Instant;
 
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
@@ -144,30 +136,6 @@ class SplittableProcessElementsEvaluatorFactory<
     processFn.setStateInternalsFactory(key -> stepContext.stateInternals());
     processFn.setTimerInternalsFactory(key -> stepContext.timerInternals());
 
-    OutputWindowedValue<OutputT> outputWindowedValue =
-        new OutputWindowedValue<OutputT>() {
-          private final OutputManager outputManager = pde.getOutputManager();
-
-          @Override
-          public void outputWindowedValue(
-              OutputT output,
-              Instant timestamp,
-              Collection<? extends BoundedWindow> windows,
-              PaneInfo pane) {
-            outputManager.output(
-                transform.getMainOutputTag(), WindowedValue.of(output, timestamp, windows, pane));
-          }
-
-          @Override
-          public <AdditionalOutputT> void outputWindowedValue(
-              TupleTag<AdditionalOutputT> tag,
-              AdditionalOutputT output,
-              Instant timestamp,
-              Collection<? extends BoundedWindow> windows,
-              PaneInfo pane) {
-            outputManager.output(tag, WindowedValue.of(output, timestamp, windows, pane));
-          }
-        };
     SideInputReader sideInputReader =
         evaluationContext.createSideInputReader(transform.getSideInputs());
     processFn.setSideInputReader(sideInputReader);
@@ -175,7 +143,8 @@ class SplittableProcessElementsEvaluatorFactory<
         new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
             transform.getFn(),
             options,
-            outputWindowedValue,
+            pde.getOutputManager(),
+            transform.getMainOutputTag(),
             sideInputReader,
             ses,
             // Setting small values here to stimulate frequent checkpointing and better exercise

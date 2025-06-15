@@ -454,18 +454,15 @@ class BeamModulePlugin implements Plugin<Project> {
     return 'beam' + p.path.replace(':', '-')
   }
 
-  static def getSupportedJavaVersion() {
-    if (JavaVersion.current() == JavaVersion.VERSION_1_8) {
-      return 'java8'
-    } else if (JavaVersion.current() == JavaVersion.VERSION_11) {
+  /** Get version for Java SDK container */
+  static def getSupportedJavaVersion(String assignedVersion = null) {
+    JavaVersion ver = assignedVersion ? JavaVersion.toVersion(assignedVersion) : JavaVersion.current()
+    if (ver <= JavaVersion.VERSION_11) {
       return 'java11'
-    } else if (JavaVersion.current() == JavaVersion.VERSION_17) {
+    } else if (ver <= JavaVersion.VERSION_17) {
       return 'java17'
-    } else if (JavaVersion.current() == JavaVersion.VERSION_21) {
-      return 'java21'
     } else {
-      String exceptionMessage = "Your Java version is unsupported. You need Java version of 8, 11, 17 or 21 to get started, but your Java version is: " + JavaVersion.current();
-      throw new GradleException(exceptionMessage)
+      return 'java21'
     }
   }
 
@@ -742,7 +739,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_api_common                           : "com.google.api:api-common", // google_cloud_platform_libraries_bom sets version
         google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20250427-2.0.0",  // [bomupgrader] sets version
         google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20240310-2.0.0",  // [bomupgrader] sets version
-        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20250106-$google_clients_version",
+        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20250519-$google_clients_version",
         google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1-rev20240130-$google_clients_version",
         google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20220904-$google_clients_version",
         google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20250424-2.0.0",  // [bomupgrader] sets version
@@ -2374,7 +2371,7 @@ class BeamModulePlugin implements Plugin<Project> {
     // development image at docker.io (see sdks/CONTAINERS.md):
     //
     //    format: apache/beam_$NAME_sdk:latest
-    //    ie: apache/beam_python3.7_sdk:latest apache/beam_java8_sdk:latest apache/beam_go_sdk:latest
+    //    ie: apache/beam_python3.12_sdk:latest apache/beam_java21_sdk:latest apache/beam_go_sdk:latest
     //
     // Both the root and tag can be defined using properties or explicitly provided.
     project.ext.containerImageName = {
@@ -2653,8 +2650,8 @@ class BeamModulePlugin implements Plugin<Project> {
         // see https://issues.apache.org/jira/browse/BEAM-6698
         maxHeapSize = '4g'
         if (config.environment == PortableValidatesRunnerConfiguration.Environment.DOCKER) {
-          def ver = project.findProperty('testJavaVersion')
-          def javaContainerSuffix = ver ? "java$ver" : getSupportedJavaVersion()
+          String ver = project.findProperty('testJavaVersion')
+          def javaContainerSuffix = getSupportedJavaVersion(ver)
           dependsOn ":sdks:java:container:${javaContainerSuffix}:docker"
         }
       }
