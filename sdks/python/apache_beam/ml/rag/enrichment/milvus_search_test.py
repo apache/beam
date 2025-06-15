@@ -14,9 +14,230 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
 import unittest
+
+from parameterized import parameterized
+
+try:
+  from apache_beam.ml.rag.enrichment.milvus_search import (
+      MilvusSearchEnrichmentHandler,
+      MilvusConnectionParameters,
+      MilvusSearchParameters,
+      MilvusCollectionLoadParameters,
+      VectorSearchParameters,
+      KeywordSearchParameters,
+      HybridSearchParameters,
+      HybridSearchNamespace,
+      MilvusBaseRanker,
+      unpack_dataclass_with_kwargs)
+except ImportError:
+  raise unittest.SkipTest('Milvus dependencies are not installed.')
+
+
+class MockRanker(MilvusBaseRanker):
+  def dict(self):
+    return {"name": "mock_ranker"}
 
 
 class TestMilvusSearchEnrichment(unittest.TestCase):
-  pass
+  def test_invalid_connection_parameters(self):
+    """Test validation errors for invalid connection parameters."""
+    # Empty URI in connection parameters.
+    with self.assertRaises(ValueError) as context:
+      connection_params = MilvusConnectionParameters(uri="")
+      search_params = MilvusSearchParameters(
+          collection_name="test_collection",
+          search_strategy=VectorSearchParameters(anns_field="embedding"))
+      collection_load_params = MilvusCollectionLoadParameters()
+
+      _ = MilvusSearchEnrichmentHandler(
+          connection_parameters=connection_params,
+          search_parameters=search_params,
+          collection_load_parameters=collection_load_params)
+
+    self.assertIn(
+        "URI must be provided for Milvus connection", str(context.exception))
+
+  @parameterized.expand([
+      # Empty collection name.
+      (
+          lambda: MilvusSearchParameters(
+              collection_name="",
+              search_strategy=VectorSearchParameters(anns_field="embedding")),
+          "Collection name must be provided"
+      ),
+      # Missing search strategy.
+      (
+          lambda: MilvusSearchParameters(
+              collection_name="test_collection",
+              search_strategy=None),  # type: ignore[arg-type]
+          "Search strategy must be provided"
+      ),
+  ])
+  def test_invalid_search_parameters(self, create_params, expected_error_msg):
+    """Test validation errors for invalid general search parameters."""
+    with self.assertRaises(ValueError) as context:
+      connection_params = MilvusConnectionParameters(
+          uri="http://localhost:19530")
+      search_params = create_params()
+      collection_load_params = MilvusCollectionLoadParameters()
+
+      _ = MilvusSearchEnrichmentHandler(
+          connection_parameters=connection_params,
+          search_parameters=search_params,
+          collection_load_parameters=collection_load_params)
+
+    self.assertIn(expected_error_msg, str(context.exception))
+
+  @parameterized.expand([
+      # Negative limit in vector search parameters.
+      (
+          lambda: VectorSearchParameters(anns_field="embedding", limit=-1),
+          "Search limit must be positive, got -1"
+      ),
+      # Missing anns_field in vector search parameters.
+      (
+          lambda: VectorSearchParameters(anns_field=None),  # type: ignore[arg-type]
+          "Approximate Nearest Neighbors (ANNS) field must be provided"
+      ),
+  ])
+  def test_invalid_vector_search_parameters(
+      self, create_params, expected_error_msg):
+    """Test validation errors for invalid vector search parameters."""
+    with self.assertRaises(ValueError) as context:
+      connection_params = MilvusConnectionParameters(
+          uri="http://localhost:19530")
+      vector_search_params = create_params()
+      search_params = MilvusSearchParameters(
+          collection_name="test_collection",
+          search_strategy=vector_search_params)
+      collection_load_params = MilvusCollectionLoadParameters()
+
+      _ = MilvusSearchEnrichmentHandler(
+          connection_parameters=connection_params,
+          search_parameters=search_params,
+          collection_load_parameters=collection_load_params)
+
+    self.assertIn(expected_error_msg, str(context.exception))
+
+  @parameterized.expand([
+      # Negative limit in keyword search parameters.
+      (
+          lambda: KeywordSearchParameters(
+              anns_field="sparse_embedding", limit=-1),
+          "Search limit must be positive, got -1"
+      ),
+      # Missing anns_field in keyword search parameters.
+      (
+          lambda: KeywordSearchParameters(anns_field=None),  # type: ignore[arg-type]
+          "Approximate Nearest Neighbors (ANNS) field must be provided"
+      ),
+  ])
+  def test_invalid_keyword_search_parameters(
+      self, create_params, expected_error_msg):
+    """Test validation errors for invalid keyword search parameters."""
+    with self.assertRaises(ValueError) as context:
+      connection_params = MilvusConnectionParameters(
+          uri="http://localhost:19530")
+      keyword_search_params = create_params()
+      search_params = MilvusSearchParameters(
+          collection_name="test_collection",
+          search_strategy=keyword_search_params)
+      collection_load_params = MilvusCollectionLoadParameters()
+
+      _ = MilvusSearchEnrichmentHandler(
+          connection_parameters=connection_params,
+          search_parameters=search_params,
+          collection_load_parameters=collection_load_params)
+
+    self.assertIn(expected_error_msg, str(context.exception))
+
+  @parameterized.expand([
+      # Missing vector in hybrid search namespace.
+      (
+          lambda: HybridSearchNamespace(
+              vector=None,  # type: ignore[arg-type]
+              keyword=KeywordSearchParameters(anns_field="sparse_embedding"),
+              hybrid=HybridSearchParameters(ranker=MockRanker())),
+          "Vector, keyword, and hybrid search parameters must be provided for "
+          "hybrid search"
+      ),
+      # Missing keyword in hybrid search namespace.
+      (
+          lambda: HybridSearchNamespace(
+              vector=VectorSearchParameters(anns_field="embedding"),
+              keyword=None,  # type: ignore[arg-type]
+              hybrid=HybridSearchParameters(ranker=MockRanker())),
+          "Vector, keyword, and hybrid search parameters must be provided for "
+          "hybrid search"
+      ),
+      # Missing hybrid in hybrid search namespace.
+      (
+          lambda: HybridSearchNamespace(
+              vector=VectorSearchParameters(anns_field="embedding"),
+              keyword=KeywordSearchParameters(anns_field="sparse_embedding"),
+              hybrid=None),  # type: ignore[arg-type]
+          "Vector, keyword, and hybrid search parameters must be provided for "
+          "hybrid search"
+      ),
+      # Missing ranker in hybrid search parameters.
+      (
+          lambda: HybridSearchNamespace(
+              vector=VectorSearchParameters(anns_field="embedding"),
+              keyword=KeywordSearchParameters(anns_field="sparse_embedding"),
+              hybrid=HybridSearchParameters(ranker=None)),  # type: ignore[arg-type]
+          "Ranker must be provided for hybrid search"
+      ),
+      # Negative limit in hybrid search parameters.
+      (
+          lambda: HybridSearchNamespace(
+              vector=VectorSearchParameters(anns_field="embedding"),
+              keyword=KeywordSearchParameters(anns_field="sparse_embedding"),
+              hybrid=HybridSearchParameters(ranker=MockRanker(), limit=-1)),
+          "Search limit must be positive, got -1"
+      ),
+  ])
+  def test_invalid_hybrid_search_parameters(
+      self, create_params, expected_error_msg):
+    """Test validation errors for invalid hybrid search parameters."""
+    with self.assertRaises(ValueError) as context:
+      connection_params = MilvusConnectionParameters(
+          uri="http://localhost:19530")
+      hybrid_search_namespace = create_params()
+      search_params = MilvusSearchParameters(
+          collection_name="test_collection",
+          search_strategy=hybrid_search_namespace)
+      collection_load_params = MilvusCollectionLoadParameters()
+
+      _ = MilvusSearchEnrichmentHandler(
+          connection_parameters=connection_params,
+          search_parameters=search_params,
+          collection_load_parameters=collection_load_params)
+
+    self.assertIn(expected_error_msg, str(context.exception))
+
+  def test_unpack_dataclass_with_kwargs(self):
+    """Test the unpack_dataclass_with_kwargs function."""
+    # Create a test dataclass instance.
+    connection_params = MilvusConnectionParameters(
+        uri="http://localhost:19530",
+        user="test_user",
+        kwargs={"custom_param": "value"})
+
+    # Call the actual function.
+    result = unpack_dataclass_with_kwargs(connection_params)
+
+    # Verify the function correctly unpacks the dataclass and merges kwargs.
+    self.assertEqual(result["uri"], "http://localhost:19530")
+    self.assertEqual(result["user"], "test_user")
+    self.assertEqual(result["custom_param"], "value")
+
+    # Verify that kwargs take precedence over existing attributes.
+    connection_params_with_override = MilvusConnectionParameters(
+        uri="http://localhost:19530",
+        user="test_user",
+        kwargs={"user": "override_user"})
+
+    result_with_override = unpack_dataclass_with_kwargs(
+        connection_params_with_override)
+    self.assertEqual(result_with_override["user"], "override_user")
