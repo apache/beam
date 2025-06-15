@@ -203,7 +203,11 @@ public class ExecutionStateSampler {
         long millisSinceLastSample = currentTimeMillis - lastSampleTimeMillis;
         synchronized (activeStateTrackers) {
           for (ExecutionStateTracker activeTracker : activeStateTrackers) {
-            activeTracker.takeSample(currentTimeMillis, millisSinceLastSample);
+            try {
+              activeTracker.takeSample(currentTimeMillis, millisSinceLastSample);
+            } catch (RuntimeException e) {
+              System.exit(1);
+            }
           }
         }
         lastSampleTimeMillis = currentTimeMillis;
