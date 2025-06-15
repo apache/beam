@@ -400,13 +400,7 @@ public class ExecutionStateSampler {
         transitionsAtLastSample = transitionsAtThisSample;
       } else {
         long lullTimeMs = currentTimeMillis - lastTransitionTimeMillis.get();
-
-        if (userAllowedTimeoutForRestart && lullTimeMs > userAllowedLullTimeMsForRestart) {
-          throw new RuntimeException(
-              new TimeoutException(
-                  lullErrorMsg(thread, currentExecutionState, userAllowedLullTimeMsForRestart)));
-        }
-
+        String proposedErrMsg = lullErrorMsg(thread, currentExecutionState, lullTimeMs);
         if (lullTimeMs > MAX_LULL_TIME_MS) {
           if (lullTimeMs < lastLullReport // This must be a new report.
               || lullTimeMs > 1.2 * lastLullReport // Exponential backoff.
@@ -414,13 +408,18 @@ public class ExecutionStateSampler {
                   > MAX_LULL_TIME_MS + lastLullReport // At least once every MAX_LULL_TIME_MS.
           ) {
             lastLullReport = lullTimeMs;
-            LOG.warn(lullErrorMsg(thread, currentExecutionState, lullTimeMs));
+            LOG.warn(proposedErrMsg);
           }
+        }
+
+        if (userAllowedTimeoutForRestart && lullTimeMs > userAllowedLullTimeMsForRestart) {
+          throw new RuntimeException(new TimeoutException(proposedErrMsg));
         }
       }
     }
 
-    private String lullErrorMsg(Thread thread, ExecutionStateImpl state, long lullTime) {
+    private String lullErrorMsg(
+        @Nullable Thread thread, @Nullable ExecutionStateImpl state, long lullTime) {
       String msg;
       if (thread == null) {
         msg =
