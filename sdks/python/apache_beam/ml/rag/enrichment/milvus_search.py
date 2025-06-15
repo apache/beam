@@ -311,7 +311,7 @@ class MilvusCollectionLoadParameters:
 InputT = Union[Chunk, List[Chunk]]
 OutputT = List[Tuple[Chunk, Dict[str, Any]]]
 
-class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT,OutputT]):
+class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
   """Enrichment handler for Milvus vector database searches.
 
   This handler is designed to work with the
