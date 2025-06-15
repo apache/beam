@@ -28,11 +28,11 @@ from collections import defaultdict
 
 import grpc
 
+from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
 from apache_beam.runners.worker.statecache import StateCache
-from apache_beam.runners.worker.worker_options import WorkerOptions
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 from apache_beam.utils.sentinel import Sentinel
 
