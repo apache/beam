@@ -56,6 +56,11 @@ runs:
           sdks/python/setup.py
           sdks/python/tox.ini
 
+    - name: Upgrade pip and setuptools
+      run: |
+        python -m pip install --upgrade pip
+        pip install --upgrade setuptools
+
     - name: Cache tox environments
       if: ${{ inputs.python-version != '' && inputs.tox-cache == 'true' }}
       uses: actions/cache@v3
