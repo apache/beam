@@ -99,6 +99,8 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableBiFunction;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
@@ -459,7 +461,8 @@ public class JmsIOTest {
                     .withUsername(USERNAME)
                     .withPassword(PASSWORD));
 
-    PAssert.that(output.getFailedMessages()).containsInAnyOrder("Message 1", "Message 2");
+    PAssert.that(output.getFailedMessages().apply(ParDo.of(new JmsErrorToString())))
+        .containsInAnyOrder("Message 1", "Message 2");
 
     pipeline.run();
 
@@ -987,7 +990,8 @@ public class JmsIOTest {
                     .withUsername(USERNAME)
                     .withPassword(PASSWORD));
 
-    PAssert.that(output.getFailedMessages()).containsInAnyOrder(messageText);
+    PAssert.that(output.getFailedMessages().apply(ParDo.of(new JmsErrorToString())))
+        .containsInAnyOrder(messageText);
     PipelineResult pipelineResult = pipeline.run();
 
     MetricQueryResults metrics =
@@ -1040,7 +1044,8 @@ public class JmsIOTest {
                     .withUsername(USERNAME)
                     .withPassword(PASSWORD));
 
-    PAssert.that(output.getFailedMessages()).containsInAnyOrder("Message 2");
+    PAssert.that(output.getFailedMessages().apply(ParDo.of(new JmsErrorToString())))
+        .containsInAnyOrder("Message 2");
     pipeline.run();
 
     Connection connection = connectionFactory.createConnection(USERNAME, PASSWORD);
@@ -1209,7 +1214,7 @@ public class JmsIOTest {
 
   private static class TextMessageMapperWithErrorAndCounter
       implements SerializableBiFunction<String, Session, Message> {
-    private static int errorCounter = 0;
+    private int errorCounter = 0;
 
     @Override
     public Message apply(String value, Session session) {
@@ -1229,6 +1234,13 @@ public class JmsIOTest {
       } catch (JMSException e) {
         throw new JmsIOException("Error creating TextMessage", e);
       }
+    }
+  }
+
+  private static class JmsErrorToString extends DoFn<JmsError<String>, String> {
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      c.output(c.element().getRecord());
     }
   }
 }
