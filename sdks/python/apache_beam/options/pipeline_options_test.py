@@ -179,8 +179,8 @@ class PipelineOptionsTest(unittest.TestCase):
                '11a': 0, '37a': 1
            },
        }, [DisplayDataItemMatcher('mock_json_option', {
-           '11a': 0, '37a': 1
-       })]),
+          '11a': 0, '37a': 1
+      })]),
   ]
 
   # Used for testing newly added flags.
@@ -275,7 +275,7 @@ class PipelineOptionsTest(unittest.TestCase):
         AttributeError,
         lambda: options.view_as(PipelineOptionsTest.MockOptions).view_as(
             PipelineOptionsTest.FakeOptions).view_as(
-                PipelineOptionsTest.MockOptions).fake_option)
+            PipelineOptionsTest.MockOptions).fake_option)
 
   @parameterized.expand(TEST_CASES)
   def test_from_dictionary(self, flags, expected, _):
@@ -405,16 +405,25 @@ class PipelineOptionsTest(unittest.TestCase):
     self.assertEqual(options.get_all_options()['experiments'], None)
 
   def test_worker_options(self):
-    options = PipelineOptions(['--machine_type', 'abc', '--disk_type', 'def'])
+    options = PipelineOptions([
+        '--machine_type',
+        'abc',
+        '--disk_type',
+        'def',
+        '--ptransform_timeout_duration',
+        '10',
+    ])
     worker_options = options.view_as(WorkerOptions)
     self.assertEqual(worker_options.machine_type, 'abc')
     self.assertEqual(worker_options.disk_type, 'def')
+    self.assertEqual(worker_options.ptransform_timeout_duration, 10)
 
     options = PipelineOptions(
         ['--worker_machine_type', 'abc', '--worker_disk_type', 'def'])
     worker_options = options.view_as(WorkerOptions)
     self.assertEqual(worker_options.machine_type, 'abc')
     self.assertEqual(worker_options.disk_type, 'def')
+    self.assertIsNone(worker_options.ptransform_timeout_duration)
 
   def test_beam_services_empty(self):
     with mock.patch.dict(os.environ, {}, clear=True):
