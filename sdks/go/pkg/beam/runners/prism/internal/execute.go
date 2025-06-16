@@ -145,18 +145,7 @@ func executePipeline(ctx context.Context, wks map[string]*worker.W, j *jobservic
 	topo := prepro.preProcessGraph(comps, j)
 	ts := comps.GetTransforms()
 
-	config := engine.Config{}
-	m := j.PipelineOptions().AsMap()
-	for _, exp := range m["beam:option:experiments:v1"].([]interface{}) {
-		if expStr, ok := exp.(string); ok {
-			if expStr == "prism_enable_rtc" {
-				config.EnableRTC = true
-				break // Found it, no need to check the rest of the slice
-			}
-		}
-	}
-
-	em := engine.NewElementManager(config)
+	em := engine.NewElementManager(engine.Config{})
 
 	// TODO move this loop and code into the preprocessor instead.
 	stages := map[string]*stage{}
