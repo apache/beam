@@ -135,6 +135,23 @@ class JsonUtilsTest(unittest.TestCase):
         items=['a', 'b', 'c'])
     self.assertEqual(beam_row, expected_row)
 
+  def test_json_to_row_with_missing_required_field(self):
+    beam_schema = schema_pb2.Schema(
+        fields=[
+            schema_pb2.Field(
+                name='id',
+                type=schema_pb2.FieldType(atomic_type=schema_pb2.STRING)),
+            schema_pb2.Field(
+                name='required_field',
+                type=schema_pb2.FieldType(atomic_type=schema_pb2.STRING)),
+        ])
+    beam_type = schema_pb2.FieldType(
+        row_type=schema_pb2.RowType(schema=beam_schema))
+    converter = json_utils.json_to_row(beam_type)
+    json_data = {'id': '123'}
+    with self.assertRaises(KeyError):
+      converter(json_data)
+
 
 if __name__ == '__main__':
   unittest.main()
