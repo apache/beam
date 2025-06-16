@@ -844,11 +844,6 @@ public class JmsIO {
         LOG.error("Error closing autoscaler", e);
       }
     }
-
-    @Override
-    protected void finalize() {
-      doClose();
-    }
   }
 
   /**
@@ -1234,19 +1229,14 @@ public class JmsIO {
 
       void publishMessage(T input) throws JMSException, JmsIOException {
         Destination destinationToSendTo = destination;
-        try {
-          Message message = spec.getValueMapper().apply(input, session);
-          if (spec.getTopicNameMapper() != null) {
-            destinationToSendTo = session.createTopic(spec.getTopicNameMapper().apply(input));
-          }
-          producer.send(destinationToSendTo, message);
-        } catch (JMSException | JmsIOException | NullPointerException exception) {
-          // Handle NPE in case of getValueMapper or getTopicNameMapper returns NPE
-          if (exception instanceof NullPointerException) {
-            throw new JmsIOException("An error occurred", exception);
-          }
-          throw exception;
+        Message message = spec.getValueMapper().apply(input, session);
+        if (spec.getTopicNameMapper() != null) {
+          destinationToSendTo = session.createTopic(spec.getTopicNameMapper().apply(input));
         }
+        if (message == null) {
+          throw new JmsIOException("Could not create message for " + input, null);
+        }
+        producer.send(destinationToSendTo, message);
       }
 
       void startProducer() throws JMSException {
