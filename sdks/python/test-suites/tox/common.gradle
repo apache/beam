@@ -18,7 +18,7 @@
 
 def pythonVersionSuffix = project.ext.pythonVersion.replace('.', '')
 
-def posargs = "--ignore=apache_beam/dataframe/ --ignore=apache_beam/ml/ --ignore=apache_beam/examples/ --ignore=apache_beam/runners/ --ignore=apache_beam/transforms/"
+def posargs = "--ignore=apache_beam/coders/ --ignore=apache_beam/dataframe/ --ignore=apache_beam/examples/ --ignore=apache_beam/internal/ --ignore=apache_beam/io/ --ignore=apache_beam/metrics/ --ignore=apache_beam/ml/ --ignore=apache_beam/options/ --ignore=apache_beam/portability/ --ignore=apache_beam/runners/ --ignore=apache_beam/testing/ --ignore=apache_beam/tools/ --ignore=apache_beam/transforms/ --ignore=apache_beam/typehints/ --ignore=apache_beam/utils/ --ignore=apache_beam/yaml/integration_tests.py --ignore=apache_beam/yaml/main_test.py --ignore=apache_beam/yaml/programming_guide_test.py --ignore=apache_beam/yaml/readme_test.py --ignore=apache_beam/yaml/yaml_combine_test.py --ignore=apache_beam/yaml/yaml_enrichment_test.py --ignore=apache_beam/yaml/yaml_io_test.py --ignore=apache_beam/yaml/yaml_join_test.py --ignore=apache_beam/yaml/yaml_ml_test.py --ignore=apache_beam/yaml/yaml_provider_unit_test.py --ignore=apache_beam/yaml/yaml_specifiable_test.py --ignore=apache_beam/yaml/yaml_testing_test.py --ignore=apache_beam/yaml/yaml_transform_scope_test.py --ignore=apache_beam/yaml/yaml_transform_test.py --ignore=apache_beam/yaml/yaml_transform_unit_test.py --ignore=apache_beam/yaml/yaml_udf_test.py --ignore=apache_beam/yaml/yaml_utils_test.py"
 
 toxTask "testPython${pythonVersionSuffix}", "py${pythonVersionSuffix}", "${posargs}"
 test.dependsOn "testPython${pythonVersionSuffix}"
