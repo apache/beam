@@ -179,8 +179,8 @@ class PipelineOptionsTest(unittest.TestCase):
                '11a': 0, '37a': 1
            },
        }, [DisplayDataItemMatcher('mock_json_option', {
-          '11a': 0, '37a': 1
-      })]),
+           '11a': 0, '37a': 1
+       })]),
   ]
 
   # Used for testing newly added flags.
@@ -275,7 +275,7 @@ class PipelineOptionsTest(unittest.TestCase):
         AttributeError,
         lambda: options.view_as(PipelineOptionsTest.MockOptions).view_as(
             PipelineOptionsTest.FakeOptions).view_as(
-            PipelineOptionsTest.MockOptions).fake_option)
+                PipelineOptionsTest.MockOptions).fake_option)
 
   @parameterized.expand(TEST_CASES)
   def test_from_dictionary(self, flags, expected, _):

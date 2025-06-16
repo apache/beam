@@ -193,7 +193,7 @@ class FnApiWorkerStatusHandler(object):
       self._restart_lull_timeout_ns = max(
           options.view_as(WorkerOptions).ptransform_timeout_duration * 60 * 1e9,
           restart_lull_timeout_ns,
-          )
+      )
     else:
       self._restart_lull_timeout_ns = None
 
@@ -267,8 +267,9 @@ class FnApiWorkerStatusHandler(object):
               sys.exit(1)
 
   def _restart_lull(self, sampler_info) -> bool:
-    return (sampler_info and sampler_info.time_since_transition and
-            sampler_info.time_since_transition > self._restart_lull_timeout_ns)
+    return (
+        sampler_info and sampler_info.time_since_transition and
+        sampler_info.time_since_transition > self._restart_lull_timeout_ns)
 
   def _log_lull_sampler_info(self, sampler_info, instruction):
     if not self._passed_lull_timeout_since_last_log():
