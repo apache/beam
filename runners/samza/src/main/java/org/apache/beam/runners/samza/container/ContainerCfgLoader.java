@@ -38,7 +38,7 @@ public class ContainerCfgLoader implements ConfigLoader {
 
   private static final Object LOCK = new Object();
   static volatile JobModel jobModel;
-  private static Random RANDOM = new Random();
+  private static final Random RANDOM = new Random();
 
   @Override
   public Config getConfig() {

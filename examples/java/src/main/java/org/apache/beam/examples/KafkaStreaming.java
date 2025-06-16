@@ -172,7 +172,7 @@ public class KafkaStreaming {
     // A class that randomly selects a name with random amount of points
     static class RandomUserScoreGeneratorFn extends DoFn<Object, KV<String, Integer>> {
       private static final int MAX_SCORE = 100;
-      private static Random RANDOM = new Random();
+      private static final Random RANDOM = new Random();
 
       @ProcessElement
       public void processElement(ProcessContext c) {
