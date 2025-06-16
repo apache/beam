@@ -33,6 +33,28 @@ TestRow = NamedTuple(
      ('metadata', str)])
 registry.register_coder(TestRow, RowCoder)
 
+CustomSpecsRow = NamedTuple(
+    'CustomSpecsRow',
+    [
+        ('custom_id', str),  # For id_spec test
+        ('embedding_vec', List[float]),  # For embedding_spec test
+        ('content_col', str),  # For content_spec test
+        ('metadata', str)
+    ])
+registry.register_coder(CustomSpecsRow, RowCoder)
+
+MetadataConflictRow = NamedTuple(
+    'MetadataConflictRow',
+    [
+        ('id', str),
+        ('source', str),  # For metadata_spec and composite key
+        ('timestamp', str),  # For metadata_spec and composite key
+        ('content', str),
+        ('embedding', List[float]),
+        ('metadata', str)
+    ])
+registry.register_coder(MetadataConflictRow, RowCoder)
+
 VECTOR_SIZE = 768
 
 
