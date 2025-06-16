@@ -176,6 +176,7 @@ class SdkHarness(object):
       # that should be reported to the runner when proocessing the first bundle.
       deferred_exception=None,  # type: Optional[Exception]
       runner_capabilities=frozenset(),  # type: FrozenSet[str]
+      sdk_options=None
   ):
     # type: (...) -> None
     self._alive = True
@@ -207,6 +208,7 @@ class SdkHarness(object):
     self._profiler_factory = profiler_factory
     self.data_sampler = data_sampler
     self.runner_capabilities = runner_capabilities
+    self.sdk_options = sdk_options
 
     def default_factory(id):
       # type: (str) -> beam_fn_api_pb2.ProcessBundleDescriptor
@@ -230,7 +232,8 @@ class SdkHarness(object):
             status_address,
             self._bundle_processor_cache,
             self._state_cache,
-            enable_heap_dump)  # type: Optional[FnApiWorkerStatusHandler]
+            enable_heap_dump,
+            options=self.sdk_options)
       except Exception:
         traceback_string = traceback.format_exc()
         _LOGGER.warning(

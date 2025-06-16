@@ -33,6 +33,7 @@ from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
 from apache_beam.runners.worker.statecache import StateCache
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
+from apache_beam.runners.worker.worker_options import WorkerOptions
 from apache_beam.utils.sentinel import Sentinel
 
 try:
@@ -46,6 +47,8 @@ _LOGGER = logging.getLogger(__name__)
 # transitions in over 5 minutes.
 # 5 minutes * 60 seconds * 1000 millis * 1000 micros * 1000 nanoseconds
 DEFAULT_LOG_LULL_TIMEOUT_NS = 5 * 60 * 1000 * 1000 * 1000
+
+DEFAULT_RESTART_LULL_TIMEOUT_NS = 10 * 60 * 1000 * 1000 * 1000
 
 # Full thread dump is performed at most every 20 minutes.
 LOG_LULL_FULL_THREAD_DUMP_INTERVAL_S = 20 * 60
@@ -165,7 +168,9 @@ class FnApiWorkerStatusHandler(object):
       state_cache=None,
       enable_heap_dump=False,
       worker_id=None,
-      log_lull_timeout_ns=DEFAULT_LOG_LULL_TIMEOUT_NS):
+      log_lull_timeout_ns=DEFAULT_LOG_LULL_TIMEOUT_NS,
+      restart_lull_timeout_ns=DEFAULT_RESTART_LULL_TIMEOUT_NS,
+      options=None):
     """Initialize FnApiWorkerStatusHandler.
 
     Args:
@@ -184,6 +189,14 @@ class FnApiWorkerStatusHandler(object):
         self._status_channel)
     self._responses = queue.Queue()
     self.log_lull_timeout_ns = log_lull_timeout_ns
+    if options and options.view_as(WorkerOptions).ptransform_timeout_duration:
+      self._restart_lull_timeout_ns = max(
+          options.view_as(WorkerOptions).ptransform_timeout_duration * 60 * 1e9,
+          restart_lull_timeout_ns,
+          )
+    else:
+      self._restart_lull_timeout_ns = None
+
     self._last_full_thread_dump_secs = 0.0
     self._last_lull_logged_secs = 0.0
     self._server = threading.Thread(
@@ -250,6 +263,12 @@ class FnApiWorkerStatusHandler(object):
           if processor:
             info = processor.state_sampler.get_info()
             self._log_lull_sampler_info(info, instruction)
+            if self._restart_lull_timeout_ns and self._restart_lull(info):
+              sys.exit(1)
+
+  def _restart_lull(self, sampler_info) -> bool:
+    return (sampler_info and sampler_info.time_since_transition and
+            sampler_info.time_since_transition > self._restart_lull_timeout_ns)
 
   def _log_lull_sampler_info(self, sampler_info, instruction):
     if not self._passed_lull_timeout_since_last_log():
