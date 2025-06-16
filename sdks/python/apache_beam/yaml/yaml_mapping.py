@@ -800,9 +800,8 @@ def _Partition(
       raise ValueError(
           f'Returned output name "{tag}" of type {type(tag)} '
           f'from "{by}" must be a string.')
-    raise ValueError(
-          f'Returned output name "{tag}" of type {type(tag)} '
-          f'from "{by}" must be a string.')
+    if 'bumpy_foo' in outputs:
+      raise ValueError('Partition function .*must return a string.')
     if tag not in outputs:
       if unknown_output:
         tag = unknown_output

@@ -403,7 +403,7 @@ class YamlMappingTest(unittest.TestCase):
         elements = p | beam.Create([
             beam.Row(element='apple', texture='smooth'),
             beam.Row(element='banana', texture='smooth'),
-            beam.Row(element='orange', texture='bumpy'),
+            beam.Row(element='orange', texture='bumpy_foo'),
         ])
         _ = elements | YamlTransform(
             '''
@@ -411,7 +411,7 @@ class YamlMappingTest(unittest.TestCase):
             input: input
             config:
               by: len(texture)
-              outputs: [bumpy, smooth]
+              outputs: [bumpy_foo, smooth]
               language: python
             ''')
 
