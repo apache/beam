@@ -1242,7 +1242,7 @@ class WriteImpl(ptransform.PTransform):
           accumulation_mode=beam.transforms.trigger.AccumulationMode.DISCARDING,
           allowed_lateness=beam.utils.timestamp.Duration(seconds=0))
 
-    return pcoll # Keep original windowing
+    return pcoll  # Keep original windowing
 
   def _expand_unbounded(self, pcoll, min_shards):
     """Handles the expansion logic for an unbounded PCollection."""
