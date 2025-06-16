@@ -1315,10 +1315,6 @@ public class JmsIO {
       public void processElement(@Element T input, ProcessContext context) {
         Sleeper sleeper = Sleeper.DEFAULT;
         BackOff backoff = checkStateNotNull(retryBackOff).backoff();
-        RetryConfiguration retryConfiguration =
-            MoreObjects.firstNonNull(spec.getRetryConfiguration(), RetryConfiguration.create());
-        long currentBackoff = retryConfiguration.getInitialDuration().getMillis();
-
         while (true) {
           try {
             this.jmsConnection.publishMessage(input);
@@ -1332,9 +1328,6 @@ public class JmsIO {
                 break;
               } else {
                 publicationRetries.inc();
-                sleeper.sleep(currentBackoff);
-                currentBackoff =
-                    (long) (currentBackoff * retryConfiguration.getBackoffMultiplier());
                 this.jmsConnection.close();
                 this.jmsConnection.connect();
               }

@@ -1190,17 +1190,17 @@ public class JmsIOTest {
   private static class TextMessageMapperWithErrorCounter
       implements SerializableBiFunction<String, Session, Message> {
 
-    private static int errorCounter;
+    private int errorCounter;
 
     TextMessageMapperWithErrorCounter() {
-      errorCounter = 0;
+      this.errorCounter = 0;
     }
 
     @Override
     public Message apply(String value, Session session) {
       try {
-        if (errorCounter == 0) {
-          errorCounter++;
+        if (this.errorCounter == 0) {
+          this.errorCounter++;
           throw new JMSException("Error!!");
         }
         TextMessage msg = session.createTextMessage();
