@@ -1240,8 +1240,7 @@ class WriteImpl(ptransform.PTransform):
           window.FixedWindows(self.sink.triggering_frequency),
           trigger=beam.transforms.trigger.AfterWatermark(),
           accumulation_mode=beam.transforms.trigger.AccumulationMode.DISCARDING,
-          allowed_lateness=beam.utils.timestamp.Duration(seconds=0)
-      )
+          allowed_lateness=beam.utils.timestamp.Duration(seconds=0))
 
     return pcoll # Keep original windowing
 
