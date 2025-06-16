@@ -114,6 +114,9 @@ dependencies {
   provided library.java.hadoop_client
   permitUnusedDeclared library.java.hadoop_client
   provided library.java.kafka_clients
+
+  testImplementation "org.apache.iceberg:iceberg-api:1.6.1"
+  testImplementation "org.apache.iceberg:iceberg-core:1.6.1"
   testImplementation library.java.vendored_calcite_1_28_0
   testImplementation library.java.vendored_guava_32_1_2_jre
   testImplementation library.java.junit

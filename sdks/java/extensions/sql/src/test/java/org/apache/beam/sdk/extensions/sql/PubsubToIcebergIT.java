@@ -21,6 +21,7 @@ import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.INT64;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.STRING;
+import static org.junit.Assert.assertEquals;
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.HttpStatusCodes;
@@ -36,6 +37,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.TestPubsub;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
+import org.apache.beam.sdk.io.iceberg.IcebergUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.util.BackOff;
@@ -45,6 +47,11 @@ import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.iceberg.CatalogUtil;
+import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.Table;
+import org.apache.iceberg.catalog.Catalog;
+import org.apache.iceberg.catalog.TableIdentifier;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.AfterClass;
@@ -65,6 +72,8 @@ public class PubsubToIcebergIT implements Serializable {
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
   @Rule public transient TestPubsub pubsub = TestPubsub.create();
   private static final BigqueryClient BQ_CLIENT = new BigqueryClient("PubsubToIcebergIT");
+  private static final String BQMS_CATALOG =
+      "org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog";
   static final String DATASET = "sql_pubsub_to_iceberg_it_" + System.nanoTime();
   static String warehouse;
   protected static final GcpOptions OPTIONS =
@@ -84,7 +93,7 @@ public class PubsubToIcebergIT implements Serializable {
         "CREATE CATALOG my_catalog \n"
             + "TYPE iceberg \n"
             + "PROPERTIES (\n"
-            + "  'catalog-impl' = 'org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog', \n"
+            + format("  'catalog-impl' = '%s', \n", BQMS_CATALOG)
             + "  'io-impl' = 'org.apache.iceberg.gcp.gcs.GCSFileIO', \n"
             + format("  'warehouse' = '%s', \n", warehouse)
             + format("  'gcp_project' = '%s', \n", OPTIONS.getProject())
@@ -128,6 +137,7 @@ public class PubsubToIcebergIT implements Serializable {
             + "   name VARCHAR \n "
             + ") \n"
             + "TYPE 'iceberg' \n"
+            + "PARTITIONED BY('id', 'truncate(name, 3)') \n"
             + "LOCATION '"
             + tableIdentifier
             + "' \n"
@@ -156,6 +166,25 @@ public class PubsubToIcebergIT implements Serializable {
     pubsub.publish(messages);
 
     validateRowsWritten();
+
+    // verify the table was created with the right partition spec
+    Catalog icebergCatalog =
+        CatalogUtil.loadCatalog(
+            BQMS_CATALOG,
+            "my_catalog",
+            ImmutableMap.<String, String>builder()
+                .put("gcp_project", OPTIONS.getProject())
+                .put("gcp_location", "us-central1")
+                .put("warehouse", warehouse)
+                .build(),
+            null);
+    PartitionSpec expectedSpec =
+        PartitionSpec.builderFor(IcebergUtils.beamSchemaToIcebergSchema(SOURCE_SCHEMA))
+            .identity("id")
+            .truncate("name", 3)
+            .build();
+    Table table = icebergCatalog.loadTable(TableIdentifier.parse(tableIdentifier));
+    assertEquals(expectedSpec, table.spec());
   }
 
   @Test

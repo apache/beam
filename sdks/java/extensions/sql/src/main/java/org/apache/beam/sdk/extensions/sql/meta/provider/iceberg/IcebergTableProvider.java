@@ -60,4 +60,9 @@ public class IcebergTableProvider extends InMemoryMetaTableProvider {
   public BeamSqlTable buildBeamSqlTable(Table table) {
     return new IcebergTable(table, catalogConfig);
   }
+
+  @Override
+  public boolean supportsPartitioning() {
+    return true;
+  }
 }

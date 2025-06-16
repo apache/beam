@@ -54,6 +54,26 @@ public class BeamSqlCliTest {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   @Test
+  public void testExecute_createTextTable_invalidPartitioningError() {
+    InMemoryMetaStore metaStore = new InMemoryMetaStore();
+    metaStore.registerProvider(new TextTableProvider());
+
+    BeamSqlCli cli = new BeamSqlCli().metaStore(metaStore);
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(
+        "Invalid use of 'PARTITIONED BY()': Table 'person' of type 'text' does not support partitioning.");
+    cli.execute(
+        "CREATE EXTERNAL TABLE person (\n"
+            + "id int COMMENT 'id', \n"
+            + "name varchar COMMENT 'name', \n"
+            + "age int COMMENT 'age') \n"
+            + "TYPE 'text' \n"
+            + "PARTITIONED BY ('id', 'name') \n"
+            + "COMMENT '' LOCATION '/home/admin/orders'");
+  }
+
+  @Test
   public void testExecute_createTextTable() throws Exception {
     InMemoryMetaStore metaStore = new InMemoryMetaStore();
     metaStore.registerProvider(new TextTableProvider());
