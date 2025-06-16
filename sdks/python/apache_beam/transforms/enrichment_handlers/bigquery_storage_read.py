@@ -33,8 +33,9 @@ from google.cloud.bigquery_storage import BigQueryReadClient
 
 try:
   from google.cloud.bigquery_storage import types
-  from google.cloud.bigquery_storage.types import (
-      DataFormat, ReadRowsResponse, ReadSession)
+  from google.cloud.bigquery_storage.types import (DataFormat,
+                                                   ReadRowsResponse,
+                                                   ReadSession)
 except ImportError:
   # Fallback for older versions where types might be in different location
   from google.cloud.bigquery_storage import types

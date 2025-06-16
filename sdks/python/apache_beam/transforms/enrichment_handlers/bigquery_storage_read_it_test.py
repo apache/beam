@@ -35,8 +35,8 @@ try:
 
   # Removed NotFound from import as it is unused
   from apache_beam.transforms.enrichment import Enrichment
-  from apache_beam.transforms.enrichment_handlers.bigquery_storage_read import (
-      BigQueryStorageEnrichmentHandler, )
+  from apache_beam.transforms.enrichment_handlers.bigquery_storage_read import \
+      BigQueryStorageEnrichmentHandler
 except ImportError:
   raise unittest.SkipTest(
       "Google Cloud BigQuery dependencies are not installed.")
