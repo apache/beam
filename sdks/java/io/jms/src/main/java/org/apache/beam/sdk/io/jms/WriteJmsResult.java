@@ -29,26 +29,28 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 
 /**
  * Return type of {@link JmsIO.Write} transform. All messages in error are identified by: -
- * TupleTag<EventT> failedMessageTag - PCollection<EventT> failedMessages
+ * TupleTag<JmsError<EventT>> failedMessageTag - PCollection<JmsError<EventT>> failedMessages
  */
 public class WriteJmsResult<EventT> implements POutput {
 
   private final Pipeline pipeline;
-  private final TupleTag<EventT> failedMessageTag;
-  private final PCollection<EventT> failedMessages;
+  private final TupleTag<JmsError<EventT>> failedMessageTag;
+  private final PCollection<JmsError<EventT>> failedMessages;
 
   public WriteJmsResult(
-      Pipeline pipeline, TupleTag<EventT> failedMessageTag, PCollection<EventT> failedMessages) {
+      Pipeline pipeline,
+      TupleTag<JmsError<EventT>> failedMessageTag,
+      PCollection<JmsError<EventT>> failedMessages) {
     this.pipeline = pipeline;
     this.failedMessageTag = failedMessageTag;
     this.failedMessages = failedMessages;
   }
 
-  static <FailevtT> WriteJmsResult<FailevtT> in(
+  static <EventT> WriteJmsResult<EventT> in(
       Pipeline pipeline,
-      TupleTag<FailevtT> failedMessageTag,
-      PCollection<FailevtT> failedMessages) {
-    return new WriteJmsResult<FailevtT>(pipeline, failedMessageTag, failedMessages);
+      TupleTag<JmsError<EventT>> failedMessageTag,
+      PCollection<JmsError<EventT>> failedMessages) {
+    return new WriteJmsResult<EventT>(pipeline, failedMessageTag, failedMessages);
   }
 
   @Override
@@ -61,7 +63,7 @@ public class WriteJmsResult<EventT> implements POutput {
     return pipeline;
   }
 
-  public PCollection<EventT> getFailedMessages() {
+  public PCollection<JmsError<EventT>> getFailedMessages() {
     return failedMessages;
   }
 

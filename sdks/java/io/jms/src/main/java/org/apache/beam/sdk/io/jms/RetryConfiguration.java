@@ -27,8 +27,9 @@ import org.joda.time.Duration;
 @AutoValue
 public abstract class RetryConfiguration implements Serializable {
   private static final Integer DEFAULT_MAX_ATTEMPTS = 5;
-  private static final Duration DEFAULT_INITIAL_BACKOFF = Duration.standardSeconds(15);
+  private static final Duration DEFAULT_INITIAL_BACKOFF = Duration.standardSeconds(5);
   private static final Duration DEFAULT_MAX_CUMULATIVE_BACKOFF = Duration.standardDays(1000);
+  private static final double DEFAULT_BACKOFF_MULTIPLIER = 1.5;
 
   abstract int getMaxAttempts();
 
@@ -36,17 +37,28 @@ public abstract class RetryConfiguration implements Serializable {
 
   abstract @Nullable Duration getInitialDuration();
 
+  abstract double getBackoffMultiplier();
+
   public static RetryConfiguration create() {
-    return create(DEFAULT_MAX_ATTEMPTS, null, null);
+    return create(DEFAULT_MAX_ATTEMPTS, null, null, DEFAULT_BACKOFF_MULTIPLIER);
   }
 
   public static RetryConfiguration create(int maxAttempts) {
-    return create(maxAttempts, null, null);
+    return create(maxAttempts, null, null, DEFAULT_BACKOFF_MULTIPLIER);
   }
 
   public static RetryConfiguration create(
       int maxAttempts, @Nullable Duration maxDuration, @Nullable Duration initialDuration) {
+    return create(maxAttempts, maxDuration, initialDuration, DEFAULT_BACKOFF_MULTIPLIER);
+  }
+
+  public static RetryConfiguration create(
+      int maxAttempts,
+      @Nullable Duration maxDuration,
+      @Nullable Duration initialDuration,
+      double backoffMultiplier) {
     checkArgument(maxAttempts > 0, "maxAttempts should be greater than 0");
+    checkArgument(backoffMultiplier > 1.0, "backoffMultiplier should be greater than 1.0");
 
     if (maxDuration == null || maxDuration.equals(Duration.ZERO)) {
       maxDuration = DEFAULT_MAX_CUMULATIVE_BACKOFF;
@@ -60,6 +72,7 @@ public abstract class RetryConfiguration implements Serializable {
         .setMaxAttempts(maxAttempts)
         .setInitialDuration(initialDuration)
         .setMaxDuration(maxDuration)
+        .setBackoffMultiplier(backoffMultiplier)
         .build();
   }
 
@@ -70,6 +83,8 @@ public abstract class RetryConfiguration implements Serializable {
     abstract Builder setMaxDuration(Duration maxDuration);
 
     abstract Builder setInitialDuration(Duration initialDuration);
+
+    abstract Builder setBackoffMultiplier(double backoffMultiplier);
 
     abstract RetryConfiguration build();
   }

@@ -1164,7 +1164,7 @@ public class JmsIO {
 
     private final JmsIO.Write<T> spec;
     private final TupleTag<T> messagesTag;
-    private final TupleTag<T> failedMessagesTag;
+    private final TupleTag<JmsError<T>> failedMessagesTag;
 
     Writer(JmsIO.Write<T> spec) {
       this.spec = spec;
@@ -1179,8 +1179,10 @@ public class JmsIO {
               PUBLISH_TO_JMS_STEP_NAME,
               ParDo.of(new JmsIOProducerFn<>(spec, failedMessagesTag))
                   .withOutputTags(messagesTag, TupleTagList.of(failedMessagesTag)));
-      PCollection<T> failedPublishedMessages =
-          failedPublishedMessagesTuple.get(failedMessagesTag).setCoder(input.getCoder());
+      PCollection<JmsError<T>> failedPublishedMessages =
+          failedPublishedMessagesTuple
+              .get(failedMessagesTag)
+              .setCoder(JmsErrorCoder.of(input.getCoder()));
       failedPublishedMessagesTuple.get(messagesTag).setCoder(input.getCoder());
 
       return WriteJmsResult.in(input.getPipeline(), failedMessagesTag, failedPublishedMessages);
@@ -1281,12 +1283,12 @@ public class JmsIO {
       private transient @Initialized FluentBackoff retryBackOff;
 
       private final JmsIO.Write<T> spec;
-      private final TupleTag<T> failedMessagesTags;
+      private final TupleTag<JmsError<T>> failedMessagesTags;
       private final @Initialized JmsConnection<T> jmsConnection;
       private final Counter publicationRetries =
           Metrics.counter(JMS_IO_PRODUCER_METRIC_NAME, PUBLICATION_RETRIES_METRIC_NAME);
 
-      JmsIOProducerFn(JmsIO.Write<T> spec, TupleTag<T> failedMessagesTags) {
+      JmsIOProducerFn(JmsIO.Write<T> spec, TupleTag<JmsError<T>> failedMessagesTags) {
         this.spec = spec;
         this.failedMessagesTags = failedMessagesTags;
         this.jmsConnection = new JmsConnection<>(spec);
@@ -1311,30 +1313,42 @@ public class JmsIO {
 
       @ProcessElement
       public void processElement(@Element T input, ProcessContext context) {
-        try {
-          publishMessage(input);
-        } catch (JMSException | JmsIOException | IOException | InterruptedException exception) {
-          LOG.error("Error while publishing the message", exception);
-          context.output(this.failedMessagesTags, input);
-          if (exception instanceof InterruptedException) {
-            Thread.currentThread().interrupt();
-          }
-        }
-      }
-
-      private void publishMessage(T input)
-          throws JMSException, JmsIOException, IOException, InterruptedException {
         Sleeper sleeper = Sleeper.DEFAULT;
         BackOff backoff = checkStateNotNull(retryBackOff).backoff();
+        RetryConfiguration retryConfiguration =
+            MoreObjects.firstNonNull(spec.getRetryConfiguration(), RetryConfiguration.create());
+        long currentBackoff = retryConfiguration.getInitialDuration().getMillis();
+
         while (true) {
           try {
             this.jmsConnection.publishMessage(input);
             break;
           } catch (JMSException | JmsIOException exception) {
-            if (!BackOffUtils.next(sleeper, backoff)) {
-              throw exception;
-            } else {
-              publicationRetries.inc();
+            LOG.warn("Error while publishing the message, retrying", exception);
+            try {
+              if (!BackOffUtils.next(sleeper, backoff)) {
+                LOG.error("Error while publishing the message, no more retries", exception);
+                context.output(this.failedMessagesTags, new JmsError<>(input, exception));
+                break;
+              } else {
+                publicationRetries.inc();
+                sleeper.sleep(currentBackoff);
+                currentBackoff =
+                    (long) (currentBackoff * retryConfiguration.getBackoffMultiplier());
+                this.jmsConnection.close();
+                this.jmsConnection.connect();
+              }
+            } catch (IOException | InterruptedException e) {
+              LOG.error("Error while backing off", e);
+              context.output(this.failedMessagesTags, new JmsError<>(input, exception));
+              if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+              }
+              break;
+            } catch (JMSException e) {
+              LOG.error("Error while reconnecting", e);
+              context.output(this.failedMessagesTags, new JmsError<>(input, exception));
+              break;
             }
           }
         }
