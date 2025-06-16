@@ -46,6 +46,7 @@ data: {
         "TBLPROPERTIES"
         "PROPERTIES"
         "PARTITIONED"
+        "USE"
       ]
 
       # List of keywords from "keywords" section that are not reserved.
@@ -370,6 +371,8 @@ data: {
         "LOCATION"
         "TBLPROPERTIES"
         "PROPERTIES"
+        "PARTITIONED"
+        "USE"
       ]
 
       # List of non-reserved keywords to add;
