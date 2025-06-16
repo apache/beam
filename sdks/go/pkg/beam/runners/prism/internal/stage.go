@@ -194,8 +194,7 @@ progress:
 		case resp = <-b.Resp:
 			bundleFinished = true
 			if b.BundleErr != nil {
-				// return b.BundleErr
-				panic("this should get triggered")
+				return b.BundleErr
 			}
 			if dataFinished && bundleFinished {
 				break progress // exit progress loop on close.
