@@ -41,11 +41,12 @@ class ImpulseStreamGenDoFn(beam.DoFn):
   to each.
 
   The DoFn operates in two modes based on the structure of the input `data`:
-  1.  **Non-Timestamped Data**: If `data` is a sequence of arbitrary values
+
+    - **Non-Timestamped Data**: If `data` is a sequence of arbitrary values
       (e.g., `[v1, v2, ...]`), the DoFn will assign a new timestamp to each
       emitted element. The timestamps are calculated by starting at a given
       `start_time` and incrementing by a fixed `interval`.
-  2.  **Pre-Timestamped Data**: If `data` is a sequence of tuples, where each
+    - **Pre-Timestamped Data**: If `data` is a sequence of tuples, where each
       tuple is `(apache_beam.utils.timestamp.Timestamp, value)`, the DoFn
       will use the provided timestamp for the emitted element.
 
