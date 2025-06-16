@@ -174,7 +174,7 @@ SQLAlchemy==2.0.41
 sqlalchemy_pytds==1.0.2
 sqlparse==0.5.3
 tenacity==8.5.0
-testcontainers==4.10.0
+testcontainers==4.11.0
 threadpoolctl==3.6.0
 tqdm==4.67.1
 typing-inspection==0.4.1
