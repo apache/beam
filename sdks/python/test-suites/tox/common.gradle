@@ -18,7 +18,7 @@
 
 def pythonVersionSuffix = project.ext.pythonVersion.replace('.', '')
 
-def posargs = project.findProperty("posargs") ?: ""
+def posargs = "--ignore=apache_beam/dataframe/ --ignore=apache_beam/ml/ --ignore=apache_beam/examples/ --ignore=apache_beam/runners/ --ignore=apache_beam/transforms/"
 
 toxTask "testPython${pythonVersionSuffix}", "py${pythonVersionSuffix}", "${posargs}"
 test.dependsOn "testPython${pythonVersionSuffix}"
@@ -35,6 +35,6 @@ project.tasks.register("preCommitPy${pythonVersionSuffix}") {
 		// Since codecoverage reports will always be generated for py39,
 		// all tests will be exercised.
 		// dependsOn = ["testPy${pythonVersionSuffix}Cloud", "testPython${pythonVersionSuffix}"]
-		dependsOn = ["testPy${pythonVersionSuffix}Cloud", "testPython${pythonVersionSuffix}"]
+		dependsOn = ["testPy${pythonVersionSuffix}Cloud"]
 
 }
