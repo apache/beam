@@ -176,8 +176,7 @@ class SdkHarness(object):
       # that should be reported to the runner when proocessing the first bundle.
       deferred_exception=None,  # type: Optional[Exception]
       runner_capabilities=frozenset(),  # type: FrozenSet[str]
-      sdk_options=None
-  ):
+      sdk_options=None):
     # type: (...) -> None
     self._alive = True
     self._worker_index = 0
