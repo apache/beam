@@ -25,6 +25,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -140,6 +141,7 @@ import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
  * then opt to retry the current partition in entirety or abort if the max number of retries of the
  * runner is reached.
  */
+@SuppressFBWarnings(value = "CT_CONSTRUCTOR_THROW", justification = "Initialization safe.")
 public class SqsIO {
 
   public static Read read() {

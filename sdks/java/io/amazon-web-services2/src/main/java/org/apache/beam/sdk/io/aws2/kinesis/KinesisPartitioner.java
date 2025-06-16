@@ -19,7 +19,7 @@ package org.apache.beam.sdk.io.aws2.kinesis;
 
 import java.io.Serializable;
 import java.math.BigInteger;
-import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.apache.commons.lang3.StringUtils;
@@ -94,7 +94,7 @@ public interface KinesisPartitioner<T> extends Serializable {
       @Nonnull
       @Override
       public String getExplicitHashKey(T record) {
-        return hashKeys[new Random().nextInt(shards)];
+        return hashKeys[ThreadLocalRandom.current().nextInt(shards)];
       }
     };
   }
