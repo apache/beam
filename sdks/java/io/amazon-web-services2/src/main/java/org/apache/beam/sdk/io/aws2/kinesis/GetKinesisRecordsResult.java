@@ -17,11 +17,13 @@
  */
 package org.apache.beam.sdk.io.aws2.kinesis;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.List;
 import java.util.stream.Collectors;
 import software.amazon.kinesis.retrieval.KinesisClientRecord;
 
 /** Represents the output of 'get' operation on Kinesis stream. */
+@SuppressFBWarnings(value = "CT_CONSTRUCTOR_THROW", justification = "Initialization is safe.")
 class GetKinesisRecordsResult {
 
   private final List<KinesisRecord> records;
