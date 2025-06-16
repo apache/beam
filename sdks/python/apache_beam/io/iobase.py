@@ -1263,6 +1263,7 @@ class WriteImpl(ptransform.PTransform):
           _RoundRobinKeyFn(), count=min_shards)
       grouped_pcoll = keyed_pcoll | 'Group by random key' >> core.GroupByKey()
     else:  # min_shards is 1
+      min_shards = 1
       _LOGGER.info("Writing unbounded data with a single shard per window.")
       keyed_pcoll = windowed_pcoll | core.Map(lambda x: (None, x))
       grouped_pcoll = keyed_pcoll | 'Group by window' >> core.GroupByKey()
@@ -1293,7 +1294,7 @@ class WriteImpl(ptransform.PTransform):
             AsIter(pre_finalized_write_result_coll)).with_output_types(str))
 
   def expand(self, pcoll):
-    min_shards = getattr(self.sink, 'num_shards', 1)
+    min_shards = getattr(self.sink, 'num_shards', 0)
 
     if (pcoll.is_bounded):
       return self._expand_bounded(pcoll, min_shards)
