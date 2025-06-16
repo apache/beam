@@ -160,8 +160,8 @@ task integrationTest(type: Test) {
 
 task dataflowIntegrationTest(type: Test) {
     group = "Verification"
-    dependsOn project(":runners:google-cloud-dataflow-java:buildAndPushDockerJavaContainer")
-    finalizedBy project(":runners:google-cloud-dataflow-java:cleanUpDockerJavaImages")
+    dependsOn ":runners:google-cloud-dataflow-java:buildAndPushDockerJavaContainer"
+    finalizedBy ":runners:google-cloud-dataflow-java:cleanUpDockerJavaImages"
     def dockerJavaImageName = project.project(':runners:google-cloud-dataflow-java').ext.dockerJavaImageName
 
     def args = [
