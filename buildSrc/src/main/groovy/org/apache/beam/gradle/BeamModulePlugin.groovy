@@ -598,7 +598,7 @@ class BeamModulePlugin implements Plugin<Project> {
     // There are a few versions are determined by the BOMs by running scripts/tools/bomupgrader.py
     // marked as [bomupgrader]. See the documentation of that script for detail.
     def activemq_version = "5.14.5"
-    def autovalue_version = "1.9"
+    def autovalue_version = "1.11.0"
     def autoservice_version = "1.0.1"
     def aws_java_sdk2_version = "2.20.162"
     def cassandra_driver_version = "3.10.2"
@@ -617,8 +617,8 @@ class BeamModulePlugin implements Plugin<Project> {
     def google_code_gson_version = "2.10.1"
     def google_oauth_clients_version = "1.34.1"
     // [bomupgrader] determined by: io.grpc:grpc-netty, consistent with: google_cloud_platform_libraries_bom
-    def grpc_version = "1.70.0"
-    def guava_version = "33.1.0-jre"
+    def grpc_version = "1.71.0"
+    def guava_version = "33.4.0-jre"
     def hadoop_version = "3.4.1"
     def hamcrest_version = "2.1"
     def influxdb_version = "2.19"
