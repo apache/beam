@@ -532,8 +532,7 @@ class PipelineResult(runner.PipelineResult):
       previous_state = -1
       for message in self._message_stream:
         if message.HasField('message_response'):
-          logging.log(
-              MESSAGE_LOG_LEVELS[message.message_response.importance],
+          logging.warning(
               "%s",
               message.message_response.message_text)
         else:

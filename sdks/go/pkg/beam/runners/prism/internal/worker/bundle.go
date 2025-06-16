@@ -103,10 +103,9 @@ func (b *B) Respond(resp *fnpb.InstructionResponse) {
 	}
 	b.responded = true
 	if resp.GetError() != "" {
-		// b.BundleErr = fmt.Errorf("bundle %v %v failed:%v", resp.GetInstructionId(), b.PBDID, resp.GetError())
-		// close(b.Resp)
-		// return
-		panic("test")
+		b.BundleErr = fmt.Errorf("bundle %v %v failed:%v", resp.GetInstructionId(), b.PBDID, resp.GetError())
+		close(b.Resp)
+		return
 	}
 	b.Resp <- resp.GetProcessBundle()
 }
