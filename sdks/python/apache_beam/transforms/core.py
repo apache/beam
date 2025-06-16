@@ -2681,18 +2681,27 @@ def Filter(fn, *args, **kwargs):  # pylint: disable=invalid-name
 
   # Proxy the type-hint information from the function being wrapped, setting the
   # output type to be the same as the input type.
-  if type_hints.input_types is not None:
+  def has_simple_input_type(th):
+    return (
+        th.input_types is not None and len(th.input_types[0]) == 1 and
+        not th.input_types[1])
+
+  def simple_input_type(th):
+    return th.input_types[0][0] if has_simple_input_type(th) else None
+
+  if type_hints.input_types is not None and simple_input_type(
+      type_hints) is not typehints.Any:
     wrapper = with_input_types(
         *type_hints.input_types[0], **type_hints.input_types[1])(
             wrapper)
-  output_hint = type_hints.simple_output_type(label)
-  if (output_hint is None and get_type_hints(wrapper).input_types and
-      get_type_hints(wrapper).input_types[0]):
-    output_hint = get_type_hints(wrapper).input_types[0][0]
-  if output_hint:
-    wrapper = with_output_types(
-        typehints.Iterable[_strip_output_annotations(output_hint)])(
-            wrapper)
+    output_hint = type_hints.simple_output_type(label)
+    if (output_hint is None and get_type_hints(wrapper).input_types and
+        get_type_hints(wrapper).input_types[0]):
+      output_hint = get_type_hints(wrapper).input_types[0][0]
+    if output_hint:
+      wrapper = with_output_types(
+          typehints.Iterable[_strip_output_annotations(output_hint)])(
+              wrapper)
   # pylint: disable=protected-access
   wrapper._argspec_fn = fn
   # pylint: enable=protected-access
