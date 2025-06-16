@@ -27,7 +27,7 @@
 # - Beam Viewer -> GCP Viewer permissions based on the services used by Beam and excluding secretmanager permissions.
 # - Beam Committer -> GCP Viewer permissions based on the services used by Beam and excluding secretmanager permissions. Its like Beam Viewer but for people actively contributing code.
 # - Beam Infra Manager -> GCP Editor permissions based on the services used by Beam Administrators without destructive permissions.
-# - Beam Admin -> Permissions similar to GCP Editor based on the services used by Beam, but with destructive capabilities.
+# - Beam Admin -> Permissions similar to GCP Editor based on the services used by Beam, but with destructive capabilities and secrets access.
 # - Beam Owner -> This is currently a placeholder; use the GCP Owner role directly if needed.
 
 
@@ -199,7 +199,7 @@ def generate_role(role_name: str , perms: set[str]) -> dict:
         "title": f"{role_name}",
         "stage": "GA",
         "description": f"This is the {role_name} role",
-        "permissions": list(perms),
+        "permissions": sorted(list(perms)),
     }
 
 
@@ -228,7 +228,7 @@ def main():
         yaml.dump(beam_infra_manager_role, f, default_flow_style=False)
 
     # Generate Beam Admin role
-    beam_admin_perms = filter_permissions(gcp_editor_perms, allowed_strs=BEAM_VIEWER_SERVICES+BEAM_COMMITTER_SERVICES+BEAM_INFRA_MANAGER_SERVICES+BEAM_ADMIN_SERVICES, denied_strs=SECRET_MANAGER_SERVICES)
+    beam_admin_perms = filter_permissions(gcp_editor_perms, allowed_strs=BEAM_VIEWER_SERVICES+BEAM_COMMITTER_SERVICES+BEAM_INFRA_MANAGER_SERVICES+BEAM_ADMIN_SERVICES, denied_strs=[])
     beam_admin_role = generate_role("beam_admin", (beam_admin_perms-beam_infra_manager_perms-beam_committer_perms-beam_viewer_perms))
     with open("beam_admin.role.yaml", "w") as f:
         yaml.dump(beam_admin_role, f, default_flow_style=False)
