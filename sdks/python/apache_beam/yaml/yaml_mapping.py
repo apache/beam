@@ -800,6 +800,9 @@ def _Partition(
       raise ValueError(
           f'Returned output name "{tag}" of type {type(tag)} '
           f'from "{by}" must be a string.')
+    raise ValueError(
+          f'Returned output name "{tag}" of type {type(tag)} '
+          f'from "{by}" must be a string.')
     if tag not in outputs:
       if unknown_output:
         tag = unknown_output
