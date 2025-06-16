@@ -28,7 +28,7 @@ from apache_beam.utils.timestamp import Timestamp
 
 
 class PeriodicStreamTest(unittest.TestCase):
-  def test_duration(self):
+  def test_interval(self):
     options = PipelineOptions()
     start = Timestamp.now()
     with beam.Pipeline(options=options) as p:

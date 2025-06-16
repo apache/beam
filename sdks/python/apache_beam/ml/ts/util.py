@@ -30,7 +30,7 @@ from apache_beam.utils import timestamp
 
 
 class ImpulseStreamGenDoFn(beam.DoFn):
-  '''
+  """
   Generates a periodic, unbounded stream of elements from a provided sequence.
 
   (Similar to ImpulseSeqGenDoFn in apache_beam.transforms.periodicsequence)
@@ -53,7 +53,12 @@ class ImpulseStreamGenDoFn(beam.DoFn):
   emit elements whose timestamp (either calculated or provided) is in the past
   compared to the current system time. When it "catches up" to the present,
   it will pause and defer the remainder of the work.
-  '''
+
+  Args:
+    data: The sequence of elements to emit into the PCollection. The elements
+      can be raw values or pre-timestamped tuples in the format
+      `(apache_beam.utils.timestamp.Timestamp, value)`.
+  """
   def __init__(self, data: Sequence[Any]):
     self._data = data
     self._len = len(data)
@@ -112,6 +117,36 @@ class ImpulseStreamGenDoFn(beam.DoFn):
 
 
 class PeriodicStream(beam.PTransform):
+  """A PTransform that generates a periodic stream of elements from a sequence.
+
+  This transform creates a `PCollection` by emitting elements from a provided
+  Python sequence at a specified time interval. It is designed for use in
+  streaming pipelines to simulate a live, continuous source of data.
+
+  The transform can be configured to:
+  - Emit the sequence only once.
+  - Repeat the sequence indefinitely or for a maximum duration.
+  - Control the time interval between elements.
+
+  To ensure that the stream does not emit a burst of elements immediately at
+  pipeline startup, a fixed warmup period is added before the first element
+  is generated.
+
+  Args:
+      data: The sequence of elements to emit into the PCollection. The elements
+        can be raw values or pre-timestamped tuples in the format
+        `(apache_beam.utils.timestamp.Timestamp, value)`.
+      max_duration: The maximum total duration in seconds for the stream
+        generation. If `None` (the default) and `repeat` is `True`, the
+        stream is effectively infinite. If `repeat` is `False`, the stream's
+        duration is the shorter of this value and the time required to emit
+        the sequence once.
+      interval: The delay in seconds between consecutive elements.
+        Defaults to 0.1.
+      repeat: If `True`, the input `data` sequence is emitted repeatedly.
+        If `False` (the default), the sequence is emitted only once.
+  """
+
   WARMUP_TIME = 2
 
   def __init__(
