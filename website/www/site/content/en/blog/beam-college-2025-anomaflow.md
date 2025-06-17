@@ -1,6 +1,6 @@
 ---
 title: "My Experience at Beam College 2025: 3rd Place Hackathon Winner"
-date: 2025-06-16
+date: 2025-06-16 00:00:01 -0400
 authors:
   - msugar
 categories:
