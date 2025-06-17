@@ -18,6 +18,8 @@ name: CloudML Benchmarks Dataflow
 on:
   schedule:
     - cron: '10 21 * * *'
+  pull_request_target:
+    paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_CloudML_Benchmarks_Dataflow.json']
   workflow_dispatch:
 
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
@@ -52,8 +54,7 @@ jobs:
   beam_CloudML_Benchmarks_Dataflow:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
-      github.event.comment.body == 'Run TFT Criteo Benchmarks'
+      (github.event_name == 'schedule' && github.repository == 'apache/beam')
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 360
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
