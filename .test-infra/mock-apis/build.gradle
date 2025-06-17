@@ -23,6 +23,7 @@
  applyJavaNature(
     exportJavadoc: false,
     publish: false,
+    enableSpotbugs: false
  )
 
 description = "Apache Beam :: Test Infra :: Mock APIs"

@@ -97,10 +97,11 @@ public class ResourceManagerUtils {
         + localDateTime.format(timeFormat);
   }
 
+  private static final Random RANDOM = new Random();
+
   /** Generates random letter for padding. */
   public static char generatePadding() {
-    Random random = new Random();
-    return (char) ('a' + random.nextInt(26));
+    return (char) ('a' + RANDOM.nextInt(26));
   }
 
   /**
@@ -205,18 +206,15 @@ public class ResourceManagerUtils {
         RandomStringUtils.randomAlphanumeric(minLength, maxLength - numSpecial).toUpperCase());
     for (int i = 0; i < numSpecial && specialChars != null; i++) {
       password.insert(
-          new Random().nextInt(password.length()),
-          specialChars.get(new Random().nextInt(specialChars.size())));
+          RANDOM.nextInt(password.length()), specialChars.get(RANDOM.nextInt(specialChars.size())));
     }
     for (int i = 0; i < numLower; i++) {
       password.insert(
-          new Random().nextInt(password.length()),
-          RandomStringUtils.randomAlphabetic(1).toLowerCase());
+          RANDOM.nextInt(password.length()), RandomStringUtils.randomAlphabetic(1).toLowerCase());
     }
     for (int i = 0; i < numUpper; i++) {
       password.insert(
-          new Random().nextInt(password.length()),
-          RandomStringUtils.randomAlphabetic(1).toUpperCase());
+          RANDOM.nextInt(password.length()), RandomStringUtils.randomAlphabetic(1).toUpperCase());
     }
     return password.toString();
   }
