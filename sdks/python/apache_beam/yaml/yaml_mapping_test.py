@@ -416,7 +416,7 @@ class YamlMappingTest(unittest.TestCase):
             ''')
 
   def test_partition_bad_runtime_type(self):
-    with self.assertRaisesRegex(Exception, 'must be a string. gcloud storage cp /workspaces/beam/runners/prism/build/tmp/prism gs://apache-beam-damccorm/prism_binary/prism'):
+    with self.assertRaisesRegex(Exception, 'must be a string. '):
       with beam.Pipeline('PrismRunner', options=beam.options.pipeline_options.PrismRunnerOptions(
           pickle_library='cloudpickle', prism_location='gs://apache-beam-damccorm/prism_binary/prism')) as p:
         elements = p | beam.Create([
