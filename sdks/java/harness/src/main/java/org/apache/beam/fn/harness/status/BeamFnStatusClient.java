@@ -17,6 +17,7 @@
  */
 package org.apache.beam.fn.harness.status;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -58,6 +59,7 @@ public class BeamFnStatusClient implements AutoCloseable {
   private final MemoryMonitor memoryMonitor;
   private final Cache<?, ?> cache;
 
+  @SuppressFBWarnings("SC_START_IN_CTOR") // for memory monitor thread
   public BeamFnStatusClient(
       ApiServiceDescriptor apiServiceDescriptor,
       Function<ApiServiceDescriptor, ManagedChannel> channelFactory,
