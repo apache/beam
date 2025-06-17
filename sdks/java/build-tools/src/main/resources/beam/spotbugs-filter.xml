@@ -55,6 +55,10 @@
   -->
   <Bug pattern="UMAC_UNCALLABLE_METHOD_OF_ANONYMOUS_CLASS"/>
 
+  <!-- TODO(https://github.com/apache/beam/issues/35312) resolve findings-->
+  <Bug pattern="CT_CONSTRUCTOR_THROW"/>
+  <Bug pattern="MS_EXPOSE_REP"/>
+
   <!--
     Many test classes are captured by lambdas and marked `implements Serializable`. They are not
     actually serializable, so the TestPipeline that they employ does not need to be transient or

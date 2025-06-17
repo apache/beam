@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.pulsar;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.coders.Coder;
@@ -50,6 +51,7 @@ import org.slf4j.LoggerFactory;
  */
 @DoFn.UnboundedPerElement
 @SuppressWarnings({"rawtypes", "nullness"})
+@SuppressFBWarnings(value = "CT_CONSTRUCTOR_THROW", justification = "Initialization is safe.")
 public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, PulsarMessage> {
 
   private static final Logger LOG = LoggerFactory.getLogger(ReadFromPulsarDoFn.class);

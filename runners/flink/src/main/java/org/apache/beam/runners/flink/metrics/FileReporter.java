@@ -65,6 +65,7 @@ public class FileReporter extends AbstractReporter {
   }
 
   @Override
+  @SuppressFBWarnings("DCN_NULLPOINTER_EXCEPTION")
   public void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group) {
     final String name = group.getMetricIdentifier(metricName, this);
     super.notifyOfRemovedMetric(metric, metricName, group);
