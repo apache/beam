@@ -35,12 +35,12 @@ The primary objective of Anomaflow was to process **host telemetry data** from s
 Here’s a breakdown of the technologies used:
 
 - **Apache Beam (Python SDK)** for pipeline development
-- **Bindplane Collector & Server** for OpenTelemetry data collection and configuration 
-- **Google Compute Engine (GCE)** instancess for hosting the Bindplane Server and Collector    
-- **Google Cloud Dataflow** for running the Beam pipeline at scale  
+- **Bindplane Collector & Server** for OpenTelemetry data collection and configuration
+- **Google Compute Engine (GCE)** instancess for hosting the Bindplane Server and Collector
+- **Google Cloud Dataflow** for running the Beam pipeline at scale
 - **Google Cloud Storage (GCS)** as the pipeline’s source and sink during the hackathon
-- **Terraform** to provision GCP infrastructure  
-- **Docker** for packaging and deployment  
+- **Terraform** to provision GCP infrastructure
+- **Docker** for packaging and deployment
 
 ## The Hackathon Journey: From Streaming Vision to Batch Reality
 
@@ -78,4 +78,3 @@ I’m currently a **Software Architect and Data Engineer at TELUS Security**, wh
 Participating in Beam College was a great way to stretch my skills, meet passionate Beam users, and contribute to a vibrant open source community. I’m excited to see what others will build in future editions!
 
 – [Marcio Sugar](https://www.linkedin.com/in/marcio-sugar/)
-
