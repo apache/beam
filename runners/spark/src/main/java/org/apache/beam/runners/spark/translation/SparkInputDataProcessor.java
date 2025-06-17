@@ -124,20 +124,18 @@ class UnboundedSparkInputDataProcessor<FnInputT, FnOutputT>
     }
   }
 
-  private class UnboundedInOutIterator<K>
-      extends AbstractIterator<Tuple2<TupleTag<?>, WindowedValue<?>>> {
+  private class UnboundedInOutIterator<K> extends AbstractInOutIterator<K, FnInputT, FnOutputT> {
 
     private final Iterator<WindowedValue<FnInputT>> inputIterator;
-    private final SparkProcessContext<K, FnInputT, FnOutputT> ctx;
-    private Iterator<Tuple2<TupleTag<?>, WindowedValue<?>>> outputIterator;
+    private volatile Iterator<Tuple2<TupleTag<?>, WindowedValue<?>>> outputIterator;
     private boolean isBundleStarted;
     private boolean isBundleFinished;
 
     UnboundedInOutIterator(
         Iterator<WindowedValue<FnInputT>> iterator,
         SparkProcessContext<K, FnInputT, FnOutputT> ctx) {
+      super(ctx);
       this.inputIterator = iterator;
-      this.ctx = ctx;
       this.outputIterator = outputManager.iterator();
     }
 
@@ -185,21 +183,51 @@ class UnboundedSparkInputDataProcessor<FnInputT, FnOutputT>
         throw re;
       }
     }
+  }
+}
 
-    private void fireTimer(TimerInternals.TimerData timer) {
-      StateNamespace namespace = timer.getNamespace();
-      checkArgument(namespace instanceof StateNamespaces.WindowNamespace);
-      BoundedWindow window = ((StateNamespaces.WindowNamespace) namespace).getWindow();
-      ctx.getDoFnRunner()
-          .onTimer(
-              timer.getTimerId(),
-              timer.getTimerFamilyId(),
-              ctx.getKey(),
-              window,
-              timer.getTimestamp(),
-              timer.getOutputTimestamp(),
-              timer.getDomain());
-    }
+/**
+ * Abstract base class for iterators that process Spark input data and produce corresponding output
+ * values. This class serves as a common base for both bounded and unbounded processing strategies
+ * in the Spark runner.
+ *
+ * <p>The class extends Guava's {@link AbstractIterator} and provides common functionality for
+ * iterating through input elements, processing them using a DoFnRunner, and producing output
+ * elements as tuples of {@link TupleTag} and {@link WindowedValue} pairs.
+ *
+ * @param <K> The key type for the processing context
+ * @param <InputT> The input element type to be processed
+ * @param <OutputT> The output element type after processing
+ */
+abstract class AbstractInOutIterator<K, InputT, OutputT>
+    extends AbstractIterator<Tuple2<TupleTag<?>, WindowedValue<?>>> {
+  protected final SparkProcessContext<K, InputT, OutputT> ctx;
+
+  protected AbstractInOutIterator(SparkProcessContext<K, InputT, OutputT> ctx) {
+    this.ctx = ctx;
+  }
+
+  /**
+   * Fires a timer using the DoFnRunner from the context.
+   *
+   * @param timer The timer data containing information about the timer to fire
+   * @throws IllegalArgumentException If the timer namespace is not a {@link
+   *     StateNamespaces.WindowNamespace}
+   */
+  protected void fireTimer(TimerInternals.TimerData timer) {
+    StateNamespace namespace = timer.getNamespace();
+    checkArgument(namespace instanceof StateNamespaces.WindowNamespace);
+    BoundedWindow window = ((StateNamespaces.WindowNamespace) namespace).getWindow();
+    this.ctx
+        .getDoFnRunner()
+        .onTimer(
+            timer.getTimerId(),
+            timer.getTimerFamilyId(),
+            this.ctx.getKey(),
+            window,
+            timer.getTimestamp(),
+            timer.getOutputTimestamp(),
+            timer.getDomain());
   }
 }
 
@@ -281,9 +309,8 @@ class BoundedSparkInputDataProcessor<FnInputT, FnOutputT>
   }
 
   private class BoundedInOutIterator<K, InputT, OutputT>
-      extends AbstractIterator<Tuple2<TupleTag<?>, WindowedValue<?>>> {
+      extends AbstractInOutIterator<K, InputT, OutputT> {
 
-    private final SparkProcessContext<K, InputT, OutputT> ctx;
     private final Iterator<WindowedValue<InputT>> inputIterator;
     private final Iterator<Tuple2<TupleTag<?>, WindowedValue<?>>> outputIterator;
     private final ExecutorService executorService;
@@ -293,8 +320,8 @@ class BoundedSparkInputDataProcessor<FnInputT, FnOutputT>
 
     BoundedInOutIterator(
         Iterator<WindowedValue<InputT>> iterator, SparkProcessContext<K, InputT, OutputT> ctx) {
+      super(ctx);
       this.inputIterator = iterator;
-      this.ctx = ctx;
       this.outputIterator = outputManager.iterator();
       this.executorService =
           Executors.newSingleThreadScheduledExecutor(
@@ -323,21 +350,6 @@ class BoundedSparkInputDataProcessor<FnInputT, FnOutputT>
         executorService.shutdown();
         return endOfData();
       }
-    }
-
-    private void fireTimer(TimerInternals.TimerData timer) {
-      StateNamespace namespace = timer.getNamespace();
-      checkArgument(namespace instanceof StateNamespaces.WindowNamespace);
-      BoundedWindow window = ((StateNamespaces.WindowNamespace) namespace).getWindow();
-      ctx.getDoFnRunner()
-          .onTimer(
-              timer.getTimerId(),
-              timer.getTimerFamilyId(),
-              ctx.getKey(),
-              window,
-              timer.getTimestamp(),
-              timer.getOutputTimestamp(),
-              timer.getDomain());
     }
 
     private Future<?> startOutputProducerTask() {
