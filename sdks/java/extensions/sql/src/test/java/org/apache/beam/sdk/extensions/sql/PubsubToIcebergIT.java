@@ -98,7 +98,7 @@ public class PubsubToIcebergIT implements Serializable {
             + format("  'warehouse' = '%s', \n", warehouse)
             + format("  'gcp_project' = '%s', \n", OPTIONS.getProject())
             + "  'gcp_region' = 'us-central1')";
-    setCatalogDdl = "SET CATALOG my_catalog";
+    setCatalogDdl = "USE CATALOG my_catalog";
   }
 
   private String tableIdentifier;
