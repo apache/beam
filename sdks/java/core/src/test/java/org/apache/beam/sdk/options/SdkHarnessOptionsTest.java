@@ -114,17 +114,17 @@ public class SdkHarnessOptionsTest {
   }
 
   @Test
-  public void testDefaultPTransformTimeoutDuration() {
+  public void testDefaultBundleProcessingTimeout() {
     PipelineOptions options = PipelineOptionsFactory.create();
     SdkHarnessOptions sdkHarnessOptions = options.as(SdkHarnessOptions.class);
-    assertEquals(0, sdkHarnessOptions.getPtransformTimeoutDuration());
+    assertEquals(0, sdkHarnessOptions.getBundleProcessingTimeout());
   }
 
   @Test
-  public void testUserDefinedPTransformTimeoutDuration() {
+  public void testUserDefinedBundleProcessingTimeout() {
     PipelineOptions options =
-        PipelineOptionsFactory.fromArgs("--ptransformTimeoutDuration=20").create();
+        PipelineOptionsFactory.fromArgs("--bundleProcessingTimeout=20").create();
     SdkHarnessOptions sdkHarnessOptions = options.as(SdkHarnessOptions.class);
-    assertEquals(20, sdkHarnessOptions.getPtransformTimeoutDuration());
+    assertEquals(20, sdkHarnessOptions.getBundleProcessingTimeout());
   }
 }

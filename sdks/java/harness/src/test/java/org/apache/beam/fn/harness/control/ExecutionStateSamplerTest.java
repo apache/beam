@@ -726,7 +726,7 @@ public class ExecutionStateSamplerTest {
   }
 
   @Test
-  public void testDefaultPtransformTimeoutDurationNoExceptionThrown() throws Exception {
+  public void testDefaultBundleProcessingTimeoutNoExceptionThrown() throws Exception {
     MillisProvider clock = mock(MillisProvider.class);
     ExecutionStateSampler sampler =
         new ExecutionStateSampler(PipelineOptionsFactory.create(), clock);
@@ -767,11 +767,11 @@ public class ExecutionStateSamplerTest {
   }
 
   @Test
-  public void testUserDefinedPtransformTimeoutDurationNoExceptionThrown() throws Exception {
+  public void testUserDefinedBundleProcessingTimeoutNoExceptionThrown() throws Exception {
     MillisProvider clock = mock(MillisProvider.class);
     ExecutionStateSampler sampler =
         new ExecutionStateSampler(
-            PipelineOptionsFactory.fromArgs("--ptransformTimeoutDuration=20").create(), clock);
+            PipelineOptionsFactory.fromArgs("--bundleProcessingTimeout=20").create(), clock);
     ExecutionStateTracker tracker = sampler.create();
     ExecutionState state = tracker.create("shortId", "ptransformId", "ptransformIdName", "process");
 
@@ -809,31 +809,31 @@ public class ExecutionStateSamplerTest {
   }
 
   @Test
-  public void testUserDefinedPtransformTimeoutDurationOverriden() {
+  public void testUserDefinedBundleProcessingTimeoutOverriden() {
     MillisProvider clock = mock(MillisProvider.class);
     ExecutionStateSampler sampler =
         new ExecutionStateSampler(
-            PipelineOptionsFactory.fromArgs("--ptransformTimeoutDuration=5").create(), clock);
+            PipelineOptionsFactory.fromArgs("--bundleProcessingTimeout=5").create(), clock);
     assertThat(
         sampler.getUserAllowedLullTimeMsForRestart(), equalTo(TimeUnit.MINUTES.toMillis(10)));
     assertThat(sampler.getUserAllowedTimeoutForRestart(), equalTo(true));
     expectedLogs.verifyInfo(
-        "The user defined ptransformTimeoutDuration is too short for "
+        "The user defined bundleProcessingTimeout is too short for "
             + "a PTransform operation and has been set to 10 minutes");
   }
 
   @Test
-  public void testUserDefinedPtransformTimeoutDurationNotOverriden() {
+  public void testUserDefinedBundleProcessingTimeoutNotOverriden() {
     MillisProvider clock = mock(MillisProvider.class);
     ExecutionStateSampler sampler =
         new ExecutionStateSampler(
-            PipelineOptionsFactory.fromArgs("--ptransformTimeoutDuration=20").create(), clock);
+            PipelineOptionsFactory.fromArgs("--bundleProcessingTimeout=20").create(), clock);
     assertThat(
         sampler.getUserAllowedLullTimeMsForRestart(), equalTo(TimeUnit.MINUTES.toMillis(20)));
   }
 
   @Test
-  public void testDefaultPtransformTimeoutDuration() {
+  public void testDefaultBundleProcessingTimeout() {
     MillisProvider clock = mock(MillisProvider.class);
     ExecutionStateSampler sampler =
         new ExecutionStateSampler(PipelineOptionsFactory.create(), clock);
