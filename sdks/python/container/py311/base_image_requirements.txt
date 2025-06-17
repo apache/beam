@@ -118,7 +118,7 @@ pandas==2.2.3
 parameterized==0.9.0
 pluggy==1.6.0
 proto-plus==1.26.1
-protobuf==5.29.4
+protobuf==5.29.5
 psycopg2-binary==2.9.10
 pyarrow==18.1.0
 pyarrow-hotfix==0.7
