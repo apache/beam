@@ -187,6 +187,7 @@ public class KafkaWriteSchemaTransformProvider
         try {
           output = KV.of(new byte[1], toRecordsFn.apply(row));
         } catch (Exception e) {
+          LOG.info("ERROR PROCESSING ELEMENT", e);
           if (!handleErrors) {
             throw new RuntimeException(e);
           }
@@ -247,6 +248,10 @@ public class KafkaWriteSchemaTransformProvider
         }
 
       } else {
+        for (Map.Entry<String, String> entry :
+            configuration.getProducerConfigUpdates().entrySet()) {
+          LOG.info("CONFIG KEY: {}\nCONFIG VALUE: {}\n", entry.getKey(), entry.getValue());
+        }
         if (configuration.getProducerConfigUpdates() == null) {
           LOG.info("NO CONFIG UPDATE MAP FOUND.");
         } else if (!configuration.getProducerConfigUpdates().containsKey("schema.registry.url")) {
