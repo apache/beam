@@ -162,10 +162,10 @@ class PeriodicStream(beam.PTransform):
 
     # In `ImpulseSeqGenRestrictionProvider`, the total number of counts
     # (i.e. total_outputs) is computed by ceil((end - start) / interval),
-    # where end is start + duration * interval.
+    # where end is start + duration.
     # Due to precision error of arithmetic operations, even if duration is set
-    # to len(self._data), (end - start) / interval could be a little bit smaller
-    # or bigger than len(self._data).
+    # to len(self._data) * interval, (end - start) / interval could be a little
+    # bit smaller or bigger than len(self._data).
     # In case of being bigger, total_outputs would be len(self._data) + 1,
     # as the ceil() operation is used.
     # Assuming that the precision error is no bigger than 1%, by subtracting
