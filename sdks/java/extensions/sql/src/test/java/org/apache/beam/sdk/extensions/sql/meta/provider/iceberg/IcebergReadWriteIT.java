@@ -151,7 +151,7 @@ public class IcebergReadWriteIT {
     sqlEnv.executeDdl(createCatalog);
 
     // 2) use the catalog we just created
-    String setCatalog = "SET CATALOG my_catalog";
+    String setCatalog = "USE CATALOG my_catalog";
     sqlEnv.executeDdl(setCatalog);
 
     // 3) create beam table
@@ -277,7 +277,7 @@ public class IcebergReadWriteIT {
     sqlEnv.executeDdl(createCatalog);
 
     // 2) use the catalog we just created
-    String setCatalog = "SET CATALOG my_catalog";
+    String setCatalog = "USE CATALOG my_catalog";
     sqlEnv.executeDdl(setCatalog);
 
     // 3) create Beam table
