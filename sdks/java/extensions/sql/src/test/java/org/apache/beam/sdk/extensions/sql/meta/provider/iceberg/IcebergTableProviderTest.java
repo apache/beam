@@ -84,7 +84,7 @@ public class IcebergTableProviderTest {
             .build();
 
     sqlEnv.executeDdl("CREATE CATALOG my_catalog TYPE iceberg");
-    sqlEnv.executeDdl("SET CATALOG my_catalog");
+    sqlEnv.executeDdl("USE CATALOG my_catalog");
     sqlEnv.executeDdl(
         "CREATE EXTERNAL TABLE test_partitioned_table(\n"
             + "  id INTEGER,\n"
