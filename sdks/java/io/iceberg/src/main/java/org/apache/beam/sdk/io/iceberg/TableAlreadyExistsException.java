@@ -15,27 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.meta.provider.iceberg;
+package org.apache.beam.sdk.io.iceberg;
 
-import java.util.Map;
-import org.apache.beam.sdk.extensions.sql.meta.catalog.InMemoryCatalog;
-import org.apache.beam.sdk.extensions.sql.meta.store.MetaStore;
-
-public class IcebergCatalog extends InMemoryCatalog {
-  private final IcebergMetastore metaStore;
-
-  public IcebergCatalog(String name, Map<String, String> properties) {
-    super(name, properties);
-    metaStore = new IcebergMetastore(name, properties);
-  }
-
-  @Override
-  public MetaStore metaStore() {
-    return metaStore;
-  }
-
-  @Override
-  public String type() {
-    return "iceberg";
+public class TableAlreadyExistsException extends RuntimeException {
+  public TableAlreadyExistsException(Throwable cause) {
+    super(cause);
   }
 }

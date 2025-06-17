@@ -17,11 +17,102 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.iceberg;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
+import java.util.HashMap;
+import java.util.Map;
+import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
+import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig;
+import org.apache.beam.sdk.io.iceberg.TableAlreadyExistsException;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class IcebergMetastore extends InMemoryMetaStore {
+  private static final Logger LOG = LoggerFactory.getLogger(IcebergMetastore.class);
+  // TODO(ahmedabu98): extend this to the IO implementation so
+  //  other SDKs can make use of it too
+  private static final String BEAM_HADOOP_PREFIX = "beam.catalog.hadoop";
+  private static final Map<String, Table> tablesMap = new HashMap<>();
+  @VisibleForTesting final IcebergCatalogConfig catalogConfig;
+
+  public IcebergMetastore(String name, Map<String, String> properties) {
+    ImmutableMap.Builder<String, String> catalogProps = ImmutableMap.builder();
+    ImmutableMap.Builder<String, String> hadoopProps = ImmutableMap.builder();
+
+    for (Map.Entry<String, String> entry : properties.entrySet()) {
+      if (entry.getKey().startsWith(BEAM_HADOOP_PREFIX)) {
+        hadoopProps.put(entry.getKey(), entry.getValue());
+      } else {
+        catalogProps.put(entry.getKey(), entry.getValue());
+      }
+    }
+
+    catalogConfig =
+        IcebergCatalogConfig.builder()
+            .setCatalogName(name)
+            .setCatalogProperties(catalogProps.build())
+            .setConfigProperties(hadoopProps.build())
+            .build();
+  }
+
+  @Override
+  public String getTableType() {
+    return "iceberg";
+  }
+
+  @Override
+  public void createTable(Table table) {
+    try {
+      catalogConfig.createTable(
+          checkStateNotNull(table.getLocation()), table.getSchema(), table.getPartitionFields());
+    } catch (TableAlreadyExistsException e) {
+      LOG.info(
+          "Iceberg table '{}' already exists at location '{}'.",
+          table.getName(),
+          table.getLocation());
+    }
+    tablesMap.put(table.getName(), table);
+  }
+
+  @Override
+  public void dropTable(String tableName) {
+    Table table =
+        checkArgumentNotNull(getTable(tableName), "Table '%s' is not registered.", tableName);
+    String location = checkStateNotNull(table.getLocation());
+    if (catalogConfig.dropTable(location)) {
+      LOG.info("Dropped table '{}' (location: '{}').", tableName, location);
+    } else {
+      LOG.info(
+          "Ignoring DROP TABLE call for '{}' (location: '{}') because it does not exist.",
+          tableName,
+          location);
+    }
+    tablesMap.remove(tableName);
+  }
+
+  @Override
+  public Map<String, Table> getTables() {
+    return tablesMap;
+  }
+
+  @Override
+  public BeamSqlTable buildBeamSqlTable(Table table) {
+    return new IcebergTable(table, catalogConfig);
+  }
+
   @Override
   public boolean supportsPartitioning() {
     return true;
+  }
+
+  @Override
+  public void registerProvider(TableProvider provider) {
+    System.out.println("xxx IGNORING REGISTER PROVIDER CALL");
   }
 }
