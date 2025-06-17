@@ -43,10 +43,6 @@ cloud-sql-python-connector==1.18.2
 crcmod==1.7
 cryptography==45.0.4
 Cython==3.1.2
-<<<<<<< HEAD
-=======
-deprecation==2.1.0
->>>>>>> upstream/master
 dill==0.3.1.1
 dnspython==2.7.0
 docker==7.1.0
@@ -147,11 +143,7 @@ pydantic_core==2.33.2
 pydot==1.4.2
 PyHamcrest==2.1.0
 PyJWT==2.9.0
-<<<<<<< HEAD
 pymongo==4.13.2
-=======
-pymongo==4.13.1
->>>>>>> upstream/master
 PyMySQL==1.1.1
 pyparsing==3.2.3
 pyproject_hooks==1.2.0
@@ -159,10 +151,7 @@ pytest==7.4.4
 pytest-timeout==2.4.0
 pytest-xdist==3.7.0
 python-dateutil==2.9.0.post0
-<<<<<<< HEAD
 python-dotenv==1.1.0
-=======
->>>>>>> upstream/master
 python-tds==1.16.1
 pytz==2025.2
 PyYAML==6.0.2
