@@ -400,7 +400,43 @@ public class ExecutionStateSampler {
         transitionsAtLastSample = transitionsAtThisSample;
       } else {
         long lullTimeMs = currentTimeMillis - lastTransitionTimeMillis.get();
-        String proposedErrMsg = lullErrorMsg(thread, currentExecutionState, lullTimeMs);
+
+        if (userAllowedTimeoutForRestart && lullTimeMs > userAllowedLullTimeMsForRestart) {
+          String timeoutMessage = "";
+          if (thread == null) {
+            timeoutMessage =
+                String.format(
+                    "Operation ongoing in bundle %s for at least %s without outputting "
+                        + "or completing (stack trace unable to be generated). The SDK worker will restart.",
+                    processBundleId.get(),
+                    DURATION_FORMATTER.print(
+                        Duration.millis(userAllowedLullTimeMsForRestart).toPeriod()));
+          } else if (currentExecutionState == null) {
+            timeoutMessage =
+                String.format(
+                    "Operation ongoing in bundle %s for at least %s without outputting "
+                        + "or completing:%n  at %s. The SDK worker will restart.",
+                    processBundleId.get(),
+                    DURATION_FORMATTER.print(
+                        Duration.millis(userAllowedLullTimeMsForRestart).toPeriod()),
+                    Joiner.on("\n  at ").join(thread.getStackTrace()));
+          } else {
+            timeoutMessage =
+                String.format(
+                    "Operation ongoing in bundle %s for PTransform{id=%s, name=%s, state=%s} "
+                        + "for at least %s without outputting or completing:%n  at %s. The SDK worker will restart.",
+                    processBundleId.get(),
+                    currentExecutionState.ptransformId,
+                    currentExecutionState.ptransformUniqueName,
+                    currentExecutionState.stateName,
+                    DURATION_FORMATTER.print(
+                        Duration.millis(userAllowedLullTimeMsForRestart).toPeriod()),
+                    Joiner.on("\n  at ").join(thread.getStackTrace()));
+          }
+
+          throw new RuntimeException(new TimeoutException(timeoutMessage));
+        }
+
         if (lullTimeMs > MAX_LULL_TIME_MS) {
           if (lullTimeMs < lastLullReport // This must be a new report.
               || lullTimeMs > 1.2 * lastLullReport // Exponential backoff.
@@ -408,48 +444,36 @@ public class ExecutionStateSampler {
                   > MAX_LULL_TIME_MS + lastLullReport // At least once every MAX_LULL_TIME_MS.
           ) {
             lastLullReport = lullTimeMs;
-            LOG.warn(proposedErrMsg);
+            if (thread == null) {
+              LOG.warn(
+                  String.format(
+                      "Operation ongoing in bundle %s for at least %s without outputting "
+                          + "or completing (stack trace unable to be generated).",
+                      processBundleId.get(),
+                      DURATION_FORMATTER.print(Duration.millis(lullTimeMs).toPeriod())));
+            } else if (currentExecutionState == null) {
+              LOG.warn(
+                  String.format(
+                      "Operation ongoing in bundle %s for at least %s without outputting "
+                          + "or completing:%n  at %s",
+                      processBundleId.get(),
+                      DURATION_FORMATTER.print(Duration.millis(lullTimeMs).toPeriod()),
+                      Joiner.on("\n  at ").join(thread.getStackTrace())));
+            } else {
+              LOG.warn(
+                  String.format(
+                      "Operation ongoing in bundle %s for PTransform{id=%s, name=%s, state=%s} "
+                          + "for at least %s without outputting or completing:%n  at %s",
+                      processBundleId.get(),
+                      currentExecutionState.ptransformId,
+                      currentExecutionState.ptransformUniqueName,
+                      currentExecutionState.stateName,
+                      DURATION_FORMATTER.print(Duration.millis(lullTimeMs).toPeriod()),
+                      Joiner.on("\n  at ").join(thread.getStackTrace())));
+            }
           }
         }
-
-        if (userAllowedTimeoutForRestart && lullTimeMs > userAllowedLullTimeMsForRestart) {
-          throw new RuntimeException(new TimeoutException(proposedErrMsg));
-        }
       }
-    }
-
-    private String lullErrorMsg(
-        @Nullable Thread thread, @Nullable ExecutionStateImpl state, long lullTime) {
-      String msg;
-      if (thread == null) {
-        msg =
-            String.format(
-                "Operation ongoing in bundle %s for at least %s without outputting "
-                    + "or completing (stack trace unable to be generated). The SDK worker will restart.",
-                processBundleId.get(),
-                DURATION_FORMATTER.print(Duration.millis(lullTime).toPeriod()));
-      } else if (state == null) {
-        msg =
-            String.format(
-                "Operation ongoing in bundle %s for at least %s without outputting "
-                    + "or completing:%n  at %s. The SDK worker will restart.",
-                processBundleId.get(),
-                DURATION_FORMATTER.print(Duration.millis(lullTime).toPeriod()),
-                Joiner.on("\n  at ").join(thread.getStackTrace()));
-      } else {
-        msg =
-            String.format(
-                "Operation ongoing in bundle %s for PTransform{id=%s, name=%s, state=%s} "
-                    + "for at least %s without outputting or completing:%n  at %s. The SDK worker will restart.",
-                processBundleId.get(),
-                state.ptransformId,
-                state.ptransformUniqueName,
-                state.stateName,
-                DURATION_FORMATTER.print(
-                    Duration.millis(userAllowedLullTimeMsForRestart).toPeriod()),
-                Joiner.on("\n  at ").join(thread.getStackTrace()));
-      }
-      return msg;
     }
 
     /** Returns status information related to this tracker or null if not tracking a bundle. */
