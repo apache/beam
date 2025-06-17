@@ -208,7 +208,7 @@ public class ExecutionStateSampler {
             } catch (RuntimeException e) {
               LOG.error(
                   String.format(
-                      "The SDK worker will restart because the lull time is longer than %d minutes",
+                      "The SDK worker will terminate because the lull time is longer than %d minutes",
                       TimeUnit.MILLISECONDS.toMinutes(this.userAllowedLullTimeMsForRestart)));
               System.exit(1);
             }
