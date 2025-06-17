@@ -485,7 +485,7 @@ Note: The actual limit is 10MB, but we set it to 9MB to make room for request
 overhead: https://cloud.google.com/bigquery/quotas#streaming_inserts
 """
 MAX_INSERT_PAYLOAD_SIZE = 9 << 20
-_DEFAULT_READ_TIMEOUT_SECONDS = 3600.0
+_DEFAULT_READ_TIMEOUT_SECONDS = 86400.0
 
 
 @deprecated(since='2.11.0', current="bigquery_tools.parse_table_reference")
