@@ -369,9 +369,7 @@ if __name__ == '__main__':
           # TODO(https://github.com/grpc/grpc/issues/37710): Unpin grpc
           'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,<1.66.0; python_version <= "3.12"',  # pylint: disable=line-too-long
           'grpcio>=1.67.0; python_version >= "3.13"',
-          'hdfs>=2.1.0,<3.0.0',
           'httplib2>=0.8,<0.23.0',
-          'jsonschema>=4.0.0,<5.0.0',
           'jsonpickle>=3.0.0,<4.0.0',
           # numpy can have breaking changes in minor versions.
           # Use a strict upper bound.
@@ -390,10 +388,8 @@ if __name__ == '__main__':
           # 3. Exclude protobuf 4 versions that leak memory, see:
           # https://github.com/apache/beam/issues/28246
           'protobuf>=3.20.3,<6.0.0.dev0,!=4.0.*,!=4.21.*,!=4.22.0,!=4.23.*,!=4.24.*',  # pylint: disable=line-too-long
-          'pydot>=1.2.0,<2',
           'python-dateutil>=2.8.0,<3',
           'pytz>=2018.3',
-          'redis>=5.0.0,<6',
           'regex>=2020.6.8',
           'requests>=2.24.0,<3.0.0',
           'sortedcontainers>=2.4.0',
@@ -488,6 +484,7 @@ if __name__ == '__main__':
               # Skip version 6.1.13 due to
               # https://github.com/jupyter/jupyter_client/issues/637
               'jupyter-client>=6.1.11,!=6.1.13,<8.2.1',
+              'pydot>=1.2.0,<2',
               'timeloop>=1.0.2,<2',
               'nbformat>=5.0.5,<6',
               'nbconvert>=6.2.0,<8',
@@ -559,8 +556,14 @@ if __name__ == '__main__':
               # `--update` / `-U` flag to replace the dask release brought in
               # by distributed.
           ],
+          'hdfs': [
+              'hdfs>=2.1.0,<3.0.0',
+          ],
           'mongodb': [
               'pymongo>=3.8.0,<5.0.0'
+          ],
+          'redis': [
+              'redis>=5.0.0,<6'
           ],
           'yaml': [
               'docstring-parser>=0.15,<1.0',
@@ -568,6 +571,7 @@ if __name__ == '__main__':
               'virtualenv-clone>=0.5,<1.0',
               # https://github.com/PiotrDabkowski/Js2Py/issues/317
               'js2py>=0.74,<1; python_version<"3.12"',
+              'jsonschema>=4.0.0,<5.0.0',
           ] + dataframe_dependency,
           # Keep the following dependencies in line with what we test against
           # in https://github.com/apache/beam/blob/master/sdks/python/tox.ini
