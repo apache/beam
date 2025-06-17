@@ -726,7 +726,7 @@ public class ExecutionStateSamplerTest {
   }
 
   @Test
-  public void testDefaultBundleProcessingTimeoutNoExceptionThrown() throws Exception {
+  public void testDefaultElementProcessingTimeoutNoExceptionThrown() throws Exception {
     MillisProvider clock = mock(MillisProvider.class);
     ExecutionStateSampler sampler =
         new ExecutionStateSampler(PipelineOptionsFactory.create(), clock);
@@ -767,11 +767,11 @@ public class ExecutionStateSamplerTest {
   }
 
   @Test
-  public void testUserDefinedBundleProcessingTimeoutNoExceptionThrown() throws Exception {
+  public void testUserDefinedElementProcessingTimeoutNoExceptionThrown() throws Exception {
     MillisProvider clock = mock(MillisProvider.class);
     ExecutionStateSampler sampler =
         new ExecutionStateSampler(
-            PipelineOptionsFactory.fromArgs("--bundleProcessingTimeout=20").create(), clock);
+            PipelineOptionsFactory.fromArgs("--elementProcessingTimeout=20").create(), clock);
     ExecutionStateTracker tracker = sampler.create();
     ExecutionState state = tracker.create("shortId", "ptransformId", "ptransformIdName", "process");
 
@@ -809,31 +809,31 @@ public class ExecutionStateSamplerTest {
   }
 
   @Test
-  public void testUserDefinedBundleProcessingTimeoutOverriden() {
+  public void testUserDefinedElementProcessingTimeoutOverriden() {
     MillisProvider clock = mock(MillisProvider.class);
     ExecutionStateSampler sampler =
         new ExecutionStateSampler(
-            PipelineOptionsFactory.fromArgs("--bundleProcessingTimeout=5").create(), clock);
+            PipelineOptionsFactory.fromArgs("--elementProcessingTimeout=5").create(), clock);
     assertThat(
         sampler.getUserAllowedLullTimeMsForRestart(), equalTo(TimeUnit.MINUTES.toMillis(10)));
     assertThat(sampler.getUserAllowedTimeoutForRestart(), equalTo(true));
     expectedLogs.verifyInfo(
-        "The user defined bundleProcessingTimeout is too short for "
+        "The user defined ElementProcessingTimeout is too short for "
             + "a PTransform operation and has been set to 10 minutes");
   }
 
   @Test
-  public void testUserDefinedBundleProcessingTimeoutNotOverriden() {
+  public void testUserDefinedElementProcessingTimeoutNotOverriden() {
     MillisProvider clock = mock(MillisProvider.class);
     ExecutionStateSampler sampler =
         new ExecutionStateSampler(
-            PipelineOptionsFactory.fromArgs("--bundleProcessingTimeout=20").create(), clock);
+            PipelineOptionsFactory.fromArgs("--elementProcessingTimeout=20").create(), clock);
     assertThat(
         sampler.getUserAllowedLullTimeMsForRestart(), equalTo(TimeUnit.MINUTES.toMillis(20)));
   }
 
   @Test
-  public void testDefaultBundleProcessingTimeout() {
+  public void testDefaultElementProcessingTimeout() {
     MillisProvider clock = mock(MillisProvider.class);
     ExecutionStateSampler sampler =
         new ExecutionStateSampler(PipelineOptionsFactory.create(), clock);

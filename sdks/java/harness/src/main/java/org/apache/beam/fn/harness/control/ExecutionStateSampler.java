@@ -103,7 +103,7 @@ public class ExecutionStateSampler {
     this.clock = clock;
     this.activeStateTrackers = new HashSet<>();
 
-    int timeoutOption = options.as(SdkHarnessOptions.class).getBundleProcessingTimeout();
+    int timeoutOption = options.as(SdkHarnessOptions.class).getElementProcessingTimeout();
     if (timeoutOption <= 0) {
       this.userAllowedLullTimeMsForRestart = 0L;
       this.userAllowedTimeoutForRestart = false;
@@ -115,7 +115,7 @@ public class ExecutionStateSampler {
       if (timeoutMs < ExecutionStateSampler.MIN_LULL_TIME_MS_FOR_RESTART) {
         LOG.info(
             String.format(
-                "The user defined bundleProcessingTimeout is too short for "
+                "The user defined ElementProcessingTimeout is too short for "
                     + "a PTransform operation and has been set to %d minutes",
                 TimeUnit.MILLISECONDS.toMinutes(this.userAllowedLullTimeMsForRestart)));
       }

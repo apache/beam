@@ -114,17 +114,17 @@ public class SdkHarnessOptionsTest {
   }
 
   @Test
-  public void testDefaultBundleProcessingTimeout() {
+  public void testDefaultElementProcessingTimeout() {
     PipelineOptions options = PipelineOptionsFactory.create();
     SdkHarnessOptions sdkHarnessOptions = options.as(SdkHarnessOptions.class);
-    assertEquals(0, sdkHarnessOptions.getBundleProcessingTimeout());
+    assertEquals(0, sdkHarnessOptions.getElementProcessingTimeout());
   }
 
   @Test
-  public void testUserDefinedBundleProcessingTimeout() {
+  public void testUserDefinedElementProcessingTimeout() {
     PipelineOptions options =
-        PipelineOptionsFactory.fromArgs("--bundleProcessingTimeout=20").create();
+        PipelineOptionsFactory.fromArgs("--elementProcessingTimeout=20").create();
     SdkHarnessOptions sdkHarnessOptions = options.as(SdkHarnessOptions.class);
-    assertEquals(20, sdkHarnessOptions.getBundleProcessingTimeout());
+    assertEquals(20, sdkHarnessOptions.getElementProcessingTimeout());
   }
 }
