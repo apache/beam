@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.coders;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -81,6 +82,7 @@ public @interface DefaultCoder {
        * Returns the {@link Coder} returned according to the {@link CoderProvider} from any {@link
        * DefaultCoder} annotation on the given class.
        */
+      @SuppressFBWarnings("DCN_NULLPOINTER_EXCEPTION") // TODO(#35312)
       @Override
       public <T> Coder<T> coderFor(
           TypeDescriptor<T> typeDescriptor, List<? extends Coder<?>> componentCoders)

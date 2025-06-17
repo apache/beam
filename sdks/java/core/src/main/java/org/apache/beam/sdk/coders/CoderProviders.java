@@ -19,6 +19,7 @@ package org.apache.beam.sdk.coders;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -56,6 +57,7 @@ public final class CoderProviders {
    */
   private static class CoderProviderFromStaticMethods extends CoderProvider {
 
+    @SuppressFBWarnings("DCN_NULLPOINTER_EXCEPTION") // TODO(#35312)
     @Override
     public <T> Coder<T> coderFor(TypeDescriptor<T> type, List<? extends Coder<?>> componentCoders)
         throws CannotProvideCoderException {

@@ -172,6 +172,7 @@ public class KafkaStreaming {
     // A class that randomly selects a name with random amount of points
     static class RandomUserScoreGeneratorFn extends DoFn<Object, KV<String, Integer>> {
       private static final int MAX_SCORE = 100;
+      private static final Random RANDOM = new Random();
 
       @ProcessElement
       public void processElement(ProcessContext c) {
@@ -179,9 +180,8 @@ public class KafkaStreaming {
       }
 
       public KV<String, Integer> generate() {
-        Random random = new Random();
-        String randomName = NAMES[random.nextInt(NAMES.length)];
-        int randomScore = random.nextInt(MAX_SCORE) + 1;
+        String randomName = NAMES[RANDOM.nextInt(NAMES.length)];
+        int randomScore = RANDOM.nextInt(MAX_SCORE) + 1;
         return KV.of(randomName, randomScore);
       }
     }
