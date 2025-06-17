@@ -111,7 +111,7 @@ MarkupSafe==3.0.2
 mmh3==5.1.0
 mock==5.2.0
 more-itertools==10.7.0
-multidict==6.4.4
+multidict==6.5.0
 mysql-connector-python==9.3.0
 nltk==3.9.1
 numpy==2.2.6
@@ -142,7 +142,7 @@ pydantic_core==2.33.2
 pydot==1.4.2
 PyHamcrest==2.1.0
 PyJWT==2.9.0
-pymongo==4.13.1
+pymongo==4.13.2
 PyMySQL==1.1.1
 pyparsing==3.2.3
 pyproject_hooks==1.2.0
@@ -174,7 +174,7 @@ SQLAlchemy==2.0.41
 sqlalchemy_pytds==1.0.2
 sqlparse==0.5.3
 tenacity==8.5.0
-testcontainers==4.11.0
+testcontainers==4.10.0
 threadpoolctl==3.6.0
 tomli==2.2.1
 tqdm==4.67.1
