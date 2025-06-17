@@ -25,7 +25,7 @@ import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
-import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
+import org.apache.beam.sdk.extensions.sql.meta.store.MetaStore;
 import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig;
 import org.apache.beam.sdk.io.iceberg.TableAlreadyExistsException;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -33,7 +33,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class IcebergMetastore extends InMemoryMetaStore {
+public class IcebergMetastore implements MetaStore {
   private static final Logger LOG = LoggerFactory.getLogger(IcebergMetastore.class);
   // TODO(ahmedabu98): extend this to the IO implementation so
   //  other SDKs can make use of it too
@@ -113,6 +113,6 @@ public class IcebergMetastore extends InMemoryMetaStore {
 
   @Override
   public void registerProvider(TableProvider provider) {
-    System.out.println("xxx IGNORING REGISTER PROVIDER CALL");
+    // No-op
   }
 }
