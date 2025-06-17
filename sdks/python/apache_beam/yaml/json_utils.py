@@ -167,29 +167,29 @@ def json_to_row(beam_type: schema_pb2.FieldType) -> Callable[[Any], Any]:
   The input to the returned callable is expected to conform to the Json schema
   corresponding to this Beam type.
   """
+  if beam_type.nullable:
+    non_null_type = schema_pb2.FieldType()
+    non_null_type.CopyFrom(beam_type)
+    non_null_type.nullable = False
+    non_null_converter = json_to_row(non_null_type)
+    return lambda value: None if value is None else non_null_converter(value)
+
   type_info = beam_type.WhichOneof("type_info")
   if type_info == "atomic_type":
     return lambda value: value
   elif type_info == "array_type":
     element_converter = json_to_row(beam_type.array_type.element_type)
-    return lambda value: [
-        element_converter(e) for e in value
-    ] if value is not None else None
+    return lambda value: [element_converter(e) for e in value]
   elif type_info == "iterable_type":
     element_converter = json_to_row(beam_type.iterable_type.element_type)
-    return lambda value: [
-        element_converter(e) for e in value
-    ] if value is not None else None
+    return lambda value: [element_converter(e) for e in value]
   elif type_info == "map_type":
     if beam_type.map_type.key_type.atomic_type != schema_pb2.STRING:
       raise TypeError(
           f'Only strings allowd as map keys when converting from JSON, '
           f'found {beam_type}')
     value_converter = json_to_row(beam_type.map_type.value_type)
-    return lambda value: {
-        k: value_converter(v)
-        for (k, v) in value.items()
-    } if value is not None else None
+    return lambda value: {k: value_converter(v) for (k, v) in value.items()}
   elif type_info == "row_type":
     fields = {field.name: field for field in beam_type.row_type.schema.fields}
     converters = {
@@ -198,8 +198,6 @@ def json_to_row(beam_type: schema_pb2.FieldType) -> Callable[[Any], Any]:
     }
 
     def convert_row(value):
-      if value is None:
-        return None
       kwargs = {}
       for name, convert in converters.items():
         field = fields[name]
