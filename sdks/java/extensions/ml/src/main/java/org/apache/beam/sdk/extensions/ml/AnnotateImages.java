@@ -126,12 +126,13 @@ abstract class AnnotateImages<T>
     } else {
       inputToRequestMapper = ParDo.of(new MapInputToRequest(null));
     }
+    Random random = new Random();
     return input
         .apply(inputToRequestMapper)
         .apply(
             WithKeys.of(
                     (SerializableFunction<AnnotateImageRequest, Integer>)
-                        ignored -> new Random().nextInt(desiredRequestParallelism))
+                        ignored -> random.nextInt(desiredRequestParallelism))
                 .withKeyType(TypeDescriptors.integers()))
         .apply(GroupIntoBatches.ofSize(batchSize))
         .apply(ParDo.of(new PerformImageAnnotation()));
