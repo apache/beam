@@ -97,7 +97,6 @@ import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.Timer;
 import org.apache.beam.sdk.util.construction.graph.ExecutableStage;
@@ -105,6 +104,8 @@ import org.apache.beam.sdk.util.construction.graph.UserStateReference;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.StatusRuntimeException;
@@ -530,7 +531,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT>
       FlinkKey encodedKey =
           (FlinkKey)
               keySelector.getKey(
-                  WindowedValue.valueInGlobalWindow(
+                  WindowedValues.valueInGlobalWindow(
                       (InputT) KV.of(timerElement.getUserKey(), null)));
       // We have to synchronize to ensure the state backend is not concurrently accessed by the
       // state requests
@@ -562,7 +563,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT>
     @Override
     public TimerInternals timerInternalsForKey(InputT key) {
       try {
-        FlinkKey encodedKey = (FlinkKey) keySelector.getKey(WindowedValue.valueInGlobalWindow(key));
+        FlinkKey encodedKey =
+            (FlinkKey) keySelector.getKey(WindowedValues.valueInGlobalWindow(key));
         return new SdfFlinkTimerInternals(encodedKey);
       } catch (Exception e) {
         throw new RuntimeException("Couldn't get a timer internals", e);
@@ -658,7 +660,8 @@ public class ExecutableStageDoFnOperator<InputT, OutputT>
     @Override
     public StateInternals stateInternalsForKey(InputT key) {
       try {
-        FlinkKey encodedKey = (FlinkKey) keySelector.getKey(WindowedValue.valueInGlobalWindow(key));
+        FlinkKey encodedKey =
+            (FlinkKey) keySelector.getKey(WindowedValues.valueInGlobalWindow(key));
         return new SdfFlinkStateInternals(encodedKey);
       } catch (Exception e) {
         throw new RuntimeException("Couldn't get a state internals", e);

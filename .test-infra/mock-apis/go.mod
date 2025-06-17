@@ -21,7 +21,7 @@
 module github.com/apache/beam/test-infra/mock-apis
 
 go 1.21
-toolchain go1.24.1
+toolchain go1.24.4
 
 require (
 	cloud.google.com/go/logging v1.8.1

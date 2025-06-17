@@ -113,6 +113,16 @@ class _SharedCache:
       return self._cache[key].obj
 
 
+class JavaHelper:
+  @classmethod
+  def get_java(cls):
+    java_path = 'java'
+    java_home = os.environ.get('JAVA_HOME')
+    if java_home:
+      java_path = os.path.join(java_home, 'bin', 'java')
+    return java_path
+
+
 class SubprocessServer(object):
   """An abstract base class for running GRPC Servers as an external process.
 
@@ -274,11 +284,7 @@ class JavaJarServer(SubprocessServer):
       java_arguments,
       classpath=None,
       cache_dir=None):
-    java_path = 'java'
-    java_home = os.environ.get('JAVA_HOME')
-    if java_home:
-      java_path = os.path.join(java_home, 'bin', 'java')
-    self._java_path = java_path
+    self._java_path = JavaHelper.get_java()
     if classpath:
       # java -jar ignores the classpath, so we make a new jar that embeds
       # the requested classpath.

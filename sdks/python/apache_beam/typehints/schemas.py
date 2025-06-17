@@ -335,7 +335,10 @@ class SchemaTranslation(object):
           array_type=schema_pb2.ArrayType(element_type=element_type))
 
     try:
-      logical_type = LogicalType.from_typing(type_)
+      if LogicalType.is_known_logical_type(type_):
+        logical_type = type_
+      else:
+        logical_type = LogicalType.from_typing(type_)
     except ValueError:
       # Unknown type, just treat it like Any
       return schema_pb2.FieldType(
@@ -538,6 +541,10 @@ class SchemaTranslation(object):
         return LogicalType.from_runner_api(
             fieldtype_proto.logical_type).language_type()
 
+    elif type_info == "iterable_type":
+      return Sequence[self.typing_from_runner_api(
+          fieldtype_proto.iterable_type.element_type)]
+
     else:
       raise ValueError(f"Unrecognized type_info: {type_info!r}")
 
@@ -665,7 +672,7 @@ class LogicalTypeRegistry(object):
   def get_logical_type_by_urn(self, urn):
     return self.by_urn.get(urn, None)
 
-  def get_urn_by_logial_type(self, logical_type):
+  def get_urn_by_logical_type(self, logical_type):
     return self.by_logical_type.get(logical_type, None)
 
   def get_logical_type_by_language_type(self, representation_type):
@@ -803,6 +810,11 @@ class LogicalType(Generic[LanguageT, RepresentationT, ArgT]):
             logical_type_proto.urn)
         return logical_type()
       return logical_type(argument)
+
+  @classmethod
+  def is_known_logical_type(cls, logical_type):
+    return cls._known_logical_types.get_urn_by_logical_type(
+        logical_type) is not None
 
 
 class NoArgumentLogicalType(LogicalType[LanguageT, RepresentationT, None]):

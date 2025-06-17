@@ -31,8 +31,9 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.Receiver;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -111,7 +112,7 @@ class AssignWindowsParDoFnFactory implements ParDoFnFactory {
               });
 
       WindowedValue<T> res =
-          WindowedValue.of(elem.getValue(), elem.getTimestamp(), windows, elem.getPane());
+          WindowedValues.of(elem.getValue(), elem.getTimestamp(), windows, elem.getPaneInfo());
       receiver.process(res);
     }
 

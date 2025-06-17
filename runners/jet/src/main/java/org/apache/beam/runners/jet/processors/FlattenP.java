@@ -27,7 +27,7 @@ import javax.annotation.Nonnull;
 import org.apache.beam.runners.jet.DAGBuilder;
 import org.apache.beam.runners.jet.Utils;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
 
 /** Jet {@link com.hazelcast.jet.core.Processor} implementation for Beam's Flatten primitive. */
 @SuppressWarnings({

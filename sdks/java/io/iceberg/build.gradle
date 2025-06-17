@@ -37,8 +37,11 @@ def hadoopVersions = [
 
 hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
 
+// we cannot upgrade this since the newer iceberg requires Java 11
+// many other modules like examples/expansion use Java 8 and have the iceberg dependency
+// def iceberg_version = "1.9.0"
 def iceberg_version = "1.6.1"
-def parquet_version = "1.15.1"
+def parquet_version = "1.15.2"
 def orc_version = "1.9.2"
 def hive_version = "3.1.3"
 
@@ -63,11 +66,11 @@ dependencies {
     permitUnusedDeclared "org.immutables:value:2.8.8"
     implementation library.java.vendored_calcite_1_28_0
     runtimeOnly "org.apache.iceberg:iceberg-gcp:$iceberg_version"
+    runtimeOnly library.java.bigdataoss_gcs_connector
+    runtimeOnly library.java.hadoop_client
 
     testImplementation project(":sdks:java:managed")
-    testImplementation library.java.hadoop_client
     testImplementation library.java.bigdataoss_gcsio
-    testImplementation library.java.bigdataoss_gcs_connector
     testImplementation library.java.bigdataoss_util_hadoop
     testImplementation "org.apache.parquet:parquet-avro:$parquet_version"
     testImplementation "org.apache.parquet:parquet-common:$parquet_version"
@@ -95,6 +98,7 @@ dependencies {
     testRuntimeOnly library.java.slf4j_jdk14
     testImplementation project(path: ":runners:direct-java", configuration: "shadow")
     testRuntimeOnly project(path: ":runners:google-cloud-dataflow-java")
+    testRuntimeOnly project(path: ":sdks:java:harness")
     hadoopVersions.each {kv ->
         "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-client:$kv.value"
         "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-minicluster:$kv.value"
@@ -159,13 +163,19 @@ task integrationTest(type: Test) {
 
 task dataflowIntegrationTest(type: Test) {
     group = "Verification"
+    evaluationDependsOn(":runners:google-cloud-dataflow-java")
+    dependsOn ":runners:google-cloud-dataflow-java:buildAndPushDockerJavaContainer"
+    finalizedBy ":runners:google-cloud-dataflow-java:cleanUpDockerJavaImages"
+    def dockerJavaImageName = project.project(':runners:google-cloud-dataflow-java').ext.dockerJavaImageName
+
     def args = [
             "--runner=DataflowRunner",
             "--region=us-central1",
             "--project=${gcpProject}",
             "--tempLocation=${gcpTempLocation}",
             "--tempRoot=${gcpTempLocation}",
-            "--experiments=use_runner_v2"
+            "--sdkContainerImage=${dockerJavaImageName}",
+            "--experiments=use_runner_v2,use_staged_dataflow_worker_jar"
     ]
     if (project.hasProperty('enableManagedTransforms')) {
         args.add("--experiments=enable_managed_transforms")

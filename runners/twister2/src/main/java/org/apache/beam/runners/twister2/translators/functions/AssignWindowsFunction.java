@@ -30,10 +30,11 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.Environments;
 import org.apache.beam.sdk.util.construction.SdkComponents;
 import org.apache.beam.sdk.util.construction.WindowingStrategyTranslation;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.InvalidProtocolBufferException;
 
 /** Assign Windows function. */
@@ -69,8 +70,8 @@ public class AssignWindowsFunction<T>
 
         for (BoundedWindow window : windows) {
           output.collect(
-              WindowedValue.of(
-                  element.getValue(), element.getTimestamp(), window, element.getPane()));
+              WindowedValues.of(
+                  element.getValue(), element.getTimestamp(), window, element.getPaneInfo()));
         }
       }
     } catch (Exception e) {
