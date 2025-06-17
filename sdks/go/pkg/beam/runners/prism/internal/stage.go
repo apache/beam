@@ -194,8 +194,7 @@ progress:
 		case resp = <-b.Resp:
 			bundleFinished = true
 			if b.BundleErr != nil {
-				// return b.BundleErr
-				panic("test")
+				return b.BundleErr
 			}
 			if dataFinished && bundleFinished {
 				break progress // exit progress loop on close.
@@ -211,7 +210,8 @@ progress:
 			if err != nil {
 				slog.Debug("SDK Error from progress, aborting progress", "bundle", rb, "error", err.Error())
 				// break progress
-				panic("test")
+				b.BundleErr = err
+				return err
 			}
 			index, unknownIDs := j.ContributeTentativeMetrics(resp)
 			if len(unknownIDs) > 0 {
@@ -228,7 +228,8 @@ progress:
 				if err != nil {
 					slog.Warn("SDK Error from split, aborting splits", "bundle", rb, "error", err.Error())
 					// break progress
-					panic("test")
+					b.BundleErr = err
+					return err
 				}
 				if sr.GetChannelSplits() == nil {
 					slog.Debug("SDK returned no splits", "bundle", rb)
