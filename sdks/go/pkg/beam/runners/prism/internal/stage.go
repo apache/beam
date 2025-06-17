@@ -208,7 +208,8 @@ progress:
 			ticked = true
 			resp, err := b.Progress(ctx, wk)
 			if err != nil {
-				slog.Debug("SDK Error from progress request, aborting progress update", "bundle", rb, "error", err.Error())
+				slog.Debug("SDK Error from progress request, aborting progress update and turning off future progress updates", "bundle", rb, "error", err.Error())
+				progTick.Stop()
 				continue progress
 			}
 			index, unknownIDs := j.ContributeTentativeMetrics(resp)
