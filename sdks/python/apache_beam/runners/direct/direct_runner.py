@@ -110,6 +110,10 @@ class SwitchingDirectRunner(PipelineRunner):
               if timer.time_domain == TimeDomain.REAL_TIME:
                 self.supported_by_fnapi_runner = False
 
+      def visit_value(self, value, producer_node):
+        if not value.is_bounded:
+          self.supported_by_fnapi_runner = False
+
     class _PrismRunnerSupportVisitor(PipelineVisitor):
       """Visitor determining if a Pipeline can be run on the PrismRunner."""
       def accept(self, pipeline):
