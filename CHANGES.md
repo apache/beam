@@ -32,6 +32,7 @@
 ## I/Os
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Add support for streaming writes in IOBase (Python)
 
 ## New Features / Improvements
 

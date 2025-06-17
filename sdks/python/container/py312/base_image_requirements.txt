@@ -102,13 +102,18 @@ joblib==1.5.1
 jsonpickle==3.4.2
 jsonschema==4.24.0
 jsonschema-specifications==2025.4.1
+kafka-python==2.2.11
 keyring==25.6.0
 keyrings.google-artifactregistry-auth==1.1.2
 MarkupSafe==3.0.2
 mmh3==5.1.0
 mock==5.2.0
 more-itertools==10.7.0
+<<<<<<< HEAD
 multidict==6.5.0
+=======
+multidict==6.4.4
+>>>>>>> upstream/master
 mysql-connector-python==9.3.0
 nltk==3.9.1
 numpy==2.2.6
@@ -139,7 +144,11 @@ pydantic_core==2.33.2
 pydot==1.4.2
 PyHamcrest==2.1.0
 PyJWT==2.9.0
+<<<<<<< HEAD
 pymongo==4.13.2
+=======
+pymongo==4.13.1
+>>>>>>> upstream/master
 PyMySQL==1.1.1
 pyparsing==3.2.3
 pyproject_hooks==1.2.0
@@ -147,7 +156,10 @@ pytest==7.4.4
 pytest-timeout==2.4.0
 pytest-xdist==3.7.0
 python-dateutil==2.9.0.post0
+<<<<<<< HEAD
 python-dotenv==1.1.0
+=======
+>>>>>>> upstream/master
 python-tds==1.16.1
 pytz==2025.2
 PyYAML==6.0.2

@@ -486,6 +486,7 @@ object TriggerExample {
 
         @ProcessElement
         @Throws(Exception::class)
+        @SuppressFBWarnings("DMI_RANDOM_USED_ONLY_ONCE")
         fun processElement(c: ProcessContext) {
             var timestamp = Instant.now()
             val random = Random()

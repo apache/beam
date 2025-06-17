@@ -17,6 +17,7 @@
  */
 package org.apache.beam.examples.subprocess.configuration;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Serializable;
 
 /**
@@ -24,6 +25,7 @@ import java.io.Serializable;
  * are copied from the Options to all them to be Serializable.
  */
 @SuppressWarnings({"serial", "nullness"}) // TODO(https://github.com/apache/beam/issues/20497)
+@SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE") // TODO(#35312)
 public class SubProcessConfiguration implements Serializable {
 
   // Source GCS directory where the C++ library is located gs://bucket/tests
