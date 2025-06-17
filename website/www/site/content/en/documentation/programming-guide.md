@@ -6630,19 +6630,19 @@ _ = (p | 'Read per user' >> ReadPerUser()
   private final StateSpec<MultimapState<String, Integer>> multimapState =
       StateSpecs.multimap(StringUtf8Coder.of(), VarIntCoder.of());
 
-@ProcessElement
-public void processElement(
-    ProcessContext c,
-    @Element KV<String, KV<String, Integer>> element,
-    @StateId(stateId) MultimapState<String, Integer> state,
-    @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
-    OutputReceiver<KV<String, Integer>> r) {
-  ReadableState<Boolean> isEmptyView = state.isEmpty();
-  boolean isEmpty = state.isEmpty().read();
+  @ProcessElement
+  public void processElement(
+      ProcessContext c,
+      @Element KV<String, KV<String, Integer>> element,
+      @StateId(stateId) MultimapState<String, Integer> state,
+      @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
+      OutputReceiver<KV<String, Integer>> r) {
+    ReadableState<Boolean> isEmptyView = state.isEmpty();
+    boolean isEmpty = state.isEmpty().read();
 
-  KV<String, Integer> value = element.getValue();
-  state.put(value.getKey(), value.getValue());
-}
+    KV<String, Integer> value = element.getValue();
+    state.put(value.getKey(), value.getValue());
+  }
 {{< /highlight >}}
 ### 11.2. Deferred state reads {#deferred-state-reads}
 
