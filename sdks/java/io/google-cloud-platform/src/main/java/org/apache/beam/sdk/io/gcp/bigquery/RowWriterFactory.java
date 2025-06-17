@@ -22,6 +22,7 @@ import com.google.api.services.bigquery.model.TableSchema;
 import java.io.Serializable;
 import org.apache.avro.Schema;
 import org.apache.avro.io.DatumWriter;
+import org.apache.beam.sdk.extensions.avro.io.AvroSink;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -43,7 +44,7 @@ abstract class RowWriterFactory<ElementT, DestinationT> implements Serializable 
   static <ElementT, DestinationT> RowWriterFactory<ElementT, DestinationT> tableRows(
       SerializableFunction<ElementT, TableRow> toRow,
       SerializableFunction<ElementT, TableRow> toFailsafeRow) {
-    return new TableRowWriterFactory<ElementT, DestinationT>(toRow, toFailsafeRow);
+    return new TableRowWriterFactory<>(toRow, toFailsafeRow);
   }
 
   static final class TableRowWriterFactory<ElementT, DestinationT>
@@ -91,20 +92,20 @@ abstract class RowWriterFactory<ElementT, DestinationT> implements Serializable 
       AvroRowWriterFactory<ElementT, AvroT, DestinationT> avroRecords(
           SerializableFunction<AvroWriteRequest<ElementT>, AvroT> toAvro,
           SerializableFunction<Schema, DatumWriter<AvroT>> writerFactory) {
-    return new AvroRowWriterFactory<>(toAvro, writerFactory, null, null);
+    return new AvroRowWriterFactory<>(toAvro, writerFactory::apply, null, null);
   }
 
   static final class AvroRowWriterFactory<ElementT, AvroT, DestinationT>
       extends RowWriterFactory<ElementT, DestinationT> {
 
     private final SerializableFunction<AvroWriteRequest<ElementT>, AvroT> toAvro;
-    private final SerializableFunction<Schema, DatumWriter<AvroT>> writerFactory;
+    private final AvroSink.DatumWriterFactory<AvroT> writerFactory;
     private final @Nullable SerializableFunction<@Nullable TableSchema, Schema> schemaFactory;
     private final @Nullable DynamicDestinations<?, DestinationT> dynamicDestinations;
 
     private AvroRowWriterFactory(
         SerializableFunction<AvroWriteRequest<ElementT>, AvroT> toAvro,
-        SerializableFunction<Schema, DatumWriter<AvroT>> writerFactory,
+        AvroSink.DatumWriterFactory<AvroT> writerFactory,
         @Nullable SerializableFunction<@Nullable TableSchema, Schema> schemaFactory,
         @Nullable DynamicDestinations<?, DestinationT> dynamicDestinations) {
       this.toAvro = toAvro;
