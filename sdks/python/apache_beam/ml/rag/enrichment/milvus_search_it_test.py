@@ -16,15 +16,14 @@
 #
 
 import logging
+import platform
+import unittest
 from dataclasses import dataclass
-from testcontainers.core.generic import DbContainer
-from testcontainers.milvus import MilvusContainer
 from typing import Optional
 
-import unittest
 import pytest
-
-from pymilvus.milvus_client import IndexParams
+from testcontainers.core.generic import DbContainer
+from testcontainers.milvus import MilvusContainer
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -87,6 +86,13 @@ class MilvusEnrichmentTestHelper:
 
 
 @pytest.mark.uses_testcontainer
+@unittest.skipUnless(
+    platform.system() == "Linux",
+    "Test runs only on Linux due to lack of support, as yet, for nested "
+    "virtualization in CI environments on Windows/macOS. Many CI providers run "
+    "tests in virtualized environments, and nested virtualization "
+    "(Docker inside a VM) is either unavailable or has several issues on "
+    "non-Linux platforms.")
 class TestMilvusSearchEnrichment(unittest.TestCase):
   """Tests for search functionality across all search strategies"""
 
