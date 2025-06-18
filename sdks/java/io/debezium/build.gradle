@@ -24,7 +24,6 @@ applyJavaNature(
                 [id: 'io.confluent', url: 'https://packages.confluent.io/maven/']
         ],
         enableSpotbugs: false,
-        requireJavaVersion: JavaVersion.VERSION_17,
 )
 provideIntegrationTestingDependencies()
 
