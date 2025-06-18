@@ -15,13 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.meta.provider.iceberg;
+package org.apache.beam.sdk.io.iceberg;
 
-import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
-
-public class IcebergMetastore extends InMemoryMetaStore {
-  @Override
-  public boolean supportsPartitioning() {
-    return true;
+public class TableAlreadyExistsException extends RuntimeException {
+  public TableAlreadyExistsException(Throwable cause) {
+    super(cause);
   }
 }

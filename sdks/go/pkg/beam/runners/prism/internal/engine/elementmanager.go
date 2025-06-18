@@ -161,6 +161,8 @@ type Config struct {
 	// MaxBundleSize caps the number of elements permitted in a bundle.
 	// 0 or less means this is ignored.
 	MaxBundleSize int
+	// Whether to use real-time clock as processing time
+	EnableRTC bool
 }
 
 // ElementManager handles elements, watermarks, and related errata to determine
@@ -2160,8 +2162,10 @@ func (em *ElementManager) ProcessingTimeNow() (ret mtime.Time) {
 	}
 
 	// "Test" mode -> advance to next processing time event if any, to allow execution.
-	if t, ok := em.processTimeEvents.Peek(); ok {
-		return t
+	if !em.config.EnableRTC {
+		if t, ok := em.processTimeEvents.Peek(); ok {
+			return t
+		}
 	}
 
 	// "Production" mode, always real time now.
