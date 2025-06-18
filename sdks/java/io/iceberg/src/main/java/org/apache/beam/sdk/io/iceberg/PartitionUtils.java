@@ -24,13 +24,12 @@ import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-@Internal
-public class PartitionUtils {
+class PartitionUtils {
   private static final Pattern HOUR = Pattern.compile("^hour\\(([a-zA-Z0-9_-]+)\\)$");
   private static final Pattern DAY = Pattern.compile("^day\\(([a-zA-Z0-9_-]+)\\)$");
   private static final Pattern MONTH = Pattern.compile("^month\\(([a-zA-Z0-9_-]+)\\)$");
@@ -64,8 +63,11 @@ public class PartitionUtils {
               IDENTITY,
                   (builder, matcher) -> builder.identity(checkStateNotNull(matcher.group(1))));
 
-  public static PartitionSpec toPartitionSpec(
-      List<String> fields, org.apache.beam.sdk.schemas.Schema beamSchema) {
+  static PartitionSpec toPartitionSpec(
+      @Nullable List<String> fields, org.apache.beam.sdk.schemas.Schema beamSchema) {
+    if (fields == null) {
+      return PartitionSpec.unpartitioned();
+    }
     Schema schema = IcebergUtils.beamSchemaToIcebergSchema(beamSchema);
     PartitionSpec.Builder builder = PartitionSpec.builderFor(schema);
 

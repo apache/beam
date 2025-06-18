@@ -87,10 +87,7 @@ public abstract class IcebergCatalogConfig implements Serializable {
       String tableIdentifier, Schema tableSchema, @Nullable List<String> partitionFields) {
     TableIdentifier icebergIdentifier = TableIdentifier.parse(tableIdentifier);
     org.apache.iceberg.Schema icebergSchema = IcebergUtils.beamSchemaToIcebergSchema(tableSchema);
-    PartitionSpec icebergSpec =
-        partitionFields != null
-            ? PartitionUtils.toPartitionSpec(partitionFields, tableSchema)
-            : PartitionSpec.unpartitioned();
+    PartitionSpec icebergSpec = PartitionUtils.toPartitionSpec(partitionFields, tableSchema);
     try {
       catalog().createTable(icebergIdentifier, icebergSchema, icebergSpec);
       LOG.info(
