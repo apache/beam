@@ -123,6 +123,9 @@ public class BeamCalciteSchema implements Schema {
   public org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Table getTable(
       String name) {
     Table table = resolveMetastore().getTable(name);
+    System.out.printf(
+        "xxx getting table %s from metastore %s: %s%n",
+        name, resolveMetastore().getTableType(), resolveMetastore().getTable(name));
     if (table == null) {
       return null;
     }

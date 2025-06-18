@@ -32,10 +32,10 @@ import org.apache.beam.vendor.calcite.v1_28_0.com.fasterxml.jackson.databind.Obj
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Test;
 
-/** UnitTest for {@link IcebergMetastore}. */
-public class IcebergMetastoreTest {
-  private final IcebergMetastore metastore =
-      new IcebergMetastore(
+/** UnitTest for {@link IcebergTableProvider}. */
+public class IcebergTableProviderTest {
+  private final IcebergTableProvider provider =
+      new IcebergTableProvider(
           "test_catalog",
           ImmutableMap.of(
               "catalog-impl", "org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog",
@@ -46,7 +46,7 @@ public class IcebergMetastoreTest {
 
   @Test
   public void testGetTableType() {
-    assertEquals("iceberg", metastore.getTableType());
+    assertEquals("iceberg", provider.getTableType());
   }
 
   @Test
@@ -59,14 +59,14 @@ public class IcebergMetastoreTest {
         fakeTableBuilder("my_table")
             .properties(TableUtils.parseProperties(propertiesString))
             .build();
-    BeamSqlTable sqlTable = metastore.buildBeamSqlTable(table);
+    BeamSqlTable sqlTable = provider.buildBeamSqlTable(table);
 
     assertNotNull(sqlTable);
     assertTrue(sqlTable instanceof IcebergTable);
 
     IcebergTable icebergTable = (IcebergTable) sqlTable;
     assertEquals("namespace.my_table", icebergTable.tableIdentifier);
-    assertEquals(metastore.catalogConfig, icebergTable.catalogConfig);
+    assertEquals(provider.catalogConfig, icebergTable.catalogConfig);
   }
 
   private static Table.Builder fakeTableBuilder(String name) {

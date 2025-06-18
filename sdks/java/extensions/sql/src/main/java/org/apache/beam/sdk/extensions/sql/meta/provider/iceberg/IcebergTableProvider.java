@@ -25,7 +25,6 @@ import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
-import org.apache.beam.sdk.extensions.sql.meta.store.MetaStore;
 import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig;
 import org.apache.beam.sdk.io.iceberg.TableAlreadyExistsException;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -33,15 +32,19 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class IcebergMetastore implements MetaStore {
-  private static final Logger LOG = LoggerFactory.getLogger(IcebergMetastore.class);
+/**
+ * A table provider for Iceberg tables. CREATE and DROP operations are performed on real external
+ * tables.
+ */
+public class IcebergTableProvider implements TableProvider {
+  private static final Logger LOG = LoggerFactory.getLogger(IcebergTableProvider.class);
   // TODO(ahmedabu98): extend this to the IO implementation so
   //  other SDKs can make use of it too
   private static final String BEAM_HADOOP_PREFIX = "beam.catalog.hadoop";
-  private static final Map<String, Table> tablesMap = new HashMap<>();
   @VisibleForTesting final IcebergCatalogConfig catalogConfig;
+  private final Map<String, Table> tables = new HashMap<>();
 
-  public IcebergMetastore(String name, Map<String, String> properties) {
+  public IcebergTableProvider(String name, Map<String, String> properties) {
     ImmutableMap.Builder<String, String> catalogProps = ImmutableMap.builder();
     ImmutableMap.Builder<String, String> hadoopProps = ImmutableMap.builder();
 
@@ -77,7 +80,7 @@ public class IcebergMetastore implements MetaStore {
           table.getName(),
           table.getLocation());
     }
-    tablesMap.put(table.getName(), table);
+    tables.put(table.getName(), table);
   }
 
   @Override
@@ -93,12 +96,12 @@ public class IcebergMetastore implements MetaStore {
           tableName,
           location);
     }
-    tablesMap.remove(tableName);
+    tables.remove(tableName);
   }
 
   @Override
   public Map<String, Table> getTables() {
-    return tablesMap;
+    return tables;
   }
 
   @Override
@@ -107,12 +110,7 @@ public class IcebergMetastore implements MetaStore {
   }
 
   @Override
-  public boolean supportsPartitioning() {
+  public boolean supportsPartitioning(Table table) {
     return true;
-  }
-
-  @Override
-  public void registerProvider(TableProvider provider) {
-    // No-op
   }
 }

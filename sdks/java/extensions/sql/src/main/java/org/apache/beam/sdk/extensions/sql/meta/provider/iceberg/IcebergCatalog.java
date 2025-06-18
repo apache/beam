@@ -19,18 +19,18 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.iceberg;
 
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.InMemoryCatalog;
-import org.apache.beam.sdk.extensions.sql.meta.store.MetaStore;
+import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 
 public class IcebergCatalog extends InMemoryCatalog {
-  private final IcebergMetastore metaStore;
+  private final InMemoryMetaStore metaStore = new InMemoryMetaStore();
 
   public IcebergCatalog(String name, Map<String, String> properties) {
     super(name, properties);
-    metaStore = new IcebergMetastore(name, properties);
+    metaStore.registerProvider(new IcebergTableProvider(name, properties));
   }
 
   @Override
-  public MetaStore metaStore() {
+  public InMemoryMetaStore metaStore() {
     return metaStore;
   }
 
