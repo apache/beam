@@ -18,7 +18,16 @@
 
 import groovy.json.JsonOutput
 
-plugins { id 'org.apache.beam.module' }
+plugins {
+  id 'org.apache.beam.module'
+  id 'com.google.protobuf'
+}
+
+repositories {
+  mavenCentral()
+  mavenLocal()
+}
+
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.sdk.io.gcp',
   enableSpotbugs: false,
@@ -144,6 +153,9 @@ dependencies {
   implementation 'com.google.http-client:google-http-client-gson:1.41.2'
   implementation "org.threeten:threetenbp:1.4.4"
 
+  implementation 'com.google.protobuf:protobuf-java:4.31.0'
+  implementation 'com.google.protobuf:protobuf-java-util:4.31.0'
+
   testImplementation library.java.arrow_memory_netty
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation project(path: ":sdks:java:extensions:avro", configuration: "testRuntimeMigration")
@@ -164,6 +176,12 @@ dependencies {
   // everit_json is needed for PubsubLite SchemaTransform tests that rely on JSON-schema translation.
   permitUnusedDeclared library.java.everit_json_schema
   provided library.java.everit_json_schema
+}
+
+protobuf {
+  protoc {
+    artifact = "com.google.protobuf:protoc:4.31.0"
+  }
 }
 
 // Don't pull in newer versions of the checker framework from dependencies.
