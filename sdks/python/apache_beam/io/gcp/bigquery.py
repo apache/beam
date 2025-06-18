@@ -485,8 +485,6 @@ Note: The actual limit is 10MB, but we set it to 9MB to make room for request
 overhead: https://cloud.google.com/bigquery/quotas#streaming_inserts
 """
 MAX_INSERT_PAYLOAD_SIZE = 9 << 20
-# one day as the default
-_DEFAULT_READ_TIMEOUT_SECONDS = 86400.0
 
 
 @deprecated(since='2.11.0', current="bigquery_tools.parse_table_reference")
@@ -990,7 +988,7 @@ class _CustomBigQueryStorageSource(BoundedSource):
       temp_dataset: Optional[DatasetReference] = None,
       temp_table: Optional[TableReference] = None,
       use_native_datetime: Optional[bool] = False,
-      timeout: Optional[float] = _DEFAULT_READ_TIMEOUT_SECONDS):
+      timeout: Optional[float] = None):
 
     if table is not None and query is not None:
       raise ValueError(
@@ -1252,7 +1250,7 @@ class _CustomBigQueryStorageStreamSource(BoundedSource):
       self,
       read_stream_name: str,
       use_native_datetime: Optional[bool] = True,
-      timeout: Optional[float] = _DEFAULT_READ_TIMEOUT_SECONDS):
+      timeout: Optional[float] = None):
     self.read_stream_name = read_stream_name
     self.use_native_datetime = use_native_datetime
     self.timeout = timeout
@@ -1315,11 +1313,12 @@ class _CustomBigQueryStorageStreamSource(BoundedSource):
   def read_arrow(self):
 
     storage_client = bq_storage.BigQueryReadClient()
+    read_rows_kwargs = {'retry_delay_callback': self.retry_delay_callback}
+    if self.timeout is not None:
+      read_rows_kwargs['timeout'] = self.timeout
     row_iter = iter(
-        storage_client.read_rows(
-            self.read_stream_name,
-            retry_delay_callback=self.retry_delay_callback,
-            timeout=self.timeout).rows())
+        storage_client.read_rows(self.read_stream_name,
+                                 **read_rows_kwargs).rows())
     row = next(row_iter, None)
     # Handling the case where the user might provide very selective filters
     # which can result in read_rows_response being empty.
@@ -1333,11 +1332,11 @@ class _CustomBigQueryStorageStreamSource(BoundedSource):
 
   def read_avro(self):
     storage_client = bq_storage.BigQueryReadClient()
+    read_rows_kwargs = {'retry_delay_callback': self.retry_delay_callback}
+    if self.timeout is not None:
+      read_rows_kwargs['timeout'] = self.timeout
     read_rows_iterator = iter(
-        storage_client.read_rows(
-            self.read_stream_name,
-            retry_delay_callback=self.retry_delay_callback,
-            timeout=self.timeout))
+        storage_client.read_rows(self.read_stream_name, **read_rows_kwargs))
     # Handling the case where the user might provide very selective filters
     # which can result in read_rows_response being empty.
     first_read_rows_response = next(read_rows_iterator, None)
@@ -2742,7 +2741,8 @@ class ReadFromBigQuery(PTransform):
       directly from BigQuery storage using the BigQuery Read API
       (https://cloud.google.com/bigquery/docs/reference/storage). If
       unspecified, the default is currently EXPORT.
-    timeout (float): The timeout for the read operation in seconds.
+    timeout (float): The timeout for the read operation in seconds. This only
+      impacts DIRECT_READ. If None, the client default will be used.
     use_native_datetime (bool): By default this transform exports BigQuery
       DATETIME fields as formatted strings (for example:
       2021-01-01T12:59:59). If :data:`True`, BigQuery DATETIME fields will
