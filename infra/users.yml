@@ -8,20 +8,32 @@
 #     description: <description> (optional)
 #     expiry_date: <expiry_date> (optional, format: YYYY-MM-DD)
 #   - role: <role> (optional, for multiple roles)
+# The roles are defined in the GCP project `apache-beam-testing` under the `roles` directory.
+#
+# Roles are:
+# - Beam Viewer -> GCP Viewer permissions based on the services used by Beam and excluding secretmanager permissions.
+# - Beam Committer -> GCP Viewer permissions based on the services used by Beam and excluding secretmanager permissions. Its like Beam Viewer but for people actively contributing code.
+# - Beam Infra Manager -> GCP Editor permissions based on the services used by Beam Administrators without destructive permissions.
+# - Beam Admin -> Permissions similar to GCP Editor based on the services used by Beam, but with destructive capabilities and secrets access.
+# - Beam Owner -> This is currently a placeholder; use the GCP Owner role directly if needed.
+
 
 ---
 - username: WhatWouldAustinDo
   email: WhatWouldAustinDo@gmail.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: aaronleeiv
   email: aaronleeiv@google.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: abbymotley
   email: abbymotley@google.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: ahmedabualsaud
   email: ahmedabualsaud@google.com
   permissions:
@@ -30,18 +42,24 @@
   email: akarys.akvelon@gmail.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_admin
+  - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: aleksandr.dudko
   email: aleksandr.dudko@akvelon.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_admin
+  - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: alex.kosolapov
   email: alex.kosolapov@akvelon.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: alexey.inkin
   email: alexey.inkin@akvelon.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: altay
   email: altay@google.com
   permissions:
@@ -50,10 +68,12 @@
   email: anandinguva@google.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: andres.vervaecke
   email: andres.vervaecke@ml6.eu
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: andrey.devyatkin
   email: andrey.devyatkin@akvelon.com
   permissions:
@@ -62,10 +82,12 @@
   email: anikin@google.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: arne.vandendorpe
   email: arne.vandendorpe@ml6.eu
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: aroraarnav
   email: aroraarnav@google.com
   permissions:
@@ -78,10 +100,12 @@
   email: bjornpedersen@google.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: bvolpato
   email: bvolpato@google.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: byronellis
   email: byronellis@google.com
   permissions:
@@ -90,6 +114,7 @@
   email: ccychenzo@gmail.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: chamikara
   email: chamikara@google.com
   permissions:
@@ -98,10 +123,12 @@
   email: cloud-data-workflow-dev@prod.google.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: cvandermerwe
   email: cvandermerwe@google.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: damondouglas
   email: damondouglas@google.com
   permissions:
@@ -122,14 +149,18 @@
   email: derrickaw@google.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: dippatel
   email: dippatel@google.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_admin
+  - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: dippatel
   email: dippatel@prod.google.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: djagaluru
   email: djagaluru@google.com
   permissions:
@@ -138,6 +169,8 @@
   email: djerek.vlado6@gmail.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_admin
+  - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: dpcollins
   email: dpcollins@google.com
   permissions:
@@ -146,6 +179,7 @@
   email: ellading@google.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: enriquecaol04
   email: enriquecaol04@gmail.com
   permissions:
@@ -158,14 +192,17 @@
   email: francisohara@google.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: giomar.osorio
   email: giomar.osorio@wizeline.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: harrisonlim
   email: harrisonlim@google.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: hejia
   email: hejia@google.com
   permissions:
@@ -174,14 +211,17 @@
   email: jasper.van.den.bossche@ml6.eu
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: jeffreylwang
   email: jeffreylwang@google.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: jkinard
   email: jkinard@google.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: johnjcasey
   email: johnjcasey@google.com
   permissions:
@@ -190,6 +230,7 @@
   email: joseinigo@google.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: jrmccluskey
   email: jrmccluskey@google.com
   permissions:
@@ -198,6 +239,8 @@
   email: k.loyola.gutierrez@akvelon.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_admin
+  - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: kenn
   email: kenn@apache.org
   permissions:
@@ -218,6 +261,7 @@
   email: lahariguduru@google.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: limatthew
   email: limatthew@google.com
   permissions:
@@ -226,26 +270,33 @@
   email: maggiejz@google.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: manavgarg
   email: manavgarg@google.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: meetsea
   email: meetsea@google.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: naireenhussain
   email: naireenhussain@google.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: nickllx
   email: nickllx@google.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: oleg.borisevich
   email: oleg.borisevich@akvelon.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_admin
+  - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: pabloem
   email: pabloem@google.com
   permissions:
@@ -254,22 +305,28 @@
   email: pandey.ayu@gmail.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: pandiana
   email: pandiana@google.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: pieter.coussement
   email: pieter.coussement@ml6.eu
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: polecito.em
   email: polecito.em@gmail.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: pranavbhandari
   email: pranavbhandari@google.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_admin
+  - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: rajkumargupta
   email: rajkumargupta@google.com
   permissions:
@@ -278,10 +335,13 @@
   email: rebo@google.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: reebaq212
   email: reebaq212@gmail.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_admin
+  - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: relax
   email: relax@google.com
   permissions:
@@ -290,6 +350,8 @@
   email: rezarokni@google.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_admin
+  - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: riteshghorse
   email: riteshghorse@google.com
   permissions:
@@ -298,6 +360,7 @@
   email: robbe.sneyders@ml6.eu
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: robertwb
   email: robertwb@google.com
   permissions:
@@ -306,30 +369,39 @@
   email: rosinha@google.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: ruilongjiang
   email: ruilongjiang@google.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: ruslan.shamunov
   email: ruslan.shamunov@akvelon.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_admin
+  - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: ryanmadden
   email: ryanmadden@google.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: saadatssu
   email: saadatssu@gmail.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: samuelw
   email: samuelw@google.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: sergey.makarkin
   email: sergey.makarkin@akvelon.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_admin
+  - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: shunping
   email: shunping@google.com
   permissions:
@@ -338,18 +410,22 @@
   email: siyuez@google.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: skp
   email: skp@google.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: sniemitz
   email: sniemitz@google.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: svetaksundhar
   email: svetaksundhar@google.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: talatu
   email: talatu@google.com
   permissions:
@@ -358,10 +434,12 @@
   email: tanusharmaa@google.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: timur.sultanov.akvelon
   email: timur.sultanov.akvelon@gmail.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: valentyn
   email: valentyn@google.com
   permissions:
@@ -370,10 +448,13 @@
   email: vitaly.terentyev.akv@gmail.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_admin
+  - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: vladislav.chunikhin
   email: vladislav.chunikhin@akvelon.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: vlado.djerek
   email: vlado.djerek@akvelon.com
   permissions:
@@ -390,11 +471,14 @@
   email: ylabur@google.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: yyingwang
   email: yyingwang@google.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
 - username: zhoufek
   email: zhoufek@google.com
   permissions:
   - role: projects/apache-beam-testing/roles/beam_infra_manager
+  - role: projects/apache-beam-testing/roles/beam_viewer
