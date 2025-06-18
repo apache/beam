@@ -189,9 +189,9 @@ class FnApiWorkerStatusHandler(object):
         self._status_channel)
     self._responses = queue.Queue()
     self.log_lull_timeout_ns = log_lull_timeout_ns
-    if options and options.view_as(WorkerOptions).ptransform_timeout_duration:
+    if options and options.view_as(WorkerOptions).element_processing_timeout:
       self._restart_lull_timeout_ns = max(
-          options.view_as(WorkerOptions).ptransform_timeout_duration * 60* 1e9,
+          options.view_as(WorkerOptions).element_processing_timeout * 60* 1e9,
           restart_lull_timeout_ns,
           )
     else:

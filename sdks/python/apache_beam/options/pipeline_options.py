@@ -1382,7 +1382,7 @@ class WorkerOptions(PipelineOptions):
             'the runner. Depending on the runner, there may be more than one '
             'SDK Harness process running on the same worker node.'))
     parser.add_argument(
-        '--ptransform_timeout_duration',
+        '--element_processing_timeout',
         type=int,
         default=None,
         help=(
