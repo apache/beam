@@ -27,6 +27,7 @@ import java.util.regex.Pattern;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 class PartitionUtils {
   private static final Pattern HOUR = Pattern.compile("^hour\\(([a-zA-Z0-9_-]+)\\)$");
@@ -63,7 +64,10 @@ class PartitionUtils {
                   (builder, matcher) -> builder.identity(checkStateNotNull(matcher.group(1))));
 
   static PartitionSpec toPartitionSpec(
-      List<String> fields, org.apache.beam.sdk.schemas.Schema beamSchema) {
+      @Nullable List<String> fields, org.apache.beam.sdk.schemas.Schema beamSchema) {
+    if (fields == null) {
+      return PartitionSpec.unpartitioned();
+    }
     Schema schema = IcebergUtils.beamSchemaToIcebergSchema(beamSchema);
     PartitionSpec.Builder builder = PartitionSpec.builderFor(schema);
 
