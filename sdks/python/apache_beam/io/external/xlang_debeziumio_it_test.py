@@ -74,7 +74,6 @@ class CrossLanguageDebeziumIOTest(unittest.TestCase):
     self.connection_properties = [
         "database.dbname=inventory",
         "database.server.name=dbserver1",
-        "database.include.list=inventory",
         "include.schema.changes=false"
     ]
 

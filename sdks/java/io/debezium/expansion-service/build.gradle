@@ -46,3 +46,13 @@ dependencies {
     runtimeOnly group: 'io.debezium', name: 'debezium-connector-oracle', version: debezium_version
     runtimeOnly group: 'io.debezium', name: 'debezium-connector-db2', version: debezium_version
 }
+
+configurations.named("runtimeClasspath") {
+    resolutionStrategy.force (
+        'com.fasterxml.jackson.core:jackson-core:2.17.1',
+        'com.fasterxml.jackson.core:jackson-annotations:2.17.1',
+        'com.fasterxml.jackson.core:jackson-databind:2.17.1',
+        'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.17.1',
+        'com.fasterxml.jackson.module:jackson-module-afterburner:2.17.1'
+    )
+}
