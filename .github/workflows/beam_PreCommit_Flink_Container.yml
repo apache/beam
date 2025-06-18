@@ -125,7 +125,7 @@ jobs:
             -PpythonVersion=${{ env.PYTHON_VERSION }} \
             -Pdocker-repository-root=${{ env.DOCKER_REPOSITORY_ROOT }} \
             -Pdocker-tag=${{ env.PYTHON_SDK_IMAGE_TAG }} \
-            -PuseBuildx \
+            -PuseDockerBuildx \
             -Ppush-containers
       - name: Prepare test arguments
         uses: ./.github/actions/test-arguments-action
