@@ -124,6 +124,7 @@ public class WordCount {
       stream.forEach(
           word -> {
             if (!word.isEmpty()) {
+              // Output each word encountered into the output PCollection.
               receiver.output(word);
             }
           });
