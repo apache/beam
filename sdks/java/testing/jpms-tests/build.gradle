@@ -26,6 +26,7 @@ applyJavaNature(
   exportJavadoc: false,
   publish: false,
   disableLintWarnings: ['requires-transitive-automatic', 'requires-automatic'],
+  enableSpotbugs: false,
   requireJavaVersion: JavaVersion.VERSION_11
 )
 provideIntegrationTestingDependencies()

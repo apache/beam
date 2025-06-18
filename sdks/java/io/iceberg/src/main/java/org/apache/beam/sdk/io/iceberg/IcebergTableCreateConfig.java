@@ -18,8 +18,10 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import com.google.auto.value.AutoValue;
+import java.util.List;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.iceberg.PartitionSpec;
-import org.apache.iceberg.Schema;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
 
 @AutoValue
@@ -31,10 +33,15 @@ public abstract class IcebergTableCreateConfig {
 
   /** Partition spec destination, in the event that it must be dynamically created. */
   @Pure
-  public abstract PartitionSpec getPartitionSpec();
+  public PartitionSpec getPartitionSpec() {
+    return PartitionUtils.toPartitionSpec(getPartitionFields(), getSchema());
+  }
 
   @Pure
-  public Builder builder() {
+  public abstract @Nullable List<String> getPartitionFields();
+
+  @Pure
+  public static Builder builder() {
     return new AutoValue_IcebergTableCreateConfig.Builder();
   }
 
@@ -42,7 +49,7 @@ public abstract class IcebergTableCreateConfig {
   public abstract static class Builder {
     public abstract Builder setSchema(Schema schema);
 
-    public abstract Builder setPartitionSpec(PartitionSpec partitionSpec);
+    public abstract Builder setPartitionFields(@Nullable List<String> partitionFields);
 
     @Pure
     public abstract IcebergTableCreateConfig build();

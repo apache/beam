@@ -25,9 +25,12 @@ data: {
         "org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlCreate"
         "org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlDrop"
         "org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.type.SqlTypeName"
+        "org.apache.beam.sdk.extensions.sql.impl.parser.SqlCreateCatalog"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlCreateExternalTable"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlCreateFunction"
+        "org.apache.beam.sdk.extensions.sql.impl.parser.SqlDropCatalog"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlDdlNodes"
+        "org.apache.beam.sdk.extensions.sql.impl.parser.SqlUseCatalog"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlSetOptionBeam"
         "org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils"
         "org.apache.beam.sdk.schemas.Schema"
@@ -41,6 +44,9 @@ data: {
         "JAR"
         "LOCATION"
         "TBLPROPERTIES"
+        "PROPERTIES"
+        "PARTITIONED"
+        "USE"
       ]
 
       # List of keywords from "keywords" section that are not reserved.
@@ -364,6 +370,9 @@ data: {
         "JAR"
         "LOCATION"
         "TBLPROPERTIES"
+        "PROPERTIES"
+        "PARTITIONED"
+        "USE"
       ]
 
       # List of non-reserved keywords to add;
@@ -385,6 +394,7 @@ data: {
       # Return type of method implementation should be 'SqlNode'.
       # Example: SqlShowDatabases(), SqlShowTables().
       statementParserMethods: [
+        "SqlUseCatalog(Span.of(), null)"
         "SqlSetOptionBeam(Span.of(), null)"
       ]
 
@@ -416,6 +426,7 @@ data: {
       # List of methods for parsing extensions to "CREATE [OR REPLACE]" calls.
       # Each must accept arguments "(SqlParserPos pos, boolean replace)".
       createStatementParserMethods: [
+        "SqlCreateCatalog"
         "SqlCreateExternalTable"
         "SqlCreateFunction"
         "SqlCreateTableNotSupportedMessage"
@@ -425,6 +436,7 @@ data: {
       # Each must accept arguments "(SqlParserPos pos)".
       dropStatementParserMethods: [
         "SqlDropTable"
+        "SqlDropCatalog"
       ]
 
       # Binary operators tokens

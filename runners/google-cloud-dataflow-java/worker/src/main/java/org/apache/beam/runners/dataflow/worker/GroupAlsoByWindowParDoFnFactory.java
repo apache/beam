@@ -193,7 +193,6 @@ class GroupAlsoByWindowParDoFnFactory implements ParDoFnFactory {
           ((AppliedCombineFn) maybeMergingCombineFn).getSideInputViews(),
           gabwInputCoder,
           sideInputReader,
-          mainOutputTag,
           executionContext.getStepContext(operationContext));
     } else {
       return new GroupAlsoByWindowsParDoFn(
@@ -203,7 +202,6 @@ class GroupAlsoByWindowParDoFnFactory implements ParDoFnFactory {
           null,
           gabwInputCoder,
           sideInputReader,
-          mainOutputTag,
           executionContext.getStepContext(operationContext));
     }
   }

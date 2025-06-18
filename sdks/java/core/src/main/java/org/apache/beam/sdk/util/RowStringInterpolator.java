@@ -129,7 +129,7 @@ public class RowStringInterpolator implements Serializable {
           val = element.getWindow().toString();
           break;
         case PANE_INDEX:
-          val = element.getPane().getIndex();
+          val = element.getPaneInfo().getIndex();
           break;
         case YYYY:
           val = timestamp.getChronology().year().get(timestamp.getMillis());
