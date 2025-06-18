@@ -46,7 +46,7 @@ class MilvusEnrichmentTestHelper:
   @staticmethod
   def start_milvus_search_db_container(
       image="milvusdb/milvus:v2.5.10",
-      vector_client_retries=3) -> MilvusSearchDBContainerInfo:
+      vector_client_retries=3) -> Optional[MilvusSearchDBContainerInfo]:
     info = None
     for i in range(vector_client_retries):
       try:
