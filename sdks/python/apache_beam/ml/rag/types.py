@@ -71,3 +71,11 @@ class Chunk:
   index: int = 0
   metadata: Dict[str, Any] = field(default_factory=dict)
   embedding: Optional[Embedding] = None
+
+  @property
+  def dense_embedding(self):
+    return self.embedding.dense_embedding if self.embedding else None
+
+  @property
+  def sparse_embedding(self):
+    return self.embedding.sparse_embedding if self.embedding else None

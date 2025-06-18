@@ -472,20 +472,18 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
     return reqs
 
   def _get_vector_search_data(self, chunk: Chunk):
-    dense_vector_found = chunk.embedding and chunk.embedding.dense_embedding
-    if not dense_vector_found:
+    if not chunk.dense_embedding:
       raise ValueError(
           f"Chunk {chunk.id} missing dense embedding required for vector search"
       )
-    return chunk.embedding.dense_embedding
+    return chunk.dense_embedding
 
   def _get_keyword_search_data(self, chunk: Chunk):
-    sparse_vector_found = chunk.embedding and chunk.embedding.sparse_embedding
-    if not chunk.content.text and not sparse_vector_found:
+    if not chunk.content.text and not chunk.sparse_embedding:
       raise ValueError(
           f"Chunk {chunk.id} missing both text content and sparse embedding "
           "required for keyword search")
-    return chunk.content.text or chunk.embedding.sparse_embedding
+    return chunk.content.text or chunk.sparse_embedding
 
   def _get_call_response(
       self, chunks: List[Chunk], search_result: SearchResult[Hits]):
