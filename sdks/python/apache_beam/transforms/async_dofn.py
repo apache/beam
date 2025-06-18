@@ -429,4 +429,5 @@ class AsyncWrapper(beam.DoFn):
       A generator of elements that have finished processing for this key.
     """
 
+
     return self.commit_finished_items(to_process, timer)
