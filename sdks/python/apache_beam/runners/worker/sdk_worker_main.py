@@ -168,7 +168,7 @@ def create_harness(environment, dry_run=False):
       data_sampler=data_sampler,
       deferred_exception=deferred_exception,
       runner_capabilities=runner_capabilities,
-      options=sdk_pipeline_options)
+      element_processing_timeout=sdk_pipeline_options.view_as(WorkerOptions).element_processing_timeout)
   return fn_log_handler, sdk_harness, sdk_pipeline_options
 
 

@@ -28,7 +28,6 @@ from collections import defaultdict
 
 import grpc
 
-from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
@@ -170,7 +169,7 @@ class FnApiWorkerStatusHandler(object):
       worker_id=None,
       log_lull_timeout_ns=DEFAULT_LOG_LULL_TIMEOUT_NS,
       restart_lull_timeout_ns=DEFAULT_RESTART_LULL_TIMEOUT_NS,
-      options=None):
+      element_processing_timeout=None):
     """Initialize FnApiWorkerStatusHandler.
 
     Args:
@@ -189,11 +188,9 @@ class FnApiWorkerStatusHandler(object):
         self._status_channel)
     self._responses = queue.Queue()
     self.log_lull_timeout_ns = log_lull_timeout_ns
-    if options and options.view_as(WorkerOptions).element_processing_timeout:
+    if element_processing_timeout:
       self._restart_lull_timeout_ns = max(
-          options.view_as(WorkerOptions).element_processing_timeout * 60* 1e9,
-          restart_lull_timeout_ns,
-          )
+          element_processing_timeout * 60* 1e9, restart_lull_timeout_ns)
     else:
       self._restart_lull_timeout_ns = None
 
