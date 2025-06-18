@@ -345,3 +345,7 @@ class TestMilvusHybridSearchEnrichment(unittest.TestCase):
           collection_load_parameters=collection_load_params)
 
     self.assertIn(expected_error_msg, str(context.exception))
+
+
+if __name__ == '__main__':
+  unittest.main()

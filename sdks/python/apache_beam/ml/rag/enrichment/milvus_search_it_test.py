@@ -135,3 +135,7 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
 
   def test_hybrid_search(self):
     pass
+
+
+if __name__ == '__main__':
+  unittest.main()
