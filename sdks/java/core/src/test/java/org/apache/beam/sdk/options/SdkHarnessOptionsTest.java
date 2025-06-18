@@ -112,4 +112,19 @@ public class SdkHarnessOptionsTest {
         testValue,
         MAPPER.writeValueAsString(MAPPER.readValue(testValue, SdkHarnessLogLevelOverrides.class)));
   }
+
+  @Test
+  public void testDefaultElementProcessingTimeout() {
+    PipelineOptions options = PipelineOptionsFactory.create();
+    SdkHarnessOptions sdkHarnessOptions = options.as(SdkHarnessOptions.class);
+    assertEquals(0, sdkHarnessOptions.getElementProcessingTimeout());
+  }
+
+  @Test
+  public void testUserDefinedElementProcessingTimeout() {
+    PipelineOptions options =
+        PipelineOptionsFactory.fromArgs("--elementProcessingTimeout=20").create();
+    SdkHarnessOptions sdkHarnessOptions = options.as(SdkHarnessOptions.class);
+    assertEquals(20, sdkHarnessOptions.getElementProcessingTimeout());
+  }
 }
