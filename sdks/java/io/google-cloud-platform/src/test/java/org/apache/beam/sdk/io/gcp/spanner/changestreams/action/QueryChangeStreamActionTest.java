@@ -41,6 +41,7 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRec
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.HeartbeatRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionStartRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.RestrictionInterrupter;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
@@ -76,6 +77,7 @@ public class QueryChangeStreamActionTest {
   private DataChangeRecordAction dataChangeRecordAction;
   private HeartbeatRecordAction heartbeatRecordAction;
   private ChildPartitionsRecordAction childPartitionsRecordAction;
+  private PartitionStartRecordAction partitionStartRecordAction;
   private QueryChangeStreamAction action;
 
   @Before
@@ -87,6 +89,7 @@ public class QueryChangeStreamActionTest {
     dataChangeRecordAction = mock(DataChangeRecordAction.class);
     heartbeatRecordAction = mock(HeartbeatRecordAction.class);
     childPartitionsRecordAction = mock(ChildPartitionsRecordAction.class);
+    partitionStartRecordAction = mock(PartitionStartRecordAction.class);
     metrics = mock(ChangeStreamMetrics.class);
 
     action =
@@ -98,6 +101,7 @@ public class QueryChangeStreamActionTest {
             dataChangeRecordAction,
             heartbeatRecordAction,
             childPartitionsRecordAction,
+            partitionStartRecordAction,
             metrics);
     final Struct row = mock(Struct.class);
     partition =
@@ -188,6 +192,7 @@ public class QueryChangeStreamActionTest {
 
     verify(heartbeatRecordAction, never()).run(any(), any(), any(), any(), any());
     verify(childPartitionsRecordAction, never()).run(any(), any(), any(), any(), any());
+    verify(partitionStartRecordAction, never()).run(any(), any(), any(), any(), any());
     verify(restrictionTracker, never()).tryClaim(any());
   }
 
@@ -251,6 +256,7 @@ public class QueryChangeStreamActionTest {
 
     verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any(), any());
     verify(childPartitionsRecordAction, never()).run(any(), any(), any(), any(), any());
+    verify(partitionStartRecordAction, never()).run(any(), any(), any(), any(), any());
     verify(restrictionTracker, never()).tryClaim(any());
   }
 
@@ -314,6 +320,7 @@ public class QueryChangeStreamActionTest {
 
     verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any(), any());
     verify(heartbeatRecordAction, never()).run(any(), any(), any(), any(), any());
+    verify(partitionStartRecordAction, never()).run(any(), any(), any(), any(), any());
     verify(restrictionTracker, never()).tryClaim(any());
   }
 
@@ -374,6 +381,103 @@ public class QueryChangeStreamActionTest {
 
     verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any(), any());
     verify(heartbeatRecordAction, never()).run(any(), any(), any(), any(), any());
+    verify(partitionStartRecordAction, never()).run(any(), any(), any(), any(), any());
+    verify(restrictionTracker, never()).tryClaim(any());
+  }
+
+  @Test
+  public void testQueryChangeStreamWithPartitionStartRecord() {
+    final ChangeStreamResultSetMetadata resultSetMetadata =
+        mock(ChangeStreamResultSetMetadata.class);
+    final ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
+    final PartitionStartRecord record1 = mock(PartitionStartRecord.class);
+    when(record1.getRecordTimestamp()).thenReturn(PARTITION_START_TIMESTAMP);
+    when(changeStreamDao.changeStreamQuery(
+            PARTITION_TOKEN,
+            PARTITION_START_TIMESTAMP,
+            PARTITION_END_TIMESTAMP,
+            PARTITION_HEARTBEAT_MILLIS))
+        .thenReturn(resultSet);
+    when(resultSet.next()).thenReturn(true);
+    when(resultSet.getMetadata()).thenReturn(resultSetMetadata);
+    when(changeStreamRecordMapper.toChangeStreamRecords(partition, resultSet, resultSetMetadata))
+        .thenReturn(Arrays.asList(record1));
+    when(partitionStartRecordAction.run(
+            eq(partition),
+            eq(record1),
+            eq(restrictionTracker),
+            any(RestrictionInterrupter.class),
+            eq(watermarkEstimator)))
+        .thenReturn(Optional.of(ProcessContinuation.stop()));
+    when(watermarkEstimator.currentWatermark()).thenReturn(WATERMARK);
+
+    final ProcessContinuation result =
+        action.run(
+            partition, restrictionTracker, outputReceiver, watermarkEstimator, bundleFinalizer);
+
+    assertEquals(ProcessContinuation.stop(), result);
+    verify(partitionStartRecordAction)
+        .run(
+            eq(partition),
+            eq(record1),
+            eq(restrictionTracker),
+            any(RestrictionInterrupter.class),
+            eq(watermarkEstimator));
+    verify(partitionMetadataDao).updateWatermark(PARTITION_TOKEN, WATERMARK_TIMESTAMP);
+
+    verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any(), any());
+    verify(heartbeatRecordAction, never()).run(any(), any(), any(), any(), any());
+    verify(childPartitionsRecordAction, never()).run(any(), any(), any(), any(), any());
+    verify(restrictionTracker, never()).tryClaim(any());
+  }
+
+  @Test
+  public void testQueryChangeStreamWithRestrictionFromAfterPartitionStartForPartitionStartRecord() {
+    final ChangeStreamResultSetMetadata resultSetMetadata =
+        mock(ChangeStreamResultSetMetadata.class);
+    final ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
+    final PartitionStartRecord record1 = mock(PartitionStartRecord.class);
+
+    // From is after Partition start at
+    when(restriction.getFrom()).thenReturn(Timestamp.ofTimeMicroseconds(15L));
+    // This record should be included.
+    when(record1.getRecordTimestamp()).thenReturn(Timestamp.ofTimeMicroseconds(15L));
+    when(changeStreamDao.changeStreamQuery(
+            PARTITION_TOKEN,
+            Timestamp.ofTimeMicroseconds(15L),
+            PARTITION_END_TIMESTAMP,
+            PARTITION_HEARTBEAT_MILLIS))
+        .thenReturn(resultSet);
+    when(resultSet.next()).thenReturn(true);
+    when(resultSet.getMetadata()).thenReturn(resultSetMetadata);
+    when(changeStreamRecordMapper.toChangeStreamRecords(partition, resultSet, resultSetMetadata))
+        .thenReturn(Arrays.asList(record1));
+    when(partitionStartRecordAction.run(
+            eq(partition),
+            eq(record1),
+            eq(restrictionTracker),
+            any(RestrictionInterrupter.class),
+            eq(watermarkEstimator)))
+        .thenReturn(Optional.of(ProcessContinuation.stop()));
+    when(watermarkEstimator.currentWatermark()).thenReturn(WATERMARK);
+
+    final ProcessContinuation result =
+        action.run(
+            partition, restrictionTracker, outputReceiver, watermarkEstimator, bundleFinalizer);
+
+    assertEquals(ProcessContinuation.stop(), result);
+    verify(partitionStartRecordAction)
+        .run(
+            eq(partition),
+            eq(record1),
+            eq(restrictionTracker),
+            any(RestrictionInterrupter.class),
+            eq(watermarkEstimator));
+    verify(partitionMetadataDao).updateWatermark(PARTITION_TOKEN, WATERMARK_TIMESTAMP);
+
+    verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any(), any());
+    verify(heartbeatRecordAction, never()).run(any(), any(), any(), any(), any());
+    verify(childPartitionsRecordAction, never()).run(any(), any(), any(), any(), any());
     verify(restrictionTracker, never()).tryClaim(any());
   }
 
@@ -401,6 +505,7 @@ public class QueryChangeStreamActionTest {
     verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any(), any());
     verify(heartbeatRecordAction, never()).run(any(), any(), any(), any(), any());
     verify(childPartitionsRecordAction, never()).run(any(), any(), any(), any(), any());
+    verify(partitionStartRecordAction, never()).run(any(), any(), any(), any(), any());
   }
 
   private static class BundleFinalizerStub implements BundleFinalizer {

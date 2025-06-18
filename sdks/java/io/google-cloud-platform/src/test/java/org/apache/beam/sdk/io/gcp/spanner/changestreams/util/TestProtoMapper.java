@@ -38,7 +38,8 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionEventReco
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionStartRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ValueCaptureType;
 
-// Test util class to convert ChangeStreamRecord class to proto represenatation. Similar to TestJsonMapper and TestStructMapper.
+// Test util class to convert ChangeStreamRecord class to proto represenatation. Similar to
+// TestJsonMapper and TestStructMapper.
 public class TestProtoMapper {
 
   public static com.google.spanner.v1.ChangeStreamRecord recordToProto(ChangeStreamRecord record) {
@@ -146,7 +147,7 @@ public class TestProtoMapper {
   }
 
   private static com.google.spanner.v1.ChangeStreamRecord.DataChangeRecord.ValueCaptureType
-  getProtoValueCaptureTypeProto(ValueCaptureType valueCaptureType) {
+      getProtoValueCaptureTypeProto(ValueCaptureType valueCaptureType) {
     if (valueCaptureType == ValueCaptureType.NEW_ROW) {
       return com.google.spanner.v1.ChangeStreamRecord.DataChangeRecord.ValueCaptureType.NEW_ROW;
     }
@@ -166,7 +167,7 @@ public class TestProtoMapper {
   }
 
   private static List<com.google.spanner.v1.ChangeStreamRecord.DataChangeRecord.ColumnMetadata>
-  getProtoColumnMetadata(List<ColumnType> columnTypes) {
+      getProtoColumnMetadata(List<ColumnType> columnTypes) {
     JsonFormat.Parser jsonParser = JsonFormat.parser().ignoringUnknownFields();
 
     List<com.google.spanner.v1.ChangeStreamRecord.DataChangeRecord.ColumnMetadata>
@@ -200,7 +201,7 @@ public class TestProtoMapper {
   }
 
   private static List<com.google.spanner.v1.ChangeStreamRecord.DataChangeRecord.ModValue>
-  columnsJsonToProtos(String columnsJson, Map<String, Integer> columnNameToIndex) {
+      columnsJsonToProtos(String columnsJson, Map<String, Integer> columnNameToIndex) {
     List<com.google.spanner.v1.ChangeStreamRecord.DataChangeRecord.ModValue> modValueProtos =
         new ArrayList<>();
     JsonFormat.Parser jsonParser = JsonFormat.parser().ignoringUnknownFields();

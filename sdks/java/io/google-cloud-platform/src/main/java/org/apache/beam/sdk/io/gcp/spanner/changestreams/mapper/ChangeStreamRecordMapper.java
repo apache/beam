@@ -413,7 +413,8 @@ public class ChangeStreamRecordMapper {
           columnMetadataProtos) {
     List<Mod> mods = new ArrayList<>();
     for (com.google.spanner.v1.ChangeStreamRecord.DataChangeRecord.Mod modProto : modProtos) {
-      final String keysJson = ConvertModValueProtosToJson(modProto.getKeysList(), columnMetadataProtos);
+      final String keysJson =
+          ConvertModValueProtosToJson(modProto.getKeysList(), columnMetadataProtos);
       final String oldValuesJson =
           ConvertModValueProtosToJson(modProto.getOldValuesList(), columnMetadataProtos);
       final String newValuesJson =
