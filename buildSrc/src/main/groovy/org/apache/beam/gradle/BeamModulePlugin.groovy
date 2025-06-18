@@ -510,8 +510,6 @@ class BeamModulePlugin implements Plugin<Project> {
     project.apply plugin: 'base'
     project.archivesBaseName = defaultArchivesBaseName(project)
 
-    project.apply plugin: 'org.apache.beam.jenkins'
-
     // Register all Beam repositories and configuration tweaks
     Repositories.register(project)
 
@@ -579,7 +577,7 @@ class BeamModulePlugin implements Plugin<Project> {
     }
 
     project.ext.useBuildx = {
-      return (project.containerArchitectures() != [project.nativeArchitecture()]) || project.rootProject.hasProperty("useBuildx")
+      return (project.containerArchitectures() != [project.nativeArchitecture()]) || project.rootProject.hasProperty("useDockerBuildx")
     }
 
     /** ***********************************************************************************************/
@@ -1461,8 +1459,8 @@ class BeamModulePlugin implements Plugin<Project> {
         }
         project.tasks.withType(com.github.spotbugs.snom.SpotBugsTask) {
           reports {
-            html.enabled = !project.jenkins.isCIBuild
-            xml.enabled = project.jenkins.isCIBuild
+            html.enabled = true
+            xml.enabled = false
           }
         }
       }
