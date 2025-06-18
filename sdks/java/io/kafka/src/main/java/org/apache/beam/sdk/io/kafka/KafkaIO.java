@@ -875,8 +875,6 @@ public class KafkaIO {
           builder.setStopReadTime(Instant.ofEpochMilli(config.stopReadTime));
         }
 
-        // We can expose dynamic read to external build when ReadFromKafkaDoFn is the default
-        // implementation.
         if (config.dynamicReadPollIntervalSeconds != null) {
           builder.setDynamicRead(true);
           builder.setWatchTopicPartitionDuration(
