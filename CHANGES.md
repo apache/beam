@@ -78,7 +78,12 @@
 
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).=======
 * Yapf version upgraded to 0.43.0 for formatting (Python) ([#34801](https://github.com/apache/beam/pull/34801/)).
-* Extra packages moved out of `install_required` to individual extra sections (`hdfs`, `mongodb`, `redis`) as part of [#35297](https://github.com/apache/beam/pull/35297)
+* Extra packages moved out of `install_required` to individual extra sections as part of [#35297](https://github.com/apache/beam/pull/35297)
+  - `jsonschema` has beeen moved to existing `yaml` extra
+  - `hdfs` has been moved to `hdfs` extra
+  - `pydots` has been moved to existing `interactie` extra
+  - `pymongot` has been moeved to `mongodb` extra
+  - `redis` has been moved to `redis` extra
 
 
 ## Deprecations
