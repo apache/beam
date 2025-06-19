@@ -129,6 +129,9 @@ class MilvusConnectionParameters:
   timeout: Optional[float] = None
   kwargs: Dict[str, Any] = field(default_factory=dict)
 
+  def __getitem__(self, key):
+    return getattr(self, key)
+
   def __post_init__(self):
     if not self.uri:
       raise ValueError("URI must be provided for Milvus connection")
@@ -158,6 +161,9 @@ class BaseSearchParameters:
   search_params: Dict[str, Any] = field(default_factory=dict)
   consistency_level: Optional[str] = None
 
+  def __getitem__(self, key):
+    return getattr(self, key)
+
   def __post_init__(self):
     if not self.anns_field:
       raise ValueError(
@@ -183,6 +189,8 @@ class VectorSearchParameters(BaseSearchParameters):
   """
   kwargs: Dict[str, Any] = field(default_factory=dict)
 
+  def __getitem__(self, key):
+    return getattr(self, key)
 
 @dataclass
 class KeywordSearchParameters(BaseSearchParameters):
@@ -201,6 +209,8 @@ class KeywordSearchParameters(BaseSearchParameters):
   """
   kwargs: Dict[str, Any] = field(default_factory=dict)
 
+  def __getitem__(self, key):
+    return getattr(self, key)
 
 @dataclass
 class HybridSearchParameters:
@@ -217,6 +227,9 @@ class HybridSearchParameters:
   ranker: MilvusBaseRanker
   limit: int = 3
   kwargs: Dict[str, Any] = field(default_factory=dict)
+
+  def __getitem__(self, key):
+    return getattr(self, key)
 
   def __post_init__(self):
     if not self.ranker:
@@ -238,6 +251,9 @@ class HybridSearchNamespace:
   vector: VectorSearchParameters
   keyword: KeywordSearchParameters
   hybrid: HybridSearchParameters
+
+  def __getitem__(self, key):
+    return getattr(self, key)
 
   def __post_init__(self):
     if not self.vector or not self.keyword or not self.hybrid:
@@ -277,6 +293,9 @@ class MilvusSearchParameters:
   timeout: Optional[float] = None
   round_decimal: int = -1
 
+  def __getitem__(self, key):
+    return getattr(self, key)
+
   def __post_init__(self):
     if not self.collection_name:
       raise ValueError("Collection name must be provided")
@@ -311,6 +330,9 @@ class MilvusCollectionLoadParameters:
   load_fields: List[str] = field(default_factory=list)
   skip_load_dynamic_field: bool = field(default_factory=bool)
   kwargs: Dict[str, Any] = field(default_factory=dict)
+
+  def __getitem__(self, key):
+    return getattr(self, key)
 
 
 InputT, OutputT = Union[Chunk, List[Chunk]], List[Tuple[Chunk, Dict[str, Any]]]
