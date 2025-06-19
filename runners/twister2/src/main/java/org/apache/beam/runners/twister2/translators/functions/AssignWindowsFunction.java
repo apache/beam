@@ -71,7 +71,7 @@ public class AssignWindowsFunction<T>
         for (BoundedWindow window : windows) {
           output.collect(
               WindowedValues.of(
-                  element.getValue(), element.getTimestamp(), window, element.getPane()));
+                  element.getValue(), element.getTimestamp(), window, element.getPaneInfo()));
         }
       }
     } catch (Exception e) {

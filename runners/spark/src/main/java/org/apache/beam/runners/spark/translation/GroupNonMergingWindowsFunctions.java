@@ -132,7 +132,8 @@ public class GroupNonMergingWindowsFunctions {
                 final W window = (W) Iterables.getOnlyElement(item.getWindows());
                 final byte[] windowBytes = CoderHelpers.toByteArray(window, windowCoder);
                 WindowedValue<KV<K, V>> valueOut =
-                    WindowedValues.of(item.getValue(), item.getTimestamp(), window, item.getPane());
+                    WindowedValues.of(
+                        item.getValue(), item.getTimestamp(), window, item.getPaneInfo());
                 final ByteArray windowedKey = new ByteArray(Bytes.concat(keyBytes, windowBytes));
                 return new Tuple2<>(windowedKey, mappingFn.apply(valueOut));
               });

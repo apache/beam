@@ -155,13 +155,13 @@ public class WindowMatchers {
 
       @Override
       protected boolean matchesSafely(WindowedValue<? extends T> item) {
-        return Objects.equals(item.getPane(), paneInfo);
+        return Objects.equals(item.getPaneInfo(), paneInfo);
       }
 
       @Override
       protected void describeMismatchSafely(
           WindowedValue<? extends T> item, Description mismatchDescription) {
-        mismatchDescription.appendValue(item.getPane());
+        mismatchDescription.appendValue(item.getPaneInfo());
       }
     };
   }
@@ -212,7 +212,7 @@ public class WindowMatchers {
       return valueMatcher.matches(windowedValue.getValue())
           && timestampMatcher.matches(windowedValue.getTimestamp())
           && windowsMatcher.matches(windowedValue.getWindows())
-          && paneInfoMatcher.matches(windowedValue.getPane());
+          && paneInfoMatcher.matches(windowedValue.getPaneInfo());
     }
   }
 }

@@ -1304,7 +1304,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
                     rowsToPublish.get(i).getValue(),
                     rowsToPublish.get(i).getTimestamp(),
                     rowsToPublish.get(i).getWindow(),
-                    rowsToPublish.get(i).getPane()));
+                    rowsToPublish.get(i).getPaneInfo()));
           }
         }
       }

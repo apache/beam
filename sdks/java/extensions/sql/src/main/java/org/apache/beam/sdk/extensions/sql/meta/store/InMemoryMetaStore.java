@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.store;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
@@ -112,5 +114,20 @@ public class InMemoryMetaStore implements MetaStore {
 
   Map<String, TableProvider> getProviders() {
     return providers;
+  }
+
+  @Override
+  public boolean supportsPartitioning(Table table) {
+    TableProvider provider = providers.get(table.getType());
+    if (provider == null) {
+      throw new IllegalArgumentException(
+          "No TableProvider registered for table type: " + table.getType());
+    }
+    return provider.supportsPartitioning(table);
+  }
+
+  public TableProvider getProvider(String type) {
+    return checkArgumentNotNull(
+        providers.get(type), "No TableProvider registered for table type: " + type);
   }
 }

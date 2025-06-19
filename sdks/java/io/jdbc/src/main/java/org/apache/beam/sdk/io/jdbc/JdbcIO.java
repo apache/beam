@@ -705,9 +705,12 @@ public class JdbcIO {
           basicDataSource.setDriverClassLoader(getDriverClassLoader());
         }
         if (getDriverJars() != null) {
-          URLClassLoader classLoader =
-              URLClassLoader.newInstance(JdbcUtil.saveFilesLocally(getDriverJars().get()));
-          basicDataSource.setDriverClassLoader(classLoader);
+          String driverJars = getDriverJars().get();
+          if (!Strings.isNullOrEmpty(driverJars)) {
+            URLClassLoader classLoader =
+                URLClassLoader.newInstance(JdbcUtil.saveFilesLocally(driverJars));
+            basicDataSource.setDriverClassLoader(classLoader);
+          }
         }
 
         return basicDataSource;
@@ -2474,7 +2477,7 @@ public class JdbcIO {
                     preparedStatementFieldSetterList
                         .get(index)
                         .set(row, preparedStatement, index, fields.get(index));
-                  } catch (SQLException | NullPointerException e) {
+                  } catch (SQLException e) {
                     throw new RuntimeException("Error while setting data to preparedStatement", e);
                   }
                 });

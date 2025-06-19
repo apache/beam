@@ -827,13 +827,15 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(actual, equal_to(expected))
 
   def test_pardo_et_timer_with_no_firing(self):
-    if type(self) in [FnApiRunnerTest,
-                      FnApiRunnerTestWithGrpc,
-                      FnApiRunnerTestWithGrpcAndMultiWorkers,
-                      FnApiRunnerTestWithDisabledCaching,
-                      FnApiRunnerTestWithMultiWorkers,
-                      FnApiRunnerTestWithBundleRepeat,
-                      FnApiRunnerTestWithBundleRepeatAndMultiWorkers]:
+    if type(self).__name__ in {'FnApiRunnerTest',
+                               'FnApiRunnerTestWithGrpc',
+                               'FnApiRunnerTestWithGrpcAndMultiWorkers',
+                               'FnApiRunnerTestWithDisabledCaching',
+                               'FnApiRunnerTestWithMultiWorkers',
+                               'FnApiRunnerTestWithBundleRepeat',
+                               'FnApiRunnerTestWithBundleRepeatAndMultiWorkers',
+                               'SamzaRunnerTest',
+                               'SparkRunnerTest'}:
       raise unittest.SkipTest("https://github.com/apache/beam/issues/35168")
 
     # The timer will not fire. It is initially set to T + 10, but then it is
@@ -842,13 +844,15 @@ class FnApiRunnerTest(unittest.TestCase):
     self._run_pardo_et_timer_test(5, 10, True, True, [])
 
   def test_pardo_et_timer_with_no_reset(self):
-    if type(self) in [FnApiRunnerTest,
-                      FnApiRunnerTestWithGrpc,
-                      FnApiRunnerTestWithGrpcAndMultiWorkers,
-                      FnApiRunnerTestWithDisabledCaching,
-                      FnApiRunnerTestWithMultiWorkers,
-                      FnApiRunnerTestWithBundleRepeat,
-                      FnApiRunnerTestWithBundleRepeatAndMultiWorkers]:
+    if type(self).__name__ in {'FnApiRunnerTest',
+                               'FnApiRunnerTestWithGrpc',
+                               'FnApiRunnerTestWithGrpcAndMultiWorkers',
+                               'FnApiRunnerTestWithDisabledCaching',
+                               'FnApiRunnerTestWithMultiWorkers',
+                               'FnApiRunnerTestWithBundleRepeat',
+                               'FnApiRunnerTestWithBundleRepeatAndMultiWorkers',
+                               'SamzaRunnerTest',
+                               'SparkRunnerTest'}:
       raise unittest.SkipTest("https://github.com/apache/beam/issues/35168")
 
     # The timer will not fire. It is initially set to T + 10, and then it is
@@ -856,6 +860,16 @@ class FnApiRunnerTest(unittest.TestCase):
     self._run_pardo_et_timer_test(5, 10, False, True, [])
 
   def test_pardo_et_timer_with_no_reset_and_no_clear(self):
+    if type(self).__name__ in {'FnApiRunnerTest',
+                               'FnApiRunnerTestWithGrpc',
+                               'FnApiRunnerTestWithGrpcAndMultiWorkers',
+                               'FnApiRunnerTestWithDisabledCaching',
+                               'FnApiRunnerTestWithMultiWorkers',
+                               'FnApiRunnerTestWithBundleRepeat',
+                               'FnApiRunnerTestWithBundleRepeatAndMultiWorkers',
+                               'SamzaRunnerTest',
+                               'SparkRunnerTest'}:
+      raise unittest.SkipTest("https://github.com/apache/beam/issues/35168")
     # The timer will fire at T + 10. After the timer is set, it is never
     # cleared or set again.
     self._run_pardo_et_timer_test(5, 10, False, False, ["fired"])

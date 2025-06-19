@@ -45,7 +45,8 @@
   pipeline.
 
   * Install Java runtime in the computer from where the pipeline is constructed
-    and make sure that 'java' command is available.
+    and make sure that 'java' command is available or set JAVA_HOME environment
+    variable.
 
   In this option, Python SDK will either download (for released Beam version) or
   build (when running from a Beam Git clone) an expansion service jar and use

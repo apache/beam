@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.fromTableSchema;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.services.bigquery.model.TableSchema;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
@@ -87,6 +88,7 @@ public class SchemasUtils {
     jsonBeamSchema = BigQueryHelpers.toJsonString(schema.getFields());
   }
 
+  @SuppressFBWarnings("DCN_NULLPOINTER_EXCEPTION")
   private void validateSchemaTypes(TableSchema bigQuerySchema) {
     try {
       beamSchema = fromTableSchema(bigQuerySchema);

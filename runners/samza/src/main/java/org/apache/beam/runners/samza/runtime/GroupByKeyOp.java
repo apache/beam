@@ -40,6 +40,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.TupleTag;
@@ -119,7 +120,7 @@ public class GroupByKeyOp<K, InputT, OutputT>
         SamzaStoreStateInternals.createNonKeyedStateInternalsFactory(
             transformId, context.getTaskContext(), pipelineOptions);
 
-    final DoFnRunners.OutputManager outputManager = outputManagerFactory.create(emitter);
+    final WindowedValueMultiReceiver outputManager = outputManagerFactory.create(emitter);
 
     this.stateInternalsFactory =
         new SamzaStoreStateInternals.Factory<>(

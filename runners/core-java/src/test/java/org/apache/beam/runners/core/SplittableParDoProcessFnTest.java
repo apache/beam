@@ -34,7 +34,6 @@ import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -61,6 +60,7 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -171,7 +171,8 @@ public class SplittableParDoProcessFnTest {
           new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
               fn,
               tester.getPipelineOptions(),
-              new OutputWindowedValueToDoFnTester<>(tester),
+              new DoFnTesterWindowedValueReceiver(tester),
+              tester.getMainOutputTag(),
               new SideInputReader() {
                 @Override
                 public <T> T get(PCollectionView<T> view, BoundedWindow window) {
@@ -256,32 +257,21 @@ public class SplittableParDoProcessFnTest {
     }
   }
 
-  private static class OutputWindowedValueToDoFnTester<OutputT>
-      implements OutputWindowedValue<OutputT> {
-    private final DoFnTester<?, OutputT> tester;
+  private static class DoFnTesterWindowedValueReceiver implements WindowedValueMultiReceiver {
+    private final DoFnTester<?, ?> tester;
 
-    private OutputWindowedValueToDoFnTester(DoFnTester<?, OutputT> tester) {
+    private DoFnTesterWindowedValueReceiver(DoFnTester<?, ?> tester) {
       this.tester = tester;
     }
 
     @Override
-    public void outputWindowedValue(
-        OutputT output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo pane) {
-      outputWindowedValue(tester.getMainOutputTag(), output, timestamp, windows, pane);
-    }
-
-    @Override
-    public <AdditionalOutputT> void outputWindowedValue(
-        TupleTag<AdditionalOutputT> tag,
-        AdditionalOutputT output,
-        Instant timestamp,
-        Collection<? extends BoundedWindow> windows,
-        PaneInfo pane) {
-      for (BoundedWindow window : windows) {
-        tester.getMutableOutput(tag).add(ValueInSingleWindow.of(output, timestamp, window, pane));
+    public <OutputT> void output(TupleTag<OutputT> tag, WindowedValue<OutputT> output) {
+      for (BoundedWindow window : output.getWindows()) {
+        tester
+            .getMutableOutput(tag)
+            .add(
+                ValueInSingleWindow.of(
+                    output.getValue(), output.getTimestamp(), window, output.getPaneInfo()));
       }
     }
   }

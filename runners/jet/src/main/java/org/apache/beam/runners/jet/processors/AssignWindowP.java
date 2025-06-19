@@ -78,7 +78,7 @@ public class AssignWindowP<T> extends AbstractProcessor {
                       inputValue.getValue(),
                       inputValue.getTimestamp(),
                       windows,
-                      inputValue.getPane());
+                      inputValue.getPaneInfo());
               traverser.accept(Utils.encode(outputValue, outputCoder));
               return traverser;
             });
@@ -111,7 +111,7 @@ public class AssignWindowP<T> extends AbstractProcessor {
         throw new IllegalArgumentException(
             String.format(
                 "%s passed to window assignment must be in a single window, but it was in %s: %s",
-                WindowedValue.class.getSimpleName(),
+                WindowedValues.class.getSimpleName(),
                 Iterables.size(value.getWindows()),
                 value.getWindows()));
       }

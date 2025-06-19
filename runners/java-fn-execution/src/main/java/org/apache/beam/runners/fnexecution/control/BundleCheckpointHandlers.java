@@ -132,7 +132,7 @@ public class BundleCheckpointHandlers {
                         stateValue.getValue(),
                         stateValue.getTimestamp(),
                         ImmutableList.of(window),
-                        stateValue.getPane()));
+                        stateValue.getPaneInfo()));
           }
         } catch (Exception e) {
           throw new RuntimeException("Failed to set timer/state for the residual", e);

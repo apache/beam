@@ -50,6 +50,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.util.DoFnWithExecutionInformation;
 import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.util.construction.Environments;
 import org.apache.beam.sdk.util.construction.ParDoTranslation;
 import org.apache.beam.sdk.util.construction.RehydratedComponents;
@@ -208,7 +209,7 @@ public class DoFnFunction<OutputT, InputT>
     Optional.ofNullable(doFnInvoker).ifPresent(DoFnInvoker::invokeTeardown);
   }
 
-  private static class DoFnOutputManager implements DoFnRunners.OutputManager, Serializable {
+  private static class DoFnOutputManager implements WindowedValueMultiReceiver, Serializable {
     // todo need to figure out how this class types are handled
     private static final long serialVersionUID = 4967375172737408160L;
     private transient List<RawUnionValue> outputs;

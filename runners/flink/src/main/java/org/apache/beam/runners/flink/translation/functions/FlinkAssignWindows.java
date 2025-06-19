@@ -44,7 +44,7 @@ public class FlinkAssignWindows<T, W extends BoundedWindow>
     Collection<W> windows = windowFn.assignWindows(new FlinkAssignContext<>(windowFn, input));
     for (W window : windows) {
       collector.collect(
-          WindowedValues.of(input.getValue(), input.getTimestamp(), window, input.getPane()));
+          WindowedValues.of(input.getValue(), input.getTimestamp(), window, input.getPaneInfo()));
     }
   }
 }

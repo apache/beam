@@ -334,56 +334,56 @@ public class SplittableSplitAndSizeRestrictionsDoFnRunnerTest implements Seriali
                     2.0),
                 firstValue.getTimestamp(),
                 window1,
-                firstValue.getPane()),
+                firstValue.getPaneInfo()),
             WindowedValues.of(
                 KV.of(
                     KV.of("5", KV.of(new OffsetRange(2, 5), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                     3.0),
                 firstValue.getTimestamp(),
                 window1,
-                firstValue.getPane()),
+                firstValue.getPaneInfo()),
             WindowedValues.of(
                 KV.of(
                     KV.of("5", KV.of(new OffsetRange(0, 2), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                     2.0),
                 firstValue.getTimestamp(),
                 window2,
-                firstValue.getPane()),
+                firstValue.getPaneInfo()),
             WindowedValues.of(
                 KV.of(
                     KV.of("5", KV.of(new OffsetRange(2, 5), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                     3.0),
                 firstValue.getTimestamp(),
                 window2,
-                firstValue.getPane()),
+                firstValue.getPaneInfo()),
             WindowedValues.of(
                 KV.of(
                     KV.of("2", KV.of(new OffsetRange(0, 1), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                     1.0),
                 secondValue.getTimestamp(),
                 window1,
-                secondValue.getPane()),
+                secondValue.getPaneInfo()),
             WindowedValues.of(
                 KV.of(
                     KV.of("2", KV.of(new OffsetRange(1, 2), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                     1.0),
                 secondValue.getTimestamp(),
                 window1,
-                secondValue.getPane()),
+                secondValue.getPaneInfo()),
             WindowedValues.of(
                 KV.of(
                     KV.of("2", KV.of(new OffsetRange(0, 1), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                     1.0),
                 secondValue.getTimestamp(),
                 window2,
-                secondValue.getPane()),
+                secondValue.getPaneInfo()),
             WindowedValues.of(
                 KV.of(
                     KV.of("2", KV.of(new OffsetRange(1, 2), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                     1.0),
                 secondValue.getTimestamp(),
                 window2,
-                secondValue.getPane())));
+                secondValue.getPaneInfo())));
     mainOutputValues.clear();
 
     assertTrue(context.getFinishBundleFunctions().isEmpty());
@@ -477,28 +477,28 @@ public class SplittableSplitAndSizeRestrictionsDoFnRunnerTest implements Seriali
                     2.0),
                 firstValue.getTimestamp(),
                 ImmutableList.of(window1, window2),
-                firstValue.getPane()),
+                firstValue.getPaneInfo()),
             WindowedValues.of(
                 KV.of(
                     KV.of("5", KV.of(new OffsetRange(2, 5), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                     3.0),
                 firstValue.getTimestamp(),
                 ImmutableList.of(window1, window2),
-                firstValue.getPane()),
+                firstValue.getPaneInfo()),
             WindowedValues.of(
                 KV.of(
                     KV.of("2", KV.of(new OffsetRange(0, 1), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                     1.0),
                 firstValue.getTimestamp(),
                 ImmutableList.of(window1, window2),
-                firstValue.getPane()),
+                firstValue.getPaneInfo()),
             WindowedValues.of(
                 KV.of(
                     KV.of("2", KV.of(new OffsetRange(1, 2), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                     1.0),
                 firstValue.getTimestamp(),
                 ImmutableList.of(window1, window2),
-                firstValue.getPane())));
+                firstValue.getPaneInfo())));
     mainOutputValues.clear();
 
     assertTrue(context.getFinishBundleFunctions().isEmpty());

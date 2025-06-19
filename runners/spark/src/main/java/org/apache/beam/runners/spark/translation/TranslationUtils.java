@@ -110,7 +110,7 @@ public final class TranslationUtils {
                   .apply(windowedKv.getValue().getValue(), fn.ctxtForValue(windowedKv))),
           windowedKv.getTimestamp(),
           windowedKv.getWindows(),
-          windowedKv.getPane());
+          windowedKv.getPaneInfo());
     }
   }
 

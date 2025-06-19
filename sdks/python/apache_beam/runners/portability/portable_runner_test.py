@@ -223,22 +223,30 @@ class PortableRunnerTest(fn_runner_test.FnApiRunnerTest):
     raise unittest.SkipTest("Portable runners don't support drain yet.")
 
   def test_pardo_et_timer_with_no_firing(self):
-    if type(self) in [PortableRunnerTest,
-                      PortableRunnerTestWithSubprocesses,
-                      PortableRunnerTestWithSubprocessesAndMultiWorkers,
-                      PortableRunnerTestWithExternalEnv,
-                      PortableRunnerTestWithLocalDocker,
-                      PortableRunnerOptimizedWithoutFusion]:
+    if type(self).__name__ in {
+        'PortableRunnerTest',
+        'PortableRunnerTestWithSubprocesses',
+        'PortableRunnerTestWithSubprocessesAndMultiWorkers',
+        'PortableRunnerTestWithExternalEnv',
+        'PortableRunnerTestWithLocalDocker',
+        'PortableRunnerOptimizedWithoutFusion',
+        'SamzaRunnerTest',
+        'SparkRunnerTest'
+    }:
       raise unittest.SkipTest("https://github.com/apache/beam/issues/35168")
     super().test_pardo_et_timer_with_no_firing()
 
   def test_pardo_et_timer_with_no_reset(self):
-    if type(self) in [PortableRunnerTest,
-                      PortableRunnerTestWithSubprocesses,
-                      PortableRunnerTestWithSubprocessesAndMultiWorkers,
-                      PortableRunnerTestWithExternalEnv,
-                      PortableRunnerTestWithLocalDocker,
-                      PortableRunnerOptimizedWithoutFusion]:
+    if type(self).__name__ in {
+        'PortableRunnerTest',
+        'PortableRunnerTestWithSubprocesses',
+        'PortableRunnerTestWithSubprocessesAndMultiWorkers',
+        'PortableRunnerTestWithExternalEnv',
+        'PortableRunnerTestWithLocalDocker',
+        'PortableRunnerOptimizedWithoutFusion',
+        'SamzaRunnerTest',
+        'SparkRunnerTest'
+    }:
       raise unittest.SkipTest("https://github.com/apache/beam/issues/35168")
     super().test_pardo_et_timer_with_no_reset()
 

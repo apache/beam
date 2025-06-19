@@ -122,21 +122,21 @@ public class WindowedValueTest {
     BoundedWindow futureWindow =
         new IntervalWindow(now.minus(Duration.millis(500L)), now.plus(Duration.millis(1500L)));
     BoundedWindow futureFutureWindow = new IntervalWindow(now, now.plus(Duration.millis(2000L)));
-    PaneInfo pane = PaneInfo.createPane(false, false, Timing.ON_TIME, 3L, 0L);
+    PaneInfo paneInfo = PaneInfo.createPane(false, false, Timing.ON_TIME, 3L, 0L);
     WindowedValue<String> value =
         WindowedValues.of(
             "foo",
             now,
             ImmutableList.of(pastWindow, centerWindow, futureWindow, futureFutureWindow),
-            pane);
+            paneInfo);
 
     assertThat(
         value.explodeWindows(),
         containsInAnyOrder(
-            WindowedValues.of("foo", now, futureFutureWindow, pane),
-            WindowedValues.of("foo", now, futureWindow, pane),
-            WindowedValues.of("foo", now, centerWindow, pane),
-            WindowedValues.of("foo", now, pastWindow, pane)));
+            WindowedValues.of("foo", now, futureFutureWindow, paneInfo),
+            WindowedValues.of("foo", now, futureWindow, paneInfo),
+            WindowedValues.of("foo", now, centerWindow, paneInfo),
+            WindowedValues.of("foo", now, pastWindow, paneInfo)));
 
     assertThat(value, not(instanceOf(WindowedValues.SingleWindowedValue.class)));
   }

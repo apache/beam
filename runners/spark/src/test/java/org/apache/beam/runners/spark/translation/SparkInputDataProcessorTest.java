@@ -29,12 +29,12 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.runners.core.DoFnRunner;
-import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.sdk.fn.test.TestExecutors;
 import org.apache.beam.sdk.fn.test.TestExecutors.TestExecutorService;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
@@ -210,7 +210,7 @@ public class SparkInputDataProcessorTest {
 
   @SuppressWarnings({"unchecked", "rawtypes"})
   private SparkProcessContext<String, String, String> setUpCtx(
-      DoFnRunners.OutputManager output, int desiredCount, AtomicInteger producedCount) {
+      WindowedValueMultiReceiver output, int desiredCount, AtomicInteger producedCount) {
     SparkProcessContext ctx = Mockito.mock(SparkProcessContext.class);
     TestDoFnRunner runner = new TestDoFnRunner(output, desiredCount, producedCount);
 
@@ -224,13 +224,13 @@ public class SparkInputDataProcessorTest {
 
   private static class TestDoFnRunner implements DoFnRunner<String, String> {
 
-    private final DoFnRunners.OutputManager output;
+    private final WindowedValueMultiReceiver output;
     private final AtomicInteger producedCount;
     private final int desiredCount;
     private final TestDoFn fn = new TestDoFn();
 
     TestDoFnRunner(
-        DoFnRunners.OutputManager output, int desiredCount, AtomicInteger producedCount) {
+        WindowedValueMultiReceiver output, int desiredCount, AtomicInteger producedCount) {
       this.output = output;
       this.producedCount = producedCount;
       this.desiredCount = desiredCount;
