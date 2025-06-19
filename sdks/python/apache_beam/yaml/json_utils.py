@@ -191,19 +191,22 @@ def json_to_row(beam_type: schema_pb2.FieldType) -> Callable[[Any], Any]:
     value_converter = json_to_row(beam_type.map_type.value_type)
     return lambda value: {k: value_converter(v) for (k, v) in value.items()}
   elif type_info == "row_type":
-    fields = {field.name: field for field in beam_type.row_type.schema.fields}
+    field_nullable_status = {
+        field.name: field.type.nullable
+        for field in beam_type.row_type.schema.fields
+    }
+
     converters = {
-        name: json_to_row(field.type)
-        for name, field in fields.items()
+        field.name: json_to_row(field.type)
+        for field in beam_type.row_type.schema.fields
     }
 
     def convert_row(value):
       kwargs = {}
       for name, convert in converters.items():
-        field = fields[name]
         if name in value:
           kwargs[name] = convert(value[name])
-        elif field.type.nullable:
+        elif field_nullable_status[name]:
           kwargs[name] = convert(None)
         else:
           raise KeyError(f"Missing required field: {name}")
