@@ -1712,9 +1712,17 @@ class BigQueryWriteFn(DoFn):
         # The log level is:
         # - WARNING when we are continuing to retry, and have a deadline.
         # - ERROR when we will no longer retry, or MAY retry forever.
-        log_level = (
-            logging.WARN if should_retry or self._retry_strategy
-            != RetryStrategy.RETRY_ALWAYS else logging.ERROR)
+        if (
+            self._retry_strategy == RetryStrategy.RETRY_ON_TRANSIENT_ERROR
+            and not should_retry
+           ):
+          log_level = logging.ERROR
+        elif self._retry_strategy == RetryStrategy.RETRY_NEVER:
+          log_level = logging.ERROR
+        elif should_retry or self._retry_strategy != RetryStrategy.RETRY_ALWAYS:
+          log_level = logging.WARN
+        else:
+          log_level = logging.ERROR
 
         _LOGGER.log(log_level, message)
 
