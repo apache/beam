@@ -19,26 +19,36 @@
 
 pipeline:
   transforms:
-#    - type: ReadFromCsv
-#      name: ReadFromGCS
-#      config:
-#        path: gs://my-warehouse/youtube-comments.csv
-
     - type: PyTransform
       name: ReadFromGCS
       input: {}
       config:
-        constructor: apache_beam.io.ReadFromCsv
+        constructor: __callable__
         kwargs:
-          path: 'gs://my-warehouse/youtube-comments.csv'
-          sep: ','
-          skip_blank_lines: True
-          true_values: [ 'yes' ]
-          false_values: [ 'no' ]
-          comment: '#'
-          on_bad_lines: 'skip'
-          binary: False
-          splittable: False
+          source: |
+            def ReadYoutubeCommentsCsv(pcoll, file_pattern):
+              def _to_int(x):
+                try:
+                  return int(x)
+                except (ValueError):
+                  return None
+            
+              return (
+                  pcoll 
+                  | beam.io.ReadFromCsv(
+                        file_pattern,
+                        names=['video_id', 'comment_text', 'likes', 'replies'],
+                        on_bad_lines='skip',
+                        converters={'likes': _to_int, 'replies': _to_int})
+                  | beam.Filter(lambda row: 
+                        None not in list(row._asdict().values()))
+                  | beam.Map(lambda row: beam.Row(
+                        video_id=row.video_id,
+                        comment_text=row.comment_text,
+                        likes=int(row.likes),
+                        replies=int(row.replies)))
+              )
+          file_pattern: gs://my-warehouse/youtube-comments.csv
 
     - type: WriteToKafka
       name: SendRecordsToKafka
@@ -106,9 +116,47 @@ pipeline:
             def filter(row):
               return len(row.comment_text) > 0
 
+    - type: MapToFields
+      name: Truncating
+      input: FilterForProperComments
+      config:
+        language: python
+        dependencies:
+          - 'transformers'
+        fields:
+          video_id: video_id
+          comment_text:
+            callable: |
+              from transformers import AutoTokenizer
+              
+              tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased", use_fast=True)
+              
+              def truncate_sentence(row):
+                tokens = tokenizer.tokenize(row.comment_text)
+                if len(tokens) >= 250:
+                  tokens = tokens[:250]
+                  truncated_sentence = tokenizer.convert_tokens_to_string(tokens)
+                else:
+                  truncated_sentence = row.comment_text
+
+                return truncated_sentence
+          likes: likes
+          replies: replies
+
+    - type: MapToFields
+      name: LowerCase
+      input: Truncating
+      config:
+        language: python
+        fields:
+          video_id: video_id
+          comment_text: "comment_text.lower()"
+          likes: likes
+          replies: replies
+
     - type: RunInference
       name: DistilBERTRemoteInference
-      input: FilterForProperComments
+      input: LowerCase
       config:
         inference_tag: "inference"
         model_handler:
@@ -154,7 +202,7 @@ pipeline:
           size: 30s
 
     - type: WriteToBigQuery
-      name: WriteInferenceResultsToBigQuery
+      name: WriteInferenceResultsToBQ
       input: Windowing
       config:
         table: "{{ PROJECT }}.{{ DATASET }}.{{ TABLE }}"
@@ -168,5 +216,5 @@ options:
 #  Row(video_id='XpVt6Z1Gjjo', comment_text='I am happy 😊', likes=1, replies=1)
 #  Row(video_id='XpVt6Z1Gjjo', comment_text='I am sad ☹️', likes=1, replies=1)
 #  Row(video_id='XpVt6Z1Gjjo', comment_text='🤗😁', likes=1, replies=1)
-#  Row(video_id='XpVt6Z1Gjjo', comment_text='I am happy', label='POSITIVE', score=0.95, likes=1, replies=1)
-#  Row(video_id='XpVt6Z1Gjjo', comment_text='I am sad', label='NEGATIVE', score=0.95, likes=1, replies=1)
+#  Row(video_id='XpVt6Z1Gjjo', comment_text='i am happy', label='POSITIVE', score=0.95, likes=1, replies=1)
+#  Row(video_id='XpVt6Z1Gjjo', comment_text='i am sad', label='NEGATIVE', score=0.95, likes=1, replies=1)
