@@ -61,7 +61,7 @@ create/write to a table. See [here](
 https://cloud.google.com/bigquery/docs/datasets) for how to create
 BigQuery datasets.
 
-Then pipeline first reads the YouTube comments .csv dataset from
+The pipeline first reads the YouTube comments .csv dataset from
 GCS bucket and performs some clean-up before writing it to a Kafka 
 topic. The pipeline then reads from that Kafka topic and applies
 various transformation logic before `RunInference` transform performs

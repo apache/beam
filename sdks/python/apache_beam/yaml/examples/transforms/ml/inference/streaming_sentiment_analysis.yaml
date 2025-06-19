@@ -16,7 +16,7 @@
 # limitations under the License.
 #
 
-# Then pipeline first reads the YouTube comments .csv dataset from GCS bucket
+# The pipeline first reads the YouTube comments .csv dataset from GCS bucket
 # and performs necessary clean-up before writing it to a Kafka topic.
 # The pipeline then reads from that Kafka topic and applies various transformation
 # logic before RunInference transform performs remote inference with the Vertex AI

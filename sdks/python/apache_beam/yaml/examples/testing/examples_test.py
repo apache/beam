@@ -121,7 +121,20 @@ def test_kafka_read(
     auto_offset_reset_config,
     consumer_config):
   """
-  ...
+  This PTransform simulates the behavior of the ReadFromKafka transform
+  with the RAW format by simply using some fixed sample text data and
+  encode it to raw bytes.
+
+  Args:
+    pcoll: The input PCollection.
+    format:
+    topic:
+    bootstrap_servers:
+    auto_offset_reset_config:
+    consumer_config:
+
+  Returns:
+    A PCollection containing the sample text data in bytes.
   """
 
   return (
@@ -149,40 +162,48 @@ def test_pubsub_read(
       | beam.Map(lambda element: beam.Row(**element)))
 
 def test_run_inference(pcoll, inference_tag, model_handler):
-    """
-    ...
-    """
+  """
+  This PTransform simulates the behavior of the RunInference transform.
 
-    from apache_beam.ml.inference.base import PredictionResult
-    from apache_beam.typehints.row_type import RowTypeConstraint
+  Args:
+    pcoll: The input PCollection.
+    inference_tag: The tag to use for the returned inference.
+    model_handler: A configuration for the respective ML model handler
 
-    def _fn(row):
-      input = row._asdict()
+  Returns:
+    A PCollection containing the enriched data.
+  """
 
-      row = {
-          inference_tag: PredictionResult(
-              input['comment_text'],
-              [{
-                  'label': 'POSITIVE'
-                  if 'happy' in input['comment_text'] else 'NEGATIVE',
-                  'score': 0.95
-              }]),
-          **input
-      }
+  from apache_beam.ml.inference.base import PredictionResult
+  from apache_beam.typehints.row_type import RowTypeConstraint
 
-      return beam.Row(**row)
+  def _fn(row):
+    input = row._asdict()
 
-    user_type = RowTypeConstraint.from_user_type(pcoll.element_type.user_type)
-    user_schema_fields = [(name, type(typ) if not isinstance(typ, type) else typ)
-                          for (name,
-                               typ) in user_type._fields] if user_type else []
-    inference_output_type = RowTypeConstraint.from_fields([
-        ('example', Any), ('inference', Any), ('model_id', Optional[str])
-    ])
-    schema = RowTypeConstraint.from_fields(
-        user_schema_fields + [(str(inference_tag), inference_output_type)])
+    row = {
+        inference_tag: PredictionResult(
+            input['comment_text'],
+            [{
+                'label': 'POSITIVE'
+                if 'happy' in input['comment_text'] else 'NEGATIVE',
+                'score': 0.95
+            }]),
+        **input
+    }
 
-    return pcoll | beam.Map(_fn).with_output_types(schema)
+    return beam.Row(**row)
+
+  user_type = RowTypeConstraint.from_user_type(pcoll.element_type.user_type)
+  user_schema_fields = [(name, type(typ) if not isinstance(typ, type) else typ)
+                        for (name,
+                             typ) in user_type._fields] if user_type else []
+  inference_output_type = RowTypeConstraint.from_fields([
+      ('example', Any), ('inference', Any), ('model_id', Optional[str])
+  ])
+  schema = RowTypeConstraint.from_fields(
+      user_schema_fields + [(str(inference_tag), inference_output_type)])
+
+  return pcoll | beam.Map(_fn).with_output_types(schema)
 
 
 TEST_PROVIDERS = {
