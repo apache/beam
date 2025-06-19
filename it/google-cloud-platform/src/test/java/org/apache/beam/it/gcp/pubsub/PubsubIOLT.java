@@ -243,7 +243,7 @@ public class PubsubIOLT extends IOLoadTestBase {
     // Assert that actual data is within tolerance of expected data number since there might be
     // duplicates when testing big amount of data
     long expectedDataNum = configuration.numRecords - configuration.forceNumInitialBundles;
-    long allowedTolerance = (long)(configuration.numRecords * TOLERANCE_FRACTION);
+    long allowedTolerance = (long) (configuration.numRecords * TOLERANCE_FRACTION);
     double delta = Math.abs(numRecords - expectedDataNum);
     assertTrue(delta <= allowedTolerance);
 
