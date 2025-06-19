@@ -29,16 +29,14 @@ import pytest
 # pylint: disable=unused-import
 try:
   from apache_beam.examples.snippets.transforms.elementwise.enrichment import (
-    enrichment_with_bigtable,
-    enrichment_with_vertex_ai,
-    enrichment_with_vertex_ai_legacy,
-    enrichment_with_milvus)
+      enrichment_with_bigtable,
+      enrichment_with_vertex_ai,
+      enrichment_with_vertex_ai_legacy,
+      enrichment_with_milvus)
   from apache_beam.ml.rag.enrichment.milvus_search import (
-    MilvusConnectionParameters)
+      MilvusConnectionParameters)
   from apache_beam.ml.rag.enrichment.milvus_search_it_test import (
-    MilvusEnrichmentTestHelper,
-    MilvusDBContainerInfo,
-    MILVUS_IT_CONFIG)
+      MilvusEnrichmentTestHelper, MilvusDBContainerInfo)
   from apache_beam.io.requestresponse import RequestResponseIO
 except ImportError:
   raise unittest.SkipTest('RequestResponseIO dependencies are not installed')
@@ -117,6 +115,7 @@ class EnrichmentTest(unittest.TestCase):
       if milvus_db:
         EnrichmentTestHelpers.post_milvus_enrichment(milvus_db)
 
+
 class EnrichmentTestHelpers:
   @staticmethod
   def pre_milvus_enrichment() -> MilvusDBContainerInfo:
@@ -125,15 +124,15 @@ class EnrichmentTestHelpers:
 
     # Construct connection parameters.
     connection_params = MilvusConnectionParameters(
-      uri=db.uri,
-      user=db.user,
-      password=db.password,
-      db_id=db.id,
-      token=db.token)
+        uri=db.uri,
+        user=db.user,
+        password=db.password,
+        db_id=db.id,
+        token=db.token)
 
     # Initialize db with data required for testing.
     collection_name = MilvusEnrichmentTestHelper.initialize_db_with_data(
-      connection_params)
+        connection_params)
 
     # Setup environment variables for db and collection configuration. This will
     # be used downstream by the milvus enrichment handler.

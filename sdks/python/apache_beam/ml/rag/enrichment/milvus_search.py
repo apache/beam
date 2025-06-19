@@ -192,6 +192,7 @@ class VectorSearchParameters(BaseSearchParameters):
   def __getitem__(self, key):
     return getattr(self, key)
 
+
 @dataclass
 class KeywordSearchParameters(BaseSearchParameters):
   """Parameters for keyword/text search operations.
@@ -211,6 +212,7 @@ class KeywordSearchParameters(BaseSearchParameters):
 
   def __getitem__(self, key):
     return getattr(self, key)
+
 
 @dataclass
 class HybridSearchParameters:
