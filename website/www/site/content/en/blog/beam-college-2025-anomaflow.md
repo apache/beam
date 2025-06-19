@@ -1,6 +1,6 @@
 ---
 title: "My Experience at Beam College 2025: 3rd Place Hackathon Winner"
-date: 2025-06-16
+date: 2025-06-16 00:00:01 -0400
 authors:
   - msugar
 categories:
@@ -73,7 +73,7 @@ If you’re considering joining Beam College next year:
 
 ## Conclusion
 
-I’m currently a **Software Architect and Data Engineer at TELUS Security**, where I work on the **Cybersecurity Analytics and Software Engineering** team. We design data pipelines to detect and respond to threats at scale.
+I’m currently a **Software Architect and Data Engineer at TELUS Security**, where I work on the **Cybersecurity Analytics Solutions Engineering** team. We design data pipelines to detect and respond to threats at scale.
 
 Participating in Beam College was a great way to stretch my skills, meet passionate Beam users, and contribute to a vibrant open source community. I’m excited to see what others will build in future editions!
 
