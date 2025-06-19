@@ -16,6 +16,12 @@
 # limitations under the License.
 #
 
+# Then pipeline first reads the YouTube comments .csv dataset from GCS bucket
+# and performs necessary clean-up before writing it to a Kafka topic.
+# The pipeline then reads from that Kafka topic and applies various transformation
+# logic before RunInference transform performs remote inference with the Vertex AI
+# model handler.
+# The inference result is then written to a BigQuery table.
 
 pipeline:
   transforms:
@@ -48,7 +54,7 @@ pipeline:
                         likes=int(row.likes),
                         replies=int(row.replies)))
               )
-          file_pattern: gs://my-warehouse/youtube-comments.csv
+          file_pattern: "{{ GCS_PATH }}"
 
     - type: WriteToKafka
       name: SendRecordsToKafka
@@ -162,9 +168,9 @@ pipeline:
         model_handler:
           type: "VertexAIModelHandlerJSON"
           config:
-            endpoint_id: 1320167118796226560
-            project: "silicon-synapse-460717-a0"
-            location: "us-central1"
+            endpoint_id: "{{ ENDPOINT }}"
+            project: "{{ PROJECT }}"
+            location: "{{ LOCATION }}"
             preprocess:
               callable: 'lambda x: x.comment_text'
 
