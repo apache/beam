@@ -120,7 +120,20 @@ def test_kafka_read(
     auto_offset_reset_config,
     consumer_config):
   """
-  ...
+  This PTransform simulates the behavior of the ReadFromKafka transform
+  with the RAW format by simply using some fixed sample text data and
+  encode it to raw bytes.
+
+  Args:
+    pcoll: The input PCollection.
+    format:
+    topic:
+    bootstrap_servers:
+    auto_offset_reset_config:
+    consumer_config:
+
+  Returns:
+    A PCollection containing the sample text data in bytes.
   """
 
   return (
@@ -131,7 +144,15 @@ def test_kafka_read(
 @beam.ptransform.ptransform_fn
 def test_run_inference(pcoll, inference_tag, model_handler):
   """
-  ...
+  This PTransform simulates the behavior of the RunInference transform.
+
+  Args:
+    pcoll: The input PCollection.
+    inference_tag: The tag to use for the returned inference.
+    model_handler: A configuration for the respective ML model handler
+
+  Returns:
+    A PCollection containing the enriched data.
   """
 
   from apache_beam.ml.inference.base import PredictionResult
