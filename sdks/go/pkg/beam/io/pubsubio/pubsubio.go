@@ -52,6 +52,7 @@ func init() {
 
 // ReadOptions represents options for reading from PubSub.
 type ReadOptions struct {
+	Topic              string
 	Subscription       string
 	IDAttribute        string
 	TimestampAttribute string
@@ -59,25 +60,42 @@ type ReadOptions struct {
 }
 
 // Read reads an unbounded number of PubSubMessages from the given
-// pubsub topic. It produces an unbounded PCollecton<*PubSubMessage>,
+// pubsub topic or subscription. It produces an unbounded PCollecton<*PubSubMessage>,
 // if WithAttributes is set, or an unbounded PCollection<[]byte>.
-func Read(s beam.Scope, project, topic string, opts *ReadOptions) beam.PCollection {
+func Read(s beam.Scope, project string, opts *ReadOptions) beam.PCollection {
 	s = s.Scope("pubsubio.Read")
 
-	payload := &pipepb.PubSubReadPayload{
-		Topic: pubsubx.MakeQualifiedTopicName(project, topic),
-	}
-	if opts != nil {
-		payload.IdAttribute = opts.IDAttribute
-		payload.TimestampAttribute = opts.TimestampAttribute
-		if opts.Subscription != "" {
-			payload.Subscription = pubsubx.MakeQualifiedSubscriptionName(project, opts.Subscription)
-		}
-		payload.WithAttributes = opts.WithAttributes
+	if opts == nil {
+		panic("ReadOptions must not be nil")
 	}
 
-	out := beam.External(s, readURN, protox.MustEncode(payload), nil, []beam.FullType{typex.New(reflectx.ByteSlice)}, false)
-	if opts != nil && opts.WithAttributes {
+	// Validate: only one of Topic or Subscription should be set
+	if (opts.Topic == "" && opts.Subscription == "") || (opts.Topic != "" && opts.Subscription != "") {
+		panic("Exactly one of Topic or Subscription must be set in ReadOptions")
+	}
+
+	payload := &pipepb.PubSubReadPayload{}
+
+	if opts.Topic != "" {
+		payload.Topic = pubsubx.MakeQualifiedTopicName(project, opts.Topic)
+	} else {
+		payload.Subscription = pubsubx.MakeQualifiedSubscriptionName(project, opts.Subscription)
+	}
+
+	payload.IdAttribute = opts.IDAttribute
+	payload.TimestampAttribute = opts.TimestampAttribute
+	payload.WithAttributes = opts.WithAttributes
+
+	out := beam.External(
+		s,
+		readURN,
+		protox.MustEncode(payload),
+		nil,
+		[]beam.FullType{typex.New(reflectx.ByteSlice)},
+		false,
+	)
+
+	if opts.WithAttributes {
 		return beam.ParDo(s, unmarshalMessageFn, out[0])
 	}
 	return out[0]
