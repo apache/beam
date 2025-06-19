@@ -180,7 +180,7 @@ typing-inspection==0.4.1
 typing_extensions==4.14.0
 tzdata==2025.2
 uritemplate==4.2.0
-urllib3==2.4.0
+urllib3==2.5.0
 virtualenv-clone==0.5.7
 websockets==15.0.1
 wheel==0.45.1
