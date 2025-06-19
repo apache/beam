@@ -18,23 +18,23 @@
 import logging
 import platform
 import unittest
+from collections import defaultdict
 from dataclasses import dataclass
 from dataclasses import field
-from typing import Optional
-from typing import List
 from typing import Dict
-from collections import defaultdict
+from typing import List
+from typing import Optional
 
 import pytest
-from testcontainers.core.generic import DbContainer
-from testcontainers.milvus import MilvusContainer
-from pymilvus import MilvusClient
-from pymilvus import FieldSchema
+from pymilvus import CollectionSchema
 from pymilvus import DataType
+from pymilvus import FieldSchema
 from pymilvus import Function
 from pymilvus import FunctionType
-from pymilvus import CollectionSchema
+from pymilvus import MilvusClient
 from pymilvus.milvus_client import IndexParams
+from testcontainers.core.generic import DbContainer
+from testcontainers.milvus import MilvusContainer
 
 import apache_beam as beam
 from apache_beam.ml.rag.types import Chunk
@@ -292,6 +292,7 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
 
   @classmethod
   def setUpClass(cls):
+    cls._db = MilvusEnrichmentTestHelper.start_db_container(cls._version)
     cls._connection_params = MilvusConnectionParameters(
         uri=cls._db.uri,
         user=cls._db.user,
@@ -299,7 +300,6 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
         db_id=cls._db.id,
         token=cls._db.token)
     cls._collection_load_params = MilvusCollectionLoadParameters()
-    cls._db = MilvusEnrichmentTestHelper.start_db_container(cls._version)
     cls._collection_name = MilvusEnrichmentTestHelper.initialize_db_with_data(
         cls._connection_params)
 

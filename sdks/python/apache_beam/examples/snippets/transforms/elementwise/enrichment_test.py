@@ -18,12 +18,11 @@
 # pytype: skip-file
 # pylint: disable=line-too-long
 
+import os
 import unittest
 from io import StringIO
-import os
 
 import mock
-
 import pytest
 
 # pylint: disable=unused-import
