@@ -37,12 +37,21 @@ from testcontainers.core.generic import DbContainer
 from testcontainers.milvus import MilvusContainer
 
 import apache_beam as beam
+from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.ml.rag.types import Chunk
+from apache_beam.ml.rag.types import Content
+from apache_beam.ml.rag.types import Embedding
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 
 try:
+  from apache_beam.transforms.enrichment import Enrichment
   from apache_beam.ml.rag.enrichment.milvus_search import (
+      MilvusSearchEnrichmentHandler,
       MilvusConnectionParameters,
+      MilvusSearchParameters,
       MilvusCollectionLoadParameters,
+      VectorSearchParameters,
       VectorSearchMetrics,
       KeywordSearchMetrics)
 except ImportError:
@@ -54,7 +63,7 @@ _LOGGER = logging.getLogger(__name__)
 def _create_index_params():
   index_params = IndexParams()
 
-  # Create an index on the dense embedding for vector search.
+  # Construct an index on the dense embedding for vector search.
   index_params.add_index(
       field_name="dense_embedding",
       index_name="dense_embedding_ivf_flat",
@@ -62,7 +71,7 @@ def _create_index_params():
       metric_type=VectorSearchMetrics.COSINE.value,
       params={"nlist": 1024})
 
-  # Create an index on the sparse embedding for keyword/text search.
+  # Construct an index on the sparse embedding for keyword/text search.
   index_params.add_index(
       field_name="sparse_embedding",
       index_name="sparse_embedding_inverted_index",
@@ -84,6 +93,7 @@ class MilvusITDataConstruct:
   domain: str
   cost: int
   metadata: dict
+  tags: list[str]
   dense_embedding: list[float]
   vocabulary: Dict[str, int] = field(default_factory=dict)
 
@@ -123,6 +133,7 @@ MILVUS_IT_CONFIG = {
             domain="medical",
             cost=49,
             metadata={"language": "en"},
+            tags=["healthcare", "patient", "clinical"],
             dense_embedding=[0.1, 0.2, 0.3]),
         MilvusITDataConstruct(
             id=2,
@@ -130,6 +141,7 @@ MILVUS_IT_CONFIG = {
             domain="legal",
             cost=75,
             metadata={"language": "en"},
+            tags=["contract", "law", "regulation"],
             dense_embedding=[0.2, 0.3, 0.4]),
         MilvusITDataConstruct(
             id=3,
@@ -137,6 +149,7 @@ MILVUS_IT_CONFIG = {
             domain="financial",
             cost=149,
             metadata={"language": "ar"},
+            tags=["banking", "investment", "arabic"],
             dense_embedding=[0.3, 0.4, 0.5]),
     ],
     "sparse_embeddings": {
@@ -308,31 +321,150 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
     MilvusEnrichmentTestHelper.stop_db_container(cls._db)
     cls._db = None
 
-  def test_invalid_query(self):
-    pass
+  def test_invalid_query_on_non_existent_collection(self):
+    non_existent_collection = "nonexistent_collection"
+    existent_field = "dense_embedding"
+
+    test_chunks = [
+        Chunk(
+            embedding=Embedding(dense_embedding=[0.1, 0.2, 0.3]),
+            content=Content())
+    ]
+
+    search_parameters = MilvusSearchParameters(
+        collection_name=non_existent_collection,
+        search_strategy=VectorSearchParameters(anns_field=existent_field))
+
+    collection_load_parameters = MilvusCollectionLoadParameters()
+
+    handler = MilvusSearchEnrichmentHandler(
+        self._connection_params, search_parameters, collection_load_parameters)
+
+    with self.assertRaises(Exception) as context:
+      with TestPipeline() as p:
+        _ = (p | beam.Create(test_chunks) | Enrichment(handler))
+
+    expect_err_msg_contains = "collection not found"
+    self.assertIn(expect_err_msg_contains, str(context.exception))
+
+  def test_invalid_query_on_non_existent_field(self):
+    non_existent_field = "nonexistent_column"
+    existent_collection = MILVUS_IT_CONFIG["collection_name"]
+
+    test_chunks = [
+        Chunk(
+            embedding=Embedding(dense_embedding=[0.1, 0.2, 0.3]),
+            content=Content())
+    ]
+
+    search_parameters = MilvusSearchParameters(
+        collection_name=existent_collection,
+        search_strategy=VectorSearchParameters(anns_field=non_existent_field))
+
+    collection_load_parameters = MilvusCollectionLoadParameters()
+
+    handler = MilvusSearchEnrichmentHandler(
+        self._connection_params, search_parameters, collection_load_parameters)
+
+    with self.assertRaises(Exception) as context:
+      with TestPipeline() as p:
+        _ = (p | beam.Create(test_chunks) | Enrichment(handler))
+
+    expect_err_msg_contains = f"fieldName({non_existent_field}) not found"
+    self.assertIn(expect_err_msg_contains, str(context.exception))
 
   def test_empty_input_chunks(self):
-    pass
+    test_chunks = []
 
-  def test_filtered_search(self):
-    pass
+    search_parameters = MilvusSearchParameters(
+        collection_name=MILVUS_IT_CONFIG["collection_name"],
+        search_strategy=VectorSearchParameters(anns_field="dense_embedding"))
 
-  def test_chunks_batching(self):
-    pass
+    collection_load_parameters = MilvusCollectionLoadParameters()
+
+    handler = MilvusSearchEnrichmentHandler(
+        self._connection_params, search_parameters, collection_load_parameters)
+
+    with TestPipeline(is_integration_test=True) as p:
+      result = (p | beam.Create(test_chunks) | Enrichment(handler))
+      assert_that(result, equal_to(test_chunks))
+
+  def test_filtered_search_with_batching(self):
+    test_chunks = [
+        Chunk(
+            id="query1",
+            embedding=Embedding(dense_embedding=[0.1, 0.2, 0.3]),
+            content=Content()),
+        Chunk(
+            id="query2",
+            embedding=Embedding(dense_embedding=[0.2, 0.3, 0.4]),
+            content=Content()),
+        Chunk(
+            id="query3",
+            embedding=Embedding(dense_embedding=[0.3, 0.4, 0.5]),
+            content=Content())
+    ]
+
+    is_english = 'metadata["language"] == "en"'
+    is_arabic = 'metadata["language"] == "ar"'
+    filter_condition = f'{is_english} OR {is_arabic}'
+
+    vector_search_parameters = VectorSearchParameters(
+        anns_field="dense_embedding", limit=5, filter=filter_condition)
+
+    search_parameters = MilvusSearchParameters(
+        collection_name=MILVUS_IT_CONFIG["collection_name"],
+        search_strategy=vector_search_parameters,
+        output_fields=["id", "content", "metadata"],
+        round_decimal=2)
+
+    collection_load_parameters = MilvusCollectionLoadParameters()
+
+    # Force batching.
+    min_batch_size, max_batch_size = 2, 2
+    handler = MilvusSearchEnrichmentHandler(
+        connection_parameters=self._connection_params,
+        search_parameters=search_parameters,
+        collection_load_parameters=collection_load_parameters,
+        min_batch_size=min_batch_size,
+        max_batch_size=max_batch_size)
+
+    with TestPipeline(is_integration_test=True) as p:
+      result = (p | beam.Create(test_chunks) | Enrichment(handler))
+
+    expected_result = [
+      Chunk(
+        id="query1",
+        embedding=Embedding(dense_embedding=[0.1, 0.2, 0.3]),
+        metadata={
+          "enrichment_data": {
+            "id": "",
+
+          },
+        }
+      )
+    ]
+    #TODO
+
 
   def test_basic_vector_search_COSINE(self):
+    #TODO
     pass
 
   def test_basic_vector_search_EUCLIDEAN_DISTANCE(self):
+    #TODO
     pass
 
   def test_basic_vector_search_INNER_PRODUCT(self):
+    #TODO
     pass
 
   def test_basic_keyword_search_BM25(self):
+    #TODO
     pass
 
   def test_basic_hybrid_search(self):
+    #TODO
     pass
 
 
