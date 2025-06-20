@@ -32,8 +32,7 @@ class OrderedSlidingWindowFn(beam.DoFn):
               timestamp=beam.DoFn.TimestampParam,
               ordered_buffer=beam.DoFn.StateParam(ORDERED_BUFFER_STATE),
               window_timer=beam.DoFn.TimerParam(WINDOW_TIMER),
-              timer_state=beam.DoFn.StateParam(TIMER_STATE),
-              earliest_ts_state=beam.DoFn.StateParam(EARLIEST_TS_STATE)):
+              timer_state=beam.DoFn.StateParam(TIMER_STATE)):
 
     key, value = element
     ordered_buffer.add((timestamp, value))
@@ -41,7 +40,6 @@ class OrderedSlidingWindowFn(beam.DoFn):
     logging.info(f"receive {element} at {timestamp}")
     timer_started = timer_state.read() # maybe use read_range instead?
     if not timer_started:
-      earliest_ts_state.write(timestamp)
 
       first_slide_start = int(
           timestamp.micros / 1e6 // self.slide_interval) * self.slide_interval
@@ -59,8 +57,7 @@ class OrderedSlidingWindowFn(beam.DoFn):
                fire_ts=beam.DoFn.TimestampParam,
                ordered_buffer=beam.DoFn.StateParam(ORDERED_BUFFER_STATE),
                window_timer=beam.DoFn.TimerParam(WINDOW_TIMER),
-               timer_state=beam.DoFn.StateParam(TIMER_STATE),
-               earliest_ts_state=beam.DoFn.StateParam(EARLIEST_TS_STATE)):
+               timer_state=beam.DoFn.StateParam(TIMER_STATE)):
     logging.info(f"timer fire at {fire_ts}")
     window_end_ts = fire_ts
     window_start_ts = window_end_ts - self.window_size
@@ -82,17 +79,13 @@ class OrderedSlidingWindowFn(beam.DoFn):
     next_window_end_ts = fire_ts + self.slide_interval
     next_window_start_ts = window_start_ts + self.slide_interval
 
-    earliest_ts = earliest_ts_state.read()
-    ordered_buffer.clear_range(earliest_ts, next_window_start_ts)
-    # ordered_buffer.clear_range(MIN_TIMESTAMP, next_window_start_ts) # use clear_range without mintimestamp
+    ordered_buffer.clear_range(window_start_ts, next_window_start_ts)
 
     # remaining_data = list(ordered_buffer.read())
     remaining_data = list(ordered_buffer.read_range(next_window_start_ts, MAX_TIMESTAMP))
 
-
     if not remaining_data:
       timer_state.clear()
-      earliest_ts_state.clear()
       return
 
     logging.info(f"set timer to {next_window_end_ts}")
@@ -134,7 +127,7 @@ class FillGapsFn(beam.DoFn):
             lookup_ts = round(current_ts, 5)
 
             # Use the actual value if it exists, otherwise a placeholder.
-            value = received_data.get(lookup_ts, [np.nan])[0]
+            value = received_data.get(lookup_ts, ['NaN'])[0]
             filled_middle_values.append(float(value))
 
             # Move to the next expected timestamp.
