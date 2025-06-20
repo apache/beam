@@ -18,9 +18,11 @@
 import apache_beam as beam
 from apache_beam.coders import PickleCoder, BooleanCoder
 from apache_beam.transforms.userstate import OrderedListStateSpec, TimerSpec, on_timer, ReadModifyWriteStateSpec
-from apache_beam.utils.timestamp import Timestamp, MAX_TIMESTAMP
+from apache_beam.utils.timestamp import Timestamp, MIN_TIMESTAMP, MAX_TIMESTAMP
 from apache_beam.transforms.timeutil import TimeDomain
+import typing
 from collections import defaultdict
+import numpy as np
 import logging
 logging.basicConfig(level=logging.INFO)
 
@@ -29,6 +31,7 @@ class OrderedSlidingWindowFn(beam.DoFn):
   ORDERED_BUFFER_STATE = OrderedListStateSpec('ordered_buffer', PickleCoder())
   WINDOW_TIMER = TimerSpec('window_timer', TimeDomain.WATERMARK)
   TIMER_STATE = ReadModifyWriteStateSpec('timer_state', BooleanCoder())
+  EARLIEST_TS_STATE = ReadModifyWriteStateSpec('earliest_ts', PickleCoder())
 
 
   def __init__(self, window_size, slide_interval):
@@ -46,14 +49,16 @@ class OrderedSlidingWindowFn(beam.DoFn):
               timestamp=beam.DoFn.TimestampParam,
               ordered_buffer=beam.DoFn.StateParam(ORDERED_BUFFER_STATE),
               window_timer=beam.DoFn.TimerParam(WINDOW_TIMER),
-              timer_state=beam.DoFn.StateParam(TIMER_STATE)):
+              timer_state=beam.DoFn.StateParam(TIMER_STATE),
+              earliest_ts_state=beam.DoFn.StateParam(EARLIEST_TS_STATE)):
 
     key, value = element
     ordered_buffer.add((timestamp, value))
 
     logging.info(f"receive {element} at {timestamp}")
-    timer_started = timer_state.read()
+    timer_started = timer_state.read() # maybe use read_range instead?
     if not timer_started:
+      earliest_ts_state.write(timestamp)
 
       first_slide_start = int(
           timestamp.micros / 1e6 // self.slide_interval) * self.slide_interval
@@ -71,7 +76,8 @@ class OrderedSlidingWindowFn(beam.DoFn):
                fire_ts=beam.DoFn.TimestampParam,
                ordered_buffer=beam.DoFn.StateParam(ORDERED_BUFFER_STATE),
                window_timer=beam.DoFn.TimerParam(WINDOW_TIMER),
-               timer_state=beam.DoFn.StateParam(TIMER_STATE)):
+               timer_state=beam.DoFn.StateParam(TIMER_STATE),
+               earliest_ts_state=beam.DoFn.StateParam(EARLIEST_TS_STATE)):
     logging.info(f"timer fire at {fire_ts}")
     window_end_ts = fire_ts
     window_start_ts = window_end_ts - self.window_size
@@ -88,12 +94,14 @@ class OrderedSlidingWindowFn(beam.DoFn):
     next_window_end_ts = fire_ts + self.slide_interval
     next_window_start_ts = window_start_ts + self.slide_interval
 
-    ordered_buffer.clear_range(window_start_ts, next_window_start_ts)
+    earliest_ts = earliest_ts_state.read()
+    ordered_buffer.clear_range(earliest_ts, next_window_start_ts)
 
     remaining_data = list(ordered_buffer.read_range(next_window_start_ts, MAX_TIMESTAMP))
 
     if not remaining_data:
       timer_state.clear()
+      earliest_ts_state.clear()
       return
 
     logging.info(f"set timer to {next_window_end_ts}")
