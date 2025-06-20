@@ -1188,6 +1188,21 @@ class ExternalTransformFinder(PipelineVisitor):
     self._perform_exernal_transform_test(transform_node.transform)
 
 
+class DisplayDataContainer(HasDisplayData):
+  def __init__(self, display_data_dict, display_data_namespace):
+    self.display_data_dict = display_data_dict
+    self.display_data_namespace = display_data_namespace
+
+  def display_data(self):
+    # type: () -> Dict[str, DisplayData]
+
+    """Returns the display data for this object."""
+    return self.display_data_dict
+
+  def _get_display_data_namespace(self):  # type: () -> str
+    return self.display_data_namespace
+
+
 class AppliedPTransform(object):
   """For internal use only; no backwards-compatibility guarantees.
 
@@ -1229,8 +1244,13 @@ class AppliedPTransform(object):
       annotations = {
           **(annotations or {}), **encode_annotations(transform.annotations())
       }
+      display_data = DisplayDataContainer(
+          transform.display_data(), transform._get_display_data_namespace())
+    else:
+      display_data = None
 
     self.annotations = annotations
+    self.display_data = display_data
 
   @property
   def inputs(self):
@@ -1454,8 +1474,8 @@ class AppliedPTransform(object):
         environment_id=environment_id,
         annotations=self.annotations,
         # TODO(https://github.com/apache/beam/issues/18012): Add display_data.
-        display_data=DisplayData.create_from(self.transform).to_proto()
-        if self.transform else None)
+        display_data=DisplayData.create_from(self.display_data).to_proto()
+        if self.display_data else None)
 
   @staticmethod
   def from_runner_api(
