@@ -63,6 +63,20 @@ public class ChangeStreamMetrics implements Serializable {
       Metrics.counter(ChangeStreamMetrics.class, "partition_start_record_count");
 
   /**
+   * Counter for the total number of partition end records identified during the execution of the
+   * Connector.
+   */
+  public static final Counter PARTITION_END_RECORD_COUNT =
+      Metrics.counter(ChangeStreamMetrics.class, "partition_end_record_count");
+
+  /**
+   * Counter for the total number of partition event records identified during the execution of the
+   * Connector.
+   */
+  public static final Counter PARTITION_EVENT_RECORD_COUNT =
+      Metrics.counter(ChangeStreamMetrics.class, "partition_event_record_count");
+
+  /**
    * Time in milliseconds that a partition took to transition from {@link State#CREATED} to {@link
    * State#SCHEDULED}.
    */
@@ -185,6 +199,22 @@ public class ChangeStreamMetrics implements Serializable {
    */
   public void incPartitionStartRecordCount() {
     inc(PARTITION_START_RECORD_COUNT);
+  }
+
+  /**
+   * Increments the {@link ChangeStreamMetrics#PARTITION_END_RECORD_COUNT} by 1 if the metric is
+   * enabled.
+   */
+  public void incPartitionEndRecordCount() {
+    inc(PARTITION_END_RECORD_COUNT);
+  }
+
+  /**
+   * Increments the {@link ChangeStreamMetrics#PARTITION_END_RECORD_COUNT} by 1 if the metric is
+   * enabled.
+   */
+  public void incPartitionEventRecordCount() {
+    inc(PARTITION_EVENT_RECORD_COUNT);
   }
 
   /**

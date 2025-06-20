@@ -78,6 +78,8 @@ public class QueryChangeStreamActionTest {
   private HeartbeatRecordAction heartbeatRecordAction;
   private ChildPartitionsRecordAction childPartitionsRecordAction;
   private PartitionStartRecordAction partitionStartRecordAction;
+  private PartitionEndRecordAction partitionEndRecordAction;
+  private PartitionEventRecordAction partitionEventRecordAction;
   private QueryChangeStreamAction action;
 
   @Before
@@ -90,6 +92,8 @@ public class QueryChangeStreamActionTest {
     heartbeatRecordAction = mock(HeartbeatRecordAction.class);
     childPartitionsRecordAction = mock(ChildPartitionsRecordAction.class);
     partitionStartRecordAction = mock(PartitionStartRecordAction.class);
+    partitionEndRecordAction = mock(PartitionEndRecordAction.class);
+    partitionEventRecordAction = mock(PartitionEventRecordAction.class);
     metrics = mock(ChangeStreamMetrics.class);
 
     action =
@@ -102,6 +106,8 @@ public class QueryChangeStreamActionTest {
             heartbeatRecordAction,
             childPartitionsRecordAction,
             partitionStartRecordAction,
+            partitionEndRecordAction,
+            partitionEventRecordAction,
             metrics);
     final Struct row = mock(Struct.class);
     partition =
@@ -193,9 +199,12 @@ public class QueryChangeStreamActionTest {
     verify(heartbeatRecordAction, never()).run(any(), any(), any(), any(), any());
     verify(childPartitionsRecordAction, never()).run(any(), any(), any(), any(), any());
     verify(partitionStartRecordAction, never()).run(any(), any(), any(), any(), any());
+    verify(partitionEndRecordAction, never()).run(any(), any(), any(), any(), any());
+    verify(partitionEventRecordAction, never()).run(any(), any(), any(), any(), any());
     verify(restrictionTracker, never()).tryClaim(any());
   }
 
+  // todo changliiu the same
   @Test
   public void testQueryChangeStreamWithHeartbeatRecord() {
     final Struct rowAsStruct = mock(Struct.class);
@@ -257,6 +266,8 @@ public class QueryChangeStreamActionTest {
     verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any(), any());
     verify(childPartitionsRecordAction, never()).run(any(), any(), any(), any(), any());
     verify(partitionStartRecordAction, never()).run(any(), any(), any(), any(), any());
+    verify(partitionEndRecordAction, never()).run(any(), any(), any(), any(), any());
+    verify(partitionEventRecordAction, never()).run(any(), any(), any(), any(), any());
     verify(restrictionTracker, never()).tryClaim(any());
   }
 
@@ -321,6 +332,8 @@ public class QueryChangeStreamActionTest {
     verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any(), any());
     verify(heartbeatRecordAction, never()).run(any(), any(), any(), any(), any());
     verify(partitionStartRecordAction, never()).run(any(), any(), any(), any(), any());
+    verify(partitionEndRecordAction, never()).run(any(), any(), any(), any(), any());
+    verify(partitionEventRecordAction, never()).run(any(), any(), any(), any(), any());
     verify(restrictionTracker, never()).tryClaim(any());
   }
 
@@ -382,6 +395,8 @@ public class QueryChangeStreamActionTest {
     verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any(), any());
     verify(heartbeatRecordAction, never()).run(any(), any(), any(), any(), any());
     verify(partitionStartRecordAction, never()).run(any(), any(), any(), any(), any());
+    verify(partitionEndRecordAction, never()).run(any(), any(), any(), any(), any());
+    verify(partitionEventRecordAction, never()).run(any(), any(), any(), any(), any());
     verify(restrictionTracker, never()).tryClaim(any());
   }
 
@@ -506,6 +521,8 @@ public class QueryChangeStreamActionTest {
     verify(heartbeatRecordAction, never()).run(any(), any(), any(), any(), any());
     verify(childPartitionsRecordAction, never()).run(any(), any(), any(), any(), any());
     verify(partitionStartRecordAction, never()).run(any(), any(), any(), any(), any());
+    verify(partitionEndRecordAction, never()).run(any(), any(), any(), any(), any());
+    verify(partitionEventRecordAction, never()).run(any(), any(), any(), any(), any());
   }
 
   private static class BundleFinalizerStub implements BundleFinalizer {
