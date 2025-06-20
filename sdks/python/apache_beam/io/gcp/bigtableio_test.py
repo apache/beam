@@ -274,14 +274,9 @@ class TestWriteBigTable(unittest.TestCase):
     # TODO(https://github.com/apache/beam/issues/34549): This test relies on
     # lineage metrics which Prism doesn't seem to handle correctly. Defaulting
     # to FnApiRunner instead.
-<<<<<<< HEAD
-    with patch.object(MutationsBatcher, 'mutate'), \
-      patch.object(MutationsBatcher, 'close'), TestPipeline('FnApiRunner') as p:
-=======
     runner = 'FnApiRunner'
     with patch.object(MutationsBatcher, 'mutate'), \
       patch.object(MutationsBatcher, 'close'), TestPipeline(runner) as p:
->>>>>>> cbdf30b52aea5db5cc477c8bfd747396d3f1e245
       _ = p | beam.Create(direct_rows) | bigtableio.WriteToBigTable(
           self._PROJECT_ID, self._INSTANCE_ID, self._TABLE_ID)
     self.assertSetEqual(
