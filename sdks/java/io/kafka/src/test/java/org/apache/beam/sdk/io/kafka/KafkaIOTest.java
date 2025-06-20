@@ -130,7 +130,7 @@ import org.apache.kafka.clients.producer.MockProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.clients.producer.internals.DefaultPartitioner;
+import org.apache.kafka.clients.producer.RoundRobinPartitioner;
 import org.apache.kafka.common.Cluster;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.PartitionInfo;
@@ -244,17 +244,18 @@ public class KafkaIOTest {
       records
           .get(tp)
           .add(
-              new ConsumerRecord<>(
+              new ConsumerRecord<byte[], byte[]>(
                   tp.topic(),
                   tp.partition(),
                   offsets[pIdx]++,
                   timestampStartMillis + Duration.standardSeconds(i).getMillis(),
                   timestampType,
-                  0,
                   key.length,
                   value.length,
                   key,
-                  value));
+                  value,
+                  new org.apache.kafka.common.header.internals.RecordHeaders(),
+                  Optional.empty()));
     }
 
     // This is updated when reader assigns partitions.
@@ -316,7 +317,7 @@ public class KafkaIOTest {
             }
             if (recordsAdded == 0) {
               if (config.get("inject.error.at.eof") != null) {
-                consumer.setException(new KafkaException("Injected error in consumer.poll()"));
+                consumer.setPollException(new KafkaException("Injected error in consumer.poll()"));
               }
               // MockConsumer.poll(timeout) does not actually wait even when there aren't any
               // records.
@@ -2421,7 +2422,7 @@ public class KafkaIOTest {
                           new PartitionInfo("test", 1, null, null, null))),
               false, // disable synchronous completion of send. see ProducerSendCompletionThread
               // below.
-              new DefaultPartitioner(),
+              new RoundRobinPartitioner(),
               new IntegerSerializer(),
               valueSerializer) {
 

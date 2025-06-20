@@ -35,6 +35,7 @@ import org.apache.kafka.clients.producer.MockProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
+import org.apache.kafka.clients.producer.RoundRobinPartitioner;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.PartitionInfo;
@@ -47,7 +48,7 @@ public class KafkaMocks {
   public static final class SendErrorProducer extends MockProducer<Integer, Long> {
 
     public SendErrorProducer() {
-      super(false, new IntegerSerializer(), new LongSerializer());
+      super(false, new RoundRobinPartitioner(), new IntegerSerializer(), new LongSerializer());
     }
 
     @Override
@@ -104,11 +105,11 @@ public class KafkaMocks {
     private int index = 0;
 
     public PartitionGrowthMockConsumer() {
-      super(null);
+      super(OffsetResetStrategy.EARLIEST);
     }
 
     public PartitionGrowthMockConsumer(List<List<KV<String, Integer>>> partitions) {
-      super(null);
+      super(OffsetResetStrategy.EARLIEST);
       this.partitions = partitions;
     }
 

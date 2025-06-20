@@ -21,7 +21,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -56,14 +55,14 @@ public class KafkaCommitOffsetTest {
   @Rule public ExpectedLogs expectedLogs = ExpectedLogs.none(CommitOffsetDoFn.class);
 
   private final KafkaCommitOffsetMockConsumer consumer =
-      new KafkaCommitOffsetMockConsumer(null, false);
+      new KafkaCommitOffsetMockConsumer(OffsetResetStrategy.EARLIEST, false);
   private final KafkaCommitOffsetMockConsumer errorConsumer =
-      new KafkaCommitOffsetMockConsumer(null, true);
+      new KafkaCommitOffsetMockConsumer(OffsetResetStrategy.EARLIEST, true);
 
   private static final KafkaCommitOffsetMockConsumer COMPOSITE_CONSUMER =
-      new KafkaCommitOffsetMockConsumer(null, false);
+      new KafkaCommitOffsetMockConsumer(OffsetResetStrategy.EARLIEST, false);
   private static final KafkaCommitOffsetMockConsumer COMPOSITE_CONSUMER_BOOTSTRAP =
-      new KafkaCommitOffsetMockConsumer(null, false);
+      new KafkaCommitOffsetMockConsumer(OffsetResetStrategy.EARLIEST, false);
 
   private static final Map<String, Object> configMap =
       ImmutableMap.of(ConsumerConfig.GROUP_ID_CONFIG, "group1");
@@ -236,7 +235,7 @@ public class KafkaCommitOffsetTest {
     }
 
     @Override
-    public synchronized void close(long timeout, TimeUnit unit) {
+    public synchronized void close(java.time.Duration timeout) {
       // Ignore closing since we're using a single consumer.
     }
   }

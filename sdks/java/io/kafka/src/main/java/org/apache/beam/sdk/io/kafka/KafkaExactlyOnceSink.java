@@ -25,6 +25,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -567,7 +568,10 @@ class KafkaExactlyOnceSink<K, V>
         OffsetAndMetadata committed;
 
         try (Consumer<?, ?> consumer = openConsumer(spec)) {
-          committed = consumer.committed(new TopicPartition(topic, shard));
+          committed =
+              consumer
+                  .committed(Collections.singleton(new TopicPartition(topic, shard)))
+                  .get(new TopicPartition(topic, shard));
         }
 
         long committedSeqId = -1;
