@@ -14,7 +14,7 @@
 # limitations under the License.
 
 apache_beam[gcp]==2.40.0
-requests==2.31.0
+requests==2.32.4
 torch==1.13.1
 torchvision==0.13.0
 numpy==1.22.4
