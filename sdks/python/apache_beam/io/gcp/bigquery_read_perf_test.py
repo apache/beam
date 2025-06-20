@@ -55,7 +55,7 @@ import logging
 
 from apache_beam import Map
 from apache_beam import ParDo
-from apache_beam.io import BigQueryDisposition
+from apache_beam.io.gcp.bigquery import BigQueryDisposition
 from apache_beam.io import BigQuerySource
 from apache_beam.io import Read
 from apache_beam.io import WriteToBigQuery
