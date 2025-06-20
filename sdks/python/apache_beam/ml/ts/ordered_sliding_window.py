@@ -1,20 +1,34 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 import apache_beam as beam
 from apache_beam.coders import PickleCoder, BooleanCoder
 from apache_beam.transforms.userstate import OrderedListStateSpec, TimerSpec, on_timer, ReadModifyWriteStateSpec
-from apache_beam.utils.timestamp import Timestamp, MIN_TIMESTAMP, MAX_TIMESTAMP
+from apache_beam.utils.timestamp import Timestamp, MAX_TIMESTAMP
 from apache_beam.transforms.timeutil import TimeDomain
-import typing
 from collections import defaultdict
-import numpy as np
 import logging
-# logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO)
 
 class OrderedSlidingWindowFn(beam.DoFn):
 
   ORDERED_BUFFER_STATE = OrderedListStateSpec('ordered_buffer', PickleCoder())
   WINDOW_TIMER = TimerSpec('window_timer', TimeDomain.WATERMARK)
   TIMER_STATE = ReadModifyWriteStateSpec('timer_state', BooleanCoder())
-  EARLIEST_TS_STATE = ReadModifyWriteStateSpec('earliest_ts', PickleCoder())
 
 
   def __init__(self, window_size, slide_interval):
@@ -38,7 +52,7 @@ class OrderedSlidingWindowFn(beam.DoFn):
     ordered_buffer.add((timestamp, value))
 
     logging.info(f"receive {element} at {timestamp}")
-    timer_started = timer_state.read() # maybe use read_range instead?
+    timer_started = timer_state.read()
     if not timer_started:
 
       first_slide_start = int(
@@ -62,11 +76,6 @@ class OrderedSlidingWindowFn(beam.DoFn):
     window_end_ts = fire_ts
     window_start_ts = window_end_ts - self.window_size
 
-    # all_values = list(ordered_buffer.read())
-    # logging.info(f"all data in buffer {str(all_values)}")
-    # window_values = [
-    #     i for i in all_values if window_start_ts <= i[0] < 2
-    # ]
     window_values = list(ordered_buffer.read_range(window_start_ts, window_end_ts))
     logging.info(f"Window [{window_start_ts}, {window_end_ts}) contains {len(window_values)} elements.")
 
@@ -81,7 +90,6 @@ class OrderedSlidingWindowFn(beam.DoFn):
 
     ordered_buffer.clear_range(window_start_ts, next_window_start_ts)
 
-    # remaining_data = list(ordered_buffer.read())
     remaining_data = list(ordered_buffer.read_range(next_window_start_ts, MAX_TIMESTAMP))
 
     if not remaining_data:

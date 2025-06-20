@@ -1,24 +1,38 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 import apache_beam as beam
 from ordered_sliding_window import OrderedSlidingWindowFn, FillGapsFn
 import unittest
 import apache_beam as beam
-from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that, equal_to
 import math
 from apache_beam.utils.timestamp import Timestamp, MIN_TIMESTAMP
 from util import PeriodicStream
 import random
-import typing
 import logging
 from apache_beam.options.pipeline_options import PipelineOptions
 import numpy as np
 
-# logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO)
 
 def format_for_comparison(element):
     """Converts np.nan in the data list to the string 'NaN' for stable comparison."""
     key, (start_ts, end_ts, data_list) = element
-    # Use isinstance to be robust against both float nan and np.nan
     formatted_list = ['NaN' if isinstance(x, float) and np.isnan(x) else x for x in data_list]
     return (key, (start_ts, end_ts, formatted_list))
 
@@ -60,19 +74,15 @@ class DoFnTests(unittest.TestCase):
         with beam.Pipeline(options=options) as p:
             output = (
                 p
-                # | beam.Create(data)  # Uncomment this line to use static data instead of PeriodicStream
                 | PeriodicStream(data, interval=0.01)
                 | beam.WithKeys(0)
-                # | 'Add dummy key' >> beam.M2ap(lambda x: (x % 2, x)).with_output_types(typing.Tuple[int, int])
                 | "SlidingWindow" >> beam.ParDo(OrderedSlidingWindowFn(window_size=WINDOW_SIZE, slide_interval=SLIDE_INTERVAL))
                 | "FillGaps" >> beam.ParDo(FillGapsFn(expected_interval=EXPECTED_INTERVAL))
-                # | "print" >> beam.Map(print)
                 | 'Format For Comparison' >> beam.Map(format_for_comparison)
-                | beam.Map(print)
 
             )
 
-            # assert_that(output, equal_to(expected))
+            assert_that(output, equal_to(expected))
 
     def test_pipeline_with_periodic_stream_data_with_missing_values(self):
         """Tests the pipeline using the specific data sequence from the user's example."""
@@ -115,15 +125,12 @@ class DoFnTests(unittest.TestCase):
                 p
                 | PeriodicStream(data, interval=0.01)
                 | beam.WithKeys(0)
-                # | 'Add dummy key' >> beam.M2ap(lambda x: (x % 2, x)).with_output_types(typing.Tuple[int, int])
                 | "SlidingWindow" >> beam.ParDo(OrderedSlidingWindowFn(window_size=WINDOW_SIZE, slide_interval=SLIDE_INTERVAL))
                 | "FillGaps" >> beam.ParDo(FillGapsFn(expected_interval=EXPECTED_INTERVAL))
-                # | "print" >> beam.Map(print)
                 | 'Format For Comparison' >> beam.Map(format_for_comparison)
-                | beam.Map(print)
             )
 
-            # assert_that(output, equal_to(expected))
+            assert_that(output, equal_to(expected))
 
 
 if __name__ == '__main__':
