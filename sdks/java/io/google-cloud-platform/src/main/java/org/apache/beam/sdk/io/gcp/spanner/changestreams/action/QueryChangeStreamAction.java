@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.action;
 
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.MAX_INCLUSIVE_END_AT;
+
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.SpannerException;
@@ -160,7 +162,10 @@ public class QueryChangeStreamAction {
       BundleFinalizer bundleFinalizer) {
     final String token = partition.getPartitionToken();
     final Timestamp startTimestamp = tracker.currentRestriction().getFrom();
-    final Timestamp endTimestamp = partition.getEndTimestamp();
+    final Timestamp changeStreamQueryEndTimestamp =
+        partition.getEndTimestamp().equals(MAX_INCLUSIVE_END_AT)
+            ? getNextReadChangeStreamEndTimestamp()
+            : partition.getEndTimestamp();
 
     // TODO: Potentially we can avoid this fetch, by enriching the runningAt timestamp when the
     // ReadChangeStreamPartitionDoFn#processElement is called
@@ -178,7 +183,7 @@ public class QueryChangeStreamAction {
 
     try (ChangeStreamResultSet resultSet =
         changeStreamDao.changeStreamQuery(
-            token, startTimestamp, endTimestamp, partition.getHeartbeatMillis())) {
+            token, startTimestamp, changeStreamQueryEndTimestamp, partition.getHeartbeatMillis())) {
 
       metrics.incQueryCounter();
       while (resultSet.next()) {
@@ -243,7 +248,7 @@ public class QueryChangeStreamAction {
             "[{}] query change stream is out of range for {} to {}, finishing stream.",
             token,
             startTimestamp,
-            endTimestamp,
+            changeStreamQueryEndTimestamp,
             e);
       } else {
         throw e;
@@ -253,13 +258,13 @@ public class QueryChangeStreamAction {
           "[{}] query change stream had exception processing range {} to {}.",
           token,
           startTimestamp,
-          endTimestamp,
+          changeStreamQueryEndTimestamp,
           e);
       throw e;
     }
 
     LOG.debug("[{}] change stream completed successfully", token);
-    if (tracker.tryClaim(endTimestamp)) {
+    if (tracker.tryClaim(changeStreamQueryEndTimestamp)) {
       LOG.debug("[{}] Finishing partition", token);
       partitionMetadataDao.updateToFinished(token);
       metrics.decActivePartitionReadCounter();
@@ -291,5 +296,13 @@ public class QueryChangeStreamAction {
             || e.getErrorCode() == ErrorCode.OUT_OF_RANGE)
         && e.getMessage() != null
         && e.getMessage().contains(OUT_OF_RANGE_ERROR_MESSAGE);
+  }
+
+  // Return (now + 2 mins) as the end timestamp for reading change streams. This is only used if
+  // users want to run the connector forever. This approach works because Google Dataflow
+  // checkpoints every 5s or 5MB output provided and the change stream query has deadline for 1 min.
+  private Timestamp getNextReadChangeStreamEndTimestamp() {
+    final Timestamp current = Timestamp.now();
+    return Timestamp.ofTimeSecondsAndNanos(current.getSeconds() + 2 * 60, current.getNanos());
   }
 }
