@@ -987,7 +987,8 @@ class _CustomBigQueryStorageSource(BoundedSource):
       kms_key: Optional[str] = None,
       temp_dataset: Optional[DatasetReference] = None,
       temp_table: Optional[TableReference] = None,
-      use_native_datetime: Optional[bool] = False):
+      use_native_datetime: Optional[bool] = False,
+      timeout: Optional[float] = None):
 
     if table is not None and query is not None:
       raise ValueError(
@@ -1022,6 +1023,7 @@ class _CustomBigQueryStorageSource(BoundedSource):
     self.temp_table = temp_table
     self.query_priority = query_priority
     self.use_native_datetime = use_native_datetime
+    self.timeout = timeout
     self._job_name = job_name or 'BQ_DIRECT_READ_JOB'
     self._step_name = step_name
     self._source_uuid = unique_id
@@ -1213,7 +1215,7 @@ class _CustomBigQueryStorageSource(BoundedSource):
 
       self.split_result = [
           _CustomBigQueryStorageStreamSource(
-              stream.name, self.use_native_datetime)
+              stream.name, self.use_native_datetime, self.timeout)
           for stream in read_session.streams
       ]
 
@@ -1245,9 +1247,13 @@ class _CustomBigQueryStorageStreamSource(BoundedSource):
   THROTTLE_COUNTER = Metrics.counter(__name__, 'cumulativeThrottlingSeconds')
 
   def __init__(
-      self, read_stream_name: str, use_native_datetime: Optional[bool] = True):
+      self,
+      read_stream_name: str,
+      use_native_datetime: Optional[bool] = True,
+      timeout: Optional[float] = None):
     self.read_stream_name = read_stream_name
     self.use_native_datetime = use_native_datetime
+    self.timeout = timeout
 
   def display_data(self):
     return {
@@ -1307,10 +1313,12 @@ class _CustomBigQueryStorageStreamSource(BoundedSource):
   def read_arrow(self):
 
     storage_client = bq_storage.BigQueryReadClient()
+    read_rows_kwargs = {'retry_delay_callback': self.retry_delay_callback}
+    if self.timeout is not None:
+      read_rows_kwargs['timeout'] = self.timeout
     row_iter = iter(
-        storage_client.read_rows(
-            self.read_stream_name,
-            retry_delay_callback=self.retry_delay_callback).rows())
+        storage_client.read_rows(self.read_stream_name,
+                                 **read_rows_kwargs).rows())
     row = next(row_iter, None)
     # Handling the case where the user might provide very selective filters
     # which can result in read_rows_response being empty.
@@ -1324,10 +1332,11 @@ class _CustomBigQueryStorageStreamSource(BoundedSource):
 
   def read_avro(self):
     storage_client = bq_storage.BigQueryReadClient()
+    read_rows_kwargs = {'retry_delay_callback': self.retry_delay_callback}
+    if self.timeout is not None:
+      read_rows_kwargs['timeout'] = self.timeout
     read_rows_iterator = iter(
-        storage_client.read_rows(
-            self.read_stream_name,
-            retry_delay_callback=self.retry_delay_callback))
+        storage_client.read_rows(self.read_stream_name, **read_rows_kwargs))
     # Handling the case where the user might provide very selective filters
     # which can result in read_rows_response being empty.
     first_read_rows_response = next(read_rows_iterator, None)
@@ -2732,6 +2741,8 @@ class ReadFromBigQuery(PTransform):
       directly from BigQuery storage using the BigQuery Read API
       (https://cloud.google.com/bigquery/docs/reference/storage). If
       unspecified, the default is currently EXPORT.
+    timeout (float): The timeout for the read operation in seconds. This only
+      impacts DIRECT_READ. If None, the client default will be used.
     use_native_datetime (bool): By default this transform exports BigQuery
       DATETIME fields as formatted strings (for example:
       2021-01-01T12:59:59). If :data:`True`, BigQuery DATETIME fields will
@@ -2824,6 +2835,7 @@ class ReadFromBigQuery(PTransform):
       method=None,
       use_native_datetime=False,
       output_type=None,
+      timeout=None,
       *args,
       **kwargs):
     self.method = method or ReadFromBigQuery.Method.EXPORT
@@ -2831,6 +2843,8 @@ class ReadFromBigQuery(PTransform):
     self.output_type = output_type
     self._args = args
     self._kwargs = kwargs
+    if timeout is not None:
+      self._kwargs['timeout'] = timeout
 
     if self.method == ReadFromBigQuery.Method.EXPORT \
         and self.use_native_datetime is True:
