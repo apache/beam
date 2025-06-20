@@ -119,13 +119,78 @@ def test_kafka_read(
     bootstrap_servers,
     auto_offset_reset_config,
     consumer_config):
+  """
+  This PTransform simulates the behavior of the ReadFromKafka transform
+  with the RAW format by simply using some fixed sample text data and
+  encode it to raw bytes.
+
+  Args:
+    pcoll: The input PCollection.
+    format:
+    topic:
+    bootstrap_servers:
+    auto_offset_reset_config:
+    consumer_config:
+
+  Returns:
+    A PCollection containing the sample text data in bytes.
+  """
+
   return (
       pcoll | beam.Create(input_data.text_data().split('\n'))
       | beam.Map(lambda element: beam.Row(payload=element.encode('utf-8'))))
 
 
+@beam.ptransform.ptransform_fn
+def test_run_inference(pcoll, inference_tag, model_handler):
+  """
+  This PTransform simulates the behavior of the RunInference transform.
+
+  Args:
+    pcoll: The input PCollection.
+    inference_tag: The tag to use for the returned inference.
+    model_handler: A configuration for the respective ML model handler
+
+  Returns:
+    A PCollection containing the enriched data.
+  """
+
+  from apache_beam.ml.inference.base import PredictionResult
+  from apache_beam.typehints.row_type import RowTypeConstraint
+
+  def _fn(row):
+    input = row._asdict()
+
+    row = {
+        inference_tag: PredictionResult(
+            input['comment_text'],
+            [{
+                'label': 'POSITIVE'
+                if 'happy' in input['comment_text'] else 'NEGATIVE',
+                'score': 0.95
+            }]),
+        **input
+    }
+
+    return beam.Row(**row)
+
+  user_type = RowTypeConstraint.from_user_type(pcoll.element_type.user_type)
+  user_schema_fields = [(name, type(typ) if not isinstance(typ, type) else typ)
+                        for (name,
+                             typ) in user_type._fields] if user_type else []
+  inference_output_type = RowTypeConstraint.from_fields([
+      ('example', Any), ('inference', Any), ('model_id', Optional[str])
+  ])
+  schema = RowTypeConstraint.from_fields(
+      user_schema_fields + [(str(inference_tag), inference_output_type)])
+
+  return pcoll | beam.Map(_fn).with_output_types(schema)
+
+
 TEST_PROVIDERS = {
-    'TestEnrichment': test_enrichment, 'TestReadFromKafka': test_kafka_read
+    'TestEnrichment': test_enrichment,
+    'TestReadFromKafka': test_kafka_read,
+    'TestRunInference': test_run_inference
 }
 
 INPUT_TRANSFORM_TEST_PROVIDERS = ['TestReadFromKafka']
@@ -418,6 +483,7 @@ def _kafka_test_preprocessor(
     'test_kafka_yaml',
     'test_spanner_read_yaml',
     'test_spanner_write_yaml',
+    'test_streaming_sentiment_analysis_yaml',
     'test_enrich_spanner_with_bigquery_yaml'
 ])
 def _io_write_test_preprocessor(
@@ -607,7 +673,73 @@ def _enrichment_test_preprocessor(
   return test_spec
 
 
-INPUT_FILES = {'products.csv': input_data.products_csv()}
+@YamlExamplesTestSuite.register_test_preprocessor(
+    'test_streaming_sentiment_analysis_yaml')
+def _streaming_sentiment_analyis_test_preprocessor(
+    test_spec: dict, expected: List[str], env: TestEnvironment):
+  """
+  Preprocessor for tests that involve the streaming sentiment analysis example.
+
+  This preprocessor replaces any ... transform with a Create
+  transform that reads from a predefined in-memory dictionary. This allows
+  the test to verify the pipeline's correctness without relying on Iceberg
+  tables stored externally.
+
+  Args:
+    test_spec: The dictionary representation of the YAML pipeline specification.
+    expected: A list of strings representing the expected output of the
+      pipeline.
+    env: The TestEnvironment object providing utilities for creating temporary
+      files.
+
+  Returns:
+    The modified test_spec dictionary with ... transforms replaced.
+  """
+  if pipeline := test_spec.get('pipeline', None):
+    for transform in pipeline.get('transforms', []):
+      if transform.get('type', '') == 'ReadFromCsv':
+        transform['windowing'] = {
+          'type': 'fixed',
+          'size': '30s'
+        }
+
+        file_name = transform['config']['path'].split('/')[-1]
+        test_spec = replace_recursive(
+          test_spec,
+          transform['type'],
+          'path',
+          env.input_file(file_name, INPUT_FILES[file_name]))
+
+  if pipeline := test_spec.get('pipeline', None):
+    for transform in pipeline.get('transforms', []):
+      if transform.get('type', '') == 'ReadFromKafka':
+        config = transform['config']
+        transform['type'] = 'ReadFromCsv'
+        transform['config'] = {
+            k: v
+            for k, v in config.items() if k.startswith('__')
+        }
+        transform['config']['path'] = ""
+
+        file_name = 'youtube-comments.csv'
+        test_spec = replace_recursive(
+          test_spec,
+          transform['type'],
+          'path',
+          env.input_file(file_name, INPUT_FILES[file_name]))
+
+  if pipeline := test_spec.get('pipeline', None):
+    for transform in pipeline.get('transforms', []):
+      if transform.get('type', '') == 'RunInference':
+        transform['type'] = 'TestRunInference'
+
+  return test_spec
+
+
+INPUT_FILES = {
+    'products.csv': input_data.products_csv(),
+    'youtube-comments.csv': input_data.youtube_comments_csv()
+}
 INPUT_TABLES = {
     ('shipment-test', 'shipment', 'shipments'): input_data.
     spanner_shipments_data(),
