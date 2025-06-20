@@ -15,31 +15,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.fn.harness;
+package org.apache.beam.sdk.util;
 
-import com.google.auto.value.AutoValue;
 import org.apache.beam.sdk.annotations.Internal;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
+import org.apache.beam.sdk.values.OutputBuilder;
+import org.apache.beam.sdk.values.TupleTag;
 
-@AutoValue
-@AutoValue.CopyAnnotations
+/**
+ * An object that vends new {@link OutputBuilder} instances. It encapsulates:
+ *
+ * <ul>
+ *   <li>The element metadata context, such as the currently-in-process element.
+ *   <li>The destinations where the vended {@link OutputBuilder} can be sent.
+ * </ul>
+ */
 @Internal
-abstract class SplitResultsWithStopIndex {
-  public static SplitResultsWithStopIndex of(
-      WindowedSplitResult windowSplit,
-      HandlesSplits.@Nullable SplitResult downstreamSplit,
-      int newWindowStopIndex) {
-    return new AutoValue_SplitResultsWithStopIndex(
-        windowSplit, downstreamSplit, newWindowStopIndex);
-  }
-
-  @Pure
-  public abstract WindowedSplitResult getWindowSplit();
-
-  @Pure
-  public abstract HandlesSplits.@Nullable SplitResult getDownstreamSplit();
-
-  @Pure
-  public abstract int getNewWindowStopIndex();
+@FunctionalInterface
+public interface OutputBuilderSupplier {
+  /** Outputs a value with windowing information to a tagged output. */
+  <OutputT> OutputBuilder<OutputT> builder(TupleTag<OutputT> tag);
 }

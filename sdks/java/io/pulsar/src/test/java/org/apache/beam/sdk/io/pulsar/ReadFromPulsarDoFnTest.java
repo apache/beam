@@ -20,18 +20,14 @@ package org.apache.beam.sdk.io.pulsar;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.util.ArrayList;
-import java.util.List;
 import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.testing.TestOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.internal.DefaultImplementation;
-import org.checkerframework.checker.initialization.qual.Initialized;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
@@ -103,14 +99,14 @@ public class ReadFromPulsarDoFnTest {
 
   @Test
   public void testProcessElement() throws Exception {
-    MockOutputReceiver receiver = new MockOutputReceiver();
+    TestOutputReceiver<PulsarMessage> receiver = new TestOutputReceiver<>();
     long startOffset = fakePulsarReader.getStartTimestamp();
     long endOffset = fakePulsarReader.getEndTimestamp();
     OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(startOffset, endOffset));
     PulsarSourceDescriptor descriptor =
         PulsarSourceDescriptor.of(TOPIC, startOffset, endOffset, null, SERVICE_URL, ADMIN_URL);
     DoFn.ProcessContinuation result =
-        dofnInstance.processElement(descriptor, tracker, null, (DoFn.OutputReceiver) receiver);
+        dofnInstance.processElement(descriptor, tracker, null, receiver);
     int expectedResultWithoutCountingLastOffset = NUMBEROFMESSAGES - 1;
     assertEquals(DoFn.ProcessContinuation.stop(), result);
     assertEquals(expectedResultWithoutCountingLastOffset, receiver.getOutputs().size());
@@ -118,7 +114,7 @@ public class ReadFromPulsarDoFnTest {
 
   @Test
   public void testProcessElementWhenEndMessageIdIsDefined() throws Exception {
-    MockOutputReceiver receiver = new MockOutputReceiver();
+    TestOutputReceiver<PulsarMessage> receiver = new TestOutputReceiver<>();
     OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(0L, Long.MAX_VALUE));
     MessageId endMessageId = DefaultImplementation.newMessageId(50L, 50L, 50);
     DoFn.ProcessContinuation result =
@@ -126,14 +122,14 @@ public class ReadFromPulsarDoFnTest {
             PulsarSourceDescriptor.of(TOPIC, null, null, endMessageId, SERVICE_URL, ADMIN_URL),
             tracker,
             null,
-            (DoFn.OutputReceiver) receiver);
+            receiver);
     assertEquals(DoFn.ProcessContinuation.stop(), result);
     assertEquals(50, receiver.getOutputs().size());
   }
 
   @Test
   public void testProcessElementWithEmptyRecords() throws Exception {
-    MockOutputReceiver receiver = new MockOutputReceiver();
+    TestOutputReceiver<PulsarMessage> receiver = new TestOutputReceiver<>();
     fakePulsarReader.emptyMockRecords();
     OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(0L, Long.MAX_VALUE));
     DoFn.ProcessContinuation result =
@@ -141,14 +137,14 @@ public class ReadFromPulsarDoFnTest {
             PulsarSourceDescriptor.of(TOPIC, null, null, null, SERVICE_URL, ADMIN_URL),
             tracker,
             null,
-            (DoFn.OutputReceiver) receiver);
+            receiver);
     assertEquals(DoFn.ProcessContinuation.resume(), result);
     assertTrue(receiver.getOutputs().isEmpty());
   }
 
   @Test
   public void testProcessElementWhenHasReachedEndTopic() throws Exception {
-    MockOutputReceiver receiver = new MockOutputReceiver();
+    TestOutputReceiver<PulsarMessage> receiver = new TestOutputReceiver<>();
     fakePulsarReader.setReachedEndOfTopic(true);
     OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(0L, Long.MAX_VALUE));
     DoFn.ProcessContinuation result =
@@ -156,25 +152,7 @@ public class ReadFromPulsarDoFnTest {
             PulsarSourceDescriptor.of(TOPIC, null, null, null, SERVICE_URL, ADMIN_URL),
             tracker,
             null,
-            (DoFn.OutputReceiver) receiver);
+            receiver);
     assertEquals(DoFn.ProcessContinuation.stop(), result);
-  }
-
-  private static class MockOutputReceiver implements DoFn.OutputReceiver<PulsarMessage> {
-
-    private final List<PulsarMessage> records = new ArrayList<>();
-
-    @Override
-    public void output(PulsarMessage output) {}
-
-    @Override
-    public void outputWithTimestamp(
-        PulsarMessage output, @UnknownKeyFor @NonNull @Initialized Instant timestamp) {
-      records.add(output);
-    }
-
-    public List<PulsarMessage> getOutputs() {
-      return records;
-    }
   }
 }

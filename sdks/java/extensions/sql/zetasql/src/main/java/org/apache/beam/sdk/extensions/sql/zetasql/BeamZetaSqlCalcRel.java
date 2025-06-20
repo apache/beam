@@ -48,6 +48,9 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.OutputBuilderSupplier;
+import org.apache.beam.sdk.util.OutputBuilderSuppliers;
+import org.apache.beam.sdk.values.OutputBuilder;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -340,26 +343,23 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
     // support for an {@link OutputReceiver}
     private static class OutputReceiverForFinishBundle implements OutputReceiver<Row> {
 
-      private final FinishBundleContext c;
       private final BoundedWindow w;
-
       private final TupleTag<Row> tag;
+      private final OutputBuilderSupplier outputBuilderSupplier;
+      private final DoFn<?, ?>.FinishBundleContext c;
 
       private OutputReceiverForFinishBundle(
           FinishBundleContext c, BoundedWindow w, TupleTag<Row> tag) {
         this.c = c;
         this.w = w;
         this.tag = tag;
+
+        this.outputBuilderSupplier = OutputBuilderSuppliers.forFinishBundle(c);
       }
 
       @Override
-      public void output(Row output) {
-        throw new RuntimeException("Unsupported");
-      }
-
-      @Override
-      public void outputWithTimestamp(Row output, Instant timestamp) {
-        c.output(tag, output, timestamp, w);
+      public OutputBuilder<Row> builder(Row value) {
+        return this.outputBuilderSupplier.builder(tag).setValue(value).setWindow(w);
       }
     }
 
@@ -374,7 +374,7 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
     }
 
     private void outputRow(
-        TimestampedFuture c, OutputReceiver<Row> r, OutputReceiver<Row> errorOutputReceiver)
+        TimestampedFuture c, OutputReceiver<Row> rowOutputReceiver, OutputReceiver<Row> errorOutputReceiver)
         throws InterruptedException {
       final Value v;
       try {
@@ -383,15 +383,17 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
         if (!dlqTransformDownstream) {
           throw extractException(e);
         }
-        errorOutputReceiver.outputWithTimestamp(
-            Row.withSchema(errorsSchema).addValues(c.row(), e.toString()).build(), c.timestamp());
+        errorOutputReceiver
+            .builder(Row.withSchema(errorsSchema).addValues(c.row(), e.toString()).build())
+            .setTimestamp(c.timestamp())
+            .output();
         return;
       } catch (Throwable thr) {
         throw extractException(thr);
       }
       if (!v.isNull()) {
         Row row = ZetaSqlBeamTranslationUtils.toBeamRow(v, outputSchema, verifyRowValues);
-        r.outputWithTimestamp(row, c.timestamp());
+        rowOutputReceiver.builder(row).setTimestamp(c.timestamp()).output();
       }
     }
 
