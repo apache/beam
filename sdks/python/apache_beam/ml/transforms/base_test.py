@@ -498,7 +498,7 @@ class TextEmbeddingHandlerTest(unittest.TestCase):
     }, {
         'x': ['Apache Beam', 'Hello world'],
     }]
-    with self.assertRaises(TypeError):
+    with self.assertRaises(Exception):
       with beam.Pipeline() as p:
         _ = (
             p

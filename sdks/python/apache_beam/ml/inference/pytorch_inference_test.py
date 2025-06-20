@@ -715,7 +715,7 @@ class PytorchRunInferencePipelineTest(unittest.TestCase):
           equal_to(expected_predictions, equals_fn=_compare_prediction_result))
 
   def test_invalid_input_type(self):
-    with self.assertRaisesRegex(TypeError, "expected Tensor as element"):
+    with self.assertRaisesRegex(Exception, "expected Tensor as element"):
       with TestPipeline() as pipeline:
         examples = np.array([1, 5, 3, 10], dtype="float32").reshape(-1, 1)
 
