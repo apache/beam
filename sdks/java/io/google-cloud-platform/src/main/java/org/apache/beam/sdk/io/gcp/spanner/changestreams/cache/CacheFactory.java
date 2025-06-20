@@ -43,6 +43,8 @@ public class CacheFactory implements Serializable {
   }
 
   public WatermarkCache getWatermarkCache() {
+    System.out.println("changliiu - getWatermarkCache");
+
     return WATERMARK_CACHE.computeIfAbsent(
         cacheId,
         key ->

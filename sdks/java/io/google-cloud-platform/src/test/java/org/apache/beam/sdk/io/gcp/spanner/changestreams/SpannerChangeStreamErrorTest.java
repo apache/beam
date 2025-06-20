@@ -459,12 +459,51 @@ public class SpannerChangeStreamErrorTest implements Serializable {
         StatementResult.query(getPartitionsAfterStatement, getPartitionResultSet));
   }
 
+  // private void mockGetWatermark(Timestamp watermark) {
+  //   Statement watermarkStatement =
+  //       Statement.newBuilder(
+  //               "SELECT Watermark FROM my-metadata-table WHERE State != @state ORDER BY Watermark
+  // ASC LIMIT 1")
+  //           .bind("state")
+  //           .to(State.FINISHED.name())
+  //           .build();
+  //   ResultSetMetadata watermarkResultSetMetadata =
+  //       ResultSetMetadata.newBuilder()
+  //           .setRowType(
+  //               StructType.newBuilder()
+  //                   .addFields(
+  //                       Field.newBuilder()
+  //                           .setName("Watermark")
+  //                           .setType(Type.newBuilder().setCode(TypeCode.TIMESTAMP).build())
+  //                           .build())
+  //                   .build())
+  //           .build();
+  //   ResultSet watermarkResultSet =
+  //       ResultSet.newBuilder()
+  //           .addRows(
+  //               ListValue.newBuilder()
+  //                   .addValues(Value.newBuilder().setStringValue(watermark.toString()).build())
+  //                   .build())
+  //           .setMetadata(watermarkResultSetMetadata)
+  //           .build();
+  //   mockSpannerService.putStatementResult(
+  //       StatementResult.query(watermarkStatement, watermarkResultSet));
+  // }
+
   private void mockGetWatermark(Timestamp watermark) {
+    final String minWatermark = "min_watermark";
+    // The query needs to sync with getUnfinishedMinWatermark() in PartitionMetadataDao file.
     Statement watermarkStatement =
         Statement.newBuilder(
-                "SELECT Watermark FROM my-metadata-table WHERE State != @state ORDER BY Watermark ASC LIMIT 1")
+                "SELECT min(Watermark) as "
+                    + minWatermark
+                    + " FROM my-metadata-table "
+                    + "WHERE State != @state "
+                    + "AND Watermark >= @since;")
             .bind("state")
             .to(State.FINISHED.name())
+            .bind("since")
+            .to(Timestamp.MIN_VALUE)
             .build();
     ResultSetMetadata watermarkResultSetMetadata =
         ResultSetMetadata.newBuilder()
@@ -472,7 +511,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
                 StructType.newBuilder()
                     .addFields(
                         Field.newBuilder()
-                            .setName("Watermark")
+                            .setName(minWatermark)
                             .setType(Type.newBuilder().setCode(TypeCode.TIMESTAMP).build())
                             .build())
                     .build())
