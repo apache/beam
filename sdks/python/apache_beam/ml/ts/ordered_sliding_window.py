@@ -56,7 +56,7 @@ class OrderedSlidingWindowFn(beam.DoFn):
     ordered_buffer.add((timestamp, value))
 
     logging.info(f"receive {element} at {timestamp}")
-    timer_started = timer_state.read() # maybe use read_range instead?
+    timer_started = timer_state.read()
     if not timer_started:
       earliest_ts_state.write(timestamp)
 
@@ -133,7 +133,6 @@ class FillGapsFn(beam.DoFn):
         # Find the boundaries of the data we actually received.
         min_ts = min(received_data.keys())
         max_ts = max(received_data.keys())
-        # print("boundaries:", min_ts, max_ts)
 
         filled_middle_values = []
         current_ts = min_ts
