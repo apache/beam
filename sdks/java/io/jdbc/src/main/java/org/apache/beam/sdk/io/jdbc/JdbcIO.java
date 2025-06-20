@@ -2477,7 +2477,7 @@ public class JdbcIO {
                     preparedStatementFieldSetterList
                         .get(index)
                         .set(row, preparedStatement, index, fields.get(index));
-                  } catch (SQLException | NullPointerException e) {
+                  } catch (SQLException e) {
                     throw new RuntimeException("Error while setting data to preparedStatement", e);
                   }
                 });

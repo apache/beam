@@ -291,14 +291,12 @@ class RecordWriterManager implements AutoCloseable {
 
     Namespace namespace = identifier.namespace();
     @Nullable IcebergTableCreateConfig createConfig = destination.getTableCreateConfig();
-    PartitionSpec partitionSpec = PartitionSpec.unpartitioned();
-    if (createConfig != null && createConfig.getPartitionSpec() != null) {
-      partitionSpec = createConfig.getPartitionSpec();
-    }
+    PartitionSpec partitionSpec =
+        createConfig != null ? createConfig.getPartitionSpec() : PartitionSpec.unpartitioned();
 
     synchronized (TABLE_CACHE) {
       // Create namespace if it does not exist yet
-      if (catalog instanceof SupportsNamespaces) {
+      if (!namespace.isEmpty() && catalog instanceof SupportsNamespaces) {
         SupportsNamespaces supportsNamespaces = (SupportsNamespaces) catalog;
         if (!supportsNamespaces.namespaceExists(namespace)) {
           try {

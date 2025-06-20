@@ -25,7 +25,7 @@ import org.apache.beam.sdk.util.Preconditions;
 public class InMemoryCatalog implements Catalog {
   private final String name;
   private final Map<String, String> properties;
-  protected final InMemoryMetaStore metaStore = new InMemoryMetaStore();
+  private final InMemoryMetaStore metaStore = new InMemoryMetaStore();
 
   public InMemoryCatalog(String name, Map<String, String> properties) {
     this.name = name;

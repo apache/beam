@@ -64,6 +64,7 @@ class IcebergTable extends SchemaBaseBeamTable {
   @VisibleForTesting final String tableIdentifier;
   @VisibleForTesting final IcebergCatalogConfig catalogConfig;
   @VisibleForTesting @Nullable Integer triggeringFrequency;
+  @VisibleForTesting final @Nullable List<String> partitionFields;
 
   IcebergTable(Table table, IcebergCatalogConfig catalogConfig) {
     super(table.getSchema());
@@ -74,6 +75,7 @@ class IcebergTable extends SchemaBaseBeamTable {
     if (properties.has(TRIGGERING_FREQUENCY_FIELD)) {
       this.triggeringFrequency = properties.get(TRIGGERING_FREQUENCY_FIELD).asInt();
     }
+    this.partitionFields = table.getPartitionFields();
   }
 
   @Override
@@ -82,6 +84,9 @@ class IcebergTable extends SchemaBaseBeamTable {
     configBuilder.putAll(getBaseConfig());
     if (triggeringFrequency != null) {
       configBuilder.put(TRIGGERING_FREQUENCY_FIELD, triggeringFrequency);
+    }
+    if (partitionFields != null) {
+      configBuilder.put("partition_fields", partitionFields);
     }
     return input.apply(Managed.write(Managed.ICEBERG).withConfig(configBuilder.build()));
   }

@@ -28,11 +28,14 @@ import static org.apache.beam.sdk.schemas.Schema.FieldType.INT64;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.STRING;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.array;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.row;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import com.google.api.services.bigquery.model.TableRow;
 import java.io.IOException;
@@ -45,15 +48,21 @@ import org.apache.beam.sdk.extensions.sql.impl.rel.BeamPushDownIOSourceRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
+import org.apache.beam.sdk.extensions.sql.meta.catalog.CatalogManager;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.InMemoryCatalogManager;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
+import org.apache.beam.sdk.io.iceberg.IcebergUtils;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.Table;
+import org.apache.iceberg.catalog.Catalog;
+import org.apache.iceberg.catalog.TableIdentifier;
 import org.joda.time.Duration;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -90,6 +99,8 @@ public class IcebergReadWriteIT {
   @Rule public TestName testName = new TestName();
 
   private static final BigqueryClient BQ_CLIENT = new BigqueryClient("IcebergReadWriteIT");
+  private static final String BQMS_CATALOG =
+      "org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog";
   static final String DATASET = "iceberg_sql_tests_" + System.nanoTime();
   static String warehouse;
   protected static final GcpOptions OPTIONS =
@@ -113,8 +124,19 @@ public class IcebergReadWriteIT {
 
   @Test
   public void testSqlWriteAndRead() throws IOException, InterruptedException {
+    runSqlWriteAndRead(false);
+  }
+
+  @Test
+  public void testSqlWriteWithPartitionFieldsAndRead() throws IOException, InterruptedException {
+    runSqlWriteAndRead(true);
+  }
+
+  public void runSqlWriteAndRead(boolean withPartitionFields)
+      throws IOException, InterruptedException {
+    CatalogManager catalogManager = new InMemoryCatalogManager();
     BeamSqlEnv sqlEnv =
-        BeamSqlEnv.builder(new InMemoryCatalogManager())
+        BeamSqlEnv.builder(catalogManager)
             .setPipelineOptions(PipelineOptionsFactory.create())
             .build();
     String tableIdentifier = DATASET + "." + testName.getMethodName();
@@ -124,7 +146,7 @@ public class IcebergReadWriteIT {
         "CREATE CATALOG my_catalog \n"
             + "TYPE iceberg \n"
             + "PROPERTIES (\n"
-            + "  'catalog-impl' = 'org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog', \n"
+            + format("  'catalog-impl' = '%s', \n", BQMS_CATALOG)
             + "  'io-impl' = 'org.apache.iceberg.gcp.gcs.GCSFileIO', \n"
             + format("  'warehouse' = '%s', \n", warehouse)
             + format("  'gcp_project' = '%s', \n", OPTIONS.getProject())
@@ -132,10 +154,14 @@ public class IcebergReadWriteIT {
     sqlEnv.executeDdl(createCatalog);
 
     // 2) use the catalog we just created
-    String setCatalog = "SET CATALOG my_catalog";
+    String setCatalog = "USE CATALOG my_catalog";
     sqlEnv.executeDdl(setCatalog);
 
     // 3) create beam table
+    String partitionFields =
+        withPartitionFields
+            ? "PARTITIONED BY ('bucket(c_integer, 5)', 'c_boolean', 'hour(c_timestamp)', 'truncate(c_varchar, 3)') \n"
+            : "";
     String createTableStatement =
         "CREATE EXTERNAL TABLE TEST( \n"
             + "   c_bigint BIGINT, \n"
@@ -150,12 +176,36 @@ public class IcebergReadWriteIT {
             + "   c_arr_struct ARRAY<ROW<c_arr_struct_arr ARRAY<VARCHAR>, c_arr_struct_integer INTEGER>> \n"
             + ") \n"
             + "TYPE 'iceberg' \n"
+            + partitionFields
             + "LOCATION '"
             + tableIdentifier
             + "'";
     sqlEnv.executeDdl(createTableStatement);
 
-    // 3) write to underlying Iceberg table
+    // 3) verify a real Iceberg table was created, with the right partition spec
+    IcebergCatalog catalog = (IcebergCatalog) catalogManager.currentCatalog();
+    IcebergTableProvider provider =
+        (IcebergTableProvider) catalog.metaStore().getProvider("iceberg");
+    Catalog icebergCatalog = provider.catalogConfig.catalog();
+    PartitionSpec expectedSpec = PartitionSpec.unpartitioned();
+    if (withPartitionFields) {
+      expectedSpec =
+          PartitionSpec.builderFor(IcebergUtils.beamSchemaToIcebergSchema(SOURCE_SCHEMA))
+              .bucket("c_integer", 5)
+              .identity("c_boolean")
+              .hour("c_timestamp")
+              .truncate("c_varchar", 3)
+              .build();
+    }
+    Table icebergTable = icebergCatalog.loadTable(TableIdentifier.parse(tableIdentifier));
+    assertEquals(expectedSpec, icebergTable.spec());
+    assertEquals("my_catalog." + tableIdentifier, icebergTable.name());
+    assertTrue(icebergTable.location().startsWith(warehouse));
+    assertEquals(expectedSpec, icebergTable.spec());
+    Schema expectedSchema = checkStateNotNull(provider.getTable("TEST")).getSchema();
+    assertEquals(expectedSchema, IcebergUtils.icebergSchemaToBeamSchema(icebergTable.schema()));
+
+    // 4) write to underlying Iceberg table
     String insertStatement =
         "INSERT INTO TEST VALUES ("
             + "9223372036854775807, "
@@ -175,7 +225,7 @@ public class IcebergReadWriteIT {
     BeamSqlRelUtils.toPCollection(writePipeline, sqlEnv.parseQuery(insertStatement));
     writePipeline.run().waitUntilFinish();
 
-    // 4) run external query on Iceberg table (hosted on BQ) to verify correct row was written
+    // 5) run external query on Iceberg table (hosted on BQ) to verify correct row was written
     String query = format("SELECT * FROM `%s.%s`", OPTIONS.getProject(), tableIdentifier);
     TableRow returnedRow =
         BQ_CLIENT.queryUnflattened(query, OPTIONS.getProject(), true, true).get(0);
@@ -199,13 +249,17 @@ public class IcebergReadWriteIT {
             .build();
     assertEquals(expectedRow, beamRow);
 
-    // 5) read using Beam SQL and verify
+    // 6) read using Beam SQL and verify
     String selectTableStatement = "SELECT * FROM TEST";
     PCollection<Row> output =
         BeamSqlRelUtils.toPCollection(readPipeline, sqlEnv.parseQuery(selectTableStatement));
     PAssert.that(output).containsInAnyOrder(expectedRow);
     PipelineResult.State state = readPipeline.run().waitUntilFinish();
     assertThat(state, equalTo(PipelineResult.State.DONE));
+
+    // 7) cleanup
+    sqlEnv.executeDdl("DROP TABLE TEST");
+    assertFalse(icebergCatalog.tableExists(TableIdentifier.parse(tableIdentifier)));
   }
 
   @Test
@@ -229,7 +283,7 @@ public class IcebergReadWriteIT {
     sqlEnv.executeDdl(createCatalog);
 
     // 2) use the catalog we just created
-    String setCatalog = "SET CATALOG my_catalog";
+    String setCatalog = "USE CATALOG my_catalog";
     sqlEnv.executeDdl(setCatalog);
 
     // 3) create Beam table

@@ -385,7 +385,8 @@ class ExternalJavaProvider(ExternalProvider):
 
   def available(self):
     # pylint: disable=subprocess-run-check
-    trial = subprocess.run(['which', 'java'], capture_output=True)
+    trial = subprocess.run(['which', subprocess_server.JavaHelper.get_java()],
+                           capture_output=True)
     if trial.returncode == 0:
       return True
     else:

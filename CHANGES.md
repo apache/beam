@@ -32,6 +32,7 @@
 ## I/Os
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Add support for streaming writes in IOBase (Python)
 
 ## New Features / Improvements
 
@@ -58,6 +59,38 @@
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
 
+# [2.67.0] - Unreleased
+
+## Highlights
+
+* New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
+* New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
+
+## I/Os
+
+* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Debezium IO upgraded to 3.1.1 requires Java 17 (Java) ([#34747](https://github.com/apache/beam/issues/34747)).
+
+## New Features / Improvements
+
+* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+
+## Breaking Changes
+
+* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+
+## Deprecations
+
+* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
+
+## Bugfixes
+
+* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+
+## Known Issues
+
+* ([#X](https://github.com/apache/beam/issues/X)).
+
 # [2.66.0] - Unreleased
 
 ## Beam 3.0.0 Development Highlights
@@ -78,7 +111,7 @@
 * [IcebergIO] Now available with Beam SQL! ([#34799](https://github.com/apache/beam/pull/34799))
 * [IcebergIO] Support reading with column pruning ([#34856](https://github.com/apache/beam/pull/34856))
 * [IcebergIO] Support reading with pushdown filtering ([#34827](https://github.com/apache/beam/pull/34827))
-* [IcebergIO] Create tables with a specified partition spec ([#34966](https://github.com/apache/beam/pull/34966))
+* [IcebergIO] Create tables with a specified partition spec ([#34966](https://github.com/apache/beam/pull/34966), [#35268](https://github.com/apache/beam/pull/35268))
 * [IcebergIO] Dynamically create namespaces if needed ([#35228](https://github.com/apache/beam/pull/35228))
 
 ## New Features / Improvements
