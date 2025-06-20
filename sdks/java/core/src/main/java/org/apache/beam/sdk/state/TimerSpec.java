@@ -18,8 +18,10 @@
 package org.apache.beam.sdk.state;
 
 import java.io.Serializable;
+import org.checkerframework.dataflow.qual.Pure;
 
 /** A specification for a {@link Timer}. This includes its {@link TimeDomain}. */
 public interface TimerSpec extends Serializable {
+  @Pure
   TimeDomain getTimeDomain();
 }
