@@ -226,7 +226,7 @@ public abstract class BeamKafkaTable extends SchemaBaseBeamTable {
       throw new NoEstimationException("There is no partition with messages in it.");
     }
 
-    ConsumerRecords<T, T> records = consumer.poll(1000);
+    ConsumerRecords<T, T> records = consumer.poll(java.time.Duration.ofSeconds(1));
 
     // Kafka guarantees the delivery of messages in order they arrive to each partition.
     // Therefore the first message seen from each partition is the first message arrived to that.
