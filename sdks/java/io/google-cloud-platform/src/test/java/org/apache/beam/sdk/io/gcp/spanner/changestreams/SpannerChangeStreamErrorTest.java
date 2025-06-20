@@ -460,11 +460,19 @@ public class SpannerChangeStreamErrorTest implements Serializable {
   }
 
   private void mockGetWatermark(Timestamp watermark) {
+    final String minWatermark = "min_watermark";
+    // The query needs to sync with getUnfinishedMinWatermark() in PartitionMetadataDao file.
     Statement watermarkStatement =
         Statement.newBuilder(
-                "SELECT Watermark FROM my-metadata-table WHERE State != @state ORDER BY Watermark ASC LIMIT 1")
+                "SELECT MIN(Watermark) as "
+                    + minWatermark
+                    + " FROM my-metadata-table "
+                    + "WHERE State != @state "
+                    + "AND Watermark >= @since;")
             .bind("state")
             .to(State.FINISHED.name())
+            .bind("since")
+            .to(Timestamp.MIN_VALUE)
             .build();
     ResultSetMetadata watermarkResultSetMetadata =
         ResultSetMetadata.newBuilder()
@@ -472,7 +480,7 @@ public class SpannerChangeStreamErrorTest implements Serializable {
                 StructType.newBuilder()
                     .addFields(
                         Field.newBuilder()
-                            .setName("Watermark")
+                            .setName(minWatermark)
                             .setType(Type.newBuilder().setCode(TypeCode.TIMESTAMP).build())
                             .build())
                     .build())
