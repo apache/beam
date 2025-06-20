@@ -116,7 +116,8 @@ public class EmbeddedEnvironmentFactory implements EnvironmentFactory {
                                 .CONTROL_RESPONSE_ELEMENTS_EMBEDDING)), // Runner capabilities.
                     loggingServer.getApiServiceDescriptor(),
                     controlServer.getApiServiceDescriptor(),
-                    null,
+                    null, // statusApiServiceDescriptor
+                    null, // artifactApiServiceDescriptor
                     ManagedChannelFactory.createInProcess(),
                     OutboundObserverFactory.clientDirect(),
                     Caches.fromOptions(options));
