@@ -25,8 +25,6 @@ from collections.abc import Callable
 from typing import Any
 from typing import Optional
 
-import jsonschema
-
 import apache_beam as beam
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import schemas
@@ -210,6 +208,7 @@ def json_parser(
   if json_schema is None:
     validate_fn = None
   else:
+    import jsonschema
     cls = jsonschema.validators.validator_for(json_schema)
     cls.check_schema(json_schema)
     validate_fn = _PicklableFromConstructor(
@@ -315,6 +314,7 @@ def row_validator(beam_schema: schema_pb2.Schema,
   if not json_schema:
     return lambda x: None
 
+  import jsonschema
   # Validate that this compiles, but avoid pickling the validator itself.
   _ = jsonschema.validators.validator_for(json_schema)(json_schema)
   _validate_compatible(beam_schema_to_json_schema(beam_schema), json_schema)
