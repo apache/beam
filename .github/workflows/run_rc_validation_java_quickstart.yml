@@ -67,10 +67,10 @@ jobs:
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 60 # Adjust timeout as needed
     steps:
-      - name: Checkout code at RC tag
+      - name: Checkout code at master
         uses: actions/checkout@v4
-        with:
-          ref: ${{ env.RC_TAG }}
+#        with:
+#          ref: ${{ env.RC_TAG }}
 
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action

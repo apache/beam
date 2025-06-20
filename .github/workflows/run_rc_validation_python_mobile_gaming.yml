@@ -88,10 +88,10 @@ jobs:
       # --- Define the validation function with enhanced debugging (FIXED QUOTING) ---
 
     steps:
-      - name: Checkout code at RC tag
+      - name: Checkout code at master
         uses: actions/checkout@v4
-        with:
-          ref: ${{ env.RC_TAG }}
+#        with:
+#          ref: ${{ env.RC_TAG }}
 
       - name: Download validate_table.sh from master branch
         run: |
