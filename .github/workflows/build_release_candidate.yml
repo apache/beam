@@ -310,6 +310,10 @@ jobs:
       BEAM_ROOT_DIR: ${{ github.workspace }}/beam
       SITE_ROOT_DIR: ${{ github.workspace }}/beam-site
     steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@v1.3.0
+        with:
+          docker-images: false
       - name: Checkout Beam Repo
         uses: actions/checkout@v4
         with:
