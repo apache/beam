@@ -27,7 +27,7 @@ limitations under the License.
   </tr>
 </table>
 
-In Apache Beam 2.6X.0 and later versions, the enrichment transform includes
+In Apache Beam 2.67.0 and later versions, the enrichment transform includes
 a built-in enrichment handler for
 [Milvus](https://milvus.io/).
 The following example demonstrates how to create a pipeline that use the enrichment transform with the [`MilvusSearchEnrichmentHandler`](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.rag.enrichment.milvus_search.html#apache_beam.ml.rag.enrichment.milvus_search.MilvusSearchEnrichmentHandler) handler.
