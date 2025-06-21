@@ -265,17 +265,12 @@ class MilvusEnrichmentTestHelper:
       info = None
       for i in range(vector_client_retries):
         try:
-          milvus_service_port = MilvusEnrichmentTestHelper.find_free_port()
-          milvus_healthcheck_port =  MilvusEnrichmentTestHelper.find_free_port()
           vector_db_container = (
-              MilvusContainer(image=image, port=milvus_service_port)
+              MilvusContainer(image=image, port=19530)
               .with_volume_mapping(cfg, "/milvus/configs/user.yaml"))
-          vector_db_container.healthcheck_port = milvus_healthcheck_port
-          vector_db_container.port = milvus_service_port
           vector_db_container.start()
           host = vector_db_container.get_container_host_ip()
-          port = vector_db_container.get_exposed_port(milvus_service_port)
-
+          port = vector_db_container.get_exposed_port(19530)
           info = MilvusDBContainerInfo(vector_db_container, host, port)
           _LOGGER.info(
               "milvus db container started successfully on %s.", info.uri)
@@ -395,16 +390,6 @@ class MilvusEnrichmentTestHelper:
     finally:
       if os.path.exists(path):
         os.remove(path)
-
-  @staticmethod
-  def find_free_port():
-    """Find a free port on the local machine."""
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        # Bind to port 0, which asks OS to assign a free port.
-        s.bind(('', 0))
-        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        # Return the port number assigned by OS.
-        return s.getsockname()[1]
 
 
 @pytest.mark.uses_testcontainer
