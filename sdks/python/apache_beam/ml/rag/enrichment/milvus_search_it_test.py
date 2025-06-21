@@ -255,6 +255,40 @@ class MilvusDBContainerInfo:
     return f"http://{self.host}:{self.port}"
 
 
+# Create a subclass that properly handles custom port initialization
+class CustomMilvusContainer(MilvusContainer):
+  def __init__(
+      self,
+      image: str,
+      service_container_port,
+      healthcheck_container_port,
+      **kwargs,
+  ) -> None:
+    # Skip the parent class's constructor and go straight to
+    # GenericContainer.
+    super(MilvusContainer, self).__init__(image=image, **kwargs)
+    self.port = service_container_port
+    self.healthcheck_port = healthcheck_container_port
+    self.with_exposed_ports(service_container_port, healthcheck_container_port)
+
+    # Get free host ports.
+    service_host_port = MilvusEnrichmentTestHelper.find_free_port()
+    healthcheck_host_port = MilvusEnrichmentTestHelper.find_free_port()
+
+    # Bing container and host ports.
+    self.with_bind_ports(service_container_port, service_host_port)
+    self.with_bind_ports(healthcheck_container_port, healthcheck_host_port)
+    self.cmd = "milvus run standalone"
+
+    envs = {
+        "ETCD_USE_EMBED": "true",
+        "ETCD_DATA_DIR": "/var/lib/milvus/etcd",
+        "COMMON_STORAGETYPE": "local"
+    }
+    for env, value in envs.items():
+      self.with_env(env, value)
+
+
 class MilvusEnrichmentTestHelper:
   @staticmethod
   def start_db_container(
@@ -265,9 +299,12 @@ class MilvusEnrichmentTestHelper:
       info = None
       for i in range(vector_client_retries):
         try:
-          vector_db_container = (
-              MilvusContainer(image=image, port=19530).with_volume_mapping(
-                  cfg, "/milvus/configs/user.yaml"))
+          vector_db_container = CustomMilvusContainer(
+              image=image,
+              service_container_port=19530,
+              healthcheck_container_port=9091)
+          vector_db_container = vector_db_container.with_volume_mapping(
+              cfg, "/milvus/configs/user.yaml")
           vector_db_container.start()
           host = vector_db_container.get_container_host_ip()
           port = vector_db_container.get_exposed_port(19530)
@@ -313,7 +350,7 @@ class MilvusEnrichmentTestHelper:
     # Create collection with the schema.
     collection_name = MILVUS_IT_CONFIG["collection_name"]
     index_function: Callable[[], IndexParams] = cast(
-      Callable[[], IndexParams], MILVUS_IT_CONFIG["index"])
+        Callable[[], IndexParams], MILVUS_IT_CONFIG["index"])
     client.create_collection(
         collection_name=collection_name,
         schema=schema,
@@ -391,6 +428,16 @@ class MilvusEnrichmentTestHelper:
     finally:
       if os.path.exists(path):
         os.remove(path)
+
+  @staticmethod
+  def find_free_port():
+    """Find a free port on the local machine."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+      # Bind to port 0, which asks OS to assign a free port.
+      s.bind(('', 0))
+      s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+      # Return the port number assigned by OS.
+      return s.getsockname()[1]
 
 
 @pytest.mark.uses_testcontainer
@@ -1173,7 +1220,7 @@ def parse_chunk_strings(chunk_str_list: List[str]) -> List[Chunk]:
           r"defaultdict\(<class 'list'>", "defaultdict(list", raw_str)
 
       # Evaluate string in restricted environment.
-      chunk = eval(cleaned_str, safe_globals)
+      chunk = eval(cleaned_str, safe_globals)  # pylint: disable=eval-used
       if isinstance(chunk, Chunk):
         parsed_chunks.append(chunk)
       else:
@@ -1252,8 +1299,8 @@ def assert_chunks_equivalent(
       actual_distances = actual_data['distance']
       expected_distances = expected_data['distance']
       err_msg = (
-          f"Number of distances doesn't match number of IDs for "
-          "chunk {actual.id}")
+          "Number of distances doesn't match number of IDs for "
+          f"chunk {actual.id}")
       assert len(actual_distances) == len(expected_distances), err_msg
 
       # Ensure the fields key exist.
