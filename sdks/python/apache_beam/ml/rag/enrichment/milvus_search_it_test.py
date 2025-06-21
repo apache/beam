@@ -266,8 +266,8 @@ class MilvusEnrichmentTestHelper:
       for i in range(vector_client_retries):
         try:
           vector_db_container = (
-              MilvusContainer(image=image, port=19530)
-              .with_volume_mapping(cfg, "/milvus/configs/user.yaml"))
+              MilvusContainer(image=image, port=19530).with_volume_mapping(
+                  cfg, "/milvus/configs/user.yaml"))
           vector_db_container.start()
           host = vector_db_container.get_container_host_ip()
           port = vector_db_container.get_exposed_port(19530)
