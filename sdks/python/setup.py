@@ -367,7 +367,7 @@ if __name__ == '__main__':
           'fastavro>=0.23.6,<2',
           'fasteners>=0.3,<1.0',
           # TODO(https://github.com/grpc/grpc/issues/37710): Unpin grpc
-          'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,<1.66.0; python_version <= "3.12"',  # pylint: disable=line-too-long
+          'grpcio>=1.49.1,<2,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,<1.66.0; python_version <= "3.12"',  # pylint: disable=line-too-long
           'grpcio>=1.67.0; python_version >= "3.13"',
           'hdfs>=2.1.0,<3.0.0',
           'httplib2>=0.8,<0.23.0',
@@ -401,6 +401,8 @@ if __name__ == '__main__':
           'typing-extensions>=3.7.0',
           'zstandard>=0.18.0,<1',
           'pyyaml>=3.12,<7.0.0',
+          'pymilvus>=2.5.10,<3.0.0',
+          'setuptools>=80.9.0',
           # Dynamic dependencies must be specified in a separate list, otherwise
           # Dependabot won't be able to parse the main list. Any dynamic
           # dependencies will not receive updates from Dependabot.
@@ -434,11 +436,10 @@ if __name__ == '__main__':
               'pytest-xdist>=2.5.0,<4',
               'pytest-timeout>=2.1.0,<3',
               'scikit-learn>=0.20.0',
-              'setuptools',
               'sqlalchemy>=1.3,<3.0',
               'psycopg2-binary>=2.8.5,<2.9.10; python_version <= "3.9"',
               'psycopg2-binary>=2.8.5,<3.0; python_version >= "3.10"',
-              'testcontainers[mysql,kafka]>=3.0.3,<4.0.0',
+              'testcontainers[mysql,kafka,milvus]>=4.0.0,<5.0.0',
               'cryptography>=41.0.2',
               'hypothesis>5.0.0,<7.0.0',
               'virtualenv-clone>=0.5,<1.0',
