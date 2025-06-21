@@ -15,8 +15,11 @@
 # limitations under the License.
 #
 
+import contextlib
 import logging
+import os
 import platform
+import tempfile
 import unittest
 from collections import defaultdict
 from dataclasses import dataclass
@@ -32,9 +35,12 @@ from pymilvus import FieldSchema
 from pymilvus import Function
 from pymilvus import FunctionType
 from pymilvus import MilvusClient
+from pymilvus import RRFRanker
 from pymilvus.milvus_client import IndexParams
+from pymilvus.grpc_gen import schema_pb2
 from testcontainers.core.generic import DbContainer
 from testcontainers.milvus import MilvusContainer
+import yaml
 
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -52,6 +58,9 @@ try:
       MilvusSearchParameters,
       MilvusCollectionLoadParameters,
       VectorSearchParameters,
+      KeywordSearchParameters,
+      HybridSearchNamespace,
+      HybridSearchParameters,
       VectorSearchMetrics,
       KeywordSearchMetrics)
 except ImportError:
@@ -60,27 +69,65 @@ except ImportError:
 _LOGGER = logging.getLogger(__name__)
 
 
-def _create_index_params():
+def _construct_index_params():
   index_params = IndexParams()
 
-  # Construct an index on the dense embedding for vector search.
+  # Milvus doesn't support multiple indexes on the same field. This is a
+  # limitation of Milvus - someone can only create one index per field as yet.
+
+  # Cosine similarity index on first dense embedding field
   index_params.add_index(
-      field_name="dense_embedding",
-      index_name="dense_embedding_ivf_flat",
+      field_name="dense_embedding_cosine",
+      index_name="dense_embedding_cosine_ivf_flat",
       index_type="IVF_FLAT",
       metric_type=VectorSearchMetrics.COSINE.value,
-      params={"nlist": 1024})
+      params={"nlist": 1})
 
-  # Construct an index on the sparse embedding for keyword/text search.
+  # Euclidean distance index on second dense embedding field
   index_params.add_index(
-      field_name="sparse_embedding",
-      index_name="sparse_embedding_inverted_index",
+      field_name="dense_embedding_euclidean",
+      index_name="dense_embedding_euclidean_ivf_flat",
+      index_type="IVF_FLAT",
+      metric_type=VectorSearchMetrics.EUCLIDEAN_DISTANCE.value,
+      params={"nlist": 1})
+
+  # Inner product index on third dense embedding field
+  index_params.add_index(
+      field_name="dense_embedding_inner_product",
+      index_name="dense_embedding_inner_product_ivf_flat",
+      index_type="IVF_FLAT",
+      metric_type=VectorSearchMetrics.INNER_PRODUCT.value,
+      params={"nlist": 1})
+
+  index_params.add_index(
+      field_name="sparse_embedding_inner_product",
+      index_name="sparse_embedding_inner_product_inverted_index",
+      index_type="SPARSE_INVERTED_INDEX",
+      metric_type=VectorSearchMetrics.INNER_PRODUCT.value,
+      params={
+          "inverted_index_algo": "TAAT_NAIVE",
+      })
+
+  # BM25 index on sparse_embedding field.
+  #
+  # For deterministic testing results
+  # 1. Using TAAT_NAIVE: Most predictable algorithm that processes each term
+  # completely before moving to the next.
+  # 2. Using k1=1: Moderate term frequency weighting – repeated terms matter
+  # but with diminishing returns.
+  # 3. Using b=0: No document length normalization – longer documents not
+  # penalized.
+  # This combination provides maximum transparency and predictability for
+  # test assertions.
+  index_params.add_index(
+      field_name="sparse_embedding_bm25",
+      index_name="sparse_embedding_bm25_inverted_index",
       index_type="SPARSE_INVERTED_INDEX",
       metric_type=KeywordSearchMetrics.BM25.value,
       params={
-          "inverted_index_algo": "DAAT_MAXSCORE",
-          "bm25_k1": 1.2,
-          "bm25_b": 0.75,
+          "inverted_index_algo": "TAAT_NAIVE",
+          "bm25_k1": 1,
+          "bm25_b": 0,
       })
 
   return index_params
@@ -95,6 +142,7 @@ class MilvusITDataConstruct:
   metadata: dict
   tags: list[str]
   dense_embedding: list[float]
+  sparse_embedding: dict
   vocabulary: Dict[str, int] = field(default_factory=dict)
 
   def __getitem__(self, key):
@@ -114,18 +162,36 @@ MILVUS_IT_CONFIG = {
         FieldSchema(name="domain", dtype=DataType.VARCHAR, max_length=128),
         FieldSchema(name="cost", dtype=DataType.INT32),
         FieldSchema(name="metadata", dtype=DataType.JSON),
-        FieldSchema(name="dense_embedding", dtype=DataType.FLOAT_VECTOR, dim=3),
         FieldSchema(
-            name="sparse_embedding", dtype=DataType.SPARSE_FLOAT_VECTOR),
+            name="tags",
+            dtype=DataType.ARRAY,
+            element_type=DataType.VARCHAR,
+            max_length=64,
+            max_capacity=64),
+        FieldSchema(
+            name="dense_embedding_cosine", dtype=DataType.FLOAT_VECTOR, dim=3),
+        FieldSchema(
+            name="dense_embedding_euclidean",
+            dtype=DataType.FLOAT_VECTOR,
+            dim=3),
+        FieldSchema(
+            name="dense_embedding_inner_product",
+            dtype=DataType.FLOAT_VECTOR,
+            dim=3),
+        FieldSchema(
+            name="sparse_embedding_bm25", dtype=DataType.SPARSE_FLOAT_VECTOR),
+        FieldSchema(
+            name="sparse_embedding_inner_product",
+            dtype=DataType.SPARSE_FLOAT_VECTOR)
     ],
     "functions": [
         Function(
             name="content_bm25_emb",
             input_field_names=["content"],
-            output_field_names=["sparse_embedding"],
+            output_field_names=["sparse_embedding_bm25"],
             function_type=FunctionType.BM25)
     ],
-    "index": _create_index_params(),
+    "index": _construct_index_params,
     "corpus": [
         MilvusITDataConstruct(
             id=1,
@@ -134,7 +200,10 @@ MILVUS_IT_CONFIG = {
             cost=49,
             metadata={"language": "en"},
             tags=["healthcare", "patient", "clinical"],
-            dense_embedding=[0.1, 0.2, 0.3]),
+            dense_embedding=[0.1, 0.2, 0.3],
+            sparse_embedding={
+                1: 0.05, 2: 0.41, 3: 0.05, 4: 0.41
+            }),
         MilvusITDataConstruct(
             id=2,
             content="Another test document",
@@ -142,7 +211,10 @@ MILVUS_IT_CONFIG = {
             cost=75,
             metadata={"language": "en"},
             tags=["contract", "law", "regulation"],
-            dense_embedding=[0.2, 0.3, 0.4]),
+            dense_embedding=[0.2, 0.3, 0.4],
+            sparse_embedding={
+                1: 0.07, 3: 3.07, 0: 0.53
+            }),
         MilvusITDataConstruct(
             id=3,
             content="وثيقة اختبار",
@@ -150,21 +222,11 @@ MILVUS_IT_CONFIG = {
             cost=149,
             metadata={"language": "ar"},
             tags=["banking", "investment", "arabic"],
-            dense_embedding=[0.3, 0.4, 0.5]),
+            dense_embedding=[0.3, 0.4, 0.5],
+            sparse_embedding={
+                6: 0.62, 5: 0.62
+            })
     ],
-    "sparse_embeddings": {
-        "doc1": {
-            "indices": [1, 2, 3, 4],
-            "values": [0.05, 0.41, 0.05, 0.41],
-        },
-        "doc2": {
-            "indices": [1, 3, 0],
-            "values": [0.07, 0.07, 0.53],
-        },
-        "doc3": {
-            "indices": [6, 5], "values": [0.62, 0.62]
-        }
-    },
     "vocabulary": {
         "this": 4,
         "is": 2,
@@ -175,6 +237,39 @@ MILVUS_IT_CONFIG = {
         "اختبار": 5
     }
 }
+
+
+def sort_milvus_metadata(chunk: Chunk):
+  """
+  Formats Milvus integration test search results to ensure deterministic
+  behavior.
+
+  Since Python dictionaries do not guarantee order, this function sorts
+  dictionary fields lexicographically by keys. This ensures:
+  1. Deterministic behavior for returned search results
+  2. Avoids flaky test cases when used in testing environments
+
+  Args:
+      chunk: The Chunk object containing search results to format
+
+  Returns:
+      The formatted Chunk object
+  """
+  enrichment_data = chunk.metadata.get('enrichment_data', defaultdict(list))
+  fields = enrichment_data['fields']
+  for i, field in enumerate(fields):
+    if isinstance(field, dict):
+      # Sort the dictionary by creating a new ordered dictionary.
+      sorted_field = {k: field[k] for k in sorted(field.keys())}
+      fields[i] = sorted_field
+  # Update the metadata with sorted fields.
+  chunk.metadata['enrichment_data']['fields'] = fields
+  return chunk
+
+
+def filter_by_score(chunk: Chunk, min_score, max_score):
+  distances = chunk.metadata.get('enrichment_data', {}).get('distance', [])
+  return any(d >= min_score and d <= max_score for d in distances)
 
 
 @dataclass
@@ -196,32 +291,36 @@ class MilvusEnrichmentTestHelper:
   @staticmethod
   def start_db_container(
       image="milvusdb/milvus:v2.5.10",
+      max_vec_fields=5,
       vector_client_retries=3) -> Optional[MilvusDBContainerInfo]:
-    info = None
-    for i in range(vector_client_retries):
-      try:
-        vector_db_container = MilvusContainer(image=image, port=19530)
-        vector_db_container.start()
-        host = vector_db_container.get_container_host_ip()
-        port = vector_db_container.get_exposed_port(19530)
+    with MilvusEnrichmentTestHelper.create_user_yaml(max_vec_fields) as cfg:
+      info = None
+      for i in range(vector_client_retries):
+        try:
+          vector_db_container = (
+              MilvusContainer(image=image, port=19530).with_volume_mapping(
+                  cfg, "/milvus/configs/user.yaml"))
+          vector_db_container.start()
+          host = vector_db_container.get_container_host_ip()
+          port = vector_db_container.get_exposed_port(19530)
 
-        info = MilvusDBContainerInfo(vector_db_container, host, port)
-        _LOGGER.info(
-            "milvus db container started successfully on %s.", info.uri)
-        break
-      except Exception as e:
-        _LOGGER.warning(
-            "Retry %d/%d: Failed to start milvus db container. Reason: %s",
-            i + 1,
-            vector_client_retries,
-            e)
-        if i == vector_client_retries - 1:
-          _LOGGER.error(
-              "Unable to start milvus db container for I/O tests after %d "
-              "retries. Tests cannot proceed.",
-              vector_client_retries)
-          raise e
-    return info
+          info = MilvusDBContainerInfo(vector_db_container, host, port)
+          _LOGGER.info(
+              "milvus db container started successfully on %s.", info.uri)
+          break
+        except Exception as e:
+          _LOGGER.warning(
+              "Retry %d/%d: Failed to start milvus db container. Reason: %s",
+              i + 1,
+              vector_client_retries,
+              e)
+          if i == vector_client_retries - 1:
+            _LOGGER.error(
+                "Unable to start milvus db container for I/O tests after %d "
+                "retries. Tests cannot proceed.",
+                vector_client_retries)
+            raise e
+      return info
 
   @staticmethod
   def stop_db_container(db_info: MilvusDBContainerInfo):
@@ -248,26 +347,35 @@ class MilvusEnrichmentTestHelper:
     client.create_collection(
         collection_name=collection_name,
         schema=schema,
-        index_params=MILVUS_IT_CONFIG["index"])
+        index_params=MILVUS_IT_CONFIG["index"]())
 
     # Assert that collection was created.
     collection_error = f"Expected collection '{collection_name}' to be created."
     assert client.has_collection(collection_name), collection_error
 
-    # Gather all fields we have excluding 'sparse_embedding' special field. It
-    # is not possible yet to insert data into it manually in Milvus db.
+    # Gather all fields we have excluding 'sparse_embedding_bm25' special field.
+    # Currently we can't insert sparse vectors for BM25 sparse embedding field
+    # as it would be automatically generated by Milvus through the registered
+    # BM25 function.
     field_schemas: List[FieldSchema] = MILVUS_IT_CONFIG["fields"]
-    fields = []
+    fields: list[str] = []
     for field_schema in field_schemas:
-      if field_schema.name != "sparse_embedding":
-        fields.append(field_schema.name)
-      else:
-        continue
+      fields.append(field_schema.name)
 
     # Prep data for indexing.
     data_ready_to_index = []
     for doc in MILVUS_IT_CONFIG["corpus"]:
-      item = {field: doc[field] for field in fields}
+      item = {}
+      for field in fields:
+        if field.startswith("dense_embedding"):
+          item[field] = doc["dense_embedding"]
+        elif field == "sparse_embedding_inner_product":
+          item[field] = doc["sparse_embedding"]
+        elif field == "sparse_embedding_bm25":
+          # It is automatically generated by Milvus from the content field.
+          continue
+        else:
+          item[field] = doc[field]
       data_ready_to_index.append(item)
 
     # Index data.
@@ -287,6 +395,36 @@ class MilvusEnrichmentTestHelper:
     client.close()
 
     return collection_name
+
+  @staticmethod
+  @contextlib.contextmanager
+  def create_user_yaml(max_vector_field_num=5):
+    """Creates a temporary user.yaml file for Milvus configuration.
+
+      This user yaml file overrides Milvus default configurations. The
+      default for maxVectorFieldNum is 4, but we need 5
+      (one unique field for each metric).
+
+      Args:
+          max_vector_field_num: Max number of vec fields allowed per collection.
+
+      Yields:
+          str: Path to the created temporary yaml file.
+      """
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml',
+                                     delete=False) as temp_file:
+      # Define the content for user.yaml.
+      user_config = {'proxy': {'maxVectorFieldNum': max_vector_field_num}}
+
+      # Write the content to the file.
+      yaml.dump(user_config, temp_file, default_flow_style=False)
+      path = temp_file.name
+
+    try:
+      yield path
+    finally:
+      if os.path.exists(path):
+        os.remove(path)
 
 
 @pytest.mark.uses_testcontainer
@@ -323,7 +461,7 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
 
   def test_invalid_query_on_non_existent_collection(self):
     non_existent_collection = "nonexistent_collection"
-    existent_field = "dense_embedding"
+    existent_field = "dense_embedding_cosine"
 
     test_chunks = [
         Chunk(
@@ -375,10 +513,11 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
 
   def test_empty_input_chunks(self):
     test_chunks = []
+    anns_field = "dense_embedding_cosine"
 
     search_parameters = MilvusSearchParameters(
         collection_name=MILVUS_IT_CONFIG["collection_name"],
-        search_strategy=VectorSearchParameters(anns_field="dense_embedding"))
+        search_strategy=VectorSearchParameters(anns_field=anns_field))
 
     collection_load_parameters = MilvusCollectionLoadParameters()
 
@@ -389,7 +528,7 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
       result = (p | beam.Create(test_chunks) | Enrichment(handler))
       assert_that(result, equal_to(test_chunks))
 
-  def test_filtered_search_with_batching(self):
+  def test_filtered_search_with_cosine_similarity_and_batching(self):
     test_chunks = [
         Chunk(
             id="query1",
@@ -405,18 +544,25 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
             content=Content())
     ]
 
-    is_english = 'metadata["language"] == "en"'
-    is_arabic = 'metadata["language"] == "ar"'
-    filter_condition = f'{is_english} OR {is_arabic}'
+    filter_condition = 'metadata["language"] == "en"'
+
+    anns_field = "dense_embedding_cosine"
+
+    addition_search_params = {
+        "metric_type": VectorSearchMetrics.COSINE.value, "nprobe": 1
+    }
 
     vector_search_parameters = VectorSearchParameters(
-        anns_field="dense_embedding", limit=5, filter=filter_condition)
+        anns_field=anns_field,
+        limit=10,
+        filter=filter_condition,
+        search_params=addition_search_params)
 
     search_parameters = MilvusSearchParameters(
         collection_name=MILVUS_IT_CONFIG["collection_name"],
         search_strategy=vector_search_parameters,
         output_fields=["id", "content", "metadata"],
-        round_decimal=2)
+        round_decimal=1)
 
     collection_load_parameters = MilvusCollectionLoadParameters()
 
@@ -429,70 +575,610 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
         min_batch_size=min_batch_size,
         max_batch_size=max_batch_size)
 
-    with TestPipeline(is_integration_test=True) as p:
+    expected_chunks = [
+        Chunk(
+            id='query1',
+            content=Content(),
+            metadata={
+                'enrichment_data': {
+                    'id': [1, 2],
+                    'distance': [1.0, 1.0],
+                    'fields': [{
+                        'content': 'This is a test document',
+                        'metadata': {
+                            'language': 'en'
+                        },
+                        'id': 1
+                    },
+                               {
+                                   'content': 'Another test document',
+                                   'metadata': {
+                                       'language': 'en'
+                                   },
+                                   'id': 2
+                               }]
+                }
+            },
+            embedding=Embedding(dense_embedding=[0.1, 0.2, 0.3])),
+        Chunk(
+            id='query2',
+            content=Content(),
+            metadata={
+                'enrichment_data': {
+                    'id': [2, 1],
+                    'distance': [1.0, 1.0],
+                    'fields': [{
+                        'content': 'Another test document',
+                        'metadata': {
+                            'language': 'en'
+                        },
+                        'id': 2
+                    },
+                               {
+                                   'content': 'This is a test document',
+                                   'metadata': {
+                                       'language': 'en'
+                                   },
+                                   'id': 1
+                               }]
+                }
+            },
+            embedding=Embedding(dense_embedding=[0.2, 0.3, 0.4])),
+        Chunk(
+            id='query3',
+            content=Content(),
+            metadata={
+                'enrichment_data': {
+                    'id': [2, 1],
+                    'distance': [1.0, 1.0],
+                    'fields': [{
+                        'content': 'Another test document',
+                        'metadata': {
+                            'language': 'en'
+                        },
+                        'id': 2
+                    },
+                               {
+                                   'content': 'This is a test document',
+                                   'metadata': {
+                                       'language': 'en'
+                                   },
+                                   'id': 1
+                               }]
+                }
+            },
+            embedding=Embedding(dense_embedding=[0.3, 0.4, 0.5]))
+    ]
+
+    with TestPipeline() as p:
+      result = (
+          p
+          | beam.Create(test_chunks)
+          | Enrichment(handler)
+          | beam.Filter(lambda chunk: filter_by_score(chunk, 1.0, 1.0)))
+
+      assert_that(result, equal_to(expected_chunks))
+
+  def test_filtered_search_with_bm25_full_text_and_batching(self):
+    test_chunks = [
+        Chunk(
+            id="query1",
+            embedding=Embedding(sparse_embedding=None),
+            content=Content(text="This is a test document")),
+        Chunk(
+            id="query2",
+            embedding=Embedding(sparse_embedding=None),
+            content=Content(text="Another test document")),
+        Chunk(
+            id="query3",
+            embedding=Embedding(sparse_embedding=None),
+            content=Content(text="وثيقة اختبار"))
+    ]
+
+    filter_condition = 'ARRAY_CONTAINS_ANY(tags, ["healthcare", "banking"])'
+
+    anns_field = "sparse_embedding_bm25"
+
+    addition_search_params = {"metric_type": KeywordSearchMetrics.BM25.value}
+
+    keyword_search_parameters = KeywordSearchParameters(
+        anns_field=anns_field,
+        limit=10,
+        filter=filter_condition,
+        search_params=addition_search_params)
+
+    search_parameters = MilvusSearchParameters(
+        collection_name=MILVUS_IT_CONFIG["collection_name"],
+        search_strategy=keyword_search_parameters,
+        output_fields=["id", "content", "metadata"],
+        round_decimal=1)
+
+    collection_load_parameters = MilvusCollectionLoadParameters()
+
+    # Force batching.
+    min_batch_size, max_batch_size = 2, 2
+    handler = MilvusSearchEnrichmentHandler(
+        connection_parameters=self._connection_params,
+        search_parameters=search_parameters,
+        collection_load_parameters=collection_load_parameters,
+        min_batch_size=min_batch_size,
+        max_batch_size=max_batch_size)
+
+    expected_chunks = [
+        Chunk(
+            content=Content(text='This is a test document'),
+            id='query1',
+            index=0,
+            metadata={
+                'enrichment_data': {
+                    'id': [1],
+                    'distance': [3.3],
+                    'fields': [{
+                        'content': 'This is a test document',
+                        'metadata': {
+                            'language': 'en'
+                        },
+                        'id': 1
+                    }]
+                }
+            },
+            embedding=Embedding(dense_embedding=None, sparse_embedding=None)),
+        # The search result for query2 has been filtered out because
+        # its distance (0.8) is less than the threshold (1).
+        Chunk(
+            content=Content(text='وثيقة اختبار'),
+            id='query3',
+            index=0,
+            metadata={
+                'enrichment_data': {
+                    'id': [3],
+                    'distance': [2.3],
+                    'fields': [{
+                        'content': 'وثيقة اختبار',
+                        'metadata': {
+                            'language': 'ar'
+                        },
+                        'id': 3
+                    }]
+                }
+            },
+            embedding=Embedding())
+    ]
+
+    with TestPipeline() as p:
+      result = (
+          p
+          | beam.Create(test_chunks)
+          | Enrichment(handler)
+          |
+          beam.Filter(lambda chunk: filter_by_score(chunk, 1.0, float('inf'))))
+
+      assert_that(result, equal_to(expected_chunks))
+
+  def test_vector_search_with_euclidean_distance(self):
+    test_chunks = [
+        Chunk(
+            id="query1",
+            embedding=Embedding(dense_embedding=[0.1, 0.2, 0.3]),
+            content=Content()),
+        Chunk(
+            id="query2",
+            embedding=Embedding(dense_embedding=[0.2, 0.3, 0.4]),
+            content=Content()),
+        Chunk(
+            id="query3",
+            embedding=Embedding(dense_embedding=[0.3, 0.4, 0.5]),
+            content=Content())
+    ]
+
+    anns_field = "dense_embedding_euclidean"
+
+    addition_search_params = {
+        "metric_type": VectorSearchMetrics.EUCLIDEAN_DISTANCE.value,
+        "nprobe": 1
+    }
+
+    vector_search_parameters = VectorSearchParameters(
+        anns_field=anns_field, limit=10, search_params=addition_search_params)
+
+    search_parameters = MilvusSearchParameters(
+        collection_name=MILVUS_IT_CONFIG["collection_name"],
+        search_strategy=vector_search_parameters,
+        output_fields=["id", "content", "metadata"],
+        round_decimal=1)
+
+    collection_load_parameters = MilvusCollectionLoadParameters()
+
+    handler = MilvusSearchEnrichmentHandler(
+        connection_parameters=self._connection_params,
+        search_parameters=search_parameters,
+        collection_load_parameters=collection_load_parameters)
+
+    expected_chunks = [
+        Chunk(
+            id='query1',
+            content=Content(),
+            metadata={
+                'enrichment_data': {
+                    'id': [1, 2, 3],
+                    'distance': [0.0, 0.0, 0.1],
+                    'fields': [{
+                        'content': 'This is a test document',
+                        'metadata': {
+                            'language': 'en'
+                        },
+                        'id': 1
+                    },
+                               {
+                                   'content': 'Another test document',
+                                   'metadata': {
+                                       'language': 'en'
+                                   },
+                                   'id': 2
+                               },
+                               {
+                                   'content': 'وثيقة اختبار',
+                                   'metadata': {
+                                       'language': 'ar'
+                                   },
+                                   'id': 3
+                               }]
+                }
+            },
+            embedding=Embedding(dense_embedding=[0.1, 0.2, 0.3])),
+        Chunk(
+            id='query2',
+            content=Content(),
+            metadata={
+                'enrichment_data': {
+                    'id': [2, 3, 1],
+                    'distance': [0.0, 0.0, 0.0],
+                    'fields': [{
+                        'content': 'Another test document',
+                        'metadata': {
+                            'language': 'en'
+                        },
+                        'id': 2
+                    },
+                               {
+                                   'content': 'وثيقة اختبار',
+                                   'metadata': {
+                                       'language': 'ar'
+                                   },
+                                   'id': 3
+                               },
+                               {
+                                   'content': 'This is a test document',
+                                   'metadata': {
+                                       'language': 'en'
+                                   },
+                                   'id': 1
+                               }]
+                }
+            },
+            embedding=Embedding(dense_embedding=[0.2, 0.3, 0.4])),
+        Chunk(
+            id='query3',
+            content=Content(),
+            metadata={
+                'enrichment_data': {
+                    'id': [3, 2, 1],
+                    'distance': [0.0, 0.0, 0.1],
+                    'fields': [{
+                        'content': 'وثيقة اختبار',
+                        'metadata': {
+                            'language': 'ar'
+                        },
+                        'id': 3
+                    },
+                               {
+                                   'content': 'Another test document',
+                                   'metadata': {
+                                       'language': 'en'
+                                   },
+                                   'id': 2
+                               },
+                               {
+                                   'content': 'This is a test document',
+                                   'metadata': {
+                                       'language': 'en'
+                                   },
+                                   'id': 1
+                               }]
+                }
+            },
+            embedding=Embedding(dense_embedding=[0.3, 0.4, 0.5]))
+    ]
+
+    with TestPipeline() as p:
+      result = (
+          p
+          | beam.Create(test_chunks)
+          | Enrichment(handler)
+          | beam.Filter(lambda chunk: filter_by_score(chunk, 0, 0)))
+
+      assert_that(result, equal_to(expected_chunks))
+
+  def test_vector_search_with_inner_product_similarity(self):
+    test_chunks = [
+        Chunk(
+            id="query1",
+            embedding=Embedding(dense_embedding=[0.1, 0.2, 0.3]),
+            content=Content()),
+        Chunk(
+            id="query2",
+            embedding=Embedding(dense_embedding=[0.2, 0.3, 0.4]),
+            content=Content()),
+        Chunk(
+            id="query3",
+            embedding=Embedding(dense_embedding=[0.3, 0.4, 0.5]),
+            content=Content())
+    ]
+
+    anns_field = "dense_embedding_inner_product"
+
+    addition_search_params = {
+        "metric_type": VectorSearchMetrics.INNER_PRODUCT.value, "nprobe": 1
+    }
+
+    vector_search_parameters = VectorSearchParameters(
+        anns_field=anns_field, limit=10, search_params=addition_search_params)
+
+    search_parameters = MilvusSearchParameters(
+        collection_name=MILVUS_IT_CONFIG["collection_name"],
+        search_strategy=vector_search_parameters,
+        output_fields=["id", "content", "metadata"],
+        round_decimal=1)
+
+    collection_load_parameters = MilvusCollectionLoadParameters()
+
+    handler = MilvusSearchEnrichmentHandler(
+        connection_parameters=self._connection_params,
+        search_parameters=search_parameters,
+        collection_load_parameters=collection_load_parameters)
+
+    expected_chunks = [
+        Chunk(
+            id='query1',
+            content=Content(),
+            metadata={
+                'enrichment_data': {
+                    'id': [3, 2, 1],
+                    'distance': [0.3, 0.2, 0.1],
+                    'fields': [{
+                        'content': 'وثيقة اختبار',
+                        'metadata': {
+                            'language': 'ar'
+                        },
+                        'id': 3
+                    },
+                               {
+                                   'content': 'Another test document',
+                                   'metadata': {
+                                       'language': 'en'
+                                   },
+                                   'id': 2
+                               },
+                               {
+                                   'content': 'This is a test document',
+                                   'metadata': {
+                                       'language': 'en'
+                                   },
+                                   'id': 1
+                               }]
+                }
+            },
+            embedding=Embedding(dense_embedding=[0.1, 0.2, 0.3])),
+        Chunk(
+            id='query2',
+            content=Content(),
+            metadata={
+                'enrichment_data': {
+                    'id': [3, 2, 1],
+                    'distance': [0.4, 0.3, 0.2],
+                    'fields': [{
+                        'content': 'وثيقة اختبار',
+                        'metadata': {
+                            'language': 'ar'
+                        },
+                        'id': 3
+                    },
+                               {
+                                   'content': 'Another test document',
+                                   'metadata': {
+                                       'language': 'en'
+                                   },
+                                   'id': 2
+                               },
+                               {
+                                   'content': 'This is a test document',
+                                   'metadata': {
+                                       'language': 'en'
+                                   },
+                                   'id': 1
+                               }]
+                }
+            },
+            embedding=Embedding(dense_embedding=[0.2, 0.3, 0.4])),
+        Chunk(
+            id='query3',
+            content=Content(),
+            metadata={
+                'enrichment_data': {
+                    'id': [3, 2, 1],
+                    'distance': [0.5, 0.4, 0.3],
+                    'fields': [{
+                        'content': 'وثيقة اختبار',
+                        'metadata': {
+                            'language': 'ar'
+                        },
+                        'id': 3
+                    },
+                               {
+                                   'content': 'Another test document',
+                                   'metadata': {
+                                       'language': 'en'
+                                   },
+                                   'id': 2
+                               },
+                               {
+                                   'content': 'This is a test document',
+                                   'metadata': {
+                                       'language': 'en'
+                                   },
+                                   'id': 1
+                               }]
+                }
+            },
+            embedding=Embedding(dense_embedding=[0.3, 0.4, 0.5]))
+    ]
+
+    with TestPipeline() as p:
+      result = (
+          p
+          | beam.Create(test_chunks)
+          | Enrichment(handler)
+          |
+          beam.Filter(lambda chunk: filter_by_score(chunk, 0.1, float('inf'))))
+
+      assert_that(result, equal_to(expected_chunks))
+
+  def test_keyword_search_with_inner_product_sparse_embedding(self):
+    test_chunks = [
+        Chunk(
+            id="query1",
+            embedding=Embedding(
+                sparse_embedding=([1, 2, 3, 4], [0.05, 0.41, 0.05, 0.41])),
+            content=Content())
+    ]
+
+    anns_field = "sparse_embedding_inner_product"
+
+    addition_search_params = {
+        "metric_type": VectorSearchMetrics.INNER_PRODUCT.value,
+    }
+
+    keyword_search_parameters = KeywordSearchParameters(
+        anns_field=anns_field, limit=3, search_params=addition_search_params)
+
+    search_parameters = MilvusSearchParameters(
+        collection_name=MILVUS_IT_CONFIG["collection_name"],
+        search_strategy=keyword_search_parameters,
+        output_fields=["id", "content", "metadata"],
+        round_decimal=1)
+
+    collection_load_parameters = MilvusCollectionLoadParameters()
+
+    handler = MilvusSearchEnrichmentHandler(
+        connection_parameters=self._connection_params,
+        search_parameters=search_parameters,
+        collection_load_parameters=collection_load_parameters)
+
+    expected_chunks = [
+        Chunk(
+            id='query1',
+            content=Content(),
+            metadata={
+                'enrichment_data': {
+                    'id': [1, 2],
+                    'distance': [0.3, 0.2],
+                    'fields': [{
+                        'content': 'This is a test document',
+                        'metadata': {
+                            'language': 'en'
+                        },
+                        'id': 1
+                    },
+                               {
+                                   'content': 'Another test document',
+                                   'metadata': {
+                                       'language': 'en'
+                                   },
+                                   'id': 2
+                               }]
+                }
+            },
+            embedding=Embedding(
+                sparse_embedding=([1, 2, 3, 4], [0.05, 0.41, 0.05, 0.41])))
+    ]
+
+    with TestPipeline() as p:
       result = (p | beam.Create(test_chunks) | Enrichment(handler))
 
-    expected_result = [
-      Chunk(
-        id="query1",
-        embedding=Embedding(dense_embedding=[0.1, 0.2, 0.3]),
-        metadata={
-          "enrichment_data": {
-            "id": "",
+      assert_that(result, equal_to(expected_chunks))
 
-          },
-        }
-      )
+  def test_hybrid_search(self):
+    test_chunks = [
+        Chunk(
+            id="query1",
+            embedding=Embedding(dense_embedding=[0.1, 0.2, 0.3]),
+            content=Content(text="This is a test document"))
     ]
-    #TODO
 
+    anns_vector_field = "dense_embedding_cosine"
+    addition_vector_search_params = {
+        "metric_type": VectorSearchMetrics.COSINE.value, "nprobe": 1
+    }
 
-  def test_basic_vector_search_COSINE(self):
-    #TODO
-    pass
+    vector_search_parameters = VectorSearchParameters(
+        anns_field=anns_vector_field,
+        limit=10,
+        search_params=addition_vector_search_params)
 
-  def test_basic_vector_search_EUCLIDEAN_DISTANCE(self):
-    #TODO
-    pass
+    anns_keyword_field = "sparse_embedding_bm25"
+    addition_keyword_search_params = {
+        "metric_type": KeywordSearchMetrics.BM25.value
+    }
 
-  def test_basic_vector_search_INNER_PRODUCT(self):
-    #TODO
-    pass
+    keyword_search_parameters = KeywordSearchParameters(
+        anns_field=anns_keyword_field,
+        limit=10,
+        search_params=addition_keyword_search_params)
 
-  def test_basic_keyword_search_BM25(self):
-    #TODO
-    pass
+    hybrid_search_parameters = HybridSearchParameters(
+        ranker=RRFRanker(1), limit=1)
 
-  def test_basic_hybrid_search(self):
-    #TODO
-    pass
+    hybrid_search_ns = HybridSearchNamespace(
+        vector=vector_search_parameters,
+        keyword=keyword_search_parameters,
+        hybrid=hybrid_search_parameters)
 
+    search_parameters = MilvusSearchParameters(
+        collection_name=MILVUS_IT_CONFIG["collection_name"],
+        search_strategy=hybrid_search_ns,
+        output_fields=["id", "content", "metadata"],
+        round_decimal=1)
 
-class MilvusITSearchResultsFormatter(beam.PTransform):
-  """
-  A PTransform that formats Milvus integration test search results to ensure
-  deterministic behavior.
-  
-  Since Python dictionaries do not guarantee order, this transformer sorts
-  dictionary fields lexicographically by keys. This ensures:
-  1. Deterministic behavior for returned search results
-  2. Avoids flaky test cases when used in testing environments
-  """
-  def expand(self, pcoll):
-    return pcoll | beam.Map(self.format)
+    collection_load_parameters = MilvusCollectionLoadParameters()
 
-  @staticmethod
-  def format(chunk: Chunk):
-    enrichment_data = chunk.metadata.get('enrichment_data', defaultdict(list))
-    fields = enrichment_data['fields']
-    for i, field in enumerate(fields):
-      if isinstance(field, dict):
-        # Sort the dictionary by creating a new ordered dictionary.
-        sorted_field = {k: field[k] for k in sorted(field.keys())}
-        fields[i] = sorted_field
-    # Update the metadata with sorted fields.
-    chunk.metadata['enrichment_data']['fields'] = fields
-    return chunk
+    handler = MilvusSearchEnrichmentHandler(
+        connection_parameters=self._connection_params,
+        search_parameters=search_parameters,
+        collection_load_parameters=collection_load_parameters)
+
+    expected_chunks = [
+        Chunk(
+            content=Content(text='This is a test document'),
+            id='query1',
+            metadata={
+                'enrichment_data': {
+                    'id': [1],
+                    'distance': [1.0],
+                    'fields': [{
+                        'content': 'This is a test document',
+                        'metadata': {
+                            'language': 'en'
+                        },
+                        'id': 1
+                    }]
+                }
+            },
+            embedding=Embedding(dense_embedding=[0.1, 0.2, 0.3]))
+    ]
+
+    with TestPipeline() as p:
+      result = (p | beam.Create(test_chunks) | Enrichment(handler))
+      assert_that(result, equal_to(expected_chunks))
 
 
 if __name__ == '__main__':

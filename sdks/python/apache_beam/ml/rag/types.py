@@ -44,7 +44,7 @@ class Content:
 @dataclass
 class Embedding:
   """Represents vector embeddings.
-    
+
     Args:
         dense_embedding: Dense vector representation
         sparse_embedding: Optional sparse vector representation for hybrid
@@ -58,13 +58,13 @@ class Embedding:
 @dataclass
 class Chunk:
   """Represents a chunk of embeddable content with metadata.
-    
+
     Args:
         content: The actual content of the chunk
         id: Unique identifier for the chunk
         index: Index of this chunk within the original document
         metadata: Additional metadata about the chunk (e.g., document source)
-        embedding: Vector embeddings of the content 
+        embedding: Vector embeddings of the content
     """
   content: Content
   id: str = field(default_factory=lambda: str(uuid.uuid4()))

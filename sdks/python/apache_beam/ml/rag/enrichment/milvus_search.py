@@ -63,10 +63,11 @@ class KeywordSearchMetrics(Enum):
   """Metrics for keyword search.
 
   Args:
-    BM25: Best Match 25 ranking algorithm for text relevance. Combines term
-      frequency, inverse document frequency, and document length. Higher scores
-      indicate greater relevance. Takes into account diminishing returns of term
-      frequency. Balances between exact matching and semantic relevance.
+    BM25: Range [0 to ∞), Best Match 25 ranking algorithm for text relevance.
+      Combines term frequency, inverse document frequency, and document length.
+      Higher scores indicate greater relevance. Higher scores indicate greater
+      relevance. Takes into account diminishing returns of term frequency.
+      Balances between exact matching and semantic relevance.
   """
   BM25 = "BM25"
 
@@ -75,9 +76,10 @@ class VectorSearchMetrics(Enum):
   """Metrics for vector search.
 
   Args:
-    COSINE: Range [0 to 1], higher indicate greater similarity. Value 1 means
-      vectors point in identical direction. Value 0 means vectors are
-      perpendicular to each other (no relationship).
+    COSINE: Range [-1 to 1], higher values indicate greater similarity. Value 1
+      means vectors point in identical direction. Value 0 means vectors are
+      perpendicular to each other (no relationship). Value -1 means vectors
+      point in exactly opposite directions.
     EUCLIDEAN_DISTANCE (L2): Range [0 to ∞), lower values indicate greater
       similarity. Value 0 means vectors are identical. Larger values mean more
       dissimilarity between vectors.
@@ -161,9 +163,6 @@ class BaseSearchParameters:
   search_params: Dict[str, Any] = field(default_factory=dict)
   consistency_level: Optional[str] = None
 
-  def __getitem__(self, key):
-    return getattr(self, key)
-
   def __post_init__(self):
     if not self.anns_field:
       raise ValueError(
@@ -189,9 +188,6 @@ class VectorSearchParameters(BaseSearchParameters):
   """
   kwargs: Dict[str, Any] = field(default_factory=dict)
 
-  def __getitem__(self, key):
-    return getattr(self, key)
-
 
 @dataclass
 class KeywordSearchParameters(BaseSearchParameters):
@@ -210,9 +206,6 @@ class KeywordSearchParameters(BaseSearchParameters):
   """
   kwargs: Dict[str, Any] = field(default_factory=dict)
 
-  def __getitem__(self, key):
-    return getattr(self, key)
-
 
 @dataclass
 class HybridSearchParameters:
@@ -229,9 +222,6 @@ class HybridSearchParameters:
   ranker: MilvusBaseRanker
   limit: int = 3
   kwargs: Dict[str, Any] = field(default_factory=dict)
-
-  def __getitem__(self, key):
-    return getattr(self, key)
 
   def __post_init__(self):
     if not self.ranker:
@@ -253,9 +243,6 @@ class HybridSearchNamespace:
   vector: VectorSearchParameters
   keyword: KeywordSearchParameters
   hybrid: HybridSearchParameters
-
-  def __getitem__(self, key):
-    return getattr(self, key)
 
   def __post_init__(self):
     if not self.vector or not self.keyword or not self.hybrid:
@@ -295,9 +282,6 @@ class MilvusSearchParameters:
   timeout: Optional[float] = None
   round_decimal: int = -1
 
-  def __getitem__(self, key):
-    return getattr(self, key)
-
   def __post_init__(self):
     if not self.collection_name:
       raise ValueError("Collection name must be provided")
@@ -311,8 +295,8 @@ class MilvusCollectionLoadParameters:
   """Parameters that control how Milvus loads a collection into memory.
 
   This class provides fine-grained control over collection loading, which is
-  particularly important in resource-constrained environments. Proper 
-  configuration can significantly reduce memory usage and improve query 
+  particularly important in resource-constrained environments. Proper
+  configuration can significantly reduce memory usage and improve query
   performance by loading only necessary data.
 
   Args:
@@ -333,9 +317,6 @@ class MilvusCollectionLoadParameters:
   skip_load_dynamic_field: bool = field(default_factory=bool)
   kwargs: Dict[str, Any] = field(default_factory=dict)
 
-  def __getitem__(self, key):
-    return getattr(self, key)
-
 
 InputT, OutputT = Union[Chunk, List[Chunk]], List[Tuple[Chunk, Dict[str, Any]]]
 
@@ -354,7 +335,7 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
   * Hybrid search - For combining vector and keyword search results
 
   This handler queries the Milvus database per element by default. To enable
-  batching for improved performance, set the `min_batch_size` and 
+  batching for improved performance, set the `min_batch_size` and
   `max_batch_size` parameters. These control the batching behavior in the
   :class:`apache_beam.transforms.utils.BatchElements` transform.
 
@@ -438,7 +419,7 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
   def _search_documents(self, chunks: List[Chunk]):
     if isinstance(self.search_strategy, HybridSearchNamespace):
       data = self._get_hybrid_search_data(chunks)
-      hybridSearchParmas = unpack_dataclass_with_kwargs(
+      hybrid_search_params = unpack_dataclass_with_kwargs(
           self.search_strategy.hybrid)
       return self._client.hybrid_search(
           collection_name=self.collection_name,
@@ -447,10 +428,10 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
           timeout=self.timeout,
           round_decimal=self.round_decimal,
           reqs=data,
-          **hybridSearchParmas)
+          **hybrid_search_params)
     elif isinstance(self.search_strategy, VectorSearchParameters):
       data = list(map(self._get_vector_search_data, chunks))
-      vectorSearchParams = unpack_dataclass_with_kwargs(self.search_strategy)
+      vector_search_params = unpack_dataclass_with_kwargs(self.search_strategy)
       return self._client.search(
           collection_name=self.collection_name,
           partition_names=self.partition_names,
@@ -458,10 +439,10 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
           timeout=self.timeout,
           round_decimal=self.round_decimal,
           data=data,
-          **vectorSearchParams)
+          **vector_search_params)
     elif isinstance(self.search_strategy, KeywordSearchParameters):
       data = list(map(self._get_keyword_search_data, chunks))
-      keywordSearchParams = unpack_dataclass_with_kwargs(self.search_strategy)
+      keyword_search_params = unpack_dataclass_with_kwargs(self.search_strategy)
       return self._client.search(
           collection_name=self.collection_name,
           partition_names=self.partition_names,
@@ -469,7 +450,7 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
           timeout=self.timeout,
           round_decimal=self.round_decimal,
           data=data,
-          **keywordSearchParams)
+          **keyword_search_params)
     else:
       raise ValueError(
           f"Not supported search strategy yet: {self.search_strategy}")
@@ -507,7 +488,11 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
       raise ValueError(
           f"Chunk {chunk.id} missing both text content and sparse embedding "
           "required for keyword search")
-    return chunk.content.text or chunk.sparse_embedding
+
+    sparse_embedding = self.convert_sparse_embedding_to_milvus_format(
+        chunk.sparse_embedding)
+
+    return chunk.content.text or sparse_embedding
 
   def _get_call_response(
       self, chunks: List[Chunk], search_result: SearchResult[Hits]):
@@ -543,6 +528,15 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
     else:
       # Keep other types as they are.
       return value
+
+  def convert_sparse_embedding_to_milvus_format(
+      self, sparse_vector: Tuple[List[int], List[float]]) -> Dict[int, float]:
+    if not sparse_vector:
+      return None
+    # Converts sparse embedding from (indices, values) tuple format to
+    # Milvus-compatible values dict format {dimension_index: value, ...}.
+    indices, values = sparse_vector
+    return {int(idx): float(val) for idx, val in zip(indices, values)}
 
   @property
   def collection_name(self):

@@ -134,7 +134,7 @@ def enrichment_with_milvus():
       VectorSearchParameters,
       VectorSearchMetrics)
   from apache_beam.ml.rag.enrichment.milvus_search_it_test import (
-      MilvusITSearchResultsFormatter)
+      sort_milvus_metadata)
 
   uri = os.environ.get("MILVUS_VECTOR_DB_URI")
   user = os.environ.get("MILVUS_VECTOR_DB_USER")
@@ -158,11 +158,13 @@ def enrichment_with_milvus():
   connection_parameters = MilvusConnectionParameters(
       uri, user, password, db_id, token)
 
+  search_params = {"metric_type": VectorSearchMetrics.COSINE.value, "nprobe": 1}
+
   vector_search_params = VectorSearchParameters(
-      anns_field="dense_embedding",
+      anns_field="dense_embedding_cosine",
       limit=3,
       filter=filter_expr,
-      search_params={"metric_type": VectorSearchMetrics.COSINE.value})
+      search_params=search_params)
 
   search_parameters = MilvusSearchParameters(
       collection_name=collection_name,
@@ -179,6 +181,6 @@ def enrichment_with_milvus():
         p
         | "Create" >> beam.Create(data)
         | "Enrich W/ Milvus" >> Enrichment(milvus_search_handler)
-        | "Sort Metadata Lexicographically" >> MilvusITSearchResultsFormatter()
+        | "Sort Metadata Lexicographically" >> beam.Map(sort_milvus_metadata)
         | "Print" >> beam.Map(print))
   # [END enrichment_with_milvus]
