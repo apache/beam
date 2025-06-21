@@ -312,7 +312,8 @@ class MilvusEnrichmentTestHelper:
 
     # Create collection with the schema.
     collection_name = MILVUS_IT_CONFIG["collection_name"]
-    index_function: Callable[[], IndexParams] = MILVUS_IT_CONFIG["index"]
+    index_function: Callable[[], IndexParams] = cast(
+      Callable[[], IndexParams], MILVUS_IT_CONFIG["index"])
     client.create_collection(
         collection_name=collection_name,
         schema=schema,
