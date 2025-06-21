@@ -133,8 +133,6 @@ def enrichment_with_milvus():
       MilvusCollectionLoadParameters,
       VectorSearchParameters,
       VectorSearchMetrics)
-  from apache_beam.ml.rag.enrichment.milvus_search_it_test import (
-      sort_milvus_metadata)
 
   uri = os.environ.get("MILVUS_VECTOR_DB_URI")
   user = os.environ.get("MILVUS_VECTOR_DB_USER")
@@ -181,6 +179,5 @@ def enrichment_with_milvus():
         p
         | "Create" >> beam.Create(data)
         | "Enrich W/ Milvus" >> Enrichment(milvus_search_handler)
-        | "Sort Metadata Lexicographically" >> beam.Map(sort_milvus_metadata)
         | "Print" >> beam.Map(print))
   # [END enrichment_with_milvus]

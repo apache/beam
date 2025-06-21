@@ -35,7 +35,10 @@ try:
   from apache_beam.ml.rag.enrichment.milvus_search import (
       MilvusConnectionParameters)
   from apache_beam.ml.rag.enrichment.milvus_search_it_test import (
-      MilvusEnrichmentTestHelper, MilvusDBContainerInfo)
+      MilvusEnrichmentTestHelper,
+      MilvusDBContainerInfo,
+      parse_chunk_strings,
+      assert_chunks_equivalent)
   from apache_beam.io.requestresponse import RequestResponseIO
 except ImportError:
   raise unittest.SkipTest('RequestResponseIO dependencies are not installed')
@@ -107,7 +110,9 @@ class EnrichmentTest(unittest.TestCase):
       output = mock_stdout.getvalue().splitlines()
       expected = validate_enrichment_with_milvus()
       self.maxDiff = None
-      self.assertEqual(output, expected)
+      output = parse_chunk_strings(output)
+      expected = parse_chunk_strings(expected)
+      assert_chunks_equivalent(output, expected)
     except Exception as e:
       self.fail(f"Test failed with unexpected error: {e}")
     finally:
