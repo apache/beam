@@ -2032,6 +2032,9 @@ class FnApiRunnerTestWithMultiWorkers(FnApiRunnerTest):
   def test_register_finalizations(self):
     raise unittest.SkipTest("This test is for a single worker only.")
 
+  def test_sliding_windows(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
 
 class FnApiRunnerTestWithGrpcAndMultiWorkers(FnApiRunnerTest):
   def create_pipeline(self, is_drain=False):
@@ -2060,6 +2063,9 @@ class FnApiRunnerTestWithGrpcAndMultiWorkers(FnApiRunnerTest):
     raise unittest.SkipTest("This test is for a single worker only.")
 
   def test_register_finalizations(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
+  def test_sliding_windows(self):
     raise unittest.SkipTest("This test is for a single worker only.")
 
 
@@ -2098,6 +2104,9 @@ class FnApiRunnerTestWithBundleRepeatAndMultiWorkers(FnApiRunnerTest):
     raise unittest.SkipTest("This test is for a single worker only.")
 
   def test_sdf_with_dofn_as_watermark_estimator(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
+  def test_sliding_windows(self):
     raise unittest.SkipTest("This test is for a single worker only.")
 
 
