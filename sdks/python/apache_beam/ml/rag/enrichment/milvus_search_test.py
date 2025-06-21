@@ -239,7 +239,8 @@ class TestMilvusKeywordSearchEnrichment(unittest.TestCase):
       chunk = Chunk(
           id=1,
           content=Content(text=None),
-          embedding=Embedding(sparse_embedding=[0, 1, 0, 1, 0]))
+          embedding=Embedding(
+              sparse_embedding=([1, 2, 3, 4], [0.05, 0.41, 0.05, 0.41])))
       connection_params = MilvusConnectionParameters(
           uri="http://localhost:19530")
       vector_search_params = VectorSearchParameters(anns_field="embedding")
