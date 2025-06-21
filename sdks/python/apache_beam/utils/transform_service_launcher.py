@@ -61,10 +61,6 @@ class TransformServiceLauncher(object):
 
     self._launcher_lock = threading.RLock()
 
-    self.docker_compose_command_prefix = [
-        'docker-compose', '-p', project_name, '-f', 'TODO path'
-    ]
-
     # Setting up Docker Compose configuration.
 
     # We use Docker Compose project name as the name of the temporary directory
