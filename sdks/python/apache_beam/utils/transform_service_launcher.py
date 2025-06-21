@@ -46,13 +46,15 @@ class TransformServiceLauncher(object):
 
   # Maintaining a static list of launchers to prevent temporary resources
   # from being created unnecessarily.
-  def __new__(cls, project_name, port, beam_version=None):
+  def __new__(
+      cls, project_name, port, beam_version=None, use_docker_compose_v2=False):
     if project_name not in TransformServiceLauncher._launchers:
       TransformServiceLauncher._launchers[project_name] = super(
           TransformServiceLauncher, cls).__new__(cls)
     return TransformServiceLauncher._launchers[project_name]
 
-  def __init__(self, project_name, port, beam_version=None):
+  def __init__(
+      self, project_name, port, beam_version=None, use_docker_compose_v2=False):
     logging.info('Initializing the Beam Transform Service %s.' % project_name)
 
     self._project_name = project_name
@@ -126,8 +128,8 @@ class TransformServiceLauncher(object):
     self._environmental_variables['PYTHON_REQUIREMENTS_FILE_NAME'] = (
         'requirements.txt')
 
-    self._docker_compose_start_command_prefix = []
-    self._docker_compose_start_command_prefix.append('docker-compose')
+    self._docker_compose_start_command_prefix = (
+        ['docker', 'compose'] if use_docker_compose_v2 else ['docker-compose'])
     self._docker_compose_start_command_prefix.append('-p')
     self._docker_compose_start_command_prefix.append(project_name)
     self._docker_compose_start_command_prefix.append('-f')
