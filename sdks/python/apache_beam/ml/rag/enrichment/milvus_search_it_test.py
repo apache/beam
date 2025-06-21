@@ -441,6 +441,7 @@ class MilvusEnrichmentTestHelper:
 
 
 @pytest.mark.uses_testcontainer
+@pytest.mark.timeout(1200)
 @unittest.skipUnless(
     platform.system() == "Linux",
     "Test runs only on Linux due to lack of support, as yet, for nested "
