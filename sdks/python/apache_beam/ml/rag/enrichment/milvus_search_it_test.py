@@ -37,7 +37,6 @@ from pymilvus import FunctionType
 from pymilvus import MilvusClient
 from pymilvus import RRFRanker
 from pymilvus.milvus_client import IndexParams
-from pymilvus.grpc_gen import schema_pb2
 from testcontainers.core.generic import DbContainer
 from testcontainers.milvus import MilvusContainer
 import yaml
