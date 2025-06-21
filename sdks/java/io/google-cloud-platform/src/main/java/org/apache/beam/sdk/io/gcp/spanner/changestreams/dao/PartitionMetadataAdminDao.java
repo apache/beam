@@ -162,9 +162,9 @@ public class PartitionMetadataAdminDao {
               + "\" on \""
               + names.getTableName()
               + "\" (\""
-              + COLUMN_WATERMARK
-              + "\") INCLUDE (\""
               + COLUMN_STATE
+              + "\", \""
+              + COLUMN_WATERMARK
               + "\")");
       ddl.add(
           "CREATE INDEX IF NOT EXISTS \""
@@ -217,9 +217,9 @@ public class PartitionMetadataAdminDao {
               + " on "
               + names.getTableName()
               + " ("
-              + COLUMN_WATERMARK
-              + ") STORING ("
               + COLUMN_STATE
+              + ", "
+              + COLUMN_WATERMARK
               + ")");
       ddl.add(
           "CREATE INDEX IF NOT EXISTS "
