@@ -295,19 +295,21 @@ class MilvusEnrichmentTestHelper:
       image="milvusdb/milvus:v2.5.10",
       max_vec_fields=5,
       vector_client_retries=3) -> Optional[MilvusDBContainerInfo]:
-    with MilvusEnrichmentTestHelper.create_user_yaml(max_vec_fields) as cfg:
+    service_container_port = 19530
+    with MilvusEnrichmentTestHelper.create_user_yaml(service_container_port,
+                                                     max_vec_fields) as cfg:
       info = None
       for i in range(vector_client_retries):
         try:
           vector_db_container = CustomMilvusContainer(
               image=image,
-              service_container_port=19530,
+              service_container_port=service_container_port,
               healthcheck_container_port=9091)
           vector_db_container = vector_db_container.with_volume_mapping(
               cfg, "/milvus/configs/user.yaml")
           vector_db_container.start()
           host = vector_db_container.get_container_host_ip()
-          port = vector_db_container.get_exposed_port(19530)
+          port = vector_db_container.get_exposed_port(service_container_port)
           info = MilvusDBContainerInfo(vector_db_container, host, port)
           _LOGGER.info(
               "milvus db container started successfully on %s.", info.uri)
@@ -401,12 +403,13 @@ class MilvusEnrichmentTestHelper:
 
   @staticmethod
   @contextlib.contextmanager
-  def create_user_yaml(max_vector_field_num=5):
+  def create_user_yaml(service_container_port: int, max_vector_field_num=5):
     """Creates a temporary user.yaml file for Milvus configuration.
 
       This user yaml file overrides Milvus default configurations. The
       default for maxVectorFieldNum is 4, but we need 5
-      (one unique field for each metric).
+      (one unique field for each metric). Also set the milvus service the
+      milvus service port.
 
       Args:
           max_vector_field_num: Max number of vec fields allowed per collection.
@@ -418,10 +421,10 @@ class MilvusEnrichmentTestHelper:
                                      delete=False) as temp_file:
       # Define the content for user.yaml.
       user_config = {
-        'proxy': {
-          'maxVectorFieldNum': max_vector_field_num,
-          'port': 19530
-        }
+          'proxy': {
+              'maxVectorFieldNum': max_vector_field_num,
+              'port': service_container_port
+          }
       }
 
       # Write the content to the file.
@@ -672,7 +675,7 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
             embedding=Embedding(dense_embedding=[0.3, 0.4, 0.5]))
     ]
 
-    with TestPipeline() as p:
+    with TestPipeline(is_integration_test=True) as p:
       result = (p | beam.Create(test_chunks) | Enrichment(handler))
       assert_that(
           result,
@@ -777,7 +780,7 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
             embedding=Embedding())
     ]
 
-    with TestPipeline() as p:
+    with TestPipeline(is_integration_test=True) as p:
       result = (p | beam.Create(test_chunks) | Enrichment(handler))
       assert_that(
           result,
@@ -918,7 +921,7 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
             embedding=Embedding(dense_embedding=[0.3, 0.4, 0.5]))
     ]
 
-    with TestPipeline() as p:
+    with TestPipeline(is_integration_test=True) as p:
       result = (p | beam.Create(test_chunks) | Enrichment(handler))
       assert_that(
           result,
@@ -1058,7 +1061,7 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
             embedding=Embedding(dense_embedding=[0.3, 0.4, 0.5]))
     ]
 
-    with TestPipeline() as p:
+    with TestPipeline(is_integration_test=True) as p:
       result = (p | beam.Create(test_chunks) | Enrichment(handler))
       assert_that(
           result,
@@ -1123,7 +1126,7 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
                 sparse_embedding=([1, 2, 3, 4], [0.05, 0.41, 0.05, 0.41])))
     ]
 
-    with TestPipeline() as p:
+    with TestPipeline(is_integration_test=True) as p:
       result = (p | beam.Create(test_chunks) | Enrichment(handler))
       assert_that(
           result,
@@ -1198,7 +1201,7 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
             embedding=Embedding(dense_embedding=[0.1, 0.2, 0.3]))
     ]
 
-    with TestPipeline() as p:
+    with TestPipeline(is_integration_test=True) as p:
       result = (p | beam.Create(test_chunks) | Enrichment(handler))
       assert_that(
           result,
