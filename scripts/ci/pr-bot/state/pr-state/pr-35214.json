@@ -1,7 +1,10 @@
 {
-  "commentedAboutFailingChecks": true,
-  "reviewersAssignedForLabels": {},
-  "nextAction": "Author",
+  "commentedAboutFailingChecks": false,
+  "reviewersAssignedForLabels": {
+    "java": "ahmedabu98",
+    "kafka": "fozzie15"
+  },
+  "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
   "committerAssigned": false
