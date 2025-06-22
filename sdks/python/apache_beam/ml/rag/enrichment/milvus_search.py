@@ -131,9 +131,6 @@ class MilvusConnectionParameters:
   timeout: Optional[float] = None
   kwargs: Dict[str, Any] = field(default_factory=dict)
 
-  def __getitem__(self, key):
-    return getattr(self, key)
-
   def __post_init__(self):
     if not self.uri:
       raise ValueError("URI must be provided for Milvus connection")

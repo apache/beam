@@ -20,7 +20,6 @@ import logging
 import os
 import platform
 import re
-import socket
 import tempfile
 import unittest
 from collections import defaultdict
@@ -65,8 +64,8 @@ try:
       HybridSearchParameters,
       VectorSearchMetrics,
       KeywordSearchMetrics)
-except ImportError:
-  raise unittest.SkipTest('Milvus dependencies not installed')
+except ImportError as e:
+  raise unittest.SkipTest(f'Milvus dependencies not installed: {str(e)}')
 
 _LOGGER = logging.getLogger(__name__)
 

@@ -33,8 +33,8 @@ try:
       HybridSearchNamespace,
       MilvusBaseRanker,
       unpack_dataclass_with_kwargs)
-except ImportError:
-  raise unittest.SkipTest('Milvus dependencies are not installed.')
+except ImportError as e:
+  raise unittest.SkipTest(f'Milvus dependencies not installed: {str(e)}')
 
 
 class MockRanker(MilvusBaseRanker):
