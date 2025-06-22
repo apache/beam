@@ -26,12 +26,14 @@ import unittest
 from collections import defaultdict
 from dataclasses import dataclass
 from dataclasses import field
-from typing import Callable, Dict
+from typing import Callable
+from typing import Dict
 from typing import List
 from typing import Optional
 from typing import cast
 
 import pytest
+import yaml
 from pymilvus import CollectionSchema
 from pymilvus import DataType
 from pymilvus import FieldSchema
@@ -42,14 +44,13 @@ from pymilvus import RRFRanker
 from pymilvus.milvus_client import IndexParams
 from testcontainers.core.generic import DbContainer
 from testcontainers.milvus import MilvusContainer
-import yaml
 
 import apache_beam as beam
-from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.ml.rag.types import Chunk
 from apache_beam.ml.rag.types import Content
 from apache_beam.ml.rag.types import Embedding
 from apache_beam.testing.util import assert_that
+from apache_beam.testing.test_pipeline import TestPipeline
 
 try:
   from apache_beam.transforms.enrichment import Enrichment
@@ -278,8 +279,11 @@ class CustomMilvusContainer(MilvusContainer):
     # Bing container and host ports.
     self.with_bind_ports(service_container_port, service_host_port)
     self.with_bind_ports(healthcheck_container_port, healthcheck_host_port)
+
+    # Initialize entrypoint command for the container.
     self.cmd = "milvus run standalone"
 
+    # Set environment variables for proper running of the service.
     envs = {
         "ETCD_USE_EMBED": "true",
         "ETCD_DATA_DIR": "/var/lib/milvus/etcd",
@@ -403,16 +407,17 @@ class MilvusEnrichmentTestHelper:
 
   @staticmethod
   @contextlib.contextmanager
-  def create_user_yaml(service_container_port: int, max_vector_field_num=5):
+  def create_user_yaml(service_port: int, max_vector_field_num=5):
     """Creates a temporary user.yaml file for Milvus configuration.
 
-      This user yaml file overrides Milvus default configurations. The
+      This user yaml file overrides Milvus default configurations. It sets
+      the Milvus service port to the specified container service port. The
       default for maxVectorFieldNum is 4, but we need 5
-      (one unique field for each metric). Also set the milvus service the
-      milvus service port.
+      (one unique field for each metric).
 
       Args:
-          max_vector_field_num: Max number of vec fields allowed per collection.
+        service_port: Port number for the Milvus service.
+        max_vector_field_num: Max number of vec fields allowed per collection.
 
       Yields:
           str: Path to the created temporary yaml file.
@@ -422,8 +427,7 @@ class MilvusEnrichmentTestHelper:
       # Define the content for user.yaml.
       user_config = {
           'proxy': {
-              'maxVectorFieldNum': max_vector_field_num,
-              'port': service_container_port
+              'maxVectorFieldNum': max_vector_field_num, 'port': service_port
           }
       }
 
