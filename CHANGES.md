@@ -73,7 +73,9 @@
 
 ## New Features / Improvements
 
-* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Milvus enrichment handler added (Python) [#35216](https://github.com/apache/beam/pull/35216).
+  Beam now supports Milvus enrichment handler capabilities for vector, keyword,
+  and hybrid search operations.
 
 ## Breaking Changes
 
