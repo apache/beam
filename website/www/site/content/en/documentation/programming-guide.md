@@ -1183,16 +1183,24 @@ func init() {
 > parameters to a single `emitter function`.
 
 </span>
-
 {{< paragraph class="language-python">}}
-Proper Use of return vs yield in Python Functions.
+Proper use of return vs yield in Python Functions.
 {{< /paragraph >}}
+
+<span class="language-python">
+
+> **Returning a single element (e.g., `return element`) is incorrect**
+> The `process` method in Beam must return an *iterable* of elements. Returning a single value like an integer or string
+> (e.g., `return element`) leads to a runtime error (`TypeError: 'int' object is not iterable`) or incorrect results since the return value
+> will be treated as an iterable. Always ensure your return type is iterable.
+
+</span>
 
 {{< highlight python >}}
 # Returning a single string instead of a sequence
 class ReturnIndividualElement(beam.DoFn):
     def process(self, element):
-        return element  
+        return element
 
 with beam.Pipeline() as pipeline:
     (
@@ -1209,10 +1217,8 @@ with beam.Pipeline() as pipeline:
 
 <span class="language-python">
 
-> **Returning a single element (e.g., `return element`) is incorrect**  
-> The `process` method in Beam must return an *iterable* of elements. Returning a single value like an integer or string 
-> (e.g., `return element`) leads to a runtime error (`TypeError: 'int' object is not iterable`) or incorrect results since the return value 
-> will be treated as an iterable. Always ensure your return type is iterable.
+> **Returning a list (e.g., `return [element1, element2]`) is valid because List is Iterable**
+> This approach works well when emitting multiple outputs from a single call and is easy to read for small datasets.
 
 </span>
 
@@ -1240,8 +1246,8 @@ with beam.Pipeline() as pipeline:
 
 <span class="language-python">
 
-> **Returning a list (e.g., `return [element1, element2]`) is valid because List is Iterable**  
-> This approach works well when emitting multiple outputs from a single call and is easy to read for small datasets.
+> **Using `yield` (e.g., `yield element`) is also valid**
+> This approach can be useful for generating multiple outputs more flexibly, especially in cases where conditional logic or loops are involved.
 
 </span>
 
@@ -1252,7 +1258,7 @@ class YieldWordsFn(beam.DoFn):
         # Splitting the sentence and yielding words that have more than 2 characters
         for word in element.split():
             if len(word) > 2:
-                yield word 
+                yield word
 
 with beam.Pipeline() as pipeline:
     (
@@ -1271,13 +1277,6 @@ with beam.Pipeline() as pipeline:
   # Try
   # now
 {{< /highlight >}}
-
-<span class="language-python">
-
-> **Using `yield` (e.g., `yield element`) is also valid**  
-> This approach can be useful for generating multiple outputs more flexibly, especially in cases where conditional logic or loops are involved.
-
-</span>
 
 A given `DoFn` instance generally gets invoked one or more times to process some
 arbitrary bundle of elements. However, Beam doesn't guarantee an exact number of
