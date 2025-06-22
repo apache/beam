@@ -189,11 +189,13 @@ class FnApiWorkerStatusHandler(object):
     self._responses = queue.Queue()
     self.log_lull_timeout_ns = log_lull_timeout_ns
     if element_processing_timeout:
-      self._restart_lull_timeout_ns = max(
-          element_processing_timeout * 60* 1e9, restart_lull_timeout_ns)
+      self._element_processing_timeout_ns = max(
+          element_processing_timeout * 60 * 1e9, restart_lull_timeout_ns)
+      if element_processing_timeout * 60 * 1e9 < restart_lull_timeout_ns:
+        _LOGGER.error(
+            'KAI-DEBUG: element processing timeout overriden to %d ns', self._element_processing_timeout_ns)
     else:
-      self._restart_lull_timeout_ns = None
-
+      self._element_processing_timeout_ns = None
     self._last_full_thread_dump_secs = 0.0
     self._last_lull_logged_secs = 0.0
     self._server = threading.Thread(
@@ -206,7 +208,10 @@ class FnApiWorkerStatusHandler(object):
             self._bundle_process_cache),
         name='lull_operation_logger')
     self._lull_logger.daemon = True
-    self._lull_logger.start()
+    try:
+      self._lull_logger.start()
+    except TimeoutError as e:
+      raise TimeoutError('%sThe SDK harness will be terminated.' % e) from e
 
   def _get_responses(self):
     while True:
@@ -260,20 +265,36 @@ class FnApiWorkerStatusHandler(object):
           if processor:
             info = processor.state_sampler.get_info()
             self._log_lull_sampler_info(info, instruction)
-            if self._restart_lull_timeout_ns and self._restart_lull(info):
-              sys.exit(1)
+            if self._element_processing_timeout_ns:
+              try:
+                self._restart_lull(info, instruction)
+              except TimeoutError as e:
+                raise e
 
-  def _restart_lull(self, sampler_info) -> bool:
-    return (sampler_info and sampler_info.time_since_transition and
-            sampler_info.time_since_transition > self._restart_lull_timeout_ns)
+  def _restart_lull(self, sampler_info, instruction):
+    if (
+        sampler_info
+        and sampler_info.time_since_transition
+        and sampler_info.time_since_transition
+        > self._element_processing_timeout_ns
+    ):
+      log_lull_msg = self._log_lull_msg(sampler_info, instruction)
+      raise TimeoutError(log_lull_msg + 'The SDK harness will be terminated.')
 
   def _log_lull_sampler_info(self, sampler_info, instruction):
     if not self._passed_lull_timeout_since_last_log():
       return
-    if (sampler_info and sampler_info.time_since_transition and
-        sampler_info.time_since_transition > self.log_lull_timeout_ns):
-      lull_seconds = sampler_info.time_since_transition / 1e9
+    if (
+        sampler_info
+        and sampler_info.time_since_transition
+        and sampler_info.time_since_transition > self.log_lull_timeout_ns
+    ):
+      _LOGGER.warning(self._log_lull_msg(sampler_info, instruction))
 
+  def _log_lull_msg(self, sampler_info, instruction):
+    """Logs a lull message for the given sampler info and instruction."""
+    if sampler_info:
+      lull_seconds = sampler_info.time_since_transition / 1e9
       step_name = sampler_info.state_name.step_name
       state_name = sampler_info.state_name.name
       if step_name and state_name:
@@ -283,17 +304,17 @@ class FnApiWorkerStatusHandler(object):
         step_name_log = ''
 
       stack_trace = self._get_stack_trace(sampler_info)
-
-      _LOGGER.warning(
-          (
-              'Operation ongoing in bundle %s%s for at least %.2f seconds'
-              ' without outputting or completing.\n'
-              'Current Traceback:\n%s'),
+      return (
+          'Operation ongoing in bundle %s%s for at least %.2f seconds'
+          ' without outputting or completing.\n'
+          'Current Traceback:\n%s'
+      ) % (
           instruction,
           step_name_log,
           lull_seconds,
           stack_trace,
       )
+    return ''
 
   def _get_stack_trace(self, sampler_info):
     exec_thread = getattr(sampler_info, 'tracked_thread', None)
