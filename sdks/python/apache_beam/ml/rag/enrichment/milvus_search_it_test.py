@@ -417,7 +417,12 @@ class MilvusEnrichmentTestHelper:
     with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml',
                                      delete=False) as temp_file:
       # Define the content for user.yaml.
-      user_config = {'proxy': {'maxVectorFieldNum': max_vector_field_num}}
+      user_config = {
+        'proxy': {
+          'maxVectorFieldNum': max_vector_field_num,
+          'port': 19530
+        }
+      }
 
       # Write the content to the file.
       yaml.dump(user_config, temp_file, default_flow_style=False)
