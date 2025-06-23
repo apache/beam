@@ -15,7 +15,7 @@
 
 name: PreCommit Python ML tests with ML deps installed
 on:
-  pull_request:
+  pull_request_target:
     branches: [ "master", "release-*" ]
     paths: [ "model/**","sdks/python/**","release/**", 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_Python_ML.json']
   issue_comment:
@@ -85,34 +85,6 @@ jobs:
         with:
           java-version: default
           python-version: ${{ matrix.python_version }}
-      - name: Verify Docker setup
-        id: verify_docker_setup
-        run: |
-          # Check Docker version and permissions
-          docker version
-          docker info
-
-          # Test basic port mapping
-          echo "Testing basic port mapping..."
-          CONTAINER_ID=$(docker run -d -p 127.0.0.1:45678:80 nginx:alpine)
-          sleep 3
-
-          # Check port mapping
-          PORT_CHECK=$(docker port $CONTAINER_ID)
-          echo "Port mapping result: $PORT_CHECK"
-
-          # Test connectivity
-          curl -v localhost:45678 > /dev/null
-          CURL_RESULT=$?
-          echo "Curl test result: $CURL_RESULT"
-
-          # Cleanup
-          docker rm -f $CONTAINER_ID
-
-          if [ $CURL_RESULT -ne 0 ]; then
-            echo "::error::Port mapping verification failed"
-            exit 1
-          fi
       - name: Set PY_VER_CLEAN
         id: set_py_ver_clean
         run: |
