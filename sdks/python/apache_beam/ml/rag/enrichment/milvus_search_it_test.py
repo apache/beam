@@ -20,6 +20,7 @@ import logging
 import os
 import platform
 import re
+import socket
 import tempfile
 import unittest
 from collections import defaultdict
@@ -254,6 +255,39 @@ class MilvusDBContainerInfo:
   def uri(self) -> str:
     return f"http://{self.host}:{self.port}"
 
+class CustomMilvusContainer(MilvusContainer):
+  def __init__(
+      self,
+      image: str,
+      service_container_port,
+      healthcheck_container_port,
+      **kwargs,
+  ) -> None:
+    # Skip the parent class's constructor and go straight to
+    # GenericContainer.
+    super(MilvusContainer, self).__init__(image=image, **kwargs)
+    self.port = service_container_port
+    self.healthcheck_port = healthcheck_container_port
+    self.with_exposed_ports(service_container_port, healthcheck_container_port)
+
+    # Get free host ports.
+    service_host_port = MilvusEnrichmentTestHelper.find_free_port()
+    healthcheck_host_port = MilvusEnrichmentTestHelper.find_free_port()
+
+    # Bind container and host ports.
+    self.with_bind_ports(service_container_port, service_host_port)
+    self.with_bind_ports(healthcheck_container_port, healthcheck_host_port)
+    self.cmd = "milvus run standalone"
+
+    # Set environment variables needed for Milvus.
+    envs = {
+        "ETCD_USE_EMBED": "true",
+        "ETCD_DATA_DIR": "/var/lib/milvus/etcd",
+        "COMMON_STORAGETYPE": "local",
+        "METRICS_PORT": str(healthcheck_container_port)
+    }
+    for env, value in envs.items():
+      self.with_env(env, value)
 
 class MilvusEnrichmentTestHelper:
   @staticmethod
@@ -261,13 +295,17 @@ class MilvusEnrichmentTestHelper:
       image="milvusdb/milvus:v2.5.10",
       max_vec_fields=5,
       vector_client_max_retries=3) -> Optional[MilvusDBContainerInfo]:
-    service_container_port = 19530
+    service_container_port = MilvusEnrichmentTestHelper.find_free_port()
+    healthcheck_container_port = MilvusEnrichmentTestHelper.find_free_port()
     user_yaml_creator = MilvusEnrichmentTestHelper.create_user_yaml
     with user_yaml_creator(service_container_port, max_vec_fields) as cfg:
       info = None
       for i in range(vector_client_max_retries):
         try:
-          vector_db_container = MilvusContainer(image, service_container_port)
+          vector_db_container = CustomMilvusContainer(
+            image=image,
+            service_container_port=service_container_port,
+            healthcheck_container_port=healthcheck_container_port)
           vector_db_container = vector_db_container.with_volume_mapping(
               cfg, "/milvus/configs/user.yaml")
           vector_db_container.start()
@@ -375,6 +413,16 @@ class MilvusEnrichmentTestHelper:
     client.close()
 
     return collection_name
+
+  @staticmethod
+  def find_free_port():
+    """Find a free port on the local machine."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        # Bind to port 0, which asks OS to assign a free port.
+        s.bind(('', 0))
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        # Return the port number assigned by OS.
+        return s.getsockname()[1]
 
   @staticmethod
   @contextlib.contextmanager
