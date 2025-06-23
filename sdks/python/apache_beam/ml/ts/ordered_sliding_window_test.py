@@ -15,15 +15,19 @@
 # limitations under the License.
 #
 
-import apache_beam as beam
-from apache_beam.testing.util import assert_that, equal_to
-from apache_beam.utils.timestamp import Timestamp
-from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.ml.ts.ordered_sliding_window import OrderedSlidingWindowFn, FillGapsFn
-from apache_beam.ml.ts.util import PeriodicStream
-import unittest
 import logging
+import unittest
+
 import numpy as np
+
+import apache_beam as beam
+from apache_beam.ml.ts.ordered_sliding_window import FillGapsFn
+from apache_beam.ml.ts.ordered_sliding_window import OrderedSlidingWindowFn
+from apache_beam.ml.ts.util import PeriodicStream
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
+from apache_beam.utils.timestamp import Timestamp
 
 _LOGGER = logging.getLogger(__name__)
 

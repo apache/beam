@@ -15,13 +15,20 @@
 # limitations under the License.
 #
 
-import apache_beam as beam
-from apache_beam.coders import PickleCoder, BooleanCoder, TimestampCoder
-from apache_beam.transforms.userstate import OrderedListStateSpec, TimerSpec, on_timer, ReadModifyWriteStateSpec
-from apache_beam.utils.timestamp import Timestamp, MAX_TIMESTAMP
-from apache_beam.transforms.timeutil import TimeDomain
-from collections import defaultdict
 import logging
+from collections import defaultdict
+
+import apache_beam as beam
+from apache_beam.coders import BooleanCoder
+from apache_beam.coders import PickleCoder
+from apache_beam.coders import TimestampCoder
+from apache_beam.transforms.timeutil import TimeDomain
+from apache_beam.transforms.userstate import OrderedListStateSpec
+from apache_beam.transforms.userstate import ReadModifyWriteStateSpec
+from apache_beam.transforms.userstate import TimerSpec
+from apache_beam.transforms.userstate import on_timer
+from apache_beam.utils.timestamp import MAX_TIMESTAMP
+from apache_beam.utils.timestamp import Timestamp
 
 _LOGGER = logging.getLogger(__name__)
 
