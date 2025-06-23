@@ -86,6 +86,7 @@ jobs:
           java-version: default
           python-version: ${{ matrix.python_version }}
       - name: Verify Docker setup
+        id: verify_docker_setup
         run: |
           # Check Docker version and permissions
           docker version
