@@ -441,7 +441,7 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
       cls._collection_name = MilvusEnrichmentTestHelper.initialize_db_with_data(
           cls._connection_params)
     except Exception as e:
-      raise unittest.SkipTest(
+      pytest.skip(
           f"Skipping all tests in {cls.__name__} due to DB startup failure: {e}"
       )
 
