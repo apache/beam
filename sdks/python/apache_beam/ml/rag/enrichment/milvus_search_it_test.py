@@ -43,6 +43,8 @@ from pymilvus import RRFRanker
 from pymilvus.milvus_client import IndexParams
 from testcontainers.core.generic import DbContainer
 from testcontainers.milvus import MilvusContainer
+from testcontainers.core.config import MAX_TRIES as TC_MAX_TRIES
+from testcontainers.core.config import testcontainers_config
 
 import apache_beam as beam
 from apache_beam.ml.rag.types import Chunk
@@ -265,7 +267,7 @@ class MilvusEnrichmentTestHelper:
     user_yaml_creator = MilvusEnrichmentTestHelper.create_user_yaml
     with user_yaml_creator(service_container_port, max_vec_fields) as cfg:
       info = None
-      os.environ["TC_MAX_TRIES"] = "1"
+      testcontainers_config.max_tries = 1
       for i in range(vector_client_retries):
         try:
           vector_db_container = MilvusContainer(image, service_container_port)
@@ -275,7 +277,7 @@ class MilvusEnrichmentTestHelper:
           host = vector_db_container.get_container_host_ip()
           port = vector_db_container.get_exposed_port(service_container_port)
           info = MilvusDBContainerInfo(vector_db_container, host, port)
-          os.environ.pop("TC_MAX_TRIES", None)
+          testcontainers_config.max_tries = TC_MAX_TRIES
           _LOGGER.info(
               "milvus db container started successfully on %s.", info.uri)
           break
