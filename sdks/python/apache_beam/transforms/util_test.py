@@ -1653,7 +1653,7 @@ class LogElementsTest(unittest.TestCase):
               prefix='prefix_',
               with_window=True,
               with_timestamp=True,
-              use_rfc3339=False))
+              use_epoch_time=True))
 
     request.captured_stdout = capsys.readouterr().out
     return result

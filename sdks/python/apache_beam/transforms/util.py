@@ -1446,8 +1446,7 @@ class LogElements(PTransform):
         `logging.INFO`, `logging.WARNING`, `logging.ERROR`). If not specified,
         the log is printed to stdout.
     with_pane_info (bool): (optional) Whether to include element's pane info.
-    use_rfc3339 (bool): (optional) Whether to display timestamps in rfc3339
-        format.
+    use_epoch_time (bool): (optional) Whether to display epoch timestamps.
   """
   class _LoggingFn(DoFn):
     def __init__(
@@ -1455,21 +1454,21 @@ class LogElements(PTransform):
         prefix='',
         with_timestamp=False,
         with_window=False,
+        level=None,
         with_pane_info=False,
-        use_rfc3339=True,
-        level=None):
+        use_epoch_time=False):
       super().__init__()
       self.prefix = prefix
       self.with_timestamp = with_timestamp
       self.with_window = with_window
-      self.with_pane_info = with_pane_info
-      self.use_rfc3339 = use_rfc3339
       self.level = level
+      self.with_pane_info = with_pane_info
+      self.use_epoch_time = use_epoch_time
 
     def format_timestamp(self, timestamp):
-      if self.use_rfc3339:
-        return timestamp.to_rfc3339()
-      return timestamp.seconds()
+      if self.use_epoch_time:
+        return timestamp.seconds()
+      return timestamp.to_rfc3339()
 
     def process(
         self,
@@ -1513,14 +1512,14 @@ class LogElements(PTransform):
       with_window=False,
       level=None,
       with_pane_info=False,
-      use_rfc3339=True,
+      use_epoch_time=False,
   ):
     super().__init__(label)
     self.prefix = prefix
     self.with_timestamp = with_timestamp
     self.with_window = with_window
     self.with_pane_info = with_pane_info
-    self.use_rfc3339 = use_rfc3339
+    self.use_epoch_time = use_epoch_time
     self.level = level
 
   def expand(self, input):
@@ -1529,9 +1528,10 @@ class LogElements(PTransform):
             self.prefix,
             self.with_timestamp,
             self.with_window,
+            self.level,
             self.with_pane_info,
-            self.use_rfc3339,
-            self.level))
+            self.use_epoch_time,
+        ))
 
 
 class Reify(object):
