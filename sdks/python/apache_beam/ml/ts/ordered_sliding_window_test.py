@@ -224,7 +224,7 @@ class DoFnTests(unittest.TestCase):
     with beam.Pipeline(options=options) as p:
       output = (
           p
-          | "PeriodicLateStream" >> PeriodicStream(data, interval=0.01)
+          | "PeriodicLateStream" >> PeriodicStream(data, interval=1)
           | "KeyLateData" >> beam.WithKeys(lambda x: 0)
           | "SlidingWindowLateData" >> beam.ParDo(
               OrderedSlidingWindowFn(
