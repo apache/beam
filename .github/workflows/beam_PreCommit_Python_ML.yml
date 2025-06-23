@@ -58,7 +58,7 @@ env:
 jobs:
   beam_PreCommit_Python_ML:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [ubuntu-20.04]
     timeout-minutes: 180
     strategy:
       fail-fast: false
