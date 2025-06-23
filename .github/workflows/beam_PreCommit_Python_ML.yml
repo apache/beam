@@ -15,7 +15,7 @@
 
 name: PreCommit Python ML tests with ML deps installed
 on:
-  pull_request:
+  pull_request_target:
     branches: [ "master", "release-*" ]
     paths: [ "model/**","sdks/python/**","release/**", 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_Python_ML.json']
   issue_comment:
@@ -58,7 +58,7 @@ env:
 jobs:
   beam_PreCommit_Python_ML:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
-    runs-on: [ubuntu-20.04]
+    runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 180
     strategy:
       fail-fast: false
@@ -68,7 +68,7 @@ jobs:
         python_version: ['3.9','3.10','3.11','3.12']
     if: |
       github.event_name == 'push' ||
-      github.event_name == 'pull_request' ||
+      github.event_name == 'pull_request_target' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       startsWith(github.event.comment.body, 'Run Python_ML PreCommit')
@@ -85,10 +85,6 @@ jobs:
         with:
           java-version: default
           python-version: ${{ matrix.python_version }}
-      - name: Print HELLOWORLD
-        id: print_hello_world
-        run: |
-          echo "HELLOWORLD!!"
       - name: Set PY_VER_CLEAN
         id: set_py_ver_clean
         run: |
