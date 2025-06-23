@@ -146,7 +146,11 @@ class TestCaller(unittest.TestCase):
         window_ms=10000, bucket_ms=5000, overload_ratio=1)
     # manually override the number of received requests for testing.
     throttler.throttler._all_requests.add(time.time() * 1000, 100)
-    test_pipeline = TestPipeline()
+    # TODO(https://github.com/apache/beam/issues/34549): This test relies on
+    # metrics filtering which doesn't work on Prism yet because Prism renames
+    # steps (e.g. "Do" becomes "ref_AppliedPTransform_Do_7").
+    # https://github.com/apache/beam/blob/5f9cd73b7c9a2f37f83971ace3a399d633201dd1/sdks/python/apache_beam/runners/portability/fn_api_runner/fn_runner.py#L1590
+    test_pipeline = TestPipeline('FnApiRunner')
     _ = (
         test_pipeline
         | beam.Create(['sample_request'])
