@@ -17,7 +17,6 @@
  */
 package org.apache.beam.examples.subprocess.configuration;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Serializable;
 
 /**
@@ -25,23 +24,22 @@ import java.io.Serializable;
  * are copied from the Options to all them to be Serializable.
  */
 @SuppressWarnings({"serial", "nullness"}) // TODO(https://github.com/apache/beam/issues/20497)
-@SuppressFBWarnings("PA_PUBLIC_PRIMITIVE_ATTRIBUTE") // TODO(#35312)
 public class SubProcessConfiguration implements Serializable {
 
   // Source GCS directory where the C++ library is located gs://bucket/tests
-  public String sourcePath;
+  private String sourcePath;
 
   // Working directory for the process I/O
-  public String workerPath;
+  private String workerPath;
 
   // The maximum time to wait for the sub-process to complete
-  public Integer waitTime;
+  private Integer waitTime;
 
   // "As sub-processes can be heavy weight match the concurrency level to num cores on the machines"
-  public Integer concurrency;
+  private Integer concurrency;
 
   // Should log files only be uploaded if error
-  public Boolean onlyUpLoadLogsOnError;
+  private Boolean onlyUpLoadLogsOnError;
 
   public Boolean getOnlyUpLoadLogsOnError() {
     return onlyUpLoadLogsOnError;
