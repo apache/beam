@@ -70,7 +70,7 @@ class OrderedSlidingWindowFn(beam.DoFn):
       first_slide_start_ts = Timestamp.of(first_slide_start)
 
       first_window_end_ts = first_slide_start_ts + self.window_size
-      _LOGGER.debug("set timer to", first_window_end_ts)
+      _LOGGER.debug("set timer to %s", first_window_end_ts)
       window_timer.set(first_window_end_ts)
 
       timer_state.write(True)
@@ -84,7 +84,7 @@ class OrderedSlidingWindowFn(beam.DoFn):
       window_timer=beam.DoFn.TimerParam(WINDOW_TIMER),
       timer_state=beam.DoFn.StateParam(TIMER_STATE),
       earliest_ts_state=beam.DoFn.StateParam(EARLIEST_TS_STATE)):
-    _LOGGER.debug("timer fire at", fire_ts)
+    _LOGGER.debug("timer fire at %s", fire_ts)
     window_end_ts = fire_ts
     window_start_ts = window_end_ts - self.window_size
 
@@ -94,7 +94,7 @@ class OrderedSlidingWindowFn(beam.DoFn):
     _LOGGER.debug(
         "window start: %s, window end: %s", window_start_ts, window_end_ts
     )
-    _LOGGER.debug("windowed data in buffer", str(window_values))
+    _LOGGER.debug("windowed data in buffer %s", str(window_values))
     if window_values:
       yield (key, (window_start_ts, window_end_ts, window_values))
 
@@ -112,7 +112,7 @@ class OrderedSlidingWindowFn(beam.DoFn):
       earliest_ts_state.write(next_window_start_ts)
       return
 
-    _LOGGER.debug("set timer to", next_window_end_ts)
+    _LOGGER.debug("set timer to %s", next_window_end_ts)
     window_timer.set(next_window_end_ts)
 
 
