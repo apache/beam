@@ -1,8 +1,8 @@
 {
   "commentedAboutFailingChecks": false,
   "reviewersAssignedForLabels": {
-    "java": "robertwb",
-    "kafka": "johnjcasey"
+    "java": "kennknowles",
+    "kafka": "liferoad"
   },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
