@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+# No backward compatibility guarantees. Everything in this module is experimental.
+
 import logging
 from collections import defaultdict
 
