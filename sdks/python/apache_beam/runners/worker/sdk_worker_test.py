@@ -160,7 +160,7 @@ class SdkWorkerTest(unittest.TestCase):
     # Add a mock bundle processor as if it was running before it's discarded
     bundle_processor_cache.active_bundle_processors['instruction_id'] = (
         'descriptor_id', bundle_processor)
-    bundle_processor_cache.discard('instruction_id')
+    bundle_processor_cache.discard('instruction_id', RuntimeError('test message'))
     split_request = beam_fn_api_pb2.InstructionRequest(
         instruction_id='progress_instruction_id',
         process_bundle_progress=beam_fn_api_pb2.ProcessBundleProgressRequest(
@@ -169,6 +169,10 @@ class SdkWorkerTest(unittest.TestCase):
         worker.do_instruction(split_request).error,
         hc.contains_string(
             'Bundle processing associated with instruction_id has failed'))
+    hc.assert_that(
+        worker.do_instruction(split_request).error,
+        hc.contains_string(
+            'test message'))
 
   def test_inactive_bundle_processor_returns_empty_split_response(self):
     bundle_processor = mock.MagicMock()
@@ -265,7 +269,7 @@ class SdkWorkerTest(unittest.TestCase):
     # Add a mock bundle processor as if it was running before it's discarded
     bundle_processor_cache.active_bundle_processors['instruction_id'] = (
         'descriptor_id', bundle_processor)
-    bundle_processor_cache.discard('instruction_id')
+    bundle_processor_cache.discard('instruction_id', RuntimeError('test message'))
     split_request = beam_fn_api_pb2.InstructionRequest(
         instruction_id='split_instruction_id',
         process_bundle_split=beam_fn_api_pb2.ProcessBundleSplitRequest(
@@ -274,6 +278,10 @@ class SdkWorkerTest(unittest.TestCase):
         worker.do_instruction(split_request).error,
         hc.contains_string(
             'Bundle processing associated with instruction_id has failed'))
+    hc.assert_that(
+        worker.do_instruction(split_request).error,
+        hc.contains_string(
+            'test message'))
 
   def test_data_sampling_response(self):
     # Create a data sampler with some fake sampled data. This data will be seen
