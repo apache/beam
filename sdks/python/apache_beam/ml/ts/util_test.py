@@ -31,7 +31,10 @@ class PeriodicStreamTest(unittest.TestCase):
   def test_interval(self):
     options = PipelineOptions()
     start = Timestamp.now()
-    with beam.Pipeline(options=options) as p:
+    # TODO(https://github.com/apache/beam/issues/34549): This test makes bad
+    # assumptions about time and should be fixed. Context:
+    # https://github.com/apache/beam/pull/35300#issuecomment-2997517699
+    with beam.Pipeline('FnApiRunner', options=options) as p:
       ret = (
           p | PeriodicStream([1, 2, 3, 4], interval=0.5)
           | beam.WindowInto(FixedWindows(0.5))
@@ -46,7 +49,10 @@ class PeriodicStreamTest(unittest.TestCase):
   def test_repeat(self):
     options = PipelineOptions()
     start = Timestamp.now()
-    with beam.Pipeline(options=options) as p:
+    # TODO(https://github.com/apache/beam/issues/34549): This test makes bad
+    # assumptions about time and should be fixed. Context:
+    # https://github.com/apache/beam/pull/35300#issuecomment-2997517699
+    with beam.Pipeline('FnApiRunner', options=options) as p:
       ret = (
           p | PeriodicStream(
               [1, 2, 3, 4], interval=0.5, max_duration=3, repeat=True)
@@ -62,7 +68,10 @@ class PeriodicStreamTest(unittest.TestCase):
   def test_timestamped_value(self):
     options = PipelineOptions()
     start = Timestamp.now()
-    with beam.Pipeline(options=options) as p:
+    # TODO(https://github.com/apache/beam/issues/34549): This test makes bad
+    # assumptions about time and should be fixed. Context:
+    # https://github.com/apache/beam/pull/35300#issuecomment-2997517699
+    with beam.Pipeline('FnApiRunner', options=options) as p:
       ret = (
           p | PeriodicStream([(Timestamp(1), 1), (Timestamp(3), 2),
                               (Timestamp(2), 3), (Timestamp(1), 4)],
