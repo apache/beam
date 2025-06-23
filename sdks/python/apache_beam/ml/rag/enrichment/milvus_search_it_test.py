@@ -278,16 +278,25 @@ class MilvusEnrichmentTestHelper:
               "milvus db container started successfully on %s.", info.uri)
           break
         except Exception as e:
+          stdout_logs, stderr_logs = vector_db_container.get_logs()
+          stdout_logs = stdout_logs.decode("utf-8")
+          stderr_logs = stderr_logs.decode("utf-8")
           _LOGGER.warning(
-              "Retry %d/%d: Failed to start milvus db container. Reason: %s",
+              "Retry %d/%d: Failed to start Milvus DB container. Reason: %s. "
+              "STDOUT logs:\n%s\nSTDERR logs:\n%s",
               i + 1,
               vector_client_retries,
-              e)
+              e,
+              stdout_logs,
+              stderr_logs)
           if i == vector_client_retries - 1:
             _LOGGER.error(
                 "Unable to start milvus db container for I/O tests after %d "
-                "retries. Tests cannot proceed.",
-                vector_client_retries)
+                "retries. Tests cannot proceed. STDOUT logs:\n%s\n"
+                "STDERR logs:\n%s",
+                vector_client_retries,
+                stdout_logs,
+                stderr_logs)
             raise e
       return info
 

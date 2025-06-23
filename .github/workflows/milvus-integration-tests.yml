@@ -34,4 +34,4 @@ jobs:
       - name: Run MilvusSearchEnrichment tests
         working-directory: ./sdks/python
         run: |
-          python -m unittest -v apache_beam/ml/rag/enrichment/milvus_search_test.py
+          python -m unittest -v apache_beam/ml/rag/enrichment/milvus_search_it_test.py
