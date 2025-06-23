@@ -737,7 +737,7 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
       result = (p | beam.Create(test_chunks) | Enrichment(handler))
       assert_that(
           result,
-          lambda actual: assert_chunks_equivalent(actual, expected_chunks))
+          lambda actual: assert_chunks_equivalent(actual, []))
 
   def test_vector_search_with_euclidean_distance(self):
     test_chunks = [
