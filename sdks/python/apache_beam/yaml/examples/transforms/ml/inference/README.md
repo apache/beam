@@ -52,8 +52,8 @@ A hosted model on Vertex AI is needed before being able to use
 the Vertex AI model handler. One of the current state-of-the-art
 NLP models is HuggingFace's DistilBERT, a distilled version of
 BERT model and is faster at inference. To deploy DistilBERT on
-Vertex AI, use the [notebook](
-https://github.com/GoogleCloudPlatform/vertex-ai-samples/blob/main/notebooks/community/model_garden/model_garden_huggingface_pytorch_inference_deployment.ipynb).
+Vertex AI, run this [notebook](
+https://github.com/GoogleCloudPlatform/vertex-ai-samples/blob/main/notebooks/community/model_garden/model_garden_huggingface_pytorch_inference_deployment.ipynb) in Colab Enterprise.
 
 BigQuery is the pipeline's sink for the inference result output.
 A BigQuery dataset needs to exist first before the pipeline can
@@ -69,14 +69,15 @@ remote inference with the Vertex AI model handler and DistilBERT
 deployed to a Vertex AI endpoint. The inference result is then
 parsed and written to a BigQuery table. 
 
-Run the pipeline (remove the necessary variables in the command):
+Run the pipeline (replace with appropriate variables in the command
+below):
 
 ```sh
 export PROJECT="$(gcloud config get-value project)"
 export TEMP_LOCATION="gs://YOUR-BUCKET/tmp"
 export REGION="us-central1"
 export JOB_NAME="streaming-sentiment-analysis-`date +%Y%m%d-%H%M%S`"
-export NUM_WORKERS="1"
+export NUM_WORKERS="3"
 
 python -m apache_beam.yaml.main \
   --yaml_pipeline_file transforms/ml/inference/streaming_sentiment_analysis.yaml \

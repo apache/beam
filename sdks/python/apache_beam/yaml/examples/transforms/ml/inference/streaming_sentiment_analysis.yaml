@@ -25,6 +25,12 @@
 
 pipeline:
   transforms:
+    # The YouTube comments dataset contains rows that
+    # have unexpected schema (e.g. rows with more fields,
+    # rows with fields that contain string instead of
+    # integer, etc...). PyTransform helps construct
+    # the logic to properly read in the csv dataset as
+    # a schema'd PCollection.
     - type: PyTransform
       name: ReadFromGCS
       input: {}
@@ -56,6 +62,8 @@ pipeline:
               )
           file_pattern: "{{ GCS_PATH }}"
 
+    # Send the rows as Kafka records to an existing
+    # Kafka topic.
     - type: WriteToKafka
       name: SendRecordsToKafka
       input: ReadFromGCS
@@ -70,6 +78,7 @@ pipeline:
           security.protocol: "SASL_PLAINTEXT"
           sasl.mechanism: "PLAIN"
 
+    # Read Kafka records from an existing Kafka topic.
     - type: ReadFromKafka
       name: ReadFromMyTopic
       config:
@@ -94,6 +103,9 @@ pipeline:
           security.protocol: "SASL_PLAINTEXT"
           sasl.mechanism: "PLAIN"
 
+    # Remove unexpected characters from the YouTube
+    # comment string, e.g. emojis, ascii characters outside
+    # the common day-to-day English.
     - type: MapToFields
       name: RemoveWeirdCharacters
       input: ReadFromMyTopic
@@ -112,6 +124,8 @@ pipeline:
           likes: likes
           replies: replies
 
+    # Remove rows that have empty comment text
+    # after previously removing unexpected characters.
     - type: Filter
       name: FilterForProperComments
       input: RemoveWeirdCharacters
@@ -122,6 +136,12 @@ pipeline:
             def filter(row):
               return len(row.comment_text) > 0
 
+    # HuggingFace's distilbert-base-uncased is used for inference,
+    # which accepts string with a maximum limit of 250 tokens.
+    # Some of the comment strings can be large and are well over
+    # this limit after tokenization.
+    # This transform truncates the comment string and ensure
+    # every comment satisfy the maximum token limit.
     - type: MapToFields
       name: Truncating
       input: FilterForProperComments
@@ -149,6 +169,10 @@ pipeline:
           likes: likes
           replies: replies
 
+    # HuggingFace's distilbert-base-uncased does not distinguish
+    # between 'english' and 'English'.
+    # This pipeline makes the same point by converting all words
+    # into lowercase.
     - type: MapToFields
       name: LowerCase
       input: Truncating
@@ -160,6 +184,10 @@ pipeline:
           likes: likes
           replies: replies
 
+    # With VertexAIModelHandlerJSON model handler,
+    # RunInference transform performs remote inferences by
+    # sending POST requests to the Vertex AI endpoint that
+    # our distilbert-base-uncased model is being deployed to.
     - type: RunInference
       name: DistilBERTRemoteInference
       input: LowerCase
@@ -174,6 +202,7 @@ pipeline:
             preprocess:
               callable: 'lambda x: x.comment_text'
 
+    # Parse inference results output
     - type: MapToFields
       name: FormatInferenceOutput
       input: DistilBERTRemoteInference
@@ -199,6 +228,7 @@ pipeline:
             expression: replies
             output_type: integer
 
+    # Assign windows to each element of the unbounded PCollection.
     - type: WindowInto
       name: Windowing
       input: FormatInferenceOutput
@@ -207,6 +237,7 @@ pipeline:
           type: fixed
           size: 30s
 
+    # Write all inference results to a BigQuery table.
     - type: WriteToBigQuery
       name: WriteInferenceResultsToBQ
       input: Windowing
