@@ -80,7 +80,7 @@ public interface TableProvider {
     return null;
   }
 
-  default boolean supportsPartitioning() {
+  default boolean supportsPartitioning(Table table) {
     return false;
   }
 }
