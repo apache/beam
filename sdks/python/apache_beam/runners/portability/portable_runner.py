@@ -532,9 +532,7 @@ class PipelineResult(runner.PipelineResult):
       previous_state = -1
       for message in self._message_stream:
         if message.HasField('message_response'):
-          logging.warning(
-              "%s",
-              message.message_response.message_text)
+          logging.warning("%s", message.message_response.message_text)
         else:
           current_state = message.state_response.state
           if current_state != previous_state:

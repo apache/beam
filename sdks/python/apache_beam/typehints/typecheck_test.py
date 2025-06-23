@@ -145,9 +145,11 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
         msg.startswith(prefix), '"%s" does not start with "%s"' % (msg, prefix))
 
   def test_simple_input_error(self):
-    with self.assertRaisesRegex(Exception, "Type-hint for argument: 'x' violated. "
-        "Expected an instance of {}, "
-        "instead found 1, an instance of {}".format(str, int)):
+    with self.assertRaisesRegex(Exception,
+                                "Type-hint for argument: 'x' violated. "
+                                "Expected an instance of {}, "
+                                "instead found 1, an instance of {}".format(
+                                    str, int)):
       (
           self.p
           | beam.Create([1, 1])
@@ -156,7 +158,8 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
       self.p.run().wait_until_finish()
 
   def test_simple_output_error(self):
-    with self.assertRaisesRegex(Exception, "Type-hint for argument: 'x' violated. "):
+    with self.assertRaisesRegex(Exception,
+                                "Type-hint for argument: 'x' violated. "):
       (
           self.p
           | beam.Create(['1', '1'])
@@ -171,7 +174,8 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
       def process(self, element, *args, **kwargs):
         yield int(element)
 
-    with self.assertRaisesRegex(Exception, "Type-hint for argument: 'element' violated") as e:
+    with self.assertRaisesRegex(
+        Exception, "Type-hint for argument: 'element' violated") as e:
       (self.p | beam.Create(['1', '1']) | beam.ParDo(ToInt()))
       self.p.run().wait_until_finish()
 
@@ -211,7 +215,8 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
         self.p
         | 'Create' >> beam.Create(['some_string'])
         | 'ToStr' >> beam.Map(int_to_string))
-    with self.assertRaisesRegex(Exception, "Type-hint for argument: 'x' violated. "):
+    with self.assertRaisesRegex(Exception,
+                                "Type-hint for argument: 'x' violated. "):
       self.p.run().wait_until_finish()
 
   def test_pipeline_checking_satisfied_but_run_time_types_violate(self):
@@ -230,7 +235,10 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
         | 'IsEven' >> beam.Map(is_even_as_key)
         | 'Parity' >> beam.GroupByKey())
 
-    with self.assertRaisesRegex(Exception, "Type-hint for return type violated: Tuple\[<class 'bool'>, <class 'int'>\] hint type-constraint violated. The type of element #0 in the passed tuple is incorrect. Expected an instance of type <class 'bool'>, instead received an instance of type int."):
+    with self.assertRaisesRegex(
+        Exception,
+        "Type-hint for return type violated: Tuple\[<class 'bool'>, <class 'int'>\] hint type-constraint violated. The type of element #0 in the passed tuple is incorrect. Expected an instance of type <class 'bool'>, instead received an instance of type int."
+    ):
       self.p.run().wait_until_finish()
 
   def test_pipeline_runtime_checking_violation_composite_type_output(self):
@@ -239,7 +247,10 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
     # The type-hinted applied via the 'returns()' method indicates the ParDo
     # should return an instance of type: Tuple[float, int]. However, an instance
     # of 'int' will be generated instead.
-    with self.assertRaisesRegex(Exception, "Type-hint for return type violated. Expected an instance of {}, instead found 4.0, an instance of {}.".format(int, float)):
+    with self.assertRaisesRegex(
+        Exception,
+        "Type-hint for return type violated. Expected an instance of {}, instead found 4.0, an instance of {}."
+        .format(int, float)):
       (
           self.p
           | beam.Create([(1, 3.0)])
@@ -265,7 +276,10 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
     # This will raise a type check error in IntToInt even though the actual
     # type check error won't happen until StrToInt. The user will be told that
     # StrToInt's input type hints were not satisfied while running IntToInt.
-    with self.assertRaisesRegex(Exception, "Type-hint for argument: 'element' violated. Expected an instance of {}, instead found 9, an instance of {}.".format(str, int)):
+    with self.assertRaisesRegex(
+        Exception,
+        "Type-hint for argument: 'element' violated. Expected an instance of {}, instead found 9, an instance of {}."
+        .format(str, int)):
       (
           self.p
           | beam.Create([9])

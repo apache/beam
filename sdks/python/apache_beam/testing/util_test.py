@@ -70,8 +70,7 @@ class UtilTest(unittest.TestCase):
         assert_that(p | Create([1, 10, 100]), equal_to([1, 2, 3]))
 
   def test_assert_missing(self):
-    with self.assertRaisesRegex(Exception,
-                                r".*missing elements \['c'\]"):
+    with self.assertRaisesRegex(Exception, r".*missing elements \['c'\]"):
       with TestPipeline() as p:
         assert_that(p | Create(['a', 'b']), equal_to(['a', 'b', 'c']))
 

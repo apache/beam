@@ -540,7 +540,8 @@ class BundleProcessorCache(object):
         e = self.failed_instruction_ids[instruction_id]
         raise RuntimeError(
             'Bundle processing associated with %s has failed. '
-            'Check prior failing response and attached exception for details.' % instruction_id) from e
+            'Check prior failing response and attached exception for details.' %
+            instruction_id) from e
       processor = self.active_bundle_processors.get(
           instruction_id, (None, None))[-1]
       if processor:
