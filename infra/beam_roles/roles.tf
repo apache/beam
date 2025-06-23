@@ -15,10 +15,11 @@
 # limitations under the License.
 #
 
-# This file ingests the roles defined in the directory and
-# configures the corresponding roles in the GCP project.
+# This Terraform configuration file is used to manage custom IAM roles
+# in a Google Cloud Platform (GCP) project. It reads role definitions
+# from YAML files located in the same directory and creates custom roles
+# in the specified GCP project.
 
-# Find all .role.yaml files in the current directory
 locals {
   role_files = fileset(path.module, "*.role.yaml")
   roles_data = {
