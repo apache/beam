@@ -15,8 +15,9 @@
 # limitations under the License.
 #
 
-# This file ingests the users defined in the `users.yml` file and
-# configures the corresponding users in the GCP project.
+# This Terraform configuration file is used to manage users in a Google Cloud Platform (GCP) project.
+# It reads user definitions from a YAML file (`users.yml`) and configures the corresponding IAM
+# roles and permissions for each user in the specified GCP project.
 
 locals {
   users = yamldecode(file("${path.module}/users.yml"))
@@ -33,6 +34,8 @@ locals {
           request_description   = lookup(perm, "request_description", null)
           expiry_date           = lookup(perm, "expiry_date", null)
         } if perm != null && lookup(perm, "role", null) != null
+        # Testing without the owner role to avoid conflicts
+        #} if perm != null && lookup(perm, "role", null) != null && perm.role != "roles/owner"
     ]
   ])
 }
