@@ -386,9 +386,7 @@ class MilvusEnrichmentTestHelper:
       # Define the content for user.yaml.
       user_config = {
           'proxy': {
-              'maxVectorFieldNum': max_vector_field_num,
-              'ip': "127.0.0.1",
-              'port': service_port
+              'maxVectorFieldNum': max_vector_field_num, 'port': service_port
           }
       }
 

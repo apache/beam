@@ -85,56 +85,33 @@ jobs:
         with:
           java-version: default
           python-version: ${{ matrix.python_version }}
-      # Add Docker verification steps
-      - name: Verify Docker installation
+      - name: Verify Docker setup
         run: |
-          echo "Checking Docker installation..."
-          docker --version
-          if [ $? -ne 0 ]; then
-            echo "::error::Docker is not installed or not accessible"
-            exit 1
-          fi
-
-          echo "Checking Docker service status..."
-          sudo systemctl status docker || true
-
-          echo "Checking Docker permissions..."
+          # Check Docker version and permissions
+          docker version
           docker info
-          if [ $? -ne 0 ]; then
-            echo "::error::Docker permissions issue - runner may not have access"
-            exit 1
-          fi
 
-          echo "Verifying port mapping capability..."
-          # Run a simple container with port mapping
-          CONTAINER_ID=$(docker run -d -p 127.0.0.1:34567:80 nginx:alpine)
-
-          # Wait for container to start
+          # Test basic port mapping
+          echo "Testing basic port mapping..."
+          CONTAINER_ID=$(docker run -d -p 127.0.0.1:45678:80 nginx:alpine)
           sleep 3
 
-          # Check if port mapping is working
-          PORT_CHECK=$(docker port $CONTAINER_ID 80)
-          echo "Port mapping: $PORT_CHECK"
-          if [[ "$PORT_CHECK" != *"0.0.0.0:34567"* && "$PORT_CHECK" != *"127.0.0.1:34567"* ]]; then
-            echo "::error::Port mapping is not working properly"
-            docker logs $CONTAINER_ID
-            docker rm -f $CONTAINER_ID
-            exit 1
-          fi
+          # Check port mapping
+          PORT_CHECK=$(docker port $CONTAINER_ID)
+          echo "Port mapping result: $PORT_CHECK"
 
-          # Check if the port is actually accessible
-          curl -s -o /dev/null -w "%{http_code}" http://localhost:34567
-          HTTP_STATUS=$?
-          if [ $HTTP_STATUS -ne 0 ]; then
-            echo "::error::Cannot connect to mapped port, HTTP status: $HTTP_STATUS"
-            docker logs $CONTAINER_ID
-            docker rm -f $CONTAINER_ID
-            exit 1
-          fi
+          # Test connectivity
+          curl -v localhost:45678 > /dev/null
+          CURL_RESULT=$?
+          echo "Curl test result: $CURL_RESULT"
 
-          # Clean up
+          # Cleanup
           docker rm -f $CONTAINER_ID
-          echo "Docker port mapping verification successful"
+
+          if [ $CURL_RESULT -ne 0 ]; then
+            echo "::error::Port mapping verification failed"
+            exit 1
+          fi
       - name: Set PY_VER_CLEAN
         id: set_py_ver_clean
         run: |
