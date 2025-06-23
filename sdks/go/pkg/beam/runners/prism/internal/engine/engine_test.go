@@ -286,7 +286,7 @@ func TestProcessingTime(t *testing.T) {
 		{"Greedy", false, false},
 		{"AllElementsPerKey", false, true},
 		{"OneElementPerKey", true, false},
-		// {"OneElementPerBundle", true, true}, // Reveals flaky behavior
+		{"OneElementPerBundle", true, true}, // Reveals flaky behavior
 	}
 	for _, config := range configs {
 		for _, test := range tests {
