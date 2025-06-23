@@ -516,8 +516,8 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
 
   def _normalize_milvus_value(self, value: Any):
     # Convert Milvus-specific types to Python native types.
-    is_not_string_dict_or_bytes = not isinstance(value, (str, dict, bytes))
-    if isinstance(value, Sequence) and is_not_string_dict_or_bytes:
+    neither_str_nor_dict_nor_bytes = not isinstance(value, (str, dict, bytes))
+    if isinstance(value, Sequence) and neither_str_nor_dict_nor_bytes:
       return list(value)
     elif hasattr(value, 'DESCRIPTOR'):
       # Handle protobuf messages.

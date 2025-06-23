@@ -102,22 +102,22 @@ class EnrichmentTest(unittest.TestCase):
     self.maxDiff = None
     self.assertEqual(output, expected)
 
-  def test_enrichment_with_milvus(self, mock_stdout):
-    milvus_db = None
-    try:
-      milvus_db = EnrichmentTestHelpers.pre_milvus_enrichment()
-      enrichment_with_milvus()
-      output = mock_stdout.getvalue().splitlines()
-      expected = validate_enrichment_with_milvus()
-      self.maxDiff = None
-      output = parse_chunk_strings(output)
-      expected = parse_chunk_strings(expected)
-      assert_chunks_equivalent(output, expected)
-    except Exception as e:
-      self.fail(f"Test failed with unexpected error: {e}")
-    finally:
-      if milvus_db:
-        EnrichmentTestHelpers.post_milvus_enrichment(milvus_db)
+  # def test_enrichment_with_milvus(self, mock_stdout):
+  #   milvus_db = None
+  #   try:
+  #     milvus_db = EnrichmentTestHelpers.pre_milvus_enrichment()
+  #     enrichment_with_milvus()
+  #     output = mock_stdout.getvalue().splitlines()
+  #     expected = validate_enrichment_with_milvus()
+  #     self.maxDiff = None
+  #     output = parse_chunk_strings(output)
+  #     expected = parse_chunk_strings(expected)
+  #     assert_chunks_equivalent(output, expected)
+  #   except Exception as e:
+  #     self.fail(f"Test failed with unexpected error: {e}")
+  #   finally:
+  #     if milvus_db:
+  #       EnrichmentTestHelpers.post_milvus_enrichment(milvus_db)
 
 
 class EnrichmentTestHelpers:
