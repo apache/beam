@@ -28,7 +28,7 @@ locals {
         {
           username              = user.username
           email                 = user.email
-          role                  = perm.role
+          role                  = replace(perm.role, "PROJECT-ID", var.project_id)
           title                 = lookup(perm, "title", null)
           description           = lookup(perm, "description", null)
           request_description   = lookup(perm, "request_description", null)
