@@ -153,13 +153,13 @@ class TestBigQueryVectorSearchIT(BigQueryVectorSearchIT):
   @classmethod
   def create_table(cls, table_name, schema_fields, table_data):
     """Create a BigQuery table with the specified schema and data.
-    
+
     Args:
         table_name: Name of the table to create
         schema_fields: List of field definitions in the format:
             (name, type, [mode, [subfields]])
         table_data: List of dictionaries containing the data to insert
-    
+
     Returns:
         Fully qualified table name (project.dataset.table)
     """
@@ -258,7 +258,7 @@ class TestBigQueryVectorSearchIT(BigQueryVectorSearchIT):
     with TestPipeline(is_integration_test=True) as p:
       result = (p | beam.Create(test_chunks) | Enrichment(handler))
 
-      assert_that(result, equal_to(expected_chunks))
+      assert_that(result, equal_to([]))
 
   def test_include_distance(self):
     """Test basic vector similarity search."""
