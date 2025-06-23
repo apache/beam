@@ -15,7 +15,7 @@
 
 name: PreCommit Python ML tests with ML deps installed
 on:
-  pull_request_target:
+  pull_request:
     branches: [ "master", "release-*" ]
     paths: [ "model/**","sdks/python/**","release/**", 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_Python_ML.json']
   issue_comment:
