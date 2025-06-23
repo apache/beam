@@ -260,7 +260,7 @@ class MilvusEnrichmentTestHelper:
   def start_db_container(
       image="milvusdb/milvus:v2.5.10",
       max_vec_fields=5,
-      vector_client_retries=3) -> Optional[MilvusDBContainerInfo]:
+      vector_client_retries=1) -> Optional[MilvusDBContainerInfo]:
     service_container_port = 19530
     user_yaml_creator = MilvusEnrichmentTestHelper.create_user_yaml
     with user_yaml_creator(service_container_port, max_vec_fields) as cfg:
