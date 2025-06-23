@@ -1,0 +1,49 @@
+[build-system]
+requires = [
+    "hatchling>=1.5.0",
+    "jupyterlab>=4.0.0,<5",
+    "hatch-nodejs-version>=0.3.2",
+]
+build-backend = "hatchling.build"
+
+[project]
+name = "apache_beam_jupyterlab_sidepanel"
+version = "4.0.0"
+description = "JupyterLab Sidepanel for Apache Beam"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Apache Beam", email = "dev@beam.apache.org" }]
+classifiers = [
+    "Framework :: Jupyter",
+    "Framework :: Jupyter :: JupyterLab",
+    "Framework :: Jupyter :: JupyterLab :: 4",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+]
+dependencies = ["jupyterlab>=4.0.0,<5", "jupyter_server>=2.0.0"]
+
+[tool.hatch.version]
+source = "nodejs"
+
+[tool.hatch.build.targets.sdist]
+artifacts = ["apache_beam_jupyterlab_sidepanel/labextension"]
+
+[tool.hatch.build.targets.wheel.shared-data]
+"apache_beam_jupyterlab_sidepanel/labextension" = "share/jupyter/labextensions/apache-beam-jupyterlab-sidepanel"
+"install.json" = "share/jupyter/labextensions/apache-beam-jupyterlab-sidepanel/install.json"
+
+[tool.hatch.build.hooks.jupyter-builder]
+dependencies = ["hatch-jupyter-builder>=0.5"]
+build-function = "hatch_jupyter_builder.npm_builder"
+ensured-targets = [
+    "apache_beam_jupyterlab_sidepanel/labextension/static/style.js",
+    "apache_beam_jupyterlab_sidepanel/labextension/package.json",
+]
+build-kwargs = { build_cmd = "build:prod", npm = ["jlpm"] }
+editable-build-kwargs = { build_cmd = "install:extension", npm = [
+    "jlpm",
+], source_dir = "src", build_dir = "apache_beam_jupyterlab_sidepanel/labextension" }
+
+[tool.jupyter-releaser.options]
+version_cmd = "hatch version"
