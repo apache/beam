@@ -40,6 +40,8 @@ public interface KafkaMetrics {
   /*Flushes the buffered metrics to the current metric container for this thread.*/
   void flushBufferedMetrics();
 
+  AtomicBoolean isWritable();
+
   /** No-op implementation of {@code KafkaResults}. */
   class NoOpKafkaMetrics implements KafkaMetrics {
     private NoOpKafkaMetrics() {}
@@ -52,6 +54,11 @@ public interface KafkaMetrics {
 
     @Override
     public void flushBufferedMetrics() {}
+
+    @Override
+    public AtomicBoolean isWritable() {
+      return new AtomicBoolean();
+    }
 
     private static NoOpKafkaMetrics singleton = new NoOpKafkaMetrics();
 
@@ -82,7 +89,8 @@ public interface KafkaMetrics {
 
     abstract ConcurrentHashMap<MetricName, Long> perTopicPartitionBacklogs();
 
-    abstract AtomicBoolean isWritable();
+    @Override
+    public abstract AtomicBoolean isWritable();
 
     public static KafkaMetricsImpl create() {
       return new AutoValue_KafkaMetrics_KafkaMetricsImpl(

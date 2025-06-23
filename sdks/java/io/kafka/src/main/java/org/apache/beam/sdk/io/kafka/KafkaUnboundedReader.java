@@ -145,6 +145,11 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
 
     offsetFetcherThread.scheduleAtFixedRate(
         this::updateLatestOffsets, 0, OFFSET_UPDATE_INTERVAL_SECONDS, TimeUnit.SECONDS);
+
+    // Flush metrics every 5 seconds.
+    metricUpdaterThread.scheduleAtFixedRate(
+        this::updateKafkaMetrics, 0, METRICS_UPDATE_INTERVAL_SECONDS, TimeUnit.SECONDS);
+
     return advance();
   }
 
@@ -157,9 +162,6 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
      */
     while (true) {
       if (curBatch.hasNext()) {
-        // Initalize metrics container.
-        kafkaResults = KafkaSinkMetrics.kafkaMetrics();
-
         PartitionState<K, V> pState = curBatch.next();
 
         if (!pState.recordIter.hasNext()) { // -- (b)
@@ -207,12 +209,9 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
                 METRIC_NAMESPACE, RAW_SIZE_METRIC_PREFIX + pState.topicPartition.toString());
         rawSizes.update(recordSize);
 
-        kafkaResults.flushBufferedMetrics();
         return true;
       } else { // -- (a)
-        kafkaResults = KafkaSinkMetrics.kafkaMetrics();
         nextBatch();
-        kafkaResults.flushBufferedMetrics();
         if (!curBatch.hasNext()) {
           return false;
         }
@@ -401,7 +400,10 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
   private @Nullable Consumer<byte[], byte[]> offsetConsumer = null;
   private final ScheduledExecutorService offsetFetcherThread =
       Executors.newSingleThreadScheduledExecutor();
+  private final ScheduledExecutorService metricUpdaterThread =
+      Executors.newSingleThreadScheduledExecutor();
   private static final int OFFSET_UPDATE_INTERVAL_SECONDS = 1;
+  private static final int METRICS_UPDATE_INTERVAL_SECONDS = 5;
 
   private static final long UNINITIALIZED_OFFSET = -1;
 
@@ -735,8 +737,19 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
       }
       // Don't update the latest offset.
     }
-
     LOG.debug("{}:  backlog {}", this, getSplitBacklogBytes());
+  }
+
+  private void updateKafkaMetrics() {
+    try {
+      kafkaResults.flushBufferedMetrics();
+    } catch (Exception e) {
+      LOG.error("Unable to flush metrics", e);
+    } finally {
+      // Even if flushing failed, reinitialize the metrics container - though this would purge
+      // existing metrics.
+      kafkaResults = KafkaSinkMetrics.kafkaMetrics();
+    }
   }
 
   private void reportBacklog() {
@@ -781,6 +794,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     closed.set(true);
     consumerPollThread.shutdown();
     offsetFetcherThread.shutdown();
+    metricUpdaterThread.shutdown();
 
     boolean isShutdown = false;
 
@@ -798,7 +812,8 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
       try {
         isShutdown =
             consumerPollThread.awaitTermination(10, TimeUnit.SECONDS)
-                && offsetFetcherThread.awaitTermination(10, TimeUnit.SECONDS);
+                && offsetFetcherThread.awaitTermination(10, TimeUnit.SECONDS)
+                && metricUpdaterThread.awaitTermination(10, TimeUnit.SECONDS);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throw new RuntimeException(e); // not expected
