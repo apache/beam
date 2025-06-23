@@ -92,8 +92,7 @@ class OrderedSlidingWindowFn(beam.DoFn):
         ordered_buffer.read_range(window_start_ts, window_end_ts))
 
     _LOGGER.debug(
-        "window start: %s, window end: %s", window_start_ts, window_end_ts
-    )
+        "window start: %s, window end: %s", window_start_ts, window_end_ts)
     _LOGGER.debug("windowed data in buffer %s", str(window_values))
     if window_values:
       yield (key, (window_start_ts, window_end_ts, window_values))
