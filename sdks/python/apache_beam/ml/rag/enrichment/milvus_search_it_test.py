@@ -265,6 +265,7 @@ class MilvusEnrichmentTestHelper:
     user_yaml_creator = MilvusEnrichmentTestHelper.create_user_yaml
     with user_yaml_creator(service_container_port, max_vec_fields) as cfg:
       info = None
+      os.environ["TC_MAX_TRIES"] = "1"
       for i in range(vector_client_retries):
         try:
           vector_db_container = MilvusContainer(image, service_container_port)
@@ -274,6 +275,7 @@ class MilvusEnrichmentTestHelper:
           host = vector_db_container.get_container_host_ip()
           port = vector_db_container.get_exposed_port(service_container_port)
           info = MilvusDBContainerInfo(vector_db_container, host, port)
+          os.environ.pop("TC_MAX_TRIES", None)
           _LOGGER.info(
               "milvus db container started successfully on %s.", info.uri)
           break
