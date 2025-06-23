@@ -48,8 +48,8 @@ import apache_beam as beam
 from apache_beam.ml.rag.types import Chunk
 from apache_beam.ml.rag.types import Content
 from apache_beam.ml.rag.types import Embedding
-from apache_beam.testing.util import assert_that
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import assert_that
 
 try:
   from apache_beam.transforms.enrichment import Enrichment
