@@ -61,15 +61,14 @@ jobs:
       matrix:
         job_name: ["beam_PostCommit_Yaml_Xlang_Direct"]
         job_phrase: ["Run Yaml_Xlang_Direct PostCommit"]
-        test_set: ["data", "databases", "messaging"]
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          comment_phrase: ${{ matrix.job_phrase }} ${{ matrix.test_set }}
+          comment_phrase: ${{ matrix.job_phrase }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} ${{ matrix.test_set }} (${{ matrix.job_phrase }} ${{ matrix.test_set }})
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
@@ -80,7 +79,7 @@ jobs:
       - name: run PostCommit Yaml Xlang Direct script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:python:postCommitYamlIntegrationTests -PyamlTestSet=${{ matrix.test_set }} -PbeamPythonExtra=ml_test
+          gradle-command: :sdks:python:postCommitYamlIntegrationTests -PbeamPythonExtra=ml_test
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v4
         if: failure()
@@ -95,4 +94,3 @@ jobs:
           comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
           files: '**/pytest*.xml'
           large_files: true
-

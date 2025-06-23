@@ -228,7 +228,7 @@ def temp_mysql_database():
                              with the MySQL database during setup.
       Exception: Any other exception encountered during the setup process.
   """
-  with MySqlContainer(init=True) as mysql_container:
+  with MySqlContainer() as mysql_container:
     try:
       # Make connection to temp database and create tmp table
       engine = sqlalchemy.create_engine(mysql_container.get_connection_url())
@@ -440,12 +440,12 @@ def temp_kafka_server():
       Exception: If there's an error starting the Kafka container or
                  interacting with the temporary Kafka server.
   """
-  with KafkaContainer() as kafka_container:
-    try:
+  try:
+    with KafkaContainer() as kafka_container:
       yield kafka_container.get_bootstrap_server()
-    except Exception as err:
-      logging.error("Error interacting with temporary Kakfa Server: %s", err)
-      raise err
+  except Exception as err:
+    logging.error("Error interacting with temporary Kakfa Server: %s", err)
+    raise err
 
 
 @contextlib.contextmanager
