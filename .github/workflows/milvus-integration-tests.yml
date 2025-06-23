@@ -1,11 +1,20 @@
 name: Run Milvus Integration Tests
 
 on:
+  schedule:
+    - cron: '10 2 * * *'
+  push:
+    branches: ['master', 'release-*']
+    tags: 'v*'
+  pull_request:
+    branches: ['master', 'release-*']
+    tags: 'v*'
+    paths: ['sdks/python/**', 'model/**']
   workflow_dispatch:
 
 jobs:
   milvus-tests:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
