@@ -302,6 +302,9 @@ class MilvusEnrichmentTestHelper:
 
   @staticmethod
   def stop_db_container(db_info: MilvusDBContainerInfo):
+    if db_info is None:
+      _LOGGER.warning("Milvus db info is None. Skipping stop operation.")
+      return
     try:
       _LOGGER.debug("Stopping milvus db container.")
       db_info.container.stop()
@@ -426,16 +429,21 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
 
   @classmethod
   def setUpClass(cls):
-    cls._db = MilvusEnrichmentTestHelper.start_db_container(cls._version)
-    cls._connection_params = MilvusConnectionParameters(
-        uri=cls._db.uri,
-        user=cls._db.user,
-        password=cls._db.password,
-        db_id=cls._db.id,
-        token=cls._db.token)
-    cls._collection_load_params = MilvusCollectionLoadParameters()
-    cls._collection_name = MilvusEnrichmentTestHelper.initialize_db_with_data(
-        cls._connection_params)
+    try:
+      cls._db = MilvusEnrichmentTestHelper.start_db_container(cls._version)
+      cls._connection_params = MilvusConnectionParameters(
+          uri=cls._db.uri,
+          user=cls._db.user,
+          password=cls._db.password,
+          db_id=cls._db.id,
+          token=cls._db.token)
+      cls._collection_load_params = MilvusCollectionLoadParameters()
+      cls._collection_name = MilvusEnrichmentTestHelper.initialize_db_with_data(
+          cls._connection_params)
+    except Exception as e:
+      raise unittest.SkipTest(
+          f"Skipping all tests in {cls.__name__} due to DB startup failure: {e}"
+      )
 
   @classmethod
   def tearDownClass(cls):
@@ -746,7 +754,7 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
       result = (p | beam.Create(test_chunks) | Enrichment(handler))
       assert_that(
           result,
-          lambda actual: assert_chunks_equivalent(actual, []))
+          lambda actual: assert_chunks_equivalent(actual, expected_chunks))
 
   def test_vector_search_with_euclidean_distance(self):
     test_chunks = [
