@@ -148,13 +148,13 @@ def enrichment_with_milvus():
           content=Content())
   ]
 
+  connection_parameters = MilvusConnectionParameters(
+      uri, user, password, db_id, token)
+
   # The first condition (language == "en") excludes documents in other
   # languages. Initially, this gives us two documents. After applying the second
   # condition (cost < 50), only the first document returns in search results.
   filter_expr = 'metadata["language"] == "en" AND cost < 50'
-
-  connection_parameters = MilvusConnectionParameters(
-      uri, user, password, db_id, token)
 
   search_params = {"metric_type": VectorSearchMetrics.COSINE.value, "nprobe": 1}
 
