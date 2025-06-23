@@ -23,6 +23,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -550,6 +551,7 @@ class KafkaExactlyOnceSink<K, V>
       }
     }
 
+    @SuppressFBWarnings("DMI_RANDOM_USED_ONLY_ONCE") // TODO(#35312)
     private ShardWriter<K, V> initShardWriter(
         int shard, ValueState<String> writerIdState, long nextId) throws IOException {
 

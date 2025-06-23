@@ -60,10 +60,10 @@ from apache_beam.transforms import environments
 __all__ = ['PortableRunner']
 
 MESSAGE_LOG_LEVELS = {
-    beam_job_api_pb2.JobMessage.MESSAGE_IMPORTANCE_UNSPECIFIED: logging.INFO,
-    beam_job_api_pb2.JobMessage.JOB_MESSAGE_DEBUG: logging.DEBUG,
-    beam_job_api_pb2.JobMessage.JOB_MESSAGE_DETAILED: logging.DEBUG,
-    beam_job_api_pb2.JobMessage.JOB_MESSAGE_BASIC: logging.INFO,
+    beam_job_api_pb2.JobMessage.MESSAGE_IMPORTANCE_UNSPECIFIED: logging.WARNING,
+    beam_job_api_pb2.JobMessage.JOB_MESSAGE_DEBUG: logging.WARNING,
+    beam_job_api_pb2.JobMessage.JOB_MESSAGE_DETAILED: logging.WARNING,
+    beam_job_api_pb2.JobMessage.JOB_MESSAGE_BASIC: logging.WARNING,
     beam_job_api_pb2.JobMessage.JOB_MESSAGE_WARNING: logging.WARNING,
     beam_job_api_pb2.JobMessage.JOB_MESSAGE_ERROR: logging.ERROR,
 }
@@ -158,7 +158,7 @@ class JobServiceHandle(object):
           # only in this case is duplicate not treated as error
           if 'conflicting option string' not in str(e):
             raise
-          _LOGGER.debug("Runner option '%s' was already added" % option.name)
+          _LOGGER.warning("Runner option '%s' was already added" % option.name)
 
     all_options = self.options.get_all_options(
         add_extra_args_fn=add_runner_options,
@@ -384,7 +384,7 @@ class PortableRunner(runner.PipelineRunner):
     if cleanup_callbacks:
       # Register an exit handler to ensure cleanup on exit.
       atexit.register(functools.partial(result._cleanup, on_exit=True))
-      _LOGGER.info(
+      _LOGGER.warning(
           'Environment "%s" has started a component necessary for the '
           'execution. Be sure to run the pipeline using\n'
           '  with Pipeline() as p:\n'
@@ -532,14 +532,12 @@ class PipelineResult(runner.PipelineResult):
       previous_state = -1
       for message in self._message_stream:
         if message.HasField('message_response'):
-          logging.log(
-              MESSAGE_LOG_LEVELS[message.message_response.importance],
+          logging.warning(
               "%s",
               message.message_response.message_text)
         else:
           current_state = message.state_response.state
           if current_state != previous_state:
-            # TODO - change back to original logging
             _LOGGER.warning(
                 "Job state changed to %s",
                 self.runner_api_state_to_pipeline_state(current_state))
@@ -590,7 +588,7 @@ class PipelineResult(runner.PipelineResult):
 
   def _cleanup(self, on_exit: bool = False) -> None:
     if on_exit and self._cleanup_callbacks:
-      _LOGGER.info(
+      _LOGGER.warning(
           'Running cleanup on exit. If your pipeline should continue running, '
           'be sure to use the following syntax:\n'
           '  with Pipeline() as p:\n'

@@ -37,8 +37,11 @@ def hadoopVersions = [
 
 hadoopVersions.each {kv -> configurations.create("hadoopVersion$kv.key")}
 
+// we cannot upgrade this since the newer iceberg requires Java 11
+// many other modules like examples/expansion use Java 8 and have the iceberg dependency
+// def iceberg_version = "1.9.0"
 def iceberg_version = "1.6.1"
-def parquet_version = "1.15.1"
+def parquet_version = "1.15.2"
 def orc_version = "1.9.2"
 def hive_version = "3.1.3"
 
@@ -160,12 +163,18 @@ task integrationTest(type: Test) {
 
 task dataflowIntegrationTest(type: Test) {
     group = "Verification"
+    evaluationDependsOn(":runners:google-cloud-dataflow-java")
+    dependsOn ":runners:google-cloud-dataflow-java:buildAndPushDockerJavaContainer"
+    finalizedBy ":runners:google-cloud-dataflow-java:cleanUpDockerJavaImages"
+    def dockerJavaImageName = project.project(':runners:google-cloud-dataflow-java').ext.dockerJavaImageName
+
     def args = [
             "--runner=DataflowRunner",
             "--region=us-central1",
             "--project=${gcpProject}",
             "--tempLocation=${gcpTempLocation}",
             "--tempRoot=${gcpTempLocation}",
+            "--sdkContainerImage=${dockerJavaImageName}",
             "--experiments=use_runner_v2,use_staged_dataflow_worker_jar"
     ]
     if (project.hasProperty('enableManagedTransforms')) {

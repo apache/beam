@@ -55,29 +55,29 @@ public class IcebergTableProviderTest {
 
     ObjectMapper mapper = new ObjectMapper();
     String propertiesString = mapper.writeValueAsString(properties);
-    Table table = fakeTableWithProperties("my_table", propertiesString);
+    Table table =
+        fakeTableBuilder("my_table")
+            .properties(TableUtils.parseProperties(propertiesString))
+            .build();
     BeamSqlTable sqlTable = provider.buildBeamSqlTable(table);
 
     assertNotNull(sqlTable);
     assertTrue(sqlTable instanceof IcebergTable);
 
     IcebergTable icebergTable = (IcebergTable) sqlTable;
-    assertEquals("namespace.table", icebergTable.tableIdentifier);
+    assertEquals("namespace.my_table", icebergTable.tableIdentifier);
     assertEquals(provider.catalogConfig, icebergTable.catalogConfig);
   }
 
-  private static Table fakeTableWithProperties(String name, String properties) {
+  private static Table.Builder fakeTableBuilder(String name) {
     return Table.builder()
         .name(name)
-        .comment(name + " table")
-        .location("namespace.table")
+        .location("namespace." + name)
         .schema(
             Stream.of(
                     Schema.Field.nullable("id", Schema.FieldType.INT32),
                     Schema.Field.nullable("name", Schema.FieldType.STRING))
                 .collect(toSchema()))
-        .type("iceberg")
-        .properties(TableUtils.parseProperties(properties))
-        .build();
+        .type("iceberg");
   }
 }

@@ -19,18 +19,26 @@ package org.apache.beam.sdk.io.iceberg;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
+import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.CatalogUtil;
+import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.catalog.Catalog;
+import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.exceptions.AlreadyExistsException;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @AutoValue
 public abstract class IcebergCatalogConfig implements Serializable {
+  private static final Logger LOG = LoggerFactory.getLogger(IcebergCatalogConfig.class);
   private transient @MonotonicNonNull Catalog cachedCatalog;
 
   @Pure
@@ -73,6 +81,28 @@ public abstract class IcebergCatalogConfig implements Serializable {
       cachedCatalog = CatalogUtil.buildIcebergCatalog(catalogName, catalogProps, config);
     }
     return cachedCatalog;
+  }
+
+  public void createTable(
+      String tableIdentifier, Schema tableSchema, @Nullable List<String> partitionFields) {
+    TableIdentifier icebergIdentifier = TableIdentifier.parse(tableIdentifier);
+    org.apache.iceberg.Schema icebergSchema = IcebergUtils.beamSchemaToIcebergSchema(tableSchema);
+    PartitionSpec icebergSpec = PartitionUtils.toPartitionSpec(partitionFields, tableSchema);
+    try {
+      catalog().createTable(icebergIdentifier, icebergSchema, icebergSpec);
+      LOG.info(
+          "Created table '{}' with schema: {}\n, partition spec: {}",
+          icebergIdentifier,
+          icebergSchema,
+          icebergSpec);
+    } catch (AlreadyExistsException e) {
+      throw new TableAlreadyExistsException(e);
+    }
+  }
+
+  public boolean dropTable(String tableIdentifier) {
+    TableIdentifier icebergIdentifier = TableIdentifier.parse(tableIdentifier);
+    return catalog().dropTable(icebergIdentifier);
   }
 
   @AutoValue.Builder

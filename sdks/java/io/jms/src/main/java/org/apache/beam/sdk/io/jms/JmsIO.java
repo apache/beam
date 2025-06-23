@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
@@ -1230,6 +1231,7 @@ public class JmsIO {
         }
       }
 
+      @SuppressFBWarnings("DCN_NULLPOINTER_EXCEPTION") // TODO(#35312)
       void publishMessage(T input) throws JMSException, JmsIOException {
         Destination destinationToSendTo = destination;
         try {

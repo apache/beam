@@ -904,6 +904,115 @@ When using `STORAGE_API_AT_LEAST_ONCE`, the `PCollection` returned by
 [`WriteResult.getFailedStorageApiInserts`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/WriteResult.html#getFailedStorageApiInserts--)
 contains the rows that failed to be written to the Storage Write API sink.
 
+#### Tune the Storage Write API
+
+By default, the BigQueryIO Write transform uses Storage Write API settings that
+are reasonable for most pipelines.
+
+If you see performance issues, such as stuck pipelines, quota limit errors, or
+monotonically increasing backlog, consider tuning the following pipeline
+options when you run the job:
+
+<div class="table-container-wrapper">
+<table class="table table-bordered">
+  <tr>
+    <th>Option (Java/Python)</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td>
+      <p><code>maxConnectionPoolConnections</code></p>
+      <p><code>max_connection_pool_connections</code></p>
+    </td>
+    <td>
+      If the write mode is <code>STORAGE_API_AT_LEAST_ONCE</code> and the
+      <code>useStorageApiConnectionPool</code> option is <code>true</code>, this
+      option sets the maximum number of connections that each pool creates, per
+      worker and region. If your pipeline writes many dynamic destinations (more
+      than 20), and you see performance issues or append operations are
+      competing for streams, then consider increasing this value.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <p><code>minConnectionPoolConnections</code></p>
+      <p><code>min_connection_pool_connections</code></p>
+    </td>
+    <td>
+      <p>If the write mode is <code>STORAGE_API_AT_LEAST_ONCE</code> and the
+      <code>useStorageApiConnectionPool</code> option is <code>true</code>, this
+      option sets the minimum number of connections that each pool creates
+      before any connections are shared, per worker and region.</p>
+      <p>In practice, the minimum number of connections created is the minimum
+      of this option and <code>numStorageWriteApiStreamAppendClients</code> x
+      <em>destination count</em>. BigQuery initially creates that many
+      connections at first, and only creates more connections if the current
+      ones are overwhelmed. If you have performance issues, then consider
+      increasing this value.</td>
+  </tr>
+  <tr>
+    <td>
+      <p><code>numStorageWriteApiStreamAppendClients</code></p>
+      <p><code>num_storage_write_api_stream_append_clients</code></p>
+    </td>
+    <td>
+      If the write mode is <code>STORAGE_API_AT_LEAST_ONCE</code>, this option
+      sets the number of stream append clients allocated per worker and
+      destination. For high-volume pipelines with a large number of workers,
+      a high value can cause the job to exceed the BigQuery connection quota.
+      For most low- to mid-volume pipelines, the default value is sufficient.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <p><code>storageApiAppendThresholdBytes</code></p>
+      <p><code>storage_api_append_threshold_bytes</code></p>
+    </td>
+    <td>
+      Maximum size of a single append to the Storage Write API (best effort).
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <p><code>storageApiAppendThresholdRecordCount</code></p>
+      <p><code>storage_api_append_threshold_record_count</code></p>
+    </td>
+    <td>
+      Maximum record count of a single append to the Storage Write API (best
+      effort).
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <p><code>storageWriteMaxInflightRequests</code></p>
+      <p><code>storage_write_max_inflight_requests</code></p>
+    </td>
+    <td>Expected maximum number of inflight messages per connection.</td>
+  </tr>
+  <tr>
+    <td>
+      <p><code>useStorageApiConnectionPool</code></p>
+      <p><code>use_storage_api_connection_pool</code></p>
+    </td>
+    <td>
+      <p>If <code>true</code>, enables multiplexing mode, where multiple tables
+      can share the same connection. This mode is only available when the write
+      mode is <code>STORAGE_API_AT_LEAST_ONCE</code>. Consider enabling
+      multiplexing if your write operation creates 20 or more connections.</p>
+      <p>If you enable multiplexing, consider setting the following options to
+      tune the number of connections created by the connection pool:</p>
+      <ul>
+       <li><code>minConnectionPoolConnections</code></li>
+       <li><code>maxConnectionPoolConnections</code></li>
+      </ul>
+      <p>For more information, see <a
+      href="https://cloud.google.com/bigquery/docs/write-api-best-practices#connection_pool_management">
+      Connection pool management</a> in the BigQuery documentation.</p>
+    </td>
+  </tr>
+</table>
+</div>
+
 #### Quotas
 
 Before using the Storage Write API, be aware of the

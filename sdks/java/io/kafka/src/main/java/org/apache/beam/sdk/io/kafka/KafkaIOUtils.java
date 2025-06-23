@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.kafka;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -98,6 +99,7 @@ public final class KafkaIOUtils {
     return config;
   }
 
+  @SuppressFBWarnings("DMI_RANDOM_USED_ONLY_ONCE") // TODO(#35312)
   static Map<String, Object> getOffsetConsumerConfig(
       String name, @Nullable Map<String, Object> offsetConfig, Map<String, Object> consumerConfig) {
     Map<String, Object> offsetConsumerConfig = new HashMap<>(consumerConfig);
