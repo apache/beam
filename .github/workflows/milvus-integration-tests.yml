@@ -1,0 +1,28 @@
+name: Run Milvus Integration Tests
+
+on:
+  workflow_dispatch:
+
+jobs:
+  milvus-tests:
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup environment
+        uses: ./.github/actions/setup-environment-action
+        with:
+          python-version: '3.9'
+
+      - name: Install requirements
+        working-directory: ./sdks/python
+        run: |
+          pip install --upgrade setuptools
+          pip install -e .[gcp,test]
+
+      - name: Run MilvusSearchEnrichment tests
+        working-directory: ./sdks/python
+        run: |
+          python -m unittest -v apache_beam/ml/rag/enrichment/milvus_search_test.py
