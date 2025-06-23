@@ -18,14 +18,13 @@
 import apache_beam as beam
 from apache_beam.coders import PickleCoder, BooleanCoder, TimestampCoder
 from apache_beam.transforms.userstate import OrderedListStateSpec, TimerSpec, on_timer, ReadModifyWriteStateSpec
-from apache_beam.utils.timestamp import Timestamp, MIN_TIMESTAMP, MAX_TIMESTAMP
+from apache_beam.utils.timestamp import Timestamp, MAX_TIMESTAMP
 from apache_beam.transforms.timeutil import TimeDomain
-import typing
 from collections import defaultdict
-import numpy as np
 import logging
 
 _LOGGER = logging.getLogger(__name__)
+
 
 class OrderedSlidingWindowFn(beam.DoFn):
 
@@ -53,16 +52,16 @@ class OrderedSlidingWindowFn(beam.DoFn):
       timer_state=beam.DoFn.StateParam(TIMER_STATE),
       earliest_ts_state=beam.DoFn.StateParam(EARLIEST_TS_STATE)):
 
-    key, value = element
+    _, value = element
     ordered_buffer.add((timestamp, value))
 
-    _LOGGER.debug(f"receive {element} at {timestamp}")
+    _LOGGER.debug("receive %s at %s", element, timestamp)
     timer_started = timer_state.read()
 
     earliest = earliest_ts_state.read()
     if not earliest or earliest > timestamp:
       earliest_ts_state.write(timestamp)
-    
+
     if not timer_started:
       earliest_ts_state.write(timestamp)
 
@@ -71,7 +70,7 @@ class OrderedSlidingWindowFn(beam.DoFn):
       first_slide_start_ts = Timestamp.of(first_slide_start)
 
       first_window_end_ts = first_slide_start_ts + self.window_size
-      _LOGGER.debug(f"set timer to {first_window_end_ts}")
+      _LOGGER.debug("set timer to", first_window_end_ts)
       window_timer.set(first_window_end_ts)
 
       timer_state.write(True)
@@ -85,19 +84,17 @@ class OrderedSlidingWindowFn(beam.DoFn):
       window_timer=beam.DoFn.TimerParam(WINDOW_TIMER),
       timer_state=beam.DoFn.StateParam(TIMER_STATE),
       earliest_ts_state=beam.DoFn.StateParam(EARLIEST_TS_STATE)):
-    _LOGGER.debug(f"timer fire at {fire_ts}")
+    _LOGGER.debug("timer fire at", fire_ts)
     window_end_ts = fire_ts
     window_start_ts = window_end_ts - self.window_size
 
     window_values = list(
         ordered_buffer.read_range(window_start_ts, window_end_ts))
-    _LOGGER.debug(
-        f"Window [{window_start_ts}, {window_end_ts}) contains {len(window_values)} elements."
-    )
 
     _LOGGER.debug(
-        f"window start: {window_start_ts}, window end: {window_end_ts}")
-    _LOGGER.debug(f"windowed data in buffer {str(window_values)}")
+        "window start: %s, window end: %s", window_start_ts, window_end_ts
+    )
+    _LOGGER.debug("windowed data in buffer", str(window_values))
     if window_values:
       yield (key, (window_start_ts, window_end_ts, window_values))
 
@@ -115,7 +112,7 @@ class OrderedSlidingWindowFn(beam.DoFn):
       earliest_ts_state.write(next_window_start_ts)
       return
 
-    _LOGGER.debug(f"set timer to {next_window_end_ts}")
+    _LOGGER.debug("set timer to", next_window_end_ts)
     window_timer.set(next_window_end_ts)
 
 
