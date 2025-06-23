@@ -419,6 +419,13 @@ class Duration(object):
     return Duration(micros=self.micros % other.micros)
 
 
+class MillisTimestamp():
+  """A stub type used during registration to allow multiple logical types to
+  use the same Timestamp language type but with different to_language_type.
+  """
+  pass
+
+
 # The minimum granularity / interval expressible in a Timestamp / Duration
 # object.
 TIME_GRANULARITY = Duration(micros=1)
