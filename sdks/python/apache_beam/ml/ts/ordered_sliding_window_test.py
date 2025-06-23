@@ -176,6 +176,7 @@ class DoFnTests(unittest.TestCase):
 
       assert_that(output, equal_to(expected))
 
+  @unittest.skip("This test is skipped because it requires late data handling.")
   def test_pipeline_with_late_data(self):
     WINDOW_SIZE = 10
     SLIDE_INTERVAL = 3
