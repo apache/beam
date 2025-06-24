@@ -70,8 +70,12 @@
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Debezium IO upgraded to 3.1.1 requires Java 17 (Java) ([#34747](https://github.com/apache/beam/issues/34747)).
 * Add support for streaming writes in IOBase (Python)
+* Add IT test for streaming writes for IOBase (Python)
 * Implement support for streaming writes in FileBasedSink (Python)
+* Expose support for streaming writes in AvroIO (Python)
+* Expose support for streaming writes in ParquetIO (Python)
 * Expose support for streaming writes in TextIO (Python)
+* Expose support for streaming writes in TFRecordsIO (Python)
 
 ## New Features / Improvements
 
