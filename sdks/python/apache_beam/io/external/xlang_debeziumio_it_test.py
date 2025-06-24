@@ -74,7 +74,6 @@ class CrossLanguageDebeziumIOTest(unittest.TestCase):
     self.connection_properties = [
         "database.dbname=inventory",
         "database.server.name=dbserver1",
-        "database.include.list=inventory",
         "include.schema.changes=false"
     ]
 
@@ -90,8 +89,8 @@ class CrossLanguageDebeziumIOTest(unittest.TestCase):
     expected_response = [{
         "metadata": {
             "connector": "postgresql",
-            "version": "1.3.1.Final",
-            "name": "dbserver1",
+            "version": "3.1.1.Final",
+            "name": "beam-debezium-connector",
             "database": "inventory",
             "schema": "inventory",
             "table": "customers"

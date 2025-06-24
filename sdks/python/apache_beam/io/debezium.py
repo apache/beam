@@ -80,12 +80,10 @@
 
 import json
 from enum import Enum
-from typing import List
 from typing import NamedTuple
 from typing import Optional
 
-from apache_beam.transforms import DoFn
-from apache_beam.transforms import ParDo
+from apache_beam.transforms import Map
 from apache_beam.transforms import PTransform
 from apache_beam.transforms.external import BeamJarExpansionService
 from apache_beam.transforms.external import ExternalTransform
@@ -110,14 +108,7 @@ ReadFromDebeziumSchema = NamedTuple(
     'ReadFromDebeziumSchema',
     [('connector_class', str), ('username', str), ('password', str),
      ('host', str), ('port', str), ('max_number_of_records', Optional[int]),
-     ('connection_properties', List[str])])
-
-
-class _JsonStringToDictionaries(DoFn):
-  """ A DoFn that consumes a JSON string and yields a python dictionary """
-  def process(self, json_string):
-    obj = json.loads(json_string)
-    yield obj
+     ('connection_properties_json', str)])
 
 
 class ReadFromDebezium(PTransform):
@@ -152,11 +143,14 @@ class ReadFromDebezium(PTransform):
                                       to be fetched before stop.
         :param connection_properties: properties of the debezium
                                       connection passed as string
-                                      with format
-                                      [propertyName=property;]*
+                                      with json format
+                                      {"propertyName": "property"}
         :param expansion_service: The address (host:port)
                                   of the ExpansionService.
     """
+    serialized_properties = json.dumps(
+        connection_properties) if connection_properties else "[]"
+
     self.params = ReadFromDebeziumSchema(
         connector_class=connector_class.value,
         username=username,
@@ -164,7 +158,7 @@ class ReadFromDebezium(PTransform):
         host=host,
         port=port,
         max_number_of_records=max_number_of_records,
-        connection_properties=connection_properties)
+        connection_properties_json=serialized_properties)
     self.expansion_service = expansion_service or default_io_expansion_service()
 
   def expand(self, pbegin):
@@ -173,4 +167,5 @@ class ReadFromDebezium(PTransform):
             self.URN,
             NamedTupleBasedPayloadBuilder(self.params),
             self.expansion_service,
-        ) | ParDo(_JsonStringToDictionaries()))
+        ).with_output_types(str)
+        | 'JsonToDict' >> Map(json.loads).with_output_types(dict))
