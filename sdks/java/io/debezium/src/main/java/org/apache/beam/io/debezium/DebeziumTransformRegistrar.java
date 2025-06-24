@@ -17,7 +17,10 @@
  */
 package org.apache.beam.io.debezium;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
@@ -76,10 +79,15 @@ public class DebeziumTransformRegistrar implements ExternalTransformRegistrar {
 
     public static class Configuration extends CrossLanguageConfiguration {
       private @Nullable List<String> connectionProperties;
+      private @Nullable String connectionPropertiesJson;
       private @Nullable Long maxNumberOfRecords;
 
       public void setConnectionProperties(@Nullable List<String> connectionProperties) {
         this.connectionProperties = connectionProperties;
+      }
+
+      public void setConnectionPropertiesJson(@Nullable String connectionPropertiesJson) {
+        this.connectionPropertiesJson = connectionPropertiesJson;
       }
 
       public void setMaxNumberOfRecords(@Nullable Long maxNumberOfRecords) {
@@ -97,12 +105,29 @@ public class DebeziumTransformRegistrar implements ExternalTransformRegistrar {
               .withPort(configuration.port)
               .withConnectorClass(configuration.connectorClass.getConnector());
 
-      if (configuration.connectionProperties != null) {
-        for (String connectionProperty : configuration.connectionProperties) {
+      List<String> propertiesToProcess = null;
+      if (configuration.connectionPropertiesJson != null) {
+        // Prioritize the new JSON format if present
+        try {
+          ObjectMapper mapper = new ObjectMapper();
+          propertiesToProcess =
+              mapper.readValue(
+                  configuration.connectionPropertiesJson, new TypeReference<List<String>>() {});
+        } catch (IOException e) {
+          throw new IllegalArgumentException("Error parsing connectionPropertiesJson.", e);
+        }
+      } else {
+        // Fall back to the old list format for backward-compatibility
+        propertiesToProcess = configuration.connectionProperties;
+      }
+
+      if (propertiesToProcess != null) {
+        for (String connectionProperty : propertiesToProcess) {
           String[] parts = connectionProperty.split("=", -1);
-          String key = parts[0];
-          String value = parts[1];
-          connectorConfiguration.withConnectionProperty(key, value);
+          if (parts.length == 2) {
+            connectorConfiguration =
+                connectorConfiguration.withConnectionProperty(parts[0], parts[1]);
+          }
         }
       }
 
