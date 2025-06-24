@@ -53,7 +53,6 @@ from apache_beam.io.watermark_estimators import ManualWatermarkEstimator
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.metricbase import MetricName
-from apache_beam.ml.ts.util import PeriodicStream
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import DirectOptions
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -75,6 +74,7 @@ from apache_beam.transforms import environments
 from apache_beam.transforms import userstate
 from apache_beam.transforms import window
 from apache_beam.transforms.periodicsequence import PeriodicImpulse
+from apache_beam.transforms.periodicsequence import PeriodicStream
 from apache_beam.utils import timestamp
 from apache_beam.utils import windowed_value
 

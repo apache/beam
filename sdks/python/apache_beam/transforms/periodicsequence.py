@@ -17,6 +17,9 @@
 
 import math
 import time
+from typing import Any
+from typing import Optional
+from typing import Sequence
 
 import apache_beam as beam
 from apache_beam.io.restriction_trackers import OffsetRange
@@ -91,7 +94,39 @@ class ImpulseSeqGenDoFn(beam.DoFn):
   ImpulseSeqGenDoFn can't guarantee that each element is output at exact time.
   ImpulseSeqGenDoFn guarantees that elements would not be output prior to
   given runtime timestamp.
+
+  The output mode of the DoFn is based on the input `data`:
+
+    - **None**: If `data` is None (by default), the output element will be the
+      timestamp.
+    - **Non-Timestamped Data**: If `data` is a sequence of arbitrary values
+      (e.g., `[v1, v2, ...]`), the DoFn will assign a timestamp to each
+      emitted element. The timestamps are calculated by starting at a given
+      `start_time` and incrementing by a fixed `interval`.
+    - **Pre-Timestamped Data**: If `data` is a sequence of tuples, where each
+      tuple is `(apache_beam.utils.timestamp.Timestamp, value)`, the DoFn
+      will use the provided timestamp for the emitted element.
   '''
+  def __init__(self, data: Optional[Sequence[Any]] = None):
+    self._data = data
+    assert self._data is None or len(self._data) > 0
+    self._len = len(self._data) if self._data is not None else 0
+    self._is_timestamped_value = self._data is not None and self._len > 0 and \
+        isinstance(self._data[0], tuple) and \
+        isinstance(self._data[0][0], timestamp.Timestamp)
+
+  def _get_output(self, index, current_output_timestamp):
+    if self._data is None:
+      return current_output_timestamp, Timestamp.of(current_output_timestamp)
+
+    if self._is_timestamped_value:
+      event_time, value = self._data[index % self._len]
+      return TimestampedValue(value, event_time), event_time
+    else:
+      value = self._data[index % self._len]
+      return TimestampedValue(value, current_output_timestamp), \
+        Timestamp.of(current_output_timestamp)
+
   @beam.DoFn.unbounded_per_element()
   def process(
       self,
@@ -114,24 +149,31 @@ class ImpulseSeqGenDoFn(beam.DoFn):
     assert isinstance(restriction_tracker, sdf_utils.RestrictionTrackerView)
 
     current_output_index = restriction_tracker.current_restriction().start
-    current_output_timestamp = start + interval * current_output_index
-    current_time = time.time()
-    watermark_estimator.set_watermark(
-        timestamp.Timestamp(current_output_timestamp))
 
-    while current_output_timestamp <= current_time:
-      if restriction_tracker.try_claim(current_output_index):
-        yield current_output_timestamp
-        current_output_index += 1
-        current_output_timestamp = start + interval * current_output_index
-        current_time = time.time()
-        watermark_estimator.set_watermark(
+    while True:
+      current_output_timestamp = start + interval * current_output_index
+
+      if current_output_timestamp > time.time():
+        # we are too ahead of time, let's wait.
+        restriction_tracker.defer_remainder(
             timestamp.Timestamp(current_output_timestamp))
-      else:
         return
 
-    restriction_tracker.defer_remainder(
-        timestamp.Timestamp(current_output_timestamp))
+      if not restriction_tracker.try_claim(current_output_index):
+        # nothing to claim, just stop
+        return
+
+      output, output_ts = self._get_output(current_output_index,
+                                           current_output_timestamp)
+
+      current_watermark = watermark_estimator.current_watermark()
+      if current_watermark is None or output_ts > current_watermark:
+        # ensure watermark is monotonic
+        watermark_estimator.set_watermark(output_ts)
+
+      yield output
+
+      current_output_index += 1
 
 
 class PeriodicSequence(PTransform):
@@ -201,4 +243,80 @@ class PeriodicImpulse(PTransform):
     if self.apply_windowing:
       result = result | 'ApplyWindowing' >> beam.WindowInto(
           window.FixedWindows(self.interval))
+    return result
+
+
+class PeriodicStream(beam.PTransform):
+  """A PTransform that generates a periodic stream of elements from a sequence.
+
+  This transform creates a `PCollection` by emitting elements from a provided
+  Python sequence at a specified time interval. It is designed for use in
+  streaming pipelines to simulate a live, continuous source of data.
+
+  The transform can be configured to:
+  - Emit the sequence only once.
+  - Repeat the sequence indefinitely or for a maximum duration.
+  - Control the time interval between elements.
+
+  To ensure that the stream does not emit a burst of elements immediately at
+  pipeline startup, a fixed warmup period is added before the first element
+  is generated.
+
+  Args:
+      data: The sequence of elements to emit into the PCollection. The elements
+        can be raw values or pre-timestamped tuples in the format
+        `(apache_beam.utils.timestamp.Timestamp, value)`.
+      max_duration: The maximum total duration in seconds for the stream
+        generation. If `None` (the default) and `repeat` is `True`, the
+        stream is effectively infinite. If `repeat` is `False`, the stream's
+        duration is the shorter of this value and the time required to emit
+        the sequence once.
+      interval: The delay in seconds between consecutive elements.
+        Defaults to 0.1.
+      repeat: If `True`, the input `data` sequence is emitted repeatedly.
+        If `False` (the default), the sequence is emitted only once.
+      warmup_time: The extra wait time for the impulse element
+        (start, end, interval) to reach `ImpulseSeqGenDoFn`. It is used to
+        avoid the events clustering at the beginning.
+  """
+  def __init__(
+      self,
+      data: Sequence[Any],
+      max_duration: Optional[float] = None,
+      interval: float = 0.1,
+      repeat: bool = False,
+      warmup_time: float = 2.0):
+    self._data = data
+    self._interval = interval
+    self._repeat = repeat
+    self._warmup_time = warmup_time
+
+    # In `ImpulseSeqGenRestrictionProvider`, the total number of counts
+    # (i.e. total_outputs) is computed by ceil((end - start) / interval),
+    # where end is start + duration.
+    # Due to precision error of arithmetic operations, even if duration is set
+    # to len(self._data) * interval, (end - start) / interval could be a little
+    # bit smaller or bigger than len(self._data).
+    # In case of being bigger, total_outputs would be len(self._data) + 1,
+    # as the ceil() operation is used.
+    # Assuming that the precision error is no bigger than 1%, by subtracting
+    # a small amount, we ensure that the result after ceil is stable even if
+    # the precision error is present.
+    self._duration = len(self._data) * interval - 0.01 * interval
+    self._max_duration = max_duration if max_duration is not None else float(
+        "inf")
+
+  def expand(self, pbegin):
+    start = timestamp.Timestamp.now() + self._warmup_time
+
+    if not self._repeat:
+      stop = start + min(self._duration, self._max_duration)
+    else:
+      stop = timestamp.MAX_TIMESTAMP if math.isinf(
+          self._max_duration) else start + self._max_duration
+
+    result = (
+        pbegin
+        | 'ImpulseElement' >> beam.Create([(start, stop, self._interval)])
+        | 'GenStream' >> beam.ParDo(ImpulseSeqGenDoFn(self._data)))
     return result
