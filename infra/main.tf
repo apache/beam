@@ -22,7 +22,13 @@ terraform {
       version = "6.37.0"
     }
   }
+
+  backend "gcs" {
+    bucket  = "testing-me-460223-tfstate"
+    prefix  = "terraform/state"
+  }
 }
+
 variable "project_id" {
   description = "The GCP project ID."
   type        = string

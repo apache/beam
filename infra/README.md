@@ -108,3 +108,29 @@ python3 export-users.py <project_id> <output_file>
 ```
 
 It will generate a YAML file with the roles assigned to each user in the specified GCP project.
+
+## What to do when approved
+
+This is a work in progress so some manual interaction is needed for the migration. First of all we need a GCP bucket to store the terraform state files. And change the `main.tf` file to point to that bucket. The bucket should be created in the same GCP project where you want to manage the permissions.
+
+Then we need to modify the `config.auto.tfvars` file to include the GCP project ID we are working with. This file is used to set the variables for the Terraform configuration.
+
+The idea is to run the `export-roles.py` script to export the roles defined on a GCP project. This will help in keeping track of the roles and their permissions. This would be the initial users file, running it with Terraform will tell terraform to keep track of the users and their permissions.
+
+```bash
+python3 export-roles.py <project_id> users.yml
+terraform init
+terraform plan
+terraform apply
+```
+
+This will initialize Terraform, plan the changes for creating the custom roles, and apply the changes to the GCP project.
+
+The `users.yml` file that exists in the repository was created based on the permissions found in the GCP project, migrating to the new custom roles and permissions. It can be seen that viewer was changed to beam_viewer and editor to beam_infra_manager, for users that had higher roles, they were assigned the beam_admin role. The owners where left as is. Something to keep in mind is that users roles are inherited, so if a user has `beam_infra_manager`, they will also have the `beam_viewer` role.
+
+If approved, it is a matter of making it the new `users.yml` file and running the Terraform commands to apply the changes.
+
+```bash
+terraform plan # This will show the changes that will be applied
+terraform apply # This will apply the changes to the GCP project
+```
