@@ -63,6 +63,8 @@ pipeline:
           "fs.gs.auth.type": "SERVICE_ACCOUNT_JSON_KEYFILE"
           "fs.gs.auth.service.account.json.keyfile": "/path/to/service/account/key.json"
 
+options:
+  streaming: true
 
 # Expected:
 #  Row(text='Fool\tThou shouldst not have been old till thou hadst')
