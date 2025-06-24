@@ -63,6 +63,7 @@ public class IntegrationTestEnv extends ExternalResource {
   private DatabaseAdminClient databaseAdminClient;
   private DatabaseClient databaseClient;
   private boolean isPostgres;
+  private boolean isProtoBasedChangeStream;
   public boolean useSeparateMetadataDb;
 
   @Override
@@ -89,10 +90,12 @@ public class IntegrationTestEnv extends ExternalResource {
 
   IntegrationTestEnv() {
     this.isPostgres = false;
+    this.isProtoBasedChangeStream = false;
   }
 
-  IntegrationTestEnv(boolean isPostgres) {
-    this.isPostgres = true;
+  IntegrationTestEnv(boolean isPostgres, boolean isProtoBasedChangeStream) {
+    this.isPostgres = isPostgres;
+    this.isProtoBasedChangeStream = isProtoBasedChangeStream;
   }
 
   @Override
@@ -184,19 +187,35 @@ public class IntegrationTestEnv extends ExternalResource {
               instanceId,
               databaseId,
               Collections.singletonList(
-                  "CREATE TABLE "
+                  createGSQLTableDDL(tableName)),
+              null)
+          .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
+    }
+    tables.add(tableName);
+    return tableName;
+  }
+
+  String createGSQLTableDDL(String tableName){
+    if(this.isProtoBasedChangeStream){
+      // create a placement table.
+       return  "CREATE TABLE "
+                      + tableName
+                      + " ("
+                      + "   SingerId   INT64 NOT NULL,"
+                      + "   FirstName  STRING(1024),"
+                      + "   LastName   STRING(1024),"
+                      + "   SingerInfo BYTES(MAX),"
+                      + "   Location   STRING(MAX) NOT NULL PLACEMENT KEY"
+                      + " ) PRIMARY KEY (SingerId)";
+    }
+    return  "CREATE TABLE "
                       + tableName
                       + " ("
                       + "   SingerId   INT64 NOT NULL,"
                       + "   FirstName  STRING(1024),"
                       + "   LastName   STRING(1024),"
                       + "   SingerInfo BYTES(MAX)"
-                      + " ) PRIMARY KEY (SingerId)"),
-              null)
-          .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
-    }
-    tables.add(tableName);
-    return tableName;
+                      + " ) PRIMARY KEY (SingerId)";
   }
 
   String createChangeStreamFor(String tableName)
@@ -218,12 +237,20 @@ public class IntegrationTestEnv extends ExternalResource {
               instanceId,
               databaseId,
               Collections.singletonList(
-                  "CREATE CHANGE STREAM " + changeStreamName + " FOR " + tableName),
+                  createGSQLChangeStreamDDL(changeStreamName, tableName)),
               null)
           .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
     }
     changeStreams.add(changeStreamName);
     return changeStreamName;
+  }
+
+  String createGSQLChangeStreamDDL(String changeStreamName, String tableName){
+    if(this.isProtoBasedChangeStream){
+      // Create a MUTABLE_KEY_RANGE change stream.
+      return "CREATE CHANGE STREAM " + changeStreamName + " FOR " + tableName + "SET OPTIONS (partition_mode = 'MUTABLE_KEY_RANGE')";
+    }
+    return  "CREATE CHANGE STREAM " + changeStreamName + " FOR " + tableName;
   }
 
   void createRoleAndGrantPrivileges(String table, String changeStream)
