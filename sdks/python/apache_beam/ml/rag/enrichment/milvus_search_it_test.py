@@ -42,10 +42,10 @@ from pymilvus import FunctionType
 from pymilvus import MilvusClient
 from pymilvus import RRFRanker
 from pymilvus.milvus_client import IndexParams
-from testcontainers.core.generic import DbContainer
-from testcontainers.milvus import MilvusContainer
 from testcontainers.core.config import MAX_TRIES as TC_MAX_TRIES
 from testcontainers.core.config import testcontainers_config
+from testcontainers.core.generic import DbContainer
+from testcontainers.milvus import MilvusContainer
 
 import apache_beam as beam
 from apache_beam.ml.rag.types import Chunk
