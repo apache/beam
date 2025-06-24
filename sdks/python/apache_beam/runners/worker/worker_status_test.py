@@ -59,7 +59,7 @@ class FnApiWorkerStatusHandlerTest(unittest.TestCase):
     self.test_port = self.server.add_insecure_port('[::]:0')
     self.server.start()
     self.url = 'localhost:%s' % self.test_port
-    self.fn_status_handler = FnApiWorkerStatusHandler(self.url, element_processing_timeout=10)
+    self.fn_status_handler = FnApiWorkerStatusHandler(self.url, element_processing_timeout=100)
 
   def tearDown(self):
     self.server.stop(5)
@@ -137,12 +137,12 @@ class FnApiWorkerStatusHandlerTest(unittest.TestCase):
     now = time.time()
     with mock.patch('time.time') as time_mock:
       time_mock.return_value = now
-      bundle_id, sampler_info = get_state_sampler_info_for_lull(6 * 60)
+      bundle_id, sampler_info = get_state_sampler_info_for_lull(50 * 60)
       self.fn_status_handler._restart_lull(sampler_info, bundle_id)
 
     with mock.patch('time.time') as time_mock:
       time_mock.return_value = now + 6 * 60  # 6 minutes
-      bundle_id, sampler_info = get_state_sampler_info_for_lull(21 * 60)
+      bundle_id, sampler_info = get_state_sampler_info_for_lull(101 * 60)
       with self.assertRaises(TimeoutError):
         self.fn_status_handler._restart_lull(sampler_info, bundle_id)
 
