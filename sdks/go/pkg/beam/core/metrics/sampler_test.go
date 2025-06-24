@@ -17,9 +17,12 @@ package metrics
 
 import (
 	"context"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/jobopts"
 )
 
 func checkStateTime(t *testing.T, s StateSampler, label string, sb, pb, fb, tb time.Duration) {
@@ -136,6 +139,52 @@ func TestSampler_TwoPTransforms(t *testing.T) {
 	checkBundleState(bctx, t, s, 6, 0)
 }
 
+func TestSamplerWithoutRestartLullTimeout(t *testing.T) {
+	*jobopts.ElementProcessingTimeout = -1
+	ctx := context.Background()
+	bctx := SetBundleID(ctx, "test")
+	interval := 20 * time.Minute
+	st := GetStore(bctx)
+	s := NewSampler(st)
+
+	pctx := SetPTransformID(bctx, "transform")
+
+	pt := NewPTransformState("transform")
+
+	pt.Set(pctx, StartBundle)
+	if got, want := s.Sample(bctx, interval), error(nil); got != want {
+		t.Errorf("s.sample(bctx, interval) = %v, want %v", got, want)
+	}
+}
+
+func TestSamplerWithRestartLullTimeout(t *testing.T) {
+	*jobopts.ElementProcessingTimeout = 10 * time.Minute
+	ctx := context.Background()
+	bctx := SetBundleID(ctx, "test")
+	interval := 4 * time.Minute
+	st := GetStore(bctx)
+	s := NewSampler(st)
+
+	pctx := SetPTransformID(bctx, "transform")
+
+	pt := NewPTransformState("transform")
+
+	pt.Set(pctx, StartBundle)
+	if got, want := s.Sample(bctx, interval), error(nil); got != want {
+		t.Errorf("s.sample(bctx, interval) = %v, want %v", got, want)
+	}
+	if got, want := s.Sample(bctx, interval), error(nil); got != want {
+		t.Errorf("s.sample(bctx, interval) = %v, want %v", got, want)
+	}
+	if got, want := s.Sample(bctx, interval), error(nil); got != want {
+		t.Errorf("s.sample(bctx, interval) = %v, want %v", got, want)
+	}
+	err := s.Sample(bctx, interval)
+	if err == nil || !strings.Contains(err.Error(), "the SDK harness will be terminated and restarted") {
+		t.Errorf("s.sample(bctx, interval) = %v, want %v", err, "the SDK harness will be terminated and restarted")
+	}
+}
+
 // goos: darwin
 // goarch: amd64
 // pkg: github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics
@@ -208,4 +257,23 @@ func BenchmarkMsec_Combined(b *testing.B) {
 		ptB.Set(ctxB, ProcessBundle)
 	}
 	close(done)
+}
+
+func TestGetRestartLullTimeout(t *testing.T) {
+	*jobopts.ElementProcessingTimeout = -1
+	if got, want := getRestartLullTimeout(), 0*time.Minute; got != want {
+		t.Errorf("getRestartLullTimeout() = %v, want %v", got, want)
+	}
+	*jobopts.ElementProcessingTimeout = 10 * time.Minute
+	if got, want := getRestartLullTimeout(), 10*time.Minute; got != want {
+		t.Errorf("getRestartLullTimeout() = %v, want %v", got, want)
+	}
+	*jobopts.ElementProcessingTimeout = 5 * time.Minute
+	if got, want := getRestartLullTimeout(), 10*time.Minute; got != want {
+		t.Errorf("getRestartLullTimeout() = %v, want %v", got, want)
+	}
+	*jobopts.ElementProcessingTimeout = 20 * time.Minute
+	if got, want := getRestartLullTimeout(), 20*time.Minute; got != want {
+		t.Errorf("getRestartLullTimeout() = %v, want %v", got, want)
+	}
 }

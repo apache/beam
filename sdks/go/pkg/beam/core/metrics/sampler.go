@@ -21,7 +21,14 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/jobopts"
+)
+
+// RestartLullTimeout is the minimum timeout for restarting the sdk harness if job option element_processing_timeout is set.
+var (
+	restartLullMinTimeoutDefault time.Duration = 10 * time.Minute
 )
 
 // StateSampler tracks the state of a bundle.
@@ -31,18 +38,19 @@ type StateSampler struct {
 	transitionsAtLastSample   int64
 	nextLogTime               time.Duration
 	logInterval               time.Duration
+	restartLullTimeout        time.Duration
 }
 
 // NewSampler creates a new state sampler.
 func NewSampler(store *Store) StateSampler {
-	return StateSampler{store: store, nextLogTime: 5 * time.Minute, logInterval: 5 * time.Minute}
+	return StateSampler{store: store, nextLogTime: 5 * time.Minute, logInterval: 5 * time.Minute, restartLullTimeout: getRestartLullTimeout()}
 }
 
 // Sample checks for state transition in processing a DoFn
-func (s *StateSampler) Sample(ctx context.Context, t time.Duration) {
+func (s *StateSampler) Sample(ctx context.Context, t time.Duration) error {
 	ps := loadCurrentState(s)
 	if ps.pid == "" {
-		return
+		return nil
 	}
 	s.store.mu.Lock()
 	defer s.store.mu.Unlock()
@@ -64,7 +72,11 @@ func (s *StateSampler) Sample(ctx context.Context, t time.Duration) {
 			log.Infof(ctx, "Operation ongoing in transform %v for at least %v ms without outputting or completing in state %v", ps.pid, s.millisSinceLastTransition, getState(ps.state))
 			s.nextLogTime += s.logInterval
 		}
+		if s.restartLullTimeout > 0 && s.millisSinceLastTransition > s.restartLullTimeout {
+			return errors.Errorf("Operation ongoing in transform %v for at least %v ms without outputting or completing in state %v, the SDK harness will be terminated and restarted", ps.pid, s.millisSinceLastTransition, getState(ps.state))
+		}
 	}
+	return nil
 }
 
 // SetLogInterval sets the logging interval for lull reporting.
@@ -116,4 +128,12 @@ func getState(s bundleProcState) string {
 	default:
 		return ""
 	}
+}
+
+func getRestartLullTimeout() time.Duration {
+	userDefinedTimeout := jobopts.GetElementProcessingTimeout()
+	if userDefinedTimeout == 0*time.Minute || userDefinedTimeout > restartLullMinTimeoutDefault {
+		return userDefinedTimeout
+	}
+	return restartLullMinTimeoutDefault
 }
