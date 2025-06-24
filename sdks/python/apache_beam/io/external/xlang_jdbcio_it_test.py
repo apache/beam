@@ -36,6 +36,7 @@ from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.utils.timestamp import MillisTimestamp
 from apache_beam.utils.timestamp import Timestamp
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -76,7 +77,7 @@ CustomSchemaRow = typing.NamedTuple(
         ("renamed_varchar", str),
         ("renamed_bytes", bytes),
         ("renamed_varbytes", bytes),
-        ("renamed_timestamp", Timestamp),
+        ("renamed_timestamp", MillisTimestamp),
         ("renamed_decimal", Decimal),
         ("renamed_date", datetime.date),
         ("renamed_time", datetime.time),

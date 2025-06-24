@@ -100,6 +100,7 @@ from apache_beam.typehints.schema_registry import SCHEMA_REGISTRY
 from apache_beam.typehints.schema_registry import SchemaTypeRegistry
 from apache_beam.utils import proto_utils
 from apache_beam.utils.python_callable import PythonCallableWithSource
+from apache_beam.utils.timestamp import MillisTimestamp
 from apache_beam.utils.timestamp import Timestamp
 
 PYTHON_ANY_URN = "beam:logical:pythonsdk_any:v1"
@@ -864,7 +865,7 @@ MicrosInstantRepresentation = NamedTuple(
 
 
 @LogicalType.register_logical_type
-class MillisInstant(NoArgumentLogicalType[Timestamp, np.int64]):
+class MillisInstant(NoArgumentLogicalType[MillisTimestamp, np.int64]):
   """Millisecond-precision instant logical type handles values consistent with
   that encoded by ``InstantCoder`` in the Java SDK.
 
@@ -890,7 +891,7 @@ class MillisInstant(NoArgumentLogicalType[Timestamp, np.int64]):
 
   @classmethod
   def language_type(cls):
-    return Timestamp
+    return MillisTimestamp
 
   def to_language_type(self, value):
     # type: (np.int64) -> Timestamp
