@@ -76,7 +76,9 @@ After modifying the `roles_config.yaml` file, run the script to generate the yam
 python3 generate_roles.py
 ```
 
-This will update the `beam_roles` directory with the new role definitions. To apply the changes to the GCP project, run the following Terraform commands:
+This will update the `beam_roles` directory with the new role definitions. You do not need any GCP permissions to run this script, as it only generates local files.
+
+To apply the changes to the GCP project, ensure you have a owner role in the GCP project and run the following Terraform commands:
 
 ```bash
 terraform plan
@@ -111,6 +113,8 @@ After adding the user, run the following Terraform commands to apply the changes
 terraform plan
 terraform apply
 ```
+
+Remember that you need to have the necessary permissions in the GCP project to manage users and roles.
 
 ---
 
@@ -153,3 +157,7 @@ If approved, it is a matter of making it the new `users.yml` file and running th
 terraform plan # This will show the changes that will be applied
 terraform apply # This will apply the changes to the GCP project
 ```
+
+The idea would be that after the migration is done, a github action will be created to run the `generate_roles.py` script when a change is made to the `roles_config.yaml` file, and the terraform commands will be run to apply the changes to the GCP project. This way, the roles and permissions will be kept up to date with the changes made in the `roles_config.yaml` file.
+
+About new users, they would add their email to the `users.yml` file with the desired role, this would be done on a pull request. When the pull request is merged, the GitHub action will run the `generate_roles.py` script and the Terraform commands to apply the changes to the GCP project. This way, new users can be added easily and their permissions will be managed through the `users.yml` file.
