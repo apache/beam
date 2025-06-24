@@ -444,7 +444,8 @@ if __name__ == '__main__':
               'virtualenv-clone>=0.5,<1.0',
               'mysql-connector-python>=9.3.0',
               'python-tds>=1.16.1',
-              'sqlalchemy-pytds>=1.0.2'
+              'sqlalchemy-pytds>=1.0.2',
+              'oracledb>=3.1.1'
           ],
           'gcp': [
               'cachetools>=3.1.0,<6',
