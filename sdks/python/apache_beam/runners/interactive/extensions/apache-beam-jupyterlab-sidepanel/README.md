@@ -74,7 +74,6 @@ This installs the extension using JupyterLab's legacy extension system.
 > **Note**: When creating a Python package, the **module name (i.e., the folder name and import path)** must use underscores (`_`) instead of dashes (`-`). Dashes are **not allowed** in Python identifiers.
 > However, the **distribution name** (the name used in `pip install ...`) **can** include dashes, and this is a common convention in the Python ecosystem.
 > For example:
-> 
 > - `pip install apache-beam-jupyterlab-sidepanel` ✅
 > - `import apache_beam_jupyterlab_sidepanel` ✅
 > - `import apache-beam-jupyterlab-sidepanel` ❌ (invalid syntax)
