@@ -83,6 +83,7 @@ public class PartitionEndRecordAction {
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
 
     final String token = partition.getPartitionToken();
+    System.err.println("changliiu PartitionEndRecordAction");
     LOG.debug("[{}] Processing partition end record {}", token, record);
 
     final Timestamp timestamp = record.getEndTimestamp();

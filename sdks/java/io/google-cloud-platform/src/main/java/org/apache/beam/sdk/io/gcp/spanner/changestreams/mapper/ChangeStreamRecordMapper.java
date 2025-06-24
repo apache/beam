@@ -231,6 +231,7 @@ public class ChangeStreamRecordMapper {
 
     // In GoogleSQL, for `IMMUTABLE_KEY_RANGE` option, change stream records are returned as Protos.
     if (resultSet.isProtoChangeRecord()) {
+      System.err.println("changliiu v2222 change stream recort");
       return Arrays.asList(
           toChangeStreamRecord(
               partition, resultSet.getProtoChangeStreamRecord(), resultSetMetadata));
@@ -238,6 +239,7 @@ public class ChangeStreamRecordMapper {
 
     // In GoogleSQL, for `MUTABLE_KEY_RANGE` option, change stream records are returned as an array
     // of structs.
+    System.err.println("changliiu v111 change stream recort");
     return resultSet.getCurrentRowAsStruct().getStructList(0).stream()
         .flatMap(struct -> toChangeStreamRecord(partition, struct, resultSetMetadata))
         .collect(Collectors.toList());
@@ -247,6 +249,8 @@ public class ChangeStreamRecordMapper {
       PartitionMetadata partition,
       com.google.spanner.v1.ChangeStreamRecord changeStreamRecordProto,
       ChangeStreamResultSetMetadata resultSetMetadata) {
+    System.err.println(
+        "changliiu proto-toChangeStreamRecord:\n" + changeStreamRecordProto.toString());
     if (changeStreamRecordProto.hasPartitionStartRecord()) {
       return parseProtoPartitionStartRecord(
           partition, resultSetMetadata, changeStreamRecordProto.getPartitionStartRecord());

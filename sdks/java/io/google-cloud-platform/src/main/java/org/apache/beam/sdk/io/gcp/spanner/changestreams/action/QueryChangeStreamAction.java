@@ -176,6 +176,7 @@ public class QueryChangeStreamAction {
       OutputReceiver<DataChangeRecord> receiver,
       ManualWatermarkEstimator<Instant> watermarkEstimator,
       BundleFinalizer bundleFinalizer) {
+    System.err.println("changliiu QueryChangeStreamAction");
     final String token = partition.getPartitionToken();
     final Timestamp startTimestamp = tracker.currentRestriction().getFrom();
     final Timestamp changeStreamQueryEndTimestamp =
@@ -208,6 +209,8 @@ public class QueryChangeStreamAction {
                 updatedPartition, resultSet, resultSet.getMetadata());
         Optional<ProcessContinuation> maybeContinuation;
         for (final ChangeStreamRecord record : records) {
+          System.err.println(
+              "changliiu finish-parsing:\n" + record.toString() + "\n, size: " + records.size());
           if (record instanceof DataChangeRecord) {
             maybeContinuation =
                 dataChangeRecordAction.run(

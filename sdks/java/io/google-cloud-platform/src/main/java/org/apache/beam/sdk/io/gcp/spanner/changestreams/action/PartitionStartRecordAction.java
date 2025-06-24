@@ -102,7 +102,7 @@ public class PartitionStartRecordAction {
       RestrictionInterrupter<Timestamp> interrupter,
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
     final String token = partition.getPartitionToken();
-
+    System.err.println("changliiu PartitionStartRecordAction");
     LOG.debug("[{}] Processing partition start record {}", token, record);
 
     final Timestamp startTimestamp = record.getStartTimestamp();

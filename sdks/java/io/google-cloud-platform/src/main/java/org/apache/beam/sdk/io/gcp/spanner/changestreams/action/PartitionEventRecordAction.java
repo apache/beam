@@ -83,6 +83,7 @@ public class PartitionEventRecordAction {
       ManualWatermarkEstimator<Instant> watermarkEstimator) {
 
     final String token = partition.getPartitionToken();
+    System.err.println("changliiu PartitionEventRecordAction");
     LOG.debug("[{}] Processing partition event record {}", token, record);
 
     final Timestamp timestamp = record.getCommitTimestamp();
