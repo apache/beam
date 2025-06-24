@@ -15,7 +15,11 @@
 # limitations under the License.
 #
 
-# Script that exports the IAM policy of a Google Cloud project to a YAML format.
+# This script is used to export the IAM policy of a Google Cloud project to a YAML format.
+# It retrieves the IAM policy bindings, parses the members, and formats the output in a structured
+# YAML format, excluding service accounts and groups. The output includes usernames, emails, and
+# their associated permissions, with optional conditions for roles that have conditions attached.
+# You need to have the Google Cloud SDK installed and authenticated to run this script.
 
 import yaml
 from google.cloud import resourcemanager_v3
@@ -25,6 +29,8 @@ def parse_member(member_str):
 
     Args:
         member_str: The IAM member string
+    Returns:
+        A tuple containing the username, email address, and member type.
     """
     email = None
     username = member_str
@@ -51,6 +57,8 @@ def export_project_iam_to_yaml(project_id):
 
     Args:
         project_id: The ID of the Google Cloud project.
+    Returns:
+        A YAML formatted string containing the IAM policy details.
     """
     client = resourcemanager_v3.ProjectsClient()
     policy = client.get_iam_policy(resource=f"projects/{project_id}")
@@ -103,6 +111,16 @@ def export_project_iam_to_yaml(project_id):
     return yaml_data
 
 if __name__ == "__main__":
-    project_id_to_export = "apache-beam-testing"
+    import sys
+
+    if len(sys.argv) != 3:
+        print("Usage: python export-users.py <project_id> <output_file>")
+        sys.exit(1)
+
+    # Get the project ID to export from the arguments
+    project_id_to_export = sys.argv[1]
     yaml_txt = export_project_iam_to_yaml(project_id_to_export)
-    print(yaml_txt)
+
+    # Write the YAML output to the specified file
+    with open(sys.argv[2], "w") as output_file:
+        output_file.write(yaml_txt)
