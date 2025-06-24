@@ -965,7 +965,8 @@ public class KafkaIOIT {
     // Define test resources. The Schema Registry and BootstrapURL should be static and remain
     // unchanged.
 
-    // Safely bound the kafka version of this test to versions after the google cloud oauth library for Kafka was
+    // Safely bound the kafka version of this test to versions after the google cloud oauth library
+    // for Kafka was
     // Released.
     String actualVer = AppInfoParser.getVersion();
     assumeFalse(actualVer.compareTo("3.6.0") < 0);

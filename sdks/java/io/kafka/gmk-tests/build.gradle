@@ -20,7 +20,7 @@ import java.util.stream.Collectors
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-        automaticModuleName: 'org.apache.beam.sdk.io.kafka',
+        automaticModuleName: 'org.apache.beam.sdk.io.kafka.gmk-tests',
         mavenRepositories: [
                 [id: 'io.confluent', url: 'https://packages.confluent.io/maven/']
         ],
@@ -37,16 +37,17 @@ ext {
 provideIntegrationTestingDependencies()
 
 dependencies {
-        implementation library.java.vendored_guava_32_1_2_jre
+        testImplementation library.java.vendored_guava_32_1_2_jre
+
         provided library.java.jackson_dataformat_csv
         permitUnusedDeclared library.java.jackson_dataformat_csv
-        implementation project(path: ":sdks:java:core", configuration: "shadow")
-        implementation project(path: ":model:pipeline", configuration: "shadow")
-        implementation project(":sdks:java:extensions:avro")
-        implementation project(":sdks:java:extensions:protobuf")
+        testImplementation project(path: ":sdks:java:core", configuration: "shadow")
+        testImplementation project(path: ":model:pipeline", configuration: "shadow")
+        testImplementation project(":sdks:java:extensions:avro")
+        testImplementation project(":sdks:java:extensions:protobuf")
         implementation project(":sdks:java:expansion-service")
         permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
-        implementation library.java.avro
+        testImplementation library.java.avro
         // Get back to "provided" since 2.14
         provided library.java.kafka_clients
         if (JavaVersion.current().compareTo(JavaVersion.VERSION_21) >= 0) {
@@ -55,23 +56,24 @@ dependencies {
                 compileOnly library.java.kafka
         }
         testImplementation library.java.kafka_clients
+        permitUnusedDeclared library.java.kafka_clients
         testImplementation project(path: ":runners:core-java")
-        implementation library.java.slf4j_api
-        implementation library.java.joda_time
-        implementation library.java.jackson_annotations
-        implementation library.java.jackson_databind
-        implementation (group: 'com.google.cloud.hosted.kafka', name: 'managed-kafka-auth-login-handler', version: '1.0.5') {
+        testImplementation library.java.slf4j_api
+        testImplementation library.java.joda_time
+        testImplementation library.java.jackson_annotations
+        testImplementation library.java.jackson_databind
+        testImplementation (group: 'com.google.cloud.hosted.kafka', name: 'managed-kafka-auth-login-handler', version: '1.0.5') {
                 // "kafka-clients" has to be provided since user can use its own version.
                 exclude group: 'org.apache.kafka', module: 'kafka-clients'
         }
-        implementation ("io.confluent:kafka-avro-serializer:${confluentVersion}") {
+        testImplementation ("io.confluent:kafka-avro-serializer:${confluentVersion}") {
                 // zookeeper depends on "spotbugs-annotations:3.1.9" which clashes with current
                 // "spotbugs-annotations:3.1.12" used in Beam. Not required.
                 exclude group: "org.apache.zookeeper", module: "zookeeper"
                 // "kafka-clients" has to be provided since user can use its own version.
                 exclude group: "org.apache.kafka", module: "kafka-clients"
         }
-        implementation ("io.confluent:kafka-schema-registry-client:${confluentVersion}") {
+        testImplementation ("io.confluent:kafka-schema-registry-client:${confluentVersion}") {
                 // It depends on "spotbugs-annotations:3.1.9" which clashes with current
                 // "spotbugs-annotations:3.1.12" used in Beam. Not required.
                 exclude group: "org.apache.zookeeper", module: "zookeeper"
@@ -88,6 +90,8 @@ dependencies {
         testImplementation project(path: ":sdks:java:extensions:protobuf", configuration: "testRuntimeMigration")
         testImplementation project(path: ":sdks:java:io:common")
         testImplementation project(path: ":sdks:java:testing:test-utils")
+        testImplementation project(path: ":sdks:java:io:kafka")
+
         // For testing Cross-language transforms
         testImplementation library.java.avro
         testImplementation library.java.junit
@@ -100,5 +104,7 @@ dependencies {
         testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core")
         testImplementation project(path: ":sdks:java:io:google-cloud-platform")
         testImplementation "org.apache.kafka:kafka-clients:3.9.0"
+        testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.1'
+        testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.1'
 
 }
