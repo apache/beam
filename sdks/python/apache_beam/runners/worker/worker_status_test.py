@@ -87,6 +87,7 @@ class FnApiWorkerStatusHandlerTest(unittest.TestCase):
     self.fn_status_handler.close()
 
   def test_log_lull_in_bundle_processor(self):
+
     def get_state_sampler_info_for_lull(lull_duration_s):
       return "bundle-id", statesampler.StateSamplerInfo(
           CounterName('progress-msecs', 'stage_name', 'step_name'),
