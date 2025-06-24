@@ -18,6 +18,7 @@
 package org.apache.beam.fn.harness.control;
 
 import com.google.auto.value.AutoValue;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -206,11 +207,12 @@ public class ExecutionStateSampler {
             try {
               activeTracker.takeSample(currentTimeMillis, millisSinceLastSample);
             } catch (RuntimeException e) {
-              LOG.error(
+              shutdownDueToElementProcessingLullTimeout(
                   String.format(
-                      "The SDK worker will terminate because the lull time is longer than %d minutes",
+                      "Exception caught: %s The SDK worker will terminate and restart because the"
+                          + " lull time is longer than %d minutes",
+                      e.getMessage(),
                       TimeUnit.MILLISECONDS.toMinutes(this.userAllowedLullTimeMsForRestart)));
-              System.exit(1);
             }
           }
         }
@@ -224,6 +226,12 @@ public class ExecutionStateSampler {
   /** Returns a new {@link ExecutionStateTracker} associated with this state sampler. */
   public ExecutionStateTracker create() {
     return new ExecutionStateTracker();
+  }
+
+  @SuppressFBWarnings("DM_EXIT")
+  private void shutdownDueToElementProcessingLullTimeout(String errorMsg) {
+    LOG.error(errorMsg);
+    System.exit(1);
   }
 
   /**
