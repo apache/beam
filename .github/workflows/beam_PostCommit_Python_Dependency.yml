@@ -59,7 +59,7 @@ jobs:
       matrix:
         job_name: [beam_PostCommit_Python_Dependency]
         job_phrase: [Run Python PostCommit Dependency]
-    timeout-minutes: 120
+    timeout-minutes: 180
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'pull_request_target' ||
