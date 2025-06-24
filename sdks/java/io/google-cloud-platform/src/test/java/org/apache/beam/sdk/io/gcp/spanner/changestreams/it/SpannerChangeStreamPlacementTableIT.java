@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.it;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeTrue;
 
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.DatabaseClient;
@@ -34,41 +35,52 @@ import com.google.gson.Gson;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
+import org.apache.beam.runners.direct.DirectRunner;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerConfig;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.Mod;
-import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.commons.lang3.tuple.Pair;
 import org.joda.time.Instant;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.Timeout;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** End-to-end test of Cloud Spanner CDC Source. */
+/** End-to-end test of Cloud Spanner Source. */
 @RunWith(JUnit4.class)
-public class SpannerChangeStreamPostgresIT {
+public class SpannerChangeStreamPlacementTableIT {
 
-  @Rule public transient Timeout globalTimeout = Timeout.seconds(3600);
+  // TODO change to spanner prod host once ready.
+  private static final String host = "https://staging-wrenchworks.sandbox.googleapis.com";
 
   @ClassRule
   public static final IntegrationTestEnv ENV =
       new IntegrationTestEnv(
-          /*isPostgres=*/ true,
-          /*isPlacementTableBasedChangeStream=*/ false,
-          /*host=*/ Optional.empty());
+          /*isPostgres=*/ false,
+          /*isPlacementTableBasedChangeStream=*/ true,
+          /*host=*/ Optional.of(host));
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
+
+  /** Rule for exception testing. */
+  @Rule public ExpectedException exception = ExpectedException.none();
 
   private static String instanceId;
   private static String projectId;
@@ -77,18 +89,18 @@ public class SpannerChangeStreamPostgresIT {
   private static String changeStreamTableName;
   private static String changeStreamName;
   private static DatabaseClient databaseClient;
-  private static String host = "https://spanner.googleapis.com";
 
   @BeforeClass
   public static void beforeClass() throws Exception {
     projectId = ENV.getProjectId();
     instanceId = ENV.getInstanceId();
     databaseId = ENV.getDatabaseId();
-
     metadataTableName = ENV.getMetadataTableName();
     changeStreamTableName = ENV.createSingersTable();
     changeStreamName = ENV.createChangeStreamFor(changeStreamTableName);
     databaseClient = ENV.getDatabaseClient();
+    ENV.createMetadataDatabase();
+    ENV.createRoleAndGrantPrivileges(changeStreamTableName, changeStreamName);
   }
 
   @Before
@@ -99,11 +111,28 @@ public class SpannerChangeStreamPostgresIT {
 
   @Test
   public void testReadSpannerChangeStream() {
+    testReadSpannerChangeStreamImpl(pipeline, null);
+  }
+
+  @Test
+  public void testReadSpannerChangeStreamWithAuthorizedRole() {
+    testReadSpannerChangeStreamImpl(pipeline, ENV.getDatabaseRole());
+  }
+
+  @Test
+  public void testReadSpannerChangeStreamWithUnauthorizedRole() {
+    assumeTrue(pipeline.getOptions().getRunner() == DirectRunner.class);
+    exception.expect(SpannerException.class);
+    exception.expectMessage("Role not found: bad_role.");
+    testReadSpannerChangeStreamImpl(pipeline.enableAbandonedNodeEnforcement(false), "bad_role");
+  }
+
+  public void testReadSpannerChangeStreamImpl(TestPipeline testPipeline, String role) {
     // Defines how many rows are going to be inserted / updated / deleted in the test
     final int numRows = 5;
     // Inserts numRows rows and uses the first commit timestamp as the startAt for reading the
     // change stream
-    final Pair<Timestamp, Timestamp> insertTimestamps = insertRows(numRows);
+    final Pair<Timestamp, Timestamp> insertTimestamps = insertRowsToPlacementTable(numRows);
     final Timestamp startAt = insertTimestamps.getLeft();
     // Updates the created rows
     updateRows(numRows);
@@ -112,20 +141,23 @@ public class SpannerChangeStreamPostgresIT {
     final Pair<Timestamp, Timestamp> deleteTimestamps = deleteRows(numRows);
     final Timestamp endAt = deleteTimestamps.getRight();
 
-    final SpannerConfig spannerConfig =
+    SpannerConfig spannerConfig =
         SpannerConfig.create()
             .withProjectId(projectId)
             .withInstanceId(instanceId)
             .withDatabaseId(databaseId)
-            .withHost(ValueProvider.StaticValueProvider.of(host));
+            .withHost(StaticValueProvider.of(host));
+    if (role != null) {
+      spannerConfig = spannerConfig.withDatabaseRole(StaticValueProvider.of(role));
+    }
 
     final PCollection<String> tokens =
-        pipeline
+        testPipeline
             .apply(
                 SpannerIO.readChangeStream()
                     .withSpannerConfig(spannerConfig)
                     .withChangeStreamName(changeStreamName)
-                    .withMetadataDatabase(databaseId)
+                    .withMetadataDatabase(ENV.getMetadataDatabaseId())
                     .withMetadataTable(metadataTableName)
                     .withInclusiveStartAt(startAt)
                     .withInclusiveEndAt(endAt))
@@ -150,6 +182,85 @@ public class SpannerChangeStreamPostgresIT {
             "DELETE,3,Updated First Name 3,Updated Last Name 3,null,null",
             "DELETE,4,Updated First Name 4,Updated Last Name 4,null,null",
             "DELETE,5,Updated First Name 5,Updated Last Name 5,null,null");
+    testPipeline.run().waitUntilFinish();
+
+    assertMetadataTableHasBeenDropped();
+  }
+
+  @Test
+  public void testReadSpannerChangeStreamFilteredByTransactionTag() {
+    // Defines how many rows are going to be inserted / updated / deleted in the test
+    final int numRows = 5;
+    // Inserts numRows rows and uses the first commit timestamp as the startAt for reading the
+    // change stream
+    final Pair<Timestamp, Timestamp> insertTimestamps = insertRowsToPlacementTable(numRows);
+    final Timestamp startAt = insertTimestamps.getLeft();
+    // Updates the created rows
+    updateRows(numRows);
+    // Delete the created rows and uses the last commit timestamp as the endAt for reading the
+    // change stream
+    final Pair<Timestamp, Timestamp> deleteTimestamps = deleteRows(numRows);
+    final Timestamp endAt = deleteTimestamps.getRight();
+
+    final SpannerConfig spannerConfig =
+        SpannerConfig.create()
+            .withProjectId(projectId)
+            .withInstanceId(instanceId)
+            .withDatabaseId(databaseId)
+            .withHost(StaticValueProvider.of(host));
+
+    // Filter records to only those from transactions with tag "app=beam;action=update"
+    final PCollection<String> tokens =
+        pipeline
+            .apply(
+                SpannerIO.readChangeStream()
+                    .withSpannerConfig(spannerConfig)
+                    .withChangeStreamName(changeStreamName)
+                    .withMetadataDatabase(ENV.getMetadataDatabaseId())
+                    .withMetadataTable(metadataTableName)
+                    .withInclusiveStartAt(startAt)
+                    .withInclusiveEndAt(endAt))
+            .apply(
+                Filter.by(
+                    record ->
+                        !record.isSystemTransaction()
+                            && record
+                                .getTransactionTag()
+                                .equalsIgnoreCase("app=beam;action=update")))
+            .apply(ParDo.of(new ModsToString()));
+
+    // Each row is composed by the following data
+    // <mod type, singer id, old first name, old last name, new first name, new last name>
+    // todo changliiu update here 5
+    PAssert.that(tokens)
+        .satisfies(
+            stringTokens -> {
+              Set<String> setTokens =
+                  StreamSupport.stream(stringTokens.spliterator(), false)
+                      .collect(Collectors.toSet());
+              Assert.assertTrue(
+                  Stream.of(
+                          "UPDATE,1,First Name 1,Last Name 1,Updated First Name 1,Updated Last Name 1",
+                          "UPDATE,2,First Name 2,Last Name 2,Updated First Name 2,Updated Last Name 2",
+                          "UPDATE,3,First Name 3,Last Name 3,Updated First Name 3,Updated Last Name 3",
+                          "UPDATE,4,First Name 4,Last Name 4,Updated First Name 4,Updated Last Name 4",
+                          "UPDATE,5,First Name 5,Last Name 5,Updated First Name 5,Updated Last Name 5")
+                      .allMatch(setTokens::contains));
+              Assert.assertTrue(
+                  Stream.of(
+                          "INSERT,1,null,null,First Name 1,Last Name 1",
+                          "INSERT,2,null,null,First Name 2,Last Name 2",
+                          "INSERT,3,null,null,First Name 3,Last Name 3",
+                          "INSERT,4,null,null,First Name 4,Last Name 4",
+                          "INSERT,5,null,null,First Name 5,Last Name 5",
+                          "DELETE,1,Updated First Name 1,Updated Last Name 1,null,null",
+                          "DELETE,2,Updated First Name 2,Updated Last Name 2,null,null",
+                          "DELETE,3,Updated First Name 3,Updated Last Name 3,null,null",
+                          "DELETE,4,Updated First Name 4,Updated Last Name 4,null,null",
+                          "DELETE,5,Updated First Name 5,Updated Last Name 5,null,null")
+                      .noneMatch(setTokens::contains));
+              return null;
+            });
     pipeline.run().waitUntilFinish();
 
     assertMetadataTableHasBeenDropped();
@@ -159,7 +270,7 @@ public class SpannerChangeStreamPostgresIT {
     try (ResultSet resultSet =
         databaseClient
             .singleUse()
-            .executeQuery(Statement.of("SELECT * FROM \"" + metadataTableName + "\""))) {
+            .executeQuery(Statement.of("SELECT * FROM " + metadataTableName))) {
       resultSet.next();
       fail(
           "The metadata table "
@@ -169,16 +280,16 @@ public class SpannerChangeStreamPostgresIT {
       assertEquals(ErrorCode.INVALID_ARGUMENT, e.getErrorCode());
       assertTrue(
           "Error message must contain \"Table not found\"",
-          e.getMessage().contains("relation \"" + metadataTableName + "\" does not exist"));
+          e.getMessage().contains("Table not found"));
     }
   }
 
-  private static Pair<Timestamp, Timestamp> insertRows(int n) {
-    final Timestamp firstCommitTimestamp = insertRow(1);
+  private static Pair<Timestamp, Timestamp> insertRowsToPlacementTable(int n) {
+    final Timestamp firstCommitTimestamp = insertRowToPlacementTable(1);
     for (int i = 2; i < n; i++) {
-      insertRow(i);
+      insertRowToPlacementTable(i);
     }
-    final Timestamp lastCommitTimestamp = insertRow(n);
+    final Timestamp lastCommitTimestamp = insertRowToPlacementTable(n);
     return Pair.of(firstCommitTimestamp, lastCommitTimestamp);
   }
 
@@ -200,7 +311,7 @@ public class SpannerChangeStreamPostgresIT {
     return Pair.of(firstCommitTimestamp, lastCommitTimestamp);
   }
 
-  private static Timestamp insertRow(int singerId) {
+  private static Timestamp insertRowToPlacementTable(int singerId) {
     return databaseClient
         .writeWithOptions(
             Collections.singletonList(
@@ -211,7 +322,10 @@ public class SpannerChangeStreamPostgresIT {
                     .to("First Name " + singerId)
                     .set("LastName")
                     .to("Last Name " + singerId)
-                    .build()))
+                    .set("Location")
+                    .to("default")
+                    .build()),
+            Options.tag("app=beam;action=insert"))
         .getCommitTimestamp();
   }
 
