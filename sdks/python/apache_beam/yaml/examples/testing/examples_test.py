@@ -446,10 +446,6 @@ def _kafka_test_preprocessor(
     'test_spanner_read_yaml',
     'test_spanner_write_yaml',
     'test_enrich_spanner_with_bigquery_yaml',
-    'test_pubsub_topic_to_bigquery_yaml',
-    'test_pubsub_subscription_to_bigquery_yaml',
-    'test_jdbc_to_bigquery_yaml',
-    'test_spanner_to_avro_yaml',
     'test_gcs_text_to_bigquery_yaml',
     'test_sqlserver_to_bigquery_yaml',
     'test_postgres_to_bigquery_yaml',
@@ -572,7 +568,6 @@ def _iceberg_io_read_test_preprocessor(
 @YamlExamplesTestSuite.register_test_preprocessor([
     'test_spanner_read_yaml',
     'test_enrich_spanner_with_bigquery_yaml',
-    'test_spanner_to_avro_yaml',
     'test_spanner_to_bigquery_yaml'
 ])
 def _spanner_io_read_test_preprocessor(
@@ -672,49 +667,6 @@ def _pubsub_io_read_test_preprocessor(
     for transform in pipeline.get('transforms', []):
       if transform.get('type', '') == 'ReadFromPubSub':
         transform['type'] = 'TestReadFromPubSub'
-
-  return test_spec
-
-
-@YamlExamplesTestSuite.register_test_preprocessor([
-    'test_jdbc_to_bigquery_yaml',
-])
-def _jdbc_io_read_test_preprocessor(
-    test_spec: dict, expected: List[str], env: TestEnvironment):
-  """
-  Preprocessor for tests that involve reading from JDBC.
-
-  This preprocessor replaces any ReadFromJdbc transform with a Create
-  transform that reads from a predefined in-memory list of records.
-  This allows the test to verify the pipeline's correctness without
-  relying on an active JDBC connection.
-  """
-  if pipeline := test_spec.get('pipeline', None):
-    for transform in pipeline.get('transforms', []):
-      if transform.get('type', '').startswith('ReadFromJdbc'):
-        config = transform['config']
-        url = config['url']
-        database = url.split('/')[-1]
-        if (table := config.get('table', None)) is None:
-          table = config.get('query', '').split('FROM')[-1].strip()
-        transform['type'] = 'Create'
-        transform['config'] = {
-            k: v
-            for k, v in config.items() if k.startswith('__')
-        }
-        elements = INPUT_TABLES[("Jdbc", database, table)]
-        if config.get('query', None):
-          config['query'].replace('select ',
-                                  'SELECT ').replace(' from ', ' FROM ')
-          columns = set(
-              ''.join(config['query'].split('SELECT ')[1:]).split(
-                  ' FROM', maxsplit=1)[0].split(', '))
-          if columns != {'*'}:
-            elements = [{
-                column: element[column]
-                for column in element if column in columns
-            } for element in elements]
-        transform['config']['elements'] = elements
 
   return test_spec
 
@@ -827,7 +779,6 @@ INPUT_TABLES = {
     ('BigTable', 'beam-test', 'bigtable-enrichment-test'): input_data.
     bigtable_data(),
     ('BigQuery', 'ALL_TEST', 'customers'): input_data.bigquery_data(),
-    ('Jdbc', 'shipment', 'shipments'): input_data.jdbc_shipments_data(),
     ('SqlServer', 'shipment', 'shipments'): input_data.shipments_data(),
     ('Postgres', 'shipment', 'shipments'): input_data.shipments_data(),
     ('Oracle', 'shipment', 'shipments'): input_data.shipments_data(),
