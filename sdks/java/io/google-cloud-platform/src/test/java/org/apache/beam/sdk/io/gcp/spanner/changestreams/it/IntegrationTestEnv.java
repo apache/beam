@@ -59,10 +59,11 @@ public class IntegrationTestEnv extends ExternalResource {
   private String metadataDatabaseId;
   private String metadataTableName;
   private Spanner spanner;
-  private final String host = "https://spanner.googleapis.com";
+  private String host = "https://spanner.googleapis.com";
   private DatabaseAdminClient databaseAdminClient;
   private DatabaseClient databaseClient;
   private boolean isPostgres;
+  private boolean isPlacementTableBasedChangeStream;
   public boolean useSeparateMetadataDb;
 
   @Override
@@ -89,10 +90,16 @@ public class IntegrationTestEnv extends ExternalResource {
 
   IntegrationTestEnv() {
     this.isPostgres = false;
+    this.isPlacementTableBasedChangeStream = false;
   }
 
-  IntegrationTestEnv(boolean isPostgres) {
-    this.isPostgres = true;
+  IntegrationTestEnv(
+      boolean isPostgres, boolean isPlacementTableBasedChangeStream, Optional<String> host) {
+    this.isPostgres = isPostgres;
+    this.isPlacementTableBasedChangeStream = isPlacementTableBasedChangeStream;
+    if (host.isPresent()) {
+      this.host = host.get();
+    }
   }
 
   @Override
@@ -183,15 +190,7 @@ public class IntegrationTestEnv extends ExternalResource {
           .updateDatabaseDdl(
               instanceId,
               databaseId,
-              Collections.singletonList(
-                  "CREATE TABLE "
-                      + tableName
-                      + " ("
-                      + "   SingerId   INT64 NOT NULL,"
-                      + "   FirstName  STRING(1024),"
-                      + "   LastName   STRING(1024),"
-                      + "   SingerInfo BYTES(MAX)"
-                      + " ) PRIMARY KEY (SingerId)"),
+              Collections.singletonList(createGSQLTableDDL(tableName)),
               null)
           .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
     }
@@ -199,11 +198,34 @@ public class IntegrationTestEnv extends ExternalResource {
     return tableName;
   }
 
+  String createGSQLTableDDL(String tableName) {
+    if (this.isPlacementTableBasedChangeStream) {
+      // create a placement table.
+      return "CREATE TABLE "
+          + tableName
+          + " ("
+          + "   SingerId   INT64 NOT NULL,"
+          + "   FirstName  STRING(1024),"
+          + "   LastName   STRING(1024),"
+          + "   SingerInfo BYTES(MAX),"
+          + "   Location   STRING(MAX) NOT NULL PLACEMENT KEY"
+          + " ) PRIMARY KEY (SingerId)";
+    }
+    return "CREATE TABLE "
+        + tableName
+        + " ("
+        + "   SingerId   INT64 NOT NULL,"
+        + "   FirstName  STRING(1024),"
+        + "   LastName   STRING(1024),"
+        + "   SingerInfo BYTES(MAX)"
+        + " ) PRIMARY KEY (SingerId)";
+  }
+
   String createChangeStreamFor(String tableName)
       throws InterruptedException, ExecutionException, TimeoutException {
     final String changeStreamName = generateChangeStreamName();
+    LOG.info("CREATE CHANGE STREAM \"" + changeStreamName + "\" FOR \"" + tableName + "\"");
     if (this.isPostgres) {
-      LOG.info("CREATE CHANGE STREAM \"" + changeStreamName + "\" FOR \"" + tableName + "\"");
       databaseAdminClient
           .updateDatabaseDdl(
               instanceId,
@@ -217,13 +239,26 @@ public class IntegrationTestEnv extends ExternalResource {
           .updateDatabaseDdl(
               instanceId,
               databaseId,
-              Collections.singletonList(
-                  "CREATE CHANGE STREAM " + changeStreamName + " FOR " + tableName),
+              Collections.singletonList(createGSQLChangeStreamDDL(changeStreamName, tableName)),
               null)
           .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
     }
     changeStreams.add(changeStreamName);
     return changeStreamName;
+  }
+
+  String createGSQLChangeStreamDDL(String changeStreamName, String tableName) {
+    if (this.isPlacementTableBasedChangeStream) {
+      // Create a MUTABLE_KEY_RANGE change stream.
+      String statement =
+          "CREATE CHANGE STREAM "
+              + changeStreamName
+              + " FOR "
+              + tableName
+              + " OPTIONS (partition_mode = 'MUTABLE_KEY_RANGE')";
+      return statement;
+    }
+    return "CREATE CHANGE STREAM " + changeStreamName + " FOR " + tableName;
   }
 
   void createRoleAndGrantPrivileges(String table, String changeStream)
