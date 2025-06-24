@@ -649,29 +649,6 @@ def _enrichment_test_preprocessor(
 
 
 @YamlExamplesTestSuite.register_test_preprocessor([
-    'test_pubsub_topic_to_bigquery_yaml',
-    'test_pubsub_subscription_to_bigquery_yaml',
-    'test_pubsub_to_iceberg_yaml'
-])
-def _pubsub_io_read_test_preprocessor(
-    test_spec: dict, expected: List[str], env: TestEnvironment):
-  """
-  Preprocessor for tests that involve reading from Pub/Sub.
-
-  This preprocessor replaces any ReadFromPubSub transform with a Create
-  transform that reads from a predefined in-memory list of messages.
-  This allows the test to verify the pipeline's correctness without relying
-  on an active Pub/Sub subscription or topic.
-  """
-  if pipeline := test_spec.get('pipeline', None):
-    for transform in pipeline.get('transforms', []):
-      if transform.get('type', '') == 'ReadFromPubSub':
-        transform['type'] = 'TestReadFromPubSub'
-
-  return test_spec
-
-
-@YamlExamplesTestSuite.register_test_preprocessor([
     'test_sqlserver_to_bigquery_yaml',
 ])
 def __sqlserver_io_read_test_preprocessor(
