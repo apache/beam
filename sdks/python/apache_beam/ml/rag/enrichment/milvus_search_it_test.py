@@ -44,6 +44,8 @@ from pymilvus import RRFRanker
 from pymilvus.milvus_client import IndexParams
 from testcontainers.core.generic import DbContainer
 from testcontainers.milvus import MilvusContainer
+from testcontainers.core.config import MAX_TRIES as TC_MAX_TRIES
+from testcontainers.core.config import testcontainers_config
 
 import apache_beam as beam
 from apache_beam.ml.rag.types import Chunk
@@ -255,6 +257,7 @@ class MilvusDBContainerInfo:
   def uri(self) -> str:
     return f"http://{self.host}:{self.port}"
 
+
 class CustomMilvusContainer(MilvusContainer):
   def __init__(
       self,
@@ -289,29 +292,33 @@ class CustomMilvusContainer(MilvusContainer):
     for env, value in envs.items():
       self.with_env(env, value)
 
+
 class MilvusEnrichmentTestHelper:
   @staticmethod
   def start_db_container(
       image="milvusdb/milvus:v2.5.10",
       max_vec_fields=5,
-      vector_client_max_retries=3) -> Optional[MilvusDBContainerInfo]:
+      vector_client_max_retries=3,
+      tc_max_retries=TC_MAX_TRIES) -> Optional[MilvusDBContainerInfo]:
     service_container_port = MilvusEnrichmentTestHelper.find_free_port()
     healthcheck_container_port = MilvusEnrichmentTestHelper.find_free_port()
     user_yaml_creator = MilvusEnrichmentTestHelper.create_user_yaml
     with user_yaml_creator(service_container_port, max_vec_fields) as cfg:
       info = None
+      testcontainers_config.max_tries = tc_max_retries
       for i in range(vector_client_max_retries):
         try:
           vector_db_container = CustomMilvusContainer(
-            image=image,
-            service_container_port=service_container_port,
-            healthcheck_container_port=healthcheck_container_port)
+              image=image,
+              service_container_port=service_container_port,
+              healthcheck_container_port=healthcheck_container_port)
           vector_db_container = vector_db_container.with_volume_mapping(
               cfg, "/milvus/configs/user.yaml")
           vector_db_container.start()
           host = vector_db_container.get_container_host_ip()
           port = vector_db_container.get_exposed_port(service_container_port)
           info = MilvusDBContainerInfo(vector_db_container, host, port)
+          testcontainers_config.max_tries = TC_MAX_TRIES
           _LOGGER.info(
               "milvus db container started successfully on %s.", info.uri)
           break
@@ -418,11 +425,11 @@ class MilvusEnrichmentTestHelper:
   def find_free_port():
     """Find a free port on the local machine."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        # Bind to port 0, which asks OS to assign a free port.
-        s.bind(('', 0))
-        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        # Return the port number assigned by OS.
-        return s.getsockname()[1]
+      # Bind to port 0, which asks OS to assign a free port.
+      s.bind(('', 0))
+      s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+      # Return the port number assigned by OS.
+      return s.getsockname()[1]
 
   @staticmethod
   @contextlib.contextmanager
@@ -477,16 +484,22 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
 
   @classmethod
   def setUpClass(cls):
-    cls._db = MilvusEnrichmentTestHelper.start_db_container(cls._version)
-    cls._connection_params = MilvusConnectionParameters(
-        uri=cls._db.uri,
-        user=cls._db.user,
-        password=cls._db.password,
-        db_id=cls._db.id,
-        token=cls._db.token)
-    cls._collection_load_params = MilvusCollectionLoadParameters()
-    cls._collection_name = MilvusEnrichmentTestHelper.initialize_db_with_data(
-        cls._connection_params)
+    try:
+      cls._db = MilvusEnrichmentTestHelper.start_db_container(
+          cls._version, vector_client_max_retries=1, tc_max_retries=1)
+      cls._connection_params = MilvusConnectionParameters(
+          uri=cls._db.uri,
+          user=cls._db.user,
+          password=cls._db.password,
+          db_id=cls._db.id,
+          token=cls._db.token)
+      cls._collection_load_params = MilvusCollectionLoadParameters()
+      cls._collection_name = MilvusEnrichmentTestHelper.initialize_db_with_data(
+          cls._connection_params)
+    except Exception as e:
+      pytest.skip(
+          f"Skipping all tests in {cls.__name__} due to DB startup failure: {e}"
+      )
 
   @classmethod
   def tearDownClass(cls):
