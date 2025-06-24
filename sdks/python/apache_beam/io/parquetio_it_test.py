@@ -157,7 +157,7 @@ class WriteStreamingIT(unittest.TestCase):
   def test_write_streaming_2_shards_default_shard_name_template(
       self, num_shards=2):
 
-    args = self.test_pipeline.get_full_options_as_args(streaming=True, )
+    args = self.test_pipeline.get_full_options_as_args(streaming=True)
 
     unique_id = str(uuid.uuid4())
     output_file = f'gs://apache-beam-testing-integration-testing/iobase/test-{unique_id}'  # pylint: disable=line-too-long

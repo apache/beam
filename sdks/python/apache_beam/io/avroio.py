@@ -423,14 +423,8 @@ class WriteToAvro(beam.transforms.PTransform):
     """
     self._schema = schema
     self._sink_provider = lambda avro_schema: _create_avro_sink(
-        file_path_prefix,
-        avro_schema,
-        codec,
-        file_name_suffix,
-        num_shards,
-        shard_name_template,
-        mime_type,
-        triggering_frequency)
+        file_path_prefix, avro_schema, codec, file_name_suffix, num_shards,
+        hard_name_template, mime_type, triggering_frequency)
 
   def expand(self, pcoll):
     if self._schema:
@@ -447,8 +441,8 @@ class WriteToAvro(beam.transforms.PTransform):
       records = pcoll | beam.Map(
           beam_row_to_avro_dict(avro_schema, beam_schema))
     self._sink = self._sink_provider(avro_schema)
-    if (not pcoll.is_bounded and self._sink.shard_name_template ==
-        filebasedsink.DEFAULT_SHARD_NAME_TEMPLATE):
+    if (not pcoll.is_bounded and self._sink.shard_name_template
+        == filebasedsink.DEFAULT_SHARD_NAME_TEMPLATE):
       self._sink.shard_name_template = (
           filebasedsink.DEFAULT_WINDOW_SHARD_NAME_TEMPLATE)
       self._sink.shard_name_format = self._sink._template_to_format(

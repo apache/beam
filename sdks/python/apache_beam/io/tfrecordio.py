@@ -367,8 +367,8 @@ class WriteToTFRecord(PTransform):
         triggering_frequency)
 
   def expand(self, pcoll):
-    if (not pcoll.is_bounded and self._sink.shard_name_template ==
-        filebasedsink.DEFAULT_SHARD_NAME_TEMPLATE):
+    if (not pcoll.is_bounded and self._sink.shard_name_template
+        == filebasedsink.DEFAULT_SHARD_NAME_TEMPLATE):
       self._sink.shard_name_template = (
           filebasedsink.DEFAULT_WINDOW_SHARD_NAME_TEMPLATE)
       self._sink.shard_name_format = self._sink._template_to_format(

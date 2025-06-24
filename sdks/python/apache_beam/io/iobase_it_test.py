@@ -47,7 +47,7 @@ class IOBaseITTest(unittest.TestCase):
   def test_unbounded_pcoll_without_global_window(self):
     # https://github.com/apache/beam/issues/25598
 
-    args = self.test_pipeline.get_full_options_as_args(streaming=True, )
+    args = self.test_pipeline.get_full_options_as_args(streaming=True)
 
     topic = 'projects/pubsub-public-data/topics/taxirides-realtime'
     unique_id = str(uuid.uuid4())
