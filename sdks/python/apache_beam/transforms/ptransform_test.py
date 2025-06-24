@@ -1638,9 +1638,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         self.p
         | 'T' >> beam.Create(['some_string'])
         | 'ToStr' >> beam.Map(int_to_string))
-    error_regex = "Type-hint for argument: 'x' violated. "
-    "Expected an instance of {}, "
-    "instead found some_string, an instance of {}.".format(int, str)
+    error_regex = "Type-hint for argument: 'x' violated. Expected an instance "
+    "of {}, instead found some_string, an instance of {}.".format(int, str)
 
     with self.assertRaisesRegex(Exception, error_regex) as e:
       self.p.run()
@@ -1764,16 +1763,13 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
     if self.p._options.view_as(TypeOptions).runtime_type_check:
       error_regex += "Runtime type violation detected within "
-      "ParDo(ToInt): "
-      "According to type-hint expected output should be "
-      "of type {}. Instead, received '1.0', "
-      "an instance of type {}.".format(int, float)
+      "ParDo(ToInt): According to type-hint expected output should be of type "
+      "{}. Instead, received '1.0', an instance of type {}.".format(int, float)
 
     if self.p._options.view_as(TypeOptions).performance_runtime_type_check:
       error_regex += "Runtime type violation detected within ToInt: "
-      "Type-hint for argument: 'x' violated. "
-      "Expected an instance of {}, "
-      "instead found 1.0, an instance of {}".format(int, float)
+      "Type-hint for argument: 'x' violated. Expected an instance of "
+      "{}, instead found 1.0, an instance of {}".format(int, float)
 
     with self.assertRaisesRegex(Exception, error_regex) as e:
       (
@@ -1992,9 +1988,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
 
     error_regex = r".*Runtime type violation detected within "
     "ParDo(SortJoin/KeyWithVoid): "
-    "Type-hint for argument: 'v' violated. "
-    "Expected an instance of {}, "
-    "instead found 0, an instance of {}.".format(str, int)
+    "Type-hint for argument: 'v' violated. Expected an instance of "
+    "{}, instead found 0, an instance of {}.".format(str, int)
 
     with self.assertRaisesRegex(Exception, error_regex) as e:
       (
