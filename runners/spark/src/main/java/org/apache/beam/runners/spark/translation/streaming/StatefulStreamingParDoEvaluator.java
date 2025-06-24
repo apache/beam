@@ -58,7 +58,6 @@ import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
-import org.apache.commons.compress.utils.ByteUtils;
 import org.apache.spark.streaming.State;
 import org.apache.spark.streaming.StateSpec;
 import org.apache.spark.streaming.api.java.JavaDStream;
@@ -176,7 +175,7 @@ public class StatefulStreamingParDoEvaluator<KeyT, ValueT, OutputT>
                               new ByteArray(CoderHelpers.toByteArray(key, keyCoder));
                           byte[] valueBytes;
                           if (TimerUtils.TIMER_MARKER.equals(windowedValue.getValue())) {
-                            valueBytes = ByteUtils.EMPTY_BYTE_ARRAY;
+                            valueBytes = TimerUtils.EMPTY_BYTE_ARRAY;
                           } else {
                             valueBytes = CoderHelpers.toByteArray(windowedValue, wvCoder);
                           }

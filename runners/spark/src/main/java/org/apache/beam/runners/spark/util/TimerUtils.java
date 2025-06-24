@@ -57,6 +57,8 @@ import scala.runtime.AbstractFunction3;
  */
 public class TimerUtils {
 
+  public static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
+
   /**
    * A serializable version of the AbstractFunction3 class from Scala. Used for stateful operations
    * in Spark Streaming.
