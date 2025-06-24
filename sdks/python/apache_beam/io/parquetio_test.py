@@ -341,7 +341,7 @@ class TestParquet(unittest.TestCase):
     with tempfile.NamedTemporaryFile() as dst:
       path = dst.name
       # pylint: disable=c-extension-no-member
-      with self.assertRaises(pl.ArrowInvalid):
+      with self.assertRaisesRegex(Exception, 'would lose data'):
         # Should throw an error "ArrowInvalid: Casting from timestamp[ns] to
         # timestamp[us] would lose data"
         with TestPipeline() as p:
@@ -571,7 +571,8 @@ class TestParquet(unittest.TestCase):
   def test_sink_transform_multiple_row_group(self):
     with TemporaryDirectory() as tmp_dirname:
       path = os.path.join(tmp_dirname + "tmp_filename")
-      with TestPipeline() as p:
+      # Pin to FnApiRunner since test assumes fixed bundle size
+      with TestPipeline('FnApiRunner') as p:
         # writing 623200 bytes of data
         _ = p \
         | Create(self.RECORDS * 4000) \

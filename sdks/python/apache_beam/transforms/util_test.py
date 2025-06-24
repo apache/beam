@@ -254,8 +254,8 @@ class BatchElementsTest(unittest.TestCase):
     self.assertEqual(len(results["distributions"]), 0)
 
   def test_grows_to_max_batch(self):
-    # Assumes a single bundle...
-    with TestPipeline() as p:
+    # Assumes a single bundle, so we pin to the FnApiRunner
+    with TestPipeline('FnApiRunner') as p:
       res = (
           p
           | beam.Create(range(164))
@@ -265,8 +265,8 @@ class BatchElementsTest(unittest.TestCase):
       assert_that(res, equal_to([1, 1, 2, 4, 8, 16, 32, 50, 50]))
 
   def test_windowed_batches(self):
-    # Assumes a single bundle, in order...
-    with TestPipeline() as p:
+    # Assumes a single bundle in order, so we pin to the FnApiRunner
+    with TestPipeline('FnApiRunner') as p:
       res = (
           p
           | beam.Create(range(47), reshuffle=False)
@@ -287,8 +287,8 @@ class BatchElementsTest(unittest.TestCase):
           ]))
 
   def test_global_batch_timestamps(self):
-    # Assumes a single bundle
-    with TestPipeline() as p:
+    # Assumes a single bundle, so we pin to the FnApiRunner
+    with TestPipeline('FnApiRunner') as p:
       res = (
           p
           | beam.Create(range(3), reshuffle=False)
@@ -327,8 +327,8 @@ class BatchElementsTest(unittest.TestCase):
       assert_that(res, equal_to([2, 10, 10, 10]))
 
   def test_sized_windowed_batches(self):
-    # Assumes a single bundle, in order...
-    with TestPipeline() as p:
+    # Assumes a single bundle, in order so we pin to the FnApiRunner
+    with TestPipeline('FnApiRunner') as p:
       res = (
           p
           | beam.Create(range(1, 8), reshuffle=False)
@@ -527,8 +527,8 @@ class BatchElementsTest(unittest.TestCase):
         util._BatchSizeEstimator.linear_regression_numpy, True)
 
   def test_stateful_constant_batch(self):
-    # Assumes a single bundle...
-    p = TestPipeline()
+    # Assumes a single bundle, so we pin to the FnApiRunner
+    p = TestPipeline('FnApiRunner')
     output = (
         p
         | beam.Create(range(35))
@@ -649,8 +649,8 @@ class BatchElementsTest(unittest.TestCase):
       assert_that(num_elements_per_batch, equal_to([9, 1]))
 
   def test_stateful_grows_to_max_batch(self):
-    # Assumes a single bundle...
-    with TestPipeline() as p:
+    # Assumes a single bundle, so we pin to the FnApiRunner
+    with TestPipeline('FnApiRunner') as p:
       res = (
           p
           | beam.Create(range(164))
