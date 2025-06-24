@@ -86,6 +86,7 @@
 ## Bugfixes
 
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* [YAML] Fixed handling of missing optional fields in JSON parsing ([#35179](https://github.com/apache/beam/issues/35179)).
 
 ## Known Issues
 
