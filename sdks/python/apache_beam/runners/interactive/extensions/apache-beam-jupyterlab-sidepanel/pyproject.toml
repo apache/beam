@@ -41,6 +41,9 @@ dependencies = ["jupyterlab>=4.0.0,<5", "jupyter_server>=2.0.0"]
 [tool.hatch.version]
 source = "nodejs"
 
+[tool.hatch.build]
+exclude = [".yarn/", "lib/", "node_modules/", "dist/", "tsconfig.tsbuildinfo"]
+
 [tool.hatch.build.targets.sdist]
 artifacts = ["apache_beam_jupyterlab_sidepanel/labextension"]
 
