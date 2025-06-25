@@ -31,7 +31,6 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.concurrent.GuardedBy;
-import org.apache.beam.fn.harness.control.ProcessBundleHandler.BundleProcessor;
 import org.apache.beam.fn.harness.logging.BeamFnLoggingMDC;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
@@ -443,9 +442,11 @@ public class ExecutionStateSampler {
       private long msecs;
       // Read by the ExecutionStateSampler, written by the bundle processing thread frequently.
       private final AtomicLong lazyMsecs;
-      /** Guarded by {@link BundleProcessor#getProgressRequestLock}. */
+
+      @GuardedBy("this")
       private boolean hasReportedValue;
-      /** Guarded by {@link BundleProcessor#getProgressRequestLock}. */
+
+      @GuardedBy("this")
       private long lastReportedValue;
       // Read and written by the bundle processing thread frequently.
       private @Nullable ExecutionStateImpl previousState;
