@@ -19,7 +19,7 @@ package org.apache.beam.fn.harness;
 
 import com.google.auto.value.AutoValue;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Internal class to hold the primary and residual roots when converted to an input element. */

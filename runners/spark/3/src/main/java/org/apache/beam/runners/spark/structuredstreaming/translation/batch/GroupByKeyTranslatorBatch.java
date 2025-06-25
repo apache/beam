@@ -58,9 +58,10 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.spark.sql.Column;
 import org.apache.spark.sql.Dataset;
@@ -155,7 +156,7 @@ class GroupByKeyTranslatorBatch<K, V>
               .groupByKey(valueKey(), keyEnc)
               .mapValues(valueValue(), cxt.valueEncoderOf(inputCoder))
               .mapGroups(fun2((k, it) -> KV.of(k, iterableOnce(it))), cxt.kvEncoderOf(outputCoder))
-              .map(fun1(WindowedValue::valueInGlobalWindow), cxt.windowedEncoder(outputCoder));
+              .map(fun1(WindowedValues::valueInGlobalWindow), cxt.windowedEncoder(outputCoder));
 
     } else if (useCollectList
         && eligibleForGroupByWindow(windowing, false)
@@ -279,7 +280,7 @@ class GroupByKeyTranslatorBatch<K, V>
   }
 
   private static List<Expression> windowDetails(Expression windows) {
-    return seqOf(lit("windows"), windows, lit("pane"), PANE_NO_FIRING).toList();
+    return seqOf(lit("windows"), windows, lit("paneInfo"), PANE_NO_FIRING).toList();
   }
 
   private static <T extends @NonNull Object> Expression lit(T t) {

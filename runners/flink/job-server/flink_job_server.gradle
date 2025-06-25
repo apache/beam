@@ -277,6 +277,12 @@ createCrossLanguageValidatesRunnerTask(
   ],
 )
 
+shadowJar {
+    manifest {
+        attributes(["Multi-Release": true])
+    }
+}
+
 // miniCluster jar starts an embedded Flink cluster intended for use in testing.
 tasks.register("miniCluster", Jar) {
   dependsOn shadowJar

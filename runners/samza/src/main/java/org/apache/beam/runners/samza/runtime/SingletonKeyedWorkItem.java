@@ -20,7 +20,7 @@ package org.apache.beam.runners.samza.runtime;
 import java.util.Collections;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.TimerInternals;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
 
 /** Implementation of {@link KeyedWorkItem} which contains only a single value. */
 class SingletonKeyedWorkItem<K, V> implements KeyedWorkItem<K, V> {

@@ -24,12 +24,13 @@ import java.io.IOException;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.WireCoderSetting;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.util.construction.ModelCoders;
 import org.apache.beam.sdk.util.construction.RehydratedComponents;
 import org.apache.beam.sdk.util.construction.SyntheticComponents;
 import org.apache.beam.sdk.util.construction.graph.PipelineNode.PCollectionNode;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
+import org.apache.beam.sdk.values.WindowedValues.FullWindowedValueCoder;
 
 /** Helpers to construct coders for gRPC port reads and writes. */
 public class WireCoders {
@@ -93,7 +94,7 @@ public class WireCoders {
     String protoCoderId = addRunnerWireCoder(pCollectionNode, builder, wireCoderSetting);
     Coder<?> javaCoder = RehydratedComponents.forComponents(builder.build()).getCoder(protoCoderId);
     checkArgument(
-        javaCoder instanceof WindowedValue.FullWindowedValueCoder,
+        javaCoder instanceof WindowedValues.FullWindowedValueCoder,
         "Unexpected Deserialized %s type, expected %s, got %s",
         RunnerApi.Coder.class.getSimpleName(),
         FullWindowedValueCoder.class.getSimpleName(),

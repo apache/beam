@@ -23,9 +23,10 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -67,7 +68,8 @@ class ImpulseEvaluatorFactory implements TransformEvaluatorFactory {
       PCollection<byte[]> outputPCollection =
           (PCollection<byte[]>) Iterables.getOnlyElement(transform.getOutputs().values());
       result.addOutput(
-          ctxt.createBundle(outputPCollection).add(WindowedValue.valueInGlobalWindow(new byte[0])));
+          ctxt.createBundle(outputPCollection)
+              .add(WindowedValues.valueInGlobalWindow(new byte[0])));
     }
 
     @Override
@@ -94,7 +96,7 @@ class ImpulseEvaluatorFactory implements TransformEvaluatorFactory {
         int targetParallelism) {
       return Collections.singleton(
           ctxt.<ImpulseShard>createRootBundle()
-              .add(WindowedValue.valueInGlobalWindow(new ImpulseShard()))
+              .add(WindowedValues.valueInGlobalWindow(new ImpulseShard()))
               .commit(BoundedWindow.TIMESTAMP_MIN_VALUE));
     }
   }

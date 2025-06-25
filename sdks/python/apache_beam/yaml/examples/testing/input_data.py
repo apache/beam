@@ -22,6 +22,27 @@ needed.
 """
 
 
+def text_data():
+  return '\n'.join([
+      "Fool\tThou shouldst not have been old till thou hadst",
+      "\tbeen wise.",
+      "KING LEAR\tNothing will come of nothing: speak again.",
+      "\tNever, never, never, never, never!"
+  ])
+
+
+def iceberg_dynamic_destinations_users_data():
+  return [{
+      'id': 3, 'name': 'Smith', 'email': 'smith@example.com', 'zip': 'NY'
+  },
+          {
+              'id': 4,
+              'name': 'Beamberg',
+              'email': 'beamberg@example.com',
+              'zip': 'NY'
+          }]
+
+
 def products_csv():
   return '\n'.join([
       'transaction_id,product_name,category,price',

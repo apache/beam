@@ -183,7 +183,7 @@ public class Redistribute {
                       KV.of(kv.getKey(), kv.getValue().getValue()),
                       kv.getValue().getTimestamp(),
                       Collections.singleton(kv.getValue().getWindow()),
-                      kv.getValue().getPane());
+                      kv.getValue().getPaneInfo());
                 }
               }));
     }

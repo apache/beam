@@ -25,7 +25,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -41,7 +42,7 @@ public class WindmillReaderIteratorBaseTest {
 
     @Override
     protected WindowedValue<Long> decodeMessage(Windmill.Message message) {
-      return WindowedValue.valueInGlobalWindow(message.getTimestamp());
+      return WindowedValues.valueInGlobalWindow(message.getTimestamp());
     }
   }
 

@@ -56,7 +56,7 @@ public class DebeziumIOPostgresSqlConnectorIT {
   @ClassRule
   public static final PostgreSQLContainer<?> POSTGRES_SQL_CONTAINER =
       new PostgreSQLContainer<>(
-              DockerImageName.parse("quay.io/debezium/example-postgres:latest")
+              DockerImageName.parse("quay.io/debezium/example-postgres:3.1.1.Final")
                   .asCompatibleSubstituteFor("postgres"))
           .withPassword("dbz")
           .withUsername("debezium")
@@ -74,8 +74,10 @@ public class DebeziumIOPostgresSqlConnectorIT {
   static DataSource getPostgresDatasource() {
     PGSimpleDataSource dataSource = new PGSimpleDataSource();
     dataSource.setDatabaseName("inventory");
-    dataSource.setServerName(POSTGRES_SQL_CONTAINER.getContainerIpAddress());
-    dataSource.setPortNumber(POSTGRES_SQL_CONTAINER.getMappedPort(5432));
+    String[] serverNames = new String[] {POSTGRES_SQL_CONTAINER.getHost()};
+    dataSource.setServerNames(serverNames);
+    int[] ports = new int[] {POSTGRES_SQL_CONTAINER.getMappedPort(5432)};
+    dataSource.setPortNumbers(ports);
     dataSource.setUser("debezium");
     dataSource.setPassword("dbz");
     return dataSource;
@@ -156,7 +158,7 @@ public class DebeziumIOPostgresSqlConnectorIT {
   public void testDebeziumIOPostgresSql() {
     POSTGRES_SQL_CONTAINER.start();
 
-    String host = POSTGRES_SQL_CONTAINER.getContainerIpAddress();
+    String host = POSTGRES_SQL_CONTAINER.getHost();
     String port = POSTGRES_SQL_CONTAINER.getMappedPort(5432).toString();
 
     PipelineOptions options = PipelineOptionsFactory.create();
@@ -173,13 +175,12 @@ public class DebeziumIOPostgresSqlConnectorIT {
                         .withPort(port)
                         .withConnectionProperty("database.dbname", "inventory")
                         .withConnectionProperty("database.server.name", "dbserver1")
-                        .withConnectionProperty("database.include.list", "inventory")
                         .withConnectionProperty("include.schema.changes", "false"))
                 .withFormatFunction(new SourceRecordJson.SourceRecordJsonMapper())
                 .withMaxNumberOfRecords(30)
                 .withCoder(StringUtf8Coder.of()));
     String expected =
-        "{\"metadata\":{\"connector\":\"postgresql\",\"version\":\"1.3.1.Final\",\"name\":\"dbserver1\","
+        "{\"metadata\":{\"connector\":\"postgresql\",\"version\":\"3.1.1.Final\",\"name\":\"beam-debezium-connector\","
             + "\"database\":\"inventory\",\"schema\":\"inventory\",\"table\":\"customers\"},\"before\":null,"
             + "\"after\":{\"fields\":{\"last_name\":\"Thomas\",\"id\":1001,\"first_name\":\"Sally\","
             + "\"email\":\"sally.thomas@acme.com\"}}}";

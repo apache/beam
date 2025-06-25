@@ -875,9 +875,13 @@ public class KafkaIO {
           builder.setStopReadTime(Instant.ofEpochMilli(config.stopReadTime));
         }
 
-        // We can expose dynamic read to external build when ReadFromKafkaDoFn is the default
-        // implementation.
-        builder.setDynamicRead(false);
+        if (config.dynamicReadPollIntervalSeconds != null) {
+          builder.setDynamicRead(true);
+          builder.setWatchTopicPartitionDuration(
+              Duration.standardSeconds(config.dynamicReadPollIntervalSeconds));
+        } else {
+          builder.setDynamicRead(false);
+        }
 
         if (config.consumerPollingTimeout != null) {
           if (config.consumerPollingTimeout <= 0) {
@@ -975,6 +979,7 @@ public class KafkaIO {
         private Boolean redistribute;
         private Boolean allowDuplicates;
         private Boolean offsetDeduplication;
+        private Long dynamicReadPollIntervalSeconds;
 
         public void setConsumerConfig(Map<String, String> consumerConfig) {
           this.consumerConfig = consumerConfig;
@@ -1034,6 +1039,10 @@ public class KafkaIO {
 
         public void setOffsetDeduplication(Boolean offsetDeduplication) {
           this.offsetDeduplication = offsetDeduplication;
+        }
+
+        public void setDynamicReadPollIntervalSeconds(Long dynamicReadPollIntervalSeconds) {
+          this.dynamicReadPollIntervalSeconds = dynamicReadPollIntervalSeconds;
         }
       }
     }

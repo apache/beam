@@ -35,7 +35,7 @@ pipelines:
             url: "{TEMP_DB}"
             query: "INSERT INTO tmp_table (value, rank) VALUES(?,?)"
 
-  # Postgres read pipeline
+  # Postgres read pipeline with driver_class_name
   - pipeline:
       type: chain
       transforms:
@@ -51,3 +51,19 @@ pipelines:
               - {value: 456, rank: 1}
               - {value: 789, rank: 2}
     
+  # Postgres read pipeline without driver_class_name
+  # This is to prevent https://github.com/apache/beam/issues/35122 from
+  # happening again.
+  - pipeline:
+      type: chain
+      transforms:
+        - type: ReadFromPostgres
+          config:
+            url: "{TEMP_DB}"
+            query: "SELECT * FROM tmp_table"
+        - type: AssertEqual
+          config:
+            elements:
+              - {value: 123, rank: 0}
+              - {value: 456, rank: 1}
+              - {value: 789, rank: 2}

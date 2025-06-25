@@ -274,6 +274,9 @@ public class TFRecordIO {
     /** Whether to skip the spilling of data caused by having maxNumWritersPerBundle. */
     abstract boolean getNoSpilling();
 
+    /** Maximum number of writers created in a bundle before spilling to shuffle. */
+    abstract @Nullable Integer getMaxNumWritersPerBundle();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -289,6 +292,8 @@ public class TFRecordIO {
       abstract Builder setCompression(Compression compression);
 
       abstract Builder setNoSpilling(boolean noSpilling);
+
+      abstract Builder setMaxNumWritersPerBundle(@Nullable Integer maxNumWritersPerBundle);
 
       abstract Write build();
     }
@@ -388,6 +393,11 @@ public class TFRecordIO {
       return toBuilder().setNoSpilling(true).build();
     }
 
+    /** See {@link WriteFiles#withMaxNumWritersPerBundle()}. */
+    public Write withMaxNumWritersPerBundle(@Nullable Integer maxNumWritersPerBundle) {
+      return toBuilder().setMaxNumWritersPerBundle(maxNumWritersPerBundle).build();
+    }
+
     @Override
     public PDone expand(PCollection<byte[]> input) {
       checkState(
@@ -402,6 +412,9 @@ public class TFRecordIO {
       }
       if (getNoSpilling()) {
         write = write.withNoSpilling();
+      }
+      if (getMaxNumWritersPerBundle() != null) {
+        write = write.withMaxNumWritersPerBundle(getMaxNumWritersPerBundle());
       }
       input.apply("Write", write);
       return PDone.in(input.getPipeline());

@@ -64,12 +64,12 @@ import org.apache.beam.sdk.transforms.join.UnionCoder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.InstanceBuilder;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.SdkComponents;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -154,7 +154,7 @@ public class CloudObjectsTest {
               .add(IterableCoder.of(VarLongCoder.of()))
               .add(KvCoder.of(VarLongCoder.of(), ByteArrayCoder.of()))
               .add(
-                  WindowedValue.getFullCoder(
+                  WindowedValues.getFullCoder(
                       KvCoder.of(VarLongCoder.of(), ByteArrayCoder.of()),
                       IntervalWindow.getCoder()))
               .add(ByteArrayCoder.of())

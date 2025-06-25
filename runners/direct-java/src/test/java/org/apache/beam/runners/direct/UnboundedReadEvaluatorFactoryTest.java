@@ -72,11 +72,12 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.VarInt;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.SplittableParDo;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ContiguousSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.DiscreteDomain;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -311,7 +312,7 @@ public class UnboundedReadEvaluatorFactoryTest {
     when(context.createBundle(pcollection)).thenReturn(output);
 
     WindowedValue<UnboundedSourceShard<Long, TestCheckpointMark>> shard =
-        WindowedValue.valueInGlobalWindow(
+        WindowedValues.valueInGlobalWindow(
             UnboundedSourceShard.unstarted(source, NeverDeduplicator.create()));
     CommittedBundle<UnboundedSourceShard<Long, TestCheckpointMark>> inputBundle =
         bundleFactory
@@ -356,7 +357,7 @@ public class UnboundedReadEvaluatorFactoryTest {
     when(context.createBundle(pcollection)).thenReturn(output);
 
     WindowedValue<UnboundedSourceShard<Long, TestCheckpointMark>> shard =
-        WindowedValue.valueInGlobalWindow(
+        WindowedValues.valueInGlobalWindow(
             UnboundedSourceShard.unstarted(source, NeverDeduplicator.create()));
     CommittedBundle<UnboundedSourceShard<Long, TestCheckpointMark>> inputBundle =
         bundleFactory
@@ -402,7 +403,7 @@ public class UnboundedReadEvaluatorFactoryTest {
     when(context.createBundle(pcollection)).thenReturn(output);
 
     WindowedValue<UnboundedSourceShard<Long, TestCheckpointMark>> shard =
-        WindowedValue.valueInGlobalWindow(
+        WindowedValues.valueInGlobalWindow(
             UnboundedSourceShard.unstarted(source, NeverDeduplicator.create()));
     CommittedBundle<UnboundedSourceShard<Long, TestCheckpointMark>> inputBundle =
         bundleFactory
@@ -469,7 +470,7 @@ public class UnboundedReadEvaluatorFactoryTest {
     final UnboundedSourceShard<String, TestCheckpointMark> shard =
         UnboundedSourceShard.of(source, new NeverDeduplicator(), reader, null);
     final WindowedValue<UnboundedSourceShard<String, TestCheckpointMark>> value =
-        WindowedValue.of(
+        WindowedValues.of(
             shard, BoundedWindow.TIMESTAMP_MAX_VALUE, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING);
     TestUnboundedSource.readerClosedCount = 0;
     evaluator.processElement(value);
@@ -480,7 +481,7 @@ public class UnboundedReadEvaluatorFactoryTest {
    * is the epoch offset by the value of the element.
    */
   private static WindowedValue<Long> tgw(Long elem) {
-    return WindowedValue.timestampedValueInGlobalWindow(elem, new Instant(elem));
+    return WindowedValues.timestampedValueInGlobalWindow(elem, new Instant(elem));
   }
 
   private static class LongToInstantFn implements SerializableFunction<Long, Instant> {

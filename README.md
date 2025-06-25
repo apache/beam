@@ -61,6 +61,10 @@ Currently, this repository contains SDKs for Java, Python and Go.
 
 Have ideas for new SDKs or DSLs? See the [sdk-ideas label](https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Asdk-ideas).
 
+#### Specific SDK Readmes
+
+* [Python SDK readme](./sdks/python/README.md)
+
 ### Runners
 
 Beam supports executing programs on multiple distributed processing backends through PipelineRunners. Currently, the following PipelineRunners are available:

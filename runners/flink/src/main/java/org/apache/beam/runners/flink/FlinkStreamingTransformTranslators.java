@@ -78,7 +78,6 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.ParDoTranslation;
 import org.apache.beam.sdk.util.construction.ReadTranslation;
@@ -93,6 +92,8 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.ValueWithRecordId;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -204,7 +205,7 @@ class FlinkStreamingTransformTranslators {
 
       TypeInformation<WindowedValue<ValueWithRecordId<T>>> withIdTypeInfo =
           new CoderTypeInformation<>(
-              WindowedValue.getFullCoder(
+              WindowedValues.getFullCoder(
                   ValueWithRecordId.ValueWithRecordIdCoder.of(coder),
                   output.getWindowingStrategy().getWindowFn().windowCoder()),
               context.getPipelineOptions());
@@ -308,7 +309,7 @@ class FlinkStreamingTransformTranslators {
 
       TypeInformation<WindowedValue<byte[]>> typeInfo =
           new CoderTypeInformation<>(
-              WindowedValue.getFullCoder(ByteArrayCoder.of(), GlobalWindow.Coder.INSTANCE),
+              WindowedValues.getFullCoder(ByteArrayCoder.of(), GlobalWindow.Coder.INSTANCE),
               context.getPipelineOptions());
 
       SingleOutputStreamOperator<WindowedValue<byte[]>> impulseOperator;
@@ -966,7 +967,7 @@ class FlinkStreamingTransformTranslators {
             new KvToFlinkKeyKeySelector<>(inputKvCoder.getKeyCoder());
 
         Coder<WindowedValue<KV<K, Iterable<InputT>>>> outputCoder =
-            WindowedValue.getFullCoder(
+            WindowedValues.getFullCoder(
                 KvCoder.of(
                     inputKvCoder.getKeyCoder(), IterableCoder.of(inputKvCoder.getValueCoder())),
                 windowingStrategy.getWindowFn().windowCoder());
@@ -1125,8 +1126,8 @@ class FlinkStreamingTransformTranslators {
               inputKvCoder.getValueCoder(),
               input.getWindowingStrategy().getWindowFn().windowCoder());
 
-      WindowedValue.ValueOnlyWindowedValueCoder<KeyedWorkItem<K, InputT>> windowedWorkItemCoder =
-          WindowedValue.getValueOnlyCoder(workItemCoder);
+      WindowedValues.ValueOnlyWindowedValueCoder<KeyedWorkItem<K, InputT>> windowedWorkItemCoder =
+          WindowedValues.getValueOnlyCoder(workItemCoder);
 
       CoderTypeInformation<WindowedValue<KeyedWorkItem<K, InputT>>> workItemTypeInfo =
           new CoderTypeInformation<>(windowedWorkItemCoder, context.getPipelineOptions());
@@ -1179,7 +1180,7 @@ class FlinkStreamingTransformTranslators {
             new SingletonKeyedWorkItem<>(
                 in.getValue().getKey(), in.withValue(in.getValue().getValue()));
 
-        out.collect(WindowedValue.valueInGlobalWindow(workItem));
+        out.collect(WindowedValues.valueInGlobalWindow(workItem));
       }
     }
   }
@@ -1210,7 +1211,7 @@ class FlinkStreamingTransformTranslators {
                     })
                 .returns(
                     new CoderTypeInformation<>(
-                        WindowedValue.getFullCoder(
+                        WindowedValues.getFullCoder(
                             (Coder<T>) VoidCoder.of(), GlobalWindow.Coder.INSTANCE),
                         context.getPipelineOptions()));
         context.setOutputDataStream(context.getOutput(transform), result);
@@ -1311,8 +1312,8 @@ class FlinkStreamingTransformTranslators {
             }
           };
 
-      WindowedValue.FullWindowedValueCoder<T> elementCoder =
-          WindowedValue.getFullCoder(valueCoder, GlobalWindow.Coder.INSTANCE);
+      WindowedValues.FullWindowedValueCoder<T> elementCoder =
+          WindowedValues.getFullCoder(valueCoder, GlobalWindow.Coder.INSTANCE);
 
       DataStreamSource<WindowedValue<T>> source =
           context
@@ -1403,8 +1404,8 @@ class FlinkStreamingTransformTranslators {
       public void collect(WindowedValue<ValueWithRecordId<OutputT>> element) {
         OutputT originalValue = element.getValue().getValue();
         WindowedValue<OutputT> output =
-            WindowedValue.of(
-                originalValue, element.getTimestamp(), element.getWindows(), element.getPane());
+            WindowedValues.of(
+                originalValue, element.getTimestamp(), element.getWindows(), element.getPaneInfo());
         ctx.collect(output);
       }
 
@@ -1413,8 +1414,8 @@ class FlinkStreamingTransformTranslators {
           WindowedValue<ValueWithRecordId<OutputT>> element, long timestamp) {
         OutputT originalValue = element.getValue().getValue();
         WindowedValue<OutputT> output =
-            WindowedValue.of(
-                originalValue, element.getTimestamp(), element.getWindows(), element.getPane());
+            WindowedValues.of(
+                originalValue, element.getTimestamp(), element.getWindows(), element.getPaneInfo());
         ctx.collectWithTimestamp(output, timestamp);
       }
 
