@@ -446,6 +446,10 @@ def _kafka_test_preprocessor(
     'test_spanner_read_yaml',
     'test_spanner_write_yaml',
     'test_enrich_spanner_with_bigquery_yaml',
+    'test_pubsub_topic_to_bigquery_yaml',
+    'test_pubsub_subscription_to_bigquery_yaml',
+    'test_jdbc_to_bigquery_yaml',
+    'test_spanner_to_avro_yaml',
     'test_gcs_text_to_bigquery_yaml',
     'test_sqlserver_to_bigquery_yaml',
     'test_postgres_to_bigquery_yaml',
@@ -568,6 +572,7 @@ def _iceberg_io_read_test_preprocessor(
 @YamlExamplesTestSuite.register_test_preprocessor([
     'test_spanner_read_yaml',
     'test_enrich_spanner_with_bigquery_yaml',
+    'test_spanner_to_avro_yaml',
     'test_spanner_to_bigquery_yaml'
 ])
 def _spanner_io_read_test_preprocessor(
@@ -646,6 +651,41 @@ def _enrichment_test_preprocessor(
         transform['type'] = 'TestEnrichment'
 
   return test_spec
+
+
+@YamlExamplesTestSuite.register_test_preprocessor([
+    'test_pubsub_topic_to_bigquery_yaml',
+    'test_pubsub_subscription_to_bigquery_yaml',
+    'test_pubsub_to_iceberg_yaml'
+])
+def _pubsub_io_read_test_preprocessor(
+    test_spec: dict, expected: List[str], env: TestEnvironment):
+  """
+  Preprocessor for tests that involve reading from Pub/Sub.
+  This preprocessor replaces any ReadFromPubSub transform with a Create
+  transform that reads from a predefined in-memory list of messages.
+  This allows the test to verify the pipeline's correctness without relying
+  on an active Pub/Sub subscription or topic.
+  """
+  if pipeline := test_spec.get('pipeline', None):
+    for transform in pipeline.get('transforms', []):
+      if transform.get('type', '') == 'ReadFromPubSub':
+        transform['type'] = 'TestReadFromPubSub'
+
+  return test_spec
+
+
+@YamlExamplesTestSuite.register_test_preprocessor([
+    'test_jdbc_to_bigquery_yaml',
+])
+def _jdbc_io_read_test_preprocessor(
+    test_spec: dict, expected: List[str], env: TestEnvironment):
+  """
+  Preprocessor for tests that involve reading from SqlServer.
+  url syntax: 'jdbc:mysql://<host>:<port>/<database>'
+  """
+  return _db_io_read_test_processor(
+      test_spec, lambda url: url.split('/')[-1], 'Jdbc')
 
 
 @YamlExamplesTestSuite.register_test_preprocessor([
@@ -748,14 +788,14 @@ INPUT_FILES = {
 }
 
 INPUT_TABLES = {
-    ('shipment-test', 'shipment', 'shipments'): input_data.
-    spanner_shipments_data(),
+    ('shipment-test', 'shipment', 'shipments'): input_data.shipments_data(),
     ('orders-test', 'order-database', 'orders'): input_data.
     spanner_orders_data(),
     ('db', 'users', 'NY'): input_data.iceberg_dynamic_destinations_users_data(),
     ('BigTable', 'beam-test', 'bigtable-enrichment-test'): input_data.
     bigtable_data(),
     ('BigQuery', 'ALL_TEST', 'customers'): input_data.bigquery_data(),
+    ('Jdbc', 'shipment', 'shipments'): input_data.shipments_data(),
     ('SqlServer', 'shipment', 'shipments'): input_data.shipments_data(),
     ('Postgres', 'shipment', 'shipments'): input_data.shipments_data(),
     ('Oracle', 'shipment', 'shipments'): input_data.shipments_data(),
@@ -784,5 +824,3 @@ MLTest = YamlExamplesTestSuite(
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
-
-# cloud_spanner_to_bigquery_flex

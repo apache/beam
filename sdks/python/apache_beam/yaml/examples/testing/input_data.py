@@ -78,57 +78,6 @@ def spanner_orders_data():
           }]
 
 
-def spanner_shipments_data():
-  return [{
-      'shipment_id': 'S1',
-      'customer_id': 'C1',
-      'shipment_date': '2023-05-01',
-      'shipment_cost': 150.0,
-      'customer_name': 'Alice',
-      'customer_email': 'alice@example.com'
-  },
-          {
-              'shipment_id': 'S2',
-              'customer_id': 'C2',
-              'shipment_date': '2023-06-12',
-              'shipment_cost': 300.0,
-              'customer_name': 'Bob',
-              'customer_email': 'bob@example.com'
-          },
-          {
-              'shipment_id': 'S3',
-              'customer_id': 'C1',
-              'shipment_date': '2023-05-10',
-              'shipment_cost': 20.0,
-              'customer_name': 'Alice',
-              'customer_email': 'alice@example.com'
-          },
-          {
-              'shipment_id': 'S4',
-              'customer_id': 'C4',
-              'shipment_date': '2024-07-01',
-              'shipment_cost': 150.0,
-              'customer_name': 'Derek',
-              'customer_email': 'derek@example.com'
-          },
-          {
-              'shipment_id': 'S5',
-              'customer_id': 'C5',
-              'shipment_date': '2023-05-09',
-              'shipment_cost': 300.0,
-              'customer_name': 'Erin',
-              'customer_email': 'erin@example.com'
-          },
-          {
-              'shipment_id': 'S6',
-              'customer_id': 'C4',
-              'shipment_date': '2024-07-02',
-              'shipment_cost': 150.0,
-              'customer_name': 'Derek',
-              'customer_email': 'derek@example.com'
-          }]
-
-
 def shipments_data():
   return [{
       'shipment_id': 'S1',
