@@ -17,10 +17,12 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 import io.confluent.kafka.serializers.KafkaAvroSerializer;
 import io.confluent.kafka.serializers.KafkaAvroSerializerConfig;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -34,8 +36,14 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
+import org.apache.beam.sdk.io.common.IOITHelper;
+import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 import org.apache.beam.sdk.managed.Managed;
+import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.StreamingOptions;
+import org.apache.beam.sdk.options.Validation;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -43,6 +51,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
@@ -51,12 +60,45 @@ import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.apache.kafka.common.utils.AppInfoParser;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Rule;
-import org.junit.jupiter.api.Test;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
+import org.testcontainers.containers.KafkaContainer;
+import org.testcontainers.utility.DockerImageName;
 
+@RunWith(JUnit4.class)
 public class KafkaIOIT {
+  private static Options options;
+
   @Rule public TestPipeline writePipeline = TestPipeline.create();
+
+  private static KafkaContainer kafkaContainer;
+
+  @BeforeClass
+  public static void setup() throws IOException {
+    // check kafka version first
+    @Nullable String targetVer = System.getProperty("beam.target.kafka.version");
+    if (!Strings.isNullOrEmpty(targetVer)) {
+      String actualVer = AppInfoParser.getVersion();
+      assertEquals(targetVer, actualVer);
+    }
+
+    options = IOITHelper.readIOTestPipelineOptions(Options.class);
+    setupKafkaContainer();
+  }
+
+  @AfterClass
+  public static void afterClass() {
+    if (kafkaContainer != null) {
+      kafkaContainer.stop();
+    }
+  }
 
   @Test
   public void testReadAvroGenericRecordsWithSchemaRegistry() {
@@ -96,6 +138,7 @@ public class KafkaIOIT {
     pReadOptions.setProject("apache-beam-testing");
     pReadOptions.setRegion("us-central1");
     pReadOptions.setJobName("testManagedIOWithSchemaRegistry" + UUID.randomUUID());
+    pReadOptions.setGcpTempLocation("gs://temp-storage-for-end-to-end-tests");
 
     Pipeline pRead = Pipeline.create(pReadOptions);
 
@@ -231,5 +274,55 @@ public class KafkaIOIT {
       // client.deleteTopics(ImmutableSet.of(topicName));
       client.close();
     }
+  }
+
+  public interface Options extends IOTestPipelineOptions, StreamingOptions {
+
+    @Description("Options for synthetic source.")
+    @Validation.Required
+    String getSourceOptions();
+
+    void setSourceOptions(String sourceOptions);
+
+    @Description("Kafka bootstrap server addresses")
+    @Default.String("localhost:9092")
+    String getKafkaBootstrapServerAddresses();
+
+    void setKafkaBootstrapServerAddresses(String address);
+
+    @Description("Kafka topic")
+    @Validation.Required
+    String getKafkaTopic();
+
+    void setKafkaTopic(String topic);
+
+    @Description("Time to wait for the events to be processed by the read pipeline (in seconds)")
+    @Validation.Required
+    Integer getReadTimeout();
+
+    void setReadTimeout(Integer readTimeout);
+
+    @Description("Whether to use testcontainers")
+    @Default.Boolean(false)
+    Boolean isWithTestcontainers();
+
+    void setWithTestcontainers(Boolean withTestcontainers);
+
+    @Description("Kafka container version in format 'X.Y.Z'. Use when useTestcontainers is true")
+    @Nullable
+    String getKafkaContainerVersion();
+
+    void setKafkaContainerVersion(String kafkaContainerVersion);
+  }
+
+  private static void setupKafkaContainer() {
+    kafkaContainer =
+        new KafkaContainer(
+            DockerImageName.parse("confluentinc/cp-kafka")
+                .withTag(options.getKafkaContainerVersion()));
+    // Adding startup attempts to try and deflake
+    kafkaContainer.withStartupAttempts(3);
+    kafkaContainer.start();
+    options.setKafkaBootstrapServerAddresses(kafkaContainer.getBootstrapServers());
   }
 }
