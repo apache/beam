@@ -24,6 +24,8 @@ import com.google.auto.service.AutoService;
 import com.google.bigtable.v2.Mutation;
 import com.google.bigtable.v2.TimestampRange;
 import com.google.protobuf.ByteString;
+
+import java.nio.charset.Charset;
 import java.util.Objects;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteSchemaTransformProvider.BigtableWriteSchemaTransformConfiguration;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
@@ -110,7 +112,7 @@ public class BigtableSimpleWriteSchemaTransformProvider
                       (Row input) -> {
                         @SuppressWarnings("nullness")
                         ByteString key =
-                            ByteString.copyFromUtf8(
+                        ByteString.copyFromUtf8(
                                 (Objects.requireNonNull(input.getString("key"))));
 
                         Mutation bigtableMutation;

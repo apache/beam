@@ -36,18 +36,54 @@ pipelines:
         - type: Create
           config:
             elements:
-              - {key: "cm93MQ==",         # Base64 for "row1"
+              - {key: 'row1',
                 type: 'SetCell',
                 family_name: "cf1",
-                column_qualifier: "Y3Ex",   # Base64 for "cq1"
-                value: "dmFsdWUxX2Zyb21feWFtbA==", # Base64 for "value1_from_yaml"
+                column_qualifier: "cq1",
+                value: "value1",
                 timestamp_micros: -1}
-#              - key: !!byte cm93MQ==              # Base64 for "row1"
+              - {key: 'row1',
+                  type: 'SetCell',
+                  family_name: "cf2",
+                  column_qualifier: "cq1",
+                  value: "value2",
+                  timestamp_micros: 1000}
+#              # Deletes all cells in a specific column, optionally within a time range.
+#              - {key: 'row2',
+#                  type: 'DeleteFromColumn',
+#                  family_name: "cf1",
+#                  column_qualifier: "cq1",
+#                  start_timestamp_micros: 2000,
+#                  end_timestamp_micros: 5000 }
+#
+#              # Deletes all cells in a specific column family.
+#              - {key: 'row3',
+#                  type: 'DeleteFromFamily',
+#                  family_name: "cf2" }
+#
+#              # Deletes all cells in a specific row.
+#              - {key: 'row4',
+#                  type: 'DeleteFromRow' }
+        - type: LogForTesting
+#          commenting for now, will implement after everyone gives feedback on PR
+
+#        - type: MapToFields
+#          name: Create Bytestring
+#          config:
+#            language: python
+#            fields:
+#              bytestr_value:
+#                callable: |
+#                  def all_words(row):
+#                    return bytes(row.input_value)
+
+        #              - key: !!byte cm93MQ==              # Base64 for "row1"
 #                type: 'SetCell'
 #                family_name: !!byte Y2Yy          # Base64 for "cf2"
 #                column_qualifier: !!byte Y3Ex     # Base64 for "cq1"
 #                value: !!byte dmFsdWUy              # Base64 for "value2"
 #                timestamp_micros: 1000
+
 
         - type: WriteToBigTable
           config:

@@ -45,7 +45,7 @@ from google.cloud import pubsub_v1
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
 from testcontainers.google import PubSubContainer
-from testcontainers.kafka import KafkaContainer
+# from testcontainers.kafka import KafkaContainer
 from testcontainers.mssql import SqlServerContainer
 from testcontainers.mysql import MySqlContainer
 from testcontainers.postgres import PostgresContainer
@@ -209,6 +209,7 @@ def temp_bigtable_table(project, prefix='yaml_bt_it_'):
     table.create()
     col_fam = table.column_family('cf1')
     col_fam.create()
+
 
     col_fam = table.column_family('cf2')
     col_fam.create()
@@ -511,32 +512,32 @@ def temp_oracle_database():
     yield f"jdbc:oracle:thin:system/oracle@localhost:{port}/XEPDB1"
 
 
-@contextlib.contextmanager
-def temp_kafka_server():
-  """Context manager to provide a temporary Kafka server for testing.
-
-  This function utilizes the 'testcontainers' library to spin up a Kafka
-  instance within a Docker container. It then yields the bootstrap server
-  string, which can be used by Kafka clients to connect to this temporary
-  server.
-
-  The Docker container and the Kafka instance are automatically managed
-  and torn down when the context manager exits.
-
-  Yields:
-      str: The bootstrap server string for the temporary Kafka instance.
-           Example format: "localhost:XXXXX" or "PLAINTEXT://localhost:XXXXX"
-
-  Raises:
-      Exception: If there's an error starting the Kafka container or
-                 interacting with the temporary Kafka server.
-  """
-  with KafkaContainer() as kafka_container:
-    try:
-      yield kafka_container.get_bootstrap_server()
-    except Exception as err:
-      logging.error("Error interacting with temporary Kakfa Server: %s", err)
-      raise err
+# @contextlib.contextmanager
+# def temp_kafka_server():
+#   """Context manager to provide a temporary Kafka server for testing.
+#
+#   This function utilizes the 'testcontainers' library to spin up a Kafka
+#   instance within a Docker container. It then yields the bootstrap server
+#   string, which can be used by Kafka clients to connect to this temporary
+#   server.
+#
+#   The Docker container and the Kafka instance are automatically managed
+#   and torn down when the context manager exits.
+#
+#   Yields:
+#       str: The bootstrap server string for the temporary Kafka instance.
+#            Example format: "localhost:XXXXX" or "PLAINTEXT://localhost:XXXXX"
+#
+#   Raises:
+#       Exception: If there's an error starting the Kafka container or
+#                  interacting with the temporary Kafka server.
+#   """
+#   with KafkaContainer() as kafka_container:
+#     try:
+#       yield kafka_container.get_bootstrap_server()
+#     except Exception as err:
+#       logging.error("Error interacting with temporary Kakfa Server: %s", err)
+#       raise err
 
 
 @contextlib.contextmanager

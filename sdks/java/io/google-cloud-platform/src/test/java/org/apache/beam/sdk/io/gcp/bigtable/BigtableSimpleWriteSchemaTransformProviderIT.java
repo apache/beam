@@ -293,20 +293,14 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
         RowMutation.create(tableId, "key-1")
             .setCell(COLUMN_FAMILY_NAME_1, "col", 200_000_000, "new-val");
     dataClient.mutateRow(rowMutation);
-
-    List<Map<String, byte[]>> mutations = new ArrayList<>();
-    // mutation to delete cells from a column within a timestamp range
-    mutations.add(
-        ImmutableMap.of(
-            "type", "DeleteFromColumn".getBytes(StandardCharsets.UTF_8),
-            "column_qualifier", "col".getBytes(StandardCharsets.UTF_8),
-            "family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8),
-            "start_timestamp_micros", Longs.toByteArray(99_999_999),
-            "end_timestamp_micros", Longs.toByteArray(100_000_001)));
     Row mutationRow =
         Row.withSchema(SCHEMA)
             .withFieldValue("key", "key-1".getBytes(StandardCharsets.UTF_8))
-            .withFieldValue("mutations", mutations)
+            .withFieldValue("type", "DeleteFromColumn".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("column_qualifier", "col".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("start_timestamp_micros", Longs.toByteArray(99_999_999))
+            .withFieldValue("end_timestamp_micros", Longs.toByteArray(100_000_001))
             .build();
 
     PCollectionRowTuple.of("input", p.apply(Create.of(Arrays.asList(mutationRow))))
@@ -337,16 +331,11 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
             .setCell(COLUMN_FAMILY_NAME_2, "col_b", "val");
     dataClient.mutateRow(rowMutation);
 
-    List<Map<String, byte[]>> mutations = new ArrayList<>();
-    // mutation to delete a whole column family
-    mutations.add(
-        ImmutableMap.of(
-            "type", "DeleteFromFamily".getBytes(StandardCharsets.UTF_8),
-            "family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8)));
     Row mutationRow =
         Row.withSchema(SCHEMA)
             .withFieldValue("key", "key-1".getBytes(StandardCharsets.UTF_8))
-            .withFieldValue("mutations", mutations)
+            .withFieldValue("type", "DeleteFromFamily".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8))
             .build();
 
     PCollectionRowTuple.of("input", p.apply(Create.of(Arrays.asList(mutationRow))))
@@ -378,13 +367,10 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
         RowMutation.create(tableId, "key-2").setCell(COLUMN_FAMILY_NAME_1, "col", "val-2");
     dataClient.mutateRow(rowMutation);
 
-    List<Map<String, byte[]>> mutations = new ArrayList<>();
-    // mutation to delete a whole row
-    mutations.add(ImmutableMap.of("type", "DeleteFromRow".getBytes(StandardCharsets.UTF_8)));
     Row mutationRow =
         Row.withSchema(SCHEMA)
             .withFieldValue("key", "key-1".getBytes(StandardCharsets.UTF_8))
-            .withFieldValue("mutations", mutations)
+            .withFieldValue("type", "DeleteFromRow".getBytes(StandardCharsets.UTF_8))
             .build();
 
     PCollectionRowTuple.of("input", p.apply(Create.of(Arrays.asList(mutationRow))))
