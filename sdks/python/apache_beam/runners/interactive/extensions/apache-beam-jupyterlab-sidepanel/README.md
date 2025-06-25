@@ -35,8 +35,7 @@ There are two ways to install the extension:
 
 ### 1. Via pip (recommended)
 
-The extension is now available as a Python package on PyPI.  
-Install it with:
+The extension is now available as a Python package on PyPI. You can install it with:
 
 ```bash
 pip install apache-beam-jupyterlab-sidepanel
@@ -72,12 +71,11 @@ This installs the extension using JupyterLab's legacy extension system.
 
 ## Contributing
 
-> **Note**: When creating a Python package, the **module name (i.e., the folder name and import path)** must use underscores (`_`) instead of dashes (`-`). Dashes are **not allowed** in Python identifiers.  
-> However, the **distribution name** (the name used in `pip install ...`) **can** include dashes, and this is a common convention in the Python ecosystem.  
+> **Note**: When creating a Python package, the **module name (i.e., the folder name and import path)** must use underscores (`_`) instead of dashes (`-`). Dashes are **not allowed** in Python identifiers.
+> However, the **distribution name** (the name used in `pip install ...`) **can** include dashes, and this is a common convention in the Python ecosystem.
 > For example:
-> 
-> - `pip install apache-beam-jupyterlab-sidepanel` ✅  
-> - `import apache_beam_jupyterlab_sidepanel` ✅  
+> - `pip install apache-beam-jupyterlab-sidepanel` ✅
+> - `import apache_beam_jupyterlab_sidepanel` ✅
 > - `import apache-beam-jupyterlab-sidepanel` ❌ (invalid syntax)
 
 ### Install
