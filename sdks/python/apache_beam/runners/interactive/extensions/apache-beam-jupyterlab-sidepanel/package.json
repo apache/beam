@@ -92,7 +92,7 @@
   ],
   "jupyterlab": {
     "extension": true,
-    "outputDir": "apache-beam-jupyterlab-sidepanel/labextension"
+    "outputDir": "apache_beam_jupyterlab_sidepanel/labextension"
   },
   "test": "jest",
   "resolutions": {
