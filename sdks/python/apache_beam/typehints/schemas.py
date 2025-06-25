@@ -142,9 +142,11 @@ def named_fields_to_schema(
     schema_options: Optional[Sequence[Tuple[str, Any]]] = None,
     field_options: Optional[Dict[str, Sequence[Tuple[str, Any]]]] = None,
     schema_registry: SchemaTypeRegistry = SCHEMA_REGISTRY,
+    field_descriptions: Optional[Dict[str, str]] = None,
 ):
   schema_options = schema_options or []
   field_options = field_options or {}
+  field_descriptions = field_descriptions or {}
 
   if isinstance(names_and_types, dict):
     names_and_types = names_and_types.items()
@@ -158,6 +160,7 @@ def named_fields_to_schema(
                   option_to_runner_api(option_tuple)
                   for option_tuple in field_options.get(name, [])
               ],
+              description=field_descriptions.get(name, None)
           ) for (name, type) in names_and_types
       ],
       options=[
@@ -616,6 +619,13 @@ def schema_from_element_type(element_type: type) -> schema_pb2.Schema:
   if isinstance(element_type, row_type.RowTypeConstraint):
     return named_fields_to_schema(element_type._fields)
   elif match_is_named_tuple(element_type):
+    if hasattr(element_type, row_type._BEAM_SCHEMA_ID):
+      # if the named tuple's schema is in registry, we just use it instead of
+      # regenerating one.
+      schema_id = getattr(element_type, row_type._BEAM_SCHEMA_ID)
+      schema = SCHEMA_REGISTRY.get_schema_by_id(schema_id)
+      if schema is not None:
+        return schema
     return named_tuple_to_schema(element_type)
   else:
     raise TypeError(
