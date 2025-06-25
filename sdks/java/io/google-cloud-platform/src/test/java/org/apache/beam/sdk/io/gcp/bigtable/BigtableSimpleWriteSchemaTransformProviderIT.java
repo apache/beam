@@ -157,30 +157,26 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
             .setCell(COLUMN_FAMILY_NAME_1, "col_a", 1000, "val-1-a")
             .setCell(COLUMN_FAMILY_NAME_2, "col_c", 1000, "val-1-c");
     dataClient.mutateRow(rowMutation);
-
-    List<Map<String, byte[]>> mutations = new ArrayList<>();
-    // mutation to set cell in an existing column
-    mutations.add(
-        ImmutableMap.of(
-            "type", "SetCell".getBytes(StandardCharsets.UTF_8),
-            "value", "new-val-1-a".getBytes(StandardCharsets.UTF_8),
-            "column_qualifier", "col_a".getBytes(StandardCharsets.UTF_8),
-            "family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8),
-            "timestamp_micros", Longs.toByteArray(2000)));
-    mutations.add(
-        ImmutableMap.of(
-            "type", "SetCell".getBytes(StandardCharsets.UTF_8),
-            "value", "new-val-1-c".getBytes(StandardCharsets.UTF_8),
-            "column_qualifier", "col_c".getBytes(StandardCharsets.UTF_8),
-            "family_name", COLUMN_FAMILY_NAME_2.getBytes(StandardCharsets.UTF_8),
-            "timestamp_micros", Longs.toByteArray(2000)));
-    Row mutationRow =
+    Row mutationRow1 =
         Row.withSchema(SCHEMA)
             .withFieldValue("key", "key-1".getBytes(StandardCharsets.UTF_8))
-            .withFieldValue("mutations", mutations)
+            .withFieldValue("type", "SetCell".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("value", "new-val-1-a".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("column_qualifier", "col_a".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("timestamp_micros", Longs.toByteArray(2000))
+            .build();
+    Row mutationRow2 =
+        Row.withSchema(SCHEMA)
+            .withFieldValue("key", "key-1".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("type", "SetCell".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("value", "new-val-1-c".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("column_qualifier", "col_c".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("family_name", COLUMN_FAMILY_NAME_2.getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("timestamp_micros", Longs.toByteArray(2000))
             .build();
 
-    PCollectionRowTuple.of("input", p.apply(Create.of(Arrays.asList(mutationRow))))
+    PCollectionRowTuple.of("input", p.apply(Create.of(Arrays.asList(mutationRow1, mutationRow2))))
         .apply(writeTransform);
     p.run().waitUntilFinish();
 
@@ -217,18 +213,13 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
         RowMutation.create(tableId, "key-1").setCell(COLUMN_FAMILY_NAME_1, "col_a", "val-1-a");
     dataClient.mutateRow(rowMutation);
 
-    List<Map<String, byte[]>> mutations = new ArrayList<>();
-    // mutation to set cell in a new column
-    mutations.add(
-        ImmutableMap.of(
-            "type", "SetCell".getBytes(StandardCharsets.UTF_8),
-            "value", "new-val-1".getBytes(StandardCharsets.UTF_8),
-            "column_qualifier", "new_col".getBytes(StandardCharsets.UTF_8),
-            "family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8)));
     Row mutationRow =
         Row.withSchema(SCHEMA)
             .withFieldValue("key", "key-1".getBytes(StandardCharsets.UTF_8))
-            .withFieldValue("mutations", mutations)
+            .withFieldValue("type", "SetCell".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("value", "new-val-1".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("column_qualifier", "new_col".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8))
             .build();
 
     PCollectionRowTuple.of("input", p.apply(Create.of(Arrays.asList(mutationRow))))
@@ -262,17 +253,12 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
         RowMutation.create(tableId, "key-1").setCell(COLUMN_FAMILY_NAME_1, "col_a", "new-val-1-a");
     dataClient.mutateRow(rowMutation);
 
-    List<Map<String, byte[]>> mutations = new ArrayList<>();
-    // mutation to delete cells from a column
-    mutations.add(
-        ImmutableMap.of(
-            "type", "DeleteFromColumn".getBytes(StandardCharsets.UTF_8),
-            "column_qualifier", "col_a".getBytes(StandardCharsets.UTF_8),
-            "family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8)));
     Row mutationRow =
         Row.withSchema(SCHEMA)
             .withFieldValue("key", "key-1".getBytes(StandardCharsets.UTF_8))
-            .withFieldValue("mutations", mutations)
+            .withFieldValue("type", "DeleteFromColumn".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("column_qualifier", "col_a".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8))
             .build();
 
     PCollectionRowTuple.of("input", p.apply(Create.of(Arrays.asList(mutationRow))))

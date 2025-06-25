@@ -209,7 +209,7 @@ def temp_bigtable_table(project, prefix='yaml_bt_it_'):
     col_fam = table.column_family('cf1')
     col_fam.create()
 
-    col_fam = table.column_family('col_fam-2')
+    col_fam = table.column_family('cf2')
     col_fam.create()
     _LOGGER.info("Created table [%s]", table.table_id)
     if (os.environ.get('TRANSFORM_SERVICE_PORT')):
@@ -222,8 +222,9 @@ def temp_bigtable_table(project, prefix='yaml_bt_it_'):
     try:
         _LOGGER.info("Deleting table [%s]", table.table_id)
         table.delete()
+        instanceT.delete()
     except HttpError:
-        _LOGGER.warning("Failed to clean up table [%s]", table.table_id)
+        _LOGGER.warning("Failed to clean up instance")
 
 
 

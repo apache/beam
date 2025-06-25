@@ -29,7 +29,6 @@ fixtures:
 
   # Tests for BigTable YAML IO
 
-
 pipelines:
   - pipeline:
       type: chain
@@ -37,16 +36,22 @@ pipelines:
         - type: Create
           config:
             elements:
-            - {key: 'row1',type: 'SetCell',family_name: 'cf1',column_qualifier: 'cq1',value: 'value1_from_yaml',timestamp_micros: -1}
-#            - rows:
-#                - key: b'row2'
-#                - type: b'SetCell'
-#                - family_name: b'cf2'
-#                - column_qualifier: b'cq_other'
-#                - value: b'another_value_yaml'
+              - {key: "cm93MQ==",         # Base64 for "row1"
+                type: 'SetCell',
+                family_name: "cf1",
+                column_qualifier: "Y3Ex",   # Base64 for "cq1"
+                value: "dmFsdWUxX2Zyb21feWFtbA==", # Base64 for "value1_from_yaml"
+                timestamp_micros: -1}
+#              - key: !!byte cm93MQ==              # Base64 for "row1"
+#                type: 'SetCell'
+#                family_name: !!byte Y2Yy          # Base64 for "cf2"
+#                column_qualifier: !!byte Y3Ex     # Base64 for "cq1"
+#                value: !!byte dmFsdWUy              # Base64 for "value2"
+#                timestamp_micros: 1000
+
         - type: WriteToBigTable
           config:
-            project: 'apache-beam-testing' # These will likely be overridden or mocked by the test runner
+            project: 'apache-beam-testing'
             instance: 'bt-write-tests'
             table: 'test-table'
 #      options:
@@ -63,14 +68,16 @@ pipelines:
 #    type: chain
 #    transforms:
 #      - type: ReadFromBigTable
-#        name: ReadBigTableData
 #        config:
-#          project: 'dummy-project-id'  # These will likely be overridden or mocked by the test runner
-#          instance: 'dummy-instance-id'
-#          table: 'dummy-table-id'
-#      - type: LogForTesting # Placeholder for actual data verification
-#        name: LogReadOutput
-#        input: ReadBigTableData
+#          project: 'apache-beam-testing' # These will likely be overridden or mocked by the test runner
+#          instance: 'bt-write-tests'
+#          table: 'test-table'
+#      - type: AssertEqual
+#        config:
+#          elements:
+#            - {key: 'row1',type: 'SetCell',family_name: 'cf1',column_qualifier: 'cq1',value: 'value1_from_yaml',timestamp_micros: -1}
+#            - {key: 'row1',type: 'SetCell',family_name: 'cf2',column_qualifier: 'cq1',value: 'value2',timestamp_micros: 1000 }
+
 #    options:
 #      project: "apache-beam-testing"
 #      temp_location: "{TEMP_DIR}"
