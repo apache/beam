@@ -161,7 +161,7 @@ public class BigtableSimpleWriteSchemaTransformProvider
                                             String.valueOf(
                                                 ofNullable(input.getString("family_name")))));
 
-                            // if start or end timestop provided
+                            // if start or end timestamp provided
                             // Timestamp Range (optional, assuming Long type in Row schema)
                             Long startTimestampMicros = input.getInt64("start_timestamp_micros");
                             Long endTimestampMicros = input.getInt64("end_timestamp_micros");
