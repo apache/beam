@@ -477,7 +477,7 @@ public class ExecutionStateSampler {
       }
 
       /** Updates the monitoring data for this {@link ExecutionState}. */
-      public void updateMonitoringData(Map<String, ByteString> monitoringData) {
+      public synchronized void updateMonitoringData(Map<String, ByteString> monitoringData) {
         long msecsReads = lazyMsecs.get();
         if (hasReportedValue && lastReportedValue == msecsReads) {
           return;
@@ -487,7 +487,7 @@ public class ExecutionStateSampler {
         hasReportedValue = true;
       }
 
-      public void reset() {
+      public synchronized void reset() {
         if (hasReportedValue) {
           msecs = 0;
           lazyMsecs.set(0);
@@ -543,21 +543,15 @@ public class ExecutionStateSampler {
 
     @Override
     public void updateIntermediateMonitoringData(Map<String, ByteString> monitoringData) {
-      // executionState may get reset in reset() call below
-      synchronized (activeStateTrackers) {
-        for (ExecutionStateImpl executionState : executionStates) {
-          executionState.updateMonitoringData(monitoringData);
-        }
+      for (ExecutionStateImpl executionState : executionStates) {
+        executionState.updateMonitoringData(monitoringData);
       }
     }
 
     @Override
     public void updateFinalMonitoringData(Map<String, ByteString> monitoringData) {
-      // executionState may get reset in reset() call below
-      synchronized (activeStateTrackers) {
-        for (ExecutionStateImpl executionState : executionStates) {
-          executionState.updateMonitoringData(monitoringData);
-        }
+      for (ExecutionStateImpl executionState : executionStates) {
+        executionState.updateMonitoringData(monitoringData);
       }
     }
 
