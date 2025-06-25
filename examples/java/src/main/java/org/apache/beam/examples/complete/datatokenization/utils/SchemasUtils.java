@@ -88,11 +88,15 @@ public class SchemasUtils {
   }
 
   private void validateSchemaTypes(TableSchema bigQuerySchema) {
+    if (bigQuerySchema == null) {
+      LOG.error("Provided BigQuery schema is null. Please check your input.");
+      return;
+    }
     try {
       beamSchema = fromTableSchema(bigQuerySchema);
     } catch (UnsupportedOperationException exception) {
       LOG.error("Check json schema, {}", exception.getMessage());
-    } catch (NullPointerException npe) {
+    } catch (Exception e) {
       LOG.error("Missing schema keywords, please check what all required fields presented");
     }
   }

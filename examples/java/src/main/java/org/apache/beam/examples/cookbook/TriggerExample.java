@@ -501,11 +501,16 @@ public class TriggerExample {
     // MIN_DELAY and MAX_DELAY in minutes.
     private static final int MIN_DELAY = 1;
     private static final int MAX_DELAY = 100;
+    private transient Random random;
+
+    @Setup
+    public void setup() {
+      this.random = new Random();
+    }
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       Instant timestamp = Instant.now();
-      Random random = new Random();
       if (random.nextDouble() < THRESHOLD) {
         int range = MAX_DELAY - MIN_DELAY;
         int delayInMinutes = random.nextInt(range) + MIN_DELAY;

@@ -6621,6 +6621,29 @@ _ = (p | 'Read per user' >> ReadPerUser()
        | 'Set state pardo' >> beam.ParDo(OrderedListStateDoFn()))
 {{< /highlight >}}
 
+#### MultimapState {#multimap-state}
+`MultimapState` allow one key mapped to different values but the key value could be unordered.
+
+{{< highlight java >}}
+
+  @StateId(stateId)
+  private final StateSpec<MultimapState<String, Integer>> multimapState =
+      StateSpecs.multimap(StringUtf8Coder.of(), VarIntCoder.of());
+
+  @ProcessElement
+  public void processElement(
+      ProcessContext c,
+      @Element KV<String, KV<String, Integer>> element,
+      @StateId(stateId) MultimapState<String, Integer> state,
+      @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
+      OutputReceiver<KV<String, Integer>> r) {
+    ReadableState<Boolean> isEmptyView = state.isEmpty();
+    boolean isEmpty = state.isEmpty().read();
+
+    KV<String, Integer> value = element.getValue();
+    state.put(value.getKey(), value.getValue());
+  }
+{{< /highlight >}}
 ### 11.2. Deferred state reads {#deferred-state-reads}
 
 When a `DoFn` contains multiple state specifications, reading each one in order can be slow. Calling the `read()` function
@@ -6970,6 +6993,69 @@ Timer output timestamps is not yet supported in Python SDK. See https://github.c
 
 {{< highlight go >}}
 {{< code_sample "sdks/go/examples/snippets/04transforms.go" timer_output_timestamps_good >}}
+{{< /highlight >}}
+
+
+#### 11.3.5 Timer Callback Parameters {#timer-callback-parameters}
+The following parameters are provided for the timer callback methods which could be used for debuging.
+
+1. Window: This can provide the window object to access the window start and end time.
+2. Timestamp: This can provide the timestamp at which the timer was set to fire.
+3. Key: The key was associated with the element.
+
+{{< highlight java >}}
+
+
+@OnTimer(END_OF_WINDOW_ID)
+public void onWindowTimer(
+        OutputReceiver<KV<K, Iterable<InputT>>> receiver,
+        @Timestamp Instant timestamp,
+        @Key K key,
+        @StateId(BATCH_ID) BagState<InputT> batch,
+        BoundedWindow window) {
+
+      // You can write your debug code here.
+      LOG.debug(
+          "*** END OF WINDOW *** for key {} and timer timestamp {} in windows {}",
+          key.toString(),
+          timestamp.toString(),
+          window.toString());
+}
+{{< /highlight >}}
+
+{{< highlight py >}}
+class TimerDoFn(DoFn):
+  BAG_STATE = BagStateSpec('buffer', coders.VarIntCoder())
+  TIMER = TimerSpec('timer', TimeDomain.REAL_TIME)
+
+  def process(self,
+              element_pair,
+              bag_state=DoFn.StateParam(BAG_STATE),
+              timer=DoFn.TimerParam(TIMER)):
+    ...
+
+  @on_timer(TIMER)
+  def expiry_callback(self,
+                      bag_state=DoFn.StateParam(BAG_STATE),
+                      window=DoFn.WindowParam,
+                      timestamp=DoFn.TimestampParam,
+                      key=DoFn.KeyParam):
+    # You can potentlly print these parameter to get more information for debugging.
+    bag_state.clear()
+    log.info(f"Key: {key}, timestamp: {timestamp}, window: {window}")
+    yield (timer_tag, 'fired')
+
+{{< /highlight >}}
+{{< highlight go >}}
+
+func (s *Stateful) ProcessElement(ctx context.Context, ts beam.EventTime, sp state.Provider, tp timers.Provider, key, word string, _ func(beam.EventTime, string, string)) error {
+	s.ElementBag.Add(sp, word)
+	s.MinTime.Add(sp, int64(ts))
+  // Process the element here.
+}
+func (s *Stateful) OnTimer(ctx context.Context, ts beam.EventTime, sp state.Provider, tp timers.Provider, key string, timer timers.Context, emit func(beam.EventTime, string, string)) {
+	log.Infof(ctx, "Timer fired for key %q, for family %q and tag %q", key, timer.Family, timer.Tag)
+}
 {{< /highlight >}}
 
 ### 11.4. Garbage collecting state {#garbage-collecting-state}

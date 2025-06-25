@@ -57,7 +57,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.util.construction.Timer;
 import org.apache.beam.sdk.util.construction.graph.ExecutableStage;
 import org.apache.beam.sdk.util.construction.graph.PipelineNode;
@@ -65,6 +65,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.samza.context.Context;
@@ -89,7 +90,7 @@ public class SamzaDoFnRunners {
       SideInputHandler sideInputHandler,
       SamzaTimerInternalsFactory<?> timerInternalsFactory,
       Coder<?> keyCoder,
-      DoFnRunners.OutputManager outputManager,
+      WindowedValueMultiReceiver outputManager,
       Coder<InT> inputCoder,
       List<TupleTag<?>> sideOutputTags,
       Map<TupleTag<?>, Coder<?>> outputCoders,
@@ -210,7 +211,7 @@ public class SamzaDoFnRunners {
       SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory,
       SamzaTimerInternalsFactory<?> timerInternalsFactory,
       SamzaPipelineOptions pipelineOptions,
-      DoFnRunners.OutputManager outputManager,
+      WindowedValueMultiReceiver outputManager,
       StageBundleFactory stageBundleFactory,
       SamzaExecutionContext samzaExecutionContext,
       TupleTag<FnOutT> mainOutputTag,
@@ -263,7 +264,7 @@ public class SamzaDoFnRunners {
     private final SamzaPipelineOptions pipelineOptions;
     private final SamzaTimerInternalsFactory timerInternalsFactory;
     private final WindowingStrategy windowingStrategy;
-    private final DoFnRunners.OutputManager outputManager;
+    private final WindowedValueMultiReceiver outputManager;
     private final StageBundleFactory stageBundleFactory;
     private final Map<String, TupleTag<?>> idToTupleTagMap;
     private final LinkedBlockingQueue<KV<String, FnOutT>> outputQueue = new LinkedBlockingQueue<>();
@@ -281,7 +282,7 @@ public class SamzaDoFnRunners {
         String stepName,
         SamzaTimerInternalsFactory<?> timerInternalsFactory,
         WindowingStrategy windowingStrategy,
-        DoFnRunners.OutputManager outputManager,
+        WindowedValueMultiReceiver outputManager,
         StageBundleFactory stageBundleFactory,
         Map<String, TupleTag<?>> idToTupleTagMap,
         BagState<WindowedValue<InT>> bundledEventsBag,

@@ -26,6 +26,7 @@ applyJavaNature(
   exportJavadoc: false,
   publish: false,
   disableLintWarnings: ['requires-transitive-automatic', 'requires-automatic'],
+  enableSpotbugs: false,
   requireJavaVersion: JavaVersion.VERSION_11
 )
 provideIntegrationTestingDependencies()
@@ -64,6 +65,7 @@ dependencies {
   directRunnerIntegrationTest project(":runners:direct-java")
   flinkRunnerIntegrationTest project(":runners:flink:${project.ext.latestFlinkVersion}")
   dataflowRunnerIntegrationTest project(":runners:google-cloud-dataflow-java")
+  dataflowRunnerIntegrationTest project(":sdks:java:harness") // for staging locally built harness jar
   sparkRunnerIntegrationTest project(":runners:spark:3")
 }
 
@@ -84,6 +86,7 @@ for (String runner : testRunnerClass.keySet()) {
     ]
     if ("dataflowRunnerIntegrationTest".equals(runner)) {
       testPipelineOptions.add("--region=${gcpRegion}")
+      testPipelineOptions.add("--experiments=use_staged_dataflow_worker_jar")
     }
     classpath = configurations."${runner}"
     include "**/*IT.class"

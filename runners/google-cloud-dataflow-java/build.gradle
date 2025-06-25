@@ -52,8 +52,8 @@ evaluationDependsOn(":sdks:java:container:java11")
 
 ext.dataflowLegacyEnvironmentMajorVersion = '8'
 ext.dataflowFnapiEnvironmentMajorVersion = '8'
-ext.dataflowLegacyContainerVersion = 'beam-master-20250602'
-ext.dataflowFnapiContainerVersion = 'beam-master-20250602'
+ext.dataflowLegacyContainerVersion = 'beam-master-20250605'
+ext.dataflowFnapiContainerVersion = 'beam-master-20250605'
 ext.dataflowContainerBaseRepository = 'gcr.io/cloud-dataflow/v1beta3'
 
 processResources {
@@ -281,7 +281,7 @@ def createRunnerV2ValidatesRunnerTest = { Map args ->
 tasks.register('examplesJavaRunnerV2IntegrationTestDistroless', Test.class) {
   group = "verification"
   dependsOn 'buildAndPushDistrolessContainerImage'
-  def javaVer = project.findProperty('testJavaVersion')
+  def javaVer = getSupportedJavaVersion(project.findProperty('testJavaVersion') as String)
   def repository = "us.gcr.io/apache-beam-testing/${System.getenv('USER')}"
   def tag = project.findProperty('dockerTag')
   def imageURL = "${repository}/beam_${javaVer}_sdk_distroless:${tag}"
@@ -309,7 +309,7 @@ tasks.register('buildAndPushDistrolessContainerImage', Task.class) {
   // See https://github.com/GoogleContainerTools/distroless/tree/main/java#image-contents.
   def allowed = ["java17", "java21"]
   doLast {
-    def javaVer = project.findProperty('testJavaVersion')
+    def javaVer = getSupportedJavaVersion(project.findProperty('testJavaVersion') as String)
     if (!allowed.contains(javaVer)) {
       throw new GradleException("testJavaVersion must be one of ${allowed}, got: ${javaVer}")
     }
@@ -837,10 +837,7 @@ task GCSUpload(type: JavaExec) {
 }
 
 def buildAndPushDistrolessDockerJavaContainer = tasks.register("buildAndPushDistrolessDockerJavaContainer") {
-  def javaVer = getSupportedJavaVersion()
-  if(project.hasProperty('testJavaVersion')) {
-    javaVer = "java${project.getProperty('testJavaVersion')}"
-  }
+  def javaVer = getSupportedJavaVersion(project.findProperty('testJavaVersion') as String)
   dependsOn ":sdks:java:container:distroless:${javaVer}:docker"
   def defaultDockerImageName = containerImageName(
           name: "${project.docker_image_default_repo_prefix}${javaVer}_sdk_distroless",

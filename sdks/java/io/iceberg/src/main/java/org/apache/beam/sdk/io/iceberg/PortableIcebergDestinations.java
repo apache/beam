@@ -32,14 +32,18 @@ class PortableIcebergDestinations implements DynamicDestinations {
   private final RowStringInterpolator interpolator;
   private final String fileFormat;
 
+  private final @Nullable List<String> partitionFields;
+
   public PortableIcebergDestinations(
       String destinationTemplate,
       String fileFormat,
       Schema inputSchema,
+      @Nullable List<String> partitionFields,
       @Nullable List<String> fieldsToDrop,
       @Nullable List<String> fieldsToKeep,
       @Nullable String onlyField) {
-    interpolator = new RowStringInterpolator(destinationTemplate, inputSchema);
+    this.interpolator = new RowStringInterpolator(destinationTemplate, inputSchema);
+    this.partitionFields = partitionFields;
     RowFilter rf = new RowFilter(inputSchema);
 
     if (fieldsToDrop != null) {
@@ -51,7 +55,7 @@ class PortableIcebergDestinations implements DynamicDestinations {
     if (onlyField != null) {
       rf = rf.only(onlyField);
     }
-    rowFilter = rf;
+    this.rowFilter = rf;
     this.fileFormat = fileFormat;
   }
 
@@ -74,7 +78,11 @@ class PortableIcebergDestinations implements DynamicDestinations {
   public IcebergDestination instantiateDestination(String dest) {
     return IcebergDestination.builder()
         .setTableIdentifier(TableIdentifier.parse(dest))
-        .setTableCreateConfig(null)
+        .setTableCreateConfig(
+            IcebergTableCreateConfig.builder()
+                .setSchema(getDataSchema())
+                .setPartitionFields(partitionFields)
+                .build())
         .setFileFormat(FileFormat.fromString(fileFormat))
         .build();
   }

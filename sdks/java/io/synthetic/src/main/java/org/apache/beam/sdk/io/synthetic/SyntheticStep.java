@@ -52,6 +52,7 @@ import org.joda.time.Duration;
  */
 public class SyntheticStep extends DoFn<KV<byte[], byte[]>, KV<byte[], byte[]>> {
 
+  private static final Random RANDOM = new Random();
   private final Options options;
 
   // used when maxWorkerThroughput is set
@@ -77,9 +78,8 @@ public class SyntheticStep extends DoFn<KV<byte[], byte[]>, KV<byte[], byte[]>> 
   public SyntheticStep(Options options) {
     options.validate();
     this.options = options;
-    Random rand = new Random();
     // use a random id so that a pipeline could have multiple SyntheticSteps
-    this.idAndThroughput = KV.of(rand.nextLong(), options.maxWorkerThroughput);
+    this.idAndThroughput = KV.of(RANDOM.nextLong(), options.maxWorkerThroughput);
   }
 
   @ProcessElement

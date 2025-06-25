@@ -27,8 +27,9 @@ import org.apache.beam.runners.spark.structuredstreaming.translation.utils.Scala
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import scala.Tuple2;
 import scala.collection.TraversableOnce;
@@ -89,7 +90,7 @@ class GroupByKeyHelpers {
   }
 
   static <K, V> WindowedValue<KV<K, V>> windowedKV(Tuple2<BoundedWindow, K> key, V value) {
-    return WindowedValue.of(KV.of(key._2, value), key._1.maxTimestamp(), key._1, NO_FIRING);
+    return WindowedValues.of(KV.of(key._2, value), key._1.maxTimestamp(), key._1, NO_FIRING);
   }
 
   static <V> Fun1<WindowedValue<V>, V> value() {

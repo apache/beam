@@ -44,18 +44,13 @@ from typing import Tuple
 
 import dill
 
+from apache_beam.internal.code_object_pickler import get_normalized_path
 from apache_beam.internal.set_pickler import save_frozenset
 from apache_beam.internal.set_pickler import save_set
 
 settings = {'dill_byref': None}
 
 patch_save_code = sys.version_info >= (3, 10) and dill.__version__ == "0.3.1.1"
-
-
-def get_normalized_path(path):
-  """Returns a normalized path. This function is intended to be overridden."""
-  return path
-
 
 if patch_save_code:
   # The following function is based on 'save_code' from 'dill'

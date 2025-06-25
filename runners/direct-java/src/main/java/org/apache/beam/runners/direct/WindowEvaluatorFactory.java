@@ -23,9 +23,10 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.WindowIntoTranslation;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
@@ -90,8 +91,8 @@ class WindowEvaluatorFactory implements TransformEvaluatorFactory {
       for (WindowedValue<InputT> element : compressedElement.explodeWindows()) {
         Collection<? extends BoundedWindow> windows = assignWindows(windowFn, element);
         outputBundle.add(
-            WindowedValue.of(
-                element.getValue(), element.getTimestamp(), windows, element.getPane()));
+            WindowedValues.of(
+                element.getValue(), element.getTimestamp(), windows, element.getPaneInfo()));
       }
     }
 

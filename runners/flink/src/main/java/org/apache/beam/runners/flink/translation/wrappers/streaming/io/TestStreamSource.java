@@ -23,8 +23,9 @@ import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.joda.time.Instant;
@@ -56,7 +57,7 @@ public class TestStreamSource<T> extends RichSourceFunction<WindowedValue<T>> {
           for (TimestampedValue<T> element : ((TestStream.ElementEvent<T>) event).getElements()) {
             Instant timestamp = element.getTimestamp();
             WindowedValue<T> value =
-                WindowedValue.of(
+                WindowedValues.of(
                     element.getValue(), timestamp, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING);
             ctx.collectWithTimestamp(value, timestamp.getMillis());
           }

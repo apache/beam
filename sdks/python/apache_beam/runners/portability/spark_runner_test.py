@@ -29,6 +29,7 @@ from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.runners.portability import job_server
 from apache_beam.runners.portability import portable_runner
 from apache_beam.runners.portability import portable_runner_test
+from apache_beam.utils import subprocess_server
 
 # Run as
 #
@@ -98,7 +99,7 @@ class SparkRunnerTest(portable_runner_test.PortableRunnerTest):
 
     try:
       return [
-          'java',
+          subprocess_server.JavaHelper.get_java(),
           '-Dbeam.spark.test.reuseSparkContext=true',
           '-jar',
           cls.spark_job_server_jar,

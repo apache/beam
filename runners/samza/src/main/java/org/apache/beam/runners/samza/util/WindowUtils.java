@@ -21,10 +21,10 @@ import java.io.IOException;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.fnexecution.wire.WireCoders;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.RehydratedComponents;
 import org.apache.beam.sdk.util.construction.WindowingStrategyTranslation;
 import org.apache.beam.sdk.util.construction.graph.PipelineNode;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
 /** Utils for window operations. */
@@ -57,15 +57,15 @@ public class WindowUtils {
   }
 
   /**
-   * Instantiate {@link WindowedValue.WindowedValueCoder} for given collection id from {@link
+   * Instantiate {@link WindowedValues.WindowedValueCoder} for given collection id from {@link
    * RunnerApi.Components}.
    */
-  public static <T> WindowedValue.WindowedValueCoder<T> instantiateWindowedCoder(
+  public static <T> WindowedValues.WindowedValueCoder<T> instantiateWindowedCoder(
       String collectionId, RunnerApi.Components components) {
     PipelineNode.PCollectionNode collectionNode =
         PipelineNode.pCollection(collectionId, components.getPcollectionsOrThrow(collectionId));
     try {
-      return (WindowedValue.WindowedValueCoder<T>)
+      return (WindowedValues.WindowedValueCoder<T>)
           WireCoders.<T>instantiateRunnerWireCoder(collectionNode, components);
     } catch (IOException e) {
       throw new RuntimeException(e);

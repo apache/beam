@@ -31,11 +31,11 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PValues;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.Matchers;
@@ -85,7 +85,7 @@ public class CommittedResultTest implements Serializable {
     CommittedBundle<Integer> bundle =
         bundleFactory
             .createBundle(created)
-            .add(WindowedValue.valueInGlobalWindow(2))
+            .add(WindowedValues.valueInGlobalWindow(2))
             .commit(Instant.now());
     CommittedResult<AppliedPTransform<?, ?, ?>> result =
         CommittedResult.create(

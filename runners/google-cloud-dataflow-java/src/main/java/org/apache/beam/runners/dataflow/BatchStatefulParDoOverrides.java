@@ -38,7 +38,6 @@ import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.PTransformReplacements;
 import org.apache.beam.sdk.util.construction.ReplacementOutputs;
 import org.apache.beam.sdk.values.KV;
@@ -46,6 +45,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Instant;
 
@@ -239,7 +240,7 @@ public class BatchStatefulParDoOverrides {
           .setCoder(
               KvCoder.of(
                   keyCoder,
-                  KvCoder.of(InstantCoder.of(), WindowedValue.getFullCoder(kvCoder, windowCoder))))
+                  KvCoder.of(InstantCoder.of(), WindowedValues.getFullCoder(kvCoder, windowCoder))))
 
           // Group by key and sort by timestamp, dropping windows as they are reified
           .apply("PartitionKeys", new GroupByKeyAndSortValuesOnly<>())
@@ -258,7 +259,7 @@ public class BatchStatefulParDoOverrides {
           KV.of(
               c.element().getKey(),
               KV.of(
-                  c.timestamp(), WindowedValue.of(c.element(), c.timestamp(), window, c.pane()))));
+                  c.timestamp(), WindowedValues.of(c.element(), c.timestamp(), window, c.pane()))));
     }
   }
 
