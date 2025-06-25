@@ -193,7 +193,7 @@ class FnApiWorkerStatusHandler(object):
           element_processing_timeout * 60 * 1e9, restart_lull_timeout_ns)
       if element_processing_timeout * 60 * 1e9 < restart_lull_timeout_ns:
         _LOGGER.error(
-            'KAI-DEBUG: element processing timeout overriden to %d ns', self._element_processing_timeout_ns)
+            'element_processing_timeout overriden to %d ns', self._element_processing_timeout_ns)
     else:
       self._element_processing_timeout_ns = None
     self._last_full_thread_dump_secs = 0.0
