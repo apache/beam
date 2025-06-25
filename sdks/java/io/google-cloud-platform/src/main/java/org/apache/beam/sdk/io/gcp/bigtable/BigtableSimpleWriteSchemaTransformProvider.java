@@ -182,7 +182,6 @@ public class BigtableSimpleWriteSchemaTransformProvider
                                     .build();
                             break;
                           case "DeleteFromFamily":
-                            // delete from
                             bigtableMutation =
                                 Mutation.newBuilder()
                                     .setDeleteFromFamily(
