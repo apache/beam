@@ -85,7 +85,6 @@ public class BigtableSimpleWriteSchemaTransformProvider
               "Could not find expected input [%s] to %s.", INPUT_TAG, getClass().getSimpleName()));
 
       PCollection<Row> beamRowMutationsList = input.getSinglePCollection();
-      System.out.println("Input PCollection Schema: " + beamRowMutationsList.getSchema());
 
       PCollection<KV<ByteString, Iterable<Mutation>>> bigtableMutations =
           changeMutationInput(input);
