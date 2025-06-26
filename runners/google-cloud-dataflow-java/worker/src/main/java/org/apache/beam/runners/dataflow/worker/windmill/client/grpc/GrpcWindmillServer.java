@@ -291,10 +291,8 @@ public final class GrpcWindmillServer extends WindmillServerStub {
           if (!BackOffUtils.next(Sleeper.DEFAULT, backoff)) {
             throw new WindmillRpcException(e);
           }
-        } catch (IOException | InterruptedException i) {
-          if (i instanceof InterruptedException) {
-            Thread.currentThread().interrupt();
-          }
+        } catch (InterruptedException i) {
+          Thread.currentThread().interrupt();
           WindmillRpcException rpcException = new WindmillRpcException(e);
           rpcException.addSuppressed(i);
           throw rpcException;

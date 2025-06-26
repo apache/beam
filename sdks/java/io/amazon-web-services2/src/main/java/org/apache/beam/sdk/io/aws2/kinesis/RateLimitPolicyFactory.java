@@ -122,25 +122,17 @@ public interface RateLimitPolicyFactory extends Serializable {
 
     @Override
     public void onSuccess(List<KinesisRecord> records) throws InterruptedException {
-      try {
-        if (records.isEmpty()) {
-          BackOffUtils.next(sleeper, emptySuccess);
-        } else {
-          emptySuccess.reset();
-        }
-        throttled.reset();
-      } catch (IOException e) {
-        LOG.warn("Error applying onSuccess rate limit policy", e);
+      if (records.isEmpty()) {
+        BackOffUtils.next(sleeper, emptySuccess);
+      } else {
+        emptySuccess.reset();
       }
+      throttled.reset();
     }
 
     @Override
     public void onThrottle(KinesisClientThrottledException e) throws InterruptedException {
-      try {
-        BackOffUtils.next(sleeper, throttled);
-      } catch (IOException ioe) {
-        LOG.warn("Error applying onThrottle rate limit policy", e);
-      }
+      BackOffUtils.next(sleeper, throttled);
     }
   }
 }

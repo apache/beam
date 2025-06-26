@@ -472,10 +472,10 @@ public class RequestResponseIOTest {
     public BackOff get() {
       return new BackOff() {
         @Override
-        public void reset() throws IOException {}
+        public void reset() {}
 
         @Override
-        public long nextBackOffMillis() throws IOException {
+        public long nextBackOffMillis() {
           counter.inc();
           return 0;
         }
