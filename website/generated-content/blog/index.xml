@@ -1,4 +1,53 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Blogs</title><link>/blog/</link><description>Recent content in Blogs on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Mon, 12 May 2025 15:00:00 -0500</lastBuildDate><atom:link href="/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.65.0</title><link>/blog/beam-2.65.0/</link><pubDate>Mon, 12 May 2025 15:00:00 -0500</pubDate><guid>/blog/beam-2.65.0/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Blogs</title><link>/blog/</link><description>Recent content in Blogs on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Mon, 16 Jun 2025 00:00:00 +0000</lastBuildDate><atom:link href="/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: My Experience at Beam College 2025: 3rd Place Hackathon Winner</title><link>/blog/beam-college-2025-anomaflow/</link><pubDate>Mon, 16 Jun 2025 00:00:00 +0000</pubDate><guid>/blog/beam-college-2025-anomaflow/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;h2 id="introduction-the-spark-of-an-idea">Introduction: The Spark of an Idea&lt;/h2>
+&lt;p>In 2025, I had the opportunity to participate in the &lt;a href="https://beamcollege.dev/hackathon/">Beam College Hackathon&lt;/a>, a fantastic event that brings together students and professionals to explore the power of Apache Beam.&lt;/p>
+&lt;p>For my project, I built &lt;strong>&lt;a href="https://github.com/msugar/anomaflow">Anomaflow&lt;/a>&lt;/strong>, an anomaly detection pipeline using &lt;strong>Apache Beam&lt;/strong> and &lt;strong>Google Cloud Dataflow&lt;/strong>. It was my first public hackathon, and the experience was both rewarding and creatively energizing. I’m proud to share that Anomaflow earned &lt;strong>3rd place&lt;/strong> in the competition.&lt;/p>
+&lt;h2 id="the-project-building-anomaflow">The Project: Building Anomaflow&lt;/h2>
+&lt;h3 id="goal">Goal&lt;/h3>
+&lt;p>The primary objective of Anomaflow was to process &lt;strong>host telemetry data&lt;/strong> from systems monitored by OpenTelemetry agents. The long-term goal is to detect anomalies in near real time, which has important applications in cybersecurity.&lt;/p>
+&lt;h3 id="tech-stack">Tech Stack&lt;/h3>
+&lt;p>Here’s a breakdown of the technologies used:&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>Apache Beam (Python SDK)&lt;/strong> for pipeline development&lt;/li>
+&lt;li>&lt;strong>Bindplane Collector &amp;amp; Server&lt;/strong> for OpenTelemetry data collection and configuration&lt;/li>
+&lt;li>&lt;strong>Google Compute Engine (GCE)&lt;/strong> instancess for hosting the Bindplane Server and Collector&lt;/li>
+&lt;li>&lt;strong>Google Cloud Dataflow&lt;/strong> for running the Beam pipeline at scale&lt;/li>
+&lt;li>&lt;strong>Google Cloud Storage (GCS)&lt;/strong> as the pipeline’s source and sink during the hackathon&lt;/li>
+&lt;li>&lt;strong>Terraform&lt;/strong> to provision GCP infrastructure&lt;/li>
+&lt;li>&lt;strong>Docker&lt;/strong> for packaging and deployment&lt;/li>
+&lt;/ul>
+&lt;h2 id="the-hackathon-journey-from-streaming-vision-to-batch-reality">The Hackathon Journey: From Streaming Vision to Batch Reality&lt;/h2>
+&lt;h3 id="the-initial-vision">The Initial Vision&lt;/h3>
+&lt;p>The original plan was to create a fully streaming pipeline: the &lt;strong>Bindplane Collector&lt;/strong> running on &lt;strong>GCE&lt;/strong> would upload telemetry files to &lt;strong>GCS&lt;/strong>, which would trigger &lt;strong>notifications via Pub/Sub&lt;/strong>. These notifications would then initiate processing in a &lt;strong>Beam pipeline&lt;/strong>, with enriched results written to &lt;strong>BigQuery&lt;/strong> for analysis and visualization.&lt;/p>
+&lt;h3 id="the-pivot">The Pivot&lt;/h3>
+&lt;p>However, working solo during a time-limited hackathon meant I had to be pragmatic. I decided to implement a &lt;strong>batch pipeline&lt;/strong> instead, reading from and writing to &lt;strong>GCS buckets&lt;/strong>. This allowed me to deliver a functional MVP while preserving a foundation that can evolve toward the original streaming vision.&lt;/p>
+&lt;h3 id="key-learnings">Key Learnings&lt;/h3>
+&lt;p>Although I already had some real-world experience with Apache Beam, the hackathon gave me the freedom to explore new patterns and tools in a low-risk environment. It was refreshing to iterate rapidly, test ideas, and push beyond my daily work scope.&lt;/p>
+&lt;h2 id="whats-next-for-anomaflow">What’s Next for Anomaflow?&lt;/h2>
+&lt;p>Anomaflow is just getting started.&lt;/p>
+&lt;p>I plan to evolve the pipeline into a true &lt;strong>streaming system&lt;/strong> using &lt;strong>Pub/Sub&lt;/strong> and &lt;strong>BigQuery&lt;/strong>. I also want to explore &lt;strong>sliding windows&lt;/strong>, &lt;strong>custom anomaly detection models&lt;/strong>, and &lt;strong>alerting mechanisms&lt;/strong>. With its modular design and strong foundation in Beam, Anomaflow will serve as a base for several future cybersecurity analytics tools I have in mind.&lt;/p>
+&lt;p>&lt;strong>Watch the demo&lt;/strong>: &lt;a href="https://www.youtube.com/watch?v=dpbOm5ekOTc">https://www.youtube.com/watch?v=dpbOm5ekOTc&lt;/a>&lt;/p>
+&lt;h2 id="tips-for-future-participants">Tips for Future Participants&lt;/h2>
+&lt;p>If you’re considering joining Beam College next year:&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>Use the mentors!&lt;/strong> The Beam community professionals volunteering their time are a valuable resource. Ask questions, get feedback.&lt;/li>
+&lt;li>&lt;strong>Check out the &lt;a href="https://beam.apache.org/get-started/resources/learning-resources/">Beam learning resources&lt;/a>&lt;/strong>. They’re super helpful, especially for getting started with the Beam model and runners.&lt;/li>
+&lt;/ul>
+&lt;h2 id="conclusion">Conclusion&lt;/h2>
+&lt;p>I’m currently a &lt;strong>Software Architect and Data Engineer at TELUS Security&lt;/strong>, where I work on the &lt;strong>Cybersecurity Analytics and Software Engineering&lt;/strong> team. We design data pipelines to detect and respond to threats at scale.&lt;/p>
+&lt;p>Participating in Beam College was a great way to stretch my skills, meet passionate Beam users, and contribute to a vibrant open source community. I’m excited to see what others will build in future editions!&lt;/p>
+&lt;p>– &lt;a href="https://www.linkedin.com/in/marcio-sugar/">Marcio Sugar&lt;/a>&lt;/p></description></item><item><title>Blog: Apache Beam 2.65.0</title><link>/blog/beam-2.65.0/</link><pubDate>Mon, 12 May 2025 15:00:00 -0500</pubDate><guid>/blog/beam-2.65.0/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -7119,121 +7168,4 @@ Yichi Zhang
 Yi Hu
 yirutang
 Zachary Houfek
-Zoe&lt;/p></description></item><item><title>Blog: Apache Beam 2.37.0</title><link>/blog/beam-2.37.0/</link><pubDate>Fri, 04 Mar 2022 08:30:00 -0800</pubDate><guid>/blog/beam-2.37.0/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are happy to present the new 2.37.0 release of Beam.
-This release includes both improvements and new functionality.
-See the &lt;a href="/get-started/downloads/#2370-2022-03-04">download page&lt;/a> for this release.&lt;/p>
-&lt;p>For more information on changes in 2.37.0 check out the &lt;a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12351168">detailed release notes&lt;/a>.&lt;/p>
-&lt;h2 id="highlights">Highlights&lt;/h2>
-&lt;ul>
-&lt;li>Java 17 support for Dataflow (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12240">BEAM-12240&lt;/a>).
-&lt;ul>
-&lt;li>Users using Dataflow Runner V2 may see issues with state cache due to inaccurate object sizes (&lt;a href="https://issues.apache.org/jira/browse/BEAM-13695">BEAM-13695&lt;/a>).&lt;/li>
-&lt;li>ZetaSql is currently unsupported (&lt;a href="https://github.com/google/zetasql/issues/89">issue&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;li>Python 3.9 support in Apache Beam (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12000">BEAM-12000&lt;/a>).
-&lt;ul>
-&lt;li>Dataflow support for Python 3.9 is expected to be available with 2.37.0,
-but may not be fully available yet when the release is announced (&lt;a href="https://issues.apache.org/jira/browse/BEAM-13864">BEAM-13864&lt;/a>).&lt;/li>
-&lt;li>Users of Dataflow Runner V2 can run Python 3.9 pipelines with 2.37.0 release right away.&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;/ul>
-&lt;h2 id="ios">I/Os&lt;/h2>
-&lt;ul>
-&lt;li>Go SDK now has wrappers for the following Cross Language Transforms from Java, along with automatic expansion service startup for each.
-&lt;ul>
-&lt;li>JDBCIO (&lt;a href="https://issues.apache.org/jira/browse/BEAM-13293">BEAM-13293&lt;/a>).&lt;/li>
-&lt;li>Debezium (&lt;a href="https://issues.apache.org/jira/browse/BEAM-13761">BEAM-13761&lt;/a>).&lt;/li>
-&lt;li>BeamSQL (&lt;a href="https://issues.apache.org/jira/browse/BEAM-13683">BEAM-13683&lt;/a>).&lt;/li>
-&lt;li>BiqQuery (&lt;a href="https://issues.apache.org/jira/browse/BEAM-13732">BEAM-13732&lt;/a>).&lt;/li>
-&lt;li>KafkaIO now also has automatic expansion service startup. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-13821">BEAM-13821&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;/ul>
-&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
-&lt;ul>
-&lt;li>DataFrame API now supports pandas 1.4.x (&lt;a href="https://issues.apache.org/jira/browse/BEAM-13605">BEAM-13605&lt;/a>).&lt;/li>
-&lt;li>Go SDK DoFns can now observe trigger panes directly (&lt;a href="https://issues.apache.org/jira/browse/BEAM-13757">BEAM-13757&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h3 id="known-issues">Known Issues&lt;/h3>
-&lt;ul>
-&lt;li>See a full list of open &lt;a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20affectedVersion%20%3D%202.37.0%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC">issues that affect&lt;/a> this version.&lt;/li>
-&lt;/ul>
-&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to git shortlog, the following people contributed to the 2.37.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Aizhamal Nurmamat kyzy
-Alexander
-Alexander Chermenin
-Alexandr Zhuravlev
-Alexey Romanenko
-Anand Inguva
-andoni-guzman
-andreukus
-Andy Ye
-Artur Khanin
-Aydar Farrakhov
-Aydar Zainutdinov
-AydarZaynutdinov
-Benjamin Gonzalez
-Brian Hulette
-Chamikara Jayalath
-Daniel Oliveira
-Danny McCormick
-daria-malkova
-daria.malkova
-darshan-sj
-David Huntsperger
-dprieto91
-emily
-Etienne Chauchot
-Fernando Morales
-Heejong Lee
-Ismaël Mejía
-Jack McCluskey
-Jan Lukavský
-johnjcasey
-Kamil Breguła
-kellen
-Kenneth Knowles
-kileys
-Kyle Weaver
-Luke Cwik
-Marcin Kuthan
-Marco Robles
-Matt Rudary
-Miguel Hernandez
-Milena Bukal
-Moritz Mack
-Mostafa Aghajani
-Ning Kang
-Pablo Estrada
-Pavel Avilov
-Reuven Lax
-Ritesh Ghorse
-Robert Bradshaw
-Robert Burke
-Sam Whittle
-Sandy Chapman
-Sergey Kalinin
-Thiago Nunes
-thorbjorn444
-Tim Robertson
-Tomo Suzuki
-Valentyn Tymofieiev
-Victor
-Victor Chen
-Vitaly Ivanov
-Yichi Zhang&lt;/p></description></item></channel></rss>
+Zoe&lt;/p></description></item></channel></rss>
