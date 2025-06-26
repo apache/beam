@@ -55,7 +55,7 @@ jobs:
   beam_PostCommit_Python:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
     runs-on: [self-hosted, ubuntu-20.04, highmem22]
-    timeout-minutes: 240
+    timeout-minutes: 300
     strategy:
       fail-fast: false
       matrix:
@@ -68,6 +68,19 @@ jobs:
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       startswith(github.event.comment.body, 'Run Python PostCommit 3.')
     steps:
+      - name: Calculate delay
+        id: calc_delay
+        run: |
+          case "${{ matrix.python_version }}" in
+          "3.9")  echo "delay=0"    >> $GITHUB_OUTPUT ;;
+          "3.10") echo "delay=900"  >> $GITHUB_OUTPUT ;;  # 15 min
+          "3.11") echo "delay=1800" >> $GITHUB_OUTPUT ;;  # 30 min
+          "3.12") echo "delay=2700" >> $GITHUB_OUTPUT ;;  # 45 min
+          esac
+      - name: Delay job start
+        run: |
+          echo "⏳ Waiting ${{ steps.calc_delay.outputs.delay }}s before starting tests"
+          sleep ${{ steps.calc_delay.outputs.delay }}
       - uses: actions/checkout@v4
       - name: Setup repository
         uses: ./.github/actions/setup-action
