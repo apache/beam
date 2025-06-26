@@ -787,7 +787,7 @@ class YamlProviders:
     def expand(self, pcoll):
       def to_dict(row):
         # filter None when comparing
-        return {k: v for k, v in row._asdict().items() if v is not None}.items()
+        return dict({k: v for k, v in row._asdict().items() if v is not None}.items())
 
       return assert_that(
           pcoll | beam.Map(to_dict),
