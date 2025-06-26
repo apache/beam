@@ -74,7 +74,6 @@ from apache_beam.transforms import environments
 from apache_beam.transforms import userstate
 from apache_beam.transforms import window
 from apache_beam.transforms.periodicsequence import PeriodicImpulse
-from apache_beam.transforms.periodicsequence import PeriodicStream
 from apache_beam.utils import timestamp
 from apache_beam.utils import windowed_value
 
@@ -1264,7 +1263,7 @@ class FnApiRunnerTest(unittest.TestCase):
     with self.create_pipeline() as p:
       ret = (
           p
-          | PeriodicStream(data, interval=1)
+          | PeriodicImpulse(data=data, fire_interval=1)
           | beam.WithKeys(0)
           | beam.WindowInto(beam.transforms.window.SlidingWindows(6, 3))
           | beam.GroupByKey())
