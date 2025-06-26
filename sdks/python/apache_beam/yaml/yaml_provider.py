@@ -785,9 +785,17 @@ class YamlProviders:
       self._elements = elements
 
     def expand(self, pcoll):
+      def to_dict(row):
+        if isinstance(row, beam.Row):
+          return {k: v for k, v in row._asdict().items() if v is not None}
+        elif hasattr(row, '_asdict'):
+          return {k: v for k, v in row._asdict().items() if v is not None}
+        else:
+          return row
+
       return assert_that(
-          pcoll | beam.Map(lambda row: beam.Row(**row._asdict())),
-          equal_to(dicts_to_rows(self._elements)))
+          pcoll | beam.Map(to_dict),
+          equal_to([to_dict(e) for e in dicts_to_rows(self._elements)]))
 
   @staticmethod
   def create(elements: Iterable[Any], reshuffle: Optional[bool] = True):
@@ -838,7 +846,27 @@ class YamlProviders:
     # not the intent.
     if not isinstance(elements, Iterable) or isinstance(elements, (dict, str)):
       raise TypeError('elements must be a list of elements')
-    return beam.Create([element_to_rows(e) for e in elements],
+
+    # Merge all dictionaries to get all possible keys
+    all_keys = set()
+    for element in elements:
+      if isinstance(element, dict):
+        all_keys.update(element.keys())
+
+    # Create a merged dictionary with all keys
+    merged_dict = {}
+    for key in all_keys:
+      merged_dict[key] = None  # Use None as a default value
+
+    # Update each element with the merged dictionary
+    updated_elements = []
+    for e in elements:
+      if isinstance(e, dict):
+        updated_elements.append({**merged_dict, **e})
+      else:
+        updated_elements.append(e)
+
+    return beam.Create([element_to_rows(e) for e in updated_elements],
                        reshuffle=reshuffle is not False)
 
   # Or should this be posargs, args?
