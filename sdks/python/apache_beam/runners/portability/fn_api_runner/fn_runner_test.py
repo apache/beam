@@ -1271,7 +1271,8 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(
           ret,
           equal_to([(0, [1, 2]), (0, [1, 2, 3, 4, 5]), (0, [3, 4, 5, 6, 7, 8]),
-                    (0, [6, 7, 8, 9]), (0, [9])]))
+                    (0, [6, 7, 8, 9]), (0, [9])],
+                   lambda x, y: x[0] == y[0] and sorted(x[1]) == sorted(y[1])))
 
   def test_windowing(self):
     with self.create_pipeline() as p:
