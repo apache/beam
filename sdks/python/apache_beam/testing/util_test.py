@@ -26,7 +26,6 @@ import apache_beam as beam
 from apache_beam import Create
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.util import BeamAssertException
 from apache_beam.testing.util import TestWindowedValue
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -40,7 +39,6 @@ from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import IntervalWindow
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
-from typing import NamedTuple
 
 
 class UtilTest(unittest.TestCase):

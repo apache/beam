@@ -20,7 +20,6 @@
 
 import unittest
 from io import StringIO
-import json
 
 import mock
 
@@ -70,7 +69,7 @@ def std_out_to_dict(stdout_lines, row_key):
     # row are arranged in.
     fmtd = '{\"' + stdout_line[4:-1].replace('=', '\": ').replace(
         ', ', ', \"').replace('\"\'', '\'') + "}"
-    stdout_dict = eval(fmtd)
+    stdout_dict = eval(fmtd)  # pylint: disable=eval-used
     output_dict[stdout_dict[row_key]] = stdout_dict
   return output_dict
 

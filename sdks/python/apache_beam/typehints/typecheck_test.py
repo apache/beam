@@ -174,8 +174,8 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
       def process(self, element, *args, **kwargs):
         yield int(element)
 
-    with self.assertRaisesRegex(
-        Exception, "Type-hint for argument: 'element' violated") as e:
+    with self.assertRaisesRegex(Exception,
+                                "Type-hint for argument: 'element' violated"):
       (self.p | beam.Create(['1', '1']) | beam.ParDo(ToInt()))
       self.p.run().wait_until_finish()
 
@@ -237,8 +237,10 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
 
     with self.assertRaisesRegex(
         Exception,
-        "Type-hint for return type violated: Tuple\[<class 'bool'>, <class 'int'>\] hint type-constraint violated. The type of element #0 in the passed tuple is incorrect. Expected an instance of type <class 'bool'>, instead received an instance of type int."
-    ):
+        ("Type-hint for return type violated: Tuple\\[<class 'bool'>, <class " +
+         "'int'>\\] hint type-constraint violated. The type of element #0 in " +
+         "the passed tuple is incorrect. Expected an instance of type <class " +
+         "'bool'>, instead received an instance of type int.")):
       self.p.run().wait_until_finish()
 
   def test_pipeline_runtime_checking_violation_composite_type_output(self):
@@ -249,8 +251,8 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
     # of 'int' will be generated instead.
     with self.assertRaisesRegex(
         Exception,
-        "Type-hint for return type violated. Expected an instance of {}, instead found 4.0, an instance of {}."
-        .format(int, float)):
+        ("Type-hint for return type violated. Expected an instance of {}, " +
+         "instead found 4.0, an instance of {}.").format(int, float)):
       (
           self.p
           | beam.Create([(1, 3.0)])
@@ -278,8 +280,8 @@ class PerformanceRuntimeTypeCheckTest(unittest.TestCase):
     # StrToInt's input type hints were not satisfied while running IntToInt.
     with self.assertRaisesRegex(
         Exception,
-        "Type-hint for argument: 'element' violated. Expected an instance of {}, instead found 9, an instance of {}."
-        .format(str, int)):
+        ("Type-hint for argument: 'element' violated. Expected an instance of "
+         + "{}, instead found 9, an instance of {}.").format(str, int)):
       (
           self.p
           | beam.Create([9])

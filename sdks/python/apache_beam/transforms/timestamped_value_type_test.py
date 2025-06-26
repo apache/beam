@@ -21,7 +21,6 @@ from typing import TypeVar
 
 import apache_beam as beam
 from apache_beam.transforms.window import TimestampedValue
-from apache_beam.typehints.decorators import TypeCheckError
 
 T = TypeVar("T")
 

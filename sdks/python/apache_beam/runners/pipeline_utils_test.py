@@ -191,10 +191,7 @@ class PipelineUtilitiesTest(unittest.TestCase):
     # resolved do anything concrete yet.
     envs = pipeline_proto.components.environments
     self.assertEqual(
-        len(envs),
-        2,
-        f'should be 2 environments, instead got: {envs}'
-    )
+        len(envs), 2, f'should be 2 environments, instead got: {envs}')
 
 
 if __name__ == '__main__':

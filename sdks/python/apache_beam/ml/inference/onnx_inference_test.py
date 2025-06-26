@@ -40,7 +40,6 @@ if bool(1):  # lint doesn't like an unconditional `raise`.
 try:
   import onnxruntime as ort
   import torch
-  from onnxruntime.capi.onnxruntime_pybind11_state import InvalidArgument
   import tensorflow as tf
   import tf2onnx
   from tensorflow.keras import layers
