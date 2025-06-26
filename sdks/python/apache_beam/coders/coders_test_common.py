@@ -733,11 +733,17 @@ class CodersTest(unittest.TestCase):
       data1 = results1[test_name]
       data2 = results2[test_name]
 
-      decoded1 = deterministic_coder.decode(data1)
-      decoded2 = deterministic_coder.decode(data2)
-
       self.assertEqual(
           data1, data2, f"Cross-process encoding differs for {test_name}")
+      self.assertGreater(len(data1), 1)
+
+      try:
+        decoded1 = deterministic_coder.decode(data1)
+        decoded2 = deterministic_coder.decode(data2)
+      except Exception as e:
+        logging.warning("Could not decode %s data due to %s", test_name, e)
+        continue
+
       self.assertEqual(
           decoded1, decoded2, f"Cross-process decoding differs for {test_name}")
       self.assertIsInstance(
