@@ -786,12 +786,8 @@ class YamlProviders:
 
     def expand(self, pcoll):
       def to_dict(row):
-        if isinstance(row, beam.Row):
-          return dict(sorted({k: v for k, v in row._asdict().items() if v is not None}.items()))
-        elif hasattr(row, '_asdict'):
-          return dict(sorted({k: v for k, v in row._asdict().items() if v is not None}.items()))
-        else:
-          return row
+        # filter None when comparing
+        return {k: v for k, v in row._asdict().items() if v is not None}.items()
 
       return assert_that(
           pcoll | beam.Map(to_dict),
