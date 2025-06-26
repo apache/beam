@@ -787,9 +787,9 @@ class YamlProviders:
     def expand(self, pcoll):
       def to_dict(row):
         if isinstance(row, beam.Row):
-          return {k: v for k, v in row._asdict().items() if v is not None}
+          return dict(sorted({k: v for k, v in row._asdict().items() if v is not None}.items()))
         elif hasattr(row, '_asdict'):
-          return {k: v for k, v in row._asdict().items() if v is not None}
+          return dict(sorted({k: v for k, v in row._asdict().items() if v is not None}.items()))
         else:
           return row
 
