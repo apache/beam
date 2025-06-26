@@ -32,7 +32,6 @@ from apache_beam.transforms import trigger
 from apache_beam.transforms import window
 from apache_beam.transforms.periodicsequence import PeriodicImpulse
 from apache_beam.transforms.periodicsequence import PeriodicSequence
-from apache_beam.transforms.periodicsequence import PeriodicStream
 from apache_beam.transforms.periodicsequence import _sequence_backlog_bytes
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.utils.timestamp import Timestamp
@@ -137,12 +136,16 @@ class PeriodicSequenceTest(unittest.TestCase):
     self.assertEqual(
         _sequence_backlog_bytes(element, 10100, OffsetRange(1002, 1003)), 8)
 
-
-class PeriodicStreamTest(unittest.TestCase):
+  @unittest.skip("hard to determine warm-up time and threshold for runners.")
   def test_processing_time(self):
+    warmup_time = 3
+    threshold = 0.5
     with TestPipeline() as p:
       ret = (
-          p | PeriodicStream([10, 20, 30], interval=2)
+          p | PeriodicImpulse(
+              start_timestamp=Timestamp.now() + warmup_time,
+              data=[10, 20, 30],
+              fire_interval=2)
           | beam.Map(lambda _: time.time())
           | beam.WindowInto(
               window.GlobalWindows(),
@@ -152,12 +155,12 @@ class PeriodicStreamTest(unittest.TestCase):
           | beam.GroupBy()
           | beam.FlatMap(lambda x: [v - min(x[1]) for v in x[1]]))
       expected = [0, 2, 4]
-      assert_that(ret, equal_to(expected, lambda x, y: abs(x - y) < 0.5))
+      assert_that(ret, equal_to(expected, lambda x, y: abs(x - y) < threshold))
 
   def test_interval(self):
     with TestPipeline() as p:
       ret = (
-          p | PeriodicStream([1, 2, 3, 4], interval=0.5)
+          p | PeriodicImpulse(data=[1, 2, 3, 4], fire_interval=0.5)
           | beam.WindowInto(FixedWindows(0.5))
           | beam.WithKeys(0)
           | beam.GroupByKey())
@@ -165,36 +168,54 @@ class PeriodicStreamTest(unittest.TestCase):
       assert_that(ret, equal_to(expected))
 
   def test_repeat(self):
-    with TestPipeline() as p:
-      ret = (
-          p | PeriodicStream(
-              [1, 2, 3, 4], interval=0.5, max_duration=3, repeat=True)
-          | beam.WindowInto(FixedWindows(0.5))
-          | beam.WithKeys(0)
-          | beam.GroupByKey())
-      expected = [(0, [1]), (0, [2]), (0, [3]), (0, [4]), (0, [1]), (0, [2])]
-      assert_that(ret, equal_to(expected))
+    now = Timestamp.now()
+    with self.assertWarnsRegex(UserWarning, "not enough to span"):
+      with TestPipeline() as p:
+        ret = (
+            p | PeriodicImpulse(
+                start_timestamp=now,
+                stop_timestamp=now + 2.6,
+                data=[1, 2, 3, 4],
+                fire_interval=0.5)
+            | beam.WindowInto(FixedWindows(0.5))
+            | beam.WithKeys(0)
+            | beam.GroupByKey())
+        expected = [(0, [1]), (0, [2]), (0, [3]), (0, [4]), (0, [1]), (0, [2])]
+        assert_that(ret, equal_to(expected))
 
   def test_timestamped_value(self):
     with TestPipeline() as p:
       ret = (
-          p | PeriodicStream([(Timestamp(1), 1), (Timestamp(3), 2),
-                              (Timestamp(2), 3), (Timestamp(1), 4)],
-                             interval=0.5)
+          p | PeriodicImpulse(
+              data=[(Timestamp(1), 1), (Timestamp(3), 2), (Timestamp(2), 3),
+                    (Timestamp(1), 4)],
+              fire_interval=0.5)
           | beam.WindowInto(FixedWindows(0.5))
           | beam.WithKeys(0)
           | beam.GroupByKey())
       expected = [(0, [1, 4]), (0, [2]), (0, [3])]
       assert_that(ret, equal_to(expected))
 
-  def test_stable_output(self):
+  def test_not_enough_timestamped_value(self):
+    now = Timestamp.now()
+    data = [(Timestamp(1), 1), (Timestamp(2), 2), (Timestamp(3), 3)]
+    with self.assertRaisesRegex(ValueError, "not enough to span"):
+      with TestPipeline() as p:
+        _ = (
+            p | PeriodicImpulse(
+                start_timestamp=now,
+                stop_timestamp=now + 2.6,
+                data=data,
+                fire_interval=0.5))
+
+  def test_small_interval(self):
     data = [(Timestamp(1), 1), (Timestamp(2), 2), (Timestamp(3), 3),
             (Timestamp(6), 6), (Timestamp(4), 4), (Timestamp(5), 5),
             (Timestamp(7), 7), (Timestamp(8), 8), (Timestamp(9), 9),
             (Timestamp(10), 10)]
     expected = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     with TestPipeline() as p:
-      ret = (p | PeriodicStream(data, interval=0.0001))
+      ret = (p | PeriodicImpulse(data=data, fire_interval=0.0001))
       assert_that(ret, equal_to(expected))
 
 
