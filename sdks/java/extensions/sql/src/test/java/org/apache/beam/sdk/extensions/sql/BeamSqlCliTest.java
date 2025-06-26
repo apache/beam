@@ -54,6 +54,26 @@ public class BeamSqlCliTest {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   @Test
+  public void testExecute_createTextTable_invalidPartitioningError() {
+    InMemoryMetaStore metaStore = new InMemoryMetaStore();
+    metaStore.registerProvider(new TextTableProvider());
+
+    BeamSqlCli cli = new BeamSqlCli().metaStore(metaStore);
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(
+        "Invalid use of 'PARTITIONED BY()': Table 'person' of type 'text' does not support partitioning.");
+    cli.execute(
+        "CREATE EXTERNAL TABLE person (\n"
+            + "id int COMMENT 'id', \n"
+            + "name varchar COMMENT 'name', \n"
+            + "age int COMMENT 'age') \n"
+            + "TYPE 'text' \n"
+            + "PARTITIONED BY ('id', 'name') \n"
+            + "COMMENT '' LOCATION '/home/admin/orders'");
+  }
+
+  @Test
   public void testExecute_createTextTable() throws Exception {
     InMemoryMetaStore metaStore = new InMemoryMetaStore();
     metaStore.registerProvider(new TextTableProvider());
@@ -290,8 +310,8 @@ public class BeamSqlCliTest {
     BeamSqlCli cli = new BeamSqlCli().catalogManager(catalogManager);
 
     thrown.expect(CalciteContextException.class);
-    thrown.expectMessage("Cannot set catalog: 'my_catalog' not found.");
-    cli.execute("SET CATALOG my_catalog");
+    thrown.expectMessage("Cannot use catalog: 'my_catalog' not found.");
+    cli.execute("USE CATALOG my_catalog");
   }
 
   @Test
@@ -324,15 +344,15 @@ public class BeamSqlCliTest {
 
     // catalog manager always starts with a "default" catalog
     assertEquals("default", catalogManager.currentCatalog().name());
-    cli.execute("SET CATALOG catalog_1");
+    cli.execute("USE CATALOG catalog_1");
     assertEquals("catalog_1", catalogManager.currentCatalog().name());
     assertEquals(catalog1Props, catalogManager.currentCatalog().properties());
-    cli.execute("SET CATALOG catalog_2");
+    cli.execute("USE CATALOG catalog_2");
     assertEquals("catalog_2", catalogManager.currentCatalog().name());
     assertEquals(catalog2Props, catalogManager.currentCatalog().properties());
 
     // DEFAULT is a reserved keyword, so need to encapsulate in backticks
-    cli.execute("SET CATALOG 'default'");
+    cli.execute("USE CATALOG 'default'");
     assertEquals("default", catalogManager.currentCatalog().name());
   }
 
@@ -385,7 +405,7 @@ public class BeamSqlCliTest {
     BeamSqlCli cli = new BeamSqlCli().catalogManager(catalogManager);
 
     cli.execute("CREATE CATALOG my_catalog TYPE 'local'");
-    cli.execute("SET CATALOG my_catalog");
+    cli.execute("USE CATALOG my_catalog");
     cli.execute(
         "CREATE EXTERNAL TABLE person (\n" + "id int, name varchar, age int) \n" + "TYPE 'text'");
 
@@ -393,7 +413,7 @@ public class BeamSqlCliTest {
     assertNotNull(catalogManager.currentCatalog().metaStore().getTables().get("person"));
 
     cli.execute("CREATE CATALOG my_other_catalog TYPE 'local'");
-    cli.execute("SET CATALOG my_other_catalog");
+    cli.execute("USE CATALOG my_other_catalog");
     assertEquals("my_other_catalog", catalogManager.currentCatalog().name());
     assertNull(catalogManager.currentCatalog().metaStore().getTables().get("person"));
   }

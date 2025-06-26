@@ -37,6 +37,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@link PTransform}s for reading and writing JSON files.
@@ -168,6 +169,16 @@ public class JsonIO {
     /** Whether to skip the spilling of data. See {@link WriteFiles#withNoSpilling}. */
     public Write<T> withNoSpilling() {
       return toBuilder().setTextIOWrite(getTextIOWrite().withNoSpilling()).build();
+    }
+
+    /**
+     * Set the maximum number of writers created in a bundle before spilling to shuffle. See {@link
+     * WriteFiles#withMaxNumWritersPerBundle()}.
+     */
+    public Write<T> withMaxNumWritersPerBundle(@Nullable Integer maxNumWritersPerBundle) {
+      return toBuilder()
+          .setTextIOWrite(getTextIOWrite().withMaxNumWritersPerBundle(maxNumWritersPerBundle))
+          .build();
     }
 
     /**

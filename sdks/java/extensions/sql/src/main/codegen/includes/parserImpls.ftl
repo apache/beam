@@ -213,14 +213,14 @@ SqlCreate SqlCreateCatalog(Span s, boolean replace) :
 }
 
 /**
- * SET CATALOG catalog_name
+ * USE CATALOG catalog_name
  */
-SqlCall SqlSetCatalog(Span s, String scope) :
+SqlCall SqlUseCatalog(Span s, String scope) :
 {
     final SqlNode catalogName;
 }
 {
-    <SET> {
+    <USE> {
         s.add(this);
     }
     <CATALOG>
@@ -230,7 +230,7 @@ SqlCall SqlSetCatalog(Span s, String scope) :
         catalogName = SimpleIdentifier()
     )
     {
-        return new SqlSetCatalog(
+        return new SqlUseCatalog(
             s.end(this),
             scope,
             catalogName);
@@ -255,12 +255,28 @@ SqlDrop SqlDropCatalog(Span s, boolean replace) :
     }
 }
 
+SqlNodeList PartitionFieldList() :
+{
+    final List<SqlNode> list = new ArrayList<SqlNode>();
+    SqlNode field;
+}
+{
+    field = StringLiteral() { list.add(field); }
+    (
+        <COMMA> field = StringLiteral() { list.add(field); }
+    )*
+    {
+        return new SqlNodeList(list, getPos());
+    }
+}
+
 /**
  * Note: This example is probably out of sync with the code.
  *
- * CREATE TABLE ( IF NOT EXISTS )?
+ * CREATE EXTERNAL TABLE ( IF NOT EXISTS )?
  *   ( database_name '.' )? table_name '(' column_def ( ',' column_def )* ')'
  *   TYPE type_name
+ *   ( PARTITIONED BY '(' partition_field ( ',' partition_field )* ')' )?
  *   ( COMMENT comment_string )?
  *   ( LOCATION location_string )?
  *   ( TBLPROPERTIES tbl_properties )?
@@ -271,6 +287,7 @@ SqlCreate SqlCreateExternalTable(Span s, boolean replace) :
     final SqlIdentifier id;
     List<Schema.Field> fieldList = null;
     final SqlNode type;
+    SqlNodeList partitionFields = null;
     SqlNode comment = null;
     SqlNode location = null;
     SqlNode tblProperties = null;
@@ -290,6 +307,7 @@ SqlCreate SqlCreateExternalTable(Span s, boolean replace) :
     |
         type = SimpleIdentifier()
     )
+    [ <PARTITIONED> <BY> <LPAREN> partitionFields = PartitionFieldList() <RPAREN> ]
     [ <COMMENT> comment = StringLiteral() ]
     [ <LOCATION> location = StringLiteral() ]
     [ <TBLPROPERTIES> tblProperties = StringLiteral() ]
@@ -302,6 +320,7 @@ SqlCreate SqlCreateExternalTable(Span s, boolean replace) :
                 id,
                 fieldList,
                 type,
+                partitionFields,
                 comment,
                 location,
                 tblProperties);

@@ -39,13 +39,13 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class SqlSetCatalog extends SqlSetOption implements BeamSqlParser.ExecutableStatement {
-  private static final Logger LOG = LoggerFactory.getLogger(SqlSetCatalog.class);
+public class SqlUseCatalog extends SqlSetOption implements BeamSqlParser.ExecutableStatement {
+  private static final Logger LOG = LoggerFactory.getLogger(SqlUseCatalog.class);
   private final SqlIdentifier catalogName;
 
-  private static final SqlOperator OPERATOR = new SqlSpecialOperator("SET CATALOG", SqlKind.OTHER);
+  private static final SqlOperator OPERATOR = new SqlSpecialOperator("USE CATALOG", SqlKind.OTHER);
 
-  public SqlSetCatalog(SqlParserPos pos, String scope, SqlNode catalogName) {
+  public SqlUseCatalog(SqlParserPos pos, String scope, SqlNode catalogName) {
     super(pos, scope, SqlDdlNodes.getIdentifier(catalogName, pos), null);
     this.catalogName = SqlDdlNodes.getIdentifier(catalogName, pos);
   }
@@ -79,13 +79,13 @@ public class SqlSetCatalog extends SqlSetOption implements BeamSqlParser.Executa
           catalogName.getParserPosition(),
           RESOURCE.internal(
               String.format(
-                  "Unexpected 'SET CATALOG' call for Schema '%s' that is not a Catalog.", name)));
+                  "Unexpected 'USE CATALOG' call for Schema '%s' that is not a Catalog.", name)));
     }
 
     if (catalogManager.getCatalog(name) == null) {
       throw SqlUtil.newContextException(
           catalogName.getParserPosition(),
-          RESOURCE.internal(String.format("Cannot set catalog: '%s' not found.", name)));
+          RESOURCE.internal(String.format("Cannot use catalog: '%s' not found.", name)));
     }
 
     if (catalogManager.currentCatalog().name().equals(name)) {

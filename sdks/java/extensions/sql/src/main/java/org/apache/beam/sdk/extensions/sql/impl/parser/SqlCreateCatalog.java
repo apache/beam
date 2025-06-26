@@ -99,16 +99,16 @@ public class SqlCreateCatalog extends SqlCreate implements BeamSqlParser.Executa
         if (i > 0) {
           writer.keyword(",");
         }
-        properties.get(i).unparse(writer, leftPrec, rightPrec);
-      }
+        SqlNode property = properties.get(i);
+        checkState(
+            property instanceof SqlNodeList,
+            String.format(
+                "Unexpected properties entry '%s' of class '%s'", property, property.getClass()));
+        SqlNodeList kv = ((SqlNodeList) property);
 
-      for (int i = 0; i < properties.size(); i += 2) {
-        if (i > 0) {
-          writer.keyword(",");
-        }
-        properties.get(i).unparse(writer, leftPrec, rightPrec); // key
+        kv.get(0).unparse(writer, leftPrec, rightPrec); // key
         writer.keyword("=");
-        properties.get(i + 1).unparse(writer, leftPrec, rightPrec); // value
+        kv.get(1).unparse(writer, leftPrec, rightPrec); // value
       }
       writer.keyword(")");
     }

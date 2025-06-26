@@ -510,8 +510,6 @@ class BeamModulePlugin implements Plugin<Project> {
     project.apply plugin: 'base'
     project.archivesBaseName = defaultArchivesBaseName(project)
 
-    project.apply plugin: 'org.apache.beam.jenkins'
-
     // Register all Beam repositories and configuration tweaks
     Repositories.register(project)
 
@@ -579,7 +577,7 @@ class BeamModulePlugin implements Plugin<Project> {
     }
 
     project.ext.useBuildx = {
-      return (project.containerArchitectures() != [project.nativeArchitecture()]) || project.rootProject.hasProperty("useBuildx")
+      return (project.containerArchitectures() != [project.nativeArchitecture()]) || project.rootProject.hasProperty("useDockerBuildx")
     }
 
     /** ***********************************************************************************************/
@@ -647,7 +645,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def solace_version = "10.21.0"
     def spark2_version = "2.4.8"
     def spark3_version = "3.5.0"
-    def spotbugs_version = "4.0.6"
+    def spotbugs_version = "4.8.3"
     def testcontainers_version = "1.19.7"
     // [bomupgrader] determined by: org.apache.arrow:arrow-memory-core, consistent with: google_cloud_platform_libraries_bom
     def arrow_version = "15.0.2"
@@ -674,8 +672,6 @@ class BeamModulePlugin implements Plugin<Project> {
         activemq_junit                              : "org.apache.activemq.tooling:activemq-junit:$activemq_version",
         activemq_kahadb_store                       : "org.apache.activemq:activemq-kahadb-store:$activemq_version",
         activemq_mqtt                               : "org.apache.activemq:activemq-mqtt:$activemq_version",
-        antlr                                       : "org.antlr:antlr4:4.7",
-        antlr_runtime                               : "org.antlr:antlr4-runtime:4.7",
         args4j                                      : "args4j:args4j:2.33",
         auto_value_annotations                      : "com.google.auto.value:auto-value-annotations:$autovalue_version",
         // TODO: https://github.com/apache/beam/issues/34993 after stopping supporting Java 8
@@ -1461,8 +1457,8 @@ class BeamModulePlugin implements Plugin<Project> {
         }
         project.tasks.withType(com.github.spotbugs.snom.SpotBugsTask) {
           reports {
-            html.enabled = !project.jenkins.isCIBuild
-            xml.enabled = project.jenkins.isCIBuild
+            html.enabled = true
+            xml.enabled = false
           }
         }
       }
@@ -2283,7 +2279,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
       // This sets the whole project Go version.
       // The latest stable Go version can be checked at https://go.dev/dl/
-      project.ext.goVersion = "go1.24.0"
+      project.ext.goVersion = "go1.24.4"
 
       // Minor TODO: Figure out if we can pull out the GOCMD env variable after goPrepare script
       // completion, and avoid this GOBIN substitution.

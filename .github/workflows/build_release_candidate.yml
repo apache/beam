@@ -66,7 +66,9 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '11'
+          java-version: |
+            21
+            11
       - name: Import GPG key
         id: import_gpg
         uses: crazy-max/ghaction-import-gpg@111c56156bcc6918c056dbef52164cfa583dc549
@@ -92,7 +94,7 @@ jobs:
       - name: Configure git
         run: git config credential.helper store
       - name: Stage Java Artifacts into Maven
-        run: ./gradlew publish -Psigning.gnupg.keyName=${{steps.import_gpg.outputs.fingerprint}} -PisRelease --no-daemon --no-parallel
+        run: ./gradlew publish -Psigning.gnupg.keyName=${{steps.import_gpg.outputs.fingerprint}} -PisRelease -Pjava21Home=$JAVA_HOME_21_X64 --no-daemon --no-parallel
 
 
   stage_java_source:
@@ -161,7 +163,7 @@ jobs:
 
   stage_python_artifacts:
     if:  ${{ fromJson(github.event.inputs.STAGE).python_artifacts == 'yes'}}
-    needs: [publish_java_artifacts, build_and_stage_prism] # Enforce ordering to avoid svn conflicts
+    needs: [stage_java_source, build_and_stage_prism] # Enforce ordering to avoid svn conflicts
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
@@ -304,6 +306,10 @@ jobs:
       BEAM_ROOT_DIR: ${{ github.workspace }}/beam
       SITE_ROOT_DIR: ${{ github.workspace }}/beam-site
     steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@v1.3.0
+        with:
+          docker-images: false
       - name: Checkout Beam Repo
         uses: actions/checkout@v4
         with:
@@ -417,7 +423,7 @@ jobs:
 
   build_and_stage_prism:
     if: ${{ fromJson(github.event.inputs.STAGE).prism == 'yes'}}
-    needs: [publish_java_artifacts] # Enforce ordering to avoid svn conflicts
+    needs: [stage_java_source] # Enforce ordering to avoid svn conflicts
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout

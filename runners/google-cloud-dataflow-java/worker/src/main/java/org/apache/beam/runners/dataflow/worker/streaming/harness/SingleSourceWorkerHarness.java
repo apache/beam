@@ -130,16 +130,14 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
         isRunning.compareAndSet(true, false),
         "Multiple calls to {}.shutdown() are not allowed.",
         getClass());
-    workProviderExecutor.shutdown();
-    boolean isTerminated = false;
+    // Interrupt the dispatch loop to start shutting it down.
+    workProviderExecutor.shutdownNow();
     try {
-      isTerminated = workProviderExecutor.awaitTermination(10, TimeUnit.SECONDS);
+      while (!workProviderExecutor.awaitTermination(10, TimeUnit.SECONDS)) {
+        LOG.warn("Still waiting for the dispatch loop to terminate.");
+      }
     } catch (InterruptedException e) {
       LOG.warn("Unable to shutdown {}", getClass());
-    }
-
-    if (!isTerminated) {
-      workProviderExecutor.shutdownNow();
     }
     workCommitter.stop();
   }
