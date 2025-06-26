@@ -193,7 +193,8 @@ class FnApiWorkerStatusHandler(object):
           element_processing_timeout * 60 * 1e9, restart_lull_timeout_ns)
       if element_processing_timeout * 60 * 1e9 < restart_lull_timeout_ns:
         _LOGGER.error(
-            'element_processing_timeout overriden to %d ns', self._element_processing_timeout_ns)
+            'element_processing_timeout overriden to %d ns',
+            self._element_processing_timeout_ns)
     else:
       self._element_processing_timeout_ns = None
     self._last_full_thread_dump_secs = 0.0
@@ -266,18 +267,12 @@ class FnApiWorkerStatusHandler(object):
             info = processor.state_sampler.get_info()
             self._log_lull_sampler_info(info, instruction)
             if self._element_processing_timeout_ns:
-              try:
-                self._restart_lull(info, instruction)
-              except TimeoutError as e:
-                raise e
+              self._restart_lull(info, instruction)
 
   def _restart_lull(self, sampler_info, instruction):
-    if (
-        sampler_info
-        and sampler_info.time_since_transition
-        and sampler_info.time_since_transition
-        > self._element_processing_timeout_ns
-    ):
+    if (sampler_info and sampler_info.time_since_transition and
+        sampler_info.time_since_transition
+        > self._element_processing_timeout_ns):
       lull_seconds = sampler_info.time_since_transition / 1e9
       step_name = sampler_info.state_name.step_name
       state_name = sampler_info.state_name.name
@@ -288,20 +283,18 @@ class FnApiWorkerStatusHandler(object):
         step_name_log = ''
 
       stack_trace = self._get_stack_trace(sampler_info)
-      log_lull_msg = 'Operation ongoing in bundle %s%s for at least %.2f seconds'\
-                     ' without outputting or completing.\n'\
-                     'Current Traceback:\n%s.' % (instruction,
-                                step_name_log,
-                                lull_seconds,
-                                stack_trace)
+      log_lull_msg = (
+          'Operation ongoing in bundle %s%s for at least %.2f seconds'
+          ' without outputting or completing.\n'
+          'Current Traceback:\n%s.'
+          % (instruction, step_name_log, lull_seconds, stack_trace)
+      )
       raise TimeoutError(log_lull_msg + 'The SDK harness will be terminated.')
 
   def _log_lull_sampler_info(self, sampler_info, instruction):
     if not self._passed_lull_timeout_since_last_log():
       return
-    if (
-        sampler_info
-        and sampler_info.time_since_transition
+    if (sampler_info and sampler_info.time_since_transition
         and sampler_info.time_since_transition > self.log_lull_timeout_ns):
       lull_seconds = sampler_info.time_since_transition / 1e9
       step_name = sampler_info.state_name.step_name

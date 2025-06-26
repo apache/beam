@@ -59,7 +59,8 @@ class FnApiWorkerStatusHandlerTest(unittest.TestCase):
     self.test_port = self.server.add_insecure_port('[::]:0')
     self.server.start()
     self.url = 'localhost:%s' % self.test_port
-    self.fn_status_handler = FnApiWorkerStatusHandler(self.url, element_processing_timeout = 10)
+    self.fn_status_handler = FnApiWorkerStatusHandler(
+        self.url, element_processing_timeout = 10)
 
   def tearDown(self):
     self.server.stop(5)
@@ -145,6 +146,7 @@ class FnApiWorkerStatusHandlerTest(unittest.TestCase):
       bundle_id, sampler_info = get_state_sampler_info_for_lull(11 * 60)
       with self.assertRaises(TimeoutError):
         self.fn_status_handler._restart_lull(sampler_info, bundle_id)
+
 
 class HeapDumpTest(unittest.TestCase):
   @mock.patch('apache_beam.runners.worker.worker_status.hpy', None)

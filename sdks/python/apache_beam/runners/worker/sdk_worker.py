@@ -208,7 +208,7 @@ class SdkHarness(object):
     self._profiler_factory = profiler_factory
     self.data_sampler = data_sampler
     self.runner_capabilities = runner_capabilities
-    self.element_processing_timeout=element_processing_timeout
+    self.element_processing_timeout = element_processing_timeout
 
     def default_factory(id):
       # type: (str) -> beam_fn_api_pb2.ProcessBundleDescriptor
@@ -233,11 +233,11 @@ class SdkHarness(object):
             self._bundle_processor_cache,
             self._state_cache,
             enable_heap_dump,
-            element_processing_timeout=self.element_processing_timeout) # type: Optional[FnApiWorkerStatusHandler]
+            element_processing_timeout=self.element_processing_timeout
+        ) # type: Optional[FnApiWorkerStatusHandler]
       except TimeoutError as e:
         self._shutdown_due_to_element_processing_timeout(
-            str(e) + 'The SDK harness will be terminated and restart.'
-        )
+            str(e) + 'The SDK harness will be terminated and restart.')
       except Exception:
         traceback_string = traceback.format_exc()
         _LOGGER.warning(
@@ -1134,7 +1134,7 @@ class GrpcStateHandler(StateHandler):
     request.instruction_id = self._context.process_instruction_id
     # Adding a new item to a dictionary is atomic in cPython
     self._responses_by_id[request.id] = future = _Future[
-      beam_fn_api_pb2.StateResponse]()
+        beam_fn_api_pb2.StateResponse]()
     # Request queue is thread-safe
     self._requests.put(request)
     return future
@@ -1202,9 +1202,9 @@ class GlobalCachingStateHandler(CachingStateHandler):
         user_state_cache_token = cache_token_struct.token
       elif cache_token_struct.HasField("side_input"):
         self._context.side_input_cache_tokens[
-          cache_token_struct.side_input.transform_id,
-          cache_token_struct.side_input.
-          side_input_id] = cache_token_struct.token
+            cache_token_struct.side_input.transform_id,
+            cache_token_struct.side_input.
+            side_input_id] = cache_token_struct.token
     # TODO: Consider a two-level cache to avoid extra logic and locking
     # for items cached at the bundle level.
     self._context.bundle_cache_token = bundle_id
