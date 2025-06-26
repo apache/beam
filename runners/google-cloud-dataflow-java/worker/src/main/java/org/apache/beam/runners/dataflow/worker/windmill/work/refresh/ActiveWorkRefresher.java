@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.work.refresh;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap.toImmutableMap;
 
 import java.util.ArrayList;
@@ -30,13 +31,13 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.RefreshableWork;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -138,7 +139,7 @@ public final class ActiveWorkRefresher {
 
     // Send the first heartbeat on the calling thread, and fan out the rest via the
     // fanOutActiveWorkRefreshExecutor.
-    @Nullable Map.Entry<HeartbeatSender, Heartbeats> firstHeartbeat = null;
+    Map.@MonotonicNonNull Entry<HeartbeatSender, Heartbeats> firstHeartbeat = null;
     for (Map.Entry<HeartbeatSender, Heartbeats> heartbeat : heartbeatsBySender.entrySet()) {
       if (firstHeartbeat == null) {
         firstHeartbeat = heartbeat;
@@ -149,7 +150,7 @@ public final class ActiveWorkRefresher {
       }
     }
 
-    sendHeartbeatSafely(firstHeartbeat);
+    sendHeartbeatSafely(checkNotNull(firstHeartbeat));
     fanOutRefreshActiveWork.forEach(CompletableFuture::join);
   }
 
