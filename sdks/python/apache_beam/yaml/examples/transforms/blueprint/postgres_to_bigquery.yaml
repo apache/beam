@@ -28,7 +28,7 @@ pipeline:
       config:
         url: "jdbc:postgresql://localhost:12345/shipment?user=user&password=postgres123"
         query: "SELECT * FROM shipments"
-        driver_class_name: "com.microsoft.sqlserver.jdbc.SQLServerDriver"
+        driver_class_name: "org.postgresql.Driver"
     # Step 2: Write records out to BigQuery
     - type: WriteToBigQuery
       name: WriteShipments

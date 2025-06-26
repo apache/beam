@@ -681,8 +681,8 @@ def _pubsub_io_read_test_preprocessor(
 def _jdbc_io_read_test_preprocessor(
     test_spec: dict, expected: List[str], env: TestEnvironment):
   """
-  Preprocessor for tests that involve reading from SqlServer.
-  url syntax: 'jdbc:mysql://<host>:<port>/<database>'
+  Preprocessor for tests that involve reading from generic Jdbc.
+  url syntax: 'jdbc:<database-type>://<host>:<port>/<database>'
   """
   return _db_io_read_test_processor(
       test_spec, lambda url: url.split('/')[-1], 'Jdbc')
