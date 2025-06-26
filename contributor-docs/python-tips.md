@@ -36,10 +36,10 @@
 * [Run a wordcount pipeline on Dataflow with a modified Beam SDK](#run-a-wordcount-pipeline-on-dataflow-with-a-modified-beam-sdk)
 * [Run Integration Test from IDE (TODO: please revise these instructions now that we migrated to PyTest)](#run-integration-test-from-ide-todo-please-revise-these-instructions-now-that-we-migrated-to-pytest)
 * [Run a screen diff integration Test for Interactive Beam](#run-a-screen-diff-integrationtest-for-interactive-beam)
-* [How to run a pipeline with unreleased changes from a pull request](#how-to-run-a-pipeline-with-unreleased-changes-from-a-pull-request) 
+* [How to run a pipeline with unreleased changes from a pull request](#how-to-run-a-pipeline-with-unreleased-changes-from-a-pull-request)
 * [How to install an unreleased Python SDK without building it](#how-to-install-an-unreleased-python-sdk-without-building-it)
 * [How to update dependencies that are installed in Python container images](#how-to-update-dependencies-that-are-installed-in-python-container-images)
-    * [Errors](#errors) 
+    * [Errors](#errors)
 
 ## Installing Python interpreters
 
@@ -57,8 +57,8 @@ Installation steps may look as follows:
 2. Install Python intepreter for each supported Python minor version. Leaving out the patch version will install the latest.
 
 ```bash
-pyenv install 3.9 
-pyenv install 3.10 
+pyenv install 3.9
+pyenv install 3.10
 pyenv install 3.11
 pyenv install 3.12
 ```
@@ -115,9 +115,9 @@ Use the following code:
 
 ```sh
 > c:\Python37\python.exe -m venv c:\path\to\env
-> c:\path\to\env\Scripts\activate.bat 
-# Powershell users should run instead: 
-> c:\path\to\env\Scripts\activate.ps1 
+> c:\path\to\env\Scripts\activate.bat
+# Powershell users should run instead:
+> c:\path\to\env\Scripts\activate.ps1
 
 (env) > pip install -e .[gcp,test]
 ```
@@ -377,7 +377,7 @@ $ . ~/.virtualenvs/env/bin/activate
 pip install build && python -m build --sdist
 
 # run the pipeline with a modified SDK.
-python -m apache_beam.examples.wordcount   --runner DataflowRunner   --num_workers 1   --project <gcp_project_name>   --output <gs://path>   --temp_location <gs://path>   --sdk_location build/apache-beam-2.12.0.dev0.tar.gz 
+python -m apache_beam.examples.wordcount   --runner DataflowRunner   --num_workers 1   --project <gcp_project_name>   --output <gs://path>   --temp_location <gs://path>   --sdk_location build/apache-beam-2.12.0.dev0.tar.gz
 ```
 
 ## Run Integration Test from IDE (TODO: please revise these instructions now that we migrated to PyTest)
@@ -462,7 +462,7 @@ To use the source distribution, find the "Build python source distribution and w
 
 Then, locate the source_zip artifact, as shown below: 
 
-![An image of the GitHub Actions Summary shwoing where the source zip artifact is listed.](doc-assets/unreleased_changes_screen.png)
+![An image of the GitHub Actions Summary shwoing where the source zip artifact is listed.](images/unreleased_changes_screen.png)
 
 Normally, pull requests are created against Beam master branch. If you'd like to use an unreleased SDK where a patch is applied to the released SDK, you must create a pull request that targets the release branch  for the desired version, such as release-2.46.0.
 
