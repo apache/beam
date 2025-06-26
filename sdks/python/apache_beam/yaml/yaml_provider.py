@@ -843,24 +843,29 @@ class YamlProviders:
     if not isinstance(elements, Iterable) or isinstance(elements, (dict, str)):
       raise TypeError('elements must be a list of elements')
 
-    # Merge all dictionaries to get all possible keys
-    all_keys = set()
-    for element in elements:
-      if isinstance(element, dict):
-        all_keys.update(element.keys())
+    # Check if elements have different keys
+    updated_elements = elements
+    if elements and all(isinstance(e, dict) for e in elements):
+      keys = [set(e.keys()) for e in elements]
+      if len(set.union(*keys)) > min(len(k) for k in keys):
+        # Merge all dictionaries to get all possible keys
+        all_keys = set()
+        for element in elements:
+          if isinstance(element, dict):
+            all_keys.update(element.keys())
 
-    # Create a merged dictionary with all keys
-    merged_dict = {}
-    for key in all_keys:
-      merged_dict[key] = None  # Use None as a default value
+        # Create a merged dictionary with all keys
+        merged_dict = {}
+        for key in all_keys:
+          merged_dict[key] = None  # Use None as a default value
 
-    # Update each element with the merged dictionary
-    updated_elements = []
-    for e in elements:
-      if isinstance(e, dict):
-        updated_elements.append({**merged_dict, **e})
-      else:
-        updated_elements.append(e)
+        # Update each element with the merged dictionary
+        updated_elements = []
+        for e in elements:
+          if isinstance(e, dict):
+            updated_elements.append({**merged_dict, **e})
+          else:
+            updated_elements.append(e)
 
     return beam.Create([element_to_rows(e) for e in updated_elements],
                        reshuffle=reshuffle is not False)
