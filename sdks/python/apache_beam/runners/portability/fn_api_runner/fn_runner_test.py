@@ -53,6 +53,7 @@ from apache_beam.io.watermark_estimators import ManualWatermarkEstimator
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.metricbase import MetricName
+from apache_beam.ml.ts.util import PeriodicStream
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import DirectOptions
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -1258,6 +1259,21 @@ class FnApiRunnerTest(unittest.TestCase):
     finally:
       os.unlink(temp_file.name)
 
+  def test_sliding_windows(self):
+    data = [(timestamp.Timestamp(i), i) for i in range(1, 10)]
+    with self.create_pipeline() as p:
+      ret = (
+          p
+          | PeriodicStream(data, interval=1)
+          | beam.WithKeys(0)
+          | beam.WindowInto(beam.transforms.window.SlidingWindows(6, 3))
+          | beam.GroupByKey())
+      assert_that(
+          ret,
+          equal_to([(0, [1, 2]), (0, [1, 2, 3, 4, 5]), (0, [3, 4, 5, 6, 7, 8]),
+                    (0, [6, 7, 8, 9]), (0, [9])],
+                   lambda x, y: x[0] == y[0] and sorted(x[1]) == sorted(y[1])))
+
   def test_windowing(self):
     with self.create_pipeline() as p:
       res = (
@@ -2017,6 +2033,9 @@ class FnApiRunnerTestWithMultiWorkers(FnApiRunnerTest):
   def test_register_finalizations(self):
     raise unittest.SkipTest("This test is for a single worker only.")
 
+  def test_sliding_windows(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
 
 class FnApiRunnerTestWithGrpcAndMultiWorkers(FnApiRunnerTest):
   def create_pipeline(self, is_drain=False):
@@ -2045,6 +2064,9 @@ class FnApiRunnerTestWithGrpcAndMultiWorkers(FnApiRunnerTest):
     raise unittest.SkipTest("This test is for a single worker only.")
 
   def test_register_finalizations(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
+  def test_sliding_windows(self):
     raise unittest.SkipTest("This test is for a single worker only.")
 
 
@@ -2083,6 +2105,9 @@ class FnApiRunnerTestWithBundleRepeatAndMultiWorkers(FnApiRunnerTest):
     raise unittest.SkipTest("This test is for a single worker only.")
 
   def test_sdf_with_dofn_as_watermark_estimator(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
+  def test_sliding_windows(self):
     raise unittest.SkipTest("This test is for a single worker only.")
 
 
