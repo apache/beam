@@ -1188,21 +1188,6 @@ class ExternalTransformFinder(PipelineVisitor):
     self._perform_exernal_transform_test(transform_node.transform)
 
 
-class DisplayDataContainer(HasDisplayData):
-  def __init__(self, display_data_dict, display_data_namespace):
-    self.display_data_dict = display_data_dict
-    self.display_data_namespace = display_data_namespace
-
-  def display_data(self):
-    # type: () -> Dict[str, DisplayData]
-
-    """Returns the display data for this object."""
-    return self.display_data_dict
-
-  def _get_display_data_namespace(self):  # type: () -> str
-    return self.display_data_namespace
-
-
 class AppliedPTransform(object):
   """For internal use only; no backwards-compatibility guarantees.
 
