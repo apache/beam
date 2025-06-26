@@ -44,9 +44,6 @@ import org.apache.beam.sdk.values.TypeDescriptors;
  * An implementation of {@link TypedSchemaTransformProvider} for Bigtable Write jobs configured via
  * {@link BigtableWriteSchemaTransformConfiguration}.
  *
- * <p><b>Internal only:</b> This class is actively being worked on, and it will likely change. We
- * provide no backwards compatibility guarantees, and it should not be implemented outside the Beam
- * repository.
  */
 @AutoService(SchemaTransformProvider.class)
 public class BigtableSimpleWriteSchemaTransformProvider
