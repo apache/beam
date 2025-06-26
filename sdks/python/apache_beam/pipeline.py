@@ -1244,13 +1244,10 @@ class AppliedPTransform(object):
       annotations = {
           **(annotations or {}), **encode_annotations(transform.annotations())
       }
-      display_data = DisplayDataContainer(
-          transform.display_data(), transform._get_display_data_namespace())
-    else:
-      display_data = None
 
     self.annotations = annotations
-    self.display_data = display_data
+
+    self.display_data = {}
 
   @property
   def inputs(self):
@@ -1455,6 +1452,11 @@ class AppliedPTransform(object):
         (transform_urn not in Pipeline.runner_implemented_transforms())):
       environment_id = context.get_environment_id_for_resource_hints(
           self.resource_hints)
+    if self.transform is not None:
+      display_data = DisplayData.create_from(
+          self.transform, extra_items=self.display_data)
+    else:
+      display_data = None
 
     return beam_runner_api_pb2.PTransform(
         unique_name=self.full_label,
@@ -1474,8 +1476,7 @@ class AppliedPTransform(object):
         environment_id=environment_id,
         annotations=self.annotations,
         # TODO(https://github.com/apache/beam/issues/18012): Add display_data.
-        display_data=DisplayData.create_from(self.display_data).to_proto()
-        if self.display_data else None)
+        display_data=display_data.to_proto() if display_data else None)
 
   @staticmethod
   def from_runner_api(
