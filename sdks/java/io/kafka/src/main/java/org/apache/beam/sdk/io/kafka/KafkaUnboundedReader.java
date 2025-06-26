@@ -408,7 +408,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
   /** watermark before any records have been read. */
   private static Instant initialWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
-  public KafkaMetrics kafkaResults = KafkaSinkMetrics.kafkaMetrics();
+  private KafkaMetrics kafkaResults = KafkaSinkMetrics.kafkaMetrics();
   private Stopwatch stopwatch = Stopwatch.createUnstarted();
 
   private Set<String> kafkaTopics;

@@ -37,9 +37,10 @@ import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.Matcher;
 import org.joda.time.Duration;
@@ -131,9 +132,9 @@ public class ImmutableListBundleFactoryTest {
 
   @Test
   public void getElementsAfterAddShouldReturnAddedElements() {
-    WindowedValue<Integer> firstValue = WindowedValue.valueInGlobalWindow(1);
+    WindowedValue<Integer> firstValue = WindowedValues.valueInGlobalWindow(1);
     WindowedValue<Integer> secondValue =
-        WindowedValue.timestampedValueInGlobalWindow(2, new Instant(1000L));
+        WindowedValues.timestampedValueInGlobalWindow(2, new Instant(1000L));
 
     afterCommitGetElementsShouldHaveAddedElements(ImmutableList.of(firstValue, secondValue));
   }
@@ -141,7 +142,7 @@ public class ImmutableListBundleFactoryTest {
   @Test
   public void addElementsAtEndOfTimeThrows() {
     Instant timestamp = BoundedWindow.TIMESTAMP_MAX_VALUE;
-    WindowedValue<Integer> value = WindowedValue.timestampedValueInGlobalWindow(1, timestamp);
+    WindowedValue<Integer> value = WindowedValues.timestampedValueInGlobalWindow(1, timestamp);
 
     UncommittedBundle<Integer> bundle = bundleFactory.createRootBundle();
     thrown.expect(IllegalArgumentException.class);
@@ -152,7 +153,7 @@ public class ImmutableListBundleFactoryTest {
   @Test
   public void addElementsPastEndOfTimeThrows() {
     Instant timestamp = BoundedWindow.TIMESTAMP_MAX_VALUE.plus(Duration.standardMinutes(2));
-    WindowedValue<Integer> value = WindowedValue.timestampedValueInGlobalWindow(1, timestamp);
+    WindowedValue<Integer> value = WindowedValues.timestampedValueInGlobalWindow(1, timestamp);
 
     UncommittedBundle<Integer> bundle = bundleFactory.createRootBundle();
     thrown.expect(IllegalArgumentException.class);
@@ -163,21 +164,21 @@ public class ImmutableListBundleFactoryTest {
   @SuppressWarnings("unchecked")
   @Test
   public void withElementsShouldReturnIndependentBundle() {
-    WindowedValue<Integer> firstValue = WindowedValue.valueInGlobalWindow(1);
+    WindowedValue<Integer> firstValue = WindowedValues.valueInGlobalWindow(1);
     WindowedValue<Integer> secondValue =
-        WindowedValue.timestampedValueInGlobalWindow(2, new Instant(1000L));
+        WindowedValues.timestampedValueInGlobalWindow(2, new Instant(1000L));
 
     CommittedBundle<Integer> committed =
         afterCommitGetElementsShouldHaveAddedElements(ImmutableList.of(firstValue, secondValue));
 
     WindowedValue<Integer> firstReplacement =
-        WindowedValue.of(
+        WindowedValues.of(
             9,
             new Instant(2048L),
             new IntervalWindow(new Instant(2044L), Instant.now()),
             PaneInfo.NO_FIRING);
     WindowedValue<Integer> secondReplacement =
-        WindowedValue.timestampedValueInGlobalWindow(-1, Instant.now());
+        WindowedValues.timestampedValueInGlobalWindow(-1, Instant.now());
     CommittedBundle<Integer> withed =
         committed.withElements(ImmutableList.of(firstReplacement, secondReplacement));
 
@@ -194,23 +195,25 @@ public class ImmutableListBundleFactoryTest {
   @Test
   public void addAfterCommitShouldThrowException() {
     UncommittedBundle<Integer> bundle = bundleFactory.createRootBundle();
-    bundle.add(WindowedValue.valueInGlobalWindow(1));
+    bundle.add(WindowedValues.valueInGlobalWindow(1));
     CommittedBundle<Integer> firstCommit = bundle.commit(Instant.now());
-    assertThat(firstCommit.getElements(), containsInAnyOrder(WindowedValue.valueInGlobalWindow(1)));
+    assertThat(
+        firstCommit.getElements(), containsInAnyOrder(WindowedValues.valueInGlobalWindow(1)));
 
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("3");
     thrown.expectMessage("committed");
 
-    bundle.add(WindowedValue.valueInGlobalWindow(3));
+    bundle.add(WindowedValues.valueInGlobalWindow(3));
   }
 
   @Test
   public void commitAfterCommitShouldThrowException() {
     UncommittedBundle<Integer> bundle = bundleFactory.createRootBundle();
-    bundle.add(WindowedValue.valueInGlobalWindow(1));
+    bundle.add(WindowedValues.valueInGlobalWindow(1));
     CommittedBundle<Integer> firstCommit = bundle.commit(Instant.now());
-    assertThat(firstCommit.getElements(), containsInAnyOrder(WindowedValue.valueInGlobalWindow(1)));
+    assertThat(
+        firstCommit.getElements(), containsInAnyOrder(WindowedValues.valueInGlobalWindow(1)));
 
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("committed");

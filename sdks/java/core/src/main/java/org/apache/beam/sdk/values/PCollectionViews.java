@@ -540,14 +540,16 @@ public class PCollectionViews {
 
     @Override
     public T apply(IterableView<T> primitiveViewT) {
-      try {
-        return Iterables.getOnlyElement(primitiveViewT.get());
-      } catch (NoSuchElementException exc) {
+      Iterator<T> iterator = primitiveViewT.get().iterator();
+      if (!iterator.hasNext()) {
         return getDefaultValue();
-      } catch (IllegalArgumentException exc) {
+      }
+      T result = iterator.next();
+      if (iterator.hasNext()) {
         throw new IllegalArgumentException(
             "PCollection with more than one element accessed as a singleton view.");
       }
+      return result;
     }
 
     @Override
@@ -638,14 +640,16 @@ public class PCollectionViews {
 
     @Override
     public T apply(MultimapView<Void, T> primitiveViewT) {
-      try {
-        return Iterables.getOnlyElement(primitiveViewT.get(null));
-      } catch (NoSuchElementException exc) {
+      Iterator<T> iterator = primitiveViewT.get(null).iterator();
+      if (!iterator.hasNext()) {
         return getDefaultValue();
-      } catch (IllegalArgumentException exc) {
+      }
+      T result = iterator.next();
+      if (iterator.hasNext()) {
         throw new IllegalArgumentException(
             "PCollection with more than one element accessed as a singleton view.");
       }
+      return result;
     }
 
     @Override

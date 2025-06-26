@@ -50,10 +50,10 @@ import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.CombineWithContext.Context;
 import org.apache.beam.sdk.util.AppliedCombineFn;
 import org.apache.beam.sdk.util.SerializableUtils;
-import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.util.construction.RehydratedComponents;
 import org.apache.beam.sdk.util.construction.WindowingStrategyTranslation;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValues.WindowedValueCoder;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -193,7 +193,6 @@ class GroupAlsoByWindowParDoFnFactory implements ParDoFnFactory {
           ((AppliedCombineFn) maybeMergingCombineFn).getSideInputViews(),
           gabwInputCoder,
           sideInputReader,
-          mainOutputTag,
           executionContext.getStepContext(operationContext));
     } else {
       return new GroupAlsoByWindowsParDoFn(
@@ -203,7 +202,6 @@ class GroupAlsoByWindowParDoFnFactory implements ParDoFnFactory {
           null,
           gabwInputCoder,
           sideInputReader,
-          mainOutputTag,
           executionContext.getStepContext(operationContext));
     }
   }

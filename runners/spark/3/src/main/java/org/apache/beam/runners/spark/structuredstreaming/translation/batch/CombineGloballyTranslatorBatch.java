@@ -30,8 +30,9 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoder;
@@ -120,6 +121,6 @@ class CombineGloballyTranslatorBatch<InT, AccT, OutT>
   }
 
   private static <T> Fun1<T, Iterator<WindowedValue<T>>> windowedValue() {
-    return v -> single(WindowedValue.valueInGlobalWindow(v));
+    return v -> single(WindowedValues.valueInGlobalWindow(v));
   }
 }

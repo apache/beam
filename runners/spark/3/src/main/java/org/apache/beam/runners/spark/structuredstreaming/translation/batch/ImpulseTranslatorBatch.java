@@ -23,9 +23,10 @@ import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTr
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.spark.sql.Dataset;
 
@@ -39,7 +40,7 @@ class ImpulseTranslatorBatch extends TransformTranslator<PBegin, PCollection<byt
   public void translate(Impulse transform, Context cxt) {
     Dataset<WindowedValue<byte[]>> dataset =
         cxt.createDataset(
-            ImmutableList.of(WindowedValue.valueInGlobalWindow(EMPTY_BYTE_ARRAY)),
+            ImmutableList.of(WindowedValues.valueInGlobalWindow(EMPTY_BYTE_ARRAY)),
             cxt.windowedEncoder(ByteArrayCoder.of(), GlobalWindow.Coder.INSTANCE));
     cxt.putDataset(cxt.getOutput(), dataset);
   }

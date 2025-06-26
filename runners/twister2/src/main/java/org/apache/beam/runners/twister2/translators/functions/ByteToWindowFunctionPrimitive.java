@@ -27,9 +27,10 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
+import org.apache.beam.sdk.values.WindowedValues.WindowedValueCoder;
 
 /** ByteToWindow function. */
 @SuppressWarnings({
@@ -73,14 +74,14 @@ public class ByteToWindowFunctionPrimitive<K, V>
     WindowedValue<KV<K, V>> element;
 
     if (value == null) {
-      value = WindowedValue.valueInGlobalWindow(null);
+      value = WindowedValues.valueInGlobalWindow(null);
     }
     element =
-        WindowedValue.of(
+        WindowedValues.of(
             KV.of(key, value.getValue()),
             value.getTimestamp(),
             value.getWindows(),
-            value.getPane());
+            value.getPaneInfo());
 
     return element;
   }

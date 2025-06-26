@@ -33,6 +33,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.sql import SqlTransform
+from apache_beam.utils import subprocess_server
 
 SimpleRow = typing.NamedTuple(
     "SimpleRow", [("id", int), ("str", str), ("flt", float)])
@@ -74,7 +75,8 @@ class SqlTransformTest(unittest.TestCase):
   def _disable_zetasql_test():
     # disable if run on Java8 which is no longer supported by ZetaSQL
     try:
-      result = subprocess.run(['java', '-version'],
+      java = subprocess_server.JavaHelper.get_java()
+      result = subprocess.run([java, '-version'],
                               check=True,
                               capture_output=True,
                               text=True)

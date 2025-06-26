@@ -103,8 +103,8 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
   }
 
   public ReduceFn<K, InputT, OutputT, W>.OnTriggerContext forTrigger(
-      W window, PaneInfo pane, StateStyle style, OnTriggerCallbacks<OutputT> callbacks) {
-    return new OnTriggerContextImpl(stateAccessor(window, style), pane, callbacks);
+      W window, PaneInfo paneInfo, StateStyle style, OnTriggerCallbacks<OutputT> callbacks) {
+    return new OnTriggerContextImpl(stateAccessor(window, style), paneInfo, callbacks);
   }
 
   public ReduceFn<K, InputT, OutputT, W>.OnMergeContext forMerge(
@@ -402,15 +402,15 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
 
   private class OnTriggerContextImpl extends ReduceFn<K, InputT, OutputT, W>.OnTriggerContext {
     private final StateAccessorImpl<K, W> state;
-    private final PaneInfo pane;
+    private final PaneInfo paneInfo;
     private final OnTriggerCallbacks<OutputT> callbacks;
     private final TimersImpl timers;
 
     private OnTriggerContextImpl(
-        StateAccessorImpl<K, W> state, PaneInfo pane, OnTriggerCallbacks<OutputT> callbacks) {
+        StateAccessorImpl<K, W> state, PaneInfo paneInfo, OnTriggerCallbacks<OutputT> callbacks) {
       reduceFn.super();
       this.state = state;
-      this.pane = pane;
+      this.paneInfo = paneInfo;
       this.callbacks = callbacks;
       this.timers = new TimersImpl(state.namespace());
     }
@@ -437,7 +437,7 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
 
     @Override
     public PaneInfo paneInfo() {
-      return pane;
+      return paneInfo;
     }
 
     @Override

@@ -34,10 +34,11 @@ import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.util.SerializableUtils;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.Environments;
 import org.apache.beam.sdk.util.construction.ReadTranslation;
 import org.apache.beam.sdk.util.construction.SdkComponents;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 
 /** Twister2 wrapper for Bounded Source. */
 @SuppressWarnings({
@@ -177,7 +178,7 @@ public class Twister2BoundedSource<T> extends BaseSourceFunc<WindowedValue<T>> {
       try {
         if (seekNext()) {
           next =
-              WindowedValue.timestampedValueInGlobalWindow(
+              WindowedValues.timestampedValueInGlobalWindow(
                   reader.getCurrent(), reader.getCurrentTimestamp());
           return SUCCESSFULLY_OBTAINED_NEXT;
         } else {

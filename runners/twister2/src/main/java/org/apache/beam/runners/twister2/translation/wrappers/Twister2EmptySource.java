@@ -18,7 +18,7 @@
 package org.apache.beam.runners.twister2.translation.wrappers;
 
 import edu.iu.dsc.tws.api.tset.fn.BaseSourceFunc;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
 
 /**
  * Empty Source wrapper.

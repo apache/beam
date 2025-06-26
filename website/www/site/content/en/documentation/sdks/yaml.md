@@ -273,6 +273,52 @@ pipeline:
         path: /path/to/output.json
 ```
 
+If a `chain` pipeline has required error consumption or needs additional
+transforms not supported in a typical `chain` context, use an
+`extra_transforms` block.
+
+```
+pipeline:
+  type: chain
+  transforms:
+    - type: ReadFromCsv
+      config:
+        path: /path/to/input*.csv
+
+    - type: MapToFields
+      name: SomeStep
+      config:
+        language: python
+        fields:
+          col1: col1
+          # This could raise a divide-by-zero error.
+          ratio: col2 / col3
+        error_handling:
+          output: errors
+
+    - type: MapToFields
+      name: AnotherStep
+      config:
+        language: python
+        fields:
+          col1: col1
+          # This could raise a divide-by-zero error.
+          inverse_ratio: 1 / ratio
+        error_handling:
+          output: errors
+
+    - type: WriteToJson
+      config:
+        path: /path/to/output.json
+
+  extra_transforms:
+    - type: WriteToJson
+      name: WriteErrors
+      input: [SomeStep.errors, AnotherStep.errors]
+      config:
+        path: /path/to/errors.json
+```
+
 ### Source and sink transforms
 
 As syntactic sugar, you can name the first and last transforms in your pipeline

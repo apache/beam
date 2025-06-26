@@ -46,10 +46,11 @@ import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.AppliedCombineFn;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
+import org.apache.beam.sdk.values.WindowedValues.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -107,12 +108,12 @@ public class WindowDoFnOperatorTest {
     assertThat(
         output,
         containsInAnyOrder(
-            WindowedValue.of(
+            WindowedValues.of(
                 KV.of(1L, 120L),
                 new Instant(9_999),
                 window,
                 PaneInfo.createPane(true, true, ON_TIME)),
-            WindowedValue.of(
+            WindowedValues.of(
                 KV.of(2L, 77L),
                 new Instant(9_999),
                 window,
@@ -184,9 +185,9 @@ public class WindowDoFnOperatorTest {
     assertThat(
         stripStreamRecordFromWindowedValue(testHarness.getOutput()),
         containsInAnyOrder(
-            WindowedValue.of(
+            WindowedValues.of(
                 KV.of(1L, 100L), new Instant(99), window, PaneInfo.createPane(true, true, ON_TIME)),
-            WindowedValue.of(
+            WindowedValues.of(
                 KV.of(2L, 150L),
                 new Instant(199),
                 window2,
@@ -214,9 +215,9 @@ public class WindowDoFnOperatorTest {
     SingletonKeyedWorkItemCoder<Long, Long> workItemCoder =
         SingletonKeyedWorkItemCoder.of(VarLongCoder.of(), VarLongCoder.of(), windowCoder);
     FullWindowedValueCoder<KeyedWorkItem<Long, Long>> inputCoder =
-        WindowedValue.getFullCoder(workItemCoder, windowCoder);
+        WindowedValues.getFullCoder(workItemCoder, windowCoder);
     FullWindowedValueCoder<KV<Long, Long>> outputCoder =
-        WindowedValue.getFullCoder(KvCoder.of(VarLongCoder.of(), VarLongCoder.of()), windowCoder);
+        WindowedValues.getFullCoder(KvCoder.of(VarLongCoder.of(), VarLongCoder.of()), windowCoder);
 
     FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
     options.setStreaming(streaming);
@@ -265,7 +266,7 @@ public class WindowDoFnOperatorTest {
 
     StreamRecord<WindowedValue<KV<Long, Long>>> toStreamRecord() {
       WindowedValue<KV<Long, Long>> keyedItem =
-          WindowedValue.of(KV.of(key, value), new Instant(timestamp), window, NO_FIRING);
+          WindowedValues.of(KV.of(key, value), new Instant(timestamp), window, NO_FIRING);
       return new StreamRecord<>(keyedItem);
     }
 

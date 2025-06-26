@@ -47,7 +47,7 @@ public interface WindowingInternals<InputT, OutputT> {
       OutputT output,
       Instant timestamp,
       Collection<? extends BoundedWindow> windows,
-      PaneInfo pane);
+      PaneInfo paneInfo);
 
   /** Output the value to a tagged output at the specified timestamp in the listed windows. */
   <AdditionalOutputT> void outputWindowedValue(
@@ -55,7 +55,7 @@ public interface WindowingInternals<InputT, OutputT> {
       AdditionalOutputT output,
       Instant timestamp,
       Collection<? extends BoundedWindow> windows,
-      PaneInfo pane);
+      PaneInfo paneInfo);
 
   /**
    * Return the timer manager provided by the underlying system, or null if Timers need to be
@@ -67,7 +67,7 @@ public interface WindowingInternals<InputT, OutputT> {
   Collection<? extends BoundedWindow> windows();
 
   /** Access the pane of the current window(s). */
-  PaneInfo pane();
+  PaneInfo paneInfo();
 
   /** Return the value of the side input for a particular side input window. */
   <T> T sideInput(PCollectionView<T> view, BoundedWindow sideInputWindow);

@@ -30,8 +30,9 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.joda.time.Instant;
 
@@ -67,7 +68,7 @@ class DataflowProcessFnRunner<InputT, OutputT, RestrictionT>
       WindowedValue<KeyedWorkItem<byte[], T>> compressedElem) {
     checkTrivialOuterWindows(compressedElem);
     WindowedValue<KeyedWorkItem<byte[], T>> res =
-        WindowedValue.of(
+        WindowedValues.of(
             compressedElem.getValue(),
             BoundedWindow.TIMESTAMP_MIN_VALUE,
             getUnderlyingWindow(compressedElem.getValue()),

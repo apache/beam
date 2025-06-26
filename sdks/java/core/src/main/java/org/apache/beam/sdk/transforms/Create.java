@@ -58,7 +58,6 @@ import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -66,6 +65,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TimestampedValue.TimestampedValueCoder;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -872,7 +872,9 @@ public class Create<T> {
             Pipeline.applyTransform(
                 input,
                 Create.of(windowedValues)
-                    .withCoder(WindowedValue.getFullCoder(coder, windowCoder)));
+                    .withCoder(
+                        org.apache.beam.sdk.values.WindowedValues.getFullCoder(
+                            coder, windowCoder)));
 
         PCollection<T> output = intermediate.apply(ParDo.of(new ConvertWindowedValues<>()));
         output.setCoder(coder);
@@ -913,7 +915,10 @@ public class Create<T> {
       @ProcessElement
       public void processElement(@Element WindowedValue<T> element, OutputReceiver<T> r) {
         r.outputWindowedValue(
-            element.getValue(), element.getTimestamp(), element.getWindows(), element.getPane());
+            element.getValue(),
+            element.getTimestamp(),
+            element.getWindows(),
+            element.getPaneInfo());
       }
     }
   }

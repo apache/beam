@@ -215,6 +215,13 @@ class CodersTest(unittest.TestCase):
     coder = coders.PickleCoder()
     self.check_coder(coder, *self.test_values)
 
+  def test_cloudpickle_pickle_coder(self):
+    cell_value = (lambda x: lambda: x)(0).__closure__[0]
+    self.check_coder(coders.CloudpickleCoder(), 'a', 1, cell_value)
+    self.check_coder(
+        coders.TupleCoder((coders.VarIntCoder(), coders.CloudpickleCoder())),
+        (1, cell_value))
+
   def test_memoizing_pickle_coder(self):
     coder = coders._MemoizingPickleCoder()
     self.check_coder(coder, *self.test_values)

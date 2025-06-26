@@ -241,6 +241,10 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
 
     config = self.jdbc_configs[database]
 
+    # Register MillisInstant logical type to override the mapping from Timestamp
+    # originally handled by MicrosInstant.
+    LogicalType.register_logical_type(MillisInstant)
+
     with TestPipeline() as p:
       p.not_use_test_runner_api = True
       _ = (
@@ -254,10 +258,6 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
               password=config['password'],
               classpath=config['classpath'],
           ))
-
-    # Register MillisInstant logical type to override the mapping from Timestamp
-    # originally handled by MicrosInstant.
-    LogicalType.register_logical_type(MillisInstant)
 
     with TestPipeline() as p:
       p.not_use_test_runner_api = True

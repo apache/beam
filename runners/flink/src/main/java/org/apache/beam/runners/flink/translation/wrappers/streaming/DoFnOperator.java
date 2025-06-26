@@ -84,10 +84,12 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.NoopLock;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
+import org.apache.beam.sdk.util.WindowedValueReceiver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
@@ -1218,7 +1220,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
   }
 
   /**
-   * A {@link DoFnRunners.OutputManager} that can buffer its outputs. Uses {@link
+   * A {@link WindowedValueReceiver} that can buffer its outputs. Uses {@link
    * PushedBackElementsHandler} to buffer the data. Buffering data is necessary because no elements
    * can be emitted during {@code snapshotState} which is called when the checkpoint barrier already
    * has been sent downstream. Emitting elements would break the flow of checkpoint barrier and
@@ -1230,7 +1232,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
    * prepareSnapshotPreBarrier}. When Flink supports unaligned checkpoints, this should become the
    * default and this class should be removed as in https://github.com/apache/beam/pull/9652.
    */
-  public static class BufferedOutputManager<OutputT> implements DoFnRunners.OutputManager {
+  public static class BufferedOutputManager<OutputT> implements WindowedValueMultiReceiver {
 
     private final TupleTag<OutputT> mainTag;
     private final Map<TupleTag<?>, OutputTag<WindowedValue<?>>> tagsToOutputTags;

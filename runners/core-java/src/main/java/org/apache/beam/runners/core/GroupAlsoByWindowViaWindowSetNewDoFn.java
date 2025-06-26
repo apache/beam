@@ -17,20 +17,17 @@
  */
 package org.apache.beam.runners.core;
 
-import java.util.Collection;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.triggers.ExecutableTriggerStateMachine;
 import org.apache.beam.runners.core.triggers.TriggerStateMachines;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.SystemDoFnInternal;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.util.construction.TriggerTranslation;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.joda.time.Instant;
 
 /**
  * A general {@link GroupAlsoByWindowsAggregators}. This delegates all of the logic to the {@link
@@ -51,7 +48,7 @@ public class GroupAlsoByWindowViaWindowSetNewDoFn<
           TimerInternalsFactory<K> timerInternalsFactory,
           SideInputReader sideInputReader,
           SystemReduceFn<K, InputT, ?, OutputT, W> reduceFn,
-          DoFnRunners.OutputManager outputManager,
+          WindowedValueMultiReceiver outputManager,
           TupleTag<KV<K, OutputT>> mainTag) {
     return new GroupAlsoByWindowViaWindowSetNewDoFn<>(
         strategy,
@@ -68,7 +65,7 @@ public class GroupAlsoByWindowViaWindowSetNewDoFn<
   private transient StateInternalsFactory<K> stateInternalsFactory;
   private transient TimerInternalsFactory<K> timerInternalsFactory;
   private transient SideInputReader sideInputReader;
-  private transient DoFnRunners.OutputManager outputManager;
+  private transient WindowedValueMultiReceiver outputManager;
   private TupleTag<KV<K, OutputT>> mainTag;
 
   public GroupAlsoByWindowViaWindowSetNewDoFn(
@@ -77,7 +74,7 @@ public class GroupAlsoByWindowViaWindowSetNewDoFn<
       TimerInternalsFactory<K> timerInternalsFactory,
       SideInputReader sideInputReader,
       SystemReduceFn<K, InputT, ?, OutputT, W> reduceFn,
-      DoFnRunners.OutputManager outputManager,
+      WindowedValueMultiReceiver outputManager,
       TupleTag<KV<K, OutputT>> mainTag) {
     this.timerInternalsFactory = timerInternalsFactory;
     this.sideInputReader = sideInputReader;
@@ -89,29 +86,6 @@ public class GroupAlsoByWindowViaWindowSetNewDoFn<
     this.reduceFn = reduceFn;
     this.stateInternalsFactory = stateInternalsFactory;
     this.triggerProto = TriggerTranslation.toProto(windowingStrategy.getTrigger());
-  }
-
-  private OutputWindowedValue<KV<K, OutputT>> outputWindowedValue() {
-    return new OutputWindowedValue<KV<K, OutputT>>() {
-      @Override
-      public void outputWindowedValue(
-          KV<K, OutputT> output,
-          Instant timestamp,
-          Collection<? extends BoundedWindow> windows,
-          PaneInfo pane) {
-        outputManager.output(mainTag, WindowedValue.of(output, timestamp, windows, pane));
-      }
-
-      @Override
-      public <AdditionalOutputT> void outputWindowedValue(
-          TupleTag<AdditionalOutputT> tag,
-          AdditionalOutputT output,
-          Instant timestamp,
-          Collection<? extends BoundedWindow> windows,
-          PaneInfo pane) {
-        outputManager.output(tag, WindowedValue.of(output, timestamp, windows, pane));
-      }
-    };
   }
 
   @ProcessElement
@@ -130,7 +104,7 @@ public class GroupAlsoByWindowViaWindowSetNewDoFn<
                 TriggerStateMachines.stateMachineForTrigger(triggerProto)),
             stateInternals,
             timerInternals,
-            outputWindowedValue(),
+            windowedValue -> outputManager.output(mainTag, windowedValue),
             sideInputReader,
             reduceFn,
             c.getPipelineOptions());

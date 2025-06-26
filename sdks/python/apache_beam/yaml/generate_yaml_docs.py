@@ -604,6 +604,9 @@ def main():
                 <a href="https://github.com/apache/beam/tree/master/sdks/'''
               '''python/apache_beam/yaml/examples">github</a>.
                 </p>
+                <p>Note: These examples below are automatically tested for
+                correctness and may be used as a starting point for your own
+                pipelines.</p>
           '''))
 
 

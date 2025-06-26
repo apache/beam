@@ -65,13 +65,13 @@ import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.CombineFnUtil;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.BeamUrns;
 import org.apache.beam.sdk.util.construction.PCollectionViewTranslation;
 import org.apache.beam.sdk.util.construction.RehydratedComponents;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -189,9 +189,9 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
               .get(context.getPTransform().getInputsOrThrow(mainInputTag));
       Coder<?> maybeWindowedValueInputCoder = rehydratedComponents.getCoder(mainInput.getCoderId());
       Coder<?> inputCoder;
-      if (maybeWindowedValueInputCoder instanceof WindowedValue.WindowedValueCoder) {
+      if (maybeWindowedValueInputCoder instanceof WindowedValues.WindowedValueCoder) {
         inputCoder =
-            ((WindowedValue.WindowedValueCoder<?>) maybeWindowedValueInputCoder).getValueCoder();
+            ((WindowedValues.WindowedValueCoder<?>) maybeWindowedValueInputCoder).getValueCoder();
       } else {
         inputCoder = maybeWindowedValueInputCoder;
       }

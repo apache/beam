@@ -282,7 +282,7 @@ tasks.register("javaPreCommit") {
   dependsOn(":runners:spark:3:job-server:build")
   dependsOn(":runners:twister2:build")
   dependsOn(":sdks:java:build-tools:build")
-  dependsOn(":sdks:java:container:java8:docker")
+  dependsOn(":sdks:java:container:java11:docker")
   dependsOn(":sdks:java:core:build")
   dependsOn(":sdks:java:core:jmh:build")
   dependsOn(":sdks:java:expansion-service:build")
