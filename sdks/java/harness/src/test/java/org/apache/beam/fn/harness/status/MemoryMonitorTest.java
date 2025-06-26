@@ -233,7 +233,8 @@ public class MemoryMonitorTest {
                 .create());
     if (ioLocalTempDir != null) {
       assertTrue(m.canDumpHeap);
-      assertEquals(ioLocalTempDir, m.localDumpFolder.toString());
+      assertEquals(
+          new File(ioLocalTempDir).getCanonicalPath(), m.localDumpFolder.getCanonicalPath());
     } else {
       // If the generic temp directory property isn't set it will be disabled.
       assertFalse(m.canDumpHeap);
