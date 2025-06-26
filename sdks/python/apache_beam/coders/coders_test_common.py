@@ -608,7 +608,7 @@ class CodersTest(unittest.TestCase):
                 1, (window.IntervalWindow(11, 21), ),
                 PaneInfo(True, False, 1, 2, 3))))
 
-  def test_cross_process_deterministic_special_types(self):
+  def test_cross_process_encoding_of_special_types_is_deterministic(self):
     """Test cross-process determinism for all special deterministic types"""
     # pylint: disable=line-too-long
     script = textwrap.dedent(
