@@ -417,6 +417,7 @@ class SdkHarness(object):
         self._bundle_processor_cache, profiler_factory=self._profiler_factory)
 
   def _shutdown_due_to_element_processing_timeout(self, errMsg):
+    # type: str -> ()
     _LOGGER.error('%sThe SDK harness will be terminated.', errMsg)
     sys.exit(1)
 
