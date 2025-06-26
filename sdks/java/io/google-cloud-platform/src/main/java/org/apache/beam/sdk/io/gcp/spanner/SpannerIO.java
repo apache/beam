@@ -52,6 +52,8 @@ import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.TimestampBound;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -1012,6 +1014,32 @@ public class SpannerIO {
                       (SerializableFunction<Struct, Row>)
                           struct -> StructUtils.structToBeamRow(struct, schema)))
           .setRowSchema(schema);
+    }
+  }
+
+  static class ChangeStreamRead extends PTransform<PBegin, PCollection<String>> {
+
+    ReadChangeStream readChangeStream;
+
+    public ChangeStreamRead(ReadChangeStream readChangeStream) {
+      this.readChangeStream = readChangeStream;
+    }
+
+    @Override
+    public PCollection<String> expand(PBegin input) {
+      return input
+          .apply(readChangeStream)
+          .apply("DataChangeRecordToStringJSON", ParDo.of(new DataChangeRecordToJsonFn()));
+    }
+  }
+
+  private static class DataChangeRecordToJsonFn extends DoFn<DataChangeRecord, String> {
+    private static Gson gson = new GsonBuilder().disableHtmlEscaping().create();
+
+    @ProcessElement
+    public void process(@Element DataChangeRecord input, OutputReceiver<String> receiver) {
+      String modJsonString = gson.toJson(input, DataChangeRecord.class);
+      receiver.output(modJsonString);
     }
   }
 
