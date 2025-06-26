@@ -366,9 +366,10 @@ if __name__ == '__main__':
           'dill>=0.3.1.1,<0.3.2',
           'fastavro>=0.23.6,<2',
           'fasteners>=0.3,<1.0',
-          # TODO(https://github.com/grpc/grpc/issues/37710): Unpin grpc
-          'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,<1.66.0; python_version <= "3.12"',  # pylint: disable=line-too-long
-          'grpcio>=1.67.0; python_version >= "3.13"',
+          # any version between 1.68.0 and 1.73.0 is bad
+          # external issue: https://github.com/grpc/grpc/issues/37710
+          'grpcio>=1.33.1,<1.74.0,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,!=1.68.*,!=1.69.*,!=1.70.*,!=1.71.*,!=1.72.*,!=1.73.0; python_version <= "3.12"',  # pylint: disable=line-too-long
+          'grpcio>=1.73.1; python_version >= "3.13"',
           'hdfs>=2.1.0,<3.0.0',
           'httplib2>=0.8,<0.23.0',
           'jsonschema>=4.0.0,<5.0.0',
@@ -571,7 +572,7 @@ if __name__ == '__main__':
           # in https://github.com/apache/beam/blob/master/sdks/python/tox.ini
           # For more info, see
           # https://docs.google.com/document/d/1c84Gc-cZRCfrU8f7kWGsNR2o8oSRjCM-dGHO9KvPWPw/edit?usp=sharing
-          'torch': ['torch<=1.13.0,<2.1.0'],
+          'torch': ['torch>=1.9.0,<2.1.0'],
           'tensorflow': ['tensorflow>=2.12rc1,<2.13'],
           'transformers': [
               'transformers>=4.28.0,<4.49.0',
