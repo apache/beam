@@ -52,7 +52,6 @@ from apache_beam.transforms.display_test import DisplayDataItemMatcher
 
 try:
   import pyarrow as pa
-  import pyarrow.lib as pl
   import pyarrow.parquet as pq
 except ImportError:
   pa = None

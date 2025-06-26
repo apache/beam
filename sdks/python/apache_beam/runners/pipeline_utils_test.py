@@ -189,10 +189,11 @@ class PipelineUtilitiesTest(unittest.TestCase):
     # All our external environments are equal and consolidated.
     # We also have a placeholder "default" environment that has not been
     # resolved do anything concrete yet.
+    envs = pipeline_proto.components.environments
     self.assertEqual(
-        len(pipeline_proto.components.environments),
+        len(envs),
         2,
-        f'should be 2 environments, instead got: {pipeline_proto.components.environments}'
+        f'should be 2 environments, instead got: {envs}'
     )
 
 

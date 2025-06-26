@@ -723,7 +723,7 @@ class IdentityWindowTest(unittest.TestCase):
             equal_to(expected_windows),
             label='before_identity',
             reify_windows=True)
-        after_identity = (
+        _ = (
             before_identity
             | 'window' >> beam.WindowInto(
                 beam.transforms.util._IdentityWindowFn(
@@ -1085,8 +1085,8 @@ class ReshuffleTest(unittest.TestCase):
         nonspeculative_index=1)
 
     # Portable runners may not have the same level of precision on timestamps -
-    # this gets the largest supported timestamp with the extra non-supported bits
-    # truncated
+    # this gets the largest supported timestamp with the extra non-supported
+    # bits truncated
     gt = GlobalWindow().max_timestamp()
     truncated_gt = gt - (gt % 0.001)
 
