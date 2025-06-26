@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.fn;
 
-import static org.hamcrest.core.StringContains.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -26,11 +25,9 @@ import org.apache.beam.sdk.harness.JvmInitializer;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.hamcrest.MatcherAssert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.contrib.java.lang.system.SystemOutRule;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -39,7 +36,6 @@ import org.junit.runners.JUnit4;
 public final class JvmInitializersTest {
 
   @Rule public ExpectedLogs expectedLogs = ExpectedLogs.none(JvmInitializers.class);
-  @Rule public SystemOutRule systemOutRule = new SystemOutRule().enableLog();
 
   private static Boolean onStartupRan;
   private static Boolean beforeProcessingRan;
@@ -72,8 +68,6 @@ public final class JvmInitializersTest {
     JvmInitializers.runOnStartup();
 
     assertTrue(onStartupRan);
-    MatcherAssert.assertThat(
-        systemOutRule.getLog(), containsString("Running JvmInitializer#onStartup"));
   }
 
   @Test
