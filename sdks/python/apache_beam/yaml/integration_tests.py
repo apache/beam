@@ -184,9 +184,6 @@ def instance_prefix(instance):
 def temp_bigtable_table(project, prefix='yaml_bt_it_'):
     INSTANCE = "bt-write-tests"
     TABLE_ID = "test-table"
-    # test_pipeline = TestPipeline(is_integration_test=True)
-    # args = test_pipeline.get_full_options_as_args()
-    # project = test_pipeline.get_option('project')
 
     instance_id = (INSTANCE)
 
@@ -207,20 +204,26 @@ def temp_bigtable_table(project, prefix='yaml_bt_it_'):
     # create table inside instance
     table = instanceT.table(TABLE_ID)
     table.create()
+    _LOGGER.info("Created table [%s]", table.table_id)
+    # in the table that is created, make a new family called cf1
     col_fam = table.column_family('cf1')
     col_fam.create()
 
-
+    # another family called cf2
     col_fam = table.column_family('cf2')
     col_fam.create()
-    _LOGGER.info("Created table [%s]", table.table_id)
+
+    #
     if (os.environ.get('TRANSFORM_SERVICE_PORT')):
         _transform_service_address = (
                 'localhost:' + os.environ.get('TRANSFORM_SERVICE_PORT'))
     else:
         _transform_service_address = None
 
+    #yielding the tmp table for all the bigTable tests
     yield f'{instance_id}.{project}.tmp_table'
+
+    #try catch for deleting table and instance after all tests are ran
     try:
         _LOGGER.info("Deleting table [%s]", table.table_id)
         table.delete()
