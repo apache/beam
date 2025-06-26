@@ -214,7 +214,9 @@ final class GrpcCommitWorkStream
 
     @Override
     public void appendHtml(PrintWriter writer) {
-      writer.format("CommitWorkStream: %d pending", pending.size());
+      writer.format(
+          "CommitWorkStream: %d pending",
+          pending.entrySet().stream().filter(e -> e.getValue().getKey() == this).count());
     }
   }
 

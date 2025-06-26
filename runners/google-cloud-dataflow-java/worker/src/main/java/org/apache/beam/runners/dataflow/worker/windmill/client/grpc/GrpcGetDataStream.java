@@ -421,8 +421,10 @@ final class GrpcGetDataStream
         LOG.error("Parsing GetData response failed: ", e);
         try {
           BackOffUtils.next(Sleeper.DEFAULT, backoff);
-        } catch (IOException | InterruptedException ie) {
+        } catch (InterruptedException ie) {
           Thread.currentThread().interrupt();
+        } catch (IOException ie) {
+          // TODO: remove IOException from BackoffUtils
         }
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
