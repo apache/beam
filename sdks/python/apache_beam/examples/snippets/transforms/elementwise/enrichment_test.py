@@ -18,16 +18,27 @@
 # pytype: skip-file
 # pylint: disable=line-too-long
 
+import os
 import unittest
 from io import StringIO
 
 import mock
+import pytest
 
 # pylint: disable=unused-import
 try:
-  from apache_beam.examples.snippets.transforms.elementwise.enrichment import enrichment_with_bigtable, \
-  enrichment_with_vertex_ai_legacy
-  from apache_beam.examples.snippets.transforms.elementwise.enrichment import enrichment_with_vertex_ai
+  from apache_beam.examples.snippets.transforms.elementwise.enrichment import (
+      enrichment_with_bigtable,
+      enrichment_with_vertex_ai,
+      enrichment_with_vertex_ai_legacy,
+      enrichment_with_milvus)
+  from apache_beam.ml.rag.enrichment.milvus_search import (
+      MilvusConnectionParameters)
+  from apache_beam.ml.rag.enrichment.milvus_search_it_test import (
+      MilvusEnrichmentTestHelper,
+      MilvusDBContainerInfo,
+      parse_chunk_strings,
+      assert_chunks_equivalent)
   from apache_beam.io.requestresponse import RequestResponseIO
 except ImportError:
   raise unittest.SkipTest('RequestResponseIO dependencies are not installed')
@@ -60,7 +71,15 @@ Row(entity_id='movie_04', title='The Dark Knight', genres='Action')
   return expected
 
 
+def validate_enrichment_with_milvus():
+  expected = '''[START enrichment_with_milvus]
+Chunk(content=Content(text=None), id='query1', index=0, metadata={'enrichment_data': defaultdict(<class 'list'>, {'id': [1], 'distance': [1.0], 'fields': [{'content': 'This is a test document', 'cost': 49, 'domain': 'medical', 'id': 1, 'metadata': {'language': 'en'}}]})}, embedding=Embedding(dense_embedding=[0.1, 0.2, 0.3], sparse_embedding=None))
+  [END enrichment_with_milvus]'''.splitlines()[1:-1]
+  return expected
+
+
 @mock.patch('sys.stdout', new_callable=StringIO)
+@pytest.mark.uses_testcontainer
 class EnrichmentTest(unittest.TestCase):
   def test_enrichment_with_bigtable(self, mock_stdout):
     enrichment_with_bigtable()
@@ -82,6 +101,63 @@ class EnrichmentTest(unittest.TestCase):
     expected = validate_enrichment_with_vertex_ai_legacy()
     self.maxDiff = None
     self.assertEqual(output, expected)
+
+  def test_enrichment_with_milvus(self, mock_stdout):
+    milvus_db = None
+    try:
+      milvus_db = EnrichmentTestHelpers.pre_milvus_enrichment()
+      enrichment_with_milvus()
+      output = mock_stdout.getvalue().splitlines()
+      expected = validate_enrichment_with_milvus()
+      self.maxDiff = None
+      output = parse_chunk_strings(output)
+      expected = parse_chunk_strings(expected)
+      assert_chunks_equivalent(output, expected)
+    except Exception as e:
+      self.fail(f"Test failed with unexpected error: {e}")
+    finally:
+      if milvus_db:
+        EnrichmentTestHelpers.post_milvus_enrichment(milvus_db)
+
+
+class EnrichmentTestHelpers:
+  @staticmethod
+  def pre_milvus_enrichment() -> MilvusDBContainerInfo:
+    # Create Milvus db container and make sure it is up and running.
+    db = MilvusEnrichmentTestHelper.start_db_container()
+
+    # Construct connection parameters.
+    connection_params = MilvusConnectionParameters(
+        uri=db.uri,
+        user=db.user,
+        password=db.password,
+        db_id=db.id,
+        token=db.token)
+
+    # Initialize db with data required for testing.
+    collection_name = MilvusEnrichmentTestHelper.initialize_db_with_data(
+        connection_params)
+
+    # Setup environment variables for db and collection configuration. This will
+    # be used downstream by the milvus enrichment handler.
+    os.environ['MILVUS_VECTOR_DB_URI'] = db.uri
+    os.environ['MILVUS_VECTOR_DB_USER'] = db.user
+    os.environ['MILVUS_VECTOR_DB_PASSWORD'] = db.password
+    os.environ['MILVUS_VECTOR_DB_ID'] = db.id
+    os.environ['MILVUS_VECTOR_DB_TOKEN'] = db.token
+    os.environ['MILVUS_VECTOR_DB_COLLECTION_NAME'] = collection_name
+
+    return db
+
+  @staticmethod
+  def post_milvus_enrichment(db: MilvusDBContainerInfo):
+    MilvusEnrichmentTestHelper.stop_db_container(db)
+    os.environ.pop('MILVUS_VECTOR_DB_URI', None)
+    os.environ.pop('MILVUS_VECTOR_DB_USER', None)
+    os.environ.pop('MILVUS_VECTOR_DB_PASSWORD', None)
+    os.environ.pop('MILVUS_VECTOR_DB_ID', None)
+    os.environ.pop('MILVUS_VECTOR_DB_TOKEN', None)
+    os.environ.pop('MILVUS_VECTOR_DB_COLLECTION_NAME', None)
 
 
 if __name__ == '__main__':
