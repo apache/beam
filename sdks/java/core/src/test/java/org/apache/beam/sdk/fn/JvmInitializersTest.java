@@ -17,20 +17,25 @@
  */
 package org.apache.beam.sdk.fn;
 
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.StringContains.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import com.google.auto.service.AutoService;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+import java.util.Scanner;
 import org.apache.beam.sdk.harness.JvmInitializer;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.hamcrest.MatcherAssert;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.contrib.java.lang.system.SystemOutRule;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -39,11 +44,12 @@ import org.junit.runners.JUnit4;
 public final class JvmInitializersTest {
 
   @Rule public ExpectedLogs expectedLogs = ExpectedLogs.none(JvmInitializers.class);
-  @Rule public SystemOutRule systemOutRule = new SystemOutRule().enableLog();
 
   private static Boolean onStartupRan;
   private static Boolean beforeProcessingRan;
   private static PipelineOptions receivedOptions;
+  private PrintStream out;
+  private ByteArrayOutputStream receivedOut;
 
   /** Test initializer implementation. Methods simply produce observable side effects. */
   @AutoService(JvmInitializer.class)
@@ -65,6 +71,16 @@ public final class JvmInitializersTest {
     onStartupRan = false;
     beforeProcessingRan = false;
     receivedOptions = null;
+
+    // Capture System.out
+    out = System.out;
+    System.setOut(new PrintStream(receivedOut = new ByteArrayOutputStream(), true));
+  }
+
+  @After
+  public void tearDown() {
+    // Restore System.out
+    System.setOut(out);
   }
 
   @Test
@@ -72,8 +88,8 @@ public final class JvmInitializersTest {
     JvmInitializers.runOnStartup();
 
     assertTrue(onStartupRan);
-    MatcherAssert.assertThat(
-        systemOutRule.getLog(), containsString("Running JvmInitializer#onStartup"));
+    assertThat(() -> new Scanner(new ByteArrayInputStream(receivedOut.toByteArray())),
+        contains(containsString("Running JvmInitializer#onStartup")));
   }
 
   @Test
