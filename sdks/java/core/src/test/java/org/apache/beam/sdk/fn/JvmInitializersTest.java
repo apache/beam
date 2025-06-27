@@ -26,8 +26,9 @@ import static org.junit.Assert.assertTrue;
 import com.google.auto.service.AutoService;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.PrintStream;
-import java.nio.charset.StandardCharsets;
+import java.io.UnsupportedEncodingException;
 import java.util.Scanner;
 import org.apache.beam.sdk.harness.JvmInitializer;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -68,7 +69,7 @@ public final class JvmInitializersTest {
   }
 
   @Before
-  public void setUp() {
+  public void setUp() throws UnsupportedEncodingException {
     onStartupRan = false;
     beforeProcessingRan = false;
     receivedOptions = null;
@@ -76,7 +77,7 @@ public final class JvmInitializersTest {
     // Capture System.out
     out = System.out;
     System.setOut(
-        new PrintStream(receivedOut = new ByteArrayOutputStream(), true, StandardCharsets.UTF_8));
+        new PrintStream(receivedOut = new ByteArrayOutputStream(), true, "UTF8"));
   }
 
   @After
@@ -86,14 +87,13 @@ public final class JvmInitializersTest {
   }
 
   @Test
-  public void runOnStartup_runsInitializers() {
-    JvmInitializers.runOnStartup();
+  public void runOnStartup_runsInitializers() throws IOException {
 
     assertTrue(onStartupRan);
     assertThat(
         () ->
             new Scanner(
-                new ByteArrayInputStream(receivedOut.toByteArray()), StandardCharsets.UTF_8),
+                new ByteArrayInputStream(receivedOut.toByteArray()), "UTF8"),
         contains(containsString("Running JvmInitializer#onStartup")));
   }
 
