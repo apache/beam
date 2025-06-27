@@ -21,8 +21,6 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import java.util.Collections;
 import java.util.List;
-import java.util.UUID;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
@@ -35,7 +33,6 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.InstanceBuilder;
-import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
@@ -43,7 +40,7 @@ import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.InvalidProtocolBu
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /** {@link CoderTranslator} implementations for known coder types. */
-public class CoderTranslators {
+class CoderTranslators {
   private CoderTranslators() {}
 
   static <T extends Coder<?>> CoderTranslator<T> atomic(final Class<T> clazz) {
@@ -171,7 +168,6 @@ public class CoderTranslators {
         Schema schema;
         try {
           schema = SchemaTranslation.schemaFromProto(SchemaApi.Schema.parseFrom(payload));
-          overrideEncodingPositions(schema);
         } catch (InvalidProtocolBufferException e) {
           throw new RuntimeException("Unable to parse schema for RowCoder: ", e);
         }
@@ -222,44 +218,6 @@ public class CoderTranslators {
         return from.getComponents();
       }
     };
-  }
-
-  public static void overrideEncodingPositions(Schema schema) {
-    @Nullable UUID uuid = schema.getUUID();
-    if (schema.isEncodingPositionsOverridden() && uuid != null) {
-      RowCoder.overrideEncodingPositions(uuid, schema.getEncodingPositions());
-    }
-    schema.getFields().stream()
-        .map(Schema.Field::getType)
-        .forEach(CoderTranslators::overrideEncodingPositions);
-  }
-
-  private static void overrideEncodingPositions(Schema.FieldType fieldType) {
-    switch (fieldType.getTypeName()) {
-      case ROW:
-        overrideEncodingPositions(Preconditions.checkArgumentNotNull(fieldType.getRowSchema()));
-        break;
-      case ARRAY:
-      case ITERABLE:
-        overrideEncodingPositions(
-            Preconditions.checkArgumentNotNull(fieldType.getCollectionElementType()));
-        break;
-      case MAP:
-        overrideEncodingPositions(Preconditions.checkArgumentNotNull(fieldType.getMapKeyType()));
-        overrideEncodingPositions(Preconditions.checkArgumentNotNull(fieldType.getMapValueType()));
-        break;
-      case LOGICAL_TYPE:
-        Schema.LogicalType<Object, Object> logicalType =
-            (Schema.LogicalType<Object, Object>)
-                Preconditions.checkArgumentNotNull(fieldType.getLogicalType());
-        @Nullable Schema.FieldType argumentType = logicalType.getArgumentType();
-        if (argumentType != null) {
-          overrideEncodingPositions(argumentType);
-        }
-        overrideEncodingPositions(logicalType.getBaseType());
-        break;
-      default:
-    }
   }
 
   public abstract static class SimpleStructuredCoderTranslator<T extends Coder<?>>
