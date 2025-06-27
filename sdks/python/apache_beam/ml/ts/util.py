@@ -159,7 +159,19 @@ class PeriodicStream(beam.PTransform):
     self._data = data
     self._interval = interval
     self._repeat = repeat
-    self._duration = len(self._data) * interval
+
+    # In `ImpulseSeqGenRestrictionProvider`, the total number of counts
+    # (i.e. total_outputs) is computed by ceil((end - start) / interval),
+    # where end is start + duration.
+    # Due to precision error of arithmetic operations, even if duration is set
+    # to len(self._data) * interval, (end - start) / interval could be a little
+    # bit smaller or bigger than len(self._data).
+    # In case of being bigger, total_outputs would be len(self._data) + 1,
+    # as the ceil() operation is used.
+    # Assuming that the precision error is no bigger than 1%, by subtracting
+    # a small amount, we ensure that the result after ceil is stable even if
+    # the precision error is present.
+    self._duration = len(self._data) * interval - 0.01 * interval
     self._max_duration = max_duration if max_duration is not None else float(
         "inf")
 

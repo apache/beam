@@ -152,16 +152,17 @@ public class SqlCreateExternalTable extends SqlCreate implements BeamSqlParser.E
     }
 
     BeamCalciteSchema schema = (BeamCalciteSchema) pair.left.schema;
+    Table table = toTable();
     if (partitionFields != null) {
       checkArgument(
-          schema.resolveMetastore().supportsPartitioning(),
+          schema.resolveMetastore().supportsPartitioning(table),
           "Invalid use of 'PARTITIONED BY()': Table '%s' of type '%s' "
               + "does not support partitioning.",
           SqlDdlNodes.name(name),
           SqlDdlNodes.getString(type));
     }
 
-    schema.resolveMetastore().createTable(toTable());
+    schema.resolveMetastore().createTable(table);
   }
 
   private void unparseColumn(SqlWriter writer, Schema.Field column) {

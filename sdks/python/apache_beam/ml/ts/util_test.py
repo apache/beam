@@ -76,6 +76,17 @@ class PeriodicStreamTest(unittest.TestCase):
     self.assertGreaterEqual(end - start, 3)
     self.assertLessEqual(end - start, 7)
 
+  def test_stable_output(self):
+    options = PipelineOptions()
+    data = [(Timestamp(1), 1), (Timestamp(2), 2), (Timestamp(3), 3),
+            (Timestamp(6), 6), (Timestamp(4), 4), (Timestamp(5), 5),
+            (Timestamp(7), 7), (Timestamp(8), 8), (Timestamp(9), 9),
+            (Timestamp(10), 10)]
+    expected = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    with beam.Pipeline(options=options) as p:
+      ret = (p | PeriodicStream(data, interval=0.0001))
+      assert_that(ret, equal_to(expected))
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.WARNING)

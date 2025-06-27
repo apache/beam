@@ -15,13 +15,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.meta.provider.iceberg;
+package org.apache.beam.sdk.io.gcp.spanner.changestreams.model;
 
-import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
+import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.mock;
 
-public class IcebergMetastore extends InMemoryMetaStore {
-  @Override
-  public boolean supportsPartitioning() {
-    return true;
+import com.google.cloud.Timestamp;
+import org.junit.Test;
+
+public class PartitionEndRecordTest {
+
+  @Test
+  public void testMetadataShouldNotInterfereInEquality() {
+    final PartitionEndRecord record1 =
+        new PartitionEndRecord(
+            Timestamp.ofTimeMicroseconds(1L),
+            "recordSequence",
+            mock(ChangeStreamRecordMetadata.class));
+    final PartitionEndRecord record2 =
+        new PartitionEndRecord(
+            Timestamp.ofTimeMicroseconds(1L),
+            "recordSequence",
+            mock(ChangeStreamRecordMetadata.class));
+
+    assertEquals(record1, record2);
+    assertEquals(record1.hashCode(), record2.hashCode());
   }
 }

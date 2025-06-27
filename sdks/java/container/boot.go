@@ -229,6 +229,17 @@ func main() {
 	if enableOpenTelemetryAgent {
 		args = append(args, openTelemetryAgentArgs)
 		logger.Printf(ctx, "Enabling OpenTelemetry agent.")
+  }
+
+  // If heap dumping is enabled, configure the JVM to dump it on oom events.
+	if pipelineOptions, ok := info.GetPipelineOptions().GetFields()["options"]; ok {
+		if heapDumpOption, ok := pipelineOptions.GetStructValue().GetFields()["enableHeapDumps"]; ok {
+			if heapDumpOption.GetBoolValue() {
+			  args = append(args, "-XX:+HeapDumpOnOutOfMemoryError",
+			                "-Dbeam.fn.heap_dump_dir="+filepath.Join(dir, "heapdumps"),
+			                "-XX:HeapDumpPath="+filepath.Join(dir, "heapdumps", "heap_dump.hprof"))
+			}
+		}
 	}
 
 	// Apply meta options

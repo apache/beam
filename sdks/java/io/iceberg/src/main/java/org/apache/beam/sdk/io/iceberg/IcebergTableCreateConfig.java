@@ -33,12 +33,8 @@ public abstract class IcebergTableCreateConfig {
 
   /** Partition spec destination, in the event that it must be dynamically created. */
   @Pure
-  public @Nullable PartitionSpec getPartitionSpec() {
-    @Nullable List<String> fields = getPartitionFields();
-    if (fields == null || fields.isEmpty()) {
-      return null;
-    }
-    return PartitionUtils.toPartitionSpec(fields, getSchema());
+  public PartitionSpec getPartitionSpec() {
+    return PartitionUtils.toPartitionSpec(getPartitionFields(), getSchema());
   }
 
   @Pure
