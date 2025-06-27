@@ -51,12 +51,15 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** End-to-end test of Cloud Spanner CDC Source. */
 @RunWith(JUnit4.class)
 public class SpannerChangeStreamPostgresIT {
+
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(3600);
 
   @ClassRule
   public static final IntegrationTestEnv ENV = new IntegrationTestEnv(/*isPostgres=*/ true);

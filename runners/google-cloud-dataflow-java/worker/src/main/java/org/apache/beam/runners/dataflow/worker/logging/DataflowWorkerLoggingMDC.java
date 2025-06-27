@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker.logging;
 
+import javax.annotation.Nullable;
+
 /** Mapped diagnostic context for the Dataflow worker. */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
@@ -34,7 +36,7 @@ public class DataflowWorkerLoggingMDC {
   }
 
   /** Sets the Stage Name of the current thread, which will be inherited by child threads. */
-  public static void setStageName(String newStageName) {
+  public static void setStageName(@Nullable String newStageName) {
     stageName.set(newStageName);
   }
 
@@ -44,7 +46,7 @@ public class DataflowWorkerLoggingMDC {
   }
 
   /** Sets the Work ID of the current thread, which will be inherited by child threads. */
-  public static void setWorkId(String newWorkId) {
+  public static void setWorkId(@Nullable String newWorkId) {
     workId.set(newWorkId);
   }
 

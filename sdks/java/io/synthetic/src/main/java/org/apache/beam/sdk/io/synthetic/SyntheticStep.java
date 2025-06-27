@@ -21,7 +21,6 @@ import static org.apache.beam.sdk.io.synthetic.delay.SyntheticDelay.delay;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.io.synthetic.delay.SyntheticDelay;
@@ -53,6 +52,7 @@ import org.joda.time.Duration;
  */
 public class SyntheticStep extends DoFn<KV<byte[], byte[]>, KV<byte[], byte[]>> {
 
+  private static final Random RANDOM = new Random();
   private final Options options;
 
   // used when maxWorkerThroughput is set
@@ -75,13 +75,11 @@ public class SyntheticStep extends DoFn<KV<byte[], byte[]>, KV<byte[], byte[]>> 
                 }
               });
 
-  @SuppressFBWarnings("DMI_RANDOM_USED_ONLY_ONCE") // TODO(#35312)
   public SyntheticStep(Options options) {
     options.validate();
     this.options = options;
-    Random rand = new Random();
     // use a random id so that a pipeline could have multiple SyntheticSteps
-    this.idAndThroughput = KV.of(rand.nextLong(), options.maxWorkerThroughput);
+    this.idAndThroughput = KV.of(RANDOM.nextLong(), options.maxWorkerThroughput);
   }
 
   @ProcessElement

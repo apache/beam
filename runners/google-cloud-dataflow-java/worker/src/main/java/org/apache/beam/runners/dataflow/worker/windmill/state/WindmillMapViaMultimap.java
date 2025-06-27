@@ -92,11 +92,12 @@ public class WindmillMapViaMultimap<KeyT, ValueT> extends AbstractWindmillMap<Ke
       this.defaultValue = defaultValue;
     }
 
+    @SuppressWarnings("nullness")
     @Override
     public T read() {
       Iterator<T> iterator = wrapped.read().iterator();
       if (!iterator.hasNext()) {
-        return null;
+        return defaultValue;
       }
       return Iterators.getOnlyElement(iterator);
     }

@@ -125,9 +125,9 @@ final class GetWorkResponseChunkAssembler {
 
     abstract String computationId();
 
-    abstract Instant inputDataWatermark();
+    abstract @Nullable Instant inputDataWatermark();
 
-    abstract Instant synchronizedProcessingTime();
+    abstract @Nullable Instant synchronizedProcessingTime();
   }
 
   @AutoValue

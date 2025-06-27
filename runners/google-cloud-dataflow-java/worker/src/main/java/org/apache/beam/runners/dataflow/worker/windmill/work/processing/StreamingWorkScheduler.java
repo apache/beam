@@ -375,7 +375,7 @@ public class StreamingWorkScheduler {
       Optional<Coder<?>> keyCoder = computationWorkExecutor.keyCoder();
       @SuppressWarnings("deprecation")
       @Nullable
-      Object executionKey =
+      final Object executionKey =
           !keyCoder.isPresent() ? null : keyCoder.get().decode(key.newInput(), Coder.Context.OUTER);
 
       if (workItem.hasHotKeyInfo()) {
@@ -383,7 +383,9 @@ public class StreamingWorkScheduler {
         Duration hotKeyAge = Duration.millis(hotKeyInfo.getHotKeyAgeUsec() / 1000);
 
         String stepName = getShuffleTaskStepName(computationState.getMapTask());
-        if ((options.isHotKeyLoggingEnabled() || hasExperiment(options, "enable_hot_key_logging"))
+        if (executionKey != null
+            && (options.isHotKeyLoggingEnabled()
+                || hasExperiment(options, "enable_hot_key_logging"))
             && keyCoder.isPresent()) {
           hotKeyLogger.logHotKeyDetection(stepName, hotKeyAge, executionKey);
         } else {

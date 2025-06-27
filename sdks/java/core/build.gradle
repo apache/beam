@@ -17,6 +17,9 @@
  */
 
 plugins { id 'org.apache.beam.module' }
+
+def antlr_version = "4.7"
+
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.sdk',
   classesTriggerCheckerBugs: [
@@ -29,7 +32,8 @@ applyJavaNature(
     dependencies {
       include(dependency(library.java.commons_compress))
       include(dependency(library.java.commons_lang3))
-      include(dependency(library.java.antlr_runtime))
+      // Shade and repackage antlr runtime into Java core jar
+      include(dependency("org.antlr:antlr4-runtime:$antlr_version"))
     }
     relocate "com.google.thirdparty", getJavaRelocatedPath("com.google.thirdparty")
     relocate "org.apache.commons.compress", getJavaRelocatedPath("org.apache.commons.compress")
@@ -70,10 +74,11 @@ test {
 }
 
 dependencies {
-  antlr library.java.antlr
   // antlr is used to generate code from sdks/java/core/src/main/antlr/
-  permitUnusedDeclared library.java.antlr
-  permitUsedUndeclared library.java.antlr_runtime
+  antlr "org.antlr:antlr4:$antlr_version"
+  permitUnusedDeclared "org.antlr:antlr4:$antlr_version"
+  // alrady shaded and repackaged
+  permitUsedUndeclared "org.antlr:antlr4-runtime:$antlr_version"
   // Required to load constants from the model, e.g. max timestamp for global window
   shadow project(path: ":model:pipeline", configuration: "shadow")
   shadow project(path: ":model:fn-execution", configuration: "shadow")

@@ -58,6 +58,7 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
@@ -82,6 +83,8 @@ public class SpannerChangeStreamOrderedByTimestampAndTransactionIdIT {
   private static String tableName;
   private static String changeStreamName;
   private static DatabaseClient databaseClient;
+
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(3600);
 
   @BeforeClass
   public static void setup() throws InterruptedException, ExecutionException, TimeoutException {

@@ -82,7 +82,7 @@ public interface SubProcessPipelineOptions extends PipelineOptions {
       configuration.setWorkerPath(subProcessPipelineOptions.getWorkerPath());
       configuration.setWaitTime(subProcessPipelineOptions.getWaitTime());
       configuration.setOnlyUpLoadLogsOnError(subProcessPipelineOptions.getOnlyUpLoadLogsOnError());
-      configuration.concurrency = subProcessPipelineOptions.getConcurrency();
+      configuration.setConcurrency(subProcessPipelineOptions.getConcurrency());
 
       return configuration;
     }

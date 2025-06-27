@@ -75,9 +75,7 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: |
-            11
-            8
+          java-version: default
       - name: run PostCommit Java Dataflow V1 script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

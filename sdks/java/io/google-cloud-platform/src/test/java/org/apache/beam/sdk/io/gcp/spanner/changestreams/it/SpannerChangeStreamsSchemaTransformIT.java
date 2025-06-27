@@ -48,6 +48,7 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -65,6 +66,8 @@ public class SpannerChangeStreamsSchemaTransformIT {
   private static String changeStreamTableName;
   private static String changeStreamName;
   private static DatabaseClient databaseClient;
+
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(3600);
 
   @BeforeClass
   public static void beforeClass() throws Exception {

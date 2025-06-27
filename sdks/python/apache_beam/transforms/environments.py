@@ -42,6 +42,7 @@ from google.protobuf import message
 from apache_beam import coders
 from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
@@ -923,6 +924,10 @@ def python_sdk_dependencies(options, tmp_dir=None):
     tmp_dir = tempfile.mkdtemp()
   skip_prestaged_dependencies = options.view_as(
       SetupOptions).prebuild_sdk_container_engine is not None
+  runner = options.view_as(
+      StandardOptions).runner or StandardOptions.DEFAULT_RUNNER
+  log_submission_env_dependencies = runner.split(
+      '.')[-1] not in StandardOptions.LOCAL_RUNNERS
   return stager.Stager.create_job_resources(
       options,
       tmp_dir,
@@ -930,4 +935,5 @@ def python_sdk_dependencies(options, tmp_dir=None):
           artifact[0] + artifact[1]
           for artifact in PyPIArtifactRegistry.get_artifacts()
       ],
-      skip_prestaged_dependencies=skip_prestaged_dependencies)
+      skip_prestaged_dependencies=skip_prestaged_dependencies,
+      log_submission_env_dependencies=log_submission_env_dependencies)

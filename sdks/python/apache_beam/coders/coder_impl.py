@@ -1832,9 +1832,11 @@ class RowCoderImpl(StreamCoderImpl):
       enc_posx = list(
           set(field.encoding_position for field in self.schema.fields))
       if len(enc_posx) != len(self.schema.fields):
+        names_no_pos = ", ".join(
+            [f.name for f in self.schema.fields if f.encoding_position is None])
         raise ValueError(
             f'''Schema with id {schema.id} has encoding_positions_set=True,
-            but not all fields have encoding_position set''')
+            but found fields without encoding_position set: {names_no_pos}''')
       self.encoding_positions = list(
           field.encoding_position for field in self.schema.fields)
     self.encoding_positions_argsort = list(np.argsort(self.encoding_positions))

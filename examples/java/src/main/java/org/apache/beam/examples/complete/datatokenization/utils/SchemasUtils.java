@@ -21,7 +21,6 @@ import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.fromTableSchema;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.services.bigquery.model.TableSchema;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
@@ -88,13 +87,16 @@ public class SchemasUtils {
     jsonBeamSchema = BigQueryHelpers.toJsonString(schema.getFields());
   }
 
-  @SuppressFBWarnings("DCN_NULLPOINTER_EXCEPTION")
   private void validateSchemaTypes(TableSchema bigQuerySchema) {
+    if (bigQuerySchema == null) {
+      LOG.error("Provided BigQuery schema is null. Please check your input.");
+      return;
+    }
     try {
       beamSchema = fromTableSchema(bigQuerySchema);
     } catch (UnsupportedOperationException exception) {
       LOG.error("Check json schema, {}", exception.getMessage());
-    } catch (NullPointerException npe) {
+    } catch (Exception e) {
       LOG.error("Missing schema keywords, please check what all required fields presented");
     }
   }

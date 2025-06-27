@@ -134,16 +134,27 @@ public final class ApplianceGetDataClient implements GetDataClient {
     try {
       Windmill.GetDataResponse response = windmillClient.getData(builder.build());
       // Dispatch the per-key responses back to the waiting threads.
+      boolean hadInvalidResponse = false;
       for (Windmill.ComputationGetDataResponse computationResponse : response.getDataList()) {
         for (Windmill.KeyedGetDataResponse keyResponse : computationResponse.getDataList()) {
-          pendingResponses
-              .get(
+          @Nullable
+          SettableFuture<Windmill.KeyedGetDataResponse> responseFuture =
+              pendingResponses.get(
                   WindmillComputationKey.create(
                       computationResponse.getComputationId(),
                       keyResponse.getKey(),
-                      keyResponse.getShardingKey()))
-              .set(keyResponse);
+                      keyResponse.getShardingKey()));
+          if (responseFuture == null) {
+            // Defer throwing the exception so that the valid responses are processed successfully.
+            hadInvalidResponse = true;
+          } else {
+            responseFuture.set(keyResponse);
+          }
         }
+      }
+      if (hadInvalidResponse) {
+        throw new IllegalArgumentException(
+            "Unexpected get data response which doesn't correspond to any key.");
       }
     } catch (RuntimeException e) {
       // Fan the exception out to the reads.

@@ -615,6 +615,15 @@ class StandardOptions(PipelineOptions):
       'apache_beam.runners.test.TestDataflowRunner',
   )
 
+  LOCAL_RUNNERS = (
+      'BundleBasedDirectRunner',
+      'DirectRunner',
+      'SwitchingDirectRunner',
+      'FnApiRunner',
+      'PrismRunner',
+      'TestDirectRunner',
+  )
+
   KNOWN_RUNNER_NAMES = [path.split('.')[-1] for path in ALL_KNOWN_RUNNERS]
 
   @classmethod

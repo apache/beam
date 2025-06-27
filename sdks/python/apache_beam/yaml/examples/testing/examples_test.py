@@ -17,6 +17,7 @@
 #
 # pytype: skip-file
 import glob
+import json
 import logging
 import os
 import random
@@ -124,11 +125,35 @@ def test_kafka_read(
       | beam.Map(lambda element: beam.Row(payload=element.encode('utf-8'))))
 
 
-TEST_PROVIDERS = {
-    'TestEnrichment': test_enrichment, 'TestReadFromKafka': test_kafka_read
-}
+@beam.ptransform.ptransform_fn
+def test_pubsub_read(
+    pbegin,
+    topic: Optional[str] = None,
+    subscription: Optional[str] = None,
+    format: Optional[str] = None,
+    schema: Optional[Any] = None,
+    attributes: Optional[List[str]] = None,
+    attributes_map: Optional[str] = None,
+    id_attribute: Optional[str] = None,
+    timestamp_attribute: Optional[str] = None):
 
-INPUT_TRANSFORM_TEST_PROVIDERS = ['TestReadFromKafka']
+  pubsub_messages = input_data.pubsub_messages_data()
+
+  return (
+      pbegin
+      | beam.Create([json.loads(msg.data) for msg in pubsub_messages])
+      | beam.Map(lambda element: beam.Row(**element)))
+
+
+TEST_PROVIDERS = {
+    'TestEnrichment': test_enrichment,
+    'TestReadFromKafka': test_kafka_read,
+    'TestReadFromPubSub': test_pubsub_read
+}
+"""
+Transforms not requiring inputs.
+"""
+INPUT_TRANSFORM_TEST_PROVIDERS = ['TestReadFromKafka', 'TestReadFromPubSub']
 
 
 def check_output(expected: List[str]):
@@ -186,6 +211,7 @@ def create_test_method(
           f"Missing '# Expected:' tag in example file '{pipeline_spec_file}'")
     for i, line in enumerate(expected):
       expected[i] = line.replace('#  ', '').replace('\n', '')
+    expected = [line for line in expected if line]
     pipeline_spec = yaml.load(
         ''.join(lines), Loader=yaml_transform.SafeLineLoader)
 
@@ -392,7 +418,8 @@ def _wordcount_test_preprocessor(
       env.input_file('kinglear.txt', '\n'.join(lines)))
 
 
-@YamlExamplesTestSuite.register_test_preprocessor('test_kafka_yaml')
+@YamlExamplesTestSuite.register_test_preprocessor(
+    ['test_kafka_yaml', 'test_kafka_to_iceberg_yaml'])
 def _kafka_test_preprocessor(
     test_spec: dict, expected: List[str], env: TestEnvironment):
 
@@ -418,7 +445,19 @@ def _kafka_test_preprocessor(
     'test_kafka_yaml',
     'test_spanner_read_yaml',
     'test_spanner_write_yaml',
-    'test_enrich_spanner_with_bigquery_yaml'
+    'test_enrich_spanner_with_bigquery_yaml',
+    'test_pubsub_topic_to_bigquery_yaml',
+    'test_pubsub_subscription_to_bigquery_yaml',
+    'test_jdbc_to_bigquery_yaml',
+    'test_spanner_to_avro_yaml',
+    'test_gcs_text_to_bigquery_yaml',
+    'test_sqlserver_to_bigquery_yaml',
+    'test_postgres_to_bigquery_yaml',
+    'test_kafka_to_iceberg_yaml',
+    'test_pubsub_to_iceberg_yaml',
+    'test_oracle_to_bigquery_yaml',
+    'test_mysql_to_bigquery_yaml',
+    'test_spanner_to_bigquery_yaml'
 ])
 def _io_write_test_preprocessor(
     test_spec: dict, expected: List[str], env: TestEnvironment):
@@ -452,8 +491,11 @@ def _io_write_test_preprocessor(
   return test_spec
 
 
-@YamlExamplesTestSuite.register_test_preprocessor(
-    ['test_simple_filter_yaml', 'test_simple_filter_and_combine_yaml'])
+@YamlExamplesTestSuite.register_test_preprocessor([
+    'test_simple_filter_yaml',
+    'test_simple_filter_and_combine_yaml',
+    'test_gcs_text_to_bigquery_yaml'
+])
 def _file_io_read_test_preprocessor(
     test_spec: dict, expected: List[str], env: TestEnvironment):
   """
@@ -527,8 +569,12 @@ def _iceberg_io_read_test_preprocessor(
   return test_spec
 
 
-@YamlExamplesTestSuite.register_test_preprocessor(
-    ['test_spanner_read_yaml', 'test_enrich_spanner_with_bigquery_yaml'])
+@YamlExamplesTestSuite.register_test_preprocessor([
+    'test_spanner_read_yaml',
+    'test_enrich_spanner_with_bigquery_yaml',
+    'test_spanner_to_avro_yaml',
+    'test_spanner_to_bigquery_yaml'
+])
 def _spanner_io_read_test_preprocessor(
     test_spec: dict, expected: List[str], env: TestEnvironment):
   """
@@ -607,25 +653,162 @@ def _enrichment_test_preprocessor(
   return test_spec
 
 
-INPUT_FILES = {'products.csv': input_data.products_csv()}
+@YamlExamplesTestSuite.register_test_preprocessor([
+    'test_pubsub_topic_to_bigquery_yaml',
+    'test_pubsub_subscription_to_bigquery_yaml',
+    'test_pubsub_to_iceberg_yaml'
+])
+def _pubsub_io_read_test_preprocessor(
+    test_spec: dict, expected: List[str], env: TestEnvironment):
+  """
+  Preprocessor for tests that involve reading from Pub/Sub.
+  This preprocessor replaces any ReadFromPubSub transform with a Create
+  transform that reads from a predefined in-memory list of messages.
+  This allows the test to verify the pipeline's correctness without relying
+  on an active Pub/Sub subscription or topic.
+  """
+  if pipeline := test_spec.get('pipeline', None):
+    for transform in pipeline.get('transforms', []):
+      if transform.get('type', '') == 'ReadFromPubSub':
+        transform['type'] = 'TestReadFromPubSub'
+
+  return test_spec
+
+
+@YamlExamplesTestSuite.register_test_preprocessor([
+    'test_jdbc_to_bigquery_yaml',
+])
+def _jdbc_io_read_test_preprocessor(
+    test_spec: dict, expected: List[str], env: TestEnvironment):
+  """
+  Preprocessor for tests that involve reading from generic Jdbc.
+  url syntax: 'jdbc:<database-type>://<host>:<port>/<database>'
+  """
+  return _db_io_read_test_processor(
+      test_spec, lambda url: url.split('/')[-1], 'Jdbc')
+
+
+@YamlExamplesTestSuite.register_test_preprocessor([
+    'test_sqlserver_to_bigquery_yaml',
+])
+def __sqlserver_io_read_test_preprocessor(
+    test_spec: dict, expected: List[str], env: TestEnvironment):
+  """
+  Preprocessor for tests that involve reading from SqlServer.
+  url syntax: 'jdbc:sqlserver://<host>:<port>;databaseName=<database>;
+    user=<user>;password=<password>;encrypt=false;trustServerCertificate=true'
+  """
+  return _db_io_read_test_processor(
+      test_spec, lambda url: url.split(';')[1].split('=')[-1], 'SqlServer')
+
+
+@YamlExamplesTestSuite.register_test_preprocessor([
+    'test_postgres_to_bigquery_yaml',
+])
+def __postgres_io_read_test_preprocessor(
+    test_spec: dict, expected: List[str], env: TestEnvironment):
+  """
+  Preprocessor for tests that involve reading from Postgres.
+  url syntax: 'jdbc:postgresql://<host>:<port>/shipment?user=<user>&
+    password=<password>'
+  """
+  return _db_io_read_test_processor(
+      test_spec, lambda url: url.split('/')[3].split('?')[0], 'Postgres')
+
+
+@YamlExamplesTestSuite.register_test_preprocessor([
+    'test_oracle_to_bigquery_yaml',
+])
+def __oracle_io_read_test_preprocessor(
+    test_spec: dict, expected: List[str], env: TestEnvironment):
+  """
+  Preprocessor for tests that involve reading from Oracle.
+  url syntax: 'jdbc:oracle:thin:system/oracle@<host>:{port}/<database>'
+  """
+  return _db_io_read_test_processor(
+      test_spec, lambda url: url.split('/')[2], 'Oracle')
+
+
+@YamlExamplesTestSuite.register_test_preprocessor([
+    'test_mysql_to_bigquery_yaml',
+])
+def __mysql_io_read_test_preprocessor(
+    test_spec: dict, expected: List[str], env: TestEnvironment):
+  """
+  Preprocessor for tests that involve reading from MySql.
+  url syntax: 'jdbc:mysql://<host>:<port>/<database>?user=<user>&
+    password=<password>'
+  """
+  return _db_io_read_test_processor(
+      test_spec, lambda url: url.split('/')[3].split('?')[0], 'MySql')
+
+
+def _db_io_read_test_processor(
+    test_spec: dict, database_url_fn: Callable, database_type: str):
+  """
+  This preprocessor replaces any ReadFrom<database> transform with a Create
+  transform that reads from a predefined in-memory list of records. This allows
+  the test to verify the pipeline's correctness without relying on an active
+  database.
+  """
+  if pipeline := test_spec.get('pipeline', None):
+    for transform in pipeline.get('transforms', []):
+      transform_name = f"ReadFrom{database_type}"
+      if transform.get('type', '').startswith(transform_name):
+        config = transform['config']
+        url = config['url']
+        database = database_url_fn(url)
+        if (table := config.get('table', None)) is None:
+          table = config.get('query', '').split('FROM')[-1].strip()
+        transform['type'] = 'Create'
+        transform['config'] = {
+            k: v
+            for k, v in config.items() if k.startswith('__')
+        }
+        elements = INPUT_TABLES[(database_type, database, table)]
+        if config.get('query', None):
+          config['query'].replace('select ',
+                                  'SELECT ').replace(' from ', ' FROM ')
+          columns = set(
+              ''.join(config['query'].split('SELECT ')[1:]).split(
+                  ' FROM', maxsplit=1)[0].split(', '))
+          if columns != {'*'}:
+            elements = [{
+                column: element[column]
+                for column in element if column in columns
+            } for element in elements]
+        transform['config']['elements'] = elements
+
+  return test_spec
+
+
+INPUT_FILES = {
+    'products.csv': input_data.products_csv(),
+    'kinglear.txt': input_data.text_data()
+}
+
 INPUT_TABLES = {
-    ('shipment-test', 'shipment', 'shipments'): input_data.
-    spanner_shipments_data(),
+    ('shipment-test', 'shipment', 'shipments'): input_data.shipments_data(),
     ('orders-test', 'order-database', 'orders'): input_data.
     spanner_orders_data(),
     ('db', 'users', 'NY'): input_data.iceberg_dynamic_destinations_users_data(),
     ('BigTable', 'beam-test', 'bigtable-enrichment-test'): input_data.
     bigtable_data(),
-    ('BigQuery', 'ALL_TEST', 'customers'): input_data.bigquery_data()
+    ('BigQuery', 'ALL_TEST', 'customers'): input_data.bigquery_data(),
+    ('Jdbc', 'shipment', 'shipments'): input_data.shipments_data(),
+    ('SqlServer', 'shipment', 'shipments'): input_data.shipments_data(),
+    ('Postgres', 'shipment', 'shipments'): input_data.shipments_data(),
+    ('Oracle', 'shipment', 'shipments'): input_data.shipments_data(),
+    ('MySql', 'shipment', 'shipments'): input_data.shipments_data()
 }
 YAML_DOCS_DIR = os.path.join(os.path.dirname(__file__))
 
 AggregationTest = YamlExamplesTestSuite(
     'AggregationExamplesTest',
     os.path.join(YAML_DOCS_DIR, '../transforms/aggregation/*.yaml')).run()
-BlueprintsTest = YamlExamplesTestSuite(
-    'BlueprintsExamplesTest',
-    os.path.join(YAML_DOCS_DIR, '../transforms/blueprints/*.yaml')).run()
+BlueprintTest = YamlExamplesTestSuite(
+    'BlueprintExamplesTest',
+    os.path.join(YAML_DOCS_DIR, '../transforms/blueprint/*.yaml')).run()
 ElementWiseTest = YamlExamplesTestSuite(
     'ElementwiseExamplesTest',
     os.path.join(YAML_DOCS_DIR, '../transforms/elementwise/*.yaml')).run()
