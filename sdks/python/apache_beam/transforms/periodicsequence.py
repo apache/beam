@@ -17,6 +17,10 @@
 
 import math
 import time
+import warnings
+from typing import Any
+from typing import Optional
+from typing import Sequence
 
 import apache_beam as beam
 from apache_beam.io.restriction_trackers import OffsetRange
@@ -36,13 +40,21 @@ class ImpulseSeqGenRestrictionProvider(core.RestrictionProvider):
   def initial_restriction(self, element):
     start, end, interval = element
     if isinstance(start, Timestamp):
-      start = start.micros / 1000000
-    if isinstance(end, Timestamp):
-      end = end.micros / 1000000
+      start_micros = start.micros
+    else:
+      start_micros = round(start * 1000000)
 
-    assert start <= end
+    if isinstance(end, Timestamp):
+      end_micros = end.micros
+    else:
+      end_micros = round(end * 1000000)
+
+    interval_micros = round(interval * 1000000)
+
+    assert start_micros <= end_micros
     assert interval > 0
-    total_outputs = math.ceil((end - start) / interval)
+    delta_micros: int = end_micros - start_micros
+    total_outputs = math.ceil(delta_micros / interval_micros)
     return OffsetRange(0, total_outputs)
 
   def create_tracker(self, restriction):
@@ -77,8 +89,10 @@ class ImpulseSeqGenDoFn(beam.DoFn):
   '''
   ImpulseSeqGenDoFn fn receives tuple elements with three parts:
 
-  * first_timestamp = first timestamp to output element for.
-  * last_timestamp = last timestamp/time to output element for.
+  * first_timestamp = The timestamp of the first element to be generated
+    (inclusive).
+  * last_timestamp = The timestamp marking the end of the generation period
+    (exclusive). No elements will be generated at or after this time.
   * fire_interval = how often to fire an element.
 
   For each input element received, ImpulseSeqGenDoFn fn will start
@@ -91,7 +105,40 @@ class ImpulseSeqGenDoFn(beam.DoFn):
   ImpulseSeqGenDoFn can't guarantee that each element is output at exact time.
   ImpulseSeqGenDoFn guarantees that elements would not be output prior to
   given runtime timestamp.
+
+  The output mode of the DoFn is based on the input `data`:
+
+    - **None**: If `data` is None (by default), the output element will be the
+      timestamp.
+    - **Non-Timestamped Data**: If `data` is a sequence of arbitrary values
+      (e.g., `[v1, v2, ...]`), the DoFn will assign a timestamp to each
+      emitted element.
+    - **Pre-Timestamped Data**: If `data` is a sequence of tuples, where each
+      tuple is `(apache_beam.utils.timestamp.Timestamp, value)`, the DoFn
+      will use the provided timestamp for the emitted element.
+
+  See the parameter description of `PeriodicImpulse` for more information.
   '''
+  def __init__(self, data: Optional[Sequence[Any]] = None):
+    self._data = data
+    assert self._data is None or len(self._data) > 0
+    self._len = len(self._data) if self._data is not None else 0
+    self._is_pre_timestamped = self._data is not None and self._len > 0 and \
+        isinstance(self._data[0], tuple) and \
+        isinstance(self._data[0][0], timestamp.Timestamp)
+
+  def _get_output(self, index, current_output_timestamp):
+    if self._data is None:
+      return TimestampedValue(
+          current_output_timestamp, current_output_timestamp)
+
+    if self._is_pre_timestamped:
+      event_time, value = self._data[index % self._len]
+      return TimestampedValue(value, event_time)
+    else:
+      value = self._data[index % self._len]
+      return TimestampedValue(value, current_output_timestamp)
+
   @beam.DoFn.unbounded_per_element()
   def process(
       self,
@@ -114,24 +161,30 @@ class ImpulseSeqGenDoFn(beam.DoFn):
     assert isinstance(restriction_tracker, sdf_utils.RestrictionTrackerView)
 
     current_output_index = restriction_tracker.current_restriction().start
-    current_output_timestamp = start + interval * current_output_index
-    current_time = time.time()
-    watermark_estimator.set_watermark(
-        timestamp.Timestamp(current_output_timestamp))
 
-    while current_output_timestamp <= current_time:
-      if restriction_tracker.try_claim(current_output_index):
-        yield current_output_timestamp
-        current_output_index += 1
-        current_output_timestamp = start + interval * current_output_index
-        current_time = time.time()
-        watermark_estimator.set_watermark(
+    while True:
+      current_output_timestamp = start + interval * current_output_index
+
+      if current_output_timestamp > time.time():
+        # we are too ahead of time, let's wait.
+        restriction_tracker.defer_remainder(
             timestamp.Timestamp(current_output_timestamp))
-      else:
         return
 
-    restriction_tracker.defer_remainder(
-        timestamp.Timestamp(current_output_timestamp))
+      if not restriction_tracker.try_claim(current_output_index):
+        # nothing to claim, just stop
+        return
+
+      output = self._get_output(current_output_index, current_output_timestamp)
+
+      current_watermark = watermark_estimator.current_watermark()
+      if current_watermark is None or output.timestamp > current_watermark:
+        # ensure watermark is monotonic
+        watermark_estimator.set_watermark(output.timestamp)
+
+      yield output
+
+      current_output_index += 1
 
 
 class PeriodicSequence(PTransform):
@@ -173,31 +226,113 @@ class PeriodicImpulse(PTransform):
   but can be used as first transform in pipeline.
   The PCollection generated by PeriodicImpulse is unbounded.
   '''
+  def _validate_and_adjust_duration(self):
+    assert self.data
+
+    # The total time we need to impulse all the data.
+    data_duration = (len(self.data) - 1) * self.interval
+
+    is_pre_timestamped = isinstance(self.data[0], tuple) and \
+      isinstance(self.data[0][0], timestamp.Timestamp)
+
+    if isinstance(self.start_ts, Timestamp):
+      start = self.start_ts.micros / 1000000
+    else:
+      start = self.start_ts
+
+    if isinstance(self.stop_ts, Timestamp):
+      if self.stop_ts == MAX_TIMESTAMP:
+        # When the stop timestamp is unbounded (MAX_TIMESTAMP), set it to the
+        # data's actual end time plus an extra fire interval, because the
+        # impulse duration's upper bound is exclusive.
+        end = start + data_duration + self.interval
+        self.stop_ts = Timestamp(micros=end * 1000000)
+      else:
+        end = self.stop_ts.micros / 1000000
+    else:
+      end = self.stop_ts
+
+    # The total time for the impulse signal which occurs in [start, end).
+    impulse_duration = end - start
+    if round(data_duration + self.interval, 6) < round(impulse_duration, 6):
+      # We don't have enough data for the impulse.
+      # If we can fit at least one more data point in the impulse duration,
+      # then we will be in the repeat mode.
+      message = 'The number of elements in the provided pre-timestamped ' \
+        'data sequence is not enough to span the full impulse duration. ' \
+        f'Expected duration: {impulse_duration:.6f}, ' \
+        f'actual data duration: {data_duration:.6f}.'
+
+      if is_pre_timestamped:
+        raise ValueError(
+            f'{message} Please either provide more data or decrease '
+            '`stop_timestamp`.')
+      else:
+        warnings.warn(
+            f'{message} As a result, the data sequence will be repeated to '
+            'generate elements for the entire duration.')
+
   def __init__(
       self,
-      start_timestamp=Timestamp.now(),
-      stop_timestamp=MAX_TIMESTAMP,
-      fire_interval=360.0,
-      apply_windowing=False):
+      start_timestamp: Timestamp = Timestamp.now(),
+      stop_timestamp: Timestamp = MAX_TIMESTAMP,
+      fire_interval: float = 360.0,
+      apply_windowing: bool = False,
+      data: Optional[Sequence[Any]] = None):
     '''
     :param start_timestamp: Timestamp for first element.
-    :param stop_timestamp: Timestamp after which no elements will be output.
+    :param stop_timestamp: Timestamp at or after which no elements will be
+      output.
     :param fire_interval: Interval in seconds at which to output elements.
     :param apply_windowing: Whether each element should be assigned to
       individual window. If false, all elements will reside in global window.
+    :param data: A sequence of elements to emit. The behavior depends on the
+      content:
+
+      - **None (default):** The transform emits the event timestamps as
+        the element values, starting from start_timestamp and incrementing by
+        `fire_interval` up to the `stop_timestamp` (exclusive)
+      - **Sequence of raw values (e.g., `['a', 'b']`)**: The transform emits
+        each value in the sequence, assigning it an event timestamp that is
+        calculated in the same manner as the default scenario. The sequence
+        is repeated if the impulse duration requires more elements than
+        are in the sequence (a warning will be given in this case).
+      - **Sequence of pre-timestamped tuples (e.g.,
+        `[(t1, v1), (t2, v2)]`)**: The transform emits each value with its
+        explicitly provided event time. The format must be
+        `(apache_beam.utils.timestamp.Timestamp, value)`. The provided
+        timestamps are used directly, overriding the calculated ones.
+        Note that the elements in the sequence is NOT required to be ordered
+        by event time; an element with a timestamp earlier than a preceding one
+        will be treated as a potential late event.
+        **Important**: In this mode, the number of elements in `data` must be
+        sufficient to cover the duration defined by `start_timestamp`,
+        `stop_timestamp`, and `fire_interval`; otherwise, a `ValueError` is
+        raised.
     '''
     self.start_ts = start_timestamp
     self.stop_ts = stop_timestamp
     self.interval = fire_interval
     self.apply_windowing = apply_windowing
+    self.data = data
+
+    if self.data:
+      self._validate_and_adjust_duration()
 
   def expand(self, pbegin):
     result = (
         pbegin
         | 'ImpulseElement' >> beam.Create(
             [(self.start_ts, self.stop_ts, self.interval)])
-        | 'GenSequence' >> beam.ParDo(ImpulseSeqGenDoFn())
-        | 'MapToTimestamped' >> beam.Map(lambda tt: TimestampedValue(tt, tt)))
+        | 'GenSequence' >> beam.ParDo(ImpulseSeqGenDoFn(self.data)))
+
+    if not self.data:
+      # This step is only to ensure the current PTransform expansion is
+      # compatible with the previous Beam versions.
+      result = (
+          result
+          | 'MapToTimestamped' >> beam.Map(lambda tt: TimestampedValue(tt, tt)))
+
     if self.apply_windowing:
       result = result | 'ApplyWindowing' >> beam.WindowInto(
           window.FixedWindows(self.interval))

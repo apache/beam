@@ -396,7 +396,7 @@ if __name__ == '__main__':
           'pytz>=2018.3',
           'redis>=5.0.0,<6',
           'regex>=2020.6.8',
-          'requests>=2.24.0,<3.0.0',
+          'requests>=2.32.4,<3.0.0',
           'sortedcontainers>=2.4.0',
           'typing-extensions>=3.7.0',
           'zstandard>=0.18.0,<1',
@@ -577,7 +577,7 @@ if __name__ == '__main__':
           # in https://github.com/apache/beam/blob/master/sdks/python/tox.ini
           # For more info, see
           # https://docs.google.com/document/d/1c84Gc-cZRCfrU8f7kWGsNR2o8oSRjCM-dGHO9KvPWPw/edit?usp=sharing
-          'torch': ['torch<=1.13.0,<2.1.0'],
+          'torch': ['torch>=1.9.0,<2.1.0'],
           'tensorflow': ['tensorflow>=2.12rc1,<2.13'],
           'transformers': [
               'transformers>=4.28.0,<4.49.0',

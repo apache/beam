@@ -213,14 +213,14 @@ SqlCreate SqlCreateCatalog(Span s, boolean replace) :
 }
 
 /**
- * SET CATALOG catalog_name
+ * USE CATALOG catalog_name
  */
-SqlCall SqlSetCatalog(Span s, String scope) :
+SqlCall SqlUseCatalog(Span s, String scope) :
 {
     final SqlNode catalogName;
 }
 {
-    <SET> {
+    <USE> {
         s.add(this);
     }
     <CATALOG>
@@ -230,7 +230,7 @@ SqlCall SqlSetCatalog(Span s, String scope) :
         catalogName = SimpleIdentifier()
     )
     {
-        return new SqlSetCatalog(
+        return new SqlUseCatalog(
             s.end(this),
             scope,
             catalogName);

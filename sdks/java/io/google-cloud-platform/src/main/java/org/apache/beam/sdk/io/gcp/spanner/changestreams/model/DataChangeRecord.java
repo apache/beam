@@ -288,7 +288,7 @@ public class DataChangeRecord implements ChangeStreamRecord {
         + '\''
         + ", isSystemTransaction="
         + isSystemTransaction
-        + ", metadata"
+        + ", metadata="
         + metadata
         + '}';
   }

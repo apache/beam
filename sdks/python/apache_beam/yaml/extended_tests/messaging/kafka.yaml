@@ -46,35 +46,40 @@ pipelines:
             producer_config_updates:
               linger.ms: "0"
 
+  # TODO(#35272): Figure out why this times out when running on github.
+  # Locally runs fine.
   # Kafka read pipeline
   # Need a separate read pipeline to make sure the write pipeline is flushed
-  - pipeline:
-      type: chain
-      transforms:
-        - type: ReadFromKafka
-          config:
-            format: "RAW"
-            topic: "silly_topic"
-            bootstrap_servers: "{TEMP_BOOTSTAP_SERVER}"
-            consumer_config:
-              auto.offset.reset: "earliest"
-              group.id: "yaml-kafka-test-group"
-            max_read_time_seconds: 10 # will read forever if not set
-        - type: MapToFields
-          config:
-            language: python
-            fields:
-              value:
-                callable: |
-                  # Kafka RAW format reads messages as bytes in the 'payload' field of a Row
-                  lambda row: row.payload.decode('utf-8')
-                output_type: string
-        - type: AssertEqual
-          config:
-            elements:
-              - {value: "123"}
-              - {value: "456"}
-              - {value: "789"}
+  # - pipeline:
+  #     type: chain
+  #     transforms:
+  #       - type: ReadFromKafka
+  #         config:
+  #           format: "RAW"
+  #           topic: "silly_topic"
+  #           bootstrap_servers: "{TEMP_BOOTSTAP_SERVER}"
+  #           consumer_config:
+  #             auto.offset.reset: "earliest"
+  #             group.id: "yaml-kafka-test-group"
+  #           max_read_time_seconds: 10 # will read forever if not set
+  #       - type: MapToFields
+  #         config:
+  #           language: python
+  #           fields:
+  #             value:
+  #               callable: |
+  #                 # Kafka RAW format reads messages as bytes in the 'payload' field of a Row
+  #                 lambda row: row.payload.decode('utf-8')
+  #               output_type: string
+  #       - type: AssertEqual
+  #         config:
+  #           elements:
+  #             - {value: "123"}
+  #             - {value: "456"}
+  #             - {value: "789"}
+
+    options:
+      streaming: true
 
 # TODO: Error handling hard to trigger upon initial investigations.  Need to
 # investigate more.

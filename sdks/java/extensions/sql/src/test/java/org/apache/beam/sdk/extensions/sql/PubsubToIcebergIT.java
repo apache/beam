@@ -54,6 +54,7 @@ import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -76,6 +77,7 @@ public class PubsubToIcebergIT implements Serializable {
       "org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog";
   static final String DATASET = "sql_pubsub_to_iceberg_it_" + System.nanoTime();
   static String warehouse;
+  private static Catalog icebergCatalog;
   protected static final GcpOptions OPTIONS =
       TestPipeline.testingPipelineOptions().as(GcpOptions.class);
   @Rule public TestName testName = new TestName();
@@ -98,7 +100,17 @@ public class PubsubToIcebergIT implements Serializable {
             + format("  'warehouse' = '%s', \n", warehouse)
             + format("  'gcp_project' = '%s', \n", OPTIONS.getProject())
             + "  'gcp_region' = 'us-central1')";
-    setCatalogDdl = "SET CATALOG my_catalog";
+    setCatalogDdl = "USE CATALOG my_catalog";
+    icebergCatalog =
+        CatalogUtil.loadCatalog(
+            BQMS_CATALOG,
+            "my_catalog",
+            ImmutableMap.<String, String>builder()
+                .put("gcp_project", OPTIONS.getProject())
+                .put("gcp_location", "us-central1")
+                .put("warehouse", warehouse)
+                .build(),
+            null);
   }
 
   private String tableIdentifier;
@@ -110,13 +122,18 @@ public class PubsubToIcebergIT implements Serializable {
     tableIdentifier = DATASET + "." + testName.getMethodName();
   }
 
+  @After
+  public void cleanup() {
+    icebergCatalog.dropTable(TableIdentifier.parse(tableIdentifier));
+  }
+
   @AfterClass
   public static void deleteDataset() {
     BQ_CLIENT.deleteDataset(OPTIONS.getProject(), DATASET);
   }
 
   @Test
-  public void testSimpleInsert() throws Exception {
+  public void testSimpleInsertWithPartitionedFields() throws Exception {
     String pubsubTableString =
         "CREATE EXTERNAL TABLE pubsub_topic (\n"
             + "event_timestamp TIMESTAMP, \n"
@@ -168,16 +185,6 @@ public class PubsubToIcebergIT implements Serializable {
     validateRowsWritten();
 
     // verify the table was created with the right partition spec
-    Catalog icebergCatalog =
-        CatalogUtil.loadCatalog(
-            BQMS_CATALOG,
-            "my_catalog",
-            ImmutableMap.<String, String>builder()
-                .put("gcp_project", OPTIONS.getProject())
-                .put("gcp_location", "us-central1")
-                .put("warehouse", warehouse)
-                .build(),
-            null);
     PartitionSpec expectedSpec =
         PartitionSpec.builderFor(IcebergUtils.beamSchemaToIcebergSchema(SOURCE_SCHEMA))
             .identity("id")

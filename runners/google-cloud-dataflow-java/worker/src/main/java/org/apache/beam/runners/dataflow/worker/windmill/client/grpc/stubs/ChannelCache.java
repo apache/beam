@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs;
 
 import static org.apache.beam.runners.dataflow.worker.windmill.WindmillServiceAddress.Kind.AUTHENTICATED_GCP_SERVICE_ADDRESS;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.PrintWriter;
 import java.util.concurrent.Executor;
@@ -93,7 +94,7 @@ public final class ChannelCache implements StatusDataProvider {
     return new ChannelCache(
         channelFactory,
         // Shutdown the channels as they get removed from the cache, so they do not leak.
-        notification -> shutdownChannel(notification.getValue()),
+        notification -> shutdownChannel(checkNotNull(notification.getValue())),
         Executors.newCachedThreadPool(
             new ThreadFactoryBuilder().setNameFormat("GrpcChannelCloser").build()));
   }
@@ -106,7 +107,7 @@ public final class ChannelCache implements StatusDataProvider {
         // Shutdown the channels as they get removed from the cache, so they do not leak.
         // Add hook for testing so that we don't have to sleep/wait for arbitrary time in test.
         notification -> {
-          shutdownChannel(notification.getValue());
+          shutdownChannel(checkNotNull(notification.getValue()));
           onChannelShutdown.run();
         },
         // Run the removal synchronously on the calling thread to prevent waiting on asynchronous
@@ -131,7 +132,9 @@ public final class ChannelCache implements StatusDataProvider {
 
   public synchronized void consumeFlowControlSettings(
       UserWorkerGrpcFlowControlSettings flowControlSettings) {
-    if (!flowControlSettings.equals(currentFlowControlSettings)) {
+    //noinspection PointlessNullCheck
+    if (currentFlowControlSettings == null
+        || !flowControlSettings.equals(currentFlowControlSettings)) {
       // Refreshing the cache will asynchronously terminate the old channels via the removalListener
       // and return a newly created one on the next Cache.load(address). This could be expensive so
       // only do it when we have received new flow control settings.

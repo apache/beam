@@ -510,8 +510,6 @@ class BeamModulePlugin implements Plugin<Project> {
     project.apply plugin: 'base'
     project.archivesBaseName = defaultArchivesBaseName(project)
 
-    project.apply plugin: 'org.apache.beam.jenkins'
-
     // Register all Beam repositories and configuration tweaks
     Repositories.register(project)
 
@@ -579,7 +577,7 @@ class BeamModulePlugin implements Plugin<Project> {
     }
 
     project.ext.useBuildx = {
-      return (project.containerArchitectures() != [project.nativeArchitecture()]) || project.rootProject.hasProperty("useBuildx")
+      return (project.containerArchitectures() != [project.nativeArchitecture()]) || project.rootProject.hasProperty("useDockerBuildx")
     }
 
     /** ***********************************************************************************************/
@@ -647,12 +645,13 @@ class BeamModulePlugin implements Plugin<Project> {
     def solace_version = "10.21.0"
     def spark2_version = "2.4.8"
     def spark3_version = "3.5.0"
-    def spotbugs_version = "4.0.6"
+    def spotbugs_version = "4.8.3"
     def testcontainers_version = "1.19.7"
     // [bomupgrader] determined by: org.apache.arrow:arrow-memory-core, consistent with: google_cloud_platform_libraries_bom
     def arrow_version = "15.0.2"
     def jmh_version = "1.34"
     def jupiter_version = "5.7.0"
+    def spanner_grpc_proto_version = "6.95.1"
 
     // Export Spark versions, so they are defined in a single place only
     project.ext.spark3_version = spark3_version
@@ -674,8 +673,6 @@ class BeamModulePlugin implements Plugin<Project> {
         activemq_junit                              : "org.apache.activemq.tooling:activemq-junit:$activemq_version",
         activemq_kahadb_store                       : "org.apache.activemq:activemq-kahadb-store:$activemq_version",
         activemq_mqtt                               : "org.apache.activemq:activemq-mqtt:$activemq_version",
-        antlr                                       : "org.antlr:antlr4:4.7",
-        antlr_runtime                               : "org.antlr:antlr4-runtime:4.7",
         args4j                                      : "args4j:args4j:2.33",
         auto_value_annotations                      : "com.google.auto.value:auto-value-annotations:$autovalue_version",
         // TODO: https://github.com/apache/beam/issues/34993 after stopping supporting Java 8
@@ -864,7 +861,7 @@ class BeamModulePlugin implements Plugin<Project> {
         proto_google_cloud_pubsub_v1                : "com.google.api.grpc:proto-google-cloud-pubsub-v1", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_pubsublite_v1            : "com.google.api.grpc:proto-google-cloud-pubsublite-v1", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_secret_manager_v1        : "com.google.api.grpc:proto-google-cloud-secretmanager-v1", // google_cloud_platform_libraries_bom sets version
-        proto_google_cloud_spanner_v1               : "com.google.api.grpc:proto-google-cloud-spanner-v1", // google_cloud_platform_libraries_bom sets version
+        proto_google_cloud_spanner_v1               : "com.google.api.grpc:proto-google-cloud-spanner-v1:$spanner_grpc_proto_version", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_spanner_admin_database_v1: "com.google.api.grpc:proto-google-cloud-spanner-admin-database-v1", // google_cloud_platform_libraries_bom sets version
         proto_google_common_protos                  : "com.google.api.grpc:proto-google-common-protos", // google_cloud_platform_libraries_bom sets version
         qpid_jms_client                             : "org.apache.qpid:qpid-jms-client:$qpid_jms_client_version",
@@ -1461,8 +1458,8 @@ class BeamModulePlugin implements Plugin<Project> {
         }
         project.tasks.withType(com.github.spotbugs.snom.SpotBugsTask) {
           reports {
-            html.enabled = !project.jenkins.isCIBuild
-            xml.enabled = project.jenkins.isCIBuild
+            html.enabled = true
+            xml.enabled = false
           }
         }
       }

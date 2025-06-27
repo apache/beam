@@ -30,7 +30,7 @@ data: {
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlCreateFunction"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlDropCatalog"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlDdlNodes"
-        "org.apache.beam.sdk.extensions.sql.impl.parser.SqlSetCatalog"
+        "org.apache.beam.sdk.extensions.sql.impl.parser.SqlUseCatalog"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlSetOptionBeam"
         "org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils"
         "org.apache.beam.sdk.schemas.Schema"
@@ -46,6 +46,7 @@ data: {
         "TBLPROPERTIES"
         "PROPERTIES"
         "PARTITIONED"
+        "USE"
       ]
 
       # List of keywords from "keywords" section that are not reserved.
@@ -370,6 +371,8 @@ data: {
         "LOCATION"
         "TBLPROPERTIES"
         "PROPERTIES"
+        "PARTITIONED"
+        "USE"
       ]
 
       # List of non-reserved keywords to add;
@@ -391,7 +394,7 @@ data: {
       # Return type of method implementation should be 'SqlNode'.
       # Example: SqlShowDatabases(), SqlShowTables().
       statementParserMethods: [
-        "SqlSetCatalog(Span.of(), null)"
+        "SqlUseCatalog(Span.of(), null)"
         "SqlSetOptionBeam(Span.of(), null)"
       ]
 
