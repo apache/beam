@@ -34,7 +34,10 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChangeStreamRecord
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.ChildPartitionsRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.HeartbeatRecord;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionEndRecord;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionEventRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionStartRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.RestrictionInterrupter;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
@@ -52,8 +55,9 @@ import org.slf4j.LoggerFactory;
 /**
  * Main action class for querying a partition change stream. This class will perform the change
  * stream query and depending on the record type received, it will dispatch the processing of it to
- * one of the following: {@link ChildPartitionsRecordAction}, {@link HeartbeatRecordAction} or
- * {@link DataChangeRecordAction}.
+ * one of the following: {@link ChildPartitionsRecordAction}, {@link HeartbeatRecordAction}, {@link
+ * DataChangeRecordAction}, {@link PartitionStartRecordAction}, {@link PartitionEndRecordAction} or
+ * {@link PartitionEventRecordAction}.
  *
  * <p>This class will also make sure to mirror the current watermark (event timestamp processed) in
  * the Connector's metadata tables, by registering a bundle after commit action.
@@ -81,6 +85,9 @@ public class QueryChangeStreamAction {
   private final DataChangeRecordAction dataChangeRecordAction;
   private final HeartbeatRecordAction heartbeatRecordAction;
   private final ChildPartitionsRecordAction childPartitionsRecordAction;
+  private final PartitionStartRecordAction partitionStartRecordAction;
+  private final PartitionEndRecordAction partitionEndRecordAction;
+  private final PartitionEventRecordAction partitionEventRecordAction;
   private final ChangeStreamMetrics metrics;
 
   /**
@@ -95,6 +102,9 @@ public class QueryChangeStreamAction {
    * @param dataChangeRecordAction action class to process {@link DataChangeRecord}s
    * @param heartbeatRecordAction action class to process {@link HeartbeatRecord}s
    * @param childPartitionsRecordAction action class to process {@link ChildPartitionsRecord}s
+   * @param PartitionStartRecordAction action class to process {@link PartitionStartRecord}s
+   * @param PartitionEndRecordAction action class to process {@link PartitionEndRecord}s
+   * @param PartitionEventRecordAction action class to process {@link PartitionEventRecord}s
    * @param metrics metrics gathering class
    */
   QueryChangeStreamAction(
@@ -105,6 +115,9 @@ public class QueryChangeStreamAction {
       DataChangeRecordAction dataChangeRecordAction,
       HeartbeatRecordAction heartbeatRecordAction,
       ChildPartitionsRecordAction childPartitionsRecordAction,
+      PartitionStartRecordAction partitionStartRecordAction,
+      PartitionEndRecordAction partitionEndRecordAction,
+      PartitionEventRecordAction partitionEventRecordAction,
       ChangeStreamMetrics metrics) {
     this.changeStreamDao = changeStreamDao;
     this.partitionMetadataDao = partitionMetadataDao;
@@ -113,6 +126,9 @@ public class QueryChangeStreamAction {
     this.dataChangeRecordAction = dataChangeRecordAction;
     this.heartbeatRecordAction = heartbeatRecordAction;
     this.childPartitionsRecordAction = childPartitionsRecordAction;
+    this.partitionStartRecordAction = partitionStartRecordAction;
+    this.partitionEndRecordAction = partitionEndRecordAction;
+    this.partitionEventRecordAction = partitionEventRecordAction;
     this.metrics = metrics;
   }
 
@@ -190,7 +206,6 @@ public class QueryChangeStreamAction {
         final List<ChangeStreamRecord> records =
             changeStreamRecordMapper.toChangeStreamRecords(
                 updatedPartition, resultSet, resultSet.getMetadata());
-
         Optional<ProcessContinuation> maybeContinuation;
         for (final ChangeStreamRecord record : records) {
           if (record instanceof DataChangeRecord) {
@@ -215,6 +230,30 @@ public class QueryChangeStreamAction {
                 childPartitionsRecordAction.run(
                     updatedPartition,
                     (ChildPartitionsRecord) record,
+                    tracker,
+                    interrupter,
+                    watermarkEstimator);
+          } else if (record instanceof PartitionStartRecord) {
+            maybeContinuation =
+                partitionStartRecordAction.run(
+                    updatedPartition,
+                    (PartitionStartRecord) record,
+                    tracker,
+                    interrupter,
+                    watermarkEstimator);
+          } else if (record instanceof PartitionEndRecord) {
+            maybeContinuation =
+                partitionEndRecordAction.run(
+                    updatedPartition,
+                    (PartitionEndRecord) record,
+                    tracker,
+                    interrupter,
+                    watermarkEstimator);
+          } else if (record instanceof PartitionEventRecord) {
+            maybeContinuation =
+                partitionEventRecordAction.run(
+                    updatedPartition,
+                    (PartitionEventRecord) record,
                     tracker,
                     interrupter,
                     watermarkEstimator);
