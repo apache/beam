@@ -19,8 +19,8 @@
 
 # pytype: skip-file
 
-import logging
 import inspect
+import logging
 import random
 import time
 import unittest
@@ -65,46 +65,6 @@ class PeriodicSequenceTest(unittest.TestCase):
       self.assertEqual(result.is_bounded, False)
       assert_that(result, equal_to(k))
 
-  def test_periodicimpulse_windowing_on_si(self):
-    start_offset = -15
-    it = time.time() + start_offset
-    duration = 15
-    et = it + duration
-    interval = 5
-
-    with TestPipeline() as p:
-      si = (
-          p
-          | 'PeriodicImpulse' >> PeriodicImpulse(it, et, interval, True)
-          | 'AddKey' >> beam.Map(lambda v: ('key', v))
-          | 'GBK' >> beam.GroupByKey()
-          | 'SortGBK' >> beam.MapTuple(lambda k, vs: (k, sorted(vs))))
-
-      actual = si
-      k = [('key', [it + x * interval])
-           for x in range(0, int(duration / interval), 1)]
-      assert_that(actual, equal_to(k))
-
-  def test_periodicimpulse_default_start(self):
-    default_parameters = inspect.signature(PeriodicImpulse.__init__).parameters
-    it = default_parameters["start_timestamp"].default
-    duration = 1
-    et = it + duration
-    interval = 0.5
-
-    # Check default `stop_timestamp` is the same type `start_timestamp`
-    is_same_type = isinstance(
-        it, type(default_parameters["stop_timestamp"].default))
-    error = "'start_timestamp' and 'stop_timestamp' have different type"
-    assert is_same_type, error
-
-    with TestPipeline() as p:
-      result = p | 'PeriodicImpulse' >> PeriodicImpulse(it, et, interval)
-
-      k = [it + x * interval for x in range(0, int(duration / interval))]
-      self.assertEqual(result.is_bounded, False)
-      assert_that(result, equal_to(k))
-
   def test_periodicsequence_outputs_valid_sequence_in_past(self):
     start_offset = -10000
     it = time.time() + start_offset
@@ -139,6 +99,48 @@ class PeriodicSequenceTest(unittest.TestCase):
         _sequence_backlog_bytes(element, 10000, OffsetRange(1002, 1003)), 0)
     self.assertEqual(
         _sequence_backlog_bytes(element, 10100, OffsetRange(1002, 1003)), 8)
+
+
+class PeriodicImpulseTest(unittest.TestCase):
+  def test_windowing_on_si(self):
+    start_offset = -15
+    it = time.time() + start_offset
+    duration = 15
+    et = it + duration
+    interval = 5
+
+    with TestPipeline() as p:
+      si = (
+          p
+          | 'PeriodicImpulse' >> PeriodicImpulse(it, et, interval, True)
+          | 'AddKey' >> beam.Map(lambda v: ('key', v))
+          | 'GBK' >> beam.GroupByKey()
+          | 'SortGBK' >> beam.MapTuple(lambda k, vs: (k, sorted(vs))))
+
+      actual = si
+      k = [('key', [it + x * interval])
+           for x in range(0, int(duration / interval), 1)]
+      assert_that(actual, equal_to(k))
+
+  def test_default_start(self):
+    default_parameters = inspect.signature(PeriodicImpulse.__init__).parameters
+    it = default_parameters["start_timestamp"].default
+    duration = 1
+    et = it + duration
+    interval = 0.5
+
+    # Check default `stop_timestamp` is the same type `start_timestamp`
+    is_same_type = isinstance(
+        it, type(default_parameters["stop_timestamp"].default))
+    error = "'start_timestamp' and 'stop_timestamp' have different type"
+    assert is_same_type, error
+
+    with TestPipeline() as p:
+      result = p | 'PeriodicImpulse' >> PeriodicImpulse(it, et, interval)
+
+      k = [it + x * interval for x in range(0, int(duration / interval))]
+      self.assertEqual(result.is_bounded, False)
+      assert_that(result, equal_to(k))
 
   @unittest.skip("hard to determine warm-up time and threshold for runners.")
   def test_processing_time(self):
