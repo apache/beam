@@ -235,9 +235,9 @@ func main() {
 	if pipelineOptions, ok := info.GetPipelineOptions().GetFields()["options"]; ok {
 		if heapDumpOption, ok := pipelineOptions.GetStructValue().GetFields()["enableHeapDumps"]; ok {
 			if heapDumpOption.GetBoolValue() {
-			  args = append(args, "-XX:+HeapDumpOnOutOfMemoryError",
-			                "-Dbeam.fn.heap_dump_dir="+filepath.Join(dir, "heapdumps"),
-			                "-XX:HeapDumpPath="+filepath.Join(dir, "heapdumps", "heap_dump.hprof"))
+				args = append(args, "-XX:+HeapDumpOnOutOfMemoryError",
+					"-Dbeam.fn.heap_dump_dir="+filepath.Join(dir, "heapdumps"),
+					"-XX:HeapDumpPath="+filepath.Join(dir, "heapdumps", "heap_dump.hprof"))
 			}
 		}
 	}
