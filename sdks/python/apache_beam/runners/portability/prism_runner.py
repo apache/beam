@@ -116,7 +116,6 @@ class PrismJobServer(job_server.SubprocessJobServer):
   BIN_CACHE = os.path.expanduser("~/.apache_beam/cache/prism/bin")
 
   def __init__(self, options):
-
     super().__init__()
     prism_options = options.view_as(pipeline_options.PrismRunnerOptions)
     # Options flow:
@@ -332,12 +331,9 @@ class PrismJobServer(job_server.SubprocessJobServer):
     return (subprocess_cmd, f"localhost:{job_port}")
 
   def prism_arguments(self, job_port) -> typing.List[typing.Any]:
-    # TODO: Remove or expose log_level more nicely.
     return [
         '--job_port',
         job_port,
         '--serve_http',
         False,
-        '--log_level',
-        'should_fail',
     ]

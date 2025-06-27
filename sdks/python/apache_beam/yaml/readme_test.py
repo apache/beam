@@ -341,7 +341,6 @@ def parse_test_methods(markdown_lines):
                 '\n'.join(code_lines),
                 Loader=yaml_utils.SafeLineLoader)['tests']):
               suffix = test_spec.get('name', str(sub_ix))
-
               yield (
                   test_name + '_' + suffix,
                   # The yp=... ts=... is to capture the looped closure values.

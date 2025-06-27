@@ -432,8 +432,9 @@ class _IntervalWindowBase(object):
     return self._end_object
 
   def __hash__(self):
-    # Cut of window at start/end timestamps for comparison purposes since some
-    # portable runners do this already.
+    # Cut off window at start/end timestamps for comparison purposes since some
+    # portable runners do this already, and timestamps outside of the bands of
+    # Min/Max timestamps are functionally equal to Min/Max.
     start = max(self._start_micros, MIN_TIMESTAMP.micros)
     end = min(self._end_micros, MAX_TIMESTAMP.micros)
     return hash((start, end))
@@ -442,8 +443,9 @@ class _IntervalWindowBase(object):
     if type(self) != type(other):
       return False
 
-    # Cut of window at start/end timestamps for comparison purposes since some
-    # portable runners do this already.
+    # Cut off window at start/end timestamps for comparison purposes since some
+    # portable runners do this already, and timestamps outside of the bands of
+    # Min/Max timestamps are functionally equal to Min/Max.
     self_start = max(self._start_micros, MIN_TIMESTAMP.micros)
     self_end = min(self._end_micros, MAX_TIMESTAMP.micros)
     other_start = max(other._start_micros, MIN_TIMESTAMP.micros)
