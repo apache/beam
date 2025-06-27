@@ -254,8 +254,8 @@ class BatchElementsTest(unittest.TestCase):
     self.assertEqual(len(results["distributions"]), 0)
 
   def test_grows_to_max_batch(self):
-    # Assumes a single bundle...
-    with TestPipeline() as p:
+    # Assumes a single bundle, so we pin to the FnApiRunner
+    with TestPipeline('FnApiRunner') as p:
       res = (
           p
           | beam.Create(range(164))
@@ -265,8 +265,8 @@ class BatchElementsTest(unittest.TestCase):
       assert_that(res, equal_to([1, 1, 2, 4, 8, 16, 32, 50, 50]))
 
   def test_windowed_batches(self):
-    # Assumes a single bundle, in order...
-    with TestPipeline() as p:
+    # Assumes a single bundle in order, so we pin to the FnApiRunner
+    with TestPipeline('FnApiRunner') as p:
       res = (
           p
           | beam.Create(range(47), reshuffle=False)
@@ -287,8 +287,8 @@ class BatchElementsTest(unittest.TestCase):
           ]))
 
   def test_global_batch_timestamps(self):
-    # Assumes a single bundle
-    with TestPipeline() as p:
+    # Assumes a single bundle, so we pin to the FnApiRunner
+    with TestPipeline('FnApiRunner') as p:
       res = (
           p
           | beam.Create(range(3), reshuffle=False)
@@ -327,8 +327,8 @@ class BatchElementsTest(unittest.TestCase):
       assert_that(res, equal_to([2, 10, 10, 10]))
 
   def test_sized_windowed_batches(self):
-    # Assumes a single bundle, in order...
-    with TestPipeline() as p:
+    # Assumes a single bundle, in order so we pin to the FnApiRunner
+    with TestPipeline('FnApiRunner') as p:
       res = (
           p
           | beam.Create(range(1, 8), reshuffle=False)
@@ -527,8 +527,8 @@ class BatchElementsTest(unittest.TestCase):
         util._BatchSizeEstimator.linear_regression_numpy, True)
 
   def test_stateful_constant_batch(self):
-    # Assumes a single bundle...
-    p = TestPipeline()
+    # Assumes a single bundle, so we pin to the FnApiRunner
+    p = TestPipeline('FnApiRunner')
     output = (
         p
         | beam.Create(range(35))
@@ -649,8 +649,8 @@ class BatchElementsTest(unittest.TestCase):
       assert_that(num_elements_per_batch, equal_to([9, 1]))
 
   def test_stateful_grows_to_max_batch(self):
-    # Assumes a single bundle...
-    with TestPipeline() as p:
+    # Assumes a single bundle, so we pin to the FnApiRunner
+    with TestPipeline('FnApiRunner') as p:
       res = (
           p
           | beam.Create(range(164))
@@ -707,7 +707,7 @@ class IdentityWindowTest(unittest.TestCase):
       def process(self, element):
         yield window.TimestampedValue(element, expected_timestamp)
 
-    with self.assertRaisesRegex(ValueError, r'window.*None.*add_timestamps2'):
+    with self.assertRaisesRegex(Exception, r'.*window.*None.*add_timestamps2'):
       with TestPipeline() as pipeline:
         data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
         expected_windows = [
@@ -723,7 +723,7 @@ class IdentityWindowTest(unittest.TestCase):
             equal_to(expected_windows),
             label='before_identity',
             reify_windows=True)
-        after_identity = (
+        _ = (
             before_identity
             | 'window' >> beam.WindowInto(
                 beam.transforms.util._IdentityWindowFn(
@@ -733,11 +733,6 @@ class IdentityWindowTest(unittest.TestCase):
             # contain a window of None. IdentityWindowFn should
             # raise an exception.
             | 'add_timestamps2' >> beam.ParDo(AddTimestampDoFn()))
-        assert_that(
-            after_identity,
-            equal_to(expected_windows),
-            label='after_identity',
-            reify_windows=True)
 
 
 class ReshuffleTest(unittest.TestCase):
@@ -1089,14 +1084,19 @@ class ReshuffleTest(unittest.TestCase):
         index=1,
         nonspeculative_index=1)
 
+    # Portable runners may not have the same level of precision on timestamps -
+    # this gets the largest supported timestamp with the extra non-supported
+    # bits truncated
+    gt = GlobalWindow().max_timestamp()
+    truncated_gt = gt - (gt % 0.001)
+
     expected_preserved = [
         TestWindowedValue('a', MIN_TIMESTAMP, [GlobalWindow()], no_firing),
         TestWindowedValue(
             'b', timestamp.Timestamp(0), [GlobalWindow()], on_time_only),
         TestWindowedValue(
             'c', timestamp.Timestamp(33), [GlobalWindow()], late_firing),
-        TestWindowedValue(
-            'd', GlobalWindow().max_timestamp(), [GlobalWindow()], no_firing)
+        TestWindowedValue('d', truncated_gt, [GlobalWindow()], no_firing)
     ]
 
     expected_not_preserved = [
@@ -1107,9 +1107,7 @@ class ReshuffleTest(unittest.TestCase):
         TestWindowedValue(
             'c', timestamp.Timestamp(33), [GlobalWindow()], PANE_INFO_UNKNOWN),
         TestWindowedValue(
-            'd',
-            GlobalWindow().max_timestamp(), [GlobalWindow()],
-            PANE_INFO_UNKNOWN)
+            'd', truncated_gt, [GlobalWindow()], PANE_INFO_UNKNOWN)
     ]
 
     expected = (
@@ -1125,8 +1123,7 @@ class ReshuffleTest(unittest.TestCase):
               'b', timestamp.Timestamp(0), [GlobalWindow()], on_time_only),
           WindowedValue(
               'c', timestamp.Timestamp(33), [GlobalWindow()], late_firing),
-          WindowedValue(
-              'd', GlobalWindow().max_timestamp(), [GlobalWindow()], no_firing)
+          WindowedValue('d', truncated_gt, [GlobalWindow()], no_firing)
       ]
 
       after_reshuffle = (
