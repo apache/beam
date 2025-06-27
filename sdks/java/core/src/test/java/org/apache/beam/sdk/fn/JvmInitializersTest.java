@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.fn;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.core.StringContains.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -94,7 +94,7 @@ public final class JvmInitializersTest {
         () ->
             new Scanner(new ByteArrayInputStream(receivedOut.toByteArray()), "UTF8")
                 .useDelimiter(System.lineSeparator()),
-        contains(containsString("Running JvmInitializer#onStartup")));
+        hasItem(containsString("Running JvmInitializer#onStartup")));
   }
 
   @Test
