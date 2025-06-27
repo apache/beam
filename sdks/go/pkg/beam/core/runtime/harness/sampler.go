@@ -19,6 +19,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
@@ -29,7 +30,7 @@ type stateSampler struct {
 }
 
 func newSampler(store *metrics.Store) *stateSampler {
-	return &stateSampler{sampler: metrics.NewSampler(store), done: make(chan int)}
+	return &stateSampler{sampler: metrics.NewSampler(store, beam.PipelineOptions.Get("element_processing_timeout")), done: make(chan int)}
 }
 
 func (s *stateSampler) start(ctx context.Context, t time.Duration) error {

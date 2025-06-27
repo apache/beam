@@ -23,7 +23,6 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/jobopts"
 )
 
 // RestartLullTimeout is the minimum timeout for restarting the sdk harness if job option element_processing_timeout is set.
@@ -42,8 +41,8 @@ type StateSampler struct {
 }
 
 // NewSampler creates a new state sampler.
-func NewSampler(store *Store) StateSampler {
-	return StateSampler{store: store, nextLogTime: 5 * time.Minute, logInterval: 5 * time.Minute, restartLullTimeout: getRestartLullTimeout()}
+func NewSampler(store *Store, elementProcessingTimeout string) StateSampler {
+	return StateSampler{store: store, nextLogTime: 5 * time.Minute, logInterval: 5 * time.Minute, restartLullTimeout: getRestartLullTimeout(elementProcessingTimeout)}
 }
 
 // Sample checks for state transition in processing a DoFn
@@ -130,10 +129,16 @@ func getState(s bundleProcState) string {
 	}
 }
 
-func getRestartLullTimeout() time.Duration {
-	userDefinedTimeout := jobopts.GetElementProcessingTimeout()
-	if userDefinedTimeout == 0*time.Minute || userDefinedTimeout > restartLullMinTimeoutDefault {
+func getRestartLullTimeout(elementProcessingTimeout string) time.Duration {
+	userDefinedTimeout, err := time.ParseDuration(elementProcessingTimeout)
+	if err != nil {
+		log.Errorf(context.TODO(), "Failed to parse element_processing_timeout: %v, there will be no timeout for processing an element in a PTransform operation", err)
+		return 0 * time.Minute
+	}
+	if userDefinedTimeout > restartLullMinTimeoutDefault {
+		log.Infof(context.TODO(), "User defined timeout %v is greater than the default timeout %v, using the user defined timeout", userDefinedTimeout, restartLullMinTimeoutDefault)
 		return userDefinedTimeout
 	}
+	log.Infof(context.TODO(), "User defined timeout %v is less than the default timeout %v, using the default timeout", userDefinedTimeout, restartLullMinTimeoutDefault)
 	return restartLullMinTimeoutDefault
 }

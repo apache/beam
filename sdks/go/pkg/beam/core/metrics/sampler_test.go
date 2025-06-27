@@ -21,8 +21,6 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
-
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/jobopts"
 )
 
 func checkStateTime(t *testing.T, s StateSampler, label string, sb, pb, fb, tb time.Duration) {
@@ -47,7 +45,7 @@ func TestSampler(t *testing.T) {
 	bctx := SetBundleID(ctx, "test")
 	interval := 200 * time.Millisecond
 	st := GetStore(bctx)
-	s := NewSampler(st)
+	s := NewSampler(st, "")
 
 	pctx := SetPTransformID(bctx, "transform")
 	label := "transform"
@@ -91,7 +89,7 @@ func TestSampler_TwoPTransforms(t *testing.T) {
 	bctx := SetBundleID(ctx, "bundle")
 	interval := 200 * time.Millisecond
 	st := GetStore(bctx)
-	s := NewSampler(st)
+	s := NewSampler(st, "")
 
 	ctxA := SetPTransformID(bctx, "transformA")
 	ctxB := SetPTransformID(bctx, "transformB")
@@ -140,12 +138,11 @@ func TestSampler_TwoPTransforms(t *testing.T) {
 }
 
 func TestSamplerWithoutRestartLullTimeout(t *testing.T) {
-	*jobopts.ElementProcessingTimeout = -1
 	ctx := context.Background()
 	bctx := SetBundleID(ctx, "test")
 	interval := 20 * time.Minute
 	st := GetStore(bctx)
-	s := NewSampler(st)
+	s := NewSampler(st, "-1")
 
 	pctx := SetPTransformID(bctx, "transform")
 
@@ -158,12 +155,11 @@ func TestSamplerWithoutRestartLullTimeout(t *testing.T) {
 }
 
 func TestSamplerWithRestartLullTimeout(t *testing.T) {
-	*jobopts.ElementProcessingTimeout = 10 * time.Minute
 	ctx := context.Background()
 	bctx := SetBundleID(ctx, "test")
 	interval := 4 * time.Minute
 	st := GetStore(bctx)
-	s := NewSampler(st)
+	s := NewSampler(st, "10m")
 
 	pctx := SetPTransformID(bctx, "transform")
 
@@ -214,7 +210,7 @@ func BenchmarkMsec_Sample(b *testing.B) {
 	pt := NewPTransformState("transform")
 	pt.Set(pctx, StartBundle)
 	st := GetStore(bctx)
-	s := NewSampler(st)
+	s := NewSampler(st, "")
 	interval := 200 * time.Millisecond
 	for i := 0; i < b.N; i++ {
 		s.Sample(bctx, interval)
@@ -231,7 +227,7 @@ func BenchmarkMsec_Combined(b *testing.B) {
 	bctx := SetBundleID(ctx, "benchmark")
 
 	st := GetStore(bctx)
-	s := NewSampler(st)
+	s := NewSampler(st, "")
 	done := make(chan int)
 	interval := 200 * time.Millisecond
 	go func(done chan int, s StateSampler) {
@@ -260,20 +256,19 @@ func BenchmarkMsec_Combined(b *testing.B) {
 }
 
 func TestGetRestartLullTimeout(t *testing.T) {
-	*jobopts.ElementProcessingTimeout = -1
-	if got, want := getRestartLullTimeout(), 0*time.Minute; got != want {
+	if got, want := getRestartLullTimeout("-1"), 0*time.Minute; got != want {
 		t.Errorf("getRestartLullTimeout() = %v, want %v", got, want)
 	}
-	*jobopts.ElementProcessingTimeout = 10 * time.Minute
-	if got, want := getRestartLullTimeout(), 10*time.Minute; got != want {
+	if got, want := getRestartLullTimeout("test"), 0*time.Minute; got != want {
 		t.Errorf("getRestartLullTimeout() = %v, want %v", got, want)
 	}
-	*jobopts.ElementProcessingTimeout = 5 * time.Minute
-	if got, want := getRestartLullTimeout(), 10*time.Minute; got != want {
+	if got, want := getRestartLullTimeout("10m"), 10*time.Minute; got != want {
 		t.Errorf("getRestartLullTimeout() = %v, want %v", got, want)
 	}
-	*jobopts.ElementProcessingTimeout = 20 * time.Minute
-	if got, want := getRestartLullTimeout(), 20*time.Minute; got != want {
+	if got, want := getRestartLullTimeout("5m"), 10*time.Minute; got != want {
+		t.Errorf("getRestartLullTimeout() = %v, want %v", got, want)
+	}
+	if got, want := getRestartLullTimeout("20m"), 20*time.Minute; got != want {
 		t.Errorf("getRestartLullTimeout() = %v, want %v", got, want)
 	}
 }
