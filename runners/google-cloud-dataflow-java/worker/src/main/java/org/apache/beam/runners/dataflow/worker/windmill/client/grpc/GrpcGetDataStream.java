@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Verify.verify;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Verify.verifyNotNull;
 
@@ -202,10 +203,10 @@ final class GrpcGetDataStream
       for (int i = 0; i < chunk.getRequestIdCount(); ++i) {
         long requestId = chunk.getRequestId(i);
         boolean completeResponse = chunk.getRemainingBytesForResponse() == 0;
-        @Nullable
         AppendableInputStream responseStream =
-            completeResponse ? pending.remove(requestId) : pending.get(requestId);
-        verifyNotNull(responseStream, "No pending response stream");
+            verifyNotNull(
+                completeResponse ? pending.remove(requestId) : pending.get(requestId),
+                "No pending response stream");
         responseStream.append(chunk.getSerializedResponse(i).newInput());
         if (completeResponse) {
           responseStream.complete();
@@ -262,23 +263,22 @@ final class GrpcGetDataStream
   protected synchronized void onNewStream() throws WindmillStreamShutdownException {
     trySend(StreamingGetDataRequest.newBuilder().setHeader(jobHeader).build());
     while (!batches.isEmpty()) {
-      QueuedBatch batch = batches.peekFirst();
+      QueuedBatch batch = checkNotNull(batches.peekFirst());
       verify(!batch.isEmpty());
-      if (batch.isFinalized()) {
-        try {
-          ((GetDataPhysicalStreamHandler) currentPhysicalStream).sendBatch(batch);
-          verify(
-              batch == batches.pollFirst(),
-              "Sent GetDataStream request batch removed before send() was complete.");
-          // Notify all waiters with requests in this batch as well as the sender
-          // of the next batch (if one exists).
-          batch.notifySent();
-        } catch (Exception e) {
-          LOG.debug("Batch failed to send on new stream", e);
-          // Free waiters if the send() failed.
-          batch.notifyFailed();
-          throw e;
-        }
+      if (!batch.isFinalized()) break;
+      try {
+        verify(
+            batch == batches.pollFirst(),
+            "Sent GetDataStream request batch removed before send() was complete.");
+        checkNotNull((GetDataPhysicalStreamHandler) currentPhysicalStream).sendBatch(batch);
+        // Notify all waiters with requests in this batch as well as the sender
+        // of the next batch (if one exists).
+        batch.notifySent();
+      } catch (Exception e) {
+        LOG.debug("Batch failed to send on new stream", e);
+        // Free waiters if the send() failed.
+        batch.notifyFailed();
+        throw e;
       }
     }
   }
@@ -375,7 +375,7 @@ final class GrpcGetDataStream
 
   @Override
   protected synchronized void sendHealthCheck() throws WindmillStreamShutdownException {
-    if (currentPhysicalStream.hasPendingRequests()) {
+    if (currentPhysicalStream != null && currentPhysicalStream.hasPendingRequests()) {
       trySend(HEALTH_CHECK_REQUEST);
     }
   }
@@ -384,12 +384,13 @@ final class GrpcGetDataStream
   protected synchronized void shutdownInternal() {
     // Stream has been explicitly closed. Drain pending input streams and request batches.
     // Future calls to send RPCs will fail.
-    if (currentPhysicalStream != null) {
-      for (AppendableInputStream ais :
-          ((GetDataPhysicalStreamHandler) currentPhysicalStream).pending.values()) {
+    final @Nullable GetDataPhysicalStreamHandler currentGetDataStream =
+        (GetDataPhysicalStreamHandler) currentPhysicalStream;
+    if (currentGetDataStream != null) {
+      for (AppendableInputStream ais : currentGetDataStream.pending.values()) {
         ais.cancel();
       }
-      ((GetDataPhysicalStreamHandler) currentPhysicalStream).pending.clear();
+      currentGetDataStream.pending.clear();
     }
     batches.forEach(
         batch -> {
@@ -492,7 +493,9 @@ final class GrpcGetDataStream
       batch.notifyFailed();
       throw shutdownExceptionFor(batch);
     }
-    if (currentPhysicalStream == null) {
+    final @Nullable GetDataPhysicalStreamHandler currentGetDataPhysicalStream =
+        (GetDataPhysicalStreamHandler) currentPhysicalStream;
+    if (currentGetDataPhysicalStream == null) {
       // Leave the batch finalized but in the batches queue.  Finalized batches will be sent on the
       // new stream in onNewStream.
       return;
@@ -500,11 +503,9 @@ final class GrpcGetDataStream
 
     try {
       verify(batch == batches.peekFirst(), "GetDataStream request batch removed before send().");
+      verify(batch == batches.pollFirst());
       verify(!batch.isEmpty());
-      ((GetDataPhysicalStreamHandler) currentPhysicalStream).sendBatch(batch);
-      verify(
-          batch == batches.pollFirst(),
-          "Sent GetDataStream request batch removed before send() was complete.");
+      currentGetDataPhysicalStream.sendBatch(batch);
       // Notify all waiters with requests in this batch as well as the sender
       // of the next batch (if one exists).
       batch.notifySent();

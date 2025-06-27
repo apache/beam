@@ -44,7 +44,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.Co
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
 import org.apache.beam.sdk.util.BackOff;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Status;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
@@ -60,8 +59,17 @@ final class GrpcCommitWorkStream
 
   private static final long HEARTBEAT_REQUEST_ID = Long.MAX_VALUE;
 
-  private final ConcurrentMap<Long, KV<CommitWorkPhysicalStreamHandler, PendingRequest>> pending =
-      new ConcurrentHashMap<>();
+  private static class StreamAndRequest {
+    StreamAndRequest(@Nullable CommitWorkPhysicalStreamHandler handler, PendingRequest request) {
+      this.handler = handler;
+      this.request = request;
+    }
+
+    final @Nullable CommitWorkPhysicalStreamHandler handler;
+    final PendingRequest request;
+  }
+
+  private final ConcurrentMap<Long, StreamAndRequest> pending = new ConcurrentHashMap<>();
 
   private final AtomicLong idGenerator;
   private final JobHeader jobHeader;
@@ -125,15 +133,14 @@ final class GrpcCommitWorkStream
     trySend(StreamingCommitWorkRequest.newBuilder().setHeader(jobHeader).build());
     // Flush all pending requests that are no longer on active streams.
     try (Batcher resendBatcher = new Batcher()) {
-      for (Map.Entry<Long, KV<CommitWorkPhysicalStreamHandler, PendingRequest>> entry :
-          pending.entrySet()) {
-        CommitWorkPhysicalStreamHandler requestHandler = entry.getValue().getKey();
+      for (Map.Entry<Long, StreamAndRequest> entry : pending.entrySet()) {
+        CommitWorkPhysicalStreamHandler requestHandler = entry.getValue().handler;
         checkState(requestHandler != currentPhysicalStream);
         // When we have streams closing in the background we should avoid retrying the requests
         // active on those streams.
 
         long id = entry.getKey();
-        PendingRequest request = entry.getValue().getValue();
+        PendingRequest request = entry.getValue().request;
         if (!resendBatcher.canAccept(request.getBytes())) {
           resendBatcher.flush();
         }
@@ -153,7 +160,7 @@ final class GrpcCommitWorkStream
 
   @Override
   protected synchronized void sendHealthCheck() throws WindmillStreamShutdownException {
-    if (currentPhysicalStream.hasPendingRequests()) {
+    if (currentPhysicalStream != null && currentPhysicalStream.hasPendingRequests()) {
       StreamingCommitWorkRequest.Builder builder = StreamingCommitWorkRequest.newBuilder();
       builder.addCommitChunkBuilder().setRequestId(HEARTBEAT_REQUEST_ID);
       trySend(builder.build());
@@ -175,16 +182,15 @@ final class GrpcCommitWorkStream
         CommitStatus commitStatus =
             i < response.getStatusCount() ? response.getStatus(i) : CommitStatus.OK;
 
-        @Nullable
-        KV<CommitWorkPhysicalStreamHandler, PendingRequest> entry = pending.remove(requestId);
+        @Nullable StreamAndRequest entry = pending.remove(requestId);
         if (entry == null) {
           LOG.error("Got unknown commit request ID: {}", requestId);
           continue;
         }
-        if (entry.getKey() != this) {
+        if (entry.handler != this) {
           LOG.error("Got commit request id {} on unexpected stream", requestId);
         }
-        PendingRequest pendingRequest = entry.getValue();
+        PendingRequest pendingRequest = entry.request;
         try {
           pendingRequest.completeWithStatus(commitStatus);
         } catch (RuntimeException e) {
@@ -202,7 +208,7 @@ final class GrpcCommitWorkStream
 
     @Override
     public boolean hasPendingRequests() {
-      return pending.entrySet().stream().anyMatch(e -> e.getValue().getKey() == this);
+      return pending.entrySet().stream().anyMatch(e -> e.getValue().handler == this);
     }
 
     @Override
@@ -216,7 +222,7 @@ final class GrpcCommitWorkStream
     public void appendHtml(PrintWriter writer) {
       writer.format(
           "CommitWorkStream: %d pending",
-          pending.entrySet().stream().filter(e -> e.getValue().getKey() == this).count());
+          pending.entrySet().stream().filter(e -> e.getValue().handler == this).count());
     }
   }
 
@@ -227,10 +233,9 @@ final class GrpcCommitWorkStream
 
   @Override
   protected synchronized void shutdownInternal() {
-    Iterator<KV<CommitWorkPhysicalStreamHandler, PendingRequest>> pendingRequests =
-        pending.values().iterator();
+    Iterator<StreamAndRequest> pendingRequests = pending.values().iterator();
     while (pendingRequests.hasNext()) {
-      PendingRequest pendingRequest = pendingRequests.next().getValue();
+      PendingRequest pendingRequest = pendingRequests.next().request;
       pendingRequest.abort();
       pendingRequests.remove();
     }
@@ -270,7 +275,9 @@ final class GrpcCommitWorkStream
         pendingRequest.abort();
       }
       pending.put(
-          id, KV.of((CommitWorkPhysicalStreamHandler) currentPhysicalStream, pendingRequest));
+          id,
+          new StreamAndRequest(
+              (CommitWorkPhysicalStreamHandler) currentPhysicalStream, pendingRequest));
       trySend(chunk);
     }
   }
@@ -300,7 +307,8 @@ final class GrpcCommitWorkStream
       for (Map.Entry<Long, PendingRequest> entry : requests.entrySet()) {
         pending.put(
             entry.getKey(),
-            KV.of((CommitWorkPhysicalStreamHandler) currentPhysicalStream, entry.getValue()));
+            new StreamAndRequest(
+                (CommitWorkPhysicalStreamHandler) currentPhysicalStream, entry.getValue()));
       }
       trySend(request);
     }
@@ -317,7 +325,9 @@ final class GrpcCommitWorkStream
       }
 
       pending.put(
-          id, KV.of((CommitWorkPhysicalStreamHandler) currentPhysicalStream, pendingRequest));
+          id,
+          new StreamAndRequest(
+              (CommitWorkPhysicalStreamHandler) currentPhysicalStream, pendingRequest));
       for (int i = 0;
           i < serializedCommit.size();
           i += AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE) {

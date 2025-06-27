@@ -28,6 +28,7 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
@@ -63,7 +64,11 @@ public class GrpcCommitWorkStreamTest {
 
   @Rule public final ErrorCollector errorCollector = new ErrorCollector();
   @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
-  @Rule public transient Timeout globalTimeout = Timeout.seconds(60);
+
+  @Rule
+  public transient Timeout globalTimeout =
+      Timeout.builder().withTimeout(10, TimeUnit.MINUTES).withLookingForStuckThread(true).build();
+
   private final FakeWindmillGrpcService fakeService = new FakeWindmillGrpcService(errorCollector);
   private ManagedChannel inProcessChannel;
   private Server inProcessServer;

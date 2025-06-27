@@ -467,10 +467,15 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     }
   }
 
+  @SuppressWarnings("nullness")
+  private void clearPhysicalStreamForDebug() {
+    currentPhysicalStreamForDebug.set(null);
+  }
+
   private void onPhysicalStreamCompletion(Status status, PhysicalStreamHandler handler) {
     synchronized (this) {
       if (currentPhysicalStream == handler) {
-        currentPhysicalStreamForDebug.set(null);
+        clearPhysicalStreamForDebug();
         currentPhysicalStream = null;
       }
     }
