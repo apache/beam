@@ -16,6 +16,7 @@
 #
 import functools
 import logging
+import os
 import unittest
 from dataclasses import dataclass
 from typing import Optional
@@ -62,7 +63,7 @@ def where_clause_value_fn(row: beam.Row):
 
 
 def query_fn(table, row: beam.Row):
-  return f"SELECT * FROM `{table}` WHERE id = {row.id}"  # type: ignore[attr-defined]
+  return f"SELECT * FROM {table} WHERE id = {row.id}"  # type: ignore[attr-defined]
 
 
 @dataclass
@@ -471,7 +472,8 @@ class BaseTestCloudSQLEnrichment(unittest.TestCase):
       pcoll_populate_cache = (
           test_pipeline
           | beam.Create(requests)
-          | Enrichment(handler).with_redis_cache(self.host, self.port))
+          | Enrichment(handler).with_redis_cache(
+              self._cache_container_host, self._cache_container_port))
 
       assert_that(pcoll_populate_cache, equal_to(expected_rows))
 
@@ -493,7 +495,8 @@ class BaseTestCloudSQLEnrichment(unittest.TestCase):
       pcoll_cached = (
           test_pipeline
           | beam.Create(requests)
-          | Enrichment(handler).with_redis_cache(self.host, self.port))
+          | Enrichment(handler).with_redis_cache(
+              self._cache_container_host, self._cache_container_port))
 
       assert_that(pcoll_cached, equal_to(expected_rows))
 
@@ -517,25 +520,22 @@ class BaseCloudSQLDBEnrichment(BaseTestCloudSQLEnrichment):
     region = "us-central1"
 
     # Full instance connection name used for connecting via Cloud SQL.
-    instance_connection_name = f"{gcp_project_id}:{region}:{cls._instance_name}"
+    instance_connection_name = f"{gcp_project_id}:{region}:{cls._instance_uri}"
 
-    # IAM user for Cloud SQL IAM DB authentication.
-    user = "beam"
+    # Password auth configuration for CloudSQL instance.
+    user = "postgres"
+    password = os.getenv("ALLOYDB_PASSWORD")
 
-    # Target database name within the Cloud SQL instance.
-    db_id = "testDB"
-
-    # Type of IP address used to connect to the instance.
-    ip_type = IPTypes.PUBLIC
+    # Database ID for CloudSQL instance.
+    db_id = "postgres"
 
     cls.connection_config = CloudSQLConnectionConfig(
         db_adapter=cls._db_adapter,
         instance_connection_name=instance_connection_name,
         user=user,
+        password=password,
         db_id=db_id,
-        enable_iam_auth=True,
-        password=None,
-        ip_type=ip_type)
+        enable_iam_auth=False)
     super().setUpClass()
 
   @classmethod
@@ -546,7 +546,7 @@ class BaseCloudSQLDBEnrichment(BaseTestCloudSQLEnrichment):
 
 class TestCloudSQLPostgresEnrichment(BaseCloudSQLDBEnrichment):
   _db_adapter = DatabaseTypeAdapter.POSTGRESQL
-  _instance_name = "test-postgres-instance"
+  _instance_name = "beam-integration-tests"
   _table_id = "product_details_cloudsql_pg_enrichment"
   _metadata = MetaData()
 
