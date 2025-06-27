@@ -22,6 +22,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.io.IOException;
 import java.util.List;
@@ -30,6 +31,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
@@ -63,7 +65,11 @@ public class GrpcGetDataStreamTest {
 
   @Rule public final ErrorCollector errorCollector = new ErrorCollector();
   @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
-  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
+
+  @Rule
+  public transient Timeout globalTimeout =
+      Timeout.builder().withTimeout(10, TimeUnit.MINUTES).withLookingForStuckThread(true).build();
+
   private final FakeWindmillGrpcService fakeService = new FakeWindmillGrpcService(errorCollector);
   private ManagedChannel inProcessChannel;
   private Server inProcessServer;
@@ -237,7 +243,13 @@ public class GrpcGetDataStreamTest {
     streamInfo.responseObserver.onError(new IOException("test error"));
 
     streamInfo = waitForConnectionAndConsumeHeader();
-    request = streamInfo.requests.take();
+    while (true) {
+      request = streamInfo.requests.poll(5, TimeUnit.SECONDS);
+      if (request != null) break;
+      if (sendFuture.isDone()) {
+        fail("Unexpected send completion " + sendFuture);
+      }
+    }
     assertThat(request.getRequestIdList()).containsExactly(1L);
     assertEquals(keyedGetDataRequest, request.getStateRequest(0).getRequests(0));
 
