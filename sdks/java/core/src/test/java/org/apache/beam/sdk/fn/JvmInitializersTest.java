@@ -34,7 +34,6 @@ import org.apache.beam.sdk.harness.JvmInitializer;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -50,8 +49,6 @@ public final class JvmInitializersTest {
   private static Boolean onStartupRan;
   private static Boolean beforeProcessingRan;
   private static PipelineOptions receivedOptions;
-  private PrintStream out;
-  private ByteArrayOutputStream receivedOut;
 
   /** Test initializer implementation. Methods simply produce observable side effects. */
   @AutoService(JvmInitializer.class)
@@ -69,30 +66,28 @@ public final class JvmInitializersTest {
   }
 
   @Before
-  public void setUp() throws UnsupportedEncodingException {
+  public void setUp() {
     onStartupRan = false;
     beforeProcessingRan = false;
     receivedOptions = null;
-
-    // Capture System.out
-    out = System.out;
-    System.setOut(
-        new PrintStream(receivedOut = new ByteArrayOutputStream(), true, "UTF8"));
-  }
-
-  @After
-  public void tearDown() {
-    // Restore System.out
-    System.setOut(out);
   }
 
   @Test
-  public void runOnStartup_runsInitializers() throws IOException {
+  public void runOnStartup_runsInitializers() throws IOException, UnsupportedEncodingException {
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+
+    PrintStream out = System.out;
+    try (PrintStream ps = new PrintStream(baos, false, "UTF8")) {
+      System.setOut(ps);
+      JvmInitializers.runOnStartup();
+    } finally {
+      System.setOut(out);
+    }
 
     assertTrue(onStartupRan);
     assertThat(
         () ->
-            new Scanner(new ByteArrayInputStream(receivedOut.toByteArray()), "UTF8")
+            new Scanner(new ByteArrayInputStream(baos.toByteArray()), "UTF8")
                 .useDelimiter(System.lineSeparator()),
         hasItem(containsString("Running JvmInitializer#onStartup")));
   }
