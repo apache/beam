@@ -18,6 +18,7 @@
 package org.apache.beam.fn.harness.control;
 
 import com.google.auto.value.AutoValue;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -46,8 +47,10 @@ import org.apache.beam.sdk.metrics.StringSet;
 import org.apache.beam.sdk.options.ExecutorOptions;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTimeUtils.MillisProvider;
@@ -64,6 +67,7 @@ public class ExecutionStateSampler {
   private static final Logger LOG = LoggerFactory.getLogger(ExecutionStateSampler.class);
   private static final int DEFAULT_SAMPLING_PERIOD_MS = 200;
   private static final long MAX_LULL_TIME_MS = TimeUnit.MINUTES.toMillis(5);
+  private static final long MIN_LULL_TIME_MS_FOR_RESTART = TimeUnit.MINUTES.toMillis(10);
   private static final PeriodFormatter DURATION_FORMATTER =
       new PeriodFormatterBuilder()
           .appendDays()
@@ -79,6 +83,8 @@ public class ExecutionStateSampler {
           .toFormatter();
   private final int periodMs;
   private final MillisProvider clock;
+  private final long userAllowedLullTimeMsForRestart;
+  private final boolean userAllowedTimeoutForRestart;
 
   @GuardedBy("activeStateTrackers")
   private final Set<ExecutionStateTracker> activeStateTrackers;
@@ -96,6 +102,25 @@ public class ExecutionStateSampler {
             : Integer.parseInt(samplingPeriodMills);
     this.clock = clock;
     this.activeStateTrackers = new HashSet<>();
+
+    int timeoutOption = options.as(SdkHarnessOptions.class).getElementProcessingTimeout();
+    if (timeoutOption <= 0) {
+      this.userAllowedLullTimeMsForRestart = 0L;
+      this.userAllowedTimeoutForRestart = false;
+    } else {
+      this.userAllowedTimeoutForRestart = true;
+      long timeoutMs = TimeUnit.MINUTES.toMillis(timeoutOption);
+      this.userAllowedLullTimeMsForRestart =
+          Math.max(timeoutMs, ExecutionStateSampler.MIN_LULL_TIME_MS_FOR_RESTART);
+      if (timeoutMs < ExecutionStateSampler.MIN_LULL_TIME_MS_FOR_RESTART) {
+        LOG.info(
+            String.format(
+                "The user defined ElementProcessingTimeout is too short for "
+                    + "a PTransform operation and has been set to %d minutes",
+                TimeUnit.MILLISECONDS.toMinutes(this.userAllowedLullTimeMsForRestart)));
+      }
+    }
+
     // We specifically synchronize to ensure that this object can complete
     // being published before the state sampler thread starts.
     synchronized (this) {
@@ -148,6 +173,16 @@ public class ExecutionStateSampler {
     }
   }
 
+  @VisibleForTesting
+  public boolean getUserAllowedTimeoutForRestart() {
+    return this.userAllowedTimeoutForRestart;
+  }
+
+  @VisibleForTesting
+  public long getUserAllowedLullTimeMsForRestart() {
+    return this.userAllowedLullTimeMsForRestart;
+  }
+
   /** Entry point for the state sampling thread. */
   private Void stateSampler() throws Exception {
     // Ensure the object finishes being published safely.
@@ -168,7 +203,16 @@ public class ExecutionStateSampler {
         long millisSinceLastSample = currentTimeMillis - lastSampleTimeMillis;
         synchronized (activeStateTrackers) {
           for (ExecutionStateTracker activeTracker : activeStateTrackers) {
-            activeTracker.takeSample(currentTimeMillis, millisSinceLastSample);
+            try {
+              activeTracker.takeSample(currentTimeMillis, millisSinceLastSample);
+            } catch (RuntimeException e) {
+              shutdownDueToElementProcessingLullTimeout(
+                  String.format(
+                      "Exception caught: %s The SDK worker will terminate and restart because the"
+                          + " lull time is longer than %d minutes",
+                      e.getMessage(),
+                      TimeUnit.MILLISECONDS.toMinutes(this.userAllowedLullTimeMsForRestart)));
+            }
           }
         }
         lastSampleTimeMillis = currentTimeMillis;
@@ -181,6 +225,12 @@ public class ExecutionStateSampler {
   /** Returns a new {@link ExecutionStateTracker} associated with this state sampler. */
   public ExecutionStateTracker create() {
     return new ExecutionStateTracker();
+  }
+
+  @SuppressFBWarnings("DM_EXIT")
+  private void shutdownDueToElementProcessingLullTimeout(String errorMsg) {
+    LOG.error(errorMsg);
+    System.exit(1);
   }
 
   /**
@@ -349,6 +399,7 @@ public class ExecutionStateSampler {
         currentExecutionState.takeSample(millisSinceLastSample);
       }
 
+      Thread thread = trackedThread.get();
       long transitionsAtThisSample = numTransitionsLazy.get();
 
       if (transitionsAtThisSample != transitionsAtLastSample) {
@@ -356,6 +407,43 @@ public class ExecutionStateSampler {
         transitionsAtLastSample = transitionsAtThisSample;
       } else {
         long lullTimeMs = currentTimeMillis - lastTransitionTimeMillis.get();
+
+        if (userAllowedTimeoutForRestart && lullTimeMs > userAllowedLullTimeMsForRestart) {
+          String timeoutMessage = "";
+          if (thread == null) {
+            timeoutMessage =
+                String.format(
+                    "Operation ongoing in bundle %s for at least %s without outputting "
+                        + "or completing (stack trace unable to be generated). The SDK worker will restart.",
+                    processBundleId.get(),
+                    DURATION_FORMATTER.print(
+                        Duration.millis(userAllowedLullTimeMsForRestart).toPeriod()));
+          } else if (currentExecutionState == null) {
+            timeoutMessage =
+                String.format(
+                    "Operation ongoing in bundle %s for at least %s without outputting "
+                        + "or completing:%n  at %s. The SDK worker will restart.",
+                    processBundleId.get(),
+                    DURATION_FORMATTER.print(
+                        Duration.millis(userAllowedLullTimeMsForRestart).toPeriod()),
+                    Joiner.on("\n  at ").join(thread.getStackTrace()));
+          } else {
+            timeoutMessage =
+                String.format(
+                    "Operation ongoing in bundle %s for PTransform{id=%s, name=%s, state=%s} "
+                        + "for at least %s without outputting or completing:%n  at %s. The SDK worker will restart.",
+                    processBundleId.get(),
+                    currentExecutionState.ptransformId,
+                    currentExecutionState.ptransformUniqueName,
+                    currentExecutionState.stateName,
+                    DURATION_FORMATTER.print(
+                        Duration.millis(userAllowedLullTimeMsForRestart).toPeriod()),
+                    Joiner.on("\n  at ").join(thread.getStackTrace()));
+          }
+
+          throw new RuntimeException(new TimeoutException(timeoutMessage));
+        }
+
         if (lullTimeMs > MAX_LULL_TIME_MS) {
           if (lullTimeMs < lastLullReport // This must be a new report.
               || lullTimeMs > 1.2 * lastLullReport // Exponential backoff.
@@ -363,7 +451,6 @@ public class ExecutionStateSampler {
                   > MAX_LULL_TIME_MS + lastLullReport // At least once every MAX_LULL_TIME_MS.
           ) {
             lastLullReport = lullTimeMs;
-            Thread thread = trackedThread.get();
             if (thread == null) {
               LOG.warn(
                   String.format(
