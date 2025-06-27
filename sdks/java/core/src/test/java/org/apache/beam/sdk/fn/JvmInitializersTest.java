@@ -92,8 +92,8 @@ public final class JvmInitializersTest {
     assertTrue(onStartupRan);
     assertThat(
         () ->
-            new Scanner(
-                new ByteArrayInputStream(receivedOut.toByteArray()), "UTF8"),
+            new Scanner(new ByteArrayInputStream(receivedOut.toByteArray()), "UTF8")
+                .useDelimiter(System.lineSeparator()),
         contains(containsString("Running JvmInitializer#onStartup")));
   }
 
