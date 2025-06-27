@@ -163,7 +163,7 @@ jobs:
 
   stage_python_artifacts:
     if:  ${{ fromJson(github.event.inputs.STAGE).python_artifacts == 'yes'}}
-    needs: [publish_java_artifacts, build_and_stage_prism] # Enforce ordering to avoid svn conflicts
+    needs: [stage_java_source, build_and_stage_prism] # Enforce ordering to avoid svn conflicts
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
@@ -423,7 +423,7 @@ jobs:
 
   build_and_stage_prism:
     if: ${{ fromJson(github.event.inputs.STAGE).prism == 'yes'}}
-    needs: [publish_java_artifacts] # Enforce ordering to avoid svn conflicts
+    needs: [stage_java_source] # Enforce ordering to avoid svn conflicts
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout

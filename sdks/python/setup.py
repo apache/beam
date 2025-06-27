@@ -573,7 +573,7 @@ if __name__ == '__main__':
           # in https://github.com/apache/beam/blob/master/sdks/python/tox.ini
           # For more info, see
           # https://docs.google.com/document/d/1c84Gc-cZRCfrU8f7kWGsNR2o8oSRjCM-dGHO9KvPWPw/edit?usp=sharing
-          'torch': ['torch<=1.13.0,<2.1.0'],
+          'torch': ['torch>=1.9.0,<2.1.0'],
           'tensorflow': ['tensorflow>=2.12rc1,<2.13'],
           'transformers': [
               'transformers>=4.28.0,<4.49.0',
