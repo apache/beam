@@ -209,30 +209,6 @@ class HybridSearchParameters:
   """Parameters for hybrid (vector + keyword) search operations.
 
   Args:
-    ranker: Ranker for combining vector and keyword search results.
-      Example: RRFRanker(k=100).
-    limit: Maximum number of results to return per query. Defaults to 3 search
-      results.
-    kwargs: Optional keyword arguments for additional hybrid search parameters.
-      Enables forward compatibility.
-  """
-  ranker: MilvusBaseRanker
-  limit: int = 3
-  kwargs: Dict[str, Any] = field(default_factory=dict)
-
-  def __post_init__(self):
-    if not self.ranker:
-      raise ValueError("Ranker must be provided for hybrid search")
-
-    if self.limit <= 0:
-      raise ValueError(f"Search limit must be positive, got {self.limit}")
-
-
-@dataclass
-class HybridSearchParameters:
-  """Parameters for hybrid (vector + keyword) search operations.
-
-  Args:
     vector: Parameters for the vector search component.
     keyword: Parameters for the keyword search component.
     ranker: Ranker for combining vector and keyword search results.
