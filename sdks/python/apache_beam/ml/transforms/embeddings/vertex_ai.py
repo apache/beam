@@ -115,7 +115,7 @@ class _VertexAITextEmbeddingHandler(ModelHandler):
   def get_request(
       self,
       text_batch: Sequence[TextEmbeddingInput],
-      model: MultiModalEmbeddingModel,
+      model: TextEmbeddingModel,
       throttle_delay_secs: int):
     while self.throttler.throttle_request(time.time() * _MSEC_TO_SEC):
       LOGGER.info(
