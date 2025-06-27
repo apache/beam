@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-from collections import defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass
 from dataclasses import field
