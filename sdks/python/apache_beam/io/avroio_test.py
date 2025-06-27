@@ -206,6 +206,34 @@ class AvroBase(object):
     expected_beam_type = schemas.typing_to_runner_api(Any)
     hc.assert_that(beam_type, hc.equal_to(expected_beam_type))
 
+  def test_avro_union_type_to_beam_type_with_record_and_null(self):
+    record_type = {
+        'type': 'record',
+        'name': 'TestRecord',
+        'fields': [{
+            'name': 'field1', 'type': 'string'
+        }, {
+            'name': 'field2', 'type': 'int'
+        }]
+    }
+    union_type = [record_type, 'null']
+    beam_type = avro_union_type_to_beam_type(union_type)
+    expected_beam_type = schemas.typing_to_runner_api(Any)
+    hc.assert_that(beam_type, hc.equal_to(expected_beam_type))
+
+  def test_avro_union_type_to_beam_type_with_nullable_annotated_string(self):
+    union_type = [
+        'null',
+        '''
+      {
+        "avro.java.string": "String",
+        "type": "string"
+      }'''
+    ]
+    beam_type = avro_union_type_to_beam_type(union_type)
+    expected_beam_type = schemas.typing_to_runner_api(Any)
+    hc.assert_that(beam_type, hc.equal_to(expected_beam_type))
+
   def test_avro_schema_to_beam_and_back(self):
     avro_schema = fastavro.parse_schema(json.loads(self.SCHEMA_STRING))
     beam_schema = avro_schema_to_beam_schema(avro_schema)
