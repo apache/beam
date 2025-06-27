@@ -441,8 +441,8 @@ class TypeHintsTest(unittest.TestCase):
     # pylint: disable=expression-not-assigned
     with self.assertRaises(Exception):
       # [START type_hints_runtime_on]
-      with TestPipeline(options=PipelineOptions(runtime_type_check=True)) as p:
-        p | beam.Create(['a']) | beam.Map(lambda x: 3).with_output_types(str)
+      p = TestPipeline(options=PipelineOptions(runtime_type_check=True))
+      p | beam.Create(['a']) | beam.Map(lambda x: 3).with_output_types(str)
       result = p.run()
       # [END type_hints_runtime_on]
       result.wait_until_finish()
