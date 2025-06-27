@@ -337,17 +337,17 @@ class TestParquet(unittest.TestCase):
       ARROW_MAJOR_VERSION >= 13,
       'pyarrow 13.x and above does not throw ArrowInvalid error')
   def test_sink_transform_int96(self):
-    with tempfile.NamedTemporaryFile() as dst:
-      path = dst.name
-      # pylint: disable=c-extension-no-member
-      with self.assertRaisesRegex(Exception, 'would lose data'):
-        # Should throw an error "ArrowInvalid: Casting from timestamp[ns] to
-        # timestamp[us] would lose data"
-        with TestPipeline() as p:
-          _ = p \
-          | Create(self.RECORDS) \
-          | WriteToParquet(
-              path, self.SCHEMA96, num_shards=1, shard_name_template='')
+    dst = tempfile.NamedTemporaryFile()
+    path = dst.name
+    # pylint: disable=c-extension-no-member
+    with self.assertRaisesRegex(Exception, 'would lose data'):
+      # Should throw an error "ArrowInvalid: Casting from timestamp[ns] to
+      # timestamp[us] would lose data"
+      with TestPipeline() as p:
+        _ = p \
+        | Create(self.RECORDS) \
+        | WriteToParquet(
+            path, self.SCHEMA96, num_shards=1, shard_name_template='')
 
   def test_sink_transform(self):
     with TemporaryDirectory() as tmp_dirname:
