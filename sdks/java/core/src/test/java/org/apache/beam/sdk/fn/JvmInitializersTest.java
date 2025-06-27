@@ -27,6 +27,7 @@ import com.google.auto.service.AutoService;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Scanner;
 import org.apache.beam.sdk.harness.JvmInitializer;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -74,7 +75,7 @@ public final class JvmInitializersTest {
 
     // Capture System.out
     out = System.out;
-    System.setOut(new PrintStream(receivedOut = new ByteArrayOutputStream(), true));
+    System.setOut(new PrintStream(receivedOut = new ByteArrayOutputStream(), true, StandardCharsets.UTF_8));
   }
 
   @After
@@ -88,7 +89,7 @@ public final class JvmInitializersTest {
     JvmInitializers.runOnStartup();
 
     assertTrue(onStartupRan);
-    assertThat(() -> new Scanner(new ByteArrayInputStream(receivedOut.toByteArray())),
+    assertThat(() -> new Scanner(new ByteArrayInputStream(receivedOut.toByteArray()), StandardCharsets.UTF_8),
         contains(containsString("Running JvmInitializer#onStartup")));
   }
 
