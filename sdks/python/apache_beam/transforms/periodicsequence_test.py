@@ -19,9 +19,13 @@
 
 # pytype: skip-file
 
+import logging
 import inspect
+import random
 import time
 import unittest
+
+from parameterized import parameterized
 
 import apache_beam as beam
 from apache_beam.io.restriction_trackers import OffsetRange
@@ -157,6 +161,53 @@ class PeriodicSequenceTest(unittest.TestCase):
       expected = [0, 2, 4]
       assert_that(ret, equal_to(expected, lambda x, y: abs(x - y) < threshold))
 
+  @parameterized.expand([0.5, 1, 2, 10])
+  def test_stop_over_by_epsilon(self, interval):
+    with TestPipeline() as p:
+      ret = (
+          p | PeriodicImpulse(
+              start_timestamp=Timestamp(seconds=1),
+              stop_timestamp=Timestamp(seconds=1, micros=1),
+              data=[1, 2],
+              fire_interval=interval)
+          | beam.WindowInto(FixedWindows(interval))
+          | beam.WithKeys(0)
+          | beam.GroupByKey())
+      expected = [
+          (0, [1]),
+      ]
+      assert_that(ret, equal_to(expected))
+
+  @parameterized.expand([1, 2])
+  def test_stop_over_by_interval(self, interval):
+    with TestPipeline() as p:
+      ret = (
+          p | PeriodicImpulse(
+              start_timestamp=Timestamp(seconds=1),
+              stop_timestamp=Timestamp(seconds=1 + interval),
+              data=[1, 2],
+              fire_interval=interval)
+          | beam.WindowInto(FixedWindows(interval))
+          | beam.WithKeys(0)
+          | beam.GroupByKey())
+      expected = [(0, [1])]
+      assert_that(ret, equal_to(expected))
+
+  @parameterized.expand([1, 2])
+  def test_stop_over_by_interval_and_epsilon(self, interval):
+    with TestPipeline() as p:
+      ret = (
+          p | PeriodicImpulse(
+              start_timestamp=Timestamp(seconds=1),
+              stop_timestamp=Timestamp(seconds=1 + interval, micros=1),
+              data=[1, 2],
+              fire_interval=interval)
+          | beam.WindowInto(FixedWindows(interval))
+          | beam.WithKeys(0)
+          | beam.GroupByKey())
+      expected = [(0, [1]), (0, [2])]
+      assert_that(ret, equal_to(expected))
+
   def test_interval(self):
     with TestPipeline() as p:
       ret = (
@@ -208,15 +259,22 @@ class PeriodicSequenceTest(unittest.TestCase):
                 data=data,
                 fire_interval=0.5))
 
-  def test_small_interval(self):
-    data = [(Timestamp(1), 1), (Timestamp(2), 2), (Timestamp(3), 3),
-            (Timestamp(6), 6), (Timestamp(4), 4), (Timestamp(5), 5),
-            (Timestamp(7), 7), (Timestamp(8), 8), (Timestamp(9), 9),
-            (Timestamp(10), 10)]
-    expected = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-    with TestPipeline() as p:
-      ret = (p | PeriodicImpulse(data=data, fire_interval=0.0001))
-      assert_that(ret, equal_to(expected))
+  def test_fuzzy_interval(self):
+    seed = int(time.time() * 1000)
+    times = 30
+    logging.warning("random seed=%d", seed)
+    random.seed(seed)
+    for _ in range(times):
+      n = int(random.randint(1, 100))
+      data = list(range(n))
+      m = random.randint(1, 1000)
+      interval = m / 1e6
+      now = Timestamp.now()
+      with TestPipeline() as p:
+        ret = (
+            p | PeriodicImpulse(
+                start_timestamp=now, data=data, fire_interval=interval))
+        assert_that(ret, equal_to(data))
 
 
 if __name__ == '__main__':

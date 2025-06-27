@@ -21,7 +21,6 @@ import warnings
 from typing import Any
 from typing import Optional
 from typing import Sequence
-from typing import Union
 
 import apache_beam as beam
 from apache_beam.io.restriction_trackers import OffsetRange
@@ -41,13 +40,21 @@ class ImpulseSeqGenRestrictionProvider(core.RestrictionProvider):
   def initial_restriction(self, element):
     start, end, interval = element
     if isinstance(start, Timestamp):
-      start = start.micros / 1000000
-    if isinstance(end, Timestamp):
-      end = end.micros / 1000000
+      start_micros = start.micros
+    else:
+      start_micros = round(start * 1000000)
 
-    assert start <= end
+    if isinstance(end, Timestamp):
+      end_micros = end.micros
+    else:
+      end_micros = round(end * 1000000)
+
+    interval_micros = round(interval * 1000000)
+
+    assert start_micros <= end_micros
     assert interval > 0
-    total_outputs = math.ceil((end - start) / interval)
+    delta_micros: int = end_micros - start_micros
+    total_outputs = math.ceil(delta_micros / interval_micros)
     return OffsetRange(0, total_outputs)
 
   def create_tracker(self, restriction):
@@ -232,11 +239,11 @@ class PeriodicImpulse(PTransform):
 
     if isinstance(self.stop_ts, Timestamp):
       if self.stop_ts == MAX_TIMESTAMP:
-        # adjust stop timestamp to match the data duration
-        end = start + data_duration
-        if self.interval > 1e-6:
-          end += 1e-6
-        self.stop_ts = Timestamp.of(end)
+        # When the stop timestamp is unbounded (MAX_TIMESTAMP), set it to the
+        # data's actual end time plus an extra fire interval, because the
+        # impulse duration's upper bound is exclusive.
+        end = start + data_duration + self.interval
+        self.stop_ts = Timestamp(micros=end * 1000000)
       else:
         end = self.stop_ts.micros / 1000000
     else:
@@ -244,7 +251,7 @@ class PeriodicImpulse(PTransform):
 
     # The total time for the impulse signal which occurs in [start, end).
     impulse_duration = end - start
-    if data_duration + self.interval < impulse_duration:
+    if round(data_duration + self.interval, 6) < round(impulse_duration, 6):
       # We don't have enough data for the impulse.
       # If we can fit at least one more data point in the impulse duration,
       # then we will be in the repeat mode.
@@ -264,8 +271,8 @@ class PeriodicImpulse(PTransform):
 
   def __init__(
       self,
-      start_timestamp: Union[Timestamp, float] = Timestamp.now(),
-      stop_timestamp: Union[Timestamp, float] = MAX_TIMESTAMP,
+      start_timestamp: Timestamp = Timestamp.now(),
+      stop_timestamp: Timestamp = MAX_TIMESTAMP,
       fire_interval: float = 360.0,
       apply_windowing: bool = False,
       data: Optional[Sequence[Any]] = None):
