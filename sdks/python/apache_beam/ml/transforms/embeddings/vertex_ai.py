@@ -126,7 +126,7 @@ class _VertexAITextEmbeddingHandler(ModelHandler):
 
     try:
       req_time = time.time()
-      prediction = model.get_embeddings(text_batch)
+      prediction = model.get_embeddings(list(text_batch))
       self.throttler.successful_request(req_time * _MSEC_TO_SEC)
       return prediction
     except TooManyRequests as e:
