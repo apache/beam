@@ -89,8 +89,10 @@ class ImpulseSeqGenDoFn(beam.DoFn):
   '''
   ImpulseSeqGenDoFn fn receives tuple elements with three parts:
 
-  * first_timestamp = first timestamp to output element for.
-  * last_timestamp = last timestamp/time to output element for.
+  * first_timestamp = The timestamp of the first element to be generated
+    (inclusive).
+  * last_timestamp = The timestamp marking the end of the generation period
+    (exclusive). No elements will be generated at or after this time.
   * fire_interval = how often to fire an element.
 
   For each input element received, ImpulseSeqGenDoFn fn will start
@@ -110,11 +112,12 @@ class ImpulseSeqGenDoFn(beam.DoFn):
       timestamp.
     - **Non-Timestamped Data**: If `data` is a sequence of arbitrary values
       (e.g., `[v1, v2, ...]`), the DoFn will assign a timestamp to each
-      emitted element. The timestamps are calculated by starting at a given
-      `start_time` and incrementing by a fixed `interval`.
+      emitted element.
     - **Pre-Timestamped Data**: If `data` is a sequence of tuples, where each
       tuple is `(apache_beam.utils.timestamp.Timestamp, value)`, the DoFn
       will use the provided timestamp for the emitted element.
+
+  See the parameter description of `PeriodicImpulse` for more information.
   '''
   def __init__(self, data: Optional[Sequence[Any]] = None):
     self._data = data
@@ -278,13 +281,33 @@ class PeriodicImpulse(PTransform):
       data: Optional[Sequence[Any]] = None):
     '''
     :param start_timestamp: Timestamp for first element.
-    :param stop_timestamp: Timestamp after which no elements will be output.
+    :param stop_timestamp: Timestamp at or after which no elements will be
+      output.
     :param fire_interval: Interval in seconds at which to output elements.
     :param apply_windowing: Whether each element should be assigned to
       individual window. If false, all elements will reside in global window.
-    :param data: The sequence of elements to emit into the PCollection.
-      The elements can be raw values or pre-timestamped tuples in the format
-      `(apache_beam.utils.timestamp.Timestamp, value)`.
+    :param data: A sequence of elements to emit. The behavior depends on the
+      content:
+      - **None (default):** The transform emits the event timestamps as
+        the element values, starting from start_timestamp and incrementing by
+        `fire_interval` up to the `stop_timestamp` (exclusive)
+      - **Sequence of raw values (e.g., `['a', 'b']`)**: The transform emits
+        each value in the sequence, assigning it an event timestamp that is
+        calculated in the same manner as the default scenario. The sequence
+        is repeated if the impulse duration requires more elements than
+        are in the sequence (a warning will be given in this case).
+      - **Sequence of pre-timestamped tuples (e.g.,
+        `[(t1, v1), (t2, v2)]`)**: The transform emits each value with its
+        explicitly provided event time. The format must be
+        `(apache_beam.utils.timestamp.Timestamp, value)`. The provided
+        timestamps are used directly, overriding the calculated ones.
+        Note that the elements in the sequence is NOT required to be ordered
+        by event time; an element with a timestamp earlier than a preceding one
+        will be treated as a potential late event.
+        **Important**: In this mode, the number of elements in `data` must be
+        sufficient to cover the duration defined by `start_timestamp`,
+        `stop_timestamp`, and `fire_interval`; otherwise, a `ValueError` is
+        raised.
     '''
     self.start_ts = start_timestamp
     self.stop_ts = stop_timestamp
