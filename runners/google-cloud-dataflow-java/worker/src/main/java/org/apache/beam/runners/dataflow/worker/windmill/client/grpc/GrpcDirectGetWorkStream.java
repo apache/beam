@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+
 import java.io.PrintWriter;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -164,7 +166,7 @@ final class GrpcDirectGetWorkStream
   private static Watermarks createWatermarks(
       WorkItem workItem, GetWorkResponseChunkAssembler.ComputationMetadata metadata) {
     return Watermarks.builder()
-        .setInputDataWatermark(metadata.inputDataWatermark())
+        .setInputDataWatermark(checkNotNull(metadata.inputDataWatermark()))
         .setOutputDataWatermark(workItem.getOutputDataWatermark())
         .setSynchronizedProcessingTime(metadata.synchronizedProcessingTime())
         .build();
