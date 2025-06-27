@@ -138,7 +138,7 @@ class CloudSQLConnectionConfig(ConnectionConfig):
   def __init__(
       self,
       db_adapter: DatabaseTypeAdapter,
-      instance_connection_name: str,
+      instance_connection_uri: str,
       user: str,
       db_id: str,
       enable_iam_auth: bool = True,
@@ -146,20 +146,20 @@ class CloudSQLConnectionConfig(ConnectionConfig):
       ip_type: IPTypes = IPTypes.PUBLIC,
       refresh_strategy: RefreshStrategy = RefreshStrategy.LAZY,
       *,
-      connector_kwargs: dict = {},
-      connect_kwargs: dict = {},
+      connector_kwargs: Optional[dict] = None,
+      connect_kwargs: Optional[dict] = None,
   ):
     self._validate_metadata(db_adapter=db_adapter)
     self._db_adapter = db_adapter
-    self._instance_connection_name = instance_connection_name
+    self._instance_connection_uri = instance_connection_uri
     self._user = user
     self._db_id = db_id
     self._enable_iam_auth = enable_iam_auth
     self._password = password
     self._ip_type = ip_type
     self._refresh_strategy = refresh_strategy
-    self.connector_kwargs = connector_kwargs
-    self.connect_kwargs = connect_kwargs
+    self.connector_kwargs = connector_kwargs or {}
+    self.connect_kwargs = connect_kwargs or {}
 
   def get_connector_handler(self) -> SQLClientConnectionHandler:
     cloudsql_client = CloudSQLConnector(
@@ -168,7 +168,7 @@ class CloudSQLConnectionConfig(ConnectionConfig):
         **self.connector_kwargs)
 
     cloudsql_connector = lambda: cloudsql_client.connect(
-        instance_connection_string=self._instance_connection_name, driver=self.
+        instance_connection_string=self._instance_connection_uri, driver=self.
         _db_adapter.value, user=self._user, db=self._db_id, enable_iam_auth=self
         ._enable_iam_auth, password=self.password, **self.connect_kwargs)
 
