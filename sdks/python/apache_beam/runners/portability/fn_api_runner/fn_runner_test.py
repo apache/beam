@@ -53,7 +53,6 @@ from apache_beam.io.watermark_estimators import ManualWatermarkEstimator
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.metricbase import MetricName
-from apache_beam.ml.ts.util import PeriodicStream
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import DirectOptions
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -1264,7 +1263,7 @@ class FnApiRunnerTest(unittest.TestCase):
     with self.create_pipeline() as p:
       ret = (
           p
-          | PeriodicStream(data, interval=1)
+          | PeriodicImpulse(data=data, fire_interval=1)
           | beam.WithKeys(0)
           | beam.WindowInto(beam.transforms.window.SlidingWindows(6, 3))
           | beam.GroupByKey())
