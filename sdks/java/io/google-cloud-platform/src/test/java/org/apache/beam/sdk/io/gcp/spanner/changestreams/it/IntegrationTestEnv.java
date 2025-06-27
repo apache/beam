@@ -59,14 +59,16 @@ public class IntegrationTestEnv extends ExternalResource {
   private String metadataDatabaseId;
   private String metadataTableName;
   private Spanner spanner;
-  private final String host = "https://spanner.googleapis.com";
+  private String host = "https://spanner.googleapis.com";
   private DatabaseAdminClient databaseAdminClient;
   private DatabaseClient databaseClient;
   private boolean isPostgres;
+  private boolean isPlacementTableBasedChangeStream;
   public boolean useSeparateMetadataDb;
 
   @Override
   protected void before() throws Throwable {
+    System.err.println("changliiu IntegrationTestEnv before ");
     final ChangeStreamTestPipelineOptions options =
         IOITHelper.readIOTestPipelineOptions(ChangeStreamTestPipelineOptions.class);
 
@@ -89,10 +91,17 @@ public class IntegrationTestEnv extends ExternalResource {
 
   IntegrationTestEnv() {
     this.isPostgres = false;
+    this.isPlacementTableBasedChangeStream = false;
   }
 
-  IntegrationTestEnv(boolean isPostgres) {
-    this.isPostgres = true;
+  IntegrationTestEnv(
+      boolean isPostgres, boolean isPlacementTableBasedChangeStream, Optional<String> host) {
+    this.isPostgres = isPostgres;
+    this.isPlacementTableBasedChangeStream = isPlacementTableBasedChangeStream;
+    if (host.isPresent()) {
+      this.host = host.get();
+    }
+    System.err.println("changliiu host: " + this.host);
   }
 
   @Override
@@ -154,6 +163,7 @@ public class IntegrationTestEnv extends ExternalResource {
   }
 
   void createMetadataDatabase() throws ExecutionException, InterruptedException, TimeoutException {
+    System.err.println("changliiu IntegrationTestEnv createMetadataDatabase ");
     recreateDatabase(databaseAdminClient, instanceId, metadataDatabaseId, isPostgres);
     useSeparateMetadataDb = true;
   }
@@ -183,15 +193,7 @@ public class IntegrationTestEnv extends ExternalResource {
           .updateDatabaseDdl(
               instanceId,
               databaseId,
-              Collections.singletonList(
-                  "CREATE TABLE "
-                      + tableName
-                      + " ("
-                      + "   SingerId   INT64 NOT NULL,"
-                      + "   FirstName  STRING(1024),"
-                      + "   LastName   STRING(1024),"
-                      + "   SingerInfo BYTES(MAX)"
-                      + " ) PRIMARY KEY (SingerId)"),
+              Collections.singletonList(createGSQLTableDDL(tableName)),
               null)
           .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
     }
@@ -199,11 +201,34 @@ public class IntegrationTestEnv extends ExternalResource {
     return tableName;
   }
 
+  String createGSQLTableDDL(String tableName) {
+    if (this.isPlacementTableBasedChangeStream) {
+      // create a placement table.
+      return "CREATE TABLE "
+          + tableName
+          + " ("
+          + "   SingerId   INT64 NOT NULL,"
+          + "   FirstName  STRING(1024),"
+          + "   LastName   STRING(1024),"
+          + "   SingerInfo BYTES(MAX),"
+          + "   Location   STRING(MAX) NOT NULL PLACEMENT KEY"
+          + " ) PRIMARY KEY (SingerId)";
+    }
+    return "CREATE TABLE "
+        + tableName
+        + " ("
+        + "   SingerId   INT64 NOT NULL,"
+        + "   FirstName  STRING(1024),"
+        + "   LastName   STRING(1024),"
+        + "   SingerInfo BYTES(MAX)"
+        + " ) PRIMARY KEY (SingerId)";
+  }
+
   String createChangeStreamFor(String tableName)
       throws InterruptedException, ExecutionException, TimeoutException {
     final String changeStreamName = generateChangeStreamName();
+    LOG.info("CREATE CHANGE STREAM \"" + changeStreamName + "\" FOR \"" + tableName + "\"");
     if (this.isPostgres) {
-      LOG.info("CREATE CHANGE STREAM \"" + changeStreamName + "\" FOR \"" + tableName + "\"");
       databaseAdminClient
           .updateDatabaseDdl(
               instanceId,
@@ -217,13 +242,26 @@ public class IntegrationTestEnv extends ExternalResource {
           .updateDatabaseDdl(
               instanceId,
               databaseId,
-              Collections.singletonList(
-                  "CREATE CHANGE STREAM " + changeStreamName + " FOR " + tableName),
+              Collections.singletonList(createGSQLChangeStreamDDL(changeStreamName, tableName)),
               null)
           .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
     }
     changeStreams.add(changeStreamName);
     return changeStreamName;
+  }
+
+  String createGSQLChangeStreamDDL(String changeStreamName, String tableName) {
+    if (this.isPlacementTableBasedChangeStream) {
+      System.err.println(
+          "changliiu create v222 change stream: " + this.isPlacementTableBasedChangeStream);
+      // Create a MUTABLE_KEY_RANGE change stream.
+      return "CREATE CHANGE STREAM "
+          + changeStreamName
+          + " FOR "
+          + tableName
+          + "SET OPTIONS (partition_mode = 'MUTABLE_KEY_RANGE')";
+    }
+    return "CREATE CHANGE STREAM " + changeStreamName + " FOR " + tableName;
   }
 
   void createRoleAndGrantPrivileges(String table, String changeStream)
@@ -296,6 +334,15 @@ public class IntegrationTestEnv extends ExternalResource {
               Collections.emptyList())
           .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
     } else {
+      System.err.println(
+          "changliiu recreateDatabase 1. Host: "
+              + host
+              + ", "
+              + projectId
+              + ", "
+              + instanceId
+              + ", "
+              + databaseId);
       databaseAdminClient
           .createDatabase(
               databaseAdminClient
@@ -303,6 +350,7 @@ public class IntegrationTestEnv extends ExternalResource {
                   .build(),
               Collections.emptyList())
           .get(TIMEOUT_MINUTES, TimeUnit.MINUTES);
+      System.err.println("changliiu recreateDatabase end");
     }
   }
 

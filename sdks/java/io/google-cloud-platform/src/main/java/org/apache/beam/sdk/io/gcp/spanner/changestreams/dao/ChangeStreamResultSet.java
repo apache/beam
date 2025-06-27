@@ -109,6 +109,26 @@ public class ChangeStreamResultSet implements AutoCloseable {
   }
 
   /**
+   * Returns the only change stream record proto at the current pointer of the result set. It also
+   * updates the timestamp at which the record was read. This function enhances the getProtoMessage
+   * function but only focus on the ChangeStreamRecord type.
+   *
+   * @return a change stream record as a proto or null
+   */
+  public com.google.spanner.v1.ChangeStreamRecord getProtoChangeStreamRecord() {
+    recordReadAt = Timestamp.now();
+    return resultSet.getProtoMessage(
+        0, com.google.spanner.v1.ChangeStreamRecord.getDefaultInstance());
+  }
+
+  /** Returns true if the result set at the current pointer contain only one proto change record. */
+  public boolean isProtoChangeRecord() {
+    return resultSet.getColumnCount() == 1
+        && !resultSet.isNull(0)
+        && resultSet.getColumnType(0).getCode() == com.google.cloud.spanner.Type.Code.PROTO;
+  }
+
+  /**
    * Returns the record at the current pointer as {@link JsonB}. It also updates the timestamp at
    * which the record was read.
    *
