@@ -41,10 +41,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: 3.11
-      - name: Upgrade pip and setuptools
-        run: |
-          python -m pip install --upgrade pip
-          pip install --upgrade setuptools
       - run: pip install requests google-cloud-storage looker-sdk
       - name: Authenticate on GCP
         uses: google-github-actions/auth@v2

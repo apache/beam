@@ -40,10 +40,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.params.py_ver }}
-      - name: Upgrade pip and setuptools
-        run: |
-          python -m pip install --upgrade pip
-          pip install --upgrade setuptools
       - name: Install base_image_requirements.txt
         working-directory: ./sdks/python
         run: pip install --no-deps -r container/${{ matrix.params.py_env }}/base_image_requirements.txt

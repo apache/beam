@@ -367,7 +367,7 @@ if __name__ == '__main__':
           'fastavro>=0.23.6,<2',
           'fasteners>=0.3,<1.0',
           # TODO(https://github.com/grpc/grpc/issues/37710): Unpin grpc
-          'grpcio>=1.49.1,<2,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,<1.66.0; python_version <= "3.12"',  # pylint: disable=line-too-long
+          'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,<1.66.0; python_version <= "3.12"',  # pylint: disable=line-too-long
           'grpcio>=1.67.0; python_version >= "3.13"',
           'hdfs>=2.1.0,<3.0.0',
           'httplib2>=0.8,<0.23.0',
@@ -403,6 +403,7 @@ if __name__ == '__main__':
           'pyyaml>=3.12,<7.0.0',
           'pymilvus>=2.5.10,<3.0.0',
           'setuptools>=80.9.0',
+          'pip>=25.1.1',
           # Dynamic dependencies must be specified in a separate list, otherwise
           # Dependabot won't be able to parse the main list. Any dynamic
           # dependencies will not receive updates from Dependabot.

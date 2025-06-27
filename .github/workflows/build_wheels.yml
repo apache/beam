@@ -93,10 +93,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: 3.9
-      - name: Upgrade pip and setuptools
-        run: |
-          python -m pip install --upgrade pip
-          pip install --upgrade setuptools
       - name: Get tag
         id: get_tag
         run: |
@@ -251,10 +247,6 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: 3.9
-    - name: Upgrade pip and setuptools
-      run: |
-        python -m pip install --upgrade pip
-        pip install --upgrade setuptools
     - uses: docker/setup-qemu-action@v1
       if: ${{matrix.os_python.arch == 'aarch64'}}
       name: Set up QEMU

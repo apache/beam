@@ -281,10 +281,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.9'
-      - name: Upgrade pip and setuptools
-        run: |
-          python -m pip install --upgrade pip
-          pip install --upgrade setuptools
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
       - name: Remove default github maven configuration
