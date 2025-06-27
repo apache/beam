@@ -288,6 +288,7 @@ class PeriodicImpulse(PTransform):
       individual window. If false, all elements will reside in global window.
     :param data: A sequence of elements to emit. The behavior depends on the
       content:
+
       - **None (default):** The transform emits the event timestamps as
         the element values, starting from start_timestamp and incrementing by
         `fire_interval` up to the `stop_timestamp` (exclusive)
