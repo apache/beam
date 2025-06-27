@@ -522,7 +522,7 @@ class WriteToFiles(beam.PTransform):
   # Too many files will add memory pressure to the worker, so we let it be 20.
   MAX_NUM_WRITERS_PER_BUNDLE = 20
 
-  DEFAULT_SHARDING = 5
+  DEFAULT_SHARDING = 1
 
   def __init__(
       self,
@@ -567,6 +567,7 @@ class WriteToFiles(beam.PTransform):
     self.sink_fn = self._get_sink_fn(sink)
     self.shards = shards or WriteToFiles.DEFAULT_SHARDING
     self.output_fn = output_fn or (lambda x: x)
+    self.only_sharding = self.shards > 1 and destination is None
 
     self._max_num_writers_per_bundle = max_writers_per_bundle
 
@@ -603,35 +604,51 @@ class WriteToFiles(beam.PTransform):
           str, filesystems.FileSystems.join(temp_location, '.temp%s' % dir_uid))
       _LOGGER.info('Added temporary directory %s', self._temp_directory.get())
 
-    output = (
-        pcoll
-        | beam.ParDo(
-            _WriteUnshardedRecordsFn(
-                base_path=self._temp_directory,
-                destination_fn=self.destination_fn,
-                sink_fn=self.sink_fn,
-                max_writers_per_bundle=self._max_num_writers_per_bundle)).
-        with_outputs(
-            _WriteUnshardedRecordsFn.SPILLED_RECORDS,
-            _WriteUnshardedRecordsFn.WRITTEN_FILES))
+    if self.only_sharding:
+      written_files_pc = (
+          pcoll
+          | beam.ParDo(
+              _AppendShardedDestination(self.destination_fn, self.shards))
+          | "GroupRecordsByDestinationAndShard" >> beam.GroupByKey()
+          | beam.ParDo(
+              _WriteShardedRecordsFn(
+                  self._temp_directory, self.sink_fn, self.shards)))
 
-    written_files_pc = output[_WriteUnshardedRecordsFn.WRITTEN_FILES]
-    spilled_records_pc = output[_WriteUnshardedRecordsFn.SPILLED_RECORDS]
+      files_by_destination_pc = (
+          written_files_pc
+          |
+          beam.Map(lambda file_result: (file_result.destination, file_result))
+          | "GroupTempFilesByDestination" >> beam.GroupByKey())
+    else:
+      output = (
+          pcoll
+          | beam.ParDo(
+              _WriteUnshardedRecordsFn(
+                  base_path=self._temp_directory,
+                  destination_fn=self.destination_fn,
+                  sink_fn=self.sink_fn,
+                  max_writers_per_bundle=self._max_num_writers_per_bundle)).
+          with_outputs(
+              _WriteUnshardedRecordsFn.SPILLED_RECORDS,
+              _WriteUnshardedRecordsFn.WRITTEN_FILES))
 
-    more_written_files_pc = (
-        spilled_records_pc
-        | beam.ParDo(
-            _AppendShardedDestination(self.destination_fn, self.shards))
-        | "GroupRecordsByDestinationAndShard" >> beam.GroupByKey()
-        | beam.ParDo(
-            _WriteShardedRecordsFn(
-                self._temp_directory, self.sink_fn, self.shards)))
+      written_files_pc = output[_WriteUnshardedRecordsFn.WRITTEN_FILES]
+      spilled_records_pc = output[_WriteUnshardedRecordsFn.SPILLED_RECORDS]
+      more_written_files_pc = (
+          spilled_records_pc
+          | beam.ParDo(
+              _AppendShardedDestination(self.destination_fn, self.shards))
+          | "GroupRecordsByDestinationAndShard" >> beam.GroupByKey()
+          | beam.ParDo(
+              _WriteShardedRecordsFn(
+                  self._temp_directory, self.sink_fn, self.shards)))
 
-    files_by_destination_pc = (
-        (written_files_pc, more_written_files_pc)
-        | beam.Flatten()
-        | beam.Map(lambda file_result: (file_result.destination, file_result))
-        | "GroupTempFilesByDestination" >> beam.GroupByKey())
+      files_by_destination_pc = (
+          (written_files_pc, more_written_files_pc)
+          | beam.Flatten()
+          |
+          beam.Map(lambda file_result: (file_result.destination, file_result))
+          | "GroupTempFilesByDestination" >> beam.GroupByKey())
 
     # Now we should take the temporary files, and write them to the final
     # destination, with their proper names.
