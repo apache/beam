@@ -234,7 +234,7 @@ class SdkHarness(object):
             self._state_cache,
             enable_heap_dump,
             element_processing_timeout=self.element_processing_timeout
-        ) # type: Optional[FnApiWorkerStatusHandler]
+        )  # type: Optional[FnApiWorkerStatusHandler]
       except TimeoutError as e:
         self._shutdown_due_to_element_processing_timeout(
             str(e) + 'The SDK harness will be terminated and restart.')
@@ -416,8 +416,7 @@ class SdkHarness(object):
     return SdkWorker(
         self._bundle_processor_cache, profiler_factory=self._profiler_factory)
 
-  def _shutdown_due_to_element_processing_timeout(self, errMsg):
-    # type: str -> ()
+  def _shutdown_due_to_element_processing_timeout(self, errMsg: str) -> None:
     _LOGGER.error('%sThe SDK harness will be terminated.', errMsg)
     sys.exit(1)
 
