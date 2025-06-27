@@ -3083,7 +3083,7 @@ class BeamModulePlugin implements Plugin<Project> {
         dependsOn ':sdks:python:sdist'
         doLast {
           def distTarBall = "${pythonRootDir}/build/apache-beam.tar.gz"
-          def packages = "gcp,test,aws,azure,dataframe"
+          def packages = "gcp,test,aws,azure,dataframe,yaml"
           def extra = project.findProperty('beamPythonExtra')
           if (extra) {
             packages += ",${extra}"
