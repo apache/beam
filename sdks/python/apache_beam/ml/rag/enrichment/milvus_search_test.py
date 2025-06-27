@@ -30,7 +30,6 @@ try:
       VectorSearchParameters,
       KeywordSearchParameters,
       HybridSearchParameters,
-      HybridSearchNamespace,
       MilvusBaseRanker,
       unpack_dataclass_with_kwargs)
 except ImportError as e:
@@ -285,47 +284,39 @@ class TestMilvusHybridSearchEnrichment(unittest.TestCase):
   """Tests specific to hybrid search functionality"""
 
   @parameterized.expand([
-      # Missing vector in hybrid search namespace.
+      # Missing vector in hybrid search parameters.
       (
-          lambda: HybridSearchNamespace(
+          lambda: HybridSearchParameters(
               vector=None,  # type: ignore[arg-type]
               keyword=KeywordSearchParameters(anns_field="sparse_embedding"),
-              hybrid=HybridSearchParameters(ranker=MockRanker())),
-          "Vector, keyword, and hybrid search parameters must be provided for "
-          "hybrid search"
+              ranker=MockRanker()),
+          "Vector and keyword search parameters must be provided for hybrid "
+          "search"
       ),
-      # Missing keyword in hybrid search namespace.
+      # Missing keyword in hybrid search parameters.
       (
-          lambda: HybridSearchNamespace(
+          lambda: HybridSearchParameters(
               vector=VectorSearchParameters(anns_field="embedding"),
               keyword=None,  # type: ignore[arg-type]
-              hybrid=HybridSearchParameters(ranker=MockRanker())),
-          "Vector, keyword, and hybrid search parameters must be provided for "
-          "hybrid search"
-      ),
-      # Missing hybrid in hybrid search namespace.
-      (
-          lambda: HybridSearchNamespace(
-              vector=VectorSearchParameters(anns_field="embedding"),
-              keyword=KeywordSearchParameters(anns_field="sparse_embedding"),
-              hybrid=None),  # type: ignore[arg-type]
-          "Vector, keyword, and hybrid search parameters must be provided for "
-          "hybrid search"
+              ranker=MockRanker()),
+          "Vector and keyword search parameters must be provided for hybrid "
+          "search"
       ),
       # Missing ranker in hybrid search parameters.
       (
-          lambda: HybridSearchNamespace(
+          lambda: HybridSearchParameters(
               vector=VectorSearchParameters(anns_field="embedding"),
               keyword=KeywordSearchParameters(anns_field="sparse_embedding"),
-              hybrid=HybridSearchParameters(ranker=None)),  # type: ignore[arg-type]
+              ranker=None),  # type: ignore[arg-type]
           "Ranker must be provided for hybrid search"
       ),
       # Negative limit in hybrid search parameters.
       (
-          lambda: HybridSearchNamespace(
+          lambda: HybridSearchParameters(
               vector=VectorSearchParameters(anns_field="embedding"),
               keyword=KeywordSearchParameters(anns_field="sparse_embedding"),
-              hybrid=HybridSearchParameters(ranker=MockRanker(), limit=-1)),
+              ranker=MockRanker(),
+              limit=-1),
           "Search limit must be positive, got -1"
       ),
   ])
@@ -334,10 +325,10 @@ class TestMilvusHybridSearchEnrichment(unittest.TestCase):
     with self.assertRaises(ValueError) as context:
       connection_params = MilvusConnectionParameters(
           uri="http://localhost:19530")
-      hybrid_search_namespace = create_params()
+      hybrid_search_params = create_params()
       search_params = MilvusSearchParameters(
           collection_name="test_collection",
-          search_strategy=hybrid_search_namespace)
+          search_strategy=hybrid_search_params)
       collection_load_params = MilvusCollectionLoadParameters()
 
       _ = MilvusSearchEnrichmentHandler(

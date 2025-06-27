@@ -229,28 +229,41 @@ class HybridSearchParameters:
 
 
 @dataclass
-class HybridSearchNamespace:
-  """Namespace containing all parameters for hybrid search operations.
+class HybridSearchParameters:
+  """Parameters for hybrid (vector + keyword) search operations.
 
   Args:
     vector: Parameters for the vector search component.
     keyword: Parameters for the keyword search component.
-    hybrid: Parameters for combining the vector and keyword results.
+    ranker: Ranker for combining vector and keyword search results.
+      Example: RRFRanker(k=100).
+    limit: Maximum number of results to return per query. Defaults to 3 search
+      results.
+    kwargs: Optional keyword arguments for additional hybrid search parameters.
+      Enables forward compatibility.
   """
   vector: VectorSearchParameters
   keyword: KeywordSearchParameters
-  hybrid: HybridSearchParameters
+  ranker: MilvusBaseRanker
+  limit: int = 3
+  kwargs: Dict[str, Any] = field(default_factory=dict)
 
   def __post_init__(self):
-    if not self.vector or not self.keyword or not self.hybrid:
+    if not self.vector or not self.keyword:
       raise ValueError(
-          "Vector, keyword, and hybrid search parameters must be provided for "
+          "Vector and keyword search parameters must be provided for "
           "hybrid search")
+
+    if not self.ranker:
+      raise ValueError("Ranker must be provided for hybrid search")
+
+    if self.limit <= 0:
+      raise ValueError(f"Search limit must be positive, got {self.limit}")
 
 
 SearchStrategyType = Union[VectorSearchParameters,
                            KeywordSearchParameters,
-                           HybridSearchNamespace]
+                           HybridSearchParameters]
 
 
 @dataclass
@@ -315,6 +328,22 @@ class MilvusCollectionLoadParameters:
   kwargs: Dict[str, Any] = field(default_factory=dict)
 
 
+@dataclass
+class MilvusSearchResult:
+  """Search result from Milvus per chunk.
+
+  Args:
+    id: List of entity IDs returned from the search. Can be either string or
+      integer IDs.
+    distance: List of distances/similarity scores for each returned entity.
+    fields: List of dictionaries containing additional field values for each
+      entity. Each dictionary corresponds to one returned entity.
+  """
+  id: List[Union[str, int]] = field(default_factory=list)
+  distance: List[float] = field(default_factory=list)
+  fields: List[Dict[str, Any]] = field(default_factory=list)
+
+
 InputT, OutputT = Union[Chunk, List[Chunk]], List[Tuple[Chunk, Dict[str, Any]]]
 
 
@@ -343,8 +372,8 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
       self,
       connection_parameters: MilvusConnectionParameters,
       search_parameters: MilvusSearchParameters,
-      collection_load_parameters: MilvusCollectionLoadParameters,
       *,
+      collection_load_parameters: Optional[MilvusCollectionLoadParameters],
       min_batch_size: int = 1,
       max_batch_size: int = 1000,
       **kwargs):
@@ -360,7 +389,7 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
       milvus_handler = MilvusSearchEnrichmentHandler(
         connection_paramters,
         search_parameters,
-        collection_load_parameters,
+        collection_load_parameters=collection_load_parameters,
         min_batch_size=10,
         max_batch_size=100)
 
@@ -371,8 +400,8 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
       search_parameters (MilvusSearchParameters): Configuration for search
         operations, including collection name, search strategy, and output
         fields.
-      collection_load_parameters (MilvusCollectionLoadParameters): Parameters
-        controlling how collections are loaded into memory, which can
+      collection_load_parameters (Optional[MilvusCollectionLoadParameters]):
+        Parameters controlling how collections are loaded into memory, which can
         significantly impact resource usage and performance.
       min_batch_size (int): Minimum number of elements to batch together when
         querying Milvus. Default is 1 (no batching when max_batch_size is 1).
@@ -390,22 +419,25 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
     self._connection_parameters = connection_parameters
     self._search_parameters = search_parameters
     self._collection_load_parameters = collection_load_parameters
-    self.kwargs = kwargs
+    if not self._collection_load_parameters:
+      self._collection_load_parameters = MilvusCollectionLoadParameters()
     self._batching_kwargs = {
         'min_batch_size': min_batch_size, 'max_batch_size': max_batch_size
     }
+    self.kwargs = kwargs
     self.join_fn = join_fn
     self.use_custom_types = True
 
   def __enter__(self):
-    connectionParams = unpack_dataclass_with_kwargs(self._connection_parameters)
-    loadCollectionParams = unpack_dataclass_with_kwargs(
+    connection_params = unpack_dataclass_with_kwargs(
+        self._connection_parameters)
+    collection_load_params = unpack_dataclass_with_kwargs(
         self._collection_load_parameters)
-    self._client = MilvusClient(**connectionParams)
+    self._client = MilvusClient(**connection_params)
     self._client.load_collection(
         collection_name=self.collection_name,
         partition_names=self.partition_names,
-        **loadCollectionParams)
+        **collection_load_params)
 
   def __call__(self, request: Union[Chunk, List[Chunk]], *args,
                **kwargs) -> List[Tuple[Chunk, Dict[str, Any]]]:
@@ -414,10 +446,8 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
     return self._get_call_response(reqs, search_result)
 
   def _search_documents(self, chunks: List[Chunk]):
-    if isinstance(self.search_strategy, HybridSearchNamespace):
+    if isinstance(self.search_strategy, HybridSearchParameters):
       data = self._get_hybrid_search_data(chunks)
-      hybrid_search_params = unpack_dataclass_with_kwargs(
-          self.search_strategy.hybrid)
       return self._client.hybrid_search(
           collection_name=self.collection_name,
           partition_names=self.partition_names,
@@ -425,7 +455,9 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
           timeout=self.timeout,
           round_decimal=self.round_decimal,
           reqs=data,
-          **hybrid_search_params)
+          ranker=self.search_strategy.ranker,
+          limit=self.search_strategy.limit,
+          **self.search_strategy.kwargs)
     elif isinstance(self.search_strategy, VectorSearchParameters):
       data = list(map(self._get_vector_search_data, chunks))
       vector_search_params = unpack_dataclass_with_kwargs(self.search_strategy)
@@ -497,14 +529,14 @@ class MilvusSearchEnrichmentHandler(EnrichmentSourceHandler[InputT, OutputT]):
     for i in range(len(chunks)):
       chunk = chunks[i]
       hits: Hits = search_result[i]
-      result = defaultdict(list)
+      result = MilvusSearchResult()
       for i in range(len(hits)):
         hit: Hit = hits[i]
         normalized_fields = self._normalize_milvus_fields(hit.fields)
-        result["id"].append(hit.id)
-        result["distance"].append(hit.distance)
-        result["fields"].append(normalized_fields)
-      response.append((chunk, result))
+        result.id.append(hit.id)
+        result.distance.append(hit.distance)
+        result.fields.append(normalized_fields)
+      response.append((chunk, result.__dict__))
     return response
 
   def _normalize_milvus_fields(self, fields: Dict[str, Any]):

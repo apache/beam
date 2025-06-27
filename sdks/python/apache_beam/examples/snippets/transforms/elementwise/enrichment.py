@@ -170,10 +170,17 @@ def enrichment_with_milvus():
       output_fields=["id", "content", "domain", "cost", "metadata"],
       round_decimal=2)
 
+  # MilvusCollectionLoadParameters is optional and provides fine-grained control
+  # over how collections are loaded into memory. For simple use cases or when
+  # getting started, this parameter can be omitted to use default loading
+  # behavior. Consider using it in resource-constrained environments to optimize
+  # memory usage and query performance.
   collection_load_parameters = MilvusCollectionLoadParameters()
 
   milvus_search_handler = MilvusSearchEnrichmentHandler(
-      connection_parameters, search_parameters, collection_load_parameters)
+      connection_parameters=connection_parameters,
+      search_parameters=search_parameters,
+      collection_load_parameters=collection_load_parameters)
   with beam.Pipeline() as p:
     _ = (
         p

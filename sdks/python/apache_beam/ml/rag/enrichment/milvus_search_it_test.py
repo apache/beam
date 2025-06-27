@@ -63,7 +63,6 @@ try:
       MilvusCollectionLoadParameters,
       VectorSearchParameters,
       KeywordSearchParameters,
-      HybridSearchNamespace,
       HybridSearchParameters,
       VectorSearchMetrics,
       KeywordSearchMetrics)
@@ -523,7 +522,9 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
     collection_load_parameters = MilvusCollectionLoadParameters()
 
     handler = MilvusSearchEnrichmentHandler(
-        self._connection_params, search_parameters, collection_load_parameters)
+        self._connection_params,
+        search_parameters,
+        collection_load_parameters=collection_load_parameters)
 
     with self.assertRaises(Exception) as context:
       with TestPipeline() as p:
@@ -549,7 +550,9 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
     collection_load_parameters = MilvusCollectionLoadParameters()
 
     handler = MilvusSearchEnrichmentHandler(
-        self._connection_params, search_parameters, collection_load_parameters)
+        self._connection_params,
+        search_parameters,
+        collection_load_parameters=collection_load_parameters)
 
     with self.assertRaises(Exception) as context:
       with TestPipeline() as p:
@@ -569,7 +572,9 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
     collection_load_parameters = MilvusCollectionLoadParameters()
 
     handler = MilvusSearchEnrichmentHandler(
-        self._connection_params, search_parameters, collection_load_parameters)
+        self._connection_params,
+        search_parameters,
+        collection_load_parameters=collection_load_parameters)
 
     expected_chunks = []
 
@@ -1187,16 +1192,14 @@ class TestMilvusSearchEnrichment(unittest.TestCase):
         search_params=addition_keyword_search_params)
 
     hybrid_search_parameters = HybridSearchParameters(
-        ranker=RRFRanker(1), limit=1)
-
-    hybrid_search_ns = HybridSearchNamespace(
         vector=vector_search_parameters,
         keyword=keyword_search_parameters,
-        hybrid=hybrid_search_parameters)
+        ranker=RRFRanker(1),
+        limit=1)
 
     search_parameters = MilvusSearchParameters(
         collection_name=MILVUS_IT_CONFIG["collection_name"],
-        search_strategy=hybrid_search_ns,
+        search_strategy=hybrid_search_parameters,
         output_fields=["id", "content", "metadata"],
         round_decimal=1)
 
@@ -1306,10 +1309,6 @@ def assert_chunks_equivalent(
     assert 'enrichment_data' in actual.metadata, err_msg
 
     # For enrichment_data, ensure consistent ordering of results.
-    # If "expected" has values for enrichment_data but actual doesn't, that's
-    # acceptable since vector search results can vary based on many factors
-    # including implementation details, vector database state, and slight
-    # variations in similarity calculations.
     actual_data = actual.metadata['enrichment_data']
     expected_data = expected.metadata['enrichment_data']
 
