@@ -300,5 +300,6 @@ class PeriodicImpulseTest(unittest.TestCase):
         logging.error("Error occurred at random seed=%d", seed)
         raise e
 
+
 if __name__ == '__main__':
   unittest.main()
