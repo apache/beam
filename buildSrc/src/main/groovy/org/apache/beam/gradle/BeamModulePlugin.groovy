@@ -651,7 +651,6 @@ class BeamModulePlugin implements Plugin<Project> {
     def arrow_version = "15.0.2"
     def jmh_version = "1.34"
     def jupiter_version = "5.7.0"
-    def spanner_grpc_proto_version = "6.95.1"
 
     // Export Spark versions, so they are defined in a single place only
     project.ext.spark3_version = spark3_version
@@ -861,7 +860,7 @@ class BeamModulePlugin implements Plugin<Project> {
         proto_google_cloud_pubsub_v1                : "com.google.api.grpc:proto-google-cloud-pubsub-v1", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_pubsublite_v1            : "com.google.api.grpc:proto-google-cloud-pubsublite-v1", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_secret_manager_v1        : "com.google.api.grpc:proto-google-cloud-secretmanager-v1", // google_cloud_platform_libraries_bom sets version
-        proto_google_cloud_spanner_v1               : "com.google.api.grpc:proto-google-cloud-spanner-v1:$spanner_grpc_proto_version", // google_cloud_platform_libraries_bom sets version
+        proto_google_cloud_spanner_v1               : "com.google.api.grpc:proto-google-cloud-spanner-v1", // google_cloud_platform_libraries_bom sets version
         proto_google_cloud_spanner_admin_database_v1: "com.google.api.grpc:proto-google-cloud-spanner-admin-database-v1", // google_cloud_platform_libraries_bom sets version
         proto_google_common_protos                  : "com.google.api.grpc:proto-google-common-protos", // google_cloud_platform_libraries_bom sets version
         qpid_jms_client                             : "org.apache.qpid:qpid-jms-client:$qpid_jms_client_version",
