@@ -12,7 +12,7 @@
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
+# See the License for the specific langutage governing permissions and
 # limitations under the License.
 #
 
@@ -324,6 +324,6 @@ def enrichment_with_external_sqlserver():
     _ = (
         p
         | "Create" >> beam.Create(data)
-        | "Enrich W/ Unmanaged SQLServer" >> Enrichment(cloudsql_handler)
+        | "Enrich W/ Unmanaged SQL Server" >> Enrichment(cloudsql_handler)
         | "Print" >> beam.Map(print))
   # [END enrichment_with_external_sqlserver]

@@ -18,6 +18,7 @@
 # pytype: skip-file
 # pylint: disable=line-too-long
 
+from collections.abc import Callable
 from contextlib import contextmanager
 import os
 from typing import Optional
@@ -27,6 +28,7 @@ from dataclasses import dataclass
 
 import mock
 import pytest
+from sqlalchemy.engine import Connection as DBAPIConnection
 
 # pylint: disable=unused-import
 try:
@@ -41,7 +43,7 @@ try:
       enrichment_with_external_mysql,
       enrichment_with_external_sqlserver)
   from apache_beam.transforms.enrichment_handlers.cloudsql import (
-      DatabaseTypeAdapter, SQLClientConnectionHandler)
+      DatabaseTypeAdapter)
   from apache_beam.transforms.enrichment_handlers.cloudsql_it_test import (
       SQLEnrichmentTestHelper,
       SQLDBContainerInfo,
@@ -80,12 +82,39 @@ Row(entity_id='movie_04', title='The Dark Knight', genres='Action')
   return expected
 
 
-def validate_enrichment_with_sql():
-  expected = '''[START enrichment_with_sql]
+def validate_enrichment_with_google_cloudsql_pg():
+  expected = '''[START enrichment_with_google_cloudsql_pg]
 Row(product_id=1, name='A', quantity=2, region_id=3)
 Row(product_id=2, name='B', quantity=3, region_id=1)
 Row(product_id=3, name='C', quantity=10, region_id=4)
-  [END enrichment_with_sql]'''.splitlines()[1:-1]
+  [END enrichment_with_google_cloudsql_pg]'''.splitlines()[1:-1]
+  return expected
+
+
+def validate_enrichment_with_external_pg():
+  expected = '''[START enrichment_with_external_pg]
+Row(product_id=1, name='A', quantity=2, region_id=3)
+Row(product_id=2, name='B', quantity=3, region_id=1)
+Row(product_id=3, name='C', quantity=10, region_id=4)
+  [END enrichment_with_external_pg]'''.splitlines()[1:-1]
+  return expected
+
+
+def validate_enrichment_with_external_mysql():
+  expected = '''[START enrichment_with_external_mysql]
+Row(product_id=1, name='A', quantity=2, region_id=3)
+Row(product_id=2, name='B', quantity=3, region_id=1)
+Row(product_id=3, name='C', quantity=10, region_id=4)
+  [END enrichment_with_external_mysql]'''.splitlines()[1:-1]
+  return expected
+
+
+def validate_enrichment_with_external_sqlserver():
+  expected = '''[START enrichment_with_external_sqlserver]
+Row(product_id=1, name='A', quantity=2, region_id=3)
+Row(product_id=2, name='B', quantity=3, region_id=1)
+Row(product_id=3, name='C', quantity=10, region_id=4)
+  [END enrichment_with_external_sqlserver]'''.splitlines()[1:-1]
   return expected
 
 
@@ -119,7 +148,7 @@ class EnrichmentTest(unittest.TestCase):
       try:
         enrichment_with_google_cloudsql_pg()
         output = mock_stdout.getvalue().splitlines()
-        expected = validate_enrichment_with_sql()
+        expected = validate_enrichment_with_google_cloudsql_pg()
         self.assertEqual(output, expected)
       except Exception as e:
         self.fail(f"Test failed with unexpected error: {e}")
@@ -130,7 +159,7 @@ class EnrichmentTest(unittest.TestCase):
       try:
         enrichment_with_external_pg()
         output = mock_stdout.getvalue().splitlines()
-        expected = validate_enrichment_with_sql()
+        expected = validate_enrichment_with_external_pg()
         self.assertEqual(output, expected)
       except Exception as e:
         self.fail(f"Test failed with unexpected error: {e}")
@@ -141,7 +170,7 @@ class EnrichmentTest(unittest.TestCase):
       try:
         enrichment_with_external_mysql()
         output = mock_stdout.getvalue().splitlines()
-        expected = validate_enrichment_with_sql()
+        expected = validate_enrichment_with_external_mysql()
         self.assertEqual(output, expected)
       except Exception as e:
         self.fail(f"Test failed with unexpected error: {e}")
@@ -152,7 +181,7 @@ class EnrichmentTest(unittest.TestCase):
       try:
         enrichment_with_external_sqlserver()
         output = mock_stdout.getvalue().splitlines()
-        expected = validate_enrichment_with_sql()
+        expected = validate_enrichment_with_external_sqlserver()
         self.assertEqual(output, expected)
       except Exception as e:
         self.fail(f"Test failed with unexpected error: {e}")
@@ -160,7 +189,7 @@ class EnrichmentTest(unittest.TestCase):
 
 @dataclass
 class CloudSQLEnrichmentTestDataConstruct:
-  client_handler: SQLClientConnectionHandler
+  client_handler: Callable[[], DBAPIConnection]
   engine: Engine
   metadata: MetaData
   db: SQLDBContainerInfo = None
@@ -182,7 +211,7 @@ class EnrichmentTestHelpers:
   def pre_sql_enrichment_test(
       is_cloudsql: bool,
       db_adapter: DatabaseTypeAdapter) -> CloudSQLEnrichmentTestDataConstruct:
-    table_id = "products_catalog"
+    table_id = "products"
     columns = [
         Column("product_id", Integer, primary_key=True),
         Column("name", VARCHAR(255), nullable=False),
