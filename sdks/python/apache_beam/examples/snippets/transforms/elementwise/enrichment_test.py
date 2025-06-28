@@ -18,26 +18,35 @@
 # pytype: skip-file
 # pylint: disable=line-too-long
 
+from contextlib import contextmanager
 import os
+from typing import Optional
 import unittest
 from io import StringIO
-from typing import Tuple
+from dataclasses import dataclass
 
 import mock
 import pytest
 
 # pylint: disable=unused-import
 try:
-  from sqlalchemy import Column, Integer, String, Engine, MetaData
+  from sqlalchemy import (
+      Column, Integer, VARCHAR, Engine, MetaData, create_engine)
   from apache_beam.examples.snippets.transforms.elementwise.enrichment import (
       enrichment_with_bigtable, enrichment_with_vertex_ai_legacy)
   from apache_beam.examples.snippets.transforms.elementwise.enrichment import (
-      enrichment_with_vertex_ai, enrichment_with_cloudsql)
+      enrichment_with_vertex_ai,
+      enrichment_with_google_cloudsql_pg,
+      enrichment_with_external_pg,
+      enrichment_with_external_mysql,
+      enrichment_with_external_sqlserver)
   from apache_beam.transforms.enrichment_handlers.cloudsql import (
       DatabaseTypeAdapter)
   from apache_beam.transforms.enrichment_handlers.cloudsql_it_test import (
       CloudSQLEnrichmentTestHelper,
       SQLDBContainerInfo,
+      ConnectionConfig,
+      CloudSQLConnectionConfig,
       ExternalSQLDBConnectionConfig,
       SQLClientConnectionHandler)
   from apache_beam.io.requestresponse import RequestResponseIO
@@ -51,15 +60,6 @@ Row(sale_id=1, customer_id=1, product_id=1, quantity=1, product={'product_id': '
 Row(sale_id=3, customer_id=3, product_id=2, quantity=3, product={'product_id': '2', 'product_name': 'pixel 6', 'product_stock': '4'})
 Row(sale_id=5, customer_id=5, product_id=4, quantity=2, product={'product_id': '4', 'product_name': 'pixel 8', 'product_stock': '10'})
   [END enrichment_with_bigtable]'''.splitlines()[1:-1]
-  return expected
-
-
-def validate_enrichment_with_cloudsql():
-  expected = '''[START enrichment_with_cloudsql]
-Row(product_id=1, name='A', quantity=2, region_id=3)
-Row(product_id=2, name='B', quantity=3, region_id=1)
-Row(product_id=3, name='C', quantity=10, region_id=4)
-  [END enrichment_with_cloudsql]'''.splitlines()[1:-1]
   return expected
 
 
@@ -81,6 +81,15 @@ Row(entity_id='movie_04', title='The Dark Knight', genres='Action')
   return expected
 
 
+def validate_enrichment_with_sql():
+  expected = '''[START enrichment_with_sql]
+Row(product_id=1, name='A', quantity=2, region_id=3)
+Row(product_id=2, name='B', quantity=3, region_id=1)
+Row(product_id=3, name='C', quantity=10, region_id=4)
+  [END enrichment_with_sql]'''.splitlines()[1:-1]
+  return expected
+
+
 @mock.patch('sys.stdout', new_callable=StringIO)
 @pytest.mark.uses_testcontainer
 class EnrichmentTest(unittest.TestCase):
@@ -89,24 +98,6 @@ class EnrichmentTest(unittest.TestCase):
     output = mock_stdout.getvalue().splitlines()
     expected = validate_enrichment_with_bigtable()
     self.assertEqual(output, expected)
-
-  def test_enrichment_with_cloudsql(self, mock_stdout):
-    db, engine = None, None
-    try:
-      db, handler, metadata, engine = self.pre_cloudsql_enrichment_test()
-      enrichment_with_cloudsql()
-      output = mock_stdout.getvalue().splitlines()
-      expected = validate_enrichment_with_cloudsql()
-      self.assertEqual(output, expected)
-    except Exception as e:
-      self.fail(f"Test failed with unexpected error: {e}")
-    finally:
-      if db and engine:
-        self.post_cloudsql_enrichment_test(
-            db=db,
-            sql_client_connection_handler=handler,
-            metadata=metadata,
-            engine=engine)
 
   def test_enrichment_with_vertex_ai(self, mock_stdout):
     enrichment_with_vertex_ai()
@@ -123,11 +114,78 @@ class EnrichmentTest(unittest.TestCase):
     self.maxDiff = None
     self.assertEqual(output, expected)
 
-  def pre_cloudsql_enrichment_test(self):
-    table_id = "products"
+  def test_enrichment_with_google_cloudsql_pg(self, mock_stdout):
+    db_adapter = DatabaseTypeAdapter.POSTGRESQL
+    with EnrichmentTestHelpers.sql_test_context(True, db_adapter):
+        try:
+            enrichment_with_google_cloudsql_pg()
+            output = mock_stdout.getvalue().splitlines()
+            expected = validate_enrichment_with_sql()
+            self.assertEqual(output, expected)
+        except Exception as e:
+            self.fail(f"Test failed with unexpected error: {e}")
+
+  def test_enrichment_with_external_pg(self, mock_stdout):
+    db_adapter = DatabaseTypeAdapter.POSTGRESQL
+    with EnrichmentTestHelpers.sql_test_context(False, db_adapter):
+        try:
+            enrichment_with_external_pg()
+            output = mock_stdout.getvalue().splitlines()
+            expected = validate_enrichment_with_sql()
+            self.assertEqual(output, expected)
+        except Exception as e:
+            self.fail(f"Test failed with unexpected error: {e}")
+
+  def test_enrichment_with_external_mysql(self, mock_stdout):
+    db_adapter = DatabaseTypeAdapter.MYSQL
+    with EnrichmentTestHelpers.sql_test_context(False, db_adapter):
+        try:
+            enrichment_with_external_mysql()
+            output = mock_stdout.getvalue().splitlines()
+            expected = validate_enrichment_with_sql()
+            self.assertEqual(output, expected)
+        except Exception as e:
+            self.fail(f"Test failed with unexpected error: {e}")
+
+  def test_enrichment_with_external_sqlserver(self, mock_stdout):
+    db_adapter = DatabaseTypeAdapter.SQLSERVER
+    with EnrichmentTestHelpers.sql_test_context(False, db_adapter):
+        try:
+            enrichment_with_external_sqlserver()
+            output = mock_stdout.getvalue().splitlines()
+            expected = validate_enrichment_with_sql()
+            self.assertEqual(output, expected)
+        except Exception as e:
+            self.fail(f"Test failed with unexpected error: {e}")
+
+
+@dataclass
+class CloudSQLEnrichmentTestDataConstruct:
+  client_handler: SQLClientConnectionHandler
+  engine: Engine
+  metadata: MetaData
+  db: SQLDBContainerInfo = None
+
+class EnrichmentTestHelpers:
+  @contextmanager
+  def sql_test_context(is_cloudsql: bool, db_adapter: DatabaseTypeAdapter):
+    result: Optional[CloudSQLEnrichmentTestDataConstruct] = None
+    try:
+      result = EnrichmentTestHelpers.pre_sql_enrichment_test(
+        is_cloudsql, db_adapter)
+      yield
+    finally:
+      if result:
+        EnrichmentTestHelpers.post_sql_enrichment_test(result)
+
+  @staticmethod
+  def pre_sql_enrichment_test(
+    is_cloudsql: bool,
+    db_adapter: DatabaseTypeAdapter) -> CloudSQLEnrichmentTestDataConstruct:
+    table_id = "products_catalog"
     columns = [
         Column("product_id", Integer, primary_key=True),
-        Column("name", String, nullable=False),
+        Column("name", VARCHAR(255), nullable=False),
         Column("quantity", Integer, nullable=False),
         Column("region_id", Integer, nullable=False),
     ]
@@ -143,51 +201,83 @@ class EnrichmentTest(unittest.TestCase):
         },
     ]
     metadata = MetaData()
-    db_adapter = DatabaseTypeAdapter.POSTGRESQL
-    db = CloudSQLEnrichmentTestHelper.start_sql_db_container(db_adapter)
-    os.environ['SQL_DB_TYPE'] = db.adapter.name
-    os.environ['SQL_DB_HOST'] = db.host
-    os.environ['SQL_DB_PORT'] = str(db.port)
-    os.environ['SQL_DB_USER'] = db.user
-    os.environ['SQL_DB_PASSWORD'] = db.password
-    os.environ['SQL_DB_ID'] = db.id
-    os.environ['SQL_DB_URL'] = db.url
-    connection_config = ExternalSQLDBConnectionConfig(
-        db_adapter=db_adapter,
-        host=db.host,
-        port=db.port,
-        user=db.user,
-        password=db.password,
-        db_id=db.id)
-    handler = CloudSQLEnrichmentTestHelper.create_table(
+
+    connection_config: ConnectionConfig
+    if is_cloudsql:
+      gcp_project_id = "apache-beam-testing"
+      region = "us-central1"
+      instance_name = "beam-integration-tests"
+      instance_connection_uri = f"{gcp_project_id}:{region}:{instance_name}"
+      db_id = "postgres"
+      user = "postgres"
+      password = os.getenv("ALLOYDB_PASSWORD")
+      os.environ['GOOGLE_CLOUD_SQL_DB_URI'] = instance_connection_uri
+      os.environ['GOOGLE_CLOUD_SQL_DB_ID'] = db_id
+      os.environ['GOOGLE_CLOUD_SQL_DB_USER'] = user
+      os.environ['GOOGLE_CLOUD_SQL_DB_PASSWORD'] = password
+      os.environ['GOOGLE_CLOUD_SQL_DB_TABLE_ID'] = table_id
+      connection_config = CloudSQLConnectionConfig(
+          db_adapter=db_adapter,
+          instance_connection_uri=instance_connection_uri,
+          user=user,
+          password=password,
+          db_id=db_id)
+    else:
+      db = CloudSQLEnrichmentTestHelper.start_sql_db_container(db_adapter)
+      os.environ['EXTERNAL_SQL_DB_HOST'] = db.host
+      os.environ['EXTERNAL_SQL_DB_PORT'] = str(db.port)
+      os.environ['EXTERNAL_SQL_DB_ID'] = db.id
+      os.environ['EXTERNAL_SQL_DB_USER'] = db.user
+      os.environ['EXTERNAL_SQL_DB_PASSWORD'] = db.password
+      os.environ['EXTERNAL_SQL_DB_TABLE_ID'] = table_id
+      connection_config = ExternalSQLDBConnectionConfig(
+          db_adapter=db_adapter,
+          host=db.host,
+          port=db.port,
+          user=db.user,
+          password=db.password,
+          db_id=db.id)
+
+    sql_client_handler = connection_config.get_connector_handler()
+    engine = create_engine(
+        url=connection_config.get_db_url(),
+        creator=sql_client_handler.connector)
+
+    CloudSQLEnrichmentTestHelper.create_table(
         table_id=table_id,
-        connection_config=connection_config,
+        engine=engine,
         columns=columns,
         table_data=table_data,
         metadata=metadata)
 
-    handler: Tuple[SQLClientConnectionHandler, Engine]
+    result = CloudSQLEnrichmentTestDataConstruct(
+      db=db,
+      client_handler=sql_client_handler,
+      engine=engine,
+      metadata=metadata)
+    return result
 
-    sql_client_connection_handler, engine = handler
-    return db, sql_client_connection_handler, metadata, engine
+  @staticmethod
+  def post_sql_enrichment_test(res: CloudSQLEnrichmentTestDataConstruct):
+    # Clean up the data inserted previously.
+    res.metadata.drop_all(res.engine)
+    res.engine.dispose(close=True)
 
-  def post_cloudsql_enrichment_test(
-      self,
-      db: SQLDBContainerInfo,
-      sql_client_connection_handler: SQLClientConnectionHandler,
-      metadata: MetaData,
-      engine: Engine):
-    metadata.drop_all(engine)
-    sql_client_connection_handler.connection_closer()
-    engine.dispose(close=True)
-    CloudSQLEnrichmentTestHelper.stop_sql_db_container(db)
-    os.environ.pop('SQL_DB_TYPE', None)
-    os.environ.pop('SQL_DB_HOST', None)
-    os.environ.pop('SQL_DB_PORT', None)
-    os.environ.pop('SQL_DB_USER', None)
-    os.environ.pop('SQL_DB_PASSWORD', None)
-    os.environ.pop('SQL_DB_ID', None)
-    os.environ.pop('SQL_DB_URL', None)
+    # Check if the test used a container-based external SQL database.
+    if res.db:
+      CloudSQLEnrichmentTestHelper.stop_sql_db_container(res.db)
+      os.environ.pop('EXTERNAL_SQL_DB_HOST', None)
+      os.environ.pop('EXTERNAL_SQL_DB_PORT', None)
+      os.environ.pop('EXTERNAL_SQL_DB_ID', None)
+      os.environ.pop('EXTERNAL_SQL_DB_USER', None)
+      os.environ.pop('EXTERNAL_SQL_DB_PASSWORD', None)
+      os.environ.pop('EXTERNAL_SQL_DB_TABLE_ID', None)
+    else:
+      os.environ.pop('GOOGLE_CLOUD_SQL_DB_URI', None)
+      os.environ.pop('GOOGLE_CLOUD_SQL_DB_ID', None)
+      os.environ.pop('GOOGLE_CLOUD_SQL_DB_USER', None)
+      os.environ.pop('GOOGLE_CLOUD_SQL_DB_PASSWORD', None)
+      os.environ.pop('GOOGLE_CLOUD_SQL_DB_TABLE_ID', None)
 
 
 if __name__ == '__main__':

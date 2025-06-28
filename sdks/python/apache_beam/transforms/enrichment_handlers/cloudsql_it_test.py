@@ -33,7 +33,6 @@ from apache_beam.testing.util import equal_to
 
 # pylint: disable=ungrouped-imports
 try:
-  from google.cloud.sql.connector import IPTypes
   from testcontainers.core.generic import DbContainer
   from testcontainers.postgres import PostgresContainer
   from testcontainers.mysql import MySqlContainer
@@ -52,8 +51,8 @@ try:
       ExternalSQLDBConnectionConfig,
       ConnectionConfig,
       SQLClientConnectionHandler)
-except ImportError:
-  raise unittest.SkipTest('Google Cloud SQL dependencies are not installed.')
+except ImportError as e:
+  raise unittest.SkipTest(f'CloudSQL dependencies not installed: {str(e)}')
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -145,18 +144,27 @@ class CloudSQLEnrichmentTestHelper:
             info.address)
         break
       except Exception as e:
+        stdout_logs, stderr_logs = sql_db_container.get_logs()
+        stdout_logs = stdout_logs.decode("utf-8")
+        stderr_logs = stderr_logs.decode("utf-8")
         _LOGGER.warning(
-            "Retry %d/%d: Failed to start %s container. Reason: %s",
+            "Retry %d/%d: Failed to start %s container. Reason: %s. "
+            "STDOUT logs:\n%s\nSTDERR logs:\n%s",
             i + 1,
             sql_client_retries,
             database_type.name,
-            e)
+            e,
+            stdout_logs,
+            stderr_logs)
         if i == sql_client_retries - 1:
           _LOGGER.error(
               "Unable to start %s container for I/O tests after %d "
-              "retries. Tests cannot proceed.",
+              "retries. Tests cannot proceed. STDOUT logs:\n%s\n"
+              "STDERR logs:\n%s",
               database_type.name,
-              sql_client_retries)
+              sql_client_retries,
+              stdout_logs,
+              stderr_logs)
           raise e
 
     return info
@@ -176,29 +184,30 @@ class CloudSQLEnrichmentTestHelper:
   @staticmethod
   def create_table(
       table_id: str,
-      connection_config: ConnectionConfig,
+      engine: Engine,
       columns: list[Column],
       table_data: list[dict],
-      metadata: MetaData) -> Tuple[SQLClientConnectionHandler, Engine]:
-    sql_client_handler = connection_config.get_connector_handler()
-    engine = create_engine(
-        url=connection_config.get_db_url(),
-        creator=sql_client_handler.connector)
+      metadata: MetaData):
+    # Create table metadata.
     table = Table(table_id, metadata, *columns)
-    metadata.create_all(engine)
 
-    # Insert data into the table.
+    # Create contextual connection for schema creation.
+    with engine.connect() as schema_connection:
+        try:
+            metadata.create_all(schema_connection)
+            schema_connection.commit()
+        except Exception as e:
+            schema_connection.rollback()
+            raise Exception(f"Failed to create table schema: {e}")
+
+    # Now create a separate contextual connection for data insertion.
     with engine.connect() as connection:
-      transaction = connection.begin()
       try:
         connection.execute(table.insert(), table_data)
-        transaction.commit()
+        connection.commit()
       except Exception as e:
-        transaction.rollback()
-        raise e
-
-    return sql_client_handler, engine
-
+        connection.rollback()
+        raise Exception(f"Failed to insert table data: {e}")
 
 @pytest.mark.uses_testcontainer
 class BaseTestCloudSQLEnrichment(unittest.TestCase):
@@ -238,17 +247,21 @@ class BaseTestCloudSQLEnrichment(unittest.TestCase):
 
     # Type hint data from subclasses.
     cls._table_id: str
-    cls.connection_config: ConnectionConfig
+    cls._connection_config: ConnectionConfig
     cls._metadata: MetaData
 
-    handler = CloudSQLEnrichmentTestHelper.create_table(
+    cls._sql_client_handler = cls._connection_config.get_connector_handler()
+    cls._engine = create_engine(
+        url=cls._connection_config.get_db_url(),
+        creator=cls._sql_client_handler.connector)
+
+    CloudSQLEnrichmentTestHelper.create_table(
         table_id=cls._table_id,
-        connection_config=cls.connection_config,
+        engine=cls._engine,
         columns=cls.get_columns(),
         table_data=cls._table_data,
         metadata=cls._metadata)
 
-    cls._sql_client_handler, cls._engine = handler
     cls._cache_client_retries = 3
 
   @classmethod
@@ -293,6 +306,7 @@ class BaseTestCloudSQLEnrichment(unittest.TestCase):
   @classmethod
   def tearDownClass(cls):
     cls._metadata.drop_all(cls._engine)
+    cls._sql_client_handler.connection_closer()
     cls._engine.dispose(close=True)
     cls._engine = None
 
@@ -513,29 +527,17 @@ class BaseCloudSQLDBEnrichment(BaseTestCloudSQLEnrichment):
 
     # Type hint data from subclasses.
     cls._db_adapter: DatabaseTypeAdapter
-    cls._instance_name: str
+    cls._instance_connection_uri: str
+    cls._user: str
+    cls._password: str
+    cls._db_id: str
 
-    # GCP project configuration.
-    gcp_project_id = "apache-beam-testing"
-    region = "us-central1"
-
-    # Full instance connection name used for connecting via Cloud SQL.
-    instance_connection_name = f"{gcp_project_id}:{region}:{cls._instance_uri}"
-
-    # Password auth configuration for CloudSQL instance.
-    user = "postgres"
-    password = os.getenv("ALLOYDB_PASSWORD")
-
-    # Database ID for CloudSQL instance.
-    db_id = "postgres"
-
-    cls.connection_config = CloudSQLConnectionConfig(
+    cls._connection_config = CloudSQLConnectionConfig(
         db_adapter=cls._db_adapter,
-        instance_connection_name=instance_connection_name,
-        user=user,
-        password=password,
-        db_id=db_id,
-        enable_iam_auth=False)
+        instance_connection_uri=cls._instance_connection_uri,
+        user=cls._user,
+        password=cls._password,
+        db_id=cls._db_id)
     super().setUpClass()
 
   @classmethod
@@ -546,8 +548,19 @@ class BaseCloudSQLDBEnrichment(BaseTestCloudSQLEnrichment):
 
 class TestCloudSQLPostgresEnrichment(BaseCloudSQLDBEnrichment):
   _db_adapter = DatabaseTypeAdapter.POSTGRESQL
-  _instance_name = "beam-integration-tests"
+
+  # Configuration required for locating the CloudSQL instance.
   _table_id = "product_details_cloudsql_pg_enrichment"
+  _gcp_project_id = "apache-beam-testing"
+  _region = "us-central1"
+  _instance_name = "beam-integration-tests"
+  _instance_connection_uri = f"{_gcp_project_id}:{_region}:{_instance_name}"
+
+  # Configuration required for authenticating to the CloudSQL instance.
+  _user = "postgres"
+  _password = os.getenv("ALLOYDB_PASSWORD")
+  _db_id = "postgres"
+
   _metadata = MetaData()
 
 
@@ -564,7 +577,7 @@ class BaseExternalSQLDBEnrichment(BaseTestCloudSQLEnrichment):
 
     cls._db = CloudSQLEnrichmentTestHelper.start_sql_db_container(
         cls._db_adapter)
-    cls.connection_config = ExternalSQLDBConnectionConfig(
+    cls._connection_config = ExternalSQLDBConnectionConfig(
         db_adapter=cls._db_adapter,
         host=cls._db.host,
         user=cls._db.user,

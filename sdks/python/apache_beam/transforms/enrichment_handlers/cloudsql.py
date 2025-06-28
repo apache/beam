@@ -17,9 +17,9 @@
 from abc import abstractmethod, ABC
 from collections.abc import Callable
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
+from typing import Any, Dict, Set
 from typing import List
 from typing import Optional
 from typing import Union
@@ -32,7 +32,6 @@ from sqlalchemy import text
 from sqlalchemy.engine import Connection as DBAPIConnection
 from google.cloud.sql.connector.enums import RefreshStrategy
 from google.cloud.sql.connector import Connector as CloudSQLConnector
-from google.cloud.sql.connector import IPTypes
 
 import apache_beam as beam
 from apache_beam.transforms.enrichment import EnrichmentSourceHandler
@@ -127,117 +126,136 @@ class ConnectionConfig(ABC):
     pass
 
 
+@dataclass
 class CloudSQLConnectionConfig(ConnectionConfig):
-  """Connects to Google Cloud SQL using Cloud SQL Python Connector."""
-  SUPPORTED_ADAPTERS = {
-      DatabaseTypeAdapter.POSTGRESQL,
-      DatabaseTypeAdapter.MYSQL,
-      DatabaseTypeAdapter.SQLSERVER,
-  }
+    """Connects to Google Cloud SQL using Cloud SQL Python Connector.
 
-  def __init__(
-      self,
-      db_adapter: DatabaseTypeAdapter,
-      instance_connection_uri: str,
-      user: str,
-      db_id: str,
-      enable_iam_auth: bool = True,
-      password: Optional[str] = None,  # fallback if IAM not used
-      ip_type: IPTypes = IPTypes.PUBLIC,
-      refresh_strategy: RefreshStrategy = RefreshStrategy.LAZY,
-      *,
-      connector_kwargs: Optional[dict] = None,
-      connect_kwargs: Optional[dict] = None,
-  ):
-    self._validate_metadata(db_adapter=db_adapter)
-    self._db_adapter = db_adapter
-    self._instance_connection_uri = instance_connection_uri
-    self._user = user
-    self._db_id = db_id
-    self._enable_iam_auth = enable_iam_auth
-    self._password = password
-    self._ip_type = ip_type
-    self._refresh_strategy = refresh_strategy
-    self.connector_kwargs = connector_kwargs or {}
-    self.connect_kwargs = connect_kwargs or {}
+    Args:
+        db_adapter: The database adapter type (PostgreSQL, MySQL, SQL Server).
+        instance_connection_uri: URI for connecting to the Cloud SQL instance.
+        user: Username for authentication.
+        password: Password for authentication. Defaults to None.
+        db_id: Database identifier/name.
+        refresh_strategy: Strategy for refreshing connection (default: LAZY).
+        connector_kwargs: Additional keyword arguments for the
+          Cloud SQL Python Connector. Enables forward compatibility.
+        connect_kwargs: Additional keyword arguments for the client connect
+          method. Enables forward compatibility.
+    """
+    db_adapter: DatabaseTypeAdapter
+    instance_connection_uri: str
+    user: str = field(default_factory=str)
+    password: str = field(default_factory=str)
+    db_id: str = field(default_factory=str)
+    refresh_strategy: RefreshStrategy = RefreshStrategy.LAZY
+    connector_kwargs: Dict[str, Any] = field(default_factory=dict)
+    connect_kwargs: Dict[str, Any] = field(default_factory=dict)
 
-  def get_connector_handler(self) -> SQLClientConnectionHandler:
-    cloudsql_client = CloudSQLConnector(
-        ip_type=self._ip_type,
-        refresh_strategy=self._refresh_strategy,
-        **self.connector_kwargs)
+    def __post_init__(self):
+      if not self.instance_connection_uri:
+          raise ValueError("Instance connection URI cannot be empty")
 
-    cloudsql_connector = lambda: cloudsql_client.connect(
-        instance_connection_string=self._instance_connection_uri, driver=self.
-        _db_adapter.value, user=self._user, db=self._db_id, enable_iam_auth=self
-        ._enable_iam_auth, password=self.password, **self.connect_kwargs)
+    def get_connector_handler(self) -> SQLClientConnectionHandler:
+        cloudsql_client = CloudSQLConnector(
+            refresh_strategy=self.refresh_strategy,
+            **self.connector_kwargs)
 
-    connection_closer = lambda: cloudsql_client.close()
+        cloudsql_connector = lambda: cloudsql_client.connect(
+            instance_connection_string=self.instance_connection_uri,
+            driver=self.db_adapter.value,
+            user=self.user,
+            password=self.password,
+            db=self.db_id,
+            **self.connect_kwargs)
 
-    return SQLClientConnectionHandler(
-        connector=cloudsql_connector, connection_closer=connection_closer)
+        connection_closer = lambda: cloudsql_client.close()
 
-  def get_db_url(self) -> str:
-    return self._db_adapter.to_sqlalchemy_dialect() + "://"
+        return SQLClientConnectionHandler(
+            connector=cloudsql_connector, connection_closer=connection_closer)
 
-  def _validate_metadata(self, db_adapter: DatabaseTypeAdapter):
-    if db_adapter not in self.SUPPORTED_ADAPTERS:
-      raise ValueError(
-          f"Unsupported DB adapter for CloudSQLConnectionConfig: {db_adapter}. "
-          f"Supported: {[a.name for a in self.SUPPORTED_ADAPTERS]}")
-
-  @property
-  def password(self):
-    return self._password if not self._enable_iam_auth else None
+    def get_db_url(self) -> str:
+        return self.db_adapter.to_sqlalchemy_dialect() + "://"
 
 
+@dataclass
 class ExternalSQLDBConnectionConfig(ConnectionConfig):
-  """Connects to External SQL databases (PostgreSQL, MySQL, etc.) over TCP."""
-  def __init__(
-      self,
-      db_adapter: DatabaseTypeAdapter,
-      host: str,
-      user: str,
-      password: str,
-      db_id: str,
-      port: int,
-      **kwargs):
-    self._db_adapter = db_adapter
-    self._host = host
-    self._user = user
-    self._password = password
-    self._db_id = db_id
-    self._port = port
-    self.kwargs = kwargs
+    """Connects to External SQL DBs (PostgreSQL, MySQL, SQL Server) over TCP.
 
-  def get_connector_handler(
-      self,
-  ) -> SQLClientConnectionHandler:
-    if self._db_adapter == DatabaseTypeAdapter.POSTGRESQL:
-      # It is automatically closed upstream by sqlalchemy.
-      connector = lambda: pg8000.connect(
-          host=self._host, user=self._user, password=self._password, database=
-          self._db_id, port=self._port, **self.kwargs)
-      connection_closer = lambda: None
-    elif self._db_adapter == DatabaseTypeAdapter.MYSQL:
-      # It is automatically closed upstream by sqlalchemy.
-      connector = lambda: pymysql.connect(
-          host=self._host, user=self._user, password=self._password, database=
-          self._db_id, port=self._port, **self.kwargs)
-      connection_closer = lambda: None
-    elif self._db_adapter == DatabaseTypeAdapter.SQLSERVER:
-      # It is automatically closed upstream by sqlalchemy.
-      connector = lambda: pytds.connect(
-          server=self._host, database=self._db_id, user=self._user, password=
-          self._password, port=self._port, **self.kwargs)
-      connection_closer = lambda: None
-    else:
-      raise ValueError(f"Unsupported DB adapter: {self._db_adapter}")
+    Args:
+        db_adapter: The database adapter type (PostgreSQL, MySQL, SQL Server).
+        host: Hostname or IP address of the database server.
+        port: Port number for the database connection.
+        user: Username for authentication.
+        password: Password for authentication.
+        db_id: Database identifier/name.
+        connect_kwargs: Additional keyword arguments for the client connect
+          method. Enables forward compatibility.
+    """
+    db_adapter: DatabaseTypeAdapter
+    host: str
+    port: int
+    user: str = field(default_factory=str)
+    password: str  = field(default_factory=str)
+    db_id: str = field(default_factory=str)
+    connect_kwargs: Dict[str, Any] = field(default_factory=dict)
 
-    return SQLClientConnectionHandler(connector, connection_closer)
+    def __post_init__(self):
+      if not self.host:
+          raise ValueError("Database host cannot be empty")
 
-  def get_db_url(self) -> str:
-    return self._db_adapter.to_sqlalchemy_dialect() + "://"
+    def get_connector_handler(self) -> SQLClientConnectionHandler:
+        # Use a list to store the connection object because Python closures can
+        # read but not write to variables in outer scopes. Using a mutable
+        # object (list) as a container lets the inner functions modify the
+        # connection state.
+        connection: List[Optional[DBAPIConnection]]= [None]
+        if self.db_adapter == DatabaseTypeAdapter.POSTGRESQL:
+            def connector():
+              if connection[0] is None:
+                  connection[0] = pg8000.connect(
+                      host=self.host,
+                      user=self.user,
+                      password=self.password,
+                      database=self.db_id,
+                      port=self.port,
+                      **self.connect_kwargs)
+              return connection[0]
+        elif self.db_adapter == DatabaseTypeAdapter.MYSQL:
+            def connector():
+                if connection[0] is None:
+                    connection[0] = pymysql.connect(
+                        host=self.host,
+                        user=self.user,
+                        password=self.password,
+                        database=self.db_id,
+                        port=self.port,
+                        **self.connect_kwargs)
+                return connection[0]
+        elif self.db_adapter == DatabaseTypeAdapter.SQLSERVER:
+            def connector():
+                if connection[0] is None:
+                    connection[0] = pytds.connect(
+                        dsn=self.host,
+                        database=self.db_id,
+                        user=self.user,
+                        password=self.password,
+                        port=self.port,
+                        **self.connect_kwargs)
+                return connection[0]
+
+        # Unified connection closer for all database adapters.
+        def connection_closer():
+          if connection[0]:
+            try:
+                connection[0].close()
+            except Exception as e:
+                raise ConnectionError(
+                  f"Failed to close {self.db_adapter} connection: {e}")
+
+        return SQLClientConnectionHandler(connector, connection_closer)
+
+    def get_db_url(self) -> str:
+        return self.db_adapter.to_sqlalchemy_dialect() + "://"
 
 
 QueryConfig = Union[CustomQueryConfig,
@@ -279,11 +297,17 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
   ):
     """
     Example Usage:
-      handler = CloudSQLEnrichmentHandler(
-          connection_config=CloudSQLConnectionConfig(...),
-          query_config=TableFieldsQueryConfig('my_table',"id = '{}'",['id']),
-          min_batch_size=2,
-          max_batch_size=100)
+      connection_config = CloudSQLConnectionConfig(
+        db_adapter=DatabaseTypeAdapter.POSTGRESQL,
+        instance_connection_uri="apache-beam-testing:us-central1:itests",
+        user=postgres,
+        password= os.getenv("CLOUDSQL_PG_PASSWORD"))
+      query_config=TableFieldsQueryConfig('my_table',"id = '{}'",['id']),
+      cloudsql_handler = CloudSQLEnrichmentHandler(
+        connection_config=connection_config,
+        query_config=query_config,
+        min_batch_size=2,
+        max_batch_size=100)
 
     Args:
       connection_config (ConnectionConfig): Configuration for connecting to
@@ -330,11 +354,12 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
     self._engine = create_engine(
         url=self._connection_config.get_db_url(),
         creator=self._sql_client_handler.connector)
-    self._connection = self._engine.connect()
 
   def _execute_query(self, query: str, is_batch: bool, **params):
     try:
-      result = self._connection.execute(text(query), **params)
+      with self._engine.connect() as connection:
+          result = connection.execute(text(query), **params)
+          connection.commit()
       if is_batch:
         return [row._asdict() for row in result]
       else:
@@ -434,10 +459,8 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
         "Either where_clause_fields or where_clause_value_fn must be specified")
 
   def __exit__(self, exc_type, exc_val, exc_tb):
-    self._connection.close()
-    self._sql_client_handler.connection_closer()
     self._engine.dispose(close=True)
-    self._engine, self._connection = None, None
+    self._engine = None
 
   def get_cache_key(self, request: Union[beam.Row, list[beam.Row]]):
     if isinstance(self._query_config, CustomQueryConfig):

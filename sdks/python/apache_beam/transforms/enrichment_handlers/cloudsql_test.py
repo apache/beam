@@ -26,16 +26,39 @@ try:
       CustomQueryConfig,
       TableFieldsQueryConfig,
       TableFunctionQueryConfig,
+      CloudSQLConnectionConfig,
       ExternalSQLDBConnectionConfig)
   from apache_beam.transforms.enrichment_handlers.cloudsql_it_test import (
       query_fn,
       where_clause_value_fn,
   )
-except ImportError:
-  raise unittest.SkipTest('Google Cloud SQL dependencies are not installed.')
+except ImportError as e:
+  raise unittest.SkipTest(f'CloudSQL dependencies not installed: {str(e)}')
 
 
 class TestCloudSQLEnrichment(unittest.TestCase):
+  def test_invalid_external_db_connection_params(self):
+    with self.assertRaises(ValueError) as context:
+      _ = ExternalSQLDBConnectionConfig(
+          db_adapter=DatabaseTypeAdapter.POSTGRESQL,
+          host='',
+          port=5432,
+          user='',
+          password='',
+          db_id='')
+    self.assertIn("Database host cannot be empty", str(context.exception))
+
+  def test_invalid_cloudsql_db_connection_params(self):
+    with self.assertRaises(ValueError) as context:
+      _ = CloudSQLConnectionConfig(
+          db_adapter=DatabaseTypeAdapter.POSTGRESQL,
+          instance_connection_uri='',
+          user='',
+          password='',
+          db_id='')
+    self.assertIn(
+      "Instance connection URI cannot be empty", str(context.exception))
+
   @parameterized.expand([
       # Empty TableFieldsQueryConfig.
       (
@@ -106,7 +129,7 @@ class TestCloudSQLEnrichment(unittest.TestCase):
 
       connection_config = ExternalSQLDBConnectionConfig(
           db_adapter=DatabaseTypeAdapter.POSTGRESQL,
-          host='',
+          host='localhost',
           port=5432,
           user='',
           password='',
