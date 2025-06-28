@@ -49,8 +49,7 @@ try:
       TableFunctionQueryConfig,
       CloudSQLConnectionConfig,
       ExternalSQLDBConnectionConfig,
-      ConnectionConfig,
-      SQLClientConnectionHandler)
+      ConnectionConfig)
 except ImportError as e:
   raise unittest.SkipTest(f'CloudSQL dependencies not installed: {str(e)}')
 
@@ -84,7 +83,7 @@ class SQLDBContainerInfo:
     return self.adapter.to_sqlalchemy_dialect() + "://"
 
 
-class CloudSQLEnrichmentTestHelper:
+class SQLEnrichmentTestHelper:
   @staticmethod
   def start_sql_db_container(
       database_type: DatabaseTypeAdapter,
@@ -198,7 +197,7 @@ class CloudSQLEnrichmentTestHelper:
             schema_connection.commit()
         except Exception as e:
             schema_connection.rollback()
-            raise Exception(f"Failed to create table schema: {e}")
+            raise RuntimeError(f"Failed to create table schema: {e}")
 
     # Now create a separate contextual connection for data insertion.
     with engine.connect() as connection:
@@ -210,7 +209,7 @@ class CloudSQLEnrichmentTestHelper:
         raise Exception(f"Failed to insert table data: {e}")
 
 @pytest.mark.uses_testcontainer
-class BaseTestCloudSQLEnrichment(unittest.TestCase):
+class BaseTestSQLEnrichment(unittest.TestCase):
   _table_data = [
       {
           "id": 1, "name": "A", 'quantity': 2, 'distribution_center_id': 3
@@ -240,7 +239,7 @@ class BaseTestCloudSQLEnrichment(unittest.TestCase):
 
   @classmethod
   def setUpClass(cls):
-    if not hasattr(cls, 'connection_config') or not hasattr(cls, '_metadata'):
+    if not hasattr(cls, '_connection_config') or not hasattr(cls, '_metadata'):
       # Skip setup for the base class.
       raise unittest.SkipTest(
           "Base class - no connection_config or metadata defined")
@@ -250,12 +249,12 @@ class BaseTestCloudSQLEnrichment(unittest.TestCase):
     cls._connection_config: ConnectionConfig
     cls._metadata: MetaData
 
-    cls._sql_client_handler = cls._connection_config.get_connector_handler()
+    connector = cls._connection_config.get_connector_handler()
     cls._engine = create_engine(
         url=cls._connection_config.get_db_url(),
-        creator=cls._sql_client_handler.connector)
+        creator=connector)
 
-    CloudSQLEnrichmentTestHelper.create_table(
+    SQLEnrichmentTestHelper.create_table(
         table_id=cls._table_id,
         engine=cls._engine,
         columns=cls.get_columns(),
@@ -306,11 +305,10 @@ class BaseTestCloudSQLEnrichment(unittest.TestCase):
   @classmethod
   def tearDownClass(cls):
     cls._metadata.drop_all(cls._engine)
-    cls._sql_client_handler.connection_closer()
     cls._engine.dispose(close=True)
     cls._engine = None
 
-  def test_cloudsql_enrichment(self):
+  def test_sql_enrichment(self):
     expected_rows = [
         beam.Row(id=1, name="A", quantity=2, distribution_center_id=3),
         beam.Row(id=2, name="B", quantity=3, distribution_center_id=1)
@@ -327,17 +325,18 @@ class BaseTestCloudSQLEnrichment(unittest.TestCase):
         where_clause_fields=fields)
 
     handler = CloudSQLEnrichmentHandler(
-        connection_config=self.connection_config,
+        connection_config=self._connection_config,
         query_config=query_config,
         min_batch_size=1,
         max_batch_size=100,
     )
+
     with TestPipeline(is_integration_test=True) as test_pipeline:
       pcoll = (test_pipeline | beam.Create(requests) | Enrichment(handler))
 
       assert_that(pcoll, equal_to(expected_rows))
 
-  def test_cloudsql_enrichment_batched(self):
+  def test_sql_enrichment_batched(self):
     expected_rows = [
         beam.Row(id=1, name="A", quantity=2, distribution_center_id=3),
         beam.Row(id=2, name="B", quantity=3, distribution_center_id=1)
@@ -354,7 +353,7 @@ class BaseTestCloudSQLEnrichment(unittest.TestCase):
         where_clause_fields=fields)
 
     handler = CloudSQLEnrichmentHandler(
-        connection_config=self.connection_config,
+        connection_config=self._connection_config,
         query_config=query_config,
         min_batch_size=2,
         max_batch_size=100,
@@ -364,7 +363,7 @@ class BaseTestCloudSQLEnrichment(unittest.TestCase):
 
       assert_that(pcoll, equal_to(expected_rows))
 
-  def test_cloudsql_enrichment_batched_multiple_fields(self):
+  def test_sql_enrichment_batched_multiple_fields(self):
     expected_rows = [
         beam.Row(id=1, distribution_center_id=3, name="A", quantity=2),
         beam.Row(id=2, distribution_center_id=1, name="B", quantity=3)
@@ -381,7 +380,7 @@ class BaseTestCloudSQLEnrichment(unittest.TestCase):
         where_clause_fields=fields)
 
     handler = CloudSQLEnrichmentHandler(
-        connection_config=self.connection_config,
+        connection_config=self._connection_config,
         query_config=query_config,
         min_batch_size=8,
         max_batch_size=100,
@@ -391,7 +390,7 @@ class BaseTestCloudSQLEnrichment(unittest.TestCase):
 
       assert_that(pcoll, equal_to(expected_rows))
 
-  def test_cloudsql_enrichment_with_query_fn(self):
+  def test_sql_enrichment_with_query_fn(self):
     expected_rows = [
         beam.Row(id=1, name="A", quantity=2, distribution_center_id=3),
         beam.Row(id=2, name="B", quantity=3, distribution_center_id=1)
@@ -405,13 +404,13 @@ class BaseTestCloudSQLEnrichment(unittest.TestCase):
     query_config = CustomQueryConfig(query_fn=fn)
 
     handler = CloudSQLEnrichmentHandler(
-        connection_config=self.connection_config, query_config=query_config)
+        connection_config=self._connection_config, query_config=query_config)
     with TestPipeline(is_integration_test=True) as test_pipeline:
       pcoll = (test_pipeline | beam.Create(requests) | Enrichment(handler))
 
       assert_that(pcoll, equal_to(expected_rows))
 
-  def test_cloudsql_enrichment_with_condition_value_fn(self):
+  def test_sql_enrichment_with_condition_value_fn(self):
     expected_rows = [
         beam.Row(id=1, name="A", quantity=2, distribution_center_id=3),
         beam.Row(id=2, name="B", quantity=3, distribution_center_id=1)
@@ -427,7 +426,7 @@ class BaseTestCloudSQLEnrichment(unittest.TestCase):
         where_clause_value_fn=where_clause_value_fn)
 
     handler = CloudSQLEnrichmentHandler(
-        connection_config=self.connection_config,
+        connection_config=self._connection_config,
         query_config=query_config,
         min_batch_size=2,
         max_batch_size=100)
@@ -436,7 +435,7 @@ class BaseTestCloudSQLEnrichment(unittest.TestCase):
 
       assert_that(pcoll, equal_to(expected_rows))
 
-  def test_cloudsql_enrichment_table_nonexistent_runtime_error_raised(self):
+  def test_sql_enrichment_on_non_existent_table(self):
     requests = [
         beam.Row(id=1, name='A'),
         beam.Row(id=2, name='B'),
@@ -448,21 +447,20 @@ class BaseTestCloudSQLEnrichment(unittest.TestCase):
         where_clause_value_fn=where_clause_value_fn)
 
     handler = CloudSQLEnrichmentHandler(
-        connection_config=self.connection_config,
+        connection_config=self._connection_config,
         query_config=query_config,
         column_names=["wrong_column"],
     )
-    with self.assertRaises(RuntimeError):
-      test_pipeline = beam.Pipeline()
-      _ = (
-          test_pipeline
-          | "Create" >> beam.Create(requests)
-          | "Enrichment" >> Enrichment(handler))
-      res = test_pipeline.run()
-      res.wait_until_finish()
+
+    with self.assertRaises(Exception) as context: 
+      with TestPipeline() as p:
+        _ = (p | beam.Create(requests) | Enrichment(handler))
+
+    expect_err_msg_contains = "Could not execute the query"
+    self.assertIn(expect_err_msg_contains, str(context.exception))
 
   @pytest.mark.usefixtures("cache_container")
-  def test_cloudsql_enrichment_with_redis(self):
+  def test_sql_enrichment_with_redis(self):
     requests = [
         beam.Row(id=1, name='A'),
         beam.Row(id=2, name='B'),
@@ -478,7 +476,7 @@ class BaseTestCloudSQLEnrichment(unittest.TestCase):
         where_clause_value_fn=where_clause_value_fn)
 
     handler = CloudSQLEnrichmentHandler(
-        connection_config=self.connection_config,
+        connection_config=self._connection_config,
         query_config=query_config,
         min_batch_size=2,
         max_batch_size=100)
@@ -518,7 +516,7 @@ class BaseTestCloudSQLEnrichment(unittest.TestCase):
     CloudSQLEnrichmentHandler.__call__ = actual
 
 
-class BaseCloudSQLDBEnrichment(BaseTestCloudSQLEnrichment):
+class BaseCloudSQLDBEnrichment(BaseTestSQLEnrichment):
   @classmethod
   def setUpClass(cls):
     if not hasattr(cls, '_db_adapter'):
@@ -565,7 +563,7 @@ class TestCloudSQLPostgresEnrichment(BaseCloudSQLDBEnrichment):
 
 
 @pytest.mark.uses_testcontainer
-class BaseExternalSQLDBEnrichment(BaseTestCloudSQLEnrichment):
+class BaseExternalSQLDBEnrichment(BaseTestSQLEnrichment):
   @classmethod
   def setUpClass(cls):
     if not hasattr(cls, '_db_adapter'):
@@ -575,7 +573,7 @@ class BaseExternalSQLDBEnrichment(BaseTestCloudSQLEnrichment):
     # Type hint data from subclasses.
     cls._db_adapter: DatabaseTypeAdapter
 
-    cls._db = CloudSQLEnrichmentTestHelper.start_sql_db_container(
+    cls._db = SQLEnrichmentTestHelper.start_sql_db_container(
         cls._db_adapter)
     cls._connection_config = ExternalSQLDBConnectionConfig(
         db_adapter=cls._db_adapter,
@@ -589,7 +587,7 @@ class BaseExternalSQLDBEnrichment(BaseTestCloudSQLEnrichment):
   @classmethod
   def tearDownClass(cls):
     super().tearDownClass()
-    CloudSQLEnrichmentTestHelper.stop_sql_db_container(cls._db)
+    SQLEnrichmentTestHelper.stop_sql_db_container(cls._db)
     cls._db = None
 
 

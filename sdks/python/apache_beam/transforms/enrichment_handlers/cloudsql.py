@@ -19,7 +19,7 @@ from collections.abc import Callable
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, Set
+from typing import Any, Dict
 from typing import List
 from typing import Optional
 from typing import Union
@@ -110,15 +110,9 @@ class DatabaseTypeAdapter(Enum):
       raise ValueError(f"Unsupported database adapter type: {self.name}")
 
 
-@dataclass
-class SQLClientConnectionHandler:
-  connector: Callable[[], DBAPIConnection]
-  connection_closer: Callable[[], None]
-
-
 class ConnectionConfig(ABC):
   @abstractmethod
-  def get_connector_handler(self) -> SQLClientConnectionHandler:
+  def get_connector_handler(self) -> Callable[[], DBAPIConnection]:
     pass
 
   @abstractmethod
@@ -155,7 +149,7 @@ class CloudSQLConnectionConfig(ConnectionConfig):
       if not self.instance_connection_uri:
           raise ValueError("Instance connection URI cannot be empty")
 
-    def get_connector_handler(self) -> SQLClientConnectionHandler:
+    def get_connector_handler(self) -> Callable[[], DBAPIConnection]:
         cloudsql_client = CloudSQLConnector(
             refresh_strategy=self.refresh_strategy,
             **self.connector_kwargs)
@@ -168,10 +162,7 @@ class CloudSQLConnectionConfig(ConnectionConfig):
             db=self.db_id,
             **self.connect_kwargs)
 
-        connection_closer = lambda: cloudsql_client.close()
-
-        return SQLClientConnectionHandler(
-            connector=cloudsql_connector, connection_closer=connection_closer)
+        return cloudsql_connector
 
     def get_db_url(self) -> str:
         return self.db_adapter.to_sqlalchemy_dialect() + "://"
@@ -203,56 +194,24 @@ class ExternalSQLDBConnectionConfig(ConnectionConfig):
       if not self.host:
           raise ValueError("Database host cannot be empty")
 
-    def get_connector_handler(self) -> SQLClientConnectionHandler:
-        # Use a list to store the connection object because Python closures can
-        # read but not write to variables in outer scopes. Using a mutable
-        # object (list) as a container lets the inner functions modify the
-        # connection state.
-        connection: List[Optional[DBAPIConnection]]= [None]
-        if self.db_adapter == DatabaseTypeAdapter.POSTGRESQL:
-            def connector():
-              if connection[0] is None:
-                  connection[0] = pg8000.connect(
-                      host=self.host,
-                      user=self.user,
-                      password=self.password,
-                      database=self.db_id,
-                      port=self.port,
-                      **self.connect_kwargs)
-              return connection[0]
-        elif self.db_adapter == DatabaseTypeAdapter.MYSQL:
-            def connector():
-                if connection[0] is None:
-                    connection[0] = pymysql.connect(
-                        host=self.host,
-                        user=self.user,
-                        password=self.password,
-                        database=self.db_id,
-                        port=self.port,
-                        **self.connect_kwargs)
-                return connection[0]
-        elif self.db_adapter == DatabaseTypeAdapter.SQLSERVER:
-            def connector():
-                if connection[0] is None:
-                    connection[0] = pytds.connect(
-                        dsn=self.host,
-                        database=self.db_id,
-                        user=self.user,
-                        password=self.password,
-                        port=self.port,
-                        **self.connect_kwargs)
-                return connection[0]
+    def get_connector_handler(self) -> Callable[[], DBAPIConnection]:
+      if self.db_adapter == DatabaseTypeAdapter.POSTGRESQL:
+        # It is automatically closed upstream by sqlalchemy context manager.
+        sql_connector = lambda: pg8000.connect(
+            host=self.host, port=self.port, database=self.db_id,
+            user=self.user, password=self.password, **self.connect_kwargs)
+      elif self.db_adapter == DatabaseTypeAdapter.MYSQL:
+        # It is automatically closed upstream by sqlalchemy context manager.
+        sql_connector = lambda: pymysql.connect(
+            host=self.host, port=self.port, database=self.db_id,
+            user=self.user, password=self.password, **self.connect_kwargs)
+      elif self.db_adapter == DatabaseTypeAdapter.SQLSERVER:
+        # It is automatically closed upstream by sqlalchemy context manager.
+        sql_connector = lambda: pytds.connect(
+            dsn=self.host, port=self.port, database=self.db_id, user=self.user,
+            password=self.password, **self.connect_kwargs)
 
-        # Unified connection closer for all database adapters.
-        def connection_closer():
-          if connection[0]:
-            try:
-                connection[0].close()
-            except Exception as e:
-                raise ConnectionError(
-                  f"Failed to close {self.db_adapter} connection: {e}")
-
-        return SQLClientConnectionHandler(connector, connection_closer)
+      return sql_connector
 
     def get_db_url(self) -> str:
         return self.db_adapter.to_sqlalchemy_dialect() + "://"
@@ -350,25 +309,35 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
       self._batching_kwargs['max_batch_size'] = max_batch_size
 
   def __enter__(self):
-    self._sql_client_handler = self._connection_config.get_connector_handler()
+    connector = self._connection_config.get_connector_handler()
     self._engine = create_engine(
         url=self._connection_config.get_db_url(),
-        creator=self._sql_client_handler.connector)
+        creator=connector)
 
   def _execute_query(self, query: str, is_batch: bool, **params):
     try:
-      with self._engine.connect() as connection:
+      connection = self._engine.connect()
+      transaction = connection.begin()
+      try:
           result = connection.execute(text(query), **params)
-          connection.commit()
-      if is_batch:
-        return [row._asdict() for row in result]
-      else:
-        return result.first()._asdict()
-    except RuntimeError as e:
-      raise RuntimeError(
-          f'Could not execute the query: {query}. Please check if '
-          f'the query is properly formatted and the BigQuery '
-          f'table exists. {e}')
+          # Materialize results while transaction is active.
+          if is_batch:
+            data = [row._asdict() for row in result]
+          else:
+            data = result.first()._asdict()
+          # Explicitly commit the transaction.
+          transaction.commit()
+          return data
+      except Exception as e:
+        transaction.rollback()
+        raise RuntimeError(f"Database operation failed: {e}")
+    except Exception as e:
+      raise Exception(
+            f'Could not execute the query: {query}. Please check if '
+            f'the query is properly formatted and the table exists. {e}')
+    finally:
+      if connection:
+        connection.close()
 
   def __call__(self, request: Union[beam.Row, list[beam.Row]], *args, **kwargs):
     """Handle requests by delegating to single or batch processing."""

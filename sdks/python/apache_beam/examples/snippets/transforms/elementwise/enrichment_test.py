@@ -41,17 +41,17 @@ try:
       enrichment_with_external_mysql,
       enrichment_with_external_sqlserver)
   from apache_beam.transforms.enrichment_handlers.cloudsql import (
-      DatabaseTypeAdapter)
+      DatabaseTypeAdapter,
+      SQLClientConnectionHandler)
   from apache_beam.transforms.enrichment_handlers.cloudsql_it_test import (
-      CloudSQLEnrichmentTestHelper,
+      SQLEnrichmentTestHelper,
       SQLDBContainerInfo,
       ConnectionConfig,
       CloudSQLConnectionConfig,
-      ExternalSQLDBConnectionConfig,
-      SQLClientConnectionHandler)
+      ExternalSQLDBConnectionConfig)
   from apache_beam.io.requestresponse import RequestResponseIO
-except ImportError:
-  raise unittest.SkipTest('RequestResponseIO dependencies are not installed')
+except ImportError as e:
+  raise unittest.SkipTest(f'RequestResponseIO dependencies not installed: {e}')
 
 
 def validate_enrichment_with_bigtable():
@@ -223,7 +223,7 @@ class EnrichmentTestHelpers:
           password=password,
           db_id=db_id)
     else:
-      db = CloudSQLEnrichmentTestHelper.start_sql_db_container(db_adapter)
+      db = SQLEnrichmentTestHelper.start_sql_db_container(db_adapter)
       os.environ['EXTERNAL_SQL_DB_HOST'] = db.host
       os.environ['EXTERNAL_SQL_DB_PORT'] = str(db.port)
       os.environ['EXTERNAL_SQL_DB_ID'] = db.id
@@ -243,7 +243,7 @@ class EnrichmentTestHelpers:
         url=connection_config.get_db_url(),
         creator=sql_client_handler.connector)
 
-    CloudSQLEnrichmentTestHelper.create_table(
+    SQLEnrichmentTestHelper.create_table(
         table_id=table_id,
         engine=engine,
         columns=columns,
@@ -265,7 +265,7 @@ class EnrichmentTestHelpers:
 
     # Check if the test used a container-based external SQL database.
     if res.db:
-      CloudSQLEnrichmentTestHelper.stop_sql_db_container(res.db)
+      SQLEnrichmentTestHelper.stop_sql_db_container(res.db)
       os.environ.pop('EXTERNAL_SQL_DB_HOST', None)
       os.environ.pop('EXTERNAL_SQL_DB_PORT', None)
       os.environ.pop('EXTERNAL_SQL_DB_ID', None)
