@@ -32,29 +32,28 @@ from apache_beam.transforms import window
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import timestamp
+from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
+from apache_beam.utils.timestamp import TimestampTypes
 
 
 class ImpulseSeqGenRestrictionProvider(core.RestrictionProvider):
   def initial_restriction(self, element):
     start, end, interval = element
-    if isinstance(start, Timestamp):
-      start_micros = start.micros
-    else:
-      start_micros = round(start * 1000000)
+    if not isinstance(start, Timestamp):
+      start = Timestamp.of(start)
 
-    if isinstance(end, Timestamp):
-      end_micros = end.micros
-    else:
-      end_micros = round(end * 1000000)
+    if not isinstance(end, Timestamp):
+      end = Timestamp.of(end)
 
-    interval_micros = round(interval * 1000000)
+    interval_duration = Duration(interval)
 
-    assert start_micros <= end_micros
+    assert start <= end
     assert interval > 0
-    delta_micros: int = end_micros - start_micros
-    total_outputs = math.ceil(delta_micros / interval_micros)
+    total_duration = end - start
+    total_outputs = math.ceil(total_duration.micros / interval_duration.micros)
+
     return OffsetRange(0, total_outputs)
 
   def create_tracker(self, restriction):
@@ -230,38 +229,31 @@ class PeriodicImpulse(PTransform):
     assert self.data
 
     # The total time we need to impulse all the data.
-    data_duration = (len(self.data) - 1) * self.interval
+    data_duration = (len(self.data) - 1) * Duration(self.interval)
 
     is_pre_timestamped = isinstance(self.data[0], tuple) and \
       isinstance(self.data[0][0], timestamp.Timestamp)
 
-    if isinstance(self.start_ts, Timestamp):
-      start = self.start_ts.micros / 1000000
-    else:
-      start = self.start_ts
+    start_ts = Timestamp.of(self.start_ts)
+    stop_ts = Timestamp.of(self.stop_ts)
 
-    if isinstance(self.stop_ts, Timestamp):
-      if self.stop_ts == MAX_TIMESTAMP:
-        # When the stop timestamp is unbounded (MAX_TIMESTAMP), set it to the
-        # data's actual end time plus an extra fire interval, because the
-        # impulse duration's upper bound is exclusive.
-        end = start + data_duration + self.interval
-        self.stop_ts = Timestamp(micros=end * 1000000)
-      else:
-        end = self.stop_ts.micros / 1000000
-    else:
-      end = self.stop_ts
+    if stop_ts == MAX_TIMESTAMP:
+      # When the stop timestamp is unbounded (MAX_TIMESTAMP), set it to the
+      # data's actual end time plus an extra fire interval, because the
+      # impulse duration's upper bound is exclusive.
+      self.stop_ts = start_ts + data_duration + Duration(self.interval)
+      stop_ts = self.stop_ts
 
     # The total time for the impulse signal which occurs in [start, end).
-    impulse_duration = end - start
-    if round(data_duration + self.interval, 6) < round(impulse_duration, 6):
+    impulse_duration = stop_ts - start_ts
+    if data_duration + Duration(self.interval) < impulse_duration:
       # We don't have enough data for the impulse.
       # If we can fit at least one more data point in the impulse duration,
       # then we will be in the repeat mode.
       message = 'The number of elements in the provided pre-timestamped ' \
         'data sequence is not enough to span the full impulse duration. ' \
-        f'Expected duration: {impulse_duration:.6f}, ' \
-        f'actual data duration: {data_duration:.6f}.'
+        f'Expected duration: {impulse_duration}, ' \
+        f'actual data duration: {data_duration}.'
 
       if is_pre_timestamped:
         raise ValueError(
@@ -274,8 +266,8 @@ class PeriodicImpulse(PTransform):
 
   def __init__(
       self,
-      start_timestamp: Timestamp = Timestamp.now(),
-      stop_timestamp: Timestamp = MAX_TIMESTAMP,
+      start_timestamp: TimestampTypes = Timestamp.now(),
+      stop_timestamp: TimestampTypes = MAX_TIMESTAMP,
       fire_interval: float = 360.0,
       apply_windowing: bool = False,
       data: Optional[Sequence[Any]] = None):

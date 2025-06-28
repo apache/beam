@@ -261,22 +261,45 @@ class PeriodicImpulseTest(unittest.TestCase):
                 data=data,
                 fire_interval=0.5))
 
-  def test_fuzzy_interval(self):
-    seed = int(time.time() * 1000)
+  def test_fuzzy_length_and_interval(self):
     times = 30
-    logging.warning("random seed=%d", seed)
-    random.seed(seed)
     for _ in range(times):
+      seed = int(time.time() * 1000)
+      random.seed(seed)
       n = int(random.randint(1, 100))
       data = list(range(n))
       m = random.randint(1, 1000)
       interval = m / 1e6
       now = Timestamp.now()
-      with TestPipeline() as p:
-        ret = (
-            p | PeriodicImpulse(
-                start_timestamp=now, data=data, fire_interval=interval))
-        assert_that(ret, equal_to(data))
+      try:
+        with TestPipeline() as p:
+          ret = (
+              p | PeriodicImpulse(
+                  start_timestamp=now, data=data, fire_interval=interval))
+          assert_that(ret, equal_to(data))
+      except Exception as e:  # pylint: disable=broad-except
+        logging.error("Error occurred at random seed=%d", seed)
+        raise e
+
+  def test_fuzzy_length_at_minimal_interval(self):
+    times = 30
+    for _ in range(times):
+      seed = int(time.time() * 1000)
+      seed = 1751135957975
+      random.seed(seed)
+      n = int(random.randint(1, 100))
+      data = list(range(n))
+      interval = 1e-6
+      now = Timestamp.now()
+      try:
+        with TestPipeline() as p:
+          ret = (
+              p | PeriodicImpulse(
+                  start_timestamp=now, data=data, fire_interval=interval))
+          assert_that(ret, equal_to(data))
+      except Exception as e:  # pylint: disable=broad-except
+        logging.error("Error occurred at random seed=%d", seed)
+        raise e
 
 
 if __name__ == '__main__':
