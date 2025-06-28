@@ -32,8 +32,8 @@ from apache_beam.transforms import window
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import timestamp
-from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
+from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.timestamp import TimestampTypes
 
