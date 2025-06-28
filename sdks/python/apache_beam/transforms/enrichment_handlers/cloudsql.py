@@ -150,19 +150,24 @@ class CloudSQLConnectionConfig(ConnectionConfig):
           raise ValueError("Instance connection URI cannot be empty")
 
     def get_connector_handler(self) -> Callable[[], DBAPIConnection]:
-        cloudsql_client = CloudSQLConnector(
-            refresh_strategy=self.refresh_strategy,
-            **self.connector_kwargs)
+      """Returns a function that creates a new database connection.
 
-        cloudsql_connector = lambda: cloudsql_client.connect(
-            instance_connection_string=self.instance_connection_uri,
-            driver=self.db_adapter.value,
-            user=self.user,
-            password=self.password,
-            db=self.db_id,
-            **self.connect_kwargs)
+      The returned connector function creates database connections that should
+      be properly closed by the caller when no longer needed.
+      """
+      cloudsql_client = CloudSQLConnector(
+          refresh_strategy=self.refresh_strategy,
+          **self.connector_kwargs)
 
-        return cloudsql_connector
+      cloudsql_connector = lambda: cloudsql_client.connect(
+          instance_connection_string=self.instance_connection_uri,
+          driver=self.db_adapter.value,
+          user=self.user,
+          password=self.password,
+          db=self.db_id,
+          **self.connect_kwargs)
+
+      return cloudsql_connector
 
     def get_db_url(self) -> str:
         return self.db_adapter.to_sqlalchemy_dialect() + "://"
@@ -195,22 +200,23 @@ class ExternalSQLDBConnectionConfig(ConnectionConfig):
           raise ValueError("Database host cannot be empty")
 
     def get_connector_handler(self) -> Callable[[], DBAPIConnection]:
+      """Returns a function that creates a new database connection.
+
+      The returned connector function creates database connections that should
+      be properly closed by the caller when no longer needed.
+      """
       if self.db_adapter == DatabaseTypeAdapter.POSTGRESQL:
-        # It is automatically closed upstream by sqlalchemy context manager.
         sql_connector = lambda: pg8000.connect(
             host=self.host, port=self.port, database=self.db_id,
             user=self.user, password=self.password, **self.connect_kwargs)
       elif self.db_adapter == DatabaseTypeAdapter.MYSQL:
-        # It is automatically closed upstream by sqlalchemy context manager.
         sql_connector = lambda: pymysql.connect(
             host=self.host, port=self.port, database=self.db_id,
             user=self.user, password=self.password, **self.connect_kwargs)
       elif self.db_adapter == DatabaseTypeAdapter.SQLSERVER:
-        # It is automatically closed upstream by sqlalchemy context manager.
         sql_connector = lambda: pytds.connect(
             dsn=self.host, port=self.port, database=self.db_id, user=self.user,
             password=self.password, **self.connect_kwargs)
-
       return sql_connector
 
     def get_db_url(self) -> str:
