@@ -41,8 +41,7 @@ try:
       enrichment_with_external_mysql,
       enrichment_with_external_sqlserver)
   from apache_beam.transforms.enrichment_handlers.cloudsql import (
-      DatabaseTypeAdapter,
-      SQLClientConnectionHandler)
+      DatabaseTypeAdapter, SQLClientConnectionHandler)
   from apache_beam.transforms.enrichment_handlers.cloudsql_it_test import (
       SQLEnrichmentTestHelper,
       SQLDBContainerInfo,
@@ -117,46 +116,46 @@ class EnrichmentTest(unittest.TestCase):
   def test_enrichment_with_google_cloudsql_pg(self, mock_stdout):
     db_adapter = DatabaseTypeAdapter.POSTGRESQL
     with EnrichmentTestHelpers.sql_test_context(True, db_adapter):
-        try:
-            enrichment_with_google_cloudsql_pg()
-            output = mock_stdout.getvalue().splitlines()
-            expected = validate_enrichment_with_sql()
-            self.assertEqual(output, expected)
-        except Exception as e:
-            self.fail(f"Test failed with unexpected error: {e}")
+      try:
+        enrichment_with_google_cloudsql_pg()
+        output = mock_stdout.getvalue().splitlines()
+        expected = validate_enrichment_with_sql()
+        self.assertEqual(output, expected)
+      except Exception as e:
+        self.fail(f"Test failed with unexpected error: {e}")
 
   def test_enrichment_with_external_pg(self, mock_stdout):
     db_adapter = DatabaseTypeAdapter.POSTGRESQL
     with EnrichmentTestHelpers.sql_test_context(False, db_adapter):
-        try:
-            enrichment_with_external_pg()
-            output = mock_stdout.getvalue().splitlines()
-            expected = validate_enrichment_with_sql()
-            self.assertEqual(output, expected)
-        except Exception as e:
-            self.fail(f"Test failed with unexpected error: {e}")
+      try:
+        enrichment_with_external_pg()
+        output = mock_stdout.getvalue().splitlines()
+        expected = validate_enrichment_with_sql()
+        self.assertEqual(output, expected)
+      except Exception as e:
+        self.fail(f"Test failed with unexpected error: {e}")
 
   def test_enrichment_with_external_mysql(self, mock_stdout):
     db_adapter = DatabaseTypeAdapter.MYSQL
     with EnrichmentTestHelpers.sql_test_context(False, db_adapter):
-        try:
-            enrichment_with_external_mysql()
-            output = mock_stdout.getvalue().splitlines()
-            expected = validate_enrichment_with_sql()
-            self.assertEqual(output, expected)
-        except Exception as e:
-            self.fail(f"Test failed with unexpected error: {e}")
+      try:
+        enrichment_with_external_mysql()
+        output = mock_stdout.getvalue().splitlines()
+        expected = validate_enrichment_with_sql()
+        self.assertEqual(output, expected)
+      except Exception as e:
+        self.fail(f"Test failed with unexpected error: {e}")
 
   def test_enrichment_with_external_sqlserver(self, mock_stdout):
     db_adapter = DatabaseTypeAdapter.SQLSERVER
     with EnrichmentTestHelpers.sql_test_context(False, db_adapter):
-        try:
-            enrichment_with_external_sqlserver()
-            output = mock_stdout.getvalue().splitlines()
-            expected = validate_enrichment_with_sql()
-            self.assertEqual(output, expected)
-        except Exception as e:
-            self.fail(f"Test failed with unexpected error: {e}")
+      try:
+        enrichment_with_external_sqlserver()
+        output = mock_stdout.getvalue().splitlines()
+        expected = validate_enrichment_with_sql()
+        self.assertEqual(output, expected)
+      except Exception as e:
+        self.fail(f"Test failed with unexpected error: {e}")
 
 
 @dataclass
@@ -166,13 +165,14 @@ class CloudSQLEnrichmentTestDataConstruct:
   metadata: MetaData
   db: SQLDBContainerInfo = None
 
+
 class EnrichmentTestHelpers:
   @contextmanager
   def sql_test_context(is_cloudsql: bool, db_adapter: DatabaseTypeAdapter):
     result: Optional[CloudSQLEnrichmentTestDataConstruct] = None
     try:
       result = EnrichmentTestHelpers.pre_sql_enrichment_test(
-        is_cloudsql, db_adapter)
+          is_cloudsql, db_adapter)
       yield
     finally:
       if result:
@@ -180,8 +180,8 @@ class EnrichmentTestHelpers:
 
   @staticmethod
   def pre_sql_enrichment_test(
-    is_cloudsql: bool,
-    db_adapter: DatabaseTypeAdapter) -> CloudSQLEnrichmentTestDataConstruct:
+      is_cloudsql: bool,
+      db_adapter: DatabaseTypeAdapter) -> CloudSQLEnrichmentTestDataConstruct:
     table_id = "products_catalog"
     columns = [
         Column("product_id", Integer, primary_key=True),
@@ -251,10 +251,10 @@ class EnrichmentTestHelpers:
         metadata=metadata)
 
     result = CloudSQLEnrichmentTestDataConstruct(
-      db=db,
-      client_handler=sql_client_handler,
-      engine=engine,
-      metadata=metadata)
+        db=db,
+        client_handler=sql_client_handler,
+        engine=engine,
+        metadata=metadata)
     return result
 
   @staticmethod

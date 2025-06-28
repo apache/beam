@@ -122,7 +122,7 @@ class ConnectionConfig(ABC):
 
 @dataclass
 class CloudSQLConnectionConfig(ConnectionConfig):
-    """Connects to Google Cloud SQL using Cloud SQL Python Connector.
+  """Connects to Google Cloud SQL using Cloud SQL Python Connector.
 
     Args:
         db_adapter: The database adapter type (PostgreSQL, MySQL, SQL Server).
@@ -136,46 +136,42 @@ class CloudSQLConnectionConfig(ConnectionConfig):
         connect_kwargs: Additional keyword arguments for the client connect
           method. Enables forward compatibility.
     """
-    db_adapter: DatabaseTypeAdapter
-    instance_connection_uri: str
-    user: str = field(default_factory=str)
-    password: str = field(default_factory=str)
-    db_id: str = field(default_factory=str)
-    refresh_strategy: RefreshStrategy = RefreshStrategy.LAZY
-    connector_kwargs: Dict[str, Any] = field(default_factory=dict)
-    connect_kwargs: Dict[str, Any] = field(default_factory=dict)
+  db_adapter: DatabaseTypeAdapter
+  instance_connection_uri: str
+  user: str = field(default_factory=str)
+  password: str = field(default_factory=str)
+  db_id: str = field(default_factory=str)
+  refresh_strategy: RefreshStrategy = RefreshStrategy.LAZY
+  connector_kwargs: Dict[str, Any] = field(default_factory=dict)
+  connect_kwargs: Dict[str, Any] = field(default_factory=dict)
 
-    def __post_init__(self):
-      if not self.instance_connection_uri:
-          raise ValueError("Instance connection URI cannot be empty")
+  def __post_init__(self):
+    if not self.instance_connection_uri:
+      raise ValueError("Instance connection URI cannot be empty")
 
-    def get_connector_handler(self) -> Callable[[], DBAPIConnection]:
-      """Returns a function that creates a new database connection.
+  def get_connector_handler(self) -> Callable[[], DBAPIConnection]:
+    """Returns a function that creates a new database connection.
 
       The returned connector function creates database connections that should
       be properly closed by the caller when no longer needed.
       """
-      cloudsql_client = CloudSQLConnector(
-          refresh_strategy=self.refresh_strategy,
-          **self.connector_kwargs)
+    cloudsql_client = CloudSQLConnector(
+        refresh_strategy=self.refresh_strategy, **self.connector_kwargs)
 
-      cloudsql_connector = lambda: cloudsql_client.connect(
-          instance_connection_string=self.instance_connection_uri,
-          driver=self.db_adapter.value,
-          user=self.user,
-          password=self.password,
-          db=self.db_id,
-          **self.connect_kwargs)
+    cloudsql_connector = lambda: cloudsql_client.connect(
+        instance_connection_string=self.instance_connection_uri, driver=self.
+        db_adapter.value, user=self.user, password=self.password, db=self.db_id,
+        **self.connect_kwargs)
 
-      return cloudsql_connector
+    return cloudsql_connector
 
-    def get_db_url(self) -> str:
-        return self.db_adapter.to_sqlalchemy_dialect() + "://"
+  def get_db_url(self) -> str:
+    return self.db_adapter.to_sqlalchemy_dialect() + "://"
 
 
 @dataclass
 class ExternalSQLDBConnectionConfig(ConnectionConfig):
-    """Connects to External SQL DBs (PostgreSQL, MySQL, SQL Server) over TCP.
+  """Connects to External SQL DBs (PostgreSQL, MySQL, SQL Server) over TCP.
 
     Args:
         db_adapter: The database adapter type (PostgreSQL, MySQL, SQL Server).
@@ -187,40 +183,40 @@ class ExternalSQLDBConnectionConfig(ConnectionConfig):
         connect_kwargs: Additional keyword arguments for the client connect
           method. Enables forward compatibility.
     """
-    db_adapter: DatabaseTypeAdapter
-    host: str
-    port: int
-    user: str = field(default_factory=str)
-    password: str  = field(default_factory=str)
-    db_id: str = field(default_factory=str)
-    connect_kwargs: Dict[str, Any] = field(default_factory=dict)
+  db_adapter: DatabaseTypeAdapter
+  host: str
+  port: int
+  user: str = field(default_factory=str)
+  password: str = field(default_factory=str)
+  db_id: str = field(default_factory=str)
+  connect_kwargs: Dict[str, Any] = field(default_factory=dict)
 
-    def __post_init__(self):
-      if not self.host:
-          raise ValueError("Database host cannot be empty")
+  def __post_init__(self):
+    if not self.host:
+      raise ValueError("Database host cannot be empty")
 
-    def get_connector_handler(self) -> Callable[[], DBAPIConnection]:
-      """Returns a function that creates a new database connection.
+  def get_connector_handler(self) -> Callable[[], DBAPIConnection]:
+    """Returns a function that creates a new database connection.
 
       The returned connector function creates database connections that should
       be properly closed by the caller when no longer needed.
       """
-      if self.db_adapter == DatabaseTypeAdapter.POSTGRESQL:
-        sql_connector = lambda: pg8000.connect(
-            host=self.host, port=self.port, database=self.db_id,
-            user=self.user, password=self.password, **self.connect_kwargs)
-      elif self.db_adapter == DatabaseTypeAdapter.MYSQL:
-        sql_connector = lambda: pymysql.connect(
-            host=self.host, port=self.port, database=self.db_id,
-            user=self.user, password=self.password, **self.connect_kwargs)
-      elif self.db_adapter == DatabaseTypeAdapter.SQLSERVER:
-        sql_connector = lambda: pytds.connect(
-            dsn=self.host, port=self.port, database=self.db_id, user=self.user,
-            password=self.password, **self.connect_kwargs)
-      return sql_connector
+    if self.db_adapter == DatabaseTypeAdapter.POSTGRESQL:
+      sql_connector = lambda: pg8000.connect(
+          host=self.host, port=self.port, database=self.db_id, user=self.user,
+          password=self.password, **self.connect_kwargs)
+    elif self.db_adapter == DatabaseTypeAdapter.MYSQL:
+      sql_connector = lambda: pymysql.connect(
+          host=self.host, port=self.port, database=self.db_id, user=self.user,
+          password=self.password, **self.connect_kwargs)
+    elif self.db_adapter == DatabaseTypeAdapter.SQLSERVER:
+      sql_connector = lambda: pytds.connect(
+          dsn=self.host, port=self.port, database=self.db_id, user=self.user,
+          password=self.password, **self.connect_kwargs)
+    return sql_connector
 
-    def get_db_url(self) -> str:
-        return self.db_adapter.to_sqlalchemy_dialect() + "://"
+  def get_db_url(self) -> str:
+    return self.db_adapter.to_sqlalchemy_dialect() + "://"
 
 
 QueryConfig = Union[CustomQueryConfig,
@@ -317,30 +313,29 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
   def __enter__(self):
     connector = self._connection_config.get_connector_handler()
     self._engine = create_engine(
-        url=self._connection_config.get_db_url(),
-        creator=connector)
+        url=self._connection_config.get_db_url(), creator=connector)
 
   def _execute_query(self, query: str, is_batch: bool, **params):
     try:
       connection = self._engine.connect()
       transaction = connection.begin()
       try:
-          result = connection.execute(text(query), **params)
-          # Materialize results while transaction is active.
-          if is_batch:
-            data = [row._asdict() for row in result]
-          else:
-            data = result.first()._asdict()
-          # Explicitly commit the transaction.
-          transaction.commit()
-          return data
+        result = connection.execute(text(query), **params)
+        # Materialize results while transaction is active.
+        if is_batch:
+          data = [row._asdict() for row in result]
+        else:
+          data = result.first()._asdict()
+        # Explicitly commit the transaction.
+        transaction.commit()
+        return data
       except Exception as e:
         transaction.rollback()
         raise RuntimeError(f"Database operation failed: {e}")
     except Exception as e:
       raise Exception(
-            f'Could not execute the query: {query}. Please check if '
-            f'the query is properly formatted and the table exists. {e}')
+          f'Could not execute the query: {query}. Please check if '
+          f'the query is properly formatted and the table exists. {e}')
     finally:
       if connection:
         connection.close()

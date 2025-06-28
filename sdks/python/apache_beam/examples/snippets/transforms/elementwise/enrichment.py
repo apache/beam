@@ -164,7 +164,8 @@ def enrichment_with_google_cloudsql_pg():
     _ = (
         p
         | "Create" >> beam.Create(data)
-        | "Enrich W/ Google CloudSQL PostgreSQL" >> Enrichment(cloudsql_handler)
+        |
+        "Enrich W/ Google CloudSQL PostgreSQL" >> Enrichment(cloudsql_handler)
         | "Print" >> beam.Map(print))
   # [END enrichment_with_google_cloudsql_pg]
 

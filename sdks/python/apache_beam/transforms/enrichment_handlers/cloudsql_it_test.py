@@ -192,12 +192,12 @@ class SQLEnrichmentTestHelper:
 
     # Create contextual connection for schema creation.
     with engine.connect() as schema_connection:
-        try:
-            metadata.create_all(schema_connection)
-            schema_connection.commit()
-        except Exception as e:
-            schema_connection.rollback()
-            raise RuntimeError(f"Failed to create table schema: {e}")
+      try:
+        metadata.create_all(schema_connection)
+        schema_connection.commit()
+      except Exception as e:
+        schema_connection.rollback()
+        raise RuntimeError(f"Failed to create table schema: {e}")
 
     # Now create a separate contextual connection for data insertion.
     with engine.connect() as connection:
@@ -207,6 +207,7 @@ class SQLEnrichmentTestHelper:
       except Exception as e:
         connection.rollback()
         raise Exception(f"Failed to insert table data: {e}")
+
 
 @pytest.mark.uses_testcontainer
 class BaseTestSQLEnrichment(unittest.TestCase):
@@ -251,8 +252,7 @@ class BaseTestSQLEnrichment(unittest.TestCase):
 
     connector = cls._connection_config.get_connector_handler()
     cls._engine = create_engine(
-        url=cls._connection_config.get_db_url(),
-        creator=connector)
+        url=cls._connection_config.get_db_url(), creator=connector)
 
     SQLEnrichmentTestHelper.create_table(
         table_id=cls._table_id,
@@ -452,7 +452,7 @@ class BaseTestSQLEnrichment(unittest.TestCase):
         column_names=["wrong_column"],
     )
 
-    with self.assertRaises(Exception) as context: 
+    with self.assertRaises(Exception) as context:
       with TestPipeline() as p:
         _ = (p | beam.Create(requests) | Enrichment(handler))
 
@@ -573,8 +573,7 @@ class BaseExternalSQLDBEnrichment(BaseTestSQLEnrichment):
     # Type hint data from subclasses.
     cls._db_adapter: DatabaseTypeAdapter
 
-    cls._db = SQLEnrichmentTestHelper.start_sql_db_container(
-        cls._db_adapter)
+    cls._db = SQLEnrichmentTestHelper.start_sql_db_container(cls._db_adapter)
     cls._connection_config = ExternalSQLDBConnectionConfig(
         db_adapter=cls._db_adapter,
         host=cls._db.host,

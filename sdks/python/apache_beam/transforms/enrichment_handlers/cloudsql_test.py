@@ -57,7 +57,7 @@ class TestCloudSQLEnrichment(unittest.TestCase):
           password='',
           db_id='')
     self.assertIn(
-      "Instance connection URI cannot be empty", str(context.exception))
+        "Instance connection URI cannot be empty", str(context.exception))
 
   @parameterized.expand([
       # Empty TableFieldsQueryConfig.
