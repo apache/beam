@@ -14,24 +14,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from abc import abstractmethod, ABC
+from abc import ABC
+from abc import abstractmethod
 from collections.abc import Callable
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from dataclasses import field
 from enum import Enum
-from typing import Any, Dict
+from typing import Any
+from typing import Dict
 from typing import List
 from typing import Optional
 from typing import Union
 
-import pymysql
 import pg8000
+import pymysql
 import pytds
+from google.cloud.sql.connector import Connector as CloudSQLConnector
+from google.cloud.sql.connector.enums import RefreshStrategy
 from sqlalchemy import create_engine
 from sqlalchemy import text
 from sqlalchemy.engine import Connection as DBAPIConnection
-from google.cloud.sql.connector.enums import RefreshStrategy
-from google.cloud.sql.connector import Connector as CloudSQLConnector
 
 import apache_beam as beam
 from apache_beam.transforms.enrichment import EnrichmentSourceHandler
