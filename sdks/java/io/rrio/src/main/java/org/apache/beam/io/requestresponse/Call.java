@@ -21,7 +21,6 @@ import static org.apache.beam.io.requestresponse.Monitoring.incIfPresent;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.google.auto.value.AutoValue;
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.Optional;
 import java.util.concurrent.Callable;
@@ -353,8 +352,6 @@ class Call<RequestT, ResponseT> extends PTransform<PCollection<RequestT>, Result
           incIfPresent(sleeperCounter);
           sleeper.sleep(backOff.nextBackOffMillis());
         } catch (InterruptedException ignored) {
-        } catch (IOException e) {
-          throw new RuntimeException(e);
         }
       }
     }

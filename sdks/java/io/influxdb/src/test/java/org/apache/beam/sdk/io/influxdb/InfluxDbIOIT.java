@@ -95,7 +95,7 @@ public class InfluxDbIOIT {
   }
 
   @Before
-  public void initTest() throws IOException, InterruptedException {
+  public void initTest() throws InterruptedException {
     BackOff backOff = FluentBackoff.DEFAULT.withMaxRetries(4).backoff();
     Query createQuery = new Query(String.format("CREATE DATABASE %s", options.getDatabaseName()));
     try (InfluxDB connection =

@@ -60,7 +60,7 @@ class ShardListingUtils {
 
   static ShardFilter buildShardFilterForStartingPoint(
       KinesisClient kinesisClient, String streamName, StartingPoint startingPoint)
-      throws IOException, InterruptedException {
+      throws InterruptedException {
     InitialPositionInStream position = startingPoint.getPosition();
     switch (position) {
       case LATEST:
@@ -77,8 +77,8 @@ class ShardListingUtils {
   }
 
   private static ShardFilter buildShardFilterForTimestamp(
-      KinesisClient kinesisClient, String streamName, Instant startingPointTimestamp)
-      throws IOException, InterruptedException {
+      KinesisClient kinesisClient, String streamName, Instant startingPointTimestamp) throws
+       InterruptedException {
     StreamDescriptionSummary streamDescription = describeStreamSummary(kinesisClient, streamName);
 
     Instant streamCreationTimestamp = TimeUtil.toJoda(streamDescription.streamCreationTimestamp());
@@ -104,7 +104,7 @@ class ShardListingUtils {
 
   private static StreamDescriptionSummary describeStreamSummary(
       KinesisClient kinesisClient, final String streamName)
-      throws IOException, InterruptedException {
+      throws InterruptedException {
     // DescribeStreamSummary has limits that can be hit fairly easily if we are attempting
     // to configure multiple KinesisIO inputs in the same account. Retry up to
     // DESCRIBE_STREAM_SUMMARY_MAX_ATTEMPTS times if we end up hitting that limit.
