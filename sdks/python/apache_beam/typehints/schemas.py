@@ -160,8 +160,8 @@ def named_fields_to_schema(
                   option_to_runner_api(option_tuple)
                   for option_tuple in field_options.get(name, [])
               ],
-              description=field_descriptions.get(name, None)
-          ) for (name, type) in names_and_types
+              description=field_descriptions.get(name, None))
+          for (name, type) in names_and_types
       ],
       options=[
           option_to_runner_api(option_tuple) for option_tuple in schema_options
