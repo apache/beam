@@ -22,7 +22,11 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTableProvider.JsonToRow;
 import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTableProvider.RowToJson;
+import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.Row;
 
 /**
  * {@link TextJsonTable} is a {@link BeamSqlTable} that reads text files and converts them according
@@ -38,5 +42,12 @@ public class TextJsonTable extends TextTable {
   public TextJsonTable(
       Schema schema, String filePattern, JsonToRow readConverter, RowToJson writerConverter) {
     super(schema, filePattern, readConverter, writerConverter);
+  }
+
+  @Override
+  public PDone buildIOWriter(PCollection<Row> input) {
+    return input
+        .apply("RowToString", writeConverter)
+        .apply("WriteTextFiles", TextIO.write().to(getFilePattern()));
   }
 }

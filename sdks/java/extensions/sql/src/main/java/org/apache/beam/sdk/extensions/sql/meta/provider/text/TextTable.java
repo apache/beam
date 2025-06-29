@@ -50,7 +50,7 @@ import org.slf4j.LoggerFactory;
 public class TextTable extends SchemaBaseBeamTable {
 
   private final PTransform<PCollection<String>, PCollection<Row>> readConverter;
-  private final PTransform<PCollection<Row>, PCollection<String>> writeConverter;
+  protected final PTransform<PCollection<Row>, PCollection<String>> writeConverter;
   private static final TextRowCountEstimator.SamplingStrategy DEFAULT_SAMPLING_STRATEGY =
       new TextRowCountEstimator.LimitNumberOfTotalBytes(1024 * 1024L);
   private final String filePattern;
