@@ -1,0 +1,10 @@
+{
+  "commentedAboutFailingChecks": false,
+  "reviewersAssignedForLabels": {},
+  "nextAction": "Author",
+  "stopReviewerNotifications": false,
+  "remindAfterTestsPass": [
+    "shunping"
+  ],
+  "committerAssigned": false
+}
