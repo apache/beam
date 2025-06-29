@@ -319,11 +319,11 @@ class PeriodicImpulse(PTransform):
         | 'GenSequence' >> beam.ParDo(ImpulseSeqGenDoFn(self.data)))
 
     if not self.data:
-      # This step is only to ensure the current PTransform expansion is
-      # compatible with the previous Beam versions.
-      result = (
-          result
-          | 'MapToTimestamped' >> beam.Map(lambda tt: TimestampedValue(tt, tt)))
+      # This step is actually an identity transform, because the Timestamped
+      # values have already been generated in `ImpulseSeqGenDoFn`.
+      # We keep this step here to prevent the current PeriodicImpulse from
+      # breaking the compatibility.
+      result = (result | 'MapToTimestamped' >> beam.Map(lambda tt: tt))
 
     if self.apply_windowing:
       result = result | 'ApplyWindowing' >> beam.WindowInto(
