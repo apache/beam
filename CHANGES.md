@@ -75,6 +75,10 @@
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Add pip-based install support for JupyterLab Sidepanel extension ([#35397](https://github.com/apache/beam/issues/#35397)).
+* Google CloudSQL enrichment handler added (Python) ([#34398](https://github.com/apache/beam/pull/34398)).
+  Beam now supports data enrichment capabilities using SQL databases, with built-in support for:
+  - Managed PostgreSQL, MySQL, and Microsoft SQL Server instances on CloudSQL
+  - Unmanaged SQL database instances not hosted on CloudSQL (e.g., self-hosted or on-premises databases)
 
 ## Breaking Changes
 
