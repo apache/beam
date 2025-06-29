@@ -644,37 +644,136 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
             // Given that we split
             // the ProtoRows iterable at 2MB and the max request size is 10MB, this scenario seems
             // nearly impossible.
-            LOG.error(
+            LOG.warn(
                 "A request containing more than one row is over the request size limit of {}. "
-                    + "This is unexpected. All rows in the request will be sent to the failed-rows PCollection.",
+                    + "This is unexpected. BigQueryIO will now split the request and send valid rows individually.",
                 maxRequestSize);
           }
+          // We will split the ProtoRows and send them in smaller batches.
+          ProtoRows.Builder nextRows = ProtoRows.newBuilder();
+          List<org.joda.time.Instant> nextTimestamps = Lists.newArrayList();
+          List<@Nullable TableRow> nextFailsafeTableRows = Lists.newArrayList();
+
           for (int i = 0; i < inserts.getSerializedRowsCount(); ++i) {
-            @Nullable TableRow failedRow = failsafeTableRows.get(i);
-            if (failedRow == null) {
-              ByteString rowBytes = inserts.getSerializedRows(i);
-              failedRow =
-                  TableRowToStorageApiProto.tableRowFromMessage(
-                      DynamicMessage.parseFrom(
-                          TableRowToStorageApiProto.wrapDescriptorProto(
-                              getAppendClientInfo(true, null).getDescriptor()),
-                          rowBytes),
-                      true,
-                      successfulRowsPredicate);
+            ByteString rowBytes = inserts.getSerializedRows(i);
+            if (nextRows.build().getSerializedSize() + rowBytes.size() >= maxRequestSize
+                && nextRows.getSerializedRowsCount() > 0) {
+              long offset = -1;
+              if (!this.useDefaultStream) {
+                offset = this.currentOffset;
+                this.currentOffset += nextRows.getSerializedRowsCount();
+              }
+              AppendRowsContext context =
+                  new AppendRowsContext(
+                      offset, nextRows.build(), nextTimestamps, nextFailsafeTableRows);
+              retryManager.addOperation(
+                  c -> {
+                    if (c.protoRows.getSerializedRowsCount() == 0) {
+                      // This might happen if all rows in a batch failed and were sent to the
+                      // failed-rows
+                      // PCollection.
+                      return ApiFutures.immediateFuture(AppendRowsResponse.newBuilder().build());
+                    }
+                    try {
+                      StreamAppendClient writeStream =
+                          Preconditions.checkStateNotNull(
+                              getAppendClientInfo(true, null).getStreamAppendClient());
+                      ApiFuture<AppendRowsResponse> response =
+                          writeStream.appendRows(c.offset, c.protoRows);
+                      inflightWaitSecondsDistribution.update(writeStream.getInflightWaitSeconds());
+                      if (!usingMultiplexing) {
+                        if (writeStream.getInflightWaitSeconds() > 5) {
+                          LOG.warn(
+                              "Storage Api write delay more than {} seconds.",
+                              writeStream.getInflightWaitSeconds());
+                        }
+                      }
+                      return response;
+                    } catch (Exception e) {
+                      throw new RuntimeException(e);
+                    }
+                  },
+                  contexts -> {
+                    return RetryType.RETRY_ALL_OPERATIONS;
+                  },
+                  c -> {},
+                  context);
+              nextRows = ProtoRows.newBuilder();
+              nextTimestamps = Lists.newArrayList();
+              nextFailsafeTableRows = Lists.newArrayList();
             }
-            org.joda.time.Instant timestamp = insertTimestamps.get(i);
-            failedRowsReceiver.outputWithTimestamp(
-                new BigQueryStorageApiInsertError(
-                    failedRow, "Row payload too large. Maximum size " + maxRequestSize),
-                timestamp);
+            if (rowBytes.size() >= maxRequestSize) {
+              // This single row is too large, send it to the failed rows PCollection.
+              @Nullable TableRow failedRow = failsafeTableRows.get(i);
+              if (failedRow == null) {
+                failedRow =
+                    TableRowToStorageApiProto.tableRowFromMessage(
+                        DynamicMessage.parseFrom(
+                            TableRowToStorageApiProto.wrapDescriptorProto(
+                                getAppendClientInfo(true, null).getDescriptor()),
+                            rowBytes),
+                        true,
+                        successfulRowsPredicate);
+              }
+              org.joda.time.Instant timestamp = insertTimestamps.get(i);
+              failedRowsReceiver.outputWithTimestamp(
+                  new BigQueryStorageApiInsertError(
+                      failedRow, "Row payload too large. Maximum size " + maxRequestSize),
+                  timestamp);
+              rowsSentToFailedRowsCollection.inc();
+              BigQuerySinkMetrics.appendRowsRowStatusCounter(
+                      BigQuerySinkMetrics.RowStatus.FAILED,
+                      BigQuerySinkMetrics.PAYLOAD_TOO_LARGE,
+                      shortTableUrn)
+                  .inc(1);
+            } else {
+              nextRows.addSerializedRows(rowBytes);
+              nextTimestamps.add(insertTimestamps.get(i));
+              nextFailsafeTableRows.add(failsafeTableRows.get(i));
+            }
           }
-          int numRowsFailed = inserts.getSerializedRowsCount();
-          BigQuerySinkMetrics.appendRowsRowStatusCounter(
-                  BigQuerySinkMetrics.RowStatus.FAILED,
-                  BigQuerySinkMetrics.PAYLOAD_TOO_LARGE,
-                  shortTableUrn)
-              .inc(numRowsFailed);
-          rowsSentToFailedRowsCollection.inc(numRowsFailed);
+          if (nextRows.getSerializedRowsCount() > 0) {
+            long offset = -1;
+            if (!this.useDefaultStream) {
+              offset = this.currentOffset;
+              this.currentOffset += nextRows.getSerializedRowsCount();
+            }
+            AppendRowsContext context =
+                new AppendRowsContext(
+                    offset, nextRows.build(), nextTimestamps, nextFailsafeTableRows);
+            retryManager.addOperation(
+                c -> {
+                  if (c.protoRows.getSerializedRowsCount() == 0) {
+                    // This might happen if all rows in a batch failed and were sent to the
+                    // failed-rows
+                    // PCollection.
+                    return ApiFutures.immediateFuture(AppendRowsResponse.newBuilder().build());
+                  }
+                  try {
+                    StreamAppendClient writeStream =
+                        Preconditions.checkStateNotNull(
+                            getAppendClientInfo(true, null).getStreamAppendClient());
+                    ApiFuture<AppendRowsResponse> response =
+                        writeStream.appendRows(c.offset, c.protoRows);
+                    inflightWaitSecondsDistribution.update(writeStream.getInflightWaitSeconds());
+                    if (!usingMultiplexing) {
+                      if (writeStream.getInflightWaitSeconds() > 5) {
+                        LOG.warn(
+                            "Storage Api write delay more than {} seconds.",
+                            writeStream.getInflightWaitSeconds());
+                      }
+                    }
+                    return response;
+                  } catch (Exception e) {
+                    throw new RuntimeException(e);
+                  }
+                },
+                contexts -> {
+                  return RetryType.RETRY_ALL_OPERATIONS;
+                },
+                c -> {},
+                context);
+          }
           return 0;
         }
 
