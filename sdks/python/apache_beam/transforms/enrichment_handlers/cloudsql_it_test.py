@@ -20,7 +20,6 @@ import os
 import unittest
 from dataclasses import dataclass
 from typing import Optional
-from typing import Tuple
 from unittest.mock import MagicMock
 
 import pytest
