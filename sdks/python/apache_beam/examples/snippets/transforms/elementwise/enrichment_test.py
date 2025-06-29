@@ -269,8 +269,7 @@ class EnrichmentTestHelpers:
 
     conenctor = connection_config.get_connector_handler()
     engine = create_engine(
-        url=connection_config.get_db_url(),
-        creator=conenctor)
+        url=connection_config.get_db_url(), creator=conenctor)
 
     SQLEnrichmentTestHelper.create_table(
         table_id=table_id,
