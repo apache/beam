@@ -31,7 +31,6 @@ public interface BeamSqlPipelineOptions extends PipelineOptions {
   void setPlannerName(String className);
 
   @Description("The dialect of calcite connection.")
-  @Default.String("CALCITE")
   String getCalciteConnectionDialect();
 
   void setCalciteConnectionDialect(String dialect);
