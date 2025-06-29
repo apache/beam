@@ -115,7 +115,7 @@ class _VertexAITextEmbeddingHandler(ModelHandler):
   def get_request(
       self,
       text_batch: Sequence[TextEmbeddingInput],
-      model: MultiModalEmbeddingModel,
+      model: TextEmbeddingModel,
       throttle_delay_secs: int):
     while self.throttler.throttle_request(time.time() * _MSEC_TO_SEC):
       LOGGER.info(
@@ -126,7 +126,7 @@ class _VertexAITextEmbeddingHandler(ModelHandler):
 
     try:
       req_time = time.time()
-      prediction = model.get_embeddings(text_batch)
+      prediction = model.get_embeddings(list(text_batch))
       self.throttler.successful_request(req_time * _MSEC_TO_SEC)
       return prediction
     except TooManyRequests as e:
@@ -145,11 +145,11 @@ class _VertexAITextEmbeddingHandler(ModelHandler):
     embeddings = []
     batch_size = _BATCH_SIZE
     for i in range(0, len(batch), batch_size):
-      text_batch = batch[i:i + batch_size]
+      text_batch_strs = batch[i:i + batch_size]
       text_batch = [
           TextEmbeddingInput(
               text=text, title=self.title, task_type=self.task_type)
-          for text in text_batch
+          for text in text_batch_strs
       ]
       embeddings_batch = self.get_request(
           text_batch=text_batch, model=model, throttle_delay_secs=5)

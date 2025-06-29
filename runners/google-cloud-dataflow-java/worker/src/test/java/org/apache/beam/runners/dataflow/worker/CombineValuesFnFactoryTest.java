@@ -50,11 +50,11 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.util.AppliedCombineFn;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -235,17 +235,17 @@ public class CombineValuesFnFactoryTest {
 
     combineParDoFn.startBundle(receiver);
     combineParDoFn.processElement(
-        WindowedValue.valueInGlobalWindow(KV.of("a", Arrays.asList(5, 6, 7))));
+        WindowedValues.valueInGlobalWindow(KV.of("a", Arrays.asList(5, 6, 7))));
     combineParDoFn.processElement(
-        WindowedValue.valueInGlobalWindow(KV.of("b", Arrays.asList(1, 3, 7))));
+        WindowedValues.valueInGlobalWindow(KV.of("b", Arrays.asList(1, 3, 7))));
     combineParDoFn.processElement(
-        WindowedValue.valueInGlobalWindow(KV.of("c", Arrays.asList(3, 6, 8, 9))));
+        WindowedValues.valueInGlobalWindow(KV.of("c", Arrays.asList(3, 6, 8, 9))));
     combineParDoFn.finishBundle();
 
     Object[] expectedReceivedElems = {
-      WindowedValue.valueInGlobalWindow(KV.of("a", String.format("%.1f", 6.0))),
-      WindowedValue.valueInGlobalWindow(KV.of("b", String.format("%.1f", 3.7))),
-      WindowedValue.valueInGlobalWindow(KV.of("c", String.format("%.1f", 6.5))),
+      WindowedValues.valueInGlobalWindow(KV.of("a", String.format("%.1f", 6.0))),
+      WindowedValues.valueInGlobalWindow(KV.of("b", String.format("%.1f", 3.7))),
+      WindowedValues.valueInGlobalWindow(KV.of("c", String.format("%.1f", 6.5))),
     };
     assertArrayEquals(expectedReceivedElems, receiver.receivedElems.toArray());
   }
@@ -268,17 +268,17 @@ public class CombineValuesFnFactoryTest {
 
     combineParDoFn.startBundle(receiver);
     combineParDoFn.processElement(
-        WindowedValue.valueInGlobalWindow(KV.of("a", Arrays.asList(5, 6, 7))));
+        WindowedValues.valueInGlobalWindow(KV.of("a", Arrays.asList(5, 6, 7))));
     combineParDoFn.processElement(
-        WindowedValue.valueInGlobalWindow(KV.of("b", Arrays.asList(1, 3, 7))));
+        WindowedValues.valueInGlobalWindow(KV.of("b", Arrays.asList(1, 3, 7))));
     combineParDoFn.processElement(
-        WindowedValue.valueInGlobalWindow(KV.of("c", Arrays.asList(3, 6, 8, 9))));
+        WindowedValues.valueInGlobalWindow(KV.of("c", Arrays.asList(3, 6, 8, 9))));
     combineParDoFn.finishBundle();
 
     Object[] expectedReceivedElems = {
-      WindowedValue.valueInGlobalWindow(KV.of("a", new CountSum(3, 18))),
-      WindowedValue.valueInGlobalWindow(KV.of("b", new CountSum(3, 11))),
-      WindowedValue.valueInGlobalWindow(KV.of("c", new CountSum(4, 26)))
+      WindowedValues.valueInGlobalWindow(KV.of("a", new CountSum(3, 18))),
+      WindowedValues.valueInGlobalWindow(KV.of("b", new CountSum(3, 11))),
+      WindowedValues.valueInGlobalWindow(KV.of("c", new CountSum(4, 26)))
     };
     assertArrayEquals(expectedReceivedElems, receiver.receivedElems.toArray());
   }
@@ -301,17 +301,17 @@ public class CombineValuesFnFactoryTest {
 
     combineParDoFn.startBundle(receiver);
     combineParDoFn.processElement(
-        WindowedValue.valueInGlobalWindow(
+        WindowedValues.valueInGlobalWindow(
             KV.of(
                 "a", Arrays.asList(new CountSum(3, 6), new CountSum(2, 9), new CountSum(1, 12)))));
     combineParDoFn.processElement(
-        WindowedValue.valueInGlobalWindow(
+        WindowedValues.valueInGlobalWindow(
             KV.of("b", Arrays.asList(new CountSum(2, 20), new CountSum(1, 1)))));
     combineParDoFn.finishBundle();
 
     Object[] expectedReceivedElems = {
-      WindowedValue.valueInGlobalWindow(KV.of("a", new CountSum(6, 27))),
-      WindowedValue.valueInGlobalWindow(KV.of("b", new CountSum(3, 21))),
+      WindowedValues.valueInGlobalWindow(KV.of("a", new CountSum(6, 27))),
+      WindowedValues.valueInGlobalWindow(KV.of("b", new CountSum(3, 21))),
     };
     assertArrayEquals(expectedReceivedElems, receiver.receivedElems.toArray());
   }
@@ -334,15 +334,15 @@ public class CombineValuesFnFactoryTest {
 
     combineParDoFn.startBundle(receiver);
     combineParDoFn.processElement(
-        WindowedValue.valueInGlobalWindow(KV.of("a", new CountSum(6, 27))));
+        WindowedValues.valueInGlobalWindow(KV.of("a", new CountSum(6, 27))));
     combineParDoFn.processElement(
-        WindowedValue.valueInGlobalWindow(KV.of("b", new CountSum(3, 21))));
+        WindowedValues.valueInGlobalWindow(KV.of("b", new CountSum(3, 21))));
     combineParDoFn.finishBundle();
 
     assertArrayEquals(
         new Object[] {
-          WindowedValue.valueInGlobalWindow(KV.of("a", String.format("%.1f", 4.5))),
-          WindowedValue.valueInGlobalWindow(KV.of("b", String.format("%.1f", 7.0)))
+          WindowedValues.valueInGlobalWindow(KV.of("a", String.format("%.1f", 4.5))),
+          WindowedValues.valueInGlobalWindow(KV.of("b", String.format("%.1f", 7.0)))
         },
         receiver.receivedElems.toArray());
   }

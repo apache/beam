@@ -25,7 +25,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.runners.samza.util.FutureUtils;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
 
 class FutureCollectorImpl<OutT> implements FutureCollector<OutT> {
   private final AtomicBoolean collectorSealed;

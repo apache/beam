@@ -1304,7 +1304,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
                     rowsToPublish.get(i).getValue(),
                     rowsToPublish.get(i).getTimestamp(),
                     rowsToPublish.get(i).getWindow(),
-                    rowsToPublish.get(i).getPane()));
+                    rowsToPublish.get(i).getPaneInfo()));
           }
         }
       }
@@ -1489,7 +1489,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
               .build();
       return new StreamAppendClient() {
         private int pins = 0;
-        private boolean closed = false;
+        private volatile boolean closed = false;
 
         @Override
         public void close() throws Exception {

@@ -282,7 +282,7 @@ tasks.register("javaPreCommit") {
   dependsOn(":runners:spark:3:job-server:build")
   dependsOn(":runners:twister2:build")
   dependsOn(":sdks:java:build-tools:build")
-  dependsOn(":sdks:java:container:java8:docker")
+  dependsOn(":sdks:java:container:java11:docker")
   dependsOn(":sdks:java:core:build")
   dependsOn(":sdks:java:core:jmh:build")
   dependsOn(":sdks:java:expansion-service:build")
@@ -483,6 +483,7 @@ tasks.register("pythonPreCommit") {
   dependsOn(":sdks:python:test-suites:tox:py310:preCommitPy310")
   dependsOn(":sdks:python:test-suites:tox:py311:preCommitPy311")
   dependsOn(":sdks:python:test-suites:tox:py312:preCommitPy312")
+  dependsOn(":sdks:python:test-suites:tox:py313:preCommitPy313")
 }
 
 tasks.register("pythonPreCommitIT") {
@@ -499,6 +500,7 @@ tasks.register("pythonDockerBuildPreCommit") {
   dependsOn(":sdks:python:container:py310:docker")
   dependsOn(":sdks:python:container:py311:docker")
   dependsOn(":sdks:python:container:py312:docker")
+  dependsOn(":sdks:python:container:py313:docker")
 }
 
 tasks.register("pythonLintPreCommit") {
@@ -546,14 +548,22 @@ tasks.register("python312PostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py312:inferencePostCommitITPy312")
 }
 
+tasks.register("python313PostCommit") {
+  dependsOn(":sdks:python:test-suites:dataflow:py313:postCommitIT")
+  dependsOn(":sdks:python:test-suites:direct:py313:postCommitIT")
+  dependsOn(":sdks:python:test-suites:direct:py313:hdfsIntegrationTest")
+  dependsOn(":sdks:python:test-suites:portable:py313:postCommitPy312")
+  dependsOn(":sdks:python:test-suites:dataflow:py313:inferencePostCommitITPy312")
+}
+
 tasks.register("portablePythonPreCommit") {
   dependsOn(":sdks:python:test-suites:portable:py39:preCommitPy39")
-  dependsOn(":sdks:python:test-suites:portable:py312:preCommitPy312")
+  dependsOn(":sdks:python:test-suites:portable:py313:preCommitPy313")
 }
 
 tasks.register("pythonSparkPostCommit") {
   dependsOn(":sdks:python:test-suites:portable:py39:sparkValidatesRunner")
-  dependsOn(":sdks:python:test-suites:portable:py312:sparkValidatesRunner")
+  dependsOn(":sdks:python:test-suites:portable:py313:sparkValidatesRunner")
 }
 
 tasks.register("websitePreCommit") {
@@ -571,7 +581,6 @@ tasks.register("communityMetricsProber") {
 tasks.register("javaExamplesDataflowPrecommit") {
   dependsOn(":runners:google-cloud-dataflow-java:examples:preCommit")
   dependsOn(":runners:google-cloud-dataflow-java:examples-streaming:preCommit")
-  dependsOn(":runners:google-cloud-dataflow-java:examplesJavaDistrolessRunnerV2PreCommit")
   dependsOn(":runners:google-cloud-dataflow-java:examplesJavaRunnerV2PreCommit")
 }
 
@@ -724,7 +733,7 @@ if (project.hasProperty("javaLinkageArtifactIds")) {
 
   val linkageCheckerJava by configurations.creating
   dependencies {
-    linkageCheckerJava("com.google.cloud.tools:dependencies:1.5.6")
+    linkageCheckerJava("com.google.cloud.tools:dependencies:1.5.15")
   }
 
   // We need to evaluate all the projects first so that we can find depend on all the

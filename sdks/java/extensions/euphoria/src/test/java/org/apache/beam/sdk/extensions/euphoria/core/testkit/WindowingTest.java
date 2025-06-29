@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 package org.apache.beam.sdk.extensions.euphoria.core.testkit; //
+
 // import static org.junit.Assert.assertEquals;
 //
 // import java.time.Instant;

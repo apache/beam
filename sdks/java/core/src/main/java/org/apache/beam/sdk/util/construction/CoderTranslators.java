@@ -34,8 +34,8 @@ import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.util.ShardedKey;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
+import org.apache.beam.sdk.values.WindowedValues;
+import org.apache.beam.sdk.values.WindowedValues.FullWindowedValueCoder;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
@@ -122,28 +122,29 @@ class CoderTranslators {
 
       @Override
       public FullWindowedValueCoder<?> fromComponents(List<Coder<?>> components) {
-        return WindowedValue.getFullCoder(
+        return WindowedValues.getFullCoder(
             components.get(0), (Coder<BoundedWindow>) components.get(1));
       }
     };
   }
 
-  static CoderTranslator<WindowedValue.ParamWindowedValueCoder<?>> paramWindowedValue() {
-    return new CoderTranslator<WindowedValue.ParamWindowedValueCoder<?>>() {
+  static CoderTranslator<WindowedValues.ParamWindowedValueCoder<?>> paramWindowedValue() {
+    return new CoderTranslator<WindowedValues.ParamWindowedValueCoder<?>>() {
       @Override
-      public List<? extends Coder<?>> getComponents(WindowedValue.ParamWindowedValueCoder<?> from) {
+      public List<? extends Coder<?>> getComponents(
+          WindowedValues.ParamWindowedValueCoder<?> from) {
         return ImmutableList.of(from.getValueCoder(), from.getWindowCoder());
       }
 
       @Override
-      public byte[] getPayload(WindowedValue.ParamWindowedValueCoder<?> from) {
-        return WindowedValue.ParamWindowedValueCoder.getPayload(from);
+      public byte[] getPayload(WindowedValues.ParamWindowedValueCoder<?> from) {
+        return WindowedValues.ParamWindowedValueCoder.getPayload(from);
       }
 
       @Override
-      public WindowedValue.ParamWindowedValueCoder<?> fromComponents(
+      public WindowedValues.ParamWindowedValueCoder<?> fromComponents(
           List<Coder<?>> components, byte[] payload, CoderTranslation.TranslationContext context) {
-        return WindowedValue.ParamWindowedValueCoder.fromComponents(components, payload);
+        return WindowedValues.ParamWindowedValueCoder.fromComponents(components, payload);
       }
     };
   }

@@ -538,7 +538,7 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
                     row,
                     rowList.get(i).getTimestamp(),
                     rowList.get(i).getWindow(),
-                    rowList.get(i).getPane()));
+                    rowList.get(i).getPaneInfo()));
           }
         } else {
           errorContainer.add(

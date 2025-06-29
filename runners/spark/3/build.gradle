@@ -37,7 +37,7 @@ def sparkVersions = [
     "35": "3.5.5",
     "34": "3.4.4",
     "33": "3.3.4",
-    "32": "3.2.4",
+    // "32": "3.2.4", // tests on 3.2 failed due to incompatible with slf4j 2
     "31": "3.1.3",
 ]
 
@@ -87,8 +87,4 @@ sparkVersions.each { kv ->
 tasks.register("sparkVersionsTest") {
   group = "Verification"
   dependsOn sparkVersions.collect{k,v -> "sparkVersion${k}Test"}
-}
-
-tasks.test {
-  outputs.upToDateWhen { false }
 }

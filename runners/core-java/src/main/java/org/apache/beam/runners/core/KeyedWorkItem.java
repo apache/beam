@@ -18,7 +18,7 @@
 package org.apache.beam.runners.core;
 
 import org.apache.beam.runners.core.TimerInternals.TimerData;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
 
 /**
  * Interface that contains all the timers and elements associated with a specific work item.

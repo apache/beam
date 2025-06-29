@@ -141,8 +141,7 @@ class VertexAIModelHandlerJSONProvider(ModelHandlerProvider):
       private: bool = False,
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None,
-      max_batch_duration_secs: Optional[int] = None,
-      env_vars: Optional[dict[str, Any]] = None):
+      max_batch_duration_secs: Optional[int] = None):
     """
     ModelHandler for Vertex AI.
 
@@ -214,7 +213,6 @@ class VertexAIModelHandlerJSONProvider(ModelHandlerProvider):
         inputs.
       max_batch_duration_secs: The maximum amount of time to buffer
         a batch before emitting; used in streaming contexts.
-      env_vars: Environment variables.
     """
 
     try:
@@ -233,8 +231,7 @@ class VertexAIModelHandlerJSONProvider(ModelHandlerProvider):
         private=private,
         min_batch_size=min_batch_size,
         max_batch_size=max_batch_size,
-        max_batch_duration_secs=max_batch_duration_secs,
-        env_vars=env_vars or {})
+        max_batch_duration_secs=max_batch_duration_secs)
 
     super().__init__(_handler, preprocess, postprocess)
 

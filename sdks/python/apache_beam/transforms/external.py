@@ -1154,7 +1154,8 @@ def _maybe_use_transform_service(provided_service=None, options=None):
     return provided_service
 
   def is_java_available():
-    cmd = ['java', '--version']
+    java = subprocess_server.JavaHelper.get_java()
+    cmd = [java, '--version']
 
     try:
       subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)

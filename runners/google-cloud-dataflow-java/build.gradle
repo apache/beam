@@ -48,13 +48,12 @@ evaluationDependsOn(":sdks:java:io:google-cloud-platform")
 evaluationDependsOn(":sdks:java:core")
 evaluationDependsOn(":examples:java")
 evaluationDependsOn(":runners:google-cloud-dataflow-java:worker")
-evaluationDependsOn(":sdks:java:container:java8")
 evaluationDependsOn(":sdks:java:container:java11")
 
 ext.dataflowLegacyEnvironmentMajorVersion = '8'
 ext.dataflowFnapiEnvironmentMajorVersion = '8'
-ext.dataflowLegacyContainerVersion = 'beam-master-20250326'
-ext.dataflowFnapiContainerVersion = 'beam-master-20250326'
+ext.dataflowLegacyContainerVersion = 'beam-master-20250605'
+ext.dataflowFnapiContainerVersion = 'beam-master-20250605'
 ext.dataflowContainerBaseRepository = 'gcr.io/cloud-dataflow/v1beta3'
 
 processResources {
@@ -282,7 +281,7 @@ def createRunnerV2ValidatesRunnerTest = { Map args ->
 tasks.register('examplesJavaRunnerV2IntegrationTestDistroless', Test.class) {
   group = "verification"
   dependsOn 'buildAndPushDistrolessContainerImage'
-  def javaVer = project.findProperty('testJavaVersion')
+  def javaVer = getSupportedJavaVersion(project.findProperty('testJavaVersion') as String)
   def repository = "us.gcr.io/apache-beam-testing/${System.getenv('USER')}"
   def tag = project.findProperty('dockerTag')
   def imageURL = "${repository}/beam_${javaVer}_sdk_distroless:${tag}"
@@ -310,7 +309,7 @@ tasks.register('buildAndPushDistrolessContainerImage', Task.class) {
   // See https://github.com/GoogleContainerTools/distroless/tree/main/java#image-contents.
   def allowed = ["java17", "java21"]
   doLast {
-    def javaVer = project.findProperty('testJavaVersion')
+    def javaVer = getSupportedJavaVersion(project.findProperty('testJavaVersion') as String)
     if (!allowed.contains(javaVer)) {
       throw new GradleException("testJavaVersion must be one of ${allowed}, got: ${javaVer}")
     }
@@ -329,7 +328,7 @@ tasks.register('buildAndPushDistrolessContainerImage', Task.class) {
               '-t',
               imageURL,
               '-f',
-              'sdks/java/container/Dockerfile-distroless',
+              'sdks/java/container/distroless/Dockerfile',
               "--build-arg=BEAM_BASE=gcr.io/apache-beam-testing/beam-sdk/beam_${javaVer}_sdk",
               "--build-arg=DISTROLESS_BASE=gcr.io/distroless/${javaVer}-debian12",
               '.'
@@ -347,10 +346,8 @@ tasks.register('buildAndPushDistrolessContainerImage', Task.class) {
 // task directly ('dependsOn buildAndPushDockerJavaContainer'). This ensures the correct
 // task ordering such that the registry doesn't get cleaned up prior to task completion.
 def buildAndPushDockerJavaContainer = tasks.register("buildAndPushDockerJavaContainer") {
-  def javaVer = getSupportedJavaVersion()
-  if(project.hasProperty('testJavaVersion')) {
-    javaVer = "java${project.getProperty('testJavaVersion')}"
-  }
+  def javaVer = getSupportedJavaVersion(project.findProperty('testJavaVersion') as String)
+
   dependsOn ":sdks:java:container:${javaVer}:docker"
   def defaultDockerImageName = containerImageName(
           name: "${project.docker_image_default_repo_prefix}${javaVer}_sdk",
@@ -840,10 +837,7 @@ task GCSUpload(type: JavaExec) {
 }
 
 def buildAndPushDistrolessDockerJavaContainer = tasks.register("buildAndPushDistrolessDockerJavaContainer") {
-  def javaVer = getSupportedJavaVersion()
-  if(project.hasProperty('testJavaVersion')) {
-    javaVer = "java${project.getProperty('testJavaVersion')}"
-  }
+  def javaVer = getSupportedJavaVersion(project.findProperty('testJavaVersion') as String)
   dependsOn ":sdks:java:container:distroless:${javaVer}:docker"
   def defaultDockerImageName = containerImageName(
           name: "${project.docker_image_default_repo_prefix}${javaVer}_sdk_distroless",

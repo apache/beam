@@ -1497,8 +1497,6 @@ def is_consistent_with(sub, base):
   if sub == base:
     # Common special case.
     return True
-  if isinstance(sub, AnyTypeConstraint) or isinstance(base, AnyTypeConstraint):
-    return True
   # Per PEP484, ints are considered floats and complexes and
   # floats are considered complexes.
   if sub is int and base in (float, complex):
@@ -1507,7 +1505,9 @@ def is_consistent_with(sub, base):
     return True
   sub = normalize(sub, none_as_type=True)
   base = normalize(base, none_as_type=True)
-  if isinstance(sub, UnionConstraint):
+  if isinstance(sub, AnyTypeConstraint) or isinstance(base, AnyTypeConstraint):
+    return True
+  elif isinstance(sub, UnionConstraint):
     return all(is_consistent_with(c, base) for c in sub.union_types)
   elif isinstance(base, TypeConstraint):
     return base._consistent_with_check_(sub)
@@ -1563,6 +1563,8 @@ def get_yielded_type(type_hint):
   Raises:
     ValueError if not iterable.
   """
+  if isinstance(type_hint, typing.TypeVar):
+    return typing.Any
   if isinstance(type_hint, AnyTypeConstraint):
     return type_hint
   if is_consistent_with(type_hint, Iterator[Any]):

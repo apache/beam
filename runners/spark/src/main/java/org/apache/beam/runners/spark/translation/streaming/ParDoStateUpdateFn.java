@@ -47,10 +47,11 @@ import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.SerializableUtils;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.spark.streaming.State;
@@ -93,7 +94,7 @@ public class ParDoStateUpdateFn<KeyT, ValueT, InputT extends KV<KeyT, ValueT>, O
   private final String stepName;
   private final DoFn<InputT, OutputT> doFn;
   private final Coder<KeyT> keyCoder;
-  private final WindowedValue.FullWindowedValueCoder<ValueT> wvCoder;
+  private final WindowedValues.FullWindowedValueCoder<ValueT> wvCoder;
   private transient boolean wasSetupCalled;
   private final SerializablePipelineOptions options;
   private final TupleTag<?> mainOutputTag;
@@ -116,7 +117,7 @@ public class ParDoStateUpdateFn<KeyT, ValueT, InputT extends KV<KeyT, ValueT>, O
       String stepName,
       DoFn<InputT, OutputT> doFn,
       Coder<KeyT> keyCoder,
-      WindowedValue.FullWindowedValueCoder<ValueT> wvCoder,
+      WindowedValues.FullWindowedValueCoder<ValueT> wvCoder,
       SerializablePipelineOptions options,
       TupleTag<?> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
@@ -257,8 +258,8 @@ public class ParDoStateUpdateFn<KeyT, ValueT, InputT extends KV<KeyT, ValueT>, O
                           (Coder<OutputT>) outputCoders.get(tupleTag);
 
                       @SuppressWarnings("nullness")
-                      final WindowedValue.FullWindowedValueCoder<OutputT> outputWindowCoder =
-                          WindowedValue.FullWindowedValueCoder.of(outputCoder, windowCoder);
+                      final WindowedValues.FullWindowedValueCoder<OutputT> outputWindowCoder =
+                          WindowedValues.FullWindowedValueCoder.of(outputCoder, windowCoder);
 
                       return Tuple2.apply(
                           tupleTag,
