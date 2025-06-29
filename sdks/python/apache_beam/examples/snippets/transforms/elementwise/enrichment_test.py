@@ -18,13 +18,13 @@
 # pytype: skip-file
 # pylint: disable=line-too-long
 
+import os
+import unittest
 from collections.abc import Callable
 from contextlib import contextmanager
-import os
-from typing import Optional
-import unittest
-from io import StringIO
 from dataclasses import dataclass
+from io import StringIO
+from typing import Optional
 
 import mock
 import pytest
