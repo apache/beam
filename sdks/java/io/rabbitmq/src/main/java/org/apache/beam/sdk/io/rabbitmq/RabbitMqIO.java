@@ -442,7 +442,9 @@ public class RabbitMqIO {
         channel.basicAck(sessionId, false);
         sessionId = sessionIds.poll();
       }
-      channel.txCommit();
+      if (channel.isOpen()) {
+        channel.txCommit();
+      }
       latestTimestamp = Instant.now();
     }
   }
