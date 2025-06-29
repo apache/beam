@@ -279,10 +279,7 @@ class EnrichmentTestHelpers:
         metadata=metadata)
 
     result = CloudSQLEnrichmentTestDataConstruct(
-        db=db,
-        client_handler=sql_client_handler,
-        engine=engine,
-        metadata=metadata)
+        db=db, client_handler=conenctor, engine=engine, metadata=metadata)
     return result
 
   @staticmethod
