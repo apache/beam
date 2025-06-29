@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -237,7 +236,8 @@ public class GrpcGetWorkerMetadataStreamTest {
   }
 
   @Test
-  public void testGetWorkerMetadata_correctlyAddsAndRemovesStreamFromRegistry() {
+  public void testGetWorkerMetadata_correctlyAddsAndRemovesStreamFromRegistry()
+      throws InterruptedException {
     GetWorkerMetadataTestStub testStub =
         new GetWorkerMetadataTestStub(new TestGetWorkMetadataRequestObserver());
     stream = getWorkerMetadataTestStream(testStub, new TestWindmillEndpointsConsumer());
@@ -250,7 +250,9 @@ public class GrpcGetWorkerMetadataStreamTest {
 
     assertTrue(streamFactory.streamRegistry().contains(stream));
     stream.halfClose();
-    assertFalse(streamFactory.streamRegistry().contains(stream));
+    while (streamFactory.streamRegistry().contains(stream)) {
+      Thread.sleep(100);
+    }
   }
 
   @Test

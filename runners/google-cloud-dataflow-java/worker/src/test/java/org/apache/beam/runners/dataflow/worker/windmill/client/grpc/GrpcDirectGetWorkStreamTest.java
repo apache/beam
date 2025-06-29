@@ -81,7 +81,11 @@ public class GrpcDirectGetWorkStreamTest {
   private static final String FAKE_SERVER_NAME = "Fake server for GrpcDirectGetWorkStreamTest";
   @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
   private final MutableHandlerRegistry serviceRegistry = new MutableHandlerRegistry();
-  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
+
+  @Rule
+  public transient Timeout globalTimeout =
+      Timeout.builder().withTimeout(10, TimeUnit.MINUTES).withLookingForStuckThread(true).build();
+
   private ManagedChannel inProcessChannel;
   private GrpcDirectGetWorkStream stream;
 
