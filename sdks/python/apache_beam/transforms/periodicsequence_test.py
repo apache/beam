@@ -301,6 +301,39 @@ class PeriodicImpulseTest(unittest.TestCase):
         logging.error("Error occurred at random seed=%d", seed)
         raise e
 
+  def test_int_type_input(self):
+    # This test is to verify that if input timestamps and interval are integers,
+    # the generated timestamped values are also integers.
+    # This is necessary for the following test to pass:
+    # apache_beam.examples.snippets.snippets_test.SlowlyChangingSideInputsTest
+    with TestPipeline() as p:
+      ret = (
+          p | PeriodicImpulse(
+              start_timestamp=1, stop_timestamp=5, fire_interval=1))
+      expected = [1, 2, 3, 4]
+      assert_that(
+          ret, equal_to(expected, lambda x, y: type(x) is type(y) and x == y))
+
+  def test_float_type_input(self):
+    with TestPipeline() as p:
+      ret = (
+          p | PeriodicImpulse(
+              start_timestamp=1.0, stop_timestamp=5.0, fire_interval=1))
+      expected = [1.0, 2.0, 3.0, 4.0]
+      assert_that(
+          ret, equal_to(expected, lambda x, y: type(x) is type(y) and x == y))
+
+  def test_timestamp_type_input(self):
+    with TestPipeline() as p:
+      ret = (
+          p | PeriodicImpulse(
+              start_timestamp=Timestamp.of(1),
+              stop_timestamp=Timestamp.of(5),
+              fire_interval=1))
+      expected = [1.0, 2.0, 3.0, 4.0]
+      assert_that(
+          ret, equal_to(expected, lambda x, y: type(x) is type(y) and x == y))
+
 
 if __name__ == '__main__':
   unittest.main()
