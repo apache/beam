@@ -13,6 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Description:
+# This Apache Beam YAML pipeline demonstrates a basic Kafka-to-Kafka mirroring example.
+# It reads raw byte messages from a source Kafka topic and writes them to a target Kafka topic.
+# No transformation or decoding is applied.
+# Useful for validating Kafka I/O setup using Beam YAML DSL.
 
 
 pipeline:
