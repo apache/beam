@@ -3,8 +3,6 @@
   "reviewersAssignedForLabels": {},
   "nextAction": "Author",
   "stopReviewerNotifications": false,
-  "remindAfterTestsPass": [
-    "shunping"
-  ],
+  "remindAfterTestsPass": [],
   "committerAssigned": false
 }
