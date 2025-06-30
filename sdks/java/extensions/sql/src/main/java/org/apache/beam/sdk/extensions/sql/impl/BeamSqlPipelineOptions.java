@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
+import java.util.Map;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -30,10 +31,11 @@ public interface BeamSqlPipelineOptions extends PipelineOptions {
 
   void setPlannerName(String className);
 
-  @Description("The dialect of calcite connection.")
-  String getCalciteConnectionDialect();
+  @Description(
+      "The properties of calcite connection. For example <('fun','bigquery'), ('lex','big_query')>")
+  Map<String, String> getCalciteConnectionProperties();
 
-  void setCalciteConnectionDialect(String dialect);
+  void setCalciteConnectionProperties(Map<String, String> properties);
 
   @Description(
       "Default timezone for ZetaSQL analyzer; has no effect on CalciteSQL. Allow tz database "

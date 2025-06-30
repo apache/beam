@@ -25,6 +25,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.function.Consumer;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
@@ -167,9 +168,9 @@ public class JdbcDriver extends Driver {
         SCHEMA_FACTORY.camelName(), BeamCalciteSchemaFactory.Empty.class.getName());
     BeamSqlPipelineOptions sqlOptions = options.as(BeamSqlPipelineOptions.class);
     if (sqlOptions != null) {
-      String dialect = sqlOptions.getCalciteConnectionDialect();
-      if (dialect != null) {
-        properties.setProperty("fun", dialect.toLowerCase());
+      Map<String, String> calciteConnectionProperties = sqlOptions.getCalciteConnectionProperties();
+      if (calciteConnectionProperties != null) {
+        properties.putAll(calciteConnectionProperties);
       }
     }
     JdbcConnection connection;
