@@ -621,6 +621,7 @@ tasks.register("pushAllSdkDockerImages") {
   }
 
   dependsOn(":sdks:java:container:pushAll")
+  dependsOn(":sdks:java:container:distroless:pushAll")
   if (!project.hasProperty("skip-python-images")) {
     dependsOn(":sdks:python:container:pushAll")
   }
