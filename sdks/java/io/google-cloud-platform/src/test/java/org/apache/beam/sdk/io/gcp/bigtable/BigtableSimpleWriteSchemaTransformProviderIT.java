@@ -30,11 +30,9 @@ import com.google.cloud.bigtable.data.v2.models.Query;
 import com.google.cloud.bigtable.data.v2.models.RowCell;
 import com.google.cloud.bigtable.data.v2.models.RowMutation;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteSchemaTransformProvider.BigtableWriteSchemaTransformConfiguration;
@@ -44,7 +42,6 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Longs;
 import org.junit.After;
 import org.junit.Before;
@@ -68,8 +65,13 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
   private static final Schema SCHEMA =
       Schema.builder()
           .addByteArrayField("key")
-          .addArrayField(
-              "mutations", Schema.FieldType.map(Schema.FieldType.STRING, Schema.FieldType.BYTES))
+          .addStringField("type")
+          .addByteField("value")
+          .addByteField("column_qualifier")
+          .addStringField("family_name")
+          .addByteArrayField("timestamp_micros")
+          .addByteArrayField("start_timestamp_micros")
+          .addByteArrayField("end_timestamp_micros")
           .build();
 
   @Test
@@ -359,6 +361,34 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
 
   @Test
   public void testDeleteRow() {
+    RowMutation rowMutation =
+        RowMutation.create(tableId, "key-1").setCell(COLUMN_FAMILY_NAME_1, "col", "val-1");
+    dataClient.mutateRow(rowMutation);
+    rowMutation =
+        RowMutation.create(tableId, "key-2").setCell(COLUMN_FAMILY_NAME_1, "col", "val-2");
+    dataClient.mutateRow(rowMutation);
+
+    Row mutationRow =
+        Row.withSchema(SCHEMA)
+            .withFieldValue("key", "key-1".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("type", "DeleteFromRow".getBytes(StandardCharsets.UTF_8))
+            .build();
+
+    PCollectionRowTuple.of("input", p.apply(Create.of(Arrays.asList(mutationRow))))
+        .apply(writeTransform);
+    p.run().waitUntilFinish();
+
+    // get rows from table
+    List<com.google.cloud.bigtable.data.v2.models.Row> rows =
+        dataClient.readRows(Query.create(tableId)).stream().collect(Collectors.toList());
+
+    // we created two rows then deleted one, so should end up with the row we didn't touch
+    assertEquals(1, rows.size());
+    assertEquals("key-2", rows.get(0).getKey().toStringUtf8());
+  }
+
+  @Test
+  public void testAllMutations() {
     RowMutation rowMutation =
         RowMutation.create(tableId, "key-1").setCell(COLUMN_FAMILY_NAME_1, "col", "val-1");
     dataClient.mutateRow(rowMutation);
