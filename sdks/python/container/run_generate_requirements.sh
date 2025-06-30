@@ -72,7 +72,7 @@ pip uninstall -y apache-beam
 echo "Checking for broken dependencies:"
 pip check
 echo "Installed dependencies:"
-pip freeze
+pip freeze --all
 
 PY_IMAGE="py${PY_VERSION//.}"
 REQUIREMENTS_FILE=$PWD/sdks/python/container/$PY_IMAGE/base_image_requirements.txt
@@ -103,7 +103,7 @@ cat <<EOT > "$REQUIREMENTS_FILE"
 EOT
 # Remove pkg_resources to guard against
 # https://stackoverflow.com/questions/39577984/what-is-pkg-resources-0-0-0-in-output-of-pip-freeze-command
-pip freeze | grep -v pkg_resources >> "$REQUIREMENTS_FILE"
+pip freeze --all | grep -v pkg_resources >> "$REQUIREMENTS_FILE"
 
 if grep -q "tensorflow==" "$REQUIREMENTS_FILE"; then
   # Get the version of tensorflow from the .txt file.
