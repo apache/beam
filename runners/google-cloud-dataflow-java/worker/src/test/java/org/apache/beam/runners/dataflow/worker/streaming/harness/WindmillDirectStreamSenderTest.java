@@ -50,7 +50,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-public class WindmillStreamSenderTest {
+public class WindmillDirectStreamSenderTest {
   private static final GetWorkRequest GET_WORK_REQUEST =
       GetWorkRequest.newBuilder().setClientId(1L).setJobId("job").setProjectId("project").build();
   @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
@@ -77,7 +77,9 @@ public class WindmillStreamSenderTest {
   public void setUp() {
     inProcessChannel =
         grpcCleanup.register(
-            InProcessChannelBuilder.forName("WindmillStreamSenderTest").directExecutor().build());
+            InProcessChannelBuilder.forName("WindmillDirectStreamSenderTest")
+                .directExecutor()
+                .build());
     grpcCleanup.register(inProcessChannel);
     connection =
         WindmillConnection.builder()
@@ -95,7 +97,7 @@ public class WindmillStreamSenderTest {
     long itemBudget = 1L;
     long byteBudget = 1L;
 
-    WindmillStreamSender windmillStreamSender =
+    WindmillDirectStreamSender windmillStreamSender =
         newWindmillStreamSender(
             GetWorkBudget.builder().setBytes(byteBudget).setItems(itemBudget).build());
 
@@ -124,7 +126,7 @@ public class WindmillStreamSenderTest {
     long itemBudget = 1L;
     long byteBudget = 1L;
 
-    WindmillStreamSender windmillStreamSender =
+    WindmillDirectStreamSender windmillStreamSender =
         newWindmillStreamSender(
             GetWorkBudget.builder().setBytes(byteBudget).setItems(itemBudget).build());
 
@@ -155,7 +157,7 @@ public class WindmillStreamSenderTest {
     long itemBudget = 1L;
     long byteBudget = 1L;
 
-    WindmillStreamSender windmillStreamSender =
+    WindmillDirectStreamSender windmillStreamSender =
         newWindmillStreamSender(
             GetWorkBudget.builder().setBytes(byteBudget).setItems(itemBudget).build());
 
@@ -208,7 +210,7 @@ public class WindmillStreamSenderTest {
     when(mockStreamFactory.createDirectCommitWorkStream(eq(connection)))
         .thenReturn(mockCommitWorkStream);
 
-    WindmillStreamSender windmillStreamSender =
+    WindmillDirectStreamSender windmillStreamSender =
         newWindmillStreamSender(
             GetWorkBudget.builder().setBytes(byteBudget).setItems(itemBudget).build(),
             mockStreamFactory);
@@ -245,7 +247,7 @@ public class WindmillStreamSenderTest {
     when(mockStreamFactory.createDirectCommitWorkStream(eq(connection)))
         .thenReturn(mockCommitWorkStream);
 
-    WindmillStreamSender windmillStreamSender =
+    WindmillDirectStreamSender windmillStreamSender =
         newWindmillStreamSender(
             GetWorkBudget.builder().setBytes(byteBudget).setItems(itemBudget).build(),
             mockStreamFactory);
@@ -266,7 +268,7 @@ public class WindmillStreamSenderTest {
     long itemBudget = 1L;
     long byteBudget = 1L;
 
-    WindmillStreamSender windmillStreamSender =
+    WindmillDirectStreamSender windmillStreamSender =
         newWindmillStreamSender(
             GetWorkBudget.builder().setBytes(byteBudget).setItems(itemBudget).build());
 
@@ -274,13 +276,13 @@ public class WindmillStreamSenderTest {
     assertThrows(IllegalStateException.class, windmillStreamSender::start);
   }
 
-  private WindmillStreamSender newWindmillStreamSender(GetWorkBudget budget) {
+  private WindmillDirectStreamSender newWindmillStreamSender(GetWorkBudget budget) {
     return newWindmillStreamSender(budget, streamFactory);
   }
 
-  private WindmillStreamSender newWindmillStreamSender(
+  private WindmillDirectStreamSender newWindmillStreamSender(
       GetWorkBudget budget, GrpcWindmillStreamFactory streamFactory) {
-    return WindmillStreamSender.create(
+    return WindmillDirectStreamSender.create(
         connection,
         GET_WORK_REQUEST,
         budget,
