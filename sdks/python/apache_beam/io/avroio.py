@@ -554,7 +554,8 @@ def avro_union_type_to_beam_type(union_type: List) -> schema_pb2.FieldType:
   """
   if len(union_type) == 2 and "null" in union_type:
     for avro_type in union_type:
-      if avro_type in AVRO_PRIMITIVES_TO_BEAM_PRIMITIVES:
+      if isinstance(avro_type,
+                    str) and avro_type in AVRO_PRIMITIVES_TO_BEAM_PRIMITIVES:
         return schema_pb2.FieldType(
             atomic_type=AVRO_PRIMITIVES_TO_BEAM_PRIMITIVES[avro_type],
             nullable=True)
