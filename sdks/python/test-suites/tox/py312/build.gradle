@@ -23,6 +23,8 @@
 plugins { id 'org.apache.beam.module' }
 applyPythonNature()
 
+def posargs = project.findProperty("posargs") ?: ""
+
 // Required to setup a Python 3 virtualenv and task names.
 pythonVersion = '3.12'
 
