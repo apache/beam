@@ -486,7 +486,7 @@ final class GrpcGetDataStream
 
   private synchronized void trySendBatch(QueuedBatch batch) throws WindmillStreamShutdownException {
     // Finalize the batch so that no additional requests will be added.  Leave the batch in the
-    // queue so that a subsequent batch will wait for its completion.
+    // queue so that a subsequent batch will wait for it to be sent.
     batch.markFinalized();
 
     if (isShutdown) {
@@ -502,7 +502,10 @@ final class GrpcGetDataStream
     }
 
     try {
+      // Peek first to ensure we don't pull off if the wrong batch.
       verify(batch == batches.peekFirst(), "GetDataStream request batch removed before send().");
+      // Pull off before we send, the sending threads in issueRequest will be notified if there is an error and will
+      // resend requests (possibly with new batching).
       verify(batch == batches.pollFirst());
       verify(!batch.isEmpty());
       currentGetDataPhysicalStream.sendBatch(batch);
