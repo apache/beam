@@ -402,8 +402,6 @@ if __name__ == '__main__':
           'zstandard>=0.18.0,<1',
           'pyyaml>=3.12,<7.0.0',
           'pymilvus>=2.5.10,<3.0.0',
-          'setuptools>=80.9.0',
-          'pip>=25.1.1',
           # Dynamic dependencies must be specified in a separate list, otherwise
           # Dependabot won't be able to parse the main list. Any dynamic
           # dependencies will not receive updates from Dependabot.
