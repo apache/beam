@@ -165,6 +165,13 @@ public class JdbcDriver extends Driver {
     Properties properties = new Properties();
     properties.setProperty(
         SCHEMA_FACTORY.camelName(), BeamCalciteSchemaFactory.Empty.class.getName());
+    BeamSqlPipelineOptions sqlOptions = options.as(BeamSqlPipelineOptions.class);
+    if (sqlOptions != null) {
+      String dialect = sqlOptions.getCalciteConnectionDialect();
+      if (dialect != null) {
+        properties.setProperty("fun", dialect.toLowerCase());
+      }
+    }
     JdbcConnection connection;
     try {
       connection = (JdbcConnection) INSTANCE.connect(CONNECT_STRING_PREFIX, properties);

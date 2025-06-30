@@ -30,6 +30,11 @@ public interface BeamSqlPipelineOptions extends PipelineOptions {
 
   void setPlannerName(String className);
 
+  @Description("The dialect of calcite connection.")
+  String getCalciteConnectionDialect();
+
+  void setCalciteConnectionDialect(String dialect);
+
   @Description(
       "Default timezone for ZetaSQL analyzer; has no effect on CalciteSQL. Allow tz database "
           + "timezone names in https://en.wikipedia.org/wiki/List_of_tz_database_time_zones")

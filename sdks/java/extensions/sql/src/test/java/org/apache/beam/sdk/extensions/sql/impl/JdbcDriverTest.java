@@ -473,6 +473,16 @@ public class JdbcDriverTest {
   }
 
   @Test
+  public void testCalciteConnectionDialect_BigQuery() throws Exception {
+    BeamSqlPipelineOptions options =
+        PipelineOptionsFactory.create().as(BeamSqlPipelineOptions.class);
+    options.setCalciteConnectionDialect("BIGQUERY");
+    CalciteConnection connection = JdbcDriver.connect(BOUNDED_TABLE, options);
+    assertEquals(
+        "BIGQUERY", connection.getProperties().getProperty("fun", "CALCITE").toUpperCase());
+  }
+
+  @Test
   public void testInternalConnect_setDirectRunner() throws Exception {
     CalciteConnection connection =
         JdbcDriver.connect(BOUNDED_TABLE, PipelineOptionsFactory.create());
