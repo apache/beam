@@ -724,7 +724,7 @@ def _PyJsMapToFields(
 @beam.ptransform.ptransform_fn
 def _SqlFilterTransform(pcoll, sql_transform_constructor, keep, language):
   return pcoll | sql_transform_constructor(
-      f'SELECT * FROM PCOLLECTION WHERE {keep}')
+      f"SELECT * FROM PCOLLECTION WHERE {keep.get('expression')}")
 
 
 @beam.ptransform.ptransform_fn
