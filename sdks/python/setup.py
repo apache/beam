@@ -572,11 +572,11 @@ if __name__ == '__main__':
           # For more info, see
           # https://docs.google.com/document/d/1c84Gc-cZRCfrU8f7kWGsNR2o8oSRjCM-dGHO9KvPWPw/edit?usp=sharing
           'torch': ['torch>=1.9.0,<2.8.0'],
-          'tensorflow': ['tensorflow>=2.12rc1,<2.13'],
+          'tensorflow': ['tensorflow>=2.12rc1,<2.17'],
           'transformers': [
               'transformers>=4.28.0,<4.49.0',
-              'tensorflow==2.12.0',
-              'torch>=1.9.0,<2.1.0'
+              'tensorflow>=2.12.0',
+              'torch>=1.9.0'
           ],
           'tft': ['tensorflow_transform>=1.14.0,<1.15.0'],
           'onnx': [

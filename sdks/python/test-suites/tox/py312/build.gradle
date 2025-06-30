@@ -27,9 +27,13 @@ applyPythonNature()
 pythonVersion = '3.12'
 
 // run on precommit
-toxTask "testPy312pytorch-271", "py312-pytorch-271", "${posargs}"
-test.dependsOn "testpy312pytorch-271"
-postCommitPyDep.dependsOn "testpy312pytorch-271"
+toxTask "testPy312pytensorflow-216", "py312-pytensorflow-216", "${posargs}"
+test.dependsOn "testpy312pytensorflow-216"
+postCommitPyDep.dependsOn "testpy312pytensorflow-216"
+
+toxTask "testPy312pytensorflow-216", "py312-pytensorflow-216", "${posargs}"
+test.dependsOn "testpy312pytensorflow-216"
+postCommitPyDep.dependsOn "testpy312pytensorflow-216"
 
 apply from: "../common.gradle"
 
