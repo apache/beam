@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.worker.windmill.work.processing.failure
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.KeyTokenInvalidException;
 import org.apache.beam.runners.dataflow.worker.WorkItemCancelledException;
@@ -88,7 +89,7 @@ public final class WorkFailureProcessor {
   }
 
   /** Returns whether an exception was caused by a {@link OutOfMemoryError}. */
-  private static boolean isOutOfMemoryError(Throwable t) {
+  private static boolean isOutOfMemoryError(@Nullable Throwable t) {
     while (t != null) {
       if (t instanceof OutOfMemoryError) {
         return true;
@@ -131,7 +132,8 @@ public final class WorkFailureProcessor {
   }
 
   private boolean shouldRetryLocally(String computationId, Work work, Throwable t) {
-    Throwable parsedException = t instanceof UserCodeException ? t.getCause() : t;
+    @Nullable final Throwable cause = t.getCause();
+    Throwable parsedException = (t instanceof UserCodeException && cause != null) ? cause : t;
     if (KeyTokenInvalidException.isKeyTokenInvalidException(parsedException)) {
       LOG.debug(
           "Execution of work for computation '{}' on key '{}' failed due to token expiration. "
