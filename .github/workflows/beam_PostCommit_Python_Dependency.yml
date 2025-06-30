@@ -59,6 +59,7 @@ jobs:
       matrix:
         job_name: [beam_PostCommit_Python_Dependency]
         job_phrase: [Run Python PostCommit Dependency]
+        python_version: ['39','312']
     timeout-minutes: 120
     if: |
       github.event_name == 'workflow_dispatch' ||
@@ -70,9 +71,9 @@ jobs:
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
-          comment_phrase: ${{ matrix.job_phrase }}
+          comment_phrase: ${{ matrix.job_phrase }} ${{ matrix.python_version }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
@@ -81,7 +82,7 @@ jobs:
       - name: Run postCommitPyDep
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:python:test-suites:tox:py39:postCommitPyDep
+          gradle-command: :sdks:python:test-suites:tox:py${{ matrix.python_version }}:postCommitPyDep
           arguments: -PuseWheelDistribution
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v4
