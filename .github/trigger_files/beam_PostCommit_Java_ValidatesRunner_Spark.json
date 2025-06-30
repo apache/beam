@@ -11,5 +11,6 @@
   "https://github.com/apache/beam/pull/34080": "noting that PR #34080 should run this test",
   "https://github.com/apache/beam/pull/34155": "noting that PR #34155 should run this test",
   "https://github.com/apache/beam/pull/34560": "noting that PR #34560 should run this test",
-  "https://github.com/apache/beam/pull/35159": "moving WindowedValue and making an interface"
+  "https://github.com/apache/beam/pull/35159": "moving WindowedValue and making an interface",
+  "https://github.com/apache/beam/pull/35316": "noting that PR #35316 should run this test"
 }
