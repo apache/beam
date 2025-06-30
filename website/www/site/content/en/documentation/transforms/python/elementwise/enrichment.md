@@ -42,6 +42,7 @@ The following examples demonstrate how to create a pipeline that use the enrichm
 | Service                            | Example                                                                                                                                                                      |
 |:-----------------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | Cloud Bigtable                     | [Enrichment with Bigtable](/documentation/transforms/python/elementwise/enrichment-bigtable/#example)                                                                        |
+| Milvus                     | [Enrichment with Milvus](/documentation/transforms/python/elementwise/enrichment-milvus/#example)                                                                        |
 | Vertex AI Feature Store            | [Enrichment with Vertex AI Feature Store](/documentation/transforms/python/elementwise/enrichment-vertexai/#example-1-enrichment-with-vertex-ai-feature-store)               |
 | Vertex AI Feature Store (Legacy)   | [Enrichment with Legacy Vertex AI Feature Store](/documentation/transforms/python/elementwise/enrichment-vertexai/#example-2-enrichment-with-vertex-ai-feature-store-legacy) |
 {{< /table >}}
