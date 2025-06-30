@@ -421,6 +421,17 @@ public class GrpcCommitWorkStreamTest {
     assertThat(streamInfo.requests).isEmpty();
   }
 
+  // XXX add handover tests needed such as:
+  // - simple physical half close and new stream starting
+  // - when half-closed background stream fails and retries need to occur on new stream
+  // - when active stream fails with a background stream, new stream needs to be created and should
+  // just get
+  //   requests from failed stream
+  // - creation of current stream is in backoff due to start failure and background stream fails,
+  //   make sure requests eventually retried
+  // - logical halfclose with background streams
+  // - shutdown with background streams
+
   private FakeWindmillGrpcService.CommitStreamInfo waitForConnectionAndConsumeHeader() {
     try {
       FakeWindmillGrpcService.CommitStreamInfo info = fakeService.waitForConnectedCommitStream();

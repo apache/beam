@@ -21,6 +21,7 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
 import java.io.PrintWriter;
+import java.time.temporal.ChronoUnit;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
@@ -59,7 +60,7 @@ public class AbstractWindmillStreamTest {
 
   private TestStream newStream(
       Function<StreamObserver<Integer>, StreamObserver<Integer>> clientFactory) {
-    return new TestStream(clientFactory, streamRegistry, streamObserverFactory);
+    return new TestStream(clientFactory, streamRegistry, streamObserverFactory, Duration.ZERO);
   }
 
   @Test
@@ -140,12 +141,14 @@ public class AbstractWindmillStreamTest {
     private static final Logger LOG = LoggerFactory.getLogger(AbstractWindmillStreamTest.class);
 
     private final AtomicInteger numStarts = new AtomicInteger();
+    private final AtomicInteger numFlushPending = new AtomicInteger();
     private final AtomicInteger numHealthChecks = new AtomicInteger();
 
     private TestStream(
         Function<StreamObserver<Integer>, StreamObserver<Integer>> clientFactory,
         Set<AbstractWindmillStream<?, ?>> streamRegistry,
-        StreamObserverFactory streamObserverFactory) {
+        StreamObserverFactory streamObserverFactory,
+        Duration halfCloseAfterTimeout) {
       super(
           LoggerFactory.getLogger(AbstractWindmillStreamTest.class),
           "Test",
@@ -154,7 +157,8 @@ public class AbstractWindmillStreamTest {
           streamObserverFactory,
           streamRegistry,
           1,
-          "Test");
+          "Test",
+          java.time.Duration.of(halfCloseAfterTimeout.getMillis(), ChronoUnit.MILLIS));
     }
 
     @Override
@@ -178,8 +182,11 @@ public class AbstractWindmillStreamTest {
     }
 
     @Override
-    protected void onNewStream() {
-      numStarts.incrementAndGet();
+    protected void onFlushPending(boolean isNewStream) {
+      if (isNewStream) {
+        numStarts.incrementAndGet();
+      }
+      numFlushPending.incrementAndGet();
     }
 
     private void testSend() throws WindmillStreamShutdownException {

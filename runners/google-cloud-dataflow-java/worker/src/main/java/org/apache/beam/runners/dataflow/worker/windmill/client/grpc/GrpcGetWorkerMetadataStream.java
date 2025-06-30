@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import java.io.PrintWriter;
+import java.time.Duration;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -58,7 +59,8 @@ public final class GrpcGetWorkerMetadataStream
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
       int logEveryNStreamFailures,
       JobHeader jobHeader,
-      Consumer<WindmillEndpoints> serverMappingConsumer) {
+      Consumer<WindmillEndpoints> serverMappingConsumer,
+      Duration halfClosePhysicalStreamAfter) {
     super(
         LOG,
         "GetWorkerMetadataStream",
@@ -67,7 +69,8 @@ public final class GrpcGetWorkerMetadataStream
         streamObserverFactory,
         streamRegistry,
         logEveryNStreamFailures,
-        "");
+        "",
+        halfClosePhysicalStreamAfter);
     this.workerMetadataRequest = WorkerMetadataRequest.newBuilder().setHeader(jobHeader).build();
     this.serverMappingConsumer = serverMappingConsumer;
     this.latestResponse = WorkerMetadataResponse.getDefaultInstance();
@@ -82,7 +85,8 @@ public final class GrpcGetWorkerMetadataStream
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
       int logEveryNStreamFailures,
       JobHeader jobHeader,
-      Consumer<WindmillEndpoints> serverMappingUpdater) {
+      Consumer<WindmillEndpoints> serverMappingUpdater,
+      Duration halfClosePhysicalStreamAfter) {
     return new GrpcGetWorkerMetadataStream(
         startGetWorkerMetadataRpcFn,
         backoff,
@@ -90,7 +94,8 @@ public final class GrpcGetWorkerMetadataStream
         streamRegistry,
         logEveryNStreamFailures,
         jobHeader,
-        serverMappingUpdater);
+        serverMappingUpdater,
+        halfClosePhysicalStreamAfter);
   }
 
   /**
@@ -141,8 +146,10 @@ public final class GrpcGetWorkerMetadataStream
   }
 
   @Override
-  protected void onNewStream() throws WindmillStreamShutdownException {
-    trySend(workerMetadataRequest);
+  protected void onFlushPending(boolean isNewStream) throws WindmillStreamShutdownException {
+    if (isNewStream) {
+      trySend(workerMetadataRequest);
+    }
   }
 
   @Override
