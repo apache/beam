@@ -501,10 +501,14 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
         fileio.TextSink()  # pass a FileSink object
     ]
 
+    # Test assumes that all records will be handled by same worker process,
+    # pin to FnApiRunner to guarantee hthis
+    runner = 'FnApiRunner'
+
     for sink in sink_params:
       dir = self._new_tempdir()
 
-      with TestPipeline() as p:
+      with TestPipeline(runner) as p:
         _ = (
             p
             | "Create" >> beam.Create(range(100))
@@ -515,7 +519,7 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
                 sink=sink,
                 file_naming=fileio.destination_prefix_naming("test")))
 
-      with TestPipeline() as p:
+      with TestPipeline(runner) as p:
         result = (
             p
             | fileio.MatchFiles(FileSystems.join(dir, '*'))
