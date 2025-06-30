@@ -26,5 +26,10 @@ applyPythonNature()
 // Required to setup a Python 3 virtualenv and task names.
 pythonVersion = '3.12'
 
+// run on precommit
+toxTask "testPy312pytorch-271", "py312-pytorch-271", "${posargs}"
+test.dependsOn "testpy312pytorch-271"
+postCommitPyDep.dependsOn "testpy312pytorch-271"
+
 apply from: "../common.gradle"
 
