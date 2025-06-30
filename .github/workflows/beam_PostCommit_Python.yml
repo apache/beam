@@ -79,7 +79,7 @@ jobs:
           esac
       - name: Delay job start
         run: |
-          echo "⏳ Waiting ${{ steps.calc_delay.outputs.delay }}s before starting tests"
+          echo "Waiting ${{ steps.calc_delay.outputs.delay }}s before starting tests"
           sleep ${{ steps.calc_delay.outputs.delay }}
       - uses: actions/checkout@v4
       - name: Setup repository
