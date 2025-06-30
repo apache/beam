@@ -62,17 +62,6 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
   private String projectId;
   private String instanceId;
   private PTransform<PCollectionRowTuple, PCollectionRowTuple> writeTransform;
-  private static final Schema SCHEMA =
-      Schema.builder()
-          .addByteArrayField("key")
-          .addStringField("type")
-          .addByteField("value")
-          .addByteField("column_qualifier")
-          .addStringField("family_name")
-          .addByteArrayField("timestamp_micros")
-          .addByteArrayField("start_timestamp_micros")
-          .addByteArrayField("end_timestamp_micros")
-          .build();
 
   @Test
   public void testInvalidConfigs() {
@@ -158,6 +147,16 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
             .setCell(COLUMN_FAMILY_NAME_1, "col_a", 1000, "val-1-a")
             .setCell(COLUMN_FAMILY_NAME_2, "col_c", 1000, "val-1-c");
     dataClient.mutateRow(rowMutation);
+    Schema SCHEMA =
+        Schema.builder()
+            .addByteArrayField("key")
+            .addByteArrayField("type")
+            .addByteArrayField("value")
+            .addByteArrayField("column_qualifier")
+            .addByteArrayField("family_name")
+            .addByteArrayField("timestamp_micros")
+            .build();
+
     Row mutationRow1 =
         Row.withSchema(SCHEMA)
             .withFieldValue("key", "key-1".getBytes(StandardCharsets.UTF_8))
@@ -213,7 +212,14 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
     RowMutation rowMutation =
         RowMutation.create(tableId, "key-1").setCell(COLUMN_FAMILY_NAME_1, "col_a", "val-1-a");
     dataClient.mutateRow(rowMutation);
-
+    Schema SCHEMA =
+        Schema.builder()
+            .addByteArrayField("key")
+            .addByteArrayField("type")
+            .addByteArrayField("value")
+            .addByteArrayField("column_qualifier")
+            .addByteArrayField("family_name")
+            .build();
     Row mutationRow =
         Row.withSchema(SCHEMA)
             .withFieldValue("key", "key-1".getBytes(StandardCharsets.UTF_8))
@@ -253,7 +259,14 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
     rowMutation =
         RowMutation.create(tableId, "key-1").setCell(COLUMN_FAMILY_NAME_1, "col_a", "new-val-1-a");
     dataClient.mutateRow(rowMutation);
-
+    Schema SCHEMA =
+        Schema.builder()
+            .addByteArrayField("key")
+            .addByteArrayField("type")
+            .addByteArrayField("value")
+            .addByteArrayField("column_qualifier")
+            .addByteArrayField("family_name")
+            .build();
     Row mutationRow =
         Row.withSchema(SCHEMA)
             .withFieldValue("key", "key-1".getBytes(StandardCharsets.UTF_8))
@@ -294,6 +307,15 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
         RowMutation.create(tableId, "key-1")
             .setCell(COLUMN_FAMILY_NAME_1, "col", 200_000_000, "new-val");
     dataClient.mutateRow(rowMutation);
+    Schema SCHEMA =
+        Schema.builder()
+            .addByteArrayField("key")
+            .addByteArrayField("type")
+            .addByteArrayField("column_qualifier")
+            .addByteArrayField("family_name")
+            .addByteArrayField("start_timestamp_micros")
+            .addByteArrayField("end_timestamp_micros")
+            .build();
     Row mutationRow =
         Row.withSchema(SCHEMA)
             .withFieldValue("key", "key-1".getBytes(StandardCharsets.UTF_8))
@@ -331,7 +353,12 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
             .setCell(COLUMN_FAMILY_NAME_1, "col_a", "val")
             .setCell(COLUMN_FAMILY_NAME_2, "col_b", "val");
     dataClient.mutateRow(rowMutation);
-
+    Schema SCHEMA =
+        Schema.builder()
+            .addByteArrayField("key")
+            .addByteArrayField("type")
+            .addByteArrayField("family_name")
+            .build();
     Row mutationRow =
         Row.withSchema(SCHEMA)
             .withFieldValue("key", "key-1".getBytes(StandardCharsets.UTF_8))
@@ -367,7 +394,11 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
     rowMutation =
         RowMutation.create(tableId, "key-2").setCell(COLUMN_FAMILY_NAME_1, "col", "val-2");
     dataClient.mutateRow(rowMutation);
-
+    Schema SCHEMA =
+        Schema.builder()
+            .addByteArrayField("key")
+            .addByteArrayField("type")
+            .build();
     Row mutationRow =
         Row.withSchema(SCHEMA)
             .withFieldValue("key", "key-1".getBytes(StandardCharsets.UTF_8))
@@ -395,7 +426,11 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
     rowMutation =
         RowMutation.create(tableId, "key-2").setCell(COLUMN_FAMILY_NAME_1, "col", "val-2");
     dataClient.mutateRow(rowMutation);
-
+    Schema SCHEMA =
+        Schema.builder()
+            .addByteArrayField("key")
+            .addByteArrayField("type")
+            .build();
     Row mutationRow =
         Row.withSchema(SCHEMA)
             .withFieldValue("key", "key-1".getBytes(StandardCharsets.UTF_8))
