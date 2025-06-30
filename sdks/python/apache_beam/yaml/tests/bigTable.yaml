@@ -1,0 +1,124 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+
+fixtures:
+  - name: BT_TABLE
+    type: "apache_beam.yaml.integration_tests.temp_bigtable_table"
+    config:
+      project: "apache-beam-testing"
+  - name: TEMP_DIR
+    # Need distributed filesystem to be able to read and write from a container.
+    type: "apache_beam.yaml.integration_tests.gcs_temp_dir"
+    config:
+      bucket: "gs://temp-storage-for-end-to-end-tests/temp-it"
+
+  # Tests for BigTable YAML IO
+
+pipelines:
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - {key: 'row1',
+                type: 'SetCell',
+                family_name: "cf1",
+                column_qualifier: "cq1",
+                value: "value1",
+                timestamp_micros: -1}
+              - {key: 'row1',
+                  type: 'SetCell',
+                  family_name: "cf2",
+                  column_qualifier: "cq1",
+                  value: "value2",
+                  timestamp_micros: 1000}
+#              # Deletes all cells in a specific column, optionally within a time range.
+#              - {key: 'row2',
+#                  type: 'DeleteFromColumn',
+#                  family_name: "cf1",
+#                  column_qualifier: "cq1",
+#                  start_timestamp_micros: 2000,
+#                  end_timestamp_micros: 5000 }
+#
+#              # Deletes all cells in a specific column family.
+#              - {key: 'row3',
+#                  type: 'DeleteFromFamily',
+#                  family_name: "cf2" }
+#
+#              # Deletes all cells in a specific row.
+#              - {key: 'row4',
+#                  type: 'DeleteFromRow' }
+        - type: LogForTesting
+#          commenting for now, will implement after everyone gives feedback on PR
+
+#        - type: MapToFields
+#          name: Create Bytestring
+#          config:
+#            language: python
+#            fields:
+#              bytestr_value:
+#                callable: |
+#                  def all_words(row):
+#                    return bytes(row.input_value)
+
+        #              - key: !!byte cm93MQ==              # Base64 for "row1"
+#                type: 'SetCell'
+#                family_name: !!byte Y2Yy          # Base64 for "cf2"
+#                column_qualifier: !!byte Y3Ex     # Base64 for "cq1"
+#                value: !!byte dmFsdWUy              # Base64 for "value2"
+#                timestamp_micros: 1000
+
+
+        - type: WriteToBigTable
+          config:
+            project: 'apache-beam-testing'
+            instance: 'bt-write-tests'
+            table: 'test-table'
+#      options:
+#          project: "apache-beam-testing"
+#          temp_location: "{TEMP_DIR}"
+#      - type: WriteToBigTable
+#        name: WriteBigTableData
+#        input: CreateSampleMutations
+#        config:
+#          project: 'dummy-project-id' # These will likely be overridden or mocked by the test runner
+#          instance: 'dummy-instance-id'
+#          table: 'dummy-table-id'
+#  - pipeline:
+#    type: chain
+#    transforms:
+#      - type: ReadFromBigTable
+#        config:
+#          project: 'apache-beam-testing' # These will likely be overridden or mocked by the test runner
+#          instance: 'bt-write-tests'
+#          table: 'test-table'
+#      - type: AssertEqual
+#        config:
+#          elements:
+#            - {key: 'row1',type: 'SetCell',family_name: 'cf1',column_qualifier: 'cq1',value: 'value1_from_yaml',timestamp_micros: -1}
+#            - {key: 'row1',type: 'SetCell',family_name: 'cf2',column_qualifier: 'cq1',value: 'value2',timestamp_micros: 1000 }
+
+#    options:
+#      project: "apache-beam-testing"
+#      temp_location: "{TEMP_DIR}"
+#
+#
+#    options:
+#        project: "apache-beam-testing"
+#        temp_location: "{TEMP_DIR}"
