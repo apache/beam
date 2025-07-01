@@ -23,7 +23,6 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 
 import com.google.auto.value.AutoValue;
-import java.io.IOException;
 import java.util.List;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.Coder;

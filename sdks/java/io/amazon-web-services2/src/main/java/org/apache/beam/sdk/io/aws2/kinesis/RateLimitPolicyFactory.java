@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.aws2.kinesis;
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
 import java.util.function.Supplier;
