@@ -81,6 +81,11 @@ jobs:
         run: |
           sudo curl -L https://github.com/docker/compose/releases/download/1.22.0/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose
           sudo chmod +x /usr/local/bin/docker-compose
+      - name: Install mysqlclient
+        run: |
+          sudo apt update --yes
+          sudo apt install -y pkg-config libmysqlclient-dev
+          pip install mysqlclient
       - name: run PostCommit Python Xlang Gcp Direct script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
