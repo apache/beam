@@ -91,7 +91,7 @@
 
 * ([#X](https://github.com/apache/beam/issues/X)).
 
-# [2.66.0] - 2025-06-XX
+# [2.66.0] - 2025-07-01
 
 ## Beam 3.0.0 Development Highlights
 

@@ -96,7 +96,7 @@ versions denoted `0.x.y`.
 
 ## Releases
 
-### 2.66.0 (2025-06-XX)
+### 2.66.0 (2025-07-01)
 
 Official [source code download](https://downloads.apache.org/beam/2.66.0/apache-beam-2.66.0-source-release.zip).
 [SHA-512](https://downloads.apache.org/beam/2.66.0/apache-beam-2.66.0-source-release.zip.sha512).
