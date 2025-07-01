@@ -255,7 +255,10 @@ class ColumnSpecsBuilder:
   def with_embedding_spec(
       self,
       column_name: str = "embedding",
-      convert_fn: Optional[Callable[[List[float]], Any]] = None
+      convert_fn: Callable[
+          [List[float]],
+          Any] = lambda embeddig: '[' + ','.join(str(x)
+                                                 for x in embedding) + ']'
   ) -> 'ColumnSpecsBuilder':
     """Add embedding :class:`.ColumnSpec` with optional conversion.
       
@@ -278,9 +281,7 @@ class ColumnSpecsBuilder:
       if chunk.embedding is None or chunk.embedding.dense_embedding is None:
         raise ValueError(f'Expected chunk to contain embedding. {chunk}')
       values = chunk.embedding.dense_embedding
-      if convert_fn:
-        return convert_fn(values)
-      return '[' + ','.join(str(x) for x in values) + ']'
+      return convert_fn(values)
 
     self._specs.append(
         ColumnSpec.vector(column_name=column_name, value_fn=value_fn))
