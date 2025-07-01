@@ -15,4 +15,5 @@
 # limitations under the License.
 #
 
+httpx>=0.28.1
 openai>=1.0.0
