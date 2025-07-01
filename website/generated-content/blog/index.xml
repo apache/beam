@@ -1,4 +1,68 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Blogs</title><link>/blog/</link><description>Recent content in Blogs on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Mon, 16 Jun 2025 00:00:00 +0000</lastBuildDate><atom:link href="/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: My Experience at Beam College 2025: 3rd Place Hackathon Winner</title><link>/blog/beam-college-2025-anomaflow/</link><pubDate>Mon, 16 Jun 2025 00:00:00 +0000</pubDate><guid>/blog/beam-college-2025-anomaflow/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Blogs</title><link>/blog/</link><description>Recent content in Blogs on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Tue, 01 Jul 2025 15:00:00 -0500</lastBuildDate><atom:link href="/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.66.0</title><link>/blog/beam-2.66.0/</link><pubDate>Tue, 01 Jul 2025 15:00:00 -0500</pubDate><guid>/blog/beam-2.66.0/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.66.0 release of Beam.
+This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/#2660-2025-07-01">download page&lt;/a> for this release.&lt;/p>
+&lt;p>For more information on changes in 2.66.0, check out the &lt;a href="https://github.com/apache/beam/milestone/30?closed=1">detailed release notes&lt;/a>.&lt;/p>
+&lt;h2 id="beam-300-development-highlights">Beam 3.0.0 Development Highlights&lt;/h2>
+&lt;ul>
+&lt;li>[Java] Java 8 support is now deprecated. It is still supported until Beam 3.
+From now, pipeline submitted by Java 8 client uses Java 11 SDK container for
+remote pipeline execution (&lt;a href="https://github.com/apache/beam/pull/35064">35064&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h2 id="highlights">Highlights&lt;/h2>
+&lt;ul>
+&lt;li>[Python] Several quality-of-life improvements to the vLLM model handler. If you use Beam RunInference with vLLM model handlers, we strongly recommend updating past this release.&lt;/li>
+&lt;/ul>
+&lt;h3 id="ios">I/Os&lt;/h3>
+&lt;ul>
+&lt;li>[IcebergIO] Now available with Beam SQL! (&lt;a href="https://github.com/apache/beam/pull/34799">#34799&lt;/a>)&lt;/li>
+&lt;li>[IcebergIO] Support reading with column pruning (&lt;a href="https://github.com/apache/beam/pull/34856">#34856&lt;/a>)&lt;/li>
+&lt;li>[IcebergIO] Support reading with pushdown filtering (&lt;a href="https://github.com/apache/beam/pull/34827">#34827&lt;/a>)&lt;/li>
+&lt;li>[IcebergIO] Create tables with a specified partition spec (&lt;a href="https://github.com/apache/beam/pull/34966">#34966&lt;/a>, &lt;a href="https://github.com/apache/beam/pull/35268">#35268&lt;/a>)&lt;/li>
+&lt;li>[IcebergIO] Dynamically create namespaces if needed (&lt;a href="https://github.com/apache/beam/pull/35228">#35228&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h3 id="new-features--improvements">New Features / Improvements&lt;/h3>
+&lt;ul>
+&lt;li>[Beam SQL] Introducing Beam Catalogs (&lt;a href="https://github.com/apache/beam/pull/35223">#35223&lt;/a>)&lt;/li>
+&lt;li>Adding Google Storage Requests Pays feature (Golang)(&lt;a href="https://github.com/apache/beam/issues/30747">#30747&lt;/a>).&lt;/li>
+&lt;li>[Python] Prism runner now auto-enabled for some Python pipelines using the direct runner (&lt;a href="https://github.com/apache/beam/pull/34921">#34921&lt;/a>).&lt;/li>
+&lt;li>[YAML] WriteToTFRecord and ReadFromTFRecord Beam YAML support&lt;/li>
+&lt;li>Python: Added JupyterLab 4.x extension compatibility for enhanced notebook integration (&lt;a href="https://github.com/apache/beam/pull/34495">#34495&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="breaking-changes">Breaking Changes&lt;/h3>
+&lt;ul>
+&lt;li>Yapf version upgraded to 0.43.0 for formatting (Python) (&lt;a href="https://github.com/apache/beam/pull/34801/">#34801&lt;/a>).&lt;/li>
+&lt;li>Python: Added JupyterLab 4.x extension compatibility for enhanced notebook integration (&lt;a href="https://github.com/apache/beam/pull/34495">#34495&lt;/a>).&lt;/li>
+&lt;li>Python: Argument abbreviation is no longer enabled within Beam. If you previously abbreviated arguments (e.g. &lt;code>--r&lt;/code> for &lt;code>--runner&lt;/code>), you will now need to specify the whole argument (&lt;a href="https://github.com/apache/beam/pull/34934">#34934&lt;/a>).&lt;/li>
+&lt;li>Java: Users of ReadFromKafkaViaSDF transform might encounter pipeline graph compatibility issues when updating the pipeline. To mitigate, set the &lt;code>updateCompatibilityVersion&lt;/code> option to the SDK version used for the original pipeline, example &lt;code>--updateCompatabilityVersion=2.64.0&lt;/code>&lt;/li>
+&lt;li>Python: Updated &lt;code>AlloyDBVectorWriterConfig&lt;/code> API to align with new &lt;code>PostgresVectorWriter&lt;/code> transform. Heres a quick guide to update your code: (&lt;a href="https://github.com/apache/beam/issues/35225">#35225&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h3 id="bugfixes">Bugfixes&lt;/h3>
+&lt;ul>
+&lt;li>(Java) Fixed CassandraIO ReadAll does not let a pipeline handle or retry exceptions (&lt;a href="https://github.com/apache/beam/pull/34191">#34191&lt;/a>).&lt;/li>
+&lt;li>[Python] Fixed vLLM model handlers breaking Beam logging. (&lt;a href="https://github.com/apache/beam/pull/35053">#35053&lt;/a>).&lt;/li>
+&lt;li>[Python] Fixed vLLM connection leaks that caused a throughput bottleneck and underutilization of GPU (&lt;a href="https://github.com/apache/beam/pull/35053">#35053&lt;/a>).&lt;/li>
+&lt;li>[Python] Fixed vLLM server recovery mechanism in the event of a process termination (&lt;a href="https://github.com/apache/beam/pull/35234">#35234&lt;/a>).&lt;/li>
+&lt;li>(Python) Fixed cloudpickle overwriting class states every time loading a same object of dynamic class (&lt;a href="https://github.com/apache/beam/issues/35062">#35062&lt;/a>).&lt;/li>
+&lt;li>[Python] Fixed pip install apache-beam[interactive] causes crash on google colab (&lt;a href="https://github.com/apache/beam/pull/35148">#35148&lt;/a>).&lt;/li>
+&lt;li>[IcebergIO] Fixed Beam &amp;lt;-&amp;gt; Iceberg conversion logic for arrays of structs and maps of structs (&lt;a href="https://github.com/apache/beam/pull/35230">#35230&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="known-issues">Known Issues&lt;/h3>
+&lt;p>N/A&lt;/p>
+&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
+&lt;p>According to git shortlog, the following people contributed to the 2.66.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>Aditya Yadav, Adrian Stoll, Ahmed Abualsaud, Bhargavkonidena, Chamikara Jayalath, Charles Nguyen, Chenzo, Damon, Danny McCormick, Derrick Williams, Enrique Calderon, Hai Joey Tran, Jack McCluskey, Kenneth Knowles, Leonardo Cesar Borges, Michael Gruschke, Minbo Bae, Minh Son Nguyen, Niel Markwick, Radosław Stankiewicz, Rakesh Kumar, Robert Bradshaw, S. Veyrié, Sam Whittle, Shubham Jaiswal, Shunping Huang, Steven van Rossum, Tanu Sharma, Vardhan Thigle, Vitaly Terentyev, XQ Hu, Yi Hu, akashorabek, atask-g, atognolag, bullet03, changliiu, claudevdm, fozzie15, ikarapanca, kristynsmith, Pablo Rodriguez Defino, tvalentyn, twosom, wollowizard&lt;/p></description></item><item><title>Blog: My Experience at Beam College 2025: 3rd Place Hackathon Winner</title><link>/blog/beam-college-2025-anomaflow/</link><pubDate>Mon, 16 Jun 2025 00:00:00 +0000</pubDate><guid>/blog/beam-college-2025-anomaflow/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -7013,159 +7077,4 @@ gs://ihr-apache-hop-blog/output/input-process-output-00002-of-00003.csv
 &lt;p>We have run this job with a small data sample, but we could have run the same job with an arbitrarily large input CSV. Dataflow would parallelize and process the data in chunks.&lt;/p>
 &lt;h2 id="conclusions">Conclusions&lt;/h2>
 &lt;p>Apache Hop is a visual development environment for Beam pipelines, that allows us to run the pipelines locally, inspect the data, debug, unit test and many other capabilities. Once we are happy with a pipeline that has run locally, we can deploy the same visual pipeline in the cloud by just setting the necessary parameters for using Dataflow.&lt;/p>
-&lt;p>If you want to know more about Apache Hop, don&amp;rsquo;t miss &lt;a href="https://www.youtube.com/watch?v=sZSIbcPtebI">the Beam Summit talk delivered by the author of Hop&lt;/a>, and don&amp;rsquo;t forget to check out the &lt;a href="https://hop.apache.org/manual/latest/getting-started/index.html">getting started guide&lt;/a>.&lt;/p></description></item><item><title>Blog: Apache Beam 2.38.0</title><link>/blog/beam-2.38.0/</link><pubDate>Wed, 20 Apr 2022 09:00:00 -0700</pubDate><guid>/blog/beam-2.38.0/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are happy to present the new 2.38.0 release of Beam.
-This release includes both improvements and new functionality.
-See the &lt;a href="/get-started/downloads/#2380-2022-04-20">download page&lt;/a> for this release.&lt;/p>
-&lt;p>For more information on changes in 2.38.0 check out the &lt;a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12351169">detailed release notes&lt;/a>.&lt;/p>
-&lt;h2 id="ios">I/Os&lt;/h2>
-&lt;ul>
-&lt;li>Introduce projection pushdown optimizer to the Java SDK (&lt;a href="https://issues.apache.org/jira/browse/BEAM-12976">BEAM-12976&lt;/a>). The optimizer currently only works on the &lt;a href="/documentation/io/built-in/google-bigquery/#storage-api">BigQuery Storage API&lt;/a>, but more I/Os will be added in future releases. If you encounter a bug with the optimizer, please file a JIRA and disable the optimizer using pipeline option &lt;code>--experiments=disable_projection_pushdown&lt;/code>.&lt;/li>
-&lt;li>A new IO for Neo4j graph databases was added. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-1857">BEAM-1857&lt;/a>) It has the ability to update nodes and relationships using UNWIND statements and to read data using cypher statements with parameters.&lt;/li>
-&lt;li>&lt;code>amazon-web-services2&lt;/code> has reached feature parity and is finally recommended over the earlier &lt;code>amazon-web-services&lt;/code> and &lt;code>kinesis&lt;/code> modules (Java). These will be deprecated in one of the next releases (&lt;a href="https://issues.apache.org/jira/browse/BEAM-13174">BEAM-13174&lt;/a>).
-&lt;ul>
-&lt;li>Long outstanding write support for &lt;code>Kinesis&lt;/code> was added (&lt;a href="https://issues.apache.org/jira/browse/BEAM-13175">BEAM-13175&lt;/a>).&lt;/li>
-&lt;li>Configuration was simplified and made consistent across all IOs, including the usage of &lt;code>AwsOptions&lt;/code> (&lt;a href="https://issues.apache.org/jira/browse/BEAM-13563">BEAM-13563&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-13663">BEAM-13663&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-13587">BEAM-13587&lt;/a>).&lt;/li>
-&lt;li>Additionally, there&amp;rsquo;s a long list of recent improvements and fixes to
-&lt;code>S3&lt;/code> Filesystem (&lt;a href="https://issues.apache.org/jira/browse/BEAM-13245">BEAM-13245&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-13246">BEAM-13246&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-13441">BEAM-13441&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-13445">BEAM-13445&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-14011">BEAM-14011&lt;/a>),
-&lt;code>DynamoDB&lt;/code> IO (&lt;a href="https://issues.apache.org/jira/browse/BEAM-13009">BEAM-13209&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-13209">BEAM-13209&lt;/a>),
-&lt;code>SQS&lt;/code> IO (&lt;a href="https://issues.apache.org/jira/browse/BEAM-13631">BEAM-13631&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-13510">BEAM-13510&lt;/a>) and others.&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;/ul>
-&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
-&lt;ul>
-&lt;li>Pipeline dependencies supplied through &lt;code>--requirements_file&lt;/code> will now be staged to the runner using binary distributions (wheels) of the PyPI packages for linux_x86_64 platform (&lt;a href="https://issues.apache.org/jira/browse/BEAM-4032">BEAM-4032&lt;/a>). To restore the behavior to use source distributions, set pipeline option &lt;code>--requirements_cache_only_sources&lt;/code>. To skip staging the packages at submission time, set pipeline option &lt;code>--requirements_cache=skip&lt;/code> (Python).&lt;/li>
-&lt;li>The Flink runner now supports Flink 1.14.x (&lt;a href="https://issues.apache.org/jira/browse/BEAM-13106">BEAM-13106&lt;/a>).&lt;/li>
-&lt;li>Interactive Beam now supports remotely executing Flink pipelines on Dataproc (Python) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-14071">BEAM-14071&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
-&lt;ul>
-&lt;li>(Python) Previously &lt;code>DoFn.infer_output_types&lt;/code> was expected to return &lt;code>Iterable[element_type]&lt;/code> where &lt;code>element_type&lt;/code> is the PCollection elemnt type. It is now expected to return &lt;code>element_type&lt;/code>. Take care if you have overriden &lt;code>infer_output_type&lt;/code> in a &lt;code>DoFn&lt;/code> (this is not common). See &lt;a href="https://issues.apache.org/jira/browse/BEAM-13860">BEAM-13860&lt;/a>.&lt;/li>
-&lt;li>(&lt;code>amazon-web-services2&lt;/code>) The types of &lt;code>awsRegion&lt;/code> / &lt;code>endpoint&lt;/code> in &lt;code>AwsOptions&lt;/code> changed from String to &lt;code>Region&lt;/code> / &lt;code>URI&lt;/code> (&lt;a href="https://issues.apache.org/jira/browse/BEAM-13563">BEAM-13563&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h2 id="deprecations">Deprecations&lt;/h2>
-&lt;ul>
-&lt;li>Beam 2.38.0 will be the last minor release to support Flink 1.11.&lt;/li>
-&lt;li>(&lt;code>amazon-web-services2&lt;/code>) Client providers (&lt;code>withXYZClientProvider()&lt;/code>) as well as IO specific &lt;code>RetryConfiguration&lt;/code>s are deprecated, instead use &lt;code>withClientConfiguration()&lt;/code> or &lt;code>AwsOptions&lt;/code> to configure AWS IOs / clients.
-Custom implementations of client providers shall be replaced with a respective &lt;code>ClientBuilderFactory&lt;/code> and configured through &lt;code>AwsOptions&lt;/code> (&lt;a href="https://issues.apache.org/jira/browse/BEAM-13563">BEAM-13563&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h2 id="bugfixes">Bugfixes&lt;/h2>
-&lt;ul>
-&lt;li>Fix S3 copy for large objects (Java) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-14011">BEAM-14011&lt;/a>)&lt;/li>
-&lt;li>Fix quadratic behavior of pipeline canonicalization (Go) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-14128">BEAM-14128&lt;/a>)
-&lt;ul>
-&lt;li>This caused unnecessarily long pre-processing times before job submission for large complex pipelines.&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;li>Fix &lt;code>pyarrow&lt;/code> version parsing (Python)(&lt;a href="https://issues.apache.org/jira/browse/BEAM-14235">BEAM-14235&lt;/a>)&lt;/li>
-&lt;/ul>
-&lt;h3 id="known-issues">Known Issues&lt;/h3>
-&lt;ul>
-&lt;li>See a full list of open &lt;a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20affectedVersion%20%3D%202.38.0%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC">issues that affect&lt;/a> this version.&lt;/li>
-&lt;/ul>
-&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to git shortlog, the following people contributed to the 2.38.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>abhijeet-lele
-Ahmet Altay
-akustov
-Alexander
-Alexander Zhuravlev
-Alexey Romanenko
-AlikRodriguez
-Anand Inguva
-andoni-guzman
-andreukus
-Andy Ye
-Ankur Goenka
-ansh0l
-Artur Khanin
-Aydar Farrakhov
-Aydar Zainutdinov
-Benjamin Gonzalez
-Brian Hulette
-brucearctor
-bulat safiullin
-bullet03
-Carl Mastrangelo
-Chamikara Jayalath
-Chun Yang
-Daniela Martín
-Daniel Oliveira
-Danny McCormick
-daria.malkova
-David Cavazos
-David Huntsperger
-dmitryor
-Dmytro Sadovnychyi
-dpcollins-google
-egalpin
-Elias Segundo Antonio
-emily
-Etienne Chauchot
-Hengfeng Li
-Ismaël Mejía
-Israel Herraiz
-Jack McCluskey
-Jakub Kukul
-Janek Bevendorff
-Jeff Klukas
-Johan Sternby
-Kamil Breguła
-Kenneth Knowles
-Ke Wu
-Kiley
-Kyle Weaver
-laraschmidt
-Lara Schmidt
-LE QUELLEC Olivier
-Luka Kalinovcic
-Luke Cwik
-Marcin Kuthan
-masahitojp
-Masato Nakamura
-Matt Casters
-Melissa Pashniak
-Michael Li
-Miguel Hernandez
-Moritz Mack
-mosche
-nancyxu123
-Nathan J Mehl
-Niel Markwick
-Ning Kang
-Pablo Estrada
-paul-tlh
-Pavel Avilov
-Rahul Iyer
-Reuven Lax
-Ritesh Ghorse
-Robert Bradshaw
-Robert Burke
-Ryan Skraba
-Ryan Thompson
-Sam Whittle
-Seth Vargo
-sp029619
-Steven Niemitz
-Thiago Nunes
-Udi Meiri
-Valentyn Tymofieiev
-Victor
-vitaly.terentyev
-Yichi Zhang
-Yi Hu
-yirutang
-Zachary Houfek
-Zoe&lt;/p></description></item></channel></rss>
+&lt;p>If you want to know more about Apache Hop, don&amp;rsquo;t miss &lt;a href="https://www.youtube.com/watch?v=sZSIbcPtebI">the Beam Summit talk delivered by the author of Hop&lt;/a>, and don&amp;rsquo;t forget to check out the &lt;a href="https://hop.apache.org/manual/latest/getting-started/index.html">getting started guide&lt;/a>.&lt;/p></description></item></channel></rss>
