@@ -70,7 +70,8 @@ def generate_completion(
       # Note: OpenAI's library expects a single prompt for completions.create,
       # so we iterate and call. Batching is handled by RunInference.
       # For chat models, multiple messages can be part of a single request.
-      if "chat.completions" in client.chat.completions.with_raw_response.create.binary_relative_path:  # rough check
+      if ("chat.completions" in client.chat.completions.with_raw_response.
+          create.binary_relative_path):
         # Assuming chat model if path indicates chat completions
         # User might need to format input as list of messages
         # For simplicity, we'll assume a single user message per prompt string

@@ -37,31 +37,19 @@ except ImportError:
 
 from apache_beam.ml.inference.base import PredictionResult
 
-# Configure logger for debugging tests related to _retry_on_appropriate_openai_error
-# This gets the logger instance used in openai_inference.py
-logger_to_debug = logging.getLogger("OpenAIModelHandler")
-logger_to_debug.setLevel(logging.DEBUG)
-# Add a handler to see the output during tests, e.g., stream to stderr
-# Check if a handler already exists to avoid duplicate messages if tests are run multiple times
-if not any(isinstance(h, logging.StreamHandler)
-           for h in logger_to_debug.handlers):
-  stream_handler = logging.StreamHandler()
-  stream_handler.setLevel(logging.DEBUG)
-  formatter = logging.Formatter(
-      '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-  stream_handler.setFormatter(formatter)
-  logger_to_debug.addHandler(stream_handler)
-
 
 class RetryOnAPIErrorTest(unittest.TestCase):
   def _create_mock_error_with_status(self, status_code, error_class=APIError):
     """
     Helper to create a mock error object (APIError or RateLimitError)
     with a given status code.
-    The key is to ensure that `getattr(err, 'status_code', None)` works as expected.
+    The key is to ensure that `getattr(err, 'status_code', None)` works as
+    expected.
     For real OpenAI errors:
-    - RateLimitError (and other APIStatusErrors) have `err.status_code` as a direct attribute.
-    - APIError (the base) has `err.status_code` as a property that inspects `err.request.response.status_code`.
+    - RateLimitError (and other APIStatusErrors) have `err.status_code` as a
+        direct attribute.
+    - APIError (the base) has `err.status_code` as a property that inspects
+        `err.request.response.status_code`.
     """
     mock_response = MagicMock(spec=httpx.Response)
     # mock_response.status_code will be set below.
@@ -92,8 +80,9 @@ class RetryOnAPIErrorTest(unittest.TestCase):
       mock_request_that_failed.response = response_for_api_error_property
 
       err = APIError("API error", request=mock_request_that_failed, body=None)
-      # Directly set status_code on the instance for getattr in the retry function to pick up.
-      # This is simpler than ensuring the nested property mock works perfectly.
+      # Directly set status_code on the instance for getattr in the retry
+      # function to pick up. This is simpler than ensuring the nested
+      # property mock works perfectly.
       # Note: This shadows the property for this instance.
       err.status_code = status_code
     return err
@@ -161,7 +150,7 @@ class OpenAIModelHandlerTest(unittest.TestCase):
             CompletionChoice(
                 text=" World!", index=0, finish_reason="length", logprobs=None)
         ])
-    mock_openai_client.completions.create.return_value = mock_completion_response
+    mock_openai_client.completions.create.return_value = mock_completion_response  # pylint: disable=line-too-long
 
     handler = OpenAIModelHandler(api_key=self.api_key, model=self.model_name)
     # Initialize client by calling create_client or load_model
@@ -188,9 +177,10 @@ class OpenAIModelHandlerTest(unittest.TestCase):
   @patch('openai.OpenAI')
   def test_request_chat_model_success(self, mock_openai_client_constructor):
     mock_openai_client = MagicMock()
-    # Simulate chat model by checking a mock attribute on the client's chat completions path
-    # This is a bit of a hack for testing the path in generate_completion
-    mock_openai_client.chat.completions.with_raw_response.create.binary_relative_path = "chat.completions"
+    # Simulate chat model by checking a mock attribute on the client's chat
+    # completions path. This is a bit of a hack for testing the path in
+    # generate_completion.
+    mock_openai_client.chat.completions.with_raw_response.create.binary_relative_path = "chat.completions"  # pylint: disable=line-too-long
     mock_openai_client_constructor.return_value = mock_openai_client
 
     # Mock the response from client.chat.completions.create
@@ -206,7 +196,7 @@ class OpenAIModelHandlerTest(unittest.TestCase):
                     role="assistant", content="There!"),
                 finish_reason="stop")
         ])
-    mock_openai_client.chat.completions.create.return_value = mock_chat_response
+    mock_openai_client.chat.completions.create.return_value = mock_chat_response  # pylint: disable=line-too-long
 
     handler = OpenAIModelHandler(
         api_key=self.api_key, model=self.chat_model_name)

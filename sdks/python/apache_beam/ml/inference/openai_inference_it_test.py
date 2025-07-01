@@ -40,7 +40,7 @@ _OUTPUT_DIR_DEFAULT = "gs://apache-beam-ml/testing/outputs/openai"
 _OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 
 # Models for testing - one completion, one chat
-_COMPLETION_MODEL = "gpt-3.5-turbo-instruct"  # A smaller, faster completion model
+_COMPLETION_MODEL = "gpt-3.5-turbo-instruct"
 _CHAT_MODEL = "gpt-3.5-turbo"
 
 
@@ -98,7 +98,7 @@ class OpenAIInferenceIT(unittest.TestCase):
     self.assertTrue(
         any("PredictionResult(example=" in line for line in match_results))
 
-  @pytest.mark.openai_postcommit  # Mark as postcommit as it makes external calls.
+  @pytest.mark.openai_postcommit
   def test_openai_completion_model(self):
     model_handler = OpenAIModelHandler(
         api_key=_OPENAI_API_KEY, model=_COMPLETION_MODEL)
@@ -116,7 +116,7 @@ class OpenAIInferenceIT(unittest.TestCase):
   def test_openai_chat_model(self):
     model_handler = OpenAIModelHandler(
         api_key=_OPENAI_API_KEY, model=_CHAT_MODEL)
-    # Chat models expect a list of messages or a single string (handled as user message)
+    # Chat models expect a list of messages or a single string
     test_data = [
         "What is 2+2?",  # Single string prompt
         [{
@@ -134,10 +134,11 @@ class OpenAIInferenceIT(unittest.TestCase):
   def test_openai_chat_model_with_system_message(self):
     model_handler = OpenAIModelHandler(
         api_key=_OPENAI_API_KEY, model=_CHAT_MODEL)
-    # Chat models expect a list of messages or a single string (handled as user message)
+    # Chat models expect a list of messages or a single string
     test_data = [
-        # This requires the OpenAIModelHandler's generate_completion to correctly
-        # handle list of messages if the input element itself is a list of dicts.
+        # This requires the OpenAIModelHandler's generate_completion to
+        # correctly handle list of messages if the input element itself
+        # is a list of dicts.
         [{
             "role": "system",
             "content": "You are a helpful assistant that speaks like a pirate."
