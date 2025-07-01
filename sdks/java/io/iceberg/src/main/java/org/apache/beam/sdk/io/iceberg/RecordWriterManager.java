@@ -293,6 +293,7 @@ class RecordWriterManager implements AutoCloseable {
     @Nullable IcebergTableCreateConfig createConfig = destination.getTableCreateConfig();
     PartitionSpec partitionSpec =
         createConfig != null ? createConfig.getPartitionSpec() : PartitionSpec.unpartitioned();
+    // Ensure table properties are not null, Iceberg's createTable does not accept null values.
     Map<String, String> tableProperties =
         (createConfig != null && createConfig.getTableProperties() != null)
             ? createConfig.getTableProperties()

@@ -125,8 +125,9 @@ public class IcebergWriteSchemaTransformProvider
     public abstract @Nullable List<String> getPartitionFields();
 
     @SchemaFieldDescription(
-        "Iceberg table properties to be set on the table when it is created,"
-            + "For more information on table properties, please visit https://iceberg.apache.org/docs/latest/configuration/#table-properties.")
+        "Iceberg table properties to be set on the table when it is created.\n"
+            + "For more information on table properties,"
+            + " please visit https://iceberg.apache.org/docs/latest/configuration/#table-properties.")
     public abstract @Nullable Map<String, String> getTableProperties();
 
     @AutoValue.Builder
