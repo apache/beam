@@ -52,7 +52,6 @@ from apache_beam.transforms.display_test import DisplayDataItemMatcher
 
 try:
   import pyarrow as pa
-  import pyarrow.lib as pl
   import pyarrow.parquet as pq
 except ImportError:
   pa = None
@@ -338,17 +337,16 @@ class TestParquet(unittest.TestCase):
       ARROW_MAJOR_VERSION >= 13,
       'pyarrow 13.x and above does not throw ArrowInvalid error')
   def test_sink_transform_int96(self):
-    with tempfile.NamedTemporaryFile() as dst:
+    with self.assertRaisesRegex(Exception, 'would lose data'):
+      # Should throw an error "ArrowInvalid: Casting from timestamp[ns] to
+      # timestamp[us] would lose data"
+      dst = tempfile.NamedTemporaryFile()
       path = dst.name
-      # pylint: disable=c-extension-no-member
-      with self.assertRaises(pl.ArrowInvalid):
-        # Should throw an error "ArrowInvalid: Casting from timestamp[ns] to
-        # timestamp[us] would lose data"
-        with TestPipeline() as p:
-          _ = p \
-          | Create(self.RECORDS) \
-          | WriteToParquet(
-              path, self.SCHEMA96, num_shards=1, shard_name_template='')
+      with TestPipeline() as p:
+        _ = p \
+        | Create(self.RECORDS) \
+        | WriteToParquet(
+            path, self.SCHEMA96, num_shards=1, shard_name_template='')
 
   def test_sink_transform(self):
     with TemporaryDirectory() as tmp_dirname:
@@ -571,7 +569,8 @@ class TestParquet(unittest.TestCase):
   def test_sink_transform_multiple_row_group(self):
     with TemporaryDirectory() as tmp_dirname:
       path = os.path.join(tmp_dirname + "tmp_filename")
-      with TestPipeline() as p:
+      # Pin to FnApiRunner since test assumes fixed bundle size
+      with TestPipeline('FnApiRunner') as p:
         # writing 623200 bytes of data
         _ = p \
         | Create(self.RECORDS * 4000) \

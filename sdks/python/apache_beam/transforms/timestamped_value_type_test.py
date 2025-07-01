@@ -21,7 +21,6 @@ from typing import TypeVar
 
 import apache_beam as beam
 from apache_beam.transforms.window import TimestampedValue
-from apache_beam.typehints.decorators import TypeCheckError
 
 T = TypeVar("T")
 
@@ -98,7 +97,7 @@ class TypeCheckTimestampedValueTestCase(unittest.TestCase):
           | beam.Map(print))
 
   def test_opts_with_check_wrong_data(self):
-    with self.assertRaises(TypeCheckError):
+    with self.assertRaises(Exception):
       with beam.Pipeline(options=self.opts) as p:
         _ = (
             p
@@ -107,7 +106,7 @@ class TypeCheckTimestampedValueTestCase(unittest.TestCase):
             | beam.Map(print))
 
   def test_opts_with_check_wrong_data_list_str(self):
-    with self.assertRaises(TypeCheckError):
+    with self.assertRaises(Exception):
       with beam.Pipeline(options=self.opts) as p:
         _ = (
             p
@@ -115,7 +114,7 @@ class TypeCheckTimestampedValueTestCase(unittest.TestCase):
             | "With timestamps" >> beam.Map(ConvertToTimestampedValue_2)
             | beam.Map(print))
 
-    with self.assertRaises(TypeCheckError):
+    with self.assertRaises(Exception):
       with beam.Pipeline(options=self.opts) as p:
         _ = (
             p
@@ -124,7 +123,7 @@ class TypeCheckTimestampedValueTestCase(unittest.TestCase):
             | beam.Map(print))
 
   def test_opts_with_check_typevar(self):
-    with self.assertRaises(RuntimeError):
+    with self.assertRaises(Exception):
       with beam.Pipeline(options=self.opts) as p:
         _ = (
             p

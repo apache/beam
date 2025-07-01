@@ -128,7 +128,8 @@ class TFRunInferenceTest(unittest.TestCase):
     model = _create_mult2_model()
     model_path = os.path.join(self.tmpdir, f'mult2_{uuid.uuid4()}.keras')
     tf.keras.models.save_model(model, model_path)
-    with TestPipeline() as pipeline:
+    # FnApiRunner guarantees large batches, which this pipeline assumes
+    with TestPipeline('FnApiRunner') as pipeline:
 
       def fake_batching_inference_fn(
           model: tf.Module,

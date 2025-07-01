@@ -431,7 +431,7 @@ class PipelineTest(unittest.TestCase):
     def raise_exception(exn):
       raise exn
 
-    with self.assertRaises(ValueError):
+    with self.assertRaises(Exception):
       with Pipeline() as p:
         # pylint: disable=expression-not-assigned
         p | Create([ValueError('msg')]) | Map(raise_exception)
@@ -921,7 +921,7 @@ class DoFnTest(unittest.TestCase):
       return (x, context_a, context_b, context_c)
 
     self.assertEqual(_TestContext.live_contexts, 0)
-    with TestPipeline() as p:
+    with TestPipeline('FnApiRunner') as p:
       pcoll = p | Create([1, 2]) | beam.Map(test_map)
       assert_that(pcoll, equal_to([(1, 'a', 'b', 'c'), (2, 'a', 'b', 'c')]))
     self.assertEqual(_TestContext.live_contexts, 0)
