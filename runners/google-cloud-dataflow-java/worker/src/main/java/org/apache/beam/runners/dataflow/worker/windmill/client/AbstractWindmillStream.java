@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client;
 
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
-import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
@@ -211,8 +210,6 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
           // Shutdown the stream to clean up any dangling resources and pending requests.
           shutdown();
           break;
-        } catch (IOException ioe) {
-          // Keep trying to create the stream.
         }
       }
     }
@@ -375,11 +372,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
 
     @Override
     public void onNext(ResponseT response) {
-      try {
-        backoff.reset();
-      } catch (IOException e) {
-        // Ignore.
-      }
+      backoff.reset();
       debugMetrics.recordResponse();
       onResponse(response);
     }
@@ -400,8 +393,6 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         return;
-      } catch (IOException e) {
-        // Ignore.
       }
 
       executeSafely(AbstractWindmillStream.this::startStream);

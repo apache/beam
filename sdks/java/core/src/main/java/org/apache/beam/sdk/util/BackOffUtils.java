@@ -17,13 +17,10 @@
  */
 package org.apache.beam.sdk.util;
 
-import java.io.IOException;
+import org.apache.beam.sdk.annotations.Internal;
 
-/**
- * Utilities for {@link BackOff}.
- *
- * <p><b>Note</b>: This is copied from Google API client library to avoid its dependency.
- */
+/** Utilities for {@link BackOff}. */
+@Internal
 public final class BackOffUtils {
 
   /**
@@ -39,8 +36,7 @@ public final class BackOffUtils {
    *     BackOff#nextBackOffMillis()} did not return {@link BackOff#STOP}
    * @throws InterruptedException if any thread has interrupted the current thread
    */
-  public static boolean next(Sleeper sleeper, BackOff backOff)
-      throws InterruptedException, IOException {
+  public static boolean next(Sleeper sleeper, BackOff backOff) throws InterruptedException {
     long backOffTime = backOff.nextBackOffMillis();
     if (backOffTime == BackOff.STOP) {
       return false;
