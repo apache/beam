@@ -18,6 +18,8 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -40,7 +42,7 @@ import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.inprocess.InProcessChannelBuilder;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.inprocess.InProcessServerBuilder;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.testing.GrpcCleanupRule;
-import org.hamcrest.Matchers;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -61,6 +63,10 @@ public class GrpcCommitWorkStreamTest {
           .setProjectId("test_project")
           .build();
   private static final String COMPUTATION_ID = "computationId";
+
+  @SuppressWarnings("InlineMeInliner") // inline `Strings.repeat()` - Java 11+ API only
+  private static final ByteString LARGE_BYTE_STRING =
+      ByteString.copyFromUtf8(Strings.repeat("a", 2 * 1024 * 1024));
 
   @Rule public final ErrorCollector errorCollector = new ErrorCollector();
   @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
@@ -328,7 +334,36 @@ public class GrpcCommitWorkStreamTest {
   }
 
   @Test
-  public void testSend_notCalledAfterShutdown() throws ExecutionException, InterruptedException {
+  public void testSend_notCalledAfterShutdown_Single()
+      throws ExecutionException, InterruptedException {
+    int numCommits = 1;
+    CountDownLatch commitProcessed = new CountDownLatch(numCommits);
+    GrpcCommitWorkStream commitWorkStream = createCommitWorkStream();
+    FakeWindmillGrpcService.CommitStreamInfo streamInfo = waitForConnectionAndConsumeHeader();
+
+    try (WindmillStream.CommitWorkStream.RequestBatcher batcher = commitWorkStream.batcher()) {
+      assertTrue(
+          batcher.commitWorkItem(
+              COMPUTATION_ID,
+              workItemCommitRequest(0),
+              commitStatus -> {
+                errorCollector.checkThat(commitStatus, equalTo(Windmill.CommitStatus.ABORTED));
+                errorCollector.checkThat(commitProcessed.getCount(), greaterThan(0L));
+                commitProcessed.countDown();
+              }));
+      // Shutdown the stream before we exit the try-with-resources block which will try to send()
+      // the batched request.
+      commitWorkStream.shutdown();
+    }
+    commitProcessed.await();
+
+    assertNotNull(streamInfo.onDone.get());
+    assertThat(streamInfo.requests).isEmpty();
+  }
+
+  @Test
+  public void testSend_notCalledAfterShutdown_Batch()
+      throws ExecutionException, InterruptedException {
     int numCommits = 2;
     CountDownLatch commitProcessed = new CountDownLatch(numCommits);
     GrpcCommitWorkStream commitWorkStream = createCommitWorkStream();
@@ -340,12 +375,48 @@ public class GrpcCommitWorkStreamTest {
             batcher.commitWorkItem(
                 COMPUTATION_ID,
                 workItemCommitRequest(i),
-                commitStatus -> commitProcessed.countDown()));
+                commitStatus -> {
+                  errorCollector.checkThat(commitStatus, equalTo(Windmill.CommitStatus.ABORTED));
+                  errorCollector.checkThat(commitProcessed.getCount(), greaterThan(0L));
+                  commitProcessed.countDown();
+                }));
       }
       // Shutdown the stream before we exit the try-with-resources block which will try to send()
       // the batched request.
       commitWorkStream.shutdown();
     }
+    commitProcessed.await();
+
+    assertNotNull(streamInfo.onDone.get());
+    assertThat(streamInfo.requests).isEmpty();
+  }
+
+  @Test
+  public void testSend_notCalledAfterShutdown_Multichunk()
+      throws ExecutionException, InterruptedException {
+    int numCommits = 1;
+    CountDownLatch commitProcessed = new CountDownLatch(numCommits);
+    GrpcCommitWorkStream commitWorkStream = createCommitWorkStream();
+    FakeWindmillGrpcService.CommitStreamInfo streamInfo = waitForConnectionAndConsumeHeader();
+
+    try (WindmillStream.CommitWorkStream.RequestBatcher batcher = commitWorkStream.batcher()) {
+      assertTrue(
+          batcher.commitWorkItem(
+              COMPUTATION_ID,
+              workItemCommitRequest(0)
+                  .toBuilder()
+                  .addBagUpdates(Windmill.TagBag.newBuilder().setTag(LARGE_BYTE_STRING).build())
+                  .build(),
+              commitStatus -> {
+                errorCollector.checkThat(commitStatus, equalTo(Windmill.CommitStatus.ABORTED));
+                errorCollector.checkThat(commitProcessed.getCount(), greaterThan(0L));
+                commitProcessed.countDown();
+              }));
+      // Shutdown the stream before we exit the try-with-resources block which will try to send()
+      // the batched request.
+      commitWorkStream.shutdown();
+    }
+    commitProcessed.await();
     assertNotNull(streamInfo.onDone.get());
     assertThat(streamInfo.requests).isEmpty();
   }
@@ -354,7 +425,7 @@ public class GrpcCommitWorkStreamTest {
     try {
       FakeWindmillGrpcService.CommitStreamInfo info = fakeService.waitForConnectedCommitStream();
       Windmill.StreamingCommitWorkRequest request = info.requests.take();
-      errorCollector.checkThat(request.getHeader(), Matchers.is(TEST_JOB_HEADER));
+      errorCollector.checkThat(request.getHeader(), is(TEST_JOB_HEADER));
       assertEquals(0, request.getCommitChunkCount());
       return info;
     } catch (InterruptedException e) {

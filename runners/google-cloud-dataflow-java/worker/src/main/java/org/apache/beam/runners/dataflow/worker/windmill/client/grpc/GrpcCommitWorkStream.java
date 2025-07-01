@@ -177,8 +177,8 @@ final class GrpcCommitWorkStream
           continue;
         }
 
-        // From windmill.proto: Indices must line up with the request_id field, but trailing OKs
-        // may be omitted.
+        // From windmill.proto: Indices must line up with the request_id field, but trailing OKs may
+        // be omitted.
         CommitStatus commitStatus =
             i < response.getStatusCount() ? response.getStatus(i) : CommitStatus.OK;
 
@@ -194,8 +194,7 @@ final class GrpcCommitWorkStream
         try {
           pendingRequest.completeWithStatus(commitStatus);
         } catch (RuntimeException e) {
-          // Catch possible exceptions to ensure that an exception for one commit does not
-          // prevent
+          // Catch possible exceptions to ensure that an exception for one commit does not prevent
           // other commits from being processed. Aggregate all the failures to throw after
           // processing the response if they exist.
           LOG.warn("Exception while processing commit response.", e);
@@ -273,6 +272,7 @@ final class GrpcCommitWorkStream
     synchronized (this) {
       if (isShutdown) {
         pendingRequest.abort();
+        return;
       }
       pending.put(
           id,
