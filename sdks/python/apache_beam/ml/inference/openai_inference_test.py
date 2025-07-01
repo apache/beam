@@ -18,7 +18,7 @@
 import unittest
 from unittest.mock import MagicMock
 from unittest.mock import patch
-import httpx # Added for mocking request object
+import httpx  # Added for mocking request object
 import logging
 
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -30,7 +30,7 @@ try:
   from openai.types.chat.chat_completion import Choice as ChatChoice
   from openai.types.chat.chat_completion_message import ChatCompletionMessage
   from openai.types.completion import Completion
-  from openai.types.completion_choice import CompletionChoice # Corrected import
+  from openai.types.completion_choice import CompletionChoice  # Corrected import
   from apache_beam.ml.inference.openai_inference import (
       OpenAIModelHandler, _retry_on_appropriate_openai_error)
 except ImportError:
@@ -44,12 +44,14 @@ logger_to_debug = logging.getLogger("OpenAIModelHandler")
 logger_to_debug.setLevel(logging.DEBUG)
 # Add a handler to see the output during tests, e.g., stream to stderr
 # Check if a handler already exists to avoid duplicate messages if tests are run multiple times
-if not any(isinstance(h, logging.StreamHandler) for h in logger_to_debug.handlers):
-    stream_handler = logging.StreamHandler()
-    stream_handler.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    stream_handler.setFormatter(formatter)
-    logger_to_debug.addHandler(stream_handler)
+if not any(isinstance(h, logging.StreamHandler)
+           for h in logger_to_debug.handlers):
+  stream_handler = logging.StreamHandler()
+  stream_handler.setLevel(logging.DEBUG)
+  formatter = logging.Formatter(
+      '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+  stream_handler.setFormatter(formatter)
+  logger_to_debug.addHandler(stream_handler)
 
 
 class RetryOnAPIErrorTest(unittest.TestCase):
@@ -66,7 +68,7 @@ class RetryOnAPIErrorTest(unittest.TestCase):
     # mock_response.status_code will be set below.
     # Ensure headers is a mock that can handle .get() for RateLimitError
     mock_response.headers = MagicMock(spec=httpx.Headers)
-    mock_response.headers.get.return_value = "test-request-id" # For x-request-id
+    mock_response.headers.get.return_value = "test-request-id"  # For x-request-id
     mock_response.content = b"{}"
     mock_response.text = "{}"
 
@@ -79,10 +81,11 @@ class RetryOnAPIErrorTest(unittest.TestCase):
     if error_class == RateLimitError:
       mock_response.status_code = status_code
       err = RateLimitError("rate limited", response=mock_response, body=None)
-    else: # Generic APIError
+    else:  # Generic APIError
       mock_request_that_failed = MagicMock(spec=httpx.Request)
       mock_request_that_failed.method = "POST"
-      mock_request_that_failed.url = httpx.URL("https://api.openai.com/v1/completions")
+      mock_request_that_failed.url = httpx.URL(
+          "https://api.openai.com/v1/completions")
 
       # This is the response that APIError.status_code property will look for
       response_for_api_error_property = MagicMock(spec=httpx.Response)
@@ -117,14 +120,15 @@ class RetryOnAPIErrorTest(unittest.TestCase):
     self.assertFalse(_retry_on_appropriate_openai_error(err))
 
   def test_no_retry_on_non_openai_error(self):
-    self.assertFalse(_retry_on_appropriate_openai_error(ValueError("some other error")))
+    self.assertFalse(
+        _retry_on_appropriate_openai_error(ValueError("some other error")))
 
 
 class OpenAIModelHandlerTest(unittest.TestCase):
   def setUp(self):
     self.api_key = "test_api_key"
-    self.model_name = "gpt-3.5-turbo-instruct" # A completion model
-    self.chat_model_name = "gpt-3.5-turbo" # A chat model
+    self.model_name = "gpt-3.5-turbo-instruct"  # A completion model
+    self.chat_model_name = "gpt-3.5-turbo"  # A chat model
 
   @patch('openai.OpenAI')
   def test_create_client(self, mock_openai_client_constructor):
@@ -138,12 +142,13 @@ class OpenAIModelHandlerTest(unittest.TestCase):
     self.assertEqual(client, mock_client_instance)
     # Test if client is cached
     client2 = handler.create_client()
-    mock_openai_client_constructor.assert_called_once() # Should still be called only once
+    mock_openai_client_constructor.assert_called_once(
+    )  # Should still be called only once
     self.assertEqual(client2, mock_client_instance)
 
-
   @patch('openai.OpenAI')
-  def test_request_completion_model_success(self, mock_openai_client_constructor):
+  def test_request_completion_model_success(
+      self, mock_openai_client_constructor):
     mock_openai_client = MagicMock()
     mock_openai_client_constructor.return_value = mock_openai_client
 
@@ -154,9 +159,9 @@ class OpenAIModelHandlerTest(unittest.TestCase):
         created=12345,
         model=self.model_name,
         choices=[
-            CompletionChoice(text=" World!", index=0, finish_reason="length", logprobs=None)
-        ]
-    )
+            CompletionChoice(
+                text=" World!", index=0, finish_reason="length", logprobs=None)
+        ])
     mock_openai_client.completions.create.return_value = mock_completion_response
 
     handler = OpenAIModelHandler(api_key=self.api_key, model=self.model_name)
@@ -172,15 +177,14 @@ class OpenAIModelHandlerTest(unittest.TestCase):
     self.assertEqual(results[0].inference, " World!")
     self.assertEqual(results[0].model_id, self.model_name)
     self.assertEqual(results[1].example, "Hi")
-    self.assertEqual(results[1].inference, " World!") # Same mock response for both
+    self.assertEqual(
+        results[1].inference, " World!")  # Same mock response for both
 
     self.assertEqual(mock_openai_client.completions.create.call_count, 2)
     mock_openai_client.completions.create.assert_any_call(
-        model=self.model_name, prompt="Hello"
-    )
+        model=self.model_name, prompt="Hello")
     mock_openai_client.completions.create.assert_any_call(
-        model=self.model_name, prompt="Hi"
-    )
+        model=self.model_name, prompt="Hi")
 
   @patch('openai.OpenAI')
   def test_request_chat_model_success(self, mock_openai_client_constructor):
@@ -199,16 +203,20 @@ class OpenAIModelHandlerTest(unittest.TestCase):
         choices=[
             ChatChoice(
                 index=0,
-                message=ChatCompletionMessage(role="assistant", content="There!"),
-                finish_reason="stop"
-            )
-        ]
-    )
+                message=ChatCompletionMessage(
+                    role="assistant", content="There!"),
+                finish_reason="stop")
+        ])
     mock_openai_client.chat.completions.create.return_value = mock_chat_response
 
-    handler = OpenAIModelHandler(api_key=self.api_key, model=self.chat_model_name)
-    client = handler.load_model() # This calls create_client
-    prompts = ["User prompt 1", [{"role": "user", "content": "User prompt 2"}]] # Test both string and message list
+    handler = OpenAIModelHandler(
+        api_key=self.api_key, model=self.chat_model_name)
+    client = handler.load_model()  # This calls create_client
+    prompts = [
+        "User prompt 1", [{
+            "role": "user", "content": "User prompt 2"
+        }]
+    ]  # Test both string and message list
     results_generator = handler.request(prompts, client, {"temperature": 0.5})
     results = list(results_generator)
 
@@ -218,20 +226,25 @@ class OpenAIModelHandlerTest(unittest.TestCase):
     self.assertEqual(results[0].inference, "There!")
     self.assertEqual(results[0].model_id, self.chat_model_name)
 
-    self.assertEqual(results[1].example, [{"role": "user", "content": "User prompt 2"}])
+    self.assertEqual(
+        results[1].example, [{
+            "role": "user", "content": "User prompt 2"
+        }])
     self.assertEqual(results[1].inference, "There!")
 
     self.assertEqual(mock_openai_client.chat.completions.create.call_count, 2)
     mock_openai_client.chat.completions.create.assert_any_call(
         model=self.chat_model_name,
-        messages=[{"role": "user", "content": "User prompt 1"}],
-        temperature=0.5
-    )
+        messages=[{
+            "role": "user", "content": "User prompt 1"
+        }],
+        temperature=0.5)
     mock_openai_client.chat.completions.create.assert_any_call(
         model=self.chat_model_name,
-        messages=[{"role": "user", "content": "User prompt 2"}],
-        temperature=0.5
-    )
+        messages=[{
+            "role": "user", "content": "User prompt 2"
+        }],
+        temperature=0.5)
 
   @patch('openai.OpenAI')
   def test_request_failure_propagates(self, mock_openai_client_constructor):
@@ -240,8 +253,7 @@ class OpenAIModelHandlerTest(unittest.TestCase):
 
     # Simulate an API error during the first call
     mock_openai_client.completions.create.side_effect = RateLimitError(
-        "rate limited", response=MagicMock(), body=None
-    )
+        "rate limited", response=MagicMock(), body=None)
 
     handler = OpenAIModelHandler(api_key=self.api_key, model=self.model_name)
     client = handler.load_model()
@@ -251,8 +263,7 @@ class OpenAIModelHandlerTest(unittest.TestCase):
       list(handler.request(prompts, client, {}))
 
     mock_openai_client.completions.create.assert_called_once_with(
-        model=self.model_name, prompt="Prompt that will fail"
-    )
+        model=self.model_name, prompt="Prompt that will fail")
 
   def test_batch_elements_kwargs(self):
     handler = OpenAIModelHandler(
