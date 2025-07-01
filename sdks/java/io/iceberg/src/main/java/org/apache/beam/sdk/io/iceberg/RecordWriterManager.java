@@ -293,9 +293,8 @@ class RecordWriterManager implements AutoCloseable {
     @Nullable IcebergTableCreateConfig createConfig = destination.getTableCreateConfig();
     PartitionSpec partitionSpec =
         createConfig != null ? createConfig.getPartitionSpec() : PartitionSpec.unpartitioned();
-    // Ensure table properties are not null, Iceberg's createTable does not accept null values.
     Map<String, String> tableProperties =
-        (createConfig != null && createConfig.getTableProperties() != null)
+        createConfig != null && createConfig.getTableProperties() != null
             ? createConfig.getTableProperties()
             : Maps.newHashMap();
 
@@ -323,10 +322,11 @@ class RecordWriterManager implements AutoCloseable {
         try {
           table = catalog.createTable(identifier, tableSchema, partitionSpec, tableProperties);
           LOG.info(
-              "Created Iceberg table '{}' with schema: {}\n, partition spec: {}",
+              "Created Iceberg table '{}' with schema: {}\n, partition spec: {}, table properties: {}",
               identifier,
               tableSchema,
-              partitionSpec);
+              partitionSpec,
+              tableProperties);
         } catch (AlreadyExistsException ignored) {
           // race condition: another worker already created this table
           table = catalog.loadTable(identifier);

@@ -443,7 +443,7 @@ For more information on partition transforms, please visit https://iceberg.apach
       <td>
         Table Properties set while creating Iceberg Table.
 
-        For more information on table properties, please visit https://iceberg.apache.org/docs/latest/configuration/#table-properties
+For more information on table properties, please visit https://iceberg.apache.org/docs/latest/configuration/#table-properties
       </td>
     </tr>
   </table>
