@@ -25,7 +25,6 @@ import uuid
 import apache_beam as beam
 import pytest
 from apache_beam.io.filesystems import FileSystems
-from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.testing.test_pipeline import TestPipeline
 
@@ -69,7 +68,7 @@ class OpenAIInferenceIT(unittest.TestCase):
         is_integration_test=True, options=pipeline_options)
 
     with test_pipeline as p:
-      results = (
+      _ = (
           p
           | "CreateInputs" >> beam.Create(test_data)
           | "RunInference" >> RunInference(
@@ -99,7 +98,7 @@ class OpenAIInferenceIT(unittest.TestCase):
     self.assertTrue(
         any("PredictionResult(example=" in line for line in match_results))
 
-  @pytest.mark.postcommit  # Mark as postcommit as it makes external calls.
+  @pytest.mark.openai_postcommit  # Mark as postcommit as it makes external calls.
   def test_openai_completion_model(self):
     model_handler = OpenAIModelHandler(
         api_key=_OPENAI_API_KEY, model=_COMPLETION_MODEL)
@@ -113,7 +112,7 @@ class OpenAIInferenceIT(unittest.TestCase):
         "output_completion.txt",
         inference_args=inference_args)
 
-  @pytest.mark.postcommit
+  @pytest.mark.openai_postcommit
   def test_openai_chat_model(self):
     model_handler = OpenAIModelHandler(
         api_key=_OPENAI_API_KEY, model=_CHAT_MODEL)
@@ -131,7 +130,7 @@ class OpenAIInferenceIT(unittest.TestCase):
         "output_chat.txt",
         inference_args=inference_args)
 
-  @pytest.mark.postcommit
+  @pytest.mark.openai_postcommit
   def test_openai_chat_model_with_system_message(self):
     model_handler = OpenAIModelHandler(
         api_key=_OPENAI_API_KEY, model=_CHAT_MODEL)

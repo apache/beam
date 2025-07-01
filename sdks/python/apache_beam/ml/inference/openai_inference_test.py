@@ -15,24 +15,23 @@
 # limitations under the License.
 #
 
+import httpx
+import logging
 import unittest
 from unittest.mock import MagicMock
 from unittest.mock import patch
-import httpx  # Added for mocking request object
-import logging
 
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
-  import openai
+  from apache_beam.ml.inference.openai_inference import OpenAIModelHandler
+  from apache_beam.ml.inference.openai_inference import _retry_on_appropriate_openai_error
   from openai import APIError
   from openai import RateLimitError
   from openai.types.chat.chat_completion import ChatCompletion
   from openai.types.chat.chat_completion import Choice as ChatChoice
   from openai.types.chat.chat_completion_message import ChatCompletionMessage
   from openai.types.completion import Completion
-  from openai.types.completion_choice import CompletionChoice  # Corrected import
-  from apache_beam.ml.inference.openai_inference import (
-      OpenAIModelHandler, _retry_on_appropriate_openai_error)
+  from openai.types.completion_choice import CompletionChoice
 except ImportError:
   raise unittest.SkipTest('OpenAI dependencies are not installed')
 

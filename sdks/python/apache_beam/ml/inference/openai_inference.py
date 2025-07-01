@@ -22,6 +22,10 @@ from collections.abc import Sequence
 from typing import Any
 from typing import Optional
 
+from apache_beam.ml.inference import utils
+from apache_beam.ml.inference.base import PredictionResult
+from apache_beam.ml.inference.base import RemoteModelHandler
+
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
   import openai
@@ -33,10 +37,6 @@ except ImportError:
       'OpenAI dependencies are not installed. To use OpenAI model handler,'
       'run pip install apache-beam[gcp,openai]')
 
-from apache_beam.ml.inference import utils
-from apache_beam.ml.inference.base import PredictionResult
-from apache_beam.ml.inference.base import RemoteModelHandler
-
 LOGGER = logging.getLogger("OpenAIModelHandler")
 
 
@@ -45,24 +45,15 @@ def _retry_on_appropriate_openai_error(exception: Exception) -> bool:
   Retry filter that returns True if a returned HTTP error code is 5xx or 429
   (RateLimitError).
   """
-  LOGGER.debug(
-      f"Checking exception for retry: {type(exception)} - {str(exception)}")
   if isinstance(exception, RateLimitError):
-    LOGGER.debug("RateLimitError detected, retrying.")
-    return True  # Always retry RateLimitError (HTTP 429)
+    return True
 
   if isinstance(exception, APIError):  # This covers APIStatusError as well
     status_code = getattr(exception, 'status_code', None)
-    LOGGER.debug(f"APIError detected. Status code from getattr: {status_code}")
     if status_code is not None:
-      LOGGER.debug(
-          f"Condition check: {status_code} >= 500 is {status_code >= 500}")
-      return status_code >= 500  # Retry on 5xx errors
-    else:
-      LOGGER.debug("APIError but status_code is None.")
+      return status_code >= 500
 
-  LOGGER.debug("Exception not eligible for retry by this filter.")
-  return False  # Do not retry for other errors or if status_code is not available
+  return False
 
 
 def generate_completion(
@@ -133,7 +124,7 @@ class OpenAIModelHandler(RemoteModelHandler[Any,
   def __init__(
       self,
       api_key: str,
-      model: str,  # Recommended to use 'model' like in openai library
+      model: str,
       request_fn: Callable[[str, Sequence[Any], openai.OpenAI, dict[str, Any]],
                            Any] = generate_completion,
       *,
@@ -147,7 +138,8 @@ class OpenAIModelHandler(RemoteModelHandler[Any,
 
     Args:
       api_key: the OpenAI API key to use for the requests.
-      model: The OpenAI model to use for inference (e.g., "gpt-3.5-turbo-instruct", "gpt-3.5-turbo").
+      model: The OpenAI model to use for inference
+        (e.g., "gpt-3.5-turbo-instruct", "gpt-3.5-turbo").
       request_fn: the function to use to send the request. Should take the
         model name and the parameters from request() and return the responses
         from OpenAI. The class will handle bundling the inputs and responses
