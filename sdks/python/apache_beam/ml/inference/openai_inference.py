@@ -210,12 +210,7 @@ class OpenAIModelHandler(RemoteModelHandler[Any,
     if inference_args is None:
       inference_args = {}
 
-    # The `generate_completion` function now iterates through the batch
-    # and makes individual API calls if necessary (e.g. for non-chat models)
-    # or a single call if the underlying API supports batching (e.g. future chat models).
-    # The RunInference transform handles the primary batching of elements from PCollection.
     try:
-      # request_fn (generate_completion) now returns a list of parsed strings/content
       parsed_responses = self.request_fn(
           self.model_name, batch, model_client, inference_args)
     except Exception as e:
