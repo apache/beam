@@ -293,7 +293,7 @@ class V1TestUtil {
     }
 
     // commit the list of entities to datastore
-    private void flushBatch() throws DatastoreException, IOException, InterruptedException {
+    private void flushBatch() throws DatastoreException, InterruptedException {
       LOG.info("Writing batch of {} entities", entities.size());
       Sleeper sleeper = Sleeper.DEFAULT;
       BackOff backoff =
