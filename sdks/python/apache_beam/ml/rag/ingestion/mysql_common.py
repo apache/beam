@@ -428,27 +428,3 @@ class ConflictResolution:
     """Validate configuration after initialization."""
     if self.action == "IGNORE" and self.primary_key_field is None:
       raise ValueError("primary_key_field is required when action='IGNORE'")
-
-  def maybe_set_default_update_fields(self, columns: List[str]):
-    """Set default update fields to all columns if not specified."""
-    if self.action != "UPDATE":
-      return
-    if self.update_fields is not None:
-      return
-    # Default to updating all fields
-    self.update_fields = columns
-
-  def get_conflict_clause(self) -> str:
-    """Get MySQL conflict clause using ON DUPLICATE KEY UPDATE syntax."""
-    if self.action == "IGNORE":
-      # Use no-op update with user-specified primary key field
-      assert self.primary_key_field is not None, \
-        "primary_key_field must be set for IGNORE action"
-      return f"ON DUPLICATE KEY UPDATE {self.primary_key_field} = "\
-        f"{self.primary_key_field}"
-
-    # update_fields should be set by query builder before this is called
-    assert self.update_fields is not None, \
-      "update_fields must be set before generating conflict clause"
-    updates = [f"{field} = VALUES({field})" for field in self.update_fields]
-    return f"ON DUPLICATE KEY UPDATE {', '.join(updates)}"

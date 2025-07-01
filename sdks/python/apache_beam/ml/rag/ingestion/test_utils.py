@@ -18,42 +18,11 @@
 import hashlib
 import json
 from typing import List
-from typing import NamedTuple
 
 import apache_beam as beam
-from apache_beam.coders import registry
-from apache_beam.coders.row_coder import RowCoder
 from apache_beam.ml.rag.types import Chunk
 from apache_beam.ml.rag.types import Content
 from apache_beam.ml.rag.types import Embedding
-
-TestRow = NamedTuple(
-    'TestRow',
-    [('id', str), ('embedding', List[float]), ('content', str),
-     ('metadata', str)])
-registry.register_coder(TestRow, RowCoder)
-
-CustomSpecsRow = NamedTuple(
-    'CustomSpecsRow',
-    [
-        ('custom_id', str),  # For id_spec test
-        ('embedding_vec', List[float]),  # For embedding_spec test
-        ('content_col', str),  # For content_spec test
-        ('metadata', str)
-    ])
-registry.register_coder(CustomSpecsRow, RowCoder)
-
-MetadataConflictRow = NamedTuple(
-    'MetadataConflictRow',
-    [
-        ('id', str),
-        ('source', str),  # For metadata_spec and composite key
-        ('timestamp', str),  # For metadata_spec and composite key
-        ('content', str),
-        ('embedding', List[float]),
-        ('metadata', str)
-    ])
-registry.register_coder(MetadataConflictRow, RowCoder)
 
 VECTOR_SIZE = 768
 

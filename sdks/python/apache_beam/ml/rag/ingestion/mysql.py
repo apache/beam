@@ -16,6 +16,8 @@
 #
 
 import logging
+from abc import ABC
+from abc import abstractmethod
 from typing import Callable
 from typing import List
 from typing import NamedTuple
@@ -36,6 +38,56 @@ from apache_beam.ml.rag.types import Chunk
 _LOGGER = logging.getLogger(__name__)
 
 
+class _ConflictResolutionStrategy(ABC):
+  """Abstract base class for conflict resolution strategies."""
+  @abstractmethod
+  def get_conflict_clause(self, all_columns: List[str]) -> str:
+    """Generate the MySQL conflict clause."""
+    pass
+
+
+class _NoConflictStrategy(_ConflictResolutionStrategy):
+  """Strategy for when no conflict resolution is needed."""
+  def get_conflict_clause(self, all_columns: List[str]) -> str:
+    return ""
+
+
+class _UpdateStrategy(_ConflictResolutionStrategy):
+  """Strategy for UPDATE action on conflict."""
+  def __init__(self, update_fields: Optional[List[str]] = None):
+    self.update_fields = update_fields
+
+  def get_conflict_clause(self, all_columns: List[str]) -> str:
+    # Use provided fields or default to all columns
+    fields_to_update = self.update_fields or all_columns
+    assert len(fields_to_update) > 0
+
+    updates = [f"{field} = VALUES({field})" for field in fields_to_update]
+    return f"ON DUPLICATE KEY UPDATE {', '.join(updates)}"
+
+
+class _IgnoreStrategy(_ConflictResolutionStrategy):
+  """Strategy for IGNORE action on conflict."""
+  def __init__(self, primary_key_field: str):
+    self.primary_key_field = primary_key_field
+
+  def get_conflict_clause(self, all_columns: List[str]) -> str:
+    return f"ON DUPLICATE KEY UPDATE {self.primary_key_field}"\
+       f" = {self.primary_key_field}"
+
+
+def _create_conflict_strategy(
+    conflict_resolution: Optional[ConflictResolution]
+) -> _ConflictResolutionStrategy:
+  if conflict_resolution is None:
+    return _NoConflictStrategy
+  if conflict_resolution.action == "UPDATE":
+    return _UpdateStrategy(conflict_resolution.update_fields)
+  if conflict_resolution.action == "IGNORE":
+    return _IgnoreStrategy(conflict_resolution.primary_key_field)
+  raise ValueError(f"Unknown conflict resolution {conflict_resolution.action}")
+
+
 class _MySQLQueryBuilder:
   def __init__(
       self,
@@ -48,7 +100,8 @@ class _MySQLQueryBuilder:
     self.table_name = table_name
 
     self.column_specs = column_specs
-    self.conflict_resolution = conflict_resolution
+    self.conflict_resolution_strategy = _create_conflict_strategy(
+        conflict_resolution)
 
     names = [col.column_name for col in self.column_specs]
     duplicates = set(name for name in names if names.count(name) > 1)
@@ -61,12 +114,6 @@ class _MySQLQueryBuilder:
 
     registry.register_coder(self.record_type, RowCoder)
 
-    # Set default update fields to all non-conflict fields if update fields are
-    # not specified
-    if self.conflict_resolution:
-      self.conflict_resolution.maybe_set_default_update_fields(
-          [col.column_name for col in self.column_specs if col.column_name])
-
   def build_insert(self) -> str:
     fields = [col.column_name for col in self.column_specs]
     placeholders = [col.placeholder for col in self.column_specs]
@@ -78,8 +125,7 @@ class _MySQLQueryBuilder:
         VALUES ({', '.join(placeholders)})
     """
 
-    if self.conflict_resolution:
-      query += f" {self.conflict_resolution.get_conflict_clause()}"
+    query += f" {self.conflict_resolution.get_conflict_clause(fields)}"
 
     _LOGGER.info("MySQL Query with placeholders %s", query)
     return query
