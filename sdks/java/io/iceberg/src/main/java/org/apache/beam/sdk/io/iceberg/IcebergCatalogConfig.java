@@ -84,26 +84,17 @@ public abstract class IcebergCatalogConfig implements Serializable {
   }
 
   public void createTable(
-      String tableIdentifier,
-      Schema tableSchema,
-      @Nullable List<String> partitionFields,
-      @Nullable Map<String, String> tableProperties) {
+      String tableIdentifier, Schema tableSchema, @Nullable List<String> partitionFields) {
     TableIdentifier icebergIdentifier = TableIdentifier.parse(tableIdentifier);
     org.apache.iceberg.Schema icebergSchema = IcebergUtils.beamSchemaToIcebergSchema(tableSchema);
     PartitionSpec icebergSpec = PartitionUtils.toPartitionSpec(partitionFields, tableSchema);
     try {
-      catalog()
-          .createTable(
-              icebergIdentifier,
-              icebergSchema,
-              icebergSpec,
-              tableProperties == null ? Maps.newHashMap() : tableProperties);
+      catalog().createTable(icebergIdentifier, icebergSchema, icebergSpec);
       LOG.info(
-          "Created table '{}' with schema: {}\n, partition spec: {}, table properties: {}",
+          "Created table '{}' with schema: {}\n, partition spec: {}",
           icebergIdentifier,
           icebergSchema,
-          icebergSpec,
-          tableProperties);
+          icebergSpec);
     } catch (AlreadyExistsException e) {
       throw new TableAlreadyExistsException(e);
     }
