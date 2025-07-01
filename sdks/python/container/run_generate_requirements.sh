@@ -38,10 +38,12 @@ fi
 
 PY_VERSION=$1
 SDK_TARBALL=$2
+REQUIREMENTS_FILE_NAME=$3
+EXTRAS=$4
 # Use the PIP_EXTRA_OPTIONS environment variable to pass additional flags to the pip install command.
 # For example, you can include the --pre flag in $PIP_EXTRA_OPTIONS to download pre-release versions of packages.
 # Note that you can modify the behavior of the pip install command in this script by passing in your own $PIP_EXTRA_OPTIONS.
-PIP_EXTRA_OPTIONS=$3
+PIP_EXTRA_OPTIONS=$5
 
 if ! python"$PY_VERSION" --version > /dev/null 2>&1 ; then
   echo "Please install a python${PY_VERSION} interpreter. See s.apache.org/beam-python-dev-wiki for Python installation tips."
@@ -51,6 +53,14 @@ fi
 if ! python"$PY_VERSION" -m venv --help > /dev/null 2>&1 ; then
   echo "Your python${PY_VERSION} installation does not have a required venv module. See s.apache.org/beam-python-dev-wiki for Python installation tips."
   exit 1
+fi
+
+if [ -z "$REQUIREMENTS_FILE_NAME" ]; then
+  REQUIREMENTS_FILE_NAME="base_image_requirements.txt"
+fi
+
+if [ -z "$EXTRAS" ]; then
+  EXTRAS="[gcp,dataframe,test]"
 fi
 
 set -ex
@@ -65,7 +75,7 @@ pip install --upgrade pip setuptools wheel
 # Install dataframe deps to add have Dataframe support in released images.
 # Install test deps since some integration tests need dependencies,
 # such as pytest, installed in the runner environment.
-pip install ${PIP_EXTRA_OPTIONS:+"$PIP_EXTRA_OPTIONS"}  --no-cache-dir "$SDK_TARBALL"[gcp,dataframe,test]
+pip install ${PIP_EXTRA_OPTIONS:+"$PIP_EXTRA_OPTIONS"}  --no-cache-dir "$SDK_TARBALL""$EXTRAS"
 pip install ${PIP_EXTRA_OPTIONS:+"$PIP_EXTRA_OPTIONS"}  --no-cache-dir -r "$PWD"/sdks/python/container/base_image_requirements_manual.txt
 
 pip uninstall -y apache-beam
@@ -75,7 +85,7 @@ echo "Installed dependencies:"
 pip freeze --all
 
 PY_IMAGE="py${PY_VERSION//.}"
-REQUIREMENTS_FILE=$PWD/sdks/python/container/$PY_IMAGE/base_image_requirements.txt
+REQUIREMENTS_FILE=$PWD/sdks/python/container/$PY_IMAGE/$REQUIREMENTS_FILE_NAME
 cat <<EOT > "$REQUIREMENTS_FILE"
 #    Licensed to the Apache Software Foundation (ASF) under one or more
 #    contributor license agreements.  See the NOTICE file distributed with
