@@ -124,6 +124,11 @@ public class IcebergWriteSchemaTransformProvider
             + "For more information on partition transforms, please visit https://iceberg.apache.org/spec/#partition-transforms.")
     public abstract @Nullable List<String> getPartitionFields();
 
+    @SchemaFieldDescription(
+        "Iceberg table properties to be set on the table when it is created,"
+            + "For more information on table properties, please visit https://iceberg.apache.org/docs/latest/configuration/#table-properties.")
+    public abstract @Nullable Map<String, String> getTableProperties();
+
     @AutoValue.Builder
     public abstract static class Builder {
       public abstract Builder setTable(String table);
@@ -143,6 +148,8 @@ public class IcebergWriteSchemaTransformProvider
       public abstract Builder setOnly(String only);
 
       public abstract Builder setPartitionFields(List<String> partitionFields);
+
+      public abstract Builder setTableProperties(Map<String, String> tableProperties);
 
       public abstract Configuration build();
     }
@@ -209,6 +216,7 @@ public class IcebergWriteSchemaTransformProvider
                       FileFormat.PARQUET.toString(),
                       rows.getSchema(),
                       configuration.getPartitionFields(),
+                      configuration.getTableProperties(),
                       configuration.getDrop(),
                       configuration.getKeep(),
                       configuration.getOnly()));

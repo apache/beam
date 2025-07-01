@@ -543,4 +543,56 @@ public class IcebergWriteSchemaTransformProviderTest {
     Table table = warehouse.loadTable(TableIdentifier.parse(identifier));
     assertEquals(expectedSpec, table.spec());
   }
+
+  @Test
+  public void testWriteCreateTableWithTableProperties() {
+    String identifier = "default.table_" + Long.toString(UUID.randomUUID().hashCode(), 16);
+    Schema schema = Schema.builder().addStringField("str").addInt32Field("int").build();
+
+    // Use real Iceberg table property keys
+    Map<String, String> tableProperties =
+        ImmutableMap.of(
+            "write.format.default", "orc",
+            "commit.retry.num-retries", "5",
+            "read.split.target-size", "134217728");
+
+    Map<String, Object> config =
+        ImmutableMap.of(
+            "table",
+            identifier,
+            "catalog_properties",
+            ImmutableMap.of("type", "hadoop", "warehouse", warehouse.location),
+            "table_properties",
+            tableProperties);
+
+    List<Row> rows = new ArrayList<>();
+    for (int i = 0; i < 10; i++) {
+      Row row = Row.withSchema(schema).addValues("str_" + i, i).build();
+      rows.add(row);
+    }
+
+    PCollection<Row> result =
+        testPipeline
+            .apply("Records To Add", Create.of(rows))
+            .setRowSchema(schema)
+            .apply(Managed.write(Managed.ICEBERG).withConfig(config))
+            .get(SNAPSHOTS_TAG);
+
+    PAssert.that(result)
+        .satisfies(new VerifyOutputs(Collections.singletonList(identifier), "append"));
+    testPipeline.run().waitUntilFinish();
+
+    // Read back and check records are correct
+    Pipeline p = Pipeline.create(TestPipeline.testingPipelineOptions());
+    PCollection<Row> readRows =
+        p.apply(Managed.read(Managed.ICEBERG).withConfig(config)).getSinglePCollection();
+    PAssert.that(readRows).containsInAnyOrder(rows);
+    p.run().waitUntilFinish();
+
+    Table table = warehouse.loadTable(TableIdentifier.parse(identifier));
+    // Assert that the table properties are set on the Iceberg table
+    assertEquals("orc", table.properties().get("write.format.default"));
+    assertEquals("5", table.properties().get("commit.retry.num-retries"));
+    assertEquals("134217728", table.properties().get("read.split.target-size"));
+  }
 }

@@ -293,6 +293,10 @@ class RecordWriterManager implements AutoCloseable {
     @Nullable IcebergTableCreateConfig createConfig = destination.getTableCreateConfig();
     PartitionSpec partitionSpec =
         createConfig != null ? createConfig.getPartitionSpec() : PartitionSpec.unpartitioned();
+    Map<String, String> tableProperties =
+        (createConfig != null && createConfig.getTableProperties() != null)
+            ? createConfig.getTableProperties()
+            : Maps.newHashMap();
 
     synchronized (TABLE_CACHE) {
       // Create namespace if it does not exist yet
@@ -316,7 +320,7 @@ class RecordWriterManager implements AutoCloseable {
       } catch (NoSuchTableException e) { // Otherwise, create the table
         org.apache.iceberg.Schema tableSchema = IcebergUtils.beamSchemaToIcebergSchema(dataSchema);
         try {
-          table = catalog.createTable(identifier, tableSchema, partitionSpec);
+          table = catalog.createTable(identifier, tableSchema, partitionSpec, tableProperties);
           LOG.info(
               "Created Iceberg table '{}' with schema: {}\n, partition spec: {}",
               identifier,
