@@ -17,8 +17,6 @@
  */
 package org.apache.beam.io.debezium;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.util.Arrays;
@@ -123,23 +121,8 @@ public class DebeziumReadSchemaTransformProvider
                   configuration.getTable().substring(0, configuration.getTable().indexOf(".")));
         }
 
-        // Logic to handle both JSON string and list of strings from Portability Framework Runners
-        List<String> debeziumConnectionProperties = configuration.getDebeziumConnectionProperties();
-        final String jsonProperties = configuration.getDebeziumConnectionPropertiesJson();
-
-        // Check for the new JSON properties field first.
-        if (jsonProperties != null) {
-          try {
-            ObjectMapper mapper = new ObjectMapper();
-            debeziumConnectionProperties =
-                mapper.readValue(jsonProperties, new TypeReference<List<String>>() {});
-          } catch (Exception e) {
-            throw new IllegalArgumentException(
-                "Unable to parse debeziumConnectionPropertiesJson", e);
-          }
-        }
-
-        // Fall back to Java list-based properties if JSON is empty
+        final List<String> debeziumConnectionProperties =
+            configuration.getDebeziumConnectionProperties();
         if (debeziumConnectionProperties != null) {
           for (String connectionProperty : debeziumConnectionProperties) {
             String[] parts = connectionProperty.split("=", -1);
@@ -207,8 +190,6 @@ public class DebeziumReadSchemaTransformProvider
 
     public abstract @Nullable List<String> getDebeziumConnectionProperties();
 
-    public abstract @Nullable String getDebeziumConnectionPropertiesJson();
-
     public static Builder builder() {
       return new AutoValue_DebeziumReadSchemaTransformProvider_DebeziumReadSchemaTransformConfiguration
           .Builder();
@@ -230,9 +211,6 @@ public class DebeziumReadSchemaTransformProvider
 
       public abstract Builder setDebeziumConnectionProperties(
           List<String> debeziumConnectionProperties);
-
-      public abstract Builder setDebeziumConnectionPropertiesJson(
-          String debeziumConnectionPropertiesJson);
 
       public abstract DebeziumReadSchemaTransformConfiguration build();
     }

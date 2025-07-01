@@ -80,6 +80,7 @@
 
 import json
 from enum import Enum
+from typing import List
 from typing import NamedTuple
 from typing import Optional
 
@@ -108,7 +109,7 @@ ReadFromDebeziumSchema = NamedTuple(
     'ReadFromDebeziumSchema',
     [('connector_class', str), ('username', str), ('password', str),
      ('host', str), ('port', str), ('max_number_of_records', Optional[int]),
-     ('connection_properties_json', str)])
+     ('connection_properties', List[str])])
 
 
 class ReadFromDebezium(PTransform):
@@ -143,13 +144,11 @@ class ReadFromDebezium(PTransform):
                                       to be fetched before stop.
         :param connection_properties: properties of the debezium
                                       connection passed as string
-                                      with json format
-                                      {"propertyName": "property"}
+                                      with with format
+                                      [propertyName=property;]*
         :param expansion_service: The address (host:port)
                                   of the ExpansionService.
     """
-    serialized_properties = json.dumps(
-        connection_properties) if connection_properties else "[]"
 
     self.params = ReadFromDebeziumSchema(
         connector_class=connector_class.value,
@@ -158,7 +157,7 @@ class ReadFromDebezium(PTransform):
         host=host,
         port=port,
         max_number_of_records=max_number_of_records,
-        connection_properties_json=serialized_properties)
+        connection_properties=connection_properties)
     self.expansion_service = expansion_service or default_io_expansion_service()
 
   def expand(self, pbegin):
