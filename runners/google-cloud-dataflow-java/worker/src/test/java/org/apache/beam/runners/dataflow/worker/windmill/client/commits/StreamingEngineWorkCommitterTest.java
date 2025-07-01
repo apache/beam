@@ -82,6 +82,7 @@ public class StreamingEngineWorkCommitterTest {
         throw new RuntimeException(e);
       }
     }
+    assertThat(s).hasSize(expectedSize);
   }
 
   private static Work createMockWork(long workToken) {
@@ -260,6 +261,7 @@ public class StreamingEngineWorkCommitterTest {
 
     Map<Long, WorkItemCommitRequest> committed =
         fakeWindmillServer.waitForAndGetCommits(commits.size());
+    waitForExpectedSetSize(completeCommits, commits.size());
 
     for (Commit commit : commits) {
       WorkItemCommitRequest request = committed.get(commit.work().getWorkItem().getWorkToken());
@@ -268,7 +270,6 @@ public class StreamingEngineWorkCommitterTest {
       assertThat(completeCommits)
           .contains(asCompleteCommit(commit, expectedCommitStatus.get(commit.work().id())));
     }
-    assertThat(completeCommits.size()).isEqualTo(commits.size());
 
     workCommitter.stop();
   }
