@@ -45,22 +45,24 @@ def _retry_on_appropriate_openai_error(exception: Exception) -> bool:
   Retry filter that returns True if a returned HTTP error code is 5xx or 429
   (RateLimitError).
   """
-  LOGGER.debug(f"Checking exception for retry: {type(exception)} - {str(exception)}")
+  LOGGER.debug(
+      f"Checking exception for retry: {type(exception)} - {str(exception)}")
   if isinstance(exception, RateLimitError):
     LOGGER.debug("RateLimitError detected, retrying.")
     return True  # Always retry RateLimitError (HTTP 429)
 
-  if isinstance(exception, APIError): # This covers APIStatusError as well
-      status_code = getattr(exception, 'status_code', None)
-      LOGGER.debug(f"APIError detected. Status code from getattr: {status_code}")
-      if status_code is not None:
-          LOGGER.debug(f"Condition check: {status_code} >= 500 is {status_code >= 500}")
-          return status_code >= 500 # Retry on 5xx errors
-      else:
-          LOGGER.debug("APIError but status_code is None.")
+  if isinstance(exception, APIError):  # This covers APIStatusError as well
+    status_code = getattr(exception, 'status_code', None)
+    LOGGER.debug(f"APIError detected. Status code from getattr: {status_code}")
+    if status_code is not None:
+      LOGGER.debug(
+          f"Condition check: {status_code} >= 500 is {status_code >= 500}")
+      return status_code >= 500  # Retry on 5xx errors
+    else:
+      LOGGER.debug("APIError but status_code is None.")
 
   LOGGER.debug("Exception not eligible for retry by this filter.")
-  return False # Do not retry for other errors or if status_code is not available
+  return False  # Do not retry for other errors or if status_code is not available
 
 
 def generate_completion(
@@ -82,10 +84,10 @@ def generate_completion(
         # User might need to format input as list of messages
         # For simplicity, we'll assume a single user message per prompt string
         # for now.
-        if not isinstance(prompt, list): # basic check for message format
-            messages = [{"role": "user", "content": prompt}]
-        else: # assume prompt is already in message format
-            messages = prompt
+        if not isinstance(prompt, list):  # basic check for message format
+          messages = [{"role": "user", "content": prompt}]
+        else:  # assume prompt is already in message format
+          messages = prompt
         response = client.chat.completions.create(
             model=model_name, messages=messages, **inference_args)
       else:
@@ -112,23 +114,26 @@ def generate_completion(
         elif hasattr(response_obj.choices[0], 'text'):
           parsed_responses.append(response_obj.choices[0].text)
         else:
-          LOGGER.warning("Unrecognized OpenAI response choice format: %s", response_obj.choices[0])
-          parsed_responses.append(None) # Or raise error
+          LOGGER.warning(
+              "Unrecognized OpenAI response choice format: %s",
+              response_obj.choices[0])
+          parsed_responses.append(None)  # Or raise error
       else:
         LOGGER.warning("OpenAI response had no choices: %s", response_obj)
-        parsed_responses.append(None) # Or raise error
+        parsed_responses.append(None)  # Or raise error
     else:
       LOGGER.warning("Unrecognized OpenAI response format: %s", response_obj)
-      parsed_responses.append(None) # Or raise error
+      parsed_responses.append(None)  # Or raise error
   return parsed_responses
 
 
-class OpenAIModelHandler(RemoteModelHandler[Any, PredictionResult,
+class OpenAIModelHandler(RemoteModelHandler[Any,
+                                            PredictionResult,
                                             openai.OpenAI]):
   def __init__(
       self,
       api_key: str,
-      model: str, # Recommended to use 'model' like in openai library
+      model: str,  # Recommended to use 'model' like in openai library
       request_fn: Callable[[str, Sequence[Any], openai.OpenAI, dict[str, Any]],
                            Any] = generate_completion,
       *,
@@ -165,7 +170,7 @@ class OpenAIModelHandler(RemoteModelHandler[Any, PredictionResult,
       self._batching_kwargs["max_batch_duration_secs"] = max_batch_duration_secs
 
     self.api_key = api_key
-    self.model_name = model # Renamed from model_name to model for consistency
+    self.model_name = model  # Renamed from model_name to model for consistency
     self.request_fn = request_fn
 
     # OpenAI client will be initialized in create_client
@@ -179,13 +184,13 @@ class OpenAIModelHandler(RemoteModelHandler[Any, PredictionResult,
   def create_client(self) -> openai.OpenAI:
     """Creates the OpenAI client used to send requests."""
     if not self._client:
-        self._client = openai.OpenAI(api_key=self.api_key)
+      self._client = openai.OpenAI(api_key=self.api_key)
     return self._client
 
   def request(
       self,
       batch: Sequence[Any],
-      model_client: openai.OpenAI, # Parameter name changed for clarity
+      model_client: openai.OpenAI,  # Parameter name changed for clarity
       inference_args: Optional[dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
     """ Sends a prediction request to an OpenAI model containing a batch

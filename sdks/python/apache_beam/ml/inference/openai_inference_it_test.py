@@ -41,7 +41,7 @@ _OUTPUT_DIR_DEFAULT = "gs://apache-beam-ml/testing/outputs/openai"
 _OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 
 # Models for testing - one completion, one chat
-_COMPLETION_MODEL = "gpt-3.5-turbo-instruct" # A smaller, faster completion model
+_COMPLETION_MODEL = "gpt-3.5-turbo-instruct"  # A smaller, faster completion model
 _CHAT_MODEL = "gpt-3.5-turbo"
 
 
@@ -49,10 +49,13 @@ _CHAT_MODEL = "gpt-3.5-turbo"
 class OpenAIInferenceIT(unittest.TestCase):
   def setUp(self):
     self.output_dir = os.environ.get("BEAM_ML_OUTPUT_DIR", _OUTPUT_DIR_DEFAULT)
-    self.project = os.environ.get("BEAM_ML_PROJECT") # Not used by OpenAI but common in tests
+    self.project = os.environ.get(
+        "BEAM_ML_PROJECT")  # Not used by OpenAI but common in tests
 
-  def run_pipeline(self, model_handler, test_data, output_path_suffix, inference_args=None):
-    output_file = '/'.join([self.output_dir, str(uuid.uuid4()), output_path_suffix])
+  def run_pipeline(
+      self, model_handler, test_data, output_path_suffix, inference_args=None):
+    output_file = '/'.join(
+        [self.output_dir, str(uuid.uuid4()), output_path_suffix])
 
     pipeline_options = {
         'output': output_file,
@@ -60,18 +63,20 @@ class OpenAIInferenceIT(unittest.TestCase):
     # Add project if available, for consistency with other IT tests,
     # though OpenAI handler doesn't directly use it.
     if self.project:
-        pipeline_options['project'] = self.project
+      pipeline_options['project'] = self.project
 
-    test_pipeline = TestPipeline(is_integration_test=True, options=pipeline_options)
+    test_pipeline = TestPipeline(
+        is_integration_test=True, options=pipeline_options)
 
     with test_pipeline as p:
       results = (
           p
           | "CreateInputs" >> beam.Create(test_data)
-          | "RunInference" >> RunInference(model_handler, inference_args=inference_args)
-          | "SaveResults" >> beam.Map(lambda x: str(x)) # Convert PredictionResult to string for output
-          | beam.io.WriteToText(output_file)
-      )
+          | "RunInference" >> RunInference(
+              model_handler, inference_args=inference_args)
+          | "SaveResults" >> beam.Map(
+              lambda x: str(x))  # Convert PredictionResult to string for output
+          | beam.io.WriteToText(output_file))
 
     self.assertTrue(FileSystems().exists(output_file))
     # Further checks could involve reading the output and verifying content,
@@ -83,75 +88,70 @@ class OpenAIInferenceIT(unittest.TestCase):
     # For a more robust check, one might mock the API in an IT setting or
     # use a very deterministic, simple prompt.
     match_results = []
+
     def process_output_file(readable_file):
-        for line in readable_file:
-            match_results.append(line)
+      for line in readable_file:
+        match_results.append(line)
 
     FileSystems.read_files(output_file, process_file_fn=process_output_file)
     self.assertGreater(len(match_results), 0)
     # Example: check if output contains 'PredictionResult(example=' or similar
-    self.assertTrue(any("PredictionResult(example=" in line for line in match_results))
+    self.assertTrue(
+        any("PredictionResult(example=" in line for line in match_results))
 
-
-  @pytest.mark.postcommit # Mark as postcommit as it makes external calls.
+  @pytest.mark.postcommit  # Mark as postcommit as it makes external calls.
   def test_openai_completion_model(self):
     model_handler = OpenAIModelHandler(
-        api_key=_OPENAI_API_KEY,
-        model=_COMPLETION_MODEL
-    )
+        api_key=_OPENAI_API_KEY, model=_COMPLETION_MODEL)
     test_data = [
-        "What is the capital of France?",
-        "Translate 'hello' to Spanish."
+        "What is the capital of France?", "Translate 'hello' to Spanish."
     ]
     inference_args = {"max_tokens": 50, "temperature": 0.7}
     self.run_pipeline(
         model_handler,
         test_data,
         "output_completion.txt",
-        inference_args=inference_args
-    )
+        inference_args=inference_args)
 
   @pytest.mark.postcommit
   def test_openai_chat_model(self):
     model_handler = OpenAIModelHandler(
-        api_key=_OPENAI_API_KEY,
-        model=_CHAT_MODEL
-    )
+        api_key=_OPENAI_API_KEY, model=_CHAT_MODEL)
     # Chat models expect a list of messages or a single string (handled as user message)
     test_data = [
-        "What is 2+2?", # Single string prompt
-        [{"role": "user", "content": "Describe a perfect day."}] # Message list prompt
+        "What is 2+2?",  # Single string prompt
+        [{
+            "role": "user", "content": "Describe a perfect day."
+        }]  # Message list prompt
     ]
     inference_args = {"max_tokens": 100, "temperature": 0.5}
     self.run_pipeline(
         model_handler,
         test_data,
         "output_chat.txt",
-        inference_args=inference_args
-    )
+        inference_args=inference_args)
 
   @pytest.mark.postcommit
   def test_openai_chat_model_with_system_message(self):
     model_handler = OpenAIModelHandler(
-        api_key=_OPENAI_API_KEY,
-        model=_CHAT_MODEL
-    )
+        api_key=_OPENAI_API_KEY, model=_CHAT_MODEL)
     # Chat models expect a list of messages or a single string (handled as user message)
     test_data = [
         # This requires the OpenAIModelHandler's generate_completion to correctly
         # handle list of messages if the input element itself is a list of dicts.
-        [
-            {"role": "system", "content": "You are a helpful assistant that speaks like a pirate."},
-            {"role": "user", "content": "How are you?"}
-        ]
+        [{
+            "role": "system",
+            "content": "You are a helpful assistant that speaks like a pirate."
+        }, {
+            "role": "user", "content": "How are you?"
+        }]
     ]
     inference_args = {"max_tokens": 50}
     self.run_pipeline(
         model_handler,
         test_data,
         "output_chat_system.txt",
-        inference_args=inference_args
-    )
+        inference_args=inference_args)
 
 
 if __name__ == '__main__':
