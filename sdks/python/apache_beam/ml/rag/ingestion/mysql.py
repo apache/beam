@@ -80,10 +80,11 @@ def _create_conflict_strategy(
     conflict_resolution: Optional[ConflictResolution]
 ) -> _ConflictResolutionStrategy:
   if conflict_resolution is None:
-    return _NoConflictStrategy
+    return _NoConflictStrategy()
   if conflict_resolution.action == "UPDATE":
     return _UpdateStrategy(conflict_resolution.update_fields)
   if conflict_resolution.action == "IGNORE":
+    assert conflict_resolution.primary_key_field is not None
     return _IgnoreStrategy(conflict_resolution.primary_key_field)
   raise ValueError(f"Unknown conflict resolution {conflict_resolution.action}")
 
@@ -124,8 +125,9 @@ class _MySQLQueryBuilder:
         ({', '.join(fields)})
         VALUES ({', '.join(placeholders)})
     """
-
-    query += f" {self.conflict_resolution.get_conflict_clause(fields)}"
+    conflict_clause = self.conflict_resolution_strategy.get_conflict_clause(
+        all_columns=fields)
+    query += f" {conflict_clause}"
 
     _LOGGER.info("MySQL Query with placeholders %s", query)
     return query
