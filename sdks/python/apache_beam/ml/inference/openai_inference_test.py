@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-import httpx
 import logging
 import unittest
 from unittest.mock import MagicMock
@@ -23,6 +22,7 @@ from unittest.mock import patch
 
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
+  import httpx
   from apache_beam.ml.inference.openai_inference import OpenAIModelHandler
   from apache_beam.ml.inference.openai_inference import _retry_on_appropriate_openai_error
   from openai import APIError
