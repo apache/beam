@@ -668,6 +668,11 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
     config.put("triggering_frequency_seconds", 4);
     config.put("partition_fields", Arrays.asList("bool_field", "modulo_5"));
+    // Add table properties for testing
+    Map<String, String> tableProperties = new HashMap<>();
+    tableProperties.put("write.format.default", "parquet");
+    tableProperties.put("commit.retry.num-retries", "3");
+    config.put("table_properties", tableProperties);
 
     // create elements from longs in range [0, 1000)
     PCollection<Row> input =
@@ -687,6 +692,8 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     List<Record> returnedRecords = readRecords(table);
     assertThat(
         returnedRecords, containsInAnyOrder(inputRows.stream().map(RECORD_FUNC::apply).toArray()));
+    assertEquals("parquet", table.properties().get("write.format.default"));
+    assertEquals("3", table.properties().get("commit.retry.num-retries"));
   }
 
   @Test
@@ -970,5 +977,26 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
     PAssert.that(rows).containsInAnyOrder(expectedRows);
     pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testWriteWithTableProperties() throws IOException {
+    Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
+    Map<String, String> tableProperties = new HashMap<>();
+    tableProperties.put("write.format.default", "parquet");
+    tableProperties.put("commit.retry.num-retries", "3");
+    config.put("table_properties", tableProperties);
+    PCollection<Row> input = pipeline.apply(Create.of(inputRows)).setRowSchema(BEAM_SCHEMA);
+    input.apply(Managed.write(ICEBERG).withConfig(config));
+    pipeline.run().waitUntilFinish();
+
+    Table table = catalog.loadTable(TableIdentifier.parse(tableId()));
+    // Read back and check records are correct
+    List<Record> returnedRecords = readRecords(table);
+    assertThat(
+        returnedRecords, containsInAnyOrder(inputRows.stream().map(RECORD_FUNC::apply).toArray()));
+    // Assert that the table properties are set on the Iceberg table
+    assertEquals("parquet", table.properties().get("write.format.default"));
+    assertEquals("3", table.properties().get("commit.retry.num-retries"));
   }
 }

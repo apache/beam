@@ -75,6 +75,7 @@
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Add pip-based install support for JupyterLab Sidepanel extension ([#35397](https://github.com/apache/beam/issues/#35397)).
+* [IcebergIO] Create tables with a specified table properties ([#35496](https://github.com/apache/beam/pull/35496))
 * Milvus enrichment handler added (Python) ([#35216](https://github.com/apache/beam/pull/35216)).
   Beam now supports Milvus enrichment handler capabilities for vector, keyword,
   and hybrid search operations.
