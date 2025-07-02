@@ -121,7 +121,8 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
           'postgresql',
           'org.postgresql.Driver'),
       'mysql': DbData(
-          lambda: MySqlContainer(dialect='pymysql'), ['mysql:mysql-connector-java:8.0.28'],
+          lambda: MySqlContainer(dialect='pymysql'),
+          ['mysql:mysql-connector-java:8.0.28'],
           'mysql',
           'com.mysql.cj.jdbc.Driver')
   }
