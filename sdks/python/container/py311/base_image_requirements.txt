@@ -40,7 +40,7 @@ charset-normalizer==3.4.2
 click==8.2.1
 cloud-sql-python-connector==1.18.2
 crcmod==1.7
-cryptography==45.0.4
+cryptography==45.0.5
 Cython==3.1.2
 dill==0.3.1.1
 dnspython==2.7.0
@@ -58,7 +58,7 @@ google-api-python-client==2.174.0
 google-apitools==0.5.31
 google-auth==2.40.3
 google-auth-httplib2==0.2.0
-google-cloud-aiplatform==1.100.0
+google-cloud-aiplatform==1.101.0
 google-cloud-bigquery==3.34.0
 google-cloud-bigquery-storage==2.32.0
 google-cloud-bigtable==2.31.0
@@ -76,7 +76,7 @@ google-cloud-storage==2.19.0
 google-cloud-videointelligence==2.16.2
 google-cloud-vision==3.10.2
 google-crc32c==1.7.1
-google-genai==1.23.0
+google-genai==1.24.0
 google-resumable-media==2.7.2
 googleapis-common-protos==1.70.0
 greenlet==3.2.3
@@ -90,7 +90,7 @@ hdfs==2.7.3
 httpcore==1.0.9
 httplib2==0.22.0
 httpx==0.28.1
-hypothesis==6.135.19
+hypothesis==6.135.22
 idna==3.10
 importlib_metadata==8.7.0
 iniconfig==2.1.0
@@ -142,14 +142,14 @@ pydantic_core==2.33.2
 pydot==1.4.2
 PyHamcrest==2.1.0
 PyJWT==2.9.0
-pymilvus==2.5.11
+pymilvus==2.5.12
 pymongo==4.13.2
 PyMySQL==1.1.1
 pyparsing==3.2.3
 pyproject_hooks==1.2.0
 pytest==7.4.4
 pytest-timeout==2.4.0
-pytest-xdist==3.7.0
+pytest-xdist==3.8.0
 python-dateutil==2.9.0.post0
 python-dotenv==1.1.1
 python-tds==1.16.1
@@ -160,7 +160,7 @@ referencing==0.36.2
 regex==2024.11.6
 requests==2.32.4
 requests-mock==1.12.1
-rpds-py==0.25.1
+rpds-py==0.26.0
 rsa==4.9.1
 scikit-learn==1.7.0
 scipy==1.16.0
