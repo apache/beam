@@ -21,6 +21,7 @@ import unittest
 from dataclasses import dataclass
 from typing import Optional
 from unittest.mock import MagicMock
+import uuid
 
 import pytest
 
@@ -266,7 +267,7 @@ class BaseTestSQLEnrichment(unittest.TestCase):
   def get_columns(cls):
     """Returns fresh column objects each time it's called."""
     return [
-        Column("id", Integer, primary_key=True),
+        Column("id", Integer, nullable=False),
         Column("name", VARCHAR(255), nullable=False),
         Column("quantity", Integer, nullable=False),
         Column("distribution_center_id", Integer, nullable=False),
@@ -592,21 +593,24 @@ class BaseExternalSQLDBEnrichment(BaseTestSQLEnrichment):
 @pytest.mark.uses_testcontainer
 class TestExternalPostgresEnrichment(BaseExternalSQLDBEnrichment):
   _db_adapter = DatabaseTypeAdapter.POSTGRESQL
-  _table_id = "product_details_external_pg_enrichment"
+  _unique_suffix = str(uuid.uuid4())[:8]
+  _table_id = f"product_details_external_pg_enrichment_{_unique_suffix}"
   _metadata = MetaData()
 
 
 @pytest.mark.uses_testcontainer
 class TestExternalMySQLEnrichment(BaseExternalSQLDBEnrichment):
   _db_adapter = DatabaseTypeAdapter.MYSQL
-  _table_id = "product_details_external_mysql_enrichment"
+  _unique_suffix = str(uuid.uuid4())[:8]
+  _table_id = f"product_details_external_mysql_enrichment_{_unique_suffix}"
   _metadata = MetaData()
 
 
 @pytest.mark.uses_testcontainer
 class TestExternalSQLServerEnrichment(BaseExternalSQLDBEnrichment):
   _db_adapter = DatabaseTypeAdapter.SQLSERVER
-  _table_id = "product_details_external_mssql_enrichment"
+  _unique_suffix = str(uuid.uuid4())[:8]
+  _table_id = f"product_details_external_mssql_enrichment_{_unique_suffix}"
   _metadata = MetaData()
 
 
