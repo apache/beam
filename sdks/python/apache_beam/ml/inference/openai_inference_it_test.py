@@ -22,8 +22,9 @@ import os
 import unittest
 import uuid
 
-import apache_beam as beam
 import pytest
+
+import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.testing.test_pipeline import TestPipeline
