@@ -185,7 +185,7 @@ final class GrpcGetDataStream
       // sent on stream reconnect.
       for (QueuedRequest request : batch.requestsReadOnly()) {
         boolean alreadyPresent = pending.put(request.id(), request.getResponseStream()) != null;
-        verify(!alreadyPresent, "Request already sent, id: %d", request.id());
+        verify(!alreadyPresent, "Request already sent, id: %s", request.id());
       }
 
       if (!trySend(batch.asGetDataRequest())) {
