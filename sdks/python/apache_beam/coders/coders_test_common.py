@@ -24,6 +24,8 @@ import enum
 import logging
 import math
 import pickle
+import subprocess
+import sys
 import textwrap
 import unittest
 from decimal import Decimal
@@ -610,6 +612,10 @@ class CodersTest(unittest.TestCase):
 
   def test_cross_process_encoding_of_special_types_is_deterministic(self):
     """Test cross-process determinism for all special deterministic types"""
+
+    if sys.executable is None:
+      self.skipTest('No Python interpreter found')
+
     # pylint: disable=line-too-long
     script = textwrap.dedent(
         '''\
@@ -711,9 +717,6 @@ class CodersTest(unittest.TestCase):
     ''')
 
     def run_subprocess():
-      import subprocess
-      import sys
-
       result = subprocess.run([sys.executable, '-c', script],
                               capture_output=True,
                               timeout=30,
