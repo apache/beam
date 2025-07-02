@@ -49,8 +49,6 @@ _CHAT_MODEL = "gpt-3.5-turbo"
 class OpenAIInferenceIT(unittest.TestCase):
   def setUp(self):
     self.output_dir = os.environ.get("BEAM_ML_OUTPUT_DIR", _OUTPUT_DIR_DEFAULT)
-    self.project = os.environ.get(
-        "BEAM_ML_PROJECT")  # Not used by OpenAI but common in tests
 
   def run_pipeline(
       self, model_handler, test_data, output_path_suffix, inference_args=None):
@@ -60,10 +58,6 @@ class OpenAIInferenceIT(unittest.TestCase):
     pipeline_options = {
         'output': output_file,
     }
-    # Add project if available, for consistency with other IT tests,
-    # though OpenAI handler doesn't directly use it.
-    if self.project:
-      pipeline_options['project'] = self.project
 
     test_pipeline = TestPipeline(
         is_integration_test=True, options=pipeline_options)
@@ -79,14 +73,7 @@ class OpenAIInferenceIT(unittest.TestCase):
           | beam.io.WriteToText(output_file))
 
     self.assertTrue(FileSystems().exists(output_file))
-    # Further checks could involve reading the output and verifying content,
-    # but for now, we just check if the pipeline runs and produces output.
 
-    # Basic check for content in the output file to ensure it's not empty
-    # and contains expected PredictionResult structure.
-    # This part can be flaky if API responses change slightly.
-    # For a more robust check, one might mock the API in an IT setting or
-    # use a very deterministic, simple prompt.
     match_results = []
 
     def process_output_file(readable_file):
