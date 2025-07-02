@@ -241,9 +241,9 @@ def temp_mysql_database():
       jdbc_url = (
           f"jdbc:mysql://{mysql_container.get_container_host_ip()}:"
           f"{mysql_container.get_exposed_port(mysql_container.port)}/"
-          f"{mysql_container.MYSQL_DATABASE}?"
-          f"user={mysql_container.MYSQL_USER}&"
-          f"password={mysql_container.MYSQL_PASSWORD}")
+          f"{mysql_container.dbname}?"
+          f"user={mysql_container.username}&"
+          f"password={mysql_container.password}")
 
       yield jdbc_url
     except mysql.connector.Error as err:
@@ -290,9 +290,9 @@ def temp_postgres_database():
       jdbc_url = (
           f"jdbc:postgresql://{postgres_container.get_container_host_ip()}:"
           f"{postgres_container.get_exposed_port(default_port)}/"
-          f"{postgres_container.POSTGRES_DB}?"
-          f"user={postgres_container.POSTGRES_USER}&"
-          f"password={postgres_container.POSTGRES_PASSWORD}")
+          f"{postgres_container.dbname}?"
+          f"user={postgres_container.username}&"
+          f"password={postgres_container.password}")
 
       yield jdbc_url
     except (psycopg2.Error, Exception) as err:
@@ -347,9 +347,9 @@ def temp_sqlserver_database():
       jdbc_url = (
           f"jdbc:sqlserver://{sqlserver_container.get_container_host_ip()}:"
           f"{int(sqlserver_container.get_exposed_port(default_port))};"
-          f"databaseName={sqlserver_container.SQLSERVER_DBNAME};"
-          f"user={sqlserver_container.SQLSERVER_USER};"
-          f"password={sqlserver_container.SQLSERVER_PASSWORD};"
+          f"databaseName={sqlserver_container.dbname};"
+          f"user={sqlserver_container.username};"
+          f"password={sqlserver_container.password};"
           f"encrypt=true;"
           f"trustServerCertificate=true")
 
