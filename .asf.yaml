@@ -51,6 +51,7 @@ github:
 
   protected_branches:
     master: {}
+    release-2.66.0-postrelease: {}
     release-2.66: {}
     release-2.65.0-postrelease: {}
     release-2.65: {}

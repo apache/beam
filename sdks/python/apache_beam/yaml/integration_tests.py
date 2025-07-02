@@ -109,7 +109,7 @@ def gcs_temp_dir(bucket):
 
 @contextlib.contextmanager
 def temp_spanner_table(project, prefix='temp_spanner_db_'):
-  """Context manager to create and clean up a temporary Spanner database and 
+  """Context manager to create and clean up a temporary Spanner database and
   table.
 
   Creates a unique temporary Spanner database within the specified project
@@ -125,7 +125,7 @@ def temp_spanner_table(project, prefix='temp_spanner_db_'):
   Yields:
     list[str]: A list containing connection details:
       [project_id, instance_id, database_id, table_name, list_of_columns].
-      Example: ['my-project', 'beam-test', 'temp_spanner_db_...', 'tmp_table', 
+      Example: ['my-project', 'beam-test', 'temp_spanner_db_...', 'tmp_table',
         ['UserId', 'Key']]
   """
   spanner_client = SpannerWrapper(project)
@@ -247,7 +247,7 @@ def temp_sqlite_database(prefix='yaml_jdbc_it_'):
   This function creates a temporary SQLite database file on the local
   filesystem. It establishes a connection using 'sqlite3', creates a predefined
   'tmp_table', and then yields a JDBC connection string suitable for use in
-  tests that require a generic JDBC connection (specifically configured for 
+  tests that require a generic JDBC connection (specifically configured for
   SQLite in this case).
 
   The SQLite database file is automatically cleaned up (closed and deleted)
@@ -323,7 +323,7 @@ def temp_mysql_database():
                              with the MySQL database during setup.
       Exception: Any other exception encountered during the setup process.
   """
-  with MySqlContainer(init=True) as mysql_container:
+  with MySqlContainer(init=True, dialect='pymysql') as mysql_container:
     try:
       # Make connection to temp database and create tmp table
       engine = sqlalchemy.create_engine(mysql_container.get_connection_url())
@@ -335,10 +335,10 @@ def temp_mysql_database():
       # Construct the JDBC url for connections later on by tests
       jdbc_url = (
           f"jdbc:mysql://{mysql_container.get_container_host_ip()}:"
-          f"{mysql_container.get_exposed_port(mysql_container.port_to_expose)}/"
-          f"{mysql_container.MYSQL_DATABASE}?"
-          f"user={mysql_container.MYSQL_USER}&"
-          f"password={mysql_container.MYSQL_PASSWORD}")
+          f"{mysql_container.get_exposed_port(mysql_container.port)}/"
+          f"{mysql_container.dbname}?"
+          f"user={mysql_container.username}&"
+          f"password={mysql_container.password}")
 
       yield jdbc_url
     except mysql.connector.Error as err:
@@ -385,9 +385,9 @@ def temp_postgres_database():
       jdbc_url = (
           f"jdbc:postgresql://{postgres_container.get_container_host_ip()}:"
           f"{postgres_container.get_exposed_port(default_port)}/"
-          f"{postgres_container.POSTGRES_DB}?"
-          f"user={postgres_container.POSTGRES_USER}&"
-          f"password={postgres_container.POSTGRES_PASSWORD}")
+          f"{postgres_container.dbname}?"
+          f"user={postgres_container.username}&"
+          f"password={postgres_container.password}")
 
       yield jdbc_url
     except (psycopg2.Error, Exception) as err:
@@ -442,9 +442,9 @@ def temp_sqlserver_database():
       jdbc_url = (
           f"jdbc:sqlserver://{sqlserver_container.get_container_host_ip()}:"
           f"{int(sqlserver_container.get_exposed_port(default_port))};"
-          f"databaseName={sqlserver_container.SQLSERVER_DBNAME};"
-          f"user={sqlserver_container.SQLSERVER_USER};"
-          f"password={sqlserver_container.SQLSERVER_PASSWORD};"
+          f"databaseName={sqlserver_container.dbname};"
+          f"user={sqlserver_container.username};"
+          f"password={sqlserver_container.password};"
           f"encrypt=true;"
           f"trustServerCertificate=true")
 
@@ -457,9 +457,9 @@ def temp_sqlserver_database():
 class OracleTestContainer(DockerContainer):
   """
   OracleTestContainer is an updated version of OracleDBContainer that goes
-  ahead and sets the oracle password, waits for logs to establish that the 
+  ahead and sets the oracle password, waits for logs to establish that the
   container is ready before calling get_exposed_port, and uses a more modern
-  oracle driver.  
+  oracle driver.
   """
   def __init__(self):
     super().__init__("gvenzl/oracle-xe:21-slim")
