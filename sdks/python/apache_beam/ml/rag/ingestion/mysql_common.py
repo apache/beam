@@ -134,6 +134,11 @@ class ColumnSpec:
     return cls(column_name, str, value_fn)
 
 
+def embedding_to_string(embedding: List[Float]) -> str:
+  """Convert embedding to MySQL vector string format."""
+  return '[' + ','.join(str(x) for x in embedding) + ']'
+
+
 class ColumnSpecsBuilder:
   """Builder for :class:`.ColumnSpec`'s with chainable methods."""
   def __init__(self):
@@ -255,10 +260,7 @@ class ColumnSpecsBuilder:
   def with_embedding_spec(
       self,
       column_name: str = "embedding",
-      convert_fn: Callable[
-          [List[float]],
-          Any] = lambda embedding: '[' + ','.join(str(x)
-                                                  for x in embedding) + ']'
+      convert_fn: Callable[[List[float]], Any] = embedding_to_string
   ) -> 'ColumnSpecsBuilder':
     """Add embedding :class:`.ColumnSpec` with optional conversion.
       
