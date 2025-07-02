@@ -147,7 +147,7 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
             .setCell(COLUMN_FAMILY_NAME_1, "col_a", 1000, "val-1-a")
             .setCell(COLUMN_FAMILY_NAME_2, "col_c", 1000, "val-1-c");
     dataClient.mutateRow(rowMutation);
-    Schema SCHEMA =
+    Schema testSchema =
         Schema.builder()
             .addByteArrayField("key")
             .addByteArrayField("type")
@@ -158,7 +158,7 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
             .build();
 
     Row mutationRow1 =
-        Row.withSchema(SCHEMA)
+        Row.withSchema(testSchema)
             .withFieldValue("key", "key-1".getBytes(StandardCharsets.UTF_8))
             .withFieldValue("type", "SetCell".getBytes(StandardCharsets.UTF_8))
             .withFieldValue("value", "new-val-1-a".getBytes(StandardCharsets.UTF_8))
@@ -167,7 +167,7 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
             .withFieldValue("timestamp_micros", Longs.toByteArray(2000))
             .build();
     Row mutationRow2 =
-        Row.withSchema(SCHEMA)
+        Row.withSchema(testSchema)
             .withFieldValue("key", "key-1".getBytes(StandardCharsets.UTF_8))
             .withFieldValue("type", "SetCell".getBytes(StandardCharsets.UTF_8))
             .withFieldValue("value", "new-val-1-c".getBytes(StandardCharsets.UTF_8))
@@ -212,7 +212,7 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
     RowMutation rowMutation =
         RowMutation.create(tableId, "key-1").setCell(COLUMN_FAMILY_NAME_1, "col_a", "val-1-a");
     dataClient.mutateRow(rowMutation);
-    Schema SCHEMA =
+    Schema testSchema =
         Schema.builder()
             .addByteArrayField("key")
             .addByteArrayField("type")
@@ -221,7 +221,7 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
             .addByteArrayField("family_name")
             .build();
     Row mutationRow =
-        Row.withSchema(SCHEMA)
+        Row.withSchema(testSchema)
             .withFieldValue("key", "key-1".getBytes(StandardCharsets.UTF_8))
             .withFieldValue("type", "SetCell".getBytes(StandardCharsets.UTF_8))
             .withFieldValue("value", "new-val-1".getBytes(StandardCharsets.UTF_8))
@@ -259,7 +259,7 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
     rowMutation =
         RowMutation.create(tableId, "key-1").setCell(COLUMN_FAMILY_NAME_1, "col_a", "new-val-1-a");
     dataClient.mutateRow(rowMutation);
-    Schema SCHEMA =
+    Schema testSchema =
         Schema.builder()
             .addByteArrayField("key")
             .addByteArrayField("type")
@@ -268,7 +268,7 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
             .addByteArrayField("family_name")
             .build();
     Row mutationRow =
-        Row.withSchema(SCHEMA)
+        Row.withSchema(testSchema)
             .withFieldValue("key", "key-1".getBytes(StandardCharsets.UTF_8))
             .withFieldValue("type", "DeleteFromColumn".getBytes(StandardCharsets.UTF_8))
             .withFieldValue("column_qualifier", "col_a".getBytes(StandardCharsets.UTF_8))
@@ -307,7 +307,7 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
         RowMutation.create(tableId, "key-1")
             .setCell(COLUMN_FAMILY_NAME_1, "col", 200_000_000, "new-val");
     dataClient.mutateRow(rowMutation);
-    Schema SCHEMA =
+    Schema testSchema =
         Schema.builder()
             .addByteArrayField("key")
             .addByteArrayField("type")
@@ -317,7 +317,7 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
             .addByteArrayField("end_timestamp_micros")
             .build();
     Row mutationRow =
-        Row.withSchema(SCHEMA)
+        Row.withSchema(testSchema)
             .withFieldValue("key", "key-1".getBytes(StandardCharsets.UTF_8))
             .withFieldValue("type", "DeleteFromColumn".getBytes(StandardCharsets.UTF_8))
             .withFieldValue("column_qualifier", "col".getBytes(StandardCharsets.UTF_8))
@@ -353,14 +353,14 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
             .setCell(COLUMN_FAMILY_NAME_1, "col_a", "val")
             .setCell(COLUMN_FAMILY_NAME_2, "col_b", "val");
     dataClient.mutateRow(rowMutation);
-    Schema SCHEMA =
+    Schema testSchema =
         Schema.builder()
             .addByteArrayField("key")
             .addByteArrayField("type")
             .addByteArrayField("family_name")
             .build();
     Row mutationRow =
-        Row.withSchema(SCHEMA)
+        Row.withSchema(testSchema)
             .withFieldValue("key", "key-1".getBytes(StandardCharsets.UTF_8))
             .withFieldValue("type", "DeleteFromFamily".getBytes(StandardCharsets.UTF_8))
             .withFieldValue("family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8))
@@ -394,9 +394,9 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
     rowMutation =
         RowMutation.create(tableId, "key-2").setCell(COLUMN_FAMILY_NAME_1, "col", "val-2");
     dataClient.mutateRow(rowMutation);
-    Schema SCHEMA = Schema.builder().addByteArrayField("key").addByteArrayField("type").build();
+    Schema testSchema = Schema.builder().addByteArrayField("key").addByteArrayField("type").build();
     Row mutationRow =
-        Row.withSchema(SCHEMA)
+        Row.withSchema(testSchema)
             .withFieldValue("key", "key-1".getBytes(StandardCharsets.UTF_8))
             .withFieldValue("type", "DeleteFromRow".getBytes(StandardCharsets.UTF_8))
             .build();
@@ -422,9 +422,9 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
     rowMutation =
         RowMutation.create(tableId, "key-2").setCell(COLUMN_FAMILY_NAME_1, "col", "val-2");
     dataClient.mutateRow(rowMutation);
-    Schema SCHEMA = Schema.builder().addByteArrayField("key").addByteArrayField("type").build();
+    Schema testSchema = Schema.builder().addByteArrayField("key").addByteArrayField("type").build();
     Row mutationRow =
-        Row.withSchema(SCHEMA)
+        Row.withSchema(testSchema)
             .withFieldValue("key", "key-1".getBytes(StandardCharsets.UTF_8))
             .withFieldValue("type", "DeleteFromRow".getBytes(StandardCharsets.UTF_8))
             .build();
