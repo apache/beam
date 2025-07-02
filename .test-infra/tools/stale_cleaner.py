@@ -301,9 +301,8 @@ class PubSubTopicCleaner(StaleCleaner):
         return d
 
     def _delete_resource(self, resource_name: str) -> None:
-        topic_name = resource_name.split('/')[-1]
-        print(f"{self.clock()} - Deleting PubSub topic {topic_name}")
-        self.client.delete_topic(name=resource_name)
+        print(f"{self.clock()} - Deleting PubSub topic {resource_name}")
+        self.client.delete_topic(request={"topic": resource_name})
 
 if __name__ == "__main__":
     project_id = DEFAULT_PROJECT_ID
