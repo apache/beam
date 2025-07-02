@@ -228,7 +228,7 @@ def temp_mysql_database():
                              with the MySQL database during setup.
       Exception: Any other exception encountered during the setup process.
   """
-  with MySqlContainer(init=True) as mysql_container:
+  with MySqlContainer(init=True, dialect='pymysql') as mysql_container:
     try:
       # Make connection to temp database and create tmp table
       engine = sqlalchemy.create_engine(mysql_container.get_connection_url())
