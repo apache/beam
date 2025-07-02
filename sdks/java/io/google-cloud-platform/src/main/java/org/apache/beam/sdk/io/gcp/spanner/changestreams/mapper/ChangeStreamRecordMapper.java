@@ -229,15 +229,15 @@ public class ChangeStreamRecordMapper {
           toChangeStreamRecordJson(partition, resultSet.getPgJsonb(0), resultSetMetadata));
     }
 
-    // In GoogleSQL, for `IMMUTABLE_KEY_RANGE` option, change stream records are returned as Protos.
+    // In GoogleSQL, for `MUTABLE_KEY_RANGE` option, change stream records are returned as Protos.
     if (resultSet.isProtoChangeRecord()) {
       return Arrays.asList(
           toChangeStreamRecord(
               partition, resultSet.getProtoChangeStreamRecord(), resultSetMetadata));
     }
 
-    // In GoogleSQL, for `MUTABLE_KEY_RANGE` option, change stream records are returned as an array
-    // of structs.
+    // In GoogleSQL, for `IMMUTABLE_KEY_RANGE` option, change stream records are returned as an
+    // array of structs.
     return resultSet.getCurrentRowAsStruct().getStructList(0).stream()
         .flatMap(struct -> toChangeStreamRecord(partition, struct, resultSetMetadata))
         .collect(Collectors.toList());
