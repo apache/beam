@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-import logging
 import unittest
 from unittest.mock import MagicMock
 from unittest.mock import patch
@@ -23,6 +22,7 @@ from unittest.mock import patch
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
   import httpx
+  from apache_beam.ml.inference.base import PredictionResult
   from apache_beam.ml.inference.openai_inference import OpenAIModelHandler
   from apache_beam.ml.inference.openai_inference import _retry_on_appropriate_openai_error
   from openai import APIError
@@ -34,8 +34,6 @@ try:
   from openai.types.completion_choice import CompletionChoice
 except ImportError:
   raise unittest.SkipTest('OpenAI dependencies are not installed')
-
-from apache_beam.ml.inference.base import PredictionResult
 
 
 class RetryOnAPIErrorTest(unittest.TestCase):
@@ -55,7 +53,7 @@ class RetryOnAPIErrorTest(unittest.TestCase):
     # mock_response.status_code will be set below.
     # Ensure headers is a mock that can handle .get() for RateLimitError
     mock_response.headers = MagicMock(spec=httpx.Headers)
-    mock_response.headers.get.return_value = "test-request-id"  # For x-request-id
+    mock_response.headers.get.return_value = "test-request-id"
     mock_response.content = b"{}"
     mock_response.text = "{}"
 
