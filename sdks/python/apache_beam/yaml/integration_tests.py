@@ -21,12 +21,9 @@ import contextlib
 import logging
 import os
 import secrets
-import time
 import copy
 import glob
 import itertools
-import logging
-import os
 import random
 import sqlite3
 import string
@@ -34,7 +31,6 @@ import unittest
 import uuid
 from datetime import datetime
 from datetime import timezone
-
 import mock
 import mysql.connector
 import psycopg2
@@ -49,42 +45,34 @@ from testcontainers.google import PubSubContainer
 from testcontainers.mssql import SqlServerContainer
 from testcontainers.mysql import MySqlContainer
 from testcontainers.postgres import PostgresContainer
-
 import pytest
-
-
 import apache_beam as beam
 from apache_beam.io import filesystems
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.internal.clients import bigquery
 from  apache_beam.io.gcp import bigtableio
-
 from apache_beam.io.gcp.spanner_wrapper import SpannerWrapper
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.utils import python_callable
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml import yaml_transform
 from apache_beam.yaml.conftest import yaml_test_files_dir
-
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-
 from google.cloud.bigtable import client
 from google.cloud.bigtable_admin_v2.types import instance
-
 _LOGGER = logging.getLogger(__name__)
-
 # Protect against environments where bigtable library is not available.
 try:
-    from apitools.base.py.exceptions import HttpError
-    from google.cloud.bigtable.row_filters import TimestampRange
-    from google.cloud.bigtable.row import DirectRow, PartialRowData, Cell
-    from google.cloud.bigtable.table import Table
-    from google.cloud.bigtable_admin_v2.types import instance
+  from apitools.base.py.exceptions import HttpError
+  from google.cloud.bigtable.row_filters import TimestampRange
+  from google.cloud.bigtable.row import DirectRow, PartialRowData, Cell
+  from google.cloud.bigtable.table import Table
+  from google.cloud.bigtable_admin_v2.types import instance
 except ImportError as e:
-    client = None
-    HttpError = None
+  client = None
+  HttpError = None
 
 
 @contextlib.contextmanager
@@ -175,61 +163,61 @@ def temp_bigquery_table(project, prefix='yaml_bq_it_'):
   bigquery_client.client.datasets.Delete(request)
 
 def instance_prefix(instance):
-    datestr = "".join(filter(str.isdigit, str(datetime.now(timezone.utc).date())))
-    instance_id = '%s-%s-%s' % (instance, datestr, secrets.token_hex(4))
-    assert len(instance_id) < 34, "instance id length needs to be within [6, 33]"
-    return instance_id
+  datestr = "".join(filter(str.isdigit, str(datetime.now(timezone.utc).date())))
+  instance_id = '%s-%s-%s' % (instance, datestr, secrets.token_hex(4))
+  assert len(instance_id) < 34, "instance id length needs to be within [6, 33]"
+  return instance_id
 
 @contextlib.contextmanager
 def temp_bigtable_table(project, prefix='yaml_bt_it_'):
-    INSTANCE = "bt-write-tests"
-    TABLE_ID = "test-table"
+  INSTANCE = "bt-write-tests"
+  TABLE_ID = "test-table"
 
-    instance_id = (INSTANCE)
+  instance_id = (INSTANCE)
 
-    clientT = client.Client(admin=True, project=project)
-    # create cluster and instance
-    instanceT = clientT.instance(
-        instance_id,
-        display_name=INSTANCE,
-        instance_type=instance.Instance.Type.DEVELOPMENT)
-    cluster = instanceT.cluster("test-cluster", "us-central1-a")
-    operation = instanceT.create(clusters=[cluster])
-    operation.result(timeout=500)
-    _LOGGER.info(
-        "Created instance [%s] in project [%s]",
-        instance_id,
-        project)
+  clientT = client.Client(admin=True, project=project)
+  # create cluster and instance
+  instanceT = clientT.instance(
+      instance_id,
+      display_name=INSTANCE,
+      instance_type=instance.Instance.Type.DEVELOPMENT)
+  cluster = instanceT.cluster("test-cluster", "us-central1-a")
+  operation = instanceT.create(clusters=[cluster])
+  operation.result(timeout=500)
+  _LOGGER.info(
+    "Created instance [%s] in project [%s]",
+    instance_id,
+    project)
 
-    # create table inside instance
-    table = instanceT.table(TABLE_ID)
-    table.create()
-    _LOGGER.info("Created table [%s]", table.table_id)
-    # in the table that is created, make a new family called cf1
-    col_fam = table.column_family('cf1')
-    col_fam.create()
+  # create table inside instance
+  table = instanceT.table(TABLE_ID)
+  table.create()
+  _LOGGER.info("Created table [%s]", table.table_id)
+  # in the table that is created, make a new family called cf1
+  col_fam = table.column_family('cf1')
+  col_fam.create()
 
-    # another family called cf2
-    col_fam = table.column_family('cf2')
-    col_fam.create()
+  # another family called cf2
+  col_fam = table.column_family('cf2')
+  col_fam.create()
 
-    #
-    if (os.environ.get('TRANSFORM_SERVICE_PORT')):
-        _transform_service_address = (
-                'localhost:' + os.environ.get('TRANSFORM_SERVICE_PORT'))
-    else:
-        _transform_service_address = None
+  #
+  if (os.environ.get('TRANSFORM_SERVICE_PORT')):
+    _transform_service_address = (
+            'localhost:' + os.environ.get('TRANSFORM_SERVICE_PORT'))
+  else:
+    _transform_service_address = None
 
-    #yielding the tmp table for all the bigTable tests
-    yield f'{instance_id}.{project}.tmp_table'
+  #yielding the tmp table for all the bigTable tests
+  yield f'{instance_id}.{project}.tmp_table'
 
-    #try catch for deleting table and instance after all tests are ran
-    try:
-        _LOGGER.info("Deleting table [%s]", table.table_id)
-        table.delete()
-        instanceT.delete()
-    except HttpError:
-        _LOGGER.warning("Failed to clean up instance")
+  #try catch for deleting table and instance after all tests are ran
+  try:
+    _LOGGER.info("Deleting table [%s]", table.table_id)
+    table.delete()
+    instanceT.delete()
+  except HttpError:
+    _LOGGER.warning("Failed to clean up instance")
 
 
 
@@ -792,18 +780,16 @@ def parse_test_files(filepattern):
       For example, 'path/to/tests/*.yaml'.
   """
   for path in glob.glob(filepattern):
-      # get rid of this before PR
+    # get rid of this before PR
     if "bigTable" in path:
-        with open(path) as fin:
-          suite_name = os.path.splitext(os.path.basename(path))[0].title().replace(
-              '-', '') + 'Test'
-          print(path, suite_name)
-          methods = dict(
-              create_test_methods(
-                  yaml.load(fin, Loader=yaml_transform.SafeLineLoader)))
-          globals()[suite_name] = type(suite_name, (unittest.TestCase, ), methods)
-
-
+      with open(path) as fin:
+        suite_name = os.path.splitext(os.path.basename(path))[0].title().replace(
+            '-', '') + 'Test'
+        print(path, suite_name)
+        methods = dict(
+            create_test_methods(
+                yaml.load(fin, Loader=yaml_transform.SafeLineLoader)))
+        globals()[suite_name] = type(suite_name, (unittest.TestCase, ), methods)
 # Logging setup
 logging.getLogger().setLevel(logging.INFO)
 
