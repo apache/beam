@@ -334,4 +334,4 @@ if __name__ == "__main__":
     cleaner.refresh()
 
     # Delete stale resources
-    cleaner.delete_stale()
+    cleaner.delete_stale(dry_run=False)
