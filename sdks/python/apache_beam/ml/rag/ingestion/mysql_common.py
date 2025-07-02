@@ -257,8 +257,8 @@ class ColumnSpecsBuilder:
       column_name: str = "embedding",
       convert_fn: Callable[
           [List[float]],
-          Any] = lambda embeddig: '[' + ','.join(str(x)
-                                                 for x in embedding) + ']'
+          Any] = lambda embedding: '[' + ','.join(str(x)
+                                                  for x in embedding) + ']'
   ) -> 'ColumnSpecsBuilder':
     """Add embedding :class:`.ColumnSpec` with optional conversion.
       
