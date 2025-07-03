@@ -520,7 +520,7 @@ def _kafka_test_preprocessor(
     'test_pubsub_to_iceberg_yaml',
     'test_oracle_to_bigquery_yaml',
     'test_mysql_to_bigquery_yaml',
-    'test_spanner_to_bigquery_yaml'
+    'test_spanner_to_bigquery_yaml',
     'test_streaming_sentiment_analysis_yaml',
     'test_enrich_spanner_with_bigquery_yaml'
 ])
@@ -826,6 +826,10 @@ def _db_io_read_test_processor(
         if (table := config.get('table', None)) is None:
           table = config.get('query', '').split('FROM')[-1].strip()
         transform['type'] = 'Create'
+        transform['config'] = {
+          k: v
+          for k, v in config.items() if k.startswith('__')
+        }
         elements = INPUT_TABLES[(database_type, database, table)]
         if config.get('query', None):
           config['query'].replace('select ',
@@ -841,6 +845,7 @@ def _db_io_read_test_processor(
         transform['config']['elements'] = elements
 
   return test_spec
+
 
 @YamlExamplesTestSuite.register_test_preprocessor(
     'test_streaming_sentiment_analysis_yaml')
