@@ -52,20 +52,20 @@ env:
 
 jobs:
   beam_PostCommit_Python_Dependency:
-    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
     runs-on: [self-hosted, ubuntu-20.04, main]
     strategy:
       fail-fast: false
       matrix:
-        job_name: [beam_PostCommit_Python_Dependency]
-        job_phrase: [Run Python PostCommit Dependency]
-        python_version: ['39','312']
+        job_name: ['beam_PostCommit_Python_Dependency']
+        job_phrase: ['Run Python PostCommit Dependency']
+        python_version: ['3.9','3.12']
     timeout-minutes: 120
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'pull_request_target' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
-      github.event.comment.body == 'Run Python PostCommit Dependency'
+      startsWith(github.event.comment.body, 'Run Python PostCommit Dependency')
     steps:
       - uses: actions/checkout@v4
       - name: Setup repository
@@ -78,12 +78,20 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           java-version: default
-          python-version: default
+          python-version: ${{ matrix.python_version }}
+      - name: Set PY_VER_CLEAN
+        id: set_py_ver_clean
+        run: |
+          PY_VER=${{ matrix.python_version }}
+          PY_VER_CLEAN=${PY_VER//.}
+          echo "py_ver_clean=$PY_VER_CLEAN" >> $GITHUB_OUTPUT
       - name: Run postCommitPyDep
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:python:test-suites:tox:py${{ matrix.python_version }}:postCommitPyDep
-          arguments: -PuseWheelDistribution
+          gradle-command: :sdks:python:test-suites:tox:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:postCommitPyDep
+          arguments: |
+            -PuseWheelDistribution \
+            -PpythonVersion=${{ matrix.python_version }}
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v4
         if: failure()
