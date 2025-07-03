@@ -52,8 +52,8 @@ func init() {
 
 // ReadOptions represents options for reading from PubSub.
 type ReadOptions struct {
-	Topic              string
-	Subscription       string
+	Topic              string // Topic sets the topic to be read from. A new subscription will be generated for the job. Mutually exclusive with setting a Subscription.
+	Subscription       string // Subscription sets the name of an existing subscription to read from. Mutually exclusive with setting a subscription.
 	IDAttribute        string
 	TimestampAttribute string
 	WithAttributes     bool
@@ -62,12 +62,10 @@ type ReadOptions struct {
 // Read reads an unbounded number of PubSubMessages from the given
 // pubsub topic or subscription. It produces an unbounded PCollecton<*PubSubMessage>,
 // if WithAttributes is set, or an unbounded PCollection<[]byte>.
-func Read(s beam.Scope, project string, opts *ReadOptions) beam.PCollection {
+//
+// The topic or subscription is required and must be set with ReadOptions.
+func Read(s beam.Scope, project string, opts ReadOptions) beam.PCollection {
 	s = s.Scope("pubsubio.Read")
-
-	if opts == nil {
-		panic("ReadOptions must not be nil")
-	}
 
 	// Validate: only one of Topic or Subscription should be set
 	if (opts.Topic == "" && opts.Subscription == "") || (opts.Topic != "" && opts.Subscription != "") {

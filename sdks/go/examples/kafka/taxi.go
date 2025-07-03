@@ -155,7 +155,7 @@ func main() {
 	s := p.Root()
 
 	// Read from Pubsub and write to Kafka.
-	opts := &pubsubio.ReadOptions{
+	opts := pubsubio.ReadOptions{
 		Topic: "taxirides-realtime",
 	}
 	data := pubsubio.Read(s, "pubsub-public-data", opts)

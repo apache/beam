@@ -103,7 +103,7 @@ func main() {
 	_, err = pubsubx.EnsureTopic(ctx, client, inputTopic)
 	fatalf(err, "Failed to ensure topic: %v", err)
 
-	source := pubsubio.Read(s, project, &pubsubio.ReadOptions{
+	source := pubsubio.Read(s, project, pubsubio.ReadOptions{
 		Topic: inputTopic,
 	})
 	keyedSource := beam.AddFixedKey(s, source) // simulate keyed data by adding a fixed key

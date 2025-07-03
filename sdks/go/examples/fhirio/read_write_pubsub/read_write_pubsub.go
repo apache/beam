@@ -143,7 +143,7 @@ func main() {
 		// PubSub notifications will be emitted containing the path of the resource once
 		// it is written to the store. Simultaneously read notifications and resources
 		// from PubSub and store, respectively.
-		resourceNotifications := pubsubio.Read(s, *gcpopts.Project, &pubsubio.ReadOptions{
+		resourceNotifications := pubsubio.Read(s, *gcpopts.Project, pubsubio.ReadOptions{
 			Topic: *pubsubTopic,
 		})
 		resourcesInFhirStore, deadLetters := fhirio.Read(s, resourceNotifications)
