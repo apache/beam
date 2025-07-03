@@ -1027,15 +1027,15 @@ class FixedPrecisionDecimalLogicalType(
   def language_type(cls):
     return decimal.Decimal
 
-  def to_representation_type(self, value):
-    # type: (decimal.Decimal) -> bytes
+  # from language type (decimal.Decimal) to representation type
+  # (the type corresponding to the coder used in DecimalLogicalType)
+  def to_representation_type(self, value: decimal.Decimal) -> decimal.Decimal:
+    return value
 
-    return DecimalLogicalType().to_representation_type(value)
-
-  def to_language_type(self, value):
-    # type: (bytes) -> decimal.Decimal
-
-    return DecimalLogicalType().to_language_type(value)
+  # from representation type (the type corresponding to the coder used in
+  # DecimalLogicalType) to language type
+  def to_language_type(self, value: decimal.Decimal) -> decimal.Decimal:
+    return value
 
   @classmethod
   def argument_type(cls):
