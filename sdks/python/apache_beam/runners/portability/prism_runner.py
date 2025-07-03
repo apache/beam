@@ -134,7 +134,9 @@ class PrismJobServer(job_server.SubprocessJobServer):
   @classmethod
   def local_bin(
       cls, url: str, bin_cache: str = '', ignore_cache: bool = False) -> str:
-    url, ignore_cache = cls._download_to_local_path(url, bin_cache, ignore_cache)
+    url, ignore_cache = cls._download_to_local_path(url,
+                                                    bin_cache,
+                                                    ignore_cache)
     return cls._prepare_executable(url, bin_cache, ignore_cache)
 
   # the method is only kept for testing and backward compatibility
