@@ -162,7 +162,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cncf/xds/go v0.0.0-20250326154945-ae57f3c0d45f // indirect
 	github.com/cpuguy83/dockercfg v0.3.2 // indirect
-	github.com/docker/docker v28.3.0+incompatible // but required to resolve issue docker has with go1.20
+	github.com/docker/docker v28.3.1+incompatible // but required to resolve issue docker has with go1.20
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/envoyproxy/protoc-gen-validate v1.2.1 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
