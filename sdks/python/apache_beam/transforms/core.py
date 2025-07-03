@@ -1521,9 +1521,6 @@ def _check_fn_use_yield_and_return(fn):
       if has_yield and has_return:
         return True
 
-    if not has_yield and not has_return:
-      _LOGGER.warning(return_none_warning)
-
     return False
   except Exception as e:
     _LOGGER.debug(str(e))
