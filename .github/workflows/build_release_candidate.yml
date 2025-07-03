@@ -310,26 +310,17 @@ jobs:
           ref: "v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
           repository: apache/beam
           path: beam
-      - name: Checkout Beam Site Repo
-        uses: actions/checkout@v4
-        with:
-          repository: apache/beam-site
-          path: beam-site
-          token: ${{ github.event.inputs.REPO_TOKEN }}
-          ref: release-docs
-      - name: Install Python 3.9
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.9'
-      - name: Install node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '16'
-      - name: Install Java 11
+      - name: Install Java 8
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '11'
+          java-version: '8'
+      - name: Modify Gradle file
+        run: |
+          sed -i 's/requireJavaVersion: JavaVersion.VERSION_11//g' ${BEAM_ROOT_DIR}/sdks/java/container/agent/build.gradle
+          sed -i 's/requireJavaVersion: JavaVersion.VERSION_11//g' ${BEAM_ROOT_DIR}/sdks/java/testing/jpms-tests/build.gradle
+          sed -i 's/publish: false,/publish: false/g' ${BEAM_ROOT_DIR}/sdks/java/container/agent/build.gradle
+          sed -i 's/enableSpotbugs: false,/enableSpotbugs: false/g' ${BEAM_ROOT_DIR}/sdks/java/testing/jpms-tests/build.gradle
       - name: Remove default github maven configuration
         # This step is a workaround to avoid a decryption issue of Beam's
         # net.linguica.gradle.maven.settings plugin and github's provided maven
@@ -338,32 +329,22 @@ jobs:
       - name: Create documentation commit for website
         run: |
             echo "OK!"
-      - name: Build Python Docs
-        working-directory: beam/sdks/python
-        run: |
-            pip install --upgrade pip setuptools wheel
-            pip install -U pip
-            pip install tox
-            # TODO(https://github.com/apache/beam/issues/20209): Don't hardcode py version in this file.
-            tox -e docs
-            rm -rf target/docs/_build/.doctrees
-      - name: Build Typescript Docs
-        working-directory: beam/sdks/typescript
-        run: |
-            npm ci && npm run docs
       - name: Build Java Docs
         working-directory: beam
         run: |
-            ./gradlew :sdks:java:javadoc:aggregateJavadoc -PisRelease --no-daemon --no-parallel
-      - name: Build YAML Docs
-        working-directory: beam
-        run: |
-            ./gradlew :sdks:python:generateYamlDocs -PisRelease
+            ./gradlew :sdks:java:javadoc:aggregateJavadoc -PisRelease --no-daemon --no-parallel -Dorg.gradle.java.options="-Xlint:none -Xdoclint:none -quiet"
       - name: Add canonical link into javadocs
         uses: cicirello/javadoc-cleanup@v1
         with:
           path-to-root: beam/sdks/java/javadoc/build/docs/javadoc
           base-url-path: https://beam.apache.org/releases/javadoc/current/
+      - name: Checkout Beam Site Repo
+        uses: actions/checkout@v4
+        with:
+          repository: apache/beam-site
+          path: beam-site
+          token: ${{ github.event.inputs.REPO_TOKEN }}
+          ref: release-docs
       - name: Consolidate Release Docs to beam-site branch with symlinks
         working-directory: beam-site
         run: |
@@ -374,27 +355,6 @@ jobs:
             # Update current symlink to point to the latest release
             unlink javadoc/current
             ln -s ${{ github.event.inputs.RELEASE }} javadoc/current
-
-            echo "............Copying generated pydoc into beam-site.........."
-            cp -r ${BEAM_ROOT_DIR}/sdks/python/target/docs/_build pydoc/${{  github.event.inputs.RELEASE }}
-            # Update current symlink to point to the latest release
-            unlink pydoc/current
-            ln -s ${{ github.event.inputs.RELEASE }} pydoc/current
-
-            echo "............Copying generated typedoc into beam-site.........."
-            mkdir -p typedoc
-            cp -r ${BEAM_ROOT_DIR}/sdks/typescript/docs typedoc/${{ github.event.inputs.RELEASE }}
-            # Update current symlink to point to the latest release
-            unlink typedoc/current | true
-            ln -s ${{ github.event.inputs.RELEASE }} typedoc/current
-
-            echo "............Copying generated yamldoc into beam-site.........."
-            mkdir -p yamldoc/${{ github.event.inputs.RELEASE }}
-            cp -r ${BEAM_ROOT_DIR}/sdks/python/build/yaml-ref.html yamldoc/${{ github.event.inputs.RELEASE }}/index.html
-            cp -r ${BEAM_ROOT_DIR}/sdks/python/build/yaml-examples.html yamldoc/${{ github.event.inputs.RELEASE }}/examples.html
-            # Update current symlink to point to the latest release
-            unlink yamldoc/current | true
-            ln -s ${{ github.event.inputs.RELEASE }} yamldoc/current
       - name: Create commit on beam-site branch
         working-directory: beam
         run: |
