@@ -251,6 +251,16 @@ class PrismJobServer(job_server.SubprocessJobServer):
       raise ValueError(
           'Machine architecture "%s" unsupported for constructing a Prism '
           'release binary URL.' % (opsys))
+
+    # Some special handling is needed when creating url for release candidates.
+    # For example, v2.66.0rc2 should have the following url
+    # https://github.com/apache/beam/releases/download/v2.66.0-RC2/apache_beam-v2.66.0-prism-xxx-yyy.zip
+    if 'rc' in version:
+      version = version.split('rc')[0]
+
+    if 'rc' in root_tag:
+      root_tag = '-RC'.join(root_tag.split('rc'))
+
     return (
         GITHUB_DOWNLOAD_PREFIX +
         f"{root_tag}/apache_beam-{version}-prism-{opsys}-{arch}.zip")
