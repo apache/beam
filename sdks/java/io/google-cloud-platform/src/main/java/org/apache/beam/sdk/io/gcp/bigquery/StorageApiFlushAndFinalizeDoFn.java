@@ -72,13 +72,6 @@ public class StorageApiFlushAndFinalizeDoFn extends DoFn<KV<String, Operation>, 
   private final Counter finalizeOperationsFailed =
       Metrics.counter(StorageApiFlushAndFinalizeDoFn.class, "finalizeOperationsFailed");
 
-  /** Custom exception to indicate that a stream is invalid due to an offset error. */
-  public static class StreamOffsetBeyondEndException extends IOException {
-    public StreamOffsetBeyondEndException(String message, Throwable cause) {
-      super(message, cause);
-    }
-  }
-
   /**
    * Checks if the given throwable indicates that an offset is beyond the end of a BigQuery stream.
    * It primarily uses {@code io.grpc.Status.fromThrowable} to determine the gRPC status code and
