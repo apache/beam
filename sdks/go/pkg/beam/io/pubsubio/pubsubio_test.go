@@ -20,21 +20,6 @@ import (
 	"testing"
 )
 
-func TestRead_NilOptionsPanics(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("expected panic when opts is nil")
-		}
-	}()
-
-	beam.Init()
-
-	p := beam.NewPipeline()
-	s := p.Root()
-
-	Read(s, "test-project", nil)
-}
-
 func TestRead_BothTopicAndSubscriptionPanics(t *testing.T) {
 	defer func() {
 		if r := recover(); r == nil {
@@ -47,7 +32,7 @@ func TestRead_BothTopicAndSubscriptionPanics(t *testing.T) {
 	p := beam.NewPipeline()
 	s := p.Root()
 
-	opts := &ReadOptions{
+	opts := ReadOptions{
 		Topic:        "topic",
 		Subscription: "sub",
 	}
@@ -66,6 +51,6 @@ func TestRead_NeitherTopicNorSubscriptionPanics(t *testing.T) {
 	p := beam.NewPipeline()
 	s := p.Root()
 
-	opts := &ReadOptions{}
+	opts := ReadOptions{}
 	Read(s, "test-project", opts)
 }
