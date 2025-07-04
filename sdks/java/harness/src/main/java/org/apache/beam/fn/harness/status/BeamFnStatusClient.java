@@ -17,6 +17,7 @@
  */
 package org.apache.beam.fn.harness.status;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -58,6 +59,7 @@ public class BeamFnStatusClient implements AutoCloseable {
   private final MemoryMonitor memoryMonitor;
   private final Cache<?, ?> cache;
 
+  @SuppressFBWarnings("SC_START_IN_CTOR") // for memory monitor thread
   public BeamFnStatusClient(
       ApiServiceDescriptor apiServiceDescriptor,
       Function<ApiServiceDescriptor, ManagedChannel> channelFactory,
@@ -65,8 +67,6 @@ public class BeamFnStatusClient implements AutoCloseable {
       PipelineOptions options,
       Cache<?, ?> cache) {
     this.channel = channelFactory.apply(apiServiceDescriptor);
-    this.outboundObserver =
-        BeamFnWorkerStatusGrpc.newStub(channel).workerStatus(new InboundObserver());
     this.processBundleCache = processBundleCache;
     this.memoryMonitor = MemoryMonitor.fromOptions(options);
     this.cache = cache;
@@ -76,6 +76,11 @@ public class BeamFnStatusClient implements AutoCloseable {
     thread.setPriority(Thread.MIN_PRIORITY);
     thread.setName("MemoryMonitor");
     thread.start();
+
+    // Start the rpc after all the initialization is complete as the InboundObserver
+    // may be called any time after this.
+    this.outboundObserver =
+        BeamFnWorkerStatusGrpc.newStub(channel).workerStatus(new InboundObserver());
   }
 
   @Override

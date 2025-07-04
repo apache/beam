@@ -25,6 +25,7 @@ import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static software.amazon.awssdk.services.kinesis.model.ShardFilterType.AT_LATEST;
 
 import com.google.auto.value.AutoValue;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Serializable;
 import java.math.BigInteger;
 import java.security.MessageDigest;
@@ -326,6 +327,7 @@ import software.amazon.kinesis.common.InitialPositionInStream;
  * then opt to retry the current partition in entirety or abort if the max number of retries of the
  * runner is reached.
  */
+@SuppressFBWarnings(value = "CT_CONSTRUCTOR_THROW", justification = "Initialization is safe.")
 public final class KinesisIO {
 
   /** Returns a new {@link Read} transform for reading from Kinesis. */

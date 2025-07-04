@@ -27,8 +27,8 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
@@ -46,14 +46,14 @@ public class BufferedElementsTest {
     StringUtf8Coder elementCoder = StringUtf8Coder.of();
     // Generics fail to see here that this is Coder<BoundedWindow>
     org.apache.beam.sdk.coders.Coder windowCoder = GlobalWindow.Coder.INSTANCE;
-    WindowedValue.WindowedValueCoder windowedValueCoder =
-        WindowedValue.FullWindowedValueCoder.of(elementCoder, windowCoder);
+    WindowedValues.WindowedValueCoder windowedValueCoder =
+        WindowedValues.FullWindowedValueCoder.of(elementCoder, windowCoder);
     KV<String, Integer> key = KV.of("one", 1);
     BufferedElements.Coder coder = new BufferedElements.Coder(windowedValueCoder, windowCoder, key);
 
     BufferedElement element =
         new BufferedElements.Element(
-            WindowedValue.of("test", new Instant(2), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
+            WindowedValues.of("test", new Instant(2), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING));
     BufferedElement timerElement =
         new BufferedElements.Timer(
             "timerId",

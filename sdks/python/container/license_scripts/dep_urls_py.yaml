@@ -94,6 +94,8 @@ pip_dependencies:
     license: "https://raw.githubusercontent.com/mtth/hdfs/master/LICENSE"
   httplib2:
     license: "https://raw.githubusercontent.com/httplib2/httplib2/master/LICENSE"
+  kafka-python:
+    license: "https://raw.githubusercontent.com/dpkp/kafka-python/master/LICENSE"
   keras:
     license: "https://raw.githubusercontent.com/keras-team/keras/master/LICENSE"
   keras-nightly:
@@ -133,6 +135,8 @@ pip_dependencies:
     license: "https://github.com/PiotrDabkowski/pyjsparser/blob/master/LICENSE"
   pymongo:
     license: "https://raw.githubusercontent.com/mongodb/mongo-python-driver/master/LICENSE"
+  milvus-lite:
+    license: "https://raw.githubusercontent.com/milvus-io/milvus-lite/refs/heads/main/LICENSE"
   pyproject_hooks:
     license: "https://raw.githubusercontent.com/pypa/pyproject-hooks/main/LICENSE"
   python-gflags:

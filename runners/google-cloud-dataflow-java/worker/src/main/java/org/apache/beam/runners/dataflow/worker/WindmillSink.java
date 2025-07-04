@@ -36,11 +36,11 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.ValueWithRecordId.ValueWithRecordIdCoder;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues.FullWindowedValueCoder;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -72,10 +72,10 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
   public static ByteString encodeMetadata(
       Coder<Collection<? extends BoundedWindow>> windowsCoder,
       Collection<? extends BoundedWindow> windows,
-      PaneInfo pane)
+      PaneInfo paneInfo)
       throws IOException {
     ByteStringOutputStream stream = new ByteStringOutputStream();
-    PaneInfoCoder.INSTANCE.encode(pane, stream);
+    PaneInfoCoder.INSTANCE.encode(paneInfo, stream);
     windowsCoder.encode(windows, stream, Coder.Context.OUTER);
     return stream.toByteString();
   }
@@ -155,7 +155,7 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
     public long add(WindowedValue<T> data) throws IOException {
       ByteString key, value;
       ByteString id = ByteString.EMPTY;
-      ByteString metadata = encodeMetadata(windowsCoder, data.getWindows(), data.getPane());
+      ByteString metadata = encodeMetadata(windowsCoder, data.getWindows(), data.getPaneInfo());
       if (valueCoder instanceof KvCoder) {
         KvCoder kvCoder = (KvCoder) valueCoder;
         KV kv = (KV) data.getValue();

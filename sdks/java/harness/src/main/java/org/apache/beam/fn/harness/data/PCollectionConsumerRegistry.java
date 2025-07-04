@@ -49,10 +49,11 @@ import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.metrics.Distribution;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.util.construction.RehydratedComponents;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
+import org.apache.beam.sdk.values.WindowedValues.WindowedValueCoder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -214,7 +215,7 @@ public class PCollectionConsumerRegistry {
             }
 
             // TODO: Stop passing windowed value coders within PCollections.
-            if (maybeWindowedValueInputCoder instanceof WindowedValue.WindowedValueCoder) {
+            if (maybeWindowedValueInputCoder instanceof WindowedValues.WindowedValueCoder) {
               coder = ((WindowedValueCoder) maybeWindowedValueInputCoder).getValueCoder();
             } else {
               coder = maybeWindowedValueInputCoder;

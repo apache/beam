@@ -33,9 +33,10 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
 /** GroupByKey translator. */
@@ -53,8 +54,8 @@ public class GroupByKeyTranslatorBatch<K, V> implements BatchTransformTranslator
     WindowingStrategy windowingStrategy = input.getWindowingStrategy();
     WindowFn<KV<K, V>, BoundedWindow> windowFn =
         (WindowFn<KV<K, V>, BoundedWindow>) windowingStrategy.getWindowFn();
-    final WindowedValue.WindowedValueCoder<V> wvCoder =
-        WindowedValue.FullWindowedValueCoder.of(coder.getValueCoder(), windowFn.windowCoder());
+    final WindowedValues.WindowedValueCoder<V> wvCoder =
+        WindowedValues.FullWindowedValueCoder.of(coder.getValueCoder(), windowFn.windowCoder());
     KeyedTSet<byte[], byte[]> keyedTSet =
         inputTTSet.mapToTuple(new MapToTupleFunction<K, V>(inputKeyCoder, wvCoder));
 

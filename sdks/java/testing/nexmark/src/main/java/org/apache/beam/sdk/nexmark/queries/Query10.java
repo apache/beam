@@ -146,7 +146,7 @@ public class Query10 extends NexmarkQueryTransform<Done> {
   }
 
   /** Construct an {@link OutputFile} for {@code pane} in {@code window} for {@code shard}. */
-  private OutputFile outputFileFor(BoundedWindow window, String shard, PaneInfo pane) {
+  private OutputFile outputFileFor(BoundedWindow window, String shard, PaneInfo paneInfo) {
     @Nullable
     String filename =
         outputPath == null
@@ -156,11 +156,11 @@ public class Query10 extends NexmarkQueryTransform<Done> {
                 outputPath,
                 window.maxTimestamp(),
                 shard,
-                pane.getIndex(),
-                timingToString(pane.getTiming()),
+                paneInfo.getIndex(),
+                timingToString(paneInfo.getTiming()),
                 ThreadLocalRandom.current().nextLong());
     return new OutputFile(
-        window.maxTimestamp(), shard, pane.getIndex(), pane.getTiming(), filename);
+        window.maxTimestamp(), shard, paneInfo.getIndex(), paneInfo.getTiming(), filename);
   }
 
   /**

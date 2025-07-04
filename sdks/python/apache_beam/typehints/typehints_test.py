@@ -1654,6 +1654,7 @@ class TestGetYieldedType(unittest.TestCase):
         typehints.get_yielded_type(typehints.Tuple[int, str]))
     self.assertEqual(int, typehints.get_yielded_type(typehints.Set[int]))
     self.assertEqual(int, typehints.get_yielded_type(typehints.FrozenSet[int]))
+    self.assertEqual(typing.Any, typehints.get_yielded_type(T))
     self.assertEqual(
         typehints.Union[int, str],
         typehints.get_yielded_type(

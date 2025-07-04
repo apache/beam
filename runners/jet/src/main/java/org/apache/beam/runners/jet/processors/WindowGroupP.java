@@ -37,7 +37,6 @@ import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.InMemoryTimerInternals;
 import org.apache.beam.runners.core.LateDataUtils;
 import org.apache.beam.runners.core.NullSideInputReader;
-import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.ReduceFnRunner;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.TimerInternals;
@@ -50,12 +49,12 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowTracing;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValueReceiver;
 import org.apache.beam.sdk.util.construction.TriggerTranslation;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
@@ -95,7 +94,7 @@ public class WindowGroupP<K, V> extends AbstractProcessor {
 
   private WindowGroupP(
       SerializablePipelineOptions pipelineOptions,
-      WindowedValue.WindowedValueCoder<KV<K, V>> inputCoder,
+      WindowedValues.WindowedValueCoder<KV<K, V>> inputCoder,
       Coder outputCoder,
       WindowingStrategy<V, BoundedWindow> windowingStrategy,
       String ownerId) {
@@ -130,11 +129,11 @@ public class WindowGroupP<K, V> extends AbstractProcessor {
                 Utils.ByteArrayKey keyBytes =
                     new Utils.ByteArrayKey(Utils.encode(key, inputValueCoder.getKeyCoder()));
                 WindowedValue<V> updatedWindowedValue =
-                    WindowedValue.of(
+                    WindowedValues.of(
                         value,
                         windowedValue.getTimestamp(),
                         windowedValue.getWindows(),
-                        windowedValue.getPane());
+                        windowedValue.getPaneInfo());
                 keyManagers
                     .computeIfAbsent(keyBytes, x -> new KeyManager(key))
                     .processElement(updatedWindowedValue);
@@ -146,7 +145,7 @@ public class WindowGroupP<K, V> extends AbstractProcessor {
   @SuppressWarnings("unchecked")
   public static <K, V> SupplierEx<Processor> supplier(
       SerializablePipelineOptions pipelineOptions,
-      WindowedValue.WindowedValueCoder<KV<K, V>> inputCoder,
+      WindowedValues.WindowedValueCoder<KV<K, V>> inputCoder,
       Coder outputCoder,
       WindowingStrategy windowingStrategy,
       String ownerId) {
@@ -226,28 +225,12 @@ public class WindowGroupP<K, V> extends AbstractProcessor {
                       TriggerTranslation.toProto(windowingStrategy.getTrigger()))),
               stateInternals,
               timerInternals,
-              new OutputWindowedValue<KV<K, Iterable<V>>>() {
+              new WindowedValueReceiver<KV<K, Iterable<V>>>() {
                 @Override
-                public void outputWindowedValue(
-                    KV<K, Iterable<V>> output,
-                    Instant timestamp,
-                    Collection<? extends BoundedWindow> windows,
-                    PaneInfo pane) {
-                  WindowedValue<KV<K, Iterable<V>>> windowedValue =
-                      WindowedValue.of(output, timestamp, windows, pane);
+                public void output(WindowedValue<KV<K, Iterable<V>>> windowedValue) {
                   byte[] encodedValue = Utils.encode(windowedValue, outputCoder);
                   //noinspection ResultOfMethodCallIgnored
                   appendableTraverser.append(encodedValue);
-                }
-
-                @Override
-                public <AdditionalOutputT> void outputWindowedValue(
-                    TupleTag<AdditionalOutputT> tag,
-                    AdditionalOutputT output,
-                    Instant timestamp,
-                    Collection<? extends BoundedWindow> windows,
-                    PaneInfo pane) {
-                  throw new UnsupportedOperationException("Grouping should not use side outputs");
                 }
               },
               NullSideInputReader.empty(),

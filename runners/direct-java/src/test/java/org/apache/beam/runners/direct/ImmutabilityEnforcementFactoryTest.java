@@ -28,8 +28,9 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.IllegalMutationException;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
@@ -71,7 +72,7 @@ public class ImmutabilityEnforcementFactoryTest implements Serializable {
 
   @Test
   public void unchangedSucceeds() {
-    WindowedValue<byte[]> element = WindowedValue.valueInGlobalWindow("bar".getBytes(UTF_8));
+    WindowedValue<byte[]> element = WindowedValues.valueInGlobalWindow("bar".getBytes(UTF_8));
     CommittedBundle<byte[]> elements =
         bundleFactory.createBundle(pcollection).add(element).commit(Instant.now());
 
@@ -86,7 +87,7 @@ public class ImmutabilityEnforcementFactoryTest implements Serializable {
 
   @Test
   public void mutatedDuringProcessElementThrows() {
-    WindowedValue<byte[]> element = WindowedValue.valueInGlobalWindow("bar".getBytes(UTF_8));
+    WindowedValue<byte[]> element = WindowedValues.valueInGlobalWindow("bar".getBytes(UTF_8));
     CommittedBundle<byte[]> elements =
         bundleFactory.createBundle(pcollection).add(element).commit(Instant.now());
 
@@ -107,7 +108,7 @@ public class ImmutabilityEnforcementFactoryTest implements Serializable {
   @Test
   public void mutatedAfterProcessElementFails() {
 
-    WindowedValue<byte[]> element = WindowedValue.valueInGlobalWindow("bar".getBytes(UTF_8));
+    WindowedValue<byte[]> element = WindowedValues.valueInGlobalWindow("bar".getBytes(UTF_8));
     CommittedBundle<byte[]> elements =
         bundleFactory.createBundle(pcollection).add(element).commit(Instant.now());
 

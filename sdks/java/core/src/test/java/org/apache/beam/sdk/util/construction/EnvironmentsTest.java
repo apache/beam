@@ -291,8 +291,7 @@ public class EnvironmentsTest implements Serializable {
 
   @Test
   public void testLtsJavaVersion() {
-    assertEquals(JavaVersion.java8, JavaVersion.forSpecification("1.8"));
-    assertEquals("java", JavaVersion.java8.legacyName());
+    assertEquals(JavaVersion.java11, JavaVersion.forSpecification("1.8"));
     assertEquals(JavaVersion.java11, JavaVersion.forSpecification("11"));
     assertEquals("java11", JavaVersion.java11.legacyName());
     assertEquals(JavaVersion.java17, JavaVersion.forSpecification("17"));
@@ -303,22 +302,22 @@ public class EnvironmentsTest implements Serializable {
 
   @Test
   public void testNonLtsJavaVersion() {
-    assertEquals(JavaVersion.java8, JavaVersion.forSpecification("9"));
+    assertEquals(JavaVersion.java11, JavaVersion.forSpecification("9"));
     assertEquals(JavaVersion.java11, JavaVersion.forSpecification("10"));
-    assertEquals(JavaVersion.java11, JavaVersion.forSpecification("12"));
-    assertEquals(JavaVersion.java11, JavaVersion.forSpecification("13"));
+    assertEquals(JavaVersion.java17, JavaVersion.forSpecification("12"));
+    assertEquals(JavaVersion.java17, JavaVersion.forSpecification("13"));
     assertEquals(JavaVersion.java17, JavaVersion.forSpecification("14"));
     assertEquals(JavaVersion.java17, JavaVersion.forSpecification("15"));
     assertEquals(JavaVersion.java17, JavaVersion.forSpecification("16"));
-    assertEquals(JavaVersion.java17, JavaVersion.forSpecification("18"));
+    assertEquals(JavaVersion.java21, JavaVersion.forSpecification("18"));
     assertEquals(JavaVersion.java21, JavaVersion.forSpecification("19"));
     assertEquals(JavaVersion.java21, JavaVersion.forSpecification("20"));
-    assertEquals(JavaVersion.java21, JavaVersion.forSpecification("21"));
+    assertEquals(JavaVersion.java21, JavaVersion.forSpecification("22"));
   }
 
   @Test(expected = UnsupportedOperationException.class)
   public void testJavaVersionStrictInvalid() {
-    assertEquals(JavaVersion.java8, JavaVersion.forSpecificationStrict("invalid"));
+    JavaVersion ignored = JavaVersion.forSpecificationStrict("invalid");
   }
 
   @Test

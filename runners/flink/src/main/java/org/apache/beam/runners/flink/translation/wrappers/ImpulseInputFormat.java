@@ -19,7 +19,8 @@ package org.apache.beam.runners.flink.translation.wrappers;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
 import org.apache.flink.api.common.io.RichInputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
@@ -88,7 +89,7 @@ public class ImpulseInputFormat extends RichInputFormat<WindowedValue<byte[]>, G
     if (windowedValue != null) {
       return windowedValue;
     }
-    return WindowedValue.valueInGlobalWindow(new byte[0]);
+    return WindowedValues.valueInGlobalWindow(new byte[0]);
   }
 
   @Override

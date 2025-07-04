@@ -27,11 +27,12 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
@@ -142,8 +143,8 @@ class FlinkBatchTranslationContext {
 
   <T> TypeInformation<WindowedValue<T>> getTypeInfo(
       Coder<T> coder, WindowingStrategy<?, ?> windowingStrategy) {
-    WindowedValue.FullWindowedValueCoder<T> windowedValueCoder =
-        WindowedValue.getFullCoder(coder, windowingStrategy.getWindowFn().windowCoder());
+    WindowedValues.FullWindowedValueCoder<T> windowedValueCoder =
+        WindowedValues.getFullCoder(coder, windowingStrategy.getWindowFn().windowCoder());
 
     return new CoderTypeInformation<>(windowedValueCoder, options);
   }

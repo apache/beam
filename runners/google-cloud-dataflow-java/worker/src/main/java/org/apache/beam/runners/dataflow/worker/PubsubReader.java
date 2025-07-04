@@ -34,8 +34,9 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.util.SerializableUtils;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
+import org.apache.beam.sdk.values.WindowedValues.WindowedValueCoder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -136,7 +137,7 @@ class PubsubReader<T> extends NativeReader<WindowedValue<T>> {
       } else {
         value = coder.decode(data, Coder.Context.OUTER);
       }
-      return WindowedValue.timestampedValueInGlobalWindow(
+      return WindowedValues.timestampedValueInGlobalWindow(
           value, WindmillTimeUtils.windmillToHarnessTimestamp(message.getTimestamp()));
     }
   }

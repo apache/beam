@@ -17,7 +17,7 @@
 --runner=DataflowRunner
 --region=us-central1
 --temp_location=gs://temp-storage-for-perf-tests/
---sdk_harness_container_image_overrides=.*java.*,gcr.io/apache-beam-testing/beam-sdk/beam_java8_sdk:latest
+--sdk_harness_container_image_overrides=.*java.*,gcr.io/apache-beam-testing/beam-sdk/beam_java11_sdk:latest
 --publish_to_big_query=true
 --metrics_dataset=beam_performance
 --metrics_table=python_kafkaio_results

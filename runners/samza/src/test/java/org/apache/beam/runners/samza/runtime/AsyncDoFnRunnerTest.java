@@ -46,10 +46,11 @@ import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -214,10 +215,10 @@ public class AsyncDoFnRunnerTest implements Serializable {
     final String appleKey = "apple";
 
     final WindowedValue<KV<String, Integer>> input1 =
-        WindowedValue.valueInGlobalWindow(KV.of(appleKey, 1));
+        WindowedValues.valueInGlobalWindow(KV.of(appleKey, 1));
 
     final WindowedValue<KV<String, Integer>> input2 =
-        WindowedValue.valueInGlobalWindow(KV.of(appleKey, 2));
+        WindowedValues.valueInGlobalWindow(KV.of(appleKey, 2));
 
     asyncDoFnRunner.processElement(input1);
     asyncDoFnRunner.processElement(input2);

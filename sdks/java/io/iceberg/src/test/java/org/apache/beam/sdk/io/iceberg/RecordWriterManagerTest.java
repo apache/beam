@@ -41,10 +41,9 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -57,6 +56,7 @@ import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
+import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.hadoop.HadoopCatalog;
 import org.apache.iceberg.types.Conversions;
@@ -110,18 +110,37 @@ public class RecordWriterManagerTest {
       String tableName, org.apache.iceberg.Schema schema, @Nullable PartitionSpec partitionSpec) {
     TableIdentifier tableIdentifier = TableIdentifier.of("default", tableName);
 
-    warehouse.createTable(tableIdentifier, schema, partitionSpec);
+    // TODO: remove when we enable dynamic table creation with partition specs
+    if (partitionSpec != null) {
+      warehouse.createTable(tableIdentifier, schema, partitionSpec);
+    }
 
     IcebergDestination icebergDestination =
         IcebergDestination.builder()
             .setFileFormat(FileFormat.PARQUET)
             .setTableIdentifier(tableIdentifier)
             .build();
-    return WindowedValue.of(
-        icebergDestination,
-        GlobalWindow.TIMESTAMP_MAX_VALUE,
-        GlobalWindow.INSTANCE,
-        PaneInfo.NO_FIRING);
+    return WindowedValues.valueInGlobalWindow(icebergDestination);
+  }
+
+  @Test
+  public void testCreateNamespaceAndTable() {
+    RecordWriterManager writerManager = new RecordWriterManager(catalog, "test_file_name", 1000, 3);
+    Namespace newNamespace = Namespace.of("new_namespace");
+    TableIdentifier identifier = TableIdentifier.of(newNamespace, testName.getMethodName());
+    WindowedValue<IcebergDestination> dest =
+        WindowedValues.valueInGlobalWindow(
+            IcebergDestination.builder()
+                .setFileFormat(FileFormat.PARQUET)
+                .setTableIdentifier(identifier)
+                .build());
+
+    Row row = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", true).build();
+
+    assertFalse(catalog.namespaceExists(newNamespace));
+    boolean writeSuccess = writerManager.write(dest, row);
+    assertTrue(writeSuccess);
+    assertTrue(catalog.namespaceExists(newNamespace));
   }
 
   @Test
@@ -745,7 +764,7 @@ public class RecordWriterManagerTest {
             .setFileFormat(FileFormat.PARQUET)
             .build();
     WindowedValue<IcebergDestination> singleDestination =
-        WindowedValue.valueInGlobalWindow(destination);
+        WindowedValues.valueInGlobalWindow(destination);
 
     RecordWriterManager writerManager = new RecordWriterManager(catalog, "test_file_name", 1000, 3);
     Row row1 = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", true).build();
@@ -807,7 +826,7 @@ public class RecordWriterManagerTest {
             .setFileFormat(FileFormat.PARQUET)
             .build();
     WindowedValue<IcebergDestination> singleDestination =
-        WindowedValue.valueInGlobalWindow(destination);
+        WindowedValues.valueInGlobalWindow(destination);
 
     RecordWriterManager writerManager = new RecordWriterManager(catalog, "test_file_name", 1000, 3);
     Row row1 = Row.withSchema(BEAM_SCHEMA).addValues(1, "aaa", true).build();

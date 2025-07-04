@@ -43,3 +43,28 @@ https://beam.apache.org/documentation/sdks/yaml/
 
 For information about contributing to Beam YAML see
 https://docs.google.com/document/d/19zswPXxxBxlAUmswYPUtSc-IVAu1qWvpjo1ZSDMRbu0
+
+## Integration Tests
+
+The integration_tests.py dynamically creates test methods based on the yaml
+files provided in the `tests` and `extended_tests` directories and runs the
+pipeline. It also contains context managers for setting up test environments for
+both precommit tests (e.g. `tests` folder) and postcommit tests
+(e.g. `extended_tests` folder).
+
+To run the precommit tests:
+
+```bash
+pytest -v integration_tests.py
+
+or
+
+pytest -v integration_tests.py::<yaml_file_name_without_extension>Test
+```
+
+To run the postcommit tests:
+
+```bash
+pytest -v integration_tests.py --test_files_dir="extended_tests"
+```
+

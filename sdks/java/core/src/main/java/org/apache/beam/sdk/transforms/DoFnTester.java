@@ -564,7 +564,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
 
     @Override
     public PaneInfo pane() {
-      return element.getPane();
+      return element.getPaneInfo();
     }
 
     @Override
@@ -599,7 +599,9 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     @Override
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
       getMutableOutput(tag)
-          .add(ValueInSingleWindow.of(output, timestamp, element.getWindow(), element.getPane()));
+          .add(
+              ValueInSingleWindow.of(
+                  output, timestamp, element.getWindow(), element.getPaneInfo()));
     }
 
     @Override

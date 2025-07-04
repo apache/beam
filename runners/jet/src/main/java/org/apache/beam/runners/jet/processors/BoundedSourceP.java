@@ -36,7 +36,8 @@ import org.apache.beam.runners.jet.Utils;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 
 /**
  * Jet {@link com.hazelcast.jet.core.Processor} implementation for reading from a bounded Beam
@@ -79,7 +80,7 @@ public class BoundedSourceP<T> extends AbstractProcessor implements Traverser {
     try {
       Object item = currentReader.getCurrent();
       WindowedValue<Object> res =
-          WindowedValue.timestampedValueInGlobalWindow(item, currentReader.getCurrentTimestamp());
+          WindowedValues.timestampedValueInGlobalWindow(item, currentReader.getCurrentTimestamp());
       if (!currentReader.advance()) {
         nextShard();
       }

@@ -40,10 +40,12 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.samza.config.Config;
 import org.apache.samza.context.Context;
@@ -118,7 +120,7 @@ public class GroupByKeyOp<K, InputT, OutputT>
         SamzaStoreStateInternals.createNonKeyedStateInternalsFactory(
             transformId, context.getTaskContext(), pipelineOptions);
 
-    final DoFnRunners.OutputManager outputManager = outputManagerFactory.create(emitter);
+    final WindowedValueMultiReceiver outputManager = outputManagerFactory.create(emitter);
 
     this.stateInternalsFactory =
         new SamzaStoreStateInternals.Factory<>(
@@ -235,7 +237,7 @@ public class GroupByKeyOp<K, InputT, OutputT>
   private void fireTimer(K key, TimerData timer) {
     LOG.debug("Firing timer {} for key {}", timer, key);
     fnRunner.processElement(
-        WindowedValue.valueInGlobalWindow(
+        WindowedValues.valueInGlobalWindow(
             KeyedWorkItems.timersWorkItem(key, Collections.singletonList(timer))));
   }
 }

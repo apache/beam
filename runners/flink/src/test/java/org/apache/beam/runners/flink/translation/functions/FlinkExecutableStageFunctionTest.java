@@ -48,9 +48,10 @@ import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.Timer;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.flink.api.common.cache.DistributedCache;
@@ -182,9 +183,9 @@ public class FlinkExecutableStageFunctionTest {
     FnDataReceiver<WindowedValue<?>> receiver = Mockito.mock(FnDataReceiver.class);
     when(bundle.getInputReceivers()).thenReturn(ImmutableMap.of("input", receiver));
 
-    WindowedValue<Integer> one = WindowedValue.valueInGlobalWindow(1);
-    WindowedValue<Integer> two = WindowedValue.valueInGlobalWindow(2);
-    WindowedValue<Integer> three = WindowedValue.valueInGlobalWindow(3);
+    WindowedValue<Integer> one = WindowedValues.valueInGlobalWindow(1);
+    WindowedValue<Integer> two = WindowedValues.valueInGlobalWindow(2);
+    WindowedValue<Integer> three = WindowedValues.valueInGlobalWindow(3);
     function.mapPartition(Arrays.asList(one, two, three), collector);
 
     verify(receiver).accept(one);
@@ -195,9 +196,9 @@ public class FlinkExecutableStageFunctionTest {
 
   @Test
   public void outputsAreTaggedCorrectly() throws Exception {
-    WindowedValue<Integer> three = WindowedValue.valueInGlobalWindow(3);
-    WindowedValue<Integer> four = WindowedValue.valueInGlobalWindow(4);
-    WindowedValue<Integer> five = WindowedValue.valueInGlobalWindow(5);
+    WindowedValue<Integer> three = WindowedValues.valueInGlobalWindow(3);
+    WindowedValue<Integer> four = WindowedValues.valueInGlobalWindow(4);
+    WindowedValue<Integer> five = WindowedValues.valueInGlobalWindow(5);
     Map<String, Integer> outputTagMap =
         ImmutableMap.of(
             "one", 1,

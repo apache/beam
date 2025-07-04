@@ -49,7 +49,8 @@ import org.apache.beam.sdk.fn.server.InProcessServerFactory;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.inprocess.InProcessChannelBuilder;
@@ -66,7 +67,7 @@ public class GrpcDataServiceTest {
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private static final String TRANSFORM_ID = "888";
   private static final Coder<WindowedValue<String>> CODER =
-      LengthPrefixCoder.of(WindowedValue.getValueOnlyCoder(StringUtf8Coder.of()));
+      LengthPrefixCoder.of(WindowedValues.getValueOnlyCoder(StringUtf8Coder.of()));
 
   @Test
   public void testMessageReceivedBySingleClientWhenThereAreMultipleClients() throws Exception {
@@ -105,9 +106,9 @@ public class GrpcDataServiceTest {
         aggregator.start();
         FnDataReceiver<WindowedValue<String>> consumer =
             aggregator.registerOutputDataLocation(TRANSFORM_ID, CODER);
-        consumer.accept(WindowedValue.valueInGlobalWindow("A" + i));
-        consumer.accept(WindowedValue.valueInGlobalWindow("B" + i));
-        consumer.accept(WindowedValue.valueInGlobalWindow("C" + i));
+        consumer.accept(WindowedValues.valueInGlobalWindow("A" + i));
+        consumer.accept(WindowedValues.valueInGlobalWindow("B" + i));
+        consumer.accept(WindowedValues.valueInGlobalWindow("C" + i));
         aggregator.sendOrCollectBufferedDataAndFinishOutboundStreams();
       }
       waitForInboundElements.countDown();
@@ -175,9 +176,9 @@ public class GrpcDataServiceTest {
         assertThat(
             serverInboundValues.get(i),
             contains(
-                WindowedValue.valueInGlobalWindow("A" + i),
-                WindowedValue.valueInGlobalWindow("B" + i),
-                WindowedValue.valueInGlobalWindow("C" + i)));
+                WindowedValues.valueInGlobalWindow("A" + i),
+                WindowedValues.valueInGlobalWindow("B" + i),
+                WindowedValues.valueInGlobalWindow("C" + i)));
       }
       assertThat(clientInboundElements, empty());
     }
@@ -191,15 +192,15 @@ public class GrpcDataServiceTest {
                 .setTransformId(TRANSFORM_ID)
                 .setData(
                     ByteString.copyFrom(
-                            encodeToByteArray(CODER, WindowedValue.valueInGlobalWindow("A" + id)))
+                            encodeToByteArray(CODER, WindowedValues.valueInGlobalWindow("A" + id)))
                         .concat(
                             ByteString.copyFrom(
                                 encodeToByteArray(
-                                    CODER, WindowedValue.valueInGlobalWindow("B" + id))))
+                                    CODER, WindowedValues.valueInGlobalWindow("B" + id))))
                         .concat(
                             ByteString.copyFrom(
                                 encodeToByteArray(
-                                    CODER, WindowedValue.valueInGlobalWindow("C" + id))))))
+                                    CODER, WindowedValues.valueInGlobalWindow("C" + id))))))
         .addData(
             BeamFnApi.Elements.Data.newBuilder()
                 .setInstructionId(id)

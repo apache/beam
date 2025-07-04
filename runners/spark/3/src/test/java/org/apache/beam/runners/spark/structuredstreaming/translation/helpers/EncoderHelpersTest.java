@@ -64,9 +64,10 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
@@ -139,7 +140,7 @@ public class EncoderHelpersTest {
     BASIC_CASES.forEach(
         (coder, data) -> {
           List<WindowedValue<?>> windowed =
-              Lists.transform(data, WindowedValue::valueInGlobalWindow);
+              Lists.transform(data, WindowedValues::valueInGlobalWindow);
 
           Encoder<?> encoder = windowedValueEncoder(encoderFor(coder), windowEnc);
           serializeAndDeserialize(windowed.get(0), (Encoder) encoder);
