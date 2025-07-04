@@ -107,6 +107,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     self.test_pipeline = TestPipeline(is_integration_test=True)
     self.args = self.test_pipeline.get_full_options_as_args()
     self.project = self.test_pipeline.get_option('project')
+    self.project = "tanusharmaa"
     self._runner = PipelineOptions(self.args).get_all_options()['runner']
 
     self.bigquery_client = BigQueryWrapper()
@@ -244,6 +245,31 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
           | beam.Create(row_elements)
           | StorageWriteToBigQuery(table=table_id))
     hamcrest_assert(p, bq_matcher)
+
+  def test_write_with_clustering(self):
+        table = 'write_with_clustering'
+        table_id = '{}:{}.{}'.format(self.project, self.dataset_id, table)
+
+        with beam.Pipeline(argv=self.args) as p:
+            _ = (
+                p
+                | "Create test data" >> beam.Create(self.ELEMENTS)
+                | beam.io.WriteToBigQuery(
+                    table=table_id,
+                    method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
+                    schema=self.ALL_TYPES_SCHEMA,
+                    create_disposition='CREATE_IF_NEEDED',
+                    write_disposition='WRITE_TRUNCATE',
+                    additional_bq_parameters={
+                        'clustering': {'fields': ['int']}
+                    }))
+
+        # After pipeline finishes, verify clustering is applied
+        table = self.bigquery_client.get_table(self.project, self.dataset_id, table)
+        clustering_fields = table.clustering.fields if table.clustering else []
+
+        self.assertEqual(clustering_fields, ['int'])
+  
 
   def test_write_with_beam_rows_cdc(self):
     table = 'write_with_beam_rows_cdc'
