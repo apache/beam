@@ -148,6 +148,16 @@ class SecretService:
             }
         )
 
+        versions = list(self.client.list_secret_versions(request={"parent": secret_id}))
+        if len(versions) > self.max_versions_to_keep:
+            versions.sort(key=lambda v: v.create_time)
+            versions = [v for v in versions if v.state != secretmanager.SecretVersion.State.DESTROYED]
+            if not versions:
+                raise ValueError("No enabled secret versions found to destroy.")
+            oldest_version = versions[0]
+            self.client.destroy_secret_version(request={"name": oldest_version.name})
+            print(f"Destroyed oldest secret version: {oldest_version.name}")
+
         return response.name
 
     def get_secret_version(self, secret_name: str, version_id: str = "latest") -> bytes:
@@ -224,7 +234,7 @@ if __name__ == "__main__":
     # Example usage
     secret_name = "example-secret"
 
-    for i in range(3):
+    for i in range(10):
         secret_version = secret_service.add_secret_version(secret_name, f"This is test secret version {i+1}")
         print(f"Added secret version: {secret_version}")
 
