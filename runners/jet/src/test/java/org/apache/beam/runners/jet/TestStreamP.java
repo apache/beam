@@ -33,7 +33,7 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.joda.time.Instant;
 
 /**
@@ -69,7 +69,7 @@ public class TestStreamP extends AbstractProcessor {
                                 false)
                             .map(
                                 tv ->
-                                    WindowedValue.timestampedValueInGlobalWindow(
+                                    WindowedValues.timestampedValueInGlobalWindow(
                                         tv.getValue(), tv.getTimestamp()))
                             .map(wV -> Utils.encode(wV, outputCoder));
                       } else {

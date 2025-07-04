@@ -271,8 +271,12 @@ class TestWriteBigTable(unittest.TestCase):
 
   def test_write(self):
     direct_rows = [self.generate_row(i) for i in range(5)]
+    # TODO(https://github.com/apache/beam/issues/34549): This test relies on
+    # lineage metrics which Prism doesn't seem to handle correctly. Defaulting
+    # to FnApiRunner instead.
+    runner = 'FnApiRunner'
     with patch.object(MutationsBatcher, 'mutate'), \
-      patch.object(MutationsBatcher, 'close'), TestPipeline() as p:
+      patch.object(MutationsBatcher, 'close'), TestPipeline(runner) as p:
       _ = p | beam.Create(direct_rows) | bigtableio.WriteToBigTable(
           self._PROJECT_ID, self._INSTANCE_ID, self._TABLE_ID)
     self.assertSetEqual(
@@ -284,7 +288,11 @@ class TestWriteBigTable(unittest.TestCase):
   def test_write_metrics(self):
     MetricsEnvironment.process_wide_container().reset()
     write_fn = bigtableio._BigTableWriteFn(
-        self._PROJECT_ID, self._INSTANCE_ID, self._TABLE_ID)
+        self._PROJECT_ID,
+        self._INSTANCE_ID,
+        self._TABLE_ID,
+        flush_count=1000,
+        max_row_bytes=5242880)
     write_fn.table = self.table
     write_fn.start_bundle()
     number_of_rows = 2
@@ -362,6 +370,24 @@ class TestWriteBigTable(unittest.TestCase):
         break
     self.assertTrue(
         found, "Did not find write call metric with status: %s" % status)
+
+  def test_custom_flush_config(self):
+    direct_rows = [self.generate_row(0)]
+    with patch.object(
+        MutationsBatcher, '__init__', return_value=None) as mock_init, \
+      patch.object(MutationsBatcher, 'mutate'), \
+      patch.object(MutationsBatcher, 'close'), TestPipeline() as p:
+      _ = p | beam.Create(direct_rows) | bigtableio.WriteToBigTable(
+          self._PROJECT_ID,
+          self._INSTANCE_ID,
+          self._TABLE_ID,
+          flush_count=1001,
+          max_row_bytes=5000001)
+
+    mock_init.assert_called_once()
+    call_args = mock_init.call_args.kwargs
+    assert call_args['flush_count'] == 1001
+    assert call_args['max_row_bytes'] == 5000001
 
 
 if __name__ == '__main__':

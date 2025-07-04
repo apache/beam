@@ -34,7 +34,9 @@ func (s *Server) ReverseArtifactRetrievalService(stream jobpb.ArtifactStagingSer
 	if err != nil {
 		return err
 	}
+	s.mu.RLock()
 	job := s.jobs[in.GetStagingToken()]
+	s.mu.RUnlock()
 
 	envs := job.Pipeline.GetComponents().GetEnvironments()
 	for _, env := range envs {

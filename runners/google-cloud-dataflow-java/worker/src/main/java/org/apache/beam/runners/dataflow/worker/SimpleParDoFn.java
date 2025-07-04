@@ -26,7 +26,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.DoFnRunner;
-import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespaces.WindowNamespace;
@@ -53,9 +52,10 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.DoFnInfo;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -249,8 +249,8 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
   private void reallyStartBundle() throws Exception {
     checkState(fnRunner == null, "bundle already started (or not properly finished)");
 
-    OutputManager outputManager =
-        new OutputManager() {
+    WindowedValueMultiReceiver outputManager =
+        new WindowedValueMultiReceiver() {
           final Map<TupleTag<?>, OutputReceiver> undeclaredOutputs = new HashMap<>();
 
           private @Nullable Receiver getReceiverOrNull(TupleTag<?> tag) {
@@ -263,7 +263,7 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
           }
 
           @Override
-          public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
+          public <TagT> void output(TupleTag<TagT> tag, WindowedValue<TagT> output) {
             outputsPerElementTracker.onOutput();
             Receiver receiver = getReceiverOrNull(tag);
             if (receiver == null) {

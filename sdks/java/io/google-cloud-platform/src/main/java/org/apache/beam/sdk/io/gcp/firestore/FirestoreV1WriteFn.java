@@ -72,8 +72,16 @@ final class FirestoreV1WriteFn {
         JodaClock clock,
         FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
         RpcQosOptions rpcQosOptions,
-        CounterFactory counterFactory) {
-      super(clock, firestoreStatefulComponentFactory, rpcQosOptions, counterFactory);
+        CounterFactory counterFactory,
+        @Nullable String projectId,
+        @Nullable String databaseId) {
+      super(
+          clock,
+          firestoreStatefulComponentFactory,
+          rpcQosOptions,
+          counterFactory,
+          projectId,
+          databaseId);
     }
 
     @Override
@@ -102,8 +110,16 @@ final class FirestoreV1WriteFn {
         JodaClock clock,
         FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
         RpcQosOptions rpcQosOptions,
-        CounterFactory counterFactory) {
-      super(clock, firestoreStatefulComponentFactory, rpcQosOptions, counterFactory);
+        CounterFactory counterFactory,
+        @Nullable String projectId,
+        @Nullable String databaseId) {
+      super(
+          clock,
+          firestoreStatefulComponentFactory,
+          rpcQosOptions,
+          counterFactory,
+          projectId,
+          databaseId);
     }
 
     @Override
@@ -158,6 +174,8 @@ final class FirestoreV1WriteFn {
     //  bundle scoped state
     private transient FirestoreStub firestoreStub;
     private transient DatabaseRootName databaseRootName;
+    private final @Nullable String configuredProjectId;
+    private final @Nullable String configuredDatabaseId;
 
     @VisibleForTesting
     transient Queue<@NonNull WriteElement> writes = new PriorityQueue<>(WriteElement.COMPARATOR);
@@ -171,12 +189,16 @@ final class FirestoreV1WriteFn {
         JodaClock clock,
         FirestoreStatefulComponentFactory firestoreStatefulComponentFactory,
         RpcQosOptions rpcQosOptions,
-        CounterFactory counterFactory) {
+        CounterFactory counterFactory,
+        @Nullable String configuredProjectId,
+        @Nullable String configuredDatabaseId) {
       this.clock = clock;
       this.firestoreStatefulComponentFactory = firestoreStatefulComponentFactory;
       this.rpcQosOptions = rpcQosOptions;
       this.counterFactory = counterFactory;
       this.rpcAttemptContext = V1FnRpcAttemptContext.BatchWrite;
+      this.configuredProjectId = configuredProjectId;
+      this.configuredDatabaseId = configuredDatabaseId;
     }
 
     @Override
@@ -202,11 +224,19 @@ final class FirestoreV1WriteFn {
 
     @Override
     public final void startBundle(StartBundleContext c) {
-      String project = c.getPipelineOptions().as(FirestoreOptions.class).getFirestoreProject();
+      String project =
+          configuredProjectId != null
+              ? configuredProjectId
+              : c.getPipelineOptions().as(FirestoreOptions.class).getFirestoreProject();
+
       if (project == null) {
         project = c.getPipelineOptions().as(GcpOptions.class).getProject();
       }
-      String databaseId = c.getPipelineOptions().as(FirestoreOptions.class).getFirestoreDb();
+
+      String databaseId =
+          configuredDatabaseId != null
+              ? configuredDatabaseId
+              : c.getPipelineOptions().as(FirestoreOptions.class).getFirestoreDb();
       databaseRootName =
           DatabaseRootName.of(
               requireNonNull(

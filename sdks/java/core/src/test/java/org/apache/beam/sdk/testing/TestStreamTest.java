@@ -363,12 +363,12 @@ public class TestStreamTest implements Serializable {
     TestStream<Long> source =
         TestStream.create(VarLongCoder.of())
             .addElements(TimestampedValue.of(1L, new Instant(1000L)))
-            .advanceProcessingTime(Duration.standardMinutes(6)) // Fire early pane
+            .advanceProcessingTime(Duration.standardMinutes(6)) // Fire early paneInfo
             .addElements(TimestampedValue.of(2L, new Instant(2000L)))
-            .advanceProcessingTime(Duration.standardMinutes(6)) // Fire early pane
+            .advanceProcessingTime(Duration.standardMinutes(6)) // Fire early paneInfo
             .addElements(TimestampedValue.of(3L, new Instant(3000L)))
-            .advanceProcessingTime(Duration.standardMinutes(6)) // Fire early pane
-            .advanceWatermarkToInfinity(); // Fire on-time pane
+            .advanceProcessingTime(Duration.standardMinutes(6)) // Fire early paneInfo
+            .advanceWatermarkToInfinity(); // Fire on-time paneInfo
 
     PCollection<KV<String, Long>> sum =
         p.apply(source)

@@ -45,13 +45,13 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
@@ -180,22 +180,22 @@ public class RedistributeTest implements Serializable {
         pipeline
             .apply(
                 Create.windowedValues(
-                        WindowedValue.of(
+                        WindowedValues.of(
                             "foo",
                             BoundedWindow.TIMESTAMP_MIN_VALUE,
                             GlobalWindow.INSTANCE,
                             PaneInfo.NO_FIRING),
-                        WindowedValue.of(
+                        WindowedValues.of(
                             "foo",
                             new Instant(0),
                             GlobalWindow.INSTANCE,
                             PaneInfo.ON_TIME_AND_ONLY_FIRING),
-                        WindowedValue.of(
+                        WindowedValues.of(
                             "bar",
                             new Instant(33),
                             GlobalWindow.INSTANCE,
                             PaneInfo.createPane(false, false, PaneInfo.Timing.LATE, 1, 1)),
-                        WindowedValue.of(
+                        WindowedValues.of(
                             "bar",
                             GlobalWindow.INSTANCE.maxTimestamp(),
                             GlobalWindow.INSTANCE,
@@ -224,8 +224,8 @@ public class RedistributeTest implements Serializable {
                     afterRedistributeTimestamp,
                     equalTo(originalTimestamp));
 
-                PaneInfo originalPaneInfo = elem.getValue().getPane();
-                PaneInfo afterRedistributePaneInfo = elem.getPane();
+                PaneInfo originalPaneInfo = elem.getValue().getPaneInfo();
+                PaneInfo afterRedistributePaneInfo = elem.getPaneInfo();
                 assertThat(
                     "Redistribute did not preserve pane info for " + elem,
                     afterRedistributePaneInfo,

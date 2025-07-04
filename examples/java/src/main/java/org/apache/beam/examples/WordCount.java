@@ -32,6 +32,8 @@ package org.apache.beam.examples;
 //     - count
 //     - strings
 
+import java.util.regex.Pattern;
+import java.util.stream.Stream;
 import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
@@ -108,6 +110,7 @@ public class WordCount {
     private final Counter emptyLines = Metrics.counter(ExtractWordsFn.class, "emptyLines");
     private final Distribution lineLenDist =
         Metrics.distribution(ExtractWordsFn.class, "lineLenDistro");
+    private final Pattern splitPattern = Pattern.compile(ExampleUtils.TOKENIZER_PATTERN);
 
     @ProcessElement
     public void processElement(@Element String element, OutputReceiver<String> receiver) {
@@ -117,14 +120,14 @@ public class WordCount {
       }
 
       // Split the line into words.
-      String[] words = element.split(ExampleUtils.TOKENIZER_PATTERN, -1);
-
-      // Output each word encountered into the output PCollection.
-      for (String word : words) {
-        if (!word.isEmpty()) {
-          receiver.output(word);
-        }
-      }
+      Stream<String> stream = splitPattern.splitAsStream(element);
+      stream.forEach(
+          word -> {
+            if (!word.isEmpty()) {
+              // Output each word encountered into the output PCollection.
+              receiver.output(word);
+            }
+          });
     }
   }
   // [END extract_words_fn]

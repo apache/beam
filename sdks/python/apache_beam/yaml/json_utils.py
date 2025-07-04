@@ -167,6 +167,13 @@ def json_to_row(beam_type: schema_pb2.FieldType) -> Callable[[Any], Any]:
   The input to the returned callable is expected to conform to the Json schema
   corresponding to this Beam type.
   """
+  if beam_type.nullable:
+    non_null_type = schema_pb2.FieldType()
+    non_null_type.CopyFrom(beam_type)
+    non_null_type.nullable = False
+    non_null_converter = json_to_row(non_null_type)
+    return lambda value: None if value is None else non_null_converter(value)
+
   type_info = beam_type.WhichOneof("type_info")
   if type_info == "atomic_type":
     return lambda value: value
@@ -184,14 +191,28 @@ def json_to_row(beam_type: schema_pb2.FieldType) -> Callable[[Any], Any]:
     value_converter = json_to_row(beam_type.map_type.value_type)
     return lambda value: {k: value_converter(v) for (k, v) in value.items()}
   elif type_info == "row_type":
+    field_nullable_status = {
+        field.name: field.type.nullable
+        for field in beam_type.row_type.schema.fields
+    }
+
     converters = {
         field.name: json_to_row(field.type)
         for field in beam_type.row_type.schema.fields
     }
-    return lambda value: beam.Row(
-        **
-        {name: convert(value[name])
-         for (name, convert) in converters.items()})
+
+    def convert_row(value):
+      kwargs = {}
+      for name, convert in converters.items():
+        if name in value:
+          kwargs[name] = convert(value[name])
+        elif field_nullable_status[name]:
+          kwargs[name] = convert(None)
+        else:
+          raise KeyError(f"Missing required field: {name}")
+      return beam.Row(**kwargs)
+
+    return convert_row
   elif type_info == "logical_type":
     return lambda value: value
   else:

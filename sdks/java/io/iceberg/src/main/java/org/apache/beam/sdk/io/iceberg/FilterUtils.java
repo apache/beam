@@ -24,11 +24,14 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlBasicCall;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlIdentifier;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlKind;
@@ -45,6 +48,7 @@ import org.apache.iceberg.expressions.Expression;
 import org.apache.iceberg.expressions.Expression.Operation;
 import org.apache.iceberg.expressions.Expressions;
 import org.apache.iceberg.types.Type.TypeID;
+import org.apache.iceberg.types.Types;
 import org.apache.iceberg.util.DateTimeUtil;
 import org.apache.iceberg.util.NaNUtil;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -55,8 +59,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>Note: Only supports top-level fields (i.e. cannot reference nested fields).
  */
-class FilterUtils {
-  private static final Map<SqlKind, Operation> FILTERS =
+@Internal
+public class FilterUtils {
+  static final Map<SqlKind, Operation> FILTERS =
       ImmutableMap.<SqlKind, Operation>builder()
           .put(SqlKind.IS_NULL, Operation.IS_NULL)
           .put(SqlKind.IS_NOT_NULL, Operation.NOT_NULL)
@@ -72,6 +77,56 @@ class FilterUtils {
           .put(SqlKind.OR, Operation.OR)
           .build();
 
+  public static final Set<SqlKind> SUPPORTED_OPS = FILTERS.keySet();
+
+  /**
+   * Parses a SQL filter expression string and returns a set of all field names referenced within
+   * it.
+   */
+  static Set<String> getReferencedFieldNames(@Nullable String filter) {
+    if (filter == null || filter.trim().isEmpty()) {
+      return new HashSet<>();
+    }
+
+    SqlParser parser = SqlParser.create(filter);
+    try {
+      SqlNode expression = parser.parseExpression();
+      Set<String> fieldNames = new HashSet<>();
+      extractFieldNames(expression, fieldNames);
+      return fieldNames;
+    } catch (Exception exception) {
+      throw new RuntimeException(
+          String.format("Encountered an error when parsing filter: '%s'", filter), exception);
+    }
+  }
+
+  private static void extractFieldNames(SqlNode node, Set<String> fieldNames) {
+    if (node instanceof SqlIdentifier) {
+      fieldNames.add(((SqlIdentifier) node).getSimple());
+    } else if (node instanceof SqlBasicCall) {
+      // recursively check operands
+      SqlBasicCall call = (SqlBasicCall) node;
+      for (SqlNode operand : call.getOperandList()) {
+        extractFieldNames(operand, fieldNames);
+      }
+    } else if (node instanceof SqlNodeList) {
+      // For IN clauses, the right-hand side is a SqlNodeList, so iterate through its elements
+      SqlNodeList nodeList = (SqlNodeList) node;
+      for (SqlNode element : nodeList.getList()) {
+        if (element != null) {
+          extractFieldNames(element, fieldNames);
+        }
+      }
+    }
+    // SqlLiteral nodes do not contain field names, so we can ignore them.
+  }
+  /**
+   * parses a SQL filter expression string into an Iceberg {@link Expression} that can be used for
+   * data pruning.
+   *
+   * <p>Note: This utility currently supports only top-level fields within the filter expression.
+   * Nested field references are not supported.
+   */
   static Expression convert(@Nullable String filter, Schema schema) {
     if (filter == null) {
       return Expressions.alwaysTrue();
@@ -210,8 +265,10 @@ class FilterUtils {
     checkArgument(
         value instanceof SqlNodeList,
         "Expected right hand side to be a list but got " + value.getClass());
-    String name = ((SqlIdentifier) term).getSimple();
-    TypeID type = schema.findType(name).typeId();
+    String caseInsensitiveName = ((SqlIdentifier) term).getSimple();
+    Types.NestedField field = schema.caseInsensitiveFindField(caseInsensitiveName);
+    String name = field.name();
+    TypeID type = field.type().typeId();
     List<SqlNode> list =
         ((SqlNodeList) value)
             .getList().stream().filter(Objects::nonNull).collect(Collectors.toList());
@@ -236,13 +293,17 @@ class FilterUtils {
     SqlNode left = getLeftChild(call);
     SqlNode right = getRightChild(call);
     if (left instanceof SqlIdentifier && right instanceof SqlLiteral) {
-      String name = ((SqlIdentifier) left).getSimple();
-      TypeID type = schema.findType(name).typeId();
+      String caseInsensitiveName = ((SqlIdentifier) left).getSimple();
+      Types.NestedField field = schema.caseInsensitiveFindField(caseInsensitiveName);
+      String name = field.name();
+      TypeID type = field.type().typeId();
       Object value = convertLiteral((SqlLiteral) right, name, type);
       return convertLR.apply(name, value);
     } else if (left instanceof SqlLiteral && right instanceof SqlIdentifier) {
-      String name = ((SqlIdentifier) right).getSimple();
-      TypeID type = schema.findType(name).typeId();
+      String caseInsensitiveName = ((SqlIdentifier) right).getSimple();
+      Types.NestedField field = schema.caseInsensitiveFindField(caseInsensitiveName);
+      String name = field.name();
+      TypeID type = field.type().typeId();
       Object value = convertLiteral((SqlLiteral) left, name, type);
       return convertRL.apply(name, value);
     } else {

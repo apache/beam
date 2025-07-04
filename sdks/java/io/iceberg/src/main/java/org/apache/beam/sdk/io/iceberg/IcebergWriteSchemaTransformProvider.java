@@ -110,6 +110,26 @@ public class IcebergWriteSchemaTransformProvider
             + "Is mutually exclusive with 'keep' and 'drop'.")
     public abstract @Nullable String getOnly();
 
+    @SchemaFieldDescription(
+        "Fields used to create a partition spec that is applied when tables are created. For a field 'foo', "
+            + "the available partition transforms are:\n\n"
+            + "- `foo`\n"
+            + "- `truncate(foo, N)`\n"
+            + "- `bucket(foo, N)`\n"
+            + "- `hour(foo)`\n"
+            + "- `day(foo)`\n"
+            + "- `month(foo)`\n"
+            + "- `year(foo)`\n"
+            + "- `void(foo)`\n\n"
+            + "For more information on partition transforms, please visit https://iceberg.apache.org/spec/#partition-transforms.")
+    public abstract @Nullable List<String> getPartitionFields();
+
+    @SchemaFieldDescription(
+        "Iceberg table properties to be set on the table when it is created.\n"
+            + "For more information on table properties,"
+            + " please visit https://iceberg.apache.org/docs/latest/configuration/#table-properties.")
+    public abstract @Nullable Map<String, String> getTableProperties();
+
     @AutoValue.Builder
     public abstract static class Builder {
       public abstract Builder setTable(String table);
@@ -127,6 +147,10 @@ public class IcebergWriteSchemaTransformProvider
       public abstract Builder setDrop(List<String> drop);
 
       public abstract Builder setOnly(String only);
+
+      public abstract Builder setPartitionFields(List<String> partitionFields);
+
+      public abstract Builder setTableProperties(Map<String, String> tableProperties);
 
       public abstract Configuration build();
     }
@@ -192,6 +216,8 @@ public class IcebergWriteSchemaTransformProvider
                       configuration.getTable(),
                       FileFormat.PARQUET.toString(),
                       rows.getSchema(),
+                      configuration.getPartitionFields(),
+                      configuration.getTableProperties(),
                       configuration.getDrop(),
                       configuration.getKeep(),
                       configuration.getOnly()));

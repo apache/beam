@@ -53,6 +53,7 @@ type element struct {
 	// No synchronization is required in specifying this,
 	// since keyed elements are only processed by a single bundle at a time,
 	// if stateful stages are concerned.
+	// If a timer element has sequence set to -1, it means it is being cleared.
 	sequence int
 
 	elmBytes []byte // When nil, indicates this is a timer.
@@ -160,6 +161,8 @@ type Config struct {
 	// MaxBundleSize caps the number of elements permitted in a bundle.
 	// 0 or less means this is ignored.
 	MaxBundleSize int
+	// Whether to use real-time clock as processing time
+	EnableRTC bool
 }
 
 // ElementManager handles elements, watermarks, and related errata to determine
@@ -959,11 +962,6 @@ func (em *ElementManager) triageTimers(d TentativeData, inputInfo PColInfo, stag
 				for _, e := range ret.elms {
 					keyToTimers[timerKey{key: string(ret.keyBytes), tag: ret.tag, win: e.window}] = e
 				}
-				if len(ret.elms) == 0 {
-					for _, w := range ret.windows {
-						delete(keyToTimers, timerKey{key: string(ret.keyBytes), tag: ret.tag, win: w})
-					}
-				}
 				// Indicate we'd like to continue iterating.
 				return true
 			})
@@ -1347,16 +1345,23 @@ func (*statefulStageKind) addPending(ss *stageState, em *ElementManager, newPend
 		if e.IsTimer() {
 			if lastSet, ok := dnt.timers[timerKey{family: e.family, tag: e.tag, window: e.window}]; ok {
 				// existing timer!
-				// don't increase the count this time, as "this" timer is already pending.
+				// don't increase the count this time, as "e" is already pending.
 				count--
 				// clear out the existing hold for accounting purposes.
 				ss.watermarkHolds.Drop(lastSet.hold, 1)
 			}
-			// Update the last set time on the timer.
-			dnt.timers[timerKey{family: e.family, tag: e.tag, window: e.window}] = timerTimes{firing: e.timestamp, hold: e.holdTimestamp}
+			if e.sequence >= 0 {
+				// Update the last set time on the timer.
+				dnt.timers[timerKey{family: e.family, tag: e.tag, window: e.window}] = timerTimes{firing: e.timestamp, hold: e.holdTimestamp}
 
-			// Mark the hold in the heap.
-			ss.watermarkHolds.Add(e.holdTimestamp, 1)
+				// Mark the hold in the heap.
+				ss.watermarkHolds.Add(e.holdTimestamp, 1)
+			} else {
+				// decrement the pending count since "e" is not a real timer (merely a clearing signal)
+				count--
+				// timer is to be cleared
+				delete(dnt.timers, timerKey{family: e.family, tag: e.tag, window: e.window})
+			}
 		}
 	}
 	return count
@@ -1647,6 +1652,12 @@ keysPerBundle:
 					timerCleared = true
 					continue
 				}
+				if e.timestamp > watermark {
+					// We don't trigger a timer when its firing timestamp is over watermark.
+					// Push the timer back so we won't lose it.
+					heap.Push(&dnt.elements, e)
+					break
+				}
 				holdsInBundle[e.holdTimestamp]++
 				// Clear the "fired" timer so subsequent matches can be ignored.
 				delete(dnt.timers, timerKey{family: e.family, tag: e.tag, window: e.window})
@@ -1695,7 +1706,7 @@ keysPerBundle:
 		}
 
 		var toProcessForKey []element
-
+		var toSkipForKey []element
 		// Can we pre-compute this bit when adding to pendingByKeys?
 		// startBundle is in run in a single scheduling goroutine, so moving per-element code
 		// to be computed by the bundle parallel goroutines will speed things up a touch.
@@ -1704,28 +1715,39 @@ keysPerBundle:
 			// if we're after the end of window, or after the window expiry deadline.
 			// We will only ever trigger aggregations by watermark at most twice, once the watermark passes the window ends for OnTime completion,
 			// and once for when the window is closing.
-			elm := dnt.elements[0]
+			elm := heap.Pop(&dnt.elements).(element)
+			shouldSkip := false
+
 			if watermark <= elm.window.MaxTimestamp() {
 				// The watermark hasn't passed the end of the window yet, we do nothing.
-				break
+				shouldSkip = true
 			}
 			// Watermark is past the end of this window. Have we fired an OnTime pane yet?
 			state := ss.state[LinkID{}][elm.window][string(elm.keyBytes)]
 			// If this is not the ontime firing for this key.
 
-			if state.Pane.Timing != typex.PaneEarly && watermark <= ss.strat.EarliestCompletion(elm.window) {
+			if !shouldSkip && state.Pane.Timing != typex.PaneEarly && watermark <= ss.strat.EarliestCompletion(elm.window) {
 				// The watermark is still before the earliest final completion for this window.
 				// Do not add further data for this firing.
 				// If this is the Never trigger, we also don't fire OnTime until after the earliest completion.
-				break
+				shouldSkip = true
 			}
-			if ss.strat.IsNeverTrigger() && watermark <= ss.strat.EarliestCompletion(elm.window) {
+			if !shouldSkip && ss.strat.IsNeverTrigger() && watermark <= ss.strat.EarliestCompletion(elm.window) {
 				// The NeverTrigger only has a single firing at the end of window + allowed lateness.
-				break
+				shouldSkip = true
 			}
-			e := heap.Pop(&dnt.elements).(element)
 
-			toProcessForKey = append(toProcessForKey, e)
+			if shouldSkip {
+				toSkipForKey = append(toSkipForKey, elm)
+			} else {
+				toProcessForKey = append(toProcessForKey, elm)
+			}
+		}
+
+		// Re-add skipped elements to the heap.
+		// This ensures that `dnt.elements` reflects only the truly skipped elements for future processing.
+		for _, elm := range toSkipForKey {
+			heap.Push(&dnt.elements, elm)
 		}
 
 		// Get the pane for the aggregation correct, only mutate it once per key and window.
@@ -2149,11 +2171,12 @@ func (em *ElementManager) ProcessingTimeNow() (ret mtime.Time) {
 	if em.testStreamHandler != nil && !em.testStreamHandler.completed {
 		return em.testStreamHandler.Now()
 	}
-	// TODO toggle between testmode and production mode.
+
 	// "Test" mode -> advance to next processing time event if any, to allow execution.
-	// if test mode...
-	if t, ok := em.processTimeEvents.Peek(); ok {
-		return t
+	if !em.config.EnableRTC {
+		if t, ok := em.processTimeEvents.Peek(); ok {
+			return t
+		}
 	}
 
 	// "Production" mode, always real time now.

@@ -63,7 +63,7 @@ public class TimerTest {
     assertEquals(FIRE_TIME, timer.getFireTimestamp());
     assertEquals(HOLD_TIME, timer.getHoldTimestamp());
     assertEquals(Collections.singleton(GlobalWindow.INSTANCE), timer.getWindows());
-    assertEquals(PaneInfo.NO_FIRING, timer.getPane());
+    assertEquals(PaneInfo.NO_FIRING, timer.getPaneInfo());
     assertFalse(timer.getClearBit());
   }
 

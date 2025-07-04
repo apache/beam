@@ -36,12 +36,13 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.RehydratedComponents;
 import org.apache.beam.sdk.util.construction.Timer;
 import org.apache.beam.sdk.util.construction.WindowingStrategyTranslation;
 import org.apache.beam.sdk.util.construction.graph.PipelineNode;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
@@ -169,15 +170,15 @@ public final class PipelineTranslatorUtils {
     }
   }
 
-  public static <T> WindowedValue.WindowedValueCoder<T> getWindowedValueCoder(
+  public static <T> WindowedValues.WindowedValueCoder<T> getWindowedValueCoder(
       String pCollectionId, RunnerApi.Components components) {
     RunnerApi.PCollection pCollection = components.getPcollectionsOrThrow(pCollectionId);
     PipelineNode.PCollectionNode pCollectionNode =
         PipelineNode.pCollection(pCollectionId, pCollection);
-    WindowedValue.WindowedValueCoder<T> coder;
+    WindowedValues.WindowedValueCoder<T> coder;
     try {
       coder =
-          (WindowedValue.WindowedValueCoder)
+          (WindowedValues.WindowedValueCoder)
               WireCoders.instantiateRunnerWireCoder(pCollectionNode, components);
     } catch (IOException e) {
       throw new RuntimeException(e);

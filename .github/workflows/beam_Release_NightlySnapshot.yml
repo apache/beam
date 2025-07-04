@@ -61,7 +61,9 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: default
+          java-version: |
+            21
+            11
           disable-cache: true
       - name: Auth on snapshot repository
         run: |
@@ -78,5 +80,8 @@ jobs:
       - name: run Publish script
         run: |
           ./gradlew publish --max-workers=8 -Ppublishing -PskipCheckerFramework \
+          -Pjava21Home=$JAVA_HOME_21_X64 \
           --continue -Dorg.gradle.jvmargs=-Xms2g -Dorg.gradle.jvmargs=-Xmx6g \
-          -Dorg.gradle.vfs.watch=false -Pdocker-pull-licenses
+          -Dorg.gradle.vfs.watch=false -Pdocker-pull-licenses \
+          -Dorg.gradle.internal.http.connectionTimeout=60000 \
+          -Dorg.gradle.internal.http.socketTimeout=120000

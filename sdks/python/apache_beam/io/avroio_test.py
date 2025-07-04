@@ -206,6 +206,54 @@ class AvroBase(object):
     expected_beam_type = schemas.typing_to_runner_api(Any)
     hc.assert_that(beam_type, hc.equal_to(expected_beam_type))
 
+  def test_avro_union_type_to_beam_type_with_record_and_null(self):
+    record_type = {
+        'type': 'record',
+        'name': 'TestRecord',
+        'fields': [{
+            'name': 'field1', 'type': 'string'
+        }, {
+            'name': 'field2', 'type': 'int'
+        }]
+    }
+    union_type = [record_type, 'null']
+    beam_type = avro_union_type_to_beam_type(union_type)
+    expected_beam_type = schema_pb2.FieldType(
+        row_type=schema_pb2.RowType(
+            schema=schema_pb2.Schema(
+                fields=[
+                    schemas.schema_field(
+                        'field1',
+                        schema_pb2.FieldType(atomic_type=schema_pb2.STRING)),
+                    schemas.schema_field(
+                        'field2',
+                        schema_pb2.FieldType(atomic_type=schema_pb2.INT32))
+                ])),
+        nullable=True)
+    hc.assert_that(beam_type, hc.equal_to(expected_beam_type))
+
+  def test_avro_union_type_to_beam_type_with_nullable_annotated_string(self):
+    annotated_string_type = {"avro.java.string": "String", "type": "string"}
+    union_type = ['null', annotated_string_type]
+
+    beam_type = avro_union_type_to_beam_type(union_type)
+
+    expected_beam_type = schema_pb2.FieldType(
+        atomic_type=schema_pb2.STRING, nullable=True)
+    hc.assert_that(beam_type, hc.equal_to(expected_beam_type))
+
+  def test_avro_union_type_to_beam_type_with_only_null(self):
+    union_type = ['null']
+    beam_type = avro_union_type_to_beam_type(union_type)
+    expected_beam_type = schemas.typing_to_runner_api(Any)
+    hc.assert_that(beam_type, hc.equal_to(expected_beam_type))
+
+  def test_avro_union_type_to_beam_type_with_multiple_types(self):
+    union_type = ['null', 'string', 'int']
+    beam_type = avro_union_type_to_beam_type(union_type)
+    expected_beam_type = schemas.typing_to_runner_api(Any)
+    hc.assert_that(beam_type, hc.equal_to(expected_beam_type))
+
   def test_avro_schema_to_beam_and_back(self):
     avro_schema = fastavro.parse_schema(json.loads(self.SCHEMA_STRING))
     beam_schema = avro_schema_to_beam_schema(avro_schema)

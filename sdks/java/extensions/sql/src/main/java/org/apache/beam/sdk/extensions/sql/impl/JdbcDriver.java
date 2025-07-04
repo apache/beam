@@ -25,10 +25,12 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.function.Consumer;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
+import org.apache.beam.sdk.extensions.sql.meta.catalog.CatalogManager;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.adapter.enumerable.EnumerableRules;
@@ -145,17 +147,39 @@ public class JdbcDriver extends Driver {
    * all table providers it can find. See {@link BeamCalciteSchemaFactory}.
    */
   public static JdbcConnection connect(TableProvider tableProvider, PipelineOptions options) {
+    JdbcConnection connection = getConnection(options);
+    connection.setSchema(TOP_LEVEL_BEAM_SCHEMA, tableProvider);
+    return connection;
+  }
+
+  /**
+   * Like {@link #connect(TableProvider, PipelineOptions)}, but overrides the top-level schema with
+   * a {@link CatalogManager}.
+   */
+  public static JdbcConnection connect(CatalogManager catalogManager, PipelineOptions options) {
+    JdbcConnection connection = getConnection(options);
+    connection.setSchema(TOP_LEVEL_BEAM_SCHEMA, catalogManager);
+    return connection;
+  }
+
+  private static JdbcConnection getConnection(PipelineOptions options) {
+    Properties properties = new Properties();
+    properties.setProperty(
+        SCHEMA_FACTORY.camelName(), BeamCalciteSchemaFactory.Empty.class.getName());
+    BeamSqlPipelineOptions sqlOptions = options.as(BeamSqlPipelineOptions.class);
+    if (sqlOptions != null) {
+      Map<String, String> calciteConnectionProperties = sqlOptions.getCalciteConnectionProperties();
+      if (calciteConnectionProperties != null) {
+        properties.putAll(calciteConnectionProperties);
+      }
+    }
+    JdbcConnection connection;
     try {
-      Properties properties = new Properties();
-      properties.setProperty(
-          SCHEMA_FACTORY.camelName(), BeamCalciteSchemaFactory.Empty.class.getName());
-      JdbcConnection connection =
-          (JdbcConnection) INSTANCE.connect(CONNECT_STRING_PREFIX, properties);
-      connection.setSchema(TOP_LEVEL_BEAM_SCHEMA, tableProvider);
-      connection.setPipelineOptions(options);
-      return connection;
+      connection = (JdbcConnection) INSTANCE.connect(CONNECT_STRING_PREFIX, properties);
     } catch (SQLException e) {
       throw new RuntimeException(e);
     }
+    connection.setPipelineOptions(options);
+    return connection;
   }
 }
