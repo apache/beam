@@ -113,7 +113,7 @@ class SecretService:
             }
         )
 
-        self.secrets_names.append(response.name)
+        self.secrets_names.append(secret_name)
         print(f"Created secret: {response.name}")
         return response.name
 
@@ -152,7 +152,8 @@ class SecretService:
 
     def get_secret_version(self, secret_name: str, version_id: str = "latest") -> bytes:
         """
-        Retrieves the specified version of a secret.
+        Retrieves the specified version of a secret. If version_id is "latest",
+        it retrieves the latest enabled secret version.
 
         Args:
             secret_name (str): The name of the secret from which to retrieve the version.
@@ -162,8 +163,20 @@ class SecretService:
         """
         print(f"Retrieving secret version for: {secret_name}, version: {version_id}")
 
-        secret_name = f"{self.secret_name_prefix}-{secret_name}"
-        name = f"projects/{self.project_id}/secrets/{secret_name}/versions/{version_id}"
+        secret_full_name = f"{self.secret_name_prefix}-{secret_name}"
+        if secret_full_name not in self.secrets_names:
+            raise ValueError(f"Secret {secret_name} does not exist. Please create it first.")
+
+        if version_id == "latest":
+            parent = self.client.secret_path(self.project_id, secret_full_name)
+            for version in self.client.list_secret_versions(request={"parent": parent}):
+                if version.state == secretmanager.SecretVersion.State.ENABLED:
+                    version_id = version.name.split("/")[-1]
+                    break
+            else:
+                raise ValueError(f"No enabled versions found for secret {secret_name}.")
+
+        name = f"projects/{self.project_id}/secrets/{secret_full_name}/versions/{version_id}"
 
         response = self.client.access_secret_version(request={"name": name})
 
@@ -175,6 +188,35 @@ class SecretService:
 
         return response.payload.data
 
+    def disable_secret_version(self, secret_name: str, version_id: str = "latest") -> None:
+        """
+        Disables a specific version of a secret. If the version is "latest", it disables the latest enabled version.
+
+        Args:
+            secret_name (str): The name of the secret from which to delete the version.
+            version_id (str): The version ID to delete. Defaults to "latest".
+        """
+        print(f"Disabling secret version for: {secret_name}, version: {version_id}")
+        secret_full_name = f"{self.secret_name_prefix}-{secret_name}"
+
+        if secret_full_name not in self.secrets_names:
+            print(f"Secret {secret_name} does not exist. Not deleting anything.")
+            return
+
+        parent = self.client.secret_path(self.project_id, secret_full_name)
+
+        if version_id == "latest":
+            for version in self.client.list_secret_versions(request={"parent": parent}):
+                if version.state == secretmanager.SecretVersion.State.ENABLED:
+                    version_id = version.name.split("/")[-1]
+                    break
+            else:
+                raise ValueError(f"No enabled versions found for secret {secret_name}.")
+
+        name = f"projects/{self.project_id}/secrets/{secret_full_name}/versions/{version_id}"
+        response = self.client.disable_secret_version(request={"name": name})
+        print(f"Disabled secret version: {response.name}")
+
 if __name__ == "__main__":
     config = load_config()
     secret_service = SecretService(config)
@@ -182,8 +224,19 @@ if __name__ == "__main__":
     # Example usage
     secret_name = "example-secret"
 
-    secret_version = secret_service.add_secret_version(secret_name, "This is a test secret")
-    print(f"Added secret version: {secret_version}")
+    for i in range(3):
+        secret_version = secret_service.add_secret_version(secret_name, f"This is test secret version {i+1}")
+        print(f"Added secret version: {secret_version}")
 
     retrieved_secret = secret_service.get_secret_version(secret_name)
     print(f"Retrieved secret: {retrieved_secret.decode('utf-8')}")
+
+    secret_service.disable_secret_version(secret_name)
+    print(f"Disabled secret latest version for: {secret_name}")
+
+    print("Attempting to retrieve the latest version after disabling...")
+    try:
+        retrieved_secret = secret_service.get_secret_version(secret_name)
+        print(f"Retrieved secret after disabling: {retrieved_secret.decode('utf-8')}")
+    except Exception as e:
+        print(f"Error retrieving secret after disabling: {e}")
