@@ -148,7 +148,7 @@ pipeline:
       config:
         language: python
         dependencies:
-          - 'transformers'
+          - 'transformers>=4.48.0,<4.49.0'
         fields:
           video_id: video_id
           comment_text:
@@ -250,8 +250,8 @@ options:
   yaml_experimental_features: ML
 
 # Expected:
-#  Row(video_id='XpVt6Z1Gjjo', comment_text='I am happy 😊', likes=1, replies=1)
-#  Row(video_id='XpVt6Z1Gjjo', comment_text='I am sad ☹️', likes=1, replies=1)
-#  Row(video_id='XpVt6Z1Gjjo', comment_text='🤗😁', likes=1, replies=1)
+#  Row(video_id='XpVt6Z1Gjjo', comment_text='I AM HAPPY', likes=1, replies=1)
+#  Row(video_id='XpVt6Z1Gjjo', comment_text='I AM SAD', likes=1, replies=1)
+#  Row(video_id='XpVt6Z1Gjjo', comment_text='@=@', likes=1, replies=1)
 #  Row(video_id='XpVt6Z1Gjjo', comment_text='i am happy', label='POSITIVE', score=0.95, likes=1, replies=1)
 #  Row(video_id='XpVt6Z1Gjjo', comment_text='i am sad', label='NEGATIVE', score=0.95, likes=1, replies=1)

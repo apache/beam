@@ -855,10 +855,9 @@ def _streaming_sentiment_analysis_test_preprocessor(
   """
   Preprocessor for tests that involve the streaming sentiment analysis example.
 
-  This preprocessor replaces any ... transform with a Create
-  transform that reads from a predefined in-memory dictionary. This allows
-  the test to verify the pipeline's correctness without relying on Iceberg
-  tables stored externally.
+  This preprocessor replaces several IO transforms and the RunInference transform.
+  This allows the test to verify the pipeline's correctness without relying on
+  external data sources and the model hosted on VertexAI.
 
   Args:
     test_spec: The dictionary representation of the YAML pipeline specification.
