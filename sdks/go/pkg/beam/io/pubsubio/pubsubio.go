@@ -53,7 +53,7 @@ func init() {
 // ReadOptions represents options for reading from PubSub.
 type ReadOptions struct {
 	Topic              string // Topic sets the topic to be read from. A new subscription will be generated for the job. Mutually exclusive with setting a Subscription.
-	Subscription       string // Subscription sets the name of an existing subscription to read from. Mutually exclusive with setting a subscription.
+	Subscription       string // Subscription sets the name of an existing subscription to read from. Mutually exclusive with setting a Topic.
 	IDAttribute        string
 	TimestampAttribute string
 	WithAttributes     bool
