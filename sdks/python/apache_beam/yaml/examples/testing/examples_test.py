@@ -114,7 +114,7 @@ def test_enrichment(
 
 @beam.ptransform.ptransform_fn
 def test_kafka_read(
-    pcoll,
+    pbegin,
     format,
     topic,
     bootstrap_servers,
@@ -126,7 +126,7 @@ def test_kafka_read(
   encode it to raw bytes.
 
   Args:
-    pcoll: The input PCollection.
+    pbegin: The input PCollection.
     format:
     topic:
     bootstrap_servers:
@@ -138,7 +138,7 @@ def test_kafka_read(
   """
 
   return (
-      pcoll | beam.Create(input_data.text_data().split('\n'))
+      pbegin | beam.Create(input_data.text_data().split('\n'))
       | beam.Map(lambda element: beam.Row(payload=element.encode('utf-8'))))
 
 
@@ -161,6 +161,8 @@ def test_pubsub_read(
       | beam.Create([json.loads(msg.data) for msg in pubsub_messages])
       | beam.Map(lambda element: beam.Row(**element)))
 
+
+@beam.ptransform.ptransform_fn
 def test_run_inference(pcoll, inference_tag, model_handler):
   """
   This PTransform simulates the behavior of the RunInference transform.
@@ -212,7 +214,6 @@ TEST_PROVIDERS = {
     'TestReadFromPubSub': test_pubsub_read,
     'TestRunInference': test_run_inference
 }
-
 """
 Transforms not requiring inputs.
 """
@@ -827,8 +828,8 @@ def _db_io_read_test_processor(
           table = config.get('query', '').split('FROM')[-1].strip()
         transform['type'] = 'Create'
         transform['config'] = {
-          k: v
-          for k, v in config.items() if k.startswith('__')
+            k: v
+            for k, v in config.items() if k.startswith('__')
         }
         elements = INPUT_TABLES[(database_type, database, table)]
         if config.get('query', None):
@@ -849,7 +850,7 @@ def _db_io_read_test_processor(
 
 @YamlExamplesTestSuite.register_test_preprocessor(
     'test_streaming_sentiment_analysis_yaml')
-def _streaming_sentiment_analyis_test_preprocessor(
+def _streaming_sentiment_analysis_test_preprocessor(
     test_spec: dict, expected: List[str], env: TestEnvironment):
   """
   Preprocessor for tests that involve the streaming sentiment analysis example.
@@ -871,36 +872,31 @@ def _streaming_sentiment_analyis_test_preprocessor(
   """
   if pipeline := test_spec.get('pipeline', None):
     for transform in pipeline.get('transforms', []):
-      if transform.get('type', '') == 'ReadFromCsv':
-        transform['windowing'] = {
-        'type': 'fixed',
-        'size': '30s'
-        }
+      if transform.get('type', '') == 'PyTransform' and transform.get(
+          'name', '') == 'ReadFromGCS':
+        transform['windowing'] = {'type': 'fixed', 'size': '30s'}
 
-        file_name = transform['config']['path'].split('/')[-1]
+        file_name = 'youtube-comments.csv'
+        local_path = env.input_file(file_name, INPUT_FILES[file_name])
+        transform['config']['kwargs']['file_pattern'] = local_path
+
+  if pipeline := test_spec.get('pipeline', None):
+    for transform in pipeline.get('transforms', []):
+      if transform.get('type', '') == 'ReadFromKafka':
+        config = transform['config']
+        transform['type'] = 'ReadFromCsv'
+        transform['config'] = {
+            k: v
+            for k, v in config.items() if k.startswith('__')
+        }
+        transform['config']['path'] = ""
+
+        file_name = 'youtube-comments.csv'
         test_spec = replace_recursive(
             test_spec,
             transform['type'],
             'path',
             env.input_file(file_name, INPUT_FILES[file_name]))
-
-    if pipeline := test_spec.get('pipeline', None):
-      for transform in pipeline.get('transforms', []):
-        if transform.get('type', '') == 'ReadFromKafka':
-          config = transform['config']
-          transform['type'] = 'ReadFromCsv'
-          transform['config'] = {
-              k: v
-              for k, v in config.items() if k.startswith('__')
-          }
-          transform['config']['path'] = ""
-
-          file_name = 'youtube-comments.csv'
-          test_spec = replace_recursive(
-              test_spec,
-              transform['type'],
-              'path',
-              env.input_file(file_name, INPUT_FILES[file_name]))
 
   if pipeline := test_spec.get('pipeline', None):
     for transform in pipeline.get('transforms', []):
@@ -948,7 +944,7 @@ IOTest = YamlExamplesTestSuite(
                                    '../transforms/io/*.yaml')).run()
 MLTest = YamlExamplesTestSuite(
     'MLExamplesTest', os.path.join(YAML_DOCS_DIR,
-                                   '../transforms/ml/*.yaml')).run()
+                                   '../transforms/ml/**/*.yaml')).run()
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
