@@ -494,6 +494,9 @@ def write_to_pubsub(
 
 def read_from_iceberg(
     table: str,
+    filter: str = None,
+    keep: Optional[list[str]] = None,
+    drop: Optional[list[str]] = None,
     catalog_name: Optional[str] = None,
     catalog_properties: Optional[Mapping[str, str]] = None,
     config_properties: Optional[Mapping[str, str]] = None,
@@ -522,6 +525,9 @@ def read_from_iceberg(
       config=dict(
           table=table,
           catalog_name=catalog_name,
+          filter=filter,
+          keep=keep,
+          drop=drop,
           catalog_properties=catalog_properties,
           config_properties=config_properties))
 
@@ -531,6 +537,8 @@ def write_to_iceberg(
     catalog_name: Optional[str] = None,
     catalog_properties: Optional[Mapping[str, str]] = None,
     config_properties: Optional[Mapping[str, str]] = None,
+    partition_fields: Optional[Iterable[str]] = None,
+    table_properties: Optional[Mapping[str, str]] = None,
     triggering_frequency_seconds: Optional[int] = None,
     keep: Optional[Iterable[str]] = None,
     drop: Optional[Iterable[str]] = None,
@@ -576,6 +584,8 @@ def write_to_iceberg(
           catalog_name=catalog_name,
           catalog_properties=catalog_properties,
           config_properties=config_properties,
+          partition_fields=partition_fields,
+          table_properties=table_properties,
           triggering_frequency_seconds=triggering_frequency_seconds,
           keep=keep,
           drop=drop,

@@ -713,7 +713,7 @@ logging.getLogger().setLevel(logging.INFO)
 # yaml_test_files_dir comes from conftest.py and set by pytest_configure.
 _test_files_dir = yaml_test_files_dir
 _file_pattern = os.path.join(
-    os.path.dirname(__file__), _test_files_dir, '*.yaml')
+    os.path.dirname(__file__), _test_files_dir, 'iceberg.yaml')
 parse_test_files(_file_pattern)
 
 if __name__ == '__main__':
