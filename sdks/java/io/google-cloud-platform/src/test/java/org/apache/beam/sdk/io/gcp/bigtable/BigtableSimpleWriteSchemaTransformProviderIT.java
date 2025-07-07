@@ -28,6 +28,7 @@ import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
 import com.google.cloud.bigtable.data.v2.models.Query;
 import com.google.cloud.bigtable.data.v2.models.RowCell;
+import org.apache.beam.sdk.schemas.Schema.FieldType; // Import FieldType
 import com.google.cloud.bigtable.data.v2.models.RowMutation;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -150,30 +151,30 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
     Schema testSchema =
         Schema.builder()
             .addByteArrayField("key")
-            .addByteArrayField("type")
+            .addStringField("type")
             .addByteArrayField("value")
             .addByteArrayField("column_qualifier")
             .addByteArrayField("family_name")
-            .addByteArrayField("timestamp_micros")
+            .addField("timestamp_micros", FieldType.INT64) // Changed to INT64
             .build();
 
     Row mutationRow1 =
         Row.withSchema(testSchema)
             .withFieldValue("key", "key-1".getBytes(StandardCharsets.UTF_8))
-            .withFieldValue("type", "SetCell".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("type", "SetCell")
             .withFieldValue("value", "new-val-1-a".getBytes(StandardCharsets.UTF_8))
             .withFieldValue("column_qualifier", "col_a".getBytes(StandardCharsets.UTF_8))
             .withFieldValue("family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8))
-            .withFieldValue("timestamp_micros", Longs.toByteArray(2000))
+            .withFieldValue("timestamp_micros", 2000L)
             .build();
     Row mutationRow2 =
         Row.withSchema(testSchema)
             .withFieldValue("key", "key-1".getBytes(StandardCharsets.UTF_8))
-            .withFieldValue("type", "SetCell".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("type", "SetCell")
             .withFieldValue("value", "new-val-1-c".getBytes(StandardCharsets.UTF_8))
             .withFieldValue("column_qualifier", "col_c".getBytes(StandardCharsets.UTF_8))
             .withFieldValue("family_name", COLUMN_FAMILY_NAME_2.getBytes(StandardCharsets.UTF_8))
-            .withFieldValue("timestamp_micros", Longs.toByteArray(2000))
+            .withFieldValue("timestamp_micros", 2000L)
             .build();
 
     PCollectionRowTuple.of("input", p.apply(Create.of(Arrays.asList(mutationRow1, mutationRow2))))
@@ -215,7 +216,7 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
     Schema testSchema =
         Schema.builder()
             .addByteArrayField("key")
-            .addByteArrayField("type")
+            .addStringField("type")
             .addByteArrayField("value")
             .addByteArrayField("column_qualifier")
             .addByteArrayField("family_name")
@@ -223,7 +224,7 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
     Row mutationRow =
         Row.withSchema(testSchema)
             .withFieldValue("key", "key-1".getBytes(StandardCharsets.UTF_8))
-            .withFieldValue("type", "SetCell".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("type", "SetCell")
             .withFieldValue("value", "new-val-1".getBytes(StandardCharsets.UTF_8))
             .withFieldValue("column_qualifier", "new_col".getBytes(StandardCharsets.UTF_8))
             .withFieldValue("family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8))
@@ -262,7 +263,7 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
     Schema testSchema =
         Schema.builder()
             .addByteArrayField("key")
-            .addByteArrayField("type")
+            .addStringField("type")
             .addByteArrayField("value")
             .addByteArrayField("column_qualifier")
             .addByteArrayField("family_name")
@@ -270,7 +271,7 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
     Row mutationRow =
         Row.withSchema(testSchema)
             .withFieldValue("key", "key-1".getBytes(StandardCharsets.UTF_8))
-            .withFieldValue("type", "DeleteFromColumn".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("type", "DeleteFromColumn")
             .withFieldValue("column_qualifier", "col_a".getBytes(StandardCharsets.UTF_8))
             .withFieldValue("family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8))
             .build();
@@ -310,20 +311,20 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
     Schema testSchema =
         Schema.builder()
             .addByteArrayField("key")
-            .addByteArrayField("type")
+            .addStringField("type")
             .addByteArrayField("column_qualifier")
             .addByteArrayField("family_name")
-            .addByteArrayField("start_timestamp_micros")
-            .addByteArrayField("end_timestamp_micros")
+            .addField("start_timestamp_micros", FieldType.INT64)
+            .addField("end_timestamp_micros", FieldType.INT64)
             .build();
     Row mutationRow =
         Row.withSchema(testSchema)
             .withFieldValue("key", "key-1".getBytes(StandardCharsets.UTF_8))
-            .withFieldValue("type", "DeleteFromColumn".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("type", "DeleteFromColumn")
             .withFieldValue("column_qualifier", "col".getBytes(StandardCharsets.UTF_8))
             .withFieldValue("family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8))
-            .withFieldValue("start_timestamp_micros", Longs.toByteArray(99_999_999))
-            .withFieldValue("end_timestamp_micros", Longs.toByteArray(100_000_001))
+            .withFieldValue("start_timestamp_micros", 99_999_999L)
+            .withFieldValue("end_timestamp_micros", 100_000_001L)
             .build();
 
     PCollectionRowTuple.of("input", p.apply(Create.of(Arrays.asList(mutationRow))))
@@ -356,13 +357,13 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
     Schema testSchema =
         Schema.builder()
             .addByteArrayField("key")
-            .addByteArrayField("type")
+            .addStringField("type")
             .addByteArrayField("family_name")
             .build();
     Row mutationRow =
         Row.withSchema(testSchema)
             .withFieldValue("key", "key-1".getBytes(StandardCharsets.UTF_8))
-            .withFieldValue("type", "DeleteFromFamily".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("type", "DeleteFromFamily")
             .withFieldValue("family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8))
             .build();
 
@@ -394,11 +395,11 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
     rowMutation =
         RowMutation.create(tableId, "key-2").setCell(COLUMN_FAMILY_NAME_1, "col", "val-2");
     dataClient.mutateRow(rowMutation);
-    Schema testSchema = Schema.builder().addByteArrayField("key").addByteArrayField("type").build();
+    Schema testSchema = Schema.builder().addByteArrayField("key").addStringField("type").build();
     Row mutationRow =
         Row.withSchema(testSchema)
             .withFieldValue("key", "key-1".getBytes(StandardCharsets.UTF_8))
-            .withFieldValue("type", "DeleteFromRow".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("type", "DeleteFromRow")
             .build();
 
     PCollectionRowTuple.of("input", p.apply(Create.of(Arrays.asList(mutationRow))))
@@ -422,11 +423,11 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
     rowMutation =
         RowMutation.create(tableId, "key-2").setCell(COLUMN_FAMILY_NAME_1, "col", "val-2");
     dataClient.mutateRow(rowMutation);
-    Schema testSchema = Schema.builder().addByteArrayField("key").addByteArrayField("type").build();
+    Schema testSchema = Schema.builder().addByteArrayField("key").addStringField("type").build();
     Row mutationRow =
         Row.withSchema(testSchema)
             .withFieldValue("key", "key-1".getBytes(StandardCharsets.UTF_8))
-            .withFieldValue("type", "DeleteFromRow".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("type", "DeleteFromRow")
             .build();
 
     PCollectionRowTuple.of("input", p.apply(Create.of(Arrays.asList(mutationRow))))
