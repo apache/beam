@@ -26,7 +26,6 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.google.auto.value.AutoValue;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import java.io.IOException;
 import java.io.Serializable;
 import java.net.URLClassLoader;
 import java.sql.Connection;
@@ -492,6 +491,9 @@ public class JdbcIO {
     abstract @Nullable ValueProvider<Integer> getMaxConnections();
 
     @Pure
+    abstract @Nullable ValueProvider<Integer> getQueryTimeout();
+
+    @Pure
     abstract @Nullable ClassLoader getDriverClassLoader();
 
     @Pure
@@ -519,6 +521,8 @@ public class JdbcIO {
           ValueProvider<Collection<@Nullable String>> connectionInitSqls);
 
       abstract Builder setMaxConnections(ValueProvider<@Nullable Integer> maxConnections);
+
+      abstract Builder setQueryTimeout(ValueProvider<@Nullable Integer> queryTimeout);
 
       abstract Builder setDriverClassLoader(ClassLoader driverClassLoader);
 
@@ -622,6 +626,17 @@ public class JdbcIO {
       return builder().setMaxConnections(maxConnections).build();
     }
 
+    /** Sets the default query timeout that will be used for connections created by this source. */
+    public DataSourceConfiguration withQueryTimeout(Integer queryTimeout) {
+      checkArgument(queryTimeout != null, "queryTimeout can not be null");
+      return withQueryTimeout(ValueProvider.StaticValueProvider.of(queryTimeout));
+    }
+
+    /** Same as {@link #withQueryTimeout(Integer)} but accepting a ValueProvider. */
+    public DataSourceConfiguration withQueryTimeout(ValueProvider<@Nullable Integer> queryTimeout) {
+      return builder().setQueryTimeout(queryTimeout).build();
+    }
+
     /**
      * Sets the class loader instance to be used to load the JDBC driver. If not specified, the
      * default class loader is used.
@@ -657,6 +672,7 @@ public class JdbcIO {
         builder.addIfNotNull(DisplayData.item("jdbcUrl", getUrl()));
         builder.addIfNotNull(DisplayData.item("username", getUsername()));
         builder.addIfNotNull(DisplayData.item("driverJars", getDriverJars()));
+        builder.addIfNotNull(DisplayData.item("queryTimeout", getQueryTimeout()));
       }
     }
 
@@ -699,6 +715,12 @@ public class JdbcIO {
           Integer maxConnections = getMaxConnections().get();
           if (maxConnections != null) {
             basicDataSource.setMaxTotal(maxConnections);
+          }
+        }
+        if (getQueryTimeout() != null) {
+          Integer queryTimeout = getQueryTimeout().get();
+          if (queryTimeout != null) {
+            basicDataSource.setDefaultQueryTimeout(queryTimeout);
           }
         }
         if (getDriverClassLoader() != null) {
@@ -2821,7 +2843,7 @@ public class JdbcIO {
     }
 
     private void executeBatch(ProcessContext context, Iterable<T> records)
-        throws SQLException, IOException, InterruptedException {
+        throws SQLException, InterruptedException {
       Long startTimeNs = System.nanoTime();
       Sleeper sleeper = Sleeper.DEFAULT;
       BackOff backoff = checkStateNotNull(retryBackOff).backoff();

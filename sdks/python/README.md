@@ -42,7 +42,7 @@ Have ideas for new Runners? See the [runner-ideas label](https://github.com/apac
 
 ## Get started with the Python SDK
 
-Get started with the [Beam Python SDK quickstart](/get-started/quickstart-py) to set up your Python development environment, get the Beam SDK for Python, and run an example pipeline. Then, read through the [Beam programming guide](/documentation/programming-guide) to learn the basic concepts that apply to all SDKs in Beam.
+Get started with the [Beam Python SDK quickstart](/get-started/quickstart-py) to set up your Python development environment, get the Beam SDK for Python, and run an example pipeline. Then, read through the [Beam programming guide](/documentation/programming-guide) to learn the basic concepts that apply to all SDKs in Beam. The [Python Tips document](../../contributor-docs/python-tips.md) is also a useful resource for setting up a development environment and performing common processes.
 
 See the [Python API reference](https://beam.apache.org/releases/pydoc/) for more information on individual APIs.
 

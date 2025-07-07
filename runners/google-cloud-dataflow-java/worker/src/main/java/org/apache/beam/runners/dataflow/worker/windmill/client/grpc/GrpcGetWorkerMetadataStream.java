@@ -32,6 +32,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.Ge
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
 import org.apache.beam.sdk.util.BackOff;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Status;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -93,15 +94,6 @@ public final class GrpcGetWorkerMetadataStream
   }
 
   /**
-   * Each instance of {@link AbstractWindmillStream} owns its own responseObserver that calls
-   * onResponse().
-   */
-  @Override
-  protected void onResponse(WorkerMetadataResponse response) {
-    extractWindmillEndpointsFrom(response).ifPresent(serverMappingConsumer);
-  }
-
-  /**
    * Acquires the {@link #metadataLock} Returns {@link Optional<WindmillEndpoints>} if the
    * metadataVersion in the response is not stale (older or equal to current {@link
    * WorkerMetadataResponse#getMetadataVersion()}), else returns empty {@link Optional}.
@@ -127,16 +119,30 @@ public final class GrpcGetWorkerMetadataStream
   }
 
   @Override
-  protected void onNewStream() throws WindmillStreamShutdownException {
-    trySend(workerMetadataRequest);
+  protected PhysicalStreamHandler newResponseHandler() {
+    return new PhysicalStreamHandler() {
+
+      @Override
+      public void onResponse(WorkerMetadataResponse response) {
+        extractWindmillEndpointsFrom(response).ifPresent(serverMappingConsumer);
+      }
+
+      @Override
+      public boolean hasPendingRequests() {
+        return false;
+      }
+
+      @Override
+      public void onDone(Status status) {}
+
+      @Override
+      public void appendHtml(PrintWriter writer) {}
+    };
   }
 
   @Override
-  protected void shutdownInternal() {}
-
-  @Override
-  protected boolean hasPendingRequests() {
-    return false;
+  protected void onNewStream() throws WindmillStreamShutdownException {
+    trySend(workerMetadataRequest);
   }
 
   @Override

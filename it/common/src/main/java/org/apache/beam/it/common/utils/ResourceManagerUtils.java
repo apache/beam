@@ -138,6 +138,17 @@ public class ResourceManagerUtils {
    * @param managers Varargs of the managers to clean
    */
   public static void cleanResources(ResourceManager... managers) {
+    cleanResources(false, managers);
+  }
+
+  /**
+   * Cleanup Resources from the given ResourceManagers. It will guarantee that all the cleanups are
+   * invoked, but still throws / bubbles the first exception at the end if something went wrong.
+   *
+   * @param failOnCleanup Throw exception if cleanup fails.
+   * @param managers Varargs of the managers to clean
+   */
+  public static void cleanResources(boolean failOnCleanup, ResourceManager... managers) {
 
     if (managers == null || managers.length == 0) {
       return;
@@ -160,8 +171,12 @@ public class ResourceManagerUtils {
       }
     }
 
-    if (bubbleException != null) {
+    if (bubbleException != null && failOnCleanup) {
       throw new RuntimeException("Error cleaning up resources", bubbleException);
+    } else if (bubbleException != null) {
+      LOG.warn(
+          "Error cleaning up resources. This is not configured to fail the test: {}",
+          bubbleException.getMessage());
     }
   }
 

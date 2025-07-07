@@ -16,10 +16,10 @@
 # limitations under the License.
 #
 
-"""
-This file contains the input data to be requested by the example tests, if
-needed.
-"""
+from apache_beam.io.gcp.pubsub import PubsubMessage
+
+# This file contains the input data to be requested by the example tests, if
+# needed.
 
 
 def text_data():
@@ -78,7 +78,7 @@ def spanner_orders_data():
           }]
 
 
-def spanner_shipments_data():
+def shipments_data():
   return [{
       'shipment_id': 'S1',
       'customer_id': 'C1',
@@ -165,3 +165,15 @@ def bigquery_data():
               'customer_name': 'Claire',
               'customer_email': 'claire@gmail.com'
           }]
+
+
+def pubsub_messages_data():
+  """
+  Provides a list of PubsubMessage objects for testing.
+  """
+  return [
+      PubsubMessage(data=b"{\"label\": \"37a\", \"rank\": 1}", attributes={}),
+      PubsubMessage(data=b"{\"label\": \"37b\", \"rank\": 4}", attributes={}),
+      PubsubMessage(data=b"{\"label\": \"37c\", \"rank\": 3}", attributes={}),
+      PubsubMessage(data=b"{\"label\": \"37d\", \"rank\": 2}", attributes={}),
+  ]

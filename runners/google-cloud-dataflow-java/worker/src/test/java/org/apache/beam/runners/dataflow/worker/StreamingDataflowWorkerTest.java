@@ -1226,6 +1226,8 @@ public class StreamingDataflowWorkerTest {
             .build(),
         removeDynamicFields(result.get(1L)));
     assertEquals(1, result.size());
+
+    worker.stop();
   }
 
   @Test
@@ -1301,6 +1303,7 @@ public class StreamingDataflowWorkerTest {
       }
     }
     assertTrue(foundErrors);
+    worker.stop();
   }
 
   @Test
@@ -1338,6 +1341,7 @@ public class StreamingDataflowWorkerTest {
     assertEquals(
         makeExpectedOutput(1, 0, bigKey, DEFAULT_SHARDING_KEY, "smaller_key").build(),
         removeDynamicFields(result.get(1L)));
+    worker.stop();
   }
 
   @Test
@@ -1375,6 +1379,7 @@ public class StreamingDataflowWorkerTest {
     assertEquals(
         makeExpectedOutput(1, 0, "key", DEFAULT_SHARDING_KEY, "smaller_key").build(),
         removeDynamicFields(result.get(1L)));
+    worker.stop();
   }
 
   @Test
@@ -1429,6 +1434,7 @@ public class StreamingDataflowWorkerTest {
               .build(),
           removeDynamicFields(result.get((long) i + 1000)));
     }
+    worker.stop();
   }
 
   @Test(timeout = 30000)
@@ -1530,6 +1536,7 @@ public class StreamingDataflowWorkerTest {
     assertEquals(keyString, stats.getKey().toStringUtf8());
     assertEquals(0, stats.getWorkToken());
     assertEquals(1, stats.getShardingKey());
+    worker.stop();
   }
 
   @Test
@@ -1605,6 +1612,7 @@ public class StreamingDataflowWorkerTest {
                     intervalWindowBytes(WINDOW_AT_ONE_SECOND),
                     makeExpectedOutput(timestamp2, timestamp2))
                 .build()));
+    worker.stop();
   }
 
   private void verifyTimers(WorkItemCommitRequest commit, Timer... timers) {
@@ -1929,6 +1937,7 @@ public class StreamingDataflowWorkerTest {
         splitIntToLong(getCounter(counters, "WindmillStateBytesWritten").getInteger()));
     // No input messages
     assertEquals(0L, splitIntToLong(getCounter(counters, "WindmillShuffleBytesRead").getInteger()));
+    worker.stop();
   }
 
   @Test
@@ -2223,6 +2232,7 @@ public class StreamingDataflowWorkerTest {
     LOG.info("cache stats {}", stats);
     assertEquals(1, stats.hitCount());
     assertEquals(4, stats.missCount());
+    worker.stop();
   }
 
   // Helper for running tests for merging sessions based upon Actions consisting of GetWorkResponse
@@ -2304,6 +2314,7 @@ public class StreamingDataflowWorkerTest {
       verifyTimers(actualOutput, action.expectedTimers);
       verifyHolds(actualOutput, action.expectedHolds);
     }
+    worker.stop();
   }
 
   @Test
@@ -2590,6 +2601,7 @@ public class StreamingDataflowWorkerTest {
                 .build()));
 
     assertNull(getCounter(counters, "dataflow_input_size-computation"));
+    worker.stop();
   }
 
   @Test
@@ -2702,6 +2714,7 @@ public class StreamingDataflowWorkerTest {
                 .build()));
 
     assertThat(finalizeTracker, contains(0));
+    worker.stop();
   }
 
   // Regression test to ensure that a reader is not used from the cache
@@ -2835,6 +2848,7 @@ public class StreamingDataflowWorkerTest {
                 .build()));
 
     assertThat(finalizeTracker, contains(0));
+    worker.stop();
   }
 
   @Test
@@ -3412,6 +3426,7 @@ public class StreamingDataflowWorkerTest {
                       parseCommitRequest(sb.toString()))
                   .build()));
     }
+    worker.stop();
   }
 
   @Test
@@ -3909,6 +3924,7 @@ public class StreamingDataflowWorkerTest {
     commit = result.get(2L);
 
     assertThat(commit.getSerializedSize(), isWithinBundleSizeLimits);
+    worker.stop();
   }
 
   @Test
@@ -3990,6 +4006,7 @@ public class StreamingDataflowWorkerTest {
     commit = result.get(2L);
 
     assertThat(commit.getSerializedSize(), isWithinBundleSizeLimits);
+    worker.stop();
   }
 
   @Test
@@ -4173,7 +4190,9 @@ public class StreamingDataflowWorkerTest {
 
   static class TestExceptionFn extends DoFn<String, String> {
 
-    boolean firstTime = true;
+    // Note that the use of static works because this DoFn is only used in a single test.  We need
+    // to use static as the DoFn is not cached after user-code exceptions.
+    static boolean firstTime = true;
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
