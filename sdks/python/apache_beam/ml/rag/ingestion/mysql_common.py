@@ -134,7 +134,7 @@ class ColumnSpec:
     return cls(column_name, str, value_fn)
 
 
-def embedding_to_string(embedding: List[Float]) -> str:
+def embedding_to_string(embedding: List[float]) -> str:
   """Convert embedding to MySQL vector string format."""
   return '[' + ','.join(str(x) for x in embedding) + ']'
 
