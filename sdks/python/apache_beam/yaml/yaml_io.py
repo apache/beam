@@ -494,7 +494,7 @@ def write_to_pubsub(
 
 def read_from_iceberg(
     table: str,
-    filter: str = None,
+    filter: Optional[str] = None,
     keep: Optional[list[str]] = None,
     drop: Optional[list[str]] = None,
     catalog_name: Optional[str] = None,
