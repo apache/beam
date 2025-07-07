@@ -473,13 +473,11 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
                         && (row.getInt32("int_field") < 500 || row.getInt32("modulo_5") == 3))
             .map(rowFilter::filter)
             .collect(Collectors.toList());
-    System.out.println("expected rows: " + expectedRows);
 
     Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
     config.put(
         "filter",
-        "\"datetime_tz\" > DATE '2025-01-01' AND (\"int_field\" < 500 OR \"modulo_5\" = 3)");
-    //        "\"datetime_tz\" > '2025-01-01 06:00' AND (\"int_field\" < 500 OR \"modulo_5\" = 3)");
+        "\"datetime_tz\" > '2025-01-01 06:00' AND (\"int_field\" < 500 OR \"modulo_5\" = 3)");
     config.put("keep", keepFields);
 
     PCollection<Row> rows =
