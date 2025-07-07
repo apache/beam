@@ -264,7 +264,6 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
         Schema.builder()
             .addByteArrayField("key")
             .addStringField("type")
-            .addByteArrayField("value")
             .addByteArrayField("column_qualifier")
             .addByteArrayField("family_name")
             .build();
