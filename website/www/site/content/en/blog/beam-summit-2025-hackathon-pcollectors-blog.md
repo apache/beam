@@ -21,7 +21,7 @@ date: 2025-07-08
 authors:
     - adityashukla
     - darshankanade
-categories: ["blog"]
+categories: "blog"
 tags: ["apache-beam", "medical-imaging", "dataflow", "pipeline"]
 description: "Building a scalable WSI preprocessing pipeline using Apache Beam and Google Cloud Dataflow."
 ---
