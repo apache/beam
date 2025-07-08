@@ -84,8 +84,8 @@ public class ExecutionStateSampler {
           .toFormatter();
   private final int periodMs;
   private final MillisProvider clock;
-  private final long userAllowedLullTimeMsForRestart;
-  private final boolean userAllowedTimeoutForRestart;
+  private final long userSpecifiedLullTimeMsForRestart;
+  private final boolean userSpecifiedTimeoutForRestart;
 
   @GuardedBy("activeStateTrackers")
   private final Set<ExecutionStateTracker> activeStateTrackers;
@@ -104,21 +104,21 @@ public class ExecutionStateSampler {
     this.clock = clock;
     this.activeStateTrackers = new HashSet<>();
 
-    int timeoutOption = options.as(SdkHarnessOptions.class).getElementProcessingTimeout();
+    int timeoutOption = options.as(SdkHarnessOptions.class).getElementProcessingTimeoutMinutes();
     if (timeoutOption <= 0) {
-      this.userAllowedLullTimeMsForRestart = 0L;
-      this.userAllowedTimeoutForRestart = false;
+      this.userSpecifiedLullTimeMsForRestart = 0L;
+      this.userSpecifiedTimeoutForRestart = false;
     } else {
-      this.userAllowedTimeoutForRestart = true;
+      this.userSpecifiedTimeoutForRestart = true;
       long timeoutMs = TimeUnit.MINUTES.toMillis(timeoutOption);
-      this.userAllowedLullTimeMsForRestart =
+      this.userSpecifiedLullTimeMsForRestart =
           Math.max(timeoutMs, ExecutionStateSampler.MIN_LULL_TIME_MS_FOR_RESTART);
       if (timeoutMs < ExecutionStateSampler.MIN_LULL_TIME_MS_FOR_RESTART) {
         LOG.info(
             String.format(
-                "The user defined ElementProcessingTimeout is too short for "
+                "The user defined ElementProcessingTimeoutMinutes is too short for "
                     + "a PTransform operation and has been set to %d minutes",
-                TimeUnit.MILLISECONDS.toMinutes(this.userAllowedLullTimeMsForRestart)));
+                TimeUnit.MILLISECONDS.toMinutes(this.userSpecifiedLullTimeMsForRestart)));
       }
     }
 
@@ -175,13 +175,13 @@ public class ExecutionStateSampler {
   }
 
   @VisibleForTesting
-  public boolean getUserAllowedTimeoutForRestart() {
-    return this.userAllowedTimeoutForRestart;
+  public boolean getUserSpecifiedTimeoutForRestart() {
+    return this.userSpecifiedTimeoutForRestart;
   }
 
   @VisibleForTesting
-  public long getUserAllowedLullTimeMsForRestart() {
-    return this.userAllowedLullTimeMsForRestart;
+  public long getUserSpecifiedLullTimeMsForRestart() {
+    return this.userSpecifiedLullTimeMsForRestart;
   }
 
   /** Entry point for the state sampling thread. */
@@ -212,7 +212,7 @@ public class ExecutionStateSampler {
                       "Exception caught: %s The SDK worker will terminate and restart because the"
                           + " lull time is longer than %d minutes",
                       e.getMessage(),
-                      TimeUnit.MILLISECONDS.toMinutes(this.userAllowedLullTimeMsForRestart)));
+                      TimeUnit.MILLISECONDS.toMinutes(this.userSpecifiedLullTimeMsForRestart)));
             }
           }
         }
@@ -409,7 +409,7 @@ public class ExecutionStateSampler {
       } else {
         long lullTimeMs = currentTimeMillis - lastTransitionTimeMillis.get();
 
-        if (userAllowedTimeoutForRestart && lullTimeMs > userAllowedLullTimeMsForRestart) {
+        if (userSpecifiedTimeoutForRestart && lullTimeMs > userSpecifiedLullTimeMsForRestart) {
           String timeoutMessage = "";
           if (thread == null) {
             timeoutMessage =
@@ -418,7 +418,7 @@ public class ExecutionStateSampler {
                         + "or completing (stack trace unable to be generated). The SDK worker will restart.",
                     processBundleId.get(),
                     DURATION_FORMATTER.print(
-                        Duration.millis(userAllowedLullTimeMsForRestart).toPeriod()));
+                        Duration.millis(userSpecifiedLullTimeMsForRestart).toPeriod()));
           } else if (currentExecutionState == null) {
             timeoutMessage =
                 String.format(
@@ -426,7 +426,7 @@ public class ExecutionStateSampler {
                         + "or completing:%n  at %s. The SDK worker will restart.",
                     processBundleId.get(),
                     DURATION_FORMATTER.print(
-                        Duration.millis(userAllowedLullTimeMsForRestart).toPeriod()),
+                        Duration.millis(userSpecifiedLullTimeMsForRestart).toPeriod()),
                     Joiner.on("\n  at ").join(thread.getStackTrace()));
           } else {
             timeoutMessage =
@@ -438,7 +438,7 @@ public class ExecutionStateSampler {
                     currentExecutionState.ptransformUniqueName,
                     currentExecutionState.stateName,
                     DURATION_FORMATTER.print(
-                        Duration.millis(userAllowedLullTimeMsForRestart).toPeriod()),
+                        Duration.millis(userSpecifiedLullTimeMsForRestart).toPeriod()),
                     Joiner.on("\n  at ").join(thread.getStackTrace()));
           }
 
