@@ -767,7 +767,7 @@ public class ExecutionStateSamplerTest {
   }
 
   @Test
-  public void testUserDefinedElementProcessingTimeoutMinutesNoExceptionThrown() throws Exception {
+  public void testUserSpecifiedElementProcessingTimeoutMinutesNoExceptionThrown() throws Exception {
     MillisProvider clock = mock(MillisProvider.class);
     ExecutionStateSampler sampler =
         new ExecutionStateSampler(
@@ -809,7 +809,7 @@ public class ExecutionStateSamplerTest {
   }
 
   @Test
-  public void testUserDefinedElementProcessingTimeoutMinutesOverriden() {
+  public void testUserSpecifiedElementProcessingTimeoutMinutesOverriden() {
     MillisProvider clock = mock(MillisProvider.class);
     ExecutionStateSampler sampler =
         new ExecutionStateSampler(
@@ -823,7 +823,7 @@ public class ExecutionStateSamplerTest {
   }
 
   @Test
-  public void testUserDefinedElementProcessingTimeoutMinutesNotOverriden() {
+  public void testUserSpecifiedElementProcessingTimeoutMinutesNotOverriden() {
     MillisProvider clock = mock(MillisProvider.class);
     ExecutionStateSampler sampler =
         new ExecutionStateSampler(
