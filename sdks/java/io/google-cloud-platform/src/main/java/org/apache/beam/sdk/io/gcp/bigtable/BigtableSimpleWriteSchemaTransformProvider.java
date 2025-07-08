@@ -103,8 +103,7 @@ public class BigtableSimpleWriteSchemaTransformProvider
                       (Row input) -> {
                         @SuppressWarnings("nullness")
                         ByteString key =
-                            ByteString.copyFromUtf8(
-                                (Objects.requireNonNull(input.getString("key"))));
+                            ByteString.copyFrom(((Objects.requireNonNull(input.getBytes("key")))));
 
                         Mutation bigtableMutation;
                         String mutationType =
@@ -118,16 +117,16 @@ public class BigtableSimpleWriteSchemaTransformProvider
                             Mutation.SetCell.Builder setMutation =
                                 Mutation.SetCell.newBuilder()
                                     .setValue(
-                                        ByteString.copyFromUtf8(
-                                            (Objects.requireNonNull(input.getString("value")))))
+                                        ByteString.copyFrom(
+                                            ((Objects.requireNonNull(input.getBytes("value"))))))
                                     .setColumnQualifier(
-                                        ByteString.copyFromUtf8(
-                                            (Objects.requireNonNull(
-                                                input.getString("column_qualifier")))))
+                                        ByteString.copyFrom(
+                                            ((Objects.requireNonNull(
+                                                input.getBytes("column_qualifier"))))))
                                     .setFamilyNameBytes(
-                                        ByteString.copyFromUtf8(
+                                        ByteString.copyFrom(
                                             (Objects.requireNonNull(
-                                                input.getString("family_name")))));
+                                                input.getBytes("family_name")))));
                             // Use timestamp if provided, else default to -1 (current
                             // Bigtable
                             // server time)
@@ -145,13 +144,12 @@ public class BigtableSimpleWriteSchemaTransformProvider
                             Mutation.DeleteFromColumn.Builder deleteMutation =
                                 Mutation.DeleteFromColumn.newBuilder()
                                     .setColumnQualifier(
-                                        ByteString.copyFromUtf8(
-                                            String.valueOf(
-                                                ofNullable(input.getString("column_qualifier")))))
+                                        ByteString.copyFrom(
+                                            Objects.requireNonNull(
+                                                input.getBytes("column_qualifier"))))
                                     .setFamilyNameBytes(
-                                        ByteString.copyFromUtf8(
-                                            String.valueOf(
-                                                ofNullable(input.getString("family_name")))));
+                                        ByteString.copyFrom(
+                                            ofNullable(input.getBytes("family_name")).get()));
 
                             // if start or end timestamp provided
                             // Timestamp Range (optional, assuming Long type in Row schema)
@@ -179,10 +177,9 @@ public class BigtableSimpleWriteSchemaTransformProvider
                                     .setDeleteFromFamily(
                                         Mutation.DeleteFromFamily.newBuilder()
                                             .setFamilyNameBytes(
-                                                ByteString.copyFromUtf8(
-                                                    (String.valueOf(
-                                                        ofNullable(
-                                                            input.getString("family_name"))))))
+                                                ByteString.copyFrom(
+                                                    ofNullable(input.getBytes("family_name"))
+                                                        .get()))
                                             .build())
                                     .build();
                             break;
