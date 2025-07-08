@@ -25,7 +25,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -826,31 +829,60 @@ public class ExecutionStateSamplerTest {
   }
 
   @Test
-  public void testUserSpecifiedElementProcessingTimeoutMinutesOverriden() {
-    MillisProvider clock = mock(MillisProvider.class);
-    ExecutionStateSampler sampler =
-        new ExecutionStateSampler(
-            PipelineOptionsFactory.fromArgs("--elementProcessingTimeoutMinutes=5").create(),
-            clock,
-            mockOnTimeoutExceededCallback);
-    assertThat(
-        sampler.getUserSpecifiedLullTimeMsForRestart(), equalTo(TimeUnit.MINUTES.toMillis(10)));
-    assertThat(sampler.getUserSpecifiedTimeoutForRestart(), equalTo(true));
-    expectedLogs.verifyInfo(
-        "The user defined ElementProcessingTimeoutMinutes is too short for "
-            + "a PTransform operation and has been set to 10 minutes");
-  }
-
-  @Test
-  public void testUserSpecifiedElementProcessingTimeoutMinutesNotOverriden() {
+  public void testUserSpecifiedElementProcessingTimeoutMinutesExceptionThrown() throws Exception {
     MillisProvider clock = mock(MillisProvider.class);
     ExecutionStateSampler sampler =
         new ExecutionStateSampler(
             PipelineOptionsFactory.fromArgs("--elementProcessingTimeoutMinutes=20").create(),
             clock,
             mockOnTimeoutExceededCallback);
+    ExecutionStateTracker tracker = sampler.create();
+    ExecutionState state = tracker.create("shortId", "ptransformId", "ptransformIdName", "process");
+
+    CountDownLatch waitTillActive = new CountDownLatch(1);
+    CountDownLatch waitForSamples = new CountDownLatch(10);
+    Thread testThread = Thread.currentThread();
+    when(clock.getMillis())
+        .thenAnswer(
+            new Answer<Long>() {
+              private long currentTime;
+
+              @Override
+              public Long answer(InvocationOnMock invocation) throws Throwable {
+                if (Thread.currentThread().equals(testThread)) {
+                  return 0L;
+                } else {
+                  // Block the state sampling thread till the state is active
+                  // and unblock the state transition once a certain number of samples
+                  // have been taken.
+                  waitTillActive.await();
+                  waitForSamples.countDown();
+                  currentTime += Duration.standardMinutes(100).getMillis();
+                  return currentTime;
+                }
+              }
+            });
+
+    tracker.start("bundleId");
+    state.activate();
+    waitTillActive.countDown();
+    waitForSamples.await();
+    state.deactivate();
+    tracker.reset();
+    sampler.stop();
+    verify(mockOnTimeoutExceededCallback, times(1)).accept(anyString());
+  }
+
+  @Test
+  public void testUserSpecifiedElementProcessingTimeoutMinutes() {
+    MillisProvider clock = mock(MillisProvider.class);
+    ExecutionStateSampler sampler =
+        new ExecutionStateSampler(
+            PipelineOptionsFactory.fromArgs("--elementProcessingTimeoutMinutes=2").create(),
+            clock,
+            mockOnTimeoutExceededCallback);
     assertThat(
-        sampler.getUserSpecifiedLullTimeMsForRestart(), equalTo(TimeUnit.MINUTES.toMillis(20)));
+        sampler.getUserSpecifiedLullTimeMsForRestart(), equalTo(TimeUnit.MINUTES.toMillis(2)));
   }
 
   @Test
