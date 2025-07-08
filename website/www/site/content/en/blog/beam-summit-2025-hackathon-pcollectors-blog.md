@@ -1,5 +1,12 @@
-# Our Experience at Beam College 2025: 1st Place Hackathon Winners  
-Aditya Shukla & Darshan Kanade
+---
+title: "Our Experience at Beam College 2025: 1st Place Hackathon Winners"
+date: 2025-07-08
+authors:
+    - Aditya Shukla & Darshan Kanade
+categories: ["blog"]
+tags: ["apache-beam", "medical-imaging", "dataflow", "pipeline"]
+description: "Building a scalable WSI preprocessing pipeline using Apache Beam and Google Cloud Dataflow."
+---
 
 ## Introduction: The Beam of an Idea  
 In the world of machine learning for healthcare, preprocessing large pathology image datasets at scale remains a bottleneck. Whole Slide Images (WSIs) in medical imaging can reach massive sizes. Traditional Python tools (PIL, etc.) fail under memory pressure, especially when handling thousands of such high-resolution images. This becomes a bottleneck for ML modeling tasks using standard tools.
