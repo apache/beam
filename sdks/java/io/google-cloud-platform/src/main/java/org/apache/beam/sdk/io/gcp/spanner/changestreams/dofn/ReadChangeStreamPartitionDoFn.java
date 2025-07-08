@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn;
 
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.MAX_INCLUSIVE_END_AT;
+
 import java.io.Serializable;
 import java.math.BigDecimal;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
@@ -137,7 +139,9 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
     final com.google.cloud.Timestamp startTimestamp = partition.getStartTimestamp();
     // Range represents closed-open interval
     final com.google.cloud.Timestamp endTimestamp =
-        TimestampUtils.next(partition.getEndTimestamp());
+        partition.getEndTimestamp().equals(MAX_INCLUSIVE_END_AT)
+            ? getNextReadChangeStreamEndTimestamp()
+            : TimestampUtils.next(partition.getEndTimestamp());
     final com.google.cloud.Timestamp partitionScheduledAt = partition.getScheduledAt();
     final com.google.cloud.Timestamp partitionRunningAt =
         daoFactory.getPartitionMetadataDao().updateToRunning(token);
@@ -151,6 +155,15 @@ public class ReadChangeStreamPartitionDoFn extends DoFn<PartitionMetadata, DataC
 
     metrics.incActivePartitionReadCounter();
     return TimestampRange.of(startTimestamp, endTimestamp);
+  }
+
+  // Return (now + 2 mins) as the end timestamp for reading change streams. This is only used if
+  // users want to run the connector forever. This approach works because Google Dataflow
+  // checkpoints every 5s or 5MB output provided and the change stream query has deadline for 1 min.
+  private com.google.cloud.Timestamp getNextReadChangeStreamEndTimestamp() {
+    final com.google.cloud.Timestamp current = com.google.cloud.Timestamp.now();
+    return com.google.cloud.Timestamp.ofTimeSecondsAndNanos(
+        current.getSeconds() + 2 * 60, current.getNanos());
   }
 
   @GetSize
