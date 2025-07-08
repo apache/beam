@@ -400,7 +400,6 @@ public class ExecutionStateSampler {
         currentExecutionState.takeSample(millisSinceLastSample);
       }
 
-      Thread thread = trackedThread.get();
       long transitionsAtThisSample = numTransitionsLazy.get();
 
       if (transitionsAtThisSample != transitionsAtLastSample) {
@@ -411,6 +410,7 @@ public class ExecutionStateSampler {
 
         if (userSpecifiedTimeoutForRestart && lullTimeMs > userSpecifiedLullTimeMsForRestart) {
           String timeoutMessage = "";
+          Thread thread = trackedThread.get();
           if (thread == null) {
             timeoutMessage =
                 String.format(
@@ -452,6 +452,7 @@ public class ExecutionStateSampler {
                   > MAX_LULL_TIME_MS + lastLullReport // At least once every MAX_LULL_TIME_MS.
           ) {
             lastLullReport = lullTimeMs;
+            Thread thread = trackedThread.get();
             if (thread == null) {
               LOG.warn(
                   String.format(
