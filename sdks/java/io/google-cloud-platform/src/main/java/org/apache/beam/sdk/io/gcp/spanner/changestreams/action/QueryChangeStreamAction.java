@@ -178,10 +178,11 @@ public class QueryChangeStreamAction {
       BundleFinalizer bundleFinalizer) {
     final String token = partition.getPartitionToken();
     final Timestamp startTimestamp = tracker.currentRestriction().getFrom();
+    final Timestamp endTimestamp = partition.getEndTimestamp();
     final Timestamp changeStreamQueryEndTimestamp =
-        partition.getEndTimestamp().equals(MAX_INCLUSIVE_END_AT)
+        endTimestamp.equals(MAX_INCLUSIVE_END_AT)
             ? getNextReadChangeStreamEndTimestamp()
-            : partition.getEndTimestamp();
+            : endTimestamp;
 
     // TODO: Potentially we can avoid this fetch, by enriching the runningAt timestamp when the
     // ReadChangeStreamPartitionDoFn#processElement is called
@@ -287,7 +288,7 @@ public class QueryChangeStreamAction {
             "[{}] query change stream is out of range for {} to {}, finishing stream.",
             token,
             startTimestamp,
-            changeStreamQueryEndTimestamp,
+            endTimestamp,
             e);
       } else {
         throw e;
@@ -297,13 +298,13 @@ public class QueryChangeStreamAction {
           "[{}] query change stream had exception processing range {} to {}.",
           token,
           startTimestamp,
-          changeStreamQueryEndTimestamp,
+          endTimestamp,
           e);
       throw e;
     }
 
     LOG.debug("[{}] change stream completed successfully", token);
-    if (tracker.tryClaim(changeStreamQueryEndTimestamp)) {
+    if (tracker.tryClaim(endTimestamp)) {
       LOG.debug("[{}] Finishing partition", token);
       partitionMetadataDao.updateToFinished(token);
       metrics.decActivePartitionReadCounter();
