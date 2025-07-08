@@ -112,5 +112,4 @@ public class SdkHarnessOptionsTest {
         testValue,
         MAPPER.writeValueAsString(MAPPER.readValue(testValue, SdkHarnessLogLevelOverrides.class)));
   }
-
 }
