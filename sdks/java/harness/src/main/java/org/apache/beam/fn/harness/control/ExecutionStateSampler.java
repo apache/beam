@@ -198,7 +198,8 @@ public class ExecutionStateSampler {
         long millisSinceLastSample = currentTimeMillis - lastSampleTimeMillis;
         synchronized (activeStateTrackers) {
           for (ExecutionStateTracker activeTracker : activeStateTrackers) {
-            Optional<String> errMsg = activeTracker.takeSample(currentTimeMillis, millisSinceLastSample);
+            Optional<String> errMsg =
+                activeTracker.takeSample(currentTimeMillis, millisSinceLastSample);
             if (errMsg.isPresent()) {
               this.onTimeoutExceededCallback.accept(
                   String.format(
