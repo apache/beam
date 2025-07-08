@@ -200,7 +200,7 @@ public class ExecutionStateSampler {
           for (ExecutionStateTracker activeTracker : activeStateTrackers) {
             Optional<String> errMsg =
                 activeTracker.takeSample(currentTimeMillis, millisSinceLastSample);
-            if (errMsg.isPresent()) {
+            if (errMsg.isPresent() && this.onTimeoutExceededCallback != null) {
               this.onTimeoutExceededCallback.accept(
                   String.format(
                       "Exception caught: %s The SDK worker will terminate and restart because the"
