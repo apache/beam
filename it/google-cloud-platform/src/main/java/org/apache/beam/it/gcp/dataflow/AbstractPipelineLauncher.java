@@ -141,6 +141,20 @@ public abstract class AbstractPipelineLauncher implements PipelineLauncher {
   }
 
   @Override
+  public Job forceCancelJob(String project, String region, String jobId) throws IOException {
+    LOG.info("Force-cancelling {} under {}", jobId, project);
+    Job job =
+        new Job()
+            .setRequestedState(JobState.CANCELLED.toString())
+            .setLabels(ImmutableMap.of("force_cancel_job", "true"));
+    LOG.info("Sending job to update {}:\n{}", jobId, formatForLogging(job));
+    return Failsafe.with(clientRetryPolicy())
+        .get(
+            () ->
+                client.projects().locations().jobs().update(project, region, jobId, job).execute());
+  }
+
+  @Override
   public @Nullable Double getMetric(String project, String region, String jobId, String metricName)
       throws IOException {
     LOG.info("Getting '{}' metric for {} under {}", metricName, jobId, project);

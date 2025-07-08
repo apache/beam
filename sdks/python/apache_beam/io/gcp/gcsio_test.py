@@ -174,7 +174,8 @@ class FakeBucket(object):
     if name in bucket.blobs:
       return bucket.blobs[name]
     else:
-      return bucket.create_blob(name)
+      new_blob = bucket._create_blob(name)
+      return bucket.add_blob(new_blob)
 
   def set_default_kms_key_name(self, name):
     self.default_kms_key_name = name

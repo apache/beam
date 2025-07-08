@@ -37,7 +37,7 @@ project.tasks.register("preCommitPyCoverage") {
 }
 
 // Dep Postcommit runs test suites that evaluate compatibility of particular
-// dependencies. It is exercised on a single Python version.
+// dependencies. Each suite is exercised on at most one python version.
 //
 // Should still leave at least one version in PreCommit unless the marked tests
 // are also exercised by existing PreCommit

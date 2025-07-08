@@ -40,10 +40,15 @@ task removeStaleSpannerResources(type: Exec) {
   commandLine './stale_spanner_cleaner.sh'
 }
 
+task runStaleCleaner(type: Exec) {
+  commandLine 'bash', '-c', 'pip install -r requirements.txt && python3 stale_cleaner.py'
+}
+
 task cleanupOtherStaleResources {
   // declared as finalizedBy dependency so that other task continue even if one dep task fails
   finalizedBy tasks.removeStaleBqDatasets
   finalizedBy tasks.removeStaleCbtInstances
   finalizedBy tasks.removeStaleK8sWorkload
   finalizedBy tasks.removeStaleSpannerResources
+  finalizedBy tasks.runStaleCleaner
 }

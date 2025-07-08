@@ -133,8 +133,6 @@ public class DataflowBatchWorkerHarness {
           }
           // Sleeping a while if there is a problem with the work, then go on with the next work.
         } while (success || BackOffUtils.next(sleeper, backOff));
-      } catch (IOException e) { // Failure of BackOff.
-        LOG.error("Already tried several attempts at working on tasks. Aborting.", e);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         LOG.error("Interrupted during thread execution or sleep.", e);

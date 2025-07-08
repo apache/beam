@@ -36,6 +36,12 @@ dependencies {
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     implementation library.java.slf4j_api
     implementation library.java.joda_time
+    // Explicitly declare Jackson dependencies
+    // and align with the 2.17.1 version.
+    implementation 'com.fasterxml.jackson.core:jackson-core:2.17.1'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.17.1'
+    permitUnusedDeclared 'com.fasterxml.jackson.core:jackson-core:2.17.1'
+    permitUnusedDeclared 'com.fasterxml.jackson.core:jackson-databind:2.17.1'
     provided library.java.jackson_dataformat_csv
     permitUnusedDeclared library.java.jackson_dataformat_csv
 
@@ -66,24 +72,19 @@ dependencies {
     testImplementation group: 'io.debezium', name: 'debezium-connector-postgres', version: '3.1.1.Final'
 }
 
-// TODO: Remove pin after Beam has unpinned it (PR #35231)
-// Pin the Antlr version
+// Pin the Antlr version to 4.10
+// and force Jackson versions to 2.17.1
+// TODO: Remove pin after upgrading Beam's Jackson version
+// This overrides the global 2.15.4 forced by BeamModulePlugin.
 configurations.all {
     resolutionStrategy {
-        force 'org.antlr:antlr4:4.10', 'org.antlr:antlr4-runtime:4.10'
+        force 'org.antlr:antlr4:4.10',
+                'org.antlr:antlr4-runtime:4.10',
+                'com.fasterxml.jackson.core:jackson-core:2.17.1',
+                'com.fasterxml.jackson.core:jackson-annotations:2.17.1',
+                'com.fasterxml.jackson.core:jackson-databind:2.17.1',
+                'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.17.1'
     }
-}
-
-// TODO: Remove pin after upgrading Beam's Jackson version
-// Force Jackson versions for the test runtime classpath
-configurations.named("testRuntimeClasspath") {
-    resolutionStrategy.force (
-        'com.fasterxml.jackson.core:jackson-core:2.17.1',
-        'com.fasterxml.jackson.core:jackson-annotations:2.17.1',
-        'com.fasterxml.jackson.core:jackson-databind:2.17.1',
-        'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.17.1',
-        'com.fasterxml.jackson.module:jackson-module-afterburner:2.17.1'
-    )
 }
 
 def configureTestJvmArgs(Task task) {

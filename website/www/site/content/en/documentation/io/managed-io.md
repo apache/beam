@@ -97,6 +97,7 @@ and Beam SQL is invoked via the Managed API under the hood.
         keep (<code>list[<span style="color: green;">str</span>]</code>)<br>
         only (<code style="color: green">str</code>)<br>
         partition_fields (<code>list[<span style="color: green;">str</span>]</code>)<br>
+        table_properties (<code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>)<br>
         triggering_frequency_seconds (<code style="color: #f54251">int32</code>)<br>
       </td>
     </tr>
@@ -418,6 +419,18 @@ and Beam SQL is invoked via the Managed API under the hood.
 - `void(foo)`
 
 For more information on partition transforms, please visit https://iceberg.apache.org/spec/#partition-transforms.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        table_properties
+      </td>
+      <td>
+        <code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        Iceberg table properties to be set on the table when it is created.
+For more information on table properties, please visit https://iceberg.apache.org/docs/latest/configuration/#table-properties.
       </td>
     </tr>
     <tr>

@@ -106,7 +106,6 @@ dependencies {
   implementation library.java.snake_yaml
   shadowTest library.java.everit_json_schema
   provided library.java.junit
-  testImplementation "com.github.stefanbirkner:system-rules:1.19.0"
   provided library.java.hamcrest
   provided 'io.airlift:aircompressor:0.18'
   provided 'com.facebook.presto.hadoop:hadoop-apache2:3.2.0-1'
@@ -125,7 +124,6 @@ dependencies {
   shadowTest library.java.log4j2_api
   shadowTest library.java.jamm
   testRuntimeOnly library.java.slf4j_jdk14
-  testImplementation "com.github.stefanbirkner:system-rules:1.19.0"
 }
 
 project.tasks.compileTestJava {

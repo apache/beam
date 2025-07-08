@@ -163,13 +163,22 @@ public class TestDataWarehouse extends ExternalResource {
   }
 
   public Table createTable(TableIdentifier tableId, Schema schema) {
-    return createTable(tableId, schema, null);
+    return createTable(tableId, schema, null, null);
   }
 
   public Table createTable(
       TableIdentifier tableId, Schema schema, @Nullable PartitionSpec partitionSpec) {
     someTableHasBeenCreated = true;
-    return catalog.createTable(tableId, schema, partitionSpec);
+    return catalog.createTable(tableId, schema, partitionSpec, null);
+  }
+
+  public Table createTable(
+      TableIdentifier tableId,
+      Schema schema,
+      @Nullable PartitionSpec partitionSpec,
+      @Nullable Map<String, String> tableProperties) {
+    someTableHasBeenCreated = true;
+    return catalog.createTable(tableId, schema, partitionSpec, tableProperties);
   }
 
   public Catalog.TableBuilder buildTable(TableIdentifier tableId, Schema schema) {

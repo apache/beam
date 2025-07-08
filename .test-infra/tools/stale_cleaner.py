@@ -168,7 +168,7 @@ class StaleCleaner:
         blob_json = json.dumps(resource_dict, indent=4)
 
         blob.upload_from_string(blob_json, content_type="application/json")
-        print(f"Resources written to {self.bucket_name}/{STORAGE_PREFIX}{self.resource_type}.json")
+        print(f"{self.clock()} - Resources written to {self.bucket_name}/{STORAGE_PREFIX}{self.resource_type}.json")
 
     def _stored_resources(self) -> dict:
         """
@@ -179,7 +179,7 @@ class StaleCleaner:
         blob = bucket.blob(f"{STORAGE_PREFIX}{self.resource_type}.json")
 
         if not blob.exists():
-            print(f"Blob {self.bucket_name}/{STORAGE_PREFIX}{self.resource_type}.json does not exist.")
+            print(f"{self.clock()} - Blob {self.bucket_name}/{STORAGE_PREFIX}{self.resource_type}.json does not exist.")
             return {}
 
         blob_string = blob.download_as_text()
@@ -211,7 +211,7 @@ class StaleCleaner:
 
         for k, v in list(stored_resources.items()):
             if k not in active_resources:
-                print(f"Resource {k} is no longer alive. Deleting it from the stored resources.")
+                print(f"{self.clock()} - Resource {k} is no longer alive. Deleting it from the stored resources.")
                 del stored_resources[k]
             else:
                 v.update(clock=self.clock)
@@ -272,12 +272,12 @@ class StaleCleaner:
         for k, v in stale_resources_map.items():
             if k in active_resources_map:
                 if dry_run:
-                    print(f"Dry run: Would delete resource {k}")
+                    print(f"{self.clock()} - Dry run: Would delete resource {k}")
                 else:
-                    print(f"Deleting resource {k}")
+                    print(f"{self.clock()} - Deleting resource {k}")
                     self._delete_resource(k)
             else:
-                print(f"Resource {k} marked as stale but no longer exists in GCP. Skipping deletion.")
+                print(f"{self.clock()} - Resource {k} marked as stale but no longer exists in GCP. Skipping deletion.")
 
         if not dry_run:
             self.refresh()
@@ -301,6 +301,36 @@ class PubSubTopicCleaner(StaleCleaner):
         return d
 
     def _delete_resource(self, resource_name: str) -> None:
-        topic_name = resource_name.split('/')[-1]
-        print(f"Deleting PubSub topic {topic_name}")
-        self.client.delete_topic(name=resource_name)
+        print(f"{self.clock()} - Deleting PubSub topic {resource_name}")
+        self.client.delete_topic(request={"topic": resource_name})
+
+if __name__ == "__main__":
+    project_id = DEFAULT_PROJECT_ID
+    bucket_name = DEFAULT_BUCKET_NAME
+
+    # Prefixes found after analyzing the PubSub topics in the project
+    prefixes = [
+        "psit_topic_input",
+        "psit_topic_output",
+        "wc_topic_input",
+        "wc_topic_output",
+        "leader_board_it_input_topic",
+        "leader_board_it_output_topic",
+        "exercise_streaming_metrics_topic_input",
+        "exercise_streaming_metrics_topic_output",
+        "pubsub_io_performance",
+        "testing",
+        "pubsubNamespace",
+        "game_stats_it_input_topic",
+        "game_stats_it_output_topic"
+    ]
+
+    # Create a PubSubTopicCleaner instance
+    cleaner = PubSubTopicCleaner(project_id=project_id, bucket_name=bucket_name,
+                                 prefixes=prefixes, time_threshold=DEFAULT_PUBSUB_TOPIC_THRESHOLD)
+
+    # Refresh resources
+    cleaner.refresh()
+
+    # Delete stale resources
+    cleaner.delete_stale(dry_run=False)
