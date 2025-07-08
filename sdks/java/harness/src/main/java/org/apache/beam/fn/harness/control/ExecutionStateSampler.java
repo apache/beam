@@ -18,7 +18,6 @@
 package org.apache.beam.fn.harness.control;
 
 import com.google.auto.value.AutoValue;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -31,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler.BundleProcessor;
 import org.apache.beam.fn.harness.logging.BeamFnLoggingMDC;
@@ -91,9 +91,11 @@ public class ExecutionStateSampler {
   private final Set<ExecutionStateTracker> activeStateTrackers;
 
   private final Future<Void> stateSamplingThread;
+  private final Consumer<String> onTimeoutExceededCallback;
 
   @SuppressWarnings("methodref.receiver.bound" /* Synchronization ensures proper initialization */)
-  public ExecutionStateSampler(PipelineOptions options, MillisProvider clock) {
+  public ExecutionStateSampler(
+      PipelineOptions options, MillisProvider clock, Consumer<String> onTimeoutExceededCallback) {
     String samplingPeriodMills =
         ExperimentalOptions.getExperimentValue(
             options, ExperimentalOptions.STATE_SAMPLING_PERIOD_MILLIS);
@@ -121,6 +123,7 @@ public class ExecutionStateSampler {
                 TimeUnit.MILLISECONDS.toMinutes(this.userSpecifiedLullTimeMsForRestart)));
       }
     }
+    this.onTimeoutExceededCallback = onTimeoutExceededCallback;
 
     // We specifically synchronize to ensure that this object can complete
     // being published before the state sampler thread starts.
@@ -207,7 +210,7 @@ public class ExecutionStateSampler {
             try {
               activeTracker.takeSample(currentTimeMillis, millisSinceLastSample);
             } catch (RuntimeException e) {
-              shutdownDueToElementProcessingLullTimeout(
+              this.onTimeoutExceededCallback.accept(
                   String.format(
                       "Exception caught: %s The SDK worker will terminate and restart because the"
                           + " lull time is longer than %d minutes",
@@ -226,12 +229,6 @@ public class ExecutionStateSampler {
   /** Returns a new {@link ExecutionStateTracker} associated with this state sampler. */
   public ExecutionStateTracker create() {
     return new ExecutionStateTracker();
-  }
-
-  @SuppressFBWarnings("DM_EXIT")
-  private void shutdownDueToElementProcessingLullTimeout(String errorMsg) {
-    LOG.error(errorMsg);
-    System.exit(1);
   }
 
   /**
