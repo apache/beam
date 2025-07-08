@@ -178,10 +178,9 @@ public class QueryChangeStreamAction {
       BundleFinalizer bundleFinalizer) {
     final String token = partition.getPartitionToken();
     final Timestamp startTimestamp = tracker.currentRestriction().getFrom();
+    final boolean isRunForever = partition.getEndTimestamp().equals(MAX_INCLUSIVE_END_AT);
     final Timestamp changeStreamQueryEndTimestamp =
-        partition.getEndTimestamp().equals(MAX_INCLUSIVE_END_AT)
-            ? getNextReadChangeStreamEndTimestamp()
-            : partition.getEndTimestamp();
+        isRunForever ? getNextReadChangeStreamEndTimestamp() : partition.getEndTimestamp();
 
     // TODO: Potentially we can avoid this fetch, by enriching the runningAt timestamp when the
     // ReadChangeStreamPartitionDoFn#processElement is called
@@ -303,7 +302,8 @@ public class QueryChangeStreamAction {
     }
 
     LOG.debug("[{}] change stream completed successfully", token);
-    if (tracker.tryClaim(changeStreamQueryEndTimestamp)) {
+    // If the partition will run forever, then do not finish it.
+    if (!isRunForever && tracker.tryClaim(changeStreamQueryEndTimestamp)) {
       LOG.debug("[{}] Finishing partition", token);
       partitionMetadataDao.updateToFinished(token);
       metrics.decActivePartitionReadCounter();
