@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
@@ -68,7 +69,6 @@ public class ExecutionStateSampler {
   private static final Logger LOG = LoggerFactory.getLogger(ExecutionStateSampler.class);
   private static final int DEFAULT_SAMPLING_PERIOD_MS = 200;
   private static final long MAX_LULL_TIME_MS = TimeUnit.MINUTES.toMillis(5);
-  private static final long MIN_LULL_TIME_MS_FOR_RESTART = TimeUnit.MINUTES.toMillis(10);
   private static final PeriodFormatter DURATION_FORMATTER =
       new PeriodFormatterBuilder()
           .appendDays()
@@ -108,20 +108,11 @@ public class ExecutionStateSampler {
 
     int timeoutOption = options.as(SdkHarnessOptions.class).getElementProcessingTimeoutMinutes();
     if (timeoutOption <= 0) {
-      this.userSpecifiedLullTimeMsForRestart = 0L;
       this.userSpecifiedTimeoutForRestart = false;
+      this.userSpecifiedLullTimeMsForRestart = 0L;
     } else {
       this.userSpecifiedTimeoutForRestart = true;
-      long timeoutMs = TimeUnit.MINUTES.toMillis(timeoutOption);
-      this.userSpecifiedLullTimeMsForRestart =
-          Math.max(timeoutMs, ExecutionStateSampler.MIN_LULL_TIME_MS_FOR_RESTART);
-      if (timeoutMs < ExecutionStateSampler.MIN_LULL_TIME_MS_FOR_RESTART) {
-        LOG.info(
-            String.format(
-                "The user defined ElementProcessingTimeoutMinutes is too short for "
-                    + "a PTransform operation and has been set to %d minutes",
-                TimeUnit.MILLISECONDS.toMinutes(this.userSpecifiedLullTimeMsForRestart)));
-      }
+      this.userSpecifiedLullTimeMsForRestart = TimeUnit.MINUTES.toMillis(timeoutOption);
     }
     this.onTimeoutExceededCallback = onTimeoutExceededCallback;
 
@@ -207,14 +198,13 @@ public class ExecutionStateSampler {
         long millisSinceLastSample = currentTimeMillis - lastSampleTimeMillis;
         synchronized (activeStateTrackers) {
           for (ExecutionStateTracker activeTracker : activeStateTrackers) {
-            try {
-              activeTracker.takeSample(currentTimeMillis, millisSinceLastSample);
-            } catch (RuntimeException e) {
+            Optional<String> errMsg = activeTracker.takeSample(currentTimeMillis, millisSinceLastSample);
+            if (errMsg.isPresent()) {
               this.onTimeoutExceededCallback.accept(
                   String.format(
                       "Exception caught: %s The SDK worker will terminate and restart because the"
                           + " lull time is longer than %d minutes",
-                      e.getMessage(),
+                      errMsg.get(),
                       TimeUnit.MILLISECONDS.toMinutes(this.userSpecifiedLullTimeMsForRestart)));
             }
           }
@@ -391,7 +381,7 @@ public class ExecutionStateSampler {
      * @param millisSinceLastSample the time since the last sample was reported. As an
      *     approximation, all of that time should be associated with this state.
      */
-    private void takeSample(long currentTimeMillis, long millisSinceLastSample) {
+    private Optional<String> takeSample(long currentTimeMillis, long millisSinceLastSample) {
       ExecutionStateImpl currentExecutionState = currentStateLazy.get();
       if (currentExecutionState != null) {
         currentExecutionState.takeSample(millisSinceLastSample);
@@ -438,8 +428,7 @@ public class ExecutionStateSampler {
                         Duration.millis(userSpecifiedLullTimeMsForRestart).toPeriod()),
                     Joiner.on("\n  at ").join(thread.getStackTrace()));
           }
-
-          throw new RuntimeException(new TimeoutException(timeoutMessage));
+          return Optional.of(timeoutMessage);
         }
 
         if (lullTimeMs > MAX_LULL_TIME_MS) {
@@ -480,6 +469,7 @@ public class ExecutionStateSampler {
           }
         }
       }
+      return Optional.empty();
     }
 
     /** Returns status information related to this tracker or null if not tracking a bundle. */
