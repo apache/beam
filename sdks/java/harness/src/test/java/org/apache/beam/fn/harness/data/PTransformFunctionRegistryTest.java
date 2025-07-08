@@ -47,7 +47,8 @@ public class PTransformFunctionRegistryTest {
 
   @Before
   public void setUp() {
-    sampler = new ExecutionStateSampler(PipelineOptionsFactory.create(), System::currentTimeMillis, null);
+    sampler =
+        new ExecutionStateSampler(PipelineOptionsFactory.create(), System::currentTimeMillis, null);
   }
 
   @After

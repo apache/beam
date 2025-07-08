@@ -130,7 +130,8 @@ public class PCollectionConsumerRegistryTest {
 
   @Before
   public void setUp() throws Exception {
-    sampler = new ExecutionStateSampler(PipelineOptionsFactory.create(), System::currentTimeMillis, null);
+    sampler =
+        new ExecutionStateSampler(PipelineOptionsFactory.create(), System::currentTimeMillis, null);
   }
 
   @After
