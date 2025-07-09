@@ -1,3 +1,12 @@
+---
+title: "Our Experience at Beam College 2025: 1st Place Hackathon Winners"
+date: 2025-07-08
+authors:
+    - adityashukla
+    - darshankanade
+categories:
+    - blog
+---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one or more
 contributor license agreements. See the NOTICE file distributed with
@@ -12,16 +21,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-
----
-title: "Our Experience at Beam College 2025: 1st Place Hackathon Winners"
-date: 2025-07-08
-authors:
-    - adityashukla
-    - darshankanade
-categories:
-    - blog
----
 
 ## Introduction: The Beam of an Idea
 In the world of machine learning for healthcare, preprocessing large pathology image datasets at scale remains a bottleneck. Whole Slide Images (WSIs) in medical imaging can reach massive sizes. Traditional Python tools (PIL, etc.) fail under memory pressure, especially when handling thousands of such high-resolution images. This becomes a bottleneck for ML modeling tasks using standard tools.
