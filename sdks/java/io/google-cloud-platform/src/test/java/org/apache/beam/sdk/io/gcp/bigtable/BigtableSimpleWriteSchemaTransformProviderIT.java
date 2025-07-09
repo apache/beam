@@ -219,6 +219,7 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
             .addByteArrayField("value")
             .addByteArrayField("column_qualifier")
             .addByteArrayField("family_name")
+            .addField("timestamp_micros",FieldType.INT16)
             .build();
     Row mutationRow =
         Row.withSchema(testSchema)
@@ -227,6 +228,7 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
             .withFieldValue("value", "new-val-1".getBytes(StandardCharsets.UTF_8))
             .withFieldValue("column_qualifier", "new_col".getBytes(StandardCharsets.UTF_8))
             .withFieldValue("family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("timestamp_micros",99_999_999L)
             .build();
 
     PCollectionRowTuple.of("input", p.apply(Create.of(Arrays.asList(mutationRow))))

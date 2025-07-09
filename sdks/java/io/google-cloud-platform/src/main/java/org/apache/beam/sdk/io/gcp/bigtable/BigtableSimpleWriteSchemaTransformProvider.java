@@ -153,8 +153,15 @@ public class BigtableSimpleWriteSchemaTransformProvider
 
                             // if start or end timestamp provided
                             // Timestamp Range (optional, assuming Long type in Row schema)
-                            Long startTimestampMicros = input.getInt64("start_timestamp_micros");
-                            Long endTimestampMicros = input.getInt64("end_timestamp_micros");
+                            Long startTimestampMicros = null;
+                            Long endTimestampMicros = null;
+
+                            if (input.getSchema().hasField("start_timestamp_micros")) {
+                              startTimestampMicros = input.getInt64("start_timestamp_micros");
+                            }
+                            if (input.getSchema().hasField("end_timestamp_micros")) {
+                              endTimestampMicros = input.getInt64("end_timestamp_micros");
+                            }
 
                             if (startTimestampMicros != null || endTimestampMicros != null) {
                               TimestampRange.Builder timeRange = TimestampRange.newBuilder();
