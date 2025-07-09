@@ -577,6 +577,7 @@ class TriggerCopyJobs(beam.DoFn):
     if not self.bq_io_metadata:
       self.bq_io_metadata = create_bigquery_io_metadata(self._step_name)
 
+    # Just a random comment checking if pipelines still fail.
     project_id = (
         copy_to_reference.projectId
         if self.load_job_project_id is None else self.load_job_project_id)
