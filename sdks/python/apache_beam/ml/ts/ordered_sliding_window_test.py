@@ -21,13 +21,14 @@ import unittest
 import apache_beam as beam
 from apache_beam.ml.ts.ordered_sliding_window import FillGapsFn
 from apache_beam.ml.ts.ordered_sliding_window import OrderedSlidingWindowFn
-from apache_beam.transforms.periodicsequence import PeriodicImpulse
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms.periodicsequence import PeriodicImpulse
 from apache_beam.utils.timestamp import Timestamp
 
 _LOGGER = logging.getLogger(__name__)
+
 
 class DoFnTests(unittest.TestCase):
   def test_pipeline_with_periodic_stream_data(self):
