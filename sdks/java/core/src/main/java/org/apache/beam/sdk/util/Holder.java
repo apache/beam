@@ -15,31 +15,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.fn.harness;
+package org.apache.beam.sdk.util;
 
-import com.google.auto.value.AutoValue;
 import org.apache.beam.sdk.annotations.Internal;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
 
-@AutoValue
-@AutoValue.CopyAnnotations
+/**
+ * A trivial boxing of a value, used when nullability needs to be added to a generic type. (Optional
+ * does not work for this)
+ *
+ * <p>Example: For a generic type `T` the actual parameter may be nullable or not. So you cannot
+ * check values for null to determine presence/absence. Instead you can store a {@code @Nullable
+ * Holder<T>}.
+ */
 @Internal
-abstract class SplitResultsWithStopIndex {
-  public static SplitResultsWithStopIndex of(
-      WindowedSplitResult windowSplit,
-      HandlesSplits.@Nullable SplitResult downstreamSplit,
-      int newWindowStopIndex) {
-    return new AutoValue_SplitResultsWithStopIndex(
-        windowSplit, downstreamSplit, newWindowStopIndex);
+public class Holder<T> {
+  private T value;
+
+  private Holder(T value) {
+    this.value = value;
   }
 
-  @Pure
-  public abstract WindowedSplitResult getWindowSplit();
+  public static <ValueT> Holder<ValueT> of(ValueT value) {
+    return new Holder<>(value);
+  }
 
-  @Pure
-  public abstract HandlesSplits.@Nullable SplitResult getDownstreamSplit();
-
-  @Pure
-  public abstract int getNewWindowStopIndex();
+  public T get() {
+    return value;
+  };
 }
