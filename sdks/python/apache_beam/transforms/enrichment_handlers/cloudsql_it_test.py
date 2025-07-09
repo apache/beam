@@ -550,14 +550,14 @@ class TestCloudSQLPostgresEnrichment(BaseCloudSQLDBEnrichment):
 
   # Configuration required for locating the CloudSQL instance.
   _table_id = "product_details_cloudsql_pg_enrichment"
-  _gcp_project_id = "apache-beam-testing"
+  _gcp_project_id = "cultivated-snow-456016-c0"
   _region = "us-central1"
   _instance_name = "beam-integration-tests"
   _instance_connection_uri = f"{_gcp_project_id}:{_region}:{_instance_name}"
 
   # Configuration required for authenticating to the CloudSQL instance.
   _user = "postgres"
-  _password = os.getenv("ALLOYDB_PASSWORD")
+  _password = "password"
   _db_id = "postgres"
 
   _metadata = MetaData()
