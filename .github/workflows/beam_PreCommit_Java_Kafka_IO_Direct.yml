@@ -93,6 +93,11 @@ jobs:
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
+      - name: Authenticate with GCP
+        uses: google-github-actions/auth@v2
+        with:
+          service_account: ${{ secrets.GCP_SA_EMAIL }}
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
       - name: run Kafka IO build script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
