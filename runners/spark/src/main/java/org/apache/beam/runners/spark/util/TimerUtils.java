@@ -28,6 +28,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.spark.stateful.SparkTimerInternals;
+import org.apache.beam.runners.spark.translation.AbstractInOutIterator;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -45,6 +46,7 @@ import org.apache.spark.streaming.Time;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaPairDStream;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.jetbrains.annotations.NotNull;
 import org.joda.time.Instant;
 import scala.Option;
 import scala.Tuple2;
@@ -158,25 +160,54 @@ public class TimerUtils {
     }
   }
 
+  /**
+   * Fires all expired timers using the provided iterator.
+   *
+   * <p>Gets expired timers from {@link SparkTimerInternals} and processes each one. The {@link
+   * AbstractInOutIterator#fireTimer} method automatically deletes each timer after processing.
+   *
+   * @param sparkTimerInternals Source of timer data
+   * @param windowingStrategy Used to determine which timers are expired
+   * @param abstractInOutIterator Iterator that processes and then removes the timers
+   * @param <W> Window type
+   */
+  public static <W extends BoundedWindow> void triggerExpiredTimers(
+      SparkTimerInternals sparkTimerInternals,
+      WindowingStrategy<?, W> windowingStrategy,
+      AbstractInOutIterator<?, ?, ?> abstractInOutIterator) {
+    final Collection<TimerInternals.TimerData> expiredTimers =
+        getExpiredTimers(sparkTimerInternals, windowingStrategy);
+
+    if (!expiredTimers.isEmpty()) {
+      expiredTimers.forEach(abstractInOutIterator::fireTimer);
+    }
+  }
+
   public static <W extends BoundedWindow> void dropExpiredTimers(
       SparkTimerInternals sparkTimerInternals, WindowingStrategy<?, W> windowingStrategy) {
-    Collection<TimerInternals.TimerData> expiredTimers =
-        sparkTimerInternals.getTimers().stream()
-            .filter(
-                timer ->
-                    timer
-                        .getTimestamp()
-                        .plus(windowingStrategy.getAllowedLateness())
-                        .isBefore(
-                            timer.getDomain().equals(TimeDomain.PROCESSING_TIME)
-                                ? sparkTimerInternals.currentProcessingTime()
-                                : sparkTimerInternals.currentInputWatermarkTime()))
-            .collect(Collectors.toList());
+    final Collection<TimerInternals.TimerData> expiredTimers =
+        getExpiredTimers(sparkTimerInternals, windowingStrategy);
 
     // Remove the expired timer from the timerInternals structure
     if (!expiredTimers.isEmpty()) {
       expiredTimers.forEach(sparkTimerInternals::deleteTimer);
     }
+  }
+
+  private static <W extends BoundedWindow> @NotNull
+      Collection<TimerInternals.TimerData> getExpiredTimers(
+          SparkTimerInternals sparkTimerInternals, WindowingStrategy<?, W> windowingStrategy) {
+    return sparkTimerInternals.getTimers().stream()
+        .filter(
+            timer ->
+                timer
+                    .getTimestamp()
+                    .plus(windowingStrategy.getAllowedLateness())
+                    .isBefore(
+                        timer.getDomain().equals(TimeDomain.PROCESSING_TIME)
+                            ? sparkTimerInternals.currentProcessingTime()
+                            : sparkTimerInternals.currentInputWatermarkTime()))
+        .collect(Collectors.toList());
   }
 
   /**

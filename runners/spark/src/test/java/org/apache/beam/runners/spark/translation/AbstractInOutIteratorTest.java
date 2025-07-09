@@ -37,14 +37,11 @@ import org.apache.beam.sdk.values.WindowedValue;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import scala.Tuple2;
 
 /** Tests for {@link AbstractInOutIterator}. */
-@RunWith(JUnit4.class)
 public class AbstractInOutIteratorTest {
 
   @Mock private SparkProcessContext<String, Integer, String> mockContext;
@@ -62,7 +59,7 @@ public class AbstractInOutIteratorTest {
 
   private StateNamespace testNamespace;
 
-  /** Test implementation of {@link AbstractInOutIterator} */
+  /** Test implementation of {@link AbstractInOutIterator}. */
   private static class TestAbstractInOutIterator<K, InputT, OutputT>
       extends AbstractInOutIterator<K, InputT, OutputT> {
 
