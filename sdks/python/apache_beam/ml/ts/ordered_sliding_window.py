@@ -19,7 +19,6 @@
 # Everything in this module is experimental.
 
 import logging
-from collections import defaultdict
 
 import apache_beam as beam
 from apache_beam.coders import BooleanCoder
