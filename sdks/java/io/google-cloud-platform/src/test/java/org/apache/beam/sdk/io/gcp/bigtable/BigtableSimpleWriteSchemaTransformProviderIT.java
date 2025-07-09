@@ -219,7 +219,7 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
             .addByteArrayField("value")
             .addByteArrayField("column_qualifier")
             .addByteArrayField("family_name")
-            .addField("timestamp_micros",FieldType.INT16)
+            .addField("timestamp_micros",FieldType.INT64)
             .build();
     Row mutationRow =
         Row.withSchema(testSchema)
