@@ -4,7 +4,7 @@
     "python": "jrmccluskey",
     "io": "chamikaramj"
   },
-  "nextAction": "Author",
+  "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [
     "portikCoder"
