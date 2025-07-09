@@ -162,4 +162,3 @@ class FillGapsFn(beam.DoFn):
       current_ts_sec += self.expected_interval
 
     yield (key, (window_start_ts, window_end_ts, filled_values))
-
