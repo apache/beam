@@ -775,18 +775,6 @@ and Beam SQL is invoked via the Managed API under the hood.
         Determines how often to 'commit' progress into BigQuery. Default is every 5 seconds.
       </td>
     </tr>
-    <tr>
-      <td>
-        clustering
-      </td>
-      <td>
-        <code>list[<span style="color: green;">str</span>]</code>
-      </td>
-      <td>
-        A list of clustering fields to use when writing to output table.
-      </td>
-    </tr>
-    <tr>
   </table>
 </div>
 
