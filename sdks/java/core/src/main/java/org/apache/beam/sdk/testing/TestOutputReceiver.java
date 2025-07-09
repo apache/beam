@@ -15,31 +15,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.fn.harness;
+package org.apache.beam.sdk.testing;
 
-import com.google.auto.value.AutoValue;
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.beam.sdk.annotations.Internal;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.dataflow.qual.Pure;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.values.OutputBuilder;
+import org.apache.beam.sdk.values.WindowedValues;
 
-@AutoValue
-@AutoValue.CopyAnnotations
+/**
+ * An implementation of {@link DoFn.OutputReceiver} that naively collects all output values.
+ *
+ * <p>Because this API is crude and not designed to be very general, it is for internal use only and
+ * will be changed arbitrarily.
+ */
 @Internal
-abstract class SplitResultsWithStopIndex {
-  public static SplitResultsWithStopIndex of(
-      WindowedSplitResult windowSplit,
-      HandlesSplits.@Nullable SplitResult downstreamSplit,
-      int newWindowStopIndex) {
-    return new AutoValue_SplitResultsWithStopIndex(
-        windowSplit, downstreamSplit, newWindowStopIndex);
+public class TestOutputReceiver<T> implements DoFn.OutputReceiver<T> {
+  private final List<T> records = new ArrayList<>();
+
+  @Override
+  public OutputBuilder<T> builder(T value) {
+    return WindowedValues.<T>builder()
+        .setReceiver(windowedValue -> records.add(windowedValue.getValue()));
   }
 
-  @Pure
-  public abstract WindowedSplitResult getWindowSplit();
-
-  @Pure
-  public abstract HandlesSplits.@Nullable SplitResult getDownstreamSplit();
-
-  @Pure
-  public abstract int getNewWindowStopIndex();
+  public List<T> getOutputs() {
+    return records;
+  }
 }
