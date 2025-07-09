@@ -21,7 +21,8 @@ date: 2025-07-08
 authors:
     - adityashukla
     - darshankanade
-categories: "blog"
+categories:
+    - blog
 tags: ["apache-beam", "medical-imaging", "dataflow", "pipeline"]
 description: "Building a scalable WSI preprocessing pipeline using Apache Beam and Google Cloud Dataflow."
 ---
@@ -84,7 +85,7 @@ Looking ahead, the pipeline can be extended beyond fixed-size tiling by incorpor
 **Project Submission Demo**: [Beam Demo - PCollectors.mp4](https://drive.google.com/file/d/1Os5SvgqHiqfMkoCWOuaVvEPXsnhqXlLx/view?usp=sharing)
 
 ## Conclusion
-We are ML Engineers, working at Intuitive.Cloud, where we play around with large-scale data to build scalable, efficient, dynamic data processing pipelines that prepare it for downstream ML tasks, with Apache Beam and Google Cloud DataFlow being the central pieces.
+We are ML Engineers, working at [Intuitive.Cloud](www.intuitive.cloud), where we play around with large-scale data to build scalable, efficient, dynamic data processing pipelines that prepare it for downstream ML tasks, with Apache Beam and Google Cloud DataFlow being the central pieces.
 
 Participating in the hackathon was a great learning opportunity, huge thanks to the organizers, mentors, and the Apache Beam community!
 
