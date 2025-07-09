@@ -23,7 +23,7 @@ import numpy as np
 import apache_beam as beam
 from apache_beam.ml.ts.ordered_sliding_window import FillGapsFn
 from apache_beam.ml.ts.ordered_sliding_window import OrderedSlidingWindowFn
-from apache_beam.ml.ts.util import PeriodicStream
+from apache_beam.transforms.periodicsequence import PeriodicImpulse
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -34,9 +34,7 @@ _LOGGER = logging.getLogger(__name__)
 
 def format_for_comparison(element):
   key, (start_ts, end_ts, data_list) = element
-  formatted_list = [
-      'NaN' if isinstance(x, float) and np.isnan(x) else x for x in data_list
-  ]
+  formatted_list = ['NaN' if np.isnan(x) else str(x) for x in data_list]
   return (key, (start_ts, end_ts, formatted_list))
 
 
@@ -81,13 +79,43 @@ class DoFnTests(unittest.TestCase):
             0,
             (
                 Timestamp(12),
-                Timestamp(22), [12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0,
-                                19.0])),
-        (0, (Timestamp(15), Timestamp(25), [15.0, 16.0, 17.0, 18.0, 19.0])),
-        (0, (Timestamp(18), Timestamp(28), [18.0, 19.0]))
+                Timestamp(22),
+                [12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 'NaN',
+                 'NaN'])),
+        (
+            0,
+            (
+                Timestamp(15),
+                Timestamp(25), [
+                    15.0,
+                    16.0,
+                    17.0,
+                    18.0,
+                    19.0,
+                    'NaN',
+                    'NaN',
+                    'NaN',
+                    'NaN',
+                    'NaN'
+                ])),
+        (
+            0,
+            (
+                Timestamp(18),
+                Timestamp(28),
+                [
+                    18.0,
+                    19.0,
+                    'NaN',
+                    'NaN',
+                    'NaN',
+                    'NaN',
+                    'NaN',
+                    'NaN',
+                    'NaN',
+                    'NaN'
+                ]))
     ]
-
-    # 3. Pipeline using PeriodicStream
 
     options = PipelineOptions([
         "--streaming",
@@ -97,14 +125,15 @@ class DoFnTests(unittest.TestCase):
     with beam.Pipeline(options=options) as p:
       output = (
           p
-          | PeriodicStream(data, interval=0.01)
+          | PeriodicImpulse(data=data, fire_interval=0.01)
           | beam.WithKeys(0)
           | "SlidingWindow" >> beam.ParDo(
               OrderedSlidingWindowFn(
                   window_size=WINDOW_SIZE, slide_interval=SLIDE_INTERVAL))
           | "FillGaps" >> beam.ParDo(
-              FillGapsFn(expected_interval=EXPECTED_INTERVAL))
-          | 'Format For Comparison' >> beam.Map(format_for_comparison))
+              FillGapsFn(expected_interval=EXPECTED_INTERVAL)))
+      #   | "print" >> beam.Map(print))
+      #   | 'Format For Comparison' >> beam.Map(format_for_comparison))
 
       assert_that(output, equal_to(expected))
 
@@ -138,7 +167,8 @@ class DoFnTests(unittest.TestCase):
             0,
             (
                 Timestamp(6),
-                Timestamp(16), [8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0])),
+                Timestamp(16),
+                ['NaN', 'NaN', 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0])),
         (
             0,
             (
@@ -149,13 +179,43 @@ class DoFnTests(unittest.TestCase):
             0,
             (
                 Timestamp(12),
-                Timestamp(22), [12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0,
-                                19.0])),
-        (0, (Timestamp(15), Timestamp(25), [15.0, 16.0, 17.0, 18.0, 19.0])),
-        (0, (Timestamp(18), Timestamp(28), [18.0, 19.0]))
+                Timestamp(22),
+                [12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 'NaN',
+                 'NaN'])),
+        (
+            0,
+            (
+                Timestamp(15),
+                Timestamp(25), [
+                    15.0,
+                    16.0,
+                    17.0,
+                    18.0,
+                    19.0,
+                    'NaN',
+                    'NaN',
+                    'NaN',
+                    'NaN',
+                    'NaN'
+                ])),
+        (
+            0,
+            (
+                Timestamp(18),
+                Timestamp(28),
+                [
+                    18.0,
+                    19.0,
+                    'NaN',
+                    'NaN',
+                    'NaN',
+                    'NaN',
+                    'NaN',
+                    'NaN',
+                    'NaN',
+                    'NaN'
+                ]))
     ]
-
-    # 3. Pipeline using PeriodicStream
 
     options = PipelineOptions([
         "--streaming",
@@ -165,18 +225,18 @@ class DoFnTests(unittest.TestCase):
     with beam.Pipeline(options=options) as p:
       output = (
           p
-          | PeriodicStream(data, interval=0.01)
+          | PeriodicImpulse(data=data, fire_interval=0.01)
           | beam.WithKeys(0)
           | "SlidingWindow" >> beam.ParDo(
               OrderedSlidingWindowFn(
                   window_size=WINDOW_SIZE, slide_interval=SLIDE_INTERVAL))
           | "FillGaps" >> beam.ParDo(
-              FillGapsFn(expected_interval=EXPECTED_INTERVAL))
-          | 'Format For Comparison' >> beam.Map(format_for_comparison))
+              FillGapsFn(expected_interval=EXPECTED_INTERVAL)))
+      #   | 'Format For Comparison' >> beam.Map(format_for_comparison))
 
       assert_that(output, equal_to(expected))
 
-  @unittest.skip("This test is skipped because it requires late data handling.")
+  @unittest.skip("This test is skipped")
   def test_pipeline_with_late_data(self):
     WINDOW_SIZE = 10
     SLIDE_INTERVAL = 3
@@ -225,7 +285,7 @@ class DoFnTests(unittest.TestCase):
     with beam.Pipeline(options=options) as p:
       output = (
           p
-          | "PeriodicLateStream" >> PeriodicStream(data, interval=1)
+          | "PeriodicLateStream" >> PeriodicImpulse(data=data, fire_interval=1)
           | "KeyLateData" >> beam.WithKeys(lambda x: 0)
           | "SlidingWindowLateData" >> beam.ParDo(
               OrderedSlidingWindowFn(

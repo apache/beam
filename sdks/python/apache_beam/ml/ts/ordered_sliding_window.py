@@ -34,6 +34,8 @@ from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
 
 _LOGGER = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
+_LOGGER.setLevel(logging.INFO)
 
 
 class OrderedSlidingWindowFn(beam.DoFn):
@@ -85,6 +87,8 @@ class OrderedSlidingWindowFn(beam.DoFn):
 
       timer_state.write(True)
 
+    return []
+
   @on_timer(WINDOW_TIMER)
   def on_timer(
       self,
@@ -126,42 +130,36 @@ class OrderedSlidingWindowFn(beam.DoFn):
 
 
 class FillGapsFn(beam.DoFn):
-  def __init__(self, expected_interval):
+  def __init__(self, expected_interval: float):
+    """
+    Args:
+      expected_interval: The expected time delta between elements, in seconds.
+    """
     self.expected_interval = expected_interval
 
   def process(self, element):
     key, (window_start_ts, window_end_ts, window_elements) = element
 
-    # If there are no elements, or only one, there are no "middle" gaps to fill.
-    if len(window_elements) <= 1:
-      if window_elements:
-        # If one element, just yield it back as a list of one
-        yield (key, (window_start_ts, window_end_ts, [window_elements[0][1]]))
-      return
+    received_data = {
+        round(float(ts.micros / 1e6), 5): val
+        for ts, val in window_elements
+    }
 
-    # Use a dictionary for efficient lookup, rounding for float precision.
-    received_data = defaultdict(list)
-    for ts, val in window_elements:
-      lookup_ts = round(float(ts.micros / 1e6), 5)
-      received_data[lookup_ts].append(val)
+    start_sec = float(window_start_ts.micros / 1e6)
+    end_sec = float(window_end_ts.micros / 1e6)
 
-    # Find the boundaries of the data we actually received.
-    min_ts = min(received_data.keys())
-    max_ts = max(received_data.keys())
+    filled_values = []
+    current_ts_sec = start_sec
 
-    filled_middle_values = []
-    current_ts = min_ts
+    while current_ts_sec < end_sec:
+      lookup_ts = round(current_ts_sec, 5)
 
-    # Iterate from the first observed timestamp to the last.
-    while current_ts <= max_ts:
-      lookup_ts = round(current_ts, 5)
+      if lookup_ts in received_data:
+        filled_values.append(float(received_data[lookup_ts]))
+      else:
+        filled_values.append('NaN')
 
-      # Use the actual value if it exists, otherwise a placeholder.
-      value = received_data.get(lookup_ts, ['NaN'])[0]
-      filled_middle_values.append(float(value))
+      current_ts_sec += self.expected_interval
 
-      # Move to the next expected timestamp.
-      current_ts += self.expected_interval
+    yield (key, (window_start_ts, window_end_ts, filled_values))
 
-    # Yield the original window boundaries but with the new, gap-filled list.
-    yield (key, (window_start_ts, window_end_ts, filled_middle_values))
