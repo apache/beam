@@ -31,13 +31,6 @@ from apache_beam.utils.timestamp import Timestamp
 
 _LOGGER = logging.getLogger(__name__)
 
-
-def format_for_comparison(element):
-  key, (start_ts, end_ts, data_list) = element
-  formatted_list = ['NaN' if np.isnan(x) else str(x) for x in data_list]
-  return (key, (start_ts, end_ts, formatted_list))
-
-
 class DoFnTests(unittest.TestCase):
   def test_pipeline_with_periodic_stream_data(self):
 
@@ -132,8 +125,6 @@ class DoFnTests(unittest.TestCase):
                   window_size=WINDOW_SIZE, slide_interval=SLIDE_INTERVAL))
           | "FillGaps" >> beam.ParDo(
               FillGapsFn(expected_interval=EXPECTED_INTERVAL)))
-      #   | "print" >> beam.Map(print))
-      #   | 'Format For Comparison' >> beam.Map(format_for_comparison))
 
       assert_that(output, equal_to(expected))
 
@@ -232,7 +223,6 @@ class DoFnTests(unittest.TestCase):
                   window_size=WINDOW_SIZE, slide_interval=SLIDE_INTERVAL))
           | "FillGaps" >> beam.ParDo(
               FillGapsFn(expected_interval=EXPECTED_INTERVAL)))
-      #   | 'Format For Comparison' >> beam.Map(format_for_comparison))
 
       assert_that(output, equal_to(expected))
 
@@ -291,8 +281,7 @@ class DoFnTests(unittest.TestCase):
               OrderedSlidingWindowFn(
                   window_size=WINDOW_SIZE, slide_interval=SLIDE_INTERVAL))
           | "FillGapsLateData" >> beam.ParDo(
-              FillGapsFn(expected_interval=EXPECTED_INTERVAL))
-          | 'Format For Comparison' >> beam.Map(format_for_comparison))
+              FillGapsFn(expected_interval=EXPECTED_INTERVAL)))
       assert_that(output, equal_to(expected))
 
 
