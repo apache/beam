@@ -191,8 +191,24 @@ public class SparkTimerInternals implements TimerInternals {
   }
 
   /**
-   * Finds and removes the latest timer in {@link TimeDomain#PROCESSING_TIME} domain that has
-   * expired based on the current processing time.
+   * Checks if there are any expired timers in the {@link TimeDomain#PROCESSING_TIME} domain.
+   *
+   * <p>A timer is considered expired when its timestamp is less than the current processing time.
+   *
+   * @return {@code true} if at least one expired processing timer exists, {@code false} otherwise.
+   */
+  public boolean hasNextProcessingTimer() {
+    final Instant currentProcessingTime = this.currentProcessingTime();
+    return this.timers.stream()
+        .anyMatch(
+            (TimerData timerData) ->
+                timerData.getDomain().equals(TimeDomain.PROCESSING_TIME)
+                    && currentProcessingTime.isAfter(timerData.getTimestamp()));
+  }
+
+  /**
+   * Finds the latest timer in {@link TimeDomain#PROCESSING_TIME} domain that has expired based on
+   * the current processing time.
    *
    * <p>A timer is considered expired when its timestamp is less than the current processing time.
    * If multiple expired timers exist, the one with the latest timestamp will be returned.
@@ -200,22 +216,15 @@ public class SparkTimerInternals implements TimerInternals {
    * @return The expired processing timer with the latest timestamp if one exists, or {@code null}
    *     if no processing timers are ready to fire.
    */
-  public @Nullable TimerData removeNextProcessingTimer() {
+  public @Nullable TimerData getNextProcessingTimer() {
     final Instant currentProcessingTime = this.currentProcessingTime();
-    final @Nullable TimerData timer =
-        this.timers.stream()
-            .filter(
-                (TimerData timerData) ->
-                    timerData.getDomain().equals(TimeDomain.PROCESSING_TIME)
-                        && currentProcessingTime.isAfter(timerData.getTimestamp()))
-            .max(Comparator.comparing(TimerData::getTimestamp))
-            .orElse(null);
-
-    if (timer != null) {
-      this.deleteTimer(timer);
-      return timer;
-    }
-    return null;
+    return this.timers.stream()
+        .filter(
+            (TimerData timerData) ->
+                timerData.getDomain().equals(TimeDomain.PROCESSING_TIME)
+                    && currentProcessingTime.isAfter(timerData.getTimestamp()))
+        .max(Comparator.comparing(TimerData::getTimestamp))
+        .orElse(null);
   }
 
   @Override

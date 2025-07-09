@@ -36,6 +36,7 @@ import org.apache.beam.runners.spark.metrics.MetricsContainerStepMapAccumulator;
 import org.apache.beam.runners.spark.stateful.SparkStateInternals;
 import org.apache.beam.runners.spark.stateful.SparkTimerInternals;
 import org.apache.beam.runners.spark.stateful.StateAndTimers;
+import org.apache.beam.runners.spark.translation.AbstractInOutIterator;
 import org.apache.beam.runners.spark.translation.DoFnRunnerWithMetrics;
 import org.apache.beam.runners.spark.translation.SparkInputDataProcessor;
 import org.apache.beam.runners.spark.translation.SparkProcessContext;
@@ -242,13 +243,13 @@ public class ParDoStateUpdateFn<KeyT, ValueT, InputT extends KV<KeyT, ValueT>, O
       iterator = Lists.newArrayList(keyedWindowedValue).iterator();
     }
 
-    final Iterator<Tuple2<TupleTag<?>, WindowedValue<?>>> outputIterator =
-        processor.createOutputIterator((Iterator) iterator, ctx);
+    final AbstractInOutIterator outputIterator =
+        (AbstractInOutIterator) processor.createOutputIterator((Iterator) iterator, ctx);
 
     final List<Tuple2<TupleTag<?>, WindowedValue<?>>> resultList =
         Lists.newArrayList(outputIterator);
 
-    TimerUtils.dropExpiredTimers(timerInternals, windowingStrategy);
+    TimerUtils.triggerExpiredTimers(timerInternals, windowingStrategy, outputIterator);
 
     final Collection<byte[]> serializedTimers =
         SparkTimerInternals.serializeTimers(timerInternals.getTimers(), timerDataCoder);
@@ -280,30 +281,31 @@ public class ParDoStateUpdateFn<KeyT, ValueT, InputT extends KV<KeyT, ValueT>, O
    * iterator is used in stateful processing to handle timer-based operations.
    */
   @SuppressWarnings("nullness")
-  private static class SparkTimerInternalsIterator implements Iterator<TimerInternals.TimerData> {
+  public static class SparkTimerInternalsIterator implements Iterator<TimerInternals.TimerData> {
 
-    private TimerInternals.TimerData timerData;
-
-    private final SparkTimerInternals timerInternals;
+    private final SparkTimerInternals delegate;
 
     private SparkTimerInternalsIterator(SparkTimerInternals sparkTimerInternals) {
-      this.timerInternals = sparkTimerInternals;
+      this.delegate = sparkTimerInternals;
     }
 
     @Override
     public boolean hasNext() {
-      return (this.timerData = this.timerInternals.removeNextProcessingTimer()) != null;
+      return this.delegate.hasNextProcessingTimer();
     }
 
     @Override
     public TimerInternals.TimerData next() {
-      final TimerInternals.TimerData timerData = this.timerData;
-      if (timerData == null) {
+      final TimerInternals.TimerData nextTimer = this.delegate.getNextProcessingTimer();
+      if (nextTimer == null) {
         throw new NoSuchElementException();
       }
 
-      this.timerData = null;
-      return timerData;
+      return nextTimer;
+    }
+
+    public void deleteTimer(TimerInternals.TimerData timerData) {
+      this.delegate.deleteTimer(timerData);
     }
   }
 }
