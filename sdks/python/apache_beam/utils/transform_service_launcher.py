@@ -38,6 +38,17 @@ _COMMAND_POSSIBLE_VALUES = ['up', 'down', 'ps']
 _EXPANSION_SERVICE_LAUNCHER_JAR = ':sdks:java:transform-service:app:build'
 
 
+def is_docker_compose_v2_available():
+  cmd = ['docker', 'compose', 'version']
+
+  try:
+    subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+  except:  # pylint: disable=bare-except
+    return False
+
+  return True
+
+
 class TransformServiceLauncher(object):
   _DEFAULT_PROJECT_NAME = 'apache.beam.transform.service'
   _DEFAULT_START_WAIT_TIMEOUT = 50000
@@ -46,15 +57,13 @@ class TransformServiceLauncher(object):
 
   # Maintaining a static list of launchers to prevent temporary resources
   # from being created unnecessarily.
-  def __new__(
-      cls, project_name, port, beam_version=None, use_docker_compose_v2=False):
+  def __new__(cls, project_name, port, beam_version=None):
     if project_name not in TransformServiceLauncher._launchers:
       TransformServiceLauncher._launchers[project_name] = super(
           TransformServiceLauncher, cls).__new__(cls)
     return TransformServiceLauncher._launchers[project_name]
 
-  def __init__(
-      self, project_name, port, beam_version=None, use_docker_compose_v2=False):
+  def __init__(self, project_name, port, beam_version=None):
     logging.info('Initializing the Beam Transform Service %s.' % project_name)
 
     self._project_name = project_name
@@ -128,8 +137,12 @@ class TransformServiceLauncher(object):
     self._environmental_variables['PYTHON_REQUIREMENTS_FILE_NAME'] = (
         'requirements.txt')
 
-    self._docker_compose_start_command_prefix = (
-        ['docker', 'compose'] if use_docker_compose_v2 else ['docker-compose'])
+    # Building docker compose start command
+    if is_docker_compose_v2_available():
+      self._docker_compose_start_command_prefix = ['docker', 'compose']
+    else:
+      self._docker_compose_start_command_prefix = ['docker-compose']
+
     self._docker_compose_start_command_prefix.append('-p')
     self._docker_compose_start_command_prefix.append(project_name)
     self._docker_compose_start_command_prefix.append('-f')

@@ -1174,16 +1174,6 @@ def _maybe_use_transform_service(provided_service=None, options=None):
 
     return True
 
-  def is_docker_compose_v2_available():
-    cmd = ['docker', 'compose', 'version']
-
-    try:
-      subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    except:  # pylint: disable=bare-except
-      return False
-
-    return True
-
   # We try java and docker based expansion services in that order.
 
   java_available = is_java_available()
@@ -1204,7 +1194,6 @@ def _maybe_use_transform_service(provided_service=None, options=None):
 
     project_name = str(uuid.uuid4())
     port = subprocess_server.pick_port(None)[0]
-    docker_compose_v2_available = is_docker_compose_v2_available()
 
     logging.info(
         'Trying to expand the external transform using the Docker Compose '
@@ -1216,7 +1205,7 @@ def _maybe_use_transform_service(provided_service=None, options=None):
     beam_version = beam_version.__version__
 
     return transform_service_launcher.TransformServiceLauncher(
-        project_name, port, beam_version, docker_compose_v2_available)
+        project_name, port, beam_version)
   else:
     raise ValueError(
         'Cannot start an expansion service since neither Java nor '
