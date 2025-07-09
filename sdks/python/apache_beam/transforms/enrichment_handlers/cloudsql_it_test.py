@@ -545,19 +545,22 @@ class BaseCloudSQLDBEnrichment(BaseTestSQLEnrichment):
     cls._db = None
 
 
+@unittest.skipUnless(
+    os.environ.get('ALLOYDB_PASSWORD'),
+    "ALLOYDB_PASSWORD environment var is not provided")
 class TestCloudSQLPostgresEnrichment(BaseCloudSQLDBEnrichment):
   _db_adapter = DatabaseTypeAdapter.POSTGRESQL
 
   # Configuration required for locating the CloudSQL instance.
   _table_id = "product_details_cloudsql_pg_enrichment"
-  _gcp_project_id = "cultivated-snow-456016-c0"
+  _gcp_project_id = "apache-beam-testing"
   _region = "us-central1"
   _instance_name = "beam-integration-tests"
   _instance_connection_uri = f"{_gcp_project_id}:{_region}:{_instance_name}"
 
   # Configuration required for authenticating to the CloudSQL instance.
   _user = "postgres"
-  _password = "password"
+  _password = os.getenv("ALLOYDB_PASSWORD")
   _db_id = "postgres"
 
   _metadata = MetaData()
