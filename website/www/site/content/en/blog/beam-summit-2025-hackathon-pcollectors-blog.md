@@ -2,8 +2,8 @@
 title: "Our Experience at Beam College 2025: 1st Place Hackathon Winners"
 date: 2025-07-08
 authors:
-    - adityashukla
-    - darshankanade
+    - ashukla
+    - dkanade
 categories:
     - blog
 ---
