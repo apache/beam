@@ -80,7 +80,6 @@ func TestGetAndSetRepositoryURL_bad(t *testing.T) {
 			if err == nil {
 				t.Errorf("setRepositoryURL(%v) succeeded when it should have failed", test.newRepo)
 			}
-			// Check that the failed Set call did not change the URL.
 			if got, want := j.getRepositoryURL(), string(apacheRepository); got != want {
 				t.Errorf("getRepositoryURL() got %v, want %v", got, want)
 			}
@@ -139,17 +138,8 @@ func TestNewJarGetter(t *testing.T) {
 	}
 }
 
-func makeTempDir(t *testing.T) string {
-	d, err := os.MkdirTemp(os.Getenv("TEST_TMPDIR"), "expansionx-*")
-	if err != nil {
-		t.Fatalf("failed to make temp directory, got %v", err)
-	}
-	t.Cleanup(func() { os.RemoveAll(d) })
-	return d
-}
-
 func TestJarExists(t *testing.T) {
-	d := makeTempDir(t)
+	d := t.TempDir()
 
 	tmpFile, err := os.CreateTemp(d, "expansion-*.jar")
 	if err != nil {
@@ -162,7 +152,7 @@ func TestJarExists(t *testing.T) {
 }
 
 func TestJarExists_bad(t *testing.T) {
-	d := makeTempDir(t)
+	d := t.TempDir()
 
 	fakePath := filepath.Join(d, "not-a-file.jar")
 
@@ -179,13 +169,12 @@ func getGeneratedNumberInFile(fileName, jarPrefix string) string {
 }
 
 func TestGetJar_present(t *testing.T) {
-	d := makeTempDir(t)
+	d := t.TempDir()
 
 	j := newJarGetter()
 	j.jarCache = d
 
 	gradleTarget := ":sdks:java:fake:fakeJar"
-
 	jarName := "beam-sdks-java-fake-"
 
 	tmpFile, err := os.CreateTemp(d, jarName+"*.jar")
@@ -194,7 +183,6 @@ func TestGetJar_present(t *testing.T) {
 	}
 
 	genNumber := getGeneratedNumberInFile(tmpFile.Name(), jarName)
-
 	fullJarName := jarName + genNumber + ".jar"
 	expJarPath := filepath.Join(d, fullJarName)
 
