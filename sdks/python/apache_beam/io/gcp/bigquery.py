@@ -2636,12 +2636,10 @@ class StorageWriteToBigQuery(PTransform):
     if self.additional_bq_parameters:
       if callable(self.additional_bq_parameters):
         raise NotImplementedError(
-          "Currently, dynamic clustering and timepartitioning is not "
-          "supported for this write method.")
+            "Currently, dynamic clustering and timepartitioning is not "
+            "supported for this write method.")
       clustering_fields = (
-          self.additional_bq_parameters
-          .get("clustering", {})
-          .get("fields", []))
+          self.additional_bq_parameters.get("clustering", {}).get("fields", []))
 
     output = (
         input_beam_rows

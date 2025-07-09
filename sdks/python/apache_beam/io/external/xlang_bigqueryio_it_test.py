@@ -254,14 +254,14 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
           p
           | "Create test data" >> beam.Create(self.ELEMENTS)
           | beam.io.WriteToBigQuery(
-                table=table_id,
-                method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
-                schema=self.ALL_TYPES_SCHEMA,
-                create_disposition='CREATE_IF_NEEDED',
-                write_disposition='WRITE_TRUNCATE',
-                additional_bq_parameters={
-                'clustering': {'fields': ['int']}
-                }))
+              table=table_id,
+              method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
+              schema=self.ALL_TYPES_SCHEMA,
+              create_disposition='CREATE_IF_NEEDED',
+              write_disposition='WRITE_TRUNCATE',
+              additional_bq_parameters={'clustering': {
+                  'fields': ['int']
+              }}))
 
     # After pipeline finishes, verify clustering is applied
     table = self.bigquery_client.get_table(self.project, self.dataset_id, table)
