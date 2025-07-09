@@ -46,7 +46,6 @@ import org.apache.spark.streaming.Time;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaPairDStream;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.jetbrains.annotations.NotNull;
 import org.joda.time.Instant;
 import scala.Option;
 import scala.Tuple2;
@@ -194,9 +193,8 @@ public class TimerUtils {
     }
   }
 
-  private static <W extends BoundedWindow> @NotNull
-      Collection<TimerInternals.TimerData> getExpiredTimers(
-          SparkTimerInternals sparkTimerInternals, WindowingStrategy<?, W> windowingStrategy) {
+  private static <W extends BoundedWindow> Collection<TimerInternals.TimerData> getExpiredTimers(
+      SparkTimerInternals sparkTimerInternals, WindowingStrategy<?, W> windowingStrategy) {
     return sparkTimerInternals.getTimers().stream()
         .filter(
             timer ->
