@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.spark.translation;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
-
 import java.util.ArrayDeque;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
@@ -28,16 +26,11 @@ import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.CheckForNull;
-import org.apache.beam.runners.core.StateNamespace;
-import org.apache.beam.runners.core.StateNamespaces;
-import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.AbstractIterator;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -183,51 +176,6 @@ class UnboundedSparkInputDataProcessor<FnInputT, FnOutputT>
         throw re;
       }
     }
-  }
-}
-
-/**
- * Abstract base class for iterators that process Spark input data and produce corresponding output
- * values. This class serves as a common base for both bounded and unbounded processing strategies
- * in the Spark runner.
- *
- * <p>The class extends Guava's {@link AbstractIterator} and provides common functionality for
- * iterating through input elements, processing them using a DoFnRunner, and producing output
- * elements as tuples of {@link TupleTag} and {@link WindowedValue} pairs.
- *
- * @param <K> The key type for the processing context
- * @param <InputT> The input element type to be processed
- * @param <OutputT> The output element type after processing
- */
-abstract class AbstractInOutIterator<K, InputT, OutputT>
-    extends AbstractIterator<Tuple2<TupleTag<?>, WindowedValue<?>>> {
-  protected final SparkProcessContext<K, InputT, OutputT> ctx;
-
-  protected AbstractInOutIterator(SparkProcessContext<K, InputT, OutputT> ctx) {
-    this.ctx = ctx;
-  }
-
-  /**
-   * Fires a timer using the DoFnRunner from the context.
-   *
-   * @param timer The timer data containing information about the timer to fire
-   * @throws IllegalArgumentException If the timer namespace is not a {@link
-   *     StateNamespaces.WindowNamespace}
-   */
-  protected void fireTimer(TimerInternals.TimerData timer) {
-    StateNamespace namespace = timer.getNamespace();
-    checkArgument(namespace instanceof StateNamespaces.WindowNamespace);
-    BoundedWindow window = ((StateNamespaces.WindowNamespace) namespace).getWindow();
-    this.ctx
-        .getDoFnRunner()
-        .onTimer(
-            timer.getTimerId(),
-            timer.getTimerFamilyId(),
-            this.ctx.getKey(),
-            window,
-            timer.getTimestamp(),
-            timer.getOutputTimestamp(),
-            timer.getDomain());
   }
 }
 
