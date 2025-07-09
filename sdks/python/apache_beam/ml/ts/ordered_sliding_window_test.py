@@ -18,8 +18,6 @@
 import logging
 import unittest
 
-import numpy as np
-
 import apache_beam as beam
 from apache_beam.ml.ts.ordered_sliding_window import FillGapsFn
 from apache_beam.ml.ts.ordered_sliding_window import OrderedSlidingWindowFn
