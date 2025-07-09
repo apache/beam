@@ -313,13 +313,12 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
             WriteDisposition.valueOf(configuration.getWriteDisposition().toUpperCase());
         write = write.withWriteDisposition(writeDisposition);
       }
-      
 
-      List<String> clusteringFields = configuration.getClustering();
-      if (clusteringFields != null && !clusteringFields.isEmpty()) {
-        Clustering clustering = new Clustering().setFields(clusteringFields);
-        write = write.withClustering(clustering);
-      }
+      // List<String> clusteringFields = configuration.getClustering();
+      // if (clusteringFields != null && !clusteringFields.isEmpty()) {
+      //   Clustering clustering = new Clustering().setFields(clusteringFields);
+      //   write = write.withClustering(clustering);
+      // }
 
       if (!Strings.isNullOrEmpty(configuration.getKmsKey())) {
         write = write.withKmsKey(configuration.getKmsKey());

@@ -2631,14 +2631,17 @@ class StorageWriteToBigQuery(PTransform):
                 schema, True).with_output_types())
       # communicate to Java that this write should use dynamic destinations
       table = StorageWriteToBigQuery.DYNAMIC_DESTINATIONS
-    
-    clustering_fields = []
-    if self.additional_bq_parameters and "clustering" in self.additional_bq_parameters:
-      clustering_fields = self.additional_bq_parameters.get("clustering", {}).get("fields", [])
-    else:
-      clustering_fields = []
 
-    print(clustering_fields)  
+    clustering_fields = []
+    if self.additional_bq_parameters:
+      if callable(self.additional_bq_parameters):
+        raise NotImplementedError(
+          "Currently, dynamic clustering and timepartitioning is not "
+          "supported for this write method.")
+      clustering_fields = (
+          self.additional_bq_parameters
+          .get("clustering", {})
+          .get("fields", []))
 
     output = (
         input_beam_rows
