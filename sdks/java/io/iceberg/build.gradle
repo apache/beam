@@ -95,6 +95,7 @@ dependencies {
     testImplementation project(":sdks:java:io:google-cloud-platform")
     testImplementation library.java.google_api_services_bigquery
 
+    testImplementation library.java.google_auth_library_oauth2_http
     testRuntimeOnly library.java.slf4j_jdk14
     testImplementation project(path: ":runners:direct-java", configuration: "shadow")
     testRuntimeOnly project(path: ":runners:google-cloud-dataflow-java")
