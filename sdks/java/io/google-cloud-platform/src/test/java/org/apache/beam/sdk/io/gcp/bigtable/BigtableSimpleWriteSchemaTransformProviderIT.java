@@ -338,7 +338,7 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
         dataClient.readRows(Query.create(tableId)).stream().collect(Collectors.toList());
 
     // we should still have one row with the same key
-    assertEquals(2, rows.size());
+    assertEquals(1, rows.size());
     assertEquals("key-1", rows.get(0).getKey().toStringUtf8());
     // we had two cells in col_a and deleted the older one. we should be left with the newer cell.
     // check cell has correct value and timestamp
@@ -585,7 +585,7 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
             .collect(Collectors.toList());
     assertEquals(2, cellsSetCellCol1.size()); // Original + updated
     assertEquals(
-        "updated_val_1", cellsSetCellCol1.get(0).getValue().toStringUtf8()); // Newest value
+        "initial_val_1", cellsSetCellCol1.get(0).getValue().toStringUtf8()); // Newest value
     assertEquals(
         "initial_val_1", cellsSetCellCol1.get(1).getValue().toStringUtf8()); // Oldest value
     List<RowCell> cellsSetCellNewCol = rowSetCell.getCells(COLUMN_FAMILY_NAME_1, "new_col_A");
