@@ -25,7 +25,10 @@ import com.google.bigtable.v2.Mutation;
 import com.google.bigtable.v2.TimestampRange;
 import com.google.protobuf.ByteString;
 import java.util.Objects;
+
+import net.bytebuddy.implementation.bytecode.Throw;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteSchemaTransformProvider.BigtableWriteSchemaTransformConfiguration;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
@@ -77,9 +80,49 @@ public class BigtableSimpleWriteSchemaTransformProvider
           input.has(INPUT_TAG),
           String.format(
               "Could not find expected input [%s] to %s.", INPUT_TAG, getClass().getSimpleName()));
+      Schema testMutationSchema =
+          Schema.builder()
+              .addByteArrayField("key")
+              .addStringField("type")
+              .addByteArrayField("family_name")
+              .build();
 
-      PCollection<KV<ByteString, Iterable<Mutation>>> bigtableMutations =
-          changeMutationInput(input);
+      Schema testOriginialSchema =
+        Schema.builder()
+            .addByteArrayField("key")
+            .addArrayField("mutations", Schema.FieldType.map(Schema.FieldType.STRING, Schema.FieldType.BYTES))
+            .build();
+
+
+      Schema inputSchema = input.getSinglePCollection().getSchema();
+
+
+
+      PCollection<KV<ByteString, Iterable<Mutation>>> bigtableMutations = null;
+      if (inputSchema.equals(testOriginialSchema)) {
+        PCollection<Row> beamRowMutations = input.get(INPUT_TAG);
+        bigtableMutations = beamRowMutations.apply(
+            //Original schema inputs gets sent out to the original transform provider mutations function
+            MapElements.via(new BigtableWriteSchemaTransformProvider.GetMutationsFromBeamRow()));
+      } else if (inputSchema.hasField("type")) {
+        //new schema inputs get sent to the new transform provider mutation function
+        bigtableMutations = changeMutationInput(input);
+      } else {
+        String.format(
+            "Inputted Schema is Invalid; the schema should be formatted in one of two ways:\n " +
+                "key\": ByteString\n" +
+                "\"type\": String\n" +
+                "\"column_qualifier\": ByteString\n" +
+                "\"family_name\": ByteString\n" +
+                "\"timestamp_micros\": Long\n" +
+                "\"start_timestamp_micros\": Long\n" +
+                "\"end_timestamp_micros\": Long" +
+                "OR\n" +
+                "\n" +
+                "\"key\": ByteString\n" +
+                "(\"mutations\", contains map(String, ByteString) of mutations in the mutation schema format", INPUT_TAG, getClass().getSimpleName());
+
+      }
 
       bigtableMutations.apply(
           BigtableIO.write()
