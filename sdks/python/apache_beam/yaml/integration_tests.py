@@ -18,19 +18,20 @@
 """Runs integration tests in the tests directory."""
 
 import contextlib
-import logging
-import os
-import secrets
 import copy
 import glob
 import itertools
+import logging
+import os
 import random
+import secrets
 import sqlite3
 import string
 import unittest
 import uuid
 from datetime import datetime
 from datetime import timezone
+
 import mock
 import mysql.connector
 import psycopg2
@@ -44,6 +45,7 @@ from testcontainers.google import PubSubContainer
 from testcontainers.mssql import SqlServerContainer
 from testcontainers.mysql import MySqlContainer
 from testcontainers.postgres import PostgresContainer
+
 import apache_beam as beam
 from apache_beam.io import filesystems
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
