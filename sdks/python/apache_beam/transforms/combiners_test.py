@@ -1021,5 +1021,31 @@ class CombineGloballyTest(unittest.TestCase):
           | beam.CombineGlobally(sum).without_defaults())
 
 
+class CombinerWithSideInputs(unittest.TestCase):
+  def test_combineperkey_with_side_kwarg(self):
+    def get_common_items(sets, excluded_chars=""):
+      # set.intersection() takes multiple sets as separete arguments.
+      # We unpack the `sets` list into multiple arguments with the * operator.
+      # The combine transform might give us an empty list of `sets`,
+      # so we use a list with an empty set as a default value.
+      common = set.intersection(*(sets or [set()]))
+      return common.difference(excluded_chars)
+
+    with beam.Pipeline() as pipeline:
+      pc = (pipeline | beam.Create(['🍅']))
+      common_items = (
+          pipeline
+          | 'Create produce' >> beam.Create([
+              {'🍓', '🥕', '🍌', '🍅', '🌶️'},
+              {'🍇', '🥕', '🥝', '🍅', '🥔'},
+              {'🍉', '🥕', '🍆', '🍅', '🍍'},
+              {'🥑', '🥕', '🌽', '🍅', '🥥'},
+          ])
+          | beam.WithKeys(lambda x: None)
+          | 'Get common items' >> beam.CombinePerKey(
+              get_common_items, excluded_chars=beam.pvalue.AsSingleton(pc)))
+      assert_that(common_items, equal_to([(None, {'🥕'})]))
+
+
 if __name__ == '__main__':
   unittest.main()
