@@ -28,6 +28,7 @@ import pytest
 
 import apache_beam as beam
 import apache_beam.transforms.combiners as combine
+from apache_beam import pvalue
 from apache_beam.metrics import Metrics
 from apache_beam.metrics import MetricsFilter
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -1021,6 +1022,47 @@ class CombineGloballyTest(unittest.TestCase):
           | beam.CombineGlobally(sum).without_defaults())
 
 
+class ColoredFixedWindow(window.BoundedWindow):
+  def __init__(self, end, color):
+    super().__init__(end)
+    self.color = color
+
+  def __hash__(self):
+    return hash((self.end, self.color))
+
+  def __eq__(self, other):
+    return (
+        type(self) == type(other) and self.end == other.end and
+        self.color == other.color)
+
+
+class ColoredFixedWindowCoder(beam.coders.Coder):
+  kv_coder = beam.coders.TupleCoder(
+      [beam.coders.TimestampCoder(), beam.coders.StrUtf8Coder()])
+
+  def encode(self, colored_window):
+    return self.kv_coder.encode((colored_window.end, colored_window.color))
+
+  def decode(self, encoded_window):
+    return ColoredFixedWindow(*self.kv_coder.decode(encoded_window))
+
+  def is_deterministic(self):
+    return True
+
+
+class EvenOddWindows(window.NonMergingWindowFn):
+  def assign(self, context):
+    timestamp = context.timestamp
+    return [
+        ColoredFixedWindow(
+            timestamp - timestamp % 10 + 10,
+            'red' if timestamp.micros // 1000000 % 2 else 'black')
+    ]
+
+  def get_window_coder(self):
+    return ColoredFixedWindowCoder()
+
+
 class CombinerWithSideInputs(unittest.TestCase):
   def test_combineperkey_with_side_kwarg(self):
     def get_common_items(sets, excluded_chars=""):
@@ -1045,6 +1087,26 @@ class CombinerWithSideInputs(unittest.TestCase):
           | 'Get common items' >> beam.CombinePerKey(
               get_common_items, excluded_chars=beam.pvalue.AsSingleton(pc)))
       assert_that(common_items, equal_to([(None, {'🥕'})]))
+
+  def test_cpk_with_streaming(self):
+    with beam.Pipeline() as p:
+
+      def sum_with_floor(vals, min_value=0):
+        vals_sum = sum(vals)
+        if vals_sum < min_value:
+          vals_sum += min_value
+        return vals_sum
+
+      res = (
+          p
+          | "CreateInputs" >> beam.Create([1, 2, 100, 101, 102])
+          | beam.Map(lambda t: window.TimestampedValue(('k', t), t))
+          | beam.WindowInto(EvenOddWindows())
+          | beam.CombinePerKey(
+              sum_with_floor,
+              min_value=pvalue.AsSingleton(p | beam.Create([100]))))
+      assert_that(
+          res, equal_to([('k', 101), ('k', 102), ('k', 101), ('k', 202)]))
 
 
 if __name__ == '__main__':
