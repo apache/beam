@@ -38,6 +38,17 @@ _COMMAND_POSSIBLE_VALUES = ['up', 'down', 'ps']
 _EXPANSION_SERVICE_LAUNCHER_JAR = ':sdks:java:transform-service:app:build'
 
 
+def is_docker_compose_v2_available():
+  cmd = ['docker', 'compose', 'version']
+
+  try:
+    subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+  except:  # pylint: disable=bare-except
+    return False
+
+  return True
+
+
 class TransformServiceLauncher(object):
   _DEFAULT_PROJECT_NAME = 'apache.beam.transform.service'
   _DEFAULT_START_WAIT_TIMEOUT = 50000
@@ -60,10 +71,6 @@ class TransformServiceLauncher(object):
     self._address = 'localhost:' + str(self._port)
 
     self._launcher_lock = threading.RLock()
-
-    self.docker_compose_command_prefix = [
-        'docker-compose', '-p', project_name, '-f', 'TODO path'
-    ]
 
     # Setting up Docker Compose configuration.
 
@@ -130,8 +137,12 @@ class TransformServiceLauncher(object):
     self._environmental_variables['PYTHON_REQUIREMENTS_FILE_NAME'] = (
         'requirements.txt')
 
-    self._docker_compose_start_command_prefix = []
-    self._docker_compose_start_command_prefix.append('docker-compose')
+    # Building docker compose start command
+    if is_docker_compose_v2_available():
+      self._docker_compose_start_command_prefix = ['docker', 'compose']
+    else:
+      self._docker_compose_start_command_prefix = ['docker-compose']
+
     self._docker_compose_start_command_prefix.append('-p')
     self._docker_compose_start_command_prefix.append(project_name)
     self._docker_compose_start_command_prefix.append('-f')
