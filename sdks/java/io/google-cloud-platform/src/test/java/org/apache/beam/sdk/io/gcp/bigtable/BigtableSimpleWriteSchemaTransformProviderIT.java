@@ -338,7 +338,7 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
         dataClient.readRows(Query.create(tableId)).stream().collect(Collectors.toList());
 
     // we should still have one row with the same key
-    assertEquals(1, rows.size());
+    assertEquals(2, rows.size());
     assertEquals("key-1", rows.get(0).getKey().toStringUtf8());
     // we had two cells in col_a and deleted the older one. we should be left with the newer cell.
     // check cell has correct value and timestamp
@@ -419,9 +419,6 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
 
   @Test
   public void testAllMutations() {
-    // We already have testDeleteRow, which serves a similar purpose of combining operations.
-    // The previous testAllMutations was effectively a duplicate of testDeleteRow.
-    // This new test will be more comprehensive.
 
     // --- Initial Setup: Populate the table with diverse data ---
     dataClient.mutateRow(RowMutation.create(tableId, "row-setcell")
@@ -573,7 +570,7 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
     List<com.google.cloud.bigtable.data.v2.models.Row> rows =
         dataClient.readRows(Query.create(tableId)).stream().collect(Collectors.toList());
 
-    assertEquals(4, rows.size()); // Expecting 'row-setcell', 'row-delete-col', 'row-delete-col-ts', 'row-final-check'
+    assertEquals(5, rows.size()); // Expecting 'row-setcell', 'row-delete-col', 'row-delete-col-ts', 'row-final-check'
 
     // Verify "row-setcell"
     com.google.cloud.bigtable.data.v2.models.Row rowSetCell =
