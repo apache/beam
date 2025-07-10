@@ -2788,7 +2788,7 @@ class BeamModulePlugin implements Plugin<Project> {
       String testJavaVersion = project.findProperty('testJavaVersion')
       String testJavaHome = null
       if (testJavaVersion) {
-        testJavaHome = project.findProperty("java${testJavaHome}Home")
+        testJavaHome = project.findProperty("java${testJavaVersion}Home")
       }
 
       ['Java': javaPort, 'Python': pythonPort].each { sdk, port ->
