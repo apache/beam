@@ -228,7 +228,7 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
             .withFieldValue("value", "new-val-1".getBytes(StandardCharsets.UTF_8))
             .withFieldValue("column_qualifier", "new_col".getBytes(StandardCharsets.UTF_8))
             .withFieldValue("family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8))
-            .withFieldValue("timestamp_micros",99_999_999L)
+            .withFieldValue("timestamp_micros",999_000L)
             .build();
 
     PCollectionRowTuple.of("input", p.apply(Create.of(Arrays.asList(mutationRow))))
@@ -323,8 +323,8 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
             .withFieldValue("type", "DeleteFromColumn")
             .withFieldValue("column_qualifier", "col".getBytes(StandardCharsets.UTF_8))
             .withFieldValue("family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8))
-            .withFieldValue("start_timestamp_micros", 99_999_999L)
-            .withFieldValue("end_timestamp_micros", 100_000_001L)
+            .withFieldValue("start_timestamp_micros", 99_990_000L)
+            .withFieldValue("end_timestamp_micros", 100_000_000L)
             .build();
 
     PCollectionRowTuple.of("input", p.apply(Create.of(Arrays.asList(mutationRow))))
