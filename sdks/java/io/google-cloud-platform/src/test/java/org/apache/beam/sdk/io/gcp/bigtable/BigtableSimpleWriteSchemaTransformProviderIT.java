@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigtable;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 import com.google.api.gax.rpc.NotFoundException;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient;
@@ -30,6 +31,7 @@ import com.google.cloud.bigtable.data.v2.models.Query;
 import com.google.cloud.bigtable.data.v2.models.RowCell;
 import com.google.cloud.bigtable.data.v2.models.RowMutation;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
@@ -417,29 +419,222 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
 
   @Test
   public void testAllMutations() {
-    RowMutation rowMutation =
-        RowMutation.create(tableId, "key-1").setCell(COLUMN_FAMILY_NAME_1, "col", "val-1");
-    dataClient.mutateRow(rowMutation);
-    rowMutation =
-        RowMutation.create(tableId, "key-2").setCell(COLUMN_FAMILY_NAME_1, "col", "val-2");
-    dataClient.mutateRow(rowMutation);
-    Schema testSchema = Schema.builder().addByteArrayField("key").addStringField("type").build();
-    Row mutationRow =
-        Row.withSchema(testSchema)
-            .withFieldValue("key", "key-1".getBytes(StandardCharsets.UTF_8))
-            .withFieldValue("type", "DeleteFromRow")
+    // We already have testDeleteRow, which serves a similar purpose of combining operations.
+    // The previous testAllMutations was effectively a duplicate of testDeleteRow.
+    // This new test will be more comprehensive.
+
+    // --- Initial Setup: Populate the table with diverse data ---
+    dataClient.mutateRow(RowMutation.create(tableId, "row-setcell")
+        .setCell(COLUMN_FAMILY_NAME_1, "col_initial_1", "initial_val_1")
+        .setCell(COLUMN_FAMILY_NAME_2, "col_initial_2", "initial_val_2"));
+
+    dataClient.mutateRow(RowMutation.create(tableId, "row-delete-col")
+        .setCell(COLUMN_FAMILY_NAME_1, "col_to_delete_A", 1000, "val_to_delete_A_old")
+        .setCell(COLUMN_FAMILY_NAME_1, "col_to_delete_A", 2000, "val_to_delete_A_new")
+        .setCell(COLUMN_FAMILY_NAME_1, "col_to_keep_B", "val_to_keep_B"));
+
+    dataClient.mutateRow(RowMutation.create(tableId, "row-delete-col-ts")
+        .setCell(COLUMN_FAMILY_NAME_1, "ts_col", 1000, "ts_val_old")
+        .setCell(COLUMN_FAMILY_NAME_1, "ts_col", 2000, "ts_val_new")
+        .setCell(COLUMN_FAMILY_NAME_2, "ts_col_other_cf", "ts_val_other_cf"));
+
+    dataClient.mutateRow(RowMutation.create(tableId, "row-delete-family")
+        .setCell(COLUMN_FAMILY_NAME_1, "col_to_delete_family", "val_delete_family")
+        .setCell(COLUMN_FAMILY_NAME_2, "col_to_keep_family", "val_keep_family"));
+
+    dataClient.mutateRow(RowMutation.create(tableId, "row-delete-row")
+        .setCell(COLUMN_FAMILY_NAME_1, "col", "val_delete_row"));
+
+    dataClient.mutateRow(RowMutation.create(tableId, "row-final-check")
+        .setCell(COLUMN_FAMILY_NAME_1, "col_final_1", "val_final_1"));
+
+
+    // --- Define Schemas for various mutation types ---
+
+    // Schema for SetCell
+    Schema setCellSchema =
+        Schema.builder()
+            .addByteArrayField("key")
+            .addStringField("type")
+            .addByteArrayField("value")
+            .addByteArrayField("column_qualifier")
+            .addByteArrayField("family_name")
+            .addField("timestamp_micros", FieldType.INT64)
             .build();
 
-    PCollectionRowTuple.of("input", p.apply(Create.of(Arrays.asList(mutationRow))))
+    // Schema for DeleteFromColumn
+    Schema deleteFromColumnSchema =
+        Schema.builder()
+            .addByteArrayField("key")
+            .addStringField("type")
+            .addByteArrayField("column_qualifier")
+            .addByteArrayField("family_name")
+            .build();
+
+    // Schema for DeleteFromColumn with Timestamp Range
+    Schema deleteFromColumnTsSchema =
+        Schema.builder()
+            .addByteArrayField("key")
+            .addStringField("type")
+            .addByteArrayField("column_qualifier")
+            .addByteArrayField("family_name")
+            .addField("start_timestamp_micros", FieldType.INT64)
+            .addField("end_timestamp_micros", FieldType.INT64)
+            .build();
+
+    // Schema for DeleteFromFamily
+    Schema deleteFromFamilySchema =
+        Schema.builder()
+            .addByteArrayField("key")
+            .addStringField("type")
+            .addByteArrayField("family_name")
+            .build();
+
+    // Schema for DeleteFromRow
+    Schema deleteFromRowSchema =
+        Schema.builder()
+            .addByteArrayField("key")
+            .addStringField("type")
+            .build();
+
+
+    // --- Create a list of mutation Rows ---
+    List<Row> mutations = new ArrayList<>();
+
+    // 1. SetCell (Update an existing cell, add a new cell)
+    // Update "row-setcell", col_initial_1
+    mutations.add(
+        Row.withSchema(setCellSchema)
+            .withFieldValue("key", "row-setcell".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("type", "SetCell")
+            .withFieldValue("value", "updated_val_1".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("column_qualifier", "col_initial_1".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("timestamp_micros", 3000L)
+            .build());
+    // Add new cell to "row-setcell"
+    mutations.add(
+        Row.withSchema(setCellSchema)
+            .withFieldValue("key", "row-setcell".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("type", "SetCell")
+            .withFieldValue("value", "new_col_val".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("column_qualifier", "new_col_A".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("timestamp_micros", 4000L)
+            .build());
+
+    // 2. DeleteFromColumn
+    // Delete "col_to_delete_A" from "row-delete-col"
+    mutations.add(
+        Row.withSchema(deleteFromColumnSchema)
+            .withFieldValue("key", "row-delete-col".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("type", "DeleteFromColumn")
+            .withFieldValue("column_qualifier", "col_to_delete_A".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8))
+            .build());
+
+    // 3. DeleteFromColumn with Timestamp Range
+    // Delete "ts_col" with timestamp 1000 from "row-delete-col-ts"
+    mutations.add(
+        Row.withSchema(deleteFromColumnTsSchema)
+            .withFieldValue("key", "row-delete-col-ts".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("type", "DeleteFromColumn")
+            .withFieldValue("column_qualifier", "ts_col".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("start_timestamp_micros", 999L) // Inclusive
+            .withFieldValue("end_timestamp_micros", 1001L)   // Exclusive
+            .build());
+
+    // 4. DeleteFromFamily
+    // Delete COLUMN_FAMILY_NAME_1 from "row-delete-family"
+    mutations.add(
+        Row.withSchema(deleteFromFamilySchema)
+            .withFieldValue("key", "row-delete-family".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("type", "DeleteFromFamily")
+            .withFieldValue("family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8))
+            .build());
+
+    // 5. DeleteFromRow
+    // Delete "row-delete-row"
+    mutations.add(
+        Row.withSchema(deleteFromRowSchema)
+            .withFieldValue("key", "row-delete-row".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("type", "DeleteFromRow")
+            .build());
+
+    // --- Apply the mutations ---
+    PCollectionRowTuple.of("input", p.apply(Create.of(mutations)))
         .apply(writeTransform);
     p.run().waitUntilFinish();
 
-    // get rows from table
+
+    // --- Assertions: Verify the final state of the table ---
+
     List<com.google.cloud.bigtable.data.v2.models.Row> rows =
         dataClient.readRows(Query.create(tableId)).stream().collect(Collectors.toList());
 
-    // we created two rows then deleted one, so should end up with the row we didn't touch
-    assertEquals(1, rows.size());
-    assertEquals("key-2", rows.get(0).getKey().toStringUtf8());
+    assertEquals(4, rows.size()); // Expecting 'row-setcell', 'row-delete-col', 'row-delete-col-ts', 'row-final-check'
+
+    // Verify "row-setcell"
+    com.google.cloud.bigtable.data.v2.models.Row rowSetCell =
+        rows.stream().filter(r -> r.getKey().toStringUtf8().equals("row-setcell")).findFirst().orElse(null);
+    assertEquals("row-setcell", rowSetCell.getKey().toStringUtf8());
+    List<RowCell> cellsSetCellCol1 = rowSetCell.getCells(COLUMN_FAMILY_NAME_1, "col_initial_1").stream().sorted(RowCell.compareByNative()).collect(Collectors.toList());
+    assertEquals(2, cellsSetCellCol1.size()); // Original + updated
+    assertEquals("updated_val_1", cellsSetCellCol1.get(0).getValue().toStringUtf8()); // Newest value
+    assertEquals("initial_val_1", cellsSetCellCol1.get(1).getValue().toStringUtf8()); // Oldest value
+    List<RowCell> cellsSetCellNewCol = rowSetCell.getCells(COLUMN_FAMILY_NAME_1, "new_col_A");
+    assertEquals(1, cellsSetCellNewCol.size());
+    assertEquals("new_col_val", cellsSetCellNewCol.get(0).getValue().toStringUtf8());
+    List<RowCell> cellsSetCellCol2 = rowSetCell.getCells(COLUMN_FAMILY_NAME_2, "col_initial_2");
+    assertEquals(1, cellsSetCellCol2.size());
+    assertEquals("initial_val_2", cellsSetCellCol2.get(0).getValue().toStringUtf8());
+
+
+    // Verify "row-delete-col"
+    com.google.cloud.bigtable.data.v2.models.Row rowDeleteCol =
+        rows.stream().filter(r -> r.getKey().toStringUtf8().equals("row-delete-col")).findFirst().orElse(null);
+    assertEquals("row-delete-col", rowDeleteCol.getKey().toStringUtf8());
+    List<RowCell> cellsColToDeleteA = rowDeleteCol.getCells(COLUMN_FAMILY_NAME_1, "col_to_delete_A");
+    assertTrue(cellsColToDeleteA.isEmpty()); // Should be deleted
+    List<RowCell> cellsColToKeepB = rowDeleteCol.getCells(COLUMN_FAMILY_NAME_1, "col_to_keep_B");
+    assertEquals(1, cellsColToKeepB.size());
+    assertEquals("val_to_keep_B", cellsColToKeepB.get(0).getValue().toStringUtf8());
+
+
+    // Verify "row-delete-col-ts"
+    com.google.cloud.bigtable.data.v2.models.Row rowDeleteColTs =
+        rows.stream().filter(r -> r.getKey().toStringUtf8().equals("row-delete-col-ts")).findFirst().orElse(null);
+    assertEquals("row-delete-col-ts", rowDeleteColTs.getKey().toStringUtf8());
+    List<RowCell> cellsTsCol = rowDeleteColTs.getCells(COLUMN_FAMILY_NAME_1, "ts_col");
+    assertEquals(1, cellsTsCol.size()); // Only the 2000 timestamp cell should remain
+    assertEquals("ts_val_new", cellsTsCol.get(0).getValue().toStringUtf8());
+    assertEquals(2000, cellsTsCol.get(0).getTimestamp());
+    List<RowCell> cellsTsColOtherCf = rowDeleteColTs.getCells(COLUMN_FAMILY_NAME_2, "ts_col_other_cf");
+    assertEquals(1, cellsTsColOtherCf.size());
+    assertEquals("ts_val_other_cf", cellsTsColOtherCf.get(0).getValue().toStringUtf8());
+
+
+    // Verify "row-delete-family"
+    com.google.cloud.bigtable.data.v2.models.Row rowDeleteFamily =
+        rows.stream().filter(r -> r.getKey().toStringUtf8().equals("row-delete-family")).findFirst().orElse(null);
+    assertEquals("row-delete-family", rowDeleteFamily.getKey().toStringUtf8());
+    List<RowCell> cellsCf1 = rowDeleteFamily.getCells(COLUMN_FAMILY_NAME_1);
+    assertTrue(cellsCf1.isEmpty()); // COLUMN_FAMILY_NAME_1 should be empty
+    List<RowCell> cellsCf2 = rowDeleteFamily.getCells(COLUMN_FAMILY_NAME_2);
+    assertEquals(1, cellsCf2.size());
+    assertEquals("val_keep_family", cellsCf2.get(0).getValue().toStringUtf8());
+
+
+    // Verify "row-delete-row" is gone
+    assertTrue(rows.stream().noneMatch(r -> r.getKey().toStringUtf8().equals("row-delete-row")));
+
+    // Verify "row-final-check" still exists
+    com.google.cloud.bigtable.data.v2.models.Row rowFinalCheck =
+        rows.stream().filter(r -> r.getKey().toStringUtf8().equals("row-final-check")).findFirst().orElse(null);
+    assertEquals("row-final-check", rowFinalCheck.getKey().toStringUtf8());
+    List<RowCell> cellsFinalCheck = rowFinalCheck.getCells(COLUMN_FAMILY_NAME_1, "col_final_1");
+    assertEquals(1, cellsFinalCheck.size());
+    assertEquals("val_final_1", cellsFinalCheck.get(0).getValue().toStringUtf8());
   }
 }
