@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.util.construction;
 
+import static org.apache.beam.model.pipeline.v1.ExternalTransforms.ExpansionMethods.Enum.SCHEMA_TRANSFORM;
+
+import com.fasterxml.jackson.core.Version;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -25,6 +28,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -48,9 +52,11 @@ import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.util.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannelBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
@@ -110,6 +116,22 @@ public class TransformUpgrader implements AutoCloseable {
                   if (urn != null && urnsToOverride.contains(urn)) {
                     return true;
                   }
+
+                  // Also check if the URN is a schema-transform ID.
+                  if (urn.equals(BeamUrns.getUrn(SCHEMA_TRANSFORM))) {
+                    try {
+                      ExternalTransforms.SchemaTransformPayload schemaTransformPayload =
+                          ExternalTransforms.SchemaTransformPayload.parseFrom(
+                              entry.getValue().getSpec().getPayload());
+                      String schemaTransformId = schemaTransformPayload.getIdentifier();
+                      if (urnsToOverride.contains(schemaTransformId)) {
+                        return true;
+                      }
+                    } catch (InvalidProtocolBufferException e) {
+                      throw new RuntimeException(e);
+                    }
+                  }
+
                   return false;
                 })
             .map(
@@ -181,18 +203,27 @@ public class TransformUpgrader implements AutoCloseable {
     if (transformToUpgrade == null) {
       throw new IllegalArgumentException("Could not find a transform with the ID " + transformId);
     }
-    ByteString configRowBytes =
-        transformToUpgrade.getAnnotationsOrThrow(PTransformTranslation.CONFIG_ROW_KEY);
-    ByteString configRowSchemaBytes =
-        transformToUpgrade.getAnnotationsOrThrow(PTransformTranslation.CONFIG_ROW_SCHEMA_KEY);
-    SchemaApi.Schema configRowSchemaProto =
-        SchemaApi.Schema.parseFrom(configRowSchemaBytes.toByteArray());
 
-    ExternalTransforms.ExternalConfigurationPayload payload =
-        ExternalTransforms.ExternalConfigurationPayload.newBuilder()
-            .setSchema(configRowSchemaProto)
-            .setPayload(configRowBytes)
-            .build();
+    byte[] payloadBytes = null;
+
+    if (!transformToUpgrade.getSpec().getUrn().equals(BeamUrns.getUrn(SCHEMA_TRANSFORM))) {
+      ByteString configRowBytes =
+          transformToUpgrade.getAnnotationsOrThrow(
+              BeamUrns.getConstant(ExternalTransforms.Annotations.Enum.CONFIG_ROW_KEY));
+      ByteString configRowSchemaBytes =
+          transformToUpgrade.getAnnotationsOrThrow(
+              BeamUrns.getConstant(ExternalTransforms.Annotations.Enum.CONFIG_ROW_SCHEMA_KEY));
+      SchemaApi.Schema configRowSchemaProto =
+          SchemaApi.Schema.parseFrom(configRowSchemaBytes.toByteArray());
+      payloadBytes =
+          ExternalTransforms.ExternalConfigurationPayload.newBuilder()
+              .setSchema(configRowSchemaProto)
+              .setPayload(configRowBytes)
+              .build()
+              .toByteArray();
+    } else {
+      payloadBytes = transformToUpgrade.getSpec().getPayload().toByteArray();
+    }
 
     RunnerApi.PTransform.Builder ptransformBuilder =
         RunnerApi.PTransform.newBuilder()
@@ -200,7 +231,7 @@ public class TransformUpgrader implements AutoCloseable {
             .setSpec(
                 RunnerApi.FunctionSpec.newBuilder()
                     .setUrn(transformToUpgrade.getSpec().getUrn())
-                    .setPayload(ByteString.copyFrom(payload.toByteArray()))
+                    .setPayload(ByteString.copyFrom(payloadBytes))
                     .build());
 
     for (Map.Entry<String, String> entry : transformToUpgrade.getInputsMap().entrySet()) {
@@ -458,5 +489,60 @@ public class TransformUpgrader implements AutoCloseable {
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
+  }
+
+  @SuppressWarnings({
+    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  })
+  private static Version getVersionFromStr(String version) {
+    String[] versionParts = Splitter.onPattern("\\.").splitToList(version).toArray(new String[0]);
+    if (versionParts.length < 2) {
+      throw new IllegalArgumentException(
+          "Expected the version string to start with `<major>.<minor>` "
+              + "but received "
+              + version);
+    }
+
+    // Concatenating patch and suffix to determine the correct patch version.
+    String patchAndSuffix =
+        versionParts.length == 2
+            ? ""
+            : String.join(".", Arrays.copyOfRange(versionParts, 2, versionParts.length));
+    StringBuilder patchVersionBuilder = new StringBuilder();
+    for (int i = 0; i < patchAndSuffix.length(); i++) {
+      if (Character.isDigit(patchAndSuffix.charAt(i))) {
+        patchVersionBuilder.append(patchAndSuffix.charAt(i));
+      } else {
+        break;
+      }
+    }
+    String patchVersion = patchVersionBuilder.toString();
+    if (patchVersion.isEmpty()) {
+      patchVersion = "0";
+    }
+    return new Version(
+        Integer.parseInt(versionParts[0]),
+        Integer.parseInt(versionParts[1]),
+        Integer.parseInt(patchVersion),
+        null,
+        null,
+        null);
+  }
+
+  /**
+   * Compares two Beam versions. Expects the versions to be in the format
+   * <major>.<minor>.<patch><suffix>. <patch> and <suffix> are optional. Version numbers should be
+   * integers. When comparing suffix will be ignored.
+   *
+   * @param firstVersion first version to compare.
+   * @param secondVersion second version to compare.
+   * @return a negative number of first version is smaller than the second, a positive number if the
+   *     first version is larger than the second, 0 if versions are equal.
+   */
+  public static int compareVersions(String firstVersion, String secondVersion) {
+    if (firstVersion.equals(secondVersion)) {
+      return 0;
+    }
+    return getVersionFromStr(firstVersion).compareTo(getVersionFromStr(secondVersion));
   }
 }

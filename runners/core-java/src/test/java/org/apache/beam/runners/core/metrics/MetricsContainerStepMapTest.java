@@ -29,6 +29,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
+import org.apache.beam.sdk.metrics.BoundedTrie;
+import org.apache.beam.sdk.metrics.BoundedTrieResult;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.DistributionResult;
@@ -40,6 +42,10 @@ import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.metrics.MetricsFilter;
+import org.apache.beam.sdk.metrics.StringSet;
+import org.apache.beam.sdk.metrics.StringSetResult;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.hamcrest.collection.IsIterableWithSize;
 import org.joda.time.Instant;
 import org.junit.Assert;
@@ -59,14 +65,24 @@ public class MetricsContainerStepMapTest {
   private static final String COUNTER_NAME = "myCounter";
   private static final String DISTRIBUTION_NAME = "myDistribution";
   private static final String GAUGE_NAME = "myGauge";
+  private static final String STRING_SET_NAME = "myStringSet";
+  private static final String BOUNDED_TRIE_NAME = "myBoundedTrie";
 
   private static final long VALUE = 100;
+
+  private static final String FIRST_STRING = "first";
+  private static final String SECOND_STRING = "second";
 
   private static final Counter counter =
       Metrics.counter(MetricsContainerStepMapTest.class, COUNTER_NAME);
   private static final Distribution distribution =
       Metrics.distribution(MetricsContainerStepMapTest.class, DISTRIBUTION_NAME);
   private static final Gauge gauge = Metrics.gauge(MetricsContainerStepMapTest.class, GAUGE_NAME);
+
+  private static final StringSet stringSet =
+      Metrics.stringSet(MetricsContainerStepMapTest.class, STRING_SET_NAME);
+  private static final BoundedTrie boundedTrie =
+      Metrics.boundedTrie(MetricsContainerStepMapTest.class, BOUNDED_TRIE_NAME);
 
   private static final MetricsContainerImpl metricsContainer;
 
@@ -77,6 +93,8 @@ public class MetricsContainerStepMapTest {
       distribution.update(VALUE);
       distribution.update(VALUE * 2);
       gauge.set(VALUE);
+      stringSet.add(FIRST_STRING, SECOND_STRING);
+      boundedTrie.add(FIRST_STRING, SECOND_STRING);
     } catch (IOException e) {
       LOG.error(e.getMessage(), e);
     }
@@ -99,6 +117,8 @@ public class MetricsContainerStepMapTest {
     assertIterableSize(step1res.getCounters(), 1);
     assertIterableSize(step1res.getDistributions(), 1);
     assertIterableSize(step1res.getGauges(), 1);
+    assertIterableSize(step1res.getStringSets(), 1);
+    assertIterableSize(step1res.getBoundedTries(), 1);
 
     assertCounter(COUNTER_NAME, step1res, STEP1, VALUE, false);
     assertDistribution(
@@ -109,12 +129,29 @@ public class MetricsContainerStepMapTest {
         false);
     assertGauge(GAUGE_NAME, step1res, STEP1, GaugeResult.create(VALUE, Instant.now()), false);
 
+    assertStringSet(
+        STRING_SET_NAME,
+        step1res,
+        STEP1,
+        StringSetResult.create(ImmutableSet.of(FIRST_STRING, SECOND_STRING)),
+        false);
+
+    assertBoundedTrie(
+        BOUNDED_TRIE_NAME,
+        step1res,
+        STEP1,
+        BoundedTrieResult.create(
+            ImmutableSet.of(ImmutableList.of(FIRST_STRING, SECOND_STRING, String.valueOf(false)))),
+        false);
+
     MetricQueryResults step2res =
         metricResults.queryMetrics(MetricsFilter.builder().addStep(STEP2).build());
 
     assertIterableSize(step2res.getCounters(), 1);
     assertIterableSize(step2res.getDistributions(), 1);
     assertIterableSize(step2res.getGauges(), 1);
+    assertIterableSize(step2res.getStringSets(), 1);
+    assertIterableSize(step2res.getBoundedTries(), 1);
 
     assertCounter(COUNTER_NAME, step2res, STEP2, VALUE * 2, false);
     assertDistribution(
@@ -124,12 +161,27 @@ public class MetricsContainerStepMapTest {
         DistributionResult.create(VALUE * 6, 4, VALUE, VALUE * 2),
         false);
     assertGauge(GAUGE_NAME, step2res, STEP2, GaugeResult.create(VALUE, Instant.now()), false);
+    assertStringSet(
+        STRING_SET_NAME,
+        step2res,
+        STEP2,
+        StringSetResult.create(ImmutableSet.of(FIRST_STRING, SECOND_STRING)),
+        false);
+    assertBoundedTrie(
+        BOUNDED_TRIE_NAME,
+        step2res,
+        STEP2,
+        BoundedTrieResult.create(
+            ImmutableSet.of(ImmutableList.of(FIRST_STRING, SECOND_STRING, String.valueOf(false)))),
+        false);
 
     MetricQueryResults allres = metricResults.allMetrics();
 
     assertIterableSize(allres.getCounters(), 2);
     assertIterableSize(allres.getDistributions(), 2);
     assertIterableSize(allres.getGauges(), 2);
+    assertIterableSize(allres.getStringSets(), 2);
+    assertIterableSize(allres.getBoundedTries(), 2);
   }
 
   @Test
@@ -176,6 +228,36 @@ public class MetricsContainerStepMapTest {
     thrown.expectMessage("This runner does not currently support committed metrics results.");
 
     assertGauge(GAUGE_NAME, step1res, STEP1, GaugeResult.empty(), true);
+  }
+
+  @Test
+  public void testStringSetCommittedUnsupportedInAttemptedAccumulatedMetricResults() {
+    MetricsContainerStepMap attemptedMetrics = new MetricsContainerStepMap();
+    attemptedMetrics.update(STEP1, metricsContainer);
+    MetricResults metricResults = asAttemptedOnlyMetricResults(attemptedMetrics);
+
+    MetricQueryResults step1res =
+        metricResults.queryMetrics(MetricsFilter.builder().addStep(STEP1).build());
+
+    thrown.expect(UnsupportedOperationException.class);
+    thrown.expectMessage("This runner does not currently support committed metrics results.");
+
+    assertStringSet(STRING_SET_NAME, step1res, STEP1, StringSetResult.empty(), true);
+  }
+
+  @Test
+  public void testBoundedTrieCommittedUnsupportedInAttemptedAccumulatedMetricResults() {
+    MetricsContainerStepMap attemptedMetrics = new MetricsContainerStepMap();
+    attemptedMetrics.update(STEP1, metricsContainer);
+    MetricResults metricResults = asAttemptedOnlyMetricResults(attemptedMetrics);
+
+    MetricQueryResults step1res =
+        metricResults.queryMetrics(MetricsFilter.builder().addStep(STEP1).build());
+
+    thrown.expect(UnsupportedOperationException.class);
+    thrown.expectMessage("This runner does not currently support committed metrics results.");
+
+    assertBoundedTrie(BOUNDED_TRIE_NAME, step1res, STEP1, BoundedTrieResult.empty(), true);
   }
 
   @Test
@@ -248,6 +330,8 @@ public class MetricsContainerStepMapTest {
     assertIterableSize(step1res.getCounters(), 1);
     assertIterableSize(step1res.getDistributions(), 1);
     assertIterableSize(step1res.getGauges(), 1);
+    assertIterableSize(step1res.getStringSets(), 1);
+    assertIterableSize(step1res.getBoundedTries(), 1);
 
     assertCounter(COUNTER_NAME, step1res, STEP1, VALUE * 2, false);
     assertDistribution(
@@ -257,6 +341,19 @@ public class MetricsContainerStepMapTest {
         DistributionResult.create(VALUE * 6, 4, VALUE, VALUE * 2),
         false);
     assertGauge(GAUGE_NAME, step1res, STEP1, GaugeResult.create(VALUE, Instant.now()), false);
+    assertStringSet(
+        STRING_SET_NAME,
+        step1res,
+        STEP1,
+        StringSetResult.create(ImmutableSet.of(FIRST_STRING, SECOND_STRING)),
+        false);
+    assertBoundedTrie(
+        BOUNDED_TRIE_NAME,
+        step1res,
+        STEP1,
+        BoundedTrieResult.create(
+            ImmutableSet.of(ImmutableList.of(FIRST_STRING, SECOND_STRING, String.valueOf(false)))),
+        false);
 
     assertCounter(COUNTER_NAME, step1res, STEP1, VALUE, true);
     assertDistribution(
@@ -266,6 +363,19 @@ public class MetricsContainerStepMapTest {
         DistributionResult.create(VALUE * 3, 2, VALUE, VALUE * 2),
         true);
     assertGauge(GAUGE_NAME, step1res, STEP1, GaugeResult.create(VALUE, Instant.now()), true);
+    assertStringSet(
+        STRING_SET_NAME,
+        step1res,
+        STEP1,
+        StringSetResult.create(ImmutableSet.of(FIRST_STRING, SECOND_STRING)),
+        true);
+    assertBoundedTrie(
+        BOUNDED_TRIE_NAME,
+        step1res,
+        STEP1,
+        BoundedTrieResult.create(
+            ImmutableSet.of(ImmutableList.of(FIRST_STRING, SECOND_STRING, String.valueOf(false)))),
+        true);
 
     MetricQueryResults step2res =
         metricResults.queryMetrics(MetricsFilter.builder().addStep(STEP2).build());
@@ -273,6 +383,8 @@ public class MetricsContainerStepMapTest {
     assertIterableSize(step2res.getCounters(), 1);
     assertIterableSize(step2res.getDistributions(), 1);
     assertIterableSize(step2res.getGauges(), 1);
+    assertIterableSize(step2res.getStringSets(), 1);
+    assertIterableSize(step2res.getBoundedTries(), 1);
 
     assertCounter(COUNTER_NAME, step2res, STEP2, VALUE * 3, false);
     assertDistribution(
@@ -282,6 +394,19 @@ public class MetricsContainerStepMapTest {
         DistributionResult.create(VALUE * 9, 6, VALUE, VALUE * 2),
         false);
     assertGauge(GAUGE_NAME, step2res, STEP2, GaugeResult.create(VALUE, Instant.now()), false);
+    assertStringSet(
+        STRING_SET_NAME,
+        step2res,
+        STEP2,
+        StringSetResult.create(ImmutableSet.of(FIRST_STRING, SECOND_STRING)),
+        false);
+    assertBoundedTrie(
+        BOUNDED_TRIE_NAME,
+        step2res,
+        STEP2,
+        BoundedTrieResult.create(
+            ImmutableSet.of(ImmutableList.of(FIRST_STRING, SECOND_STRING, String.valueOf(false)))),
+        false);
 
     assertCounter(COUNTER_NAME, step2res, STEP2, VALUE * 2, true);
     assertDistribution(
@@ -291,12 +416,27 @@ public class MetricsContainerStepMapTest {
         DistributionResult.create(VALUE * 6, 4, VALUE, VALUE * 2),
         true);
     assertGauge(GAUGE_NAME, step2res, STEP2, GaugeResult.create(VALUE, Instant.now()), true);
+    assertStringSet(
+        STRING_SET_NAME,
+        step2res,
+        STEP2,
+        StringSetResult.create(ImmutableSet.of(FIRST_STRING, SECOND_STRING)),
+        true);
+    assertBoundedTrie(
+        BOUNDED_TRIE_NAME,
+        step2res,
+        STEP2,
+        BoundedTrieResult.create(
+            ImmutableSet.of(ImmutableList.of(FIRST_STRING, SECOND_STRING, String.valueOf(false)))),
+        true);
 
     MetricQueryResults allres = metricResults.queryMetrics(MetricsFilter.builder().build());
 
     assertIterableSize(allres.getCounters(), 2);
     assertIterableSize(allres.getDistributions(), 2);
     assertIterableSize(allres.getGauges(), 2);
+    assertIterableSize(allres.getStringSets(), 2);
+    assertIterableSize(allres.getBoundedTries(), 2);
   }
 
   @Test
@@ -345,6 +485,19 @@ public class MetricsContainerStepMapTest {
         DistributionResult.create(VALUE * 3, 2, VALUE, VALUE * 2),
         false);
     assertGauge(GAUGE_NAME, allres, STEP1, GaugeResult.create(VALUE, Instant.now()), false);
+    assertStringSet(
+        STRING_SET_NAME,
+        allres,
+        STEP1,
+        StringSetResult.create(ImmutableSet.of(FIRST_STRING, SECOND_STRING)),
+        false);
+    assertBoundedTrie(
+        BOUNDED_TRIE_NAME,
+        allres,
+        STEP1,
+        BoundedTrieResult.create(
+            ImmutableSet.of(ImmutableList.of(FIRST_STRING, SECOND_STRING, String.valueOf(false)))),
+        false);
 
     assertCounter(COUNTER_NAME, allres, STEP2, VALUE * 2, false);
     assertDistribution(
@@ -354,6 +507,19 @@ public class MetricsContainerStepMapTest {
         DistributionResult.create(VALUE * 6, 4, VALUE, VALUE * 2),
         false);
     assertGauge(GAUGE_NAME, allres, STEP2, GaugeResult.create(VALUE, Instant.now()), false);
+    assertStringSet(
+        STRING_SET_NAME,
+        allres,
+        STEP2,
+        StringSetResult.create(ImmutableSet.of(FIRST_STRING, SECOND_STRING)),
+        false);
+    assertBoundedTrie(
+        BOUNDED_TRIE_NAME,
+        allres,
+        STEP2,
+        BoundedTrieResult.create(
+            ImmutableSet.of(ImmutableList.of(FIRST_STRING, SECOND_STRING, String.valueOf(false)))),
+        false);
 
     attemptedMetrics.reset();
     metricResults = asAttemptedOnlyMetricResults(attemptedMetrics);
@@ -364,12 +530,16 @@ public class MetricsContainerStepMapTest {
     assertDistribution(
         DISTRIBUTION_NAME, allres, STEP1, DistributionResult.IDENTITY_ELEMENT, false);
     assertGauge(GAUGE_NAME, allres, STEP1, GaugeResult.empty(), false);
+    assertStringSet(STRING_SET_NAME, allres, STEP1, StringSetResult.empty(), false);
+    assertBoundedTrie(BOUNDED_TRIE_NAME, allres, STEP1, BoundedTrieResult.empty(), false);
 
     // Check that the metrics container for STEP2 is reset
     assertCounter(COUNTER_NAME, allres, STEP2, 0L, false);
     assertDistribution(
         DISTRIBUTION_NAME, allres, STEP2, DistributionResult.IDENTITY_ELEMENT, false);
     assertGauge(GAUGE_NAME, allres, STEP2, GaugeResult.empty(), false);
+    assertStringSet(STRING_SET_NAME, allres, STEP2, StringSetResult.empty(), false);
+    assertBoundedTrie(BOUNDED_TRIE_NAME, allres, STEP2, BoundedTrieResult.empty(), false);
   }
 
   private <T> void assertIterableSize(Iterable<T> iterable, int size) {
@@ -406,6 +576,28 @@ public class MetricsContainerStepMapTest {
       boolean isCommitted) {
     assertThat(
         metricQueryResults.getGauges(),
+        hasItem(metricsResult(NAMESPACE, name, step, expected, isCommitted)));
+  }
+
+  private void assertStringSet(
+      String name,
+      MetricQueryResults metricQueryResults,
+      String step,
+      StringSetResult expected,
+      boolean isCommitted) {
+    assertThat(
+        metricQueryResults.getStringSets(),
+        hasItem(metricsResult(NAMESPACE, name, step, expected, isCommitted)));
+  }
+
+  private void assertBoundedTrie(
+      String name,
+      MetricQueryResults metricQueryResults,
+      String step,
+      BoundedTrieResult expected,
+      boolean isCommitted) {
+    assertThat(
+        metricQueryResults.getBoundedTries(),
         hasItem(metricsResult(NAMESPACE, name, step, expected, isCommitted)));
   }
 }

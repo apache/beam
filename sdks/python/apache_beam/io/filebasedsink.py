@@ -280,7 +280,22 @@ class FileBasedSink(iobase.Sink):
 
       src_files.append(src)
       dst_files.append(dst)
+
+    self._report_sink_lineage(dst_glob, dst_files)
     return src_files, dst_files, delete_files, num_skipped
+
+  def _report_sink_lineage(self, dst_glob, dst_files):
+    """
+    Report sink Lineage. Report every file if number of files no more than 10,
+    otherwise only report glob.
+    """
+    # There is rollup at the higher level, but this loses glob information.
+    # Better to report multiple globs than just the parent directory.
+    if len(dst_files) <= 10:
+      for dst in dst_files:
+        FileSystems.report_sink_lineage(dst)
+    else:
+      FileSystems.report_sink_lineage(dst_glob)
 
   @check_accessible(['file_path_prefix'])
   def finalize_write(
@@ -425,10 +440,10 @@ class FileBasedSinkWriter(iobase.Writer):
   def at_capacity(self):
     return (
         self.sink.max_records_per_shard and
-        self.num_records_written >= self.sink.max_records_per_shard
-    ) or (
-        self.sink.max_bytes_per_shard and
-        self.sink.byte_counter.bytes_written >= self.sink.max_bytes_per_shard)
+        self.num_records_written >= self.sink.max_records_per_shard) or (
+            self.sink.max_bytes_per_shard and
+            self.sink.byte_counter.bytes_written
+            >= self.sink.max_bytes_per_shard)
 
   def close(self):
     self.sink.close(self.temp_handle)

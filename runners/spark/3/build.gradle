@@ -34,17 +34,11 @@ createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'Spark')
 
 // Additional supported Spark versions (used in compatibility tests)
 def sparkVersions = [
-    "350": "3.5.0",
-    "341": "3.4.1",
-    "340": "3.4.0",
-    "332": "3.3.2",
-    "331": "3.3.1",
-    "330": "3.3.0",
-    "324": "3.2.4",
-    "323": "3.2.3",
-    "321": "3.2.1",
-    "312": "3.1.2",
-    "311": "3.1.1"
+    "35": "3.5.5",
+    "34": "3.4.4",
+    "33": "3.3.4",
+    // "32": "3.2.4", // tests on 3.2 failed due to incompatible with slf4j 2
+    "31": "3.1.3",
 ]
 
 sparkVersions.each { kv ->
@@ -56,6 +50,26 @@ sparkVersions.each { kv ->
   }
 
   dependencies {
+    // Spark versions prior to 3.4.0 are compiled against SLF4J 1.x.  The
+    // `org.apache.spark.internal.Logging.isLog4j12()` function references an
+    // SLF4J 1.x binding class (org.slf4j.impl.StaticLoggerBinder) which is
+    // no longer available in SLF4J 2.x.  This results in a
+    // `java.lang.NoClassDefFoundError`.
+    //
+    // The workaround is to provide an SLF4J 1.x binding module out of group
+    // `org.slf4j` to resolve the issue.
+    // Module `org.apache.logging.log4j:log4j-slf4j-impl` is an example that
+    // provides a compatible SLF4J 1.x binding regardless SLF4J upgrade.
+    // Binding/provider modules under group `org.slf4j` (e.g.,
+    // slf4j-simple, slf4j-reload4j) get upgraded as a new SLF4J version is in
+    // use, and therefore do not contain the 1.x binding classes.
+    //
+    // Notice that Spark 3.1.x uses `ch.qos.logback:logback-classic` and is
+    // unaffected by the SLF4J upgrade. Spark 3.3.x already uses
+    // `log4j-slf4j-impl` so it is also unaffected.
+    if ("$kv.key" >= "320" && "$kv.key" <= "324") {
+      "sparkVersion$kv.key" library.java.log4j2_slf4j_impl
+    }
     spark.components.each { component -> "sparkVersion$kv.key" "$component:$kv.value" }
   }
 

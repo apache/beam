@@ -29,11 +29,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Operation;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputReceiver;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 
 /** Container class for different types of network nodes. All nodes only have reference equality. */
@@ -59,7 +59,7 @@ public class Nodes {
       ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
       final JsonGenerator baseGenerator =
           MoreObjects.firstNonNull(json.getFactory(), Transport.getJsonFactory())
-              .createJsonGenerator(byteStream, Charsets.UTF_8);
+              .createJsonGenerator(byteStream, StandardCharsets.UTF_8);
       JsonGenerator generator =
           new JsonGenerator() {
             @Override
@@ -164,7 +164,7 @@ public class Nodes {
       generator.enablePrettyPrint();
       generator.serialize(json);
       generator.flush();
-      return byteStream.toString(Charsets.UTF_8.name());
+      return byteStream.toString(StandardCharsets.UTF_8.name());
     } catch (IOException e) {
       throw new RuntimeException(e);
     }

@@ -45,8 +45,9 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -354,7 +355,7 @@ public class EncoderHelpers {
         ifNotNull(timestamp, invoke(Utils.class, "maxTimestamp", timestamp.dataType(), windows));
     Expression[] fields = new Expression[] {value, timestamp, windows, pane};
 
-    return nullSafe(pane, invoke(WindowedValue.class, "of", WINDOWED_VALUE, fields));
+    return nullSafe(pane, invoke(WindowedValues.class, "of", WINDOWED_VALUE, fields));
   }
 
   private static <K, V> Expression serializeMutablePair(

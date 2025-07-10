@@ -70,7 +70,6 @@ dependencies {
   implementation project(":sdks:java:extensions:avro")
   implementation project(":sdks:java:extensions:google-cloud-platform-core")
   implementation project(":sdks:java:extensions:sql")
-  implementation project(":sdks:java:extensions:sql:zetasql")
   implementation project(":sdks:java:io:kafka")
   implementation project(":sdks:java:testing:test-utils")
   implementation library.java.google_api_client
@@ -87,8 +86,8 @@ dependencies {
   implementation library.java.kafka_clients
   compileOnly library.java.error_prone_annotations
   testRuntimeOnly library.java.slf4j_jdk14
-  testImplementation project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntimeMigration")
-  testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
+  testImplementation project(path: ":sdks:java:io:google-cloud-platform")
+  testImplementation project(path: ":sdks:java:testing:test-utils")
   gradleRun project(project.path)
   gradleRun project(path: nexmarkRunnerDependency, configuration: runnerConfiguration)
 }
@@ -144,7 +143,7 @@ def getNexmarkArgs = {
 //
 // Parameters:
 //   -Pnexmark.runner
-//       Specify a runner subproject, such as ":runners:spark:3" or ":runners:flink:1.13"
+//       Specify a runner subproject, such as ":runners:spark:3" or ":runners:flink:1.17"
 //       Defaults to ":runners:direct-java"
 //
 //   -Pnexmark.args

@@ -60,9 +60,8 @@ def global_aggregate(test=None):
                     'unit_price', max, 'max_price')
         | beam.Map(print))
     # [END global_aggregate]
-
-  if test:
-    test(grouped)
+    if test:
+      test(grouped)
 
 
 if __name__ == '__main__':

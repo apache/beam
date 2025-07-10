@@ -17,6 +17,7 @@
 
 # pytype: skip-file
 
+import functools
 import unittest
 
 from apache_beam.metrics.execution import MetricKey
@@ -88,10 +89,12 @@ class TestMetricsContainer(unittest.TestCase):
       distribution = mc.get_distribution(
           MetricName('namespace', 'name{}'.format(i)))
       gauge = mc.get_gauge(MetricName('namespace', 'name{}'.format(i)))
+      str_set = mc.get_string_set(MetricName('namespace', 'name{}'.format(i)))
 
       counter.inc(i)
       distribution.update(i)
       gauge.set(i)
+      str_set.add(str(i % 7))
       all_values.append(i)
 
     # Retrieve ALL updates.
@@ -99,6 +102,7 @@ class TestMetricsContainer(unittest.TestCase):
     self.assertEqual(len(cumulative.counters), 10)
     self.assertEqual(len(cumulative.distributions), 10)
     self.assertEqual(len(cumulative.gauges), 10)
+    self.assertEqual(len(cumulative.string_sets), 10)
 
     self.assertEqual(
         set(all_values), {v
@@ -106,6 +110,12 @@ class TestMetricsContainer(unittest.TestCase):
     self.assertEqual(
         set(all_values), {v.value
                           for _, v in cumulative.gauges.items()})
+    self.assertEqual(
+        {str(i % 7)
+         for i in all_values},
+        functools.reduce(
+            set.union,
+            (v.string_set for _, v in cumulative.string_sets.items())))
 
 
 if __name__ == '__main__':

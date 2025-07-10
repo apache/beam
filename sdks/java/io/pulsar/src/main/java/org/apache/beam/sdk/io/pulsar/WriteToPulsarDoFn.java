@@ -23,6 +23,11 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 
+/**
+ * Transform for writing to Apache Pulsar. Support is currently incomplete, and there may be bugs;
+ * see https://github.com/apache/beam/issues/31078 for more info, and comment in that issue if you
+ * run into issues with this IO.
+ */
 @DoFn.UnboundedPerElement
 @SuppressWarnings({"rawtypes", "nullness"})
 public class WriteToPulsarDoFn extends DoFn<byte[], Void> {

@@ -43,6 +43,11 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Transform for reading from Apache Pulsar. Support is currently incomplete, and there may be bugs;
+ * see https://github.com/apache/beam/issues/31078 for more info, and comment in that issue if you
+ * run into issues with this IO.
+ */
 @DoFn.UnboundedPerElement
 @SuppressWarnings({"rawtypes", "nullness"})
 public class ReadFromPulsarDoFn extends DoFn<PulsarSourceDescriptor, PulsarMessage> {

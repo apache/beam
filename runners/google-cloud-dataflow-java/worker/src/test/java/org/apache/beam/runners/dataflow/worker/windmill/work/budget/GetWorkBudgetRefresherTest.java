@@ -17,89 +17,111 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.work.budget;
 
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
+import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.assertFalse;
 
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.Mockito;
 
 @RunWith(JUnit4.class)
 public class GetWorkBudgetRefresherTest {
-  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private static final int WAIT_BUFFER = 10;
-  private final Runnable redistributeBudget = Mockito.mock(Runnable.class);
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
 
-  private GetWorkBudgetRefresher createBudgetRefresher() {
-    return createBudgetRefresher(false);
+  private GetWorkBudgetRefresher createBudgetRefresher(Runnable redistributeBudget) {
+    return createBudgetRefresher(false, redistributeBudget);
   }
 
-  private GetWorkBudgetRefresher createBudgetRefresher(Boolean isBudgetRefreshPaused) {
+  private GetWorkBudgetRefresher createBudgetRefresher(
+      boolean isBudgetRefreshPaused, Runnable redistributeBudget) {
     return new GetWorkBudgetRefresher(() -> isBudgetRefreshPaused, redistributeBudget);
   }
 
   @Test
   public void testStop_successfullyTerminates() throws InterruptedException {
-    GetWorkBudgetRefresher budgetRefresher = createBudgetRefresher();
+    CountDownLatch redistributeBudgetLatch = new CountDownLatch(1);
+    Runnable redistributeBudget = redistributeBudgetLatch::countDown;
+    GetWorkBudgetRefresher budgetRefresher = createBudgetRefresher(redistributeBudget);
     budgetRefresher.start();
     budgetRefresher.stop();
     budgetRefresher.requestBudgetRefresh();
-    Thread.sleep(WAIT_BUFFER);
-    verifyNoInteractions(redistributeBudget);
+    boolean redistributeBudgetRan =
+        redistributeBudgetLatch.await(WAIT_BUFFER, TimeUnit.MILLISECONDS);
+    // Make sure that redistributeBudgetLatch.countDown() is never called.
+    assertThat(redistributeBudgetLatch.getCount()).isEqualTo(1);
+    assertFalse(redistributeBudgetRan);
   }
 
   @Test
   public void testRequestBudgetRefresh_triggersBudgetRefresh() throws InterruptedException {
-    GetWorkBudgetRefresher budgetRefresher = createBudgetRefresher();
+    CountDownLatch redistributeBudgetLatch = new CountDownLatch(1);
+    Runnable redistributeBudget = redistributeBudgetLatch::countDown;
+    GetWorkBudgetRefresher budgetRefresher = createBudgetRefresher(redistributeBudget);
     budgetRefresher.start();
     budgetRefresher.requestBudgetRefresh();
-    // Wait a bit for redistribute budget to run.
-    Thread.sleep(WAIT_BUFFER);
-    verify(redistributeBudget, times(1)).run();
+    // Wait for redistribute budget to run.
+    redistributeBudgetLatch.await();
+    assertThat(redistributeBudgetLatch.getCount()).isEqualTo(0);
   }
 
   @Test
   public void testScheduledBudgetRefresh() throws InterruptedException {
-    GetWorkBudgetRefresher budgetRefresher = createBudgetRefresher();
+    CountDownLatch redistributeBudgetLatch = new CountDownLatch(1);
+    Runnable redistributeBudget = redistributeBudgetLatch::countDown;
+    GetWorkBudgetRefresher budgetRefresher = createBudgetRefresher(redistributeBudget);
     budgetRefresher.start();
-    Thread.sleep(GetWorkBudgetRefresher.SCHEDULED_BUDGET_REFRESH_MILLIS + WAIT_BUFFER);
-    verify(redistributeBudget, times(1)).run();
+    // Wait for scheduled redistribute budget to run.
+    redistributeBudgetLatch.await();
+    assertThat(redistributeBudgetLatch.getCount()).isEqualTo(0);
   }
 
   @Test
   public void testTriggeredAndScheduledBudgetRefresh_concurrent() throws InterruptedException {
-    GetWorkBudgetRefresher budgetRefresher = createBudgetRefresher();
+    CountDownLatch redistributeBudgetLatch = new CountDownLatch(2);
+    Runnable redistributeBudget = redistributeBudgetLatch::countDown;
+    GetWorkBudgetRefresher budgetRefresher = createBudgetRefresher(redistributeBudget);
     budgetRefresher.start();
     Thread budgetRefreshTriggerThread = new Thread(budgetRefresher::requestBudgetRefresh);
     budgetRefreshTriggerThread.start();
-    Thread.sleep(GetWorkBudgetRefresher.SCHEDULED_BUDGET_REFRESH_MILLIS + WAIT_BUFFER);
     budgetRefreshTriggerThread.join();
-
-    // Wait a bit for redistribute budget to run.
-    Thread.sleep(WAIT_BUFFER);
-    verify(redistributeBudget, times(2)).run();
+    // Wait for triggered and scheduled redistribute budget to run.
+    redistributeBudgetLatch.await();
+    assertThat(redistributeBudgetLatch.getCount()).isEqualTo(0);
   }
 
   @Test
   public void testTriggeredBudgetRefresh_doesNotRunWhenBudgetRefreshPaused()
       throws InterruptedException {
-    GetWorkBudgetRefresher budgetRefresher = createBudgetRefresher(true);
+    CountDownLatch redistributeBudgetLatch = new CountDownLatch(1);
+    Runnable redistributeBudget = redistributeBudgetLatch::countDown;
+    GetWorkBudgetRefresher budgetRefresher = createBudgetRefresher(true, redistributeBudget);
     budgetRefresher.start();
     budgetRefresher.requestBudgetRefresh();
-    Thread.sleep(WAIT_BUFFER);
-    verifyNoInteractions(redistributeBudget);
+    boolean redistributeBudgetRan =
+        redistributeBudgetLatch.await(WAIT_BUFFER, TimeUnit.MILLISECONDS);
+    // Make sure that redistributeBudgetLatch.countDown() is never called.
+    assertThat(redistributeBudgetLatch.getCount()).isEqualTo(1);
+    assertFalse(redistributeBudgetRan);
   }
 
   @Test
   public void testScheduledBudgetRefresh_doesNotRunWhenBudgetRefreshPaused()
       throws InterruptedException {
-    GetWorkBudgetRefresher budgetRefresher = createBudgetRefresher(true);
+    CountDownLatch redistributeBudgetLatch = new CountDownLatch(1);
+    Runnable redistributeBudget = redistributeBudgetLatch::countDown;
+    GetWorkBudgetRefresher budgetRefresher = createBudgetRefresher(true, redistributeBudget);
     budgetRefresher.start();
-    Thread.sleep(GetWorkBudgetRefresher.SCHEDULED_BUDGET_REFRESH_MILLIS + WAIT_BUFFER);
-    verifyNoInteractions(redistributeBudget);
+    boolean redistributeBudgetRan =
+        redistributeBudgetLatch.await(
+            GetWorkBudgetRefresher.SCHEDULED_BUDGET_REFRESH_MILLIS + WAIT_BUFFER,
+            TimeUnit.MILLISECONDS);
+    // Make sure that redistributeBudgetLatch.countDown() is never called.
+    assertThat(redistributeBudgetLatch.getCount()).isEqualTo(1);
+    assertFalse(redistributeBudgetRan);
   }
 }

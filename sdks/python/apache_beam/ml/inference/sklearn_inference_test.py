@@ -25,10 +25,9 @@ import shutil
 import sys
 import tempfile
 import unittest
+from collections.abc import Sequence
 from typing import Any
-from typing import Dict
 from typing import Optional
-from typing import Sequence
 
 import joblib
 import numpy
@@ -76,8 +75,8 @@ def _compare_dataframe_predictions(a_in, b_in):
   example_equal = pandas.DataFrame.equals(a.example, b.example)
   if isinstance(a.inference, dict):
     return all(
-        math.floor(a) == math.floor(b) for a,
-        b in zip(a.inference.values(), b.inference.values())) and example_equal
+        math.floor(a) == math.floor(b) for a, b in zip(
+            a.inference.values(), b.inference.values())) and example_equal
   inference_equal = math.floor(a.inference) == math.floor(b.inference)
   return inference_equal and example_equal and keys_equal
 
@@ -160,14 +159,14 @@ def convert_inference_to_floor(prediction_result):
 def alternate_numpy_inference_fn(
     model: BaseEstimator,
     batch: Sequence[numpy.ndarray],
-    inference_args: Optional[Dict[str, Any]] = None) -> Any:
+    inference_args: Optional[dict[str, Any]] = None) -> Any:
   return [0]
 
 
 def alternate_pandas_inference_fn(
     model: BaseEstimator,
     batch: Sequence[pandas.DataFrame],
-    inference_args: Optional[Dict[str, Any]] = None) -> Any:
+    inference_args: Optional[dict[str, Any]] = None) -> Any:
   # vectorize data for better performance
   vectorized_batch = pandas.concat(batch, axis=0)
   predictions = model.predict(vectorized_batch)
@@ -291,7 +290,7 @@ class SkLearnRunInferenceTest(unittest.TestCase):
     def batch_validator_numpy_inference_fn(
         model: BaseEstimator,
         batch: Sequence[numpy.ndarray],
-        inference_args: Optional[Dict[str, Any]] = None) -> Any:
+        inference_args: Optional[dict[str, Any]] = None) -> Any:
       if len(batch) != 2:
         raise Exception(
             f'Expected batch of size 2, received batch of size {len(batch)}')
@@ -322,7 +321,7 @@ class SkLearnRunInferenceTest(unittest.TestCase):
     def large_model_validator_numpy_inference_fn(
         model: BaseEstimator,
         batch: Sequence[numpy.ndarray],
-        inference_args: Optional[Dict[str, Any]] = None) -> Any:
+        inference_args: Optional[dict[str, Any]] = None) -> Any:
       multi_process_shared_loaded = "multi_process_shared" in str(type(model))
       if not multi_process_shared_loaded:
         raise Exception(
@@ -449,7 +448,7 @@ class SkLearnRunInferenceTest(unittest.TestCase):
     def batch_validator_pandas_inference_fn(
         model: BaseEstimator,
         batch: Sequence[numpy.ndarray],
-        inference_args: Optional[Dict[str, Any]] = None) -> Any:
+        inference_args: Optional[dict[str, Any]] = None) -> Any:
       if len(batch) != 5:
         raise Exception(
             f'Expected batch of size 5, received batch of size {len(batch)}')
@@ -484,7 +483,7 @@ class SkLearnRunInferenceTest(unittest.TestCase):
     def large_model_validator_pandas_inference_fn(
         model: BaseEstimator,
         batch: Sequence[numpy.ndarray],
-        inference_args: Optional[Dict[str, Any]] = None) -> Any:
+        inference_args: Optional[dict[str, Any]] = None) -> Any:
       multi_process_shared_loaded = "multi_process_shared" in str(type(model))
       if not multi_process_shared_loaded:
         raise Exception(

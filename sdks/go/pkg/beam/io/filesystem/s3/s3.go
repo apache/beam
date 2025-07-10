@@ -149,7 +149,7 @@ func (f *fs) OpenWrite(ctx context.Context, filename string) (io.WriteCloser, er
 func (f *fs) Size(ctx context.Context, filename string) (int64, error) {
 	bucket, key, err := parseURI(filename)
 	if err != nil {
-		return -1, fmt.Errorf("error parsing S3 uri %s: %v", filename, err)
+		return -1, fmt.Errorf("error parsing S3 uri %s: %w", filename, err)
 	}
 
 	params := &s3.HeadObjectInput{
@@ -158,10 +158,14 @@ func (f *fs) Size(ctx context.Context, filename string) (int64, error) {
 	}
 	output, err := f.client.HeadObject(ctx, params)
 	if err != nil {
-		return -1, fmt.Errorf("error getting metadata for object %s: %v", filename, err)
+		return -1, fmt.Errorf("error getting metadata for object %s: %w", filename, err)
 	}
 
-	return output.ContentLength, err
+	if output.ContentLength != nil {
+		return *output.ContentLength, nil
+	}
+
+	return -1, fmt.Errorf("content length for object %s was nil", filename)
 }
 
 // LastModified returns the time at which the file was last modified.

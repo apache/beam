@@ -46,9 +46,13 @@ func TestServer(t *testing.T) {
 
 	cmpOpts := []cmp.Option{protocmp.Transform(), cmpopts.EquateEmpty()}
 	tests := []struct {
-		name                       string
+		name         string
+		postRunState jobpb.JobState_Enum
+		// noJobsCheck tests in the setting that the Job doesn't exist
+		// postPrepCheck tests after Server Prepare invoked
 		noJobsCheck, postPrepCheck func(context.Context, *testing.T, *Server)
-		postRunCheck               func(context.Context, *testing.T, *Server, string)
+		// postRunCheck tests after Server Run invoked
+		postRunCheck func(context.Context, *testing.T, *Server, string)
 	}{
 		{
 			name: "GetJobs",
@@ -170,36 +174,38 @@ func TestServer(t *testing.T) {
 			},
 		},
 		{
-			name: "Canceling",
+			name:         "Canceling",
+			postRunState: jobpb.JobState_RUNNING,
 			noJobsCheck: func(ctx context.Context, t *testing.T, undertest *Server) {
-				resp, err := undertest.Cancel(ctx, &jobpb.CancelJobRequest{JobId: "job-001"})
-				if resp != nil {
-					t.Errorf("Canceling(\"job-001\") = %s, want nil", resp)
-				}
+				id := "job-001"
+				_, err := undertest.Cancel(ctx, &jobpb.CancelJobRequest{JobId: id})
+				// Cancel currently returns nil, nil when Job not found
 				if err != nil {
-					t.Errorf("Canceling(\"job-001\") = %v, want nil", err)
+					t.Errorf("Cancel(%q) = %v, want not found error", id, err)
 				}
 			},
 			postPrepCheck: func(ctx context.Context, t *testing.T, undertest *Server) {
-				resp, err := undertest.Cancel(ctx, &jobpb.CancelJobRequest{JobId: "job-001"})
+				id := "job-001"
+				resp, err := undertest.Cancel(ctx, &jobpb.CancelJobRequest{JobId: id})
 				if err != nil {
-					t.Errorf("Canceling(\"job-001\") = %v, want nil", err)
+					t.Errorf("Cancel(%q) = %v, want not found error", id, err)
 				}
 				if diff := cmp.Diff(&jobpb.CancelJobResponse{
 					State: jobpb.JobState_CANCELLING,
 				}, resp, cmpOpts...); diff != "" {
-					t.Errorf("Canceling(\"job-001\") (-want, +got):\n%v", diff)
+					t.Errorf("Cancel(%q) (-want, +got):\n%s", id, diff)
 				}
 			},
 			postRunCheck: func(ctx context.Context, t *testing.T, undertest *Server, jobID string) {
-				resp, err := undertest.Cancel(ctx, &jobpb.CancelJobRequest{JobId: jobID})
+				id := "job-001"
+				resp, err := undertest.Cancel(ctx, &jobpb.CancelJobRequest{JobId: id})
 				if err != nil {
-					t.Errorf("Canceling(\"%s\") = %v, want nil", jobID, err)
+					t.Errorf("Cancel(%q) = %v, want not found error", id, err)
 				}
 				if diff := cmp.Diff(&jobpb.CancelJobResponse{
-					State: jobpb.JobState_DONE,
+					State: jobpb.JobState_CANCELLING,
 				}, resp, cmpOpts...); diff != "" {
-					t.Errorf("Canceling(\"%s\") (-want, +got):\n%v", jobID, diff)
+					t.Errorf("Cancel(%q) (-want, +got):\n%s", id, diff)
 				}
 			},
 		},
@@ -230,7 +236,11 @@ func TestServer(t *testing.T) {
 					shortIDSize:  sizeData,
 				},
 			})
-			j.state.Store(jobpb.JobState_DONE)
+			state := jobpb.JobState_DONE
+			if test.postRunState != jobpb.JobState_UNSPECIFIED {
+				state = test.postRunState
+			}
+			j.state.Store(state)
 			called.Done()
 		})
 

@@ -34,6 +34,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteTables.Result;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -207,6 +208,12 @@ class WriteRename
         // Process each destination table.
         // Do not copy if no temp tables are provided.
         if (!entry.getValue().isEmpty()) {
+          Lineage.getSinks()
+              .add(
+                  "bigquery",
+                  BigQueryHelpers.dataCatalogSegments(
+                      entry.getKey().getTableReference(),
+                      c.getPipelineOptions().as(BigQueryOptions.class)));
           pendingJobs.add(startWriteRename(entry.getKey(), entry.getValue(), c, window));
         }
       }

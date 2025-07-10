@@ -64,7 +64,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
@@ -96,7 +96,7 @@ jobs:
       - name: run Kafka IO build script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:java:io:kafka:build :sdks:java:io:kafka:kafkaVersionsCompatibilityTest
+          gradle-command: :sdks:java:io:kafka:build :sdks:java:io:kafka:kafkaVersionsCompatibilityTest :sdks:java:io:kafka:upgrade:build
           arguments: |
             -PdisableSpotlessCheck=true \
             -PdisableCheckStyle=true \
@@ -114,6 +114,7 @@ jobs:
           commit: '${{ env.prsha || env.GITHUB_SHA }}'
           comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
           files: '**/build/test-results/**/*.xml'
+          large_files: true
       - name: Archive SpotBugs Results
         uses: actions/upload-artifact@v4
         if: always()

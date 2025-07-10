@@ -95,11 +95,33 @@ class YamlPubSubTest(unittest.TestCase):
             type: ReadFromPubSub
             config:
               topic: my_topic
-              format: raw
+              format: RAW
             ''')
         assert_that(
             result,
             equal_to([beam.Row(payload=b'msg1'), beam.Row(payload=b'msg2')]))
+
+  def test_simple_read_string(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      with mock.patch('apache_beam.io.ReadFromPubSub',
+                      FakeReadFromPubSub(
+                          topic='my_topic',
+                          messages=[PubsubMessage('äter'.encode('utf-8'),
+                                                  {'attr': 'value1'}),
+                                    PubsubMessage('köttbullar'.encode('utf-8'),
+                                                  {'attr': 'value2'})])):
+        result = p | YamlTransform(
+            '''
+            type: ReadFromPubSub
+            config:
+              topic: my_topic
+              format: STRING
+            ''')
+        assert_that(
+            result,
+            equal_to([beam.Row(payload='äter'),
+                      beam.Row(payload='köttbullar')]))
 
   def test_read_with_attribute(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
@@ -115,7 +137,7 @@ class YamlPubSubTest(unittest.TestCase):
             type: ReadFromPubSub
             config:
               topic: my_topic
-              format: raw
+              format: RAW
               attributes: [attr]
             ''')
         assert_that(
@@ -139,7 +161,7 @@ class YamlPubSubTest(unittest.TestCase):
             type: ReadFromPubSub
             config:
               topic: my_topic
-              format: raw
+              format: RAW
               attributes_map: attrMap
             ''')
         assert_that(
@@ -163,7 +185,7 @@ class YamlPubSubTest(unittest.TestCase):
             type: ReadFromPubSub
             config:
               topic: my_topic
-              format: raw
+              format: RAW
               id_attribute: some_attr
             ''')
         assert_that(
@@ -203,14 +225,15 @@ class YamlPubSubTest(unittest.TestCase):
             type: ReadFromPubSub
             config:
               topic: my_topic
-              format: avro
+              format: AVRO
               schema: %s
             ''' % json.dumps(self._avro_schema))
         assert_that(
             result,
-            equal_to(
-                [beam.Row(label='37a', rank=1),  # linebreak
-                 beam.Row(label='389a', rank=2)]))
+            equal_to([
+                beam.Row(label='37a', rank=1),  # linebreak
+                beam.Row(label='389a', rank=2)
+            ]))
 
   def test_read_json(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
@@ -227,7 +250,7 @@ class YamlPubSubTest(unittest.TestCase):
             type: ReadFromPubSub
             config:
               topic: my_topic
-              format: json
+              format: JSON
               schema:
                 type: object
                 properties:
@@ -267,7 +290,7 @@ class YamlPubSubTest(unittest.TestCase):
             type: ReadFromPubSub
             config:
               topic: my_topic
-              format: json
+              format: JSON
               schema:
                 type: object
                 properties:
@@ -300,7 +323,7 @@ class YamlPubSubTest(unittest.TestCase):
               type: ReadFromPubSub
               config:
                 topic: my_topic
-                format: json
+                format: JSON
                 schema:
                   type: object
                   properties:
@@ -322,7 +345,7 @@ class YamlPubSubTest(unittest.TestCase):
             type: ReadFromPubSub
             config:
               topic: my_topic
-              format: json
+              format: JSON
               schema:
                 type: object
                 properties:
@@ -353,7 +376,7 @@ class YamlPubSubTest(unittest.TestCase):
             type: WriteToPubSub
             config:
               topic: my_topic
-              format: raw
+              format: RAW
             '''))
 
   def test_write_with_attribute(self):
@@ -374,7 +397,7 @@ class YamlPubSubTest(unittest.TestCase):
             type: WriteToPubSub
             config:
               topic: my_topic
-              format: raw
+              format: RAW
               attributes: [attr]
             '''))
 
@@ -396,7 +419,7 @@ class YamlPubSubTest(unittest.TestCase):
             type: WriteToPubSub
             config:
               topic: my_topic
-              format: raw
+              format: RAW
               attributes_map: attrMap
             '''))
 
@@ -415,7 +438,7 @@ class YamlPubSubTest(unittest.TestCase):
             type: WriteToPubSub
             config:
               topic: my_topic
-              format: raw
+              format: RAW
               id_attribute: some_attr
             '''))
 
@@ -438,7 +461,7 @@ class YamlPubSubTest(unittest.TestCase):
             type: WriteToPubSub
             config:
               topic: my_topic
-              format: avro
+              format: AVRO
             '''))
 
   def test_write_json(self):
@@ -463,7 +486,7 @@ class YamlPubSubTest(unittest.TestCase):
             type: WriteToPubSub
             config:
               topic: my_topic
-              format: json
+              format: JSON
               attributes: [label]
               attributes_map: other
             '''))

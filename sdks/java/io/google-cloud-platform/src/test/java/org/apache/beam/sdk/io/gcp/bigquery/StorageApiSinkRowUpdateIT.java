@@ -24,9 +24,11 @@ import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.cloud.bigquery.storage.v1.Exceptions;
 import java.io.IOException;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -70,7 +72,7 @@ public class StorageApiSinkRowUpdateIT {
   }
 
   @Test
-  public void testCdc() throws Exception {
+  public void testCdcUsingLongSeqNum() throws Exception {
     TableSchema tableSchema =
         new TableSchema()
             .setFields(
@@ -120,7 +122,68 @@ public class StorageApiSinkRowUpdateIT {
                 .withMethod(BigQueryIO.Write.Method.STORAGE_API_AT_LEAST_ONCE)
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED));
 
-    p.run();
+    runPipelineAndWait(p);
+
+    List<TableRow> expected =
+        Lists.newArrayList(
+            new TableRow().set("key1", "foo0").set("key2", "bar0").set("value", "2"),
+            new TableRow().set("key1", "foo1").set("key2", "bar1").set("value", "3"),
+            new TableRow().set("key1", "foo3").set("key2", "bar3").set("value", "1"));
+    assertRowsWritten(tableSpec, expected);
+  }
+
+  @Test
+  public void testCdcUsingHexSequenceNum() throws Exception {
+    TableSchema tableSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("key1").setType("STRING"),
+                    new TableFieldSchema().setName("key2").setType("STRING"),
+                    new TableFieldSchema().setName("value").setType("STRING")));
+
+    List<RowMutation> items =
+        Lists.newArrayList(
+            RowMutation.of(
+                new TableRow().set("key1", "foo0").set("key2", "bar0").set("value", "1"),
+                RowMutationInformation.of(RowMutationInformation.MutationType.UPSERT, "AAA/0")),
+            RowMutation.of(
+                new TableRow().set("key1", "foo1").set("key2", "bar1").set("value", "1"),
+                RowMutationInformation.of(RowMutationInformation.MutationType.UPSERT, "AAA/0")),
+            RowMutation.of(
+                new TableRow().set("key1", "foo0").set("key2", "bar0").set("value", "2"),
+                RowMutationInformation.of(RowMutationInformation.MutationType.UPSERT, "AAA/1")),
+            RowMutation.of(
+                new TableRow().set("key1", "foo1").set("key2", "bar1").set("value", "1"),
+                RowMutationInformation.of(RowMutationInformation.MutationType.DELETE, "AAA/1")),
+            RowMutation.of(
+                new TableRow().set("key1", "foo3").set("key2", "bar3").set("value", "1"),
+                RowMutationInformation.of(RowMutationInformation.MutationType.UPSERT, "AAA/0")),
+            RowMutation.of(
+                new TableRow().set("key1", "foo1").set("key2", "bar1").set("value", "3"),
+                RowMutationInformation.of(RowMutationInformation.MutationType.UPSERT, "AAA/2")),
+            RowMutation.of(
+                new TableRow().set("key1", "foo4").set("key2", "bar4").set("value", "1"),
+                RowMutationInformation.of(RowMutationInformation.MutationType.UPSERT, "AAA/0")),
+            RowMutation.of(
+                new TableRow().set("key1", "foo4").set("key2", "bar4").set("value", "1"),
+                RowMutationInformation.of(RowMutationInformation.MutationType.DELETE, "AAA/1")));
+
+    List<String> primaryKey = Lists.newArrayList("key1", "key2");
+    String tableSpec = getTablespec();
+    Pipeline p = Pipeline.create();
+    p.apply("Create rows", Create.of(items))
+        .apply(
+            "Apply updates",
+            BigQueryIO.applyRowMutations()
+                .to(tableSpec)
+                .withSchema(tableSchema)
+                .withPrimaryKey(primaryKey)
+                .withClustering(new Clustering().setFields(primaryKey))
+                .withMethod(BigQueryIO.Write.Method.STORAGE_API_AT_LEAST_ONCE)
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED));
+
+    runPipelineAndWait(p);
 
     List<TableRow> expected =
         Lists.newArrayList(
@@ -136,5 +199,24 @@ public class StorageApiSinkRowUpdateIT {
         BQ_CLIENT.queryUnflattened(
             String.format("SELECT * FROM %s", tableSpec), PROJECT, true, true, bigQueryLocation);
     assertThat(queryResponse, containsInAnyOrder(Iterables.toArray(expected, TableRow.class)));
+  }
+
+  private void runPipelineAndWait(Pipeline p) {
+    PipelineResult result = p.run();
+    try {
+      result.waitUntilFinish();
+    } catch (Pipeline.PipelineExecutionException e) {
+      Throwable root = e.getCause();
+      // Unwrap nested exceptions to find the root cause.
+      while (root != null && root.getCause() != null) {
+        root = root.getCause();
+      }
+      // Tolerate a StreamWriterClosedException, which sometimes happens after all writes have been
+      // flushed.
+      if (root instanceof Exceptions.StreamWriterClosedException) {
+        return;
+      }
+      throw e;
+    }
   }
 }

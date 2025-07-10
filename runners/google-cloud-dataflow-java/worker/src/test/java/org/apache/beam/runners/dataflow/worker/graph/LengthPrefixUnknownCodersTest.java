@@ -30,7 +30,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotSame;
 
 import com.google.api.client.json.GenericJson;
-import com.google.api.client.json.jackson2.JacksonFactory;
+import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.dataflow.model.InstructionOutput;
 import com.google.api.services.dataflow.model.ParDoInstruction;
 import com.google.api.services.dataflow.model.ParallelInstruction;
@@ -53,8 +53,9 @@ import org.apache.beam.sdk.coders.LengthPrefixCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.graph.MutableNetwork;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.graph.NetworkBuilder;
@@ -68,17 +69,17 @@ import org.mockito.MockitoAnnotations;
 @RunWith(JUnit4.class)
 public class LengthPrefixUnknownCodersTest {
   private static final Coder<WindowedValue<KV<String, Integer>>> windowedValueCoder =
-      WindowedValue.getFullCoder(
+      WindowedValues.getFullCoder(
           KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()), GlobalWindow.Coder.INSTANCE);
 
   private static final Coder<WindowedValue<KV<String, Integer>>> prefixedWindowedValueCoder =
-      WindowedValue.getFullCoder(
+      WindowedValues.getFullCoder(
           KvCoder.of(StringUtf8Coder.of(), LengthPrefixCoder.of(VarIntCoder.of())),
           GlobalWindow.Coder.INSTANCE);
 
   private static final Coder<WindowedValue<KV<String, byte[]>>>
       prefixedAndReplacedWindowedValueCoder =
-          WindowedValue.getFullCoder(
+          WindowedValues.getFullCoder(
               KvCoder.of(StringUtf8Coder.of(), LENGTH_PREFIXED_BYTE_ARRAY_CODER),
               GlobalWindow.Coder.INSTANCE);
 
@@ -89,7 +90,7 @@ public class LengthPrefixUnknownCodersTest {
   public void setup() {
     MockitoAnnotations.initMocks(this);
     instruction = new ParallelInstruction();
-    instruction.setFactory(new JacksonFactory());
+    instruction.setFactory(new GsonFactory());
   }
 
   /** Test wrapping unknown coders with {@code LengthPrefixCoder} */
@@ -106,7 +107,7 @@ public class LengthPrefixUnknownCodersTest {
   @Test
   public void testLengthPrefixForLengthPrefixCoder() throws Exception {
     Coder<WindowedValue<KV<String, Integer>>> windowedValueCoder =
-        WindowedValue.getFullCoder(
+        WindowedValues.getFullCoder(
             KvCoder.of(StringUtf8Coder.of(), LengthPrefixCoder.of(VarIntCoder.of())),
             GlobalWindow.Coder.INSTANCE);
 
@@ -114,7 +115,7 @@ public class LengthPrefixUnknownCodersTest {
         forCodec(CloudObjects.asCloudObject(windowedValueCoder, /*sdkComponents=*/ null), false);
 
     Coder<WindowedValue<KV<String, Integer>>> expectedCoder =
-        WindowedValue.getFullCoder(
+        WindowedValues.getFullCoder(
             KvCoder.of(StringUtf8Coder.of(), LengthPrefixCoder.of(VarIntCoder.of())),
             GlobalWindow.Coder.INSTANCE);
 
@@ -127,7 +128,7 @@ public class LengthPrefixUnknownCodersTest {
   @Test
   public void testLengthPrefixAndReplaceUnknownCoder() throws Exception {
     Coder<WindowedValue<KV<String, Integer>>> windowedValueCoder =
-        WindowedValue.getFullCoder(
+        WindowedValues.getFullCoder(
             KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()), GlobalWindow.Coder.INSTANCE);
 
     Map<String, Object> lengthPrefixedCoderCloudObject =
@@ -142,7 +143,7 @@ public class LengthPrefixUnknownCodersTest {
   public void testLengthPrefixInstructionOutputCoder() throws Exception {
     InstructionOutput output = new InstructionOutput();
     output.setCodec(CloudObjects.asCloudObject(windowedValueCoder, /*sdkComponents=*/ null));
-    output.setFactory(new JacksonFactory());
+    output.setFactory(new GsonFactory());
 
     InstructionOutput prefixedOutput = forInstructionOutput(output, false);
     assertEqualsAsJson(
@@ -267,7 +268,7 @@ public class LengthPrefixUnknownCodersTest {
                             .setCodec(CloudObjects.asCloudObject(coder, /*sdkComponents=*/ null))
                             .setSpec(CloudObject.forClassName(readClassName))));
 
-    parallelInstruction.setFactory(new JacksonFactory());
+    parallelInstruction.setFactory(new GsonFactory());
     return ParallelInstructionNode.create(parallelInstruction, Nodes.ExecutionLocation.UNKNOWN);
   }
 
@@ -276,7 +277,7 @@ public class LengthPrefixUnknownCodersTest {
         new InstructionOutput()
             .setName(name)
             .setCodec(CloudObjects.asCloudObject(coder, /*sdkComponents=*/ null));
-    instructionOutput.setFactory(new JacksonFactory());
+    instructionOutput.setFactory(new GsonFactory());
     return InstructionOutputNode.create(instructionOutput, "fakeId");
   }
 }

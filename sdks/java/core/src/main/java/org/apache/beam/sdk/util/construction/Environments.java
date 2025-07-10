@@ -50,8 +50,8 @@ import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.util.ZipFiles;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
@@ -95,7 +95,6 @@ public class Environments {
           .build();
 
   public enum JavaVersion {
-    java8("java", "1.8", 8),
     java11("java11", "11", 11),
     java17("java17", "17", 17),
     java21("java21", "21", 21);
@@ -131,20 +130,30 @@ public class Environments {
         }
       }
 
-      JavaVersion fallback = null;
+      if (specification.startsWith("1.")) {
+        // for Java 8 and below
+        specification = specification.substring(2);
+      }
       int specificationInt = Integer.parseInt(specification);
+      JavaVersion fallback = java21;
       int minDistance = Integer.MAX_VALUE;
       for (JavaVersion candidate : JavaVersion.values()) {
-        int distance = Math.abs(candidate.specificationInt - specificationInt);
-        if (distance <= minDistance) {
+        int distance = candidate.specificationInt - specificationInt;
+        if (distance >= 0 && distance <= minDistance) {
           fallback = candidate;
           minDistance = distance;
         }
       }
-      LOG.warn(
-          "Unsupported Java version: {}, falling back to: {}",
-          specification,
-          fallback.specification);
+      if (specification.equals("8")) {
+        LOG.warn(
+            "Java8 support is now deprecated and targeted for removal for Beam 3. Falling back to: {}",
+            fallback.specification);
+      } else {
+        LOG.warn(
+            "Unsupported Java version: {}, falling back to: {}",
+            specification,
+            fallback.specification);
+      }
       return fallback;
     }
 
@@ -219,20 +228,17 @@ public class Environments {
   }
 
   private static Environment createExternalEnvironment(String externalServiceAddress) {
-    if (externalServiceAddress.isEmpty()) {
-      throw new IllegalArgumentException(
-          String.format(
-              "External service address must not be empty (set it using '--environmentOptions=%s=...'?).",
-              externalServiceAddressOption));
+    // Create the payload builder. If the address is empty, the payload will be empty,
+    // acting as a placeholder for late binding. For example, in the LOOPBACK case,
+    // the address is populated by PortableRunner#run before this method is called.
+    ExternalPayload.Builder payloadBuilder = ExternalPayload.newBuilder();
+    if (!externalServiceAddress.isEmpty()) {
+      payloadBuilder.setEndpoint(
+          ApiServiceDescriptor.newBuilder().setUrl(externalServiceAddress).build());
     }
     return Environment.newBuilder()
         .setUrn(BeamUrns.getUrn(StandardEnvironments.Environments.EXTERNAL))
-        .setPayload(
-            ExternalPayload.newBuilder()
-                .setEndpoint(
-                    ApiServiceDescriptor.newBuilder().setUrl(externalServiceAddress).build())
-                .build()
-                .toByteString())
+        .setPayload(payloadBuilder.build().toByteString())
         .build();
   }
 
@@ -487,6 +493,8 @@ public class Environments {
     capabilities.add(BeamUrns.getUrn(SplittableParDoComponents.TRUNCATE_SIZED_RESTRICTION));
     capabilities.add(BeamUrns.getUrn(Primitives.TO_STRING));
     capabilities.add(BeamUrns.getUrn(StandardProtocols.Enum.DATA_SAMPLING));
+    capabilities.add(BeamUrns.getUrn(StandardProtocols.Enum.SDK_CONSUMING_RECEIVED_DATA));
+    capabilities.add(BeamUrns.getUrn(StandardProtocols.Enum.ORDERED_LIST_STATE));
     return capabilities.build();
   }
 

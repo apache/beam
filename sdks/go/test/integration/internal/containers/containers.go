@@ -21,10 +21,10 @@ import (
 	"testing"
 	"time"
 
+	retry "github.com/avast/retry-go/v4"
 	"github.com/docker/go-connections/nat"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
-	"gopkg.in/retry.v1"
 )
 
 type ContainerOptionFn func(*testcontainers.ContainerRequest)
@@ -73,26 +73,24 @@ func NewContainer(
 		Started:          true,
 	}
 
-	strategy := retry.LimitCount(
-		maxRetries,
-		retry.Exponential{
-			Initial: time.Second,
-			Factor:  2,
-		},
-	)
+	retryOpts := []retry.Option{
+		retry.Attempts(uint(maxRetries)),
+		retry.DelayType(func(n uint, err error, config *retry.Config) time.Duration {
+			if n == 0 {
+				return time.Second
+			}
+			return retry.BackOffDelay(n, err, config)
+		}),
+	}
 
 	var container testcontainers.Container
 	var err error
-
-	for attempt := retry.Start(strategy, nil); attempt.Next(); {
+	err = retry.Do(func() error {
 		container, err = testcontainers.GenericContainer(ctx, genericRequest)
-		if err == nil {
-			break
-		}
-
-		if attempt.Count() == maxRetries {
-			t.Fatalf("failed to start container with %v retries: %v", maxRetries, err)
-		}
+		return err
+	}, retryOpts...)
+	if err != nil {
+		t.Fatalf("failed to start container with %v retries: %v", maxRetries, err)
 	}
 
 	t.Cleanup(func() {

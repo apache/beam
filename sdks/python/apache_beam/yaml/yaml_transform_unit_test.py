@@ -23,7 +23,6 @@ import apache_beam as beam
 from apache_beam.yaml import YamlTransform
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml.yaml_provider import InlineProvider
-from apache_beam.yaml.yaml_transform import SafeLineLoader
 from apache_beam.yaml.yaml_transform import Scope
 from apache_beam.yaml.yaml_transform import chain_as_composite
 from apache_beam.yaml.yaml_transform import ensure_errors_consumed
@@ -39,57 +38,13 @@ from apache_beam.yaml.yaml_transform import preprocess
 from apache_beam.yaml.yaml_transform import preprocess_flattened_inputs
 from apache_beam.yaml.yaml_transform import preprocess_windowing
 from apache_beam.yaml.yaml_transform import push_windowing_to_roots
+from apache_beam.yaml.yaml_transform import validate_against_schema
+from apache_beam.yaml.yaml_utils import SafeLineLoader
 
-
-class SafeLineLoaderTest(unittest.TestCase):
-  def test_get_line(self):
-    pipeline_yaml = '''
-          type: composite
-          input:
-              elements: input
-          transforms:
-            - type: PyMap
-              name: Square
-              input: elements
-              config:
-                fn: "lambda x: x * x"
-            - type: PyMap
-              name: Cube
-              input: elements
-              config:
-                fn: "lambda x: x * x * x"
-          output:
-              Flatten
-          '''
-    spec = yaml.load(pipeline_yaml, Loader=SafeLineLoader)
-    self.assertEqual(SafeLineLoader.get_line(spec['type']), 2)
-    self.assertEqual(SafeLineLoader.get_line(spec['input']), 4)
-    self.assertEqual(SafeLineLoader.get_line(spec['transforms'][0]), 6)
-    self.assertEqual(SafeLineLoader.get_line(spec['transforms'][0]['type']), 6)
-    self.assertEqual(SafeLineLoader.get_line(spec['transforms'][0]['name']), 7)
-    self.assertEqual(SafeLineLoader.get_line(spec['transforms'][1]), 11)
-    self.assertEqual(SafeLineLoader.get_line(spec['output']), 17)
-    self.assertEqual(SafeLineLoader.get_line(spec['transforms']), "unknown")
-
-  def test_strip_metadata(self):
-    spec_yaml = '''
-    transforms:
-      - type: PyMap
-        name: Square
-    '''
-    spec = yaml.load(spec_yaml, Loader=SafeLineLoader)
-    stripped = SafeLineLoader.strip_metadata(spec['transforms'])
-
-    self.assertFalse(hasattr(stripped[0], '__line__'))
-    self.assertFalse(hasattr(stripped[0], '__uuid__'))
-
-  def test_strip_metadata_nothing_to_strip(self):
-    spec_yaml = 'prop: 123'
-    spec = yaml.load(spec_yaml, Loader=SafeLineLoader)
-    stripped = SafeLineLoader.strip_metadata(spec['prop'])
-
-    self.assertFalse(hasattr(stripped, '__line__'))
-    self.assertFalse(hasattr(stripped, '__uuid__'))
+try:
+  import jsonschema
+except ImportError:
+  jsonschema = None
 
 
 def new_pipeline():
@@ -213,7 +168,7 @@ class MainTest(unittest.TestCase):
                                            inputs={'elements': elements})
       self.assertRegex(
           str(expand_composite_transform(spec, scope)['output']),
-          r"PCollection.*Composite/LogForTesting.*")
+          r"PCollection.*Composite/log_for_testing/LogForTesting.*")
 
   def test_expand_composite_transform_root(self):
     with new_pipeline() as p:
@@ -256,7 +211,8 @@ class MainTest(unittest.TestCase):
         config:
           fn: 'lambda x: x*x'
         input: {spec['transforms'][0]['__uuid__']}
-      output: {spec['transforms'][1]['__uuid__']}
+      output:
+        '__implicit_outputs__': {spec['transforms'][1]['__uuid__']}
     '''
     self.assertYaml(expected, result)
 
@@ -323,6 +279,40 @@ class MainTest(unittest.TestCase):
     spec = yaml.load(spec, Loader=SafeLineLoader)
     self.assertEqual(
         chain_as_composite(spec)['transforms'][0]['input'], {"input": "input"})
+
+  def test_chain_as_composite_with_transform_input(self):
+    spec = '''
+        type: chain
+        transforms:
+        - type: Create
+          config:
+            elements: [0,1,2]
+        - type: LogForTesting
+          input: Create
+      '''
+    spec = yaml.load(spec, Loader=SafeLineLoader)
+    with self.assertRaisesRegex(
+        ValueError,
+        r"Transform .* is part of a chain. "
+        r"Cannot define explicit inputs on chain pipeline"):
+      chain_as_composite(spec)
+
+  def test_validate_against_schema_with_transform_input(self):
+    spec = '''
+        pipeline:
+          type: chain
+          transforms:
+            - type: Create
+              config:
+                elements: [1, 2, 3]
+            - type: LogForTesting
+              input: Create
+      '''
+    spec = yaml.load(spec, Loader=SafeLineLoader)
+    with self.assertRaisesRegex(jsonschema.ValidationError,
+                                r"'input' should not be used "
+                                r"along with 'chain' type transforms.*"):
+      validate_against_schema(spec, 'generic')
 
   def test_normalize_source_sink(self):
     spec = '''
@@ -659,6 +649,8 @@ class MainTest(unittest.TestCase):
             size: 4
           input: {{input: input}}
       output: {result['transforms'][0]['__uuid__']}
+      config: 
+        error_handling: {{}}
     '''
     self.assertYaml(expected, result)
 
@@ -780,6 +772,8 @@ class MainTest(unittest.TestCase):
             type: fixed
             size: 4
       output: {result['transforms'][1]["__uuid__"]}
+      config: 
+        error_handling: {{}}
     '''
     self.maxDiff = 1e9
 
@@ -900,7 +894,8 @@ class MainTest(unittest.TestCase):
     spec['transforms'] = [
         normalize_inputs_outputs(t) for t in spec['transforms']
     ]
-    with self.assertRaisesRegex(ValueError, r"Unconsumed error.*"):
+    with self.assertRaisesRegex(ValueError,
+                                r"Unconsumed error.*MyTransform.errors"):
       ensure_errors_consumed(spec)
 
   def test_ensure_errors_consumed_in_transform(self):

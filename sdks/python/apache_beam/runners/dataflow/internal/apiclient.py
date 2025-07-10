@@ -42,9 +42,11 @@ from packaging import version
 import re
 import sys
 import time
+import traceback
 import warnings
 from copy import copy
 from datetime import datetime
+from datetime import timezone
 
 from apitools.base.py import encoding
 from apitools.base.py import exceptions
@@ -55,16 +57,17 @@ from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.internal.http_client import get_new_http
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
+from apache_beam.io.gcp.gcsio import create_storage_client
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.runners.common import validate_pipeline_graph
 from apache_beam.runners.dataflow.internal import names
 from apache_beam.runners.dataflow.internal.clients import dataflow
 from apache_beam.runners.internal import names as shared_names
+from apache_beam.runners.pipeline_utils import validate_pipeline_graph
 from apache_beam.runners.portability.stager import Stager
 from apache_beam.transforms import DataflowDistributionCounter
 from apache_beam.transforms import cy_combiners
@@ -81,7 +84,7 @@ _FNAPI_ENVIRONMENT_MAJOR_VERSION = '8'
 
 _LOGGER = logging.getLogger(__name__)
 
-_PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW = ['3.8', '3.9', '3.10', '3.11']
+_PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW = ['3.9', '3.10', '3.11', '3.12', '3.13']
 
 
 class Environment(object):
@@ -227,8 +230,8 @@ class Environment(object):
       container_image = dataflow.SdkHarnessContainerImage()
       container_image.containerImage = container_image_url
       container_image.useSingleCorePerContainer = (
-          common_urns.protocols.MULTI_CORE_BUNDLE_PROCESSING.urn not in
-          environment.capabilities)
+          common_urns.protocols.MULTI_CORE_BUNDLE_PROCESSING.urn
+          not in environment.capabilities)
       container_image.environmentId = id
       for capability in environment.capabilities:
         container_image.capabilities.append(capability)
@@ -361,7 +364,7 @@ class Job(object):
     are removed. If necessary, the user_name is truncated to shorten
     the job name to 63 characters."""
     user_name = re.sub('[^-a-z0-9]', '', user_name.lower())
-    date_component = datetime.utcnow().strftime('%m%d%H%M%S-%f')
+    date_component = datetime.now(timezone.utc).strftime('%m%d%H%M%S-%f')
     app_user_name = 'beamapp-{}'.format(user_name)
     # append 8 random alphanumeric characters to avoid collisions.
     random_component = ''.join(
@@ -445,6 +448,10 @@ class Job(object):
     if self.google_cloud_options.labels:
       self.proto.labels = dataflow.Job.LabelsValue()
       labels = self.google_cloud_options.labels
+      if isinstance(labels, str):
+        labels = [labels]
+      elif isinstance(labels, dict):
+        labels = [str(labels)]
       for label in labels:
         if '{' in label:
           label = ast.literal_eval(label)
@@ -461,7 +468,7 @@ class Job(object):
 
     # Client Request ID
     self.proto.clientRequestId = '{}-{}'.format(
-        datetime.utcnow().strftime('%Y%m%d%H%M%S%f'),
+        datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S%f'),
         random.randrange(9000) + 1000)
 
     self.base64_str_re = re.compile(r'^[A-Za-z0-9+/]*=*$')
@@ -488,18 +495,18 @@ class DataflowApplicationClient(object):
     self.standard_options = options.view_as(StandardOptions)
     self.google_cloud_options = options.view_as(GoogleCloudOptions)
     self._enable_caching = self.google_cloud_options.enable_artifact_caching
+    self._enable_bucket_read_metric_counter = \
+      self.google_cloud_options.enable_bucket_read_metric_counter
+    self._enable_bucket_write_metric_counter =\
+      self.google_cloud_options.enable_bucket_write_metric_counter
     self._root_staging_location = (
         root_staging_location or self.google_cloud_options.staging_location)
     self.environment_version = _FNAPI_ENVIRONMENT_MAJOR_VERSION
 
-    from google.cloud import storage
-
     if self.google_cloud_options.no_auth:
       credentials = None
-      storage_credentials = None
     else:
       credentials = get_service_credentials(options)
-      storage_credentials = credentials.get_google_auth_credentials()
 
     http_client = get_new_http()
     self._client = dataflow.DataflowV1b3(
@@ -508,19 +515,8 @@ class DataflowApplicationClient(object):
         get_credentials=(not self.google_cloud_options.no_auth),
         http=http_client,
         response_encoding=get_response_encoding())
-    if storage_credentials:
-      # Here we explicitly set the project to the value specified in pipeline
-      # options, so the new storage client will be consistent with the previous
-      # client in terms of which GCP project to use.
-      self._storage_client = storage.Client(
-          credentials=storage_credentials,
-          project=self.google_cloud_options.project,
-          extra_headers={
-              "User-Agent": "apache-beam/%s (GPN:Beam)" %
-              beam_version.__version__
-          })
-    else:
-      self._storage_client = storage.Client.create_anonymous_client()
+    self._storage_client = create_storage_client(
+        options, not self.google_cloud_options.no_auth)
     self._sdk_image_overrides = self._get_sdk_image_overrides(options)
 
   def _get_sdk_image_overrides(self, pipeline_options):
@@ -567,13 +563,11 @@ class DataflowApplicationClient(object):
         source_file_names=[cached_path], destination_file_names=[to_path])
     _LOGGER.info('Copied cached artifact from %s to %s', from_path, to_path)
 
-  @retry.with_exponential_backoff(
-      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def _uncached_gcs_file_copy(self, from_path, to_path):
     to_folder, to_name = os.path.split(to_path)
     total_size = os.path.getsize(from_path)
-    with open(from_path, 'rb') as f:
-      self.stage_file(to_folder, to_name, f, total_size=total_size)
+    self.stage_file_with_retry(
+        to_folder, to_name, from_path, total_size=total_size)
 
   def _stage_resources(self, pipeline, options):
     google_cloud_options = options.view_as(GoogleCloudOptions)
@@ -702,6 +696,41 @@ class DataflowApplicationClient(object):
                       (gcs_or_local_path, e))
       raise
 
+  @retry.with_exponential_backoff(
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+  def stage_file_with_retry(
+      self,
+      gcs_or_local_path,
+      file_name,
+      stream_or_path,
+      mime_type='application/octet-stream',
+      total_size=None):
+
+    if isinstance(stream_or_path, str):
+      path = stream_or_path
+      with open(path, 'rb') as stream:
+        self.stage_file(
+            gcs_or_local_path, file_name, stream, mime_type, total_size)
+    elif isinstance(stream_or_path, io.IOBase):
+      stream = stream_or_path
+      try:
+        self.stage_file(
+            gcs_or_local_path, file_name, stream, mime_type, total_size)
+      except Exception as exn:
+        if stream.seekable():
+          # reset cursor for possible retrying
+          stream.seek(0)
+          raise exn
+        else:
+          raise retry.PermanentException(
+              "Skip retrying because we caught exception:" +
+              ''.join(traceback.format_exception_only(exn.__class__, exn)) +
+              ', but the stream is not seekable.')
+    else:
+      raise retry.PermanentException(
+          "Skip retrying because type " + str(type(stream_or_path)) +
+          "stream_or_path is unsupported.")
+
   @retry.no_retries  # Using no_retries marks this as an integration point.
   def create_job(self, job):
     """Creates job description. May stage and/or submit for remote execution."""
@@ -713,7 +742,7 @@ class DataflowApplicationClient(object):
         job.options.view_as(GoogleCloudOptions).template_location)
 
     if job.options.view_as(DebugOptions).lookup_experiment('upload_graph'):
-      self.stage_file(
+      self.stage_file_with_retry(
           job.options.view_as(GoogleCloudOptions).staging_location,
           "dataflow_graph.json",
           io.BytesIO(job.json().encode('utf-8')))
@@ -728,7 +757,7 @@ class DataflowApplicationClient(object):
     if job_location:
       gcs_or_local_path = os.path.dirname(job_location)
       file_name = os.path.basename(job_location)
-      self.stage_file(
+      self.stage_file_with_retry(
           gcs_or_local_path, file_name, io.BytesIO(job.json().encode('utf-8')))
 
     if not template_location:
@@ -743,6 +772,12 @@ class DataflowApplicationClient(object):
     # By default Dataflow pipelines use containers hosted in Dataflow GCR
     # instead of Docker Hub.
     image_suffix = beam_container_image_url.rsplit('/', 1)[1]
+
+    # trim "RCX" as release candidate tag exists on Docker Hub but not GCR
+    check_rc = image_suffix.lower().split('rc')
+    if len(check_rc) == 2:
+      image_suffix = image_suffix[:-2 - len(check_rc[1])]
+
     return names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/' + image_suffix
 
   @staticmethod
@@ -794,7 +829,7 @@ class DataflowApplicationClient(object):
     resources = self._stage_resources(job.proto_pipeline, job.options)
 
     # Stage proto pipeline.
-    self.stage_file(
+    self.stage_file_with_retry(
         job.google_cloud_options.staging_location,
         shared_names.STAGED_PIPELINE_FILENAME,
         io.BytesIO(job.proto_pipeline.SerializeToString()))
@@ -1024,10 +1059,9 @@ class DataflowApplicationClient(object):
           pageToken=token)
       response = self._client.projects_locations_jobs.List(request)
       for job in response.jobs:
-        if (job.name == job_name and job.currentState in [
-            dataflow.Job.CurrentStateValueValuesEnum.JOB_STATE_RUNNING,
-            dataflow.Job.CurrentStateValueValuesEnum.JOB_STATE_DRAINING
-        ]):
+        if (job.name == job_name and job.currentState
+            in [dataflow.Job.CurrentStateValueValuesEnum.JOB_STATE_RUNNING,
+                dataflow.Job.CurrentStateValueValuesEnum.JOB_STATE_DRAINING]):
           return job.id
       token = response.nextPageToken
       if token is None:
@@ -1185,9 +1219,8 @@ def get_response_encoding():
 
 
 def _verify_interpreter_version_is_supported(pipeline_options):
-  if ('%s.%s' %
-      (sys.version_info[0],
-       sys.version_info[1]) in _PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW):
+  if ('%s.%s' % (sys.version_info[0], sys.version_info[1])
+      in _PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW):
     return
 
   if 'dev' in beam_version.__version__:

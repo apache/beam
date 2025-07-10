@@ -28,14 +28,14 @@ import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.CheckForNull;
-import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.AbstractIterator;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -47,13 +47,13 @@ import scala.Tuple2;
  * Processes Spark's input data iterators using Beam's {@link
  * org.apache.beam.runners.core.DoFnRunner}.
  */
-interface SparkInputDataProcessor<FnInputT, FnOutputT, OutputT> {
+public interface SparkInputDataProcessor<FnInputT, FnOutputT, OutputT> {
 
   /**
-   * @return {@link OutputManager} to be used by {@link org.apache.beam.runners.core.DoFnRunner} for
-   *     emitting processing results
+   * @return {@link WindowedValueMultiReceiver} to be used by {@link
+   *     org.apache.beam.runners.core.DoFnRunner} for emitting processing results
    */
-  OutputManager getOutputManager();
+  WindowedValueMultiReceiver getOutputManager();
 
   /**
    * Creates a transformation which processes input partition data and returns output results as
@@ -94,7 +94,7 @@ class UnboundedSparkInputDataProcessor<FnInputT, FnOutputT>
   private final UnboundedDoFnOutputManager outputManager = new UnboundedDoFnOutputManager();
 
   @Override
-  public OutputManager getOutputManager() {
+  public WindowedValueMultiReceiver getOutputManager() {
     return outputManager;
   }
 
@@ -105,7 +105,7 @@ class UnboundedSparkInputDataProcessor<FnInputT, FnOutputT>
   }
 
   private static class UnboundedDoFnOutputManager
-      implements OutputManager, Iterable<Tuple2<TupleTag<?>, WindowedValue<?>>> {
+      implements WindowedValueMultiReceiver, Iterable<Tuple2<TupleTag<?>, WindowedValue<?>>> {
 
     private final ArrayDeque<Tuple2<TupleTag<?>, WindowedValue<?>>> outputs = new ArrayDeque<>();
 
@@ -209,7 +209,7 @@ class BoundedSparkInputDataProcessor<FnInputT, FnOutputT>
   private final BoundedDoFnOutputManager outputManager = new BoundedDoFnOutputManager();
 
   @Override
-  public OutputManager getOutputManager() {
+  public WindowedValueMultiReceiver getOutputManager() {
     return outputManager;
   }
 
@@ -224,7 +224,7 @@ class BoundedSparkInputDataProcessor<FnInputT, FnOutputT>
    * attempt to output more elements will block until some elements are consumed.
    */
   private static class BoundedDoFnOutputManager
-      implements OutputManager, Iterable<Tuple2<TupleTag<?>, WindowedValue<?>>> {
+      implements WindowedValueMultiReceiver, Iterable<Tuple2<TupleTag<?>, WindowedValue<?>>> {
 
     private final LinkedBlockingQueue<Tuple2<TupleTag<?>, WindowedValue<?>>> queue =
         new LinkedBlockingQueue<>(500);
@@ -269,10 +269,10 @@ class BoundedSparkInputDataProcessor<FnInputT, FnOutputT>
     }
 
     @Override
-    public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
+    public <OutputT> void output(TupleTag<OutputT> tag, WindowedValue<OutputT> output) {
       try {
         Preconditions.checkState(!stopped, "Output called on already stopped manager");
-        queue.put(new Tuple2<>(tag, output));
+        queue.put(new Tuple2<>(tag, (WindowedValue<?>) output));
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throw new IllegalStateException(e);

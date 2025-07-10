@@ -76,8 +76,8 @@
 // container repository, such as Docker Hub.
 //
 //	export DOCKER_ROOT="Your Docker Repository Root"
-//	./gradlew :sdks:java:container:java8:docker -Pdocker-repository-root=$DOCKER_ROOT -Pdocker-tag=latest
-//	docker push $DOCKER_ROOT/beam_java8_sdk:latest
+//	./gradlew :sdks:java:container:java11:docker -Pdocker-repository-root=$DOCKER_ROOT -Pdocker-tag=latest
+//	docker push $DOCKER_ROOT/beam_java11_sdk:latest
 //
 // For runners in local mode, simply building the container using the default values for
 // docker-repository-root and docker-tag will work to have it accessible locally.
@@ -86,7 +86,7 @@
 // --sdk_harness_container_image_override flag for Java, or --environment_config flag for Go. For
 // example:
 //
-//	--sdk_harness_container_image_override=".*java.*,${DOCKER_ROOT}/beam_java8_sdk:latest" \
+//	--sdk_harness_container_image_override=".*java.*,${DOCKER_ROOT}/beam_java11_sdk:latest" \
 //	--environment_config=${DOCKER_ROOT}/beam_go_sdk:latest
 package main
 

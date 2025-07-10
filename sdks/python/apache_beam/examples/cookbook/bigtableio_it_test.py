@@ -25,7 +25,6 @@ import string
 import unittest
 import uuid
 from typing import TYPE_CHECKING
-from typing import List
 
 import pytest
 import pytz
@@ -42,7 +41,6 @@ from apache_beam.testing.test_pipeline import TestPipeline
 try:
   from google.cloud._helpers import _datetime_from_microseconds
   from google.cloud._helpers import _microseconds_from_datetime
-  from google.cloud._helpers import UTC
   from google.cloud.bigtable import row, column_family, Client
 except ImportError:
   Client = None
@@ -53,9 +51,9 @@ except ImportError:
 if TYPE_CHECKING:
   import google.cloud.bigtable.instance
 
-EXISTING_INSTANCES = []  # type: List[google.cloud.bigtable.instance.Instance]
+EXISTING_INSTANCES: list['google.cloud.bigtable.instance.Instance'] = []
 LABEL_KEY = 'python-bigtable-beam'
-label_stamp = datetime.datetime.utcnow().replace(tzinfo=UTC)
+label_stamp = datetime.datetime.now(datetime.timezone.utc)
 label_stamp_micros = _microseconds_from_datetime(label_stamp)
 LABELS = {LABEL_KEY: str(label_stamp_micros)}
 
@@ -157,7 +155,7 @@ class BigtableIOWriteTest(unittest.TestCase):
 
     def age_in_hours(micros):
       return (
-          datetime.datetime.utcnow().replace(tzinfo=UTC) -
+          datetime.datetime.now(datetime.timezone.utc) -
           (_datetime_from_microseconds(micros))).total_seconds() // 3600
 
     CLEAN_INSTANCE = [
@@ -174,9 +172,7 @@ class BigtableIOWriteTest(unittest.TestCase):
     if self.instance.exists():
       self.instance.delete()
 
-  # TODO(https://github.com/apache/beam/issues/29076): Reenable this test
-  # once BigTable issues are fixed.
-  @pytest.mark.it_postcommit_sickbay
+  @pytest.mark.it_postcommit
   def test_bigtable_write(self):
     number = self.number
     pipeline_args = self.test_pipeline.options_list

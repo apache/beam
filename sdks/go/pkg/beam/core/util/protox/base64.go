@@ -19,7 +19,7 @@ import (
 	"encoding/base64"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 )
 
 // MustEncodeBase64 encodes a proto wrapped in base64 and panics on failure.

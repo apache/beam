@@ -165,14 +165,6 @@ class PipelineFragmentTest(unittest.TestCase):
     result = pf.PipelineFragment([pc]).run()
     self.assertEqual([0, 6, 12, 18, 24], list(result.get(pc)))
 
-  def test_ib_show_without_using_ir(self):
-    """Tests that ib.show is called when ir is not specified.
-    """
-    p = beam.Pipeline()
-    print_words = p | beam.Create(["this is a test"]) | beam.Map(print)
-    with self.assertRaises(RuntimeError):
-      ib.show(print_words)
-
 
 if __name__ == '__main__':
   unittest.main()

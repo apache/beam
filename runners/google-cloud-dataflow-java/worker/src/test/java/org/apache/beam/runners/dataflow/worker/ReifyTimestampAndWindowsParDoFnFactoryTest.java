@@ -25,8 +25,9 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.ParDoFn;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.Receiver;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
@@ -61,7 +62,7 @@ public class ReifyTimestampAndWindowsParDoFnFactoryTest {
   @Test
   public void testSingleWindow() throws Exception {
     verifyReifiedIsInTheSameWindows(
-        WindowedValue.of(
+        WindowedValues.of(
             KV.of(42, "bizzle"),
             new Instant(73),
             new IntervalWindow(new Instant(5), new Instant(15)),
@@ -71,7 +72,7 @@ public class ReifyTimestampAndWindowsParDoFnFactoryTest {
   @Test
   public void testMultiWindowStaysCompressed() throws Exception {
     verifyReifiedIsInTheSameWindows(
-        WindowedValue.of(
+        WindowedValues.of(
             KV.of(42, "bizzle"),
             new Instant(73),
             ImmutableList.of(

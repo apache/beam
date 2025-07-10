@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"sync/atomic"
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
@@ -295,7 +296,7 @@ func TestStageState_updateWatermarks(t *testing.T) {
 			ss.output = test.initOutput
 			ss.updateUpstreamWatermark(inputCol, test.upstream)
 			ss.pending = append(ss.pending, element{timestamp: test.minPending})
-			ss.watermarkHoldHeap = append(ss.watermarkHoldHeap, test.minStateHold)
+			ss.watermarkHolds.Add(test.minStateHold, 1)
 			ss.updateWatermarks(em)
 			if got, want := ss.input, test.wantInput; got != want {
 				pcol, up := ss.UpstreamWatermark()
@@ -316,6 +317,7 @@ func TestStageState_updateWatermarks(t *testing.T) {
 
 func TestElementManager(t *testing.T) {
 	t.Run("impulse", func(t *testing.T) {
+		ctx, cancelFn := context.WithCancelCause(context.Background())
 		em := NewElementManager(Config{})
 		em.AddStage("impulse", nil, []string{"output"}, nil)
 		em.AddStage("dofn", []string{"output"}, nil, nil)
@@ -327,7 +329,7 @@ func TestElementManager(t *testing.T) {
 		}
 
 		var i int
-		ch := em.Bundles(context.Background(), func() string {
+		ch := em.Bundles(ctx, cancelFn, func() string {
 			defer func() { i++ }()
 			return fmt.Sprintf("%v", i)
 		})
@@ -338,7 +340,7 @@ func TestElementManager(t *testing.T) {
 		if got, want := rb.StageID, "dofn"; got != want {
 			t.Errorf("stage to execute = %v, want %v", got, want)
 		}
-		em.PersistBundle(rb, nil, TentativeData{}, PColInfo{}, nil, nil)
+		em.PersistBundle(rb, nil, TentativeData{}, PColInfo{}, Residuals{})
 		_, ok = <-ch
 		if ok {
 			t.Error("Bundles channel expected to be closed")
@@ -371,6 +373,7 @@ func TestElementManager(t *testing.T) {
 	}
 
 	t.Run("dofn", func(t *testing.T) {
+		ctx, cancelFn := context.WithCancelCause(context.Background())
 		em := NewElementManager(Config{})
 		em.AddStage("impulse", nil, []string{"input"}, nil)
 		em.AddStage("dofn1", []string{"input"}, []string{"output"}, nil)
@@ -378,7 +381,7 @@ func TestElementManager(t *testing.T) {
 		em.Impulse("impulse")
 
 		var i int
-		ch := em.Bundles(context.Background(), func() string {
+		ch := em.Bundles(ctx, cancelFn, func() string {
 			defer func() { i++ }()
 			t.Log("generating bundle", i)
 			return fmt.Sprintf("%v", i)
@@ -397,7 +400,7 @@ func TestElementManager(t *testing.T) {
 			"output": info,
 		}
 
-		em.PersistBundle(rb, outputCoders, td, info, nil, nil)
+		em.PersistBundle(rb, outputCoders, td, info, Residuals{})
 		rb, ok = <-ch
 		if !ok {
 			t.Error("Bundles channel not expected to be closed")
@@ -410,7 +413,7 @@ func TestElementManager(t *testing.T) {
 		if !cmp.Equal([]byte{127, 223, 59, 100, 90, 28, 172, 9, 0, 0, 0, 1, 15, 3, 65, 66, 67}, data[0]) {
 			t.Errorf("unexpected data, got %v", data[0])
 		}
-		em.PersistBundle(rb, outputCoders, TentativeData{}, info, nil, nil)
+		em.PersistBundle(rb, outputCoders, TentativeData{}, info, Residuals{})
 		rb, ok = <-ch
 		if ok {
 			t.Error("Bundles channel expected to be closed", rb)
@@ -422,6 +425,7 @@ func TestElementManager(t *testing.T) {
 	})
 
 	t.Run("side", func(t *testing.T) {
+		ctx, cancelFn := context.WithCancelCause(context.Background())
 		em := NewElementManager(Config{})
 		em.AddStage("impulse", nil, []string{"input"}, nil)
 		em.AddStage("dofn1", []string{"input"}, []string{"output"}, nil)
@@ -429,7 +433,7 @@ func TestElementManager(t *testing.T) {
 		em.Impulse("impulse")
 
 		var i int
-		ch := em.Bundles(context.Background(), func() string {
+		ch := em.Bundles(ctx, cancelFn, func() string {
 			defer func() { i++ }()
 			t.Log("generating bundle", i)
 			return fmt.Sprintf("%v", i)
@@ -454,7 +458,7 @@ func TestElementManager(t *testing.T) {
 			"impulse": info,
 		}
 
-		em.PersistBundle(rb, outputCoders, td, info, nil, nil)
+		em.PersistBundle(rb, outputCoders, td, info, Residuals{})
 		rb, ok = <-ch
 		if !ok {
 			t.Fatal("Bundles channel not expected to be closed")
@@ -462,7 +466,7 @@ func TestElementManager(t *testing.T) {
 		if got, want := rb.StageID, "dofn2"; got != want {
 			t.Fatalf("stage to execute = %v, want %v", got, want)
 		}
-		em.PersistBundle(rb, outputCoders, TentativeData{}, info, nil, nil)
+		em.PersistBundle(rb, outputCoders, TentativeData{}, info, Residuals{})
 		rb, ok = <-ch
 		if ok {
 			t.Error("Bundles channel expected to be closed")
@@ -473,13 +477,14 @@ func TestElementManager(t *testing.T) {
 		}
 	})
 	t.Run("residual", func(t *testing.T) {
+		ctx, cancelFn := context.WithCancelCause(context.Background())
 		em := NewElementManager(Config{})
 		em.AddStage("impulse", nil, []string{"input"}, nil)
 		em.AddStage("dofn", []string{"input"}, nil, nil)
 		em.Impulse("impulse")
 
 		var i int
-		ch := em.Bundles(context.Background(), func() string {
+		ch := em.Bundles(ctx, cancelFn, func() string {
 			defer func() { i++ }()
 			t.Log("generating bundle", i)
 			return fmt.Sprintf("%v", i)
@@ -492,7 +497,11 @@ func TestElementManager(t *testing.T) {
 
 		// Add a residual
 		resid := es.ToData(info)
-		em.PersistBundle(rb, nil, TentativeData{}, info, resid, nil)
+		residuals := Residuals{}
+		for _, r := range resid {
+			residuals.Data = append(residuals.Data, Residual{Element: r})
+		}
+		em.PersistBundle(rb, nil, TentativeData{}, info, residuals)
 		rb, ok = <-ch
 		if !ok {
 			t.Error("Bundles channel not expected to be closed")
@@ -505,7 +514,7 @@ func TestElementManager(t *testing.T) {
 		if !cmp.Equal([]byte{127, 223, 59, 100, 90, 28, 172, 9, 0, 0, 0, 1, 15, 3, 65, 66, 67}, data[0]) {
 			t.Errorf("unexpected data, got %v", data[0])
 		}
-		em.PersistBundle(rb, nil, TentativeData{}, info, nil, nil)
+		em.PersistBundle(rb, nil, TentativeData{}, info, Residuals{})
 		rb, ok = <-ch
 		if ok {
 			t.Error("Bundles channel expected to be closed", rb)
@@ -514,5 +523,164 @@ func TestElementManager(t *testing.T) {
 		if got, want := i, 2; got != want {
 			t.Errorf("got %v bundles, want %v", got, want)
 		}
+	})
+}
+
+func TestElementManager_OnWindowExpiration(t *testing.T) {
+	t.Run("createOnWindowExpirationBundles", func(t *testing.T) {
+		// Unlike the other tests above, we synthesize the input configuration,
+		em := NewElementManager(Config{})
+		var instID uint64
+		em.nextBundID = func() string {
+			return fmt.Sprintf("inst%03d", atomic.AddUint64(&instID, 1))
+		}
+		em.AddStage("impulse", nil, []string{"input"}, nil)
+		em.AddStage("dofn", []string{"input"}, nil, nil)
+		onWE := StaticTimerID{
+			TransformID: "dofn1",
+			TimerFamily: "onWinExp",
+		}
+		em.StageOnWindowExpiration("dofn", onWE)
+		em.Impulse("impulse")
+
+		stage := em.stages["dofn"]
+		stage.pendingByKeys = map[string]*dataAndTimers{}
+		stage.inprogressKeys = set[string]{}
+
+		validateInProgressExpiredWindows := func(t *testing.T, win typex.Window, want int) {
+			t.Helper()
+			if got := stage.inProgressExpiredWindows[win]; got != want {
+				t.Errorf("stage.inProgressExpiredWindows[%v] = %v, want %v", win, got, want)
+			}
+		}
+		validateSideBundles := func(t *testing.T, keys set[string]) {
+			t.Helper()
+			if len(em.injectedBundles) == 0 {
+				t.Errorf("no injectedBundles exist when checking keys: %v", keys)
+			}
+			// Check that all keys are marked as in progress
+			for k := range keys {
+				if !stage.inprogressKeys.present(k) {
+					t.Errorf("key %q not marked as in progress", k)
+				}
+			}
+
+			bundleID := ""
+		sideBundles:
+			for _, rb := range em.injectedBundles {
+				// find that a side channel bundle exists with these keys.
+				bkeys := stage.inprogressKeysByBundle[rb.BundleID]
+				if len(bkeys) != len(keys) {
+					continue sideBundles
+				}
+				for k := range keys {
+					if !bkeys.present(k) {
+						continue sideBundles
+					}
+				}
+				bundleID = rb.BundleID
+				break
+			}
+			if bundleID == "" {
+				t.Errorf("no bundle found with all the given keys: %v: bundles: %v keysByBundle: %v", keys, em.injectedBundles, stage.inprogressKeysByBundle)
+			}
+		}
+
+		newOut := mtime.EndOfGlobalWindowTime
+		// No windows exist, so no side channel bundles should be set.
+		if got, want := stage.createOnWindowExpirationBundles(newOut, em), false; got != want {
+			t.Errorf("createOnWindowExpirationBundles(%v) = %v, want %v", newOut, got, want)
+		}
+		// Validate that no side channel bundles were created.
+		if got, want := len(stage.inProgressExpiredWindows), 0; got != want {
+			t.Errorf("len(stage.inProgressExpiredWindows) = %v, want %v", got, want)
+		}
+		if got, want := len(em.injectedBundles), 0; got != want {
+			t.Errorf("len(em.injectedBundles) = %v, want %v", got, want)
+		}
+
+		// Configure a few conditions to validate in the call.
+		// Each window is in it's own bundle, all are in the same bundle.
+		// Bundle 1
+		expiredWindow1 := window.IntervalWindow{Start: 0, End: newOut - 1}
+
+		akey := "\u0004key1"
+		keys1 := singleSet(akey)
+		stage.keysToExpireByWindow[expiredWindow1] = keys1
+		// Bundle 2
+		expiredWindow2 := window.IntervalWindow{Start: 1, End: newOut - 1}
+		keys2 := singleSet("\u0004key2")
+		keys2.insert("\u0004key3")
+		keys2.insert("\u0004key4")
+		stage.keysToExpireByWindow[expiredWindow2] = keys2
+
+		// We should never see this key and window combination, as the window is
+		// not yet expired.
+		liveWindow := window.IntervalWindow{Start: 2, End: newOut + 1}
+		stage.keysToExpireByWindow[liveWindow] = singleSet("\u0010keyNotSeen")
+
+		if got, want := stage.createOnWindowExpirationBundles(newOut, em), true; got != want {
+			t.Errorf("createOnWindowExpirationBundles(%v) = %v, want %v", newOut, got, want)
+		}
+
+		// We should only see 2 injectedBundles at this point.
+		if got, want := len(em.injectedBundles), 2; got != want {
+			t.Errorf("len(em.injectedBundles) = %v, want %v", got, want)
+		}
+
+		validateInProgressExpiredWindows(t, expiredWindow1, 1)
+		validateInProgressExpiredWindows(t, expiredWindow2, 1)
+		validateSideBundles(t, keys1)
+		validateSideBundles(t, keys2)
+
+		// Bundle 3
+		expiredWindow3 := window.IntervalWindow{Start: 3, End: newOut - 1}
+		keys3 := singleSet(akey)   // We shouldn't see this key, since it's in progress.
+		keys3.insert("\u0004key5") // We should see this key since it isn't.
+		stage.keysToExpireByWindow[expiredWindow3] = keys3
+
+		if got, want := stage.createOnWindowExpirationBundles(newOut, em), true; got != want {
+			t.Errorf("createOnWindowExpirationBundles(%v) = %v, want %v", newOut, got, want)
+		}
+
+		// We should see 3 injectedBundles at this point.
+		if got, want := len(em.injectedBundles), 3; got != want {
+			t.Errorf("len(em.injectedBundles) = %v, want %v", got, want)
+		}
+
+		validateInProgressExpiredWindows(t, expiredWindow1, 1)
+		validateInProgressExpiredWindows(t, expiredWindow2, 1)
+		validateInProgressExpiredWindows(t, expiredWindow3, 1)
+		validateSideBundles(t, keys1)
+		validateSideBundles(t, keys2)
+		validateSideBundles(t, singleSet("\u0004key5"))
+
+		// remove key1 from "inprogress keys", and the associated bundle.
+		stage.inprogressKeys.remove(akey)
+		delete(stage.inProgressExpiredWindows, expiredWindow1)
+		for bundID, bkeys := range stage.inprogressKeysByBundle {
+			if bkeys.present(akey) {
+				t.Logf("bundID: %v, bkeys: %v, keyByBundle: %v", bundID, bkeys, stage.inprogressKeysByBundle)
+				delete(stage.inprogressKeysByBundle, bundID)
+				win := stage.expiryWindowsByBundles[bundID]
+				delete(stage.expiryWindowsByBundles, bundID)
+				if win != expiredWindow1 {
+					t.Fatalf("Unexpected window: got %v, want %v", win, expiredWindow1)
+				}
+				break
+			}
+		}
+
+		// Now we should get another bundle for expiredWindow3, and have none for expiredWindow1
+		if got, want := stage.createOnWindowExpirationBundles(newOut, em), true; got != want {
+			t.Errorf("createOnWindowExpirationBundles(%v) = %v, want %v", newOut, got, want)
+		}
+
+		validateInProgressExpiredWindows(t, expiredWindow1, 0)
+		validateInProgressExpiredWindows(t, expiredWindow2, 1)
+		validateInProgressExpiredWindows(t, expiredWindow3, 2)
+		validateSideBundles(t, keys1) // Should still have this key present, but with a different bundle.
+		validateSideBundles(t, keys2)
+		validateSideBundles(t, singleSet("\u0004key5")) // still exist..
 	})
 }

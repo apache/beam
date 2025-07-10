@@ -19,12 +19,11 @@
 
 import logging
 from collections import defaultdict
+from collections.abc import Callable
+from collections.abc import Iterable
+from collections.abc import Sequence
 from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import Iterable
 from typing import Optional
-from typing import Sequence
 
 import torch
 from apache_beam.io.filesystems import FileSystems
@@ -41,16 +40,16 @@ TensorInferenceFn = Callable[[
     Sequence[torch.Tensor],
     torch.nn.Module,
     torch.device,
-    Optional[Dict[str, Any]],
+    Optional[dict[str, Any]],
     Optional[str]
 ],
                              Iterable[PredictionResult]]
 
 KeyedTensorInferenceFn = Callable[[
-    Sequence[Dict[str, torch.Tensor]],
+    Sequence[dict[str, torch.Tensor]],
     torch.nn.Module,
     torch.device,
-    Optional[Dict[str, Any]],
+    Optional[dict[str, Any]],
     Optional[str]
 ],
                                   Iterable[PredictionResult]]
@@ -83,9 +82,9 @@ def _load_model(
     model_class: Optional[Callable[..., torch.nn.Module]],
     state_dict_path: Optional[str],
     device: torch.device,
-    model_params: Optional[Dict[str, Any]],
+    model_params: Optional[dict[str, Any]],
     torch_script_model_path: Optional[str],
-    load_model_args: Optional[Dict[str, Any]]):
+    load_model_args: Optional[dict[str, Any]]):
   if device == torch.device('cuda') and not torch.cuda.is_available():
     logging.warning(
         "Model handler specified a 'GPU' device, but GPUs are not available. "
@@ -141,7 +140,7 @@ def default_tensor_inference_fn(
     batch: Sequence[torch.Tensor],
     model: torch.nn.Module,
     device: str,
-    inference_args: Optional[Dict[str, Any]] = None,
+    inference_args: Optional[dict[str, Any]] = None,
     model_id: Optional[str] = None,
 ) -> Iterable[PredictionResult]:
   # torch.no_grad() mitigates GPU memory issues
@@ -166,7 +165,7 @@ def make_tensor_model_fn(model_fn: str) -> TensorInferenceFn:
       batch: Sequence[torch.Tensor],
       model: torch.nn.Module,
       device: str,
-      inference_args: Optional[Dict[str, Any]] = None,
+      inference_args: Optional[dict[str, Any]] = None,
       model_id: Optional[str] = None,
   ) -> Iterable[PredictionResult]:
     with torch.no_grad():
@@ -186,7 +185,7 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       self,
       state_dict_path: Optional[str] = None,
       model_class: Optional[Callable[..., torch.nn.Module]] = None,
-      model_params: Optional[Dict[str, Any]] = None,
+      model_params: Optional[dict[str, Any]] = None,
       device: str = 'CPU',
       *,
       inference_fn: TensorInferenceFn = default_tensor_inference_fn,
@@ -195,7 +194,8 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       max_batch_size: Optional[int] = None,
       max_batch_duration_secs: Optional[int] = None,
       large_model: bool = False,
-      load_model_args: Optional[Dict[str, Any]] = None,
+      model_copies: Optional[int] = None,
+      load_model_args: Optional[dict[str, Any]] = None,
       **kwargs):
     """Implementation of the ModelHandler interface for PyTorch.
 
@@ -234,6 +234,9 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
         memory pressure if you load multiple copies. Given a model that
         consumes N memory and a machine with W cores and M memory, you should
         set this to True if N*W > M.
+      model_copies: The exact number of models that you would like loaded
+        onto your machine. This can be useful if you exactly know your CPU or
+        GPU capacity and want to maximize resource utilization.
       load_model_args: a dictionary of parameters passed to the torch.load
         function to specify custom config for loading models.
       kwargs: 'env_vars' can be used to set environment variables
@@ -262,7 +265,8 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
     self._torch_script_model_path = torch_script_model_path
     self._load_model_args = load_model_args if load_model_args else {}
     self._env_vars = kwargs.get('env_vars', {})
-    self._large_model = large_model
+    self._share_across_processes = large_model or (model_copies is not None)
+    self._model_copies = model_copies or 1
 
     _validate_constructor_args(
         state_dict_path=self._state_dict_path,
@@ -294,7 +298,7 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       self,
       batch: Sequence[torch.Tensor],
       model: torch.nn.Module,
-      inference_args: Optional[Dict[str, Any]] = None
+      inference_args: Optional[dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
     """
     Runs inferences on a batch of Tensors and returns an Iterable of
@@ -337,21 +341,24 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
     """
     return 'BeamML_PyTorch'
 
-  def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
+  def validate_inference_args(self, inference_args: Optional[dict[str, Any]]):
     pass
 
   def batch_elements_kwargs(self):
     return self._batching_kwargs
 
   def share_model_across_processes(self) -> bool:
-    return self._large_model
+    return self._share_across_processes
+
+  def model_copies(self) -> int:
+    return self._model_copies
 
 
 def default_keyed_tensor_inference_fn(
-    batch: Sequence[Dict[str, torch.Tensor]],
+    batch: Sequence[dict[str, torch.Tensor]],
     model: torch.nn.Module,
     device: str,
-    inference_args: Optional[Dict[str, Any]] = None,
+    inference_args: Optional[dict[str, Any]] = None,
     model_id: Optional[str] = None,
 ) -> Iterable[PredictionResult]:
   # If elements in `batch` are provided as a dictionaries from key to Tensors,
@@ -384,10 +391,10 @@ def make_keyed_tensor_model_fn(model_fn: str) -> KeyedTensorInferenceFn:
       getattr(model, model_fn)
   """
   def attr_fn(
-      batch: Sequence[Dict[str, torch.Tensor]],
+      batch: Sequence[dict[str, torch.Tensor]],
       model: torch.nn.Module,
       device: str,
-      inference_args: Optional[Dict[str, Any]] = None,
+      inference_args: Optional[dict[str, Any]] = None,
       model_id: Optional[str] = None,
   ) -> Iterable[PredictionResult]:
     # If elements in `batch` are provided as a dictionaries from key to Tensors,
@@ -412,14 +419,14 @@ def make_keyed_tensor_model_fn(model_fn: str) -> KeyedTensorInferenceFn:
   return attr_fn
 
 
-class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
+class PytorchModelHandlerKeyedTensor(ModelHandler[dict[str, torch.Tensor],
                                                   PredictionResult,
                                                   torch.nn.Module]):
   def __init__(
       self,
       state_dict_path: Optional[str] = None,
       model_class: Optional[Callable[..., torch.nn.Module]] = None,
-      model_params: Optional[Dict[str, Any]] = None,
+      model_params: Optional[dict[str, Any]] = None,
       device: str = 'CPU',
       *,
       inference_fn: KeyedTensorInferenceFn = default_keyed_tensor_inference_fn,
@@ -428,7 +435,8 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
       max_batch_size: Optional[int] = None,
       max_batch_duration_secs: Optional[int] = None,
       large_model: bool = False,
-      load_model_args: Optional[Dict[str, Any]] = None,
+      model_copies: Optional[int] = None,
+      load_model_args: Optional[dict[str, Any]] = None,
       **kwargs):
     """Implementation of the ModelHandler interface for PyTorch.
 
@@ -472,6 +480,9 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
         memory pressure if you load multiple copies. Given a model that
         consumes N memory and a machine with W cores and M memory, you should
         set this to True if N*W > M.
+      model_copies: The exact number of models that you would like loaded
+        onto your machine. This can be useful if you exactly know your CPU or
+        GPU capacity and want to maximize resource utilization.
       load_model_args: a dictionary of parameters passed to the torch.load
         function to specify custom config for loading models.
       kwargs: 'env_vars' can be used to set environment variables
@@ -500,7 +511,8 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
     self._torch_script_model_path = torch_script_model_path
     self._load_model_args = load_model_args if load_model_args else {}
     self._env_vars = kwargs.get('env_vars', {})
-    self._large_model = large_model
+    self._share_across_processes = large_model or (model_copies is not None)
+    self._model_copies = model_copies or 1
 
     _validate_constructor_args(
         state_dict_path=self._state_dict_path,
@@ -530,9 +542,9 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
 
   def run_inference(
       self,
-      batch: Sequence[Dict[str, torch.Tensor]],
+      batch: Sequence[dict[str, torch.Tensor]],
       model: torch.nn.Module,
-      inference_args: Optional[Dict[str, Any]] = None
+      inference_args: Optional[dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
     """
     Runs inferences on a batch of Keyed Tensors and returns an Iterable of
@@ -564,7 +576,7 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
   def get_num_bytes(self, batch: Sequence[torch.Tensor]) -> int:
     """
     Returns:
-       The number of bytes of data for a batch of Dict of Tensors.
+       The number of bytes of data for a batch of dict of Tensors.
     """
     # If elements in `batch` are provided as a dictionaries from key to Tensors
     return sum(
@@ -577,11 +589,14 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[Dict[str, torch.Tensor],
     """
     return 'BeamML_PyTorch'
 
-  def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
+  def validate_inference_args(self, inference_args: Optional[dict[str, Any]]):
     pass
 
   def batch_elements_kwargs(self):
     return self._batching_kwargs
 
   def share_model_across_processes(self) -> bool:
-    return self._large_model
+    return self._share_across_processes
+
+  def model_copies(self) -> int:
+    return self._model_copies

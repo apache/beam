@@ -22,9 +22,9 @@ Used for internal testing. No backwards compatibility.
 import argparse
 import logging
 import time
-from typing import Iterable
+from collections.abc import Iterable
+from collections.abc import Sequence
 from typing import Optional
-from typing import Sequence
 
 import apache_beam as beam
 from apache_beam.ml.inference import base

@@ -17,11 +17,14 @@
  */
 package org.apache.beam.sdk.extensions.gcp.util;
 
+import static org.apache.beam.sdk.extensions.gcp.options.GcsOptions.GcsCustomAuditEntries.CUSTOM_AUDIT_JOB_ENTRY_KEY;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings.isNullOrEmpty;
+
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.JsonFactory;
-import com.google.api.client.json.jackson2.JacksonFactory;
+import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.storage.Storage;
 import com.google.auth.Credentials;
 import com.google.auth.http.HttpCredentialsAdapter;
@@ -31,9 +34,14 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Paths;
 import java.security.GeneralSecurityException;
+import java.util.Map;
+import java.util.Optional;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
+import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
 /** Helpers for cloud communication. */
 public class Transport {
@@ -47,7 +55,7 @@ public class Transport {
 
     static {
       try {
-        JSON_FACTORY = JacksonFactory.getDefaultInstance();
+        JSON_FACTORY = GsonFactory.getDefaultInstance();
         HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
       } catch (GeneralSecurityException | IOException e) {
         throw new RuntimeException(e);
@@ -89,20 +97,18 @@ public class Transport {
 
   /** Returns a Cloud Storage client builder using the specified {@link GcsOptions}. */
   public static Storage.Builder newStorageClient(GcsOptions options) {
-    String applicationNameSuffix = " (GPN:Beam)";
+    String applicationName =
+        String.format(
+            "%sapache-beam/%s (GPN:Beam)",
+            isNullOrEmpty(options.getAppName()) ? "" : options.getAppName() + " ",
+            ReleaseInfo.getReleaseInfo().getSdkVersion());
+
     String servicePath = options.getGcsEndpoint();
+
     Storage.Builder storageBuilder =
         new Storage.Builder(
-                getTransport(),
-                getJsonFactory(),
-                chainHttpRequestInitializer(
-                    options.getGcpCredential(),
-                    // Do not log the code 404. Code up the stack will deal with 404's if needed,
-                    // and
-                    // logging it by default clutters the output during file staging.
-                    new RetryHttpRequestInitializer(
-                        ImmutableList.of(404), new UploadIdResponseInterceptor())))
-            .setApplicationName(options.getAppName() + applicationNameSuffix)
+                getTransport(), getJsonFactory(), httpRequestInitializerFromOptions(options))
+            .setApplicationName(applicationName)
             .setGoogleClientRequestInitializer(options.getGoogleApiTrace());
     if (servicePath != null) {
       ApiComponents components = apiComponentsFromUrl(servicePath);
@@ -113,14 +119,41 @@ public class Transport {
     return storageBuilder;
   }
 
-  private static HttpRequestInitializer chainHttpRequestInitializer(
-      Credentials credential, HttpRequestInitializer httpRequestInitializer) {
+  private static HttpRequestInitializer httpRequestInitializerFromOptions(GcsOptions options) {
+    // Do not log the code 404. Code up the stack will deal with 404's if needed,
+    // and logging it by default clutters the output during file staging.
+    RetryHttpRequestInitializer retryHttpRequestInitializer =
+        new RetryHttpRequestInitializer(ImmutableList.of(404), new UploadIdResponseInterceptor());
+
+    // Set custom audit info in request headers
+    String jobName = Optional.ofNullable(options.getJobName()).orElse("UNKNOWN");
+
+    ImmutableMap.Builder<String, String> builder =
+        new ImmutableMap.Builder<String, String>().put(CUSTOM_AUDIT_JOB_ENTRY_KEY, jobName);
+
+    Map<String, String> customAuditEntries = options.getGcsCustomAuditEntries();
+    if (customAuditEntries != null && customAuditEntries.size() > 0) {
+      builder.putAll(customAuditEntries);
+    }
+
+    // Note: Custom audit entries with "job" key will overwrite the default above
+    retryHttpRequestInitializer.setHttpHeaders(builder.buildKeepingLast());
+
+    @Nullable Integer readTimeout = options.getGcsHttpRequestReadTimeout();
+    if (readTimeout != null) {
+      retryHttpRequestInitializer.setReadTimeout(readTimeout);
+    }
+    @Nullable Integer writeTimeout = options.getGcsHttpRequestWriteTimeout();
+    if (writeTimeout != null) {
+      retryHttpRequestInitializer.setWriteTimeout(writeTimeout);
+    }
+    Credentials credential = options.getGcpCredential();
     if (credential == null) {
       return new ChainingHttpRequestInitializer(
-          new NullCredentialInitializer(), httpRequestInitializer);
+          new NullCredentialInitializer(), retryHttpRequestInitializer);
     } else {
       return new ChainingHttpRequestInitializer(
-          new HttpCredentialsAdapter(credential), httpRequestInitializer);
+          new HttpCredentialsAdapter(credential), retryHttpRequestInitializer);
     }
   }
 }

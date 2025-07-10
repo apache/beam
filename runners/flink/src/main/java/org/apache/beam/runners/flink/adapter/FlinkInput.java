@@ -32,7 +32,7 @@ import org.apache.beam.sdk.util.construction.TransformPayloadTranslatorRegistrar
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 
 /**
  * A Beam PTransform used for marking an input that comes from Flink.
@@ -46,9 +46,12 @@ import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
 
   private final Coder<T> coder;
 
-  FlinkInput(String identifier, Coder<T> coder) {
+  private final boolean isBounded;
+
+  FlinkInput(String identifier, Coder<T> coder, boolean isBounded) {
     this.identifier = identifier;
     this.coder = coder;
+    this.isBounded = isBounded;
   }
 
   @Override
@@ -56,7 +59,7 @@ import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
     return PCollection.createPrimitiveOutputInternal(
         input.getPipeline(),
         WindowingStrategy.globalDefault(),
-        PCollection.IsBounded.BOUNDED,
+        isBounded ? PCollection.IsBounded.BOUNDED : PCollection.IsBounded.UNBOUNDED,
         coder);
   }
 

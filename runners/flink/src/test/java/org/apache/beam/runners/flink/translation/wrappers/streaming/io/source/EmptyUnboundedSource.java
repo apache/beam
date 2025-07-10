@@ -48,7 +48,7 @@ public class EmptyUnboundedSource<T>
 
   @Override
   public UnboundedReader<T> createReader(
-      PipelineOptions options, @Nullable DummyCheckpointMark checkpointMark) throws IOException {
+      PipelineOptions options, @Nullable DummyCheckpointMark checkpointMark) {
     return new UnboundedReader<T>() {
       @Override
       public boolean start() throws IOException {
@@ -56,7 +56,7 @@ public class EmptyUnboundedSource<T>
       }
 
       @Override
-      public boolean advance() throws IOException {
+      public boolean advance() {
         return false;
       }
 

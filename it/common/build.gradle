@@ -20,8 +20,6 @@ plugins { id 'org.apache.beam.module' }
 applyJavaNature(
     exportJavadoc: false,
     automaticModuleName: 'org.apache.beam.it.common',
-    validateShadowJar: false,
-    shadowClosure: {},
 )
 
 description = "Apache Beam :: IT :: Common"

@@ -37,9 +37,7 @@ from apache_beam.transforms.core import Create
 
 
 class TranslationsTest(unittest.TestCase):
-
   def test_lift_combiners(self):
-
     def get_common_items(sets, side=0):
       # set.intersection() takes multiple sets as separete arguments.
       # We unpack the `sets` list into multiple arguments with the * operator.
@@ -50,19 +48,18 @@ class TranslationsTest(unittest.TestCase):
 
     with beam.Pipeline() as pipeline:
       pc = (pipeline | beam.Create([1]))
-      common_items = (
-              pipeline
-              | 'Create produce' >> beam.Create([
-                  {'🍓', '🥕', '🍌', '🍅', '🌶️'},
-                  {'🍇', '🥕', '🥝', '🍅', '🥔'},
-                  {'🍉', '🥕', '🍆', '🍅', '🍍'},
-                  {'🥑', '🥕', '🌽', '🍅', '🥥'},
-                ])
-              | beam.WithKeys(lambda x: None)
-              | 'Get common items' >> beam.CombinePerKey(get_common_items,
-                                                           side=beam.pvalue.AsSingleton(
-                                                             pc))
-              | beam.Map(print))
+      _ = (
+          pipeline
+          | 'Create produce' >> beam.Create([
+              {'🍓', '🥕', '🍌', '🍅', '🌶️'},
+              {'🍇', '🥕', '🥝', '🍅', '🥔'},
+              {'🍉', '🥕', '🍆', '🍅', '🍍'},
+              {'🥑', '🥕', '🌽', '🍅', '🥥'},
+          ])
+          | beam.WithKeys(lambda x: None)
+          | 'Get common items' >> beam.CombinePerKey(
+              get_common_items, side=beam.pvalue.AsSingleton(pc))
+          | beam.Map(print))
 
   def test_eliminate_common_key_with_void(self):
     class MultipleKeyWithNone(beam.PTransform):
@@ -438,8 +435,8 @@ class TranslationsTest(unittest.TestCase):
                          'MyCombinePerKey(min)/Merge',
                          'MyCombinePerKey(min)/ExtractOutputs']:
       assert (
-          "my_annotation" in
-          optimized.components.transforms[transform_id].annotations)
+          "my_annotation"
+          in optimized.components.transforms[transform_id].annotations)
 
   def test_conditionally_packed_combiners(self):
     class RecursiveCombine(beam.PTransform):

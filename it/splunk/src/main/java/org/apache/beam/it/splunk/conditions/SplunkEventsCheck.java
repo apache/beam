@@ -18,9 +18,9 @@
 package org.apache.beam.it.splunk.conditions;
 
 import com.google.auto.value.AutoValue;
-import javax.annotation.Nullable;
 import org.apache.beam.it.conditions.ConditionCheck;
 import org.apache.beam.it.splunk.SplunkResourceManager;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** ConditionCheck to validate if Splunk has received a certain amount of events. */
 @AutoValue
@@ -28,13 +28,11 @@ public abstract class SplunkEventsCheck extends ConditionCheck {
 
   abstract SplunkResourceManager resourceManager();
 
-  @Nullable
-  abstract String query();
+  abstract @Nullable String query();
 
   abstract Integer minEvents();
 
-  @Nullable
-  abstract Integer maxEvents();
+  abstract @Nullable Integer maxEvents();
 
   @Override
   public String getDescription() {

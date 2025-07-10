@@ -238,11 +238,11 @@ PCollection<KV<Integer, Integer>> input = pipeline.apply(
 And replace `Count.globally` with `Count.perKey` it will output the count numbers by key. It is also necessary to replace the generic type:
 
 ```
-PCollection<KV<Integer, Integer>> output = applyTransform(input);
+PCollection<KV<Integer, Long>> output = applyTransform(input);
 ```
 
 ```
-static PCollection<KV<Integer, Integer>> applyTransform(PCollection<KV<Integer, Integer>> input) {
+static PCollection<KV<Integer, Long>> applyTransform(PCollection<KV<Integer, Integer>> input) {
         return input.apply(Count.globally());
 }
 ```

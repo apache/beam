@@ -29,7 +29,7 @@ This page describes how to work with the shell, but does not focus on specific f
 To use Beam SQL shell, you must first clone the [Beam SDK repository](https://github.com/apache/beam). Then, from the root of the repository clone, execute the following commands to run the shell:
 
 ```
-./gradlew -p sdks/java/extensions/sql/shell -Pbeam.sql.shell.bundled=':runners:flink:1.13,:sdks:java:io:kafka' installDist
+./gradlew -p sdks/java/extensions/sql/shell -Pbeam.sql.shell.bundled=':runners:flink:1.17,:sdks:java:io:kafka' installDist
 
 ./sdks/java/extensions/sql/shell/build/install/shell/bin/shell
 ```
@@ -117,7 +117,7 @@ By default, Beam uses the `DirectRunner` to run the pipeline on the machine wher
 1.  Make sure the SQL shell includes the desired runner. Add the corresponding project id to the `-Pbeam.sql.shell.bundled` parameter of the Gradle invocation ([source code](https://github.com/apache/beam/blob/master/sdks/java/extensions/sql/shell/build.gradle), [project ids](https://github.com/apache/beam/blob/master/settings.gradle.kts)). For example, use the following command to include Flink runner and KafkaIO:
 
     ```
-    ./gradlew -p sdks/java/extensions/sql/shell -Pbeam.sql.shell.bundled=':runners:flink:1.13,:sdks:java:io:kafka' installDist
+    ./gradlew -p sdks/java/extensions/sql/shell -Pbeam.sql.shell.bundled=':runners:flink:1.17,:sdks:java:io:kafka' installDist
     ```
 
     _Note: You can bundle multiple runners (using a comma-separated list) or other additional components in the same manner. For example, you can add support for more I/Os._
@@ -143,7 +143,7 @@ To configure the runner, you must specify `PipelineOptions` by using the `SET` c
 You can also build your own standalone package for SQL shell using `distZip` or `distTar` tasks. For example:
 
 ```
-./gradlew -p sdks/java/extensions/sql/shell -Pbeam.sql.shell.bundled=':runners:flink:1.13,:sdks:java:io:kafka' distZip
+./gradlew -p sdks/java/extensions/sql/shell -Pbeam.sql.shell.bundled=':runners:flink:1.17,:sdks:java:io:kafka' distZip
 
 ls ./sdks/java/extensions/sql/shell/build/distributions/
 beam-sdks-java-extensions-sql-shell-2.6.0-SNAPSHOT.tar beam-sdks-java-extensions-sql-shell-2.6.0-SNAPSHOT.zip

@@ -18,9 +18,11 @@
 package org.apache.beam.sdk.io.jms;
 
 import java.io.Serializable;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 import javax.jms.BytesMessage;
 import javax.jms.ConnectionFactory;
 import javax.jms.Message;
@@ -32,6 +34,9 @@ import org.apache.activemq.security.SimpleAuthenticationPlugin;
 import org.apache.activemq.store.memory.MemoryPersistenceAdapter;
 import org.apache.activemq.transport.TransportFactory;
 import org.apache.activemq.transport.amqp.AmqpTransportFactory;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.util.SerializableSupplier;
+import org.apache.beam.sdk.util.ThrowingSupplier;
 
 /**
  * A common test fixture to create a broker and connection factories for {@link JmsIOIT} & {@link
@@ -39,6 +44,29 @@ import org.apache.activemq.transport.amqp.AmqpTransportFactory;
  */
 public class CommonJms implements Serializable {
   private static final String BROKER_WITHOUT_PREFETCH_PARAM = "?jms.prefetchPolicy.all=0&";
+
+  // convenient typedefs and a helper conversion functions
+  interface ThrowingSerializableSupplier<T> extends ThrowingSupplier<T>, Serializable {}
+
+  private static <T> SerializableSupplier<T> toSerializableSupplier(
+      ThrowingSerializableSupplier<T> throwingSerializableSupplier) {
+    return () -> {
+      try {
+        return throwingSerializableSupplier.get();
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    };
+  }
+
+  private static <T> SerializableFunction<Void, T> toSerializableFunction(Supplier<T> supplier) {
+    return __ -> supplier.get();
+  }
+
+  static <T> SerializableFunction<Void, T> toSerializableFunction(
+      ThrowingSerializableSupplier<T> supplier) {
+    return toSerializableFunction(toSerializableSupplier(supplier));
+  }
 
   static final String USERNAME = "test_user";
   static final String PASSWORD = "test_password";
@@ -50,9 +78,7 @@ public class CommonJms implements Serializable {
   private final String forceAsyncAcksParam;
   private transient BrokerService broker;
 
-  protected ConnectionFactory connectionFactory;
   protected final Class<? extends ConnectionFactory> connectionFactoryClass;
-  protected ConnectionFactory connectionFactoryWithSyncAcksAndWithoutPrefetch;
 
   public CommonJms(
       String brokerUrl,
@@ -91,13 +117,20 @@ public class CommonJms implements Serializable {
 
     broker.start();
     broker.waitUntilStarted();
+  }
 
-    // create JMS connection factory
-    connectionFactory = connectionFactoryClass.getConstructor(String.class).newInstance(brokerUrl);
-    connectionFactoryWithSyncAcksAndWithoutPrefetch =
-        connectionFactoryClass
-            .getConstructor(String.class)
-            .newInstance(brokerUrl + BROKER_WITHOUT_PREFETCH_PARAM + forceAsyncAcksParam);
+  ConnectionFactory createConnectionFactory()
+      throws NoSuchMethodException, InvocationTargetException, InstantiationException,
+          IllegalAccessException {
+    return connectionFactoryClass.getConstructor(String.class).newInstance(brokerUrl);
+  }
+
+  ConnectionFactory createConnectionFactoryWithSyncAcksAndWithoutPrefetch()
+      throws NoSuchMethodException, InvocationTargetException, InstantiationException,
+          IllegalAccessException {
+    return connectionFactoryClass
+        .getConstructor(String.class)
+        .newInstance(brokerUrl + BROKER_WITHOUT_PREFETCH_PARAM + forceAsyncAcksParam);
   }
 
   void stopBroker() throws Exception {
@@ -108,14 +141,6 @@ public class CommonJms implements Serializable {
 
   Class<? extends ConnectionFactory> getConnectionFactoryClass() {
     return this.connectionFactoryClass;
-  }
-
-  ConnectionFactory getConnectionFactory() {
-    return this.connectionFactory;
-  }
-
-  ConnectionFactory getConnectionFactoryWithSyncAcksAndWithoutPrefetch() {
-    return this.connectionFactoryWithSyncAcksAndWithoutPrefetch;
   }
 
   /** A test class that maps a {@link javax.jms.BytesMessage} into a {@link String}. */

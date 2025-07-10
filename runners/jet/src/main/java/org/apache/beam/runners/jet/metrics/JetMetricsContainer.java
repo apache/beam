@@ -21,17 +21,23 @@ import com.hazelcast.jet.Util;
 import com.hazelcast.jet.core.Processor;
 import com.hazelcast.map.IMap;
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.beam.runners.core.metrics.BoundedTrieData;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.GaugeData;
 import org.apache.beam.runners.core.metrics.MetricUpdates;
+import org.apache.beam.runners.core.metrics.StringSetData;
+import org.apache.beam.sdk.metrics.BoundedTrie;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Gauge;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.sdk.metrics.StringSet;
+import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 
 /** Jet specific implementation of {@link MetricsContainer}. */
@@ -47,6 +53,8 @@ public class JetMetricsContainer implements MetricsContainer {
   private final Map<MetricName, CounterImpl> counters = new HashMap<>();
   private final Map<MetricName, DistributionImpl> distributions = new HashMap<>();
   private final Map<MetricName, GaugeImpl> gauges = new HashMap<>();
+  private final Map<MetricName, StringSetImpl> stringSets = new HashMap<>();
+  private final Map<MetricName, BoundedTrieImpl> boundedTries = new HashMap<>();
 
   private final IMap<String, MetricUpdates> accumulator;
 
@@ -71,9 +79,23 @@ public class JetMetricsContainer implements MetricsContainer {
     return gauges.computeIfAbsent(metricName, GaugeImpl::new);
   }
 
+  @Override
+  public StringSet getStringSet(MetricName metricName) {
+    return stringSets.computeIfAbsent(metricName, StringSetImpl::new);
+  }
+
+  @Override
+  public BoundedTrie getBoundedTrie(MetricName metricName) {
+    return boundedTries.computeIfAbsent(metricName, BoundedTrieImpl::new);
+  }
+
   @SuppressWarnings("FutureReturnValueIgnored")
   public void flush(boolean async) {
-    if (counters.isEmpty() && distributions.isEmpty() && gauges.isEmpty()) {
+    if (counters.isEmpty()
+        && distributions.isEmpty()
+        && gauges.isEmpty()
+        && stringSets.isEmpty()
+        && boundedTries.isEmpty()) {
       return;
     }
 
@@ -81,7 +103,12 @@ public class JetMetricsContainer implements MetricsContainer {
     ImmutableList<MetricUpdates.MetricUpdate<DistributionData>> distributions =
         extractUpdates(this.distributions);
     ImmutableList<MetricUpdates.MetricUpdate<GaugeData>> gauges = extractUpdates(this.gauges);
-    MetricUpdates updates = new MetricUpdatesImpl(counters, distributions, gauges);
+    ImmutableList<MetricUpdates.MetricUpdate<StringSetData>> stringSets =
+        extractUpdates(this.stringSets);
+    ImmutableList<MetricUpdates.MetricUpdate<BoundedTrieData>> boundedTries =
+        extractUpdates(this.boundedTries);
+    MetricUpdates updates =
+        new MetricUpdatesImpl(counters, distributions, gauges, stringSets, boundedTries);
 
     if (async) {
       accumulator.setAsync(metricsKey, updates);
@@ -110,14 +137,20 @@ public class JetMetricsContainer implements MetricsContainer {
     private final Iterable<MetricUpdate<Long>> counters;
     private final Iterable<MetricUpdate<DistributionData>> distributions;
     private final Iterable<MetricUpdate<GaugeData>> gauges;
+    private final Iterable<MetricUpdate<StringSetData>> stringSets;
+    private final Iterable<MetricUpdate<BoundedTrieData>> boundedTries;
 
     MetricUpdatesImpl(
         Iterable<MetricUpdate<Long>> counters,
         Iterable<MetricUpdate<DistributionData>> distributions,
-        Iterable<MetricUpdate<GaugeData>> gauges) {
+        Iterable<MetricUpdate<GaugeData>> gauges,
+        Iterable<MetricUpdate<StringSetData>> stringSets,
+        Iterable<MetricUpdate<BoundedTrieData>> boundedTries) {
       this.counters = counters;
       this.distributions = distributions;
       this.gauges = gauges;
+      this.stringSets = stringSets;
+      this.boundedTries = boundedTries;
     }
 
     @Override
@@ -133,6 +166,21 @@ public class JetMetricsContainer implements MetricsContainer {
     @Override
     public Iterable<MetricUpdate<GaugeData>> gaugeUpdates() {
       return gauges;
+    }
+
+    @Override
+    public Iterable<MetricUpdate<StringSetData>> stringSetUpdates() {
+      return stringSets;
+    }
+
+    @Override
+    public Iterable<MetricUpdate<BoundedTrieData>> boundedTrieUpdates() {
+      return boundedTries;
+    }
+
+    @Override
+    public Iterable<MetricUpdate<HistogramData>> histogramsUpdates() {
+      return Collections.emptyList(); // not implemented
     }
   }
 }

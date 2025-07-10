@@ -378,6 +378,25 @@ public class StateSpecs {
   }
 
   /**
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+   *
+   * <p>Convert a set state spec to a map-state spec.
+   */
+  @Internal
+  public static <KeyT, ValueT> StateSpec<MultimapState<KeyT, ValueT>> convertToMultimapSpecInternal(
+      StateSpec<MapState<KeyT, ValueT>> spec) {
+    if (spec instanceof MapStateSpec) {
+      // Checked above; conversion to a map spec depends on the provided spec being one of those
+      // created via the factory methods in this class.
+      @SuppressWarnings("unchecked")
+      MapStateSpec<KeyT, ValueT> typedSpec = (MapStateSpec<KeyT, ValueT>) spec;
+      return typedSpec.asMultimapSpec();
+    } else {
+      throw new IllegalArgumentException("Unexpected StateSpec " + spec);
+    }
+  }
+
+  /**
    * A specification for a state cell holding a settable value of type {@code T}.
    *
    * <p>Includes the coder for {@code T}.
@@ -767,6 +786,10 @@ public class StateSpecs {
     @Override
     public int hashCode() {
       return Objects.hash(getClass(), keyCoder, valueCoder);
+    }
+
+    private MultimapStateSpec<K, V> asMultimapSpec() {
+      return new MultimapStateSpec<>(this.keyCoder, this.valueCoder);
     }
   }
 

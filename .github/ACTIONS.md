@@ -86,15 +86,20 @@ jobs:
 * **DO NOT** Approve and Run changes in the workflows in the PR Conversation tab, under "Workflow(s) awaiting approval".
 * For approving the updates in the workflows, you should go to the Repository Actions and filter All Workflows by `action_required`. The search will display the workflows that need to be reviewed before running. **Please make sure reviewing the file that is referenced by the workflow.**
 * Seed job will be emulated using the `Approve and Run` built-in feature of GitHub Actions, since the workflows will use the `pull_request_target` directive; no modifications would be allowed either for new or existent jobs unless a committer explicitly approves the job from GitHub Actions UI.
-### Issue Management
 
+#### Issue Management
 Phrases self-assign, close, or manage labels on an issue:
 | Phrase | Effect |
 |--------|--------|
 | `.take-issue` | Self-assign the issue |
+| `.free-issue` | Self-unassign the issue |
 | `.close-issue` | Close the issue as completed |
 | `.close-issue not_planned` | Close the issue as not-planned |
 | `.reopen-issue` | Reopen a closed issue |
 | `.add-labels` | Add comma separated labels to the issue (e.g. `add-labels l1, 'l2 with spaces'`) |
 | `.remove-labels` | Remove comma separated labels to the issue (e.g. `remove-labels l1, 'l2 with spaces'`) |
 | `.set-labels` | Sets comma separated labels to the issue and removes any other labels (e.g. `set-labels l1, 'l2 with spaces'`) |
+
+## Security Model
+
+For information on the Beam CI security model, see https://cwiki.apache.org/confluence/display/BEAM/CI+Security+Model

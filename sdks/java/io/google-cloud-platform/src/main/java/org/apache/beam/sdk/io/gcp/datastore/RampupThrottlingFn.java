@@ -53,7 +53,8 @@ public class RampupThrottlingFn<T> extends DoFn<T, T> implements Serializable {
   private final PCollectionView<Instant> firstInstantSideInput;
 
   @VisibleForTesting
-  Counter throttlingMsecs = Metrics.counter(RampupThrottlingFn.class, "throttling-msecs");
+  Counter throttlingMsecs =
+      Metrics.counter(RampupThrottlingFn.class, Metrics.THROTTLE_TIME_COUNTER_NAME);
 
   // Initialized on every setup.
   private transient MovingFunction successfulOps;

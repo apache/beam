@@ -85,6 +85,83 @@ tasks.register("generateExternalTransformsConfig") {
   }
 }
 
+tasks.register("generateManagedIOPage") {
+  description "Generages the Managed Connectors Beam page based on SchemaTransform metadata"
+
+  dependsOn buildPython
+  // Need to build all expansion services listed in apache_beam/transforms/managed.py
+  dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:build"
+  dependsOn ":sdks:java:io:expansion-service:build"
+
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', "python gen_managed_doc.py"
+    }
+  }
+}
+
+tasks.register("generateYamlDocs") {
+  description "Generates the reference documentation for all YAML transforms."
+
+  dependsOn buildPython
+  // Need to build all expansion services referenced in apache_beam/yaml/*.*
+  // grep -oh 'sdk.*Jar' sdks/python/apache_beam/yaml/*.yaml | sort | uniq
+  dependsOn ":sdks:java:extensions:schemaio-expansion-service:shadowJar"
+  dependsOn ":sdks:java:extensions:sql:expansion-service:shadowJar"
+  dependsOn ":sdks:java:io:expansion-service:build"
+  dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:build"
+  def extraPackages = "pyyaml markdown docstring_parser pandas pygments Jinja2 virtualenv-clone"
+
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', "${envdir}/bin/pip install $extraPackages && " +
+              "${envdir}/bin/python -m apache_beam.yaml.generate_yaml_docs --html_file=${buildDir}/yaml-ref.html --examples_file=${buildDir}/yaml-examples.html"
+    }
+  }
+  outputs.file "${buildDir}/yaml-ref.html"
+  outputs.file "${buildDir}/yaml-examples.html"
+}
+
+tasks.register("yamlIntegrationTests") {
+  description "Runs precommit integration tests for yaml pipelines."
+
+  dependsOn installGcpTest
+  // Need to build all expansion services referenced in apache_beam/yaml/*.*
+  // grep -oh 'sdk.*Jar' sdks/python/apache_beam/yaml/*.yaml | sort | uniq
+  dependsOn ":sdks:java:extensions:schemaio-expansion-service:shadowJar"
+  dependsOn ":sdks:java:extensions:sql:expansion-service:shadowJar"
+  dependsOn ":sdks:java:io:expansion-service:build"
+  dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:build"
+
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', "${envdir}/bin/pytest -v apache_beam/yaml/integration_tests.py --deselect apache_beam/yaml/integration_tests.py::BigqueryTest::test_ReadFromBigQuery_ExternalJavaProvider_0"
+    }
+  }
+}
+
+tasks.register("postCommitYamlIntegrationTests") {
+  description "Runs postcommit integration tests for yaml pipelines."
+
+  dependsOn installGcpTest
+  // Need to build all expansion services referenced in apache_beam/yaml/*.*
+  // grep -oh 'sdk.*Jar' sdks/python/apache_beam/yaml/*.yaml | sort | uniq
+  dependsOn ":sdks:java:extensions:schemaio-expansion-service:shadowJar"
+  dependsOn ":sdks:java:extensions:sql:expansion-service:shadowJar"
+  dependsOn ":sdks:java:io:expansion-service:build"
+  dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:build"
+
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', "${envdir}/bin/pytest -v apache_beam/yaml/integration_tests.py --deselect apache_beam/yaml/integration_tests.py::BigqueryTest::test_ReadFromBigQuery_ExternalJavaProvider_0 --test_files_dir='extended_tests'"
+    }
+  }
+}
+
 // Create Python wheels for given platform and Python version
 // build identifiers for cibuildwheel
 def platform_identifiers_map = [
@@ -120,12 +197,11 @@ platform_identifiers_map.each { platform, idsuffix ->
           try {
             exec {
              environment CIBW_BUILD: "cp${pyversion}-${idsuffix}"
-             environment CIBW_ENVIRONMENT: "SETUPTOOLS_USE_DISTUTILS=stdlib"
              executable 'sh'
              args '-c', ". ${envdir}/bin/activate && " +
                  // note: sync cibuildwheel version with GitHub Action
                  // .github/workflows/build_wheel.yml:build_wheels "Install cibuildwheel" step
-                 "pip install cibuildwheel==2.9.0 && " +
+                 "pip install cibuildwheel==2.17.0 setuptools && " +
                  "cibuildwheel --print-build-identifiers --platform ${platform} --archs ${archs} && " +
                  "cibuildwheel --output-dir ${buildDir} --platform ${platform} --archs ${archs} "
            }

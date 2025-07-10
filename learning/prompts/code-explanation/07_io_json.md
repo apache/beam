@@ -19,6 +19,7 @@ with beam.Pipeline(options=options) as p:
         )
         | "Log Data" >> Map(logging.info))
 ```
+
 Response:
 This code reads data from a [JSON file](https://www.json.org/) using the `ReadFromJson` transform from the built-in [TextIO connector](https://beam.apache.org/releases/pydoc/current/apache_beam.io.textio.html).
 
@@ -35,7 +36,7 @@ class JsonOptions(PipelineOptions):
 options = JsonOptions()
 
 ```
-The `JsonOptions` class is used to define the command-line argument `--file_path`, which specifies the path to the JSON file. This code uses [pipeline options](https://beam.apache.org/documentation/patterns/pipeline-options/) for the required `file_path` argument.
+The `JsonOptions` class defines the command-line argument `--file_path`, which specifies the path to the JSON file. To parse command-line arguments, this code uses [pipeline options](https://beam.apache.org/documentation/patterns/pipeline-options/).
 
 ```python
 with beam.Pipeline(options=options) as p:
@@ -45,6 +46,5 @@ with beam.Pipeline(options=options) as p:
         )
         | "Log Data" >> Map(logging.info))
 ```
-A Beam pipeline is created using the `JsonOptions` class and the `ReadFromJson` transform is used to read data from the JSON file. The `lines` parameter is set to `False` to read the entire file as a single JSON object.
 
-
+The Apache Beam pipeline uses the `JsonOptions` class to set the JSON file path and the `ReadFromJson` transform to read data from the file. The `lines` parameter is set to `False` to read the entire file as a single JSON object.

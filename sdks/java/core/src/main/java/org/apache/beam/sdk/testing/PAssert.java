@@ -31,6 +31,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.PipelineRunner;
@@ -1610,8 +1611,18 @@ public class PAssert {
 
     @ProcessElement
     public void processElement(ProcessContext c) {
-      ActualT actualContents = Iterables.getOnlyElement(c.element());
-      c.output(doChecks(site, actualContents, checkerFn));
+      try {
+        ActualT actualContents = Iterables.getOnlyElement(c.element());
+        c.output(doChecks(site, actualContents, checkerFn));
+      } catch (NoSuchElementException e) {
+        c.output(
+            SuccessOrFailure.failure(
+                site,
+                new IllegalArgumentException(
+                    "expected singleton PCollection but was: empty PCollection", e)));
+      } catch (IllegalArgumentException e) {
+        c.output(SuccessOrFailure.failure(site, e));
+      }
     }
   }
 

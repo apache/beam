@@ -35,12 +35,15 @@ from apache_beam.io.gcp import bigtableio
 from apache_beam.io.gcp import resource_identifiers
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricsEnvironment
+from apache_beam.metrics.metric import Lineage
+from apache_beam.testing.test_pipeline import TestPipeline
 
 _LOGGER = logging.getLogger(__name__)
 
 # Protect against environments where bigtable library is not available.
 try:
   from google.cloud.bigtable import client
+  from google.cloud.bigtable.batcher import MutationsBatcher
   from google.cloud.bigtable.row_filters import TimestampRange
   from google.cloud.bigtable.instance import Instance
   from google.cloud.bigtable.row import DirectRow, PartialRowData, Cell
@@ -265,6 +268,18 @@ class TestWriteBigTable(unittest.TestCase):
     client = MagicMock()
     instance = Instance(self._INSTANCE_ID, client)
     self.table = Table(self._TABLE_ID, instance)
+
+  def test_write(self):
+    direct_rows = [self.generate_row(i) for i in range(5)]
+    with patch.object(MutationsBatcher, 'mutate'), \
+      patch.object(MutationsBatcher, 'close'), TestPipeline() as p:
+      _ = p | beam.Create(direct_rows) | bigtableio.WriteToBigTable(
+          self._PROJECT_ID, self._INSTANCE_ID, self._TABLE_ID)
+    self.assertSetEqual(
+        Lineage.query(p.result.metrics(), Lineage.SINK),
+        set([
+            f"bigtable:{self._PROJECT_ID}.{self._INSTANCE_ID}.{self._TABLE_ID}"
+        ]))
 
   def test_write_metrics(self):
     MetricsEnvironment.process_wide_container().reset()

@@ -40,15 +40,15 @@ dependencies {
   provided library.java.jmh_core
 
   testImplementation library.java.junit
-  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadowTest")
+  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }
 
-['11', '17', '21'].each {
-  tasks.create(name: "verifyJavaVersion${it}", type: Test) {
+['8', '11', '17', '21'].each { String ver ->
+  tasks.create(name: "verifyJavaVersion${ver}", type: Test) {
     filter {
       includeTestsMatching "org.apache.beam.sdk.testutils.jvmverification.JvmVerification.verifyCodeIsCompiledWithJava8"
-      includeTestsMatching "org.apache.beam.sdk.testutils.jvmverification.JvmVerification.verifyTestCodeIsCompiledWithJava${it}"
-      includeTestsMatching "org.apache.beam.sdk.testutils.jvmverification.JvmVerification.verifyRunningJVMVersionIs${it}"
+      includeTestsMatching "org.apache.beam.sdk.testutils.jvmverification.JvmVerification.verifyTestCodeIsCompiledWithJava${ver}"
+      includeTestsMatching "org.apache.beam.sdk.testutils.jvmverification.JvmVerification.verifyRunningJVMVersionIs${ver}"
     }
     doLast {
       println 'Java verified'

@@ -23,7 +23,22 @@ import java.io.Serializable;
 import java.util.Set;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 
-/** A retry policy for streaming BigQuery inserts. */
+/**
+ * A retry policy for streaming BigQuery inserts.
+ *
+ * <p>This retry policy currently applies only to per-element errors within successful (200 OK)
+ * BigQuery responses. Non-200 responses (e.g., 400 Bad Request, 500 Internal Server Error) will
+ * result in a {@code RuntimeException} and bundle failure. The subsequent handling of the failed
+ * bundle (e.g., retry or final failure) is determined by the specific Runner's fault tolerance
+ * mechanisms.
+ *
+ * @see org.apache.beam.sdk.io.gcp.bigquery.BigQueryServicesImpl.DatasetServiceImpl#insertAll(
+ *     TableReference, java.util.List, java.util.List, BackOff,
+ *     org.apache.beam.sdk.util.FluentBackoff, Sleeper,
+ *     org.apache.beam.sdk.io.gcp.bigquery.InsertRetryPolicy, java.util.List,
+ *     org.apache.beam.sdk.io.gcp.bigquery.ErrorContainer, boolean, boolean, boolean,
+ *     java.util.List)
+ */
 public abstract class InsertRetryPolicy implements Serializable {
   /**
    * Contains information about a failed insert.

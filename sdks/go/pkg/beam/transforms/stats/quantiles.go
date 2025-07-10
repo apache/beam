@@ -701,6 +701,10 @@ func reduce(s beam.Scope, weightedElements beam.PCollection, state approximateQu
 // For example, if numQuantiles = 2, the returned list would contain a single element such that approximately half of the input would be less than that element and half would be greater or equal.
 func ApproximateWeightedQuantiles(s beam.Scope, pc beam.PCollection, less any, opts Opts) beam.PCollection {
 	_, t := beam.ValidateKVType(pc)
+	// Return zero elements immediately if the requested number of quantiles is 1.
+	if opts.NumQuantiles == 1 {
+		return beam.Create(s, reflect.New(reflect.SliceOf(t.Type())).Elem().Interface())
+	}
 	state := approximateQuantilesCombineFnState{
 		K:            opts.K,
 		NumQuantiles: opts.NumQuantiles,

@@ -410,9 +410,8 @@ class TestParquet(unittest.TestCase):
       rows = [beam.Row(a=1, b='x'), beam.Row(a=2, b='y')]
       stable_repr = lambda row: json.dumps(row._asdict())
       with TestPipeline() as p:
-        _ = p | Create(rows) | WriteToParquet(path) | beam.Map(print)
+        _ = p | Create(rows) | WriteToParquet(path)
       with TestPipeline() as p:
-        # json used for stable sortability
         readback = (
             p
             | ReadFromParquet(path + '*', as_rows=True)
@@ -488,7 +487,11 @@ class TestParquet(unittest.TestCase):
     self._run_parquet_test(file_name, None, 10000, True, expected_result)
 
   def test_dynamic_work_rebalancing(self):
-    file_name = self._write_data(count=120, row_group_size=20)
+    # This test depends on count being sufficiently large + the ratio of
+    # count to row_group_size also being sufficiently large (but the required
+    # ratio to pass varies for values of row_group_size and, somehow, the
+    # version of pyarrow being tested against.)
+    file_name = self._write_data(count=280, row_group_size=20)
     source = _create_parquet_source(file_name)
 
     splits = [split for split in source.split(desired_bundle_size=float('inf'))]

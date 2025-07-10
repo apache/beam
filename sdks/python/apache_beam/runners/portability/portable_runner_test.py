@@ -21,8 +21,10 @@ import logging
 import socket
 import subprocess
 import sys
+import tempfile
 import time
 import unittest
+from unittest.mock import MagicMock
 
 import grpc
 
@@ -220,6 +222,34 @@ class PortableRunnerTest(fn_runner_test.FnApiRunnerTest):
   def test_draining_sdf_with_sdf_initiated_checkpointing(self):
     raise unittest.SkipTest("Portable runners don't support drain yet.")
 
+  def test_pardo_et_timer_with_no_firing(self):
+    if type(self).__name__ in {
+        'PortableRunnerTest',
+        'PortableRunnerTestWithSubprocesses',
+        'PortableRunnerTestWithSubprocessesAndMultiWorkers',
+        'PortableRunnerTestWithExternalEnv',
+        'PortableRunnerTestWithLocalDocker',
+        'PortableRunnerOptimizedWithoutFusion',
+        'SamzaRunnerTest',
+        'SparkRunnerTest'
+    }:
+      raise unittest.SkipTest("https://github.com/apache/beam/issues/35168")
+    super().test_pardo_et_timer_with_no_firing()
+
+  def test_pardo_et_timer_with_no_reset(self):
+    if type(self).__name__ in {
+        'PortableRunnerTest',
+        'PortableRunnerTestWithSubprocesses',
+        'PortableRunnerTestWithSubprocessesAndMultiWorkers',
+        'PortableRunnerTestWithExternalEnv',
+        'PortableRunnerTestWithLocalDocker',
+        'PortableRunnerOptimizedWithoutFusion',
+        'SamzaRunnerTest',
+        'SparkRunnerTest'
+    }:
+      raise unittest.SkipTest("https://github.com/apache/beam/issues/35168")
+    super().test_pardo_et_timer_with_no_reset()
+
 
 @unittest.skip("https://github.com/apache/beam/issues/19422")
 class PortableRunnerOptimized(PortableRunnerTest):
@@ -308,12 +338,24 @@ class PortableRunnerTestWithSubprocessesAndMultiWorkers(
 
 
 class PortableRunnerInternalTest(unittest.TestCase):
+  def setUp(self) -> None:
+    self.tmp_dir = tempfile.TemporaryDirectory()
+    self.actual_mkdtemp = tempfile.mkdtemp
+    tempfile.mkdtemp = MagicMock(return_value=self.tmp_dir.name)
+
+  def tearDown(self) -> None:
+    tempfile.mkdtemp = self.actual_mkdtemp
+    self.tmp_dir.cleanup()
+
   def test__create_default_environment(self):
     docker_image = environments.DockerEnvironment.default_docker_image()
     self.assertEqual(
         PortableRunner._create_environment(
-            PipelineOptions.from_dictionary({'sdk_location': 'container'})),
-        environments.DockerEnvironment(container_image=docker_image))
+            options=PipelineOptions.from_dictionary(
+                {'sdk_location': 'container'})),
+        environments.DockerEnvironment(
+            container_image=docker_image,
+            artifacts=environments.python_sdk_dependencies(PipelineOptions())))
 
   def test__create_docker_environment(self):
     docker_image = 'py-docker'
@@ -324,7 +366,9 @@ class PortableRunnerInternalTest(unittest.TestCase):
                 'environment_config': docker_image,
                 'sdk_location': 'container',
             })),
-        environments.DockerEnvironment(container_image=docker_image))
+        environments.DockerEnvironment(
+            container_image=docker_image,
+            artifacts=environments.python_sdk_dependencies(PipelineOptions())))
 
   def test__create_process_environment(self):
     self.assertEqual(
@@ -337,7 +381,11 @@ class PortableRunnerInternalTest(unittest.TestCase):
                 'sdk_location': 'container',
             })),
         environments.ProcessEnvironment(
-            'run.sh', os='linux', arch='amd64', env={'k1': 'v1'}))
+            'run.sh',
+            os='linux',
+            arch='amd64',
+            env={'k1': 'v1'},
+            artifacts=environments.python_sdk_dependencies(PipelineOptions())))
     self.assertEqual(
         PortableRunner._create_environment(
             PipelineOptions.from_dictionary({
@@ -345,7 +393,9 @@ class PortableRunnerInternalTest(unittest.TestCase):
                 'environment_config': '{"command": "run.sh"}',
                 'sdk_location': 'container',
             })),
-        environments.ProcessEnvironment('run.sh'))
+        environments.ProcessEnvironment(
+            'run.sh',
+            artifacts=environments.python_sdk_dependencies(PipelineOptions())))
 
   def test__create_external_environment(self):
     self.assertEqual(
@@ -355,7 +405,9 @@ class PortableRunnerInternalTest(unittest.TestCase):
                 'environment_config': 'localhost:50000',
                 'sdk_location': 'container',
             })),
-        environments.ExternalEnvironment('localhost:50000'))
+        environments.ExternalEnvironment(
+            'localhost:50000',
+            artifacts=environments.python_sdk_dependencies(PipelineOptions())))
     raw_config = ' {"url":"localhost:50000", "params":{"k1":"v1"}} '
     for env_config in (raw_config, raw_config.lstrip(), raw_config.strip()):
       self.assertEqual(
@@ -366,7 +418,10 @@ class PortableRunnerInternalTest(unittest.TestCase):
                   'sdk_location': 'container',
               })),
           environments.ExternalEnvironment(
-              'localhost:50000', params={"k1": "v1"}))
+              'localhost:50000',
+              params={"k1": "v1"},
+              artifacts=environments.python_sdk_dependencies(
+                  PipelineOptions())))
     with self.assertRaises(ValueError):
       PortableRunner._create_environment(
           PipelineOptions.from_dictionary({

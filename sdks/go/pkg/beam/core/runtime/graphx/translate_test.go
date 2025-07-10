@@ -34,8 +34,8 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
-	"github.com/golang/protobuf/proto"
 	"github.com/google/go-cmp/cmp"
+	"google.golang.org/protobuf/proto"
 )
 
 func init() {
@@ -181,13 +181,13 @@ func TestMarshal(t *testing.T) {
 			}
 
 			if got, want := len(p.GetComponents().GetTransforms()), test.transforms; got != want {
-				t.Errorf("got %d transforms, want %d : %v", got, want, proto.MarshalTextString(p))
+				t.Errorf("got %d transforms, want %d : %v", got, want, p.String())
 			}
 			if got, want := len(p.GetRootTransformIds()), test.roots; got != want {
-				t.Errorf("got %d roots, want %d : %v", got, want, proto.MarshalTextString(p))
+				t.Errorf("got %d roots, want %d : %v", got, want, p.String())
 			}
 			if got, want := p.GetRequirements(), test.requirements; !cmp.Equal(got, want, cmpopts.SortSlices(func(a, b string) bool { return a < b })) {
-				t.Errorf("incorrect requirements: got %v, want %v : %v", got, want, proto.MarshalTextString(p))
+				t.Errorf("incorrect requirements: got %v, want %v : %v", got, want, p.String())
 			}
 		})
 	}
@@ -248,7 +248,7 @@ func TestMarshal_PTransformAnnotations(t *testing.T) {
 
 			pts := p.GetComponents().GetTransforms()
 			if got, want := len(pts), test.transforms; got != want {
-				t.Errorf("got %d transforms, want %d : %v", got, want, proto.MarshalTextString(p))
+				t.Errorf("got %d transforms, want %d : %v", got, want, p.String())
 			}
 			for _, pt := range pts {
 				// Context annotations only apply to composites, and are not duplicated to leaves.
@@ -296,22 +296,22 @@ func (fn *splitPickFn) ProcessElement(_ *testRT, a int, small, big func(int)) {
 }
 
 func TestCreateEnvironment(t *testing.T) {
-	t.Run("process", func(t *testing.T) {
-		const wantEnv = "process"
+	t.Run("processBadConfig", func(t *testing.T) {
 		urn := graphx.URNEnvProcess
-		got, err := graphx.CreateEnvironment(context.Background(), urn, func(_ context.Context) string { return wantEnv })
+		got, err := graphx.CreateEnvironment(context.Background(), urn, func(_ context.Context) string { return "not a real json" })
 		if err == nil {
-			t.Errorf("CreateEnvironment(%v) = %v error, want error since it's unsupported", urn, err)
+			t.Errorf("CreateEnvironment(%v) = %v error, want error since parsing should fail", urn, err)
 		}
 		want := (*pipepb.Environment)(nil)
 		if !proto.Equal(got, want) {
-			t.Errorf("CreateEnvironment(%v) = %v, want %v since it's unsupported", urn, got, want)
+			t.Errorf("CreateEnvironment(%v) = %v, want %v since creation should have failed", urn, got, want)
 		}
 	})
 	tests := []struct {
-		name    string
-		urn     string
-		payload func(name string) []byte
+		name           string
+		configOverride string
+		urn            string
+		payload        func(name string) []byte
 	}{
 		{
 			name: "external",
@@ -331,12 +331,25 @@ func TestCreateEnvironment(t *testing.T) {
 					ContainerImage: name,
 				})
 			},
+		}, {
+			name:           "process",
+			configOverride: "{ \"command\": \"process\" }",
+			urn:            graphx.URNEnvProcess,
+			payload: func(name string) []byte {
+				return protox.MustEncode(&pipepb.ProcessPayload{
+					Command: name,
+				})
+			},
 		},
 	}
 	for _, test := range tests {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
-			got, err := graphx.CreateEnvironment(context.Background(), test.urn, func(_ context.Context) string { return test.name })
+			config := test.name
+			if test.configOverride != "" {
+				config = test.configOverride
+			}
+			got, err := graphx.CreateEnvironment(context.Background(), test.urn, func(_ context.Context) string { return config })
 			if err != nil {
 				t.Errorf("CreateEnvironment(%v) = %v error, want nil", test.urn, err)
 			}

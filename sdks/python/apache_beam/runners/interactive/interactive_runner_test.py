@@ -24,6 +24,7 @@ This module is experimental. No backwards-compatibility guarantees.
 
 import sys
 import unittest
+import unittest.mock
 from typing import NamedTuple
 
 import pandas as pd
@@ -138,7 +139,7 @@ class InteractiveRunnerTest(unittest.TestCase):
         0: [e[0] for e in actual],
         1: [e[1] for e in actual],
         'event_time': [end_of_window for _ in actual],
-        'windows': [[GlobalWindow()] for _ in actual],
+        'windows': [(GlobalWindow(), ) for _ in actual],
         'pane_info': [
             PaneInfo(True, True, PaneInfoTiming.ON_TIME, 0, 0) for _ in actual
         ]
@@ -153,7 +154,7 @@ class InteractiveRunnerTest(unittest.TestCase):
     expected_reified = [
         WindowedValue(
             e,
-            Timestamp(micros=end_of_window), [GlobalWindow()],
+            Timestamp(micros=end_of_window), (GlobalWindow(), ),
             PaneInfo(True, True, PaneInfoTiming.ON_TIME, 0, 0)) for e in actual
     ]
     self.assertEqual(actual_reified, expected_reified)
@@ -489,6 +490,47 @@ class InteractiveRunnerTest(unittest.TestCase):
     for producer, consumer in trace:
       self.assertEqual(producer, prev_producer, trace_string)
       prev_producer = consumer
+
+  @staticmethod
+  def only_none_shall_pass(value):
+    if value is None:
+      return b'\0'
+    else:
+      raise RuntimeError("Should be using a more efficient coder.")
+
+  @unittest.mock.patch.object(
+      beam.coders.coders.FastPrimitivesCoder, 'encode', only_none_shall_pass)
+  def test_defaults_to_efficient_cache(self):
+    p = beam.Pipeline(
+        runner=interactive_runner.InteractiveRunner(
+            direct_runner.DirectRunner()))
+
+    inputs = [1, 10, 100, 1000, 10000]
+    big = (
+        p
+        | beam.Create(inputs)
+        | 'Explode' >> beam.FlatMap(lambda n: ("v_%s" % ix for ix in range(n))))
+
+    # Watch the local scope for Interactive Beam so that counts will be cached.
+    ib.watch(locals())
+
+    # This is normally done in the interactive_utils when a transform is
+    # applied but needs an IPython environment. So we manually run this here.
+    ie.current_env().track_user_pipelines()
+
+    result = p.run()
+    result.wait_until_finish()
+
+    self.assertEqual(len(result.get(big)), sum(inputs))
+    self.assertEqual(
+        len(result.get(big, include_window_info=True)), sum(inputs))
+
+    cache_manager = ie.current_env().get_cache_manager(
+        result._pipeline_instrument.user_pipeline)
+    key = result._pipeline_instrument.cache_key(big)
+    size = cache_manager.size('full', key)
+    # Despite (highly redundant) windowing information, the cache is small.
+    self.assertLess(size, sum(inputs))
 
 
 @unittest.skipIf(

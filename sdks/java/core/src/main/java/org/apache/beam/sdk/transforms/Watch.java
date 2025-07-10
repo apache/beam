@@ -124,8 +124,7 @@ import org.slf4j.LoggerFactory;
  * href="https://beam.apache.org/documentation/runners/capability-matrix/">capability matrix</a>.
  */
 @SuppressWarnings({
-  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
-  "rawtypes"
+  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 public class Watch {
   private static final Logger LOG = LoggerFactory.getLogger(Watch.class);
@@ -975,7 +974,7 @@ public class Watch {
       return Hashing.murmur3_128().hashObject(value, coderFunnel);
     }
 
-    private Growth.PollResult computeNeverSeenBeforeResults(
+    private Growth.PollResult<OutputT> computeNeverSeenBeforeResults(
         PollingGrowthState<TerminationStateT> state, Growth.PollResult<OutputT> pollResult) {
       // Collect results to include as newly pending. Note that the poll result may in theory
       // contain multiple outputs mapping to the same output key - we need to ignore duplicates
@@ -1036,7 +1035,7 @@ public class Watch {
   @VisibleForTesting
   abstract static class NonPollingGrowthState<OutputT> extends GrowthState {
     public static <OutputT> NonPollingGrowthState<OutputT> of(Growth.PollResult<OutputT> pending) {
-      return new AutoValue_Watch_NonPollingGrowthState(pending);
+      return new AutoValue_Watch_NonPollingGrowthState<>(pending);
     }
 
     /**
@@ -1056,14 +1055,14 @@ public class Watch {
   abstract static class PollingGrowthState<TerminationStateT> extends GrowthState {
     public static <TerminationStateT> PollingGrowthState<TerminationStateT> of(
         TerminationStateT terminationState) {
-      return new AutoValue_Watch_PollingGrowthState(ImmutableMap.of(), null, terminationState);
+      return new AutoValue_Watch_PollingGrowthState<>(ImmutableMap.of(), null, terminationState);
     }
 
     public static <TerminationStateT> PollingGrowthState<TerminationStateT> of(
         ImmutableMap<HashCode, Instant> completed,
         Instant pollWatermark,
         TerminationStateT terminationState) {
-      return new AutoValue_Watch_PollingGrowthState(completed, pollWatermark, terminationState);
+      return new AutoValue_Watch_PollingGrowthState<>(completed, pollWatermark, terminationState);
     }
 
     // Hashes and timestamps of outputs that have already been output and should be omitted

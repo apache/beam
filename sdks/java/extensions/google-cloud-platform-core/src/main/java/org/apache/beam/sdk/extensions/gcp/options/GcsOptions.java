@@ -18,7 +18,9 @@
 package org.apache.beam.sdk.extensions.gcp.options;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
+import java.util.HashMap;
 import java.util.concurrent.ExecutorService;
 import org.apache.beam.sdk.extensions.gcp.storage.GcsPathValidator;
 import org.apache.beam.sdk.extensions.gcp.storage.PathValidator;
@@ -43,6 +45,15 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
   GcsUtil getGcsUtil();
 
   void setGcsUtil(GcsUtil value);
+
+  @JsonIgnore
+  @Description(
+      "The GoogleCloudStorageReadOptions instance that should be used to read from Google Cloud Storage.")
+  @Default.InstanceFactory(GcsUtil.GcsReadOptionsFactory.class)
+  @Hidden
+  GoogleCloudStorageReadOptions getGoogleCloudStorageReadOptions();
+
+  void setGoogleCloudStorageReadOptions(GoogleCloudStorageReadOptions value);
 
   /**
    * The ExecutorService instance to use to create threads, can be overridden to specify an
@@ -124,6 +135,63 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
 
   void setGcsPerformanceMetrics(Boolean reportPerformanceMetrics);
 
+  @Description("Read timeout for gcs http requests")
+  @Nullable
+  Integer getGcsHttpRequestReadTimeout();
+
+  void setGcsHttpRequestReadTimeout(@Nullable Integer timeoutMs);
+
+  @Description("Write timeout for gcs http requests.")
+  @Nullable
+  Integer getGcsHttpRequestWriteTimeout();
+
+  void setGcsHttpRequestWriteTimeout(@Nullable Integer timeoutMs);
+
+  @Description("Batching limit for rewrite ops which will copy data.")
+  @Nullable
+  Integer getGcsRewriteDataOpBatchLimit();
+
+  void setGcsRewriteDataOpBatchLimit(@Nullable Integer timeoutMs);
+
+  /** If true, reports number of bytes written to each gcs bucket. */
+  @Description("Whether to report number of bytes written per GCS bucket.")
+  @Default.Boolean(false)
+  Boolean getEnableBucketWriteMetricCounter();
+
+  void setEnableBucketWriteMetricCounter(Boolean enableBucketWriteMetricCounter);
+
+  /** If true, reports number of bytes read from each gcs bucket. */
+  @Description("Whether to report number of bytes read per GCS bucket.")
+  @Default.Boolean(false)
+  Boolean getEnableBucketReadMetricCounter();
+
+  void setEnableBucketReadMetricCounter(Boolean enableBucketReadMetricCounter);
+
+  @Description(
+      "Prefix for the metric that counts the number of bytes read per GCS bucket. The resulting"
+          + " metric name will be formatted according to this template: <prefix>_<bucket_name>.")
+  @Default.String("GCS_read_bytes_counter")
+  String getGcsReadCounterPrefix();
+
+  void setGcsReadCounterPrefix(String gcsReadCounterPrefix);
+
+  @Description(
+      "Prefix for the metric that counts the number of bytes written per GCS bucket. The resulting"
+          + " metric name will be formatted according to this template: <prefix>_<bucket_name>.")
+  @Default.String("GCS_write_bytes_counter")
+  String getGcsWriteCounterPrefix();
+
+  void setGcsWriteCounterPrefix(String gcsReadCounterPrefix);
+
+  @Description("Get key-value pairs to be stored as custom information in GCS audit logs")
+  GcsCustomAuditEntries getGcsCustomAuditEntries();
+
+  @Description(
+      "Set key-value pairs to be stored as custom information in GCS audit logs. To"
+          + " specify these entries via command line, use"
+          + " `--gcsCustomAuditEntries={\"user\":\"test-user\", \"work\":\"test-work\", \"job\":\"test-job\", \"id\":\"1234\"}`")
+  void setGcsCustomAuditEntries(GcsCustomAuditEntries entries);
+
   /**
    * Returns the default {@link ExecutorService} to use within the Apache Beam SDK. The {@link
    * ExecutorService} is compatible with AppEngine.
@@ -148,6 +216,63 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
           .fromFactoryMethod("fromOptions")
           .withArg(PipelineOptions.class, options)
           .build();
+    }
+  }
+
+  /**
+   * Creates a {@link GcsCustomAuditEntries} that key-value pairs to be stored as custom information
+   * in GCS audit logs. According to Google Cloud Storage audit logging documentation
+   * (https://cloud.google.com/storage/docs/audit-logging#add-custom-metadata), the following
+   * limitations apply: - keys must be 64 characters or less, - values 1,200 characters or less, and
+   * - a maximum of four custom metadata entries are permitted per request.
+   */
+  class GcsCustomAuditEntries extends HashMap<String, String> {
+    private static final int MAX_KEY_LENGTH = 64;
+    private static final int MAX_VALUE_LENGTH = 1200;
+    private static final int MAX_ENTRIES = 4;
+
+    private static final String CUSTOM_AUDIT_ENTRY_TMPL = "x-goog-custom-audit-%s";
+
+    public static final String CUSTOM_AUDIT_JOB_ENTRY_KEY =
+        String.format(CUSTOM_AUDIT_ENTRY_TMPL, "job");
+
+    boolean exceedsEntryLimit() {
+      if (this.containsKey(CUSTOM_AUDIT_JOB_ENTRY_KEY)) {
+        return this.size() > MAX_ENTRIES;
+      }
+
+      return this.size() > MAX_ENTRIES - 1;
+    }
+
+    @Override
+    public @Nullable String put(String key, String value) {
+      if (key.length() > MAX_KEY_LENGTH) {
+        throw new IllegalArgumentException(
+            String.format(
+                "The key '%s' in GCS custom audit entries exceeds the %d-character limit.",
+                key, MAX_KEY_LENGTH));
+      }
+
+      if (value.length() > MAX_VALUE_LENGTH) {
+        throw new IllegalArgumentException(
+            String.format(
+                "The value '%s' in GCS custom audit entries exceeds the %d-character limit.",
+                value, MAX_VALUE_LENGTH));
+      }
+
+      String prefix = CUSTOM_AUDIT_ENTRY_TMPL.substring(0, CUSTOM_AUDIT_ENTRY_TMPL.indexOf('%'));
+      String formattedKey =
+          key.startsWith(prefix) ? key : String.format(CUSTOM_AUDIT_ENTRY_TMPL, key);
+      String oldValue = super.put(formattedKey, value);
+
+      if (exceedsEntryLimit()) {
+        throw new IllegalArgumentException(
+            String.format(
+                "The maximum allowed number of GCS custom audit entries (including the default x-goo-custom-audit-job) is %d.",
+                MAX_ENTRIES));
+      }
+
+      return oldValue;
     }
   }
 }

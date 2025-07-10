@@ -56,6 +56,11 @@ This section contains the following example notebooks.
 * [Use MLTransform to scale data](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/data_preprocessing/scale_data.ipynb)
 * [Preprocessing with the Apache Beam DataFrames API](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/dataframe_api_preprocessing.ipynb)
 
+### Data enrichment
+
+* [Use Bigtable to enrich data](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/bigtable_enrichment_transform.ipynb)
+* [Use Vertex AI Feature Store for feature enrichment](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/vertex_ai_feature_store_enrichment.ipynb)
+
 ### Prediction and inference with pretrained models
 
 * [Apache Beam RunInference for PyTorch](https://github.com/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_pytorch.ipynb)

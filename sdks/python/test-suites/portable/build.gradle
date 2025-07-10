@@ -31,9 +31,28 @@ tasks.register("samzaValidatesRunner") {
   }
 }
 
+tasks.register("prismValidatesRunner") {
+  getVersionsAsList('prism_validates_runner_postcommit_py_versions').each {
+    dependsOn.add(":sdks:python:test-suites:portable:py${getVersionSuffix(it)}:prismValidatesRunner")
+  }
+}
+
 tasks.register("flinkValidatesRunnerPrecommit") {
   getVersionsAsList('flink_validates_runner_precommit_py_versions').each {
     dependsOn.add(":sdks:python:test-suites:portable:py${getVersionSuffix(it)}:flinkValidatesRunner")
+  }
+}
+
+tasks.register("prismValidatesRunnerPrecommit") {
+  getVersionsAsList('prism_validates_runner_precommit_py_versions').each {
+    dependsOn.add(":sdks:python:test-suites:portable:py${getVersionSuffix(it)}:prismValidatesRunner")
+  }
+}
+
+// TODO merge with above once passing. Currently for convenience.
+tasks.register("prismTriggerTranscript") {
+  getVersionsAsList('prism_validates_runner_precommit_py_versions').each {
+    dependsOn.add(":sdks:python:test-suites:portable:py${getVersionSuffix(it)}:prismTriggerTranscript")
   }
 }
 
@@ -46,5 +65,11 @@ tasks.register("flinkExamplesPostCommit") {
 tasks.register("sparkExamplesPostCommit") {
   getVersionsAsList('spark_examples_postcommit_py_versions').each {
     dependsOn.add(":sdks:python:test-suites:portable:py${getVersionSuffix(it)}:sparkExamples")
+  }
+}
+
+tasks.register("prismExamplesPostCommit") {
+  getVersionsAsList('prism_examples_postcommit_py_versions').each {
+    dependsOn.add(":sdks:python:test-suites:portable:py${getVersionSuffix(it)}:prismExamples")
   }
 }

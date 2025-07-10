@@ -27,8 +27,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -73,33 +76,43 @@ public class RabbitMqMessage implements Serializable {
         envelope, nextProperties, processed.getBody(), processed.getMessageCount());
   }
 
-  private static Map<String, Object> serializableHeaders(Map<String, Object> headers) {
+  @VisibleForTesting
+  static Map<String, Object> serializableHeaders(Map<String, Object> headers) {
     Map<String, Object> returned = new HashMap<>();
     if (headers != null) {
       for (Map.Entry<String, Object> h : headers.entrySet()) {
         Object value = h.getValue();
-        if (!(value instanceof Serializable)) {
-          try {
-            if (value instanceof LongString) {
-              LongString longString = (LongString) value;
-              byte[] bytes = longString.getBytes();
-              String s = new String(bytes, StandardCharsets.UTF_8);
-              value = s;
-            } else {
-              throw new RuntimeException(String.format("no transformation defined for %s", value));
-            }
-          } catch (Throwable t) {
-            throw new UnsupportedOperationException(
-                String.format(
-                    "can't make unserializable value %s a serializable value (which is mandatory for Apache Beam dataflow implementation)",
-                    value),
-                t);
-          }
+        if (value instanceof List<?>) {
+          // Transformation for List type headers
+          value =
+              ((List<?>) value)
+                  .stream().map(RabbitMqMessage::getTransformedValue).collect(Collectors.toList());
+        } else if (!(value instanceof Serializable)) {
+          value = getTransformedValue(value);
         }
         returned.put(h.getKey(), value);
       }
     }
     return returned;
+  }
+
+  private static Object getTransformedValue(Object value) {
+    try {
+      if (value instanceof LongString) {
+        LongString longString = (LongString) value;
+        byte[] bytes = longString.getBytes();
+        value = new String(bytes, StandardCharsets.UTF_8);
+      } else {
+        throw new RuntimeException(String.format("No transformation defined for %s", value));
+      }
+    } catch (Throwable t) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "Can't make unserializable value %s a serializable value (which is mandatory for Apache Beam dataflow implementation)",
+              value),
+          t);
+    }
+    return value;
   }
 
   private final @Nullable String routingKey;

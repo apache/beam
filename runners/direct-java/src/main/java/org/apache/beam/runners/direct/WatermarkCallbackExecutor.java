@@ -27,6 +27,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 import javax.annotation.Nonnull;
+import org.apache.beam.runners.core.LateDataUtils;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -154,8 +155,11 @@ class WatermarkCallbackExecutor {
   private static class WatermarkCallback {
     public static <W extends BoundedWindow> WatermarkCallback onGuaranteedFiring(
         BoundedWindow window, WindowingStrategy<?, W> strategy, Runnable callback) {
-      @SuppressWarnings("unchecked")
-      Instant firingAfter = strategy.getTrigger().getWatermarkThatGuaranteesFiring((W) window);
+      Instant firingAfter =
+          Ordering.natural()
+              .min(
+                  LateDataUtils.garbageCollectionTime(window, strategy),
+                  strategy.getTrigger().getWatermarkThatGuaranteesFiring((W) window));
       return new WatermarkCallback(firingAfter, callback);
     }
 

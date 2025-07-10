@@ -1,7 +1,7 @@
 Prompt:
 What is a PTransform in Apache Beam?
-Response:
 
+Response:
 A [`PTransform`](https://beam.apache.org/documentation/programming-guide/#transforms) (or transform) represents a data processing operation, or a step, in a Beam pipeline. A transform is applied to zero or more `PCollection` objects and produces zero or more `PCollection` objects.
 
 Transforms have the following key characteristics:

@@ -15,13 +15,12 @@
 # limitations under the License.
 #
 
+from collections.abc import Callable
+from collections.abc import Iterable
+from collections.abc import Mapping
+from collections.abc import Sequence
 from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import Iterable
-from typing import Mapping
 from typing import Optional
-from typing import Sequence
 
 import numpy
 
@@ -35,14 +34,14 @@ from apache_beam.ml.inference.base import PredictionResult
 __all__ = ['OnnxModelHandlerNumpy']
 
 NumpyInferenceFn = Callable[
-    [Sequence[numpy.ndarray], ort.InferenceSession, Optional[Dict[str, Any]]],
+    [Sequence[numpy.ndarray], ort.InferenceSession, Optional[dict[str, Any]]],
     Iterable[PredictionResult]]
 
 
 def default_numpy_inference_fn(
     inference_session: ort.InferenceSession,
     batch: Sequence[numpy.ndarray],
-    inference_args: Optional[Dict[str, Any]] = None) -> Any:
+    inference_args: Optional[dict[str, Any]] = None) -> Any:
   ort_inputs = {
       inference_session.get_inputs()[0].name: numpy.stack(batch, axis=0)
   }
@@ -64,6 +63,7 @@ class OnnxModelHandlerNumpy(ModelHandler[numpy.ndarray,
       *,
       inference_fn: NumpyInferenceFn = default_numpy_inference_fn,
       large_model: bool = False,
+      model_copies: Optional[int] = None,
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None,
       max_batch_duration_secs: Optional[int] = None,
@@ -84,6 +84,9 @@ class OnnxModelHandlerNumpy(ModelHandler[numpy.ndarray,
         memory pressure if you load multiple copies. Given a model that
         consumes N memory and a machine with W cores and M memory, you should
         set this to True if N*W > M.
+      model_copies: The exact number of models that you would like loaded
+        onto your machine. This can be useful if you exactly know your CPU or
+        GPU capacity and want to maximize resource utilization.
       min_batch_size: the minimum batch size to use when batching inputs.
       max_batch_size: the maximum batch size to use when batching inputs.
       max_batch_duration_secs: the maximum amount of time to buffer a batch
@@ -97,7 +100,8 @@ class OnnxModelHandlerNumpy(ModelHandler[numpy.ndarray,
     self._provider_options = provider_options
     self._model_inference_fn = inference_fn
     self._env_vars = kwargs.get('env_vars', {})
-    self._large_model = large_model
+    self._share_across_processes = large_model or (model_copies is not None)
+    self._model_copies = model_copies or 1
     self._batching_kwargs = {}
     if min_batch_size is not None:
       self._batching_kwargs["min_batch_size"] = min_batch_size
@@ -111,7 +115,15 @@ class OnnxModelHandlerNumpy(ModelHandler[numpy.ndarray,
     # when path is remote, we should first load into memory then deserialize
     f = FileSystems.open(self._model_uri, "rb")
     model_proto = onnx.load(f)
-    model_proto_bytes = onnx._serialize(model_proto)
+    model_proto_bytes = model_proto
+    if not isinstance(model_proto, bytes):
+      if (hasattr(model_proto, "SerializeToString") and
+          callable(model_proto.SerializeToString)):
+        model_proto_bytes = model_proto.SerializeToString()
+      else:
+        raise TypeError(
+            "No SerializeToString method is detected on loaded model. " +
+            f"Type of model: {type(model_proto)}")
     ort_session = ort.InferenceSession(
         model_proto_bytes,
         sess_options=self._session_options,
@@ -123,7 +135,7 @@ class OnnxModelHandlerNumpy(ModelHandler[numpy.ndarray,
       self,
       batch: Sequence[numpy.ndarray],
       inference_session: ort.InferenceSession,
-      inference_args: Optional[Dict[str, Any]] = None
+      inference_args: Optional[dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
     """Runs inferences on a batch of numpy arrays.
 
@@ -157,7 +169,10 @@ class OnnxModelHandlerNumpy(ModelHandler[numpy.ndarray,
     return 'BeamML_Onnx'
 
   def share_model_across_processes(self) -> bool:
-    return self._large_model
+    return self._share_across_processes
+
+  def model_copies(self) -> int:
+    return self._model_copies
 
   def batch_elements_kwargs(self) -> Mapping[str, Any]:
     return self._batching_kwargs

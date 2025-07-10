@@ -29,6 +29,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.SerializableSupplier;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
@@ -735,24 +736,13 @@ public class SerializableMatchers implements Serializable {
   }
 
   /**
-   * Supplies values of type {@code T}, and is serializable. Thus, even if {@code T} is not
-   * serializable, the supplier can be serialized and provide a {@code T} wherever it is
-   * deserialized.
-   *
-   * @param <T> the type of value supplied.
-   */
-  public interface SerializableSupplier<T> extends Serializable {
-    T get();
-  }
-
-  /**
    * Since the delegate {@link Matcher} is not generally serializable, instead this takes a nullary
    * SerializableFunction to return such a matcher.
    */
   private static class SerializableMatcherFromSupplier<T> extends BaseMatcher<T>
       implements SerializableMatcher<T> {
 
-    private SerializableSupplier<Matcher<T>> supplier;
+    private final SerializableSupplier<Matcher<T>> supplier;
 
     public SerializableMatcherFromSupplier(SerializableSupplier<Matcher<T>> supplier) {
       this.supplier = supplier;

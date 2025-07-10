@@ -74,6 +74,8 @@ cdef class DoFnInvoker(object):
   cdef OutputHandler output_handler
   cdef object user_state_context
   cdef public object bundle_finalizer_param
+  cdef object _setup_context_values
+  cdef object _bundle_context_values
 
   cpdef invoke_process(self, WindowedValue windowed_value,
                        restriction=*, watermark_estimator_state=*,
@@ -100,7 +102,9 @@ cdef class PerWindowInvoker(DoFnInvoker):
   cdef dict kwargs_for_process_batch
   cdef list placeholders_for_process_batch
   cdef bint has_windowed_inputs
-  cdef bint cache_globally_windowed_args
+  cdef bint recalculate_window_args
+  cdef bint has_cached_window_args
+  cdef bint has_cached_window_batch_args
   cdef object process_method
   cdef object process_batch_method
   cdef bint is_splittable

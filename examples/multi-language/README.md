@@ -24,6 +24,9 @@ This project provides examples of Apache Beam
 
 ## Using Java transforms from Python
 
+* **python/wordcount_external** - A Python pipeline that runs the Word Count workflow using three external Java
+                SchemaTransforms. This example demonstrates the updated `ExternalTransformProvider` API.
+    #### _Outdated examples:_
 * **python/addprefix** - A Python pipeline that reads a text file and attaches a prefix on the Java side to each input.
 * **python/javacount** - A Python pipeline that counts words using the Java `Count.perElement()` transform.
 * **python/javadatagenerator** - A Python pipeline that produces a set of strings generated from Java.
@@ -61,7 +64,7 @@ Please see [here](https://github.com/apache/beam/tree/master/sdks/python/apache_
 context and information regarding the corresponding Python pipeline.
 
 Please note that the Java pipeline is
-[availalble in the Beam Java examples module](https://github.com/apache/beam/tree/master/examples/java/src/main/java/org/apache/beam/examples/multilanguage/SklearnMnistClassification.java).
+[available in the Beam Java examples module](https://github.com/apache/beam/tree/master/examples/java/src/main/java/org/apache/beam/examples/multilanguage/SklearnMnistClassification.java).
 
 #### Setup
 
@@ -149,9 +152,9 @@ python -m apache_beam.runners.portability.expansion_service_main -p <PORT> --ful
 ```
 export DOCKER_ROOT=<Docker root>
 
-./gradlew :sdks:python:container:py38:docker -Pdocker-repository-root=$DOCKER_ROOT -Pdocker-tag=latest
+./gradlew :sdks:python:container:py39:docker -Pdocker-repository-root=$DOCKER_ROOT -Pdocker-tag=latest
 
-docker push $DOCKER_ROOT/beam_python3.8_sdk:latest
+docker push $DOCKER_ROOT/beam_python3.9_sdk:latest
 
 ./gradlew :sdks:java:container:java11:docker -Pdocker-repository-root=$DOCKER_ROOT -Pdocker-tag=latest -Pjava11Home=$JAVA_HOME
 
@@ -176,7 +179,7 @@ gsutil rm gs://$GCP_BUCKET/multi-language-beam/output*
 --gcpTempLocation=gs://$GCP_BUCKET/multi-language-beam/tmp \
 --output=gs://$GCP_BUCKET/multi-language-beam/output \
 --sdkContainerImage=$DOCKER_ROOT/beam_java11_sdk:latest \
---sdkHarnessContainerImageOverrides=.*python.*,$DOCKER_ROOT/beam_python3.8_sdk:latest \
+--sdkHarnessContainerImageOverrides=.*python.*,$DOCKER_ROOT/beam_python3.9_sdk:latest \
 --expansionService=localhost:$EXPANSION_SERVICE_PORT \
 --region=${GCP_REGION}"
 ```

@@ -246,3 +246,20 @@ func TestWeightedElementEncoding(t *testing.T) {
 		t.Errorf("Invalid coder. Wanted %v got %v", w, decoded)
 	}
 }
+
+func TestZeroQuantiles(t *testing.T) {
+	const numElements int = 30000
+	inputSlice := make([]int, 0, numElements)
+	for i := 0; i < numElements; i++ {
+		inputSlice = append(inputSlice, i)
+	}
+	p, s, input, expected := ptest.CreateList2(inputSlice, [][]int{{}})
+	quantiles := ApproximateQuantiles(s, input, less, Opts{
+		K:            200,
+		NumQuantiles: 1,
+	})
+	passert.Equals(s, quantiles, expected)
+	if err := ptest.Run(p); err != nil {
+		t.Errorf("ApproximateQuantiles failed: %v", err)
+	}
+}

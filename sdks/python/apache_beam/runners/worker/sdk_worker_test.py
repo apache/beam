@@ -138,7 +138,7 @@ class SdkWorkerTest(unittest.TestCase):
         beam_fn_api_pb2.InstructionResponse(
             instruction_id='progress_instruction_id',
             process_bundle_progress=beam_fn_api_pb2.
-            ProcessBundleProgressResponse()))
+            ProcessBundleProgressResponse(consuming_received_data=False)))
 
     # Add a mock bundle processor as if it was running before it's released
     bundle_processor_cache.active_bundle_processors['instruction_id'] = (
@@ -149,7 +149,7 @@ class SdkWorkerTest(unittest.TestCase):
         beam_fn_api_pb2.InstructionResponse(
             instruction_id='progress_instruction_id',
             process_bundle_progress=beam_fn_api_pb2.
-            ProcessBundleProgressResponse()))
+            ProcessBundleProgressResponse(consuming_received_data=False)))
 
   def test_failed_bundle_processor_returns_failed_progress_response(self):
     bundle_processor = mock.MagicMock()
@@ -574,77 +574,60 @@ class ShortIdCacheTest(unittest.TestCase):
     test_cases = [
         TestCase(*args) for args in [
             (
-                "1",
-                metrics_pb2.MonitoringInfo(
+                "1", metrics_pb2.MonitoringInfo(
                     urn="beam:metric:user:distribution_int64:v1",
                     type="beam:metrics:distribution_int64:v1")),
             (
-                "2",
-                metrics_pb2.MonitoringInfo(
+                "2", metrics_pb2.MonitoringInfo(
                     urn="beam:metric:element_count:v1",
                     type="beam:metrics:sum_int64:v1")),
             (
-                "3",
-                metrics_pb2.MonitoringInfo(
+                "3", metrics_pb2.MonitoringInfo(
                     urn="beam:metric:ptransform_progress:completed:v1",
                     type="beam:metrics:progress:v1")),
             (
-                "4",
-                metrics_pb2.MonitoringInfo(
+                "4", metrics_pb2.MonitoringInfo(
                     urn="beam:metric:user:distribution_double:v1",
                     type="beam:metrics:distribution_double:v1")),
             (
-                "5",
-                metrics_pb2.MonitoringInfo(
+                "5", metrics_pb2.MonitoringInfo(
                     urn="TestingSentinelUrn", type="TestingSentinelType")),
             (
-                "6",
-                metrics_pb2.MonitoringInfo(
+                "6", metrics_pb2.MonitoringInfo(
                     urn=
                     "beam:metric:pardo_execution_time:finish_bundle_msecs:v1",
                     type="beam:metrics:sum_int64:v1")),
             # This case and the next one validates that different labels
             # with the same urn are in fact assigned different short ids.
             (
-                "7",
-                metrics_pb2.MonitoringInfo(
+                "7", metrics_pb2.MonitoringInfo(
                     urn="beam:metric:user:sum_int64:v1",
-                    type="beam:metrics:sum_int64:v1",
-                    labels={
-                        "PTRANSFORM": "myT",
-                        "NAMESPACE": "harness",
+                    type="beam:metrics:sum_int64:v1", labels={
+                        "PTRANSFORM": "myT", "NAMESPACE": "harness",
                         "NAME": "metricNumber7"
                     })),
             (
-                "8",
-                metrics_pb2.MonitoringInfo(
+                "8", metrics_pb2.MonitoringInfo(
                     urn="beam:metric:user:sum_int64:v1",
-                    type="beam:metrics:sum_int64:v1",
-                    labels={
-                        "PTRANSFORM": "myT",
-                        "NAMESPACE": "harness",
+                    type="beam:metrics:sum_int64:v1", labels={
+                        "PTRANSFORM": "myT", "NAMESPACE": "harness",
                         "NAME": "metricNumber8"
                     })),
             (
-                "9",
-                metrics_pb2.MonitoringInfo(
+                "9", metrics_pb2.MonitoringInfo(
                     urn="beam:metric:user:top_n_double:v1",
-                    type="beam:metrics:top_n_double:v1",
-                    labels={
-                        "PTRANSFORM": "myT",
-                        "NAMESPACE": "harness",
+                    type="beam:metrics:top_n_double:v1", labels={
+                        "PTRANSFORM": "myT", "NAMESPACE": "harness",
                         "NAME": "metricNumber7"
                     })),
             (
-                "a",
-                metrics_pb2.MonitoringInfo(
+                "a", metrics_pb2.MonitoringInfo(
                     urn="beam:metric:element_count:v1",
                     type="beam:metrics:sum_int64:v1",
                     labels={"PCOLLECTION": "myPCol"})),
             # validate payload is ignored for shortId assignment
             (
-                "3",
-                metrics_pb2.MonitoringInfo(
+                "3", metrics_pb2.MonitoringInfo(
                     urn="beam:metric:ptransform_progress:completed:v1",
                     type="beam:metrics:progress:v1",
                     payload=b"this is ignored!"))
@@ -680,8 +663,8 @@ class ShortIdCacheTest(unittest.TestCase):
 def monitoringInfoMetadata(info):
   return {
       descriptor.name: value
-      for descriptor,
-      value in info.ListFields() if not descriptor.name == "payload"
+      for descriptor, value in info.ListFields()
+      if not descriptor.name == "payload"
   }
 
 

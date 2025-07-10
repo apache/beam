@@ -40,6 +40,10 @@ PACKED_COMBINE_FN = "beam:combinefn:packed_python:v1"
 # Components: The coders for the tuple elements, in order.
 TUPLE_CODER = "beam:coder:tuple:v1"
 
+# This allows us to decode TimestampedPrefixed(LengthPrefixed(AnyWindowCoder)).
+TIMESTAMP_PREFIXED_OPAQUE_WINDOW_CODER = (
+    "beam:timestamp_prefixed_opaque_window_coder:v1")
+
 # Invoke UserFns in process, via direct function calls.
 # Payload: None.
 EMBEDDED_PYTHON = "beam:env:embedded_python:v1"

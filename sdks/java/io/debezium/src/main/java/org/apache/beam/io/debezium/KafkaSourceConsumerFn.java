@@ -29,13 +29,16 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -46,6 +49,9 @@ import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Streams;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hasher;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing;
 import org.apache.kafka.connect.source.SourceConnector;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.source.SourceTask;
@@ -72,7 +78,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>It might be initialized either as:
  *
- * <pre>KafkaSourceConsumerFn(connectorClass, SourceRecordMapper, maxRecords, milisecondsToRun)
+ * <pre>KafkaSourceConsumerFn(connectorClass, SourceRecordMapper, maxRecords, millisecondsToRun)
  * </pre>
  *
  * Or with a time limiter:
@@ -87,7 +93,7 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
   private final Class<? extends SourceConnector> connectorClass;
   private final SourceRecordMapper<T> fn;
 
-  private final Long milisecondsToRun;
+  private final Long millisecondsToRun;
   private final Integer maxRecords;
 
   private static DateTime startTime;
@@ -100,17 +106,18 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
    * @param connectorClass Supported Debezium connector class
    * @param fn a SourceRecordMapper
    * @param maxRecords Maximum number of records to fetch before finishing.
-   * @param milisecondsToRun Maximum time to run (in milliseconds)
+   * @param millisecondsToRun Maximum time to run (in milliseconds)
    */
+  @SuppressWarnings("unchecked")
   KafkaSourceConsumerFn(
       Class<?> connectorClass,
       SourceRecordMapper<T> fn,
       Integer maxRecords,
-      Long milisecondsToRun) {
+      Long millisecondsToRun) {
     this.connectorClass = (Class<? extends SourceConnector>) connectorClass;
     this.fn = fn;
     this.maxRecords = maxRecords;
-    this.milisecondsToRun = milisecondsToRun;
+    this.millisecondsToRun = millisecondsToRun;
   }
 
   /**
@@ -128,7 +135,7 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
   public OffsetHolder getInitialRestriction(@Element Map<String, String> unused)
       throws IOException {
     KafkaSourceConsumerFn.startTime = new DateTime();
-    return new OffsetHolder(null, null, null, this.maxRecords, this.milisecondsToRun);
+    return new OffsetHolder(null, null, null, this.maxRecords, this.millisecondsToRun);
   }
 
   @NewTracker
@@ -275,7 +282,7 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
     }
 
     long elapsedTime = System.currentTimeMillis() - KafkaSourceConsumerFn.startTime.getMillis();
-    if (milisecondsToRun != null && milisecondsToRun > 0 && elapsedTime >= milisecondsToRun) {
+    if (millisecondsToRun != null && millisecondsToRun > 0 && elapsedTime >= millisecondsToRun) {
       return ProcessContinuation.stop();
     } else {
       return ProcessContinuation.resume().withResumeDelay(Duration.standardSeconds(1));
@@ -336,29 +343,65 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
 
   static class OffsetHolder implements Serializable {
     public @Nullable Map<String, ?> offset;
-    public @Nullable List<?> history;
+    public @Nullable List<byte[]> history;
     public @Nullable Integer fetchedRecords;
     public @Nullable Integer maxRecords;
-    public final @Nullable Long milisToRun;
+    public final @Nullable Long millisToRun;
 
     OffsetHolder(
         @Nullable Map<String, ?> offset,
-        @Nullable List<?> history,
+        @Nullable List<byte[]> history,
         @Nullable Integer fetchedRecords,
         @Nullable Integer maxRecords,
-        @Nullable Long milisToRun) {
+        @Nullable Long millisToRun) {
       this.offset = offset;
       this.history = history == null ? new ArrayList<>() : history;
       this.fetchedRecords = fetchedRecords;
       this.maxRecords = maxRecords;
-      this.milisToRun = milisToRun;
+      this.millisToRun = millisToRun;
     }
 
     OffsetHolder(
         @Nullable Map<String, ?> offset,
-        @Nullable List<?> history,
+        @Nullable List<byte[]> history,
         @Nullable Integer fetchedRecords) {
       this(offset, history, fetchedRecords, null, -1L);
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      if (!(other instanceof OffsetHolder)) {
+        return false;
+      }
+      OffsetHolder otherOffset = (OffsetHolder) other;
+      if (history == null) {
+        return otherOffset.history == null;
+      } else {
+        if (otherOffset.history == null) {
+          return false;
+        }
+        if (history.size() != otherOffset.history.size()) {
+          return false;
+        }
+        if (!Streams.zip(history.stream(), otherOffset.history.stream(), Arrays::equals)
+            .allMatch(Predicate.isEqual(true))) {
+          return false;
+        }
+      }
+      return Objects.equals(offset, otherOffset.offset)
+          && Objects.equals(fetchedRecords, otherOffset.fetchedRecords)
+          && Objects.equals(maxRecords, otherOffset.maxRecords)
+          && Objects.equals(millisToRun, otherOffset.millisToRun);
+    }
+
+    @Override
+    public int hashCode() {
+      Hasher hasher = Hashing.goodFastHash(32).newHasher();
+      for (byte[] h : history) {
+        hasher.putInt(h.length);
+        hasher.putBytes(h);
+      }
+      return Objects.hash(offset, hasher.hash(), fetchedRecords, maxRecords, millisToRun);
     }
   }
 
@@ -395,7 +438,8 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
       int fetchedRecords =
           this.restriction.fetchedRecords == null ? 0 : this.restriction.fetchedRecords + 1;
       LOG.debug("------------Fetched records {} / {}", fetchedRecords, this.restriction.maxRecords);
-      LOG.debug("-------------- Time running: {} / {}", elapsedTime, (this.restriction.milisToRun));
+      LOG.debug(
+          "-------------- Time running: {} / {}", elapsedTime, (this.restriction.millisToRun));
       this.restriction.offset = position;
       this.restriction.fetchedRecords = fetchedRecords;
       LOG.debug("-------------- History: {}", this.restriction.history);
@@ -404,9 +448,9 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
       // the attempt to claim.
       // If we've reached neither, then we continue approve the claim.
       return (this.restriction.maxRecords == null || fetchedRecords < this.restriction.maxRecords)
-          && (this.restriction.milisToRun == null
-              || this.restriction.milisToRun == -1
-              || elapsedTime < this.restriction.milisToRun);
+          && (this.restriction.millisToRun == null
+              || this.restriction.millisToRun == -1
+              || elapsedTime < this.restriction.millisToRun);
     }
 
     @Override

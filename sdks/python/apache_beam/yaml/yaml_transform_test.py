@@ -259,6 +259,51 @@ class YamlTransformE2ETest(unittest.TestCase):
           lines=True).sort_values('rank').reindex()
       pd.testing.assert_frame_equal(data, result)
 
+  def test_circular_reference_validation(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      # pylint: disable=expression-not-assigned
+      with self.assertRaisesRegex(ValueError, r'Circular reference detected.*'):
+        p | YamlTransform(
+            '''
+                type: composite
+                transforms:
+                  - type: Create
+                    name: Create
+                    config:
+                        elements: [0, 1, 3, 4]
+                    input: Create
+                  - type: PyMap
+                    name: PyMap
+                    config:
+                        fn: "lambda row: row.element * row.element"
+                    input: Create
+                output: PyMap
+                ''',
+            providers=TEST_PROVIDERS)
+
+  def test_circular_reference_multi_inputs_validation(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      # pylint: disable=expression-not-assigned
+      with self.assertRaisesRegex(ValueError, r'Circular reference detected.*'):
+        p | YamlTransform(
+            '''
+                  type: composite
+                  transforms:
+                    - type: Create
+                      name: Create
+                      config:
+                        elements: [0, 1, 3, 4]
+                    - type: PyMap
+                      name: PyMap
+                      config:
+                        fn: "lambda row: row.element * row.element"
+                      input: [Create, PyMap]
+                  output: PyMap
+                ''',
+            providers=TEST_PROVIDERS)
+
   def test_name_is_not_ambiguous(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
@@ -285,7 +330,7 @@ class YamlTransformE2ETest(unittest.TestCase):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
       # pylint: disable=expression-not-assigned
-      with self.assertRaisesRegex(ValueError, r'Ambiguous.*'):
+      with self.assertRaisesRegex(ValueError, r'Circular reference detected.*'):
         p | YamlTransform(
             '''
             type: composite
@@ -370,6 +415,68 @@ class YamlTransformE2ETest(unittest.TestCase):
           ''' % (annotations['yaml_type'], annotations['yaml_args']))
       assert_that(result, equal_to([100, 105, 110, 115]))
 
+  def test_resource_hints(self):
+    t = LinearTransform(5, b=100)
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      result = p | YamlTransform(
+          '''
+          type: chain
+          transforms:
+            - type: Create
+              config:
+                elements: [0, 1, 2, 3]
+            - type: MapToFields
+              name: WithResourceHints
+              config:
+                language: python
+                fields:
+                  square: element * element
+              resource_hints:
+                min_ram: 1GB
+          ''')
+      assert_that(result | beam.Map(lambda x: x.square), equal_to([0, 1, 4, 9]))
+    proto = p.to_runner_api()
+    transform, = [
+        t for t in proto.components.transforms.values()
+        if t.unique_name == 'YamlTransform/Chain/WithResourceHints']
+    self.assertEqual(
+        proto.components.environments[transform.environment_id].
+        resource_hints['beam:resources:min_ram_bytes:v1'],
+        b'1000000000',
+        proto)
+
+  def test_composite_resource_hints(self):
+    t = LinearTransform(5, b=100)
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      result = p | YamlTransform(
+          '''
+          type: chain
+          transforms:
+            - type: Create
+              config:
+                elements: [0, 1, 2, 3]
+            - type: MapToFields
+              name: WithInheritedResourceHints
+              config:
+                language: python
+                fields:
+                  square: element * element
+          resource_hints:
+            min_ram: 1GB
+          ''')
+      assert_that(result | beam.Map(lambda x: x.square), equal_to([0, 1, 4, 9]))
+    proto = p.to_runner_api()
+    transform, = [
+        t for t in proto.components.transforms.values()
+        if t.unique_name == 'YamlTransform/Chain/WithInheritedResourceHints']
+    self.assertEqual(
+        proto.components.environments[transform.environment_id].
+        resource_hints['beam:resources:min_ram_bytes:v1'],
+        b'1000000000',
+        proto)
+
 
 class ErrorHandlingTest(unittest.TestCase):
   def test_error_handling_outputs(self):
@@ -400,6 +507,51 @@ class ErrorHandlingTest(unittest.TestCase):
           providers=TEST_PROVIDERS)
       assert_that(result['good'], equal_to(['a', 'b']), label="CheckGood")
       assert_that(result['bad'], equal_to(["ValueError('biiiiig')"]))
+
+  def test_strip_error_metadata(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      result = p | YamlTransform(
+          '''
+          type: composite
+          transforms:
+            - type: Create
+              config:
+                  elements: ['a', 'b', 'biiiiig']
+
+            - type: SizeLimiter
+              input: Create
+              config:
+                  limit: 5
+                  error_handling:
+                    output: errors
+            - type: StripErrorMetadata
+              name: StripErrorMetadata1
+              input: SizeLimiter.errors
+
+            - type: MapToFields
+              input: Create
+              config:
+                  language: python
+                  fields:
+                    out: "1.0/(1-len(element))"
+                  error_handling:
+                    output: errors
+            - type: StripErrorMetadata
+              name: StripErrorMetadata2
+              input: MapToFields.errors
+
+          output:
+            good: SizeLimiter
+            bad1: StripErrorMetadata1
+            bad2: StripErrorMetadata2
+          ''',
+          providers=TEST_PROVIDERS)
+      assert_that(result['good'], equal_to(['a', 'b']), label="CheckGood")
+      assert_that(
+          result['bad1'] | beam.Map(lambda x: x.element), equal_to(['biiiiig']))
+      assert_that(
+          result['bad2'] | beam.Map(lambda x: x.element), equal_to(['a', 'b']))
 
   def test_must_handle_error_output(self):
     with self.assertRaisesRegex(Exception, 'Unconsumed error output .*line 7'):
@@ -592,8 +744,7 @@ class YamlWindowingTest(unittest.TestCase):
 
   def test_assign_timestamps(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
-        pickle_library='cloudpickle', yaml_experimental_features=['Combine'
-                                                                  ])) as p:
+        pickle_library='cloudpickle')) as p:
       result = p | YamlTransform(
           '''
           type: chain
@@ -632,8 +783,8 @@ class AnnotatingProvider(yaml_provider.InlineProvider):
   """
   def __init__(self, name, transform_names):
     super().__init__({
-        transform_name:
-        lambda: beam.Map(lambda x: (x if type(x) == tuple else ()) + (name, ))
+        transform_name: lambda: beam.Map(
+            lambda x: (x if type(x) == tuple else ()) + (name, ))
         for transform_name in transform_names.strip().split()
     })
     self._name = name
@@ -685,8 +836,7 @@ class ProviderAffinityTest(unittest.TestCase):
               'provider1',
               # All of the providers vend A, but since the input was produced
               # by provider1, we prefer to use that again.
-              'provider1',
-              # Similarly for C.
+              'provider1',  # Similarly for C.
               'provider1')]),
           label='StartWith1')
 
@@ -706,10 +856,8 @@ class ProviderAffinityTest(unittest.TestCase):
           result2,
           equal_to([(
               # provider2 was necessarily chosen for P2
-              'provider2',
-              # Unlike above, we choose provider2 to implement A.
-              'provider2',
-              # Likewise for C.
+              'provider2',  # Unlike above, we choose provider2 to implement A.
+              'provider2',  # Likewise for C.
               'provider2')]),
           label='StartWith2')
 

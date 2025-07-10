@@ -66,13 +66,13 @@ public class WindmillStateInternals<K> implements StateInternals {
     this.key = key;
     this.cache = cache;
     this.scopedReadStateSupplier = scopedReadStateSupplier;
-    this.workItemDerivedState =
-        CachingStateTable.builder(stateFamily, reader, cache, isNewKey, scopedReadStateSupplier)
-            .build();
-    this.workItemState =
-        CachingStateTable.builder(stateFamily, reader, cache, isNewKey, scopedReadStateSupplier)
-            .withDerivedState(workItemDerivedState)
-            .build();
+    CachingStateTable.Builder builder =
+        CachingStateTable.builder(stateFamily, reader, cache, isNewKey, scopedReadStateSupplier);
+    if (cache.supportMapStateViaMultimapState()) {
+      builder = builder.withMapStateViaMultimapState();
+    }
+    this.workItemDerivedState = builder.build();
+    this.workItemState = builder.withDerivedState(workItemDerivedState).build();
   }
 
   @Override

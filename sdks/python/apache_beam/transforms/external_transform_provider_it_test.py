@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 import importlib
+import inspect
 import logging
 import os
 import secrets
@@ -37,9 +38,7 @@ from apache_beam.transforms.external import BeamJarExpansionService
 from apache_beam.transforms.external_transform_provider import STANDARD_URN_PATTERN
 from apache_beam.transforms.external_transform_provider import ExternalTransform
 from apache_beam.transforms.external_transform_provider import ExternalTransformProvider
-from apache_beam.transforms.external_transform_provider import camel_case_to_snake_case
 from apache_beam.transforms.external_transform_provider import infer_name_from_identifier
-from apache_beam.transforms.external_transform_provider import snake_case_to_lower_camel_case
 from apache_beam.transforms.external_transform_provider import snake_case_to_upper_camel_case
 from apache_beam.transforms.xlang.io import GenerateSequence
 
@@ -53,26 +52,6 @@ class NameAndTypeUtilsTest(unittest.TestCase):
                   ("appended_underscore_", "AppendedUnderscore")]
     for case in test_cases:
       self.assertEqual(case[1], snake_case_to_upper_camel_case(case[0]))
-
-  def test_snake_case_to_lower_camel_case(self):
-    test_cases = [("", ""), ("test", "test"), ("test_name", "testName"),
-                  ("test_double_underscore", "testDoubleUnderscore"),
-                  ("TEST_CAPITALIZED", "testCapitalized"),
-                  ("_prepended_underscore", "prependedUnderscore"),
-                  ("appended_underscore_", "appendedUnderscore")]
-    for case in test_cases:
-      self.assertEqual(case[1], snake_case_to_lower_camel_case(case[0]))
-
-  def test_camel_case_to_snake_case(self):
-    test_cases = [("", ""), ("Test", "test"), ("TestName", "test_name"),
-                  ("TestDoubleUnderscore",
-                   "test_double_underscore"), ("MyToLoFo", "my_to_lo_fo"),
-                  ("BEGINNINGAllCaps",
-                   "beginning_all_caps"), ("AllCapsENDING", "all_caps_ending"),
-                  ("AllCapsMIDDLEWord", "all_caps_middle_word"),
-                  ("lowerCamelCase", "lower_camel_case")]
-    for case in test_cases:
-      self.assertEqual(case[1], camel_case_to_snake_case(case[0]))
 
   def test_infer_name_from_identifier(self):
     standard_test_cases = [
@@ -114,7 +93,7 @@ class NameAndTypeUtilsTest(unittest.TestCase):
     "EXPANSION_JARS environment var is not provided, "
     "indicating that jars have not been built")
 class ExternalTransformProviderIT(unittest.TestCase):
-  def test_generate_sequence_config_schema_and_description(self):
+  def test_generate_sequence_signature_and_doc(self):
     provider = ExternalTransformProvider(
         BeamJarExpansionService(":sdks:java:io:expansion-service:shadowJar"))
 
@@ -124,14 +103,14 @@ class ExternalTransformProviderIT(unittest.TestCase):
     ) in provider.get_available())
 
     GenerateSequence = provider.get('GenerateSequence')
-    config_schema = GenerateSequence.configuration_schema
+    signature = inspect.signature(GenerateSequence)
     for param in ['start', 'end', 'rate']:
-      self.assertTrue(param in config_schema)
+      self.assertTrue(param in signature.parameters.keys())
 
-    description_substring = (
+    doc_substring = (
         "Outputs a PCollection of Beam Rows, each "
         "containing a single INT64")
-    self.assertTrue(description_substring in GenerateSequence.description)
+    self.assertTrue(doc_substring in inspect.getdoc(GenerateSequence))
 
   def test_run_generate_sequence(self):
     provider = ExternalTransformProvider(
@@ -142,6 +121,18 @@ class ExternalTransformProviderIT(unittest.TestCase):
           start=0, end=10) | beam.Map(lambda row: row.value)
 
       assert_that(numbers, equal_to([i for i in range(10)]))
+
+  def test_run_generate_sequence_with_rate(self):
+    provider = ExternalTransformProvider(
+        BeamJarExpansionService(":sdks:java:io:expansion-service:shadowJar"))
+
+    with beam.Pipeline() as p:
+      numbers = p | provider.GenerateSequence(
+          start=0, end=3, rate={
+              'elements': 1, 'seconds': 1
+          }) | beam.Map(lambda row: row.value)
+
+      assert_that(numbers, equal_to([0, 1, 2]))
 
 
 @pytest.mark.xlang_wrapper_generation
@@ -162,11 +153,16 @@ class AutoGenerationScriptIT(unittest.TestCase):
   def setUp(self):
     # import script from top-level sdks/python directory
     self.sdk_dir = os.path.abspath(dirname(dirname(dirname(__file__))))
-    spec = importlib.util.spec_from_file_location(
+    xlang_spec = importlib.util.spec_from_file_location(
         'gen_xlang_wrappers',
         os.path.join(self.sdk_dir, 'gen_xlang_wrappers.py'))
-    self.script = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(self.script)
+    self.xlang_script = importlib.util.module_from_spec(xlang_spec)
+    xlang_spec.loader.exec_module(self.xlang_script)
+    managed_spec = importlib.util.spec_from_file_location(
+        'gen_managed_doc', os.path.join(self.sdk_dir, 'gen_managed_doc.py'))
+    self.managed_script = importlib.util.module_from_spec(managed_spec)
+    managed_spec.loader.exec_module(self.managed_script)
+
     args = TestPipeline(is_integration_test=True).get_full_options_as_args()
     runner = PipelineOptions(args).get_all_options()['runner']
     if runner and "direct" not in runner.lower():
@@ -188,7 +184,7 @@ class AutoGenerationScriptIT(unittest.TestCase):
     shutil.rmtree(self.test_dir, ignore_errors=False)
 
   def delete_and_validate(self):
-    self.script.delete_generated_files(self.test_dir)
+    self.xlang_script.delete_generated_files(self.test_dir)
     self.assertEqual(len(os.listdir(self.test_dir)), 0)
 
   def test_script_fails_with_invalid_destinations(self):
@@ -211,20 +207,20 @@ class AutoGenerationScriptIT(unittest.TestCase):
         typing.Dict[int, typing.Optional[str]]
     ]
 
-    expected_type_names = [('List[str]', True), ('numpy.int16', False),
-                           ('str', False), ('Dict[str, numpy.float64]', False),
-                           ('Dict[str, List[numpy.int64]]', True),
-                           ('Dict[int, Union[str, NoneType]]', False)]
+    expected_type_names = [('List[str]', True), ('int16', False),
+                           ('str', False), ('Dict[str, float64]', False),
+                           ('Dict[str, List[int64]]', True),
+                           ('Dict[int, Optional[str]]', False)]
 
     for i in range(len(types)):
       self.assertEqual(
-          self.script.pretty_type(types[i]), expected_type_names[i])
+          self.xlang_script.pretty_type(types[i]), expected_type_names[i])
 
   def create_and_check_transforms_config_exists(self, expansion_service_config):
     with open(self.service_config_path, 'w') as f:
       yaml.dump([expansion_service_config], f)
 
-    self.script.generate_transforms_config(
+    self.xlang_script.generate_transforms_config(
         self.service_config_path, self.transform_config_path)
     self.assertTrue(os.path.exists(self.transform_config_path))
 
@@ -245,9 +241,10 @@ class AutoGenerationScriptIT(unittest.TestCase):
       self.assertEqual(gen_seq_config['name'], expected_name)
       self.assertEqual(
           gen_seq_config['destinations']['python'], expected_destination)
-      self.assertIn("end", gen_seq_config['fields'])
-      self.assertIn("start", gen_seq_config['fields'])
-      self.assertIn("rate", gen_seq_config['fields'])
+      field_names = [field['name'] for field in gen_seq_config['fields']]
+      self.assertIn("end", field_names)
+      self.assertIn("start", field_names)
+      self.assertIn("rate", field_names)
 
   def get_module(self, dest):
     module_name = dest.replace('apache_beam/', '').replace('/', '_')
@@ -264,13 +261,13 @@ class AutoGenerationScriptIT(unittest.TestCase):
 
     :return: Generated wrappers grouped by destination
     """
-    grouped_wrappers = self.script.get_wrappers_from_transform_configs(
+    grouped_wrappers = self.xlang_script.get_wrappers_from_transform_configs(
         self.transform_config_path)
     for dest in destinations:
       self.assertIn(dest, grouped_wrappers)
 
     # write to our test directory to avoid messing with other files
-    self.script.write_wrappers_to_destinations(
+    self.xlang_script.write_wrappers_to_destinations(
         grouped_wrappers, self.test_dir, format_code=False)
 
     for dest in destinations:
@@ -361,7 +358,7 @@ class AutoGenerationScriptIT(unittest.TestCase):
     with open(self.service_config_path, 'w') as f:
       yaml.dump([expansion_service_config], f)
 
-    self.script.generate_transforms_config(
+    self.xlang_script.generate_transforms_config(
         self.service_config_path, self.transform_config_path)
 
     # gen sequence shouldn't exist in the transform config
@@ -390,7 +387,7 @@ class AutoGenerationScriptIT(unittest.TestCase):
     committing the changes.
     """
     sdks_dir = os.path.abspath(dirname(self.sdk_dir))
-    self.script.generate_transforms_config(
+    self.xlang_script.generate_transforms_config(
         os.path.join(sdks_dir, 'standard_expansion_services.yaml'),
         self.transform_config_path)
     with open(self.transform_config_path) as f:
@@ -403,8 +400,31 @@ class AutoGenerationScriptIT(unittest.TestCase):
         test_config,
         standard_config,
         "The standard xlang transforms config file "
-        "\"standard_external_transforms.yaml\" is out of sync! Please update"
-        "by running './gradlew generateExternalTransformsConfig'"
+        "\"standard_external_transforms.yaml\" is out of sync! Please update "
+        "by running './gradlew generateExternalTransformsConfig' "
+        "and committing the changes.")
+
+  def test_check_managed_configs_doc_in_sync(self):
+    """
+    This test generates the ManagedIO config doc and checks it against the
+    local `website/www/site/content/en/documentation/io/managed-io.md`.
+    Fails if the two docs don't match.
+
+    Fix by running `./gradlew generateExternalTransformsConfig` and
+    committing the changes.
+    """
+    test_doc_path = os.path.join(self.test_dir, 'test-managed-io-doc.md')
+    self.managed_script.generate_managed_doc(test_doc_path)
+    with open(test_doc_path) as f:
+      test_doc = f.readlines()
+    with open(self.managed_script._DOCUMENTATION_DESTINATION) as f:
+      actual_doc = f.readlines()
+
+    self.assertEqual(
+        actual_doc,
+        test_doc,
+        "The ManagedIO configuration page is out of sync! Please "
+        "update by running './gradlew generateManagedIOPage' "
         "and committing the changes.")
 
 

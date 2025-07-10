@@ -164,7 +164,10 @@ public class SchemaCoder<T> extends CustomCoder<T> {
   }
 
   // Sets the schema id, and then recursively ensures that all schemas have ids set.
-  private static void setSchemaIds(Schema schema) {
+  private static void setSchemaIds(@Nullable Schema schema) {
+    if (schema == null) {
+      return;
+    }
     if (schema.getUUID() == null) {
       schema.setUUID(UUID.randomUUID());
     }
@@ -187,7 +190,7 @@ public class SchemaCoder<T> extends CustomCoder<T> {
         return;
 
       case ARRAY:
-      case ITERABLE:;
+      case ITERABLE:
         setSchemaIds(fieldType.getCollectionElementType());
         return;
 

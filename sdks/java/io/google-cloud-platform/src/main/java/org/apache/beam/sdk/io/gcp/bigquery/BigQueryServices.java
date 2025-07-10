@@ -213,7 +213,7 @@ public interface BigQueryServices extends Serializable {
         throws IOException, InterruptedException;
 
     @Nullable
-    WriteStream getWriteStream(String writeStream);
+    TableSchema getWriteStreamSchema(String writeStream);
 
     /**
      * Create an append client for a given Storage API write stream. The stream must be created
@@ -300,6 +300,14 @@ public interface BigQueryServices extends Serializable {
 
     /* This method variant collects request count metric, using the fullTableID metadata. */
     SplitReadStreamResponse splitReadStream(SplitReadStreamRequest request, String fullTableId);
+
+    /**
+     * Call this method on Work Item thread to report outstanding metrics.
+     *
+     * <p>Because incrementing metrics is only supported on the execution thread, callback thread
+     * that has pending metrics cannot report it directly.
+     */
+    default void reportPendingMetrics() {}
 
     /**
      * Close the client object.

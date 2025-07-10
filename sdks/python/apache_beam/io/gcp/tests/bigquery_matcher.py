@@ -231,8 +231,8 @@ class BigQueryTableMatcher(BaseMatcher):
     _LOGGER.info('Table proto is %s', self.actual_table)
 
     return all(
-        self._match_property(v, self._get_or_none(self.actual_table, k)) for k,
-        v in self.expected_properties.items())
+        self._match_property(v, self._get_or_none(self.actual_table, k))
+        for k, v in self.expected_properties.items())
 
   @staticmethod
   def _get_or_none(obj, attr):
@@ -250,8 +250,8 @@ class BigQueryTableMatcher(BaseMatcher):
     if isinstance(expected, dict):
       return all(
           BigQueryTableMatcher._match_property(
-              v, BigQueryTableMatcher._get_or_none(actual, k)) for k,
-          v in expected.items())
+              v, BigQueryTableMatcher._get_or_none(actual, k))
+          for k, v in expected.items())
     else:
       return expected == actual
 

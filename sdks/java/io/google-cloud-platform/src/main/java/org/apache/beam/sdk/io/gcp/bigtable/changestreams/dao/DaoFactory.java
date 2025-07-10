@@ -26,12 +26,14 @@ import java.io.IOException;
 import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableConfig;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 
 // Allows transient fields to be intialized later
 @SuppressWarnings("initialization.fields.uninitialized")
 @Internal
 public class DaoFactory implements Serializable, AutoCloseable {
-  private static final long serialVersionUID = 3732208768248394205L;
+  private static final long serialVersionUID = -3423959768580600281L;
 
   private transient ChangeStreamDao changeStreamDao;
   private transient MetadataTableAdminDao metadataTableAdminDao;
@@ -44,6 +46,8 @@ public class DaoFactory implements Serializable, AutoCloseable {
 
   private final String metadataTableId;
   private final String changeStreamName;
+
+  private @Nullable Duration readChangeStreamTimeout;
 
   public DaoFactory(
       BigtableConfig changeStreamConfig,
@@ -69,6 +73,10 @@ public class DaoFactory implements Serializable, AutoCloseable {
       }
     } catch (Exception ignored) {
     }
+  }
+
+  public void setReadChangeStreamTimeout(@Nullable Duration readChangeStreamTimeout) {
+    this.readChangeStreamTimeout = readChangeStreamTimeout;
   }
 
   public String getChangeStreamName() {
@@ -106,6 +114,10 @@ public class DaoFactory implements Serializable, AutoCloseable {
       checkArgumentNotNull(changeStreamConfig.getProjectId());
       checkArgumentNotNull(changeStreamConfig.getInstanceId());
       checkArgumentNotNull(changeStreamConfig.getAppProfileId());
+      if (readChangeStreamTimeout != null) {
+        BigtableChangeStreamAccessor.setReadChangeStreamTimeout(
+            org.threeten.bp.Duration.ofMillis(readChangeStreamTimeout.getMillis()));
+      }
       BigtableDataClient dataClient =
           BigtableChangeStreamAccessor.getOrCreate(changeStreamConfig).getDataClient();
       changeStreamDao = new ChangeStreamDao(dataClient, this.tableId);

@@ -37,9 +37,7 @@ permissions:
   statuses: read
 
 env:
-    GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
-    GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
-    GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+    DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
 
 jobs:
   beam_Release_NightlySnapshot:
@@ -63,7 +61,8 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: 8
+          java-version: default
+          disable-cache: true
       - name: Auth on snapshot repository
         run: |
           mkdir -p ${HOME}/.m2
@@ -80,4 +79,6 @@ jobs:
         run: |
           ./gradlew publish --max-workers=8 -Ppublishing -PskipCheckerFramework \
           --continue -Dorg.gradle.jvmargs=-Xms2g -Dorg.gradle.jvmargs=-Xmx6g \
-          -Dorg.gradle.vfs.watch=false -Pdocker-pull-licenses
+          -Dorg.gradle.vfs.watch=false -Pdocker-pull-licenses \
+          -Dorg.gradle.internal.http.connectionTimeout=60000 \
+          -Dorg.gradle.internal.http.socketTimeout=120000

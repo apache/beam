@@ -16,7 +16,7 @@
 # limitations under the License.
 ###############################################################################
 ARG BASE_IMAGE=openjdk:11
-FROM golang:1.20-bullseye AS build
+FROM golang:1-bullseye AS build
 ARG GIT_COMMIT="<unknown>"
 ARG GIT_TIMESTAMP="0"
 
@@ -80,6 +80,10 @@ RUN chown -R appuser:appgroup /opt/playground/backend/executable_files/ && chmod
 RUN mkdir -p /opt/sbt-template
 RUN chown -R appuser:appgroup /opt/sbt-template
 
+#Download spotify g8 template at specific commit
+ARG g8_commit=7c1ba7c1651dfd70976028842e721da4107c0d6d
+RUN wget https://codeload.github.com/spotify/scio.g8/zip/$g8_commit -O scio.g8.zip && unzip scio.g8.zip && mv scio.g8-$g8_commit /opt/scio.g8
+
 # Switch to appuser
 USER appuser
 
@@ -88,6 +92,8 @@ WORKDIR /opt/sbt-template
 RUN /opt/playground/backend/new_scio_project.sh
 WORKDIR /opt/sbt-template/scio
 RUN sbt "+compile"
+#chmod is a fix for sbt scala output permission issue that is known in scala-js https://github.com/scala-js/scala-js/issues/4212
+RUN chmod -R 0644 /opt/sbt-template/scio/target/scala-*/zinc/*.zip
 WORKDIR /
 
 USER root

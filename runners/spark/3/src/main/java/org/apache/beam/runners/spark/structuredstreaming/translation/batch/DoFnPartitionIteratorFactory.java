@@ -26,12 +26,12 @@ import java.util.Deque;
 import java.util.Map;
 import java.util.function.Supplier;
 import javax.annotation.CheckForNull;
-import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.DoFnRunnerFactory.DoFnRunnerWithTeardown;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.AbstractIterator;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import scala.Function1;
@@ -40,7 +40,7 @@ import scala.collection.Iterator;
 
 /**
  * Abstract factory to create a {@link DoFnPartitionIt DoFn partition iterator} using a customizable
- * {@link DoFnRunners.OutputManager}.
+ * {@link WindowedValueMultiReceiver}.
  */
 abstract class DoFnPartitionIteratorFactory<InT, FnOutT, OutT extends @NonNull Object>
     implements Function1<Iterator<WindowedValue<InT>>, Iterator<OutT>>, Serializable {
@@ -91,7 +91,7 @@ abstract class DoFnPartitionIteratorFactory<InT, FnOutT, OutT extends @NonNull O
   }
 
   /** Output manager emitting outputs of type {@link OutT} to the buffer. */
-  abstract DoFnRunners.OutputManager outputManager(Deque<OutT> buffer);
+  abstract WindowedValueMultiReceiver outputManager(Deque<OutT> buffer);
 
   /**
    * {@link DoFnPartitionIteratorFactory} emitting a single output of type {@link WindowedValue} of
@@ -107,8 +107,8 @@ abstract class DoFnPartitionIteratorFactory<InT, FnOutT, OutT extends @NonNull O
     }
 
     @Override
-    DoFnRunners.OutputManager outputManager(Deque<WindowedValue<OutT>> buffer) {
-      return new DoFnRunners.OutputManager() {
+    WindowedValueMultiReceiver outputManager(Deque<WindowedValue<OutT>> buffer) {
+      return new WindowedValueMultiReceiver() {
         @Override
         public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
           buffer.add((WindowedValue<OutT>) output);
@@ -136,8 +136,8 @@ abstract class DoFnPartitionIteratorFactory<InT, FnOutT, OutT extends @NonNull O
     }
 
     @Override
-    DoFnRunners.OutputManager outputManager(Deque<Tuple2<Integer, WindowedValue<OutT>>> buffer) {
-      return new DoFnRunners.OutputManager() {
+    WindowedValueMultiReceiver outputManager(Deque<Tuple2<Integer, WindowedValue<OutT>>> buffer) {
+      return new WindowedValueMultiReceiver() {
         @Override
         public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
           // Additional unused outputs can be skipped here. In that case columnIdx is null.

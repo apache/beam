@@ -39,32 +39,42 @@ export async function processCommand(
 
   const pullNumber = payload.issue?.number || payload.pull_request?.number;
   commentText = commentText.toLowerCase();
-  if (commentText.indexOf("r: @") > -1) {
-    await manuallyAssignedToReviewer(pullNumber, stateClient);
-  } else if (commentText.indexOf("assign to next reviewer") > -1) {
-    await assignToNextReviewer(
-      payload,
-      commentAuthor,
-      pullNumber,
-      stateClient,
-      reviewerConfig
-    );
-  } else if (commentText.indexOf("stop reviewer notifications") > -1) {
-    await stopReviewerNotifications(
-      pullNumber,
-      stateClient,
-      "requested by reviewer"
-    );
-  } else if (commentText.indexOf("remind me after tests pass") > -1) {
-    await remindAfterTestsPass(pullNumber, commentAuthor, stateClient);
-  } else if (commentText.indexOf("waiting on author") > -1) {
-    await waitOnAuthor(payload, pullNumber, stateClient);
-  } else if (commentText.indexOf("assign set of reviewers") > -1) {
-    await assignReviewerSet(payload, pullNumber, stateClient, reviewerConfig);
-  } else {
-    return false;
-  }
 
+  let prState = await stateClient.getPrState(pullNumber);
+  if(prState.stopReviewerNotifications) {
+    // Notifications stopped, only "allow assign set of reviewers"
+    if (commentText.indexOf("assign set of reviewers") > -1) {
+      await assignReviewerSet(payload, pullNumber, stateClient, reviewerConfig);
+    } else {
+      return false;
+    }
+  } else {
+    if (commentText.indexOf("r: @") > -1) {
+      await manuallyAssignedToReviewer(pullNumber, stateClient);
+    } else if (commentText.indexOf("assign to next reviewer") > -1) {
+      await assignToNextReviewer(
+        payload,
+        commentAuthor,
+        pullNumber,
+        stateClient,
+        reviewerConfig
+      );
+    } else if (commentText.indexOf("stop reviewer notifications") > -1) {
+      await stopReviewerNotifications(
+        pullNumber,
+        stateClient,
+        "requested by reviewer"
+      );
+    } else if (commentText.indexOf("remind me after tests pass") > -1) {
+      await remindAfterTestsPass(pullNumber, commentAuthor, stateClient);
+    } else if (commentText.indexOf("waiting on author") > -1) {
+      await waitOnAuthor(payload, pullNumber, stateClient);
+    } else if (commentText.indexOf("assign set of reviewers") > -1) {
+      await assignReviewerSet(payload, pullNumber, stateClient, reviewerConfig);
+    } else {
+      return false;
+    }
+  }
   return true;
 }
 
@@ -175,6 +185,12 @@ async function assignReviewerSet(
   reviewerConfig: typeof ReviewerConfig
 ) {
   let prState = await stateClient.getPrState(pullNumber);
+  if(prState.stopReviewerNotifications) {
+    // Restore notifications, and clear any existing reviewer set to
+    // allow new reviewers to be assigned.
+    prState.stopReviewerNotifications = false;
+    prState.reviewersAssignedForLabels = {};
+  }
   if (Object.values(prState.reviewersAssignedForLabels).length > 0) {
     await github.addPrComment(
       pullNumber,

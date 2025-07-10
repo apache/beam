@@ -31,6 +31,7 @@ import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.ResultSet;
 import java.util.Arrays;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.cache.WatermarkCache;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.PartitionMetadataMapper;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
@@ -48,6 +49,7 @@ public class DetectNewPartitionsActionTest {
 
   private PartitionMetadataDao dao;
   private PartitionMetadataMapper mapper;
+  private WatermarkCache cache;
   private ChangeStreamMetrics metrics;
   private Duration resumeDuration;
   private RestrictionTracker<TimestampRange, Timestamp> tracker;
@@ -60,6 +62,7 @@ public class DetectNewPartitionsActionTest {
   public void setUp() throws Exception {
     dao = mock(PartitionMetadataDao.class);
     mapper = mock(PartitionMetadataMapper.class);
+    cache = mock(WatermarkCache.class);
     metrics = mock(ChangeStreamMetrics.class);
     resumeDuration = Duration.standardSeconds(1);
     tracker = mock(RestrictionTracker.class);
@@ -67,7 +70,7 @@ public class DetectNewPartitionsActionTest {
     receiver = mock(OutputReceiver.class);
     watermarkEstimator = mock(ManualWatermarkEstimator.class);
 
-    action = new DetectNewPartitionsAction(dao, mapper, metrics, resumeDuration);
+    action = new DetectNewPartitionsAction(dao, mapper, cache, metrics, resumeDuration);
 
     when(tracker.currentRestriction()).thenReturn(restriction);
   }
@@ -87,7 +90,7 @@ public class DetectNewPartitionsActionTest {
     when(partition2.getPartitionToken()).thenReturn("token2");
     when(partition2.getCreatedAt()).thenReturn(partitionCreatedAt);
     when(restriction.getFrom()).thenReturn(from);
-    when(dao.getUnfinishedMinWatermark()).thenReturn(minWatermark);
+    when(cache.getUnfinishedMinWatermark()).thenReturn(minWatermark);
     when(dao.getAllPartitionsCreatedAfter(from)).thenReturn(resultSet);
     when(dao.updateToScheduled(Arrays.asList("token1", "token2"))).thenReturn(partitionScheduledAt);
     when(resultSet.next()).thenReturn(true, true, false);
@@ -108,7 +111,7 @@ public class DetectNewPartitionsActionTest {
     final Instant minWatermarkInstant = new Instant(minWatermark.toSqlTimestamp());
     final ResultSet resultSet = mock(ResultSet.class);
     when(restriction.getFrom()).thenReturn(from);
-    when(dao.getUnfinishedMinWatermark()).thenReturn(minWatermark);
+    when(cache.getUnfinishedMinWatermark()).thenReturn(minWatermark);
     when(dao.getAllPartitionsCreatedAfter(from)).thenReturn(resultSet);
     when(resultSet.next()).thenReturn(false);
 
@@ -123,7 +126,7 @@ public class DetectNewPartitionsActionTest {
   public void testTerminatesWhenAllPartitionsAreFinished() {
     final Timestamp from = Timestamp.ofTimeMicroseconds(10L);
     when(restriction.getFrom()).thenReturn(from);
-    when(dao.getUnfinishedMinWatermark()).thenReturn(null);
+    when(cache.getUnfinishedMinWatermark()).thenReturn(null);
 
     final ProcessContinuation continuation = action.run(tracker, receiver, watermarkEstimator);
 

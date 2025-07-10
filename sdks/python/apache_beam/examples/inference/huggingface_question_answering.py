@@ -28,8 +28,7 @@ file in which users can then compare against the original context.
 
 import argparse
 import logging
-from typing import Iterable
-from typing import Tuple
+from collections.abc import Iterable
 
 import apache_beam as beam
 from apache_beam.ml.inference.base import KeyedModelHandler
@@ -49,7 +48,7 @@ class PostProcessor(beam.DoFn):
   Hugging Face Pipeline for Question Answering returns a dictionary
   with score, start and end index of answer and the answer.
   """
-  def process(self, result: Tuple[str, PredictionResult]) -> Iterable[str]:
+  def process(self, result: tuple[str, PredictionResult]) -> Iterable[str]:
     text, prediction = result
     predicted_answer = prediction.inference['answer']
     yield text + ';' + predicted_answer

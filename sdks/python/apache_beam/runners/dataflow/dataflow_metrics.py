@@ -90,6 +90,10 @@ class DataflowMetrics(MetricResults):
   def _is_distribution(metric_result):
     return isinstance(metric_result.attempted, DistributionResult)
 
+  @staticmethod
+  def _is_string_set(metric_result):
+    return isinstance(metric_result.attempted, set)
+
   def _translate_step_name(self, internal_name):
     """Translate between internal step names (e.g. "s1") and user step names."""
     if not self._job_graph:
@@ -97,8 +101,8 @@ class DataflowMetrics(MetricResults):
           'Could not translate the internal step name %r since job graph is '
           'not available.' % internal_name)
     user_step_name = None
-    if (self._job_graph and internal_name in
-        self._job_graph.proto_pipeline.components.transforms.keys()):
+    if (self._job_graph and internal_name
+        in self._job_graph.proto_pipeline.components.transforms.keys()):
       # Dataflow Runner v2 with portable job submission uses proto transform map
       # IDs for step names. Also PTransform.unique_name maps to user step names.
       # Hence we lookup user step names based on the proto.
@@ -233,6 +237,8 @@ class DataflowMetrics(MetricResults):
                 lambda x: x.key == 'sum').value.double_value)
       return DistributionResult(
           DistributionData(dist_sum, dist_count, dist_min, dist_max))
+      #TODO(https://github.com/apache/beam/issues/31788) support StringSet after
+      #  re-generate apiclient
     else:
       return None
 
@@ -277,8 +283,13 @@ class DataflowMetrics(MetricResults):
             elm for elm in metric_results if self.matches(filter, elm.key) and
             DataflowMetrics._is_distribution(elm)
         ],
-        self.GAUGES: []
-    }  # TODO(pabloem): Add Gauge support for dataflow.
+        # TODO(pabloem): Add Gauge support for dataflow.
+        self.GAUGES: [],
+        self.STRINGSETS: [
+            elm for elm in metric_results if self.matches(filter, elm.key) and
+            DataflowMetrics._is_string_set(elm)
+        ]
+    }
 
 
 def main(argv):

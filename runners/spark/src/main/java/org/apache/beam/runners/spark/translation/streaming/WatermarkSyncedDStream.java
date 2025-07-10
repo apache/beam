@@ -22,7 +22,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import java.util.Queue;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Stopwatch;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.apache.spark.api.java.JavaRDD;

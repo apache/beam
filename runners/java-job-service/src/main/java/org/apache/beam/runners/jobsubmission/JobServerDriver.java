@@ -119,12 +119,24 @@ public abstract class JobServerDriver implements Runnable {
       return port;
     }
 
+    public void setPort(int port) {
+      this.port = port;
+    }
+
     public int getArtifactPort() {
       return artifactPort;
     }
 
+    public void setArtifactPort(int artifactPort) {
+      this.artifactPort = artifactPort;
+    }
+
     public int getExpansionPort() {
       return expansionPort;
+    }
+
+    public void setExpansionPort(int expansionPort) {
+      this.expansionPort = expansionPort;
     }
 
     public String getArtifactStagingPath() {

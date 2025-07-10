@@ -24,7 +24,7 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/container/tools"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
-	google_pb "github.com/golang/protobuf/ptypes/struct"
+	google_pb "google.golang.org/protobuf/types/known/structpb"
 )
 
 // Info returns the runtime provisioning info for the worker.

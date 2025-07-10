@@ -621,12 +621,13 @@ public class MemoryMonitor implements Runnable {
     long totalMemory = runtime.totalMemory();
     long usedMemory = totalMemory - runtime.freeMemory();
     return String.format(
-        "used/total/max = %d/%d/%d MB, GC last/max = %.2f/%.2f %%, #pushbacks=%d, gc thrashing=%s",
+        "used/total/max = %d/%d/%d MB, GC last/max = %.2f/%.2f %% (configured threshold: %.2f%%), #pushbacks=%d, gc thrashing=%s",
         usedMemory >> 20,
         totalMemory >> 20,
         maxMemory >> 20,
         lastMeasuredGCPercentage.get(),
         maxGCPercentage.get(),
+        gcThrashingPercentagePerPeriod,
         numPushbacks.get(),
         isThrashing.get());
   }

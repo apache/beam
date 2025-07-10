@@ -24,11 +24,13 @@ import time
 import unittest
 
 import apache_beam as beam
+from apache_beam.io.restriction_trackers import OffsetRange
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.periodicsequence import PeriodicImpulse
 from apache_beam.transforms.periodicsequence import PeriodicSequence
+from apache_beam.transforms.periodicsequence import _sequence_backlog_bytes
 
 # Disable frequent lint warning due to pipe operator for chaining transforms.
 # pylint: disable=expression-not-assigned
@@ -111,6 +113,24 @@ class PeriodicSequenceTest(unittest.TestCase):
       k = [it + x * interval for x in range(0, int(duration / interval), 1)]
       self.assertEqual(result.is_bounded, False)
       assert_that(result, equal_to(k))
+
+  def test_periodicsequence_output_size(self):
+    element = [0, 1000000000, 10]
+    self.assertEqual(
+        _sequence_backlog_bytes(element, 100, OffsetRange(10, 100000000)), 0)
+    self.assertEqual(
+        _sequence_backlog_bytes(element, 100, OffsetRange(9, 100000000)), 8)
+    self.assertEqual(
+        _sequence_backlog_bytes(element, 100, OffsetRange(8, 100000000)), 16)
+    self.assertEqual(
+        _sequence_backlog_bytes(element, 101, OffsetRange(9, 100000000)), 8)
+    self.assertEqual(
+        _sequence_backlog_bytes(element, 10000, OffsetRange(0, 100000000)),
+        8 * 10000 / 10)
+    self.assertEqual(
+        _sequence_backlog_bytes(element, 10000, OffsetRange(1002, 1003)), 0)
+    self.assertEqual(
+        _sequence_backlog_bytes(element, 10100, OffsetRange(1002, 1003)), 8)
 
 
 if __name__ == '__main__':

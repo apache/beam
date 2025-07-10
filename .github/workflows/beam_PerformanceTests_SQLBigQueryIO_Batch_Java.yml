@@ -42,7 +42,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
   INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
@@ -72,7 +72,7 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          python-version: 3.8
+          python-version: default
       - name: Prepare test arguments
         uses: ./.github/actions/test-arguments-action
         with:
@@ -102,3 +102,4 @@ jobs:
           commit: '${{ env.prsha || env.GITHUB_SHA }}'
           comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
           files: '**/build/test-results/**/*.xml'
+          large_files: true

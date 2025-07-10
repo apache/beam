@@ -42,7 +42,9 @@ import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.Manual;
+import org.apache.beam.sdk.util.SerializableSupplier;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -63,15 +65,32 @@ public class ReadChangeStreamPartitionDoFn
   private final DaoFactory daoFactory;
   private final ChangeStreamMetrics metrics;
   private final ActionFactory actionFactory;
+  private final Duration backlogReplicationAdjustment;
   private SizeEstimator<KV<ByteString, ChangeStreamRecord>> sizeEstimator;
   private ReadChangeStreamPartitionAction readChangeStreamPartitionAction;
+  private final SerializableSupplier<Instant> clock;
 
   public ReadChangeStreamPartitionDoFn(
-      DaoFactory daoFactory, ActionFactory actionFactory, ChangeStreamMetrics metrics) {
+      DaoFactory daoFactory,
+      ActionFactory actionFactory,
+      ChangeStreamMetrics metrics,
+      Duration backlogReplicationAdjustment) {
+    this(daoFactory, actionFactory, metrics, backlogReplicationAdjustment, Instant::now);
+  }
+
+  @VisibleForTesting
+  ReadChangeStreamPartitionDoFn(
+      DaoFactory daoFactory,
+      ActionFactory actionFactory,
+      ChangeStreamMetrics metrics,
+      Duration backlogReplicationAdjustment,
+      SerializableSupplier<Instant> clock) {
     this.daoFactory = daoFactory;
     this.metrics = metrics;
     this.actionFactory = actionFactory;
+    this.backlogReplicationAdjustment = backlogReplicationAdjustment;
     this.sizeEstimator = new NullSizeEstimator<>();
+    this.clock = clock;
   }
 
   @GetInitialWatermarkEstimatorState
@@ -126,12 +145,15 @@ public class ReadChangeStreamPartitionDoFn
     // this to count against the backlog and prevent scaling down, so we estimate heartbeat backlog
     // using the time we most recently processed a heartbeat. Otherwise, (for mutations) we use the
     // watermark.
-    Duration processingTimeLag =
-        Duration.millis(
-            Instant.now().getMillis() - streamProgress.getLastRunTimestamp().getMillis());
-    Duration watermarkLag = Duration.millis(Instant.now().getMillis() - lowWatermark.getMillis());
+    long processingTimeLagMillis =
+        clock.get().getMillis() - streamProgress.getLastRunTimestamp().getMillis();
+    Duration watermarkLag = Duration.millis(clock.get().getMillis() - lowWatermark.getMillis());
+    // Remove the backlogReplicationAdjustment from watermarkLag to allow replicated instances to
+    // downscale more easily.
+    long adjustedWatermarkLagMillis =
+        Math.max(0, watermarkLag.minus(backlogReplicationAdjustment).getMillis());
     long lagInMillis =
-        (streamProgress.isHeartbeat() ? processingTimeLag : watermarkLag).getMillis();
+        streamProgress.isHeartbeat() ? processingTimeLagMillis : adjustedWatermarkLagMillis;
     // Return the estimated bytes per second throughput multiplied by the amount of known work
     // outstanding (watermark lag). Cap at max double to avoid overflow.
     double estimatedSize =

@@ -174,10 +174,20 @@ class SparkRunnerTest(portable_runner_test.PortableRunnerTest):
 
   def test_flattened_side_input(self):
     # Blocked on support for transcoding
-    # https://jira.apache.org/jira/browse/BEAM-7236
+    # https://github.com/apache/beam/issues/19504
     super().test_flattened_side_input(with_transcoding=False)
 
+  def test_flatten_and_gbk(self):
+    # Blocked on support for transcoding
+    # https://github.com/apache/beam/issues/19504
+    # Also blocked on support of flatten and groupby sharing the same input
+    # https://github.com/apache/beam/issues/34647
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/34647")
+
   def test_custom_merging_window(self):
+    raise unittest.SkipTest("https://github.com/apache/beam/issues/20641")
+
+  def test_custom_window_type(self):
     raise unittest.SkipTest("https://github.com/apache/beam/issues/20641")
 
   # Inherits all other tests from PortableRunnerTest.

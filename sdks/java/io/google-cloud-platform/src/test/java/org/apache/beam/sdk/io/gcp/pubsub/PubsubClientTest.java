@@ -27,6 +27,7 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.ProjectPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SchemaPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Instant;
 import org.junit.Rule;
@@ -171,6 +172,7 @@ public class PubsubClientTest {
     SubscriptionPath path = PubsubClient.subscriptionPathFromName("test", "something");
     assertEquals("projects/test/subscriptions/something", path.getPath());
     assertEquals("/subscriptions/test/something", path.getFullPath());
+    assertEquals(ImmutableList.of("test", "something"), path.getDataCatalogSegments());
   }
 
   @Test
@@ -178,6 +180,7 @@ public class PubsubClientTest {
     TopicPath path = PubsubClient.topicPathFromName("test", "something");
     assertEquals("projects/test/topics/something", path.getPath());
     assertEquals("/topics/test/something", path.getFullPath());
+    assertEquals(ImmutableList.of("test", "something"), path.getDataCatalogSegments());
   }
 
   @Test
@@ -205,7 +208,7 @@ public class PubsubClientTest {
 
     assertThrows(
         "null definition should throw an exception",
-        NullPointerException.class,
+        SchemaParseException.class,
         () ->
             PubsubClient.fromPubsubSchema(
                 com.google.pubsub.v1.Schema.newBuilder().setType(Schema.Type.AVRO).build()));

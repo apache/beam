@@ -20,37 +20,27 @@
 labels:
   - name: Go
     reviewers:
-      - lostluck
       - jrmccluskey
-      - riteshghorse
-    exclusionList:
-      - youngoli
+      - lostluck
+      - shunping
+    exclusionList: []
   - name: Python
     reviewers:
-      - AnandInguva
+      - claudevdm
       - damccorm
       - jrmccluskey
       - tvalentyn
-      - riteshghorse
       - liferoad
+      - shunping
     exclusionList: []
   - name: Java
     reviewers:
       - Abacn
+      - ahmedabu98
+      - chamikaramj
+      - m-trieu
       - kennknowles
       - robertwb
-      - bvolpato
-      - m-trieu
-      - damondouglas
-    exclusionList: []
-  - name: IO
-    reviewers:
-      - chamikaramj
-      - johnjcasey
-      - Abacn
-      - ahmedabu98
-      - bvolpato
-      - damondouglas
     exclusionList: []
   - name: spanner
     reviewers:
@@ -59,34 +49,34 @@ labels:
     reviewers:
       - igorbernstein2
       - mutianf
+      - djyau
+      - andre-sampaio
+      - meeral-k
     exclusionList: []
-  - name: healthcare
+  - name: kafka
     reviewers:
-      - svetakvsundhar
-    exclusionList: []
+      - johnjcasey
+      - fozzie15
+      - Dippatel98
+      - sjvanrossum
   - name: Build
     reviewers:
-      - damccorm
       - Abacn
+      - damccorm
     exclusionList: []
   - name: website
     reviewers:
-      - rszper
-      - melap
       - damccorm
       - liferoad
       - kennknowles
     exclusionList: []
 fallbackReviewers:
   - Abacn
-  - AnandInguva
   - chamikaramj
   - damccorm
-  - damondouglas
-  - johnjcasey
   - jrmccluskey
   - kennknowles
-  - lostluck
-  - riteshghorse
+  - liferoad
   - robertwb
+  - shunping
   - tvalentyn

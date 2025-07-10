@@ -458,12 +458,12 @@ class _BoundedMongoSource(iobase.BoundedSource):
     with MongoClient(self.uri, **self.spec) as client:
       name_space = "%s.%s" % (self.db, self.coll)
       return client[self.db].command(
-        "splitVector",
-        name_space,
-        keyPattern={"_id": 1},  # Ascending index
-        min={"_id": start_pos},
-        max={"_id": end_pos},
-        maxChunkSize=desired_chunk_size_in_mb,
+          "splitVector",
+          name_space,
+          keyPattern={"_id": 1},  # Ascending index
+          min={"_id": start_pos},
+          max={"_id": end_pos},
+          maxChunkSize=desired_chunk_size_in_mb,
       )["splitKeys"]
 
   def _get_auto_buckets(

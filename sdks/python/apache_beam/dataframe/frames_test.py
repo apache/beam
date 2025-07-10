@@ -15,9 +15,9 @@
 # limitations under the License.
 
 import re
+import sys
 import unittest
 import warnings
-from typing import Dict
 
 import numpy as np
 import pandas as pd
@@ -29,6 +29,7 @@ from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frame_base
 from apache_beam.dataframe import frames
 from apache_beam.dataframe.convert import to_dataframe
+from apache_beam.dataframe.doctests import teststring
 from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive.interactive_runner import InteractiveRunner
@@ -363,6 +364,19 @@ class DeferredFrameTest(_AbstractFrameTest):
     })
     self._run_inplace_test(new_column, df)
 
+  def test_tz_with_utc_zone_set_explicitly(self):
+    test = """
+      >>> s = pd.Series(["1/1/2020 10:00:00+00:00", "2/1/2020 11:00:00+03:00"])
+      >>> s = pd.to_datetime(s, utc=True)
+      >>> s
+      0   2020-01-01 10:00:00+00:00
+      1   2020-02-01 08:00:00+00:00
+      dtype: datetime64[ns, UTC]
+      >>> s.dt.tz
+      datetime.timezone.utc
+    """
+    teststring(test)
+
   def test_tz_localize_ambiguous_series(self):
     # This replicates a tz_localize doctest:
     #   s.tz_localize('CET', ambiguous=np.array([True, True, False]))
@@ -376,8 +390,7 @@ class DeferredFrameTest(_AbstractFrameTest):
     ambiguous = pd.Series([True, True, False], index=s.index)
 
     self._run_test(
-        lambda s,
-        ambiguous: s.tz_localize('CET', ambiguous=ambiguous),
+        lambda s, ambiguous: s.tz_localize('CET', ambiguous=ambiguous),
         s,
         ambiguous)
 
@@ -430,8 +443,7 @@ class DeferredFrameTest(_AbstractFrameTest):
     df2 = pd.DataFrame({'A': [1, 1], 'B': [3, 3]})
     take_smaller = lambda s1, s2: s1 if s1.sum() < s2.sum() else s2
     self._run_test(
-        lambda df,
-        df2: df.combine(df2, take_smaller),
+        lambda df, df2: df.combine(df2, take_smaller),
         df,
         df2,
         nonparallel=True)
@@ -441,8 +453,7 @@ class DeferredFrameTest(_AbstractFrameTest):
     df2 = pd.DataFrame({'A': [1, 1], 'B': [3, 3]})
     take_smaller = lambda s1, s2: s1 if s1.sum() < s2.sum() else s2
     self._run_test(
-        lambda df1,
-        df2: df1.combine(df2, take_smaller, fill_value=-5),
+        lambda df1, df2: df1.combine(df2, take_smaller, fill_value=-5),
         df1,
         df2,
         nonparallel=True)
@@ -451,8 +462,7 @@ class DeferredFrameTest(_AbstractFrameTest):
     s1 = pd.Series({'falcon': 330.0, 'eagle': 160.0})
     s2 = pd.Series({'falcon': 345.0, 'eagle': 200.0, 'duck': 30.0})
     self._run_test(
-        lambda s1,
-        s2: s1.combine(s2, max),
+        lambda s1, s2: s1.combine(s2, max),
         s1,
         s2,
         nonparallel=True,
@@ -562,16 +572,14 @@ class DeferredFrameTest(_AbstractFrameTest):
         'rkey': ['foo', 'bar', 'baz', 'foo'], 'value': [5, 6, 7, 8]
     })
     self._run_test(
-        lambda df1,
-        df2: df1.merge(df2, left_on='lkey', right_on='rkey').rename(
+        lambda df1, df2: df1.merge(df2, left_on='lkey', right_on='rkey').rename(
             index=lambda x: '*'),
         df1,
         df2,
         nonparallel=True,
         check_proxy=False)
     self._run_test(
-        lambda df1,
-        df2: df1.merge(
+        lambda df1, df2: df1.merge(
             df2, left_on='lkey', right_on='rkey', suffixes=('_left', '_right')).
         rename(index=lambda x: '*'),
         df1,
@@ -586,8 +594,8 @@ class DeferredFrameTest(_AbstractFrameTest):
     df2 = pd.DataFrame({'a': ['foo', 'baz'], 'c': [3, 4]})
 
     self._run_test(
-        lambda df1,
-        df2: df1.merge(df2, how='left', on='a').rename(index=lambda x: '*'),
+        lambda df1, df2: df1.merge(df2, how='left', on='a').rename(
+            index=lambda x: '*'),
         df1,
         df2,
         nonparallel=True,
@@ -604,8 +612,7 @@ class DeferredFrameTest(_AbstractFrameTest):
     }).set_index('rkey')
 
     self._run_test(
-        lambda df1,
-        df2: df1.merge(df2, left_index=True, right_index=True),
+        lambda df1, df2: df1.merge(df2, left_index=True, right_index=True),
         df1,
         df2,
         check_proxy=False)
@@ -618,16 +625,14 @@ class DeferredFrameTest(_AbstractFrameTest):
         'key': ['foo', 'bar', 'baz', 'foo'], 'value': [5, 6, 7, 8]
     })
     self._run_test(
-        lambda df1,
-        df2: df1.merge(df2, on='key').rename(index=lambda x: '*'),
+        lambda df1, df2: df1.merge(df2, on='key').rename(index=lambda x: '*'),
         df1,
         df2,
         nonparallel=True,
         check_proxy=False)
     self._run_test(
-        lambda df1,
-        df2: df1.merge(df2, on='key', suffixes=('_left', '_right')).rename(
-            index=lambda x: '*'),
+        lambda df1, df2: df1.merge(df2, on='key', suffixes=('_left', '_right')).
+        rename(index=lambda x: '*'),
         df1,
         df2,
         nonparallel=True,
@@ -638,16 +643,15 @@ class DeferredFrameTest(_AbstractFrameTest):
     df2 = pd.DataFrame({'a': ['foo', 'baz'], 'c': [3, 4]})
 
     self._run_test(
-        lambda df1,
-        df2: df1.merge(df2, how='left', on='a').rename(index=lambda x: '*'),
+        lambda df1, df2: df1.merge(df2, how='left', on='a').rename(
+            index=lambda x: '*'),
         df1,
         df2,
         nonparallel=True,
         check_proxy=False)
     # Test without specifying 'on'
     self._run_test(
-        lambda df1,
-        df2: df1.merge(df2, how='left').rename(index=lambda x: '*'),
+        lambda df1, df2: df1.merge(df2, how='left').rename(index=lambda x: '*'),
         df1,
         df2,
         nonparallel=True,
@@ -658,8 +662,7 @@ class DeferredFrameTest(_AbstractFrameTest):
     df2 = pd.DataFrame({'a': ['foo', 'baz'], 'c': [3, 4], 'a_rsuffix': [7, 8]})
 
     self._run_test(
-        lambda df1,
-        df2: df1.merge(
+        lambda df1, df2: df1.merge(
             df2, how='left', on='a', suffixes=('_lsuffix', '_rsuffix')).rename(
                 index=lambda x: '*'),
         df1,
@@ -668,9 +671,9 @@ class DeferredFrameTest(_AbstractFrameTest):
         check_proxy=False)
     # Test without specifying 'on'
     self._run_test(
-        lambda df1,
-        df2: df1.merge(df2, how='left', suffixes=('_lsuffix', '_rsuffix')).
-        rename(index=lambda x: '*'),
+        lambda df1, df2: df1.merge(
+            df2, how='left', suffixes=('_lsuffix', '_rsuffix')).rename(
+                index=lambda x: '*'),
         df1,
         df2,
         nonparallel=True,
@@ -717,10 +720,8 @@ class DeferredFrameTest(_AbstractFrameTest):
     for normalize in (True, False):
       for dropna in (True, False):
         self._run_test(
-            lambda df,
-            dropna=dropna,
-            normalize=normalize: df.num_wings.value_counts(
-                dropna=dropna, normalize=normalize),
+            lambda df, dropna=dropna, normalize=normalize: df.num_wings.
+            value_counts(dropna=dropna, normalize=normalize),
             df)
 
   def test_value_counts_does_not_support_sort(self):
@@ -948,11 +949,8 @@ class DeferredFrameTest(_AbstractFrameTest):
         df)
     self._run_test(
         lambda df: df.melt(
-            id_vars=['A'],
-            value_vars=['B'],
-            var_name='myVarname',
-            value_name='myValname',
-            ignore_index=False),
+            id_vars=['A'], value_vars=['B'], var_name='myVarname', value_name=
+            'myValname', ignore_index=False),
         df)
     self._run_test(
         lambda df: df.melt(
@@ -1010,20 +1008,29 @@ class DeferredFrameTest(_AbstractFrameTest):
 
     self._run_test(lambda df, df2: df.A.fillna(df2.A), df, df2)
 
+  def test_dataframe_column_fillna_constant_as_value(self):
+    from apache_beam.dataframe import convert
+    from apache_beam.testing.util import assert_that
+    from apache_beam.testing.util import equal_to
+    with beam.Pipeline(None) as p:
+      pcoll = (
+          p | beam.Create([1.0, np.nan, -1.0]) | beam.Select(x=lambda x: x))
+      df = convert.to_dataframe(pcoll)
+      df_new = df['x'].fillna(0)
+      assert_that(convert.to_pcollection(df_new), equal_to([1.0, 0.0, -1.0]))
+
   @unittest.skipIf(PD_VERSION >= (2, 0), 'append removed in Pandas 2.0')
   def test_append_verify_integrity(self):
     df1 = pd.DataFrame({'A': range(10), 'B': range(10)}, index=range(10))
     df2 = pd.DataFrame({'A': range(10), 'B': range(10)}, index=range(9, 19))
 
     self._run_error_test(
-        lambda s1,
-        s2: s1.append(s2, verify_integrity=True),
+        lambda s1, s2: s1.append(s2, verify_integrity=True),
         df1['A'],
         df2['A'],
         construction_time=False)
     self._run_error_test(
-        lambda df1,
-        df2: df1.append(df2, verify_integrity=True),
+        lambda df1, df2: df1.append(df2, verify_integrity=True),
         df1,
         df2,
         construction_time=False)
@@ -1119,12 +1126,12 @@ class DeferredFrameTest(_AbstractFrameTest):
       (
           lambda base: base.from_dict({
               'row_1': [3, 2, 1, 0], 'row_2': ['a', 'b', 'c', 'd']
-          },
-                                      orient='index'), ),
+          }, orient='index'), ),
       (
           lambda base: base.from_records(
-              np.array([(3, 'a'), (2, 'b'), (1, 'c'), (0, 'd')],
-                       dtype=[('col_1', 'i4'), ('col_2', 'U1')])), ),
+              np.array([(3, 'a'), (2, 'b'), (1, 'c'),
+                        (0, 'd')], dtype=[('col_1', 'i4'),
+                                          ('col_2', 'U1')])), ),
   ])
   def test_create_methods(self, func):
     expected = func(pd.DataFrame)
@@ -1217,8 +1224,7 @@ class DeferredFrameTest(_AbstractFrameTest):
     ambiguous = pd.Series([True, True, False], index=s.index)
 
     self._run_test(
-        lambda s,
-        ambiguous: s.dt.tz_localize('CET', ambiguous=ambiguous),
+        lambda s, ambiguous: s.dt.tz_localize('CET', ambiguous=ambiguous),
         s,
         ambiguous)
 
@@ -1272,25 +1278,22 @@ class DeferredFrameTest(_AbstractFrameTest):
       self._run_test(lambda df1, df2: df1.compare(df2), df1, df2)
 
     self._run_test(
-        lambda df1,
-        df2: df1.compare(df2, align_axis=0),
+        lambda df1, df2: df1.compare(df2, align_axis=0),
         df1,
         df2,
         check_proxy=False)
     self._run_test(lambda df1, df2: df1.compare(df2, keep_shape=True), df1, df2)
     self._run_test(
-        lambda df1,
-        df2: df1.compare(df2, align_axis=0, keep_shape=True),
+        lambda df1, df2: df1.compare(df2, align_axis=0, keep_shape=True),
         df1,
         df2)
     self._run_test(
-        lambda df1,
-        df2: df1.compare(df2, keep_shape=True, keep_equal=True),
+        lambda df1, df2: df1.compare(df2, keep_shape=True, keep_equal=True),
         df1,
         df2)
     self._run_test(
-        lambda df1,
-        df2: df1.compare(df2, align_axis=0, keep_shape=True, keep_equal=True),
+        lambda df1, df2: df1.compare(
+            df2, align_axis=0, keep_shape=True, keep_equal=True),
         df1,
         df2)
 
@@ -1433,6 +1436,9 @@ class DeferredFrameTest(_AbstractFrameTest):
     s = pd.Series(np.arange(1.0, 5.0), index=index)
     self._run_test(lambda s: s.unstack(level=0), s)
 
+  @unittest.skipIf(
+      sys.version_info >= (3, 12) and PD_VERSION < (2, 3),
+      'https://github.com/pandas-dev/pandas/issues/58604')
   def test_unstack_pandas_example3(self):
     index = self._unstack_get_categorical_index()
     s = pd.Series(np.arange(1.0, 5.0), index=index)
@@ -1678,7 +1684,7 @@ AGGREGATIONS_WHERE_NUMERIC_ONLY_DEFAULTS_TO_TRUE_IN_PANDAS_1 = set(
         'describe'))
 
 
-def numeric_only_kwargs_for_pandas_2(agg_type: str) -> Dict[str, bool]:
+def numeric_only_kwargs_for_pandas_2(agg_type: str) -> dict[str, bool]:
   """Get proper arguments for numeric_only.
 
   Behavior for numeric_only in these methods changed in Pandas 2 to default
@@ -1928,8 +1934,7 @@ class GroupByTest(_AbstractFrameTest):
       [2, 1],
       ['foo', 0],
       [1, 'str'],
-      [3, 0, 2, 1],
-  ])
+      [3, 0, 2, 1], ])
   def test_groupby_level_agg(self, level):
     df = GROUPBY_DF.set_index(['group', 'foo', 'bar', 'str'], drop=False)
     self._run_test(lambda df: df.groupby(level=level).bar.max(), df)
@@ -2184,8 +2189,8 @@ class AggregationTest(_AbstractFrameTest):
   def test_series_agg_multifunc_level(self):
     # level= is ignored for multiple agg fns
     self._run_test(
-        lambda df: df.set_index(['group', 'foo']).bar.agg(['min', 'max'],
-                                                          level=0),
+        lambda df: df.set_index(['group', 'foo']).bar.agg(['min', 'max'], level=
+                                                          0),
         GROUPBY_DF)
 
   def test_series_mean_skipna(self):
@@ -2335,6 +2340,15 @@ class AggregationTest(_AbstractFrameTest):
 
     self._run_test(lambda s: s.agg('std'), s)
     self._run_test(lambda s: s.std(), s)
+
+  def test_df_agg_operations_on_columns(self):
+    self._run_test(
+        lambda df: df.groupby('group').agg(
+            mean_foo=('foo', lambda x: np.mean(x)),
+            median_bar=('bar', lambda x: np.median(x)),
+            sum_baz=('baz', 'sum'),
+            count_bool=('bool', 'count'), ),
+        GROUPBY_DF)
 
   def test_std_mostly_na_with_ddof(self):
     df = pd.DataFrame({
@@ -2779,8 +2793,7 @@ class BeamSpecificTest(unittest.TestCase):
     self.assertTrue(target_weight > other_weight * 10, "weights too close")
 
     result = self._evaluate(
-        lambda s,
-        weights: s.sample(n=num_samples, weights=weights).sum(),
+        lambda s, weights: s.sample(n=num_samples, weights=weights).sum(),
         # The first elements are 1, the rest are all 0.  This means that when
         # we sum all the sampled elements (above), the result should be the
         # number of times the first elements (aka targets) were sampled.

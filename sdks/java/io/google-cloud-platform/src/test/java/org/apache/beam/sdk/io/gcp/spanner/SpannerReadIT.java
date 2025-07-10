@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner;
 
+import static org.junit.Assert.assertEquals;
+
 import com.google.api.gax.longrunning.OperationFuture;
 import com.google.cloud.spanner.BatchClient;
 import com.google.cloud.spanner.Database;
@@ -38,6 +40,7 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
@@ -67,6 +70,7 @@ import org.junit.runners.JUnit4;
 public class SpannerReadIT {
 
   private static final int MAX_DB_NAME_LENGTH = 30;
+  private static final int CLEANUP_PROPAGATION_DELAY_MS = 5000;
 
   @Rule public final transient TestPipeline p = TestPipeline.create();
   @Rule public transient ExpectedException thrown = ExpectedException.none();
@@ -190,6 +194,37 @@ public class SpannerReadIT {
   }
 
   @Test
+  public void testReadWithSchema() throws Exception {
+
+    SpannerConfig spannerConfig = createSpannerConfig();
+
+    PCollectionView<Transaction> tx =
+        p.apply(
+            "Create tx",
+            SpannerIO.createTransaction()
+                .withSpannerConfig(spannerConfig)
+                .withTimestampBound(TimestampBound.strong()));
+
+    PCollection<Struct> output =
+        p.apply(
+            "read db",
+            SpannerIO.readWithSchema()
+                .withSpannerConfig(spannerConfig)
+                .withTable(options.getTable())
+                .withColumns("Key", "Value")
+                .withTransaction(tx));
+    Schema schema =
+        Schema.of(
+            Schema.Field.nullable("Key", Schema.FieldType.INT64),
+            Schema.Field.nullable("Value", Schema.FieldType.STRING));
+    assertEquals(output.getSchema(), schema);
+
+    PAssert.thatSingleton(output.apply("Count rows", Count.<Struct>globally())).isEqualTo(5L);
+
+    p.run().waitUntilFinish();
+  }
+
+  @Test
   @Ignore("https://github.com/apache/beam/issues/26208 Test stuck indefinitely")
   public void testReadWithDataBoost() throws Exception {
 
@@ -251,6 +286,12 @@ public class SpannerReadIT {
     public Transaction apply(Transaction tx) {
       BatchClient batchClient = SpannerAccessor.getOrCreate(spannerConfig).getBatchClient();
       batchClient.batchReadOnlyTransaction(tx.transactionId()).cleanup();
+      try {
+        // Wait for cleanup to propagate.
+        Thread.sleep(CLEANUP_PROPAGATION_DELAY_MS);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
       return tx;
     }
   }

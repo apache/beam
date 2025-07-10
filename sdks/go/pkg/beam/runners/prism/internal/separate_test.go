@@ -18,6 +18,7 @@ package internal_test
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/rpc"
@@ -34,7 +35,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
-	"golang.org/x/exp/slog"
 )
 
 // separate_test.go retains structures and tests to ensure the runner can
@@ -286,7 +286,7 @@ func (ws *Watchers) Check(args *Args, unblocked *bool) error {
 	w.mu.Lock()
 	*unblocked = w.sentinelCount >= w.sentinelCap
 	w.mu.Unlock()
-	slog.Debug("sentinel target for watcher%d is %d/%d. unblocked=%v", args.WatcherID, w.sentinelCount, w.sentinelCap, *unblocked)
+	slog.Debug("sentinel watcher status", slog.Int("watcher", args.WatcherID), slog.Int("sentinelCount", w.sentinelCount), slog.Int("sentinelCap", w.sentinelCap), slog.Bool("unblocked", *unblocked))
 	return nil
 }
 
@@ -360,7 +360,7 @@ func (fn *sepHarnessBase) setup() error {
 	sepClientOnce.Do(func() {
 		client, err := rpc.DialHTTP("tcp", fn.LocalService)
 		if err != nil {
-			slog.Error("failed to dial sentinels  server", err, slog.String("endpoint", fn.LocalService))
+			slog.Error("failed to dial sentinels  server", slog.Any("error", err), slog.String("endpoint", fn.LocalService))
 			panic(fmt.Sprintf("dialing sentinels server %v: %v", fn.LocalService, err))
 		}
 		sepClient = client
@@ -385,7 +385,7 @@ func (fn *sepHarnessBase) setup() error {
 			var unblock bool
 			err := sepClient.Call("Watchers.Check", &Args{WatcherID: id}, &unblock)
 			if err != nil {
-				slog.Error("Watchers.Check: sentinels server error", err, slog.String("endpoint", fn.LocalService))
+				slog.Error("Watchers.Check: sentinels server error", slog.Any("error", err), slog.String("endpoint", fn.LocalService))
 				panic("sentinel server error")
 			}
 			if unblock {
@@ -406,7 +406,7 @@ func (fn *sepHarnessBase) block() {
 	var ignored bool
 	err := sepClient.Call("Watchers.Block", &Args{WatcherID: fn.WatcherID}, &ignored)
 	if err != nil {
-		slog.Error("Watchers.Block error", err, slog.String("endpoint", fn.LocalService))
+		slog.Error("Watchers.Block error", slog.Any("error", err), slog.String("endpoint", fn.LocalService))
 		panic(err)
 	}
 	c := sepWaitMap[fn.WatcherID]
@@ -423,7 +423,7 @@ func (fn *sepHarnessBase) delay() bool {
 	var delay bool
 	err := sepClient.Call("Watchers.Delay", &Args{WatcherID: fn.WatcherID}, &delay)
 	if err != nil {
-		slog.Error("Watchers.Delay error", err)
+		slog.Error("Watchers.Delay error", slog.Any("error", err))
 		panic(err)
 	}
 	return delay

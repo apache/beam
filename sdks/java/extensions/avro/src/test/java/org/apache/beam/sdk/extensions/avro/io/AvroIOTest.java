@@ -36,6 +36,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -100,7 +101,6 @@ import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -1436,7 +1436,7 @@ public class AvroIOTest implements Serializable {
                           "longKey",
                           100L,
                           "bytesKey",
-                          "bytesValue".getBytes(Charsets.UTF_8))));
+                          "bytesValue".getBytes(StandardCharsets.UTF_8))));
       writePipeline.run();
 
       try (DataFileStream dataFileStream =
@@ -1444,7 +1444,7 @@ public class AvroIOTest implements Serializable {
         assertEquals("stringValue", dataFileStream.getMetaString("stringKey"));
         assertEquals(100L, dataFileStream.getMetaLong("longKey"));
         assertArrayEquals(
-            "bytesValue".getBytes(Charsets.UTF_8), dataFileStream.getMeta("bytesKey"));
+            "bytesValue".getBytes(StandardCharsets.UTF_8), dataFileStream.getMeta("bytesKey"));
       }
     }
 

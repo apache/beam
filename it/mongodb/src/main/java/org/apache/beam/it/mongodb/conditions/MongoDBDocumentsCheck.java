@@ -18,9 +18,9 @@
 package org.apache.beam.it.mongodb.conditions;
 
 import com.google.auto.value.AutoValue;
-import javax.annotation.Nullable;
 import org.apache.beam.it.conditions.ConditionCheck;
 import org.apache.beam.it.mongodb.MongoDBResourceManager;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** ConditionCheck to validate if MongoDB has received a certain amount of documents. */
 @AutoValue
@@ -32,8 +32,7 @@ public abstract class MongoDBDocumentsCheck extends ConditionCheck {
 
   abstract Integer minDocuments();
 
-  @Nullable
-  abstract Integer maxDocuments();
+  abstract @Nullable Integer maxDocuments();
 
   @Override
   public String getDescription() {

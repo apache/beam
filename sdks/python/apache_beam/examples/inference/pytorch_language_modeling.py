@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-""""A pipeline that uses RunInference to perform Language Modeling with Bert.
+"""A pipeline that uses RunInference to perform Language Modeling with Bert.
 
 This pipeline takes sentences from a custom text file, converts the last word
 of the sentence into a [MASK] token, and then uses the BertForMaskedLM from
@@ -26,10 +26,8 @@ file in which users can then compare against the original sentence.
 
 import argparse
 import logging
-from typing import Dict
-from typing import Iterable
-from typing import Iterator
-from typing import Tuple
+from collections.abc import Iterable
+from collections.abc import Iterator
 
 import apache_beam as beam
 import torch
@@ -45,14 +43,14 @@ from transformers import BertForMaskedLM
 from transformers import BertTokenizer
 
 
-def add_mask_to_last_word(text: str) -> Tuple[str, str]:
+def add_mask_to_last_word(text: str) -> tuple[str, str]:
   text_list = text.split()
   return text, ' '.join(text_list[:-2] + ['[MASK]', text_list[-1]])
 
 
 def tokenize_sentence(
-    text_and_mask: Tuple[str, str],
-    bert_tokenizer: BertTokenizer) -> Tuple[str, Dict[str, torch.Tensor]]:
+    text_and_mask: tuple[str, str],
+    bert_tokenizer: BertTokenizer) -> tuple[str, dict[str, torch.Tensor]]:
   text, masked_text = text_and_mask
   tokenized_sentence = bert_tokenizer.encode_plus(
       masked_text, return_tensors="pt")
@@ -84,7 +82,7 @@ class PostProcessor(beam.DoFn):
     super().__init__()
     self.bert_tokenizer = bert_tokenizer
 
-  def process(self, element: Tuple[str, PredictionResult]) -> Iterable[str]:
+  def process(self, element: tuple[str, PredictionResult]) -> Iterable[str]:
     text, prediction_result = element
     inputs = prediction_result.example
     logits = prediction_result.inference['logits']
@@ -183,18 +181,19 @@ def run(
   bert_tokenizer = BertTokenizer.from_pretrained(known_args.bert_tokenizer)
 
   if not known_args.input:
-    text = (pipeline | 'CreateSentences' >> beam.Create([
-      'The capital of France is Paris .',
-      'It is raining cats and dogs .',
-      'He looked up and saw the sun and stars .',
-      'Today is Monday and tomorrow is Tuesday .',
-      'There are 5 coconuts on this palm tree .',
-      'The richest person in the world is not here .',
-      'Malls are amazing places to shop because you can find everything you need under one roof .', # pylint: disable=line-too-long
-      'This audiobook is sure to liquefy your brain .',
-      'The secret ingredient to his wonderful life was gratitude .',
-      'The biggest animal in the world is the whale .',
-    ]))
+    text = (
+        pipeline | 'CreateSentences' >> beam.Create([
+            'The capital of France is Paris .',
+            'It is raining cats and dogs .',
+            'He looked up and saw the sun and stars .',
+            'Today is Monday and tomorrow is Tuesday .',
+            'There are 5 coconuts on this palm tree .',
+            'The richest person in the world is not here .',
+            'Malls are amazing places to shop because you can find everything you need under one roof .',  # pylint: disable=line-too-long
+            'This audiobook is sure to liquefy your brain .',
+            'The secret ingredient to his wonderful life was gratitude .',
+            'The biggest animal in the world is the whale .',
+        ]))
   else:
     text = (
         pipeline | 'ReadSentences' >> beam.io.ReadFromText(known_args.input))

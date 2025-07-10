@@ -16,6 +16,7 @@
 import os
 import re
 import requests
+from datetime import datetime
 from github import Github
 from github import Auth
 
@@ -23,6 +24,19 @@ from github import Auth
 ALERT_NAME = "flaky_test"
 GIT_ORG = "apache"
 GRAFANA_URL = "http://metrics.beam.apache.org"
+GRAFANA_PANEL_IDS = {
+    "core_infra": 1,
+    "important_signals": 2,
+    "core_java": 3,
+    "dataflow_java": 4,
+    "runners_java": 5,
+    "load_perf_java": 6,
+    "core_python": 7,
+    "runners_python": 8,
+    "load_perf_python": 9,
+    "go": 10,
+    "misc": 11,
+}
 READ_ONLY = os.environ.get("READ_ONLY", "true")
 
 
@@ -34,12 +48,16 @@ class Alert:
         workflow_name,
         workflow_filename,
         workflow_threshold,
+        workflow_dashboard_category,
+        workflow_retrieved_at,
     ):
         self.workflow_id = workflow_id
         self.workflow_url = workflow_url
         self.workflow_name = workflow_name
         self.workflow_filename = workflow_filename
         self.workflow_threshold = round(float(workflow_threshold), 2)
+        self.workflow_dashboard_category = workflow_dashboard_category
+        self.workflow_retrieved_at = workflow_retrieved_at
 
 
 def get_workflow_issues(issues):
@@ -54,10 +72,23 @@ def get_workflow_issues(issues):
     return workflows
 
 
+def ensure_labels_exist(repo, labels):
+    existing_labels = {label.name for label in repo.get_labels()}
+    for label in labels:
+        if label not in existing_labels:
+            repo.create_label(name=label, color="ededed")
+
+
 def create_github_issue(repo, alert):
-    failing_runs_url = f"https://github.com/{GIT_ORG}/beam/actions/{alert.workflow_filename}?query=is%3Afailure+branch%3Amaster"
+    github_workflow_failing_runs_url = f"https://github.com/{GIT_ORG}/beam/actions/{alert.workflow_filename}?query=is%3Afailure+branch%3Amaster"
     title = f"The {alert.workflow_name} job is flaky"
-    body = f"The {alert.workflow_name } is failing over {int(alert.workflow_threshold * 100)}% of the time \nPlease visit {failing_runs_url} to see the logs."
+    body = f"The {alert.workflow_name } is failing over {int(alert.workflow_threshold * 100)}% of the time.\n" \
+           f"Please visit {github_workflow_failing_runs_url} to see all failed workflow runs.\n"
+    if GRAFANA_PANEL_IDS.get(alert.workflow_dashboard_category):
+        grafana_workflow_runs_url = f"{GRAFANA_URL}/d/CTYdoxP4z/ga-post-commits-status?orgId=1" \
+                           f"&viewPanel={GRAFANA_PANEL_IDS[alert.workflow_dashboard_category]}" \
+                           f"&var-Workflow={alert.workflow_name.replace(' ', '%20')}"
+        body += f"See also Grafana statistics: {grafana_workflow_runs_url}"
     labels = ["flaky_test", f"workflow_id: {alert.workflow_id}", "bug", "P1"]
     print("___")
     print(f"Title: {title}")
@@ -68,6 +99,7 @@ def create_github_issue(repo, alert):
     if READ_ONLY == "true":
         print("READ_ONLY is true, not creating issue")
     else:
+        ensure_labels_exist(repo, labels)
         repo.create_issue(title=title, body=body, labels=labels)
 
 
@@ -89,6 +121,8 @@ def get_grafana_alerts():
                     alert["labels"]["workflow_name"],
                     alert["labels"]["workflow_filename"],
                     alert["labels"]["workflow_threshold"],
+                    alert["labels"]["dashboard_category"],
+                    datetime.fromisoformat(alert["labels"]["workflow_retrieved_at"]),
                 )
             )
     return alerts
@@ -114,6 +148,8 @@ def main():
             issue = workflow_closed_issues[alert.workflow_id]
             if READ_ONLY == "true":
                 print("READ_ONLY is true, not reopening issue")
+            elif issue.closed_at > alert.workflow_retrieved_at:
+                print(f"The issue for the workflow {alert.workflow_id} has been closed, skipping")
             else:
                 issue.edit(state="open")
                 issue.create_comment(body="Reopening since the workflow is still flaky")
@@ -121,7 +157,7 @@ def main():
         elif alert.workflow_id not in workflow_open_issues.keys():
             create_github_issue(repo, alert)
         else:
-            print("Issue is already open, skipping")
+            print(f"The issue for the workflow {alert.workflow_id} is already open, skipping")
 
     g.close()
 

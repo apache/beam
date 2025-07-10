@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -96,6 +97,23 @@ public final class CoderHelpers {
   public static <T> List<byte[]> toByteArrays(Iterable<T> values, Coder<T> coder) {
     List<byte[]> res = new ArrayList<>();
     for (T value : values) {
+      res.add(toByteArray(value, coder));
+    }
+    return res;
+  }
+
+  /**
+   * Utility method for serializing a Iterator of values using the specified coder.
+   *
+   * @param values Values to serialize.
+   * @param coder Coder to serialize with.
+   * @param <T> type of value that is serialized
+   * @return List of bytes representing serialized objects.
+   */
+  public static <T> List<byte[]> toByteArrays(Iterator<T> values, Coder<T> coder) {
+    List<byte[]> res = new ArrayList<>();
+    while (values.hasNext()) {
+      final T value = values.next();
       res.add(toByteArray(value, coder));
     }
     return res;

@@ -70,9 +70,9 @@ def retry_on_rpc_error(exception):
 def create_entities(count, id_or_name=False):
   """Creates a list of entities with random keys."""
   if id_or_name:
-    ids_or_names = [
+    ids_or_names: List[Union[str, int]] = [
         uuid.uuid4().int & ((1 << 63) - 1) for _ in range(count)
-    ]  # type: List[Union[str, int]]
+    ]
   else:
     ids_or_names = [str(uuid.uuid4()) for _ in range(count)]
 

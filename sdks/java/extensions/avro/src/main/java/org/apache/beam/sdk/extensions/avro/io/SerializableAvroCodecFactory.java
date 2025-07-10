@@ -50,6 +50,9 @@ class SerializableAvroCodecFactory implements Externalizable {
   private static final Pattern deflatePattern = Pattern.compile(DEFLATE_CODEC + "-(?<level>-?\\d)");
   private static final Pattern xzPattern = Pattern.compile(XZ_CODEC + "-(?<level>\\d)");
 
+  // Don't reference `DataFileConstants.ZSTANDARD_CODEC` directly for Avro 1.8 compat
+  private static final Pattern zstdPattern = Pattern.compile("zstandard\\[(?<level>-?\\d+)\\]");
+
   private @Nullable CodecFactory codecFactory;
 
   // For java.io.Externalizable
@@ -65,7 +68,8 @@ class SerializableAvroCodecFactory implements Externalizable {
     final String codecStr = codecFactory.toString();
     return noOptAvroCodecs.contains(codecStr)
         || deflatePattern.matcher(codecStr).matches()
-        || xzPattern.matcher(codecStr).matches();
+        || xzPattern.matcher(codecStr).matches()
+        || zstdPattern.matcher(codecStr).matches();
   }
 
   @Override
@@ -94,6 +98,12 @@ class SerializableAvroCodecFactory implements Externalizable {
     Matcher xzMatcher = xzPattern.matcher(codecStr);
     if (xzMatcher.find()) {
       codecFactory = CodecFactory.xzCodec(Integer.parseInt(xzMatcher.group("level")));
+      return;
+    }
+
+    Matcher zstdMatcher = zstdPattern.matcher(codecStr);
+    if (zstdMatcher.find()) {
+      codecFactory = CodecFactory.zstandardCodec(Integer.parseInt(zstdMatcher.group("level")));
       return;
     }
 

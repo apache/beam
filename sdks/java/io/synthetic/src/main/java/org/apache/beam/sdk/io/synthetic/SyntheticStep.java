@@ -58,7 +58,7 @@ public class SyntheticStep extends DoFn<KV<byte[], byte[]>, KV<byte[], byte[]>> 
   private final KV<Long, Long> idAndThroughput;
 
   private final Counter throttlingCounter =
-      Metrics.counter("dataflow-throttling-metrics", "throttling-msecs");
+      Metrics.counter("dataflow-throttling-metrics", Metrics.THROTTLE_TIME_COUNTER_NAME);
 
   /**
    * Static cache to store one worker level rate limiter for a step. Value in KV is the desired

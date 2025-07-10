@@ -36,14 +36,11 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.Timer;
+import org.apache.beam.sdk.values.WindowedValue;
 
 /** A factory able to instantiate an appropriate handler for a given PTransform. */
-@SuppressWarnings({
-  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
-})
-public interface PTransformRunnerFactory<T> {
+public interface PTransformRunnerFactory {
 
   /** A context used to instantiate and support the handler necessary to execute the PTransform. */
   interface Context {
@@ -62,6 +59,13 @@ public interface PTransformRunnerFactory<T> {
     /** The id of the PTransform. */
     String getPTransformId();
 
+    /**
+     * An immutable component with mapping from coder id to coder definition, mapping from windowing
+     * strategy id to windowing strategy definition and mapping from PCollection id to PCollection
+     * definition.
+     */
+    RunnerApi.Components getComponents();
+
     /** The PTransform definition. */
     RunnerApi.PTransform getPTransform();
 
@@ -76,15 +80,6 @@ public interface PTransformRunnerFactory<T> {
 
     /** A cache that is process wide and persists across bundle boundaries. */
     Cache<?, ?> getProcessWideCache();
-
-    /** An immutable mapping from PCollection id to PCollection definition. */
-    Map<String, RunnerApi.PCollection> getPCollections();
-
-    /** An immutable mapping from coder id to coder definition. */
-    Map<String, RunnerApi.Coder> getCoders();
-
-    /** An immutable mapping from windowing strategy id to windowing strategy definition. */
-    Map<String, RunnerApi.WindowingStrategy> getWindowingStrategies();
 
     /** An immutable set of runner capability urns. */
     Set<String> getRunnerCapabilities();
@@ -123,6 +118,8 @@ public interface PTransformRunnerFactory<T> {
 
     <T> void addIncomingTimerEndpoint(
         String timerFamilyId, Coder<Timer<T>> coder, FnDataReceiver<Timer<T>> receiver);
+
+    <T> void addChannelRoot(BeamFnDataReadRunner<T> beamFnDataReadRunner);
 
     /**
      * Register any reset methods. This should not invoke any user code which should be done instead
@@ -166,12 +163,12 @@ public interface PTransformRunnerFactory<T> {
   }
 
   /**
-   * Creates and returns a handler for a given PTransform. Note that the handler must support
+   * Creates and registers a handler for a given PTransform. Note that the handler must support
    * processing multiple bundles. The handler will be discarded if bundle processing fails or
    * management of the handler between bundle processing fails. The handler may also be discarded
    * due to memory pressure.
    */
-  T createRunnerForPTransform(Context context) throws IOException;
+  void addRunnerForPTransform(Context context) throws IOException;
 
   /**
    * A registrar which can return a mapping from {@link RunnerApi.FunctionSpec#getUrn()} to a

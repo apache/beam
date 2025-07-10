@@ -22,6 +22,7 @@ import static com.google.datastore.v1.client.DatastoreHelper.makeUpsert;
 import static org.apache.beam.sdk.io.gcp.datastore.V1TestUtil.countEntities;
 import static org.apache.beam.sdk.io.gcp.datastore.V1TestUtil.deleteAllEntities;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 import com.google.datastore.v1.Entity;
 import com.google.datastore.v1.Key;
@@ -39,11 +40,13 @@ import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Wait;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.After;
 import org.junit.Before;
@@ -119,8 +122,8 @@ public class V1WriteIT {
         new DatastoreV1.DatastoreWriterFn(
             TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject(), null);
 
-    PTransform<PCollection<? extends Mutation>, PCollection<Void>> datastoreWriterTransform =
-        ParDo.of(datastoreWriter);
+    PTransform<PCollection<? extends Mutation>, PCollection<DatastoreV1.WriteSuccessSummary>>
+        datastoreWriterTransform = ParDo.of(datastoreWriter);
 
     /** Following three lines turn the original arrayList into a member of the first PCollection */
     List<Mutation> newArrayList = new ArrayList<>(mutations);
@@ -194,6 +197,99 @@ public class V1WriteIT {
     long numEntitiesWritten = countEntities(options, project, database, ancestor);
 
     assertEquals(numLargeEntities, numEntitiesWritten);
+  }
+
+  /** Tests {@link DatastoreV1.WriteWithSummary} using {@link DatastoreV1.Write#withResults()}. */
+  @Test
+  public void testE2EV1WriteWithResults() throws Exception {
+    Pipeline p = Pipeline.create(options);
+
+    PCollection<Entity> firstBatch =
+        p.apply("First GenerateSequence", GenerateSequence.from(0).to(numEntities))
+            .apply(
+                "First CreateEntityFn",
+                ParDo.of(
+                    new V1TestUtil.CreateEntityFn(
+                        options.getKind(), options.getNamespace(), ancestor, 0)));
+    PCollection<Entity> secondBatch =
+        p.apply("Second GenerateSequence", GenerateSequence.from(numEntities).to(numEntities * 2))
+            .apply(
+                "Second CreateEntityFn",
+                ParDo.of(
+                    new V1TestUtil.CreateEntityFn(
+                        options.getKind(), options.getNamespace(), ancestor, 0)));
+    PCollection<DatastoreV1.WriteSuccessSummary> firstWriteResults =
+        firstBatch.apply(DatastoreIO.v1().write().withProjectId(project).withResults());
+
+    secondBatch
+        .apply(Wait.on(firstWriteResults))
+        .setCoder(secondBatch.getCoder())
+        .apply(DatastoreIO.v1().write().withProjectId(project));
+
+    PAssert.that(firstWriteResults)
+        .satisfies(
+            results -> {
+              for (DatastoreV1.WriteSuccessSummary result : results) {
+                assertNotNull(result);
+              }
+              return null;
+            });
+
+    p.run();
+
+    long numEntitiesWritten = countEntities(options, project, database, ancestor);
+
+    assertEquals(numEntities * 2, numEntitiesWritten);
+  }
+
+  /**
+   * Tests {@link DatastoreV1.WriteWithSummary} using {@link DatastoreV1.Write#withResults()} and
+   * {@link DatastoreV1.DeleteEntity#withResults()}.
+   */
+  @Test
+  public void testE2EV1WriteWithResultsAndDeleteWithResults() throws Exception {
+    Pipeline p = Pipeline.create(options);
+
+    PCollection<Entity> entities =
+        p.apply("First GenerateSequence", GenerateSequence.from(0).to(numEntities))
+            .apply(
+                "First CreateEntityFn",
+                ParDo.of(
+                    new V1TestUtil.CreateEntityFn(
+                        options.getKind(), options.getNamespace(), ancestor, 0)));
+
+    PCollection<DatastoreV1.WriteSuccessSummary> writeResults =
+        entities.apply(DatastoreIO.v1().write().withProjectId(project).withResults());
+
+    PCollection<DatastoreV1.WriteSuccessSummary> deleteResults =
+        entities
+            .apply(Wait.on(writeResults))
+            .setCoder(entities.getCoder())
+            .apply(DatastoreIO.v1().deleteEntity().withProjectId(project).withResults());
+
+    PAssert.that(writeResults)
+        .satisfies(
+            results -> {
+              for (DatastoreV1.WriteSuccessSummary result : results) {
+                assertNotNull(result);
+              }
+              return null;
+            });
+
+    PAssert.that(deleteResults)
+        .satisfies(
+            results -> {
+              for (DatastoreV1.WriteSuccessSummary result : results) {
+                assertNotNull(result);
+              }
+              return null;
+            });
+
+    p.run();
+
+    long numEntitiesWritten = countEntities(options, project, database, ancestor);
+
+    assertEquals(0, numEntitiesWritten);
   }
 
   @After

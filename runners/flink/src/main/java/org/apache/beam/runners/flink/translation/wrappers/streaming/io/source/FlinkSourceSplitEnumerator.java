@@ -25,11 +25,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
-import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.compat.SplitEnumeratorCompat;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.SplitsAssignment;
 import org.slf4j.Logger;
@@ -49,7 +49,7 @@ import org.slf4j.LoggerFactory;
  * @param <T> The output type of the encapsulated Beam {@link Source}.
  */
 public class FlinkSourceSplitEnumerator<T>
-    implements SplitEnumeratorCompat<FlinkSourceSplit<T>, Map<Integer, List<FlinkSourceSplit<T>>>> {
+    implements SplitEnumerator<FlinkSourceSplit<T>, Map<Integer, List<FlinkSourceSplit<T>>>> {
   private static final Logger LOG = LoggerFactory.getLogger(FlinkSourceSplitEnumerator.class);
   private final SplitEnumeratorContext<FlinkSourceSplit<T>> context;
   private final Source<T> beamSource;
@@ -63,19 +63,44 @@ public class FlinkSourceSplitEnumerator<T>
       Source<T> beamSource,
       PipelineOptions pipelineOptions,
       int numSplits) {
+
+    this(context, beamSource, pipelineOptions, numSplits, false);
+  }
+
+  public FlinkSourceSplitEnumerator(
+      SplitEnumeratorContext<FlinkSourceSplit<T>> context,
+      Source<T> beamSource,
+      PipelineOptions pipelineOptions,
+      int numSplits,
+      boolean splitsInitialized) {
+
     this.context = context;
     this.beamSource = beamSource;
     this.pipelineOptions = pipelineOptions;
     this.numSplits = numSplits;
     this.pendingSplits = new HashMap<>(numSplits);
-    this.splitsInitialized = false;
+    this.splitsInitialized = splitsInitialized;
+
+    LOG.info(
+        "Created new enumerator with parallelism {}, source {}, numSplits {}, initialized {}",
+        context.currentParallelism(),
+        beamSource,
+        numSplits,
+        splitsInitialized);
   }
 
   @Override
   public void start() {
+    if (!splitsInitialized) {
+      initializeSplits();
+    }
+  }
+
+  private void initializeSplits() {
     context.callAsync(
         () -> {
           try {
+            LOG.info("Starting source {}", beamSource);
             List<? extends Source<T>> beamSplitSourceList = splitBeamSource();
             Map<Integer, List<FlinkSourceSplit<T>>> flinkSourceSplitsList = new HashMap<>();
             int i = 0;
@@ -132,11 +157,6 @@ public class FlinkSourceSplitEnumerator<T>
   @Override
   public Map<Integer, List<FlinkSourceSplit<T>>> snapshotState(long checkpointId) throws Exception {
     LOG.info("Taking snapshot for checkpoint {}", checkpointId);
-    return snapshotState();
-  }
-
-  @Override
-  public Map<Integer, List<FlinkSourceSplit<T>>> snapshotState() throws Exception {
     return pendingSplits;
   }
 
@@ -152,7 +172,10 @@ public class FlinkSourceSplitEnumerator<T>
       long desiredSizeBytes = boundedSource.getEstimatedSizeBytes(pipelineOptions) / numSplits;
       return boundedSource.split(desiredSizeBytes, pipelineOptions);
     } else if (beamSource instanceof UnboundedSource) {
-      return ((UnboundedSource<T, ?>) beamSource).split(numSplits, pipelineOptions);
+      List<? extends UnboundedSource<T, ?>> splits =
+          ((UnboundedSource<T, ?>) beamSource).split(numSplits, pipelineOptions);
+      LOG.info("Split source {} to {} splits", beamSource, splits);
+      return splits;
     } else {
       throw new IllegalStateException("Unknown source type " + beamSource.getClass());
     }

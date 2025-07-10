@@ -48,6 +48,7 @@ import org.apache.beam.sdk.values.RowUtils.FieldOverrides;
 import org.apache.beam.sdk.values.RowUtils.RowFieldMatcher;
 import org.apache.beam.sdk.values.RowUtils.RowPosition;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.ReadableDateTime;
@@ -771,6 +772,7 @@ public abstract class Row implements Serializable {
       checkState(values.isEmpty());
       return new FieldValueBuilder(schema, null).withFieldValue(fieldAccessDescriptor, value);
     }
+
     /**
      * Sets field values using the field names. Nested values can be set using the field selection
      * syntax.
@@ -827,7 +829,7 @@ public abstract class Row implements Serializable {
       return new RowWithStorage(schema, attachedValues);
     }
 
-    public Row attachValues(Object... values) {
+    public Row attachValues(@Nullable Object... values) {
       return attachValues(Arrays.asList(values));
     }
 
@@ -836,10 +838,10 @@ public abstract class Row implements Serializable {
     }
 
     @Internal
-    public Row withFieldValueGetters(
-        Factory<List<FieldValueGetter>> fieldValueGetterFactory, Object getterTarget) {
+    public <@NonNull T> Row withFieldValueGetters(
+        Factory<List<FieldValueGetter<T, Object>>> fieldValueGetterFactory, T getterTarget) {
       checkState(getterTarget != null, "getters require withGetterTarget.");
-      return new RowWithGetters(schema, fieldValueGetterFactory, getterTarget);
+      return new RowWithGetters<>(schema, fieldValueGetterFactory, getterTarget);
     }
 
     public Row build() {
@@ -892,5 +894,54 @@ public abstract class Row implements Serializable {
     return Row.withSchema(schema)
         .addValues(Collections.nCopies(schema.getFieldCount(), null))
         .build();
+  }
+
+  /** Returns an equivalent {@link Row} with fields lexicographically sorted by their name. */
+  public Row sorted() {
+    Schema sortedSchema = getSchema().sorted();
+    return sortedSchema.getFields().stream()
+        .map(
+            field -> {
+              if (field.getType().getRowSchema() != null) {
+                Row innerRow = getValue(field.getName());
+                if (innerRow != null) {
+                  return innerRow.sorted();
+                }
+              }
+              return (Object) getValue(field.getName());
+            })
+        .collect(Row.toRow(sortedSchema));
+  }
+
+  /** Returns an equivalent {@link Row} with `snake_case` field names. */
+  public Row toSnakeCase() {
+    return getSchema().getFields().stream()
+        .map(
+            field -> {
+              if (field.getType().getRowSchema() != null) {
+                Row innerRow = getValue(field.getName());
+                if (innerRow != null) {
+                  return innerRow.toSnakeCase();
+                }
+              }
+              return (Object) getValue(field.getName());
+            })
+        .collect(toRow(getSchema().toSnakeCase()));
+  }
+
+  /** Returns an equivalent {@link Row} with `lowerCamelCase` field names. */
+  public Row toCamelCase() {
+    return getSchema().getFields().stream()
+        .map(
+            field -> {
+              if (field.getType().getRowSchema() != null) {
+                Row innerRow = getValue(field.getName());
+                if (innerRow != null) {
+                  return innerRow.toCamelCase();
+                }
+              }
+              return (Object) getValue(field.getName());
+            })
+        .collect(toRow(getSchema().toCamelCase()));
   }
 }

@@ -66,8 +66,8 @@ public class WindmillStateTestUtils {
 
           boolean accessible = f.isAccessible();
           try {
-            f.setAccessible(true);
             path.add(thisClazz.getName() + "#" + f.getName());
+            f.setAccessible(true);
             assertNoReference(f.get(obj), clazz, path, visited);
           } finally {
             path.remove(path.size() - 1);

@@ -60,11 +60,6 @@ ENV LANGUAGE en_US:en
 ENV LC_ALL en_US.UTF-8
 
 ###
-# Set Python3.6 as default
-###
-RUN alias python=python3.6
-
-###
 # Install grpcio-tools mypy-protobuf for `python3 sdks/python/setup.py sdist` to work
 ###
 RUN pip3 install grpcio-tools mypy-protobuf
@@ -78,7 +73,7 @@ RUN pip3 install distlib==0.3.1 yapf==0.29.0 pytest
 ###
 # Install Go
 ###
-ENV DOWNLOAD_GO_VERSION=1.21.0
+ENV DOWNLOAD_GO_VERSION=1.24.0
 RUN wget https://golang.org/dl/go${DOWNLOAD_GO_VERSION}.linux-amd64.tar.gz && \
     tar -C /usr/local -xzf go${DOWNLOAD_GO_VERSION}.linux-amd64.tar.gz
 ENV GOROOT /usr/local/go

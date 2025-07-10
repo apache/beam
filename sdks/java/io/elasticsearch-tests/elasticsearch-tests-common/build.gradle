@@ -25,22 +25,26 @@ applyJavaNature(
 description = "Apache Beam :: SDKs :: Java :: IO :: Elasticsearch-Tests :: Common"
 ext.summary = "Common test classes for ElasticsearchIO"
 
-def elastic_search_version = "7.9.2"
+def elastic_search_version = "7.17.22"
 
 dependencies {
-  testImplementation library.java.jackson_databind
-  testImplementation project(path: ":sdks:java:core", configuration: "shadow")
-  testImplementation project(":sdks:java:io:elasticsearch")
-  testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
-  testImplementation library.java.slf4j_api
-  testImplementation library.java.hamcrest
-  testImplementation library.java.junit
-  testImplementation "org.elasticsearch.client:elasticsearch-rest-client:$elastic_search_version"
-  testImplementation "org.elasticsearch.client:elasticsearch-rest-high-level-client:${elastic_search_version}"
-  testImplementation library.java.testcontainers_elasticsearch
+  implementation library.java.jackson_core
+  implementation library.java.jackson_databind
+  implementation library.java.joda_time
+  implementation library.java.vendored_guava_32_1_2_jre
+  implementation library.java.http_core
+  implementation library.java.testcontainers_base
+  implementation "org.apache.httpcomponents:httpcore-nio:4.4.12"
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(":sdks:java:io:elasticsearch")
+  implementation library.java.slf4j_api
+  implementation library.java.hamcrest
+  implementation library.java.junit
+  implementation "org.elasticsearch.client:elasticsearch-rest-client:$elastic_search_version"
+  implementation library.java.testcontainers_elasticsearch
 
-  testRuntimeOnly library.java.log4j2_api
-  testRuntimeOnly library.java.log4j2_core
-  testRuntimeOnly library.java.slf4j_jdk14
-  testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
+  runtimeOnly library.java.log4j2_api
+  runtimeOnly library.java.log4j2_core
+  runtimeOnly library.java.slf4j_jdk14
+  runtimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }

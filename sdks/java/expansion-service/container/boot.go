@@ -44,6 +44,7 @@ var (
 	port             = flag.Int("port", 0, "Port for the expansion service (required)")
 	dependencies_dir = flag.String("dependencies_dir", "", "A directory containing the set of jar files to load transforms from (required)")
 	config_file      = flag.String("config_file", "", "Expansion service config YAML file. (required)")
+	use_alts      = flag.Bool("use_alts", false, "Starts an Expansion Service with support for gRPC ALTS authentication")
 )
 
 const entrypoint = "org.apache.beam.sdk.expansion.service.ExpansionService"
@@ -89,6 +90,9 @@ func main() {
 
 	if *config_file != "" {
 		args = append(args, fmt.Sprintf("--expansionServiceConfigFile=%s", *config_file))
+	}
+	if *use_alts {
+		args = append(args, "--useAltsServer=true")
 	}
 
 	log.Printf("Executing: java %v", strings.Join(args, " "))

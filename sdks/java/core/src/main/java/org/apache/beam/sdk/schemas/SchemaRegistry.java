@@ -302,6 +302,29 @@ public class SchemaRegistry {
         getFromRowFunction(typeDescriptor));
   }
 
+  /**
+   * Retrieve a registered {@link SchemaProvider} for a given {@link TypeDescriptor}. If no schema
+   * exists, throws {@link * NoSuchSchemaException}.
+   */
+  public <T> SchemaProvider getSchemaProvider(TypeDescriptor<T> typeDescriptor)
+      throws NoSuchSchemaException {
+    for (SchemaProvider provider : providers) {
+      Schema schema = provider.schemaFor(typeDescriptor);
+      if (schema != null) {
+        return provider;
+      }
+    }
+    throw new NoSuchSchemaException();
+  }
+
+  /**
+   * Retrieve a registered {@link SchemaProvider} for a given {@link Class}. If no schema exists,
+   * throws {@link * NoSuchSchemaException}.
+   */
+  public <T> SchemaProvider getSchemaProvider(Class<T> clazz) throws NoSuchSchemaException {
+    return getSchemaProvider(TypeDescriptor.of(clazz));
+  }
+
   private <ReturnT> ReturnT getProviderResult(Function<SchemaProvider, ReturnT> f)
       throws NoSuchSchemaException {
     for (SchemaProvider provider : providers) {

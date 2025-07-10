@@ -18,7 +18,7 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
-import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
+import static org.apache.beam.sdk.values.WindowedValues.valueInGlobalWindow;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables.concat;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -101,11 +101,12 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
+import org.apache.beam.sdk.values.WindowedValues.FullWindowedValueCoder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Function;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableListMultimap;
@@ -179,7 +180,7 @@ public class IsmSideInputReaderTest {
   @Test
   public void testSingleton() throws Exception {
     Coder<WindowedValue<Long>> valueCoder =
-        WindowedValue.getFullCoder(VarLongCoder.of(), GLOBAL_WINDOW_CODER);
+        WindowedValues.getFullCoder(VarLongCoder.of(), GLOBAL_WINDOW_CODER);
     final WindowedValue<Long> element = valueInGlobalWindow(42L);
     final PCollectionView<Long> view =
         Pipeline.create().apply(Create.empty(VarLongCoder.of())).apply(View.asSingleton());
@@ -216,7 +217,7 @@ public class IsmSideInputReaderTest {
   @Test
   public void testSingletonInWindow() throws Exception {
     Coder<WindowedValue<Long>> valueCoder =
-        WindowedValue.getFullCoder(VarLongCoder.of(), INTERVAL_WINDOW_CODER);
+        WindowedValues.getFullCoder(VarLongCoder.of(), INTERVAL_WINDOW_CODER);
     IsmRecordCoder<WindowedValue<Long>> ismCoder =
         IsmRecordCoder.of(1, 0, ImmutableList.<Coder<?>>of(INTERVAL_WINDOW_CODER), valueCoder);
 
@@ -287,7 +288,7 @@ public class IsmSideInputReaderTest {
             1,
             0,
             ImmutableList.<Coder<?>>of(GLOBAL_WINDOW_CODER),
-            WindowedValue.getFullCoder(mapCoder, GLOBAL_WINDOW_CODER));
+            WindowedValues.getFullCoder(mapCoder, GLOBAL_WINDOW_CODER));
     final Source source = initInputFile(fromValues(Arrays.asList(element)), recordCoder);
 
     final IsmSideInputReader reader = sideInputReader(view.getTagInternal().getId(), source);
@@ -323,14 +324,14 @@ public class IsmSideInputReaderTest {
         ImmutableMap.<IntervalWindow, WindowedValue<Map<String, Long>>>builder()
             .put(
                 firstWindow,
-                WindowedValue.of(
+                WindowedValues.of(
                     ImmutableMap.<String, Long>builder().put("foo", 0L).put("bar", -1L).build(),
                     new Instant(7),
                     firstWindow,
                     PaneInfo.NO_FIRING))
             .put(
                 secondWindow,
-                WindowedValue.of(
+                WindowedValues.of(
                     ImmutableMap.<String, Long>builder().put("bar", -1L).put("baz", 1L).build(),
                     new Instant(53L),
                     secondWindow,
@@ -349,7 +350,7 @@ public class IsmSideInputReaderTest {
             1,
             0,
             ImmutableList.<Coder<?>>of(INTERVAL_WINDOW_CODER),
-            WindowedValue.getFullCoder(mapCoder, INTERVAL_WINDOW_CODER));
+            WindowedValues.getFullCoder(mapCoder, INTERVAL_WINDOW_CODER));
     final Source source = initInputFile(fromValues(elements.values()), recordCoder);
 
     final IsmSideInputReader reader = sideInputReader(view.getTagInternal().getId(), source);
@@ -402,7 +403,7 @@ public class IsmSideInputReaderTest {
         ImmutableMap.<IntervalWindow, WindowedValue<Map<String, Iterable<Long>>>>builder()
             .put(
                 firstWindow,
-                WindowedValue.of(
+                WindowedValues.of(
                     (Map)
                         ImmutableListMultimap.<String, Long>builder()
                             .put("foo", 0L)
@@ -415,7 +416,7 @@ public class IsmSideInputReaderTest {
                     PaneInfo.NO_FIRING))
             .put(
                 secondWindow,
-                WindowedValue.of(
+                WindowedValues.of(
                     (Map)
                         ImmutableListMultimap.<String, Long>builder()
                             .put("bar", -1L)
@@ -441,7 +442,7 @@ public class IsmSideInputReaderTest {
             1,
             0,
             ImmutableList.<Coder<?>>of(INTERVAL_WINDOW_CODER),
-            WindowedValue.getFullCoder(mapCoder, INTERVAL_WINDOW_CODER));
+            WindowedValues.getFullCoder(mapCoder, INTERVAL_WINDOW_CODER));
     final Source source = initInputFile(fromValues(elements.values()), recordCoder);
 
     final IsmSideInputReader reader = sideInputReader(view.getTagInternal().getId(), source);
@@ -486,7 +487,7 @@ public class IsmSideInputReaderTest {
   @Test
   public void testIterable() throws Exception {
     Coder<WindowedValue<Long>> valueCoder =
-        WindowedValue.getFullCoder(VarLongCoder.of(), GLOBAL_WINDOW_CODER);
+        WindowedValues.getFullCoder(VarLongCoder.of(), GLOBAL_WINDOW_CODER);
     IsmRecordCoder<WindowedValue<Long>> ismCoder =
         IsmRecordCoder.of(
             1, 0, ImmutableList.of(GLOBAL_WINDOW_CODER, BigEndianLongCoder.of()), valueCoder);
@@ -536,7 +537,7 @@ public class IsmSideInputReaderTest {
   @Test
   public void testIterableAtN() throws Exception {
     Coder<WindowedValue<Long>> valueCoder =
-        WindowedValue.getFullCoder(VarLongCoder.of(), GLOBAL_WINDOW_CODER);
+        WindowedValues.getFullCoder(VarLongCoder.of(), GLOBAL_WINDOW_CODER);
     IsmRecordCoder<WindowedValue<Long>> ismCoder =
         IsmRecordCoder.of(
             1, 0, ImmutableList.of(GLOBAL_WINDOW_CODER, BigEndianLongCoder.of()), valueCoder);
@@ -588,7 +589,7 @@ public class IsmSideInputReaderTest {
   @Test
   public void testIterableInWindow() throws Exception {
     Coder<WindowedValue<Long>> valueCoder =
-        WindowedValue.getFullCoder(VarLongCoder.of(), INTERVAL_WINDOW_CODER);
+        WindowedValues.getFullCoder(VarLongCoder.of(), INTERVAL_WINDOW_CODER);
     IsmRecordCoder<WindowedValue<Long>> ismCoder =
         IsmRecordCoder.of(
             1, 0, ImmutableList.of(INTERVAL_WINDOW_CODER, BigEndianLongCoder.of()), valueCoder);
@@ -661,7 +662,7 @@ public class IsmSideInputReaderTest {
   @Test
   public void testList() throws Exception {
     Coder<WindowedValue<Long>> valueCoder =
-        WindowedValue.getFullCoder(VarLongCoder.of(), GLOBAL_WINDOW_CODER);
+        WindowedValues.getFullCoder(VarLongCoder.of(), GLOBAL_WINDOW_CODER);
     IsmRecordCoder<WindowedValue<Long>> ismCoder =
         IsmRecordCoder.of(
             1, 0, ImmutableList.of(GLOBAL_WINDOW_CODER, BigEndianLongCoder.of()), valueCoder);
@@ -678,7 +679,9 @@ public class IsmSideInputReaderTest {
             KV.of(2L, valueInGlobalWindow(62L)));
 
     final PCollectionView<List<Long>> view =
-        Pipeline.create().apply(Create.empty(VarLongCoder.of())).apply(View.asList());
+        Pipeline.create()
+            .apply(Create.empty(VarLongCoder.of()))
+            .apply(View.<Long>asList().withRandomAccess());
 
     Source sourceA = initInputFile(fromKvsForList(firstElements), ismCoder);
     Source sourceB = initInputFile(fromKvsForList(secondElements), ismCoder);
@@ -711,7 +714,7 @@ public class IsmSideInputReaderTest {
   @Test
   public void testListInWindow() throws Exception {
     Coder<WindowedValue<Long>> valueCoder =
-        WindowedValue.getFullCoder(VarLongCoder.of(), INTERVAL_WINDOW_CODER);
+        WindowedValues.getFullCoder(VarLongCoder.of(), INTERVAL_WINDOW_CODER);
     IsmRecordCoder<WindowedValue<Long>> ismCoder =
         IsmRecordCoder.of(
             1, 0, ImmutableList.of(INTERVAL_WINDOW_CODER, BigEndianLongCoder.of()), valueCoder);
@@ -736,7 +739,7 @@ public class IsmSideInputReaderTest {
         Pipeline.create()
             .apply(Create.empty(VarLongCoder.of()))
             .apply(Window.into(FixedWindows.of(Duration.millis(10))))
-            .apply(View.asList());
+            .apply(View.<Long>asList().withRandomAccess());
 
     Source sourceA = initInputFile(fromKvsForList(concat(firstElements, secondElements)), ismCoder);
     Source sourceB = initInputFile(fromKvsForList(thirdElements), ismCoder);
@@ -790,7 +793,7 @@ public class IsmSideInputReaderTest {
     // Note that we purposely use byte[]s as keys to force structural equality testing
     // versus using java equality testing.
     Coder<WindowedValue<Long>> valueCoder =
-        WindowedValue.getFullCoder(VarLongCoder.of(), GLOBAL_WINDOW_CODER);
+        WindowedValues.getFullCoder(VarLongCoder.of(), GLOBAL_WINDOW_CODER);
     final ListMultimap<byte[], WindowedValue<Long>> elements =
         ImmutableListMultimap.<byte[], WindowedValue<Long>>builder()
             .put(new byte[] {0x00}, valueInGlobalWindow(12L))
@@ -872,7 +875,7 @@ public class IsmSideInputReaderTest {
     // Note that we purposely use byte[]s as keys to force structural equality testing
     // versus using java equality testing.
     Coder<WindowedValue<Long>> valueCoder =
-        WindowedValue.getFullCoder(VarLongCoder.of(), INTERVAL_WINDOW_CODER);
+        WindowedValues.getFullCoder(VarLongCoder.of(), INTERVAL_WINDOW_CODER);
     final ListMultimap<byte[], WindowedValue<Long>> firstWindow =
         ImmutableListMultimap.<byte[], WindowedValue<Long>>builder()
             .put(new byte[] {0x00}, valueInIntervalWindow(12L, 10))
@@ -998,7 +1001,7 @@ public class IsmSideInputReaderTest {
     // Note that we purposely use byte[]s as keys to force structural equality testing
     // versus using java equality testing.
     Coder<WindowedValue<Long>> valueCoder =
-        WindowedValue.getFullCoder(VarLongCoder.of(), GLOBAL_WINDOW_CODER);
+        WindowedValues.getFullCoder(VarLongCoder.of(), GLOBAL_WINDOW_CODER);
     final ListMultimap<byte[], WindowedValue<Long>> elements =
         ImmutableListMultimap.<byte[], WindowedValue<Long>>builder()
             .put(new byte[] {0x00}, valueInGlobalWindow(12L))
@@ -1081,7 +1084,7 @@ public class IsmSideInputReaderTest {
     // Note that we purposely use byte[]s as keys to force structural equality testing
     // versus using java equality testing.
     Coder<WindowedValue<Long>> valueCoder =
-        WindowedValue.getFullCoder(VarLongCoder.of(), INTERVAL_WINDOW_CODER);
+        WindowedValues.getFullCoder(VarLongCoder.of(), INTERVAL_WINDOW_CODER);
     final ListMultimap<byte[], WindowedValue<Long>> firstWindow =
         ImmutableListMultimap.<byte[], WindowedValue<Long>>builder()
             .put(new byte[] {0x00}, valueInIntervalWindow(12L, 10))
@@ -1209,7 +1212,7 @@ public class IsmSideInputReaderTest {
     // the multimap, we specifically use the same instance of the byte[].
     byte[] duplicateKey = new byte[] {0x01};
     Coder<WindowedValue<Long>> valueCoder =
-        WindowedValue.getFullCoder(VarLongCoder.of(), INTERVAL_WINDOW_CODER);
+        WindowedValues.getFullCoder(VarLongCoder.of(), INTERVAL_WINDOW_CODER);
     final ListMultimap<byte[], WindowedValue<Long>> firstWindow =
         ImmutableListMultimap.<byte[], WindowedValue<Long>>builder()
             .put(new byte[] {0x00}, valueInIntervalWindow(12L, 10))
@@ -1347,7 +1350,7 @@ public class IsmSideInputReaderTest {
 
     // Test startup:
     Coder<WindowedValue<Long>> valueCoder =
-        WindowedValue.getFullCoder(VarLongCoder.of(), GLOBAL_WINDOW_CODER);
+        WindowedValues.getFullCoder(VarLongCoder.of(), GLOBAL_WINDOW_CODER);
     IsmRecordCoder<WindowedValue<Long>> ismCoder =
         IsmRecordCoder.of(
             1, 0, ImmutableList.of(GLOBAL_WINDOW_CODER, BigEndianLongCoder.of()), valueCoder);
@@ -1396,7 +1399,7 @@ public class IsmSideInputReaderTest {
   @Test
   public void testIsmReaderReferenceCaching() throws Exception {
     Coder<WindowedValue<Long>> valueCoder =
-        WindowedValue.getFullCoder(VarLongCoder.of(), GLOBAL_WINDOW_CODER);
+        WindowedValues.getFullCoder(VarLongCoder.of(), GLOBAL_WINDOW_CODER);
     final WindowedValue<Long> element = valueInGlobalWindow(42L);
     final PCollectionView<Long> view =
         Pipeline.create().apply(Create.empty(VarLongCoder.of())).apply(View.asSingleton());
@@ -1624,7 +1627,7 @@ public class IsmSideInputReaderTest {
   }
 
   WindowedValue<Long> valueInIntervalWindow(long value, long startOfWindow) {
-    return WindowedValue.of(
+    return WindowedValues.of(
         value, new Instant(startOfWindow), intervalWindow(startOfWindow), PaneInfo.NO_FIRING);
   }
 
@@ -1770,7 +1773,7 @@ public class IsmSideInputReaderTest {
     Source source = new Source();
     source.setCodec(
         CloudObjects.asCloudObject(
-            WindowedValue.getFullCoder(coder, GLOBAL_WINDOW_CODER), /*sdkComponents=*/ null));
+            WindowedValues.getFullCoder(coder, GLOBAL_WINDOW_CODER), /*sdkComponents=*/ null));
     source.setSpec(new HashMap<String, Object>());
     source.getSpec().put(PropertyNames.OBJECT_TYPE_NAME, "IsmSource");
     source.getSpec().put(WorkerPropertyNames.FILENAME, tmpFilePath);

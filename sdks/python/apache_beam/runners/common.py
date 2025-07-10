@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# cython: profile=True
-# cython: language_level=3
 
 """Worker operations executor.
 
@@ -42,7 +40,6 @@ from apache_beam.coders import TupleCoder
 from apache_beam.coders import coders
 from apache_beam.internal import util
 from apache_beam.options.value_provider import RuntimeValueProvider
-from apache_beam.portability import common_urns
 from apache_beam.pvalue import TaggedOutput
 from apache_beam.runners.sdf_utils import NoOpWatermarkEstimatorProvider
 from apache_beam.runners.sdf_utils import RestrictionTrackerView
@@ -59,7 +56,6 @@ from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.transforms.window import WindowFn
-from apache_beam.typehints import typehints
 from apache_beam.typehints.batch import BatchConverter
 from apache_beam.utils.counters import Counter
 from apache_beam.utils.counters import CounterName
@@ -158,7 +154,6 @@ class MethodWrapper(object):
 
     self.args, self.defaults = core.get_function_arguments(obj_to_invoke,
                                                            method_name)
-
     # TODO(BEAM-5878) support kwonlyargs on Python 3.
     self.method_value = getattr(obj_to_invoke, method_name)
     self.method_name = method_name
@@ -190,6 +185,8 @@ class MethodWrapper(object):
       elif core.DoFn.TimestampParam == v:
         self.timestamp_arg_name = kw
       elif core.DoFn.WindowParam == v:
+        self.window_arg_name = kw
+      elif core.DoFn.WindowedValueParam == v:
         self.window_arg_name = kw
       elif core.DoFn.KeyParam == v:
         self.key_arg_name = kw
@@ -427,17 +424,53 @@ class DoFnSignature(object):
           pass
     return False
 
+  def get_bundle_contexts(self):
+    seen = set()
+    for sig in (self.setup_lifecycle_method,
+                self.start_bundle_method,
+                self.process_method,
+                self.process_batch_method,
+                self.finish_bundle_method,
+                self.teardown_lifecycle_method):
+      for d in sig.defaults:
+        try:
+          if isinstance(d, DoFn.BundleContextParam):
+            if d not in seen:
+              seen.add(d)
+              yield d
+        except Exception:  # pylint: disable=broad-except
+          # Default value might be incomparable.
+          pass
+
+  def get_setup_contexts(self):
+    seen = set()
+    for sig in (self.setup_lifecycle_method,
+                self.start_bundle_method,
+                self.process_method,
+                self.process_batch_method,
+                self.finish_bundle_method,
+                self.teardown_lifecycle_method):
+      for d in sig.defaults:
+        try:
+          if isinstance(d, DoFn.SetupContextParam):
+            if d not in seen:
+              seen.add(d)
+              yield d
+        except Exception:  # pylint: disable=broad-except
+          # Default value might be incomparable.
+          pass
+
 
 class DoFnInvoker(object):
   """An abstraction that can be used to execute DoFn methods.
 
   A DoFnInvoker describes a particular way for invoking methods of a DoFn
   represented by a given DoFnSignature."""
-
-  def __init__(self,
-               output_handler,  # type: _OutputHandler
-               signature  # type: DoFnSignature
-              ):
+  def __init__(
+      self,
+      output_handler,  # type: _OutputHandler
+      signature  # type: DoFnSignature
+  ):
     # type: (...) -> None
 
     """
@@ -457,8 +490,9 @@ class DoFnInvoker(object):
       signature,  # type: DoFnSignature
       output_handler,  # type: OutputHandler
       context=None,  # type: Optional[DoFnContext]
-      side_inputs=None,   # type: Optional[List[sideinputs.SideInputMap]]
-      input_args=None, input_kwargs=None,
+      side_inputs=None,  # type: Optional[List[sideinputs.SideInputMap]]
+      input_args=None,
+      input_kwargs=None,
       process_invocation=True,
       user_state_context=None,  # type: Optional[userstate.UserStateContext]
       bundle_finalizer_param=None  # type: Optional[core._BundleFinalizerParam]
@@ -509,13 +543,13 @@ class DoFnInvoker(object):
           user_state_context,
           bundle_finalizer_param)
 
-  def invoke_process(self,
-                     windowed_value,  # type: WindowedValue
-                     restriction=None,
-                     watermark_estimator_state=None,
-                     additional_args=None,
-                     additional_kwargs=None
-                    ):
+  def invoke_process(
+      self,
+      windowed_value,  # type: WindowedValue
+      restriction=None,
+      watermark_estimator_state=None,
+      additional_args=None,
+      additional_kwargs=None):
     # type: (...) -> Iterable[SplitResultResidual]
 
     """Invokes the DoFn.process() function.
@@ -536,11 +570,11 @@ class DoFnInvoker(object):
     """
     raise NotImplementedError
 
-  def invoke_process_batch(self,
-                     windowed_batch,  # type: WindowedBatch
-                     additional_args=None,
-                     additional_kwargs=None
-                    ):
+  def invoke_process_batch(
+      self,
+      windowed_batch,  # type: WindowedBatch
+      additional_args=None,
+      additional_kwargs=None):
     # type: (...) -> None
 
     """Invokes the DoFn.process() function.
@@ -561,6 +595,10 @@ class DoFnInvoker(object):
 
     """Invokes the DoFn.setup() method
     """
+    self._setup_context_values = {
+        c: c.create_and_enter()
+        for c in self.signature.get_setup_contexts()
+    }
     self.signature.setup_lifecycle_method.method_value()
 
   def invoke_start_bundle(self):
@@ -568,6 +606,10 @@ class DoFnInvoker(object):
 
     """Invokes the DoFn.start_bundle() method.
     """
+    self._bundle_context_values = {
+        c: c.create_and_enter()
+        for c in self.signature.get_bundle_contexts()
+    }
     self.output_handler.start_bundle_outputs(
         self.signature.start_bundle_method.method_value())
 
@@ -578,6 +620,9 @@ class DoFnInvoker(object):
     """
     self.output_handler.finish_bundle_outputs(
         self.signature.finish_bundle_method.method_value())
+    for c in self._bundle_context_values.values():
+      c[0].__exit__(None, None, None)
+    self._bundle_context_values = None
 
   def invoke_teardown(self):
     # type: () -> None
@@ -585,6 +630,9 @@ class DoFnInvoker(object):
     """Invokes the DoFn.teardown() method
     """
     self.signature.teardown_lifecycle_method.method_value()
+    for c in self._setup_context_values.values():
+      c[0].__exit__(None, None, None)
+    self._setup_context_values = None
 
   def invoke_user_timer(
       self, timer_spec, key, window, timestamp, pane_info, dynamic_timer_tag):
@@ -615,35 +663,35 @@ class DoFnInvoker(object):
 
 class SimpleInvoker(DoFnInvoker):
   """An invoker that processes elements ignoring windowing information."""
-
-  def __init__(self,
-               output_handler,  # type: OutputHandler
-               signature  # type: DoFnSignature
-              ):
+  def __init__(
+      self,
+      output_handler,  # type: OutputHandler
+      signature  # type: DoFnSignature
+  ):
     # type: (...) -> None
     super().__init__(output_handler, signature)
     self.process_method = signature.process_method.method_value
     self.process_batch_method = signature.process_batch_method.method_value
 
-  def invoke_process(self,
-                     windowed_value,  # type: WindowedValue
-                     restriction=None,
-                     watermark_estimator_state=None,
-                     additional_args=None,
-                     additional_kwargs=None
-                    ):
+  def invoke_process(
+      self,
+      windowed_value,  # type: WindowedValue
+      restriction=None,
+      watermark_estimator_state=None,
+      additional_args=None,
+      additional_kwargs=None):
     # type: (...) -> Iterable[SplitResultResidual]
     self.output_handler.handle_process_outputs(
         windowed_value, self.process_method(windowed_value.value))
     return []
 
-  def invoke_process_batch(self,
-                     windowed_batch,  # type: WindowedBatch
-                     restriction=None,
-                     watermark_estimator_state=None,
-                     additional_args=None,
-                     additional_kwargs=None
-                    ):
+  def invoke_process_batch(
+      self,
+      windowed_batch,  # type: WindowedBatch
+      restriction=None,
+      watermark_estimator_state=None,
+      additional_args=None,
+      additional_kwargs=None):
     # type: (...) -> None
     self.output_handler.handle_process_batch_outputs(
         windowed_batch, self.process_batch_method(windowed_batch.values))
@@ -687,6 +735,8 @@ def _get_arg_placeholders(
       args_with_placeholders.append(ArgPlaceholder(d))
     elif core.DoFn.WindowParam == d:
       args_with_placeholders.append(ArgPlaceholder(d))
+    elif core.DoFn.WindowedValueParam == d:
+      args_with_placeholders.append(ArgPlaceholder(d))
     elif core.DoFn.TimestampParam == d:
       args_with_placeholders.append(ArgPlaceholder(d))
     elif core.DoFn.PaneInfoParam == d:
@@ -703,6 +753,10 @@ def _get_arg_placeholders(
     elif isinstance(d, core.DoFn.TimerParam):
       args_with_placeholders.append(ArgPlaceholder(d))
     elif isinstance(d, type) and core.DoFn.BundleFinalizerParam == d:
+      args_with_placeholders.append(ArgPlaceholder(d))
+    elif isinstance(d, core.DoFn.BundleContextParam):
+      args_with_placeholders.append(ArgPlaceholder(d))
+    elif isinstance(d, core.DoFn.SetupContextParam):
       args_with_placeholders.append(ArgPlaceholder(d))
     else:
       # If no more args are present then the value must be passed via kwarg
@@ -722,17 +776,17 @@ def _get_arg_placeholders(
 
 class PerWindowInvoker(DoFnInvoker):
   """An invoker that processes elements considering windowing information."""
-
-  def __init__(self,
-               output_handler,  # type: OutputHandler
-               signature,  # type: DoFnSignature
-               context,  # type: DoFnContext
-               side_inputs,  # type: Iterable[sideinputs.SideInputMap]
-               input_args,
-               input_kwargs,
-               user_state_context,  # type: Optional[userstate.UserStateContext]
-               bundle_finalizer_param  # type: Optional[core._BundleFinalizerParam]
-              ):
+  def __init__(
+      self,
+      output_handler,  # type: OutputHandler
+      signature,  # type: DoFnSignature
+      context,  # type: DoFnContext
+      side_inputs,  # type: Iterable[sideinputs.SideInputMap]
+      input_args,
+      input_kwargs,
+      user_state_context,  # type: Optional[userstate.UserStateContext]
+      bundle_finalizer_param  # type: Optional[core._BundleFinalizerParam]
+  ):
     super().__init__(output_handler, signature)
     self.side_inputs = side_inputs
     self.context = context
@@ -758,9 +812,16 @@ class PerWindowInvoker(DoFnInvoker):
       self.current_window_index = None
       self.stop_window_index = None
 
-    # Flag to cache additional arguments on the first element if all
-    # inputs are within the global window.
-    self.cache_globally_windowed_args = not self.has_windowed_inputs
+    # TODO(https://github.com/apache/beam/issues/28776): Remove caching after
+    # fully rolling out.
+    # If true, always recalculate window args. If false, has_cached_window_args
+    # and has_cached_window_batch_args will be set to true if the corresponding
+    # self.args_for_process,have been updated and should be reused directly.
+    self.recalculate_window_args = (
+        self.has_windowed_inputs or 'disable_global_windowed_args_caching'
+        in RuntimeValueProvider.experiments)
+    self.has_cached_window_args = False
+    self.has_cached_window_batch_args = False
 
     # Try to prepare all the arguments that can just be filled in
     # without any additional work. in the process function.
@@ -780,13 +841,13 @@ class PerWindowInvoker(DoFnInvoker):
         self.kwargs_for_process_batch) = _get_arg_placeholders(
             signature.process_batch_method, input_args, input_kwargs)
 
-  def invoke_process(self,
-                     windowed_value,  # type: WindowedValue
-                     restriction=None,
-                     watermark_estimator_state=None,
-                     additional_args=None,
-                     additional_kwargs=None
-                    ):
+  def invoke_process(
+      self,
+      windowed_value,  # type: WindowedValue
+      restriction=None,
+      watermark_estimator_state=None,
+      additional_args=None,
+      additional_kwargs=None):
     # type: (...) -> Iterable[SplitResultResidual]
     if not additional_args:
       additional_args = []
@@ -852,11 +913,11 @@ class PerWindowInvoker(DoFnInvoker):
           windowed_value, additional_args, additional_kwargs)
     return residuals
 
-  def invoke_process_batch(self,
-                     windowed_batch,  # type: WindowedBatch
-                     additional_args=None,
-                     additional_kwargs=None
-                    ):
+  def invoke_process_batch(
+      self,
+      windowed_batch,  # type: WindowedBatch
+      additional_args=None,
+      additional_kwargs=None):
     # type: (...) -> None
 
     if not additional_args:
@@ -881,9 +942,9 @@ class PerWindowInvoker(DoFnInvoker):
 
   def _should_process_window_for_sdf(
       self,
-      windowed_value, # type: WindowedValue
+      windowed_value,  # type: WindowedValue
       additional_kwargs,
-      window_index=None, # type: Optional[int]
+      window_index=None,  # type: Optional[int]
   ):
     restriction_tracker = self.invoke_create_tracker(self.restriction)
     watermark_estimator = self.invoke_create_watermark_estimator(
@@ -916,37 +977,30 @@ class PerWindowInvoker(DoFnInvoker):
       additional_kwargs[watermark_param] = self.threadsafe_watermark_estimator
     return True
 
-  def _invoke_process_per_window(self,
-                                 windowed_value,  # type: WindowedValue
-                                 additional_args,
-                                 additional_kwargs,
-                                ):
+  def _invoke_process_per_window(
+      self,
+      windowed_value,  # type: WindowedValue
+      additional_args,
+      additional_kwargs,
+  ):
     # type: (...) -> Optional[SplitResultResidual]
-
-    if self.has_windowed_inputs:
-      assert len(windowed_value.windows) <= 1
-      window, = windowed_value.windows
-      side_inputs = [si[window] for si in self.side_inputs]
-      side_inputs.extend(additional_args)
-      args_for_process, kwargs_for_process = util.insert_values_in_args(
-          self.args_for_process, self.kwargs_for_process,
-          side_inputs)
-    elif self.cache_globally_windowed_args:
-      # Attempt to cache additional args if all inputs are globally
-      # windowed inputs when processing the first element.
-      self.cache_globally_windowed_args = False
-
-      # Fill in sideInputs if they are globally windowed
-      global_window = GlobalWindow()
-      self.args_for_process, self.kwargs_for_process = (
-          util.insert_values_in_args(
-              self.args_for_process, self.kwargs_for_process,
-              [si[global_window] for si in self.side_inputs]))
+    if self.has_cached_window_args:
       args_for_process, kwargs_for_process = (
           self.args_for_process, self.kwargs_for_process)
     else:
-      args_for_process, kwargs_for_process = (
-          self.args_for_process, self.kwargs_for_process)
+      if self.has_windowed_inputs:
+        assert len(windowed_value.windows) <= 1
+        window, = windowed_value.windows
+      else:
+        window = GlobalWindow()
+      side_inputs = [si[window] for si in self.side_inputs]
+      side_inputs.extend(additional_args)
+      args_for_process, kwargs_for_process = util.insert_values_in_args(
+          self.args_for_process, self.kwargs_for_process, side_inputs)
+      if not self.recalculate_window_args:
+        self.args_for_process, self.kwargs_for_process = (
+            args_for_process, kwargs_for_process)
+        self.has_cached_window_args = True
 
     # Extract key in the case of a stateful DoFn. Note that in the case of a
     # stateful DoFn, we set during __init__ self.has_windowed_inputs to be
@@ -967,6 +1021,8 @@ class PerWindowInvoker(DoFnInvoker):
         args_for_process[i] = key
       elif core.DoFn.WindowParam == p:
         args_for_process[i] = window
+      elif core.DoFn.WindowedValueParam == p:
+        args_for_process[i] = windowed_value
       elif core.DoFn.TimestampParam == p:
         args_for_process[i] = windowed_value.timestamp
       elif core.DoFn.PaneInfoParam == p:
@@ -986,6 +1042,10 @@ class PerWindowInvoker(DoFnInvoker):
                 windowed_value.pane_info))
       elif core.DoFn.BundleFinalizerParam == p:
         args_for_process[i] = self.bundle_finalizer_param
+      elif isinstance(p, core.DoFn.BundleContextParam):
+        args_for_process[i] = self._bundle_context_values[p][1]
+      elif isinstance(p, core.DoFn.SetupContextParam):
+        args_for_process[i] = self._setup_context_values[p][1]
 
     kwargs_for_process = kwargs_for_process or {}
 
@@ -1028,42 +1088,37 @@ class PerWindowInvoker(DoFnInvoker):
   ):
     # type: (...) -> Optional[SplitResultResidual]
 
-    if self.has_windowed_inputs:
-      assert isinstance(windowed_batch, HomogeneousWindowedBatch)
-      assert len(windowed_batch.windows) <= 1
-
-      window, = windowed_batch.windows
-      side_inputs = [si[window] for si in self.side_inputs]
-      side_inputs.extend(additional_args)
-      (args_for_process_batch,
-       kwargs_for_process_batch) = util.insert_values_in_args(
-           self.args_for_process_batch,
-           self.kwargs_for_process_batch,
-           side_inputs)
-    elif self.cache_globally_windowed_args:
-      # Attempt to cache additional args if all inputs are globally
-      # windowed inputs when processing the first element.
-      self.cache_globally_windowed_args = False
-
-      # Fill in sideInputs if they are globally windowed
-      global_window = GlobalWindow()
-      self.args_for_process_batch, self.kwargs_for_process_batch = (
-          util.insert_values_in_args(
-              self.args_for_process_batch, self.kwargs_for_process_batch,
-              [si[global_window] for si in self.side_inputs]))
+    if self.has_cached_window_batch_args:
       args_for_process_batch, kwargs_for_process_batch = (
           self.args_for_process_batch, self.kwargs_for_process_batch)
     else:
+      if self.has_windowed_inputs:
+        assert isinstance(windowed_batch, HomogeneousWindowedBatch)
+        assert len(windowed_batch.windows) <= 1
+        window, = windowed_batch.windows
+      else:
+        window = GlobalWindow()
+      side_inputs = [si[window] for si in self.side_inputs]
+      side_inputs.extend(additional_args)
       args_for_process_batch, kwargs_for_process_batch = (
-          self.args_for_process_batch, self.kwargs_for_process_batch)
+          util.insert_values_in_args(
+              self.args_for_process_batch,
+              self.kwargs_for_process_batch,
+              side_inputs,
+          )
+      )
+      if not self.recalculate_window_args:
+        self.args_for_process_batch, self.kwargs_for_process_batch = (
+            args_for_process_batch, kwargs_for_process_batch)
+        self.has_cached_window_batch_args = True
 
     for i, p in self.placeholders_for_process_batch:
       if core.DoFn.ElementParam == p:
         args_for_process_batch[i] = windowed_batch.values
       elif core.DoFn.KeyParam == p:
         raise NotImplementedError(
-            "https://github.com/apache/beam/issues/21653: "
-            "Per-key process_batch")
+            'https://github.com/apache/beam/issues/21653: Per-key process_batch'
+        )
       elif core.DoFn.WindowParam == p:
         args_for_process_batch[i] = window
       elif core.DoFn.TimestampParam == p:
@@ -1079,8 +1134,15 @@ class PerWindowInvoker(DoFnInvoker):
         raise NotImplementedError(
             "https://github.com/apache/beam/issues/21653: "
             "Per-key process_batch")
+      elif isinstance(p, core.DoFn.BundleContextParam):
+        args_for_process_batch[i] = self._bundle_context_values[p][1]
+      elif isinstance(p, core.DoFn.SetupContextParam):
+        args_for_process_batch[i] = self._setup_context_values[p][1]
 
     kwargs_for_process_batch = kwargs_for_process_batch or {}
+
+    if additional_kwargs:
+      kwargs_for_process_batch.update(additional_kwargs)
 
     self.output_handler.handle_process_batch_outputs(
         windowed_batch,
@@ -1089,16 +1151,17 @@ class PerWindowInvoker(DoFnInvoker):
         self.threadsafe_watermark_estimator)
 
   @staticmethod
-  def _try_split(fraction,
-      window_index, # type: Optional[int]
-      stop_window_index, # type: Optional[int]
-      windowed_value, # type: WindowedValue
+  def _try_split(
+      fraction,
+      window_index,  # type: Optional[int]
+      stop_window_index,  # type: Optional[int]
+      windowed_value,  # type: WindowedValue
       restriction,
       watermark_estimator_state,
-      restriction_provider, # type: RestrictionProvider
-      restriction_tracker, # type: RestrictionTracker
-      watermark_estimator, # type: WatermarkEstimator
-                 ):
+      restriction_provider,  # type: RestrictionProvider
+      restriction_tracker,  # type: RestrictionTracker
+      watermark_estimator,  # type: WatermarkEstimator
+  ):
     # type: (...) -> Optional[Tuple[Iterable[SplitResultPrimary], Iterable[SplitResultResidual], Optional[int]]]
 
     """Try to split returning a primaries, residuals and a new stop index.
@@ -1338,22 +1401,22 @@ class DoFnRunner:
 
   A helper class for executing ParDo operations.
   """
-
-  def __init__(self,
-               fn,  # type: core.DoFn
-               args,
-               kwargs,
-               side_inputs,  # type: Iterable[sideinputs.SideInputMap]
-               windowing,
-               tagged_receivers,  # type: Mapping[Optional[str], Receiver]
-               step_name=None,  # type: Optional[str]
-               logging_context=None,
-               state=None,
-               scoped_metrics_container=None,
-               operation_name=None,
-               transform_id=None,
-               user_state_context=None,  # type: Optional[userstate.UserStateContext]
-              ):
+  def __init__(
+      self,
+      fn,  # type: core.DoFn
+      args,
+      kwargs,
+      side_inputs,  # type: Iterable[sideinputs.SideInputMap]
+      windowing,
+      tagged_receivers,  # type: Mapping[Optional[str], Receiver]
+      step_name=None,  # type: Optional[str]
+      logging_context=None,
+      state=None,
+      scoped_metrics_container=None,
+      operation_name=None,
+      transform_id=None,
+      user_state_context=None,  # type: Optional[userstate.UserStateContext]
+  ):
     """Initializes a DoFnRunner.
 
     Args:
@@ -1438,8 +1501,7 @@ class DoFnRunner:
       return []
 
   def _maybe_sample_exception(
-      self, exn: BaseException,
-      windowed_value: Optional[WindowedValue]) -> None:
+      self, exc_info: Tuple, windowed_value: Optional[WindowedValue]) -> None:
 
     if self.execution_context is None:
       return
@@ -1450,7 +1512,7 @@ class DoFnRunner:
 
     output_sampler.sample_exception(
         windowed_value,
-        exn,
+        exc_info,
         self.transform_id,
         self.execution_context.instruction_id)
 
@@ -1561,16 +1623,16 @@ class OutputHandler(object):
 
 class _OutputHandler(OutputHandler):
   """Processes output produced by DoFn method invocations."""
-
-  def __init__(self,
-               window_fn,
-               main_receivers,  # type: Receiver
-               tagged_receivers,  # type: Mapping[Optional[str], Receiver]
-               per_element_output_counter,
-               output_batch_converter, # type: Optional[BatchConverter]
-               process_yields_batches, # type: bool,
-               process_batch_yields_elements, # type: bool,
-               ):
+  def __init__(
+      self,
+      window_fn,
+      main_receivers,  # type: Receiver
+      tagged_receivers,  # type: Mapping[Optional[str], Receiver]
+      per_element_output_counter,
+      output_batch_converter,  # type: Optional[BatchConverter]
+      process_yields_batches,  # type: bool
+      process_batch_yields_elements,  # type: bool
+  ):
     """Initializes ``_OutputHandler``.
 
     Args:
@@ -1855,89 +1917,3 @@ class DoFnContext(object):
       raise AttributeError('windows not accessible in this context')
     else:
       return self.windowed_value.windows
-
-
-def group_by_key_input_visitor(deterministic_key_coders=True):
-  # Importing here to avoid a circular dependency
-  # pylint: disable=wrong-import-order, wrong-import-position
-  from apache_beam.pipeline import PipelineVisitor
-  from apache_beam.transforms.core import GroupByKey
-
-  class GroupByKeyInputVisitor(PipelineVisitor):
-    """A visitor that replaces `Any` element type for input `PCollection` of
-    a `GroupByKey` with a `KV` type.
-
-    TODO(BEAM-115): Once Python SDK is compatible with the new Runner API,
-    we could directly replace the coder instead of mutating the element type.
-    """
-    def __init__(self, deterministic_key_coders=True):
-      self.deterministic_key_coders = deterministic_key_coders
-
-    def enter_composite_transform(self, transform_node):
-      self.visit_transform(transform_node)
-
-    def visit_transform(self, transform_node):
-      if isinstance(transform_node.transform, GroupByKey):
-        pcoll = transform_node.inputs[0]
-        pcoll.element_type = typehints.coerce_to_kv_type(
-            pcoll.element_type, transform_node.full_label)
-        pcoll.requires_deterministic_key_coder = (
-            self.deterministic_key_coders and transform_node.full_label)
-        key_type, value_type = pcoll.element_type.tuple_types
-        if transform_node.outputs:
-          key = next(iter(transform_node.outputs.keys()))
-          transform_node.outputs[key].element_type = typehints.KV[
-              key_type, typehints.Iterable[value_type]]
-          transform_node.outputs[key].requires_deterministic_key_coder = (
-              self.deterministic_key_coders and transform_node.full_label)
-
-  return GroupByKeyInputVisitor(deterministic_key_coders)
-
-
-def validate_pipeline_graph(pipeline_proto):
-  """Ensures this is a correctly constructed Beam pipeline.
-  """
-  def get_coder(pcoll_id):
-    return pipeline_proto.components.coders[
-        pipeline_proto.components.pcollections[pcoll_id].coder_id]
-
-  def validate_transform(transform_id):
-    transform_proto = pipeline_proto.components.transforms[transform_id]
-
-    # Currently the only validation we perform is that GBK operations have
-    # their coders set properly.
-    if transform_proto.spec.urn == common_urns.primitives.GROUP_BY_KEY.urn:
-      if len(transform_proto.inputs) != 1:
-        raise ValueError("Unexpected number of inputs: %s" % transform_proto)
-      if len(transform_proto.outputs) != 1:
-        raise ValueError("Unexpected number of outputs: %s" % transform_proto)
-      input_coder = get_coder(next(iter(transform_proto.inputs.values())))
-      output_coder = get_coder(next(iter(transform_proto.outputs.values())))
-      if input_coder.spec.urn != common_urns.coders.KV.urn:
-        raise ValueError(
-            "Bad coder for input of %s: %s" % (transform_id, input_coder))
-      if output_coder.spec.urn != common_urns.coders.KV.urn:
-        raise ValueError(
-            "Bad coder for output of %s: %s" % (transform_id, output_coder))
-      output_values_coder = pipeline_proto.components.coders[
-          output_coder.component_coder_ids[1]]
-      if (input_coder.component_coder_ids[0] !=
-          output_coder.component_coder_ids[0] or
-          output_values_coder.spec.urn != common_urns.coders.ITERABLE.urn or
-          output_values_coder.component_coder_ids[0] !=
-          input_coder.component_coder_ids[1]):
-        raise ValueError(
-            "Incompatible input coder %s and output coder %s for transform %s" %
-            (transform_id, input_coder, output_coder))
-    elif transform_proto.spec.urn == common_urns.primitives.ASSIGN_WINDOWS.urn:
-      if not transform_proto.inputs:
-        raise ValueError("Missing input for transform: %s" % transform_proto)
-    elif transform_proto.spec.urn == common_urns.primitives.PAR_DO.urn:
-      if not transform_proto.inputs:
-        raise ValueError("Missing input for transform: %s" % transform_proto)
-
-    for t in transform_proto.subtransforms:
-      validate_transform(t)
-
-  for t in pipeline_proto.root_transform_ids:
-    validate_transform(t)

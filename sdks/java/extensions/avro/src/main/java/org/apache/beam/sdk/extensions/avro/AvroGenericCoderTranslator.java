@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.avro;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 import org.apache.avro.Schema;
@@ -24,7 +25,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroGenericCoder;
 import org.apache.beam.sdk.util.construction.CoderTranslation.TranslationContext;
 import org.apache.beam.sdk.util.construction.CoderTranslator;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 
 /** Coder translator for AvroGenericCoder. */
 public class AvroGenericCoderTranslator implements CoderTranslator<AvroGenericCoder> {
@@ -35,13 +35,13 @@ public class AvroGenericCoderTranslator implements CoderTranslator<AvroGenericCo
 
   @Override
   public byte[] getPayload(AvroGenericCoder from) {
-    return from.getSchema().toString().getBytes(Charsets.UTF_8);
+    return from.getSchema().toString().getBytes(StandardCharsets.UTF_8);
   }
 
   @Override
   public AvroGenericCoder fromComponents(
       List<Coder<?>> components, byte[] payload, TranslationContext context) {
-    Schema schema = new Schema.Parser().parse(new String(payload, Charsets.UTF_8));
+    Schema schema = new Schema.Parser().parse(new String(payload, StandardCharsets.UTF_8));
     return AvroGenericCoder.of(schema);
   }
 }

@@ -21,9 +21,6 @@ import com.google.auto.value.AutoValue;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
-import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * Configuration for reading from BigQuery.
@@ -44,17 +41,6 @@ public abstract class BigQueryExportReadSchemaTransformConfiguration {
   /** Instantiates a {@link BigQueryExportReadSchemaTransformConfiguration.Builder}. */
   public static Builder builder() {
     return new AutoValue_BigQueryExportReadSchemaTransformConfiguration.Builder();
-  }
-
-  private static final AutoValueSchema AUTO_VALUE_SCHEMA = new AutoValueSchema();
-  private static final TypeDescriptor<BigQueryExportReadSchemaTransformConfiguration>
-      TYPE_DESCRIPTOR = TypeDescriptor.of(BigQueryExportReadSchemaTransformConfiguration.class);
-  private static final SerializableFunction<BigQueryExportReadSchemaTransformConfiguration, Row>
-      ROW_SERIALIZABLE_FUNCTION = AUTO_VALUE_SCHEMA.toRowFunction(TYPE_DESCRIPTOR);
-
-  /** Serializes configuration to a {@link Row}. */
-  Row toBeamRow() {
-    return ROW_SERIALIZABLE_FUNCTION.apply(this);
   }
 
   /** Configures the BigQuery read job with the SQL query. */

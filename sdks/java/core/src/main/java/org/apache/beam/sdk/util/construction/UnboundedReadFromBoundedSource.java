@@ -28,6 +28,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -119,6 +120,20 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
 
     public BoundedToUnboundedSourceAdapter(BoundedSource<T> boundedSource) {
       this.boundedSource = boundedSource;
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      if (!(other instanceof BoundedToUnboundedSourceAdapter)) {
+        return false;
+      }
+      return Objects.equals(
+          boundedSource, ((BoundedToUnboundedSourceAdapter<?>) other).boundedSource);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(boundedSource);
     }
 
     @Override

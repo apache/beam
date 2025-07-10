@@ -22,6 +22,7 @@ SchemaTransforms)
 
 import argparse
 import datetime
+import inspect
 import logging
 import os
 import shutil
@@ -152,15 +153,16 @@ def generate_transforms_config(input_services, output_file):
         transform_destinations[sdk] = dest  # override the destination
       name = modified_transform.get('name', wrapper.__name__)
 
-      fields = {}
+      fields = []
       for param in wrapper.configuration_schema.values():
         (tp, nullable) = pretty_type(param.type)
         field_info = {
+            'name': param.original_name,
             'type': str(tp),
             'description': param.description,
             'nullable': nullable
         }
-        fields[param.original_name] = field_info
+        fields.append(field_info)
 
       transform = {
           'identifier': identifier,
@@ -168,7 +170,7 @@ def generate_transforms_config(input_services, output_file):
           'destinations': transform_destinations,
           'default_service': target,
           'fields': fields,
-          'description': wrapper.description
+          'description': inspect.getdoc(wrapper)
       }
       transform_list.append(transform)
 
@@ -227,28 +229,16 @@ def pretty_type(tp):
     tp = tp.__name__
   elif tp.__module__ == 'typing':
     tp = str(tp).replace("typing.", "")
+    tp = tp.replace("Sequence", "list")
+    tp = tp.replace("Mapping", "map")
   elif tp.__module__ == 'numpy':
-    tp = "%s.%s" % (tp.__module__, tp.__name__)
+    tp = tp.__name__
+  tp = str(tp).replace("numpy.", "")
+
+  if tp == "bool":
+    tp = "boolean"
 
   return (tp, nullable)
-
-
-def camel_case_to_snake_case(string):
-  """Convert camelCase to snake_case"""
-  arr = []
-  word = []
-  for i, n in enumerate(string):
-    # If seeing an upper letter after a lower letter, we just witnessed a word
-    # If seeing an upper letter and the next letter is lower, we may have just
-    # witnessed an all caps word
-    if n.isupper() and ((i > 0 and string[i - 1].islower()) or
-                        (i + 1 < len(string) and string[i + 1].islower())):
-      arr.append(''.join(word))
-      word = [n.lower()]
-    else:
-      word.append(n.lower())
-  arr.append(''.join(word))
-  return '_'.join(arr).strip('_')
 
 
 def get_wrappers_from_transform_configs(config_file) -> Dict[str, List[str]]:
@@ -286,15 +276,14 @@ def get_wrappers_from_transform_configs(config_file) -> Dict[str, List[str]]:
       identifier = config['identifier']
 
       parameters = []
-      for param, info in fields.items():
-        pythonic_name = camel_case_to_snake_case(param)
+      for field in fields:
         param_details = {
-            "name": pythonic_name,
-            "type": info['type'],
-            "description": info['description'],
+            "name": field['name'],
+            "type": field['type'],
+            "description": field['description'],
         }
 
-        if info['nullable']:
+        if field['nullable']:
           param_details["default"] = None
         parameters.append(param_details)
 

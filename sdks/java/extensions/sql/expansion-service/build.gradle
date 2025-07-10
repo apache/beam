@@ -27,6 +27,12 @@ applyJavaNature(
   }
 )
 
+configurations.runtimeClasspath {
+  // Pin avro to 1.11.4 due to https://github.com/apache/beam/issues/34968
+  // cannot upgrade this to the latest version due to https://github.com/apache/beam/issues/34993
+  resolutionStrategy.force 'org.apache.avro:avro:1.11.4'
+}
+
 description = "Apache Beam :: SDKs :: Java :: SQL :: Expansion Service"
 ext.summary = """Contains code to run a SQL Expansion Service."""
 
@@ -45,4 +51,11 @@ task runExpansionService (type: JavaExec) {
   mainClass = "org.apache.beam.sdk.expansion.service.ExpansionService"
   classpath = sourceSets.main.runtimeClasspath
   args = [project.findProperty("constructionService.port") ?: "8097"]
+}
+
+shadowJar {
+  manifest {
+    attributes(["Multi-Release": true])
+  }
+  outputs.upToDateWhen { false }
 }

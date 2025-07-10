@@ -26,7 +26,6 @@ import org.apache.beam.sdk.util.HistogramData;
  * appropriate metrics interface for the "current" step.
  */
 public interface MetricsContainer extends Serializable {
-
   /**
    * Return the {@link Counter} that should be used for implementing the given {@code metricName} in
    * this container.
@@ -54,18 +53,22 @@ public interface MetricsContainer extends Serializable {
   Gauge getGauge(MetricName metricName);
 
   /**
+   * Return the {@link StringSet} that should be used for implementing the given {@code metricName}
+   * in this container.
+   */
+  StringSet getStringSet(MetricName metricName);
+
+  /**
+   * Return the {@link BoundedTrie} that should be used for implementing the given {@code
+   * metricName} in this container.
+   */
+  BoundedTrie getBoundedTrie(MetricName metricName);
+
+  /**
    * Return the {@link Histogram} that should be used for implementing the given {@code metricName}
    * in this container.
    */
   default Histogram getHistogram(MetricName metricName, HistogramData.BucketType bucketType) {
-    throw new RuntimeException("Histogram metric is not supported yet.");
-  }
-  /**
-   * Return the {@link Histogram} that should be used for implementing the given per-worker {@code
-   * metricName} in this container.
-   */
-  default Histogram getPerWorkerHistogram(
-      MetricName metricName, HistogramData.BucketType bucketType) {
     return NoOpHistogram.getInstance();
   }
 

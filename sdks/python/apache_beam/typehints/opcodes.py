@@ -54,6 +54,15 @@ from apache_beam.typehints.typehints import Union
 # method on a C-implemented type will do.
 _MethodDescriptorType = type(str.upper)
 
+if sys.version_info >= (3, 11):
+  import opcode
+  _div_binop_args = frozenset([
+      ix for (ix, (argname, _)) in enumerate(opcode._nb_ops)
+      if 'TRUE_DIVIDE' in argname
+  ])
+else:
+  _div_binop_args = frozenset()
+
 
 def pop_one(state, unused_arg):
   del state.stack[-1:]
@@ -78,8 +87,24 @@ def nop(unused_state, unused_arg):
   pass
 
 
+resume = nop
+
+
 def pop_top(state, unused_arg):
   state.stack.pop()
+
+
+def end_for(state, unused_arg):
+  state.stack.pop()
+  state.stack.pop()
+
+
+def end_send(state, unused_arg):
+  del state.stack[-2]
+
+
+def copy(state, arg):
+  state.stack.append(state.stack[-arg])
 
 
 def rot_n(state, n):
@@ -121,13 +146,32 @@ def get_iter(state, unused_arg):
   state.stack.append(Iterable[element_type(state.stack.pop())])
 
 
-def symmetric_binary_op(state, unused_arg):
+_NUMERIC_PROMOTION_LADDER = [bool, int, float, complex]
+
+
+def symmetric_binary_op(state, arg, is_true_div=None):
   # TODO(robertwb): This may not be entirely correct...
   b, a = Const.unwrap(state.stack.pop()), Const.unwrap(state.stack.pop())
   if a == b:
-    state.stack.append(a)
+    if a is int and b is int and (arg in _div_binop_args or is_true_div):
+      state.stack.append(float)
+    else:
+      state.stack.append(a)
   elif type(a) == type(b) and isinstance(a, typehints.SequenceTypeConstraint):
     state.stack.append(type(a)(union(element_type(a), element_type(b))))
+  # Technically these next two will be errors for anything but multiplication,
+  # but that's OK.
+  elif a is int and (b in (bytes, str) or
+                     isinstance(b, typehints.SequenceTypeConstraint)):
+    state.stack.append(b)
+  elif b is int and (a in (bytes, str) or
+                     isinstance(a, typehints.SequenceTypeConstraint)):
+    state.stack.append(a)
+  elif a in _NUMERIC_PROMOTION_LADDER and b in _NUMERIC_PROMOTION_LADDER:
+    state.stack.append(
+        _NUMERIC_PROMOTION_LADDER[max(
+            _NUMERIC_PROMOTION_LADDER.index(a),
+            _NUMERIC_PROMOTION_LADDER.index(b))])
   else:
     state.stack.append(Any)
 
@@ -139,12 +183,8 @@ binary_divide = inplace_divide = symmetric_binary_op
 binary_floor_divide = inplace_floor_divide = symmetric_binary_op
 
 
-def binary_true_divide(state, unused_arg):
-  u = union(state.stack.pop(), state.stack.pop)
-  if u == int:
-    state.stack.append(float)
-  else:
-    state.stack.append(u)
+def binary_true_divide(state, arg):
+  return symmetric_binary_op(state, arg, True)
 
 
 inplace_true_divide = binary_true_divide
@@ -188,6 +228,31 @@ def store_subscr(unused_state, unused_args):
   pass
 
 
+def binary_slice(state, args):
+  _ = state.stack.pop()
+  _ = state.stack.pop()
+  base = Const.unwrap(state.stack.pop())
+  if base is str:
+    out = base
+  elif isinstance(base, typehints.IndexableTypeConstraint):
+    out = base
+  else:
+    out = element_type(base)
+  state.stack.append(out)
+
+
+def store_slice(state, args):
+  """Clears elements off the stack like it was constructing a
+  container, but leaves the container type back at stack[-1]
+  since that's all that is relevant for type checking.
+  """
+  _ = state.stack.pop()  # End
+  _ = state.stack.pop()  # Start
+  container = state.stack.pop()  # Container type
+  _ = state.stack.pop()  # Values that would go in container
+  state.stack.append(container)
+
+
 print_item = pop_top
 print_newline = nop
 
@@ -205,14 +270,10 @@ def set_add(state, arg):
 
 
 def map_add(state, arg):
-  if sys.version_info >= (3, 8):
-    # PEP 572 The MAP_ADD expects the value as the first element in the stack
-    # and the key as the second element.
-    new_value_type = Const.unwrap(state.stack.pop())
-    new_key_type = Const.unwrap(state.stack.pop())
-  else:
-    new_key_type = Const.unwrap(state.stack.pop())
-    new_value_type = Const.unwrap(state.stack.pop())
+  # PEP 572 The MAP_ADD expects the value as the first element in the stack
+  # and the key as the second element.
+  new_value_type = Const.unwrap(state.stack.pop())
+  new_key_type = Const.unwrap(state.stack.pop())
   state.stack[-arg] = Dict[Union[state.stack[-arg].key_type, new_key_type],
                            Union[state.stack[-arg].value_type, new_value_type]]
 
@@ -307,6 +368,10 @@ def list_to_tuple(state, arg):
   state.stack.append(Tuple[element_type(base), ...])
 
 
+def build_string(state, arg):
+  state.stack[-arg:] = [str]
+
+
 def list_extend(state, arg):
   tail = state.stack.pop()
   base = state.stack[-arg]
@@ -347,6 +412,14 @@ def load_attr(state, arg):
   Will replace with Any for builtin methods, but these don't have bytecode in
   CPython so that's okay.
   """
+  if (sys.version_info.major, sys.version_info.minor) >= (3, 12):
+    # Load attribute's arg was bit-shifted in 3.12 to also allow for
+    # adding extra information to the stack based on the lower byte,
+    # so we have to adjust it back.
+    #
+    # See https://docs.python.org/3/library/dis.html#opcode-LOAD_ATTR
+    # for more information.
+    arg = arg >> 1
   o = state.stack.pop()
   name = state.get_name(arg)
   state.stack.append(_getattr(o, name))
@@ -417,12 +490,49 @@ def load_fast(state, arg):
   state.stack.append(state.vars[arg])
 
 
+def load_fast_load_fast(state, arg):
+  arg1 = arg >> 4
+  arg2 = arg & 15
+  state.stack.append(state.vars[arg1])
+  state.stack.append(state.vars[arg2])
+
+
+load_fast_check = load_fast
+
+
+def load_fast_and_clear(state, arg):
+  state.stack.append(state.vars[arg])
+  state.vars[arg] = None
+
+
 def store_fast(state, arg):
   state.vars[arg] = state.stack.pop()
 
 
+def store_fast_store_fast(state, arg):
+  arg1 = arg >> 4
+  arg2 = arg & 15
+  state.vars[arg1] = state.stack.pop()
+  state.vars[arg2] = state.stack.pop()
+
+
+def store_fast_load_fast(state, arg):
+  arg1 = arg >> 4
+  arg2 = arg & 15
+  state.vars[arg1] = state.stack.pop()
+  state.stack.append(state.vars[arg2])
+
+
 def delete_fast(state, arg):
   state.vars[arg] = Any  # really an error
+
+
+def swap(state, arg):
+  state.stack[-arg], state.stack[-1] = state.stack[-1], state.stack[-arg]
+
+
+def reraise(state, arg):
+  pass
 
 
 # bpo-43683 Adds GEN_START in Python 3.10, but removed in Python 3.11
@@ -436,7 +546,7 @@ def load_closure(state, arg):
   # See https://docs.python.org/3/library/dis.html#opcode-LOAD_CLOSURE
   if (sys.version_info.major, sys.version_info.minor) >= (3, 11):
     arg -= len(state.co.co_varnames)
-  state.stack.append(state.get_closure(arg))
+  state.stack.append(state.closure_type(arg))
 
 
 def load_deref(state, arg):
@@ -466,23 +576,36 @@ def make_function(state, arg):
     pop_count = 2
     is_lambda = False
   closure = None
-  # arg contains flags, with corresponding stack values if positive.
-  # https://docs.python.org/3.6/library/dis.html#opcode-MAKE_FUNCTION
-  pop_count += bin(arg).count('1')
-  if arg & 0x08:
-    # Convert types in Tuple constraint to a tuple of CPython cells.
-    # https://stackoverflow.com/a/44670295
-    if is_lambda:
-      closureTuplePos = -2
-    else:
-      closureTuplePos = -3
-    closure = tuple((lambda _: lambda: _)(t).__closure__[0]
-                    for t in state.stack[closureTuplePos].tuple_types)
+  if (sys.version_info.major, sys.version_info.minor) < (3, 13):
+    # arg contains flags, with corresponding stack values if positive.
+    # https://docs.python.org/3.6/library/dis.html#opcode-MAKE_FUNCTION
+    pop_count += bin(arg).count('1')
+    if arg & 0x08:
+      # Convert types in Tuple constraint to a tuple of CPython cells.
+      # https://stackoverflow.com/a/44670295
+      if is_lambda:
+        closureTuplePos = -2
+      else:
+        closureTuplePos = -3
+      closure = tuple((lambda _: lambda: _)(t).__closure__[0]
+                      for t in state.stack[closureTuplePos].tuple_types)
 
   func = types.FunctionType(func_code, globals, name=func_name, closure=closure)
 
   assert pop_count <= len(state.stack)
   state.stack[-pop_count:] = [Const(func)]
+
+
+def set_function_attribute(state, arg):
+  func = state.stack.pop().value
+  attr = state.stack.pop().value
+  closure = None
+  if arg & 0x08:
+    closure = tuple((lambda _: lambda: _)(t).__closure__[0]
+                    for t in state.stack[attr].tuple_types)
+  new_func = types.FunctionType(
+      func.code, func.globals, name=func.name, closure=closure)
+  state.stack.append(Const(new_func))
 
 
 def make_closure(state, arg):
@@ -491,6 +614,33 @@ def make_closure(state, arg):
 
 def build_slice(state, arg):
   state.stack[-arg:] = [slice]  # a slice object
+
+
+def to_bool(state, arg):
+  state.stack[-1] = bool
+
+
+def format_value(state, arg):
+  if arg & 0x04:
+    state.stack.pop()
+  state.stack.pop()
+  state.stack.append(str)
+
+
+def convert_value(state, arg):
+  state.stack.pop()
+  state.stack.append(str)
+
+
+def format_simple(state, arg):
+  state.stack.pop()
+  state.stack.append(str)
+
+
+def format_with_spec(state, arg):
+  state.stack.pop()
+  state.stack.pop()
+  state.stack.append(str)
 
 
 def _unpack_lists(state, arg):

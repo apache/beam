@@ -17,14 +17,16 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
+
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.coders.VarLongCoder;
 
 /**
  * A convenience class for applying row updates to BigQuery using {@link
@@ -43,7 +45,12 @@ public abstract class RowMutation {
   }
 
   public static class RowMutationCoder extends AtomicCoder<RowMutation> {
+    private static final TableRowJsonCoder ROW_JSON_CODER = TableRowJsonCoder.of();
     private static final RowMutationCoder INSTANCE = new RowMutationCoder();
+    private static final VarIntCoder INT_CODER = VarIntCoder.of();
+    private static final StringUtf8Coder STRING_CODER = StringUtf8Coder.of();
+    private static final RowMutationInformation.MutationType[] MUTATION_TYPES =
+        RowMutationInformation.MutationType.values();
 
     public static RowMutationCoder of() {
       return INSTANCE;
@@ -51,19 +58,21 @@ public abstract class RowMutation {
 
     @Override
     public void encode(RowMutation value, OutputStream outStream) throws IOException {
-      TableRowJsonCoder.of().encode(value.getTableRow(), outStream);
-      VarIntCoder.of()
-          .encode(value.getMutationInformation().getMutationType().ordinal(), outStream);
-      VarLongCoder.of().encode(value.getMutationInformation().getSequenceNumber(), outStream);
+      ROW_JSON_CODER.encode(value.getTableRow(), outStream);
+      RowMutationInformation mutationInformation = value.getMutationInformation();
+      INT_CODER.encode(mutationInformation.getMutationType().ordinal(), outStream);
+      STRING_CODER.encode(mutationInformation.getChangeSequenceNumber(), outStream);
     }
 
     @Override
     public RowMutation decode(InputStream inStream) throws IOException {
+      TableRow tableRow = ROW_JSON_CODER.decode(inStream);
+      int mutationTypeOrdinal = INT_CODER.decode(inStream);
+      checkState(mutationTypeOrdinal >= 0 && mutationTypeOrdinal < MUTATION_TYPES.length);
+      RowMutationInformation.MutationType mutationType = MUTATION_TYPES[mutationTypeOrdinal];
+      String changeSequenceNumber = STRING_CODER.decode(inStream);
       return RowMutation.of(
-          TableRowJsonCoder.of().decode(inStream),
-          RowMutationInformation.of(
-              RowMutationInformation.MutationType.values()[VarIntCoder.of().decode(inStream)],
-              VarLongCoder.of().decode(inStream)));
+          tableRow, RowMutationInformation.of(mutationType, changeSequenceNumber));
     }
   }
 }

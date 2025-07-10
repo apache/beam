@@ -27,10 +27,10 @@ ext.summary = "Performance tests for Google BigQuery IO sources and sinks"
 dependencies {
     testImplementation library.java.google_api_services_bigquery
     testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
-    testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
+    testImplementation project(path: ":sdks:java:testing:test-utils")
     testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "testRuntimeMigration")
-    testImplementation project(path: ":sdks:java:testing:test-utils", configuration: "testRuntimeMigration")
-    testImplementation project(path: ":sdks:java:io:common", configuration: "testRuntimeMigration")
+    testImplementation project(path: ":sdks:java:testing:test-utils")
+    testImplementation project(path: ":sdks:java:io:common")
     testImplementation project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntimeMigration")
     testImplementation project(":sdks:java:io:synthetic")
     testImplementation library.java.junit

@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.util.common.ReflectHelpers.findClassLoader;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutionException;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.description.modifier.FieldManifestation;
@@ -43,7 +44,6 @@ import org.apache.beam.sdk.transforms.DoFn.OnTimer;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
 import org.apache.beam.sdk.transforms.reflect.ByteBuddyDoFnInvokerFactory.DoFnMethodWithExtraParametersDelegation;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.CharMatcher;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheLoader;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.LoadingCache;
@@ -191,7 +191,7 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
             "%s$%s$%s",
             OnTimerInvoker.class.getSimpleName(),
             CharMatcher.javaLetterOrDigit().retainFrom(timerId),
-            BaseEncoding.base64().omitPadding().encode(timerId.getBytes(Charsets.UTF_8)));
+            BaseEncoding.base64().omitPadding().encode(timerId.getBytes(StandardCharsets.UTF_8)));
 
     DynamicType.Builder<?> builder =
         new ByteBuddy()
@@ -241,7 +241,7 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
             "%s$%s$%s",
             OnTimerInvoker.class.getSimpleName(),
             CharMatcher.javaLetterOrDigit().retainFrom(timerId),
-            BaseEncoding.base64().omitPadding().encode(timerId.getBytes(Charsets.UTF_8)));
+            BaseEncoding.base64().omitPadding().encode(timerId.getBytes(StandardCharsets.UTF_8)));
 
     DynamicType.Builder<?> builder =
         new ByteBuddy()

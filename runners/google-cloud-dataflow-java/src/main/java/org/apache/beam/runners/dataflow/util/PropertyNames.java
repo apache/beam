@@ -70,6 +70,7 @@ public class PropertyNames {
   public static final String DISPLAY_DATA = "display_data";
   public static final String RESOURCE_HINTS = "resource_hints";
   public static final String PRESERVES_KEYS = "preserves_keys";
+  public static final String ALLOW_DUPLICATES = "allow_duplicates";
   /**
    * @deprecated Uses the incorrect terminology. {@link #RESTRICTION_ENCODING}. Should be removed
    *     once non FnAPI SplittableDoFn expansion for Dataflow is removed.

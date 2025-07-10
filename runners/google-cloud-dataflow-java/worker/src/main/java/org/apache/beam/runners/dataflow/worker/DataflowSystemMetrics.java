@@ -20,15 +20,14 @@ package org.apache.beam.runners.dataflow.worker;
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 
 /** This holds system metrics related constants used in Batch and Streaming. */
 public class DataflowSystemMetrics {
 
   public static final MetricName THROTTLING_MSECS_METRIC_NAME =
-      MetricName.named("dataflow-throttling-metrics", "throttling-msecs");
-
-  // TODO: Provide an utility in SDK 'ThrottlingReporter' to update throttling time.
+      MetricName.named("dataflow-throttling-metrics", Metrics.THROTTLE_TIME_COUNTER_NAME);
 
   /** System counters populated by streaming dataflow workers. */
   public enum StreamingSystemCounterNames {
@@ -46,7 +45,6 @@ public class DataflowSystemMetrics {
     MAX_OUTSTANDING_BYTES("dataflow_max_outstanding_bytes"),
     OUTSTANDING_BUNDLES("dataflow_outstanding_bundles"),
     MAX_OUTSTANDING_BUNDLES("dataflow_max_outstanding_bundles"),
-    WINDMILL_QUOTA_THROTTLING("dataflow_streaming_engine_throttled_msecs"),
     MEMORY_THRASHING("dataflow_streaming_engine_user_worker_thrashing");
 
     private final String name;

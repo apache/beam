@@ -41,8 +41,9 @@ import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -70,11 +71,11 @@ public class WindowEvaluatorFactoryTest {
   private BundleFactory bundleFactory;
 
   private WindowedValue<Long> valueInGlobalWindow =
-      WindowedValue.timestampedValueInGlobalWindow(3L, new Instant(2L));
+      WindowedValues.timestampedValueInGlobalWindow(3L, new Instant(2L));
 
   private final PaneInfo intervalWindowPane = PaneInfo.createPane(false, false, Timing.LATE, 3, 2);
   private WindowedValue<Long> valueInIntervalWindow =
-      WindowedValue.of(
+      WindowedValues.of(
           2L, new Instant(-10L), new IntervalWindow(new Instant(-100), EPOCH), intervalWindowPane);
 
   private IntervalWindow intervalWindow1 =
@@ -86,7 +87,7 @@ public class WindowEvaluatorFactoryTest {
 
   private final PaneInfo multiWindowPane = PaneInfo.createPane(false, true, Timing.ON_TIME, 3, 0);
   private WindowedValue<Long> valueInGlobalAndTwoIntervalWindows =
-      WindowedValue.of(
+      WindowedValues.of(
           1L,
           EPOCH.plus(Duration.standardDays(3)),
           ImmutableList.of(GlobalWindow.INSTANCE, intervalWindow1, intervalWindow2),

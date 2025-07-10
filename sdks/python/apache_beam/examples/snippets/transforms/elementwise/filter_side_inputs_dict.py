@@ -65,8 +65,7 @@ def filter_side_inputs_dict(test=None):
             },
         ])
         | 'Filter plants by duration' >> beam.Filter(
-            lambda plant,
-            keep_duration: keep_duration[plant['duration']],
+            lambda plant, keep_duration: keep_duration[plant['duration']],
             keep_duration=beam.pvalue.AsDict(keep_duration),
         )
         | beam.Map(print))

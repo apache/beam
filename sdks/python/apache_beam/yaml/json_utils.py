@@ -21,9 +21,8 @@ For internal use, no backward compatibility guarantees.
 """
 
 import json
+from collections.abc import Callable
 from typing import Any
-from typing import Callable
-from typing import Dict
 from typing import Optional
 
 import jsonschema
@@ -37,19 +36,22 @@ JSON_ATOMIC_TYPES_TO_BEAM = {
     'integer': schema_pb2.INT64,
     'number': schema_pb2.DOUBLE,
     'string': schema_pb2.STRING,
+    'bytes': schema_pb2.BYTES
 }
 
 BEAM_ATOMIC_TYPES_TO_JSON = {
     schema_pb2.INT16: 'integer',
     schema_pb2.INT32: 'integer',
     schema_pb2.FLOAT: 'number',
-    **{v: k
-       for k, v in JSON_ATOMIC_TYPES_TO_BEAM.items()}
+    **{
+        v: k
+        for k, v in JSON_ATOMIC_TYPES_TO_BEAM.items()
+    }
 }
 
 
 def json_schema_to_beam_schema(
-    json_schema: Dict[str, Any]) -> schema_pb2.Schema:
+    json_schema: dict[str, Any]) -> schema_pb2.Schema:
   """Returns a Beam schema equivalent for the given Json schema."""
   def maybe_nullable(beam_type, nullable):
     if nullable:
@@ -69,12 +71,13 @@ def json_schema_to_beam_schema(
       fields=[
           schemas.schema_field(
               name,
-              maybe_nullable(json_type_to_beam_type(t), name not in required))
+              maybe_nullable(json_type_to_beam_type(t), name not in required),
+              description=t.get('description') if isinstance(t, dict) else None)
           for (name, t) in json_schema['properties'].items()
       ])
 
 
-def json_type_to_beam_type(json_type: Dict[str, Any]) -> schema_pb2.FieldType:
+def json_type_to_beam_type(json_type: dict[str, Any]) -> schema_pb2.FieldType:
   """Returns a Beam schema type for the given Json (schema) type."""
   if not isinstance(json_type, dict) or 'type' not in json_type:
     raise ValueError(f'Malformed type {json_type}.')
@@ -105,7 +108,19 @@ def json_type_to_beam_type(json_type: Dict[str, Any]) -> schema_pb2.FieldType:
     raise ValueError(f'Unable to convert {json_type} to a Beam schema.')
 
 
-def beam_type_to_json_type(beam_type: schema_pb2.FieldType) -> Dict[str, Any]:
+def beam_schema_to_json_schema(
+    beam_schema: schema_pb2.Schema) -> dict[str, Any]:
+  return {
+      'type': 'object',
+      'properties': {
+          field.name: beam_type_to_json_type(field.type)
+          for field in beam_schema.fields
+      },
+      'additionalProperties': False
+  }
+
+
+def beam_type_to_json_type(beam_type: schema_pb2.FieldType) -> dict[str, Any]:
   type_info = beam_type.WhichOneof("type_info")
   if type_info == "atomic_type":
     if beam_type.atomic_type in BEAM_ATOMIC_TYPES_TO_JSON:
@@ -185,7 +200,7 @@ def json_to_row(beam_type: schema_pb2.FieldType) -> Callable[[Any], Any]:
 
 def json_parser(
     beam_schema: schema_pb2.Schema,
-    json_schema: Optional[Dict[str,
+    json_schema: Optional[dict[str,
                                Any]] = None) -> Callable[[bytes], beam.Row]:
   """Returns a callable converting Json strings to Beam rows of the given type.
 
@@ -266,3 +281,52 @@ def json_formater(
   convert = row_to_json(
       schema_pb2.FieldType(row_type=schema_pb2.RowType(schema=beam_schema)))
   return lambda row: json.dumps(convert(row), sort_keys=True).encode('utf-8')
+
+
+def _validate_compatible(weak_schema, strong_schema):
+  if not weak_schema:
+    return
+  if weak_schema['type'] != strong_schema['type']:
+    raise ValueError(
+        'Incompatible types: %r vs %r' %
+        (weak_schema['type'] != strong_schema['type']))
+  if weak_schema['type'] == 'array':
+    _validate_compatible(weak_schema['items'], strong_schema['items'])
+  elif weak_schema == 'object':
+    for required in strong_schema.get('required', []):
+      if required not in weak_schema['properties']:
+        raise ValueError('Missing or unkown property %r' % required)
+    for name, spec in weak_schema.get('properties', {}):
+      if name in strong_schema['properties']:
+        try:
+          _validate_compatible(spec, strong_schema['properties'][name])
+        except Exception as exn:
+          raise ValueError('Incompatible schema for %r' % name) from exn
+      elif not strong_schema.get('additionalProperties'):
+        raise ValueError(
+            'Prohibited property: {property}; '
+            'perhaps additionalProperties: False is missing?')
+
+
+def row_validator(beam_schema: schema_pb2.Schema,
+                  json_schema: dict[str, Any]) -> Callable[[Any], Any]:
+  """Returns a callable that will fail on elements not respecting json_schema.
+  """
+  if not json_schema:
+    return lambda x: None
+
+  # Validate that this compiles, but avoid pickling the validator itself.
+  _ = jsonschema.validators.validator_for(json_schema)(json_schema)
+  _validate_compatible(beam_schema_to_json_schema(beam_schema), json_schema)
+  validator = None
+
+  convert = row_to_json(
+      schema_pb2.FieldType(row_type=schema_pb2.RowType(schema=beam_schema)))
+
+  def validate(row):
+    nonlocal validator
+    if validator is None:
+      validator = jsonschema.validators.validator_for(json_schema)(json_schema)
+    validator.validate(convert(row))
+
+  return validate

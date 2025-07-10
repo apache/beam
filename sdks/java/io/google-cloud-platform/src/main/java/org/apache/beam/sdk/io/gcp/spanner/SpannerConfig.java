@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.spanner;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings.isNullOrEmpty;
 
 import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.StatusCode.Code;
@@ -58,6 +59,13 @@ public abstract class SpannerConfig implements Serializable {
 
   public abstract @Nullable ValueProvider<String> getHost();
 
+  public String getHostValue() {
+    if (getHost() == null || isNullOrEmpty(getHost().get())) {
+      return DEFAULT_HOST;
+    }
+    return getHost().get();
+  }
+
   public abstract @Nullable ValueProvider<String> getEmulatorHost();
 
   public abstract @Nullable ValueProvider<Boolean> getIsLocalChannelProvider();
@@ -73,6 +81,8 @@ public abstract class SpannerConfig implements Serializable {
   public abstract @Nullable ImmutableSet<Code> getRetryableCodes();
 
   public abstract @Nullable ValueProvider<RpcPriority> getRpcPriority();
+
+  public abstract @Nullable ValueProvider<Duration> getMaxCommitDelay();
 
   public abstract @Nullable ValueProvider<String> getDatabaseRole();
 
@@ -155,6 +165,8 @@ public abstract class SpannerConfig implements Serializable {
     abstract Builder setServiceFactory(ServiceFactory<Spanner, SpannerOptions> serviceFactory);
 
     abstract Builder setRpcPriority(ValueProvider<RpcPriority> rpcPriority);
+
+    abstract Builder setMaxCommitDelay(ValueProvider<Duration> maxCommitDelay);
 
     abstract Builder setDatabaseRole(ValueProvider<String> databaseRole);
 
@@ -276,6 +288,22 @@ public abstract class SpannerConfig implements Serializable {
   public SpannerConfig withRpcPriority(ValueProvider<RpcPriority> rpcPriority) {
     checkNotNull(rpcPriority, "withRpcPriority(rpcPriority) called with null input.");
     return toBuilder().setRpcPriority(rpcPriority).build();
+  }
+
+  /* Specifies the max commit delay for high throughput writes. */
+  public SpannerConfig withMaxCommitDelay(long millis) {
+    return withMaxCommitDelay(Duration.millis(millis));
+  }
+
+  /** Specifies the max commit delay for high throughput writes. */
+  public SpannerConfig withMaxCommitDelay(Duration maxCommitDelay) {
+    return withMaxCommitDelay(ValueProvider.StaticValueProvider.of(maxCommitDelay));
+  }
+
+  /** Specifies the max commit delay for high throughput writes. */
+  public SpannerConfig withMaxCommitDelay(ValueProvider<Duration> maxCommitDelay) {
+    checkNotNull(maxCommitDelay, "withMaxCommitTimeout(maxCommitDelay) called with null input.");
+    return toBuilder().setMaxCommitDelay(maxCommitDelay).build();
   }
 
   /** Specifies the Cloud Spanner database role. */

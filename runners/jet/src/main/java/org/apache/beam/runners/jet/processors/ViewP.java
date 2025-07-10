@@ -33,7 +33,8 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Instant;
 
@@ -63,7 +64,7 @@ public class ViewP extends AbstractProcessor {
     this.timestampCombiner = windowingStrategy.getTimestampCombiner();
     this.inputCoder = inputCoder;
     this.outputCoder =
-        Utils.deriveIterableValueCoder((WindowedValue.FullWindowedValueCoder) outputCoder);
+        Utils.deriveIterableValueCoder((WindowedValues.FullWindowedValueCoder) outputCoder);
     this.ownerId = ownerId;
   }
 
@@ -90,7 +91,7 @@ public class ViewP extends AbstractProcessor {
                   .map(
                       e -> {
                         WindowedValue<?> outputValue =
-                            WindowedValue.of(
+                            WindowedValues.of(
                                 e.getValue().values,
                                 e.getValue().timestamp,
                                 Collections.singleton(e.getKey()),

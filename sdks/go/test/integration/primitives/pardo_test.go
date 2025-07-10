@@ -18,6 +18,8 @@ package primitives
 import (
 	"testing"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/jobopts"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 	"github.com/apache/beam/sdks/v2/go/test/integration"
 )
@@ -45,4 +47,45 @@ func TestParDoMultiMapSideInput(t *testing.T) {
 func TestParDoPipelineOptions(t *testing.T) {
 	integration.CheckFilters(t)
 	ptest.RunAndValidate(t, ParDoPipelineOptions())
+}
+
+func TestParDoBundleFinalizer(t *testing.T) {
+	integration.CheckFilters(t)
+	if !jobopts.IsLoopback() {
+		t.Skip("Only Loopback mode is supported")
+	}
+	for _, tt := range []struct {
+		name       string
+		pipelineFn func(s beam.Scope)
+		want       int32
+	}{
+		{
+			name:       "InProcessElement",
+			pipelineFn: ParDoProcessElementBundleFinalizer,
+			want:       BundleFinalizerProcess,
+		},
+		{
+			name:       "InFinishBundle",
+			pipelineFn: ParDoFinishBundleFinalizer,
+			want:       BundleFinalizerFinish,
+		},
+		{
+			name:       "InStartProcessFinishBundle",
+			pipelineFn: ParDoFinalizerInAll,
+			want:       BundleFinalizerStart + BundleFinalizerProcess + BundleFinalizerFinish,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			CountInvokeBundleFinalizer.Store(0)
+			p, s := beam.NewPipelineWithRoot()
+			tt.pipelineFn(s)
+			_, err := ptest.RunWithMetrics(p)
+			if err != nil {
+				t.Fatalf("Failed to execute job: %v", err)
+			}
+			if got := CountInvokeBundleFinalizer.Load(); got != tt.want {
+				t.Errorf("BundleFinalization RegisterCallback not invoked as expected via proxy counts, got: %v, want: %v", got, tt.want)
+			}
+		})
+	}
 }

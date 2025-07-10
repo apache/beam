@@ -8,9 +8,10 @@ Response:
 * [Go](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio)
 * [Typescript](https://github.com/apache/beam/blob/master/sdks/typescript/src/apache_beam/io/textio.ts)
 
-The [Dataflow cookbook repository](https://github.com/GoogleCloudPlatform/dataflow-cookbook) can help you to get started with CSV and Apache Beam.
+To get started with CSV and Apache Beam, refer to the [Dataflow Cookbook GitHub repository](https://github.com/GoogleCloudPlatform/dataflow-cookbook).
 
-Apache Beam pipeline code for reading data from a CSV file might look like the following example:
+Here's an example of Apache Beam pipeline code for reading data from a CSV file:
+
 ```python
 class CsvOptions(PipelineOptions):
     @classmethod

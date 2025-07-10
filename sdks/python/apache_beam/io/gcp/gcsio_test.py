@@ -20,15 +20,25 @@
 
 import logging
 import os
+import random
 import unittest
 from datetime import datetime
 
 import mock
 
+from apache_beam import version as beam_version
+from apache_beam.metrics.execution import MetricsContainer
+from apache_beam.metrics.execution import MetricsEnvironment
+from apache_beam.metrics.metricbase import MetricName
+from apache_beam.pipeline import PipelineOptions
+from apache_beam.runners.worker import statesampler
+from apache_beam.utils import counters
+
 # pylint: disable=wrong-import-order, wrong-import-position
 
 try:
   from apache_beam.io.gcp import gcsio
+  from apache_beam.io.gcp.gcsio_retry import DEFAULT_RETRY_WITH_THROTTLING_COUNTER
   from google.cloud.exceptions import BadRequest, NotFound
 except ImportError:
   NotFound = None
@@ -65,8 +75,38 @@ class FakeGcsClient(object):
     else:
       return self.create_bucket(name)
 
-  def batch(self):
-    pass
+  def batch(self, raise_exception=True):
+    # Return a mock object configured to act as a context manager
+    # and provide the necessary _responses attribute after __exit__.
+    # test_delete performs 3 deletions.
+    num_expected_responses = 3
+    mock_batch = mock.Mock()
+
+    # Configure the mock responses (assuming success for test_delete)
+    # These need to be available *after* the 'with' block finishes.
+    # We'll store them temporarily and assign in __exit__.
+    successful_responses = [
+        mock.Mock(status_code=204) for _ in range(num_expected_responses)
+    ]
+
+    # Define the exit logic
+    def mock_exit_logic(exc_type, exc_val, exc_tb):
+      # Assign responses to the mock instance itself
+      # so they are available after the 'with' block.
+      mock_batch._responses = successful_responses
+
+    # Configure the mock to behave like a context manager
+    mock_batch.configure_mock(
+        __enter__=mock.Mock(return_value=mock_batch),
+        __exit__=mock.Mock(side_effect=mock_exit_logic))
+
+    # The loop inside _batch_with_retry calls fn(request) for each item.
+    # The real batch object might have methods like add() or similar,
+    # but the core logic in gcsio.py calls the passed function `fn` directly
+    # within the `with` block. So, no specific action methods seem needed
+    # on the mock_batch itself for this test case.
+
+    return mock_batch
 
   def add_file(self, bucket, blob, contents):
     folder = self.lookup_bucket(bucket)
@@ -78,7 +118,7 @@ class FakeGcsClient(object):
     holder = folder.get_blob(blob.name)
     return holder
 
-  def list_blobs(self, bucket_or_path, prefix=None):
+  def list_blobs(self, bucket_or_path, prefix=None, **unused_kwargs):
     bucket = self.get_bucket(bucket_or_path.name)
     if not prefix:
       return list(bucket.blobs.values())
@@ -113,7 +153,7 @@ class FakeBucket(object):
   def blob(self, name):
     return self._create_blob(name)
 
-  def copy_blob(self, blob, dest, new_name=None):
+  def copy_blob(self, blob, dest, new_name=None, **kwargs):
     if self.get_blob(blob.name) is None:
       raise NotFound("source blob not found")
     if not new_name:
@@ -122,7 +162,7 @@ class FakeBucket(object):
     dest.add_blob(new_blob)
     return new_blob
 
-  def get_blob(self, blob_name):
+  def get_blob(self, blob_name, **unused_kwargs):
     bucket = self._get_canonical_bucket()
     if blob_name in bucket.blobs:
       return bucket.blobs[blob_name]
@@ -139,10 +179,14 @@ class FakeBucket(object):
   def set_default_kms_key_name(self, name):
     self.default_kms_key_name = name
 
-  def delete_blob(self, name):
+  def delete_blob(self, name, **kwargs):
     bucket = self._get_canonical_bucket()
     if name in bucket.blobs:
       del bucket.blobs[name]
+
+  def list_blobs(self, prefix=None, **kwargs):
+    bucket = self._get_canonical_bucket()
+    return self.client.list_blobs(bucket, prefix, **kwargs)
 
 
 class FakeBlob(object):
@@ -168,6 +212,12 @@ class FakeBlob(object):
     self.updated = updated
     self._fail_when_getting_metadata = fail_when_getting_metadata
     self._fail_when_reading = fail_when_reading
+    self.generation = random.randint(0, (1 << 63) - 1)
+    self.content_encoding = None
+    self.content_type = None
+
+  def reload(self):
+    pass
 
   def delete(self):
     self.bucket.delete_blob(self.name)
@@ -180,6 +230,9 @@ class FakeBlob(object):
 
   def __eq__(self, other):
     return self.bucket.get_blob(self.name) is other.bucket.get_blob(other.name)
+
+  def exists(self, **kwargs):
+    return self.bucket.get_blob(self.name) is not None
 
 
 @unittest.skipIf(NotFound is None, 'GCP dependencies are not installed')
@@ -224,6 +277,23 @@ class SampleOptions(object):
     self.dataflow_kms_key = kms_key
 
 
+_DEFAULT_UNIVERSE_DOMAIN = "googleapis.com"
+
+
+def _make_credentials(project=None, universe_domain=_DEFAULT_UNIVERSE_DOMAIN):
+  import google.auth.credentials
+
+  if project is not None:
+    return mock.Mock(
+        spec=google.auth.credentials.Credentials,
+        project_id=project,
+        universe_domain=universe_domain,
+    )
+
+  return mock.Mock(
+      spec=google.auth.credentials.Credentials, universe_domain=universe_domain)
+
+
 @unittest.skipIf(NotFound is None, 'GCP dependencies are not installed')
 class TestGCSIO(unittest.TestCase):
   def _insert_random_file(
@@ -256,6 +326,60 @@ class TestGCSIO(unittest.TestCase):
     self.gcs = gcsio.GcsIO(self.client)
     self.client.create_bucket("gcsio-test")
 
+  def test_read_bucket_metric(self):
+    sampler = statesampler.StateSampler('', counters.CounterFactory())
+    statesampler.set_current_tracker(sampler)
+    state1 = sampler.scoped_state(
+        'mystep', 'myState', metrics_container=MetricsContainer('mystep'))
+
+    try:
+      sampler.start()
+      with state1:
+        client = FakeGcsClient()
+        gcs = gcsio.GcsIO(client, {"enable_bucket_read_metric_counter": True})
+        client.create_bucket("gcsio-test")
+        file_name = 'gs://gcsio-test/dummy_file'
+        file_size = 1234
+        self._insert_random_file(client, file_name, file_size)
+        reader = gcs.open(file_name, 'r')
+        reader.read()
+
+        container = MetricsEnvironment.current_container()
+        self.assertEqual(
+            container.get_counter(
+                MetricName(
+                    "apache_beam.io.gcp.gcsio.BeamBlobReader",
+                    "GCS_read_bytes_counter_gcsio-test")).get_cumulative(),
+            file_size)
+    finally:
+      sampler.stop()
+
+  def test_write_bucket_metric(self):
+    sampler = statesampler.StateSampler('', counters.CounterFactory())
+    statesampler.set_current_tracker(sampler)
+    state1 = sampler.scoped_state(
+        'mystep', 'myState', metrics_container=MetricsContainer('mystep'))
+
+    try:
+      sampler.start()
+      with state1:
+        client = FakeGcsClient()
+        gcs = gcsio.GcsIO(client, {"enable_bucket_write_metric_counter": True})
+        client.create_bucket("gcsio-test")
+        file_name = 'gs://gcsio-test/dummy_file'
+        gcsFile = gcs.open(file_name, 'w')
+        gcsFile.write(str.encode("some text"))
+
+        container = MetricsEnvironment.current_container()
+        self.assertEqual(
+            container.get_counter(
+                MetricName(
+                    "apache_beam.io.gcp.gcsio.BeamBlobWriter",
+                    "GCS_write_bytes_counter_gcsio-test")).get_cumulative(),
+            9)
+    finally:
+      sampler.stop()
+
   def test_default_bucket_name(self):
     self.assertEqual(
         gcsio.default_gcs_bucket_name(DEFAULT_GCP_PROJECT, "us-central1"),
@@ -275,7 +399,7 @@ class TestGCSIO(unittest.TestCase):
     self.assertFalse(self.gcs.exists(file_name + 'xyz'))
     self.assertTrue(self.gcs.exists(file_name))
 
-  @mock.patch.object(FakeBucket, 'get_blob')
+  @mock.patch.object(FakeBlob, 'exists')
   def test_exists_failure(self, mock_get):
     # Raising an error other than 404. Raising 404 is a valid failure for
     # exists() call.
@@ -359,19 +483,42 @@ class TestGCSIO(unittest.TestCase):
       self.gcs.open(file_name, 'r+b')
 
   def test_delete(self):
+    # File path.
     file_name = 'gs://gcsio-test/delete_me'
     file_size = 1024
     bucket_name, blob_name = gcsio.parse_gcs_path(file_name)
+
     # Test deletion of non-existent file.
     bucket = self.client.get_bucket(bucket_name)
     self.gcs.delete(file_name)
 
+    # Insert a random file for testing.
     self._insert_random_file(self.client, file_name, file_size)
     self.assertTrue(blob_name in bucket.blobs)
 
+    # Deleting the file.
     self.gcs.delete(file_name)
-
     self.assertFalse(blob_name in bucket.blobs)
+
+    # Now test deleting a directory (prefix) with multiple files.
+    prefix = 'gs://gcsio-test/directory_to_delete/'
+    file_names = [f"{prefix}file1", f"{prefix}file2", f"{prefix}file3"]
+    blobs = [gcsio.parse_gcs_path(file_name) for file_name in file_names]
+
+    # Insert random files under the prefix.
+    for file_name in file_names:
+      self._insert_random_file(self.client, file_name, file_size)
+
+    # Verify the files exist before deletion
+    for blob in blobs:
+      self.assertTrue(blob[1] in bucket.blobs)
+
+    # Deleting the directory (all files under the prefix).
+    self.gcs.delete(prefix, recursive=True)
+
+    # Verify that the files are deleted.
+    for blob in blobs:
+      self.assertFalse(blob[1] in bucket.blobs)
 
   def test_copy(self):
     src_file_name = 'gs://gcsio-test/source'
@@ -395,6 +542,74 @@ class TestGCSIO(unittest.TestCase):
       self.gcs.copy(
           'gs://gcsio-test/non-existent',
           'gs://gcsio-test/non-existent-destination')
+
+  @staticmethod
+  def _fake_batch_responses(status_codes):
+    return mock.Mock(
+        __enter__=mock.Mock(),
+        __exit__=mock.Mock(),
+        _responses=[
+            mock.Mock(
+                **{
+                    'json.return_value': {
+                        'error': {
+                            'message': 'error'
+                        }
+                    },
+                    'request.method': 'BATCH',
+                    'request.url': 'contentid://None',
+                },
+                status_code=code,
+            ) for code in status_codes
+        ],
+    )
+
+  @mock.patch('apache_beam.io.gcp.gcsio.MAX_BATCH_OPERATION_SIZE', 3)
+  @mock.patch('time.sleep', mock.Mock())
+  def test_copy_batch(self):
+    src_dest_pairs = [
+        (f'gs://source_bucket/file{i}.txt', f'gs://dest_bucket/file{i}.txt')
+        for i in range(7)
+    ]
+    gcs_io = gcsio.GcsIO(
+        storage_client=mock.Mock(
+            batch=mock.Mock(
+                side_effect=[
+                    self._fake_batch_responses([200, 404, 429]),
+                    self._fake_batch_responses([429]),
+                    self._fake_batch_responses([429]),
+                    self._fake_batch_responses([200]),
+                    self._fake_batch_responses([200, 429, 200]),
+                    self._fake_batch_responses([200]),
+                    self._fake_batch_responses([200]),
+                ]),
+        ))
+    results = gcs_io.copy_batch(src_dest_pairs)
+    expected = [
+        ('gs://source_bucket/file0.txt', 'gs://dest_bucket/file0.txt', None),
+        ('gs://source_bucket/file1.txt', 'gs://dest_bucket/file1.txt', 404),
+        ('gs://source_bucket/file2.txt', 'gs://dest_bucket/file2.txt', None),
+        ('gs://source_bucket/file3.txt', 'gs://dest_bucket/file3.txt', None),
+        ('gs://source_bucket/file4.txt', 'gs://dest_bucket/file4.txt', None),
+        ('gs://source_bucket/file5.txt', 'gs://dest_bucket/file5.txt', None),
+        ('gs://source_bucket/file6.txt', 'gs://dest_bucket/file6.txt', None),
+    ]
+    self.assertEqual(results, expected)
+
+  @mock.patch('time.sleep', mock.Mock())
+  @mock.patch('time.monotonic', mock.Mock(side_effect=[0, 120]))
+  def test_copy_batch_timeout_exceeded(self):
+    src_dest_pairs = [
+        ('gs://source_bucket/file0.txt', 'gs://dest_bucket/file0.txt')
+    ]
+    gcs_io = gcsio.GcsIO(
+        storage_client=mock.Mock(
+            batch=mock.Mock(side_effect=[self._fake_batch_responses([429])])))
+    results = gcs_io.copy_batch(src_dest_pairs)
+    expected = [
+        ('gs://source_bucket/file0.txt', 'gs://dest_bucket/file0.txt', 429),
+    ]
+    self.assertEqual(results, expected)
 
   def test_copytree(self):
     src_dir_name = 'gs://gcsio-test/source/'
@@ -453,7 +668,11 @@ class TestGCSIO(unittest.TestCase):
 
     with mock.patch('apache_beam.io.gcp.gcsio.BeamBlobReader') as reader:
       self.gcs.open(file_name, read_buffer_size=read_buffer_size)
-      reader.assert_called_with(blob, chunk_size=read_buffer_size)
+      reader.assert_called_with(
+          blob,
+          chunk_size=read_buffer_size,
+          enable_read_bucket_metric=False,
+          retry=DEFAULT_RETRY_WITH_THROTTLING_COUNTER)
 
   def test_file_write_call(self):
     file_name = 'gs://gcsio-test/write_file'
@@ -519,6 +738,91 @@ class TestGCSIO(unittest.TestCase):
 
     blob.delete()
     self.assertFalse(blob_name in bucket.blobs)
+
+  @mock.patch('google.cloud._http.JSONConnection._do_request')
+  @mock.patch('apache_beam.internal.gcp.auth.get_service_credentials')
+  def test_headers(self, mock_get_service_credentials, mock_do_request):
+    from apache_beam.internal.gcp.auth import _ApitoolsCredentialsAdapter
+    mock_get_service_credentials.return_value = _ApitoolsCredentialsAdapter(
+        _make_credentials("test-project"))
+
+    options = PipelineOptions([
+        "--job_name=test-job-name",
+        "--gcs_custom_audit_entry=user=test-user-id",
+        "--gcs_custom_audit_entries={\"id\": \"1234\", \"status\": \"ok\"}"
+    ])
+
+    gcs = gcsio.GcsIO(pipeline_options=options)
+    # no HTTP request when initializing GcsIO
+    mock_do_request.assert_not_called()
+
+    import requests
+    response = requests.Response()
+    response.status_code = 200
+    mock_do_request.return_value = response
+
+    # The function of get_bucket() is supposed to send only one HTTP request
+    gcs.get_bucket("test-bucket")
+    mock_do_request.assert_called_once()
+    call_args = mock_do_request.call_args[0]
+
+    # Headers are specified as the third argument of
+    # google.cloud._http.JSONConnection._do_request
+    actual_headers = call_args[2]
+    beam_user_agent = "apache-beam/%s (GPN:Beam)" % beam_version.__version__
+    self.assertIn(beam_user_agent, actual_headers['User-Agent'])
+    self.assertEqual(actual_headers['x-goog-custom-audit-job'], 'test-job-name')
+    self.assertEqual(actual_headers['x-goog-custom-audit-user'], 'test-user-id')
+    self.assertEqual(actual_headers['x-goog-custom-audit-id'], '1234')
+    self.assertEqual(actual_headers['x-goog-custom-audit-status'], 'ok')
+
+  @mock.patch('google.cloud._http.JSONConnection._do_request')
+  @mock.patch('apache_beam.internal.gcp.auth.get_service_credentials')
+  def test_create_default_bucket(
+      self, mock_get_service_credentials, mock_do_request):
+    from apache_beam.internal.gcp.auth import _ApitoolsCredentialsAdapter
+    mock_get_service_credentials.return_value = _ApitoolsCredentialsAdapter(
+        _make_credentials("test-project"))
+
+    gcs = gcsio.GcsIO(pipeline_options={"job_name": "test-job-name"})
+    # no HTTP request when initializing GcsIO
+    mock_do_request.assert_not_called()
+
+    import requests
+    response = requests.Response()
+    response.status_code = 200
+    mock_do_request.return_value = response
+
+    # The function of create_bucket() is supposed to send only one HTTP request
+    gcs.create_bucket("test-bucket", "test-project")
+    mock_do_request.assert_called_once()
+    call_args = mock_do_request.call_args[0]
+
+    # Request data is specified as the fourth argument of
+    # google.cloud._http.JSONConnection._do_request
+    actual_request_data = call_args[3]
+
+    import json
+    request_data_json = json.loads(actual_request_data)
+    # verify soft delete policy is disabled by default in the bucket creation
+    # request
+    self.assertEqual(
+        request_data_json['softDeletePolicy']['retentionDurationSeconds'], 0)
+
+  @mock.patch("apache_beam.io.gcp.gcsio.GcsIO.get_bucket")
+  def test_is_soft_delete_enabled(self, mock_get_bucket):
+    bucket = mock.MagicMock()
+    mock_get_bucket.return_value = bucket
+
+    # soft delete policy enabled
+    bucket.soft_delete_policy.retention_duration_seconds = 1024
+    self.assertTrue(
+        self.gcs.is_soft_delete_enabled("gs://beam_with_soft_delete/tmp"))
+
+    # soft delete policy disabled
+    bucket.soft_delete_policy.retention_duration_seconds = 0
+    self.assertFalse(
+        self.gcs.is_soft_delete_enabled("gs://beam_without_soft_delete/tmp"))
 
 
 if __name__ == '__main__':

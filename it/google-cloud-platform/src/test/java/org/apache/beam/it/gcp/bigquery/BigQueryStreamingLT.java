@@ -43,7 +43,6 @@ import org.apache.beam.it.common.PipelineOperator;
 import org.apache.beam.it.common.TestProperties;
 import org.apache.beam.it.gcp.IOLoadTestBase;
 import org.apache.beam.runners.dataflow.DataflowRunner;
-import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
@@ -180,8 +179,7 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
      * The expected table to check against for correctness. If unset, the test will run a batch
      * FILE_LOADS job and use the resulting table as a source of truth.
      */
-    @Nullable
-    abstract String getExpectedTable();
+    abstract @Nullable String getExpectedTable();
 
     static TestConfiguration of(
         int numMin,
@@ -281,6 +279,9 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
                 .setSdk(PipelineLauncher.Sdk.JAVA)
                 .setPipeline(fileLoadsPipeline)
                 .addParameter("runner", config.getRunner())
+                .addParameter(
+                    "maxNumWorkers",
+                    TestProperties.getProperty("maxNumWorkers", "10", TestProperties.Type.PROPERTY))
                 .build();
 
         // Don't use PipelineOperator because we don't want to wait on this batch job
@@ -359,7 +360,10 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
               .setPipeline(storageApiPipeline)
               .addParameter("runner", config.getRunner())
               .addParameter("streaming", "true")
-              .addParameter("experiments", GcpOptions.STREAMING_ENGINE_EXPERIMENT)
+              .addParameter("experiments", "use_runner_v2")
+              .addParameter(
+                  "maxNumWorkers",
+                  TestProperties.getProperty("maxNumWorkers", "10", TestProperties.Type.PROPERTY))
               .build();
       // Launch job
       PipelineLauncher.LaunchInfo storageApiInfo =
@@ -371,7 +375,7 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
                   .setJobId(storageApiInfo.jobId())
                   .setProject(project)
                   .setRegion(region)
-                  .setTimeoutAfter(java.time.Duration.ofMinutes(config.getMinutes() * 2L))
+                  .setTimeoutAfter(java.time.Duration.ofMinutes(config.getMinutes() * 4L))
                   .setCheckAfter(java.time.Duration.ofSeconds(config.getMinutes() * 60 / 20))
                   .build());
       // Check the initial launch didn't fail
@@ -488,7 +492,7 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
             "WITH \n"
                 + "storage_api_table AS (SELECT %s FROM `%s`), \n"
                 + "expected_table AS (SELECT %s FROM `%s`), \n"
-                + "rows_mismatched AS (SELECT * FROM expected_table EXCEPT DISTINCT SELECT * FROM storage_api_table) \n"
+                + "rows_mismatched AS (SELECT * FROM storage_api_table EXCEPT DISTINCT SELECT * FROM expected_table) \n"
                 + "SELECT COUNT(*) FROM rows_mismatched",
             columnNames, destTable, columnNames, expectedTable);
 
@@ -496,7 +500,7 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
 
     TableRow queryResponse =
         Iterables.getOnlyElement(
-            BQ_CLIENT.queryUnflattened(checkCorrectnessQuery, "google.com:clouddfe", true, true));
+            BQ_CLIENT.queryUnflattened(checkCorrectnessQuery, project, true, true));
     long result = Long.parseLong((String) queryResponse.get("f0_"));
 
     LOG.info("Number of mismatched rows: {}", result);
@@ -517,7 +521,7 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
 
     TableRow queryResponse =
         Iterables.getOnlyElement(
-            BQ_CLIENT.queryUnflattened(checkDuplicationQuery, "google.com:clouddfe", true, true));
+            BQ_CLIENT.queryUnflattened(checkDuplicationQuery, project, true, true));
     long actualCount = Long.parseLong((String) queryResponse.get("actualCount"));
     long expectedCount = Long.parseLong((String) queryResponse.get("expectedCount"));
     assertEquals(

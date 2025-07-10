@@ -35,10 +35,11 @@ avro {
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Avro"
 
+// additional avro version (other than library.java.avro) to be tested
 def avroVersions = [
+    '182' : "1.8.2",
     '192' : "1.9.2",
     '1102': "1.10.2",
-    '1111': "1.11.1",
 ]
 
 avroVersions.each { k, v ->
@@ -66,12 +67,14 @@ dependencies {
   implementation library.java.error_prone_annotations
   implementation library.java.avro
   implementation library.java.joda_time
+  implementation library.java.commons_lang3
   testImplementation(project(path: ":sdks:java:core", configuration: "shadowTest")) {
     // Exclude Avro dependencies from "core" since Avro support moved to this extension
     exclude group: "org.apache.avro", module: "avro"
   }
   testImplementation library.java.avro_tests
   testImplementation library.java.junit
+  testImplementation "org.tukaani:xz:1.9" // marked as optional in avro
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
   testRuntimeOnly library.java.slf4j_jdk14
   avroVersions.each { k,v ->
@@ -84,6 +87,7 @@ dependencies {
     "avroVersion$k" library.java.slf4j_jdk14
     "avroVersion$k" "org.tukaani:xz:1.9" // marked as optional in avro
     "avroVersion$k" library.java.zstd_jni // marked as optional in avro
+    "avroVersion$k" "org.apache.avro:avro:$v:tests"
     "avroVersion${k}Generate" "org.apache.avro:avro-tools:$v"
   }
 }
@@ -125,6 +129,7 @@ avroVersions.each { k, v ->
     description = "Runs Avro extension tests with Avro version $v"
     outputs.upToDateWhen { false }
     classpath = sourceSets."avro$k".runtimeClasspath
+    systemProperty "beam.target.avro.version", v
 
     include '**/*.class'
     exclude '**/AvroIOTest$NeedsRunnerTests$*.class'
@@ -139,9 +144,11 @@ avroVersions.each { k, v ->
     main = "org.apache.avro.tool.Main"
     args = [
         "compile",
+        "-bigDecimal", // Use BigDecimal for logical type decimal, similarly to what gradle-avro-plugin does
         "schema",
         "src/test/avro/org/apache/beam/sdk/extensions/avro/io/user.avsc",
         "src/test/avro/org/apache/beam/sdk/extensions/avro/schemas/test.avsc",
+        "src/test/avro/org/apache/beam/sdk/extensions/avro/schemas/logicaltypes/logical-types.avsc",
         "build/generated/sources/avro$k/test/java"
     ]
   }

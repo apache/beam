@@ -30,6 +30,8 @@ import unittest
 
 import pytest
 from hamcrest.core.core.allof import all_of
+from tenacity import retry
+from tenacity import stop_after_attempt
 
 from apache_beam.io.gcp import big_query_query_to_table_pipeline
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
@@ -129,6 +131,11 @@ class BigQueryQueryToTableIT(unittest.TestCase):
     request = bigquery.BigqueryTablesInsertRequest(
         projectId=self.project, datasetId=self.dataset_id, table=table)
     self.bigquery_client.client.tables.Insert(request)
+
+    # Call get_table so that we wait until the table is visible.
+    _ = self.bigquery_client.get_table(
+        self.project, self.dataset_id, NEW_TYPES_INPUT_TABLE)
+
     table_data = [{
         'bytes': b'xyw', 'date': '2011-01-01', 'time': '23:59:59.999999'
     }, {
@@ -155,6 +162,7 @@ class BigQueryQueryToTableIT(unittest.TestCase):
     self.assertTrue(passed, 'Error in BQ setup: %s' % errors)
 
   @pytest.mark.it_postcommit
+  @retry(reraise=True, stop=stop_after_attempt(3))
   def test_big_query_legacy_sql(self):
     verify_query = DIALECT_OUTPUT_VERIFY_QUERY % self.output_table
     expected_checksum = test_utils.compute_hash(DIALECT_OUTPUT_EXPECTED)

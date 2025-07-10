@@ -28,7 +28,6 @@ For internal use only. No backwards compatibility guarantees.
 from typing import TYPE_CHECKING
 from typing import Optional
 
-from apache_beam.metrics.cells import MetricAggregator
 from apache_beam.metrics.cells import MetricCell
 from apache_beam.metrics.cells import MetricCellFactory
 from apache_beam.utils.histogram import Histogram
@@ -50,13 +49,12 @@ class HistogramCell(MetricCell):
   """
   def __init__(self, bucket_type):
     self._bucket_type = bucket_type
-    self.data = HistogramAggregator(bucket_type).identity_element()
+    self.data = HistogramData.identity_element(bucket_type)
 
   def reset(self):
-    self.data = HistogramAggregator(self._bucket_type).identity_element()
+    self.data = HistogramData.identity_element(self._bucket_type)
 
-  def combine(self, other):
-    # type: (HistogramCell) -> HistogramCell
+  def combine(self, other: 'HistogramCell') -> 'HistogramCell':
     result = HistogramCell(self._bucket_type)
     result.data = self.data.combine(other.data)
     return result
@@ -64,8 +62,7 @@ class HistogramCell(MetricCell):
   def update(self, value):
     self.data.histogram.record(value)
 
-  def get_cumulative(self):
-    # type: () -> HistogramData
+  def get_cumulative(self) -> 'HistogramData':
     return self.data.get_cumulative()
 
   def to_runner_api_monitoring_info(self, name, transform_id):
@@ -92,8 +89,7 @@ class HistogramCellFactory(MetricCellFactory):
 
 
 class HistogramResult(object):
-  def __init__(self, data):
-    # type: (HistogramData) -> None
+  def __init__(self, data: 'HistogramData') -> None:
     self.data = data
 
   def __eq__(self, other):
@@ -142,37 +138,15 @@ class HistogramData(object):
   def __repr__(self):
     return 'HistogramData({})'.format(self.histogram.get_percentile_info())
 
-  def get_cumulative(self):
-    # type: () -> HistogramData
+  def get_cumulative(self) -> 'HistogramData':
     return HistogramData(self.histogram)
 
-  def combine(self, other):
-    # type: (Optional[HistogramData]) -> HistogramData
+  def combine(self, other: Optional['HistogramData']) -> 'HistogramData':
     if other is None:
       return self
 
     return HistogramData(self.histogram.combine(other.histogram))
 
-
-class HistogramAggregator(MetricAggregator):
-  """For internal use only; no backwards-compatibility guarantees.
-
-  Aggregator for Histogram metric data during pipeline execution.
-
-  Values aggregated should be ``HistogramData`` objects.
-  """
-  def __init__(self, bucket_type):
-    # type: (BucketType) -> None
-    self._bucket_type = bucket_type
-
-  def identity_element(self):
-    # type: () -> HistogramData
-    return HistogramData(Histogram(self._bucket_type))
-
-  def combine(self, x, y):
-    # type: (HistogramData, HistogramData) -> HistogramData
-    return x.combine(y)
-
-  def result(self, x):
-    # type: (HistogramData) -> HistogramResult
-    return HistogramResult(x.get_cumulative())
+  @staticmethod
+  def identity_element(bucket_type) -> 'HistogramData':
+    return HistogramData(Histogram(bucket_type))

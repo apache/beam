@@ -17,7 +17,7 @@
  */
 package org.apache.beam.fn.harness;
 
-import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
+import static org.apache.beam.sdk.values.WindowedValues.valueInGlobalWindow;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -51,9 +51,10 @@ import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.CoderTranslation;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.hamcrest.collection.IsMapContaining;
 import org.junit.Before;
@@ -71,7 +72,7 @@ public class BeamFnDataWriteRunnerTest {
   private static final Coder<String> ELEM_CODER = StringUtf8Coder.of();
   private static final String WIRE_CODER_ID = "windowed-string-coder-id";
   private static final Coder<WindowedValue<String>> WIRE_CODER =
-      WindowedValue.getFullCoder(ELEM_CODER, GlobalWindow.Coder.INSTANCE);
+      WindowedValues.getFullCoder(ELEM_CODER, GlobalWindow.Coder.INSTANCE);
   private static final RunnerApi.Coder WIRE_CODER_SPEC;
   private static final RunnerApi.Components COMPONENTS;
 
@@ -153,15 +154,18 @@ public class BeamFnDataWriteRunnerTest {
             .beamFnDataClient(mockBeamFnDataClient)
             .processBundleInstructionIdSupplier(bundleId::get)
             .outboundAggregators(aggregators)
-            .pCollections(
-                ImmutableMap.of(
-                    localInputId,
-                    RunnerApi.PCollection.newBuilder().setCoderId(ELEM_CODER_ID).build()))
-            .coders(COMPONENTS.getCodersMap())
-            .windowingStrategies(COMPONENTS.getWindowingStrategiesMap())
+            .components(
+                RunnerApi.Components.newBuilder()
+                    .putAllPcollections(
+                        ImmutableMap.of(
+                            localInputId,
+                            RunnerApi.PCollection.newBuilder().setCoderId(ELEM_CODER_ID).build()))
+                    .putAllCoders(COMPONENTS.getCodersMap())
+                    .putAllWindowingStrategies(COMPONENTS.getWindowingStrategiesMap())
+                    .build())
             .build();
 
-    new BeamFnDataWriteRunner.Factory<String>().createRunnerForPTransform(context);
+    new BeamFnDataWriteRunner.Factory().addRunnerForPTransform(context);
 
     assertThat(context.getPCollectionConsumers().keySet(), containsInAnyOrder(localInputId));
 

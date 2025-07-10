@@ -40,7 +40,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.regex.Pattern;
-import javax.annotation.Nullable;
 import org.apache.beam.it.common.PipelineLauncher;
 import org.apache.beam.it.common.PipelineLauncher.LaunchInfo;
 import org.apache.beam.it.common.PipelineOperator;
@@ -48,6 +47,7 @@ import org.apache.beam.it.common.TestProperties;
 import org.apache.beam.it.gcp.bigquery.BigQueryResourceManager;
 import org.apache.beam.it.gcp.monitoring.MonitoringClient;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -172,8 +172,12 @@ public abstract class LoadTestBase {
       rowContent.put("metrics", metricRows);
       bigQueryResourceManager.write(
           TestProperties.exportTable(), RowToInsert.of("rowId", rowContent));
-    } catch (IllegalStateException e) {
-      LOG.error("Unable to export results to datastore. ", e);
+    } catch (IllegalStateException | IllegalArgumentException e) {
+      LOG.error(
+          "Unable to export results to datastore."
+              + "The next System properties might be missing or incorrect: "
+              + "'exportDataset', 'exportTable', 'exportProject' (Optional).",
+          e);
     }
   }
 
@@ -215,19 +219,23 @@ public abstract class LoadTestBase {
     // cost info
     LOG.info("Calculating approximate cost for {} under {}", launchInfo.jobId(), project);
     TimeInterval workerTimeInterval = getWorkerTimeInterval(launchInfo);
-    metrics.put(
-        "RunTime",
-        (double)
-            Timestamps.between(workerTimeInterval.getStartTime(), workerTimeInterval.getEndTime())
-                .getSeconds());
+    if (workerTimeInterval.hasStartTime() && workerTimeInterval.hasEndTime()) {
+      metrics.put(
+          "RunTime",
+          (double)
+              Timestamps.between(workerTimeInterval.getStartTime(), workerTimeInterval.getEndTime())
+                  .getSeconds());
+    }
     double cost = 0;
     if (launchInfo.jobType().equals("JOB_TYPE_STREAMING")) {
       cost += metrics.get("TotalVcpuTime") / 3600 * VCPU_PER_HR_STREAMING;
       cost += (metrics.get("TotalMemoryUsage") / 1000) / 3600 * MEM_PER_GB_HR_STREAMING;
       cost += metrics.get("TotalStreamingDataProcessed") * SHUFFLE_PER_GB_STREAMING;
       // Also, add other streaming metrics
-      metrics.putAll(getDataFreshnessMetrics(launchInfo.jobId(), workerTimeInterval));
-      metrics.putAll(getSystemLatencyMetrics(launchInfo.jobId(), workerTimeInterval));
+      if (workerTimeInterval.hasEndTime() && workerTimeInterval.hasStartTime()) {
+        metrics.putAll(getDataFreshnessMetrics(launchInfo.jobId(), workerTimeInterval));
+        metrics.putAll(getSystemLatencyMetrics(launchInfo.jobId(), workerTimeInterval));
+      }
     } else {
       cost += metrics.get("TotalVcpuTime") / 3600 * VCPU_PER_HR_BATCH;
       cost += (metrics.get("TotalMemoryUsage") / 1000) / 3600 * MEM_PER_GB_HR_BATCH;
@@ -243,8 +251,10 @@ public abstract class LoadTestBase {
     if (dataProcessed != null) {
       metrics.put("EstimatedDataProcessedGB", dataProcessed / 1e9d);
     }
-    metrics.putAll(getCpuUtilizationMetrics(launchInfo.jobId(), workerTimeInterval));
-    metrics.putAll(getThroughputMetrics(launchInfo, config, workerTimeInterval));
+    if (workerTimeInterval.hasEndTime() && workerTimeInterval.hasStartTime()) {
+      metrics.putAll(getCpuUtilizationMetrics(launchInfo.jobId(), workerTimeInterval));
+      metrics.putAll(getThroughputMetrics(launchInfo, config, workerTimeInterval));
+    }
   }
 
   /**

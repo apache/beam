@@ -32,6 +32,7 @@ import decimal
 import io
 import json
 import logging
+import re
 import sys
 import time
 import uuid
@@ -558,9 +559,22 @@ class BigQueryWrapper(object):
         ))
     return self._start_job(request, stream=source_stream).jobReference
 
+  @staticmethod
+  def _parse_location_from_exc(content, job_id):
+    """Parse job location from Exception content."""
+    if isinstance(content, bytes):
+      content = content.decode('ascii', 'replace')
+    # search for "Already Exists: Job <project-id>:<location>.<job id>"
+    m = re.search(r"Already Exists: Job \S+\:(\S+)\." + job_id, content)
+    if not m:
+      _LOGGER.warning(
+          "Not able to parse BigQuery load job location for %s", job_id)
+      return None
+    return m.group(1)
+
   def _start_job(
       self,
-      request,  # type: bigquery.BigqueryJobsInsertRequest
+      request: 'bigquery.BigqueryJobsInsertRequest',
       stream=None,
   ):
     """Inserts a BigQuery job.
@@ -585,11 +599,17 @@ class BigQueryWrapper(object):
       return response
     except HttpError as exn:
       if exn.status_code == 409:
+        jobId = request.job.jobReference.jobId
         _LOGGER.info(
             "BigQuery job %s already exists, will not retry inserting it: %s",
             request.job.jobReference,
             exn)
-        return request.job
+        job_location = self._parse_location_from_exc(exn.content, jobId)
+        response = request.job
+        if not response.jobReference.location and job_location:
+          # Request not constructed with location
+          response.jobReference.location = job_location
+        return response
       else:
         _LOGGER.info(
             "Failed to insert job %s: %s", request.job.jobReference, exn)
@@ -649,7 +669,7 @@ class BigQueryWrapper(object):
       retry += 1
       job = self.get_job(
           job_reference.projectId, job_reference.jobId, job_reference.location)
-      logging.info('Job %s status: %s', job.id, job.status.state)
+      _LOGGER.info('Job %s status: %s', job.id, job.status.state)
       if job.status.state == 'DONE' and job.status.errorResult:
         raise RuntimeError(
             'BigQuery job {} failed. Error Result: {}'.format(
@@ -1262,8 +1282,8 @@ class BigQueryWrapper(object):
     # can happen during retries on failures.
     # TODO(silviuc): Must add support to writing TableRow's instead of dicts.
     insert_ids = [
-        str(self.unique_row_id) if not insert_ids else insert_ids[i] for i,
-        _ in enumerate(rows)
+        str(self.unique_row_id) if not insert_ids else insert_ids[i]
+        for i, _ in enumerate(rows)
     ]
     rows = [
         fast_json_loads(fast_json_dumps(r, default=default_encoder))
@@ -1586,11 +1606,13 @@ bigquery_v2_messages.TableSchema):
     # This requires that each row has all the fields in the schema.
     # However, it's possible that some nullable fields don't appear in the row.
     # For this case, we create the field with a `None` value
-    if name not in row and mode == "NULLABLE":
+    # None is also set when a repeated field is missing as BigQuery
+    # converts Null Repeated fields to empty lists
+    if name not in row and mode != "REQUIRED":
       row[name] = None
 
     value = row[name]
-    if type in ["RECORD", "STRUCT"]:
+    if type in ["RECORD", "STRUCT"] and value:
       # if this is a list of records, we create a list of Beam Rows
       if mode == "REPEATED":
         list_of_beam_rows = []
@@ -1782,9 +1804,11 @@ def generate_bq_job_name(job_name, step_id, job_type, random=None):
 
 
 def check_schema_equal(
-    left, right, *, ignore_descriptions=False, ignore_field_order=False):
-  # type: (Union[bigquery.TableSchema, bigquery.TableFieldSchema], Union[bigquery.TableSchema, bigquery.TableFieldSchema], bool, bool) -> bool
-
+    left: Union['bigquery.TableSchema', 'bigquery.TableFieldSchema'],
+    right: Union['bigquery.TableSchema', 'bigquery.TableFieldSchema'],
+    *,
+    ignore_descriptions: bool = False,
+    ignore_field_order: bool = False) -> bool:
   """Check whether schemas are equivalent.
 
   This comparison function differs from using == to compare TableSchema

@@ -26,17 +26,22 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import org.apache.beam.runners.core.metrics.BoundedTrieData;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.GaugeData;
 import org.apache.beam.runners.core.metrics.MetricUpdates;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
+import org.apache.beam.runners.core.metrics.StringSetData;
+import org.apache.beam.sdk.metrics.BoundedTrieResult;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
+import org.apache.beam.sdk.metrics.StringSetResult;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.joda.time.Instant;
 import org.junit.After;
 import org.junit.Before;
@@ -85,7 +90,14 @@ public class DirectMetricsTest {
                 MetricUpdate.create(
                     MetricKey.create("step1", NAME1), DistributionData.create(8, 2, 3, 5))),
             ImmutableList.of(
-                MetricUpdate.create(MetricKey.create("step1", NAME4), GaugeData.create(15L)))));
+                MetricUpdate.create(MetricKey.create("step1", NAME4), GaugeData.create(15L))),
+            ImmutableList.of(
+                MetricUpdate.create(
+                    MetricKey.create("step1", NAME4), StringSetData.create(ImmutableSet.of("ab")))),
+            ImmutableList.of(
+                MetricUpdate.create(
+                    MetricKey.create("step1", NAME4), new BoundedTrieData(ImmutableList.of("ab")))),
+            ImmutableList.of()));
     metrics.commitLogical(
         bundle1,
         MetricUpdates.create(
@@ -96,8 +108,14 @@ public class DirectMetricsTest {
                 MetricUpdate.create(
                     MetricKey.create("step1", NAME1), DistributionData.create(4, 1, 4, 4))),
             ImmutableList.of(
-                MetricUpdate.create(MetricKey.create("step1", NAME4), GaugeData.create(27L)))));
-
+                MetricUpdate.create(MetricKey.create("step1", NAME4), GaugeData.create(27L))),
+            ImmutableList.of(
+                MetricUpdate.create(
+                    MetricKey.create("step1", NAME4), StringSetData.create(ImmutableSet.of("cd")))),
+            ImmutableList.of(
+                MetricUpdate.create(
+                    MetricKey.create("step1", NAME4), new BoundedTrieData(ImmutableList.of("cd")))),
+            ImmutableList.of()));
     MetricQueryResults results = metrics.allMetrics();
     assertThat(
         results.getCounters(),
@@ -128,6 +146,22 @@ public class DirectMetricsTest {
         contains(
             committedMetricsResult(
                 "ns2", "name2", "step1", GaugeResult.create(27L, Instant.now()))));
+    assertThat(
+        results.getStringSets(),
+        contains(
+            committedMetricsResult(
+                "ns2", "name2", "step1", StringSetResult.create(ImmutableSet.of("ab", "cd")))));
+    assertThat(
+        results.getBoundedTries(),
+        contains(
+            committedMetricsResult(
+                "ns2",
+                "name2",
+                "step1",
+                BoundedTrieResult.create(
+                    ImmutableSet.of(
+                        ImmutableList.of("ab", String.valueOf(false)),
+                        ImmutableList.of("cd", String.valueOf(false)))))));
   }
 
   @SuppressWarnings("unchecked")
@@ -140,6 +174,9 @@ public class DirectMetricsTest {
                 MetricUpdate.create(MetricKey.create("step1", NAME1), 5L),
                 MetricUpdate.create(MetricKey.create("step1", NAME3), 8L)),
             ImmutableList.of(),
+            ImmutableList.of(),
+            ImmutableList.of(),
+            ImmutableList.of(),
             ImmutableList.of()));
     metrics.updatePhysical(
         bundle1,
@@ -147,6 +184,9 @@ public class DirectMetricsTest {
             ImmutableList.of(
                 MetricUpdate.create(MetricKey.create("step2", NAME1), 7L),
                 MetricUpdate.create(MetricKey.create("step1", NAME3), 4L)),
+            ImmutableList.of(),
+            ImmutableList.of(),
+            ImmutableList.of(),
             ImmutableList.of(),
             ImmutableList.of()));
 
@@ -176,6 +216,9 @@ public class DirectMetricsTest {
                 MetricUpdate.create(MetricKey.create("Outer1/Inner1", NAME1), 5L),
                 MetricUpdate.create(MetricKey.create("Outer1/Inner2", NAME1), 8L)),
             ImmutableList.of(),
+            ImmutableList.of(),
+            ImmutableList.of(),
+            ImmutableList.of(),
             ImmutableList.of()));
     metrics.updatePhysical(
         bundle1,
@@ -183,6 +226,9 @@ public class DirectMetricsTest {
             ImmutableList.of(
                 MetricUpdate.create(MetricKey.create("Outer1/Inner1", NAME1), 12L),
                 MetricUpdate.create(MetricKey.create("Outer2/Inner2", NAME1), 18L)),
+            ImmutableList.of(),
+            ImmutableList.of(),
+            ImmutableList.of(),
             ImmutableList.of(),
             ImmutableList.of()));
 
@@ -212,6 +258,9 @@ public class DirectMetricsTest {
                 MetricUpdate.create(MetricKey.create("Top1/Outer1/Inner1", NAME1), 5L),
                 MetricUpdate.create(MetricKey.create("Top1/Outer1/Inner2", NAME1), 8L)),
             ImmutableList.of(),
+            ImmutableList.of(),
+            ImmutableList.of(),
+            ImmutableList.of(),
             ImmutableList.of()));
     metrics.updatePhysical(
         bundle1,
@@ -219,6 +268,9 @@ public class DirectMetricsTest {
             ImmutableList.of(
                 MetricUpdate.create(MetricKey.create("Top2/Outer1/Inner1", NAME1), 12L),
                 MetricUpdate.create(MetricKey.create("Top1/Outer2/Inner2", NAME1), 18L)),
+            ImmutableList.of(),
+            ImmutableList.of(),
+            ImmutableList.of(),
             ImmutableList.of(),
             ImmutableList.of()));
 

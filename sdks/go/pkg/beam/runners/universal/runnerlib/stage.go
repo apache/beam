@@ -29,8 +29,8 @@ import (
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
-	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/proto"
 )
 
 // Stage stages the worker binary and any additional files to the given

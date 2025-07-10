@@ -53,7 +53,7 @@ try:
 except ImportError:
   dataclasses = None  # type: ignore
 
-MyNamedTuple = collections.namedtuple('A', ['x', 'y'])
+MyNamedTuple = collections.namedtuple('A', ['x', 'y'])  # type: ignore[name-match]
 MyTypedNamedTuple = NamedTuple('MyTypedNamedTuple', [('f1', int), ('f2', str)])
 
 
@@ -163,7 +163,8 @@ class CodersTest(unittest.TestCase):
         coders.BigEndianShortCoder,
         coders.SinglePrecisionFloatCoder,
         coders.ToBytesCoder,
-        coders.BigIntegerCoder, # tested in DecimalCoder
+        coders.BigIntegerCoder,  # tested in DecimalCoder
+        coders.TimestampPrefixingOpaqueWindowCoder,
     ])
     cls.seen_nested -= set(
         [coders.ProtoCoder, coders.ProtoPlusCoder, CustomCoder])
@@ -213,6 +214,13 @@ class CodersTest(unittest.TestCase):
   def test_pickle_coder(self):
     coder = coders.PickleCoder()
     self.check_coder(coder, *self.test_values)
+
+  def test_cloudpickle_pickle_coder(self):
+    cell_value = (lambda x: lambda: x)(0).__closure__[0]
+    self.check_coder(coders.CloudpickleCoder(), 'a', 1, cell_value)
+    self.check_coder(
+        coders.TupleCoder((coders.VarIntCoder(), coders.CloudpickleCoder())),
+        (1, cell_value))
 
   def test_memoizing_pickle_coder(self):
     coder = coders._MemoizingPickleCoder()
@@ -317,6 +325,20 @@ class CodersTest(unittest.TestCase):
             for k in range(0, int(math.log(MAX_64_BIT_INT)))
         ])
 
+  def test_varint32_coder(self):
+    # Small ints.
+    self.check_coder(coders.VarInt32Coder(), *range(-10, 10))
+    # Multi-byte encoding starts at 128
+    self.check_coder(coders.VarInt32Coder(), *range(120, 140))
+    # Large values
+    MAX_32_BIT_INT = 0x7fffffff
+    self.check_coder(
+        coders.VarIntCoder(),
+        *[
+            int(math.pow(-1, k) * math.exp(k))
+            for k in range(0, int(math.log(MAX_32_BIT_INT)))
+        ])
+
   def test_float_coder(self):
     self.check_coder(
         coders.FloatCoder(), *[float(0.1 * x) for x in range(-100, 100)])
@@ -346,6 +368,18 @@ class CodersTest(unittest.TestCase):
     self.check_coder(
         coders.TupleCoder((coders.IntervalWindowCoder(), )),
         (window.IntervalWindow(0, 10), ))
+
+  def test_paneinfo_window_coder(self):
+    self.check_coder(
+        coders.PaneInfoCoder(),
+        *[
+            windowed_value.PaneInfo(
+                is_first=y == 0,
+                is_last=y == 9,
+                timing=windowed_value.PaneInfoTiming.EARLY,
+                index=y,
+                nonspeculative_index=-1) for y in range(0, 10)
+        ])
 
   def test_timestamp_coder(self):
     self.check_coder(
@@ -524,6 +558,7 @@ class CodersTest(unittest.TestCase):
   def test_param_windowed_value_coder(self):
     from apache_beam.transforms.window import IntervalWindow
     from apache_beam.utils.windowed_value import PaneInfo
+    # pylint: disable=too-many-function-args
     wv = windowed_value.create(
         b'',
         # Milliseconds to microseconds
@@ -671,9 +706,14 @@ class CodersTest(unittest.TestCase):
 
   def test_map_coder(self):
     values = [
-        {1: "one", 300: "three hundred"}, # force yapf to be nice
+        {
+            1: "one", 300: "three hundred"
+        },  # force yapf to be nice
         {},
-        {i: str(i) for i in range(5000)}
+        {
+            i: str(i)
+            for i in range(5000)
+        }
     ]
     map_coder = coders.MapCoder(coders.VarIntCoder(), coders.StrUtf8Coder())
     self.check_coder(map_coder, *values)
@@ -739,6 +779,15 @@ class CodersTest(unittest.TestCase):
                 coders.IntervalWindowCoder()), )),
         (window.IntervalWindow(0, 10), ))
 
+  def test_timestamp_prefixing_opaque_window_coder(self):
+    sdk_coder = coders.TimestampPrefixingWindowCoder(
+        coders.LengthPrefixCoder(coders.PickleCoder()))
+    safe_coder = coders.TimestampPrefixingOpaqueWindowCoder()
+    for w in [window.IntervalWindow(1, 123), window.GlobalWindow()]:
+      round_trip = sdk_coder.decode(
+          safe_coder.encode(safe_coder.decode(sdk_coder.encode(w))))
+      self.assertEqual(w, round_trip)
+
   def test_decimal_coder(self):
     test_coder = coders.DecimalCoder()
 
@@ -758,6 +807,14 @@ class CodersTest(unittest.TestCase):
       self.assertEqual(
           test_encodings[idx],
           base64.b64encode(test_coder.encode(value)).decode().rstrip("="))
+
+  def test_OrderedUnionCoder(self):
+    test_coder = coders._OrderedUnionCoder((str, coders.StrUtf8Coder()),
+                                           (int, coders.VarIntCoder()),
+                                           fallback_coder=coders.FloatCoder())
+    self.check_coder(test_coder, 's')
+    self.check_coder(test_coder, 123)
+    self.check_coder(test_coder, 1.5)
 
 
 if __name__ == '__main__':

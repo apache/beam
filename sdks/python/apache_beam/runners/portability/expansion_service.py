@@ -29,6 +29,8 @@ from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_expansion_api_pb2
 from apache_beam.portability.api import beam_expansion_api_pb2_grpc
 from apache_beam.runners import pipeline_context
+from apache_beam.runners.portability import artifact_service
+from apache_beam.runners.portability.artifact_service import BeamFilesystemHandler
 from apache_beam.transforms import environments
 from apache_beam.transforms import external
 from apache_beam.transforms import ptransform
@@ -38,7 +40,9 @@ class ExpansionServiceServicer(
     beam_expansion_api_pb2_grpc.ExpansionServiceServicer):
   def __init__(self, options=None, loopback_address=None):
     self._options = options or beam_pipeline.PipelineOptions(
-        environment_type=python_urns.EMBEDDED_PYTHON, sdk_location='container')
+        flags=[],
+        environment_type=python_urns.EMBEDDED_PYTHON,
+        sdk_location='container')
     default_environment = (environments.Environment.from_options(self._options))
     if loopback_address:
       loopback_environment = environments.Environment.from_options(
@@ -79,17 +83,15 @@ class ExpansionServiceServicer(
           requirements=request.requirements)
       producers = {
           pcoll_id: (context.transforms.get_by_id(t_id), pcoll_tag)
-          for t_id,
-          t_proto in request.components.transforms.items() for pcoll_tag,
-          pcoll_id in t_proto.outputs.items()
+          for t_id, t_proto in request.components.transforms.items()
+          for pcoll_tag, pcoll_id in t_proto.outputs.items()
       }
       transform = with_pipeline(
           ptransform.PTransform.from_runner_api(request.transform, context))
       if len(request.output_coder_requests) == 1:
         output_coder = {
             k: context.element_type_from_coder_id(v)
-            for k,
-            v in request.output_coder_requests.items()
+            for k, v in request.output_coder_requests.items()
         }
         transform = transform.with_output_types(list(output_coder.values())[0])
       elif len(request.output_coder_requests) > 1:
@@ -97,10 +99,9 @@ class ExpansionServiceServicer(
             'type annotation for multiple outputs is not allowed yet: %s' %
             request.output_coder_requests)
       inputs = transform._pvaluish_from_dict({
-          tag:
-          with_pipeline(context.pcollections.get_by_id(pcoll_id), pcoll_id)
-          for tag,
-          pcoll_id in request.transform.inputs.items()
+          tag: with_pipeline(
+              context.pcollections.get_by_id(pcoll_id), pcoll_id)
+          for tag, pcoll_id in request.transform.inputs.items()
       })
       if not inputs:
         inputs = pipeline
@@ -128,3 +129,8 @@ class ExpansionServiceServicer(
     except Exception:  # pylint: disable=broad-except
       return beam_expansion_api_pb2.ExpansionResponse(
           error=traceback.format_exc())
+
+  def artifact_service(self):
+    """Returns a service to retrieve artifacts for use in a job."""
+    return artifact_service.ArtifactRetrievalService(
+        BeamFilesystemHandler(None).file_reader)

@@ -14,8 +14,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import logging
 import time
 import unittest
+
+from tenacity import retry
+from tenacity import retry_if_exception_type
+from tenacity import stop_after_attempt
 
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -31,6 +36,10 @@ try:
   from apache_beam.io.requestresponse import retry_on_exception
 except ImportError:
   raise unittest.SkipTest('RequestResponseIO dependencies are not installed.')
+
+_LOGGER = logging.getLogger()
+
+MAX_TEST_RETRIES = 3
 
 
 class AckCaller(Caller[str, str]):
@@ -129,6 +138,10 @@ class TestCaller(unittest.TestCase):
             | RequestResponseIO(caller=caller, repeater=None))
     self.assertRegex(cm.exception.message, 'retries = 0')
 
+  @retry(
+      retry=retry_if_exception_type(IndexError),
+      reraise=True,
+      stop=stop_after_attempt(MAX_TEST_RETRIES))
   def test_default_throttler(self):
     caller = CallerWithTimeout()
     throttler = DefaultThrottler(

@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 import logging
-from typing import List
 
 import proto
 from google.api_core.exceptions import NotFound
@@ -110,6 +109,32 @@ class VertexAIFeatureStoreEnrichmentHandler(EnrichmentSourceHandler[beam.Row,
     else:
       self.kwargs['client_options'] = {"api_endpoint": self.api_endpoint}
 
+    # check if the feature store exists
+    try:
+      admin_client = aiplatform.gapic.FeatureOnlineStoreAdminServiceClient(
+          **self.kwargs)
+    except Exception:
+      _LOGGER.warning(
+          'Due to insufficient admin permission, could not verify '
+          'the existence of feature store. If the `exception_level` '
+          'is set to WARN then make sure the feature store exists '
+          'otherwise the data enrichment will not happen without '
+          'throwing an error.')
+    else:
+      location_path = admin_client.common_location_path(
+          project=self.project, location=self.location)
+      feature_store_path = admin_client.feature_online_store_path(
+          project=self.project,
+          location=self.location,
+          feature_online_store=self.feature_store_name)
+      feature_store = admin_client.get_feature_online_store(
+          name=feature_store_path)
+
+      if not feature_store:
+        raise NotFound(
+            'Vertex AI Feature Store %s does not exists in %s' %
+            (self.feature_store_name, location_path))
+
   def __enter__(self):
     """Connect with the Vertex AI Feature Store."""
     self.client = aiplatform.gapic.FeatureOnlineStoreServiceClient(
@@ -183,7 +208,7 @@ class VertexAIFeatureStoreLegacyEnrichmentHandler(EnrichmentSourceHandler):
       api_endpoint: str,
       feature_store_id: str,
       entity_type_id: str,
-      feature_ids: List[str],
+      feature_ids: list[str],
       row_key: str,
       *,
       exception_level: ExceptionLevel = ExceptionLevel.WARN,
@@ -198,7 +223,7 @@ class VertexAIFeatureStoreLegacyEnrichmentHandler(EnrichmentSourceHandler):
         Vertex AI Feature Store (Legacy).
       feature_store_id (str): The id of the Vertex AI Feature Store (Legacy).
       entity_type_id (str): The entity type of the feature store.
-      feature_ids (List[str]): A list of feature-ids to fetch
+      feature_ids (list[str]): A list of feature-ids to fetch
         from the Feature Store.
       row_key (str): The row key field name containing the entity id
         for the feature values.
@@ -228,26 +253,25 @@ class VertexAIFeatureStoreLegacyEnrichmentHandler(EnrichmentSourceHandler):
     else:
       self.kwargs['client_options'] = {"api_endpoint": self.api_endpoint}
 
-  def __enter__(self):
-    """Connect with the Vertex AI Feature Store (Legacy)."""
+    # checks if feature store exists
     try:
-      # checks if feature store exists
       _ = aiplatform.Featurestore(
           featurestore_name=self.feature_store_id,
           project=self.project,
           location=self.location,
           credentials=self.kwargs.get('credentials'),
       )
-      self.client = aiplatform.gapic.FeaturestoreOnlineServingServiceClient(
-          **self.kwargs)
-      self.entity_type_path = self.client.entity_type_path(
-          self.project,
-          self.location,
-          self.feature_store_id,
-          self.entity_type_id)
     except NotFound:
-      raise ValueError(
-          'Vertex AI Feature Store %s does not exist' % self.feature_store_id)
+      raise NotFound(
+          'Vertex AI Feature Store (Legacy) %s does not exist' %
+          self.feature_store_id)
+
+  def __enter__(self):
+    """Connect with the Vertex AI Feature Store (Legacy)."""
+    self.client = aiplatform.gapic.FeaturestoreOnlineServingServiceClient(
+        **self.kwargs)
+    self.entity_type_path = self.client.entity_type_path(
+        self.project, self.location, self.feature_store_id, self.entity_type_id)
 
   def __call__(self, request: beam.Row, *args, **kwargs):
     """Fetches feature value for an entity-id from

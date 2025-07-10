@@ -27,9 +27,9 @@ with beam.Pipeline(options=options) as p:
 
 ```
 Response:
-This code uses the Apache Beam [KafkaIO Pythn connector](https://beam.apache.org/releases/pydoc/current/apache_beam.io.kafka.html) Python connector to read data from an [Apache Kafka](https://kafka.apache.org/) topic `topic` on Kafka bootstrap servers `bootstrap_servers`.
+This code uses the Apache Beam [KafkaIO](https://beam.apache.org/releases/pydoc/current/apache_beam.io.kafka.html) Python connector to read data from an [Apache Kafka](https://kafka.apache.org/) topic `topic` on Kafka bootstrap servers `bootstrap_servers`.
 
-The `ReadFromKafka` transform reads from a Kafka topic `topic` on `bootstrap_servers`. This is a cross-language transform that is implemented in Java and is available in Python, Go, and Typescript via X-language.The Python SDK connects to a Java expansion service to expand these transforms during pipeline execution. For more information about cross-language transforms, see Apache Beam [Multi-language pipelines](https://beam.apache.org/documentation/programming-guide/#multi-language-pipelines).
+The `ReadFromKafka` transform is a cross-language transform that is implemented in Java and is available in Python, Go, and Typescript via X-language. The Python SDK connects to a Java expansion service to expand these transforms during pipeline execution. For more information about cross-language transforms, see Apache Beam [Multi-language pipelines](https://beam.apache.org/documentation/programming-guide/#multi-language-pipelines).
 
 ```python
 with beam.Pipeline(options=options) as p:
@@ -40,9 +40,10 @@ with beam.Pipeline(options=options) as p:
         )
         | "Log Data" >> Map(logging.info))
 ```
+
 The required arguments for the `ReadFromKafka` transform are `consumer_config` and `topics`. You can use the `consumer_config` argument to specify the Kafka bootstrap servers, the `topics` argument to specify the Kafka topic to read data from, and the `with_metadata` argument to specify whether to include Kafka metadata in the output `PCollection`. The default value for the `with_metadata` argument is `False`.
 
-The `KafkaReadOptions` class is used to parse pipeline options for the Kafka read transform. The `bootstrap_servers` and `topic` arguments are provided as command-line arguments. This code uses [pipeline options](https://beam.apache.org/documentation/patterns/pipeline-options/) to parse pipeline options.
+The `KafkaReadOptions` class defines the command-line arguments `bootstrap_servers` and `topic`, which are used to configure the `ReadFromKafka` transform. These arguments are parsed from the command line using [pipeline options](https://beam.apache.org/documentation/patterns/pipeline-options/).
 
 ```python
 class KafkaOptions(PipelineOptions):

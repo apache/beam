@@ -23,13 +23,11 @@ bounded and unbounded `PCollections` with SQL statements. Your SQL query
 is translated to a `PTransform`, an encapsulated segment of a Beam pipeline.
 You can freely mix SQL `PTransforms` and other `PTransforms` in your pipeline.
 
-Beam SQL includes the following dialects:
+Beam SQL uses Calcite SQL based on [Apache Calcite](https://calcite.apache.org),
+a dialect widespread in big data processing.
 
-- [Beam Calcite SQL](https://calcite.apache.org)
-- [Beam ZetaSQL](https://github.com/google/zetasql)
-
-Beam Calcite SQL is a variant of Apache Calcite, a dialect widespread in
-big data processing. Beam Calcite SQL is the default Beam SQL dialect. Beam ZetaSQL is more compatible with BigQuery, so it's especially useful in pipelines that [write to or read from BigQuery tables](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.html).
+<!-- TODO: Remove deprecation statement when ZetaSQL dialect is removed. -->
+**Note:** Beam SQL supports for [ZetaSQL dialect](/documentation/dsls/sql/zetasql/overview) has been deprecated.
 
 To change dialects, pass [the dialect's full package name](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/extensions/sql/package-summary.html) to the [`setPlannerName`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/extensions/sql/impl/BeamSqlPipelineOptions.html#setPlannerName-java.lang.String-) method in the [`PipelineOptions`](https://beam.apache.org/releases/javadoc/2.15.0/org/apache/beam/sdk/options/PipelineOptions.html) interface.
 
@@ -49,18 +47,6 @@ The [Shell page](/documentation/dsls/sql/shell) describes how to work with the i
 ## Apache Calcite dialect
 The [Beam Calcite SQL overview](/documentation/dsls/sql/calcite/overview) summarizes Apache Calcite operators,
 functions, syntax, and data types supported by Beam Calcite SQL.
-
-## ZetaSQL dialect
-For more information on the ZetaSQL features in Beam SQL, see the [Beam ZetaSQL dialect reference](/documentation/dsls/sql/zetasql/overview).
-
-To switch to Beam ZetaSQL, configure the [pipeline options](https://beam.apache.org/releases/javadoc/2.15.0/org/apache/beam/sdk/options/PipelineOptions.html) as follows:
-```
-PipelineOptions options = ...;
-options
-    .as(BeamSqlPipelineOptions.class)
-    .setPlannerName("org.apache.beam.sdk.extensions.sql.zetasql.ZetaSQLQueryPlanner");
-```
-Note, Use of the `ZetaSQLQueryPlanner` requires an additional dependency on `beam-sdks-java-extensions-sql-zetasql` in addition to the `beam-sdks-java-extensions-sql` package required for `CalciteQueryPlanner`.
 
 ## Beam SQL extensions
 Beam SQL has additional extensions leveraging Beam’s unified batch/streaming model and processing complex data types. You can use these extensions with all Beam SQL dialects.

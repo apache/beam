@@ -70,7 +70,7 @@ docker {
    tags containerImageTags()
    buildArgs(['BASE_IMAGE'   : project.rootProject.hasProperty(["base-image"]) ?
          project.rootProject["base-image"] :
-         "golang:1.20-bullseye",
+         "golang:1-bullseye",
               'GIT_COMMIT'   : getGitCommitHash(),
               'GIT_TIMESTAMP': getGitCommitTimestamp()])
 }

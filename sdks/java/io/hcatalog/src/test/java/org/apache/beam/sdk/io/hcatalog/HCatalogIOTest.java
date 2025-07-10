@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.TEST_FILT
 import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.TEST_RECORDS_COUNT;
 import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.TEST_TABLE;
 import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.buildHCatRecords;
+import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.buildHCatRecordsWithDate;
 import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.getConfigPropertiesAsMap;
 import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.getExpectedRecords;
 import static org.apache.beam.sdk.io.hcatalog.test.HCatalogIOTestUtils.getReaderContext;
@@ -54,12 +55,14 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Watch;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hive.hcatalog.data.DefaultHCatRecord;
@@ -227,6 +230,44 @@ public class HCatalogIOTest implements Serializable {
                 }));
 
     PAssert.that(output).containsInAnyOrder(getExpectedRecords(TEST_RECORDS_COUNT));
+    readAfterWritePipeline.run();
+  }
+
+  /** Perform test for reading Date column type from an hcatalog. */
+  @Test
+  public void testReadHCatalogDateType() throws Exception {
+    service.executeQuery("drop table if exists " + TEST_TABLE);
+    service.executeQuery("create table " + TEST_TABLE + "(mycol1 string, mycol2 date)");
+
+    defaultPipeline
+        .apply(Create.of(buildHCatRecordsWithDate(TEST_RECORDS_COUNT)))
+        .apply(
+            HCatalogIO.write()
+                .withConfigProperties(getConfigPropertiesAsMap(service.getHiveConf()))
+                .withDatabase(TEST_DATABASE)
+                .withTable(TEST_TABLE)
+                .withPartition(new java.util.HashMap<>()));
+    defaultPipeline.run().waitUntilFinish();
+
+    final PCollection<String> output =
+        readAfterWritePipeline
+            .apply(
+                HCatToRow.fromSpec(
+                    HCatalogIO.read()
+                        .withConfigProperties(getConfigPropertiesAsMap(service.getHiveConf()))
+                        .withDatabase(TEST_DATABASE)
+                        .withTable(TEST_TABLE)
+                        .withFilter(TEST_FILTER)))
+            .apply(
+                ParDo.of(
+                    new DoFn<Row, String>() {
+                      @ProcessElement
+                      public void processElement(ProcessContext c) {
+                        c.output(c.element().getDateTime("mycol2").toString("yyyy-MM-dd HH:mm:ss"));
+                      }
+                    }))
+            .apply(Distinct.create());
+    PAssert.that(output).containsInAnyOrder(ImmutableList.of("2014-01-20 00:00:00"));
     readAfterWritePipeline.run();
   }
 

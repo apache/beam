@@ -27,6 +27,8 @@ import java.util.Map;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaTranslation;
 import org.apache.beam.sdk.schemas.logicaltypes.MicrosInstant;
@@ -370,5 +372,23 @@ public class PythonExternalTransformTest implements Serializable {
     assertEquals(11, (int) receivedRow.getInt32("intField"));
     assertEquals(12L, (long) receivedRow.getInt64("longField"));
     assertEquals(15.6, (double) receivedRow.getDouble("doubleField"), 0);
+  }
+
+  @Test
+  public void testLoopbackEnvironmentWithPythonExternalTransform() {
+    PortablePipelineOptions options =
+        PipelineOptionsFactory.create().as(PortablePipelineOptions.class);
+    options.setDefaultEnvironmentType("LOOPBACK");
+
+    Pipeline p = Pipeline.create(options);
+
+    PCollection<String> output =
+        p.apply(Create.of(KV.of("A", "x"), KV.of("A", "y"), KV.of("B", "z")))
+            .apply(
+                PythonExternalTransform
+                    .<PCollection<KV<String, String>>, PCollection<KV<String, Iterable<String>>>>
+                        from("apache_beam.GroupByKey"))
+            .apply(Keys.create());
+    PAssert.that(output).containsInAnyOrder("A", "B");
   }
 }

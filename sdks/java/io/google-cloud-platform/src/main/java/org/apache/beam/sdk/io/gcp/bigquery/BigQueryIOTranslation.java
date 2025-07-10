@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static org.apache.beam.sdk.util.construction.TransformUpgrader.fromByteArray;
 import static org.apache.beam.sdk.util.construction.TransformUpgrader.toByteArray;
 
-import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.auto.service.AutoService;
 import com.google.cloud.bigquery.storage.v1.AppendRowsRequest.MissingValueInterpretation;
@@ -34,6 +33,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
@@ -59,13 +59,16 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter;
 import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
+import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler.BadRecordErrorHandler;
 import org.apache.beam.sdk.util.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.sdk.util.construction.SdkComponents;
 import org.apache.beam.sdk.util.construction.TransformPayloadTranslatorRegistrar;
+import org.apache.beam.sdk.util.construction.TransformUpgrader;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -93,6 +96,7 @@ public class BigQueryIOTranslation {
             .addNullableByteArrayField("query_priority")
             .addNullableStringField("query_location")
             .addNullableStringField("query_temp_dataset")
+            .addNullableStringField("query_temp_project")
             .addNullableByteArrayField("method")
             .addNullableByteArrayField("format")
             .addNullableArrayField("selected_fields", FieldType.STRING)
@@ -159,6 +163,9 @@ public class BigQueryIOTranslation {
       if (transform.getQueryTempDataset() != null) {
         fieldValues.put("query_temp_dataset", transform.getQueryTempDataset());
       }
+      if (transform.getQueryTempProject() != null) {
+        fieldValues.put("query_temp_project", transform.getQueryTempProject());
+      }
       if (transform.getMethod() != null) {
         fieldValues.put("method", toByteArray(transform.getMethod()));
       }
@@ -199,6 +206,14 @@ public class BigQueryIOTranslation {
 
     @Override
     public TypedRead<?> fromConfigRow(Row configRow, PipelineOptions options) {
+      String updateCompatibilityBeamVersion =
+          options.as(StreamingOptions.class).getUpdateCompatibilityVersion();
+      // We need to set a default 'updateCompatibilityBeamVersion' here since this PipelineOption
+      // is not correctly passed in for pipelines that use Beam 2.53.0.
+      // This is fixed for Beam 2.54.0 and later.
+      updateCompatibilityBeamVersion =
+          (updateCompatibilityBeamVersion != null) ? updateCompatibilityBeamVersion : "2.53.0";
+
       try {
         BigQueryIO.TypedRead.Builder builder = new AutoValue_BigQueryIO_TypedRead.Builder<>();
 
@@ -261,12 +276,22 @@ public class BigQueryIOTranslation {
         if (queryTempDataset != null) {
           builder = builder.setQueryTempDataset(queryTempDataset);
         }
+
+        if (TransformUpgrader.compareVersions(updateCompatibilityBeamVersion, "2.57.0") >= 0) {
+          // This property was added for Beam 2.57.0 hence not available when
+          // upgrading the transform from previous Beam versions.
+          String queryTempProject = configRow.getString("query_temp_project");
+          if (queryTempProject != null) {
+            builder = builder.setQueryTempProject(queryTempProject);
+          }
+        }
+
         byte[] methodBytes = configRow.getBytes("method");
         if (methodBytes != null) {
           builder = builder.setMethod((TypedRead.Method) fromByteArray(methodBytes));
         }
         byte[] formatBytes = configRow.getBytes("format");
-        if (methodBytes != null) {
+        if (formatBytes != null) {
           builder = builder.setFormat((DataFormat) fromByteArray(formatBytes));
         }
         Collection<String> selectedFields = configRow.getArray("selected_fields");
@@ -312,11 +337,20 @@ public class BigQueryIOTranslation {
         if (projectionPushdownApplied != null) {
           builder = builder.setProjectionPushdownApplied(projectionPushdownApplied);
         }
-        byte[] badRecordRouter = configRow.getBytes("bad_record_router");
-        builder.setBadRecordRouter((BadRecordRouter) fromByteArray(badRecordRouter));
-        byte[] badRecordErrorHandler = configRow.getBytes("bad_record_error_handler");
-        builder.setBadRecordErrorHandler(
-            (ErrorHandler<BadRecord, ?>) fromByteArray(badRecordErrorHandler));
+
+        if (TransformUpgrader.compareVersions(updateCompatibilityBeamVersion, "2.55.0") < 0) {
+          // We need to use defaults here for BQ rear/write transforms upgraded
+          // from older Beam versions.
+          // See https://github.com/apache/beam/issues/30534.
+          builder.setBadRecordRouter(BadRecordRouter.THROWING_ROUTER);
+          builder.setBadRecordErrorHandler(new BadRecordErrorHandler.DefaultErrorHandler<>());
+        } else {
+          byte[] badRecordRouter = configRow.getBytes("bad_record_router");
+          builder.setBadRecordRouter((BadRecordRouter) fromByteArray(badRecordRouter));
+          byte[] badRecordErrorHandler = configRow.getBytes("bad_record_error_handler");
+          builder.setBadRecordErrorHandler(
+              (ErrorHandler<BadRecord, ?>) fromByteArray(badRecordErrorHandler));
+        }
 
         return builder.build();
       } catch (InvalidClassException e) {
@@ -354,11 +388,12 @@ public class BigQueryIOTranslation {
             .addNullableByteArrayField("dynamic_destinations")
             .addNullableStringField("json_schema")
             .addNullableStringField("json_time_partitioning")
-            .addNullableByteArrayField("clustering")
+            .addNullableStringField("clustering")
             .addNullableByteArrayField("create_disposition")
             .addNullableByteArrayField("write_disposition")
             .addNullableArrayField("schema_update_options", FieldType.BYTES)
             .addNullableStringField("table_description")
+            .addNullableMapField("biglake_configuration", FieldType.STRING, FieldType.STRING)
             .addNullableBooleanField("validate")
             .addNullableByteArrayField("bigquery_services")
             .addNullableInt32Field("max_files_per_bundle")
@@ -366,6 +401,7 @@ public class BigQueryIOTranslation {
             .addNullableInt32Field("num_file_shards")
             .addNullableInt32Field("num_storage_write_api_streams")
             .addNullableBooleanField("propagate_successful_storage_api_writes")
+            .addNullableByteArrayField("propagate_successful_storage_api_writes_predicate")
             .addNullableInt32Field("max_files_per_partition")
             .addNullableInt64Field("max_bytes_per_partition")
             .addNullableLogicalTypeField("triggering_frequency", new NanosDuration())
@@ -455,8 +491,8 @@ public class BigQueryIOTranslation {
         fieldValues.put(
             "json_time_partitioning", toByteArray(transform.getJsonTimePartitioning().get()));
       }
-      if (transform.getClustering() != null) {
-        fieldValues.put("clustering", toByteArray(transform.getClustering()));
+      if (transform.getJsonClustering() != null) {
+        fieldValues.put("clustering", transform.getJsonClustering().get());
       }
       if (transform.getCreateDisposition() != null) {
         fieldValues.put("create_disposition", toByteArray(transform.getCreateDisposition()));
@@ -475,6 +511,9 @@ public class BigQueryIOTranslation {
       if (transform.getTableDescription() != null) {
         fieldValues.put("table_description", transform.getTableDescription());
       }
+      if (transform.getBigLakeConfiguration() != null) {
+        fieldValues.put("biglake_configuration", transform.getBigLakeConfiguration());
+      }
       fieldValues.put("validate", transform.getValidate());
       if (transform.getBigQueryServices() != null) {
         fieldValues.put("bigquery_services", toByteArray(transform.getBigQueryServices()));
@@ -490,6 +529,9 @@ public class BigQueryIOTranslation {
       fieldValues.put(
           "propagate_successful_storage_api_writes",
           transform.getPropagateSuccessfulStorageApiWrites());
+      fieldValues.put(
+          "propagate_successful_storage_api_writes_predicate",
+          toByteArray(transform.getPropagateSuccessfulStorageApiWritesPredicate()));
       fieldValues.put("max_files_per_partition", transform.getMaxFilesPerPartition());
       fieldValues.put("max_bytes_per_partition", transform.getMaxBytesPerPartition());
       if (transform.getTriggeringFrequency() != null) {
@@ -558,7 +600,7 @@ public class BigQueryIOTranslation {
             "deterministic_record_id_fn", toByteArray(transform.getDeterministicRecordIdFn()));
       }
       if (transform.getWriteTempDataset() != null) {
-        fieldValues.put("write_temp_dataset", toByteArray(transform.getDeterministicRecordIdFn()));
+        fieldValues.put("write_temp_dataset", toByteArray(transform.getWriteTempDataset()));
       }
       if (transform.getRowMutationInformationFn() != null) {
         fieldValues.put(
@@ -573,6 +615,14 @@ public class BigQueryIOTranslation {
 
     @Override
     public Write<?> fromConfigRow(Row configRow, PipelineOptions options) {
+      String updateCompatibilityBeamVersion =
+          options.as(StreamingOptions.class).getUpdateCompatibilityVersion();
+      // We need to set a default 'updateCompatibilityBeamVersion' here since this PipelineOption
+      // is not correctly passed in for pipelines that use Beam 2.53.0.
+      // This is fixed for Beam 2.54.0 and later.
+      updateCompatibilityBeamVersion =
+          (updateCompatibilityBeamVersion != null) ? updateCompatibilityBeamVersion : "2.53.0";
+
       try {
         BigQueryIO.Write.Builder builder = new AutoValue_BigQueryIO_Write.Builder<>();
 
@@ -595,7 +645,7 @@ public class BigQueryIOTranslation {
         }
         byte[] formatRecordOnFailureFunctionBytes =
             configRow.getBytes("format_record_on_failure_function");
-        if (tableFunctionBytes != null) {
+        if (formatRecordOnFailureFunctionBytes != null) {
           builder =
               builder.setFormatRecordOnFailureFunction(
                   (SerializableFunction<?, TableRow>)
@@ -608,7 +658,7 @@ public class BigQueryIOTranslation {
                   (AvroRowWriterFactory) fromByteArray(avroRowWriterFactoryBytes));
         }
         byte[] avroSchemaFactoryBytes = configRow.getBytes("avro_schema_factory");
-        if (tableFunctionBytes != null) {
+        if (avroSchemaFactoryBytes != null) {
           builder =
               builder.setAvroSchemaFactory(
                   (SerializableFunction) fromByteArray(avroSchemaFactoryBytes));
@@ -631,9 +681,14 @@ public class BigQueryIOTranslation {
         if (jsonTimePartitioning != null) {
           builder = builder.setJsonTimePartitioning(StaticValueProvider.of(jsonTimePartitioning));
         }
-        byte[] clusteringBytes = configRow.getBytes("clustering");
-        if (clusteringBytes != null) {
-          builder = builder.setClustering((Clustering) fromByteArray(clusteringBytes));
+        // Translation with Clustering is broken before 2.56.0, where we used to attempt to
+        // serialize a non-serializable Clustering object to bytes.
+        // In 2.56.0 onwards, we translate using the json string representation instead.
+        if (TransformUpgrader.compareVersions(updateCompatibilityBeamVersion, "2.56.0") >= 0) {
+          String jsonClustering = configRow.getString("clustering");
+          if (jsonClustering != null) {
+            builder = builder.setJsonClustering(StaticValueProvider.of(jsonClustering));
+          }
         }
         byte[] createDispositionBytes = configRow.getBytes("create_disposition");
         if (createDispositionBytes != null) {
@@ -668,6 +723,10 @@ public class BigQueryIOTranslation {
         if (tableDescription != null) {
           builder = builder.setTableDescription(tableDescription);
         }
+        Map<String, String> biglakeConfiguration = configRow.getMap("biglake_configuration");
+        if (biglakeConfiguration != null) {
+          builder = builder.setBigLakeConfiguration(biglakeConfiguration);
+        }
         Boolean validate = configRow.getBoolean("validate");
         if (validate != null) {
           builder = builder.setValidate(validate);
@@ -701,12 +760,27 @@ public class BigQueryIOTranslation {
         if (numStorageWriteApiStreams != null) {
           builder = builder.setNumStorageWriteApiStreams(numStorageWriteApiStreams);
         }
-        Boolean propagateSuccessfulStorageApiWrites =
-            configRow.getBoolean("propagate_successful_storage_api_writes");
-        if (propagateSuccessfulStorageApiWrites != null) {
-          builder =
-              builder.setPropagateSuccessfulStorageApiWrites(propagateSuccessfulStorageApiWrites);
+
+        if (TransformUpgrader.compareVersions(updateCompatibilityBeamVersion, "2.60.0") >= 0) {
+          Boolean propagateSuccessfulStorageApiWrites =
+              configRow.getBoolean("propagate_successful_storage_api_writes");
+          if (propagateSuccessfulStorageApiWrites != null) {
+            builder =
+                builder.setPropagateSuccessfulStorageApiWrites(propagateSuccessfulStorageApiWrites);
+          }
+
+          byte[] predicate =
+              configRow.getBytes("propagate_successful_storage_api_writes_predicate");
+          if (predicate != null) {
+            builder =
+                builder.setPropagateSuccessfulStorageApiWritesPredicate(
+                    (Predicate<String>) fromByteArray(predicate));
+          }
+        } else {
+          builder.setPropagateSuccessfulStorageApiWrites(false);
+          builder.setPropagateSuccessfulStorageApiWritesPredicate(Predicates.alwaysTrue());
         }
+
         Integer maxFilesPerPartition = configRow.getInt32("max_files_per_partition");
         if (maxFilesPerPartition != null) {
           builder = builder.setMaxFilesPerPartition(maxFilesPerPartition);
@@ -716,20 +790,11 @@ public class BigQueryIOTranslation {
           builder = builder.setMaxBytesPerPartition(maxBytesPerPartition);
         }
 
-        String updateCompatibilityBeamVersion =
-            options.as(StreamingOptions.class).getUpdateCompatibilityVersion();
-
         // We need to update the 'triggerring_frequency' field name for pipelines that are upgraded
         // from Beam 2.53.0 due to https://github.com/apache/beam/pull/29785.
-        // We need to set a default 'updateCompatibilityBeamVersion' here since this PipelineOption
-        // is not correctly passed in for pipelines that use Beam 2.53.0.
-        // Both above issues are fixed for Beam 2.54.0 and later.
-        updateCompatibilityBeamVersion =
-            (updateCompatibilityBeamVersion != null) ? updateCompatibilityBeamVersion : "2.53.0";
-
+        // This is fixed for Beam 2.54.0 and later.
         String triggeringFrequencyFieldName =
-            (updateCompatibilityBeamVersion != null
-                    && updateCompatibilityBeamVersion.equals("2.53.0"))
+            TransformUpgrader.compareVersions(updateCompatibilityBeamVersion, "2.53.0") == 0
                 ? "triggerring_frequency"
                 : "triggering_frequency";
 
@@ -840,11 +905,20 @@ public class BigQueryIOTranslation {
               builder.setRowMutationInformationFn(
                   (SerializableFunction) fromByteArray(rowMutationInformationFnBytes));
         }
-        byte[] badRecordRouter = configRow.getBytes("bad_record_router");
-        builder.setBadRecordRouter((BadRecordRouter) fromByteArray(badRecordRouter));
-        byte[] badRecordErrorHandler = configRow.getBytes("bad_record_error_handler");
-        builder.setBadRecordErrorHandler(
-            (ErrorHandler<BadRecord, ?>) fromByteArray(badRecordErrorHandler));
+
+        if (TransformUpgrader.compareVersions(updateCompatibilityBeamVersion, "2.55.0") < 0) {
+          // We need to use defaults here for BQ rear/write transforms upgraded
+          // from older Beam versions.
+          // See https://github.com/apache/beam/issues/30534.
+          builder.setBadRecordRouter(BadRecordRouter.THROWING_ROUTER);
+          builder.setBadRecordErrorHandler(new BadRecordErrorHandler.DefaultErrorHandler<>());
+        } else {
+          byte[] badRecordRouter = configRow.getBytes("bad_record_router");
+          builder.setBadRecordRouter((BadRecordRouter) fromByteArray(badRecordRouter));
+          byte[] badRecordErrorHandler = configRow.getBytes("bad_record_error_handler");
+          builder.setBadRecordErrorHandler(
+              (ErrorHandler<BadRecord, ?>) fromByteArray(badRecordErrorHandler));
+        }
 
         return builder.build();
       } catch (InvalidClassException e) {

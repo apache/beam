@@ -29,7 +29,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nullable;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -134,6 +134,12 @@ final class AppendableInputStream extends InputStream {
     stream.close();
   }
 
+  static class InvalidInputStreamStateException extends IllegalStateException {
+    public InvalidInputStreamStateException() {
+      super("Got poison pill or timeout but stream is not done.");
+    }
+  }
+
   @SuppressWarnings("NullableProblems")
   private class InputStreamEnumeration implements Enumeration<InputStream> {
     // The first stream is eagerly read on SequenceInputStream creation. For this reason
@@ -159,7 +165,7 @@ final class AppendableInputStream extends InputStream {
         if (complete.get()) {
           return false;
         }
-        throw new IllegalStateException("Got poison pill or timeout but stream is not done.");
+        throw new InvalidInputStreamStateException();
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throw new CancellationException();

@@ -25,6 +25,7 @@ on:
       - 'sdks/java/expansion-service/**'
       - 'sdks/java/core/**'
       - 'sdks/java/io/**'
+      - 'sdks/java/managed/**'
       - 'sdks/java/extensions/sql/**'
       - 'release/**'
       - '.github/workflows/beam_PreCommit_Xlang_Generated_Transforms.yml'
@@ -36,6 +37,7 @@ on:
       - 'sdks/java/expansion-service/**'
       - 'sdks/java/core/**'
       - 'sdks/java/io/**'
+      - 'sdks/java/managed/**'
       - 'sdks/java/extensions/sql/**'
       - 'release/**'
       - 'release/trigger_all_tests.json'
@@ -68,7 +70,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
@@ -82,7 +84,7 @@ jobs:
       matrix:
         job_name: ['beam_PreCommit_Xlang_Generated_Transforms']
         job_phrase: ['Run Xlang_Generated_Transforms PreCommit']
-        python_version: ['3.8']
+        python_version: ['3.9']
     if: |
       github.event_name == 'push' ||
       github.event_name == 'workflow_dispatch' ||
@@ -100,7 +102,7 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: 8
+          java-version: default
           python-version: ${{ matrix.python_version }}
       - name: Set PY_VER_CLEAN
         id: set_py_ver_clean
@@ -111,4 +113,4 @@ jobs:
       - name: run Cross-Language Wrapper Validation script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:python:test-suites:direct:crossLanguageWrapperValidationPreCommit
+          gradle-command: :sdks:python:test-suites:direct:crossLanguageWrapperValidationPreCommit --info

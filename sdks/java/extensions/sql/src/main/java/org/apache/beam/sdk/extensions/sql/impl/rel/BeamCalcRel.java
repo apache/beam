@@ -395,6 +395,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
         }
         return ((ByteString) value).getBytes();
       case ARRAY:
+      case ITERABLE:
         return toBeamList((List<Object>) value, fieldType.getCollectionElementType(), verifyValues);
       case MAP:
         return toBeamMap(
@@ -558,6 +559,9 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
         case ROW:
           value = Expressions.call(expression, "getRow", fieldName);
           break;
+        case ITERABLE:
+          value = Expressions.call(expression, "getIterable", fieldName);
+          break;
         case LOGICAL_TYPE:
           String identifier = fieldType.getLogicalType().getIdentifier();
           if (FixedString.IDENTIFIER.equals(identifier)
@@ -634,6 +638,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
           return nullOr(
               value, Expressions.new_(ByteString.class, Expressions.convert_(value, byte[].class)));
         case ARRAY:
+        case ITERABLE:
           return nullOr(value, toCalciteList(value, fieldType.getCollectionElementType()));
         case MAP:
           return nullOr(value, toCalciteMap(value, fieldType.getMapValueType()));

@@ -18,12 +18,16 @@
 package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Longs;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -127,19 +131,68 @@ public final class KafkaIOUtils {
     return offsetConsumerConfig;
   }
 
-  // Maintains approximate average over last 1000 elements
-  static class MovingAvg {
-    private static final int MOVING_AVG_WINDOW = 1000;
-    private double avg = 0;
-    private long numUpdates = 0;
+  static Map<String, Object> overrideBootstrapServersConfig(
+      Map<String, Object> currentConfig, KafkaSourceDescriptor description) {
+    checkState(
+        currentConfig.containsKey(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG)
+            || description.getBootStrapServers() != null);
+    Map<String, Object> config = new HashMap<>(currentConfig);
+    if (description.getBootStrapServers() != null && description.getBootStrapServers().size() > 0) {
+      config.put(
+          ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
+          String.join(",", description.getBootStrapServers()));
+    }
+    return config;
+  }
 
-    void update(double quantity) {
-      numUpdates++;
-      avg += (quantity - avg) / Math.min(MOVING_AVG_WINDOW, numUpdates);
+  /*
+   * Maintains approximate average over last 1000 elements.
+   * Usage is only thread-safe for a single producer and multiple consumers.
+   */
+  public static final class MovingAvg {
+    private static final AtomicLongFieldUpdater<MovingAvg> AVG =
+        AtomicLongFieldUpdater.newUpdater(MovingAvg.class, "avg");
+    private static final int MOVING_AVG_WINDOW = 1000;
+
+    private volatile long avg;
+    private long numUpdates;
+
+    private double getAvg() {
+      return Double.longBitsToDouble(avg);
     }
 
-    double get() {
-      return avg;
+    private void setAvg(final double value) {
+      AVG.lazySet(this, Double.doubleToRawLongBits(value));
+    }
+
+    private long incrementAndGetNumUpdates() {
+      final long nextNumUpdates = Math.min(MOVING_AVG_WINDOW, numUpdates + 1);
+      numUpdates = nextNumUpdates;
+      return nextNumUpdates;
+    }
+
+    public void update(final double quantity) {
+      final double prevAvg = getAvg(); // volatile load (acquire)
+
+      final long nextNumUpdates = incrementAndGetNumUpdates(); // normal load/store
+      final double nextAvg = prevAvg + (quantity - prevAvg) / nextNumUpdates; // normal load/store
+
+      setAvg(nextAvg); // ordered store (release)
+    }
+
+    public double get() {
+      return getAvg(); // volatile load (acquire)
+    }
+  }
+
+  static final class OffsetBasedDeduplication {
+
+    static byte[] encodeOffset(long offset) {
+      return Longs.toByteArray(offset);
+    }
+
+    static byte[] getUniqueId(String topic, int partition, long offset) {
+      return (topic + "-" + partition + "-" + offset).getBytes(StandardCharsets.UTF_8);
     }
   }
 }

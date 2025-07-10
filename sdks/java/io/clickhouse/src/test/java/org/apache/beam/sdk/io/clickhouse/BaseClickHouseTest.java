@@ -22,7 +22,9 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,12 +45,14 @@ public class BaseClickHouseTest {
   public static GenericContainer zookeeper;
   private static final Logger LOG = LoggerFactory.getLogger(BaseClickHouseTest.class);
 
+  private Connection connection;
+
   @BeforeClass
   public static void setup() throws IOException, InterruptedException {
     network = Network.newNetwork();
 
     zookeeper =
-        new GenericContainer<>("zookeeper:3.4.13")
+        new GenericContainer<>("zookeeper:3.8.4")
             .withStartupAttempts(10)
             .withExposedPorts(2181)
             .withNetwork(network)
@@ -58,7 +62,7 @@ public class BaseClickHouseTest {
     zookeeper.start();
 
     clickHouse =
-        new ClickHouseContainer("clickhouse/clickhouse-server:22.9")
+        new ClickHouseContainer("clickhouse/clickhouse-server:23.8")
             .withStartupAttempts(10)
             .withNetwork(network)
             .withClasspathResourceMapping(
@@ -76,18 +80,32 @@ public class BaseClickHouseTest {
     zookeeper.close();
   }
 
-  boolean executeSql(String sql) throws SQLException {
-    try (Connection connection = clickHouse.createConnection("");
-        Statement statement = connection.createStatement()) {
-      return statement.execute(sql);
+  @Before
+  public void setUp() throws SQLException {
+    connection = clickHouse.createConnection("");
+  }
+
+  @After
+  public void after() {
+    if (connection != null) {
+      try {
+        connection.close();
+      } catch (SQLException e) {
+        // failed to close connection, ignore
+      } finally {
+        connection = null;
+      }
     }
   }
 
+  boolean executeSql(String sql) throws SQLException {
+    Statement statement = connection.createStatement();
+    return statement.execute(sql);
+  }
+
   ResultSet executeQuery(String sql) throws SQLException {
-    try (Connection connection = clickHouse.createConnection("");
-        Statement statement = connection.createStatement()) {
-      return statement.executeQuery(sql);
-    }
+    Statement statement = connection.createStatement();
+    return statement.executeQuery(sql);
   }
 
   long executeQueryAsLong(String sql) throws SQLException {

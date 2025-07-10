@@ -95,7 +95,7 @@ class RuntimeValueProvider(ValueProvider):
   at graph construction time.
   """
   runtime_options = None
-  experiments = set()  # type: Set[str]
+  experiments: Set[str] = set()
 
   def __init__(self, option_name, value_type, default_value):
     self.option_name = option_name

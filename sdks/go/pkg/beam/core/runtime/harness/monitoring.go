@@ -102,9 +102,9 @@ func shortIdsToInfos(shortids []string) map[string]*pipepb.MonitoringInfo {
 	return defaultShortIDCache.shortIdsToInfos(shortids)
 }
 
-func monitoring(p *exec.Plan, store *metrics.Store, supportShortID bool) ([]*pipepb.MonitoringInfo, map[string][]byte) {
+func monitoring(p *exec.Plan, store *metrics.Store, supportShortID bool) ([]*pipepb.MonitoringInfo, map[string][]byte, bool) {
 	if store == nil {
-		return nil, nil
+		return nil, nil, false
 	}
 	defaultShortIDCache.mu.Lock()
 	defer defaultShortIDCache.mu.Unlock()
@@ -186,7 +186,7 @@ func monitoring(p *exec.Plan, store *metrics.Store, supportShortID bool) ([]*pip
 
 	snapshot, ok := p.Progress()
 	if !ok {
-		return monitoringInfo, payloads
+		return monitoringInfo, payloads, false
 	}
 	for _, pcol := range snapshot.PCols {
 		payload, err := metricsx.Int64Counter(pcol.ElementCount)
@@ -247,5 +247,5 @@ func monitoring(p *exec.Plan, store *metrics.Store, supportShortID bool) ([]*pip
 				Payload: payload,
 			})
 	}
-	return monitoringInfo, payloads
+	return monitoringInfo, payloads, snapshot.Source.ConsumingReceivedData
 }

@@ -147,9 +147,7 @@ class LocalFileSystem(FileSystem):
       self,
       path,
       mime_type='application/octet-stream',
-      compression_type=CompressionTypes.AUTO):
-    # type: (...) -> BinaryIO
-
+      compression_type=CompressionTypes.AUTO) -> BinaryIO:
     """Returns a write channel for the given file path.
 
     Args:
@@ -159,16 +157,16 @@ class LocalFileSystem(FileSystem):
 
     Returns: file handle with a close function for the user to use
     """
-    os.makedirs(os.path.dirname(path), exist_ok=True)
+    dirname = os.path.dirname(path)
+    if dirname:
+      os.makedirs(os.path.dirname(path), exist_ok=True)
     return self._path_open(path, 'wb', mime_type, compression_type)
 
   def open(
       self,
       path,
       mime_type='application/octet-stream',
-      compression_type=CompressionTypes.AUTO):
-    # type: (...) -> BinaryIO
-
+      compression_type=CompressionTypes.AUTO) -> BinaryIO:
     """Returns a read channel for the given file path.
 
     Args:
@@ -368,3 +366,6 @@ class LocalFileSystem(FileSystem):
 
     if exceptions:
       raise BeamIOError("Delete operation failed", exceptions)
+
+  def report_lineage(self, path, lineage):
+    lineage.add('filesystem', 'localhost', path, last_segment_sep='/')

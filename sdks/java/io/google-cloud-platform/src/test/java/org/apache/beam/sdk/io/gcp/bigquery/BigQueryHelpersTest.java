@@ -20,12 +20,14 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static org.junit.Assert.assertEquals;
 
 import com.google.api.client.util.Data;
+import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.ErrorProto;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatus;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
+import java.util.Arrays;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
@@ -41,7 +43,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.joda.time.Duration;
@@ -85,7 +87,9 @@ public class BigQueryHelpersTest {
   @Test
   public void testTableParsing_validPatterns() {
     BigQueryHelpers.parseTableSpec("a123-456:foo_bar.d");
+    BigQueryHelpers.parseTableSpec("a123-456:foo_bar.ग्राहक");
     BigQueryHelpers.parseTableSpec("a12345:b.c");
+    BigQueryHelpers.parseTableSpec("a1:b.c");
     BigQueryHelpers.parseTableSpec("b12345.c");
   }
 
@@ -171,7 +175,7 @@ public class BigQueryHelpersTest {
   @Test
   public void testComplexCoderSerializable() {
     CoderProperties.coderSerializable(
-        WindowedValue.getFullCoder(
+        WindowedValues.getFullCoder(
             KvCoder.of(
                 ShardedKeyCoder.of(StringUtf8Coder.of()),
                 TableRowInfoCoder.of(TableRowJsonCoder.of())),
@@ -257,5 +261,14 @@ public class BigQueryHelpersTest {
     assertEquals(tempTableReference.getTableId(), noDataset.getTableId());
 
     assertEquals(dataset.get(), noDataset.setDatasetId(dataset.get()).getDatasetId());
+  }
+
+  @Test
+  public void testClusteringJsonConversion() {
+    Clustering clustering =
+        new Clustering().setFields(Arrays.asList("column1", "column2", "column3"));
+    String jsonClusteringFields = "[\"column1\", \"column2\", \"column3\"]";
+
+    assertEquals(clustering, BigQueryHelpers.clusteringFromJsonFields(jsonClusteringFields));
   }
 }

@@ -49,7 +49,15 @@ We define a function `split_words` which splits an input `str` element using the
 {{< playground_snippet language="py" path="SDK_PYTHON_FlatMapFunction" show="flatmap_function" >}}
 {{< /playground >}}
 
-### Example 3: FlatMap with a lambda function
+### Example 3: FlatMap without a function
+
+A common use case of `FlatMap` is to flatten a `PCollection` of iterables into a `PCollection` of elements. To do that, don't specify the function argument to `FlatMap`, which uses the identity mapping function.
+
+{{< playground height="700px" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_FlatMapNoFunction" show="flatmap_nofunction" >}}
+{{< /playground >}}
+
+### Example 4: FlatMap with a lambda function
 
 For this example, we want to flatten a `PCollection` of lists of `str`s into a `PCollection` of `str`s.
 Each input element is already an `iterable`, where each element is what we want in the resulting `PCollection`.
@@ -59,7 +67,7 @@ We use a lambda function that returns the same input element it received.
 {{< playground_snippet language="py" path="SDK_PYTHON_FlatMapLambda" show="flatmap_lambda" >}}
 {{< /playground >}}
 
-### Example 4: FlatMap with a generator
+### Example 5: FlatMap with a generator
 
 For this example, we want to flatten a `PCollection` of lists of `str`s into a `PCollection` of `str`s.
 We use a generator to iterate over the input list and yield each of the elements.
@@ -69,7 +77,7 @@ Each yielded result in the generator is an element in the resulting `PCollection
 {{< playground_snippet language="py" path="SDK_PYTHON_FlatMapGenerator" show="flatmap_generator" >}}
 {{< /playground >}}
 
-### Example 5: FlatMapTuple for key-value pairs
+### Example 6: FlatMapTuple for key-value pairs
 
 If your `PCollection` consists of `(key, value)` pairs,
 you can use `FlatMapTuple` to unpack them into different function arguments.
@@ -78,7 +86,7 @@ you can use `FlatMapTuple` to unpack them into different function arguments.
 {{< playground_snippet language="py" path="SDK_PYTHON_FlatMapTuple" show="flatmap_tuple" >}}
 {{< /playground >}}
 
-### Example 6: FlatMap with multiple arguments
+### Example 7: FlatMap with multiple arguments
 
 You can pass functions with multiple arguments to `FlatMap`.
 They are passed as additional positional arguments or keyword arguments to the function.
@@ -89,7 +97,7 @@ In this example, `split_words` takes `text` and `delimiter` as arguments.
 {{< playground_snippet language="py" path="SDK_PYTHON_FlatMapMultipleArguments" show="flatmap_multiple_arguments" >}}
 {{< /playground >}}
 
-### Example 7: FlatMap with side inputs as singletons
+### Example 8: FlatMap with side inputs as singletons
 
 If the `PCollection` has a single value, such as the average from another computation,
 passing the `PCollection` as a *singleton* accesses that value.
@@ -101,7 +109,7 @@ We then use that value as the delimiter for the `str.split` method.
 {{< playground_snippet language="py" path="SDK_PYTHON_FlatMapSideInputSingleton" show="flatmap_side_inputs_singleton" >}}
 {{< /playground >}}
 
-### Example 8: FlatMap with side inputs as iterators
+### Example 9: FlatMap with side inputs as iterators
 
 If the `PCollection` has multiple values, pass the `PCollection` as an *iterator*.
 This accesses elements lazily as they are needed,
@@ -114,7 +122,7 @@ so it is possible to iterate over large `PCollection`s that won't fit into memor
 > **Note**: You can pass the `PCollection` as a *list* with `beam.pvalue.AsList(pcollection)`,
 > but this requires that all the elements fit into memory.
 
-### Example 9: FlatMap with side inputs as dictionaries
+### Example 10: FlatMap with side inputs as dictionaries
 
 If a `PCollection` is small enough to fit into memory, then that `PCollection` can be passed as a *dictionary*.
 Each element must be a `(key, value)` pair.

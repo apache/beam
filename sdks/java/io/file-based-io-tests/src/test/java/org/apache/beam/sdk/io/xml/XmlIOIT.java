@@ -21,9 +21,9 @@ import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampS
 import static org.apache.beam.sdk.io.common.IOITHelper.readIOTestPipelineOptions;
 import static org.junit.Assert.assertNotEquals;
 
-import com.google.cloud.Timestamp;
 import java.io.Serializable;
 import java.nio.charset.Charset;
+import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -180,7 +180,7 @@ public class XmlIOIT {
 
   private void collectAndPublishResults(PipelineResult result) {
     String uuid = UUID.randomUUID().toString();
-    String timestamp = Timestamp.now().toString();
+    String timestamp = Instant.now().toString();
 
     Set<Function<MetricsReader, NamedTestResult>> metricSuppliers =
         fillMetricSuppliers(uuid, timestamp);

@@ -42,7 +42,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
   INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
@@ -72,7 +72,7 @@ jobs:
       - name: Setup Python environment
         uses: ./.github/actions/setup-environment-action
         with:
-          python-version: '3.8'
+          python-version: '3.10'
       - name: Prepare test arguments
         uses: ./.github/actions/test-arguments-action
         with:
@@ -84,9 +84,33 @@ jobs:
             ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/beam_Inference_Python_Benchmarks_Dataflow_Pytorch_Language_Modeling_Bert_Base_Uncased.txt
             ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/beam_Inference_Python_Benchmarks_Dataflow_Pytorch_Language_Modeling_Bert_Large_Uncased.txt
             ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/beam_Inference_Python_Benchmarks_Dataflow_Pytorch_Imagenet_Classification_Resnet_152_Tesla_T4_GPU.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/beam_Inference_Python_Benchmarks_Dataflow_Pytorch_Sentiment_Streaming_DistilBert_Base_Uncased.txt
+            ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/beam_Inference_Python_Benchmarks_Dataflow_Pytorch_Sentiment_Batch_DistilBert_Base_Uncased.txt
       # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: get current time
         run: echo "NOW_UTC=$(date '+%m%d%H%M%S' --utc)" >> $GITHUB_ENV
+      - name: run Pytorch Sentiment Streaming using Hugging Face distilbert-base-uncased model
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        timeout-minutes: 180
+        with:
+          gradle-command: :sdks:python:apache_beam:testing:load_tests:run
+          arguments: |
+            -PloadTest.mainClass=apache_beam.testing.benchmarks.inference.pytorch_sentiment_benchmarks \
+            -Prunner=DataflowRunner \
+            -PpythonVersion=3.10 \
+            -PloadTest.requirementsTxtFile=apache_beam/ml/inference/torch_tests_requirements.txt \
+            '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_6 }} --mode=streaming --job_name=benchmark-tests-pytorch-sentiment-distilbert-base-uncased-streaming-${{env.NOW_UTC}} --output_table=apache-beam-testing.beam_run_inference.result_sentiment_distilbert_base_uncased' \
+      - name: run Pytorch Sentiment Batch using Hugging Face distilbert-base-uncased model
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        timeout-minutes: 180
+        with:
+          gradle-command: :sdks:python:apache_beam:testing:load_tests:run
+          arguments: |
+            -PloadTest.mainClass=apache_beam.testing.benchmarks.inference.pytorch_sentiment_benchmarks \
+            -Prunner=DataflowRunner \
+            -PpythonVersion=3.10 \
+            -PloadTest.requirementsTxtFile=apache_beam/ml/inference/torch_tests_requirements.txt \
+            '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_7 }} --mode=batch --job_name=benchmark-tests-pytorch-sentiment-distilbert-base-uncased-batch-${{env.NOW_UTC}} --output_table=apache-beam-testing.beam_run_inference.result_sentiment_distilbert_base_uncased' \
       - name: run Pytorch Vision Classification with Resnet 101
         uses: ./.github/actions/gradle-command-self-hosted-action
         timeout-minutes: 180
@@ -95,7 +119,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.8 \
+            -PpythonVersion=3.10 \
             -PloadTest.requirementsTxtFile=apache_beam/ml/inference/torch_tests_requirements.txt \
             '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_1 }} --job_name=benchmark-tests-pytorch-imagenet-python-101-${{env.NOW_UTC}} --output=gs://temp-storage-for-end-to-end-tests/torch/result_resnet101-${{env.NOW_UTC}}.txt' \
       - name: run Pytorch Imagenet Classification with Resnet 152
@@ -106,10 +130,10 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.8 \
+            -PpythonVersion=3.10 \
             -PloadTest.requirementsTxtFile=apache_beam/ml/inference/torch_tests_requirements.txt \
             '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_2 }} --job_name=benchmark-tests-pytorch-imagenet-python-152-${{env.NOW_UTC}} --output=gs://temp-storage-for-end-to-end-tests/torch/result_resnet152-${{env.NOW_UTC}}.txt' \
-      - name: run Pytorch Language Modeling using Hugging face bert-base-uncased model
+      - name: run Pytorch Language Modeling using Hugging Face bert-base-uncased model
         uses: ./.github/actions/gradle-command-self-hosted-action
         timeout-minutes: 180
         with:
@@ -117,7 +141,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.benchmarks.inference.pytorch_language_modeling_benchmarks \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.8 \
+            -PpythonVersion=3.10 \
             -PloadTest.requirementsTxtFile=apache_beam/ml/inference/torch_tests_requirements.txt \
             '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_3 }} --job_name=benchmark-tests-pytorch-language-modeling-bert-base-uncased-${{env.NOW_UTC}} --output=gs://temp-storage-for-end-to-end-tests/torch/result_bert_base_uncased-${{env.NOW_UTC}}.txt' \
       - name: run Pytorch Langauge Modeling using Hugging Face bert-large-uncased model
@@ -128,7 +152,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.benchmarks.inference.pytorch_language_modeling_benchmarks \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.8 \
+            -PpythonVersion=3.10 \
             -PloadTest.requirementsTxtFile=apache_beam/ml/inference/torch_tests_requirements.txt \
             '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_4 }} --job_name=benchmark-tests-pytorch-language-modeling-bert-large-uncased-${{env.NOW_UTC}} --output=gs://temp-storage-for-end-to-end-tests/torch/result_bert_large_uncased-${{env.NOW_UTC}}.txt' \
       - name: run Pytorch Imagenet Classification with Resnet 152 with Tesla T4 GPU
@@ -139,6 +163,6 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.benchmarks.inference.pytorch_image_classification_benchmarks \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.8 \
+            -PpythonVersion=3.10 \
             -PloadTest.requirementsTxtFile=apache_beam/ml/inference/torch_tests_requirements.txt \
             '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_5 }} --job_name=benchmark-tests-pytorch-imagenet-python-gpu-${{env.NOW_UTC}} --output=gs://temp-storage-for-end-to-end-tests/torch/result_resnet152_gpu-${{env.NOW_UTC}}.txt'

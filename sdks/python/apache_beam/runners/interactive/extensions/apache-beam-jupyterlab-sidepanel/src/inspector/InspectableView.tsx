@@ -131,7 +131,7 @@ export class InspectableView extends React.Component<
         <Checkbox
           label="Include Window Info"
           checked={showOptions.includeWindowInfo}
-          onChange={(e): void => {
+          onChange={(e: React.ChangeEvent<HTMLInputElement>): void => {
             showOptions.includeWindowInfo = !!e.currentTarget.checked;
             this.setState({ options: showOptions });
           }}
@@ -146,7 +146,7 @@ export class InspectableView extends React.Component<
         <Checkbox
           label="Visualize in Facets"
           checked={showOptions.visualizeInFacets}
-          onChange={(e): void => {
+          onChange={(e: React.ChangeEvent<HTMLInputElement>): void => {
             showOptions.visualizeInFacets = !!e.currentTarget.checked;
             this.setState({ options: showOptions });
           }}
@@ -169,7 +169,7 @@ export class InspectableView extends React.Component<
           label="Duration"
           floatLabel
           placeholder={showOptions.duration}
-          onChange={(e): void => {
+          onChange={(e: React.ChangeEvent<HTMLInputElement>): void => {
             showOptions.duration = e.currentTarget.value;
           }}
         />
@@ -190,7 +190,7 @@ export class InspectableView extends React.Component<
           label="Element Number"
           floatLabel
           placeholder={showOptions.n}
-          onChange={(e): void => {
+          onChange={(e: React.ChangeEvent<HTMLInputElement>): void => {
             showOptions.n = e.currentTarget.value;
           }}
         />
@@ -220,5 +220,5 @@ export class InspectableView extends React.Component<
     } as IShowOptions;
   }
 
-  private _updateRenderTimerId: number;
+  private _updateRenderTimerId: ReturnType<typeof setInterval>;
 }

@@ -34,7 +34,7 @@ abstract class StorageApiDynamicDestinations<T, DestinationT>
     StorageApiWritePayload toMessage(
         T element, @Nullable RowMutationInformation rowMutationInformation) throws Exception;
 
-    TableRow toTableRow(T element);
+    TableRow toFailsafeTableRow(T element);
   }
 
   StorageApiDynamicDestinations(DynamicDestinations<T, DestinationT> inner) {

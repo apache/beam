@@ -125,6 +125,98 @@ func Test_preprocessor_preProcessGraph(t *testing.T) {
 					"env1": {Urn: "env1"},
 				},
 			},
+		}, {
+			name: "ignoreEmptyAndIdentityTransform",
+			input: &pipepb.Components{
+				Transforms: map[string]*pipepb.PTransform{
+					// e1 is an empty transform with identical input/output pcollections
+					"e1": {
+						UniqueName: "e1",
+						Spec: &pipepb.FunctionSpec{
+							Urn: "defaultUrn",
+						},
+						Inputs: map[string]string{
+							"in": "coll1",
+						},
+						Outputs: map[string]string{
+							"out": "coll1",
+						},
+					},
+					"e2": {
+						UniqueName: "e2",
+						Spec: &pipepb.FunctionSpec{
+							Urn: "defaultUrn",
+						},
+						Inputs: map[string]string{
+							"in": "coll1",
+						},
+						Outputs: map[string]string{
+							"out": "coll2",
+						},
+					},
+					"e3": {
+						UniqueName: "e3",
+						Spec: &pipepb.FunctionSpec{
+							Urn: "defaultUrn",
+						},
+						Inputs: map[string]string{
+							"in1": "coll1",
+							"in2": "coll2",
+						},
+						Outputs: map[string]string{
+							"out": "coll3",
+						},
+					},
+				},
+			},
+			wantStages: []*stage{
+				{
+					transforms:   []string{"e2", "e3"}, // e1 is ignored
+					primaryInput: "coll1",
+					internalCols: []string{"coll2", "coll3"},
+				},
+			},
+			wantComponents: &pipepb.Components{
+				Transforms: map[string]*pipepb.PTransform{
+					"e1": {
+						UniqueName: "e1",
+						Spec: &pipepb.FunctionSpec{
+							Urn: "defaultUrn",
+						},
+						Inputs: map[string]string{
+							"in": "coll1",
+						},
+						Outputs: map[string]string{
+							"out": "coll1",
+						},
+					},
+					"e2": {
+						UniqueName: "e2",
+						Spec: &pipepb.FunctionSpec{
+							Urn: "defaultUrn",
+						},
+						Inputs: map[string]string{
+							"in": "coll1",
+						},
+						Outputs: map[string]string{
+							"out": "coll2",
+						},
+					},
+					"e3": {
+						UniqueName: "e3",
+						Spec: &pipepb.FunctionSpec{
+							Urn: "defaultUrn",
+						},
+						Inputs: map[string]string{
+							"in1": "coll1",
+							"in2": "coll2",
+						},
+						Outputs: map[string]string{
+							"out": "coll3",
+						},
+					},
+				},
+			},
 		},
 	}
 	for _, test := range tests {
@@ -134,7 +226,11 @@ func Test_preprocessor_preProcessGraph(t *testing.T) {
 			}})
 
 			gotStages := pre.preProcessGraph(test.input, nil)
-			if diff := cmp.Diff(test.wantStages, gotStages, cmp.AllowUnexported(stage{}, link{}), cmpopts.EquateEmpty()); diff != "" {
+			if diff := cmp.Diff(test.wantStages, gotStages,
+				cmp.AllowUnexported(stage{}, link{}),
+				cmpopts.EquateEmpty(),
+				cmpopts.IgnoreFields(stage{}, "baseProgTick"),
+			); diff != "" {
 				t.Errorf("preProcessGraph(%q) stages diff (-want,+got)\n%v", test.name, diff)
 			}
 

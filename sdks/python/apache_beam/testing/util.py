@@ -23,7 +23,10 @@ import collections
 import glob
 import io
 import tempfile
+from typing import Any
 from typing import Iterable
+from typing import List
+from typing import NamedTuple
 
 from apache_beam import pvalue
 from apache_beam.transforms import window
@@ -35,6 +38,8 @@ from apache_beam.transforms.core import WindowInto
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.ptransform import ptransform_fn
 from apache_beam.transforms.util import CoGroupByKey
+from apache_beam.utils.windowed_value import PANE_INFO_UNKNOWN
+from apache_beam.utils.windowed_value import PaneInfo
 
 __all__ = [
     'assert_that',
@@ -56,8 +61,11 @@ class BeamAssertException(Exception):
 
 
 # Used for reifying timestamps and windows for assert_that matchers.
-TestWindowedValue = collections.namedtuple(
-    'TestWindowedValue', 'value timestamp windows')
+class TestWindowedValue(NamedTuple):
+  value: Any
+  timestamp: Any
+  windows: List
+  pane_info: PaneInfo = PANE_INFO_UNKNOWN
 
 
 def contains_in_any_order(iterable):
@@ -261,6 +269,28 @@ def assert_that(
   """
   assert isinstance(actual, pvalue.PCollection), (
       '%s is not a supported type for Beam assert' % type(actual))
+  pipeline = actual.pipeline
+  if getattr(actual.pipeline, 'result', None):
+    # The pipeline was already run. The user most likely called assert_that
+    # after the pipeleline context.
+    raise RuntimeError(
+        'assert_that must be used within a beam.Pipeline context. ' +
+        'Prior to Beam 2.60.0, asserts outside of the context of a pipeline ' +
+        'were silently ignored, starting with Beam 2.60.0 this is no longer ' +
+        'allowed. To fix, move your assert_that call into your pipeline ' +
+        'context so that it is added before the pipeline is run. For more ' +
+        'information, see https://github.com/apache/beam/pull/30771')
+
+  # Usually, the uniqueness of the label is left to the pipeline
+  # writer to guarantee. Since we're in a testing context, we'll
+  # just automatically append a number to the label if it's
+  # already in use, as tests don't typically have to worry about
+  # long-term update compatibility stability of stage names.
+  if label in pipeline.applied_labels:
+    label_idx = 2
+    while f"{label}_{label_idx}" in pipeline.applied_labels:
+      label_idx += 1
+    label = f"{label}_{label_idx}"
 
   if isinstance(matcher, _EqualToPerWindowMatcher):
     reify_windows = True
@@ -268,11 +298,15 @@ def assert_that(
 
   class ReifyTimestampWindow(DoFn):
     def process(
-        self, element, timestamp=DoFn.TimestampParam, window=DoFn.WindowParam):
+        self,
+        element,
+        timestamp=DoFn.TimestampParam,
+        window=DoFn.WindowParam,
+        pane_info=DoFn.PaneInfoParam):
       # This returns TestWindowedValue instead of
       # beam.utils.windowed_value.WindowedValue because ParDo will extract
       # the timestamp and window out of the latter.
-      return [TestWindowedValue(element, timestamp, [window])]
+      return [TestWindowedValue(element, timestamp, [window], pane_info)]
 
   class AddWindow(DoFn):
     def process(self, element, window=DoFn.WindowParam):
@@ -296,17 +330,17 @@ def assert_that(
       # PCollection is empty.
       plain_actual = ((keyed_singleton, keyed_actual)
                       | 'Group' >> CoGroupByKey()
-                      | 'Unkey' >> Map(lambda k_values: k_values[1][1]))
+                      | 'Unkey' >> Map(lambda k_values: list(k_values[1][1])))
 
       if not use_global_window:
         plain_actual = plain_actual | 'AddWindow' >> ParDo(AddWindow())
 
-      plain_actual = plain_actual | 'Match' >> Map(matcher)
+      return plain_actual | 'Match' >> Map(matcher)
 
     def default_label(self):
       return label
 
-  actual | AssertThat()  # pylint: disable=expression-not-assigned
+  return actual | AssertThat()
 
 
 @ptransform_fn

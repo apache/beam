@@ -1079,13 +1079,17 @@ public class SnowflakeIO {
                   ParDo.of(new MapObjectsArrayToCsvFn(getQuotationMark())))
               .setCoder(StringUtf8Coder.of());
 
+      String filePrefix = getFileNameTemplate();
+      if (filePrefix == null) {
+        filePrefix = UUID.randomUUID().toString().subSequence(0, 8).toString();
+      }
       WriteFilesResult<Void> filesResult =
           mappedUserData.apply(
               "Write files to specified location",
               FileIO.<String>write()
                   .via(TextIO.sink())
                   .to(stagingBucketDir)
-                  .withPrefix(UUID.randomUUID().toString().subSequence(0, 8).toString())
+                  .withPrefix(filePrefix)
                   .withSuffix(".csv")
                   .withNumShards(numShards)
                   .withCompression(Compression.GZIP));
@@ -1172,8 +1176,11 @@ public class SnowflakeIO {
       for (Object o : context.element()) {
         if (o instanceof String) {
           String field = (String) o;
-          field = field.replace("'", "''");
-          field = quoteField(field);
+          field = field.replace("\\", "\\\\");
+          if (!this.quotationMark.isEmpty()) {
+            field = field.replace(this.quotationMark, "\\" + this.quotationMark);
+          }
+          field = quoteNonEmptyField(field);
 
           csvItems.add(field);
         } else {
@@ -1183,12 +1190,18 @@ public class SnowflakeIO {
       context.output(Joiner.on(",").useForNull("").join(csvItems));
     }
 
-    private String quoteField(String field) {
-      return quoteField(field, this.quotationMark);
+    private String quoteNonEmptyField(String field) {
+      return quoteNonEmptyField(field, this.quotationMark);
     }
 
-    private String quoteField(String field, String quotation) {
-      return String.format("%s%s%s", quotation, field, quotation);
+    private String quoteNonEmptyField(String field, String quotation) {
+      String quoted;
+      if (field.isEmpty()) {
+        quoted = field;
+      } else {
+        quoted = String.format("%s%s%s", quotation, field, quotation);
+      }
+      return quoted;
     }
   }
 

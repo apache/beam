@@ -20,8 +20,8 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers;
 import java.util.function.Function;
 import org.apache.beam.sdk.fn.stream.AdvancingPhaser;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.CallStreamObserver;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.CallStreamObserver;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 
 /**
  * Uses {@link PipelineOptions} to configure which underlying {@link StreamObserver} implementation
@@ -33,7 +33,7 @@ public abstract class StreamObserverFactory {
     return new Direct(deadlineSeconds, messagesBetweenIsReadyChecks);
   }
 
-  public abstract <ResponseT, RequestT> StreamObserver<RequestT> from(
+  public abstract <ResponseT, RequestT> TerminatingStreamObserver<RequestT> from(
       Function<StreamObserver<ResponseT>, StreamObserver<RequestT>> clientFactory,
       StreamObserver<ResponseT> responseObserver);
 
@@ -47,7 +47,7 @@ public abstract class StreamObserverFactory {
     }
 
     @Override
-    public <ResponseT, RequestT> StreamObserver<RequestT> from(
+    public <ResponseT, RequestT> TerminatingStreamObserver<RequestT> from(
         Function<StreamObserver<ResponseT>, StreamObserver<RequestT>> clientFactory,
         StreamObserver<ResponseT> inboundObserver) {
       AdvancingPhaser phaser = new AdvancingPhaser(1);

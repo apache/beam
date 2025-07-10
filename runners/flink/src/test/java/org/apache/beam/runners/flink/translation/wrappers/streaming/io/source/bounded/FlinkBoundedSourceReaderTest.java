@@ -31,10 +31,10 @@ import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.TestBoundedCountingSource;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.FlinkSourceReaderTestBase;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.FlinkSourceSplit;
-import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.SourceTestCompat.TestMetricGroup;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.SourceTestMetrics.TestMetricGroup;
 import org.apache.beam.sdk.io.Source;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.connector.source.ReaderOutput;
 import org.apache.flink.api.connector.source.SourceReader;
@@ -147,6 +147,7 @@ public class FlinkBoundedSourceReaderTest
       long idleTimeoutMs,
       @Nullable Function<WindowedValue<KV<Integer, Integer>>, Long> timestampExtractor,
       TestMetricGroup testMetricGroup) {
+
     FlinkPipelineOptions pipelineOptions = FlinkPipelineOptions.defaults();
     pipelineOptions.setShutdownSourcesAfterIdleMs(idleTimeoutMs);
     SourceReaderContext mockContext = createSourceReaderContext(testMetricGroup);

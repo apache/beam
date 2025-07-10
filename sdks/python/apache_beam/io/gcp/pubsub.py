@@ -37,13 +37,17 @@ from typing import List
 from typing import NamedTuple
 from typing import Optional
 from typing import Tuple
+from typing import Union
 
 from apache_beam import coders
 from apache_beam.io import iobase
 from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Write
+from apache_beam.metrics.metric import Lineage
+from apache_beam.transforms import DoFn
 from apache_beam.transforms import Flatten
 from apache_beam.transforms import Map
+from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.utils.annotations import deprecated
@@ -110,9 +114,7 @@ class PubsubMessage(object):
     return 'PubsubMessage(%s, %s)' % (self.data, self.attributes)
 
   @staticmethod
-  def _from_proto_str(proto_msg):
-    # type: (bytes) -> PubsubMessage
-
+  def _from_proto_str(proto_msg: bytes) -> 'PubsubMessage':
     """Construct from serialized form of ``PubsubMessage``.
 
     Args:
@@ -124,7 +126,7 @@ class PubsubMessage(object):
     """
     msg = pubsub.types.PubsubMessage.deserialize(proto_msg)
     # Convert ScalarMapContainer to dict.
-    attributes = dict((key, msg.attributes[key]) for key in msg.attributes)
+    attributes = dict(msg.attributes)
     return PubsubMessage(
         msg.data,
         attributes,
@@ -149,10 +151,8 @@ class PubsubMessage(object):
       https://cloud.google.com/pubsub/docs/reference/rpc/google.pubsub.v1#google.pubsub.v1.PubsubMessage
       containing the payload of this object.
     """
-    msg = pubsub.types.PubsubMessage()
     if len(self.data) > (10_000_000):
       raise ValueError('A pubsub message data field must not exceed 10MB')
-    msg.data = self.data
 
     if self.attributes:
       if len(self.attributes) > 100:
@@ -165,19 +165,25 @@ class PubsubMessage(object):
         if len(value) > 1024:
           raise ValueError(
               'A pubsub message attribute value must not exceed 1024 bytes')
-        msg.attributes[key] = value
 
+    message_id = None
+    publish_time = None
     if not for_publish:
       if self.message_id:
-        msg.message_id = self.message_id
+        message_id = self.message_id
         if self.publish_time:
-          msg.publish_time = self.publish_time
+          publish_time = self.publish_time
 
     if len(self.ordering_key) > 1024:
       raise ValueError(
           'A pubsub message ordering key must not exceed 1024 bytes.')
-    msg.ordering_key = self.ordering_key
 
+    msg = pubsub.types.PubsubMessage(
+        data=self.data,
+        attributes=self.attributes,
+        message_id=message_id,
+        publish_time=publish_time,
+        ordering_key=self.ordering_key)
     serialized = pubsub.types.PubsubMessage.serialize(msg)
     if len(serialized) > (10_000_000):
       raise ValueError(
@@ -185,15 +191,13 @@ class PubsubMessage(object):
     return serialized
 
   @staticmethod
-  def _from_message(msg):
-    # type: (Any) -> PubsubMessage
-
+  def _from_message(msg: Any) -> 'PubsubMessage':
     """Construct from ``google.cloud.pubsub_v1.subscriber.message.Message``.
 
     https://googleapis.github.io/google-cloud-python/latest/pubsub/subscriber/api/message.html
     """
     # Convert ScalarMapContainer to dict.
-    attributes = dict((key, msg.attributes[key]) for key in msg.attributes)
+    attributes = dict(msg.attributes)
     pubsubmessage = PubsubMessage(msg.data, attributes)
     if msg.message_id:
       pubsubmessage.message_id = msg.message_id
@@ -211,14 +215,11 @@ class ReadFromPubSub(PTransform):
 
   def __init__(
       self,
-      topic=None,  # type: Optional[str]
-      subscription=None,  # type: Optional[str]
-      id_label=None,  # type: Optional[str]
-      with_attributes=False,  # type: bool
-      timestamp_attribute=None  # type: Optional[str]
-  ):
-    # type: (...) -> None
-
+      topic: Optional[str] = None,
+      subscription: Optional[str] = None,
+      id_label: Optional[str] = None,
+      with_attributes: bool = False,
+      timestamp_attribute: Optional[str] = None) -> None:
     """Initializes ``ReadFromPubSub``.
 
     Args:
@@ -263,7 +264,16 @@ class ReadFromPubSub(PTransform):
   def expand(self, pvalue):
     # TODO(BEAM-27443): Apply a proper transform rather than Read.
     pcoll = pvalue.pipeline | Read(self._source)
+    # explicit element_type required after native read, otherwise coder error
     pcoll.element_type = bytes
+    return self.expand_continued(pcoll)
+
+  def expand_continued(self, pcoll):
+    pcoll = pcoll | ParDo(
+        _AddMetricsPassThrough(
+            project=self._source.project,
+            topic=self._source.topic_name,
+            sub=self._source.subscription_name)).with_output_types(bytes)
     if self.with_attributes:
       pcoll = pcoll | Map(PubsubMessage._from_proto_str)
       pcoll.element_type = PubsubMessage
@@ -273,6 +283,31 @@ class ReadFromPubSub(PTransform):
     # Required as this is identified by type in PTransformOverrides.
     # TODO(https://github.com/apache/beam/issues/18713): Use an actual URN here.
     return self.to_runner_api_pickled(context)
+
+
+class _AddMetricsPassThrough(DoFn):
+  def __init__(self, project, topic=None, sub=None):
+    self.project = project
+    self.topic = topic
+    self.sub = sub
+    self.reported_lineage = False
+
+  def setup(self):
+    self.reported_lineage = False
+
+  def process(self, element: bytes):
+    self.report_lineage_once()
+    yield element
+
+  def report_lineage_once(self):
+    if not self.reported_lineage:
+      self.reported_lineage = True
+      if self.topic is not None:
+        Lineage.sources().add(
+            'pubsub', self.project, self.topic, subtype='topic')
+      elif self.sub is not None:
+        Lineage.sources().add(
+            'pubsub', self.project, self.sub, subtype='subscription')
 
 
 @deprecated(since='2.7.0', extra_message='Use ReadFromPubSub instead.')
@@ -320,6 +355,26 @@ class _WriteStringsToPubSub(PTransform):
     return pcoll | WriteToPubSub(self.topic)
 
 
+class _AddMetricsAndMap(DoFn):
+  def __init__(self, fn, project, topic=None):
+    self.project = project
+    self.topic = topic
+    self.fn = fn
+    self.reported_lineage = False
+
+  def setup(self):
+    self.reported_lineage = False
+
+  def process(self, element):
+    self.report_lineage_once()
+    yield self.fn(element)
+
+  def report_lineage_once(self):
+    if not self.reported_lineage:
+      self.reported_lineage = True
+      Lineage.sinks().add('pubsub', self.project, self.topic, subtype='topic')
+
+
 class WriteToPubSub(PTransform):
   """A ``PTransform`` for writing messages to Cloud Pub/Sub."""
 
@@ -327,13 +382,10 @@ class WriteToPubSub(PTransform):
 
   def __init__(
       self,
-      topic,  # type: str
-      with_attributes=False,  # type: bool
-      id_label=None,  # type: Optional[str]
-      timestamp_attribute=None  # type: Optional[str]
-  ):
-    # type: (...) -> None
-
+      topic: str,
+      with_attributes: bool = False,
+      id_label: Optional[str] = None,
+      timestamp_attribute: Optional[str] = None) -> None:
     """Initializes ``WriteToPubSub``.
 
     Args:
@@ -359,8 +411,7 @@ class WriteToPubSub(PTransform):
     self._sink = _PubSubSink(topic, id_label, timestamp_attribute)
 
   @staticmethod
-  def message_to_proto_str(element):
-    # type: (PubsubMessage) -> bytes
+  def message_to_proto_str(element: PubsubMessage) -> bytes:
     if not isinstance(element, PubsubMessage):
       raise TypeError(
           'Unexpected element. Type: %s (expected: PubsubMessage), '
@@ -368,16 +419,21 @@ class WriteToPubSub(PTransform):
     return element._to_proto_str(for_publish=True)
 
   @staticmethod
-  def bytes_to_proto_str(element):
-    # type: (bytes) -> bytes
+  def bytes_to_proto_str(element: Union[bytes, str]) -> bytes:
     msg = PubsubMessage(element, {})
     return msg._to_proto_str(for_publish=True)
 
   def expand(self, pcoll):
     if self.with_attributes:
-      pcoll = pcoll | 'ToProtobuf' >> Map(self.message_to_proto_str)
+      pcoll = pcoll | 'ToProtobufX' >> ParDo(
+          _AddMetricsAndMap(
+              self.message_to_proto_str, self.project,
+              self.topic_name)).with_input_types(PubsubMessage)
     else:
-      pcoll = pcoll | 'ToProtobuf' >> Map(self.bytes_to_proto_str)
+      pcoll = pcoll | 'ToProtobufY' >> ParDo(
+          _AddMetricsAndMap(
+              self.bytes_to_proto_str, self.project,
+              self.topic_name)).with_input_types(Union[bytes, str])
     pcoll.element_type = bytes
     return pcoll | Write(self._sink)
 
@@ -438,12 +494,11 @@ class _PubSubSource(iobase.SourceBase):
   """
   def __init__(
       self,
-      topic=None,  # type: Optional[str]
-      subscription=None,  # type: Optional[str]
-      id_label=None,  # type: Optional[str]
-      with_attributes=False,  # type: bool
-      timestamp_attribute=None  # type: Optional[str]
-  ):
+      topic: Optional[str] = None,
+      subscription: Optional[str] = None,
+      id_label: Optional[str] = None,
+      with_attributes: bool = False,
+      timestamp_attribute: Optional[str] = None):
     self.coder = coders.BytesCoder()
     self.full_topic = topic
     self.full_subscription = subscription
@@ -562,8 +617,8 @@ class MultipleReadFromPubSub(PTransform):
   """
   def __init__(
       self,
-      pubsub_source_descriptors,  # type: List[PubSubSourceDescriptor]
-      with_attributes=False,  # type: bool
+      pubsub_source_descriptors: List[PubSubSourceDescriptor],
+      with_attributes: bool = False,
   ):
     """Initializes ``PubSubMultipleReader``.
 

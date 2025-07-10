@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.options;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.Hidden;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.joda.time.Duration;
@@ -125,17 +126,21 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
   void setWindmillMessagesBetweenIsReadyChecks(int value);
 
   @Description("If true, a most a single active rpc will be used per channel.")
-  @Default.Boolean(false)
-  boolean getUseWindmillIsolatedChannels();
+  Boolean getUseWindmillIsolatedChannels();
 
-  void setUseWindmillIsolatedChannels(boolean value);
+  void setUseWindmillIsolatedChannels(Boolean value);
 
   @Description(
       "If true, separate streaming rpcs will be used for heartbeats instead of sharing streams with state reads.")
-  @Default.Boolean(false)
-  boolean getUseSeparateWindmillHeartbeatStreams();
+  Boolean getUseSeparateWindmillHeartbeatStreams();
 
-  void setUseSeparateWindmillHeartbeatStreams(boolean value);
+  void setUseSeparateWindmillHeartbeatStreams(Boolean value);
+
+  @Description("If true, GetWorkStreams will request multiple work items in a response chunk.")
+  @Default.Boolean(true)
+  boolean getWindmillRequestBatchedGetWorkResponse();
+
+  void setWindmillRequestBatchedGetWorkResponse(boolean value);
 
   @Description("The number of streams to use for GetData requests.")
   @Default.Integer(1)
@@ -157,6 +162,16 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
   Duration getWindmillHarnessUpdateReportingPeriod();
 
   void setWindmillHarnessUpdateReportingPeriod(Duration value);
+
+  @Description(
+      "Specifies how often system defined per-worker metrics are reported. These metrics are "
+          + " reported on the worker updates path so this number will be rounded up to the "
+          + " nearest multiple of WindmillHarnessUpdateReportingPeriod. If that value is 0, then "
+          + " these metrics are never sent.")
+  @Default.Integer(30000)
+  int getPerWorkerMetricsUpdateReportingPeriodMillis();
+
+  void setPerWorkerMetricsUpdateReportingPeriodMillis(int value);
 
   @Description("Limit on depth of user exception stack trace reported to cloud monitoring.")
   @Default.InstanceFactory(MaxStackTraceDepthToReportFactory.class)
@@ -181,7 +196,7 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
 
   @Description(
       "If non-null, StreamingDataflowWorkerHarness will periodically snapshot it's status pages"
-          + "and thread stacks to a file in this directory. Generally only set for tests.")
+          + " and thread stacks to a file in this directory. Generally only set for tests.")
   @Default.InstanceFactory(PeriodicStatusPageDirectoryFactory.class)
   String getPeriodicStatusPageOutputDirectory();
 
@@ -210,6 +225,12 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
   int getWindmillServiceStreamMaxBackoffMillis();
 
   void setWindmillServiceStreamMaxBackoffMillis(int value);
+
+  @Description("Enables direct path mode for streaming engine.")
+  @Default.InstanceFactory(EnableWindmillServiceDirectPathFactory.class)
+  boolean getIsWindmillServiceDirectPathEnabled();
+
+  void setIsWindmillServiceDirectPathEnabled(boolean isWindmillServiceDirectPathEnabled);
 
   /**
    * Factory for creating local Windmill address. Reads from system propery 'windmill.hostport' for
@@ -282,6 +303,14 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
       DataflowWorkerHarnessOptions streamingOptions =
           options.as(DataflowWorkerHarnessOptions.class);
       return streamingOptions.isEnableStreamingEngine() ? Integer.MAX_VALUE : 1;
+    }
+  }
+
+  /** EnableStreamingEngine defaults to false unless one of the experiment is set. */
+  class EnableWindmillServiceDirectPathFactory implements DefaultValueFactory<Boolean> {
+    @Override
+    public Boolean create(PipelineOptions options) {
+      return ExperimentalOptions.hasExperiment(options, "enable_windmill_service_direct_path");
     }
   }
 }

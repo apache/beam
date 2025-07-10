@@ -18,6 +18,7 @@
 package org.apache.beam.runners.direct;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
@@ -30,11 +31,13 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
+import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.local.ExecutionDriver;
 import org.apache.beam.runners.local.ExecutionDriver.DriverState;
 import org.apache.beam.runners.local.PipelineMessageReceiver;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult.State;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.PCollection;
@@ -155,13 +158,21 @@ final class ExecutorServiceParallelExecutor
     ImmutableMap.Builder<AppliedPTransform<?, ?, ?>, Queue<CommittedBundle<?>>> pendingRootBundles =
         ImmutableMap.builder();
     for (AppliedPTransform<?, ?, ?> root : graph.getRootTransforms()) {
+      MetricsContainerImpl metricsContainer = new MetricsContainerImpl(root.getFullName());
       Queue<CommittedBundle<?>> pending = Queues.newArrayDeque();
-      try {
+      try (Closeable metricsScope = MetricsEnvironment.scopedMetricsContainer(metricsContainer)) {
         Collection<CommittedBundle<?>> initialInputs =
             rootProviderRegistry.getInitialInputs(root, numTargetSplits);
         pending.addAll(initialInputs);
       } catch (Exception e) {
         throw UserCodeException.wrap(e);
+      } finally {
+        //  Metrics emitted initial split are reported along with the first bundle
+        if (pending.peek() != null) {
+          evaluationContext
+              .getMetrics()
+              .commitPhysical(pending.peek(), metricsContainer.getCumulative());
+        }
       }
       pendingRootBundles.put(root, pending);
     }

@@ -35,8 +35,6 @@ limitations under the License.
 
 Being productive and successful as a machine learning practitioner is often dependent on your ability to efficiently leverage large volumes of data in a way that is uniquely tailored to your resources, requirements, and budget. Whether starting your next AI/ML project or upscaling an existing project, consider adding Apache Beam to your project.
 
-<iframe class="video video--medium-size" width="560" height="315" src="https://www.youtube.com/embed/ga2TNdrFRoU" frameborder="0" allowfullscreen></iframe>
-
 ## Use Beam ML
 
 I want use Beam ML to do:
@@ -133,3 +131,4 @@ When you use Apache Beam as one of the building blocks in your project, these or
 * [ML model evaluation](/documentation/ml/model-evaluation/)
 * [RunInference public codelab](https://colab.sandbox.google.com/github/apache/beam/blob/master/examples/notebooks/beam-ml/run_inference_basic.ipynb)
 * [RunInference notebooks](https://github.com/apache/beam/tree/master/examples/notebooks/beam-ml)
+* [Beam ML dependency management](/documentation/ml/ml-dependency-extras)

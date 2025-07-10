@@ -24,6 +24,11 @@ import static org.apache.avro.file.DataFileConstants.SNAPPY_CODEC;
 import static org.apache.avro.file.DataFileConstants.XZ_CODEC;
 import static org.junit.Assert.assertEquals;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.avro.file.CodecFactory;
@@ -35,8 +40,20 @@ import org.junit.runners.JUnit4;
 /** Tests of SerializableAvroCodecFactory. */
 @RunWith(JUnit4.class)
 public class SerializableAvroCodecFactoryTest {
-  private final List<String> avroCodecs =
-      Arrays.asList(NULL_CODEC, SNAPPY_CODEC, DEFLATE_CODEC, XZ_CODEC, BZIP2_CODEC);
+  private static final String VERSION_AVRO =
+      org.apache.avro.Schema.class.getPackage().getImplementationVersion();
+
+  private static final List<String> avroCodecs = new ArrayList<>();
+
+  static {
+    avroCodecs.addAll(
+        Arrays.asList(NULL_CODEC, SNAPPY_CODEC, DEFLATE_CODEC, XZ_CODEC, BZIP2_CODEC));
+
+    // Zstd codec not available until Avro 1.9
+    if (!VERSION_AVRO.startsWith("1.8.")) {
+      avroCodecs.add("zstandard");
+    }
+  }
 
   @Test
   public void testDefaultCodecsIn() throws Exception {
@@ -81,6 +98,33 @@ public class SerializableAvroCodecFactoryTest {
       SerializableAvroCodecFactory serdeC = SerializableUtils.clone(codecFactory);
 
       assertEquals(CodecFactory.xzCodec(i).toString(), serdeC.getCodec().toString());
+    }
+  }
+
+  @Test
+  public void testZstdCodecSerDeWithLevels() throws Exception {
+    if (VERSION_AVRO.startsWith("1.8.")) {
+      // Skip, zstd only supported for Avro 1.9+
+      return;
+    }
+
+    for (int i = -7; i <= 22; i++) {
+      SerializableAvroCodecFactory codecFactory = new SerializableAvroCodecFactory();
+
+      // Deserialize a ZStandardCodec instance from bytes; we can't reference the class directly
+      // since it won't compile for Avro 1.8
+      final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+      final ObjectOutputStream os = new ObjectOutputStream(baos);
+      os.writeUTF("zstandard[" + i + "]");
+      os.flush();
+      codecFactory.readExternal(
+          new ObjectInputStream(new ByteArrayInputStream(baos.toByteArray())));
+
+      assertEquals("zstandard[" + i + "]", codecFactory.getCodec().toString());
+
+      // Test cloning behavior
+      SerializableAvroCodecFactory clone = SerializableUtils.clone(codecFactory);
+      assertEquals(codecFactory.getCodec().toString(), clone.getCodec().toString());
     }
   }
 

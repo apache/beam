@@ -24,8 +24,8 @@ import java.util.Optional;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.FakeWindmillServer;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p60p1.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.inprocess.InProcessChannelBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.net.HostAndPort;
 import org.junit.Test;
@@ -56,7 +56,8 @@ public class ChannelzServletTest {
     fakeWindmillServer.setWindmillServiceEndpoints(
         ImmutableSet.of(HostAndPort.fromHost(windmill1), HostAndPort.fromHost(windmill2)));
     options.setChannelzShowOnlyWindmillServiceChannels(false);
-    ChannelzServlet channelzServlet = new ChannelzServlet("/channelz", options, fakeWindmillServer);
+    ChannelzServlet channelzServlet =
+        new ChannelzServlet("/channelz", options, fakeWindmillServer::getWindmillServiceEndpoints);
     StringWriter stringWriter = new StringWriter();
     PrintWriter writer = new PrintWriter(stringWriter);
     channelzServlet.captureData(writer);
@@ -88,7 +89,8 @@ public class ChannelzServletTest {
     fakeWindmillServer.setWindmillServiceEndpoints(
         ImmutableSet.of(HostAndPort.fromHost(windmill1), HostAndPort.fromHost(windmill2)));
     options.setChannelzShowOnlyWindmillServiceChannels(true);
-    ChannelzServlet channelzServlet = new ChannelzServlet("/channelz", options, fakeWindmillServer);
+    ChannelzServlet channelzServlet =
+        new ChannelzServlet("/channelz", options, fakeWindmillServer::getWindmillServiceEndpoints);
     StringWriter stringWriter = new StringWriter();
     PrintWriter writer = new PrintWriter(stringWriter);
     channelzServlet.captureData(writer);

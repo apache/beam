@@ -39,11 +39,16 @@ public abstract class StorageApiWritePayload {
 
   public abstract @Nullable Instant getTimestamp();
 
+  @SuppressWarnings("mutable")
+  public abstract @Nullable byte[] getFailsafeTableRowPayload();
+
   @AutoValue.Builder
   public abstract static class Builder {
     public abstract Builder setPayload(byte[] value);
 
     public abstract Builder setUnknownFieldsPayload(@Nullable byte[] value);
+
+    public abstract Builder setFailsafeTableRowPayload(@Nullable byte[] value);
 
     public abstract Builder setTimestamp(@Nullable Instant value);
 
@@ -53,15 +58,22 @@ public abstract class StorageApiWritePayload {
   public abstract Builder toBuilder();
 
   @SuppressWarnings("nullness")
-  static StorageApiWritePayload of(byte[] payload, @Nullable TableRow unknownFields)
+  static StorageApiWritePayload of(
+      byte[] payload, @Nullable TableRow unknownFields, @Nullable TableRow failsafeTableRow)
       throws IOException {
     @Nullable byte[] unknownFieldsPayload = null;
     if (unknownFields != null) {
       unknownFieldsPayload = CoderUtils.encodeToByteArray(TableRowJsonCoder.of(), unknownFields);
     }
+    @Nullable byte[] failsafeTableRowPayload = null;
+    if (failsafeTableRow != null) {
+      failsafeTableRowPayload =
+          CoderUtils.encodeToByteArray(TableRowJsonCoder.of(), failsafeTableRow);
+    }
     return new AutoValue_StorageApiWritePayload.Builder()
         .setPayload(payload)
         .setUnknownFieldsPayload(unknownFieldsPayload)
+        .setFailsafeTableRowPayload(failsafeTableRowPayload)
         .setTimestamp(null)
         .build();
   }
@@ -76,5 +88,13 @@ public abstract class StorageApiWritePayload {
       return null;
     }
     return CoderUtils.decodeFromByteArray(TableRowJsonCoder.of(), fields);
+  }
+
+  public @Memoized @Nullable TableRow getFailsafeTableRow() throws IOException {
+    @Nullable byte[] failsafeTableRowPayload = getFailsafeTableRowPayload();
+    if (failsafeTableRowPayload == null) {
+      return null;
+    }
+    return CoderUtils.decodeFromByteArray(TableRowJsonCoder.of(), failsafeTableRowPayload);
   }
 }

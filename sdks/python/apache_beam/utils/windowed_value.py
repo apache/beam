@@ -22,9 +22,6 @@
 # editing this file as WindowedValues are created for every element for
 # every step in a Beam pipeline.
 
-# cython: profile=True
-# cython: language_level=3
-
 # pytype: skip-file
 
 import collections

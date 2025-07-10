@@ -24,10 +24,14 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import java.io.Serializable;
 import java.net.URI;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 import java.time.Duration;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import javax.annotation.Nullable;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 import org.apache.beam.sdk.io.aws2.options.AwsOptions;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -37,9 +41,12 @@ import software.amazon.awssdk.core.client.builder.SdkAsyncClientBuilder;
 import software.amazon.awssdk.core.client.builder.SdkSyncClientBuilder;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.retry.RetryPolicy;
+import software.amazon.awssdk.http.Protocol;
+import software.amazon.awssdk.http.TlsTrustManagersProvider;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.http.apache.ProxyConfiguration;
 import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
+import software.amazon.awssdk.internal.http.NoneTlsKeyManagersProvider;
 import software.amazon.awssdk.regions.Region;
 
 /**
@@ -113,6 +120,32 @@ public interface ClientBuilderFactory {
     return ClientBuilderFactory.getFactory(options).create(builder, config, options).build();
   }
 
+  /** Trust provider to skip certificate verification. Should only be used for test pipelines. */
+  class SkipCertificateVerificationTrustManagerProvider implements TlsTrustManagersProvider {
+    public SkipCertificateVerificationTrustManagerProvider() {}
+
+    @Override
+    public TrustManager[] trustManagers() {
+      TrustManager tm =
+          new X509TrustManager() {
+            @Override
+            public void checkClientTrusted(X509Certificate[] x509CertificateArr, String str)
+                throws CertificateException {}
+
+            @Override
+            public void checkServerTrusted(X509Certificate[] x509CertificateArr, String str)
+                throws CertificateException {}
+
+            @Override
+            public X509Certificate[] getAcceptedIssuers() {
+              return new X509Certificate[0];
+            }
+          };
+      TrustManager[] tms = {tm};
+      return tms;
+    }
+  }
+
   /**
    * Default implementation of {@link ClientBuilderFactory}. This implementation can configure both,
    * synchronous clients using {@link ApacheHttpClient} as well as asynchronous clients using {@link
@@ -161,7 +194,11 @@ public interface ClientBuilderFactory {
 
       HttpClientConfiguration httpConfig = options.getHttpClientConfiguration();
       ProxyConfiguration proxyConfig = options.getProxyConfiguration();
-      if (proxyConfig != null || httpConfig != null) {
+      boolean skipCertificateVerification = false;
+      if (config.skipCertificateVerification() != null) {
+        skipCertificateVerification = config.skipCertificateVerification();
+      }
+      if (proxyConfig != null || httpConfig != null || skipCertificateVerification) {
         if (builder instanceof SdkSyncClientBuilder) {
           ApacheHttpClient.Builder client = syncClientBuilder();
 
@@ -175,6 +212,11 @@ public interface ClientBuilderFactory {
             setOptional(httpConfig.connectionTimeToLive(), client::connectionTimeToLive);
             setOptional(httpConfig.socketTimeout(), client::socketTimeout);
             setOptional(httpConfig.maxConnections(), client::maxConnections);
+          }
+
+          if (skipCertificateVerification) {
+            client.tlsKeyManagersProvider(NoneTlsKeyManagersProvider.getInstance());
+            client.tlsTrustManagersProvider(new SkipCertificateVerificationTrustManagerProvider());
           }
 
           // must use builder to make sure client is managed by the SDK
@@ -199,6 +241,12 @@ public interface ClientBuilderFactory {
                 httpConfig.socketTimeout(), client::writeTimeout); // fallback for writeTimeout
             setOptional(httpConfig.writeTimeout(), client::writeTimeout);
             setOptional(httpConfig.maxConnections(), client::maxConcurrency);
+          }
+
+          if (skipCertificateVerification) {
+            client.tlsKeyManagersProvider(NoneTlsKeyManagersProvider.getInstance());
+            client.tlsTrustManagersProvider(new SkipCertificateVerificationTrustManagerProvider());
+            client.protocol(Protocol.HTTP1_1);
           }
 
           // must use builder to make sure client is managed by the SDK

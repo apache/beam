@@ -20,13 +20,13 @@ package org.apache.beam.runners.samza.runtime;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItems;
 import org.apache.beam.runners.core.NullSideInputReader;
 import org.apache.beam.runners.core.OutputAndTimeBoundedSplittableProcessElementInvoker;
-import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessElements;
 import org.apache.beam.runners.core.StateInternals;
@@ -42,16 +42,19 @@ import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.util.construction.SplittableParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.samza.config.Config;
 import org.apache.samza.context.Context;
 import org.apache.samza.operators.Scheduler;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -81,6 +84,7 @@ public class SplittableParDoProcessKeyedElementsOp<
   private transient SamzaTimerInternalsFactory<byte[]> timerInternalsFactory;
   private transient DoFnRunner<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> fnRunner;
   private transient SamzaPipelineOptions pipelineOptions;
+  private transient @MonotonicNonNull ScheduledExecutorService ses = null;
 
   public SplittableParDoProcessKeyedElementsOp(
       TupleTag<OutputT> mainOutputTag,
@@ -116,7 +120,7 @@ public class SplittableParDoProcessKeyedElementsOp<
         SamzaStoreStateInternals.createNonKeyedStateInternalsFactory(
             transformId, context.getTaskContext(), pipelineOptions);
 
-    final DoFnRunners.OutputManager outputManager = outputManagerFactory.create(emitter);
+    final WindowedValueMultiReceiver outputManager = outputManagerFactory.create(emitter);
 
     this.stateInternalsFactory =
         new SamzaStoreStateInternals.Factory<>(
@@ -137,6 +141,12 @@ public class SplittableParDoProcessKeyedElementsOp<
             isBounded,
             pipelineOptions);
 
+    if (this.ses == null) {
+      this.ses =
+          Executors.newSingleThreadScheduledExecutor(
+              new ThreadFactoryBuilder().setNameFormat("samza-sdf-executor-%d").build());
+    }
+
     final KeyedInternals<byte[]> keyedInternals =
         new KeyedInternals<>(stateInternalsFactory, timerInternalsFactory);
 
@@ -151,28 +161,10 @@ public class SplittableParDoProcessKeyedElementsOp<
         new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
             processElements.getFn(),
             pipelineOptions,
-            new OutputWindowedValue<OutputT>() {
-              @Override
-              public void outputWindowedValue(
-                  OutputT output,
-                  Instant timestamp,
-                  Collection<? extends BoundedWindow> windows,
-                  PaneInfo pane) {
-                outputWindowedValue(mainOutputTag, output, timestamp, windows, pane);
-              }
-
-              @Override
-              public <AdditionalOutputT> void outputWindowedValue(
-                  TupleTag<AdditionalOutputT> tag,
-                  AdditionalOutputT output,
-                  Instant timestamp,
-                  Collection<? extends BoundedWindow> windows,
-                  PaneInfo pane) {
-                outputManager.output(tag, WindowedValue.of(output, timestamp, windows, pane));
-              }
-            },
+            outputManager,
+            mainOutputTag,
             NullSideInputReader.empty(),
-            Executors.newSingleThreadScheduledExecutor(Executors.defaultThreadFactory()),
+            ses,
             10000,
             Duration.standardSeconds(10),
             () -> {
@@ -250,7 +242,7 @@ public class SplittableParDoProcessKeyedElementsOp<
   private void fireTimer(byte[] key, TimerData timer) {
     LOG.debug("Firing timer {} for key {}", timer, key);
     fnRunner.processElement(
-        WindowedValue.valueInGlobalWindow(
+        WindowedValues.valueInGlobalWindow(
             KeyedWorkItems.timersWorkItem(key, Collections.singletonList(timer))));
   }
 }

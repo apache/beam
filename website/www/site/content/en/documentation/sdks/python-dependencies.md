@@ -18,26 +18,24 @@ limitations under the License.
 
 # Beam SDK for Python dependencies
 
-The Beam SDKs depend on common third-party components which then
-import additional dependencies. Version collisions can result in unexpected
-behavior in the service. If you are using any of these packages in your code, be
-aware that some libraries are not forward-compatible and you may need to pin to
-the listed versions that will be in scope during execution.
+This page provides the information about the Apache Beam Python SDK dependencies.
 
-Dependencies for your Beam SDK version are listed in `setup.py` in the Beam repository. To view them, perform the following steps:
+If your pipeline requires additional dependencies, see [Managing Python Pipeline Dependencies](https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/).
+
+Dependencies of the Apache Beam Python SDK are defined in the `setup.py` file in the Beam repository. To view them, take the following steps:
 
 1. Open `setup.py`.
 
     ```
-    https://raw.githubusercontent.com/apache/beam/v<VERSION_NUMBER>/sdks/python/setup.py
+    https://github.com/apache/beam/blob/release-<VERSION_NUMBER>/sdks/python/setup.py
     ```
 
-    <p class="paragraph-wrap">Replace `&lt;VERSION_NUMBER&gt;` with the major.minor.patch version of the SDK. For example, <a href="https://raw.githubusercontent.com/apache/beam/v{{< param release_latest >}}/sdks/python/setup.py" target="_blank" rel="noopener noreferrer">https://raw.githubusercontent.com/apache/beam/v{{< param release_latest >}}/sdks/python/setup.py</a> will provide the dependencies for the {{< param release_latest >}} release.</p>
+    <p class="paragraph-wrap">Replace `&lt;VERSION_NUMBER&gt;` with the major.minor.patch version of the SDK. For example, <a href="https://github.com/apache/beam/blob/release-{{< param release_latest >}}/sdks/python/setup.py" target="_blank" rel="noopener noreferrer">https://github.com/apache/beam/blob/release-{{< param release_latest >}}/sdks/python/setup.py</a> provides the dependencies for the {{< param release_latest >}} release.</p>
 
 
 2. Review the core dependency list under `REQUIRED_PACKAGES`.
 
-    **Note:** If you require [extra features](/get-started/quickstart-py#extra-requirements) such as `gcp` or `test`, you should review the lists under `REQUIRED_TEST_PACKAGES`, `GCP_REQUIREMENTS`, or `INTERACTIVE_BEAM` for additional dependencies.
+    **Note:** If you need [extra features](/get-started/quickstart-py#extra-requirements), such as `gcp` or `dataframe`, review the lists in `extras_require` for additional dependencies.
 
 You can also retrieve the dependency list from the command line using the following process:
 
@@ -54,3 +52,11 @@ You can also retrieve the dependency list from the command line using the follow
     ```
     $ pip install pipdeptree && pipdeptree -p apache-beam
     ```
+
+If you have a `docker` installation, you can inspect the dependencies
+preinstalled in Beam Python SDK [container
+images](/documentation/runtime/environments/) by creating a container from an
+image, for example: `docker run --rm -it --entrypoint=/bin/sh apache/beam_python3.10_sdk:2.55.0 -c "pip list"`.
+
+You can also find the list of the dependencies installed in Beam containers in
+`base_image_requirements.txt` files in the [Beam repository](https://github.com/apache/beam/blob/release-{{<param release_latest >}}/sdks/python/container) for a corresponding Beam release branch and Python minor version.

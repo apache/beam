@@ -243,7 +243,11 @@ class SubprocessServer(object):
       if process.poll() is not None:
         break
       logging.debug("Sending SIGINT to process")
-      process.send_signal(signal.SIGINT)
+      try:
+        process.send_signal(signal.SIGINT)
+      except ValueError:
+        # process.send_signal raises a ValueError on Windows.
+        process.terminate()
       time.sleep(1)
     if process.poll() is None:
       process.kill()
@@ -255,6 +259,7 @@ class SubprocessServer(object):
 class JavaJarServer(SubprocessServer):
 
   MAVEN_CENTRAL_REPOSITORY = 'https://repo.maven.apache.org/maven2'
+  MAVEN_STAGING_REPOSITORY = 'https://repository.apache.org/content/groups/staging'  # pylint: disable=line-too-long
   BEAM_GROUP_ID = 'org.apache.beam'
   JAR_CACHE = os.path.expanduser("~/.apache_beam/cache/jars")
 
@@ -262,13 +267,25 @@ class JavaJarServer(SubprocessServer):
       'local', (threading.local, ),
       dict(__init__=lambda self: setattr(self, 'replacements', {})))()
 
-  def __init__(self, stub_class, path_to_jar, java_arguments, classpath=None):
+  def __init__(
+      self,
+      stub_class,
+      path_to_jar,
+      java_arguments,
+      classpath=None,
+      cache_dir=None):
+    java_path = 'java'
+    java_home = os.environ.get('JAVA_HOME')
+    if java_home:
+      java_path = os.path.join(java_home, 'bin', 'java')
+    self._java_path = java_path
     if classpath:
       # java -jar ignores the classpath, so we make a new jar that embeds
       # the requested classpath.
-      path_to_jar = self.make_classpath_jar(path_to_jar, classpath)
+      path_to_jar = self.make_classpath_jar(path_to_jar, classpath, cache_dir)
     super().__init__(
-        stub_class, ['java', '-jar', path_to_jar] + list(java_arguments))
+        stub_class,
+        [self._java_path, '-jar', path_to_jar] + list(java_arguments))
     self._existing_service = path_to_jar if is_service_endpoint(
         path_to_jar) else None
 
@@ -276,10 +293,17 @@ class JavaJarServer(SubprocessServer):
     if self._existing_service:
       return None, self._existing_service
     else:
-      if not shutil.which('java'):
-        raise RuntimeError(
-            'Java must be installed on this system to use this '
-            'transform/runner.')
+      if not shutil.which(self._java_path):
+        java_home = os.environ.get('JAVA_HOME')
+        if java_home:
+          raise RuntimeError(
+              'Java is not correctly installed in JAVA_HOME=%s to use this '
+              'transform/runner. Please check if JAVA_HOME is correctly set and'
+              ' points to your Java installation directory.' % java_home)
+        else:
+          raise RuntimeError(
+              'Java must be installed on this system to use this '
+              'transform/runner.')
       return super().start_process()
 
   def stop_process(self):
@@ -311,21 +335,24 @@ class JavaJarServer(SubprocessServer):
     ])
 
   @classmethod
-  def path_to_beam_jar(
+  def parse_gradle_target(cls, gradle_target, artifact_id=None):
+    gradle_package = gradle_target.strip(':').rsplit(':', 1)[0]
+    if not artifact_id:
+      artifact_id = 'beam-' + gradle_package.replace(':', '-')
+    return gradle_package, artifact_id
+
+  @classmethod
+  def path_to_dev_beam_jar(
       cls,
       gradle_target,
       appendix=None,
       version=beam_version,
       artifact_id=None):
-    if gradle_target in cls._BEAM_SERVICES.replacements:
-      return cls._BEAM_SERVICES.replacements[gradle_target]
-
-    gradle_package = gradle_target.strip(':').rsplit(':', 1)[0]
-    if not artifact_id:
-      artifact_id = 'beam-' + gradle_package.replace(':', '-')
+    gradle_package, artifact_id = cls.parse_gradle_target(
+        gradle_target, artifact_id)
     project_root = os.path.sep.join(
         os.path.abspath(__file__).split(os.path.sep)[:-5])
-    local_path = os.path.join(
+    return os.path.join(
         project_root,
         gradle_package.replace(':', os.path.sep),
         'build',
@@ -335,9 +362,31 @@ class JavaJarServer(SubprocessServer):
             version.replace('.dev', ''),
             classifier='SNAPSHOT',
             appendix=appendix))
+
+  @classmethod
+  def path_to_beam_jar(
+      cls,
+      gradle_target,
+      appendix=None,
+      version=beam_version,
+      artifact_id=None):
+    if gradle_target in cls._BEAM_SERVICES.replacements:
+      return cls._BEAM_SERVICES.replacements[gradle_target]
+
+    _, artifact_id = cls.parse_gradle_target(gradle_target, artifact_id)
+    project_root = os.path.sep.join(
+        os.path.abspath(__file__).split(os.path.sep)[:-5])
+    local_path = cls.path_to_dev_beam_jar(
+        gradle_target, appendix, version, artifact_id)
     if os.path.exists(local_path):
       _LOGGER.info('Using pre-built snapshot at %s', local_path)
       return local_path
+
+    maven_repo = cls.MAVEN_CENTRAL_REPOSITORY
+    if 'rc' in version:
+      # Release candidate
+      version = version.split('rc')[0]
+      maven_repo = cls.MAVEN_STAGING_REPOSITORY
     elif '.dev' in version:
       # TODO: Attempt to use nightly snapshots?
       raise RuntimeError(
@@ -345,13 +394,9 @@ class JavaJarServer(SubprocessServer):
               '%s not found. '
               'Please build the server with \n  cd %s; ./gradlew %s') %
           (local_path, os.path.abspath(project_root), gradle_target))
-    else:
-      return cls.path_to_maven_jar(
-          artifact_id,
-          cls.BEAM_GROUP_ID,
-          version,
-          cls.MAVEN_CENTRAL_REPOSITORY,
-          appendix=appendix)
+
+    return cls.path_to_maven_jar(
+        artifact_id, cls.BEAM_GROUP_ID, version, maven_repo, appendix=appendix)
 
   @classmethod
   def local_jar(cls, url, cache_dir=None):
@@ -378,10 +423,16 @@ class JavaJarServer(SubprocessServer):
             url_read = urlopen(url)
           with open(cached_jar + '.tmp', 'wb') as jar_write:
             shutil.copyfileobj(url_read, jar_write, length=1 << 20)
-          os.rename(cached_jar + '.tmp', cached_jar)
+          try:
+            os.rename(cached_jar + '.tmp', cached_jar)
+          except FileNotFoundError:
+            # A race when multiple programs run in parallel and the cached_jar
+            # is already moved. Safe to ignore.
+            pass
         except URLError as e:
           raise RuntimeError(
-              'Unable to fetch remote job server jar at %s: %s' % (url, e))
+              f'Unable to fetch remote job server jar at {url}: {e}. If no '
+              f'Internet access at runtime, stage the jar at {cached_jar}')
       return cached_jar
 
   @classmethod

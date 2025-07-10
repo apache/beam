@@ -15,21 +15,11 @@
 name: PreCommit Spotless
 
 on:
-  push:
-    tags: ['v*']
-    branches: ['master', 'release-*']
-    paths:
-      - 'buildSrc/**'
-      - 'sdks/java/**'
-      - 'runners/**'
-      - 'examples/java/**'
-      - 'examples/kotlin/**'
-      - '.test-infra/jenkins/'
-      - '.github/workflows/beam_PreCommit_Spotless.yml'
   pull_request_target:
     branches: ['master', 'release-*']
     paths:
       - 'buildSrc/**'
+      - 'it/**'
       - 'sdks/java/**'
       - 'runners/**'
       - 'examples/java/**'
@@ -65,7 +55,7 @@ permissions:
   statuses: read
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
@@ -99,6 +89,7 @@ jobs:
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: spotlessCheck checkStyleMain checkStyleTest :buildSrc:spotlessCheck
+          arguments: -PdisableSpotlessApply
       - name: Upload test report
         uses: actions/upload-artifact@v4
         with:

@@ -33,7 +33,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.util.construction.PipelineTranslation;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ListeningExecutorService;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.joda.time.Duration;

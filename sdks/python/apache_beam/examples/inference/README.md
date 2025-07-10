@@ -853,6 +853,7 @@ path/to/my/image2: dandelions (78)
 Each line represents a prediction of the flower type along with the confidence in that prediction.
 
 ---
+
 ## Text classifcation with a Vertex AI LLM
 
 [`vertex_ai_llm_text_classification.py`](./vertex_ai_llm_text_classification.py) contains an implementation for a RunInference pipeline that performs image classification using a model hosted on Vertex AI (based on https://cloud.google.com/vertex-ai/docs/tutorials/image-recognition-custom).
@@ -882,4 +883,83 @@ This writes the output to the output file with contents like:
 ```
 Each line represents a tuple containing the example, a [PredictionResult](https://beam.apache.org/releases/pydoc/2.40.0/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.PredictionResult)
 object with the response from the model in the inference field, and the endpoint id representing the model id.
+---
+
+## Text completion with vLLM
+
+[`vllm_text_completion.py`](./vllm_text_completion.py) contains an implementation for a RunInference pipeline that performs text completion using a local [vLLM](https://docs.vllm.ai/en/latest/) server.
+
+The pipeline reads in a set of text prompts or past messages, uses RunInference to spin up a local inference server and perform inference, and then writes the predictions to a text file.
+
+### Model for text completion
+
+To use this transform, you can use any [LLM supported by vLLM](https://docs.vllm.ai/en/latest/models/supported_models.html).
+
+### Running `vllm_text_completion.py`
+
+To run the text completion pipeline locally using the Facebook opt 125M model, use the following command.
+```sh
+python -m apache_beam.examples.inference.vllm_text_completion \
+  --model "facebook/opt-125m" \
+  --output 'path/to/output/file.txt' \
+  <... aditional pipeline arguments to configure runner if not running in GPU environment ...>
+```
+
+You will either need to run this locally with a GPU accelerator or remotely on a runner that supports acceleration.
+For example, you could run this on Dataflow with a GPU with the following command:
+
+```sh
+python -m apache_beam.examples.inference.vllm_text_completion \
+  --model "facebook/opt-125m" \
+  --output 'gs://path/to/output/file.txt' \
+  --runner dataflow \
+  --project <gcp project> \
+  --region us-central1 \
+  --temp_location <temp gcs location> \
+  --worker_harness_container_image "gcr.io/apache-beam-testing/beam-ml/vllm:latest" \
+  --machine_type "n1-standard-4" \
+  --dataflow_service_options "worker_accelerator=type:nvidia-tesla-t4;count:1;install-nvidia-driver:5xx" \
+  --staging_location <temp gcs location>
+```
+
+Make sure to enable the 5xx driver since vLLM only works with 5xx drivers, not 4xx.
+
+This writes the output to the output file location with contents like:
+
+```
+'Hello, my name is', PredictionResult(example={'prompt': 'Hello, my name is'}, inference=Completion(id='cmpl-5f5113a317c949309582b1966511ffc4', choices=[CompletionChoice(finish_reason='length', index=0, logprobs=None, text=' Joel, my dad is Anton Harriman and my wife is Lydia. ', stop_reason=None)], created=1714064548, model='facebook/opt-125m', object='text_completion', system_fingerprint=None, usage=CompletionUsage(completion_tokens=16, prompt_tokens=6, total_tokens=22))})
+```
+Each line represents a tuple containing the example, a [PredictionResult](https://beam.apache.org/releases/pydoc/2.40.0/apache_beam.ml.inference.base.html#apache_beam.ml.inference.base.PredictionResult) object with the response from the model in the inference field.
+
+You can also choose to run with chat examples. Doing this requires 2 steps:
+
+1) Upload a [chat_template](https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#chat-template) to a filestore which is accessible from your job's environment (e.g. a public Google Cloud Storage bucket). You can copy [this sample template](https://storage.googleapis.com/apache-beam-ml/additional_files/sample_chat_template.jinja) to get started. You can skip this step if using a model other than `facebook/opt-125m` and you know your model provides a chat template.
+2) Add the `--chat true` and `--chat_template <gs://path/to/your/file>` parameters:
+
+```sh
+python -m apache_beam.examples.inference.vllm_text_completion \
+  --model "facebook/opt-125m" \
+  --output 'gs://path/to/output/file.txt' \
+  --chat true \
+  --chat_template gs://path/to/your/file \
+  <... aditional pipeline arguments to configure runner if not running in GPU environment ...>
+```
+
+This will configure the pipeline to run against a sequence of previous messages instead of a single text completion prompt.
+For example, it might run against:
+
+```
+[
+    OpenAIChatMessage(role='user', content='What is an example of a type of penguin?'),
+    OpenAIChatMessage(role='system', content='An emperor penguin is a type of penguin.'),
+    OpenAIChatMessage(role='user', content='Tell me about them')
+],
+```
+
+and produce the following result in your output file location:
+
+```
+An emperor penguin is an adorable creature that lives in Antarctica.
+```
+
 ---

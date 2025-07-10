@@ -18,6 +18,7 @@
 package org.apache.beam.fn.harness;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -199,7 +200,9 @@ public class CachesTest {
     }
 
     assertThat(cache.describeStats(), containsString("used/max 600/1000 MB"));
-    assertThat(cache.describeStats(), containsString("hit 50.00%"));
+    assertThat(
+        // Locale sensitive.
+        cache.describeStats(), anyOf(containsString("hit 50.00%"), containsString("hit 50,00%")));
     assertThat(cache.describeStats(), containsString("lookups 200"));
     assertThat(cache.describeStats(), containsString("avg load time"));
     assertThat(cache.describeStats(), containsString("loads 100"));

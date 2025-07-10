@@ -29,4 +29,14 @@ public interface PythonExternalTransformOptions extends PipelineOptions {
   boolean getUseTransformService();
 
   void setUseTransformService(boolean useTransformService);
+
+  @Description("Custom Beam version for bootstrap Beam venv.")
+  String getCustomBeamRequirement();
+
+  /**
+   * Set custom Beam version for bootstrap Beam venv.
+   *
+   * <p>For example: 2.50.0rc1, "/path/to/apache-beam.whl"
+   */
+  void setCustomBeamRequirement(String customBeamRequirement);
 }

@@ -17,8 +17,20 @@
  */
 package org.apache.beam.sdk.metrics;
 
+import org.apache.beam.sdk.util.HistogramData;
+
 /** A metric that reports information about the histogram of reported values. */
 public interface Histogram extends Metric {
   /** Add an observation to this histogram. */
   void update(double value);
+
+  /** Add observations to this histogram. */
+  default void update(double... values) {
+    for (double value : values) {
+      update(value);
+    }
+  }
+
+  /** Add a histogram to this histogram. Requires underlying implementation to implement this */
+  default void update(HistogramData data) {}
 }

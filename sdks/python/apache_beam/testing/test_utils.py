@@ -273,7 +273,7 @@ class LCGenerator:
     self.seed(self._seed)
     return self._seed >> (self._bits - 32)
 
-  def rand_bytes(self, length):
+  def randbytes(self, length):
     """
     Get random bytes of given length.
 

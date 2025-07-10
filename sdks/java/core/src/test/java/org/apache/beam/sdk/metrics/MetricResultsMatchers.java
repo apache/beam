@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.metrics;
 
 import java.util.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
@@ -211,9 +212,9 @@ public class MetricResultsMatchers {
 
     private final String namespace;
     private final String name;
-    private final String step;
+    private final @Nullable String step;
 
-    MatchNameAndKey(String namespace, String name, String step) {
+    MatchNameAndKey(String namespace, String name, @Nullable String step) {
       this.namespace = namespace;
       this.name = name;
       this.step = step;
@@ -221,7 +222,11 @@ public class MetricResultsMatchers {
 
     @Override
     protected boolean matchesSafely(MetricResult<T> item) {
-      return MetricFiltering.matches(MetricsFilter.builder().addStep(step).build(), item.getKey())
+      MetricsFilter.Builder builder = MetricsFilter.builder();
+      if (step != null) {
+        builder = builder.addStep(step);
+      }
+      return MetricFiltering.matches(builder.build(), item.getKey())
           && Objects.equals(MetricName.named(namespace, name), item.getName());
     }
 
@@ -231,9 +236,10 @@ public class MetricResultsMatchers {
           .appendText("MetricResult{inNamespace=")
           .appendValue(namespace)
           .appendText(", name=")
-          .appendValue(name)
-          .appendText(", step=")
-          .appendValue(step);
+          .appendValue(name);
+      if (step != null) {
+        description.appendText(", step=").appendValue(step);
+      }
       if (this.getClass() == MatchNameAndKey.class) {
         description.appendText("}");
       }

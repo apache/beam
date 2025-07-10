@@ -31,6 +31,7 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Serializable;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.CopyOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -69,7 +70,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
@@ -368,10 +368,10 @@ public class FileIOTest implements Serializable {
   public void testRead() throws IOException {
     final String path = tmpFolder.newFile("file").getAbsolutePath();
     final String pathGZ = tmpFolder.newFile("file.gz").getAbsolutePath();
-    Files.write(new File(path).toPath(), "Hello world".getBytes(Charsets.UTF_8));
+    Files.write(new File(path).toPath(), "Hello world".getBytes(StandardCharsets.UTF_8));
     try (Writer writer =
         new OutputStreamWriter(
-            new GZIPOutputStream(new FileOutputStream(pathGZ)), Charsets.UTF_8)) {
+            new GZIPOutputStream(new FileOutputStream(pathGZ)), StandardCharsets.UTF_8)) {
       writer.write("Hello world");
     }
 

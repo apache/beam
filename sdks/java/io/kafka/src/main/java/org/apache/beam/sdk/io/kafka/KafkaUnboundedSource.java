@@ -23,17 +23,24 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.kafka.KafkaIO.Read;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.kafka.clients.consumer.Consumer;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -65,6 +72,10 @@ class KafkaUnboundedSource<K, V> extends UnboundedSource<KafkaRecord<K, V>, Kafk
     // (b) sort by <topic, partition>
     // (c) round-robin assign the partitions to splits
 
+    String bootStrapServers =
+        (String)
+            Preconditions.checkArgumentNotNull(
+                spec.getConsumerConfig().get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG));
     if (partitions.isEmpty()) {
       try (Consumer<?, ?> consumer = spec.getConsumerFactoryFn().apply(spec.getConsumerConfig())) {
         List<String> topics = Preconditions.checkStateNotNull(spec.getTopics());
@@ -74,21 +85,78 @@ class KafkaUnboundedSource<K, V> extends UnboundedSource<KafkaRecord<K, V>, Kafk
             if (pattern.matcher(entry.getKey()).matches()) {
               for (PartitionInfo p : entry.getValue()) {
                 partitions.add(new TopicPartition(p.topic(), p.partition()));
+                Lineage.getSources().add("kafka", ImmutableList.of(bootStrapServers, p.topic()));
               }
             }
           }
         } else {
           for (String topic : topics) {
             List<PartitionInfo> partitionInfoList = consumer.partitionsFor(topic);
-            checkState(
-                partitionInfoList != null,
-                "Could not find any partitions info. Please check Kafka configuration and make sure "
-                    + "that provided topics exist.");
+            if (spec.getLogTopicVerification() == null || !spec.getLogTopicVerification()) {
+              checkState(
+                  partitionInfoList != null && !partitionInfoList.isEmpty(),
+                  "Could not find any partitions info. Please check Kafka configuration and make sure "
+                      + "that provided topics exist.");
+            } else {
+              LOG.warn(
+                  "Could not find any partitions info. Please check Kafka configuration and make sure that the "
+                      + "provided topics exist.");
+            }
             for (PartitionInfo p : partitionInfoList) {
               partitions.add(new TopicPartition(p.topic(), p.partition()));
             }
+            Lineage.getSources().add("kafka", ImmutableList.of(bootStrapServers, topic));
           }
         }
+      }
+    } else {
+      final Map<String, List<Integer>> topicsAndPartitions = new HashMap<>();
+      for (TopicPartition p : partitions) {
+        topicsAndPartitions.computeIfAbsent(p.topic(), k -> new ArrayList<>()).add(p.partition());
+      }
+
+      try (Consumer<?, ?> consumer = spec.getConsumerFactoryFn().apply(spec.getConsumerConfig())) {
+        for (Map.Entry<String, List<Integer>> e : topicsAndPartitions.entrySet()) {
+          final String providedTopic = e.getKey();
+          final List<Integer> providedPartitions = e.getValue();
+          final Set<Integer> partitionsForTopic;
+          try {
+            partitionsForTopic =
+                consumer.partitionsFor(providedTopic).stream()
+                    .map(PartitionInfo::partition)
+                    .collect(Collectors.toSet());
+            if (spec.getLogTopicVerification() == null || !spec.getLogTopicVerification()) {
+              for (Integer p : providedPartitions) {
+                checkState(
+                    partitionsForTopic.contains(p),
+                    "Partition "
+                        + p
+                        + " does not exist for topic "
+                        + providedTopic
+                        + ". Please check Kafka configuration.");
+              }
+            } else {
+              for (Integer p : providedPartitions) {
+                if (!partitionsForTopic.contains(p)) {
+                  LOG.warn(
+                      "Partition {} does not exist for topic {}. Please check Kafka configuration.",
+                      p,
+                      providedTopic);
+                }
+              }
+            }
+          } catch (KafkaException exception) {
+            LOG.warn("Unable to access cluster. Skipping fail fast checks.");
+          }
+          Lineage.getSources().add("kafka", ImmutableList.of(bootStrapServers, providedTopic));
+        }
+      } catch (KafkaException exception) {
+        LOG.warn(
+            "WARN: Failed to connect to kafka for running pre-submit validation of kafka "
+                + "topic and partition configuration. This may be due to local permissions or "
+                + "connectivity to the kafka bootstrap server, or due to misconfiguration of "
+                + "KafkaIO. This validation is not required, and this warning may be ignored "
+                + "if the Beam job runs successfully.");
       }
     }
 
@@ -100,10 +168,20 @@ class KafkaUnboundedSource<K, V> extends UnboundedSource<KafkaRecord<K, V>, Kafk
         partitions.size() > 0,
         "Could not find any partitions. Please check Kafka configuration and topic names");
 
-    int numSplits = Math.min(desiredNumSplits, partitions.size());
-    // XXX make all splits have the same # of partitions
-    while (partitions.size() % numSplits > 0) {
-      ++numSplits;
+    int numSplits;
+    if (offsetBasedDeduplicationSupported()) {
+      // Enforce 1:1 split to partition ratio for offset deduplication.
+      numSplits = partitions.size();
+      LOG.info(
+          "Offset-based deduplication is enabled for KafkaUnboundedSource. "
+              + "Forcing the number of splits to equal the number of total partitions: {}.",
+          numSplits);
+    } else {
+      numSplits = Math.min(desiredNumSplits, partitions.size());
+      // Make all splits have the same # of partitions.
+      while (partitions.size() % numSplits > 0) {
+        ++numSplits;
+      }
     }
     List<List<TopicPartition>> assignments = new ArrayList<>(numSplits);
 
@@ -162,6 +240,11 @@ class KafkaUnboundedSource<K, V> extends UnboundedSource<KafkaRecord<K, V>, Kafk
     // Kafka records are ordered with in partitions. In addition checkpoint guarantees
     // records are not consumed twice.
     return false;
+  }
+
+  @Override
+  public boolean offsetBasedDeduplicationSupported() {
+    return spec.getOffsetDeduplication() != null && spec.getOffsetDeduplication();
   }
 
   @Override

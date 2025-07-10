@@ -17,6 +17,7 @@
  */
 package org.apache.beam.fn.harness;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables.getOnlyElement;
 
@@ -37,8 +38,8 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleSplitRequest.
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleSplitResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
 import org.apache.beam.model.pipeline.v1.Endpoints;
+import org.apache.beam.model.pipeline.v1.MetricsApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
 import org.apache.beam.runners.core.metrics.MonitoringInfoEncodings;
@@ -47,10 +48,11 @@ import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortRead;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.CoderTranslation;
 import org.apache.beam.sdk.util.construction.RehydratedComponents;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,10 +61,6 @@ import org.slf4j.LoggerFactory;
  * Registers as a consumer for data over the Beam Fn API. Multiplexes any received data to all
  * receivers in a specified output map.
  */
-@SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class BeamFnDataReadRunner<OutputT> {
 
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataReadRunner.class);
@@ -78,12 +76,16 @@ public class BeamFnDataReadRunner<OutputT> {
   }
 
   /** A factory for {@link BeamFnDataReadRunner}s. */
-  static class Factory<OutputT> implements PTransformRunnerFactory<BeamFnDataReadRunner<OutputT>> {
+  static class Factory implements PTransformRunnerFactory {
 
     @Override
-    public BeamFnDataReadRunner<OutputT> createRunnerForPTransform(Context context)
-        throws IOException {
+    public void addRunnerForPTransform(Context context) throws IOException {
+      addReadRunnerForPTransform(context);
+    }
 
+    @VisibleForTesting
+    <OutputT> BeamFnDataReadRunner<OutputT> addReadRunnerForPTransform(Context context)
+        throws IOException {
       FnDataReceiver<WindowedValue<OutputT>> consumer =
           context.getPCollectionConsumer(
               getOnlyElement(context.getPTransform().getOutputsMap().values()));
@@ -95,7 +97,7 @@ public class BeamFnDataReadRunner<OutputT> {
               context.getPTransformId(),
               context.getPTransform(),
               context.getProcessBundleInstructionIdSupplier(),
-              context.getCoders(),
+              context.getComponents(),
               context.getBeamFnStateClient(),
               context::addBundleProgressReporter,
               consumer);
@@ -103,6 +105,7 @@ public class BeamFnDataReadRunner<OutputT> {
           runner.apiServiceDescriptor, runner.coder, runner::forwardElementToConsumer);
       context.addFinishBundleFunction(runner::blockTillReadFinishes);
       context.addResetFunction(runner::reset);
+      context.addChannelRoot(runner);
       return runner;
     }
   }
@@ -117,9 +120,9 @@ public class BeamFnDataReadRunner<OutputT> {
   private final Object splittingLock = new Object();
   // 0-based index of the current element being processed. -1 if we have yet to process an element.
   // stopIndex if we are done processing.
-  private long index;
+  private long index = -1;
   // 0-based index of the first element to not process, aka the first element of the residual
-  private long stopIndex;
+  private long stopIndex = Long.MAX_VALUE;
 
   BeamFnDataReadRunner(
       ShortIdMap shortIdMap,
@@ -127,7 +130,7 @@ public class BeamFnDataReadRunner<OutputT> {
       String pTransformId,
       RunnerApi.PTransform grpcReadNode,
       Supplier<String> processBundleInstructionIdSupplier,
-      Map<String, RunnerApi.Coder> coders,
+      RunnerApi.Components components,
       BeamFnStateClient beamFnStateClient,
       Consumer<BundleProgressReporter> addBundleProgressReporter,
       FnDataReceiver<WindowedValue<OutputT>> consumer)
@@ -138,13 +141,19 @@ public class BeamFnDataReadRunner<OutputT> {
     this.processBundleInstructionIdSupplier = processBundleInstructionIdSupplier;
     this.consumer = consumer;
 
-    RehydratedComponents components =
-        RehydratedComponents.forComponents(Components.newBuilder().putAllCoders(coders).build());
+    RehydratedComponents rehydratedComponents = RehydratedComponents.forComponents(components);
+
+    RunnerApi.Coder coderProto =
+        checkArgumentNotNull(
+            components.getCodersMap().get(port.getCoderId()),
+            "Corrupt pipeline: coder %s not defined",
+            port.getCoderId());
+
     this.coder =
         (Coder<WindowedValue<OutputT>>)
             CoderTranslation.fromProto(
-                coders.get(port.getCoderId()),
-                components,
+                coderProto,
+                rehydratedComponents,
                 new StateBackedIterableTranslationContext() {
                   @Override
                   public Supplier<Cache<?, ?>> getCache() {
@@ -162,13 +171,21 @@ public class BeamFnDataReadRunner<OutputT> {
                   }
                 });
 
-    dataChannelReadIndexShortId =
-        shortIdMap.getOrCreateShortId(
-            new SimpleMonitoringInfoBuilder()
-                .setUrn(Urns.DATA_CHANNEL_READ_INDEX)
-                .setType(MonitoringInfoConstants.TypeUrns.SUM_INT64_TYPE)
-                .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, pTransformId)
-                .build());
+    SimpleMonitoringInfoBuilder monitoringInfoBuilder =
+        new SimpleMonitoringInfoBuilder()
+            .setUrn(Urns.DATA_CHANNEL_READ_INDEX)
+            .setType(MonitoringInfoConstants.TypeUrns.SUM_INT64_TYPE)
+            .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, pTransformId);
+
+    MetricsApi.MonitoringInfo monitoringInfo = monitoringInfoBuilder.build();
+    if (monitoringInfo == null) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Internal error initializing BeamFnDataReadRunner: invalid monitoring info: %s",
+              monitoringInfoBuilder.validate()));
+    }
+
+    dataChannelReadIndexShortId = shortIdMap.getOrCreateShortId(monitoringInfo);
     addBundleProgressReporter.accept(
         new BundleProgressReporter() {
           @Override
@@ -199,8 +216,6 @@ public class BeamFnDataReadRunner<OutputT> {
             // no-op
           }
         });
-
-    clearSplitIndices();
   }
 
   public void forwardElementToConsumer(WindowedValue<OutputT> element) throws Exception {

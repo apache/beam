@@ -84,9 +84,12 @@ func TestServer_RunThenCancel(t *testing.T) {
 	var called sync.WaitGroup
 	called.Add(1)
 	undertest := NewServer(0, func(j *Job) {
+		defer called.Done()
+		j.state.Store(jobpb.JobState_RUNNING)
 		if errors.Is(context.Cause(j.RootCtx), ErrCancel) {
-			j.state.Store(jobpb.JobState_CANCELLED)
-			called.Done()
+			j.SendMsg("pipeline canceled " + j.String())
+			j.Canceled()
+			return
 		}
 	})
 	ctx := context.Background()
@@ -121,6 +124,7 @@ func TestServer_RunThenCancel(t *testing.T) {
 	cancelResp, err := undertest.Cancel(ctx, &jobpb.CancelJobRequest{
 		JobId: runResp.GetJobId(),
 	})
+
 	if err != nil {
 		t.Fatalf("server.Canceling() = %v, want nil", err)
 	}

@@ -38,7 +38,7 @@ import (
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/errorx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/grpcx"
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 )
 
 // TODO(lostluck): 2018/05/28 Extract these from their enum descriptors in the pipeline_v1 proto

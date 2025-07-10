@@ -31,7 +31,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.URL;
@@ -63,8 +62,8 @@ import org.apache.beam.sdk.util.construction.PipelineTranslation;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Resources;
@@ -88,7 +87,6 @@ public class JavaClassLookupTransformProviderTest {
   public static void setupExpansionService() {
     PipelineOptionsFactory.register(ExpansionServiceOptions.class);
     URL allowListFile = Resources.getResource("./test_allowlist.yaml");
-    System.out.println("Exists: " + new File(allowListFile.getPath()).exists());
     expansionService =
         new ExpansionService(
             new String[] {"--javaClassLookupAllowlistFile=" + allowListFile.getPath()});

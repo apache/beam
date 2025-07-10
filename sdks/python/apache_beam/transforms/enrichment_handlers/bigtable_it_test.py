@@ -18,10 +18,7 @@
 import datetime
 import logging
 import unittest
-from typing import Dict
-from typing import List
 from typing import NamedTuple
-from typing import Tuple
 from unittest.mock import MagicMock
 
 import pytest
@@ -46,14 +43,19 @@ except ImportError:
 _LOGGER = logging.getLogger(__name__)
 
 
+def _row_key_fn(request: beam.Row) -> bytes:
+  row_key = str(request.product_id)  # type: ignore[attr-defined]
+  return row_key.encode(encoding='utf-8')
+
+
 class ValidateResponse(beam.DoFn):
   """ValidateResponse validates if a PCollection of `beam.Row`
   has the required fields."""
   def __init__(
       self,
       n_fields: int,
-      fields: List[str],
-      enriched_fields: Dict[str, List[str]],
+      fields: list[str],
+      enriched_fields: dict[str, list[str]],
       include_timestamp: bool = False,
   ):
     self.n_fields = n_fields
@@ -83,7 +85,7 @@ class ValidateResponse(beam.DoFn):
               "Response from bigtable should contain a %s column_family with "
               "%s columns." % (column_family, columns))
         if (self._include_timestamp and
-            not isinstance(element_dict[column_family][key][0], Tuple)):  # type: ignore[arg-type]
+            not isinstance(element_dict[column_family][key][0], tuple)):
           raise BeamAssertException(
               "Response from bigtable should contain timestamp associated with "
               "its value.")
@@ -134,21 +136,21 @@ def create_rows(table):
         column_family_id,
         product_id.encode(),
         str(item[product_id]),
-        timestamp=datetime.datetime.utcnow())
+        timestamp=datetime.datetime.now(datetime.timezone.utc))
     row.set_cell(
         column_family_id,
         product_name.encode(),
         item[product_name],
-        timestamp=datetime.datetime.utcnow())
+        timestamp=datetime.datetime.now(datetime.timezone.utc))
     row.set_cell(
         column_family_id,
         product_stock.encode(),
         str(item[product_stock]),
-        timestamp=datetime.datetime.utcnow())
+        timestamp=datetime.datetime.now(datetime.timezone.utc))
     row.commit()
 
 
-@pytest.mark.uses_redis
+@pytest.mark.uses_testcontainer
 class TestBigTableEnrichment(unittest.TestCase):
   def setUp(self):
     self.project_id = 'apache-beam-testing'
@@ -425,6 +427,29 @@ class TestBigTableEnrichment(unittest.TestCase):
                   expected_fields,
                   expected_enriched_fields)))
     BigTableEnrichmentHandler.__call__ = actual
+
+  def test_bigtable_enrichment_with_lambda(self):
+    expected_fields = [
+        'sale_id', 'customer_id', 'product_id', 'quantity', 'product'
+    ]
+    expected_enriched_fields = {
+        'product': ['product_id', 'product_name', 'product_stock'],
+    }
+    bigtable = BigTableEnrichmentHandler(
+        project_id=self.project_id,
+        instance_id=self.instance_id,
+        table_id=self.table_id,
+        row_key_fn=_row_key_fn)
+    with TestPipeline(is_integration_test=True) as test_pipeline:
+      _ = (
+          test_pipeline
+          | "Create" >> beam.Create(self.req)
+          | "Enrich W/ BigTable" >> Enrichment(bigtable)
+          | "Validate Response" >> beam.ParDo(
+              ValidateResponse(
+                  len(expected_fields),
+                  expected_fields,
+                  expected_enriched_fields)))
 
 
 if __name__ == '__main__':

@@ -24,29 +24,30 @@ implementations of the same transforms, the configs must be kept in sync.
 """
 
 import io
-import os
+from collections.abc import Callable
+from collections.abc import Iterable
+from collections.abc import Mapping
 from typing import Any
-from typing import Callable
-from typing import Iterable
-from typing import List
-from typing import Mapping
 from typing import Optional
-from typing import Tuple
 
 import fastavro
-import yaml
 
 import apache_beam as beam
 import apache_beam.io as beam_io
+from apache_beam import coders
 from apache_beam.io import ReadFromBigQuery
+from apache_beam.io import ReadFromTFRecord
 from apache_beam.io import WriteToBigQuery
+from apache_beam.io import WriteToTFRecord
 from apache_beam.io import avroio
+from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.gcp.bigquery import BigQueryDisposition
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import schemas
 from apache_beam.yaml import json_utils
-from apache_beam.yaml import yaml_mapping
+from apache_beam.yaml import yaml_errors
 from apache_beam.yaml import yaml_provider
+from apache_beam.yaml import yaml_utils
 
 
 def read_from_text(path: str):
@@ -55,7 +56,7 @@ def read_from_text(path: str):
 
   """Reads lines from a text files.
 
-  The resulting PCollection consists of rows with a single string filed named
+  The resulting PCollection consists of rows with a single string field named
   "line."
 
   Args:
@@ -77,8 +78,8 @@ def write_to_text(pcoll, path: str):
   """
   try:
     field_names = [
-        name for name,
-        _ in schemas.named_fields_from_element_type(pcoll.element_type)
+        name for name, _ in schemas.named_fields_from_element_type(
+            pcoll.element_type)
     ]
   except Exception as exn:
     raise ValueError(
@@ -93,11 +94,28 @@ def write_to_text(pcoll, path: str):
 
 
 def read_from_bigquery(
-    query=None, table=None, row_restriction=None, fields=None):
+    *,
+    table: Optional[str] = None,
+    query: Optional[str] = None,
+    row_restriction: Optional[str] = None,
+    fields: Optional[Iterable[str]] = None):
   """Reads data from BigQuery.
 
   Exactly one of table or query must be set.
   If query is set, neither row_restriction nor fields should be set.
+
+  Args:
+    table (str): The table to read from, specified as `DATASET.TABLE`
+      or `PROJECT:DATASET.TABLE`.
+    query (str): A query to be used instead of the table argument.
+    row_restriction (str): Optional SQL text filtering statement, similar to a
+      WHERE clause in a query. Aggregates are not supported. Restricted to a
+      maximum length for 1 MB.
+    selected_fields (list[str]): Optional List of names of the fields in the
+      table that should be read. If empty, all fields will be read. If the
+      specified field is a nested field, all the sub-fields in the field will be
+      selected. The output field order is unrelated to the order of fields
+      given here.
   """
   if query is None:
     assert table is not None
@@ -113,12 +131,43 @@ def read_from_bigquery(
 
 
 def write_to_bigquery(
-    table,
+    table: str,
     *,
-    create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
-    write_disposition=BigQueryDisposition.WRITE_APPEND,
+    create_disposition: Optional[str] = BigQueryDisposition.CREATE_IF_NEEDED,
+    write_disposition: Optional[str] = BigQueryDisposition.WRITE_APPEND,
     error_handling=None):
-  """Writes data to a BigQuery table."""
+  f"""Writes data to a BigQuery table.
+
+  Args:
+    table (str): The table to read from, specified as `DATASET.TABLE`
+      or `PROJECT:DATASET.TABLE`.
+      create_disposition (BigQueryDisposition): A string describing what
+        happens if the table does not exist. Possible values are:
+
+        * :attr:`{BigQueryDisposition.CREATE_IF_NEEDED}`: create if does not
+          exist.
+        * :attr:`{BigQueryDisposition.CREATE_NEVER}`: fail the write if does not
+          exist.
+
+        Defaults to `{BigQueryDisposition.CREATE_IF_NEEDED}`.
+
+      write_disposition (BigQueryDisposition): A string describing what happens
+        if the table has already some data. Possible values are:
+
+        * :attr:`{BigQueryDisposition.WRITE_TRUNCATE}`: delete existing rows.
+        * :attr:`{BigQueryDisposition.WRITE_APPEND}`: add to existing rows.
+        * :attr:`{BigQueryDisposition.WRITE_EMPTY}`: fail the write if table not
+          empty.
+
+        For streaming pipelines WriteTruncate can not be used.
+
+        Defaults to `{BigQueryDisposition.WRITE_APPEND}`.
+
+      error_handling: If specified, should be a mapping giving an output into
+        which to emit records that failed to bet written to BigQuery, as
+        described at https://beam.apache.org/documentation/sdks/yaml-errors/
+        Otherwise permanently failing records will cause pipeline failure.
+  """
   class WriteToBigQueryHandlingErrors(beam.PTransform):
     def default_label(self):
       return 'WriteToBigQuery'
@@ -163,17 +212,34 @@ def write_to_bigquery(
 
 def _create_parser(
     format,
-    schema: Any) -> Tuple[schema_pb2.Schema, Callable[[bytes], beam.Row]]:
-  if format == 'raw':
+    schema: Any) -> tuple[schema_pb2.Schema, Callable[[bytes], beam.Row]]:
+
+  format = format.upper()
+
+  def _validate_schema():
+    if not schema:
+      raise ValueError(
+          f'{format} format requires valid {format} schema to be passed to '
+          f'schema parameter.')
+
+  if format == 'RAW':
     if schema:
-      raise ValueError('raw format does not take a schema')
+      raise ValueError('RAW format does not take a schema')
     return (
         schema_pb2.Schema(fields=[schemas.schema_field('payload', bytes)]),
         lambda payload: beam.Row(payload=payload))
-  elif format == 'json':
+  if format == 'STRING':
+    if schema:
+      raise ValueError('STRING format does not take a schema')
+    return (
+        schema_pb2.Schema(fields=[schemas.schema_field('payload', str)]),
+        lambda payload: beam.Row(payload=payload.decode('utf-8')))
+  elif format == 'JSON':
+    _validate_schema()
     beam_schema = json_utils.json_schema_to_beam_schema(schema)
     return beam_schema, json_utils.json_parser(beam_schema, schema)
-  elif format == 'avro':
+  elif format == 'AVRO':
+    _validate_schema()
     beam_schema = avroio.avro_schema_to_beam_schema(schema)
     covert_to_row = avroio.avro_dict_to_beam_row(schema, beam_schema)
     # pylint: disable=line-too-long
@@ -188,16 +254,33 @@ def _create_parser(
 def _create_formatter(
     format, schema: Any,
     beam_schema: schema_pb2.Schema) -> Callable[[beam.Row], bytes]:
-  if format == 'raw':
+
+  if format.islower():
+    format = format.upper()
+
+  if format == 'RAW':
     if schema:
-      raise ValueError('raw format does not take a schema')
+      raise ValueError('RAW format does not take a schema')
     field_names = [field.name for field in beam_schema.fields]
     if len(field_names) != 1:
       raise ValueError(f'Expecting exactly one field, found {field_names}')
-    return lambda row: getattr(row, field_names[0])
-  elif format == 'json':
+
+    def convert_to_bytes(row):
+      output = getattr(row, field_names[0])
+      if isinstance(output, bytes):
+        return output
+      elif isinstance(output, str):
+        return output.encode('utf-8')
+      else:
+        raise ValueError(
+            f"Cannot encode payload for WriteToPubSub. "
+            f"Expected valid string or bytes object, "
+            f"got {repr(output)} of type {type(output)}.")
+
+    return convert_to_bytes
+  elif format == 'JSON':
     return json_utils.json_formater(beam_schema)
-  elif format == 'avro':
+  elif format == 'AVRO':
     avro_schema = schema or avroio.beam_schema_to_avro_schema(beam_schema)
     from_row = avroio.beam_row_to_avro_dict(avro_schema, beam_schema)
 
@@ -213,7 +296,7 @@ def _create_formatter(
 
 
 @beam.ptransform_fn
-@yaml_mapping.maybe_with_exception_handling_transform_fn
+@yaml_errors.maybe_with_exception_handling_transform_fn
 def read_from_pubsub(
     root,
     *,
@@ -238,10 +321,11 @@ def read_from_pubsub(
     format: The expected format of the message payload.  Currently suported
       formats are
 
-        - raw: Produces records with a single `payload` field whose contents
+        - RAW: Produces records with a single `payload` field whose contents
             are the raw bytes of the pubsub message.
-        - avro: Parses records with a given avro schema.
-        - json: Parses records with a given json schema.
+        - STRING: Like RAW, but the bytes are decoded as a UTF-8 string.
+        - AVRO: Parses records with a given Avro schema.
+        - JSON: Parses records with a given JSON schema.
 
     schema: Schema specification for the given format.
     attributes: List of attribute keys whose values will be flattened into the
@@ -279,7 +363,7 @@ def read_from_pubsub(
   elif not topic and not subscription:
     raise TypeError('One of topic or subscription may be specified.')
   payload_schema, parser = _create_parser(format, schema)
-  extra_fields: List[schema_pb2.Field] = []
+  extra_fields: list[schema_pb2.Field] = []
   if not attributes and not attributes_map:
     mapper = lambda msg: parser(msg)
   else:
@@ -317,7 +401,7 @@ def read_from_pubsub(
 
 
 @beam.ptransform_fn
-@yaml_mapping.maybe_with_exception_handling_transform_fn
+@yaml_errors.maybe_with_exception_handling_transform_fn
 def write_to_pubsub(
     pcoll,
     *,
@@ -335,12 +419,12 @@ def write_to_pubsub(
     format: How to format the message payload.  Currently suported
       formats are
 
-        - raw: Expects a message with a single field (excluding
+        - RAW: Expects a message with a single field (excluding
             attribute-related fields) whose contents are used as the raw bytes
             of the pubsub message.
-        - avro: Encodes records with a given avro schema, which may be inferred
+        - AVRO: Encodes records with a given Avro schema, which may be inferred
             from the input PCollection schema.
-        - json: Formats records with a given json schema, which may be inferred
+        - JSON: Formats records with a given JSON schema, which may be inferred
             from the input PCollection schema.
 
     schema: Schema specification for the given format.
@@ -367,7 +451,7 @@ def write_to_pubsub(
   """
   input_schema = schemas.schema_from_element_type(pcoll.element_type)
 
-  extra_fields: List[str] = []
+  extra_fields: list[str] = []
   if isinstance(attributes, str):
     attributes = [attributes]
   if attributes:
@@ -408,6 +492,176 @@ def write_to_pubsub(
           timestamp_attribute=timestamp_attribute))
 
 
+def read_from_iceberg(
+    table: str,
+    catalog_name: Optional[str] = None,
+    catalog_properties: Optional[Mapping[str, str]] = None,
+    config_properties: Optional[Mapping[str, str]] = None,
+):
+  # TODO(robertwb): It'd be nice to derive this list of parameters, along with
+  # their types and docs, programmatically from the iceberg (or managed)
+  # schemas.
+
+  """Reads an Apache Iceberg table.
+
+  See also the [Apache Iceberg Beam documentation](
+  https://cloud.google.com/dataflow/docs/guides/managed-io#iceberg).
+
+  Args:
+    table: The identifier of the Apache Iceberg table. Example: "db.table1".
+    catalog_name: The name of the catalog. Example: "local".
+    catalog_properties: A map of configuration properties for the Apache Iceberg
+      catalog.
+      The required properties depend on the catalog. For more information, see
+      CatalogUtil in the Apache Iceberg documentation.
+    config_properties: An optional set of Hadoop configuration properties.
+      For more information, see CatalogUtil in the Apache Iceberg documentation.
+  """
+  return beam.managed.Read(
+      "iceberg",
+      config=dict(
+          table=table,
+          catalog_name=catalog_name,
+          catalog_properties=catalog_properties,
+          config_properties=config_properties))
+
+
+def write_to_iceberg(
+    table: str,
+    catalog_name: Optional[str] = None,
+    catalog_properties: Optional[Mapping[str, str]] = None,
+    config_properties: Optional[Mapping[str, str]] = None,
+    triggering_frequency_seconds: Optional[int] = None,
+    keep: Optional[Iterable[str]] = None,
+    drop: Optional[Iterable[str]] = None,
+    only: Optional[str] = None,
+):
+  # TODO(robertwb): It'd be nice to derive this list of parameters, along with
+  # their types and docs, programmatically from the iceberg (or managed)
+  # schemas.
+
+  """Writes to an Apache Iceberg table.
+
+  See also the [Apache Iceberg Beam documentation](
+  https://cloud.google.com/dataflow/docs/guides/managed-io#iceberg)
+  including the [dynamic destinations section](
+  https://cloud.google.com/dataflow/docs/guides/managed-io#dynamic-destinations)
+  for use of the keep, drop, and only parameters.
+
+  Args:
+    table: The identifier of the Apache Iceberg table. Example: "db.table1".
+    catalog_name: The name of the catalog. Example: "local".
+    catalog_properties: A map of configuration properties for the Apache Iceberg
+      catalog.
+      The required properties depend on the catalog. For more information, see
+      CatalogUtil in the Apache Iceberg documentation.
+    config_properties: An optional set of Hadoop configuration properties.
+      For more information, see CatalogUtil in the Apache Iceberg documentation.
+    triggering_frequency_seconds: For streaming write pipelines, the frequency
+      at which the sink attempts to produce snapshots, in seconds.
+
+    keep: An optional list of field names to keep when writing to the
+      destination. Other fields are dropped. Mutually exclusive with drop
+      and only.
+    drop: An optional list of field names to drop before writing to the
+        destination. Mutually exclusive with keep and only.
+    only: The name of exactly one field to keep as the top level record when
+      writing to the destination. All other fields are dropped. This field must
+      be of row type. Mutually exclusive with drop and keep.
+  """
+  return beam.managed.Write(
+      "iceberg",
+      config=dict(
+          table=table,
+          catalog_name=catalog_name,
+          catalog_properties=catalog_properties,
+          config_properties=config_properties,
+          triggering_frequency_seconds=triggering_frequency_seconds,
+          keep=keep,
+          drop=drop,
+          only=only))
+
+
 def io_providers():
-  with open(os.path.join(os.path.dirname(__file__), 'standard_io.yaml')) as fin:
-    return yaml_provider.parse_providers(yaml.load(fin, Loader=yaml.SafeLoader))
+  return yaml_provider.load_providers(
+      yaml_utils.locate_data_file('standard_io.yaml'))
+
+
+def read_from_tfrecord(
+    file_pattern: str,
+    coder: Optional[coders.BytesCoder] = coders.BytesCoder(),
+    compression_type: str = "AUTO",
+    validate: Optional[bool] = True):
+  """Reads data from TFRecord.
+
+  Args:
+    file_pattern (str): A file glob pattern to read TFRecords from.
+    coder (coders.BytesCoder): Coder used to decode each record.
+    compression_type (CompressionTypes): Used to handle compressed input files.
+      Default value is CompressionTypes.AUTO, in which case the file_path's
+      extension will be used to detect the compression.
+    validate (bool): Boolean flag to verify that the files exist during the 
+      pipeline creation time.
+  """
+  return ReadFromTFRecord(
+      file_pattern=file_pattern,
+      compression_type=getattr(CompressionTypes, compression_type),
+      validate=validate) | beam.Map(lambda s: beam.Row(record=s))
+
+
+@beam.ptransform_fn
+def write_to_tfrecord(
+    pcoll,
+    file_path_prefix: str,
+    coder: Optional[coders.BytesCoder] = coders.BytesCoder(),
+    file_name_suffix: Optional[str] = "",
+    num_shards: Optional[int] = 0,
+    shard_name_template: Optional[str] = None,
+    compression_type: str = "AUTO"):
+  """Writes data to TFRecord.
+
+  Args:
+    file_path_prefix: The file path to write to. The files written will begin
+      with this prefix, followed by a shard identifier (see num_shards), and
+      end in a common extension, if given by file_name_suffix.
+    coder: Coder used to encode each record.
+    file_name_suffix: Suffix for the files written.
+    num_shards: The number of files (shards) used for output. If not set, the
+      default value will be used.
+    shard_name_template: A template string containing placeholders for
+      the shard number and shard count. When constructing a filename for a
+      particular shard number, the upper-case letters 'S' and 'N' are
+      replaced with the 0-padded shard number and shard count respectively.
+      This argument can be '' in which case it behaves as if num_shards was
+      set to 1 and only one file will be generated. The default pattern used
+      is '-SSSSS-of-NNNNN' if None is passed as the shard_name_template.
+    compression_type: Used to handle compressed output files. Typical value
+      is CompressionTypes.AUTO, in which case the file_path's extension will
+      be used to detect the compression.
+
+  Returns:
+    A WriteToTFRecord transform object.
+  """
+  try:
+    field_names = [
+        name for name, _ in schemas.named_fields_from_element_type(
+            pcoll.element_type)
+    ]
+  except Exception as exn:
+    raise ValueError(
+        "WriteToTFRecord requires an input schema with exactly one field."
+    ) from exn
+  if len(field_names) != 1:
+    raise ValueError(
+        "WriteToTFRecord requires an input schema with exactly one field,got %s"
+        % field_names)
+  sole_field_name, = field_names
+
+  return pcoll | beam.Map(
+      lambda x: getattr(x, sole_field_name)) | WriteToTFRecord(
+          file_path_prefix=file_path_prefix,
+          coder=coder,
+          file_name_suffix=file_name_suffix,
+          num_shards=num_shards,
+          shard_name_template=shard_name_template,
+          compression_type=getattr(CompressionTypes, compression_type))

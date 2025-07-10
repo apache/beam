@@ -23,10 +23,13 @@ import java.util.Map;
 import java.util.concurrent.Future;
 import org.apache.beam.sdk.io.kafka.KafkaIO.WriteRecords;
 import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.metrics.SinkMetrics;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter;
 import org.apache.beam.sdk.util.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.kafka.clients.producer.Callback;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
@@ -74,7 +77,7 @@ class KafkaWriter<K, V> extends DoFn<ProducerRecord<K, V>, Void> {
 
     @Nullable String topicName = record.topic();
     if (topicName == null) {
-      topicName = spec.getTopic();
+      topicName = Preconditions.checkStateNotNull(spec.getTopic());
     }
 
     try {
@@ -91,6 +94,19 @@ class KafkaWriter<K, V> extends DoFn<ProducerRecord<K, V>, Void> {
               callback);
 
       elementsWritten.inc();
+      if (!topicName.equals(reportedLineage)) {
+
+        Lineage.getSinks()
+            .add(
+                "kafka",
+                // withBootstrapServers() was required in WriteRecord.expand, expect to be non-null
+                ImmutableList.of(
+                    (String)
+                        Preconditions.checkStateNotNull(
+                            producerConfig.get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG)),
+                    topicName));
+        reportedLineage = topicName;
+      }
     } catch (SerializationException e) {
       // This exception should only occur during the key and value deserialization when
       // creating the Kafka Record. We can catch the exception here as producer.send serializes
@@ -129,6 +145,7 @@ class KafkaWriter<K, V> extends DoFn<ProducerRecord<K, V>, Void> {
   private transient @Nullable Producer<K, V> producer = null;
   // first exception and number of failures since last invocation of checkForFailures():
   private transient @Nullable Exception sendException = null;
+  private transient @Nullable String reportedLineage;
   private transient long numSendFailures = 0;
 
   private final Counter elementsWritten = SinkMetrics.elementsWritten();
@@ -148,6 +165,11 @@ class KafkaWriter<K, V> extends DoFn<ProducerRecord<K, V>, Void> {
       this.producerConfig.put(
           ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, spec.getValueSerializer());
     }
+  }
+
+  @VisibleForTesting
+  WriteRecords<K, V> getSpec() {
+    return spec;
   }
 
   private synchronized void checkForFailures() throws IOException {

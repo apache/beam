@@ -19,7 +19,7 @@ limitations under the License.
 
 The Beam SDK runtime environment can be [containerized](https://www.docker.com/resources/what-container) with [Docker](https://www.docker.com/) to isolate it from other runtime systems. To learn more about the container environment, read the Beam [SDK Harness container contract](https://s.apache.org/beam-fn-api-container-contract).
 
-Prebuilt SDK container images are released per supported language during Beam releases and pushed to [Docker Hub](https://hub.docker.com/search?q=apache%2Fbeam&type=image).
+Prebuilt SDK container images are released per supported language during Beam releases and pushed to [Docker Hub](https://hub.docker.com/search?q=apache%2Fbeam&type=image). **Note:** These images, such as `apache/beam_python3.12_sdk:2.63.0`, are designed specifically as worker images for the distributed execution of Beam pipelines. They are not intended as fully featured SDK development environments.
 
 ## Custom containers
 
@@ -105,20 +105,22 @@ This method requires building image artifacts from Beam source. For additional i
 
 2. Customize the `Dockerfile` for a given language, typically `sdks/<language>/container/Dockerfile` directory (e.g. the [Dockerfile for Python](https://github.com/apache/beam/blob/master/sdks/python/container/Dockerfile).
 
-3. Return to the root Beam directory and run the Gradle `docker` target for your image.
+3. Return to the root Beam directory and run the Gradle `docker` target for your
+   image. For self-contained instructions on building a container image,
+   follow [this guide](/documentation/sdks/python-sdk-image-build).
 
   ```
   cd $BEAM_WORKDIR
 
   # The default repository of each SDK
-  ./gradlew :sdks:java:container:java8:docker
   ./gradlew :sdks:java:container:java11:docker
   ./gradlew :sdks:java:container:java17:docker
+  ./gradlew :sdks:java:container:java21:docker
   ./gradlew :sdks:go:container:docker
-  ./gradlew :sdks:python:container:py38:docker
   ./gradlew :sdks:python:container:py39:docker
   ./gradlew :sdks:python:container:py310:docker
   ./gradlew :sdks:python:container:py311:docker
+  ./gradlew :sdks:python:container:py312:docker
 
   # Shortcut for building all Python SDKs
   ./gradlew :sdks:python:container:buildAll
@@ -129,14 +131,13 @@ This method requires building image artifacts from Beam source. For additional i
   ```
   $> docker images --digests
   REPOSITORY                         TAG                  DIGEST                   IMAGE ID         CREATED           SIZE
-  apache/beam_java8_sdk              latest               sha256:...               ...              1 min ago         ...
   apache/beam_java11_sdk             latest               sha256:...               ...              1 min ago         ...
   apache/beam_java17_sdk             latest               sha256:...               ...              1 min ago         ...
-  apache/beam_python3.6_sdk          latest               sha256:...               ...              1 min ago         ...
-  apache/beam_python3.7_sdk          latest               sha256:...               ...              1 min ago         ...
-  apache/beam_python3.8_sdk          latest               sha256:...               ...              1 min ago         ...
+  apache/beam_java21_sdk              latest               sha256:...               ...              1 min ago         ...
   apache/beam_python3.9_sdk          latest               sha256:...               ...              1 min ago         ...
   apache/beam_python3.10_sdk          latest               sha256:...               ...              1 min ago         ...
+  apache/beam_python3.11_sdk          latest               sha256:...               ...              1 min ago         ...
+  apache/beam_python3.12_sdk          latest               sha256:...               ...              1 min ago         ...
   apache/beam_go_sdk                 latest               sha256:...               ...              1 min ago         ...
   ```
 
@@ -168,9 +169,9 @@ builds the Python 3.6 container and tags it as `example-repo/beam_python3.6_sdk:
 From Beam 2.21.0 and later, a `docker-pull-licenses` flag was introduced to add licenses/notices for third party dependencies to the docker images. For example:
 
 ```
-./gradlew :sdks:java:container:java8:docker -Pdocker-pull-licenses
+./gradlew :sdks:java:container:java11:docker -Pdocker-pull-licenses
 ```
-creates a Java 8 SDK image with appropriate licenses in `/opt/apache/beam/third_party_licenses/`.
+creates a Java 11 SDK image with appropriate licenses in `/opt/apache/beam/third_party_licenses/`.
 
 By default, no licenses/notices are added to the docker images.
 

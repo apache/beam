@@ -88,7 +88,7 @@ docker {
    buildArgs(
          ['BASE_IMAGE'   : project.rootProject.hasProperty(["base-image"]) ?
                project.rootProject["base-image"] :
-               "golang:1.20-bullseye",
+               "golang:1-bullseye",
           'SDK_TAG'      : project.rootProject.hasProperty(["sdk-tag"]) ?
                 project.rootProject["sdk-tag"] : project.rootProject.sdk_version,
           'SDK_TAG_LOCAL': project.rootProject.sdk_version,

@@ -18,6 +18,7 @@
 """S3 file system implementation for accessing files on AWS S3."""
 
 # pytype: skip-file
+import traceback
 
 from apache_beam.io.aws import s3io
 from apache_beam.io.filesystem import BeamIOError
@@ -314,3 +315,14 @@ class S3FileSystem(FileSystem):
     }
     if exceptions:
       raise BeamIOError("Delete operation failed", exceptions)
+
+  def report_lineage(self, path, lineage):
+    try:
+      components = s3io.parse_s3_path(path, object_optional=True)
+    except ValueError:
+      # report lineage is fail-safe
+      traceback.print_exc()
+      return
+    if components and not components[-1]:
+      components = components[:-1]
+    lineage.add('s3', *components, last_segment_sep='/')

@@ -22,9 +22,6 @@ plugins {
 applyGroovyNature()
 applyPythonNature()
 
-// TODO(https://github.com/apache/beam/issues/20209): Don't hardcode this version, take the value provided by Python nature.
-pythonVersion = '3.8'
-
 task generateMetricsReport {
   dependsOn setupVirtualenv
   def metricsReportFilename = "beam-metrics_report.html"
@@ -39,11 +36,11 @@ task generateMetricsReport {
   doLast {
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && tox -e py38-test -c ${toxConfigFilePath}"
+      args '-c', ". ${envdir}/bin/activate && tox -e py39-test -c ${toxConfigFilePath}"
     }
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && tox -e py38-generate-report -c ${toxConfigFilePath} -- --influx-db=${influxDb} --influx-host=${influxHost} --influx-port=${influxPort} --output-file=${generateMetricsReportPath}"
+      args '-c', ". ${envdir}/bin/activate && tox -e py39-generate-report -c ${toxConfigFilePath} -- --influx-db=${influxDb} --influx-host=${influxHost} --influx-port=${influxPort} --output-file=${generateMetricsReportPath}"
     }
     logger.info('Create metrics report file {}', generateMetricsReportPath)
   }

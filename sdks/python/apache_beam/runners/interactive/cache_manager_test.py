@@ -37,7 +37,7 @@ class FileBasedCacheManagerTest(object):
   tested with InteractiveRunner as a part of integration tests instead.
   """
 
-  cache_format = None  # type: str
+  cache_format: str = None
 
   def setUp(self):
     self.cache_manager = cache.FileBasedCacheManager(
@@ -102,10 +102,9 @@ class FileBasedCacheManagerTest(object):
     coder = self.cache_manager.load_pcoder(prefix, cache_label)
     encoded = coder.encode(value)
 
-    # Add one to the size on disk because of the extra new-line character when
-    # writing to file.
-    self.assertEqual(
-        self.cache_manager.size(prefix, cache_label), len(encoded) + 1)
+    # We encode in a format that escapes newlines.
+    self.assertGreater(
+        self.cache_manager.size(prefix, cache_label), len(encoded))
 
   def test_clear(self):
     """Test that CacheManager can correctly tell if the cache exists or not."""

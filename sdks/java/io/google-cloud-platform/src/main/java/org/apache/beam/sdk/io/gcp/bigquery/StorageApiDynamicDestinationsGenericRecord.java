@@ -36,16 +36,21 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
 
   private final SerializableFunction<AvroWriteRequest<T>, GenericRecord> toGenericRecord;
   private final SerializableFunction<@Nullable TableSchema, Schema> schemaFactory;
+  private final @javax.annotation.Nullable SerializableFunction<T, TableRow>
+      formatRecordOnFailureFunction;
+
   private boolean usesCdc;
 
   StorageApiDynamicDestinationsGenericRecord(
       DynamicDestinations<T, DestinationT> inner,
       SerializableFunction<@Nullable TableSchema, Schema> schemaFactory,
       SerializableFunction<AvroWriteRequest<T>, GenericRecord> toGenericRecord,
+      @Nullable SerializableFunction<T, TableRow> formatRecordOnFailureFunction,
       boolean usesCdc) {
     super(inner);
     this.toGenericRecord = toGenericRecord;
     this.schemaFactory = schemaFactory;
+    this.formatRecordOnFailureFunction = formatRecordOnFailureFunction;
     this.usesCdc = usesCdc;
   }
 
@@ -81,14 +86,13 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
     @Override
     @SuppressWarnings("nullness")
     public StorageApiWritePayload toMessage(
-        T element, @javax.annotation.Nullable RowMutationInformation rowMutationInformation)
-        throws Exception {
+        T element, @Nullable RowMutationInformation rowMutationInformation) throws Exception {
       String changeType = null;
-      long changeSequenceNum = -1;
+      String changeSequenceNum = null;
       Descriptor descriptorToUse = descriptor;
       if (rowMutationInformation != null) {
         changeType = rowMutationInformation.getMutationType().toString();
-        changeSequenceNum = rowMutationInformation.getSequenceNumber();
+        changeSequenceNum = rowMutationInformation.getChangeSequenceNumber();
         descriptorToUse = cdcDescriptor;
       }
       Message msg =
@@ -97,13 +101,20 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
               toGenericRecord.apply(new AvroWriteRequest<>(element, avroSchema)),
               changeType,
               changeSequenceNum);
-      return StorageApiWritePayload.of(msg.toByteArray(), null);
+      return StorageApiWritePayload.of(
+          msg.toByteArray(),
+          null,
+          formatRecordOnFailureFunction != null ? toFailsafeTableRow(element) : null);
     }
 
     @Override
-    public TableRow toTableRow(T element) {
-      return BigQueryUtils.convertGenericRecordToTableRow(
-          toGenericRecord.apply(new AvroWriteRequest<>(element, avroSchema)), bqTableSchema);
+    public TableRow toFailsafeTableRow(T element) {
+      if (formatRecordOnFailureFunction != null) {
+        return formatRecordOnFailureFunction.apply(element);
+      } else {
+        return BigQueryUtils.convertGenericRecordToTableRow(
+            toGenericRecord.apply(new AvroWriteRequest<>(element, avroSchema)), bqTableSchema);
+      }
     }
 
     @Override

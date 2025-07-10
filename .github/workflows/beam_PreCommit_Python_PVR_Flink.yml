@@ -23,12 +23,10 @@ on:
       - 'sdks/python/**'
       - 'release/**'
       - 'sdks/java/io/kafka/**'
-      - 'runners/core-construction-java/**'
       - 'runners/core-java/**'
       - 'runners/extensions-java/**'
       - 'runners/flink/**'
       - 'runners/java-fn-execution/**'
-      - 'runners/reference/**'
       - 'release/trigger_all_tests.json'
       - '.github/trigger_files/beam_PreCommit_Python_PVR_Flink.json'
   issue_comment:
@@ -41,12 +39,10 @@ on:
       - 'sdks/python/**'
       - 'release/**'
       - 'sdks/java/io/kafka/**'
-      - 'runners/core-construction-java/**'
       - 'runners/core-java/**'
       - 'runners/extensions-java/**'
       - 'runners/flink/**'
       - 'runners/java-fn-execution/**'
-      - 'runners/reference/**'
       - '.github/workflows/beam_PreCommit_Python_PVR_Flink.yml'
   schedule:
     - cron: '45 2/6 * * *'
@@ -74,7 +70,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
@@ -87,8 +83,8 @@ jobs:
         job_phrase: ["Run Python_PVR_Flink PreCommit"]
     timeout-minutes: 120
     if: |
-      github.event_name == 'push' || 
-      github.event_name == 'pull_request_target' || 
+      github.event_name == 'push' ||
+      github.event_name == 'pull_request_target' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Python_PVR_Flink PreCommit'
@@ -104,15 +100,15 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          python-version: 3.11
+          python-version: 3.12
       - name: run Python PVR Flink PreCommit script
         uses: ./.github/actions/gradle-command-self-hosted-action
         env:
           CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH}}
         with:
-          gradle-command: :sdks:python:test-suites:portable:py311:flinkValidatesRunner
+          gradle-command: :sdks:python:test-suites:portable:py312:flinkValidatesRunner
           arguments: |
-            -PpythonVersion=3.11 \
+            -PpythonVersion=3.12 \
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v4
         if: failure()
@@ -126,3 +122,4 @@ jobs:
           commit: '${{ env.prsha || env.GITHUB_SHA }}'
           comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
           files: '**/pytest*.xml'
+          large_files: true

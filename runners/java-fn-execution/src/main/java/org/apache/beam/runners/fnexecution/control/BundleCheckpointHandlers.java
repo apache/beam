@@ -32,7 +32,8 @@ import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -108,7 +109,7 @@ public class BundleCheckpointHandlers {
           // Calculate the watermark hold for the timer.
           long outputTimestamp = BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis();
           if (!residual.getApplication().getOutputWatermarksMap().isEmpty()) {
-            for (org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Timestamp outputWatermark :
+            for (org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Timestamp outputWatermark :
                 residual.getApplication().getOutputWatermarksMap().values()) {
               outputTimestamp = Math.min(outputTimestamp, outputWatermark.getSeconds() * 1000);
             }
@@ -127,7 +128,7 @@ public class BundleCheckpointHandlers {
             stateInternals
                 .state(stateNamespace, StateTags.value(tag, residualCoder))
                 .write(
-                    WindowedValue.of(
+                    WindowedValues.of(
                         stateValue.getValue(),
                         stateValue.getTimestamp(),
                         ImmutableList.of(window),

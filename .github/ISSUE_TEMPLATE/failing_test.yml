@@ -25,7 +25,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for taking the time to fill out this feature request! Once you've created an issue, you can self-assign by commenting `.take-issue` and you can close by commenting `.close-issue`.
+        Thanks for taking the time to fill out this failing test report! Once you've created an issue, you can self-assign by commenting `.take-issue`, self-unassign by commenting `.free-issue`, and close by commenting `.close-issue`.
         Anyone can reopen a closed issue by commenting `.reopen-issue`.
         You can also add/remove labels by commenting `.add-labels label1,label2,'label 3 with spaces'` or `.remove-labels label1,label2,'label 3 with spaces'`,
         or with `.set-labels label1,label2,'label 3 with spaces'` (which removes any labels not in that set).
@@ -56,6 +56,7 @@ body:
         - "Priority: 2 (backlog / disabled test but we think the product is healthy)"
         - "Priority: 1 (unhealthy code / failing or flaky postcommit so we cannot be sure the product is healthy)"
         - "Priority: 0 (outage / failing precommit test impacting development)"
+      default: 1
     validations:
       required: true
   - type: checkboxes
@@ -74,6 +75,7 @@ body:
        - label: "Component: Beam playground"
        - label: "Component: Beam katas"
        - label: "Component: Website"
+       - label: "Component: Infrastructure"
        - label: "Component: Spark Runner"
        - label: "Component: Flink Runner"
        - label: "Component: Samza Runner"

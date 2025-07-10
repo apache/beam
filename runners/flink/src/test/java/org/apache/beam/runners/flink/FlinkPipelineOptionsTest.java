@@ -36,8 +36,9 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.ExecutionMode;
@@ -91,20 +92,28 @@ public class FlinkPipelineOptionsTest {
     assertThat(options.getStateBackendFactory(), is(nullValue()));
     assertThat(options.getStateBackend(), is(nullValue()));
     assertThat(options.getStateBackendStoragePath(), is(nullValue()));
-    assertThat(options.getMaxBundleSize(), is(1000L));
-    assertThat(options.getMaxBundleTimeMills(), is(1000L));
     assertThat(options.getExecutionModeForBatch(), is(ExecutionMode.PIPELINED.name()));
     assertThat(options.getUseDataStreamForBatch(), is(false));
     assertThat(options.getSavepointPath(), is(nullValue()));
     assertThat(options.getAllowNonRestoredState(), is(false));
     assertThat(options.getDisableMetrics(), is(false));
     assertThat(options.getFasterCopy(), is(false));
+
+    assertThat(options.isStreaming(), is(false));
+    assertThat(options.getMaxBundleSize(), is(5000L));
+    assertThat(options.getMaxBundleTimeMills(), is(10000L));
+
+    // In streaming mode bundle size and bundle time are shorter
+    FlinkPipelineOptions optionsStreaming = FlinkPipelineOptions.defaults();
+    optionsStreaming.setStreaming(true);
+    assertThat(optionsStreaming.getMaxBundleSize(), is(1000L));
+    assertThat(optionsStreaming.getMaxBundleTimeMills(), is(1000L));
   }
 
   @Test(expected = Exception.class)
   public void parDoBaseClassPipelineOptionsNullTest() {
     TupleTag<String> mainTag = new TupleTag<>("main-output");
-    Coder<WindowedValue<String>> coder = WindowedValue.getValueOnlyCoder(StringUtf8Coder.of());
+    Coder<WindowedValue<String>> coder = WindowedValues.getValueOnlyCoder(StringUtf8Coder.of());
     new DoFnOperator<>(
         new TestDoFn(),
         "stepName",
@@ -130,8 +139,8 @@ public class FlinkPipelineOptionsTest {
 
     TupleTag<String> mainTag = new TupleTag<>("main-output");
 
-    Coder<WindowedValue<String>> coder = WindowedValue.getValueOnlyCoder(StringUtf8Coder.of());
-    DoFnOperator<String, String> doFnOperator =
+    Coder<WindowedValue<String>> coder = WindowedValues.getValueOnlyCoder(StringUtf8Coder.of());
+    DoFnOperator<String, String, String> doFnOperator =
         new DoFnOperator<>(
             new TestDoFn(),
             "stepName",
@@ -153,7 +162,7 @@ public class FlinkPipelineOptionsTest {
     final byte[] serialized = SerializationUtils.serialize(doFnOperator);
 
     @SuppressWarnings("unchecked")
-    DoFnOperator<Object, Object> deserialized = SerializationUtils.deserialize(serialized);
+    DoFnOperator<Object, Object, Object> deserialized = SerializationUtils.deserialize(serialized);
 
     TypeInformation<WindowedValue<Object>> typeInformation =
         TypeInformation.of(new TypeHint<WindowedValue<Object>>() {});
@@ -166,7 +175,7 @@ public class FlinkPipelineOptionsTest {
     // execute once to access options
     testHarness.processElement(
         new StreamRecord<>(
-            WindowedValue.of(
+            WindowedValues.of(
                 new Object(), Instant.now(), GlobalWindow.INSTANCE, PaneInfo.NO_FIRING)));
 
     testHarness.close();

@@ -42,6 +42,7 @@ from apache_beam.io.gcp.bigquery import BigQueryDisposition
 from apache_beam.io.gcp.internal.clients import bigquery as bigquery_api
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultStreamingMatcher
+from apache_beam.metrics.metric import Lineage
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.dataflow.test_dataflow_runner import TestDataflowRunner
@@ -477,6 +478,44 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
 
       assert_that(jobs, equal_to([job_reference]), label='CheckJobs')
 
+  @parameterized.expand([
+      param(compat_version=None),
+      param(compat_version="2.64.0"),
+  ])
+  def test_reshuffle_before_load(self, compat_version):
+    destination = 'project1:dataset1.table1'
+
+    job_reference = bigquery_api.JobReference()
+    job_reference.projectId = 'project1'
+    job_reference.jobId = 'job_name1'
+    result_job = bigquery_api.Job()
+    result_job.jobReference = job_reference
+
+    mock_job = mock.Mock()
+    mock_job.status.state = 'DONE'
+    mock_job.status.errorResult = None
+    mock_job.jobReference = job_reference
+
+    bq_client = mock.Mock()
+    bq_client.jobs.Get.return_value = mock_job
+
+    bq_client.jobs.Insert.return_value = result_job
+
+    transform = bqfl.BigQueryBatchFileLoads(
+        destination,
+        custom_gcs_temp_location=self._new_tempdir(),
+        test_client=bq_client,
+        validate=False,
+        temp_file_format=bigquery_tools.FileFormat.JSON)
+
+    options = PipelineOptions(update_compatibility_version=compat_version)
+    # Need to test this with the DirectRunner to avoid serializing mocks
+    with TestPipeline('DirectRunner', options=options) as p:
+      _ = p | beam.Create(_ELEMENTS) | transform
+
+    reshuffle_before_load = compat_version is None
+    assert transform.reshuffle_before_load == reshuffle_before_load
+
   def test_load_job_id_used(self):
     job_reference = bigquery_api.JobReference()
     job_reference.projectId = 'loadJobProject'
@@ -508,6 +547,9 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
              | "GetJobs" >> beam.Map(lambda x: x[1])
 
       assert_that(jobs, equal_to([job_reference]), label='CheckJobProjectIds')
+    self.assertSetEqual(
+        Lineage.query(p.result.metrics(), Lineage.SINK),
+        set(["bigquery:project1.dataset1.table1"]))
 
   def test_load_job_id_use_for_copy_job(self):
     destination = 'project1:dataset1.table1'
@@ -560,6 +602,9 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
               job_reference
           ]),
           label='CheckCopyJobProjectIds')
+    self.assertSetEqual(
+        Lineage.query(p.result.metrics(), Lineage.SINK),
+        set(["bigquery:project1.dataset1.table1"]))
 
   @mock.patch('time.sleep')
   def test_wait_for_load_job_completion(self, sleep_mock):
@@ -717,6 +762,9 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
           copy_jobs | "CountCopyJobs" >> combiners.Count.Globally(),
           equal_to([6]),
           label='CheckCopyJobCount')
+    self.assertSetEqual(
+        Lineage.query(p.result.metrics(), Lineage.SINK),
+        set(["bigquery:project1.dataset1.table1"]))
 
   @parameterized.expand([
       param(write_disposition=BigQueryDisposition.WRITE_TRUNCATE),
@@ -764,11 +812,16 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     self.assertEqual(mock_call_process.call_count, 1)
 
   @parameterized.expand([
-      param(is_streaming=False, with_auto_sharding=False),
-      param(is_streaming=True, with_auto_sharding=False),
-      param(is_streaming=True, with_auto_sharding=True),
+      param(is_streaming=False, with_auto_sharding=False, compat_version=None),
+      param(is_streaming=True, with_auto_sharding=False, compat_version=None),
+      param(is_streaming=True, with_auto_sharding=True, compat_version=None),
+      param(
+          is_streaming=True, with_auto_sharding=False, compat_version="2.64.0"),
+      param(
+          is_streaming=True, with_auto_sharding=True, compat_version="2.64.0"),
   ])
-  def test_triggering_frequency(self, is_streaming, with_auto_sharding):
+  def test_triggering_frequency(
+      self, is_streaming, with_auto_sharding, compat_version):
     destination = 'project1:dataset1.table1'
 
     job_reference = bigquery_api.JobReference()
@@ -810,19 +863,21 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
         with_auto_sharding=with_auto_sharding)
 
     # Need to test this with the DirectRunner to avoid serializing mocks
-    test_options = PipelineOptions(flags=['--allow_unsafe_triggers'])
+    test_options = PipelineOptions(
+        flags=['--allow_unsafe_triggers'],
+        update_compatibility_version=compat_version)
     test_options.view_as(StandardOptions).streaming = is_streaming
     with TestPipeline(runner='BundleBasedDirectRunner',
                       options=test_options) as p:
       if is_streaming:
         _SIZE = len(_ELEMENTS)
         fisrt_batch = [
-            TimestampedValue(value, start_time + i + 1) for i,
-            value in enumerate(_ELEMENTS[:_SIZE // 2])
+            TimestampedValue(value, start_time + i + 1)
+            for i, value in enumerate(_ELEMENTS[:_SIZE // 2])
         ]
         second_batch = [
-            TimestampedValue(value, start_time + _SIZE // 2 + i + 1) for i,
-            value in enumerate(_ELEMENTS[_SIZE // 2:])
+            TimestampedValue(value, start_time + _SIZE // 2 + i + 1)
+            for i, value in enumerate(_ELEMENTS[_SIZE // 2:])
         ]
         # Advance processing time between batches of input elements to fire the
         # user triggers. Intentionally advance the processing time twice for the
@@ -1021,12 +1076,10 @@ class BigQueryFileLoadsIT(unittest.TestCase):
 
       _ = (
           input | "WriteWithMultipleDestsFreely" >> bigquery.WriteToBigQuery(
-              table=lambda x,
-              tables:
+              table=lambda x, tables:
               (tables['table1'] if 'language' in x else tables['table2']),
               table_side_inputs=(table_record_pcv, ),
-              schema=lambda dest,
-              schema_map: schema_map.get(dest, None),
+              schema=lambda dest, schema_map: schema_map.get(dest, None),
               schema_side_inputs=(schema_map_pcv, ),
               create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
               write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY))
@@ -1035,8 +1088,7 @@ class BigQueryFileLoadsIT(unittest.TestCase):
           input | "WriteWithMultipleDests" >> bigquery.WriteToBigQuery(
               table=lambda x:
               (output_table_3 if 'language' in x else output_table_4),
-              schema=lambda dest,
-              schema_map: schema_map.get(dest, None),
+              schema=lambda dest, schema_map: schema_map.get(dest, None),
               schema_side_inputs=(schema_map_pcv, ),
               create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
               write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY,

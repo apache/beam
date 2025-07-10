@@ -26,7 +26,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.SchemaCoder;
@@ -54,10 +53,12 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.SystemDoFnInternal;
 import org.apache.beam.sdk.util.UserCodeException;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
@@ -93,7 +94,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
   private final DoFnInvoker<InputT, OutputT> invoker;
 
   private final SideInputReader sideInputReader;
-  private final OutputManager outputManager;
+  private final WindowedValueMultiReceiver outputManager;
 
   private final TupleTag<OutputT> mainOutputTag;
   /** The set of known output tags. */
@@ -123,7 +124,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       PipelineOptions options,
       DoFn<InputT, OutputT> fn,
       SideInputReader sideInputReader,
-      OutputManager outputManager,
+      WindowedValueMultiReceiver outputManager,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
       StepContext stepContext,
@@ -331,7 +332,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
       @Override
       public <T> void output(TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
-        outputWindowedValue(tag, WindowedValue.of(output, timestamp, window, PaneInfo.NO_FIRING));
+        outputWindowedValue(tag, WindowedValues.of(output, timestamp, window, PaneInfo.NO_FIRING));
       }
     }
 
@@ -447,7 +448,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo) {
       SimpleDoFnRunner.this.outputWindowedValue(
-          tag, WindowedValue.of(output, timestamp, windows, paneInfo));
+          tag, WindowedValues.of(output, timestamp, windows, paneInfo));
     }
 
     @Override
@@ -888,7 +889,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         PaneInfo paneInfo) {
       checkTimestamp(timestamp(), timestamp);
       SimpleDoFnRunner.this.outputWindowedValue(
-          tag, WindowedValue.of(output, timestamp, windows, paneInfo));
+          tag, WindowedValues.of(output, timestamp, windows, paneInfo));
     }
 
     @Override
@@ -1117,7 +1118,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         PaneInfo paneInfo) {
       checkTimestamp(this.timestamp, timestamp);
       SimpleDoFnRunner.this.outputWindowedValue(
-          tag, WindowedValue.of(output, timestamp, windows, paneInfo));
+          tag, WindowedValues.of(output, timestamp, windows, paneInfo));
     }
 
     @Override

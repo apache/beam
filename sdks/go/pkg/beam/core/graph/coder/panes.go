@@ -29,10 +29,10 @@ func EncodePane(v typex.PaneInfo, w io.Writer) error {
 
 	pane := byte(0)
 	if v.IsFirst {
-		pane |= 0x02
+		pane |= 0x01
 	}
 	if v.IsLast {
-		pane |= 0x01
+		pane |= 0x02
 	}
 	pane |= byte(v.Timing << 2)
 
@@ -64,10 +64,10 @@ func EncodePane(v typex.PaneInfo, w io.Writer) error {
 func NewPane(b byte) typex.PaneInfo {
 	pn := typex.NoFiringPane()
 
-	if !(b&0x02 == 2) {
+	if !(b&0x01 == 1) {
 		pn.IsFirst = false
 	}
-	if !(b&0x01 == 1) {
+	if !(b&0x02 == 2) {
 		pn.IsLast = false
 	}
 

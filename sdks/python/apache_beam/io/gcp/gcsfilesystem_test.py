@@ -189,10 +189,8 @@ class GCSFileSystemTest(unittest.TestCase):
     gcsio_mock.copy.side_effect = exception
 
     # Issue batch rename.
-    expected_results = {
-        (s, d): exception
-        for s, d in zip(sources, destinations)
-    }
+    expected_results = {(s, d): exception
+                        for s, d in zip(sources, destinations)}
 
     # Issue batch copy.
     with self.assertRaisesRegex(BeamIOError,
@@ -374,6 +372,16 @@ class GCSFileSystemTest(unittest.TestCase):
     with self.assertRaisesRegex(BeamIOError, r'^Delete operation failed'):
       self.fs.delete(files)
     gcsio_mock.delete_batch.assert_called()
+
+  def test_lineage(self):
+    self._verify_lineage("gs://bucket/", ("bucket", ))
+    self._verify_lineage("gs://bucket/foo/bar.txt", ("bucket", "foo/bar.txt"))
+
+  def _verify_lineage(self, uri, expected_segments):
+    lineage_mock = mock.MagicMock()
+    self.fs.report_lineage(uri, lineage_mock)
+    lineage_mock.add.assert_called_once_with(
+        "gcs", *expected_segments, last_segment_sep='/')
 
 
 if __name__ == '__main__':

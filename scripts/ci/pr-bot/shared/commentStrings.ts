@@ -28,7 +28,7 @@ export function assignCommitter(committer: string): string {
 
 export function assignReviewer(labelToReviewerMapping: any): string {
   let commentString =
-    "Assigning reviewers. If you would like to opt out of this review, comment `assign to next reviewer`:\n\n";
+    "Assigning reviewers:\n\n";
 
   for (let label in labelToReviewerMapping) {
     let reviewer = labelToReviewerMapping[label];
@@ -40,6 +40,9 @@ export function assignReviewer(labelToReviewerMapping: any): string {
   }
 
   commentString += `
+
+Note: If you would like to opt out of this review, comment \`assign to next reviewer\`.
+
 Available commands:
 - \`stop reviewer notifications\` - opt out of the automated review tooling
 - \`remind me after tests pass\` - tag the comment author after tests pass
@@ -58,7 +61,7 @@ export function someChecksFailing(reviewersToNotify: string[]): string {
 }
 
 export function stopNotifications(reason: string): string {
-  return `Stopping reviewer notifications for this pull request: ${reason}`;
+  return `Stopping reviewer notifications for this pull request: ${reason}. If you'd like to restart, comment \`assign set of reviewers\``;
 }
 
 export function remindReviewerAfterTestsPass(requester: string): string {

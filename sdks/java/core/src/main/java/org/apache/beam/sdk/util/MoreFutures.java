@@ -45,9 +45,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *   <li>Return {@link CompletableFuture} only to the <i>producer</i> of a future value.
  * </ul>
  */
-@SuppressWarnings({
-  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
-})
 public class MoreFutures {
 
   /**
@@ -99,22 +96,18 @@ public class MoreFutures {
    */
   public static <T> CompletionStage<T> supplyAsync(
       ThrowingSupplier<T> supplier, ExecutorService executorService) {
-    CompletableFuture<T> result = new CompletableFuture<>();
-
-    CompletionStage<Void> wrapper =
-        CompletableFuture.runAsync(
-            () -> {
-              try {
-                result.complete(supplier.get());
-              } catch (InterruptedException e) {
-                result.completeExceptionally(e);
-                Thread.currentThread().interrupt();
-              } catch (Throwable t) {
-                result.completeExceptionally(t);
-              }
-            },
-            executorService);
-    return wrapper.thenCompose(nothing -> result);
+    return CompletableFuture.supplyAsync(
+        () -> {
+          try {
+            return supplier.get();
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new CompletionException(e);
+          } catch (Throwable t) {
+            throw new CompletionException(t);
+          }
+        },
+        executorService);
   }
 
   /**
@@ -132,23 +125,18 @@ public class MoreFutures {
    */
   public static CompletionStage<Void> runAsync(
       ThrowingRunnable runnable, ExecutorService executorService) {
-    CompletableFuture<Void> result = new CompletableFuture<>();
-
-    CompletionStage<Void> wrapper =
-        CompletableFuture.runAsync(
-            () -> {
-              try {
-                runnable.run();
-                result.complete(null);
-              } catch (InterruptedException e) {
-                result.completeExceptionally(e);
-                Thread.currentThread().interrupt();
-              } catch (Throwable t) {
-                result.completeExceptionally(t);
-              }
-            },
-            executorService);
-    return wrapper.thenCompose(nothing -> result);
+    return CompletableFuture.runAsync(
+        () -> {
+          try {
+            runnable.run();
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new CompletionException(e);
+          } catch (Throwable t) {
+            throw new CompletionException(t);
+          }
+        },
+        executorService);
   }
 
   /**

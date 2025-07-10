@@ -45,6 +45,7 @@ from datetime import datetime
 from datetime import timedelta
 from typing import TYPE_CHECKING
 from typing import List
+from typing import Optional
 from typing import Union
 
 from apache_beam.portability import common_urns
@@ -135,11 +136,7 @@ class DisplayData(object):
     # type: (...) -> List[beam_runner_api_pb2.DisplayData]
 
     """Returns a List of Beam proto representation of Display data."""
-    def create_payload(dd):
-      if isinstance(dd, beam_runner_api_pb2.DisplayData):
-        return dd
-
-      display_data_dict = None
+    def create_payload(dd) -> Optional[beam_runner_api_pb2.LabelledPayload]:
       try:
         display_data_dict = dd.get_dict()
       except ValueError:
@@ -176,7 +173,7 @@ class DisplayData(object):
       elif isinstance(value, (float, complex)):
         return beam_runner_api_pb2.LabelledPayload(
             label=label,
-            double_value=value,
+            double_value=value,  # type: ignore[arg-type]
             key=display_data_dict['key'],
             namespace=display_data_dict.get('namespace', ''))
       else:
@@ -186,12 +183,15 @@ class DisplayData(object):
 
     dd_protos = []
     for dd in self.items:
-      dd_proto = create_payload(dd)
-      if dd_proto:
-        dd_protos.append(
-            beam_runner_api_pb2.DisplayData(
-                urn=common_urns.StandardDisplayData.DisplayData.LABELLED.urn,
-                payload=dd_proto.SerializeToString()))
+      if isinstance(dd, beam_runner_api_pb2.DisplayData):
+        dd_protos.append(dd)
+      else:
+        dd_payload = create_payload(dd)
+        if dd_payload:
+          dd_protos.append(
+              beam_runner_api_pb2.DisplayData(
+                  urn=common_urns.StandardDisplayData.DisplayData.LABELLED.urn,
+                  payload=dd_payload.SerializeToString()))
     return dd_protos
 
   @classmethod
@@ -221,8 +221,7 @@ class DisplayData(object):
 
     items = {
         k: (v if DisplayDataItem._get_value_type(v) is not None else str(v))
-        for k,
-        v in pipeline_options.display_data().items()
+        for k, v in pipeline_options.display_data().items()
     }
     return cls(pipeline_options._get_display_data_namespace(), items)
 

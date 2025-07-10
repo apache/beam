@@ -28,7 +28,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	jobpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/jobmanagement_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
-	"github.com/golang/protobuf/proto"
 )
 
 // JobOptions capture the various options for submitting jobs
@@ -152,7 +151,7 @@ func WaitForCompletion(ctx context.Context, client jobpb.JobServiceClient, jobID
 			}
 
 		default:
-			return errors.Errorf("unexpected job update: %v", proto.MarshalTextString(msg))
+			return errors.Errorf("unexpected job update: %v", msg.String())
 		}
 	}
 }

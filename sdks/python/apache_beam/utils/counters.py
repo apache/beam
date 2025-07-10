@@ -17,7 +17,6 @@
 
 # cython: profile=False
 # cython: overflowcheck=True
-# cython: language_level=3
 
 """Counters collect the progress of the Worker for reporting to the service.
 

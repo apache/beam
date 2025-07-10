@@ -29,7 +29,7 @@ import java.util.NoSuchElementException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.WeightedList;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 
 /**
  * {@link DataStreamDecoder} treats multiple {@link ByteString}s as a single input stream decoding
@@ -201,6 +201,12 @@ public class DataStreams {
         while (previousStream == inbound.currentStream && inbound.currentStream.available() != 0) {
           T next = next();
           rvals.add(next);
+        }
+        // We don't support seeking backwards so release the memory of the last
+        // page if it is completed.
+        if (inbound.currentStream.available() == 0) {
+          inbound.position = 0;
+          inbound.currentStream = EMPTY_STREAM;
         }
 
         // Uses the size of the ByteString as an approximation for the heap size occupied by the

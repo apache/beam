@@ -28,11 +28,13 @@ class KafkaTestUtilities {
 
     @Inject
     KafkaBatchIT(String delimited, String undelimited, Boolean sdfCompatible, ConfigurationContainer configurations, Project runningProject){
+      def kafkaioProject = runningProject.findProject(":sdks:java:io:kafka")
       group = "Verification"
       description = "Runs KafkaIO IT tests with Kafka clients API $delimited"
       outputs.upToDateWhen { false }
       testClassesDirs = runningProject.findProject(":sdks:java:io:kafka").sourceSets.test.output.classesDirs
-      classpath =  configurations."kafkaVersion$undelimited" + runningProject.sourceSets.test.runtimeClasspath + runningProject.findProject(":sdks:java:io:kafka").sourceSets.test.runtimeClasspath
+      classpath = runningProject.sourceSets.test.runtimeClasspath + kafkaioProject.configurations."kafkaVersion$undelimited" + kafkaioProject.sourceSets.test.runtimeClasspath
+      systemProperty "beam.target.kafka.version", delimited
 
       def pipelineOptions = [
         '--sourceOptions={' +

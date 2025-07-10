@@ -66,10 +66,10 @@ import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PCollectionViews.HasDefaultValue;
+import org.apache.beam.sdk.values.PCollectionViews.IterableBackedListViewFn;
 import org.apache.beam.sdk.values.PCollectionViews.IterableViewFn;
 import org.apache.beam.sdk.values.PCollectionViews.IterableViewFn2;
 import org.apache.beam.sdk.values.PCollectionViews.ListViewFn;
@@ -81,6 +81,7 @@ import org.apache.beam.sdk.values.PCollectionViews.MultimapViewFn2;
 import org.apache.beam.sdk.values.PCollectionViews.SingletonViewFn;
 import org.apache.beam.sdk.values.PCollectionViews.SingletonViewFn2;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Function;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
@@ -354,7 +355,8 @@ public class IsmSideInputReader implements SideInputReader {
                   if (viewFn instanceof IterableViewFn
                       || viewFn instanceof IterableViewFn2
                       || viewFn instanceof ListViewFn
-                      || viewFn instanceof ListViewFn2) {
+                      || viewFn instanceof ListViewFn2
+                      || viewFn instanceof IterableBackedListViewFn) {
                     @SuppressWarnings("unchecked")
                     ViewT viewT = (ViewT) getListForWindow(tag, window);
                     return viewT;

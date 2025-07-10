@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.worker.windmill;
 import com.google.auto.value.AutoValue;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillEndpoints.Endpoint;
 import org.apache.beam.sdk.annotations.Internal;
@@ -27,31 +28,44 @@ import org.apache.beam.sdk.annotations.Internal;
 @AutoValue
 @Internal
 public abstract class WindmillConnection {
+  private static final String NO_BACKEND_WORKER_TOKEN = "";
+
   public static WindmillConnection from(
       Endpoint windmillEndpoint,
       Function<Endpoint, CloudWindmillServiceV1Alpha1Stub> endpointToStubFn) {
     WindmillConnection.Builder windmillWorkerConnection = WindmillConnection.builder();
 
     windmillEndpoint.workerToken().ifPresent(windmillWorkerConnection::setBackendWorkerToken);
-    windmillWorkerConnection.setStub(endpointToStubFn.apply(windmillEndpoint));
+    windmillEndpoint.directEndpoint().ifPresent(windmillWorkerConnection::setDirectEndpoint);
+    windmillWorkerConnection.setStubSupplier(() -> endpointToStubFn.apply(windmillEndpoint));
 
     return windmillWorkerConnection.build();
   }
 
   public static Builder builder() {
-    return new AutoValue_WindmillConnection.Builder();
+    return new AutoValue_WindmillConnection.Builder()
+        .setBackendWorkerToken(NO_BACKEND_WORKER_TOKEN);
   }
 
-  public abstract Optional<String> backendWorkerToken();
+  public abstract String backendWorkerToken();
 
-  public abstract CloudWindmillServiceV1Alpha1Stub stub();
+  abstract Optional<WindmillServiceAddress> directEndpoint();
+
+  abstract Supplier<CloudWindmillServiceV1Alpha1Stub> stubSupplier();
+
+  public final CloudWindmillServiceV1Alpha1Stub currentStub() {
+    return stubSupplier().get();
+  }
 
   @AutoValue.Builder
-  abstract static class Builder {
+  public abstract static class Builder {
     abstract Builder setBackendWorkerToken(String backendWorkerToken);
 
-    abstract Builder setStub(CloudWindmillServiceV1Alpha1Stub stub);
+    abstract Builder setDirectEndpoint(WindmillServiceAddress value);
 
-    abstract WindmillConnection build();
+    public abstract Builder setStubSupplier(
+        Supplier<CloudWindmillServiceV1Alpha1Stub> stubSupplier);
+
+    public abstract WindmillConnection build();
   }
 }

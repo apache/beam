@@ -41,6 +41,15 @@ from apache_beam.runners.direct.transform_evaluator import _TransformEvaluator
 from apache_beam.testing import test_pipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.utils import shared
+
+
+class DictWrapper(dict):
+  pass
+
+
+def acquire_dict():
+  return DictWrapper()
 
 
 class DirectPipelineResultTest(unittest.TestCase):
@@ -76,6 +85,10 @@ class DirectPipelineResultTest(unittest.TestCase):
         count.inc()
         distro = Metrics.distribution(self.__class__, 'element_dist')
         distro.update(element)
+        str_set = Metrics.string_set(self.__class__, 'element_str_set')
+        str_set.add(str(element % 4))
+        Metrics.bounded_trie(self.__class__, 'element_bounded_trie').add(
+            ("a", "b", str(element % 4)))
         return [element]
 
     p = Pipeline(DirectRunner())
@@ -115,6 +128,21 @@ class DirectPipelineResultTest(unittest.TestCase):
     hc.assert_that(gauge_result.committed.value, hc.equal_to(5))
     hc.assert_that(gauge_result.attempted.value, hc.equal_to(5))
 
+    str_set_result = metrics['string_sets'][0]
+    hc.assert_that(
+        str_set_result.key,
+        hc.equal_to(MetricKey('Do', MetricName(namespace, 'element_str_set'))))
+    hc.assert_that(len(str_set_result.committed), hc.equal_to(4))
+    hc.assert_that(len(str_set_result.attempted), hc.equal_to(4))
+
+    bounded_trie_results = metrics['bounded_tries'][0]
+    hc.assert_that(
+        bounded_trie_results.key,
+        hc.equal_to(
+            MetricKey('Do', MetricName(namespace, 'element_bounded_trie'))))
+    hc.assert_that(bounded_trie_results.committed.size(), hc.equal_to(4))
+    hc.assert_that(bounded_trie_results.attempted.size(), hc.equal_to(4))
+
   def test_create_runner(self):
     self.assertTrue(isinstance(create_runner('DirectRunner'), DirectRunner))
     self.assertTrue(
@@ -140,18 +168,17 @@ class DirectRunnerRetryTests(unittest.TestCase):
     # currently does not currently support retries.
     p = beam.Pipeline(runner='BundleBasedDirectRunner')
 
-    # TODO(mariagh): Remove the use of globals from the test.
-    global count_b, count_c  # pylint: disable=global-variable-undefined
-    count_b, count_c = 0, 0
+    shared_handler = shared.Shared()
+    counts = shared_handler.acquire(acquire_dict)
+    counts['count_b'] = 0
+    counts['count_c'] = 0
 
     def f_b(x):
-      global count_b  # pylint: disable=global-variable-undefined
-      count_b += 1
+      shared_handler.acquire(acquire_dict)['count_b'] += 1
       raise Exception('exception in f_b')
 
     def f_c(x):
-      global count_c  # pylint: disable=global-variable-undefined
-      count_c += 1
+      shared_handler.acquire(acquire_dict)['count_c'] += 1
       raise Exception('exception in f_c')
 
     names = p | 'CreateNodeA' >> beam.Create(['Ann', 'Joe'])
@@ -161,7 +188,7 @@ class DirectRunnerRetryTests(unittest.TestCase):
 
     with self.assertRaises(Exception):
       p.run().wait_until_finish()
-    assert count_b == count_c == 4
+    assert counts['count_b'] == counts['count_c'] == 4
 
   def test_no_partial_writeouts(self):
     class TestTransformEvaluator(_TransformEvaluator):

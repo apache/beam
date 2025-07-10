@@ -410,13 +410,8 @@ class WriteToAvro(beam.transforms.PTransform):
     """
     self._schema = schema
     self._sink_provider = lambda avro_schema: _create_avro_sink(
-        file_path_prefix,
-        avro_schema,
-        codec,
-        file_name_suffix,
-        num_shards,
-        shard_name_template,
-        mime_type)
+        file_path_prefix, avro_schema, codec, file_name_suffix, num_shards,
+        shard_name_template, mime_type)
 
   def expand(self, pcoll):
     if self._schema:
@@ -544,12 +539,35 @@ BEAM_PRIMITIVES_TO_AVRO_PRIMITIVES = {
 _AvroSchemaType = Union[str, List, Dict]
 
 
+def avro_union_type_to_beam_type(union_type: List) -> schema_pb2.FieldType:
+  """convert an avro union type to a beam type
+
+  if the union type is a nullable, and it is a nullable union of an avro
+  primitive with a corresponding beam primitive then create a nullable beam
+  field of the corresponding beam type, otherwise return an Any type.
+
+  Args:
+    union_type: the avro union type to convert.
+
+  Returns:
+    the beam type of the avro union.
+  """
+  if len(union_type) == 2 and "null" in union_type:
+    for avro_type in union_type:
+      if avro_type in AVRO_PRIMITIVES_TO_BEAM_PRIMITIVES:
+        return schema_pb2.FieldType(
+            atomic_type=AVRO_PRIMITIVES_TO_BEAM_PRIMITIVES[avro_type],
+            nullable=True)
+    return schemas.typing_to_runner_api(Any)
+  return schemas.typing_to_runner_api(Any)
+
+
 def avro_type_to_beam_type(avro_type: _AvroSchemaType) -> schema_pb2.FieldType:
   if isinstance(avro_type, str):
     return avro_type_to_beam_type({'type': avro_type})
   elif isinstance(avro_type, list):
     # Union type
-    return schemas.typing_to_runner_api(Any)
+    return avro_union_type_to_beam_type(avro_type)
   type_name = avro_type['type']
   if type_name in AVRO_PRIMITIVES_TO_BEAM_PRIMITIVES:
     return schema_pb2.FieldType(
@@ -621,7 +639,7 @@ def avro_value_to_beam_value(
   elif type_info == "map_type":
     if beam_type.map_type.key_type.atomic_type != schema_pb2.STRING:
       raise TypeError(
-          f'Only strings allowd as map keys when converting from AVRO, '
+          f'Only strings allowed as map keys when converting from AVRO, '
           f'found {beam_type}')
     value_converter = avro_value_to_beam_value(beam_type.map_type.value_type)
     return lambda value: {k: value_converter(v) for (k, v) in value.items()}
@@ -646,39 +664,63 @@ def beam_schema_to_avro_schema(
       schema_pb2.FieldType(row_type=schema_pb2.RowType(schema=beam_schema)))
 
 
+def unnest_primitive_type(beam_type: schema_pb2.FieldType):
+  """unnests beam types that map to avro primitives or unions.
+      
+      if mapping to a avro primitive or a union, don't nest the field type
+      for complex types, like arrays, we need to nest the type.
+      Example: { 'type': 'string' } -> 'string'
+      { 'type': 'array', 'items': 'string' } 
+      -> { 'type': 'array', 'items': 'string' }
+
+      Args:
+        beam_type: the beam type to map to avro.
+
+      Returns:
+        the converted avro type with the primitive or union type unnested.
+      """
+  avro_type = beam_type_to_avro_type(beam_type)
+  return avro_type['type'] if beam_type.WhichOneof(
+      "type_info") == "atomic_type" else avro_type
+
+
 def beam_type_to_avro_type(beam_type: schema_pb2.FieldType) -> _AvroSchemaType:
   type_info = beam_type.WhichOneof("type_info")
   if type_info == "atomic_type":
-    return {'type': BEAM_PRIMITIVES_TO_AVRO_PRIMITIVES[beam_type.atomic_type]}
+    avro_primitive = BEAM_PRIMITIVES_TO_AVRO_PRIMITIVES[beam_type.atomic_type]
+    avro_type = [
+        avro_primitive, 'null'
+    ] if beam_type.nullable else avro_primitive
+    return {'type': avro_type}
   elif type_info == "array_type":
     return {
         'type': 'array',
-        'items': beam_type_to_avro_type(beam_type.array_type.element_type)
+        'items': unnest_primitive_type(beam_type.array_type.element_type)
     }
   elif type_info == "iterable_type":
     return {
         'type': 'array',
-        'items': beam_type_to_avro_type(beam_type.iterable_type.element_type)
+        'items': unnest_primitive_type(beam_type.iterable_type.element_type)
     }
   elif type_info == "map_type":
     if beam_type.map_type.key_type.atomic_type != schema_pb2.STRING:
       raise TypeError(
-          f'Only strings allowd as map keys when converting to AVRO, '
+          f'Only strings allowed as map keys when converting to AVRO, '
           f'found {beam_type}')
     return {
         'type': 'map',
-        'values': beam_type_to_avro_type(beam_type.map_type.element_type)
+        'values': unnest_primitive_type(beam_type.map_type.element_type)
     }
   elif type_info == "row_type":
     return {
         'type': 'record',
         'name': beam_type.row_type.schema.id,
         'fields': [{
-            'name': field.name, 'type': beam_type_to_avro_type(field.type)
+            'name': field.name, 'type': unnest_primitive_type(field.type)
         } for field in beam_type.row_type.schema.fields],
     }
   else:
-    raise ValueError(f"Unconvertale type: {beam_type}")
+    raise ValueError(f"Unconvertable type: {beam_type}")
 
 
 def beam_row_to_avro_dict(
@@ -699,23 +741,23 @@ def beam_value_to_avro_value(
   if type_info == "atomic_type":
     return lambda value: value
   elif type_info == "array_type":
-    element_converter = avro_value_to_beam_value(
+    element_converter = beam_value_to_avro_value(
         beam_type.array_type.element_type)
     return lambda value: [element_converter(e) for e in value]
   elif type_info == "iterable_type":
-    element_converter = avro_value_to_beam_value(
+    element_converter = beam_value_to_avro_value(
         beam_type.iterable_type.element_type)
     return lambda value: [element_converter(e) for e in value]
   elif type_info == "map_type":
     if beam_type.map_type.key_type.atomic_type != schema_pb2.STRING:
       raise TypeError(
-          f'Only strings allowd as map keys when converting from AVRO, '
+          f'Only strings allowed as map keys when converting from AVRO, '
           f'found {beam_type}')
-    value_converter = avro_value_to_beam_value(beam_type.map_type.value_type)
+    value_converter = beam_value_to_avro_value(beam_type.map_type.value_type)
     return lambda value: {k: value_converter(v) for (k, v) in value.items()}
   elif type_info == "row_type":
     converters = {
-        field.name: avro_value_to_beam_value(field.type)
+        field.name: beam_value_to_avro_value(field.type)
         for field in beam_type.row_type.schema.fields
     }
     return lambda value: {

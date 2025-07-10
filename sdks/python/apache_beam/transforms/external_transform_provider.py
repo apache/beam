@@ -18,12 +18,12 @@
 import logging
 import re
 from collections import namedtuple
-from typing import Dict
-from typing import List
-from typing import Tuple
+from inspect import Parameter
+from inspect import Signature
 
 from apache_beam.transforms import PTransform
 from apache_beam.transforms.external import BeamJarExpansionService
+from apache_beam.transforms.external import JavaJarExpansionService
 from apache_beam.transforms.external import SchemaAwareExternalTransform
 from apache_beam.transforms.external import SchemaTransformsConfig
 from apache_beam.typehints.schemas import named_tuple_to_schema
@@ -39,49 +39,39 @@ def snake_case_to_upper_camel_case(string):
   return output
 
 
-def snake_case_to_lower_camel_case(string):
-  """Convert snake_case to lowerCamelCase"""
-  if len(string) <= 1:
-    return string.lower()
-  upper = snake_case_to_upper_camel_case(string)
-  return upper[0].lower() + upper[1:]
-
-
-def camel_case_to_snake_case(string):
-  """Convert camelCase to snake_case"""
-  arr = []
-  word = []
-  for i, n in enumerate(string):
-    # If seeing an upper letter after a lower letter, we just witnessed a word
-    # If seeing an upper letter and the next letter is lower, we may have just
-    # witnessed an all caps word
-    if n.isupper() and ((i > 0 and string[i - 1].islower()) or
-                        (i + 1 < len(string) and string[i + 1].islower())):
-      arr.append(''.join(word))
-      word = [n.lower()]
-    else:
-      word.append(n.lower())
-  arr.append(''.join(word))
-  return '_'.join(arr).strip('_')
-
-
 # Information regarding a Wrapper parameter.
 ParamInfo = namedtuple('ParamInfo', ['type', 'description', 'original_name'])
 
 
 def get_config_with_descriptions(
-    schematransform: SchemaTransformsConfig) -> Dict[str, ParamInfo]:
+    schematransform: SchemaTransformsConfig) -> dict[str, ParamInfo]:
   # Prepare a configuration schema that includes types and descriptions
   schema = named_tuple_to_schema(schematransform.configuration_schema)
   descriptions = schematransform.configuration_schema._field_descriptions
   fields_with_descriptions = {}
   for field in schema.fields:
-    fields_with_descriptions[camel_case_to_snake_case(field.name)] = ParamInfo(
+    fields_with_descriptions[field.name] = ParamInfo(
         typing_from_runner_api(field.type),
         descriptions[field.name],
         field.name)
 
   return fields_with_descriptions
+
+
+def _generate_signature(schematransform: SchemaTransformsConfig) -> Signature:
+  schema = named_tuple_to_schema(schematransform.configuration_schema)
+  descriptions = schematransform.configuration_schema._field_descriptions
+  params: list[Parameter] = []
+  for field in schema.fields:
+    annotation = str(typing_from_runner_api(field.type))
+    description = descriptions[field.name]
+    if description:
+      annotation = annotation + f": {description}"
+    params.append(
+        Parameter(
+            field.name, Parameter.POSITIONAL_OR_KEYWORD, annotation=annotation))
+
+  return Signature(params)
 
 
 class ExternalTransform(PTransform):
@@ -95,9 +85,8 @@ class ExternalTransform(PTransform):
   # These attributes need to be set when
   # creating an ExternalTransform type
   default_expansion_service = None
-  description: str = ""
   identifier: str = ""
-  configuration_schema: Dict[str, ParamInfo] = {}
+  configuration_schema: dict[str, ParamInfo] = {}
 
   def __init__(self, expansion_service=None, **kwargs):
     self._kwargs = kwargs
@@ -105,16 +94,11 @@ class ExternalTransform(PTransform):
         expansion_service or self.default_expansion_service
 
   def expand(self, input):
-    camel_case_kwargs = {
-        snake_case_to_lower_camel_case(k): v
-        for k, v in self._kwargs.items()
-    }
-
     external_schematransform = SchemaAwareExternalTransform(
         identifier=self.identifier,
         expansion_service=self._expansion_service,
         rearrange_based_on_discovery=True,
-        **camel_case_kwargs)
+        **self._kwargs)
 
     return input | external_schematransform
 
@@ -147,40 +131,62 @@ class ExternalTransformProvider:
   (see the `urn_pattern` parameter).
 
   These classes are generated when :class:`ExternalTransformProvider` is
-  initialized. We need to give it one or more expansion service addresses that
-  are already up and running:
-  >>> provider = ExternalTransformProvider(["localhost:12345",
-  ...                                             "localhost:12121"])
-  We can also give it the gradle target of a standard Beam expansion service:
-  >>> provider = ExternalTransform(BeamJarExpansionService(
-  ...     "sdks:java:io:google-cloud-platform:expansion-service:shadowJar"))
-  Let's take a look at the output of :func:`get_available()` to know the
-  available transforms in the expansion service(s) we provided:
+  initialized. You can give it an expansion service address that is already
+  up and running:
+
+  >>> provider = ExternalTransformProvider("localhost:12345")
+
+  Or you can give it the path to an expansion service Jar file:
+
+  >>> provider = ExternalTransformProvider(JavaJarExpansionService(
+          "path/to/expansion-service.jar"))
+
+  Or you can give it the gradle target of a standard Beam expansion service:
+
+  >>> provider = ExternalTransformProvider(BeamJarExpansionService(
+          "sdks:java:io:google-cloud-platform:expansion-service:shadowJar"))
+
+  Note that you can provide a list of these services:
+
+  >>> provider = ExternalTransformProvider([
+          "localhost:12345",
+          JavaJarExpansionService("path/to/expansion-service.jar"),
+          BeamJarExpansionService(
+            "sdks:java:io:google-cloud-platform:expansion-service:shadowJar")])
+
+  The output of :func:`get_available()` provides a list of available transforms
+  in the provided expansion service(s):
+
   >>> provider.get_available()
   [('JdbcWrite', 'beam:schematransform:org.apache.beam:jdbc_write:v1'),
   ('BigtableRead', 'beam:schematransform:org.apache.beam:bigtable_read:v1'),
   ...]
 
-  Then retrieve a transform by :func:`get()`, :func:`get_urn()`, or by directly
-  accessing it as an attribute of :class:`ExternalTransformProvider`.
-  All of the following commands do the same thing:
+  You can retrieve a transform with :func:`get()`, :func:`get_urn()`, or by
+  directly accessing it as an attribute. The following lines all do the same
+  thing:
+
   >>> provider.get('BigqueryStorageRead')
   >>> provider.get_urn(
-  ...       'beam:schematransform:org.apache.beam:bigquery_storage_read:v1')
+            'beam:schematransform:org.apache.beam:bigquery_storage_read:v1')
   >>> provider.BigqueryStorageRead
 
-  To know more about the usage of a given transform, take a look at the
-  `description` attribute. This returns some documentation IF the underlying
-  SchemaTransform provides any.
-  >>> provider.BigqueryStorageRead.description
+  You can inspect the transform's documentation for more details. The following
+  returns the documentation provided by the underlying SchemaTransform. If no
+  such documentation is provided, this will be empty.
 
-  Similarly, the `configuration_schema` attribute returns information about the
+  >>> import inspect
+  >>> inspect.getdoc(provider.BigqueryStorageRead)
+
+  Similarly, you can inspect the transform's signature to know more about its
   parameters, including their names, types, and any documentation that the
   underlying SchemaTransform may provide:
-  >>> provider.BigqueryStorageRead.configuration_schema
-  {'query': ParamInfo(type=typing.Optional[str], description='The SQL query to
-  be executed to read from the BigQuery table.', original_name='query'),
-  'row_restriction': ParamInfo(type=typing.Optional[str]...}
+
+  >>> inspect.signature(provider.BigqueryStorageRead)
+  (query: 'typing.Union[str, NoneType]: The SQL query to be executed to...',
+  row_restriction: 'typing.Union[str, NoneType]: Read only rows that match...',
+  selected_fields: 'typing.Union[typing.Sequence[str], NoneType]: Read ...',
+  table_spec: 'typing.Union[str, NoneType]: The fully-qualified name of ...')
 
   The retrieved external transform can be used as a normal PTransform like so::
 
@@ -190,8 +196,6 @@ class ExternalTransformProvider:
                 query=query,
                 row_restriction=restriction)
         | 'Some processing' >> beam.Map(...))
-
-  Experimental; no backwards compatibility guarantees.
   """
   def __init__(self, expansion_services, urn_pattern=STANDARD_URN_PATTERN):
     f"""Initialize an ExternalTransformProvider
@@ -200,6 +204,7 @@ class ExternalTransformProvider:
       A list of expansion services to discover transforms from.
       Supported forms:
       * a string representing the expansion service address
+      * a :attr:`JavaJarExpansionService` pointing to the path of a Java Jar
       * a :attr:`BeamJarExpansionService` pointing to a gradle target
     :param urn_pattern:
       The regular expression used to match valid transforms. In addition to
@@ -207,8 +212,8 @@ class ExternalTransformProvider:
       By default, the following pattern is used: [{STANDARD_URN_PATTERN}]
     """
     self._urn_pattern = urn_pattern
-    self._transforms: Dict[str, type(ExternalTransform)] = {}
-    self._name_to_urn: Dict[str, str] = {}
+    self._transforms: dict[str, type(ExternalTransform)] = {}
+    self._name_to_urn: dict[str, str] = {}
 
     if isinstance(expansion_services, set):
       expansion_services = list(expansion_services)
@@ -225,11 +230,14 @@ class ExternalTransformProvider:
       target = service
       if isinstance(service, BeamJarExpansionService):
         target = service.gradle_target
+      if isinstance(service, JavaJarExpansionService):
+        target = service.path_to_jar
       try:
         schematransform_configs = SchemaAwareExternalTransform.discover(service)
       except Exception as e:
         logging.exception(
-            "Encountered an error while discovering expansion service %s:\n%s",
+            "Encountered an error while discovering "
+            "expansion service at '%s':\n%s",
             target,
             e)
         continue
@@ -244,19 +252,24 @@ class ExternalTransformProvider:
             skipped_urns.append(identifier)
             continue
 
-          self._transforms[identifier] = type(
-              name, (ExternalTransform, ),
+          transform = type(
+              name,
+              (ExternalTransform, ),
               dict(
                   identifier=identifier,
                   default_expansion_service=service,
                   schematransform=config,
-                  description=config.description,
+                  # configuration_schema is used by the auto-wrapper generator
                   configuration_schema=get_config_with_descriptions(config)))
+          transform.__doc__ = config.description
+          transform.__signature__ = _generate_signature(config)
+
+          self._transforms[identifier] = transform
           self._name_to_urn[name] = identifier
 
       if skipped_urns:
         logging.info(
-            "Skipped URN(s) in %s that don't follow the pattern \"%s\": %s",
+            "Skipped URN(s) in '%s' that don't follow the pattern \"%s\": %s",
             target,
             self._urn_pattern,
             skipped_urns)
@@ -264,12 +277,12 @@ class ExternalTransformProvider:
     for transform in self._transforms.values():
       setattr(self, transform.__name__, transform)
 
-  def get_available(self) -> List[Tuple[str, str]]:
+  def get_available(self) -> list[tuple[str, str]]:
     """Get a list of available ExternalTransform names and identifiers"""
     return list(self._name_to_urn.items())
 
-  def get_all(self) -> Dict[str, ExternalTransform]:
-    """Get all ExternalTransform"""
+  def get_all(self) -> dict[str, ExternalTransform]:
+    """Get all ExternalTransforms"""
     return self._transforms
 
   def get(self, name) -> ExternalTransform:

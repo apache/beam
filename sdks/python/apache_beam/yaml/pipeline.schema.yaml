@@ -27,6 +27,8 @@ $defs:
       name: { type: string }
       windowing:
         $ref: '#/$defs/windowing'
+      resource_hints:
+        $ref: '#/$defs/resource_hints'
       input:
         oneOf:
           - type: string
@@ -56,6 +58,7 @@ $defs:
           input: {}
           output: {}
           windowing: {}
+          resource_hints: {}
           transforms:
             type: array
             items:
@@ -127,12 +130,16 @@ $defs:
             input: {}
             output: {}
             windowing: {}
+            resource_hints: {}
             config: { type: object }
             __line__: {}
             __uuid__: {}
           additionalProperties: false
 
   windowing: {}  # TODO
+
+  resource_hints:
+    type: object
 
   provider:
     # TODO(robertwb): Consider enumerating the provider types along with
@@ -154,6 +161,70 @@ $defs:
       - transforms
       - config
 
+  providerInclude:
+    # TODO(robertwb): Consider enumerating the provider types along with
+    # the arguments they accept/expect (possibly in a separate schema file).
+    type: object
+    properties:
+      include: { type: string }
+      __line__: {}
+      __uuid__: {}
+    additionalProperties: false
+    required:
+      - include
+
+  providerOrProviderInclude:
+    if:
+      allOf: [
+        { properties: { include: { type: string }}},
+        { required: [ "include" ] }
+      ]
+    then:
+      $ref: '#/$defs/providerInclude'
+    else:
+      $ref: '#/$defs/provider'
+
+  testElementsSpec:
+    type: object
+    properties:
+      name: { type: string }
+      elements:
+        type: array
+        item:
+          type: object
+      __line__: {}
+      __uuid__: {}
+    additionalProperties: false
+
+  testSpec:
+    type: object
+    properties:
+      name: { type: string }
+      mock_inputs:
+        type: array
+        items:
+          $ref: '#/$defs/testElementsSpec'
+      mock_outputs:
+        type: array
+        items:
+          $ref: '#/$defs/testElementsSpec'
+      expected_inputs:
+        type: array
+        items:
+          $ref: '#/$defs/testElementsSpec'
+      expected_outputs:
+        type: array
+        items:
+          $ref: '#/$defs/testElementsSpec'
+      allowed_sources:
+        type: array
+        items:
+          { type: string }
+      __line__: {}
+      __uuid__: {}
+    additionalProperties: false
+
+
 type: object
 properties:
   pipeline:
@@ -167,6 +238,8 @@ properties:
               - { const: chain }
           windowing:
             $ref: '#/$defs/windowing'
+          resource_hints:
+            $ref: '#/$defs/resource_hints'
           transforms: {}
           extra_transforms: {}
           sink: {}
@@ -185,8 +258,12 @@ properties:
   providers:
     type: array
     items:
-      $ref: '#/$defs/provider'
+      $ref: '#/$defs/providerOrProviderInclude'
   options:
     type: object
+  tests:
+    type: array
+    items:
+      $ref: '#/$defs/testSpec'
 required:
   - pipeline

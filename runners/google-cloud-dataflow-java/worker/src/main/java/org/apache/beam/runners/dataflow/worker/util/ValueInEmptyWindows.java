@@ -22,7 +22,7 @@ import java.util.Collections;
 import java.util.Objects;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
@@ -37,7 +37,7 @@ import org.joda.time.Instant;
  * the Dataflow worker uses this in places to pass a {@link WindowedValue} to a method that requires
  * one without having to provide the global window, which could alter size estimations, etc.
  */
-public class ValueInEmptyWindows<T> extends WindowedValue<T> {
+public class ValueInEmptyWindows<T> implements WindowedValue<T> {
   private final T value;
 
   public ValueInEmptyWindows(T value) {
@@ -47,6 +47,11 @@ public class ValueInEmptyWindows<T> extends WindowedValue<T> {
   @Override
   public PaneInfo getPane() {
     return PaneInfo.NO_FIRING;
+  }
+
+  @Override
+  public Iterable<WindowedValue<T>> explodeWindows() {
+    return Collections.emptyList();
   }
 
   @Override

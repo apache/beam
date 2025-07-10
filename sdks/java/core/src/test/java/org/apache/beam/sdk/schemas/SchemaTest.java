@@ -195,6 +195,71 @@ public class SchemaTest {
   }
 
   @Test
+  public void testToSnakeCase() {
+    Schema innerSchema =
+        Schema.builder()
+            .addStringField("myFirstNestedStringField")
+            .addStringField("mySecondNestedStringField")
+            .build();
+    Schema schema =
+        Schema.builder()
+            .addStringField("myFirstStringField")
+            .addStringField("mySecondStringField")
+            .addRowField("myRowField", innerSchema)
+            .build();
+
+    Schema expectedInnerSnakeCaseSchema =
+        Schema.builder()
+            .addStringField("my_first_nested_string_field")
+            .addStringField("my_second_nested_string_field")
+            .build();
+    Schema expectedSnakeCaseSchema =
+        Schema.builder()
+            .addStringField("my_first_string_field")
+            .addStringField("my_second_string_field")
+            .addRowField("my_row_field", expectedInnerSnakeCaseSchema)
+            .build();
+
+    assertEquals(
+        expectedInnerSnakeCaseSchema,
+        schema.toSnakeCase().getField("my_row_field").getType().getRowSchema());
+    assertEquals(expectedSnakeCaseSchema, schema.toSnakeCase());
+  }
+
+  @Test
+  public void testToCamelCase() {
+    Schema innerSchema =
+        Schema.builder()
+            .addStringField("my_first_nested_string_field")
+            .addStringField("my_second_nested_string_field")
+            .build();
+    Schema schema =
+        Schema.builder()
+            .addStringField("my_first_string_field")
+            .addStringField("my_second_string_field")
+            .addRowField("my_row_field", innerSchema)
+            .build();
+
+    Schema expectedInnerCamelCaseSchema =
+        Schema.builder()
+            .addStringField("myFirstNestedStringField")
+            .addStringField("mySecondNestedStringField")
+            .build();
+    Schema expectedCamelCaseSchema =
+        Schema.builder()
+            .addStringField("myFirstStringField")
+            .addStringField("mySecondStringField")
+            .addRowField("myRowField", expectedInnerCamelCaseSchema)
+            .build();
+
+    assertTrue(schema.toCamelCase().hasField("myRowField"));
+    assertEquals(
+        expectedInnerCamelCaseSchema,
+        schema.toCamelCase().getField("myRowField").getType().getRowSchema());
+    assertEquals(expectedCamelCaseSchema, schema.toCamelCase());
+  }
+
+  @Test
   public void testSorted() {
     Options testOptions =
         Options.builder()
@@ -230,6 +295,41 @@ public class SchemaTest {
             && Objects.equals(
                 unorderedSchemaAfterSorting.getEncodingPositions(),
                 sortedSchema.getEncodingPositions()));
+  }
+
+  @Test
+  public void testNestedSorted() {
+    Schema unsortedNestedSchema =
+        Schema.builder().addStringField("bb").addInt32Field("aa").addStringField("cc").build();
+    Schema unsortedSchema =
+        Schema.builder()
+            .addStringField("d")
+            .addInt32Field("c")
+            .addRowField("e", unsortedNestedSchema)
+            .addStringField("b")
+            .addByteField("a")
+            .build();
+
+    Schema sortedSchema = unsortedSchema.sorted();
+
+    Schema expectedInnerSortedSchema =
+        Schema.builder().addInt32Field("aa").addStringField("bb").addStringField("cc").build();
+    Schema expectedSortedSchema =
+        Schema.builder()
+            .addByteField("a")
+            .addStringField("b")
+            .addInt32Field("c")
+            .addStringField("d")
+            .addRowField("e", expectedInnerSortedSchema)
+            .build();
+
+    assertTrue(unsortedSchema.equivalent(sortedSchema));
+    assertEquals(expectedSortedSchema.getFields(), sortedSchema.getFields());
+    assertEquals(expectedSortedSchema.getEncodingPositions(), sortedSchema.getEncodingPositions());
+    assertEquals(expectedInnerSortedSchema, sortedSchema.getField("e").getType().getRowSchema());
+    assertEquals(
+        expectedInnerSortedSchema.getEncodingPositions(),
+        sortedSchema.getField("e").getType().getRowSchema().getEncodingPositions());
   }
 
   @Test

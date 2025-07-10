@@ -50,18 +50,13 @@ public class WindmillServerBase extends WindmillServerStub {
   }
 
   @Override
-  public void setWindmillServiceEndpoints(Set<HostAndPort> endpoints) throws IOException {
+  public void setWindmillServiceEndpoints(Set<HostAndPort> endpoints) {
     // This class is used for windmill appliance and local runner tests.
   }
 
   @Override
   public ImmutableSet<HostAndPort> getWindmillServiceEndpoints() {
     return ImmutableSet.of();
-  }
-
-  @Override
-  public boolean isReady() {
-    return true;
   }
 
   @Override
@@ -122,12 +117,6 @@ public class WindmillServerBase extends WindmillServerStub {
     } catch (IOException e) {
       throw new RuntimeException("Proto deserialization failed: " + e);
     }
-  }
-
-  @Override
-  public long getAndResetThrottleTime() {
-    // Windmill appliance does not have throttling.
-    return 0;
   }
 
   @Override

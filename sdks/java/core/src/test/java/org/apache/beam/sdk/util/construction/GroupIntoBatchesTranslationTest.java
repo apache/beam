@@ -71,6 +71,7 @@ public class GroupIntoBatchesTranslationTest {
             ImmutableSet.of( //
                 gib -> gib, //
                 gib -> gib.withMaxBufferingDuration(Duration.ZERO), //
+                gib -> gib.withMaxBufferingDuration(Duration.millis(200)), //
                 gib -> gib.withMaxBufferingDuration(Duration.standardSeconds(10)));
 
     return Sets.cartesianProduct(
@@ -150,7 +151,7 @@ public class GroupIntoBatchesTranslationTest {
     assertThat(payload.getBatchSize(), equalTo(params.getBatchSize()));
     assertThat(payload.getBatchSizeBytes(), equalTo(params.getBatchSizeBytes()));
     assertThat(
-        payload.getMaxBufferingDurationMillis(),
-        equalTo(params.getMaxBufferingDuration().getStandardSeconds() * 1000));
+        Duration.millis(payload.getMaxBufferingDurationMillis()),
+        equalTo(params.getMaxBufferingDuration()));
   }
 }

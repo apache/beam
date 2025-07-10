@@ -208,9 +208,9 @@
 <div class="top-banners swiper">
   <div class="swiper-wrapper">
     <div class="swiper-slide">
-      <a href="https://beamcollege.dev/">
-        <img class="banner-img-desktop" src="/images/college_2023_banner_desktop.png" alt="banner-desktop">
-        <img class="banner-img-mobile" src="/images/college_2023_banner_mobile.png" alt="banner-mobile">
+      <a href="https://beamsummit.org/">
+        <img class="banner-img-desktop" src="/images/banners/beam-summit/beam-summit-25-desktop.png" alt="Attend Beam Summit">
+        <img class="banner-img-mobile" src="/images/banners/beam-summit/beam-summit-25-mobile.png" alt="Attend Beam Summit">
       </a>
     </div>
     <div class="swiper-slide">
@@ -227,6 +227,8 @@
     </div>
   </div>
   <div class="swiper-pagination"></div>
+  <div class="swiper-button-prev"></div>
+  <div class="swiper-button-next"></div>
 </div>
 {{ $swiperSlider := resources.Get "js/swiper-bundle.min.js" | minify | fingerprint }}
 <script src="{{ $swiperSlider.RelPermalink }}"></script>

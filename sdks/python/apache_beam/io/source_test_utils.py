@@ -156,8 +156,8 @@ def assert_sources_equal_reference_source(reference_source_info, sources_info):
           'source_info must a three tuple where first'
           'item of the tuple gives a '
           'iobase.BoundedSource. Received: %r' % source_info)
-    if (type(reference_source_info[0].default_output_coder()) != type(
-        source_info[0].default_output_coder())):
+    if (type(reference_source_info[0].default_output_coder())
+        != type(source_info[0].default_output_coder())):
       raise ValueError(
           'Reference source %r and the source %r must use the same coder. '
           'They are using %r and %r respectively instead.' % (
@@ -341,8 +341,8 @@ def _assert_split_at_fraction_behavior(
               num_items_to_read_before_split,
               split_result))
 
-  elif (
-      expected_outcome != ExpectedSplitOutcome.MUST_BE_CONSISTENT_IF_SUCCEEDS):
+  elif (expected_outcome
+        != ExpectedSplitOutcome.MUST_BE_CONSISTENT_IF_SUCCEEDS):
     raise ValueError('Unknown type of expected outcome: %r' % expected_outcome)
   current_items.extend([value for value in reader_iter])
 

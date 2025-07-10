@@ -17,7 +17,9 @@ package internal
 
 import (
 	"fmt"
+	"log/slog"
 	"sort"
+	"strings"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/pipelinex"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
@@ -25,7 +27,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/jobservices"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/prism/internal/urns"
 	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slog"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -105,12 +106,16 @@ func (p *preprocessor) preProcessGraph(comps *pipepb.Components, j *jobservices.
 
 			// If there's an unknown urn, and it's not composite, simply add it to the leaves.
 			if len(t.GetSubtransforms()) == 0 {
+				// However, if it is an empty transform with identical input/output pcollections,
+				// it will be discarded.
+				if len(t.GetInputs()) == 1 && len(t.GetOutputs()) == 1 {
+					inputID := getOnlyValue(t.GetInputs())
+					outputID := getOnlyValue(t.GetOutputs())
+					if inputID == outputID {
+						continue
+					}
+				}
 				leaves[tid] = struct{}{}
-			} else {
-				slog.Info("composite transform has unknown urn",
-					slog.Group("transform", slog.String("ID", tid),
-						slog.String("name", t.GetUniqueName()),
-						slog.String("urn", spec.GetUrn())))
 			}
 			continue
 		}
@@ -443,13 +448,20 @@ func finalizeStage(stg *stage, comps *pipepb.Components, pipelineFacts *fusionFa
 			t := comps.GetTransforms()[link.Transform]
 
 			var sis map[string]*pipepb.SideInput
-			if t.GetSpec().GetUrn() == urns.TransformParDo {
+			switch t.GetSpec().GetUrn() {
+			case urns.TransformParDo, urns.TransformProcessSizedElements, urns.TransformPairWithRestriction, urns.TransformSplitAndSize, urns.TransformTruncate:
 				pardo := &pipepb.ParDoPayload{}
 				if err := (proto.UnmarshalOptions{}).Unmarshal(t.GetSpec().GetPayload(), pardo); err != nil {
 					return fmt.Errorf("unable to decode ParDoPayload for %v", link.Transform)
 				}
+				if pardo.GetRequestsFinalization() {
+					stg.finalize = true
+				}
 				if len(pardo.GetTimerFamilySpecs())+len(pardo.GetStateSpecs())+len(pardo.GetOnWindowExpirationTimerFamilySpec()) > 0 {
 					stg.stateful = true
+				}
+				if pardo.GetOnWindowExpirationTimerFamilySpec() != "" {
+					stg.onWindowExpiration = engine.StaticTimerID{TransformID: link.Transform, TimerFamily: pardo.GetOnWindowExpirationTimerFamilySpec()}
 				}
 				sis = pardo.GetSideInputs()
 			}
@@ -480,6 +492,9 @@ func finalizeStage(stg *stage, comps *pipepb.Components, pipelineFacts *fusionFa
 	}
 
 	stg.internalCols = internal
+	// Sort the keys of internal producers (from stageFacts.PcolProducers)
+	// to ensure deterministic order for stable tests.
+	sort.Strings(stg.internalCols)
 	stg.outputs = maps.Values(outputs)
 	stg.sideInputs = sideInputs
 
@@ -490,7 +505,17 @@ func finalizeStage(stg *stage, comps *pipepb.Components, pipelineFacts *fusionFa
 		// Quick check that this is lead by a flatten node, and that it's handled runner side.
 		t := comps.GetTransforms()[stg.transforms[0]]
 		if !(t.GetSpec().GetUrn() == urns.TransformFlatten && t.GetEnvironmentId() == "") {
-			return fmt.Errorf("expected runner flatten node, but wasn't: %v -- %v", stg.transforms, mainInputs)
+			formatMap := func(in map[string]string) string {
+				var b strings.Builder
+				for k, v := range in {
+					b.WriteString(k)
+					b.WriteString(" : ")
+					b.WriteString(v)
+					b.WriteString("\n\t")
+				}
+				return b.String()
+			}
+			return fmt.Errorf("stage requires multiple parallel inputs but wasn't a flatten:\n\ttransforms\n\t%v\n\tmain inputs\n\t%v\n\tsidinputs\n\t%v", strings.Join(stg.transforms, "\n\t\t"), formatMap(mainInputs), sideInputs)
 		}
 	}
 	return nil

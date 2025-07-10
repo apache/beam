@@ -24,6 +24,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
@@ -34,7 +35,6 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -202,11 +202,11 @@ public abstract class BadRecord implements Serializable {
 
       public Builder addExceptionStackTrace(Exception exception) throws IOException {
         ByteArrayOutputStream stream = new ByteArrayOutputStream();
-        PrintStream printStream = new PrintStream(stream, false, Charsets.UTF_8.name());
+        PrintStream printStream = new PrintStream(stream, false, StandardCharsets.UTF_8.name());
         exception.printStackTrace(printStream);
         printStream.close();
 
-        this.setExceptionStacktrace(new String(stream.toByteArray(), Charsets.UTF_8));
+        this.setExceptionStacktrace(new String(stream.toByteArray(), StandardCharsets.UTF_8));
         return this;
       }
 

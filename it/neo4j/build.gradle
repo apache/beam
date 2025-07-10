@@ -18,15 +18,20 @@
 
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
-        automaticModuleName: 'org.apache.beam.it.neo4j',
+    automaticModuleName: 'org.apache.beam.it.neo4j',
+    exportJavadoc: false,
 )
 
 description = "Apache Beam :: IT :: Neo4j"
 ext.summary = "Integration test utilities for Neo4j."
 
 dependencies {
-    implementation project(path: ":it:testcontainers", configuration: "shadow")
-    implementation project(path: ":it:conditions", configuration: "shadow")
+    implementation project(path: ":it:common")
+    implementation project(path: ":it:testcontainers")
+    implementation project(path: ":it:conditions")
+    implementation library.java.guava
+    implementation library.java.slf4j_api
+    implementation library.java.testcontainers_base
     implementation library.java.testcontainers_neo4j
     implementation "org.neo4j.driver:neo4j-java-driver:4.4.3"
 

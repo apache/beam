@@ -23,9 +23,9 @@ import com.google.gson.Gson;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.it.common.PipelineLauncher.LaunchInfo;
 import org.apache.beam.it.common.PipelineOperator.Result;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Assert utilities for Template DSL-like tests. */
 public class PipelineAsserts {

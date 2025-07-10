@@ -141,12 +141,10 @@ class ProperyTestingCoders(unittest.TestCase):
     coders_registry.register_coder(RowType, RowCoder)
 
     # TODO(https://github.com/apache/beam/issues/23002): Apply nulls for these
-    row = RowType(  # type: ignore
+    row = RowType(
         **{
             name: data.draw(SCHEMA_TYPES_TO_STRATEGY[type_])
-            for name,
-            type_,
-            nullable in schema
+            for name, type_, nullable in schema
         })
 
     coder = RowCoder(typing_to_runner_api(RowType).row_type.schema)

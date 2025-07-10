@@ -42,8 +42,7 @@ class _RecordBatchToPyDict(beam.PTransform):
       return {
           k: v.squeeze(0).tolist()
           if v is not None else self._input_feature_spec[k].default_value
-          for k,
-          v in instance.items()
+          for k, v in instance.items()
       }
 
     return (

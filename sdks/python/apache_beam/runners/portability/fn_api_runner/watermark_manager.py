@@ -102,8 +102,7 @@ class WatermarkManager(object):
         w = min(w, min(i._produced_watermark for i in self.side_inputs))
       return w
 
-  def __init__(self, stages):
-    # type: (List[translations.Stage]) -> None
+  def __init__(self, stages: List[translations.Stage]) -> None:
     self._pcollections_by_name: Dict[Union[str, translations.TimerFamilyId],
                                      WatermarkManager.PCollectionNode] = {}
     self._stages_by_name: Dict[str, WatermarkManager.StageNode] = {}
@@ -189,12 +188,12 @@ class WatermarkManager(object):
             'Stage %s has no main inputs. '
             'At least one main input is necessary.' % s.name)
 
-  def get_stage_node(self, name):
-    # type: (str) -> StageNode # noqa: F821
+  def get_stage_node(self, name: str) -> StageNode:
+    # noqa: F821
     return self._stages_by_name[name]
 
-  def get_pcoll_node(self, name):
-    # type: (str) -> PCollectionNode # noqa: F821
+  def get_pcoll_node(self, name: str) -> PCollectionNode:
+    # noqa: F821
     return self._pcollections_by_name[name]
 
   def set_pcoll_watermark(self, name, watermark):

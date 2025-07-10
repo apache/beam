@@ -18,7 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.testing;
 
 import com.google.api.client.json.GenericJson;
-import com.google.api.client.json.jackson2.JacksonFactory;
+import com.google.api.client.json.gson.GsonFactory;
 import java.io.IOException;
 import org.json.JSONException;
 import org.skyscreamer.jsonassert.JSONAssert;
@@ -26,7 +26,7 @@ import org.skyscreamer.jsonassert.JSONAssert;
 /** Assertions on {@link GenericJson} class. */
 public class GenericJsonAssert {
 
-  private static final JacksonFactory jacksonFactory = JacksonFactory.getDefaultInstance();
+  private static final GsonFactory gsonFactory = GsonFactory.getDefaultInstance();
 
   /**
    * Asserts that {@code actual} has the same JSON representation as {@code expected}.
@@ -39,8 +39,8 @@ public class GenericJsonAssert {
 
     try {
       String expectedJsonText =
-          expected instanceof String ? (String) expected : jacksonFactory.toString(expected);
-      String actualJsonText = jacksonFactory.toString(actual);
+          expected instanceof String ? (String) expected : gsonFactory.toString(expected);
+      String actualJsonText = gsonFactory.toString(actual);
       JSONAssert.assertEquals(expectedJsonText, actualJsonText, true);
     } catch (JSONException ex) {
       throw new IllegalArgumentException("Could not parse JSON", ex);

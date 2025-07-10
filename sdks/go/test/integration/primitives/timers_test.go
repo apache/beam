@@ -32,4 +32,12 @@ func TestTimers_EventTime_Unbounded(t *testing.T) {
 	ptest.BuildAndRun(t, TimersEventTimeUnbounded)
 }
 
-// TODO(https://github.com/apache/beam/issues/29772): Add ProcessingTime Timer tests.
+func TestTimers_ProcessingTime_Infinity(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.BuildAndRun(t, TimersProcessingTimeTestStream_Infinity)
+}
+
+func TestTimers_ProcessingTime_Bounded(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.BuildAndRun(t, TimersProcessingTime_Bounded)
+}

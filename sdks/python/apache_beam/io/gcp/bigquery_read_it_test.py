@@ -109,11 +109,11 @@ class BigQueryReadIntegrationTests(unittest.TestCase):
     request = bigquery.BigqueryDatasetsDeleteRequest(
         projectId=cls.project, datasetId=cls.dataset_id, deleteContents=True)
     try:
-      _LOGGER.info(
+      _LOGGER.debug(
           "Deleting dataset %s in project %s", cls.dataset_id, cls.project)
       cls.bigquery_client.client.datasets.Delete(request)
     except HttpError:
-      _LOGGER.debug(
+      _LOGGER.warning(
           'Failed to clean up dataset %s in project %s',
           cls.dataset_id,
           cls.project)
@@ -158,6 +158,8 @@ class ReadTests(BigQueryReadIntegrationTests):
     request = bigquery.BigqueryTablesInsertRequest(
         projectId=cls.project, datasetId=cls.dataset_id, table=table)
     cls.bigquery_client.client.tables.Insert(request)
+    # Call get_table so that we wait until the table is visible.
+    _ = cls.bigquery_client.get_table(cls.project, cls.dataset_id, table_name)
     cls.bigquery_client.insert_rows(
         cls.project, cls.dataset_id, table_name, cls.TABLE_DATA)
 
@@ -307,6 +309,7 @@ class ReadTests(BigQueryReadIntegrationTests):
 
 
 class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
+  BIG_QUERY_DATASET_ID = 'python_read_table_'
   TABLE_DATA = [{
       'number': 1,
       'string': '你好',
@@ -330,7 +333,8 @@ class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
   @classmethod
   def setUpClass(cls):
     super(ReadUsingStorageApiTests, cls).setUpClass()
-    cls.table_name = 'python_read_table'
+    cls.table_name = '%s%d%s' % (
+        cls.BIG_QUERY_DATASET_ID, int(time.time()), secrets.token_hex(3))
     cls._create_table(cls.table_name)
 
     table_id = '{}.{}'.format(cls.dataset_id, cls.table_name)
@@ -393,6 +397,8 @@ class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
     request = bigquery.BigqueryTablesInsertRequest(
         projectId=cls.project, datasetId=cls.dataset_id, table=table)
     cls.bigquery_client.client.tables.Insert(request)
+    # Call get_table so that we wait until the table is visible.
+    _ = cls.bigquery_client.get_table(cls.project, cls.dataset_id, table_name)
     cls.bigquery_client.insert_rows(
         cls.project, cls.dataset_id, table_name, cls.TABLE_DATA)
 
@@ -654,6 +660,8 @@ class ReadNewTypesTests(BigQueryReadIntegrationTests):
     request = bigquery.BigqueryTablesInsertRequest(
         projectId=cls.project, datasetId=cls.dataset_id, table=table)
     cls.bigquery_client.client.tables.Insert(request)
+    # Call get_table so that we wait until the table is visible.
+    _ = cls.bigquery_client.get_table(cls.project, cls.dataset_id, table_name)
     row_data = {
         'float': 0.33,
         'numeric': Decimal('10'),
@@ -721,6 +729,8 @@ class ReadNewTypesTests(BigQueryReadIntegrationTests):
 
 
 class ReadAllBQTests(BigQueryReadIntegrationTests):
+  TABLE_DATA_AVAILABILITY_WAIT_SECONDS = 30
+
   TABLE_DATA_1 = [{
       'number': 1, 'str': 'abc'
   }, {
@@ -758,8 +768,8 @@ class ReadAllBQTests(BigQueryReadIntegrationTests):
     cls.table_name2 = 'python_rd_table_2'
     cls.table_schema2 = cls.create_table(
         cls.table_name2, cls.TABLE_DATA_2, cls.SCHEMA_BQ)
-    table_id2 = '{}.{}'.format(cls.dataset_id, cls.table_name2)
-    cls.query2 = 'SELECT number, str FROM %s' % table_id2
+    cls.query2 = 'SELECT number, str FROM [%s:%s.%s]' % (
+        cls.project, cls.dataset_id, cls.table_name2)
 
     cls.table_name3 = 'python_rd_table_3'
     cls.table_schema3 = cls.create_table(
@@ -777,8 +787,11 @@ class ReadAllBQTests(BigQueryReadIntegrationTests):
     request = bigquery.BigqueryTablesInsertRequest(
         projectId=cls.project, datasetId=cls.dataset_id, table=table)
     cls.bigquery_client.client.tables.Insert(request)
+    # Call get_table so that we wait until the table is visible.
+    _ = cls.bigquery_client.get_table(cls.project, cls.dataset_id, table_name)
     cls.bigquery_client.insert_rows(
         cls.project, cls.dataset_id, table_name, data)
+    time.sleep(cls.TABLE_DATA_AVAILABILITY_WAIT_SECONDS)
     return table_schema
 
   @classmethod

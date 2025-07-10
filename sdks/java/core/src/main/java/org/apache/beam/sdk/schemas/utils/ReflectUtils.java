@@ -32,7 +32,6 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
@@ -63,6 +62,19 @@ public class ReflectUtils {
     }
   }
 
+  /** Represents a type descriptor and a schema. */
+  @AutoValue
+  public abstract static class TypeDescriptorWithSchema<T> {
+    public abstract TypeDescriptor<T> getTypeDescriptor();
+
+    public abstract Schema getSchema();
+
+    public static <T> TypeDescriptorWithSchema<T> create(
+        TypeDescriptor<T> typeDescriptor, Schema schema) {
+      return new AutoValue_ReflectUtils_TypeDescriptorWithSchema<>(typeDescriptor, schema);
+    }
+  }
+
   private static final Map<Class<?>, List<Method>> DECLARED_METHODS = Maps.newConcurrentMap();
   private static final Map<Class<?>, Method> ANNOTATED_CONSTRUCTORS = Maps.newConcurrentMap();
   private static final Map<Class<?>, List<Field>> DECLARED_FIELDS = Maps.newConcurrentMap();
@@ -75,14 +87,23 @@ public class ReflectUtils {
     return DECLARED_METHODS.computeIfAbsent(
         clazz,
         c -> {
-          return Arrays.stream(c.getDeclaredMethods())
-              .filter(
-                  m -> !m.isBridge()) // Covariant overloads insert bridge functions, which we must
-              // ignore.
-              .filter(m -> !Modifier.isPrivate(m.getModifiers()))
-              .filter(m -> !Modifier.isProtected(m.getModifiers()))
-              .filter(m -> !Modifier.isStatic(m.getModifiers()))
-              .collect(Collectors.toList());
+          List<Method> methods = Lists.newArrayList();
+          do {
+            if (c.getPackage() != null && c.getPackage().getName().startsWith("java.")) {
+              break; // skip java built-in classes
+            }
+            Arrays.stream(c.getDeclaredMethods())
+                .filter(
+                    m ->
+                        !m.isBridge()) // Covariant overloads insert bridge functions, which we must
+                // ignore.
+                .filter(m -> !Modifier.isPrivate(m.getModifiers()))
+                .filter(m -> !Modifier.isProtected(m.getModifiers()))
+                .filter(m -> !Modifier.isStatic(m.getModifiers()))
+                .forEach(methods::add);
+            c = c.getSuperclass();
+          } while (c != null);
+          return methods;
         });
   }
 

@@ -423,7 +423,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 
 		c.cache.CompleteBundle(tokens...)
 
-		mons, pylds := monitoring(plan, store, c.runnerCapabilities[URNMonitoringInfoShortID])
+		mons, pylds, _ := monitoring(plan, store, c.runnerCapabilities[URNMonitoringInfoShortID])
 
 		checkpoints := plan.Checkpoint()
 		requiresFinalization := false
@@ -546,14 +546,15 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			}
 		}
 
-		mons, pylds := monitoring(plan, store, c.runnerCapabilities[URNMonitoringInfoShortID])
+		mons, pylds, consumingReceivedData := monitoring(plan, store, c.runnerCapabilities[URNMonitoringInfoShortID])
 
 		return &fnpb.InstructionResponse{
 			InstructionId: string(instID),
 			Response: &fnpb.InstructionResponse_ProcessBundleProgress{
 				ProcessBundleProgress: &fnpb.ProcessBundleProgressResponse{
-					MonitoringData:  pylds,
-					MonitoringInfos: mons,
+					MonitoringData:        pylds,
+					MonitoringInfos:       mons,
+					ConsumingReceivedData: &consumingReceivedData,
 				},
 			},
 		}
@@ -606,7 +607,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 
 		var pRoots []*fnpb.BundleApplication
 		var rRoots []*fnpb.DelayedBundleApplication
-		if sr.PS != nil && len(sr.PS) > 0 && sr.RS != nil && len(sr.RS) > 0 {
+		if len(sr.PS) > 0 && len(sr.RS) > 0 {
 			pRoots = make([]*fnpb.BundleApplication, len(sr.PS))
 			for i, p := range sr.PS {
 				pRoots[i] = &fnpb.BundleApplication{

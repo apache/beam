@@ -2,15 +2,15 @@ Prompt:
 What are additional outputs in Apache Beam?
 
 Response:
-In Apache Beam, additional outputs, also known as tagged or side outputs, refer to one or multiple extra [`PCollection`s](https://beam.apache.org/documentation/basics/#pcollection) produced by a single [`ParDo`](https://beam.apache.org/documentation/programming-guide/#pardo) transform in addition to the main output `PCollection`. The `ParDo` transform has the flexibility to produce any number of additional output `PCollection`s and return them bundled together with the main output `PCollection`.
+In Apache Beam, additional outputs, also known as tagged or side outputs, refer to one or multiple extra [`PCollection`](https://beam.apache.org/documentation/basics/#pcollection) objects produced by a single [`ParDo`](https://beam.apache.org/documentation/programming-guide/#pardo) transform in addition to the main output `PCollection`. The `ParDo` transform has the flexibility to produce any number of additional output `PCollection` objects and return them bundled together with the main output `PCollection`.
 
-Additional outputs serve as a mechanism to implement [pipeline branching](https://beam.apache.org/documentation/pipelines/design-your-pipeline/#branching-pcollections). You can use them when there is a need to split the output of a single transform into several `PCollection`s or produce outputs in different formats. Additional outputs become particularly beneficial when a transform’s computation per element is time-consuming because they enable transforms to process each element in the input `PCollection` just once.
+Additional outputs serve as a mechanism to implement [pipeline branching](https://beam.apache.org/documentation/pipelines/design-your-pipeline/#branching-pcollections). You can use them when there is a need to split the output of a single transform into several `PCollection` objects or produce outputs in different formats. Additional outputs become particularly beneficial when a transform’s computation per element is time-consuming because they enable transforms to process each element in the input `PCollection` just once.
 
 Producing additional outputs requires [tagging](https://beam.apache.org/documentation/programming-guide/#output-tags) each output `PCollection` with a unique identifier, which is then used to [emit](https://beam.apache.org/documentation/programming-guide/#multiple-outputs-dofn) elements to the corresponding output.
 
-In the Apache Beam Java SDK, you can implement additional outputs by creating a `TupleTag` object to identify each collection produced by the `ParDo` transform. After specifying the `TupleTag`s for each of the outputs, the tags are passed to the `ParDo` using the `.withOutputTags` method. You can find a sample Apache Beam Java pipeline that applies one transform to output two `PCollection`s in the [Branching `PCollection`s](https://beam.apache.org/documentation/pipelines/design-your-pipeline/#a-single-transform-that-produces-multiple-outputs) section in the Apache Beam documentation.
+In the Apache Beam Java SDK, you can implement additional outputs by creating a `TupleTag` object to identify each collection produced by the `ParDo` transform. After specifying the `TupleTag` objects for each of the outputs, the tags are passed to the `ParDo` using the `.withOutputTags` method. You can find a sample Apache Beam Java pipeline that applies one transform to output two `PCollection` objects in the [Branching `PCollection`s](https://beam.apache.org/documentation/pipelines/design-your-pipeline/#a-single-transform-that-produces-multiple-outputs) section in the Apache Beam documentation.
 
-The following Java code implements two additional output `PCollection`s for string and integer values in addition to the main output `PCollection` of strings:
+The following Java code implements two additional output `PCollection` objects for string and integer values in addition to the main output `PCollection` of strings:
 
 ```java
 // Input PCollection that contains strings.
@@ -55,7 +55,7 @@ public void processElement(@Element String word, MultiOutputReceiver out) {
 
 In the Apache Beam Python SDK, you can implement additional outputs by invoking the `with_outputs()` method on the `ParDo` and specifying the expected tags for the multiple outputs.
 
-The following Python code demonstrates how to implement additional outputs for a `ParDo` transform that outputs two `PCollection`s of strings and integers in addition to the main output `PCollection` of strings:
+The following Python code demonstrates how to implement additional outputs for a `ParDo` transform that outputs two `PCollection` objects of strings and integers in addition to the main output `PCollection` of strings:
 
 ```python
 class SplitLinesToWordsFn(beam.DoFn):
@@ -78,7 +78,7 @@ class SplitLinesToWordsFn(beam.DoFn):
         yield word
 ```
 
-The method returns a `DoOutputsTuple` object, with the specified tags serving as attributes that provide `ParDo` with access to the corresponding output `PCollection`s.
+The method returns a `DoOutputsTuple` object, with the specified tags serving as attributes that provide `ParDo` with access to the corresponding output `PCollection` objects.
 
 ```python
 with beam.Pipeline(options=pipeline_options) as p:

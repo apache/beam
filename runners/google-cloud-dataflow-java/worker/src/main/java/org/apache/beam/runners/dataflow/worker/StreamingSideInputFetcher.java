@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.runners.core.DoFnRunner;
+import org.apache.beam.runners.core.LateDataUtils;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.StateNamespaces.WindowNamespace;
 import org.apache.beam.runners.core.StateTag;
@@ -47,13 +48,16 @@ import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.Parser;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.Parser;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Ordering;
+import org.joda.time.Instant;
 
 /** A class that handles streaming side inputs in a {@link DoFnRunner}. */
 @SuppressWarnings({"keyfor", "nullness"}) // TODO(https://github.com/apache/beam/issues/20497)
@@ -88,7 +92,7 @@ public class StreamingSideInputFetcher<InputT, W extends BoundedWindow> {
     this.blockedMapAddr = blockedMapAddr(mainWindowCoder);
     this.elementsAddr =
         StateTags.makeSystemTagInternal(
-            StateTags.bag("elem", WindowedValue.getFullCoder(inputCoder, mainWindowCoder)));
+            StateTags.bag("elem", WindowedValues.getFullCoder(inputCoder, mainWindowCoder)));
     this.oldTimersAddr =
         StateTags.makeSystemTagInternal(StateTags.bag("timer", TimerDataCoder.of(mainWindowCoder)));
     this.timersAddr =
@@ -312,15 +316,19 @@ public class StreamingSideInputFetcher<InputT, W extends BoundedWindow> {
       throw new RuntimeException(e);
     }
 
+    Instant firingAfter =
+        Ordering.natural()
+            .min(
+                LateDataUtils.garbageCollectionTime(sideInputWindow, sideWindowStrategy),
+                sideWindowStrategy.getTrigger().getWatermarkThatGuaranteesFiring(sideInputWindow));
+
     return Windmill.GlobalDataRequest.newBuilder()
         .setDataId(
             Windmill.GlobalDataId.newBuilder()
                 .setTag(view.getTagInternal().getId())
                 .setVersion(windowStream.toByteString())
                 .build())
-        .setExistenceWatermarkDeadline(
-            WindmillTimeUtils.harnessToWindmillTimestamp(
-                sideWindowStrategy.getTrigger().getWatermarkThatGuaranteesFiring(sideInputWindow)))
+        .setExistenceWatermarkDeadline(WindmillTimeUtils.harnessToWindmillTimestamp(firingAfter))
         .build();
   }
 

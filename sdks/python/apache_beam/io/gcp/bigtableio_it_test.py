@@ -50,7 +50,7 @@ except ImportError as e:
 
 
 def instance_prefix(instance):
-  datestr = "".join(filter(str.isdigit, str(datetime.utcnow().date())))
+  datestr = "".join(filter(str.isdigit, str(datetime.now(timezone.utc).date())))
   instance_id = '%s-%s-%s' % (instance, datestr, secrets.token_hex(4))
   assert len(instance_id) < 34, "instance id length needs to be within [6, 33]"
   return instance_id
@@ -93,6 +93,11 @@ class TestReadFromBigTableIT(unittest.TestCase):
     self.table = self.instance.table(self.TABLE_ID)
     self.table.create()
     _LOGGER.info("Created table [%s]", self.table.table_id)
+    if (os.environ.get('TRANSFORM_SERVICE_PORT')):
+      self._transform_service_address = (
+          'localhost:' + os.environ.get('TRANSFORM_SERVICE_PORT'))
+    else:
+      self._transform_service_address = None
 
   def tearDown(self):
     try:
@@ -142,7 +147,8 @@ class TestReadFromBigTableIT(unittest.TestCase):
           | bigtableio.ReadFromBigtable(
               project_id=self.project,
               instance_id=self.instance.instance_id,
-              table_id=self.table.table_id)
+              table_id=self.table.table_id,
+              expansion_service=self._transform_service_address)
           | "Extract cells" >> beam.Map(lambda row: row._cells))
 
       assert_that(cells, equal_to(expected_cells))
@@ -190,6 +196,11 @@ class TestWriteToBigtableXlangIT(unittest.TestCase):
         (self.TABLE_ID, str(int(time.time())), secrets.token_hex(3)))
     self.table.create()
     _LOGGER.info("Created table [%s]", self.table.table_id)
+    if (os.environ.get('TRANSFORM_SERVICE_PORT')):
+      self._transform_service_address = (
+          'localhost:' + os.environ.get('TRANSFORM_SERVICE_PORT'))
+    else:
+      self._transform_service_address = None
 
   def tearDown(self):
     try:
@@ -216,7 +227,8 @@ class TestWriteToBigtableXlangIT(unittest.TestCase):
               project_id=self.project,
               instance_id=self.instance.instance_id,
               table_id=self.table.table_id,
-              use_cross_language=True))
+              use_cross_language=True,
+              expansion_service=self._transform_service_address))
 
   def test_set_mutation(self):
     row1: DirectRow = DirectRow('key-1')

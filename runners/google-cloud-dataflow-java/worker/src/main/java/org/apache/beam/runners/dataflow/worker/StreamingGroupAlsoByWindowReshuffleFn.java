@@ -19,14 +19,14 @@ package org.apache.beam.runners.dataflow.worker;
 
 import java.util.Collections;
 import org.apache.beam.runners.core.KeyedWorkItem;
-import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.dataflow.worker.util.StreamingGroupAlsoByWindowFn;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.ReshuffleTrigger;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValueReceiver;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
 /**
@@ -49,16 +49,11 @@ public class StreamingGroupAlsoByWindowReshuffleFn<K, T>
       PipelineOptions options,
       StepContext stepContext,
       SideInputReader sideInputReader,
-      OutputWindowedValue<KV<K, Iterable<T>>> output)
+      WindowedValueReceiver<KV<K, Iterable<T>>> output)
       throws Exception {
-    @SuppressWarnings("unchecked")
     K key = element.key();
     for (WindowedValue<T> item : element.elementsIterable()) {
-      output.outputWindowedValue(
-          KV.of(key, Collections.singletonList(item.getValue())),
-          item.getTimestamp(),
-          item.getWindows(),
-          item.getPane());
+      output.output(item.withValue(KV.of(key, Collections.singletonList(item.getValue()))));
     }
   }
 }

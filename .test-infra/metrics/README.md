@@ -115,6 +115,13 @@ Kubernetes deployment instructions are maintained in the wiki:
 * [Community metrics](https://cwiki.apache.org/confluence/display/BEAM/Community+Metrics)
 * [Test Results Monitoring](https://cwiki.apache.org/confluence/display/BEAM/Test+Results+Monitoring)
 
+### PSQL User
+Grafana running in metrics cluster is configured to use `kubeproxyuser_ro` user which does not come with any permissions. SELECT permission was manually granted on all tables in the  `beammetrics` psql DB. Any new tables or if some table is created/recreated by automation should also add grants for the user:
+
+```
+GRANT SELECT ON table_name TO kubeproxyuser_ro;
+```
+
 
 ### Note: Basic Auth is not supported on BEAM Clusters as of March 4th 2022
 

@@ -30,14 +30,15 @@ import logging
 from queue import Empty as EmptyException
 from queue import Queue
 from threading import Thread
+from typing import Union
 
 import grpc
 
 from apache_beam import ParDo
 from apache_beam import coders
 from apache_beam import pvalue
-from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.portability.api import beam_runner_api_pb2_grpc
+from apache_beam.portability.api import beam_interactive_api_pb2
+from apache_beam.portability.api import beam_interactive_api_pb2_grpc
 from apache_beam.testing.test_stream import ElementEvent
 from apache_beam.testing.test_stream import ProcessingTimeEvent
 from apache_beam.testing.test_stream import WatermarkEvent
@@ -266,10 +267,10 @@ class _TestStream(PTransform):
     is placed on the channel to signify a successful end.
     """
     stub_channel = grpc.insecure_channel(endpoint)
-    stub = beam_runner_api_pb2_grpc.TestStreamServiceStub(stub_channel)
+    stub = beam_interactive_api_pb2_grpc.TestStreamServiceStub(stub_channel)
 
     # Request the PCollections that we are looking for from the service.
-    event_request = beam_runner_api_pb2.EventsRequest(
+    event_request = beam_interactive_api_pb2.EventsRequest(
         output_ids=[str(tag) for tag in output_tags])
 
     event_stream = stub.Events(event_request)
@@ -309,8 +310,8 @@ class _TestStream(PTransform):
       return not (shutdown_requested or evaluation_context.shutdown_requested)
 
     # The shared queue that allows the producer and consumer to communicate.
-    channel = Queue(
-    )  # type: Queue[Union[test_stream.Event, _EndOfStream]] # noqa: F821
+    channel: 'Queue[Union[test_stream.Event, _EndOfStream]]' = (  # noqa: F821
+        Queue())
     event_stream = Thread(
         target=_TestStream._stream_events_from_rpc,
         args=(endpoint, output_tags, coder, channel, is_alive))

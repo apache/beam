@@ -39,6 +39,7 @@ public final class DataflowExecutionStateSampler extends ExecutionStateSampler {
 
   private final ConcurrentHashMap<String, DataflowExecutionStateTracker> activeTrackersByWorkId =
       new ConcurrentHashMap<>();
+  // The maps within completeProcessingMetrics should not be modified.
   private final ConcurrentHashMap<String, Map<String, IntSummaryStatistics>>
       completedProcessingMetrics = new ConcurrentHashMap<>();
 
@@ -64,7 +65,7 @@ public final class DataflowExecutionStateSampler extends ExecutionStateSampler {
     this.activeTrackersByWorkId.put(dfTracker.getWorkItemId(), dfTracker);
   }
 
-  private static Map<String, IntSummaryStatistics> mergeStepStatsMaps(
+  private static void mergeStepStatsMaps(
       Map<String, IntSummaryStatistics> map1, Map<String, IntSummaryStatistics> map2) {
     for (Entry<String, IntSummaryStatistics> steps : map2.entrySet()) {
       map1.compute(
@@ -77,7 +78,6 @@ public final class DataflowExecutionStateSampler extends ExecutionStateSampler {
             return v;
           });
     }
-    return map1;
   }
 
   @Override
@@ -118,13 +118,15 @@ public final class DataflowExecutionStateSampler extends ExecutionStateSampler {
   }
 
   public Map<String, IntSummaryStatistics> getProcessingDistributionsForWorkId(String workId) {
+    Map<String, IntSummaryStatistics> result;
     DataflowExecutionStateTracker tracker = activeTrackersByWorkId.get(workId);
     if (tracker == null) {
-      return completedProcessingMetrics.getOrDefault(workId, new HashMap<>());
+      result = new HashMap<>();
+    } else {
+      result = tracker.getProcessingTimesByStepCopy();
     }
-    return mergeStepStatsMaps(
-        completedProcessingMetrics.getOrDefault(workId, new HashMap<>()),
-        tracker.getProcessingTimesByStepCopy());
+    mergeStepStatsMaps(result, completedProcessingMetrics.getOrDefault(workId, new HashMap<>()));
+    return result;
   }
 
   public void resetForWorkId(String workId) {

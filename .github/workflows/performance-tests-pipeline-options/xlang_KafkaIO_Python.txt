@@ -17,14 +17,14 @@
 --runner=DataflowRunner
 --region=us-central1
 --temp_location=gs://temp-storage-for-perf-tests/
---sdk_harness_container_image_overrides=.*java.*,gcr.io/apache-beam-testing/beam-sdk/beam_java8_sdk:latest
+--sdk_harness_container_image_overrides=.*java.*,gcr.io/apache-beam-testing/beam-sdk/beam_java11_sdk:latest
 --publish_to_big_query=true
 --metrics_dataset=beam_performance
 --metrics_table=python_kafkaio_results
 --influx_measurement=python_kafkaio_results
 --test_class=KafkaIOPerfTest
---input_options=''{\\"num_records\\":100000000,\\"key_size\\":10,\\"value_size\\":90,\\"algorithm\\":\\"lcg\\"}''
+--input_options=''{\\"num_records\\":50000000,\\"key_size\\":10,\\"value_size\\":90,\\"algorithm\\":\\"lcg\\"}''
 --kafka_topic=beam
---read_timeout=1500
+--read_timeout=3000
 --num_workers=5
 --autoscaling_algorithm=NONE

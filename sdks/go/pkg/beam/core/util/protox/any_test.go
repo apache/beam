@@ -19,8 +19,8 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/golang/protobuf/proto"
-	protobufw "github.com/golang/protobuf/ptypes/wrappers"
+	"google.golang.org/protobuf/proto"
+	protobufw "google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 func TestProtoPackingInvertibility(t *testing.T) {

@@ -22,7 +22,7 @@ set -euo pipefail
 # Clean up private registry (us.gcr.io)
 # Images more than 5 day old and not the latest (either has latest label or newest)
 
-PUBLIC_REPOSITORIES=(beam-sdk beam_portability beamgrafana beammetricssyncjenkins beammetricssyncgithub)
+PUBLIC_REPOSITORIES=(beam-sdk beam-sdk-pr beam_portability beamgrafana beammetricssyncjenkins beammetricssyncgithub)
 PRIVATE_REPOSITORIES=(java-postcommit-it python-postcommit-it jenkins github-actions)
 # set as the same as 6-week release period
 if [[ $OSTYPE == "linux-gnu"* ]]; then
@@ -96,7 +96,7 @@ for image_name in ${IMAGE_NAMES[@]}; do
           # they will have a virtual size of 0 and a created date at the start of the epoch, but their manifests will
           # point to active images. These images should only be deleted when all of their dependencies can be safely
           # deleted.
-          MANIFEST=$(docker manifest inspect ${image_name}@"${current}" || echo "")
+          MANIFEST=$(docker buildx imagetools inspect ${image_name}@"${current}" --raw || echo "")
           if [ -z "$MANIFEST" ]; then
             # Sometimes "no such manifest" seen. Skip current if command hit error
             FAILED_IMAGES+=" $current"

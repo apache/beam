@@ -22,8 +22,8 @@ import static org.apache.beam.sdk.io.common.IOITHelper.readIOTestPipelineOptions
 import static org.apache.beam.sdk.io.common.TestRow.getExpectedHashForRowCount;
 import static org.junit.Assert.assertNotEquals;
 
-import com.google.cloud.Timestamp;
 import java.sql.SQLException;
+import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -236,7 +236,7 @@ public class HadoopFormatIOIT {
 
   private void collectAndPublishMetrics(PipelineResult writeResult, PipelineResult readResult) {
     String uuid = UUID.randomUUID().toString();
-    String timestamp = Timestamp.now().toString();
+    String timestamp = Instant.now().toString();
 
     Set<Function<MetricsReader, NamedTestResult>> readSuppliers = getReadSuppliers(uuid, timestamp);
     Set<Function<MetricsReader, NamedTestResult>> writeSuppliers =

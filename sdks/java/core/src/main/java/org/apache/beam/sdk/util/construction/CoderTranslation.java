@@ -26,7 +26,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.SerializableUtils;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableBiMap;
@@ -200,5 +200,22 @@ public class CoderTranslation {
     return (Coder<?>)
         SerializableUtils.deserializeFromByteArray(
             protoCoder.getSpec().getPayload().toByteArray(), "Custom Coder Bytes");
+  }
+
+  /**
+   * Explicitly validate that required coders are registered.
+   *
+   * <p>Called early to give avoid significantly more obscure error later if this precondition is
+   * not satisfied.
+   */
+  public static void verifyModelCodersRegistered() {
+    for (String urn : new ModelCoderRegistrar().getCoderURNs().values()) {
+      if (!getKnownCoderUrns().inverse().containsKey(urn)) {
+        throw new IllegalStateException(
+            "Model coder not registered for "
+                + urn
+                + ". Perhaps this is a fat jar built with missing ServiceLoader entries?");
+      }
+    }
   }
 }

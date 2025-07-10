@@ -41,6 +41,7 @@ import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.Status;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.JobType;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -119,6 +120,9 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
                 "Cannot start an export job since table %s does not exist",
                 BigQueryHelpers.toTableSpec(tableToExtract)));
       }
+      // emit this table ID as a lineage source
+      Lineage.getSources()
+          .add("bigquery", BigQueryHelpers.dataCatalogSegments(tableToExtract, bqOptions));
 
       TableSchema schema = table.getSchema();
       JobService jobService = bqServices.getJobService(bqOptions);
@@ -152,7 +156,6 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
     if (cachedSplitResult == null) {
       ExtractResult res = extractFiles(options);
       LOG.info("Extract job produced {} files", res.extractedFiles.size());
-
       if (res.extractedFiles.size() > 0) {
         BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
         final String extractDestinationDir =
@@ -240,8 +243,7 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
   List<BoundedSource<T>> createSources(
       List<ResourceId> files, TableSchema schema, @Nullable List<MatchResult.Metadata> metadata)
       throws IOException, InterruptedException {
-    String avroSchema =
-        BigQueryAvroUtils.toGenericAvroSchema("root", schema.getFields()).toString();
+    String avroSchema = BigQueryAvroUtils.toGenericAvroSchema(schema).toString();
 
     AvroSource.DatumReaderFactory<T> factory = readerFactory.apply(schema);
 

@@ -302,8 +302,7 @@ class TransformTest(unittest.TestCase):
       assert_that(
           dict(x=one, y=two)
           | 'DictIn' >> transforms.DataframeTransform(
-              lambda x,
-              y: (x + y),
+              lambda x, y: (x + y),
               proxy=dict(x=proxy, y=proxy),
               yield_elements='pandas'),
           equal_to_series(three_series),
@@ -348,8 +347,7 @@ class TransformTest(unittest.TestCase):
 
     with expressions.allow_non_parallel_operations():
       self.run_scenario(
-          df,
-          lambda df: df.rename(
+          df, lambda df: df.rename(
               columns={'B': 'C'}, index={
                   0: 2, 2: 0
               }, errors='raise'))

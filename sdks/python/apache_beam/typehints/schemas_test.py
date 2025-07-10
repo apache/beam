@@ -30,7 +30,6 @@ from typing import NamedTuple
 from typing import Optional
 from typing import Sequence
 
-import cloudpickle
 import dill
 import numpy as np
 from hypothesis import given
@@ -38,6 +37,7 @@ from hypothesis import settings
 from parameterized import parameterized
 from parameterized import parameterized_class
 
+from apache_beam.internal.cloudpickle import cloudpickle
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import row_type
@@ -71,8 +71,8 @@ all_primitives = all_nonoptional_primitives + all_optional_primitives
 basic_array_types = [Sequence[typ] for typ in all_primitives]
 
 basic_map_types = [
-    Mapping[key_type, value_type] for key_type,
-    value_type in itertools.product(all_primitives, all_primitives)
+    Mapping[key_type, value_type] for key_type, value_type in itertools.product(
+        all_primitives, all_primitives)
 ]
 
 
@@ -129,8 +129,8 @@ def get_test_beam_fieldtype_protos():
   basic_map_types = [
       schema_pb2.FieldType(
           map_type=schema_pb2.MapType(key_type=key_type, value_type=value_type))
-      for key_type,
-      value_type in itertools.product(all_primitives, all_primitives)
+      for key_type, value_type in itertools.product(
+          all_primitives, all_primitives)
   ]
 
   selected_schemas = [
@@ -139,8 +139,8 @@ def get_test_beam_fieldtype_protos():
               schema=schema_pb2.Schema(
                   id='32497414-85e8-46b7-9c90-9a9cc62fe390',
                   fields=[
-                      schema_pb2.Field(name='field%d' % i, type=typ) for i,
-                      typ in enumerate(all_primitives)
+                      schema_pb2.Field(name='field%d' % i, type=typ)
+                      for i, typ in enumerate(all_primitives)
                   ]))),
       schema_pb2.FieldType(
           row_type=schema_pb2.RowType(
@@ -184,8 +184,8 @@ def get_test_beam_fieldtype_protos():
               schema=schema_pb2.Schema(
                   id='a-schema-with-options',
                   fields=[
-                      schema_pb2.Field(name='field%d' % i, type=typ) for i,
-                      typ in enumerate(all_primitives)
+                      schema_pb2.Field(name='field%d' % i, type=typ)
+                      for i, typ in enumerate(all_primitives)
                   ],
                   options=[
                       schema_pb2.Option(name='a_flag'),
@@ -270,8 +270,7 @@ def get_test_beam_fieldtype_protos():
                                   value=schema_pb2.FieldValue(
                                       atomic_value=schema_pb2.AtomicTypeValue(
                                           string='str'))),
-                          ]) for i,
-                      typ in enumerate(all_primitives)
+                          ]) for i, typ in enumerate(all_primitives)
                   ] + [
                       schema_pb2.Field(
                           name='nested',
@@ -489,6 +488,44 @@ class SchemaTest(unittest.TestCase):
     ]
     self.assertEqual(list(field.options), expected)
 
+  def test_row_type_constraint_to_schema_with_field_descriptions(self):
+    row_type_with_options = row_type.RowTypeConstraint.from_fields(
+        [
+            ('foo', np.int8),
+            ('bar', float),
+            ('baz', bytes),
+        ],
+        field_descriptions={
+            'foo': 'foo description',
+            'bar': 'bar description',
+            'baz': 'baz description',
+        })
+    result_type = typing_to_runner_api(row_type_with_options)
+
+    self.assertIsInstance(result_type, schema_pb2.FieldType)
+    self.assertEqual(result_type.WhichOneof("type_info"), "row_type")
+
+    fields = result_type.row_type.schema.fields
+
+    expected = [
+        schema_pb2.Field(
+            name='foo',
+            description='foo description',
+            type=schema_pb2.FieldType(atomic_type=schema_pb2.BYTE),
+        ),
+        schema_pb2.Field(
+            name='bar',
+            description='bar description',
+            type=schema_pb2.FieldType(atomic_type=schema_pb2.DOUBLE),
+        ),
+        schema_pb2.Field(
+            name='baz',
+            description='baz description',
+            type=schema_pb2.FieldType(atomic_type=schema_pb2.BYTES),
+        ),
+    ]
+    self.assertEqual(list(fields), expected)
+
   def assert_namedtuple_equivalent(self, actual, expected):
     # Two types are only considered equal if they are literally the same
     # object (i.e. `actual == expected` is the same as `actual is expected` in
@@ -533,8 +570,7 @@ class SchemaTest(unittest.TestCase):
 
   def test_unknown_atomic_raise_valueerror(self):
     self.assertRaises(
-        ValueError,
-        lambda: typing_from_runner_api(
+        ValueError, lambda: typing_from_runner_api(
             schema_pb2.FieldType(atomic_type=schema_pb2.UNSPECIFIED)))
 
   def test_int_maps_to_int64(self):

@@ -37,6 +37,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.zetasql.TVFRelation;
+import com.google.zetasql.TVFRelation.Column;
 import com.google.zetasql.TableValuedFunction;
 import com.google.zetasql.TableValuedFunction.FixedOutputSchemaTVF;
 import com.google.zetasql.Type;
@@ -65,6 +66,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.impl.ZetaSqlUserDefinedSQLNativeTableValuedFunction;
@@ -495,9 +497,16 @@ public class ExpressionConverter {
                   new ZetaSqlUserDefinedSQLNativeTableValuedFunction(
                       new SqlIdentifier(tvf.getName(), SqlParserPos.ZERO),
                       opBinding -> {
+                        TVFRelation rel = fixedOutputSchemaTVF.getOutputSchema();
+                        // TODO(yathu) revert this workaround when ZetaSQL adds back this API.
+                        List<Column> cols;
+                        try {
+                          cols = (List<Column>) FieldUtils.readField(rel, "columns", true);
+                        } catch (IllegalAccessException e) {
+                          throw new RuntimeException(e);
+                        }
                         List<RelDataTypeField> relDataTypeFields =
-                            convertTVFRelationColumnsToRelDataTypeFields(
-                                fixedOutputSchemaTVF.getOutputSchema().getColumns());
+                            convertTVFRelationColumnsToRelDataTypeFields(cols);
                         return new RelRecordType(relDataTypeFields);
                       },
                       null,

@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 /**
@@ -27,7 +28,7 @@ import java.util.List;
  */
 public class OutputReceiver implements Receiver {
   private final List<Receiver> outputs = new ArrayList<>();
-  private final HashMap<String, ElementCounter> outputCounters = new HashMap<>();
+  private final HashMap<String, ElementCounter> outputCounters = new LinkedHashMap<>();
 
   /** Adds a new receiver that this OutputReceiver forwards to. */
   public void addOutput(Receiver receiver) {

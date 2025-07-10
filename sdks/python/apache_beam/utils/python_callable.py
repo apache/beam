@@ -43,8 +43,7 @@ class PythonCallableWithSource(object):
 
   is a valid chunk of source code.
   """
-  def __init__(self, source):
-    # type: (str) -> None
+  def __init__(self, source: str) -> None:
     self._source = source
     self._callable = self.load_from_source(source)
 
@@ -120,8 +119,7 @@ class PythonCallableWithSource(object):
   def _argspec_fn(self):
     return self._callable
 
-  def get_source(self):
-    # type: () -> str
+  def get_source(self) -> str:
     return self._source
 
   def __call__(self, *args, **kwargs):

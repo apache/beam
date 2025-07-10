@@ -1,0 +1,54 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+plugins {
+    id 'org.apache.beam.module'
+}
+applyJavaNature(
+        automaticModuleName: 'org.apache.beam.it.clickhouse',
+        exportJavadoc: false,
+)
+
+description = "Apache Beam :: IT :: ClickHouse"
+ext.summary = "Integration test utilities for ClickHouse."
+
+def clickhouse_jdbc_version = "0.6.4"
+
+dependencies {
+    implementation project(path: ":it:common")
+    implementation project(path: ":it:testcontainers")
+    implementation project(path: ":it:conditions")
+    testImplementation platform('org.junit:junit-bom:5.10.0')
+    implementation library.java.slf4j_api
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    implementation library.java.testcontainers_base
+    implementation library.java.testcontainers_clickhouse
+    implementation "com.clickhouse:clickhouse-jdbc:$clickhouse_jdbc_version:all"
+
+    testImplementation(library.java.truth)
+    testImplementation 'junit:junit:4.13.2'
+
+    testImplementation library.java.guava
+    permitUsedUndeclared library.java.guava
+    testImplementation library.java.mockito_inline
+    testImplementation library.java.commons_lang3
+    testRuntimeOnly library.java.slf4j_simple
+
+    permitUnusedDeclared "com.clickhouse:clickhouse-jdbc:$clickhouse_jdbc_version:all"
+
+}

@@ -50,6 +50,7 @@ public class ExternalSqlTransformRegistrar implements ExternalTransformRegistrar
   public static class Configuration {
     String query = "";
     @Nullable String dialect;
+    @Nullable String ddl;
 
     public void setQuery(String query) {
       this.query = query;
@@ -57,6 +58,10 @@ public class ExternalSqlTransformRegistrar implements ExternalTransformRegistrar
 
     public void setDialect(@Nullable String dialect) {
       this.dialect = dialect;
+    }
+
+    public void setDdl(@Nullable String ddl) {
+      this.ddl = ddl;
     }
   }
 
@@ -75,6 +80,10 @@ public class ExternalSqlTransformRegistrar implements ExternalTransformRegistrar
                   configuration.dialect, DIALECTS.keySet()));
         }
         transform = transform.withQueryPlannerClass(queryPlanner);
+      }
+      // Add any DDL string
+      if (configuration.ddl != null) {
+        transform = transform.withDdlString(configuration.ddl);
       }
       return transform;
     }

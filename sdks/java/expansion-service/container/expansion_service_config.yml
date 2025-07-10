@@ -17,6 +17,9 @@ allowlist:
   - "beam:transform:org.apache.beam:schemaio_jdbc_read:v1"
   - "beam:transform:org.apache.beam:schemaio_jdbc_write:v1"
   - "beam:schematransform:org.apache.beam:bigquery_storage_write:v1"
+# By default, the Expansion Service container will include all dependencies in
+# the classpath. Following config can be used to override this behavior per
+# transform URN or schema-transform ID.
 dependencies:
   "beam:transform:org.apache.beam:kafka_read_with_metadata:v1":
     - path: "jars/beam-sdks-java-io-expansion-service.jar"

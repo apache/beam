@@ -20,7 +20,13 @@ package org.apache.beam.runners.flink.adapter;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -131,5 +137,49 @@ public class BeamFlinkDataSetAdapterTest {
         new BeamFlinkDataSetAdapter().applyBeamPTransform(input, Count.perElement());
 
     assertThat(result.collect(), containsInAnyOrder(KV.of("a", 2L), KV.of("b", 1L)));
+  }
+
+  @Test
+  public void testCustomCoder() throws Exception {
+    ExecutionEnvironment env = ExecutionEnvironment.createCollectionsEnvironment();
+
+    DataSet<String> input = env.fromCollection(ImmutableList.of("a", "b", "c"));
+    DataSet<String> result =
+        new BeamFlinkDataSetAdapter()
+            .applyBeamPTransform(
+                input,
+                new PTransform<PCollection<String>, PCollection<String>>() {
+                  @Override
+                  public PCollection<String> expand(PCollection<String> input) {
+                    return input.apply(withPrefix("x")).setCoder(new MyCoder());
+                  }
+                });
+
+    assertThat(result.collect(), containsInAnyOrder("xa", "xb", "xc"));
+  }
+
+  private static class MyCoder extends Coder<String> {
+
+    private static final int CUSTOM_MARKER = 3;
+
+    @Override
+    public void encode(String value, OutputStream outStream) throws IOException {
+      outStream.write(CUSTOM_MARKER);
+      StringUtf8Coder.of().encode(value, outStream);
+    }
+
+    @Override
+    public String decode(InputStream inStream) throws IOException {
+      assert inStream.read() == CUSTOM_MARKER;
+      return StringUtf8Coder.of().decode(inStream);
+    }
+
+    @Override
+    public List<? extends Coder<?>> getCoderArguments() {
+      return null;
+    }
+
+    @Override
+    public void verifyDeterministic() throws NonDeterministicException {}
   }
 }

@@ -22,7 +22,7 @@ import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.FlinkSource;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.FlinkSourceSplit;
 import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
@@ -56,6 +56,7 @@ public class FlinkBoundedSource<T> extends FlinkSource<T, WindowedValue<T>> {
       Boundedness boundedness,
       int numSplits,
       @Nullable TimestampExtractor<WindowedValue<T>> timestampExtractor) {
+
     super(stepName, beamSource, serializablePipelineOptions, boundedness, numSplits);
     this.timestampExtractor = timestampExtractor;
   }

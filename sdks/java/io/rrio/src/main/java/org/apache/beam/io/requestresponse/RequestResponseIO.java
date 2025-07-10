@@ -35,6 +35,7 @@ import org.apache.beam.sdk.transforms.Partition.PartitionFn;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.SerializableSupplier;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.KV;
@@ -122,8 +123,9 @@ public class RequestResponseIO<RequestT, ResponseT>
 
   /**
    * Instantiates a {@link RequestResponseIO} with a {@link Caller} and a {@link ResponseT} {@link
-   * Coder}. Checks for the {@link Caller}'s {@link SerializableUtils#ensureSerializable}
-   * serializable errors.
+   * Coder} with a default package private implementation of {@link CallShouldBackoff} based on
+   * https://sre.google/sre-book/handling-overload. Checks for the {@link Caller}'s {@link
+   * SerializableUtils#ensureSerializable} serializable errors.
    */
   public static <RequestT, ResponseT> RequestResponseIO<RequestT, ResponseT> of(
       Caller<RequestT, ResponseT> caller, Coder<ResponseT> responseTCoder) {
@@ -140,9 +142,11 @@ public class RequestResponseIO<RequestT, ResponseT>
   }
 
   /**
-   * Instantiates a {@link RequestResponseIO} with a {@link ResponseT} {@link Coder} and an
-   * implementation of both the {@link Caller} and {@link SetupTeardown} interfaces. Checks {@link
-   * SerializableUtils#ensureSerializable} serializable errors.
+   * Instantiates a {@link RequestResponseIO} with a {@link ResponseT} {@link Coder}, a default
+   * package private implementation of {@link CallShouldBackoff} based on
+   * https://sre.google/sre-book/handling-overload, and an implementation of both the {@link Caller}
+   * and {@link SetupTeardown} interfaces. Checks {@link SerializableUtils#ensureSerializable}
+   * serializable errors.
    */
   public static <
           RequestT,
@@ -196,10 +200,9 @@ public class RequestResponseIO<RequestT, ResponseT>
   }
 
   /**
-   * Overrides the private no-op implementation of {@link CallShouldBackoff} that determines whether
-   * the {@link DoFn} should hold {@link RequestT}s. Without this configuration, {@link RequestT}s
-   * are never held; no-op implemented {@link CallShouldBackoff#isTrue} always returns {@code
-   * false}.
+   * Overrides the package private implementation of {@link CallShouldBackoff}, based on
+   * https://sre.google/sre-book/handling-overload, that determines whether the underlyling {@link
+   * DoFn} should hold {@link RequestT}s.
    */
   public RequestResponseIO<RequestT, ResponseT> withCallShouldBackoff(
       CallShouldBackoff<ResponseT> value) {
@@ -254,6 +257,9 @@ public class RequestResponseIO<RequestT, ResponseT>
         callConfiguration);
   }
 
+  /*
+   * Via the {@Link Monitoring} configuration, turns on/off various {@link org.apache.beam.sdk.metrics.Counter}s.
+   */
   public RequestResponseIO<RequestT, ResponseT> withMonitoringConfiguration(Monitoring value) {
     return new RequestResponseIO<>(
         rrioConfiguration, callConfiguration.toBuilder().setMonitoringConfiguration(value).build());

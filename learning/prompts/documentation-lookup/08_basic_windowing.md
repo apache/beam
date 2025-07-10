@@ -1,13 +1,15 @@
 Prompt:
-What is Windowing in Apache Beam?
+What is windowing in Apache Beam?
+
 Response:
-In stream processing, windowing lets you to divide data streams into logical units for efficient and correct parallel processing.
+In stream processing, windowing allows you to divide data streams into logical units for efficient and correct parallel processing.
 
 With an unbounded data set, collecting all of the elements is impossible, because new elements are constantly being added. In the Beam model, any `PCollection` (including unbounded `PCollection` objects) can be subdivided into [logical windows](https://beam.apache.org/documentation/programming-guide/#windowing-basics). Grouping transforms then consider the elements of each `PCollection` on a per-window basis.
 
-Because Beam's default windowing strategy is to assign each element to a single, global window, you must explicitly specify a [windowing function](https://beam.apache.org/documentation/programming-guide/#setting-your-pcollections-windowing-function) for your pipeline.
+Because Apache Beam's default windowing strategy is to assign each element to a single, global window, you must explicitly specify a [windowing function](https://beam.apache.org/documentation/programming-guide/#setting-your-pcollections-windowing-function) for your pipeline.
 
-The following code snippet shows how  to divide a `PCollection` into 60-second windows:
+The following code snippet shows how to divide a `PCollection` into 60-second windows:
+
 ```python
 from apache_beam import beam
 from apache_beam import window
@@ -22,8 +24,8 @@ Beam provides a number of [built-in windowing functions](https://beam.apache.org
 - Single Global Window
 - Calendar-based Windows (not supported by the Beam SDK for Python or Go)
 
-You can also create your own custom windowing function [WindowFn](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/window.py).
+You can also create your own custom windowing function [`WindowFn`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/window.py).
 
-You also need to specify a [triggering strategy](https://beam.apache.org/documentation/programming-guide/#triggers) to determine when to emit the results of your pipeline’s windowed computations.
+You need to specify a [triggering strategy](https://beam.apache.org/documentation/programming-guide/#triggers) to determine when to emit the results of your pipeline’s windowed computations.
 
 You can adjust the windowing strategy to allow for [late data](https://beam.apache.org/documentation/programming-guide/#watermarks-and-late-data), which is data that arrives after the watermark has passed the end of the window. You can also specify how to handle late data, such as discarding or adding it to the next window.

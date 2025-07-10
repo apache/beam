@@ -17,15 +17,29 @@
  */
 
 /**
- * Unit tests for commont Python components.
+ * Python gradle tasks that run using a default, typically lowest supported,
+ * Python version.
  */
 
-// TODO(https://github.com/apache/beam/issues/20209): See if we can avoid hardcoding python version here.
 plugins { id 'org.apache.beam.module' }
 applyPythonNature()
 
-toxTask "docs", "py38-docs"
+def posargs = project.findProperty("posargs") ?: ""
+
+toxTask "docs", "docs"
 assemble.dependsOn docs
 
 task preCommitPyCommon() {
 }
+
+task linter {}
+check.dependsOn linter
+
+toxTask "formatter", "py3-yapf-check"
+check.dependsOn formatter
+
+toxTask "lint", "lint", "${posargs}"
+linter.dependsOn lint
+
+toxTask "mypy", "mypy", "${posargs}"
+linter.dependsOn mypy

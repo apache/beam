@@ -21,11 +21,12 @@ import java.util.List;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.schemas.FieldValueGetter;
 import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
-import org.apache.beam.sdk.schemas.GetterBasedSchemaProvider;
+import org.apache.beam.sdk.schemas.GetterBasedSchemaProviderV2;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaProvider;
 import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.checkerframework.checker.nullness.qual.NonNull;
 
 /**
  * A {@link SchemaProvider} for AVRO generated SpecificRecords and POJOs.
@@ -37,25 +38,27 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 @SuppressWarnings({
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
-public class AvroRecordSchema extends GetterBasedSchemaProvider {
+public class AvroRecordSchema extends GetterBasedSchemaProviderV2 {
   @Override
   public <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor) {
     return AvroUtils.toBeamSchema(typeDescriptor.getRawType());
   }
 
   @Override
-  public List<FieldValueGetter> fieldValueGetters(Class<?> targetClass, Schema schema) {
-    return AvroUtils.getGetters(targetClass, schema);
+  public <T> List<FieldValueGetter<@NonNull T, Object>> fieldValueGetters(
+      TypeDescriptor<T> targetTypeDescriptor, Schema schema) {
+    return AvroUtils.getGetters(targetTypeDescriptor, schema);
   }
 
   @Override
   public List<FieldValueTypeInformation> fieldValueTypeInformations(
-      Class<?> targetClass, Schema schema) {
-    return AvroUtils.getFieldTypes(targetClass, schema);
+      TypeDescriptor<?> targetTypeDescriptor, Schema schema) {
+    return AvroUtils.getFieldTypes(targetTypeDescriptor, schema);
   }
 
   @Override
-  public SchemaUserTypeCreator schemaTypeCreator(Class<?> targetClass, Schema schema) {
-    return AvroUtils.getCreator(targetClass, schema);
+  public SchemaUserTypeCreator schemaTypeCreator(
+      TypeDescriptor<?> targetTypeDescriptor, Schema schema) {
+    return AvroUtils.getCreator(targetTypeDescriptor, schema);
   }
 }

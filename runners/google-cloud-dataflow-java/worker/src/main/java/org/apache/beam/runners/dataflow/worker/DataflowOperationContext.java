@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor.longToSplitInt;
 
+import com.google.api.client.util.Clock;
 import com.google.api.services.dataflow.model.CounterMetadata;
 import com.google.api.services.dataflow.model.CounterStructuredName;
 import com.google.api.services.dataflow.model.CounterStructuredNameAndMetadata;
@@ -181,6 +182,9 @@ public class DataflowOperationContext implements OperationContext {
     private final ProfileScope profileScope;
     private final @Nullable MetricsContainer metricsContainer;
 
+    /** Clock used to either provide real system time or mocked to virtualize time for testing. */
+    private final Clock clock;
+
     public DataflowExecutionState(
         NameContext nameContext,
         String stateName,
@@ -188,12 +192,31 @@ public class DataflowOperationContext implements OperationContext {
         @Nullable Integer inputIndex,
         @Nullable MetricsContainer metricsContainer,
         ProfileScope profileScope) {
+      this(
+          nameContext,
+          stateName,
+          requestingStepName,
+          inputIndex,
+          metricsContainer,
+          profileScope,
+          Clock.SYSTEM);
+    }
+
+    public DataflowExecutionState(
+        NameContext nameContext,
+        String stateName,
+        @Nullable String requestingStepName,
+        @Nullable Integer inputIndex,
+        @Nullable MetricsContainer metricsContainer,
+        ProfileScope profileScope,
+        Clock clock) {
       super(stateName);
       this.stepName = nameContext;
       this.requestingStepName = requestingStepName;
       this.inputIndex = inputIndex;
       this.profileScope = Preconditions.checkNotNull(profileScope);
       this.metricsContainer = metricsContainer;
+      this.clock = clock;
     }
 
     /**
@@ -267,6 +290,34 @@ public class DataflowOperationContext implements OperationContext {
       DataflowWorkerLoggingHandler dataflowLoggingHandler =
           DataflowWorkerLoggingInitializer.getLoggingHandler();
       dataflowLoggingHandler.publish(this, logRecord);
+
+      if (shouldLogFullThreadDump(lullDuration)) {
+        StackTraceUtil.logAllStackTraces();
+      }
+    }
+
+    /**
+     * The time interval between two full thread dump. (A full thread dump is performed at most once
+     * every 20 minutes.)
+     */
+    private static final long LOG_LULL_FULL_THREAD_DUMP_INTERVAL_MS = 20 * 60 * 1000;
+
+    /** The minimum lull duration to perform a full thread dump. */
+    private static final long LOG_LULL_FULL_THREAD_DUMP_LULL_MS = 20 * 60 * 1000;
+
+    /** Last time when a full thread dump was performed. */
+    private long lastFullThreadDumpMillis = 0;
+
+    private boolean shouldLogFullThreadDump(Duration lullDuration) {
+      if (lullDuration.getMillis() < LOG_LULL_FULL_THREAD_DUMP_LULL_MS) {
+        return false;
+      }
+      long now = clock.currentTimeMillis();
+      if (lastFullThreadDumpMillis + LOG_LULL_FULL_THREAD_DUMP_INTERVAL_MS < now) {
+        lastFullThreadDumpMillis = now;
+        return true;
+      }
+      return false;
     }
 
     public @Nullable MetricsContainer getMetricsContainer() {

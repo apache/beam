@@ -17,43 +17,24 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.work.budget;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap.toImmutableMap;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.math.DoubleMath.roundToLong;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.math.LongMath.divide;
 
 import java.math.RoundingMode;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.function.Function;
-import java.util.function.Supplier;
-import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.WindmillStreamSender;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableCollection;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Evenly distributes the provided budget across the available {@link WindmillStreamSender}(s). */
+/** Evenly distributes the provided budget across the available {@link GetWorkBudgetSpender}(s). */
 @Internal
 final class EvenGetWorkBudgetDistributor implements GetWorkBudgetDistributor {
   private static final Logger LOG = LoggerFactory.getLogger(EvenGetWorkBudgetDistributor.class);
-  private final Supplier<GetWorkBudget> activeWorkBudgetSupplier;
-
-  EvenGetWorkBudgetDistributor(Supplier<GetWorkBudget> activeWorkBudgetSupplier) {
-    this.activeWorkBudgetSupplier = activeWorkBudgetSupplier;
-  }
-
-  private static boolean isBelowFiftyPercentOfTarget(
-      GetWorkBudget remaining, GetWorkBudget target) {
-    return remaining.items() < roundToLong(target.items() * 0.5, RoundingMode.CEILING)
-        || remaining.bytes() < roundToLong(target.bytes() * 0.5, RoundingMode.CEILING);
-  }
 
   @Override
-  public void distributeBudget(
-      ImmutableCollection<WindmillStreamSender> streams, GetWorkBudget getWorkBudget) {
-    if (streams.isEmpty()) {
-      LOG.debug("Cannot distribute budget to no streams.");
+  public <T extends GetWorkBudgetSpender> void distributeBudget(
+      ImmutableCollection<T> budgetSpenders, GetWorkBudget getWorkBudget) {
+    if (budgetSpenders.isEmpty()) {
+      LOG.debug("Cannot distribute budget to no owners.");
       return;
     }
 
@@ -62,40 +43,15 @@ final class EvenGetWorkBudgetDistributor implements GetWorkBudgetDistributor {
       return;
     }
 
-    Map<WindmillStreamSender, GetWorkBudget> desiredBudgets =
-        computeDesiredBudgets(streams, getWorkBudget);
-
-    for (Entry<WindmillStreamSender, GetWorkBudget> streamAndDesiredBudget :
-        desiredBudgets.entrySet()) {
-      WindmillStreamSender stream = streamAndDesiredBudget.getKey();
-      GetWorkBudget desired = streamAndDesiredBudget.getValue();
-      GetWorkBudget remaining = stream.remainingGetWorkBudget();
-      if (isBelowFiftyPercentOfTarget(remaining, desired)) {
-        GetWorkBudget adjustment = desired.subtract(remaining);
-        stream.adjustBudget(adjustment);
-      }
-    }
+    GetWorkBudget budgetPerStream = computeDesiredPerStreamBudget(budgetSpenders, getWorkBudget);
+    budgetSpenders.forEach(getWorkBudgetSpender -> getWorkBudgetSpender.setBudget(budgetPerStream));
   }
 
-  private ImmutableMap<WindmillStreamSender, GetWorkBudget> computeDesiredBudgets(
-      ImmutableCollection<WindmillStreamSender> streams, GetWorkBudget totalGetWorkBudget) {
-    GetWorkBudget activeWorkBudget = activeWorkBudgetSupplier.get();
-    LOG.info("Current active work budget: {}", activeWorkBudget);
-    // TODO: Fix possibly non-deterministic handing out of budgets.
-    // Rounding up here will drift upwards over the lifetime of the streams.
-    GetWorkBudget budgetPerStream =
-        GetWorkBudget.builder()
-            .setItems(
-                divide(
-                    totalGetWorkBudget.items() - activeWorkBudget.items(),
-                    streams.size(),
-                    RoundingMode.CEILING))
-            .setBytes(
-                divide(
-                    totalGetWorkBudget.bytes() - activeWorkBudget.bytes(),
-                    streams.size(),
-                    RoundingMode.CEILING))
-            .build();
-    return streams.stream().collect(toImmutableMap(Function.identity(), unused -> budgetPerStream));
+  private <T extends GetWorkBudgetSpender> GetWorkBudget computeDesiredPerStreamBudget(
+      ImmutableCollection<T> streams, GetWorkBudget totalGetWorkBudget) {
+    return GetWorkBudget.builder()
+        .setItems(divide(totalGetWorkBudget.items(), streams.size(), RoundingMode.CEILING))
+        .setBytes(divide(totalGetWorkBudget.bytes(), streams.size(), RoundingMode.CEILING))
+        .build();
   }
 }

@@ -19,12 +19,11 @@
 
 import enum
 import sys
+from collections.abc import Callable
+from collections.abc import Iterable
+from collections.abc import Sequence
 from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import Iterable
 from typing import Optional
-from typing import Sequence
 from typing import Union
 
 import numpy
@@ -43,7 +42,7 @@ __all__ = [
 TensorInferenceFn = Callable[[
     tf.Module,
     Sequence[Union[numpy.ndarray, tf.Tensor]],
-    Dict[str, Any],
+    dict[str, Any],
     Optional[str]
 ],
                              Iterable[PredictionResult]]
@@ -79,7 +78,7 @@ def _load_model_from_weights(create_model_fn, weights_path):
 def default_numpy_inference_fn(
     model: tf.Module,
     batch: Sequence[numpy.ndarray],
-    inference_args: Dict[str, Any],
+    inference_args: dict[str, Any],
     model_id: Optional[str] = None) -> Iterable[PredictionResult]:
   vectorized_batch = numpy.stack(batch, axis=0)
   predictions = model(vectorized_batch, **inference_args)
@@ -89,7 +88,7 @@ def default_numpy_inference_fn(
 def default_tensor_inference_fn(
     model: tf.Module,
     batch: Sequence[tf.Tensor],
-    inference_args: Dict[str, Any],
+    inference_args: dict[str, Any],
     model_id: Optional[str] = None) -> Iterable[PredictionResult]:
   vectorized_batch = tf.stack(batch, axis=0)
   predictions = model(vectorized_batch, **inference_args)
@@ -105,13 +104,14 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
       model_type: ModelType = ModelType.SAVED_MODEL,
       create_model_fn: Optional[Callable] = None,
       *,
-      load_model_args: Optional[Dict[str, Any]] = None,
+      load_model_args: Optional[dict[str, Any]] = None,
       custom_weights: str = "",
       inference_fn: TensorInferenceFn = default_numpy_inference_fn,
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None,
       max_batch_duration_secs: Optional[int] = None,
       large_model: bool = False,
+      model_copies: Optional[int] = None,
       **kwargs):
     """Implementation of the ModelHandler interface for Tensorflow.
 
@@ -137,6 +137,9 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
           memory pressure if you load multiple copies. Given a model that
           consumes N memory and a machine with W cores and M memory, you should
           set this to True if N*W > M.
+        model_copies: The exact number of models that you would like loaded
+          onto your machine. This can be useful if you exactly know your CPU or
+          GPU capacity and want to maximize resource utilization.
         kwargs: 'env_vars' can be used to set environment variables
           before loading the model.
 
@@ -157,7 +160,8 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
       self._batching_kwargs['max_batch_size'] = max_batch_size
     if max_batch_duration_secs is not None:
       self._batching_kwargs["max_batch_duration_secs"] = max_batch_duration_secs
-    self._large_model = large_model
+    self._share_across_processes = large_model or (model_copies is not None)
+    self._model_copies = model_copies or 1
 
   def load_model(self) -> tf.Module:
     """Loads and initializes a Tensorflow model for processing."""
@@ -178,7 +182,7 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
       self,
       batch: Sequence[numpy.ndarray],
       model: tf.Module,
-      inference_args: Optional[Dict[str, Any]] = None
+      inference_args: Optional[dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
     """
     Runs inferences on a batch of numpy array and returns an Iterable of
@@ -215,14 +219,17 @@ class TFModelHandlerNumpy(ModelHandler[numpy.ndarray,
     """
     return 'BeamML_TF_Numpy'
 
-  def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
+  def validate_inference_args(self, inference_args: Optional[dict[str, Any]]):
     pass
 
   def batch_elements_kwargs(self):
     return self._batching_kwargs
 
   def share_model_across_processes(self) -> bool:
-    return self._large_model
+    return self._share_across_processes
+
+  def model_copies(self) -> int:
+    return self._model_copies
 
 
 class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
@@ -233,13 +240,14 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
       model_type: ModelType = ModelType.SAVED_MODEL,
       create_model_fn: Optional[Callable] = None,
       *,
-      load_model_args: Optional[Dict[str, Any]] = None,
+      load_model_args: Optional[dict[str, Any]] = None,
       custom_weights: str = "",
       inference_fn: TensorInferenceFn = default_tensor_inference_fn,
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None,
       max_batch_duration_secs: Optional[int] = None,
       large_model: bool = False,
+      model_copies: Optional[int] = None,
       **kwargs):
     """Implementation of the ModelHandler interface for Tensorflow.
 
@@ -270,6 +278,9 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
           memory pressure if you load multiple copies. Given a model that
           consumes N memory and a machine with W cores and M memory, you should
           set this to True if N*W > M.
+        model_copies: The exact number of models that you would like loaded
+          onto your machine. This can be useful if you exactly know your CPU or
+          GPU capacity and want to maximize resource utilization.
         kwargs: 'env_vars' can be used to set environment variables
           before loading the model.
 
@@ -290,7 +301,8 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
       self._batching_kwargs['max_batch_size'] = max_batch_size
     if max_batch_duration_secs is not None:
       self._batching_kwargs["max_batch_duration_secs"] = max_batch_duration_secs
-    self._large_model = large_model
+    self._share_across_processes = large_model or (model_copies is not None)
+    self._model_copies = model_copies or 1
 
   def load_model(self) -> tf.Module:
     """Loads and initializes a tensorflow model for processing."""
@@ -310,7 +322,7 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
       self,
       batch: Sequence[tf.Tensor],
       model: tf.Module,
-      inference_args: Optional[Dict[str, Any]] = None
+      inference_args: Optional[dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
     """
     Runs inferences on a batch of tf.Tensor and returns an Iterable of
@@ -348,11 +360,14 @@ class TFModelHandlerTensor(ModelHandler[tf.Tensor, PredictionResult,
     """
     return 'BeamML_TF_Tensor'
 
-  def validate_inference_args(self, inference_args: Optional[Dict[str, Any]]):
+  def validate_inference_args(self, inference_args: Optional[dict[str, Any]]):
     pass
 
   def batch_elements_kwargs(self):
     return self._batching_kwargs
 
   def share_model_across_processes(self) -> bool:
-    return self._large_model
+    return self._share_across_processes
+
+  def model_copies(self) -> int:
+    return self._model_copies

@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.Map;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
+import org.apache.beam.runners.fnexecution.wire.LengthPrefixUnknownCoders;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -78,6 +79,21 @@ class BeamAdapterCoderUtils {
               CoderTranslation.TranslationContext.DEFAULT);
     } catch (IOException exn) {
       throw new RuntimeException(exn);
+    }
+  }
+
+  static void registerKnownCoderFor(RunnerApi.Pipeline p, String pCollectionId) {
+    registerAsKnownCoder(p, p.getComponents().getPcollectionsOrThrow(pCollectionId).getCoderId());
+  }
+
+  static void registerAsKnownCoder(RunnerApi.Pipeline p, String coderId) {
+    RunnerApi.Coder coder = p.getComponents().getCodersOrThrow(coderId);
+    // It'd be more targeted to note the coder id rather than the URN,
+    // but the length prefixing code is invoked within a deeply nested
+    // sequence of static method calls.
+    LengthPrefixUnknownCoders.addKnownCoderUrn(coder.getSpec().getUrn());
+    for (String componentCoderId : coder.getComponentCoderIdsList()) {
+      registerAsKnownCoder(p, componentCoderId);
     }
   }
 }

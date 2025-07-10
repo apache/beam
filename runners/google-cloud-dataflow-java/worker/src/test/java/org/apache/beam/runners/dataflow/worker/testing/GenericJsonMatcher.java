@@ -18,7 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.testing;
 
 import com.google.api.client.json.GenericJson;
-import com.google.api.client.json.jackson2.JacksonFactory;
+import com.google.api.client.json.gson.GsonFactory;
 import java.io.IOException;
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
@@ -35,11 +35,11 @@ public final class GenericJsonMatcher extends TypeSafeMatcher<GenericJson> {
 
   private String expectedJsonText;
 
-  private static final JacksonFactory jacksonFactory = JacksonFactory.getDefaultInstance();
+  private static final GsonFactory gsonFactory = GsonFactory.getDefaultInstance();
 
   private GenericJsonMatcher(GenericJson expected) {
     try {
-      expectedJsonText = jacksonFactory.toString(expected);
+      expectedJsonText = gsonFactory.toString(expected);
     } catch (IOException ex) {
       throw new IllegalArgumentException("Could not parse JSON", ex);
     }
@@ -52,7 +52,7 @@ public final class GenericJsonMatcher extends TypeSafeMatcher<GenericJson> {
   @Override
   protected boolean matchesSafely(GenericJson actual) {
     try {
-      String actualJsonText = jacksonFactory.toString(actual);
+      String actualJsonText = gsonFactory.toString(actual);
       JSONCompareResult result =
           JSONCompare.compareJSON(expectedJsonText, actualJsonText, JSONCompareMode.STRICT);
       return result.passed();

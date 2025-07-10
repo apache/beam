@@ -44,9 +44,10 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
+  ALLOYDB_PASSWORD: ${{ secrets.ALLOYDB_PASSWORD }}
 
 jobs:
   beam_PostCommit_Python_Xlang_Gcp_Dataflow:
@@ -74,8 +75,8 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           python-version: |
-            3.8
-            3.11
+            3.9
+            3.12
       - name: run PostCommit Python Xlang Gcp Dataflow script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -94,3 +95,4 @@ jobs:
           commit: '${{ env.prsha || env.GITHUB_SHA }}'
           comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
           files: '**/pytest*.xml'
+          large_files: true

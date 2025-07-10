@@ -1,0 +1,40 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# Specifies available configs for each Managed transform.
+# Empty list means all fields are available and documented.
+# Either explicitly list all available fields or point out the ignored fields.
+
+# If a Managed transform is not listed here, all of its config fields will
+# be considered available.
+
+"beam:schematransform:org.apache.beam:kafka_read:v1":
+    ignored:
+        - "auto_offset_reset_config"
+        - "max_read_time_seconds"
+        - "error_handling"
+"beam:schematransform:org.apache.beam:kafka_write:v1":
+    ignored:
+        - "error_handling"
+"beam:schematransform:org.apache.beam:bigquery_write:v1":
+    available:
+        - "table"
+        - "triggering_frequency_seconds"
+        - "kms_key"
+        - "keep"
+        - "drop"
+        - "only"

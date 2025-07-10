@@ -76,10 +76,12 @@ starts and finishes with `start_bundle` and `finish_bundle`.
   multiple instances of a given `DoFn` subclass may be created (e.g., due to parallelization, or due to garbage collection after a period
   of disuse).
   This is a good place to connect to database instances, open network connections or other resources.
+  See also `DoFn.SetupContextParam` for a way to accomplish this via context managers.
 
 * [`DoFn.start_bundle()`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.start_bundle):
   Called *once per bundle of elements* before calling `process` on the first element of the bundle.
   This is a good place to start keeping track of the bundle elements.
+  See also `DoFn.BundleContextParam` for a way to accomplish this via context managers.
 
 * [**`DoFn.process(element, *args, **kwargs)`**](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.process):
   Called *once per element*, can *yield zero or more elements*.
@@ -98,8 +100,8 @@ starts and finishes with `start_bundle` and `finish_bundle`.
 
   Note that yielded elements from `finish_bundle` must be of the type
   [`apache_beam.utils.windowed_value.WindowedValue`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/utils/windowed_value.py).
-  You need to provide a timestamp as a unix timestamp, which you can get from the last processed element.
-  You also need to provide a window, which you can get from the last processed element like in the example below.
+  You need to provide a timestamp as a unix timestamp, which you can get from the relevant processed elements.
+  You also need to provide a window, which you can get from the relevant processed elements like in the example below.
 
 * [`DoFn.teardown()`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.teardown):
   Called *once (as a best effort) per `DoFn` instance* when the `DoFn` instance is shutting down.

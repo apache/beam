@@ -75,7 +75,10 @@ export class ReviewersForLabel {
   // Given the up to date list of available reviewers (excluding the author),
   // returns the next reviewer up based on who has reviewed least recently.
   // Updates this object to reflect their assignment.
-  async assignNextCommitter(availableReviewers: string[]): Promise<string> {
+  async assignNextCommitter(
+    availableReviewers: string[],
+    fallbackReviewers: string[]
+  ): Promise<string> {
     let earliestDate = Date.now();
     let earliestCommitter: string = "";
 
@@ -94,7 +97,9 @@ export class ReviewersForLabel {
     }
 
     if (!earliestCommitter) {
-      throw new Error(`No committers available for label ${this.label}`);
+      console.log(`No committers available for label ${this.label}`);
+      console.log(`Using fallbackReviewers label instead of ${this.label}`);
+      return this.assignNextCommitter(fallbackReviewers, fallbackReviewers);
     }
     this.dateOfLastReviewAssignment[earliestCommitter] = Date.now();
     return earliestCommitter;

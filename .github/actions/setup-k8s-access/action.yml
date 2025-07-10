@@ -34,7 +34,10 @@ inputs:
     description: "Zone of the cluster to be created"
     required: true
     default: "us-central1-a"
-
+  remove_finalizer:
+    description: "Remove finalizers from the cluster"
+    required: false
+    default: ""
 
 runs:
   using: composite
@@ -65,9 +68,12 @@ runs:
     run: |
       kubectl config set-context --current --namespace=${{ steps.replace_namespace.outputs.TEST_NAMESPACE }}
   - name: Post cleanup
-    uses: pyTooling/Actions/with-post-step@v0.4.6
+    uses: pyTooling/Actions/with-post-step@v4.2.2
     with:
       main: echo "Post Cleanup"
       post: |
         echo "Post Cleanup"
+        if [ -n "${{ inputs.remove_finalizer }}" ]; then
+          kubectl patch ${{ inputs.remove_finalizer }} -p '[{"op": "remove", "path": "/metadata/finalizers"}]' --type=json
+        fi
         kubectl delete namespace ${{ steps.replace_namespace.outputs.TEST_NAMESPACE }}

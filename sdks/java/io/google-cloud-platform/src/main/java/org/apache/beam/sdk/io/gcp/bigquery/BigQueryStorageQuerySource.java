@@ -46,6 +46,7 @@ class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> {
       QueryPriority priority,
       @Nullable String location,
       @Nullable String queryTempDataset,
+      @Nullable String queryTempProject,
       @Nullable String kmsKey,
       @Nullable DataFormat format,
       SerializableFunction<SchemaAndRecord, T> parseFn,
@@ -59,6 +60,7 @@ class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> {
         priority,
         location,
         queryTempDataset,
+        queryTempProject,
         kmsKey,
         format,
         parseFn,
@@ -85,6 +87,7 @@ class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> {
         priority,
         location,
         null,
+        null,
         kmsKey,
         null,
         parseFn,
@@ -99,6 +102,8 @@ class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> {
   private final QueryPriority priority;
   private final @Nullable String location;
   private final @Nullable String queryTempDataset;
+
+  private final @Nullable String queryTempProject;
   private final @Nullable String kmsKey;
 
   private transient AtomicReference<@Nullable JobStatistics> dryRunJobStats;
@@ -111,6 +116,7 @@ class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> {
       QueryPriority priority,
       @Nullable String location,
       @Nullable String queryTempDataset,
+      @Nullable String queryTempProject,
       @Nullable String kmsKey,
       @Nullable DataFormat format,
       SerializableFunction<SchemaAndRecord, T> parseFn,
@@ -124,6 +130,7 @@ class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> {
     this.priority = checkNotNull(priority, "priority");
     this.location = location;
     this.queryTempDataset = queryTempDataset;
+    this.queryTempProject = queryTempProject;
     this.kmsKey = kmsKey;
     this.dryRunJobStats = new AtomicReference<>();
   }
@@ -170,6 +177,7 @@ class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> {
             priority,
             location,
             queryTempDataset,
+            queryTempProject,
             kmsKey);
     try (DatasetService datasetService = bqServices.getDatasetService(options)) {
       return datasetService.getTable(queryResultTable);

@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.metrics;
 
 import java.io.Serializable;
+import java.util.Optional;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.util.HistogramData;
 
@@ -27,11 +28,8 @@ public class DelegatingHistogram implements Metric, Histogram, Serializable {
   private final MetricName name;
   private final HistogramData.BucketType bucketType;
   private final boolean processWideContainer;
-  private final boolean perWorkerHistogram;
 
   /**
-   * Create a {@code DelegatingHistogram} with {@code perWorkerHistogram} set to false.
-   *
    * @param name Metric name for this metric.
    * @param bucketType Histogram bucketing strategy.
    * @param processWideContainer Whether this Counter is stored in the ProcessWide container or the
@@ -39,41 +37,30 @@ public class DelegatingHistogram implements Metric, Histogram, Serializable {
    */
   public DelegatingHistogram(
       MetricName name, HistogramData.BucketType bucketType, boolean processWideContainer) {
-    this(name, bucketType, processWideContainer, false);
-  }
-
-  /**
-   * @param name Metric name for this metric.
-   * @param bucketType Histogram bucketing strategy.
-   * @param processWideContainer Whether this Counter is stored in the ProcessWide container or the
-   *     current thread's container.
-   * @param perWorkerHistogram Whether this Histogram refers to a perWorker metric or not.
-   */
-  public DelegatingHistogram(
-      MetricName name,
-      HistogramData.BucketType bucketType,
-      boolean processWideContainer,
-      boolean perWorkerHistogram) {
     this.name = name;
     this.bucketType = bucketType;
     this.processWideContainer = processWideContainer;
-    this.perWorkerHistogram = perWorkerHistogram;
   }
 
-  @Override
-  public void update(double value) {
+  private Optional<Histogram> getHistogram() {
     MetricsContainer container =
         processWideContainer
             ? MetricsEnvironment.getProcessWideContainer()
             : MetricsEnvironment.getCurrentContainer();
     if (container == null) {
-      return;
+      return Optional.empty();
     }
-    if (perWorkerHistogram) {
-      container.getPerWorkerHistogram(name, bucketType).update(value);
-    } else {
-      container.getHistogram(name, bucketType).update(value);
-    }
+    return Optional.of(container.getHistogram(name, bucketType));
+  }
+
+  @Override
+  public void update(double value) {
+    getHistogram().ifPresent(histogram -> histogram.update(value));
+  }
+
+  @Override
+  public void update(double... values) {
+    getHistogram().ifPresent(histogram -> histogram.update(values));
   }
 
   @Override

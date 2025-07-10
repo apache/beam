@@ -404,6 +404,32 @@ public class FlattenTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
+  public void testFlattenWithPCollection() {
+    PCollection<String> output =
+        p.apply(Create.of(LINES))
+            .apply("FlattenWithLines1", Flatten.with(p.apply("Create1", Create.of(LINES))))
+            .apply("FlattenWithLines2", Flatten.with(p.apply("Create2", Create.of(LINES2))));
+
+    PAssert.that(output).containsInAnyOrder(flattenLists(Arrays.asList(LINES, LINES2, LINES)));
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testFlattenWithPTransform() {
+    PCollection<String> output =
+        p.apply(Create.of(LINES))
+            .apply("Create1", Flatten.with(Create.of(LINES)))
+            .apply("Create2", Flatten.with(Create.of(LINES2)));
+
+    PAssert.that(output).containsInAnyOrder(flattenLists(Arrays.asList(LINES, LINES2, LINES)));
+    p.run();
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
+
+  @Test
+  @Category(NeedsRunner.class)
   public void testEqualWindowFnPropagation() {
     PCollection<String> input1 =
         p.apply("CreateInput1", Create.of("Input1"))
@@ -470,6 +496,7 @@ public class FlattenTest implements Serializable {
   public void testFlattenGetName() {
     Assert.assertEquals("Flatten.Iterables", Flatten.<String>iterables().getName());
     Assert.assertEquals("Flatten.PCollections", Flatten.<String>pCollections().getName());
+    Assert.assertEquals("Flatten.With", Flatten.<String>with((PCollection<String>) null).getName());
   }
 
   /////////////////////////////////////////////////////////////////////////////

@@ -30,11 +30,12 @@ import java.util.concurrent.Callable;
 import java.util.function.Function;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.runners.core.InMemoryMultimapSideInputView;
-import org.apache.beam.runners.dataflow.options.DataflowStreamingPipelineOptions;
+import org.apache.beam.runners.core.LateDataUtils;
 import org.apache.beam.runners.dataflow.worker.WindmillTimeUtils;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalData;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GlobalDataRequest;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -48,11 +49,14 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Ordering;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Class responsible for fetching state from the windmill server. */
+/** Class responsible for fetching side input state from the streaming backend. */
 @NotThreadSafe
+@Internal
 public class SideInputStateFetcher {
   private static final Logger LOG = LoggerFactory.getLogger(SideInputStateFetcher.class);
 
@@ -62,12 +66,6 @@ public class SideInputStateFetcher {
   private final SideInputCache sideInputCache;
   private final Function<GlobalDataRequest, GlobalData> fetchGlobalDataFn;
   private long bytesRead = 0L;
-
-  public SideInputStateFetcher(
-      Function<GlobalDataRequest, GlobalData> fetchGlobalDataFn,
-      DataflowStreamingPipelineOptions options) {
-    this(fetchGlobalDataFn, SideInputCache.create(options));
-  }
 
   SideInputStateFetcher(
       Function<GlobalDataRequest, GlobalData> fetchGlobalDataFn, SideInputCache sideInputCache) {
@@ -101,12 +99,56 @@ public class SideInputStateFetcher {
     return view.getCoderInternal();
   }
 
-  /** Returns a view of the underlying cache that keeps track of bytes read separately. */
-  public SideInputStateFetcher byteTrackingView() {
-    return new SideInputStateFetcher(fetchGlobalDataFn, sideInputCache);
+  private static <T> SideInput<T> createSideInputCacheEntry(
+      PCollectionView<T> view, GlobalData data) throws IOException {
+    Iterable<?> rawData = decodeRawData(view, data);
+    switch (getViewFn(view).getMaterialization().getUrn()) {
+      case ITERABLE_MATERIALIZATION_URN:
+        {
+          @SuppressWarnings({
+            "unchecked", // ITERABLE_MATERIALIZATION_URN has ViewFn<IterableView, T>.
+            "rawtypes" //  TODO(https://github.com/apache/beam/issues/20447)
+          })
+          ViewFn<IterableView, T> viewFn = (ViewFn<IterableView, T>) getViewFn(view);
+          return SideInput.ready(viewFn.apply(() -> rawData), data.getData().size());
+        }
+      case MULTIMAP_MATERIALIZATION_URN:
+        {
+          @SuppressWarnings({
+            "unchecked", // MULTIMAP_MATERIALIZATION_URN has ViewFn<MultimapView, T>.
+            "rawtypes" //  TODO(https://github.com/apache/beam/issues/20447)
+          })
+          ViewFn<MultimapView, T> viewFn = (ViewFn<MultimapView, T>) getViewFn(view);
+          Coder<?> keyCoder = ((KvCoder<?, ?>) getCoder(view)).getKeyCoder();
+
+          @SuppressWarnings({
+            "unchecked", // Safe since multimap rawData is of type Iterable<KV<K, V>>
+            "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
+          })
+          T multimapSideInputValue =
+              viewFn.apply(
+                  InMemoryMultimapSideInputView.fromIterable(keyCoder, (Iterable) rawData));
+          return SideInput.ready(multimapSideInputValue, data.getData().size());
+        }
+      default:
+        {
+          throw new IllegalStateException(
+              "Unknown side input materialization format requested: "
+                  + getViewFn(view).getMaterialization().getUrn());
+        }
+    }
   }
 
-  public long getBytesRead() {
+  private static <T> void validateViewMaterialization(PCollectionView<T> view) {
+    String materializationUrn = getViewFn(view).getMaterialization().getUrn();
+    checkState(
+        SUPPORTED_MATERIALIZATIONS.contains(materializationUrn),
+        "Only materialization's of type %s supported, received %s",
+        SUPPORTED_MATERIALIZATIONS,
+        materializationUrn);
+  }
+
+  public final long getBytesRead() {
     return bytesRead;
   }
 
@@ -168,6 +210,11 @@ public class SideInputStateFetcher {
     ByteStringOutputStream windowStream = new ByteStringOutputStream();
     windowCoder.encode(sideWindow, windowStream);
 
+    Instant firingDeadline =
+        Ordering.natural()
+            .min(
+                sideWindowStrategy.getTrigger().getWatermarkThatGuaranteesFiring(sideWindow),
+                LateDataUtils.garbageCollectionTime(sideWindow, sideWindowStrategy));
     GlobalDataRequest request =
         GlobalDataRequest.newBuilder()
             .setDataId(
@@ -177,8 +224,7 @@ public class SideInputStateFetcher {
                     .build())
             .setStateFamily(stateFamily)
             .setExistenceWatermarkDeadline(
-                WindmillTimeUtils.harnessToWindmillTimestamp(
-                    sideWindowStrategy.getTrigger().getWatermarkThatGuaranteesFiring(sideWindow)))
+                WindmillTimeUtils.harnessToWindmillTimestamp(firingDeadline))
             .build();
 
     try (Closeable ignored = scopedReadStateSupplier.get()) {
@@ -197,54 +243,5 @@ public class SideInputStateFetcher {
         fetchGlobalDataFromWindmill(view, sideWindow, stateFamily, scopedReadStateSupplier);
     bytesRead += data.getSerializedSize();
     return data.getIsReady() ? createSideInputCacheEntry(view, data) : SideInput.notReady();
-  }
-
-  private <T> void validateViewMaterialization(PCollectionView<T> view) {
-    String materializationUrn = getViewFn(view).getMaterialization().getUrn();
-    checkState(
-        SUPPORTED_MATERIALIZATIONS.contains(materializationUrn),
-        "Only materialization's of type %s supported, received %s",
-        SUPPORTED_MATERIALIZATIONS,
-        materializationUrn);
-  }
-
-  private <T> SideInput<T> createSideInputCacheEntry(PCollectionView<T> view, GlobalData data)
-      throws IOException {
-    Iterable<?> rawData = decodeRawData(view, data);
-    switch (getViewFn(view).getMaterialization().getUrn()) {
-      case ITERABLE_MATERIALIZATION_URN:
-        {
-          @SuppressWarnings({
-            "unchecked", // ITERABLE_MATERIALIZATION_URN has ViewFn<IterableView, T>.
-            "rawtypes" //  TODO(https://github.com/apache/beam/issues/20447)
-          })
-          ViewFn<IterableView, T> viewFn = (ViewFn<IterableView, T>) getViewFn(view);
-          return SideInput.ready(viewFn.apply(() -> rawData), data.getData().size());
-        }
-      case MULTIMAP_MATERIALIZATION_URN:
-        {
-          @SuppressWarnings({
-            "unchecked", // MULTIMAP_MATERIALIZATION_URN has ViewFn<MultimapView, T>.
-            "rawtypes" //  TODO(https://github.com/apache/beam/issues/20447)
-          })
-          ViewFn<MultimapView, T> viewFn = (ViewFn<MultimapView, T>) getViewFn(view);
-          Coder<?> keyCoder = ((KvCoder<?, ?>) getCoder(view)).getKeyCoder();
-
-          @SuppressWarnings({
-            "unchecked", // Safe since multimap rawData is of type Iterable<KV<K, V>>
-            "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-          })
-          T multimapSideInputValue =
-              viewFn.apply(
-                  InMemoryMultimapSideInputView.fromIterable(keyCoder, (Iterable) rawData));
-          return SideInput.ready(multimapSideInputValue, data.getData().size());
-        }
-      default:
-        {
-          throw new IllegalStateException(
-              "Unknown side input materialization format requested: "
-                  + getViewFn(view).getMaterialization().getUrn());
-        }
-    }
   }
 }

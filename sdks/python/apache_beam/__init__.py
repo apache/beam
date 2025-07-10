@@ -70,7 +70,7 @@ import sys
 import warnings
 
 if sys.version_info.major == 3:
-  if sys.version_info.minor <= 6 or sys.version_info.minor >= 12:
+  if sys.version_info.minor <= 8 or sys.version_info.minor >= 14:
     warnings.warn(
         'This version of Apache Beam has not been sufficiently tested on '
         'Python %s.%s. You may encounter bugs or missing features.' %
@@ -89,7 +89,7 @@ from apache_beam import io
 from apache_beam import metrics
 from apache_beam import typehints
 from apache_beam import version
-from apache_beam.pipeline import Pipeline
+from apache_beam.pipeline import *
 from apache_beam.transforms import *
 from apache_beam.pvalue import PCollection
 from apache_beam.pvalue import Row

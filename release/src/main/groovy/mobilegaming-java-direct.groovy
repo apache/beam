@@ -18,7 +18,6 @@
  */
 
 t = new TestScripts(args)
-mobileGamingCommands = new MobileGamingCommands(testScripts: t)
 
 /*
  * Run the mobile game examples on DirectRunner.
@@ -36,6 +35,8 @@ String command_output_text
  * Run the UserScore example with DirectRunner
  * */
 
+mobileGamingCommands = new MobileGamingCommands(testScripts: t, testRunId: UUID.randomUUID().toString())
+
 t.intent("Running: UserScore example on DirectRunner")
 t.run(mobileGamingCommands.createPipelineCommand("UserScore", runner))
 command_output_text = t.run "grep user19_BananaWallaby ${mobileGamingCommands.getUserScoreOutputName(runner)}* "
@@ -46,6 +47,8 @@ t.success("UserScore successfully run on DirectRunners.")
 /**
  * Run the HourlyTeamScore example with DirectRunner
  * */
+
+mobileGamingCommands = new MobileGamingCommands(testScripts: t, testRunId: UUID.randomUUID().toString())
 
 t.intent("Running: HourlyTeamScore example on DirectRunner")
 t.run(mobileGamingCommands.createPipelineCommand("HourlyTeamScore", runner))
@@ -59,16 +62,41 @@ t.success("HourlyTeamScore successfully run on DirectRunners.")
  * */
 
 t.intent("Running: LeaderBoard example on DirectRunner")
-t.run("bq rm -f -t ${t.bqDataset()}.leaderboard_DirectRunner_user")
-t.run("bq rm -f -t ${t.bqDataset()}.leaderboard_DirectRunner_team")
-// It will take couple seconds to clean up tables.
-// This loop makes sure tables are completely deleted before running the pipeline
-String tables = ""
-while({
+
+def dataset = t.bqDataset()
+def userTable = "leaderboard_DirectRunner_user"
+def teamTable = "leaderboard_DirectRunner_team"
+def userSchema = [
+        "user:STRING",
+        "total_score:INTEGER",
+        "processing_time:STRING"
+].join(",")
+def teamSchema = [
+        "team:STRING",
+        "total_score:INTEGER",
+        "window_start:STRING",
+        "processing_time:STRING",
+        "timing:STRING"
+].join(",")
+
+String tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
+
+if (!tables.contains(userTable)) {
+  t.intent("Creating table: ${userTable}")
+  t.run("bq mk --table ${dataset}.${userTable} ${userSchema}")
+}
+if (!tables.contains(teamTable)) {
+  t.intent("Creating table: ${teamTable}")
+  t.run("bq mk --table ${dataset}.${teamTable} ${teamSchema}")
+}
+
+// Verify that the tables have been created
+tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
+while (!tables.contains(userTable) || !tables.contains(teamTable)) {
   sleep(3000)
-  tables = t.run ("bq query SELECT table_id FROM ${t.bqDataset()}.__TABLES_SUMMARY__")
-  tables.contains("leaderboard_${runner}_user") || tables.contains("leaderboard_${runner}_team")
-}());
+  tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
+}
+println "Tables ${userTable} and ${teamTable} created successfully."
 
 def InjectorThread = Thread.start() {
   t.run(mobileGamingCommands.createInjectorCommand())
@@ -83,14 +111,19 @@ def LeaderBoardThread = Thread.start() {
 def startTime = System.currentTimeMillis()
 def isSuccess = false
 String query_result = ""
-while((System.currentTimeMillis() - startTime)/60000 < mobileGamingCommands.EXECUTION_TIMEOUT_IN_MINUTES) {
-  tables = t.run "bq query SELECT table_id FROM ${t.bqDataset()}.__TABLES_SUMMARY__"
-  if(tables.contains("leaderboard_${runner}_user") && tables.contains("leaderboard_${runner}_team")){
-    query_result = t.run """bq query --batch "SELECT user FROM [${t.gcpProject()}:${t.bqDataset()}.leaderboard_${runner}_user] LIMIT 10\""""
-    if(t.seeAnyOf(mobileGamingCommands.COLORS, query_result)){
-      isSuccess = true
-      break
+while ((System.currentTimeMillis() - startTime)/60000 < mobileGamingCommands.EXECUTION_TIMEOUT_IN_MINUTES) {
+  try {
+    tables = t.run "bq query --use_legacy_sql=false SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES"
+    if (tables.contains(userTable) && tables.contains(teamTable)) {
+      query_result = t.run """bq query --batch "SELECT user FROM [${dataset}.${userTable}] LIMIT 10\""""
+      if (t.seeAnyOf(mobileGamingCommands.COLORS, query_result)){
+        isSuccess = true
+        break
+      }
     }
+  } catch (Exception e) {
+    println "Warning: Exception while checking tables: ${e.message}"
+    println "Retrying..."
   }
   println "Waiting for pipeline to produce more results..."
   sleep(60000) // wait for 1 min

@@ -48,8 +48,7 @@ def flatmap_side_inputs_singleton(test=None):
             '🍅Tomato,🥔Potato',
         ])
         | 'Split words' >> beam.FlatMap(
-            lambda text,
-            delimiter: text.split(delimiter),
+            lambda text, delimiter: text.split(delimiter),
             delimiter=beam.pvalue.AsSingleton(delimiter),
         )
         | beam.Map(print))

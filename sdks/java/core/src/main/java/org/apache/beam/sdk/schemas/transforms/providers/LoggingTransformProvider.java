@@ -19,6 +19,7 @@ package org.apache.beam.sdk.schemas.transforms.providers;
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -36,7 +37,6 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
@@ -166,7 +166,7 @@ public class LoggingTransformProvider
       return new DoFn<Row, Row>() {
         @ProcessElement
         public void processElement(@Element Row row, OutputReceiver<Row> out) {
-          String msg = prefix + new String(fn.apply(row), Charsets.UTF_8);
+          String msg = prefix + new String(fn.apply(row), StandardCharsets.UTF_8);
           // Looks like this is the best we can do.
           // https://stackoverflow.com/questions/2621701/setting-log-level-of-message-at-runtime-in-slf4j
           switch (logLevel) {

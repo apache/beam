@@ -30,4 +30,4 @@ except ImportError:
   pass
 # pylint: enable=wrong-import-order, wrong-import-position
 
-__path__ = pkgutil.extend_path(__path__, __name__)  # type: ignore
+__path__ = pkgutil.extend_path(__path__, __name__)

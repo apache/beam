@@ -45,6 +45,7 @@ public class MutationSizeEstimatorTest {
   @Test
   public void primitives() throws Exception {
     Mutation int64 = Mutation.newInsertOrUpdateBuilder("test").set("one").to(1).build();
+    Mutation float32 = Mutation.newInsertOrUpdateBuilder("test").set("one").to(1.3f).build();
     Mutation float64 = Mutation.newInsertOrUpdateBuilder("test").set("one").to(2.9).build();
     Mutation bool = Mutation.newInsertOrUpdateBuilder("test").set("one").to(false).build();
     Mutation numeric =
@@ -72,6 +73,7 @@ public class MutationSizeEstimatorTest {
             .build();
 
     assertThat(MutationSizeEstimator.sizeOf(int64), is(8L));
+    assertThat(MutationSizeEstimator.sizeOf(float32), is(4L));
     assertThat(MutationSizeEstimator.sizeOf(float64), is(8L));
     assertThat(MutationSizeEstimator.sizeOf(bool), is(1L));
     assertThat(MutationSizeEstimator.sizeOf(numeric), is(30L));
@@ -88,6 +90,11 @@ public class MutationSizeEstimatorTest {
         Mutation.newInsertOrUpdateBuilder("test")
             .set("one")
             .toInt64Array(new long[] {1L, 2L, 3L})
+            .build();
+    Mutation float32 =
+        Mutation.newInsertOrUpdateBuilder("test")
+            .set("one")
+            .toFloat32Array(new float[] {1.0f, 2.0f})
             .build();
     Mutation float64 =
         Mutation.newInsertOrUpdateBuilder("test")
@@ -160,6 +167,7 @@ public class MutationSizeEstimatorTest {
                 "customer.app.TestMessage")
             .build();
     assertThat(MutationSizeEstimator.sizeOf(int64), is(24L));
+    assertThat(MutationSizeEstimator.sizeOf(float32), is(8L));
     assertThat(MutationSizeEstimator.sizeOf(float64), is(16L));
     assertThat(MutationSizeEstimator.sizeOf(bool), is(4L));
     assertThat(MutationSizeEstimator.sizeOf(numeric), is(153L));
@@ -180,6 +188,8 @@ public class MutationSizeEstimatorTest {
             .set("one")
             .toProtoEnumArray(null, "customer.app.TestEnum")
             .build();
+    Mutation float32 =
+        Mutation.newInsertOrUpdateBuilder("test").set("one").toFloat32Array((float[]) null).build();
     Mutation float64 =
         Mutation.newInsertOrUpdateBuilder("test")
             .set("one")
@@ -202,6 +212,7 @@ public class MutationSizeEstimatorTest {
         Mutation.newInsertOrUpdateBuilder("test").set("one").toPgJsonbArray(null).build();
 
     assertThat(MutationSizeEstimator.sizeOf(int64), is(0L));
+    assertThat(MutationSizeEstimator.sizeOf(float32), is(0L));
     assertThat(MutationSizeEstimator.sizeOf(float64), is(0L));
     assertThat(MutationSizeEstimator.sizeOf(bool), is(0L));
     assertThat(MutationSizeEstimator.sizeOf(numeric), is(0L));
@@ -384,12 +395,13 @@ public class MutationSizeEstimatorTest {
   @Test
   public void group() throws Exception {
     Mutation int64 = Mutation.newInsertOrUpdateBuilder("test").set("one").to(1).build();
+    Mutation float32 = Mutation.newInsertOrUpdateBuilder("test").set("one").to(1.3f).build();
     Mutation float64 = Mutation.newInsertOrUpdateBuilder("test").set("one").to(2.9).build();
     Mutation bool = Mutation.newInsertOrUpdateBuilder("test").set("one").to(false).build();
 
-    MutationGroup group = MutationGroup.create(int64, float64, bool);
+    MutationGroup group = MutationGroup.create(int64, float32, float64, bool);
 
-    assertThat(MutationSizeEstimator.sizeOf(group), is(17L));
+    assertThat(MutationSizeEstimator.sizeOf(group), is(21L));
   }
 
   @Test

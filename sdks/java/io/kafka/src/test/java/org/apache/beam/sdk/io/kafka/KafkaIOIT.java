@@ -21,9 +21,11 @@ import static org.apache.beam.sdk.io.synthetic.SyntheticOptions.fromJsonString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assume.assumeFalse;
 
-import com.google.cloud.Timestamp;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -36,9 +38,11 @@ import java.util.UUID;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.Read;
@@ -48,6 +52,7 @@ import org.apache.beam.sdk.io.kafka.KafkaIOTest.FailingLongSerializer;
 import org.apache.beam.sdk.io.kafka.ReadFromKafkaDoFnTest.FailingDeserializer;
 import org.apache.beam.sdk.io.synthetic.SyntheticBoundedSource;
 import org.apache.beam.sdk.io.synthetic.SyntheticSourceOptions;
+import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.ExperimentalOptions;
@@ -85,25 +90,34 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewPartitions;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
+import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.IntegerDeserializer;
 import org.apache.kafka.common.serialization.IntegerSerializer;
+import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.apache.kafka.common.utils.AppInfoParser;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
@@ -133,9 +147,19 @@ public class KafkaIOIT {
 
   private static final String TEST_ID = UUID.randomUUID().toString();
 
-  private static final String TIMESTAMP = Timestamp.now().toString();
+  private static final String TIMESTAMP = Instant.now().toString();
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaIOIT.class);
+
+  private static final int RETRIES_CONFIG = 10;
+
+  private static final int REQUEST_TIMEOUT_MS_CONFIG = 600000;
+
+  private static final int MAX_BLOCK_MS_CONFIG = 300000;
+
+  private static final int BUFFER_MEMORY_CONFIG = 100554432;
+
+  private static final int RETRY_BACKOFF_MS_CONFIG = 5000;
 
   private static SyntheticSourceOptions sourceOptions;
 
@@ -150,6 +174,8 @@ public class KafkaIOIT {
   @Rule public TestPipeline writePipeline2 = TestPipeline.create();
 
   @Rule public TestPipeline readPipeline = TestPipeline.create();
+
+  @Rule public ExpectedException thrown = ExpectedException.none();
 
   private static ExperimentalOptions sdfPipelineOptions;
 
@@ -167,6 +193,13 @@ public class KafkaIOIT {
 
   @BeforeClass
   public static void setup() throws IOException {
+    // check kafka version first
+    @Nullable String targetVer = System.getProperty("beam.target.kafka.version");
+    if (!Strings.isNullOrEmpty(targetVer)) {
+      String actualVer = AppInfoParser.getVersion();
+      assertEquals(targetVer, actualVer);
+    }
+
     options = IOITHelper.readIOTestPipelineOptions(Options.class);
     sourceOptions = fromJsonString(options.getSourceOptions(), SyntheticSourceOptions.class);
     if (options.isWithTestcontainers()) {
@@ -186,6 +219,213 @@ public class KafkaIOIT {
     if (kafkaContainer != null) {
       kafkaContainer.stop();
     }
+  }
+
+  @Test
+  public void testKafkaIOFailsFastWithInvalidPartitions() throws IOException {
+    thrown.expect(Pipeline.PipelineExecutionException.class);
+    thrown.expectMessage(
+        "Partition 1000 does not exist for topic "
+            + options.getKafkaTopic()
+            + ". Please check Kafka configuration.");
+
+    // Use streaming pipeline to read Kafka records.
+    readPipeline.getOptions().as(Options.class).setStreaming(true);
+    TopicPartition invalidPartition = new TopicPartition(options.getKafkaTopic(), 1000);
+    readPipeline.apply(
+        "Read from unbounded Kafka",
+        readFromKafka().withTopicPartitions(ImmutableList.of(invalidPartition)));
+
+    PipelineResult readResult = readPipeline.run();
+    PipelineResult.State readState =
+        readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
+
+    // call asynchronous deleteTopics first since cancelIfTimeouted is blocking.
+    tearDownTopic(options.getKafkaTopic());
+    cancelIfTimeouted(readResult, readState);
+  }
+
+  @Test
+  public void testKafkaIOFailsFastWithInvalidPartitionsAndFlagExplicitlySet() throws IOException {
+    thrown.expect(Pipeline.PipelineExecutionException.class);
+    thrown.expectMessage(
+        "Partition 1000 does not exist for topic "
+            + options.getKafkaTopic()
+            + ". Please check Kafka configuration.");
+
+    // Use streaming pipeline to read Kafka records.
+    readPipeline.getOptions().as(Options.class).setStreaming(true);
+    TopicPartition invalidPartition = new TopicPartition(options.getKafkaTopic(), 1000);
+    readPipeline.apply(
+        "Read from unbounded Kafka",
+        readFromKafka()
+            .withTopicPartitions(ImmutableList.of(invalidPartition))
+            .withTopicVerificationLogging(false));
+
+    PipelineResult readResult = readPipeline.run();
+    PipelineResult.State readState =
+        readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
+
+    // call asynchronous deleteTopics first since cancelIfTimeouted is blocking.
+    tearDownTopic(options.getKafkaTopic());
+    cancelIfTimeouted(readResult, readState);
+  }
+
+  @Test
+  public void testKafkaIODoesNotFailFastWithInvalidPartitionsAndFlagExplicitlyNotSet()
+      throws IOException {
+
+    // Expect a different error which is thrown at runtime. This is because we disable the failfast
+    // error
+    // by setting the logging flag to True.
+    thrown.expect(java.lang.RuntimeException.class);
+
+    // Use streaming pipeline to read Kafka records.
+    readPipeline.getOptions().as(Options.class).setStreaming(true);
+    TopicPartition invalidPartition = new TopicPartition(options.getKafkaTopic(), 1000);
+    readPipeline.apply(
+        "Read from unbounded Kafka",
+        readFromKafka()
+            .withTopicPartitions(ImmutableList.of(invalidPartition))
+            .withTopicVerificationLogging(true));
+
+    PipelineResult readResult = readPipeline.run();
+    PipelineResult.State readState =
+        readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
+
+    // call asynchronous deleteTopics first since cancelIfTimeouted is blocking.
+    tearDownTopic(options.getKafkaTopic());
+    cancelIfTimeouted(readResult, readState);
+  }
+
+  @Test
+  public void testKafkaIOFailsFastWithInvalidTopics() throws IOException {
+    // This test will fail on versions before 2.3.0 due to the non-existence of the
+    // allow.auto.create.topics
+    // flag. This can be removed when/if support for this older version is dropped.
+    String actualVer = AppInfoParser.getVersion();
+    assumeFalse(actualVer.compareTo("2.0.0") >= 0 && actualVer.compareTo("2.3.0") < 0);
+
+    thrown.expect(Pipeline.PipelineExecutionException.class);
+    thrown.expectMessage(
+        "Could not find any partitions info for topic invalid_topic. Please check Kafka configuration"
+            + " and make sure that provided topics exist.");
+
+    // Use streaming pipeline to read Kafka records.
+    sdfReadPipeline.getOptions().as(Options.class).setStreaming(true);
+    String invalidTopic = "invalid_topic";
+    sdfReadPipeline.apply(
+        "Read from unbounded Kafka",
+        KafkaIO.<byte[], byte[]>read()
+            .withConsumerConfigUpdates(ImmutableMap.of("allow.auto.create.topics", "false"))
+            .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
+            .withTopics(ImmutableList.of(invalidTopic))
+            .withKeyDeserializer(ByteArrayDeserializer.class)
+            .withValueDeserializer(ByteArrayDeserializer.class));
+
+    PipelineResult readResult = sdfReadPipeline.run();
+    PipelineResult.State readState =
+        readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
+
+    // call asynchronous deleteTopics first since cancelIfTimeouted is blocking.
+    tearDownTopic(options.getKafkaTopic());
+    cancelIfTimeouted(readResult, readState);
+  }
+
+  @Test
+  public void testKafkaIOFailsFastWithInvalidTopicsAndDynamicRead() throws IOException {
+    // This test will fail on versions before 2.3.0 due to the non-existence of the
+    // allow.auto.create.topics
+    // flag. This can be removed when/if support for this older version is dropped.
+    String actualVer = AppInfoParser.getVersion();
+    assumeFalse(actualVer.compareTo("2.0.0") >= 0 && actualVer.compareTo("2.3.0") < 0);
+
+    thrown.expect(Pipeline.PipelineExecutionException.class);
+    thrown.expectMessage(
+        "Could not find any partitions info for topic invalid_topic. Please check Kafka configuration"
+            + " and make sure that provided topics exist.");
+
+    // Use streaming pipeline to read Kafka records.
+    sdfReadPipeline.getOptions().as(Options.class).setStreaming(true);
+    String invalidTopic = "invalid_topic";
+    sdfReadPipeline.apply(
+        "Read from unbounded Kafka",
+        KafkaIO.<byte[], byte[]>read()
+            .withConsumerConfigUpdates(ImmutableMap.of("allow.auto.create.topics", "false"))
+            .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
+            .withTopics(ImmutableList.of(invalidTopic))
+            .withDynamicRead(Duration.standardSeconds(5))
+            .withKeyDeserializer(ByteArrayDeserializer.class)
+            .withValueDeserializer(ByteArrayDeserializer.class));
+
+    PipelineResult readResult = sdfReadPipeline.run();
+    PipelineResult.State readState =
+        readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
+
+    // call asynchronous deleteTopics first since cancelIfTimeouted is blocking.
+    tearDownTopic(options.getKafkaTopic());
+    cancelIfTimeouted(readResult, readState);
+  }
+
+  @Test
+  public void testKafkaIOLogsTopicVerificationWithDynamicRead() throws IOException {
+    // This test will fail on versions before 2.3.0 due to the non-existence of the
+    // allow.auto.create.topics
+    // flag. This can be removed when/if support for this older version is dropped.
+    String actualVer = AppInfoParser.getVersion();
+    assumeFalse(actualVer.compareTo("2.0.0") >= 0 && actualVer.compareTo("2.3.0") < 0);
+
+    // Expect a different error which is thrown at runtime. This is because we disable the failfast
+    // error
+    // by setting the logging flag to True.
+    thrown.expect(java.lang.RuntimeException.class);
+
+    // Use streaming pipeline to read Kafka records.
+    sdfReadPipeline.getOptions().as(Options.class).setStreaming(true);
+    String invalidTopic = "invalid_topic";
+    sdfReadPipeline.apply(
+        "Read from unbounded Kafka",
+        KafkaIO.<byte[], byte[]>read()
+            .withConsumerConfigUpdates(ImmutableMap.of("allow.auto.create.topics", "false"))
+            .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
+            .withTopics(ImmutableList.of(invalidTopic))
+            .withDynamicRead(Duration.standardSeconds(5))
+            .withKeyDeserializer(ByteArrayDeserializer.class)
+            .withValueDeserializer(ByteArrayDeserializer.class)
+            .withTopicVerificationLogging(true));
+
+    PipelineResult readResult = sdfReadPipeline.run();
+    PipelineResult.State readState =
+        readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
+
+    // call asynchronous deleteTopics first since cancelIfTimeouted is blocking.
+    tearDownTopic(options.getKafkaTopic());
+    cancelIfTimeouted(readResult, readState);
+  }
+
+  @Test
+  public void testKafkaIODoesNotErrorAtValidationWithBadBootstrapServer() throws IOException {
+    // expect an error during execution that the bootstrap server is bad, not during validation
+    // steps in
+    // KafakUnboundedSource.
+    thrown.expect(KafkaException.class);
+    // Use streaming pipeline to read Kafka records.
+    readPipeline.getOptions().as(Options.class).setStreaming(true);
+    TopicPartition invalidPartition = new TopicPartition(options.getKafkaTopic(), 1000);
+    readPipeline.apply(
+        "Read from unbounded Kafka",
+        KafkaIO.readBytes()
+            .withBootstrapServers("bootstrap.invalid-name.fake-region.bad-project:invalid-port")
+            .withConsumerConfigUpdates(ImmutableMap.of("auto.offset.reset", "earliest"))
+            .withTopicPartitions(ImmutableList.of(invalidPartition)));
+
+    PipelineResult readResult = readPipeline.run();
+    PipelineResult.State readState =
+        readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
+
+    // call asynchronous deleteTopics first since cancelIfTimeouted is blocking.
+    tearDownTopic(options.getKafkaTopic());
+    cancelIfTimeouted(readResult, readState);
   }
 
   @Test
@@ -299,7 +539,8 @@ public class KafkaIOIT {
                 .withKeySerializer(IntegerSerializer.class)
                 .withValueSerializer(StringSerializer.class));
 
-    wPipeline.run().waitUntilFinish(Duration.standardSeconds(10));
+    final PipelineResult wResult = wPipeline.run();
+    cancelIfTimeouted(wResult, wResult.waitUntilFinish(Duration.standardSeconds(10)));
 
     rPipeline
         .apply(
@@ -322,7 +563,9 @@ public class KafkaIOIT {
         .apply(ParDo.of(new CrashOnExtra(records.values())))
         .apply(ParDo.of(new LogFn()));
 
-    rPipeline.run().waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
+    final PipelineResult rResult = rPipeline.run();
+    cancelIfTimeouted(
+        rResult, rResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout())));
 
     for (String value : records.values()) {
       kafkaIOITExpectedLogs.verifyError(value);
@@ -358,6 +601,10 @@ public class KafkaIOIT {
   // This test verifies that bad data from Kafka is properly sent to the error handler
   @Test
   public void testKafkaIOSDFReadWithErrorHandler() throws IOException {
+    // TODO(https://github.com/apache/beam/issues/32704) re-enable when fixed, or remove the support
+    //  for these old kafka-client versions
+    String actualVer = AppInfoParser.getVersion();
+    assumeFalse(actualVer.compareTo("2.0.0") >= 0 && actualVer.compareTo("2.3.0") < 0);
     writePipeline
         .apply(Create.of(KV.of("key", "val")))
         .apply(
@@ -607,18 +854,18 @@ public class KafkaIOIT {
   private static final int FIVE_MINUTES_IN_MS = 5 * 60 * 1000;
 
   @Test(timeout = FIVE_MINUTES_IN_MS)
-  public void testKafkaViaSchemaTransformJson() {
-    runReadWriteKafkaViaSchemaTransforms(
+  public void testKafkaViaManagedSchemaTransformJson() {
+    runReadWriteKafkaViaManagedSchemaTransforms(
         "JSON", SCHEMA_IN_JSON, JsonUtils.beamSchemaFromJsonSchema(SCHEMA_IN_JSON));
   }
 
   @Test(timeout = FIVE_MINUTES_IN_MS)
-  public void testKafkaViaSchemaTransformAvro() {
-    runReadWriteKafkaViaSchemaTransforms(
+  public void testKafkaViaManagedSchemaTransformAvro() {
+    runReadWriteKafkaViaManagedSchemaTransforms(
         "AVRO", AvroUtils.toAvroSchema(KAFKA_TOPIC_SCHEMA).toString(), KAFKA_TOPIC_SCHEMA);
   }
 
-  public void runReadWriteKafkaViaSchemaTransforms(
+  public void runReadWriteKafkaViaManagedSchemaTransforms(
       String format, String schemaDefinition, Schema beamSchema) {
     String topicName = options.getKafkaTopic() + "-schema-transform" + UUID.randomUUID();
     PCollectionRowTuple.of(
@@ -646,13 +893,12 @@ public class KafkaIOIT {
                 .setRowSchema(beamSchema))
         .apply(
             "Write to Kafka",
-            new KafkaWriteSchemaTransformProvider()
-                .from(
-                    KafkaWriteSchemaTransformProvider.KafkaWriteSchemaTransformConfiguration
-                        .builder()
-                        .setTopic(topicName)
-                        .setBootstrapServers(options.getKafkaBootstrapServerAddresses())
-                        .setFormat(format)
+            Managed.write(Managed.KAFKA)
+                .withConfig(
+                    ImmutableMap.<String, Object>builder()
+                        .put("topic", topicName)
+                        .put("bootstrap_servers", options.getKafkaBootstrapServerAddresses())
+                        .put("format", format)
                         .build()));
 
     PAssert.that(
@@ -661,15 +907,18 @@ public class KafkaIOIT {
                     "Read from unbounded Kafka",
                     // A timeout of 30s for local, container-based tests, and 2 minutes for
                     // real-kafka tests.
-                    new KafkaReadSchemaTransformProvider(
-                            true, options.isWithTestcontainers() ? 30 : 120)
-                        .from(
-                            KafkaReadSchemaTransformConfiguration.builder()
-                                .setFormat(format)
-                                .setAutoOffsetResetConfig("earliest")
-                                .setSchema(schemaDefinition)
-                                .setTopic(topicName)
-                                .setBootstrapServers(options.getKafkaBootstrapServerAddresses())
+                    Managed.read(Managed.KAFKA)
+                        .withConfig(
+                            ImmutableMap.<String, Object>builder()
+                                .put("format", format)
+                                .put("auto_offset_reset_config", "earliest")
+                                .put("schema", schemaDefinition)
+                                .put("topic", topicName)
+                                .put(
+                                    "bootstrap_servers", options.getKafkaBootstrapServerAddresses())
+                                .put(
+                                    "max_read_time_seconds",
+                                    options.isWithTestcontainers() ? 30 : 120)
                                 .build()))
                 .get("output"))
         .containsInAnyOrder(
@@ -812,6 +1061,62 @@ public class KafkaIOIT {
     }
   }
 
+  @Ignore(
+      "Test is ignored until GMK is utilized as part of this test suite (https://github.com/apache/beam/issues/32721).")
+  @Test
+  public void testReadAndWriteFromKafkaIOWithGCPApplicationDefaultCredentials() throws IOException {
+    AdminClient client =
+        AdminClient.create(
+            ImmutableMap.of("bootstrap.servers", options.getKafkaBootstrapServerAddresses()));
+
+    String topicName = "TestApplicationDefaultCreds-" + UUID.randomUUID();
+    Map<Integer, String> records = new HashMap<>();
+    for (int i = 0; i < 5; i++) {
+      records.put(i, String.valueOf(i));
+    }
+
+    try {
+      client.createTopics(ImmutableSet.of(new NewTopic(topicName, 1, (short) 1)));
+
+      writePipeline
+          .apply("Generate Write Elements", Create.of(records))
+          .apply(
+              "Write to Kafka",
+              KafkaIO.<Integer, String>write()
+                  .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
+                  .withTopic(topicName)
+                  .withKeySerializer(IntegerSerializer.class)
+                  .withValueSerializer(StringSerializer.class)
+                  .withGCPApplicationDefaultCredentials());
+
+      writePipeline.run().waitUntilFinish(Duration.standardSeconds(15));
+
+      client.createPartitions(ImmutableMap.of(topicName, NewPartitions.increaseTo(3)));
+
+      sdfReadPipeline.apply(
+          "Read from Kafka",
+          KafkaIO.<Integer, String>read()
+              .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
+              .withConsumerConfigUpdates(ImmutableMap.of("auto.offset.reset", "earliest"))
+              .withTopic(topicName)
+              .withKeyDeserializer(IntegerDeserializer.class)
+              .withValueDeserializer(StringDeserializer.class)
+              .withGCPApplicationDefaultCredentials()
+              .withoutMetadata());
+
+      PipelineResult readResult = sdfReadPipeline.run();
+
+      // Only waiting 5 seconds here because we don't expect any processing at this point
+      PipelineResult.State readState = readResult.waitUntilFinish(Duration.standardSeconds(5));
+
+      cancelIfTimeouted(readResult, readState);
+      // Fail the test if pipeline failed.
+      assertNotEquals(readState, PipelineResult.State.FAILED);
+    } finally {
+      client.deleteTopics(ImmutableSet.of(topicName));
+    }
+  }
+
   private static class KeyByPartition
       extends DoFn<KafkaRecord<Integer, String>, KV<Integer, KafkaRecord<Integer, String>>> {
 
@@ -864,7 +1169,14 @@ public class KafkaIOIT {
     return KafkaIO.<byte[], byte[]>write()
         .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
         .withKeySerializer(ByteArraySerializer.class)
-        .withValueSerializer(ByteArraySerializer.class);
+        .withValueSerializer(ByteArraySerializer.class)
+        .withProducerConfigUpdates(
+            ImmutableMap.of(
+                ProducerConfig.RETRIES_CONFIG, RETRIES_CONFIG,
+                ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, REQUEST_TIMEOUT_MS_CONFIG,
+                ProducerConfig.MAX_BLOCK_MS_CONFIG, MAX_BLOCK_MS_CONFIG,
+                ProducerConfig.BUFFER_MEMORY_CONFIG, BUFFER_MEMORY_CONFIG,
+                ProducerConfig.RETRY_BACKOFF_MS_CONFIG, RETRY_BACKOFF_MS_CONFIG));
   }
 
   private KafkaIO.Read<byte[], byte[]> readFromBoundedKafka() {
@@ -926,5 +1238,158 @@ public class KafkaIOIT {
     kafkaContainer.withStartupAttempts(3);
     kafkaContainer.start();
     options.setKafkaBootstrapServerAddresses(kafkaContainer.getBootstrapServers());
+  }
+
+  @Test
+  public void testCustomRowDeserializerWithViaSDF() throws IOException {
+    // This test verifies that the SDF implementation of KafkaIO correctly handles
+    // custom deserializers with explicit coders. It uses a Row deserializer which
+    // requires an explicit coder to be provided since Beam cannot infer one automatically.
+    // The test ensures that both the deserializer and coder are properly passed to
+    // the ReadSourceDescriptors transform.
+
+    // Create a simple Row schema for test
+    Schema testSchema = Schema.builder().addStringField("field1").addInt32Field("field2").build();
+
+    RowCoder rowCoder = RowCoder.of(testSchema);
+
+    // Set up sample data
+    String testId = UUID.randomUUID().toString();
+    String topicName = options.getKafkaTopic() + "-row-deserializer-" + testId;
+
+    // Create test data
+    Map<String, Row> testData = new HashMap<>();
+    for (int i = 0; i < 5; i++) {
+      testData.put(
+          "key" + i,
+          Row.withSchema(testSchema)
+              .withFieldValue("field1", "value" + i)
+              .withFieldValue("field2", i)
+              .build());
+    }
+
+    // Write the test data to Kafka using a custom serializer
+    writePipeline
+        .apply("Create test data", Create.of(testData))
+        .apply(
+            "Write to Kafka",
+            KafkaIO.<String, Row>write()
+                .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
+                .withTopic(topicName)
+                .withKeySerializer(StringSerializer.class)
+                .withValueSerializer(RowSerializer.class)
+                .withProducerConfigUpdates(ImmutableMap.of("test.schema", testSchema.toString())));
+
+    PipelineResult writeResult = writePipeline.run();
+    writeResult.waitUntilFinish();
+
+    // Read the data using SDF-based KafkaIO with a custom deserializer
+    PCollection<KV<String, Row>> resultSDF =
+        sdfReadPipeline.apply(
+            "Read from Kafka via SDF",
+            KafkaIO.<String, Row>read()
+                .withBootstrapServers(options.getKafkaBootstrapServerAddresses())
+                .withTopic(topicName)
+                .withConsumerConfigUpdates(
+                    ImmutableMap.of(
+                        "auto.offset.reset", "earliest", "test.schema", testSchema.toString()))
+                .withKeyDeserializer(StringDeserializer.class)
+                .withValueDeserializerAndCoder(RowDeserializer.class, rowCoder)
+                .withoutMetadata());
+
+    // Compare with the original data
+    PAssert.that(resultSDF)
+        .containsInAnyOrder(
+            testData.entrySet().stream()
+                .map(entry -> KV.of(entry.getKey(), entry.getValue()))
+                .collect(Collectors.toList()));
+
+    // Run and verify
+    PipelineResult resultSDFResult = sdfReadPipeline.run();
+    PipelineResult.State resultSDFState =
+        resultSDFResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
+    cancelIfTimeouted(resultSDFResult, resultSDFState);
+    assertNotEquals(PipelineResult.State.FAILED, resultSDFState);
+
+    // Clean up
+    tearDownTopic(topicName);
+  }
+
+  /** A custom serializer for Row objects. */
+  public static class RowSerializer implements Serializer<Row> {
+    private Schema schema;
+    private final ObjectMapper mapper = new ObjectMapper();
+
+    @Override
+    public void configure(Map<String, ?> configs, boolean isKey) {
+      String schemaString = (String) configs.get("test.schema");
+      if (schemaString != null) {
+        // Use a more direct method to parse schema from string
+        try {
+          this.schema = Schema.builder().addStringField("field1").addInt32Field("field2").build();
+        } catch (Exception e) {
+          throw new RuntimeException("Error parsing schema", e);
+        }
+      }
+    }
+
+    @Override
+    public byte[] serialize(String topic, Row data) {
+      if (data == null) {
+        return null;
+      }
+      // Simple JSON serialization for test purposes
+      try {
+        // Ensure we're using the schema
+        if (schema != null && !schema.equals(data.getSchema())) {
+          throw new RuntimeException("Schema mismatch: " + schema + " vs " + data.getSchema());
+        }
+        return mapper.writeValueAsBytes(data.getValues());
+      } catch (Exception e) {
+        throw new RuntimeException("Error serializing Row to JSON", e);
+      }
+    }
+
+    @Override
+    public void close() {}
+  }
+
+  /** A custom deserializer for Row objects. */
+  public static class RowDeserializer implements Deserializer<Row> {
+    private Schema schema;
+    private final ObjectMapper mapper = new ObjectMapper();
+
+    @Override
+    public void configure(Map<String, ?> configs, boolean isKey) {
+      String schemaString = (String) configs.get("test.schema");
+      if (schemaString != null) {
+        // Use a more direct method to parse schema from string
+        try {
+          this.schema = Schema.builder().addStringField("field1").addInt32Field("field2").build();
+        } catch (Exception e) {
+          throw new RuntimeException("Error parsing schema", e);
+        }
+      }
+    }
+
+    @Override
+    public Row deserialize(String topic, byte[] data) {
+      if (data == null || schema == null) {
+        return null;
+      }
+      // Simple JSON deserialization for test purposes
+      try {
+        Object[] values = mapper.readValue(data, Object[].class);
+        return Row.withSchema(schema)
+            .withFieldValue("field1", values[0].toString())
+            .withFieldValue("field2", Integer.parseInt(values[1].toString()))
+            .build();
+      } catch (Exception e) {
+        throw new RuntimeException("Error deserializing JSON to Row", e);
+      }
+    }
+
+    @Override
+    public void close() {}
   }
 }

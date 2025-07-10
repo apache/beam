@@ -24,16 +24,15 @@ import static org.apache.beam.runners.dataflow.util.Structs.getObject;
 import static org.apache.beam.sdk.util.SerializableUtils.deserializeFromByteArray;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.runners.core.DoFnRunner;
-import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItemCoder;
 import org.apache.beam.runners.core.OutputAndTimeBoundedSplittableProcessElementInvoker;
-import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.SimpleDoFnRunner;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessFn;
@@ -48,16 +47,14 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.DoFnInfo;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Duration;
-import org.joda.time.Instant;
 
 /**
  * A {@link ParDoFnFactory} to create instances of user {@link ProcessFn} according to
@@ -115,7 +112,10 @@ class SplittableProcessFnFactory {
   private static class SplittableDoFnRunnerFactory<
           InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>
       implements DoFnRunnerFactory<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> {
+    private final AtomicReference<ScheduledExecutorService> ses = new AtomicReference<>();
+
     @Override
+    @SuppressWarnings("nullness") // nullable atomic reference guaranteed nonnull when get
     public DoFnRunner<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> createRunner(
         DoFn<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> fn,
         PipelineOptions options,
@@ -128,9 +128,16 @@ class SplittableProcessFnFactory {
         WindowingStrategy<?, ?> windowingStrategy,
         DataflowExecutionContext.DataflowStepContext stepContext,
         DataflowExecutionContext.DataflowStepContext userStepContext,
-        OutputManager outputManager,
+        WindowedValueMultiReceiver outputManager,
         DoFnSchemaInformation doFnSchemaInformation,
         Map<String, PCollectionView<?>> sideInputMapping) {
+      if (this.ses.get() == null) {
+        this.ses.compareAndSet(
+            null,
+            Executors.newScheduledThreadPool(
+                Runtime.getRuntime().availableProcessors(),
+                new ThreadFactoryBuilder().setNameFormat("df-sdf-executor-%d").build()));
+      }
       ProcessFn<InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT> processFn =
           (ProcessFn<InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>) fn;
       processFn.setStateInternalsFactory(key -> (StateInternals) stepContext.stateInternals());
@@ -140,29 +147,10 @@ class SplittableProcessFnFactory {
           new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
               processFn.getFn(),
               options,
-              new OutputWindowedValue<OutputT>() {
-                @Override
-                public void outputWindowedValue(
-                    OutputT output,
-                    Instant timestamp,
-                    Collection<? extends BoundedWindow> windows,
-                    PaneInfo pane) {
-                  outputManager.output(
-                      mainOutputTag, WindowedValue.of(output, timestamp, windows, pane));
-                }
-
-                @Override
-                public <T> void outputWindowedValue(
-                    TupleTag<T> tag,
-                    T output,
-                    Instant timestamp,
-                    Collection<? extends BoundedWindow> windows,
-                    PaneInfo pane) {
-                  outputManager.output(tag, WindowedValue.of(output, timestamp, windows, pane));
-                }
-              },
+              outputManager,
+              mainOutputTag,
               sideInputReader,
-              Executors.newSingleThreadScheduledExecutor(Executors.defaultThreadFactory()),
+              ses.get(),
               // Commit at least once every 10 seconds or 10k records.  This keeps the watermark
               // advancing smoothly, and ensures that not too much work will have to be reprocessed
               // in the event of a crash.

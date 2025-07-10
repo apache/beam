@@ -15,8 +15,6 @@
 # limitations under the License.
 #
 
-# cython: language_level=3
-
 """A library of basic cythonized CombineFn subclasses.
 
 For internal use only; no backwards-compatibility guarantees.

@@ -67,7 +67,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.BaseEncoding;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
@@ -212,7 +211,7 @@ public class TFRecordIOTest {
   @Category(NeedsRunner.class)
   public void testReadInvalidRecord() throws Exception {
     expectedException.expectMessage("Not a valid TFRecord. Fewer than 12 bytes.");
-    runTestRead("bar".getBytes(Charsets.UTF_8), new String[0]);
+    runTestRead("bar".getBytes(StandardCharsets.UTF_8), new String[0]);
   }
 
   @Test
@@ -445,14 +444,14 @@ public class TFRecordIOTest {
   static class ByteArrayToString extends DoFn<byte[], String> {
     @ProcessElement
     public void processElement(ProcessContext c) {
-      c.output(new String(c.element(), Charsets.UTF_8));
+      c.output(new String(c.element(), StandardCharsets.UTF_8));
     }
   }
 
   static class StringToByteArray extends DoFn<String, byte[]> {
     @ProcessElement
     public void processElement(ProcessContext c) {
-      c.output(c.element().getBytes(Charsets.UTF_8));
+      c.output(c.element().getBytes(StandardCharsets.UTF_8));
     }
   }
 

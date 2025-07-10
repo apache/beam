@@ -61,6 +61,15 @@ func NewSequenceDefinition(start, end time.Time, interval time.Duration) Sequenc
 	}
 }
 
+// Calculates size of the output that the sequence should have emitted up to now.
+func calculateSequenceByteSize(now time.Time, sd SequenceDefinition, rest offsetrange.Restriction) int64 {
+	nowIndex := int64(now.Sub(mtime.Time(sd.Start).ToTime()) / sd.Interval)
+	if nowIndex < rest.Start {
+		return 0
+	}
+	return 8 * (min(rest.End, nowIndex) - rest.Start)
+}
+
 type sequenceGenDoFn struct{}
 
 func (fn *sequenceGenDoFn) CreateInitialRestriction(sd SequenceDefinition) offsetrange.Restriction {
@@ -75,8 +84,8 @@ func (fn *sequenceGenDoFn) CreateTracker(rest offsetrange.Restriction) *sdf.Lock
 	return sdf.NewLockRTracker(offsetrange.NewTracker(rest))
 }
 
-func (fn *sequenceGenDoFn) RestrictionSize(_ SequenceDefinition, rest offsetrange.Restriction) float64 {
-	return rest.Size()
+func (fn *sequenceGenDoFn) RestrictionSize(sd SequenceDefinition, rest offsetrange.Restriction) float64 {
+	return float64(calculateSequenceByteSize(time.Now(), sd, rest))
 }
 
 func (fn *sequenceGenDoFn) SplitRestriction(_ SequenceDefinition, rest offsetrange.Restriction) []offsetrange.Restriction {

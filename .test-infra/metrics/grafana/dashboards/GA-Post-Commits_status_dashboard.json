@@ -906,7 +906,7 @@
         "x": 0,
         "y": 0
       },
-      "id": 2,
+      "id": 1,
       "links": [],
       "options": {
         "cellHeight": "sm",
@@ -935,7 +935,7 @@
           "hide": false,
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "with workflows as (\n\twith temp as (SELECT t1.workflow_id, t1.workflow_name, t1.workflow_filename, t1.dashboard_category, t1.run1, t2.run1id ,\nt1.run2, t2.run2id ,\nt1.run3, t2.run3id ,\nt1.run4, t2.run4id ,\nt1.run5, t2.run5id ,\nt1.run6, t2.run6id ,\nt1.run7, t2.run7id ,\nt1.run8, t2.run8id ,\nt1.run9, t2.run9id ,\nt1.run10, t2.run10id \nFROM (SELECT * FROM crosstab('SELECT github_workflows.workflow_id, name as workflow_name, filename AS workflow_filename, dashboard_category, run_number, status \n                              FROM github_workflow_runs\nINNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id\nORDER BY 1,5 DESC\n','SELECT m from generate_series(1,10) m')\nAS c1(workflow_id text, workflow_name text, workflow_filename text, dashboard_category text, run1 text, run2 text,run3 text, \n         run4 text ,run5 text,run6 text, run7 text, \n         run8 text ,run9 text,run10 text) \n\t ) AS t1\n         JOIN (SELECT * FROM crosstab('SELECT name, started_at, github_workflow_runs.url AS run_url\nFROM github_workflow_runs\nINNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id\nORDER BY 1,2 DESC\n\n')\nAS c2(workflow_name text, run1id text, run2id text,run3id text, \n         run4id text ,run5id text,run6id text, run7id text, \n         run8id text ,run9id text,run10id text) \n\t\t\t  ) AS t2\n        ON t1.workflow_name = t2.workflow_name\n\t\t )\n  select\n    *,\n    case when run1 like 'success' then 1 when run1 like 'in_progress' then 2 when run1 like 'queued' then 2 when run1 like 'waiting' then 2 when run1 like 'cancelled' then 3 when run1 like 'failure' then 0 else 4 end as run_1,\n    case when run2 like 'success' then 1 when run2 like 'in_progress' then 2 when run2 like 'queued' then 2 when run2 like 'waiting' then 2 when run2 like 'cancelled' then 3 when run2 like 'failure' then 0 else 4 end as run_2,\n    case when run3 like 'success' then 1 when run3 like 'in_progress' then 2 when run3 like 'queued' then 2 when run3 like 'waiting' then 2 when run3 like 'cancelled' then 3 when run3 like 'failure' then 0 else 4 end as run_3,\n    case when run4 like 'success' then 1 when run4 like 'in_progress' then 2 when run4 like 'queued' then 2 when run4 like 'waiting' then 2 when run4 like 'cancelled' then 3 when run4 like 'failure' then 0 else 4 end as run_4,\n    case when run5 like 'success' then 1 when run5 like 'in_progress' then 2 when run5 like 'queued' then 2 when run5 like 'waiting' then 2 when run5 like 'cancelled' then 3 when run5 like 'failure' then 0 else 4 end as run_5,\n    case when run6 like 'success' then 1 when run6 like 'in_progress' then 2 when run6 like 'queued' then 2 when run6 like 'waiting' then 2 when run6 like 'cancelled' then 3 when run6 like 'failure' then 0 else 4 end as run_6,\n    case when run7 like 'success' then 1 when run7 like 'in_progress' then 2 when run7 like 'queued' then 2 when run7 like 'waiting' then 2 when run7 like 'cancelled' then 3 when run7 like 'failure' then 0 else 4 end as run_7,\n    case when run8 like 'success' then 1 when run8 like 'in_progress' then 2 when run8 like 'queued' then 2 when run8 like 'waiting' then 2 when run8 like 'cancelled' then 3 when run8 like 'failure' then 0 else 4 end as run_8,\n    case when run9 like 'success' then 1 when run9 like 'in_progress' then 2 when run9 like 'queued' then 2 when run9 like 'waiting' then 2 when run9 like 'cancelled' then 3 when run9 like 'failure' then 0 else 4 end as run_9,\n    case when run10 like 'success' then 1 when run10 like 'in_progress' then 2 when run10 like 'queued' then 2 when run10 like 'waiting' then 2 when run10 like 'cancelled' then 3 when run10 like 'failure' then 0 else 4 end as run_10\n  from\n    temp\n  where\n    dashboard_category = 'core_infra'\n)\nselect\n  workflow_name,\n  workflow_filename,\n  run_1,\n  run1Id,\n  run_2,\n  run2Id,\n  run_3,\n  run3Id,\n  run_4,\n  run4Id,\n  run_5,\n  run5Id,\n  run_6,\n  run6Id,\n  run_7,\n  run7Id,\n  run_8,\n  run8Id,\n  run_9,\n  run9Id,\n  run_10,\n  run10Id\nfrom\n  workflows;",
+          "rawSql": "with workflows as (\n\twith temp as (SELECT t1.workflow_id, t1.workflow_name, t1.workflow_filename, t1.dashboard_category, t1.run1, t2.run1id ,\nt1.run2, t2.run2id ,\nt1.run3, t2.run3id ,\nt1.run4, t2.run4id ,\nt1.run5, t2.run5id ,\nt1.run6, t2.run6id ,\nt1.run7, t2.run7id ,\nt1.run8, t2.run8id ,\nt1.run9, t2.run9id ,\nt1.run10, t2.run10id \nFROM (SELECT * FROM crosstab('SELECT github_workflows.workflow_id, name as workflow_name, filename AS workflow_filename, dashboard_category, run_number, status \n                              FROM github_workflow_runs\nINNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id\nORDER BY 1,5 DESC\n','SELECT m from generate_series(1,10) m')\nAS c1(workflow_id text, workflow_name text, workflow_filename text, dashboard_category text, run1 text, run2 text,run3 text, \n         run4 text ,run5 text,run6 text, run7 text, \n         run8 text ,run9 text,run10 text) \n\t ) AS t1\n         JOIN (SELECT * FROM crosstab('SELECT name, started_at, github_workflow_runs.url AS run_url\nFROM github_workflow_runs\nINNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id\nORDER BY 1,2 DESC\n\n')\nAS c2(workflow_name text, run1id text, run2id text,run3id text, \n         run4id text ,run5id text,run6id text, run7id text, \n         run8id text ,run9id text,run10id text) \n\t\t\t  ) AS t2\n        ON t1.workflow_name = t2.workflow_name\n\t\t )\n  select\n    *,\n    case when run1 like 'success' then 1 when run1 like 'in_progress' then 2 when run1 like 'queued' then 2 when run1 like 'waiting' then 2 when run1 like 'cancelled' then 3 when run1 like 'failure' then 0 else 4 end as run_1,\n    case when run2 like 'success' then 1 when run2 like 'in_progress' then 2 when run2 like 'queued' then 2 when run2 like 'waiting' then 2 when run2 like 'cancelled' then 3 when run2 like 'failure' then 0 else 4 end as run_2,\n    case when run3 like 'success' then 1 when run3 like 'in_progress' then 2 when run3 like 'queued' then 2 when run3 like 'waiting' then 2 when run3 like 'cancelled' then 3 when run3 like 'failure' then 0 else 4 end as run_3,\n    case when run4 like 'success' then 1 when run4 like 'in_progress' then 2 when run4 like 'queued' then 2 when run4 like 'waiting' then 2 when run4 like 'cancelled' then 3 when run4 like 'failure' then 0 else 4 end as run_4,\n    case when run5 like 'success' then 1 when run5 like 'in_progress' then 2 when run5 like 'queued' then 2 when run5 like 'waiting' then 2 when run5 like 'cancelled' then 3 when run5 like 'failure' then 0 else 4 end as run_5,\n    case when run6 like 'success' then 1 when run6 like 'in_progress' then 2 when run6 like 'queued' then 2 when run6 like 'waiting' then 2 when run6 like 'cancelled' then 3 when run6 like 'failure' then 0 else 4 end as run_6,\n    case when run7 like 'success' then 1 when run7 like 'in_progress' then 2 when run7 like 'queued' then 2 when run7 like 'waiting' then 2 when run7 like 'cancelled' then 3 when run7 like 'failure' then 0 else 4 end as run_7,\n    case when run8 like 'success' then 1 when run8 like 'in_progress' then 2 when run8 like 'queued' then 2 when run8 like 'waiting' then 2 when run8 like 'cancelled' then 3 when run8 like 'failure' then 0 else 4 end as run_8,\n    case when run9 like 'success' then 1 when run9 like 'in_progress' then 2 when run9 like 'queued' then 2 when run9 like 'waiting' then 2 when run9 like 'cancelled' then 3 when run9 like 'failure' then 0 else 4 end as run_9,\n    case when run10 like 'success' then 1 when run10 like 'in_progress' then 2 when run10 like 'queued' then 2 when run10 like 'waiting' then 2 when run10 like 'cancelled' then 3 when run10 like 'failure' then 0 else 4 end as run_10\n  from\n    temp\n  where\n    dashboard_category = 'core_infra'\n AND workflow_name LIKE '%${Workflow}%'\n)\nselect\n  workflow_name,\n  workflow_filename,\n  run_1,\n  run1Id,\n  run_2,\n  run2Id,\n  run_3,\n  run3Id,\n  run_4,\n  run4Id,\n  run_5,\n  run5Id,\n  run_6,\n  run6Id,\n  run_7,\n  run7Id,\n  run_8,\n  run8Id,\n  run_9,\n  run9Id,\n  run_10,\n  run10Id\nfrom\n  workflows;",
           "refId": "A",
           "select": [
             [
@@ -1849,9 +1849,9 @@
         "h": 20,
         "w": 24,
         "x": 0,
-        "y": 20
+        "y": 0
       },
-      "id": 11,
+      "id": 2,
       "links": [],
       "options": {
         "cellHeight": "sm",
@@ -1880,7 +1880,952 @@
           "hide": false,
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "with workflows as (\n\twith temp as (SELECT t1.workflow_id, t1.workflow_name, t1.workflow_filename, t1.dashboard_category, t1.run1, t2.run1id ,\nt1.run2, t2.run2id ,\nt1.run3, t2.run3id ,\nt1.run4, t2.run4id ,\nt1.run5, t2.run5id ,\nt1.run6, t2.run6id ,\nt1.run7, t2.run7id ,\nt1.run8, t2.run8id ,\nt1.run9, t2.run9id ,\nt1.run10, t2.run10id \nFROM (SELECT * FROM crosstab('SELECT github_workflows.workflow_id, name as workflow_name, filename AS workflow_filename, dashboard_category, run_number, status \n                              FROM github_workflow_runs\nINNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id\nORDER BY 1,5 DESC\n','SELECT m from generate_series(1,10) m')\nAS c1(workflow_id text, workflow_name text, workflow_filename text, dashboard_category text, run1 text, run2 text,run3 text, \n         run4 text ,run5 text,run6 text, run7 text, \n         run8 text ,run9 text,run10 text) \n\t ) AS t1\n         JOIN (SELECT * FROM crosstab('SELECT name, started_at, github_workflow_runs.url AS run_url\nFROM github_workflow_runs\nINNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id\nORDER BY 1,2 DESC\n\n')\nAS c2(workflow_name text, run1id text, run2id text,run3id text, \n         run4id text ,run5id text,run6id text, run7id text, \n         run8id text ,run9id text,run10id text) \n\t\t\t  ) AS t2\n        ON t1.workflow_name = t2.workflow_name\n\t\t )\n  select\n    *,\n    case when run1 like 'success' then 1 when run1 like 'in_progress' then 2 when run1 like 'queued' then 2 when run1 like 'waiting' then 2 when run1 like 'cancelled' then 3 when run1 like 'failure' then 0 else 4 end as run_1,\n    case when run2 like 'success' then 1 when run2 like 'in_progress' then 2 when run2 like 'queued' then 2 when run2 like 'waiting' then 2 when run2 like 'cancelled' then 3 when run2 like 'failure' then 0 else 4 end as run_2,\n    case when run3 like 'success' then 1 when run3 like 'in_progress' then 2 when run3 like 'queued' then 2 when run3 like 'waiting' then 2 when run3 like 'cancelled' then 3 when run3 like 'failure' then 0 else 4 end as run_3,\n    case when run4 like 'success' then 1 when run4 like 'in_progress' then 2 when run4 like 'queued' then 2 when run4 like 'waiting' then 2 when run4 like 'cancelled' then 3 when run4 like 'failure' then 0 else 4 end as run_4,\n    case when run5 like 'success' then 1 when run5 like 'in_progress' then 2 when run5 like 'queued' then 2 when run5 like 'waiting' then 2 when run5 like 'cancelled' then 3 when run5 like 'failure' then 0 else 4 end as run_5,\n    case when run6 like 'success' then 1 when run6 like 'in_progress' then 2 when run6 like 'queued' then 2 when run6 like 'waiting' then 2 when run6 like 'cancelled' then 3 when run6 like 'failure' then 0 else 4 end as run_6,\n    case when run7 like 'success' then 1 when run7 like 'in_progress' then 2 when run7 like 'queued' then 2 when run7 like 'waiting' then 2 when run7 like 'cancelled' then 3 when run7 like 'failure' then 0 else 4 end as run_7,\n    case when run8 like 'success' then 1 when run8 like 'in_progress' then 2 when run8 like 'queued' then 2 when run8 like 'waiting' then 2 when run8 like 'cancelled' then 3 when run8 like 'failure' then 0 else 4 end as run_8,\n    case when run9 like 'success' then 1 when run9 like 'in_progress' then 2 when run9 like 'queued' then 2 when run9 like 'waiting' then 2 when run9 like 'cancelled' then 3 when run9 like 'failure' then 0 else 4 end as run_9,\n    case when run10 like 'success' then 1 when run10 like 'in_progress' then 2 when run10 like 'queued' then 2 when run10 like 'waiting' then 2 when run10 like 'cancelled' then 3 when run10 like 'failure' then 0 else 4 end as run_10\n  from\n    temp\n  where\n    dashboard_category = 'core_java'\n)\nselect\n  workflow_name,\n  workflow_filename,\n  run_1,\n  run1Id,\n  run_2,\n  run2Id,\n  run_3,\n  run3Id,\n  run_4,\n  run4Id,\n  run_5,\n  run5Id,\n  run_6,\n  run6Id,\n  run_7,\n  run7Id,\n  run_8,\n  run8Id,\n  run_9,\n  run9Id,\n  run_10,\n  run10Id\nfrom\n  workflows;",
+          "rawSql": "with workflows as (\n\twith temp as (SELECT t1.workflow_id, t1.workflow_name, t1.workflow_filename, t1.dashboard_category, t1.run1, t2.run1id ,\nt1.run2, t2.run2id ,\nt1.run3, t2.run3id ,\nt1.run4, t2.run4id ,\nt1.run5, t2.run5id ,\nt1.run6, t2.run6id ,\nt1.run7, t2.run7id ,\nt1.run8, t2.run8id ,\nt1.run9, t2.run9id ,\nt1.run10, t2.run10id \nFROM (SELECT * FROM crosstab('SELECT github_workflows.workflow_id, name as workflow_name, filename AS workflow_filename, dashboard_category, run_number, status \n                              FROM github_workflow_runs\nINNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id\nORDER BY 1,5 DESC\n','SELECT m from generate_series(1,10) m')\nAS c1(workflow_id text, workflow_name text, workflow_filename text, dashboard_category text, run1 text, run2 text,run3 text, \n         run4 text ,run5 text,run6 text, run7 text, \n         run8 text ,run9 text,run10 text) \n\t ) AS t1\n         JOIN (SELECT * FROM crosstab('SELECT name, started_at, github_workflow_runs.url AS run_url\nFROM github_workflow_runs\nINNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id\nORDER BY 1,2 DESC\n\n')\nAS c2(workflow_name text, run1id text, run2id text,run3id text, \n         run4id text ,run5id text,run6id text, run7id text, \n         run8id text ,run9id text,run10id text) \n\t\t\t  ) AS t2\n        ON t1.workflow_name = t2.workflow_name\n\t\t )\n  select\n    *,\n    case when run1 like 'success' then 1 when run1 like 'in_progress' then 2 when run1 like 'queued' then 2 when run1 like 'waiting' then 2 when run1 like 'cancelled' then 3 when run1 like 'failure' then 0 else 4 end as run_1,\n    case when run2 like 'success' then 1 when run2 like 'in_progress' then 2 when run2 like 'queued' then 2 when run2 like 'waiting' then 2 when run2 like 'cancelled' then 3 when run2 like 'failure' then 0 else 4 end as run_2,\n    case when run3 like 'success' then 1 when run3 like 'in_progress' then 2 when run3 like 'queued' then 2 when run3 like 'waiting' then 2 when run3 like 'cancelled' then 3 when run3 like 'failure' then 0 else 4 end as run_3,\n    case when run4 like 'success' then 1 when run4 like 'in_progress' then 2 when run4 like 'queued' then 2 when run4 like 'waiting' then 2 when run4 like 'cancelled' then 3 when run4 like 'failure' then 0 else 4 end as run_4,\n    case when run5 like 'success' then 1 when run5 like 'in_progress' then 2 when run5 like 'queued' then 2 when run5 like 'waiting' then 2 when run5 like 'cancelled' then 3 when run5 like 'failure' then 0 else 4 end as run_5,\n    case when run6 like 'success' then 1 when run6 like 'in_progress' then 2 when run6 like 'queued' then 2 when run6 like 'waiting' then 2 when run6 like 'cancelled' then 3 when run6 like 'failure' then 0 else 4 end as run_6,\n    case when run7 like 'success' then 1 when run7 like 'in_progress' then 2 when run7 like 'queued' then 2 when run7 like 'waiting' then 2 when run7 like 'cancelled' then 3 when run7 like 'failure' then 0 else 4 end as run_7,\n    case when run8 like 'success' then 1 when run8 like 'in_progress' then 2 when run8 like 'queued' then 2 when run8 like 'waiting' then 2 when run8 like 'cancelled' then 3 when run8 like 'failure' then 0 else 4 end as run_8,\n    case when run9 like 'success' then 1 when run9 like 'in_progress' then 2 when run9 like 'queued' then 2 when run9 like 'waiting' then 2 when run9 like 'cancelled' then 3 when run9 like 'failure' then 0 else 4 end as run_9,\n    case when run10 like 'success' then 1 when run10 like 'in_progress' then 2 when run10 like 'queued' then 2 when run10 like 'waiting' then 2 when run10 like 'cancelled' then 3 when run10 like 'failure' then 0 else 4 end as run_10\n  from\n    temp\n  where\n    dashboard_category = 'important_signals'\n AND workflow_name LIKE '%${Workflow}%'\n)\nselect\n  workflow_name,\n  workflow_filename,\n  run_1,\n  run1Id,\n  run_2,\n  run2Id,\n  run_3,\n  run3Id,\n  run_4,\n  run4Id,\n  run_5,\n  run5Id,\n  run_6,\n  run6Id,\n  run_7,\n  run7Id,\n  run_8,\n  run8Id,\n  run_9,\n  run9Id,\n  run_10,\n  run10Id\nfrom\n  workflows;",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "timeColumn": "time",
+          "units": "none",
+          "valueHandler": "Number Threshold",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Important signals",
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {
+            "reducers": []
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": "BeamPSQL",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "color": "semi-dark-red",
+                  "index": 0,
+                  "text": "Fail"
+                },
+                "1": {
+                  "color": "semi-dark-green",
+                  "index": 1,
+                  "text": "Success"
+                },
+                "2": {
+                  "color": "semi-dark-yellow",
+                  "index": 2,
+                  "text": "Pending"
+                },
+                "3": {
+                  "color": "semi-dark-purple",
+                  "index": 3,
+                  "text": "Cancelled"
+                },
+                "4": {
+                  "color": "light-blue",
+                  "index": 4,
+                  "text": "None"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "semi-dark-red",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "workflow_name"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "targetBlank": true,
+                    "title": "",
+                    "url": "https://github.com/apache/beam/actions/${__data.fields.workflow_filename}"
+                  }
+                ]
+              },
+              {
+                "id": "custom.align",
+                "value": "auto"
+              },
+              {
+                "id": "mappings",
+                "value": []
+              },
+              {
+                "id": "displayName",
+                "value": "Job Name"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "workflow_filename"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/run\\d+id/"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              },
+              {
+                "id": "custom.align",
+                "value": "center"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "run_1"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "dark-green",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "custom.hidden",
+                "value": false
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "percentage",
+                  "steps": [
+                    {
+                      "color": "semi-dark-red",
+                      "value": null
+                    },
+                    {
+                      "color": "semi-dark-red",
+                      "value": 0
+                    },
+                    {
+                      "color": "semi-dark-green",
+                      "value": 1
+                    },
+                    {
+                      "color": "semi-dark-yellow",
+                      "value": 2
+                    },
+                    {
+                      "color": "light-blue",
+                      "value": 3
+                    },
+                    {
+                      "color": "purple",
+                      "value": 4
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "basic",
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "custom.align",
+                "value": "center"
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "",
+                    "url": "${__data.fields.run1id}"
+                  }
+                ]
+              },
+              {
+                "id": "displayName",
+                "value": "Run"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "run_2"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "dark-green",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "custom.hidden",
+                "value": false
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "percentage",
+                  "steps": [
+                    {
+                      "color": "semi-dark-red",
+                      "value": null
+                    },
+                    {
+                      "color": "semi-dark-red",
+                      "value": 0
+                    },
+                    {
+                      "color": "semi-dark-green",
+                      "value": 1
+                    },
+                    {
+                      "color": "semi-dark-yellow",
+                      "value": 2
+                    },
+                    {
+                      "color": "light-blue",
+                      "value": 3
+                    },
+                    {
+                      "color": "purple",
+                      "value": 4
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "basic",
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "custom.align",
+                "value": "center"
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "",
+                    "url": "${__data.fields.run2id}"
+                  }
+                ]
+              },
+              {
+                "id": "displayName",
+                "value": "Run 2"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "run_3"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "dark-green",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "custom.hidden",
+                "value": false
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "percentage",
+                  "steps": [
+                    {
+                      "color": "semi-dark-red",
+                      "value": null
+                    },
+                    {
+                      "color": "semi-dark-red",
+                      "value": 0
+                    },
+                    {
+                      "color": "semi-dark-green",
+                      "value": 1
+                    },
+                    {
+                      "color": "semi-dark-yellow",
+                      "value": 2
+                    },
+                    {
+                      "color": "light-blue",
+                      "value": 3
+                    },
+                    {
+                      "color": "purple",
+                      "value": 4
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "basic",
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "custom.align",
+                "value": "center"
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "",
+                    "url": "${__data.fields.run3id}"
+                  }
+                ]
+              },
+              {
+                "id": "displayName",
+                "value": "Run 3"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "run_4"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "dark-green",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "custom.hidden",
+                "value": false
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "percentage",
+                  "steps": [
+                    {
+                      "color": "semi-dark-red",
+                      "value": null
+                    },
+                    {
+                      "color": "semi-dark-red",
+                      "value": 0
+                    },
+                    {
+                      "color": "semi-dark-green",
+                      "value": 1
+                    },
+                    {
+                      "color": "semi-dark-yellow",
+                      "value": 2
+                    },
+                    {
+                      "color": "light-blue",
+                      "value": 3
+                    },
+                    {
+                      "color": "purple",
+                      "value": 4
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "basic",
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "custom.align",
+                "value": "center"
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "",
+                    "url": "${__data.fields.run4id}"
+                  }
+                ]
+              },
+              {
+                "id": "displayName",
+                "value": "Run 4"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "run_5"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "dark-green",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "custom.hidden",
+                "value": false
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "percentage",
+                  "steps": [
+                    {
+                      "color": "semi-dark-red",
+                      "value": null
+                    },
+                    {
+                      "color": "semi-dark-red",
+                      "value": 0
+                    },
+                    {
+                      "color": "semi-dark-green",
+                      "value": 1
+                    },
+                    {
+                      "color": "semi-dark-yellow",
+                      "value": 2
+                    },
+                    {
+                      "color": "light-blue",
+                      "value": 3
+                    },
+                    {
+                      "color": "purple",
+                      "value": 4
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "basic",
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "custom.align",
+                "value": "center"
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "",
+                    "url": "${__data.fields.run5id}"
+                  }
+                ]
+              },
+              {
+                "id": "displayName",
+                "value": "Run 5"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "run_6"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "dark-green",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "custom.hidden",
+                "value": false
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "percentage",
+                  "steps": [
+                    {
+                      "color": "semi-dark-red",
+                      "value": null
+                    },
+                    {
+                      "color": "semi-dark-red",
+                      "value": 0
+                    },
+                    {
+                      "color": "semi-dark-green",
+                      "value": 1
+                    },
+                    {
+                      "color": "semi-dark-yellow",
+                      "value": 2
+                    },
+                    {
+                      "color": "light-blue",
+                      "value": 3
+                    },
+                    {
+                      "color": "purple",
+                      "value": 4
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "basic",
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "custom.align",
+                "value": "center"
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "",
+                    "url": "${__data.fields.run6id}"
+                  }
+                ]
+              },
+              {
+                "id": "displayName",
+                "value": "Run 6"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "run_7"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "dark-green",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "custom.hidden",
+                "value": false
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "percentage",
+                  "steps": [
+                    {
+                      "color": "semi-dark-red",
+                      "value": null
+                    },
+                    {
+                      "color": "semi-dark-red",
+                      "value": 0
+                    },
+                    {
+                      "color": "semi-dark-green",
+                      "value": 1
+                    },
+                    {
+                      "color": "semi-dark-yellow",
+                      "value": 2
+                    },
+                    {
+                      "color": "light-blue",
+                      "value": 3
+                    },
+                    {
+                      "color": "purple",
+                      "value": 4
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "basic",
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "custom.align",
+                "value": "center"
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "",
+                    "url": "${__data.fields.run7id}"
+                  }
+                ]
+              },
+              {
+                "id": "displayName",
+                "value": "Run 7"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "run_8"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "dark-green",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "custom.hidden",
+                "value": false
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "percentage",
+                  "steps": [
+                    {
+                      "color": "semi-dark-red",
+                      "value": null
+                    },
+                    {
+                      "color": "semi-dark-red",
+                      "value": 0
+                    },
+                    {
+                      "color": "semi-dark-green",
+                      "value": 1
+                    },
+                    {
+                      "color": "semi-dark-yellow",
+                      "value": 2
+                    },
+                    {
+                      "color": "light-blue",
+                      "value": 3
+                    },
+                    {
+                      "color": "purple",
+                      "value": 4
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "basic",
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "custom.align",
+                "value": "center"
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "",
+                    "url": "${__data.fields.run8id}"
+                  }
+                ]
+              },
+              {
+                "id": "displayName",
+                "value": "Run 8"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "run_9"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "dark-green",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "custom.hidden",
+                "value": false
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "percentage",
+                  "steps": [
+                    {
+                      "color": "semi-dark-red",
+                      "value": null
+                    },
+                    {
+                      "color": "semi-dark-red",
+                      "value": 0
+                    },
+                    {
+                      "color": "semi-dark-green",
+                      "value": 1
+                    },
+                    {
+                      "color": "semi-dark-yellow",
+                      "value": 2
+                    },
+                    {
+                      "color": "light-blue",
+                      "value": 3
+                    },
+                    {
+                      "color": "purple",
+                      "value": 4
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "basic",
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "custom.align",
+                "value": "center"
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "",
+                    "url": "${__data.fields.run9id}"
+                  }
+                ]
+              },
+              {
+                "id": "displayName",
+                "value": "Run 9"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "run_10"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "dark-green",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "custom.hidden",
+                "value": false
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "percentage",
+                  "steps": [
+                    {
+                      "color": "semi-dark-red",
+                      "value": null
+                    },
+                    {
+                      "color": "semi-dark-red",
+                      "value": 0
+                    },
+                    {
+                      "color": "semi-dark-green",
+                      "value": 1
+                    },
+                    {
+                      "color": "semi-dark-yellow",
+                      "value": 2
+                    },
+                    {
+                      "color": "light-blue",
+                      "value": 3
+                    },
+                    {
+                      "color": "purple",
+                      "value": 4
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "basic",
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "custom.align",
+                "value": "center"
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "",
+                    "url": "${__data.fields.run10id}"
+                  }
+                ]
+              },
+              {
+                "id": "displayName",
+                "value": "Run 10"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 20,
+        "w": 24,
+        "x": 0,
+        "y": 20
+      },
+      "id": 3,
+      "links": [],
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true
+      },
+      "pluginVersion": "10.0.3",
+      "targets": [
+        {
+          "aggregation": "Last",
+          "alias": "job",
+          "decimals": 2,
+          "displayAliasType": "Warning / Critical",
+          "displayType": "Regular",
+          "displayValueWithAlias": "Never",
+          "editorMode": "code",
+          "format": "table",
+          "group": [],
+          "hide": false,
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "with workflows as (\n\twith temp as (SELECT t1.workflow_id, t1.workflow_name, t1.workflow_filename, t1.dashboard_category, t1.run1, t2.run1id ,\nt1.run2, t2.run2id ,\nt1.run3, t2.run3id ,\nt1.run4, t2.run4id ,\nt1.run5, t2.run5id ,\nt1.run6, t2.run6id ,\nt1.run7, t2.run7id ,\nt1.run8, t2.run8id ,\nt1.run9, t2.run9id ,\nt1.run10, t2.run10id \nFROM (SELECT * FROM crosstab('SELECT github_workflows.workflow_id, name as workflow_name, filename AS workflow_filename, dashboard_category, run_number, status \n                              FROM github_workflow_runs\nINNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id\nORDER BY 1,5 DESC\n','SELECT m from generate_series(1,10) m')\nAS c1(workflow_id text, workflow_name text, workflow_filename text, dashboard_category text, run1 text, run2 text,run3 text, \n         run4 text ,run5 text,run6 text, run7 text, \n         run8 text ,run9 text,run10 text) \n\t ) AS t1\n         JOIN (SELECT * FROM crosstab('SELECT name, started_at, github_workflow_runs.url AS run_url\nFROM github_workflow_runs\nINNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id\nORDER BY 1,2 DESC\n\n')\nAS c2(workflow_name text, run1id text, run2id text,run3id text, \n         run4id text ,run5id text,run6id text, run7id text, \n         run8id text ,run9id text,run10id text) \n\t\t\t  ) AS t2\n        ON t1.workflow_name = t2.workflow_name\n\t\t )\n  select\n    *,\n    case when run1 like 'success' then 1 when run1 like 'in_progress' then 2 when run1 like 'queued' then 2 when run1 like 'waiting' then 2 when run1 like 'cancelled' then 3 when run1 like 'failure' then 0 else 4 end as run_1,\n    case when run2 like 'success' then 1 when run2 like 'in_progress' then 2 when run2 like 'queued' then 2 when run2 like 'waiting' then 2 when run2 like 'cancelled' then 3 when run2 like 'failure' then 0 else 4 end as run_2,\n    case when run3 like 'success' then 1 when run3 like 'in_progress' then 2 when run3 like 'queued' then 2 when run3 like 'waiting' then 2 when run3 like 'cancelled' then 3 when run3 like 'failure' then 0 else 4 end as run_3,\n    case when run4 like 'success' then 1 when run4 like 'in_progress' then 2 when run4 like 'queued' then 2 when run4 like 'waiting' then 2 when run4 like 'cancelled' then 3 when run4 like 'failure' then 0 else 4 end as run_4,\n    case when run5 like 'success' then 1 when run5 like 'in_progress' then 2 when run5 like 'queued' then 2 when run5 like 'waiting' then 2 when run5 like 'cancelled' then 3 when run5 like 'failure' then 0 else 4 end as run_5,\n    case when run6 like 'success' then 1 when run6 like 'in_progress' then 2 when run6 like 'queued' then 2 when run6 like 'waiting' then 2 when run6 like 'cancelled' then 3 when run6 like 'failure' then 0 else 4 end as run_6,\n    case when run7 like 'success' then 1 when run7 like 'in_progress' then 2 when run7 like 'queued' then 2 when run7 like 'waiting' then 2 when run7 like 'cancelled' then 3 when run7 like 'failure' then 0 else 4 end as run_7,\n    case when run8 like 'success' then 1 when run8 like 'in_progress' then 2 when run8 like 'queued' then 2 when run8 like 'waiting' then 2 when run8 like 'cancelled' then 3 when run8 like 'failure' then 0 else 4 end as run_8,\n    case when run9 like 'success' then 1 when run9 like 'in_progress' then 2 when run9 like 'queued' then 2 when run9 like 'waiting' then 2 when run9 like 'cancelled' then 3 when run9 like 'failure' then 0 else 4 end as run_9,\n    case when run10 like 'success' then 1 when run10 like 'in_progress' then 2 when run10 like 'queued' then 2 when run10 like 'waiting' then 2 when run10 like 'cancelled' then 3 when run10 like 'failure' then 0 else 4 end as run_10\n  from\n    temp\n  where\n    dashboard_category = 'core_java'\n AND workflow_name LIKE '%${Workflow}%'\n)\nselect\n  workflow_name,\n  workflow_filename,\n  run_1,\n  run1Id,\n  run_2,\n  run2Id,\n  run_3,\n  run3Id,\n  run_4,\n  run4Id,\n  run_5,\n  run5Id,\n  run_6,\n  run6Id,\n  run_7,\n  run7Id,\n  run_8,\n  run8Id,\n  run_9,\n  run9Id,\n  run_10,\n  run10Id\nfrom\n  workflows;",
           "refId": "A",
           "select": [
             [
@@ -2796,7 +3741,7 @@
         "x": 0,
         "y": 40
       },
-      "id": 10,
+      "id": 4,
       "links": [],
       "options": {
         "cellHeight": "sm",
@@ -2825,7 +3770,7 @@
           "hide": false,
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "with workflows as (\n\twith temp as (SELECT t1.workflow_id, t1.workflow_name, t1.workflow_filename, t1.dashboard_category, t1.run1, t2.run1id ,\nt1.run2, t2.run2id ,\nt1.run3, t2.run3id ,\nt1.run4, t2.run4id ,\nt1.run5, t2.run5id ,\nt1.run6, t2.run6id ,\nt1.run7, t2.run7id ,\nt1.run8, t2.run8id ,\nt1.run9, t2.run9id ,\nt1.run10, t2.run10id \nFROM (SELECT * FROM crosstab('SELECT github_workflows.workflow_id, name as workflow_name, filename AS workflow_filename, dashboard_category, run_number, status \n                              FROM github_workflow_runs\nINNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id\nORDER BY 1,5 DESC\n','SELECT m from generate_series(1,10) m')\nAS c1(workflow_id text, workflow_name text, workflow_filename text, dashboard_category text, run1 text, run2 text,run3 text, \n         run4 text ,run5 text,run6 text, run7 text, \n         run8 text ,run9 text,run10 text) \n\t ) AS t1\n         JOIN (SELECT * FROM crosstab('SELECT name, started_at, github_workflow_runs.url AS run_url\nFROM github_workflow_runs\nINNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id\nORDER BY 1,2 DESC\n\n')\nAS c2(workflow_name text, run1id text, run2id text,run3id text, \n         run4id text ,run5id text,run6id text, run7id text, \n         run8id text ,run9id text,run10id text) \n\t\t\t  ) AS t2\n        ON t1.workflow_name = t2.workflow_name\n\t\t )\n  select\n    *,\n    case when run1 like 'success' then 1 when run1 like 'in_progress' then 2 when run1 like 'queued' then 2 when run1 like 'waiting' then 2 when run1 like 'cancelled' then 3 when run1 like 'failure' then 0 else 4 end as run_1,\n    case when run2 like 'success' then 1 when run2 like 'in_progress' then 2 when run2 like 'queued' then 2 when run2 like 'waiting' then 2 when run2 like 'cancelled' then 3 when run2 like 'failure' then 0 else 4 end as run_2,\n    case when run3 like 'success' then 1 when run3 like 'in_progress' then 2 when run3 like 'queued' then 2 when run3 like 'waiting' then 2 when run3 like 'cancelled' then 3 when run3 like 'failure' then 0 else 4 end as run_3,\n    case when run4 like 'success' then 1 when run4 like 'in_progress' then 2 when run4 like 'queued' then 2 when run4 like 'waiting' then 2 when run4 like 'cancelled' then 3 when run4 like 'failure' then 0 else 4 end as run_4,\n    case when run5 like 'success' then 1 when run5 like 'in_progress' then 2 when run5 like 'queued' then 2 when run5 like 'waiting' then 2 when run5 like 'cancelled' then 3 when run5 like 'failure' then 0 else 4 end as run_5,\n    case when run6 like 'success' then 1 when run6 like 'in_progress' then 2 when run6 like 'queued' then 2 when run6 like 'waiting' then 2 when run6 like 'cancelled' then 3 when run6 like 'failure' then 0 else 4 end as run_6,\n    case when run7 like 'success' then 1 when run7 like 'in_progress' then 2 when run7 like 'queued' then 2 when run7 like 'waiting' then 2 when run7 like 'cancelled' then 3 when run7 like 'failure' then 0 else 4 end as run_7,\n    case when run8 like 'success' then 1 when run8 like 'in_progress' then 2 when run8 like 'queued' then 2 when run8 like 'waiting' then 2 when run8 like 'cancelled' then 3 when run8 like 'failure' then 0 else 4 end as run_8,\n    case when run9 like 'success' then 1 when run9 like 'in_progress' then 2 when run9 like 'queued' then 2 when run9 like 'waiting' then 2 when run9 like 'cancelled' then 3 when run9 like 'failure' then 0 else 4 end as run_9,\n    case when run10 like 'success' then 1 when run10 like 'in_progress' then 2 when run10 like 'queued' then 2 when run10 like 'waiting' then 2 when run10 like 'cancelled' then 3 when run10 like 'failure' then 0 else 4 end as run_10\n  from\n    temp\n  where\n    dashboard_category = 'dataflow_java'\n)\nselect\n  workflow_name,\n  workflow_filename,\n  run_1,\n  run1Id,\n  run_2,\n  run2Id,\n  run_3,\n  run3Id,\n  run_4,\n  run4Id,\n  run_5,\n  run5Id,\n  run_6,\n  run6Id,\n  run_7,\n  run7Id,\n  run_8,\n  run8Id,\n  run_9,\n  run9Id,\n  run_10,\n  run10Id\nfrom\n  workflows;",
+          "rawSql": "with workflows as (\n\twith temp as (SELECT t1.workflow_id, t1.workflow_name, t1.workflow_filename, t1.dashboard_category, t1.run1, t2.run1id ,\nt1.run2, t2.run2id ,\nt1.run3, t2.run3id ,\nt1.run4, t2.run4id ,\nt1.run5, t2.run5id ,\nt1.run6, t2.run6id ,\nt1.run7, t2.run7id ,\nt1.run8, t2.run8id ,\nt1.run9, t2.run9id ,\nt1.run10, t2.run10id \nFROM (SELECT * FROM crosstab('SELECT github_workflows.workflow_id, name as workflow_name, filename AS workflow_filename, dashboard_category, run_number, status \n                              FROM github_workflow_runs\nINNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id\nORDER BY 1,5 DESC\n','SELECT m from generate_series(1,10) m')\nAS c1(workflow_id text, workflow_name text, workflow_filename text, dashboard_category text, run1 text, run2 text,run3 text, \n         run4 text ,run5 text,run6 text, run7 text, \n         run8 text ,run9 text,run10 text) \n\t ) AS t1\n         JOIN (SELECT * FROM crosstab('SELECT name, started_at, github_workflow_runs.url AS run_url\nFROM github_workflow_runs\nINNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id\nORDER BY 1,2 DESC\n\n')\nAS c2(workflow_name text, run1id text, run2id text,run3id text, \n         run4id text ,run5id text,run6id text, run7id text, \n         run8id text ,run9id text,run10id text) \n\t\t\t  ) AS t2\n        ON t1.workflow_name = t2.workflow_name\n\t\t )\n  select\n    *,\n    case when run1 like 'success' then 1 when run1 like 'in_progress' then 2 when run1 like 'queued' then 2 when run1 like 'waiting' then 2 when run1 like 'cancelled' then 3 when run1 like 'failure' then 0 else 4 end as run_1,\n    case when run2 like 'success' then 1 when run2 like 'in_progress' then 2 when run2 like 'queued' then 2 when run2 like 'waiting' then 2 when run2 like 'cancelled' then 3 when run2 like 'failure' then 0 else 4 end as run_2,\n    case when run3 like 'success' then 1 when run3 like 'in_progress' then 2 when run3 like 'queued' then 2 when run3 like 'waiting' then 2 when run3 like 'cancelled' then 3 when run3 like 'failure' then 0 else 4 end as run_3,\n    case when run4 like 'success' then 1 when run4 like 'in_progress' then 2 when run4 like 'queued' then 2 when run4 like 'waiting' then 2 when run4 like 'cancelled' then 3 when run4 like 'failure' then 0 else 4 end as run_4,\n    case when run5 like 'success' then 1 when run5 like 'in_progress' then 2 when run5 like 'queued' then 2 when run5 like 'waiting' then 2 when run5 like 'cancelled' then 3 when run5 like 'failure' then 0 else 4 end as run_5,\n    case when run6 like 'success' then 1 when run6 like 'in_progress' then 2 when run6 like 'queued' then 2 when run6 like 'waiting' then 2 when run6 like 'cancelled' then 3 when run6 like 'failure' then 0 else 4 end as run_6,\n    case when run7 like 'success' then 1 when run7 like 'in_progress' then 2 when run7 like 'queued' then 2 when run7 like 'waiting' then 2 when run7 like 'cancelled' then 3 when run7 like 'failure' then 0 else 4 end as run_7,\n    case when run8 like 'success' then 1 when run8 like 'in_progress' then 2 when run8 like 'queued' then 2 when run8 like 'waiting' then 2 when run8 like 'cancelled' then 3 when run8 like 'failure' then 0 else 4 end as run_8,\n    case when run9 like 'success' then 1 when run9 like 'in_progress' then 2 when run9 like 'queued' then 2 when run9 like 'waiting' then 2 when run9 like 'cancelled' then 3 when run9 like 'failure' then 0 else 4 end as run_9,\n    case when run10 like 'success' then 1 when run10 like 'in_progress' then 2 when run10 like 'queued' then 2 when run10 like 'waiting' then 2 when run10 like 'cancelled' then 3 when run10 like 'failure' then 0 else 4 end as run_10\n  from\n    temp\n  where\n    dashboard_category = 'dataflow_java'\n AND workflow_name LIKE '%${Workflow}%'\n)\nselect\n  workflow_name,\n  workflow_filename,\n  run_1,\n  run1Id,\n  run_2,\n  run2Id,\n  run_3,\n  run3Id,\n  run_4,\n  run4Id,\n  run_5,\n  run5Id,\n  run_6,\n  run6Id,\n  run_7,\n  run7Id,\n  run_8,\n  run8Id,\n  run_9,\n  run9Id,\n  run_10,\n  run10Id\nfrom\n  workflows;",
           "refId": "A",
           "select": [
             [
@@ -3741,7 +4686,7 @@
         "x": 0,
         "y": 60
       },
-      "id": 12,
+      "id": 5,
       "links": [],
       "options": {
         "cellHeight": "sm",
@@ -3770,7 +4715,7 @@
           "hide": false,
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "with workflows as (\n\twith temp as (SELECT t1.workflow_id, t1.workflow_name, t1.workflow_filename, t1.dashboard_category, t1.run1, t2.run1id ,\nt1.run2, t2.run2id ,\nt1.run3, t2.run3id ,\nt1.run4, t2.run4id ,\nt1.run5, t2.run5id ,\nt1.run6, t2.run6id ,\nt1.run7, t2.run7id ,\nt1.run8, t2.run8id ,\nt1.run9, t2.run9id ,\nt1.run10, t2.run10id \nFROM (SELECT * FROM crosstab('SELECT github_workflows.workflow_id, name as workflow_name, filename AS workflow_filename, dashboard_category, run_number, status \n                              FROM github_workflow_runs\nINNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id\nORDER BY 1,5 DESC\n','SELECT m from generate_series(1,10) m')\nAS c1(workflow_id text, workflow_name text, workflow_filename text, dashboard_category text, run1 text, run2 text,run3 text, \n         run4 text ,run5 text,run6 text, run7 text, \n         run8 text ,run9 text,run10 text) \n\t ) AS t1\n         JOIN (SELECT * FROM crosstab('SELECT name, started_at, github_workflow_runs.url AS run_url\nFROM github_workflow_runs\nINNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id\nORDER BY 1,2 DESC\n\n')\nAS c2(workflow_name text, run1id text, run2id text,run3id text, \n         run4id text ,run5id text,run6id text, run7id text, \n         run8id text ,run9id text,run10id text) \n\t\t\t  ) AS t2\n        ON t1.workflow_name = t2.workflow_name\n\t\t )\n  select\n    *,\n    case when run1 like 'success' then 1 when run1 like 'in_progress' then 2 when run1 like 'queued' then 2 when run1 like 'waiting' then 2 when run1 like 'cancelled' then 3 when run1 like 'failure' then 0 else 4 end as run_1,\n    case when run2 like 'success' then 1 when run2 like 'in_progress' then 2 when run2 like 'queued' then 2 when run2 like 'waiting' then 2 when run2 like 'cancelled' then 3 when run2 like 'failure' then 0 else 4 end as run_2,\n    case when run3 like 'success' then 1 when run3 like 'in_progress' then 2 when run3 like 'queued' then 2 when run3 like 'waiting' then 2 when run3 like 'cancelled' then 3 when run3 like 'failure' then 0 else 4 end as run_3,\n    case when run4 like 'success' then 1 when run4 like 'in_progress' then 2 when run4 like 'queued' then 2 when run4 like 'waiting' then 2 when run4 like 'cancelled' then 3 when run4 like 'failure' then 0 else 4 end as run_4,\n    case when run5 like 'success' then 1 when run5 like 'in_progress' then 2 when run5 like 'queued' then 2 when run5 like 'waiting' then 2 when run5 like 'cancelled' then 3 when run5 like 'failure' then 0 else 4 end as run_5,\n    case when run6 like 'success' then 1 when run6 like 'in_progress' then 2 when run6 like 'queued' then 2 when run6 like 'waiting' then 2 when run6 like 'cancelled' then 3 when run6 like 'failure' then 0 else 4 end as run_6,\n    case when run7 like 'success' then 1 when run7 like 'in_progress' then 2 when run7 like 'queued' then 2 when run7 like 'waiting' then 2 when run7 like 'cancelled' then 3 when run7 like 'failure' then 0 else 4 end as run_7,\n    case when run8 like 'success' then 1 when run8 like 'in_progress' then 2 when run8 like 'queued' then 2 when run8 like 'waiting' then 2 when run8 like 'cancelled' then 3 when run8 like 'failure' then 0 else 4 end as run_8,\n    case when run9 like 'success' then 1 when run9 like 'in_progress' then 2 when run9 like 'queued' then 2 when run9 like 'waiting' then 2 when run9 like 'cancelled' then 3 when run9 like 'failure' then 0 else 4 end as run_9,\n    case when run10 like 'success' then 1 when run10 like 'in_progress' then 2 when run10 like 'queued' then 2 when run10 like 'waiting' then 2 when run10 like 'cancelled' then 3 when run10 like 'failure' then 0 else 4 end as run_10\n  from\n    temp\n  where\n    dashboard_category = 'runners_java'\n)\nselect\n  workflow_name,\n  workflow_filename,\n  run_1,\n  run1Id,\n  run_2,\n  run2Id,\n  run_3,\n  run3Id,\n  run_4,\n  run4Id,\n  run_5,\n  run5Id,\n  run_6,\n  run6Id,\n  run_7,\n  run7Id,\n  run_8,\n  run8Id,\n  run_9,\n  run9Id,\n  run_10,\n  run10Id\nfrom\n  workflows;",
+          "rawSql": "with workflows as (\n\twith temp as (SELECT t1.workflow_id, t1.workflow_name, t1.workflow_filename, t1.dashboard_category, t1.run1, t2.run1id ,\nt1.run2, t2.run2id ,\nt1.run3, t2.run3id ,\nt1.run4, t2.run4id ,\nt1.run5, t2.run5id ,\nt1.run6, t2.run6id ,\nt1.run7, t2.run7id ,\nt1.run8, t2.run8id ,\nt1.run9, t2.run9id ,\nt1.run10, t2.run10id \nFROM (SELECT * FROM crosstab('SELECT github_workflows.workflow_id, name as workflow_name, filename AS workflow_filename, dashboard_category, run_number, status \n                              FROM github_workflow_runs\nINNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id\nORDER BY 1,5 DESC\n','SELECT m from generate_series(1,10) m')\nAS c1(workflow_id text, workflow_name text, workflow_filename text, dashboard_category text, run1 text, run2 text,run3 text, \n         run4 text ,run5 text,run6 text, run7 text, \n         run8 text ,run9 text,run10 text) \n\t ) AS t1\n         JOIN (SELECT * FROM crosstab('SELECT name, started_at, github_workflow_runs.url AS run_url\nFROM github_workflow_runs\nINNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id\nORDER BY 1,2 DESC\n\n')\nAS c2(workflow_name text, run1id text, run2id text,run3id text, \n         run4id text ,run5id text,run6id text, run7id text, \n         run8id text ,run9id text,run10id text) \n\t\t\t  ) AS t2\n        ON t1.workflow_name = t2.workflow_name\n\t\t )\n  select\n    *,\n    case when run1 like 'success' then 1 when run1 like 'in_progress' then 2 when run1 like 'queued' then 2 when run1 like 'waiting' then 2 when run1 like 'cancelled' then 3 when run1 like 'failure' then 0 else 4 end as run_1,\n    case when run2 like 'success' then 1 when run2 like 'in_progress' then 2 when run2 like 'queued' then 2 when run2 like 'waiting' then 2 when run2 like 'cancelled' then 3 when run2 like 'failure' then 0 else 4 end as run_2,\n    case when run3 like 'success' then 1 when run3 like 'in_progress' then 2 when run3 like 'queued' then 2 when run3 like 'waiting' then 2 when run3 like 'cancelled' then 3 when run3 like 'failure' then 0 else 4 end as run_3,\n    case when run4 like 'success' then 1 when run4 like 'in_progress' then 2 when run4 like 'queued' then 2 when run4 like 'waiting' then 2 when run4 like 'cancelled' then 3 when run4 like 'failure' then 0 else 4 end as run_4,\n    case when run5 like 'success' then 1 when run5 like 'in_progress' then 2 when run5 like 'queued' then 2 when run5 like 'waiting' then 2 when run5 like 'cancelled' then 3 when run5 like 'failure' then 0 else 4 end as run_5,\n    case when run6 like 'success' then 1 when run6 like 'in_progress' then 2 when run6 like 'queued' then 2 when run6 like 'waiting' then 2 when run6 like 'cancelled' then 3 when run6 like 'failure' then 0 else 4 end as run_6,\n    case when run7 like 'success' then 1 when run7 like 'in_progress' then 2 when run7 like 'queued' then 2 when run7 like 'waiting' then 2 when run7 like 'cancelled' then 3 when run7 like 'failure' then 0 else 4 end as run_7,\n    case when run8 like 'success' then 1 when run8 like 'in_progress' then 2 when run8 like 'queued' then 2 when run8 like 'waiting' then 2 when run8 like 'cancelled' then 3 when run8 like 'failure' then 0 else 4 end as run_8,\n    case when run9 like 'success' then 1 when run9 like 'in_progress' then 2 when run9 like 'queued' then 2 when run9 like 'waiting' then 2 when run9 like 'cancelled' then 3 when run9 like 'failure' then 0 else 4 end as run_9,\n    case when run10 like 'success' then 1 when run10 like 'in_progress' then 2 when run10 like 'queued' then 2 when run10 like 'waiting' then 2 when run10 like 'cancelled' then 3 when run10 like 'failure' then 0 else 4 end as run_10\n  from\n    temp\n  where\n    dashboard_category = 'runners_java'\n AND workflow_name LIKE '%${Workflow}%'\n)\nselect\n  workflow_name,\n  workflow_filename,\n  run_1,\n  run1Id,\n  run_2,\n  run2Id,\n  run_3,\n  run3Id,\n  run_4,\n  run4Id,\n  run_5,\n  run5Id,\n  run_6,\n  run6Id,\n  run_7,\n  run7Id,\n  run_8,\n  run8Id,\n  run_9,\n  run9Id,\n  run_10,\n  run10Id\nfrom\n  workflows;",
           "refId": "A",
           "select": [
             [
@@ -4686,7 +5631,7 @@
         "x": 0,
         "y": 80
       },
-      "id": 3,
+      "id": 6,
       "links": [],
       "options": {
         "cellHeight": "sm",
@@ -4715,7 +5660,7 @@
           "hide": false,
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "with workflows as (\n\twith temp as (SELECT t1.workflow_id, t1.workflow_name, t1.workflow_filename, t1.dashboard_category, t1.run1, t2.run1id ,\nt1.run2, t2.run2id ,\nt1.run3, t2.run3id ,\nt1.run4, t2.run4id ,\nt1.run5, t2.run5id ,\nt1.run6, t2.run6id ,\nt1.run7, t2.run7id ,\nt1.run8, t2.run8id ,\nt1.run9, t2.run9id ,\nt1.run10, t2.run10id \nFROM (SELECT * FROM crosstab('SELECT github_workflows.workflow_id, name as workflow_name, filename AS workflow_filename, dashboard_category, run_number, status \n                              FROM github_workflow_runs\nINNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id\nORDER BY 1,5 DESC\n','SELECT m from generate_series(1,10) m')\nAS c1(workflow_id text, workflow_name text, workflow_filename text, dashboard_category text, run1 text, run2 text,run3 text, \n         run4 text ,run5 text,run6 text, run7 text, \n         run8 text ,run9 text,run10 text) \n\t ) AS t1\n         JOIN (SELECT * FROM crosstab('SELECT name, started_at, github_workflow_runs.url AS run_url\nFROM github_workflow_runs\nINNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id\nORDER BY 1,2 DESC\n\n')\nAS c2(workflow_name text, run1id text, run2id text,run3id text, \n         run4id text ,run5id text,run6id text, run7id text, \n         run8id text ,run9id text,run10id text) \n\t\t\t  ) AS t2\n        ON t1.workflow_name = t2.workflow_name\n\t\t )\n  select\n    *,\n    case when run1 like 'success' then 1 when run1 like 'in_progress' then 2 when run1 like 'queued' then 2 when run1 like 'waiting' then 2 when run1 like 'cancelled' then 3 when run1 like 'failure' then 0 else 4 end as run_1,\n    case when run2 like 'success' then 1 when run2 like 'in_progress' then 2 when run2 like 'queued' then 2 when run2 like 'waiting' then 2 when run2 like 'cancelled' then 3 when run2 like 'failure' then 0 else 4 end as run_2,\n    case when run3 like 'success' then 1 when run3 like 'in_progress' then 2 when run3 like 'queued' then 2 when run3 like 'waiting' then 2 when run3 like 'cancelled' then 3 when run3 like 'failure' then 0 else 4 end as run_3,\n    case when run4 like 'success' then 1 when run4 like 'in_progress' then 2 when run4 like 'queued' then 2 when run4 like 'waiting' then 2 when run4 like 'cancelled' then 3 when run4 like 'failure' then 0 else 4 end as run_4,\n    case when run5 like 'success' then 1 when run5 like 'in_progress' then 2 when run5 like 'queued' then 2 when run5 like 'waiting' then 2 when run5 like 'cancelled' then 3 when run5 like 'failure' then 0 else 4 end as run_5,\n    case when run6 like 'success' then 1 when run6 like 'in_progress' then 2 when run6 like 'queued' then 2 when run6 like 'waiting' then 2 when run6 like 'cancelled' then 3 when run6 like 'failure' then 0 else 4 end as run_6,\n    case when run7 like 'success' then 1 when run7 like 'in_progress' then 2 when run7 like 'queued' then 2 when run7 like 'waiting' then 2 when run7 like 'cancelled' then 3 when run7 like 'failure' then 0 else 4 end as run_7,\n    case when run8 like 'success' then 1 when run8 like 'in_progress' then 2 when run8 like 'queued' then 2 when run8 like 'waiting' then 2 when run8 like 'cancelled' then 3 when run8 like 'failure' then 0 else 4 end as run_8,\n    case when run9 like 'success' then 1 when run9 like 'in_progress' then 2 when run9 like 'queued' then 2 when run9 like 'waiting' then 2 when run9 like 'cancelled' then 3 when run9 like 'failure' then 0 else 4 end as run_9,\n    case when run10 like 'success' then 1 when run10 like 'in_progress' then 2 when run10 like 'queued' then 2 when run10 like 'waiting' then 2 when run10 like 'cancelled' then 3 when run10 like 'failure' then 0 else 4 end as run_10\n  from\n    temp\n  where\n    dashboard_category = 'load_perf_java'\n)\nselect\n  workflow_name,\n  workflow_filename,\n  run_1,\n  run1Id,\n  run_2,\n  run2Id,\n  run_3,\n  run3Id,\n  run_4,\n  run4Id,\n  run_5,\n  run5Id,\n  run_6,\n  run6Id,\n  run_7,\n  run7Id,\n  run_8,\n  run8Id,\n  run_9,\n  run9Id,\n  run_10,\n  run10Id\nfrom\n  workflows;",
+          "rawSql": "with workflows as (\n\twith temp as (SELECT t1.workflow_id, t1.workflow_name, t1.workflow_filename, t1.dashboard_category, t1.run1, t2.run1id ,\nt1.run2, t2.run2id ,\nt1.run3, t2.run3id ,\nt1.run4, t2.run4id ,\nt1.run5, t2.run5id ,\nt1.run6, t2.run6id ,\nt1.run7, t2.run7id ,\nt1.run8, t2.run8id ,\nt1.run9, t2.run9id ,\nt1.run10, t2.run10id \nFROM (SELECT * FROM crosstab('SELECT github_workflows.workflow_id, name as workflow_name, filename AS workflow_filename, dashboard_category, run_number, status \n                              FROM github_workflow_runs\nINNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id\nORDER BY 1,5 DESC\n','SELECT m from generate_series(1,10) m')\nAS c1(workflow_id text, workflow_name text, workflow_filename text, dashboard_category text, run1 text, run2 text,run3 text, \n         run4 text ,run5 text,run6 text, run7 text, \n         run8 text ,run9 text,run10 text) \n\t ) AS t1\n         JOIN (SELECT * FROM crosstab('SELECT name, started_at, github_workflow_runs.url AS run_url\nFROM github_workflow_runs\nINNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id\nORDER BY 1,2 DESC\n\n')\nAS c2(workflow_name text, run1id text, run2id text,run3id text, \n         run4id text ,run5id text,run6id text, run7id text, \n         run8id text ,run9id text,run10id text) \n\t\t\t  ) AS t2\n        ON t1.workflow_name = t2.workflow_name\n\t\t )\n  select\n    *,\n    case when run1 like 'success' then 1 when run1 like 'in_progress' then 2 when run1 like 'queued' then 2 when run1 like 'waiting' then 2 when run1 like 'cancelled' then 3 when run1 like 'failure' then 0 else 4 end as run_1,\n    case when run2 like 'success' then 1 when run2 like 'in_progress' then 2 when run2 like 'queued' then 2 when run2 like 'waiting' then 2 when run2 like 'cancelled' then 3 when run2 like 'failure' then 0 else 4 end as run_2,\n    case when run3 like 'success' then 1 when run3 like 'in_progress' then 2 when run3 like 'queued' then 2 when run3 like 'waiting' then 2 when run3 like 'cancelled' then 3 when run3 like 'failure' then 0 else 4 end as run_3,\n    case when run4 like 'success' then 1 when run4 like 'in_progress' then 2 when run4 like 'queued' then 2 when run4 like 'waiting' then 2 when run4 like 'cancelled' then 3 when run4 like 'failure' then 0 else 4 end as run_4,\n    case when run5 like 'success' then 1 when run5 like 'in_progress' then 2 when run5 like 'queued' then 2 when run5 like 'waiting' then 2 when run5 like 'cancelled' then 3 when run5 like 'failure' then 0 else 4 end as run_5,\n    case when run6 like 'success' then 1 when run6 like 'in_progress' then 2 when run6 like 'queued' then 2 when run6 like 'waiting' then 2 when run6 like 'cancelled' then 3 when run6 like 'failure' then 0 else 4 end as run_6,\n    case when run7 like 'success' then 1 when run7 like 'in_progress' then 2 when run7 like 'queued' then 2 when run7 like 'waiting' then 2 when run7 like 'cancelled' then 3 when run7 like 'failure' then 0 else 4 end as run_7,\n    case when run8 like 'success' then 1 when run8 like 'in_progress' then 2 when run8 like 'queued' then 2 when run8 like 'waiting' then 2 when run8 like 'cancelled' then 3 when run8 like 'failure' then 0 else 4 end as run_8,\n    case when run9 like 'success' then 1 when run9 like 'in_progress' then 2 when run9 like 'queued' then 2 when run9 like 'waiting' then 2 when run9 like 'cancelled' then 3 when run9 like 'failure' then 0 else 4 end as run_9,\n    case when run10 like 'success' then 1 when run10 like 'in_progress' then 2 when run10 like 'queued' then 2 when run10 like 'waiting' then 2 when run10 like 'cancelled' then 3 when run10 like 'failure' then 0 else 4 end as run_10\n  from\n    temp\n  where\n    dashboard_category = 'load_perf_java'\n AND workflow_name LIKE '%${Workflow}%'\n)\nselect\n  workflow_name,\n  workflow_filename,\n  run_1,\n  run1Id,\n  run_2,\n  run2Id,\n  run_3,\n  run3Id,\n  run_4,\n  run4Id,\n  run_5,\n  run5Id,\n  run_6,\n  run6Id,\n  run_7,\n  run7Id,\n  run_8,\n  run8Id,\n  run_9,\n  run9Id,\n  run_10,\n  run10Id\nfrom\n  workflows;",
           "refId": "A",
           "select": [
             [
@@ -5631,7 +6576,7 @@
         "x": 0,
         "y": 100
       },
-      "id": 9,
+      "id": 7,
       "links": [],
       "options": {
         "cellHeight": "sm",
@@ -5660,7 +6605,7 @@
           "hide": false,
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "with workflows as (\n\twith temp as (SELECT t1.workflow_id, t1.workflow_name, t1.workflow_filename, t1.dashboard_category, t1.run1, t2.run1id ,\nt1.run2, t2.run2id ,\nt1.run3, t2.run3id ,\nt1.run4, t2.run4id ,\nt1.run5, t2.run5id ,\nt1.run6, t2.run6id ,\nt1.run7, t2.run7id ,\nt1.run8, t2.run8id ,\nt1.run9, t2.run9id ,\nt1.run10, t2.run10id \nFROM (SELECT * FROM crosstab('SELECT github_workflows.workflow_id, name as workflow_name, filename AS workflow_filename, dashboard_category, run_number, status \n                              FROM github_workflow_runs\nINNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id\nORDER BY 1,5 DESC\n','SELECT m from generate_series(1,10) m')\nAS c1(workflow_id text, workflow_name text, workflow_filename text, dashboard_category text, run1 text, run2 text,run3 text, \n         run4 text ,run5 text,run6 text, run7 text, \n         run8 text ,run9 text,run10 text) \n\t ) AS t1\n         JOIN (SELECT * FROM crosstab('SELECT name, started_at, github_workflow_runs.url AS run_url\nFROM github_workflow_runs\nINNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id\nORDER BY 1,2 DESC\n\n')\nAS c2(workflow_name text, run1id text, run2id text,run3id text, \n         run4id text ,run5id text,run6id text, run7id text, \n         run8id text ,run9id text,run10id text) \n\t\t\t  ) AS t2\n        ON t1.workflow_name = t2.workflow_name\n\t\t )\n  select\n    *,\n    case when run1 like 'success' then 1 when run1 like 'in_progress' then 2 when run1 like 'queued' then 2 when run1 like 'waiting' then 2 when run1 like 'cancelled' then 3 when run1 like 'failure' then 0 else 4 end as run_1,\n    case when run2 like 'success' then 1 when run2 like 'in_progress' then 2 when run2 like 'queued' then 2 when run2 like 'waiting' then 2 when run2 like 'cancelled' then 3 when run2 like 'failure' then 0 else 4 end as run_2,\n    case when run3 like 'success' then 1 when run3 like 'in_progress' then 2 when run3 like 'queued' then 2 when run3 like 'waiting' then 2 when run3 like 'cancelled' then 3 when run3 like 'failure' then 0 else 4 end as run_3,\n    case when run4 like 'success' then 1 when run4 like 'in_progress' then 2 when run4 like 'queued' then 2 when run4 like 'waiting' then 2 when run4 like 'cancelled' then 3 when run4 like 'failure' then 0 else 4 end as run_4,\n    case when run5 like 'success' then 1 when run5 like 'in_progress' then 2 when run5 like 'queued' then 2 when run5 like 'waiting' then 2 when run5 like 'cancelled' then 3 when run5 like 'failure' then 0 else 4 end as run_5,\n    case when run6 like 'success' then 1 when run6 like 'in_progress' then 2 when run6 like 'queued' then 2 when run6 like 'waiting' then 2 when run6 like 'cancelled' then 3 when run6 like 'failure' then 0 else 4 end as run_6,\n    case when run7 like 'success' then 1 when run7 like 'in_progress' then 2 when run7 like 'queued' then 2 when run7 like 'waiting' then 2 when run7 like 'cancelled' then 3 when run7 like 'failure' then 0 else 4 end as run_7,\n    case when run8 like 'success' then 1 when run8 like 'in_progress' then 2 when run8 like 'queued' then 2 when run8 like 'waiting' then 2 when run8 like 'cancelled' then 3 when run8 like 'failure' then 0 else 4 end as run_8,\n    case when run9 like 'success' then 1 when run9 like 'in_progress' then 2 when run9 like 'queued' then 2 when run9 like 'waiting' then 2 when run9 like 'cancelled' then 3 when run9 like 'failure' then 0 else 4 end as run_9,\n    case when run10 like 'success' then 1 when run10 like 'in_progress' then 2 when run10 like 'queued' then 2 when run10 like 'waiting' then 2 when run10 like 'cancelled' then 3 when run10 like 'failure' then 0 else 4 end as run_10\n  from\n    temp\n  where\n    dashboard_category = 'core_python'\n)\nselect\n  workflow_name,\n  workflow_filename,\n  run_1,\n  run1Id,\n  run_2,\n  run2Id,\n  run_3,\n  run3Id,\n  run_4,\n  run4Id,\n  run_5,\n  run5Id,\n  run_6,\n  run6Id,\n  run_7,\n  run7Id,\n  run_8,\n  run8Id,\n  run_9,\n  run9Id,\n  run_10,\n  run10Id\nfrom\n  workflows;",
+          "rawSql": "with workflows as (\n\twith temp as (SELECT t1.workflow_id, t1.workflow_name, t1.workflow_filename, t1.dashboard_category, t1.run1, t2.run1id ,\nt1.run2, t2.run2id ,\nt1.run3, t2.run3id ,\nt1.run4, t2.run4id ,\nt1.run5, t2.run5id ,\nt1.run6, t2.run6id ,\nt1.run7, t2.run7id ,\nt1.run8, t2.run8id ,\nt1.run9, t2.run9id ,\nt1.run10, t2.run10id \nFROM (SELECT * FROM crosstab('SELECT github_workflows.workflow_id, name as workflow_name, filename AS workflow_filename, dashboard_category, run_number, status \n                              FROM github_workflow_runs\nINNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id\nORDER BY 1,5 DESC\n','SELECT m from generate_series(1,10) m')\nAS c1(workflow_id text, workflow_name text, workflow_filename text, dashboard_category text, run1 text, run2 text,run3 text, \n         run4 text ,run5 text,run6 text, run7 text, \n         run8 text ,run9 text,run10 text) \n\t ) AS t1\n         JOIN (SELECT * FROM crosstab('SELECT name, started_at, github_workflow_runs.url AS run_url\nFROM github_workflow_runs\nINNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id\nORDER BY 1,2 DESC\n\n')\nAS c2(workflow_name text, run1id text, run2id text,run3id text, \n         run4id text ,run5id text,run6id text, run7id text, \n         run8id text ,run9id text,run10id text) \n\t\t\t  ) AS t2\n        ON t1.workflow_name = t2.workflow_name\n\t\t )\n  select\n    *,\n    case when run1 like 'success' then 1 when run1 like 'in_progress' then 2 when run1 like 'queued' then 2 when run1 like 'waiting' then 2 when run1 like 'cancelled' then 3 when run1 like 'failure' then 0 else 4 end as run_1,\n    case when run2 like 'success' then 1 when run2 like 'in_progress' then 2 when run2 like 'queued' then 2 when run2 like 'waiting' then 2 when run2 like 'cancelled' then 3 when run2 like 'failure' then 0 else 4 end as run_2,\n    case when run3 like 'success' then 1 when run3 like 'in_progress' then 2 when run3 like 'queued' then 2 when run3 like 'waiting' then 2 when run3 like 'cancelled' then 3 when run3 like 'failure' then 0 else 4 end as run_3,\n    case when run4 like 'success' then 1 when run4 like 'in_progress' then 2 when run4 like 'queued' then 2 when run4 like 'waiting' then 2 when run4 like 'cancelled' then 3 when run4 like 'failure' then 0 else 4 end as run_4,\n    case when run5 like 'success' then 1 when run5 like 'in_progress' then 2 when run5 like 'queued' then 2 when run5 like 'waiting' then 2 when run5 like 'cancelled' then 3 when run5 like 'failure' then 0 else 4 end as run_5,\n    case when run6 like 'success' then 1 when run6 like 'in_progress' then 2 when run6 like 'queued' then 2 when run6 like 'waiting' then 2 when run6 like 'cancelled' then 3 when run6 like 'failure' then 0 else 4 end as run_6,\n    case when run7 like 'success' then 1 when run7 like 'in_progress' then 2 when run7 like 'queued' then 2 when run7 like 'waiting' then 2 when run7 like 'cancelled' then 3 when run7 like 'failure' then 0 else 4 end as run_7,\n    case when run8 like 'success' then 1 when run8 like 'in_progress' then 2 when run8 like 'queued' then 2 when run8 like 'waiting' then 2 when run8 like 'cancelled' then 3 when run8 like 'failure' then 0 else 4 end as run_8,\n    case when run9 like 'success' then 1 when run9 like 'in_progress' then 2 when run9 like 'queued' then 2 when run9 like 'waiting' then 2 when run9 like 'cancelled' then 3 when run9 like 'failure' then 0 else 4 end as run_9,\n    case when run10 like 'success' then 1 when run10 like 'in_progress' then 2 when run10 like 'queued' then 2 when run10 like 'waiting' then 2 when run10 like 'cancelled' then 3 when run10 like 'failure' then 0 else 4 end as run_10\n  from\n    temp\n  where\n    dashboard_category = 'core_python'\n AND workflow_name LIKE '%${Workflow}%'\n)\nselect\n  workflow_name,\n  workflow_filename,\n  run_1,\n  run1Id,\n  run_2,\n  run2Id,\n  run_3,\n  run3Id,\n  run_4,\n  run4Id,\n  run_5,\n  run5Id,\n  run_6,\n  run6Id,\n  run_7,\n  run7Id,\n  run_8,\n  run8Id,\n  run_9,\n  run9Id,\n  run_10,\n  run10Id\nfrom\n  workflows;",
           "refId": "A",
           "select": [
             [
@@ -6576,7 +7521,7 @@
         "x": 0,
         "y": 120
       },
-      "id": 7,
+      "id": 8,
       "links": [],
       "options": {
         "cellHeight": "sm",
@@ -6605,7 +7550,7 @@
           "hide": false,
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "with workflows as (\n\twith temp as (SELECT t1.workflow_id, t1.workflow_name, t1.workflow_filename, t1.dashboard_category, t1.run1, t2.run1id ,\nt1.run2, t2.run2id ,\nt1.run3, t2.run3id ,\nt1.run4, t2.run4id ,\nt1.run5, t2.run5id ,\nt1.run6, t2.run6id ,\nt1.run7, t2.run7id ,\nt1.run8, t2.run8id ,\nt1.run9, t2.run9id ,\nt1.run10, t2.run10id \nFROM (SELECT * FROM crosstab('SELECT github_workflows.workflow_id, name as workflow_name, filename AS workflow_filename, dashboard_category, run_number, status \n                              FROM github_workflow_runs\nINNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id\nORDER BY 1,5 DESC\n','SELECT m from generate_series(1,10) m')\nAS c1(workflow_id text, workflow_name text, workflow_filename text, dashboard_category text, run1 text, run2 text,run3 text, \n         run4 text ,run5 text,run6 text, run7 text, \n         run8 text ,run9 text,run10 text) \n\t ) AS t1\n         JOIN (SELECT * FROM crosstab('SELECT name, started_at, github_workflow_runs.url AS run_url\nFROM github_workflow_runs\nINNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id\nORDER BY 1,2 DESC\n\n')\nAS c2(workflow_name text, run1id text, run2id text,run3id text, \n         run4id text ,run5id text,run6id text, run7id text, \n         run8id text ,run9id text,run10id text) \n\t\t\t  ) AS t2\n        ON t1.workflow_name = t2.workflow_name\n\t\t )\n  select\n    *,\n    case when run1 like 'success' then 1 when run1 like 'in_progress' then 2 when run1 like 'queued' then 2 when run1 like 'waiting' then 2 when run1 like 'cancelled' then 3 when run1 like 'failure' then 0 else 4 end as run_1,\n    case when run2 like 'success' then 1 when run2 like 'in_progress' then 2 when run2 like 'queued' then 2 when run2 like 'waiting' then 2 when run2 like 'cancelled' then 3 when run2 like 'failure' then 0 else 4 end as run_2,\n    case when run3 like 'success' then 1 when run3 like 'in_progress' then 2 when run3 like 'queued' then 2 when run3 like 'waiting' then 2 when run3 like 'cancelled' then 3 when run3 like 'failure' then 0 else 4 end as run_3,\n    case when run4 like 'success' then 1 when run4 like 'in_progress' then 2 when run4 like 'queued' then 2 when run4 like 'waiting' then 2 when run4 like 'cancelled' then 3 when run4 like 'failure' then 0 else 4 end as run_4,\n    case when run5 like 'success' then 1 when run5 like 'in_progress' then 2 when run5 like 'queued' then 2 when run5 like 'waiting' then 2 when run5 like 'cancelled' then 3 when run5 like 'failure' then 0 else 4 end as run_5,\n    case when run6 like 'success' then 1 when run6 like 'in_progress' then 2 when run6 like 'queued' then 2 when run6 like 'waiting' then 2 when run6 like 'cancelled' then 3 when run6 like 'failure' then 0 else 4 end as run_6,\n    case when run7 like 'success' then 1 when run7 like 'in_progress' then 2 when run7 like 'queued' then 2 when run7 like 'waiting' then 2 when run7 like 'cancelled' then 3 when run7 like 'failure' then 0 else 4 end as run_7,\n    case when run8 like 'success' then 1 when run8 like 'in_progress' then 2 when run8 like 'queued' then 2 when run8 like 'waiting' then 2 when run8 like 'cancelled' then 3 when run8 like 'failure' then 0 else 4 end as run_8,\n    case when run9 like 'success' then 1 when run9 like 'in_progress' then 2 when run9 like 'queued' then 2 when run9 like 'waiting' then 2 when run9 like 'cancelled' then 3 when run9 like 'failure' then 0 else 4 end as run_9,\n    case when run10 like 'success' then 1 when run10 like 'in_progress' then 2 when run10 like 'queued' then 2 when run10 like 'waiting' then 2 when run10 like 'cancelled' then 3 when run10 like 'failure' then 0 else 4 end as run_10\n  from\n    temp\n  where\n    dashboard_category = 'runners_python'\n)\nselect\n  workflow_name,\n  workflow_filename,\n  run_1,\n  run1Id,\n  run_2,\n  run2Id,\n  run_3,\n  run3Id,\n  run_4,\n  run4Id,\n  run_5,\n  run5Id,\n  run_6,\n  run6Id,\n  run_7,\n  run7Id,\n  run_8,\n  run8Id,\n  run_9,\n  run9Id,\n  run_10,\n  run10Id\nfrom\n  workflows;",
+          "rawSql": "with workflows as (\n\twith temp as (SELECT t1.workflow_id, t1.workflow_name, t1.workflow_filename, t1.dashboard_category, t1.run1, t2.run1id ,\nt1.run2, t2.run2id ,\nt1.run3, t2.run3id ,\nt1.run4, t2.run4id ,\nt1.run5, t2.run5id ,\nt1.run6, t2.run6id ,\nt1.run7, t2.run7id ,\nt1.run8, t2.run8id ,\nt1.run9, t2.run9id ,\nt1.run10, t2.run10id \nFROM (SELECT * FROM crosstab('SELECT github_workflows.workflow_id, name as workflow_name, filename AS workflow_filename, dashboard_category, run_number, status \n                              FROM github_workflow_runs\nINNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id\nORDER BY 1,5 DESC\n','SELECT m from generate_series(1,10) m')\nAS c1(workflow_id text, workflow_name text, workflow_filename text, dashboard_category text, run1 text, run2 text,run3 text, \n         run4 text ,run5 text,run6 text, run7 text, \n         run8 text ,run9 text,run10 text) \n\t ) AS t1\n         JOIN (SELECT * FROM crosstab('SELECT name, started_at, github_workflow_runs.url AS run_url\nFROM github_workflow_runs\nINNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id\nORDER BY 1,2 DESC\n\n')\nAS c2(workflow_name text, run1id text, run2id text,run3id text, \n         run4id text ,run5id text,run6id text, run7id text, \n         run8id text ,run9id text,run10id text) \n\t\t\t  ) AS t2\n        ON t1.workflow_name = t2.workflow_name\n\t\t )\n  select\n    *,\n    case when run1 like 'success' then 1 when run1 like 'in_progress' then 2 when run1 like 'queued' then 2 when run1 like 'waiting' then 2 when run1 like 'cancelled' then 3 when run1 like 'failure' then 0 else 4 end as run_1,\n    case when run2 like 'success' then 1 when run2 like 'in_progress' then 2 when run2 like 'queued' then 2 when run2 like 'waiting' then 2 when run2 like 'cancelled' then 3 when run2 like 'failure' then 0 else 4 end as run_2,\n    case when run3 like 'success' then 1 when run3 like 'in_progress' then 2 when run3 like 'queued' then 2 when run3 like 'waiting' then 2 when run3 like 'cancelled' then 3 when run3 like 'failure' then 0 else 4 end as run_3,\n    case when run4 like 'success' then 1 when run4 like 'in_progress' then 2 when run4 like 'queued' then 2 when run4 like 'waiting' then 2 when run4 like 'cancelled' then 3 when run4 like 'failure' then 0 else 4 end as run_4,\n    case when run5 like 'success' then 1 when run5 like 'in_progress' then 2 when run5 like 'queued' then 2 when run5 like 'waiting' then 2 when run5 like 'cancelled' then 3 when run5 like 'failure' then 0 else 4 end as run_5,\n    case when run6 like 'success' then 1 when run6 like 'in_progress' then 2 when run6 like 'queued' then 2 when run6 like 'waiting' then 2 when run6 like 'cancelled' then 3 when run6 like 'failure' then 0 else 4 end as run_6,\n    case when run7 like 'success' then 1 when run7 like 'in_progress' then 2 when run7 like 'queued' then 2 when run7 like 'waiting' then 2 when run7 like 'cancelled' then 3 when run7 like 'failure' then 0 else 4 end as run_7,\n    case when run8 like 'success' then 1 when run8 like 'in_progress' then 2 when run8 like 'queued' then 2 when run8 like 'waiting' then 2 when run8 like 'cancelled' then 3 when run8 like 'failure' then 0 else 4 end as run_8,\n    case when run9 like 'success' then 1 when run9 like 'in_progress' then 2 when run9 like 'queued' then 2 when run9 like 'waiting' then 2 when run9 like 'cancelled' then 3 when run9 like 'failure' then 0 else 4 end as run_9,\n    case when run10 like 'success' then 1 when run10 like 'in_progress' then 2 when run10 like 'queued' then 2 when run10 like 'waiting' then 2 when run10 like 'cancelled' then 3 when run10 like 'failure' then 0 else 4 end as run_10\n  from\n    temp\n  where\n    dashboard_category = 'runners_python'\n AND workflow_name LIKE '%${Workflow}%'\n)\nselect\n  workflow_name,\n  workflow_filename,\n  run_1,\n  run1Id,\n  run_2,\n  run2Id,\n  run_3,\n  run3Id,\n  run_4,\n  run4Id,\n  run_5,\n  run5Id,\n  run_6,\n  run6Id,\n  run_7,\n  run7Id,\n  run_8,\n  run8Id,\n  run_9,\n  run9Id,\n  run_10,\n  run10Id\nfrom\n  workflows;",
           "refId": "A",
           "select": [
             [
@@ -7521,7 +8466,7 @@
         "x": 0,
         "y": 140
       },
-      "id": 8,
+      "id": 9,
       "links": [],
       "options": {
         "cellHeight": "sm",
@@ -7550,7 +8495,7 @@
           "hide": false,
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "with workflows as (\n\twith temp as (SELECT t1.workflow_id, t1.workflow_name, t1.workflow_filename, t1.dashboard_category, t1.run1, t2.run1id ,\nt1.run2, t2.run2id ,\nt1.run3, t2.run3id ,\nt1.run4, t2.run4id ,\nt1.run5, t2.run5id ,\nt1.run6, t2.run6id ,\nt1.run7, t2.run7id ,\nt1.run8, t2.run8id ,\nt1.run9, t2.run9id ,\nt1.run10, t2.run10id \nFROM (SELECT * FROM crosstab('SELECT github_workflows.workflow_id, name as workflow_name, filename AS workflow_filename, dashboard_category, run_number, status \n                              FROM github_workflow_runs\nINNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id\nORDER BY 1,5 DESC\n','SELECT m from generate_series(1,10) m')\nAS c1(workflow_id text, workflow_name text, workflow_filename text, dashboard_category text, run1 text, run2 text,run3 text, \n         run4 text ,run5 text,run6 text, run7 text, \n         run8 text ,run9 text,run10 text) \n\t ) AS t1\n         JOIN (SELECT * FROM crosstab('SELECT name, started_at, github_workflow_runs.url AS run_url\nFROM github_workflow_runs\nINNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id\nORDER BY 1,2 DESC\n\n')\nAS c2(workflow_name text, run1id text, run2id text,run3id text, \n         run4id text ,run5id text,run6id text, run7id text, \n         run8id text ,run9id text,run10id text) \n\t\t\t  ) AS t2\n        ON t1.workflow_name = t2.workflow_name\n\t\t )\n  select\n    *,\n    case when run1 like 'success' then 1 when run1 like 'in_progress' then 2 when run1 like 'queued' then 2 when run1 like 'waiting' then 2 when run1 like 'cancelled' then 3 when run1 like 'failure' then 0 else 4 end as run_1,\n    case when run2 like 'success' then 1 when run2 like 'in_progress' then 2 when run2 like 'queued' then 2 when run2 like 'waiting' then 2 when run2 like 'cancelled' then 3 when run2 like 'failure' then 0 else 4 end as run_2,\n    case when run3 like 'success' then 1 when run3 like 'in_progress' then 2 when run3 like 'queued' then 2 when run3 like 'waiting' then 2 when run3 like 'cancelled' then 3 when run3 like 'failure' then 0 else 4 end as run_3,\n    case when run4 like 'success' then 1 when run4 like 'in_progress' then 2 when run4 like 'queued' then 2 when run4 like 'waiting' then 2 when run4 like 'cancelled' then 3 when run4 like 'failure' then 0 else 4 end as run_4,\n    case when run5 like 'success' then 1 when run5 like 'in_progress' then 2 when run5 like 'queued' then 2 when run5 like 'waiting' then 2 when run5 like 'cancelled' then 3 when run5 like 'failure' then 0 else 4 end as run_5,\n    case when run6 like 'success' then 1 when run6 like 'in_progress' then 2 when run6 like 'queued' then 2 when run6 like 'waiting' then 2 when run6 like 'cancelled' then 3 when run6 like 'failure' then 0 else 4 end as run_6,\n    case when run7 like 'success' then 1 when run7 like 'in_progress' then 2 when run7 like 'queued' then 2 when run7 like 'waiting' then 2 when run7 like 'cancelled' then 3 when run7 like 'failure' then 0 else 4 end as run_7,\n    case when run8 like 'success' then 1 when run8 like 'in_progress' then 2 when run8 like 'queued' then 2 when run8 like 'waiting' then 2 when run8 like 'cancelled' then 3 when run8 like 'failure' then 0 else 4 end as run_8,\n    case when run9 like 'success' then 1 when run9 like 'in_progress' then 2 when run9 like 'queued' then 2 when run9 like 'waiting' then 2 when run9 like 'cancelled' then 3 when run9 like 'failure' then 0 else 4 end as run_9,\n    case when run10 like 'success' then 1 when run10 like 'in_progress' then 2 when run10 like 'queued' then 2 when run10 like 'waiting' then 2 when run10 like 'cancelled' then 3 when run10 like 'failure' then 0 else 4 end as run_10\n  from\n    temp\n  where\n    dashboard_category = 'load_perf_python'\n)\nselect\n  workflow_name,\n  workflow_filename,\n  run_1,\n  run1Id,\n  run_2,\n  run2Id,\n  run_3,\n  run3Id,\n  run_4,\n  run4Id,\n  run_5,\n  run5Id,\n  run_6,\n  run6Id,\n  run_7,\n  run7Id,\n  run_8,\n  run8Id,\n  run_9,\n  run9Id,\n  run_10,\n  run10Id\nfrom\n  workflows;",
+          "rawSql": "with workflows as (\n\twith temp as (SELECT t1.workflow_id, t1.workflow_name, t1.workflow_filename, t1.dashboard_category, t1.run1, t2.run1id ,\nt1.run2, t2.run2id ,\nt1.run3, t2.run3id ,\nt1.run4, t2.run4id ,\nt1.run5, t2.run5id ,\nt1.run6, t2.run6id ,\nt1.run7, t2.run7id ,\nt1.run8, t2.run8id ,\nt1.run9, t2.run9id ,\nt1.run10, t2.run10id \nFROM (SELECT * FROM crosstab('SELECT github_workflows.workflow_id, name as workflow_name, filename AS workflow_filename, dashboard_category, run_number, status \n                              FROM github_workflow_runs\nINNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id\nORDER BY 1,5 DESC\n','SELECT m from generate_series(1,10) m')\nAS c1(workflow_id text, workflow_name text, workflow_filename text, dashboard_category text, run1 text, run2 text,run3 text, \n         run4 text ,run5 text,run6 text, run7 text, \n         run8 text ,run9 text,run10 text) \n\t ) AS t1\n         JOIN (SELECT * FROM crosstab('SELECT name, started_at, github_workflow_runs.url AS run_url\nFROM github_workflow_runs\nINNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id\nORDER BY 1,2 DESC\n\n')\nAS c2(workflow_name text, run1id text, run2id text,run3id text, \n         run4id text ,run5id text,run6id text, run7id text, \n         run8id text ,run9id text,run10id text) \n\t\t\t  ) AS t2\n        ON t1.workflow_name = t2.workflow_name\n\t\t )\n  select\n    *,\n    case when run1 like 'success' then 1 when run1 like 'in_progress' then 2 when run1 like 'queued' then 2 when run1 like 'waiting' then 2 when run1 like 'cancelled' then 3 when run1 like 'failure' then 0 else 4 end as run_1,\n    case when run2 like 'success' then 1 when run2 like 'in_progress' then 2 when run2 like 'queued' then 2 when run2 like 'waiting' then 2 when run2 like 'cancelled' then 3 when run2 like 'failure' then 0 else 4 end as run_2,\n    case when run3 like 'success' then 1 when run3 like 'in_progress' then 2 when run3 like 'queued' then 2 when run3 like 'waiting' then 2 when run3 like 'cancelled' then 3 when run3 like 'failure' then 0 else 4 end as run_3,\n    case when run4 like 'success' then 1 when run4 like 'in_progress' then 2 when run4 like 'queued' then 2 when run4 like 'waiting' then 2 when run4 like 'cancelled' then 3 when run4 like 'failure' then 0 else 4 end as run_4,\n    case when run5 like 'success' then 1 when run5 like 'in_progress' then 2 when run5 like 'queued' then 2 when run5 like 'waiting' then 2 when run5 like 'cancelled' then 3 when run5 like 'failure' then 0 else 4 end as run_5,\n    case when run6 like 'success' then 1 when run6 like 'in_progress' then 2 when run6 like 'queued' then 2 when run6 like 'waiting' then 2 when run6 like 'cancelled' then 3 when run6 like 'failure' then 0 else 4 end as run_6,\n    case when run7 like 'success' then 1 when run7 like 'in_progress' then 2 when run7 like 'queued' then 2 when run7 like 'waiting' then 2 when run7 like 'cancelled' then 3 when run7 like 'failure' then 0 else 4 end as run_7,\n    case when run8 like 'success' then 1 when run8 like 'in_progress' then 2 when run8 like 'queued' then 2 when run8 like 'waiting' then 2 when run8 like 'cancelled' then 3 when run8 like 'failure' then 0 else 4 end as run_8,\n    case when run9 like 'success' then 1 when run9 like 'in_progress' then 2 when run9 like 'queued' then 2 when run9 like 'waiting' then 2 when run9 like 'cancelled' then 3 when run9 like 'failure' then 0 else 4 end as run_9,\n    case when run10 like 'success' then 1 when run10 like 'in_progress' then 2 when run10 like 'queued' then 2 when run10 like 'waiting' then 2 when run10 like 'cancelled' then 3 when run10 like 'failure' then 0 else 4 end as run_10\n  from\n    temp\n  where\n    dashboard_category = 'load_perf_python'\n AND workflow_name LIKE '%${Workflow}%'\n)\nselect\n  workflow_name,\n  workflow_filename,\n  run_1,\n  run1Id,\n  run_2,\n  run2Id,\n  run_3,\n  run3Id,\n  run_4,\n  run4Id,\n  run_5,\n  run5Id,\n  run_6,\n  run6Id,\n  run_7,\n  run7Id,\n  run_8,\n  run8Id,\n  run_9,\n  run9Id,\n  run_10,\n  run10Id\nfrom\n  workflows;",
           "refId": "A",
           "select": [
             [
@@ -8466,7 +9411,7 @@
         "x": 0,
         "y": 160
       },
-      "id": 13,
+      "id": 10,
       "links": [],
       "options": {
         "cellHeight": "sm",
@@ -8495,7 +9440,7 @@
           "hide": false,
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "with workflows as (\n\twith temp as (SELECT t1.workflow_id, t1.workflow_name, t1.workflow_filename, t1.dashboard_category, t1.run1, t2.run1id ,\nt1.run2, t2.run2id ,\nt1.run3, t2.run3id ,\nt1.run4, t2.run4id ,\nt1.run5, t2.run5id ,\nt1.run6, t2.run6id ,\nt1.run7, t2.run7id ,\nt1.run8, t2.run8id ,\nt1.run9, t2.run9id ,\nt1.run10, t2.run10id \nFROM (SELECT * FROM crosstab('SELECT github_workflows.workflow_id, name as workflow_name, filename AS workflow_filename, dashboard_category, run_number, status \n                              FROM github_workflow_runs\nINNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id\nORDER BY 1,5 DESC\n','SELECT m from generate_series(1,10) m')\nAS c1(workflow_id text, workflow_name text, workflow_filename text, dashboard_category text, run1 text, run2 text,run3 text, \n         run4 text ,run5 text,run6 text, run7 text, \n         run8 text ,run9 text,run10 text) \n\t ) AS t1\n         JOIN (SELECT * FROM crosstab('SELECT name, started_at, github_workflow_runs.url AS run_url\nFROM github_workflow_runs\nINNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id\nORDER BY 1,2 DESC\n\n')\nAS c2(workflow_name text, run1id text, run2id text,run3id text, \n         run4id text ,run5id text,run6id text, run7id text, \n         run8id text ,run9id text,run10id text) \n\t\t\t  ) AS t2\n        ON t1.workflow_name = t2.workflow_name\n\t\t )\n  select\n    *,\n    case when run1 like 'success' then 1 when run1 like 'in_progress' then 2 when run1 like 'queued' then 2 when run1 like 'waiting' then 2 when run1 like 'cancelled' then 3 when run1 like 'failure' then 0 else 4 end as run_1,\n    case when run2 like 'success' then 1 when run2 like 'in_progress' then 2 when run2 like 'queued' then 2 when run2 like 'waiting' then 2 when run2 like 'cancelled' then 3 when run2 like 'failure' then 0 else 4 end as run_2,\n    case when run3 like 'success' then 1 when run3 like 'in_progress' then 2 when run3 like 'queued' then 2 when run3 like 'waiting' then 2 when run3 like 'cancelled' then 3 when run3 like 'failure' then 0 else 4 end as run_3,\n    case when run4 like 'success' then 1 when run4 like 'in_progress' then 2 when run4 like 'queued' then 2 when run4 like 'waiting' then 2 when run4 like 'cancelled' then 3 when run4 like 'failure' then 0 else 4 end as run_4,\n    case when run5 like 'success' then 1 when run5 like 'in_progress' then 2 when run5 like 'queued' then 2 when run5 like 'waiting' then 2 when run5 like 'cancelled' then 3 when run5 like 'failure' then 0 else 4 end as run_5,\n    case when run6 like 'success' then 1 when run6 like 'in_progress' then 2 when run6 like 'queued' then 2 when run6 like 'waiting' then 2 when run6 like 'cancelled' then 3 when run6 like 'failure' then 0 else 4 end as run_6,\n    case when run7 like 'success' then 1 when run7 like 'in_progress' then 2 when run7 like 'queued' then 2 when run7 like 'waiting' then 2 when run7 like 'cancelled' then 3 when run7 like 'failure' then 0 else 4 end as run_7,\n    case when run8 like 'success' then 1 when run8 like 'in_progress' then 2 when run8 like 'queued' then 2 when run8 like 'waiting' then 2 when run8 like 'cancelled' then 3 when run8 like 'failure' then 0 else 4 end as run_8,\n    case when run9 like 'success' then 1 when run9 like 'in_progress' then 2 when run9 like 'queued' then 2 when run9 like 'waiting' then 2 when run9 like 'cancelled' then 3 when run9 like 'failure' then 0 else 4 end as run_9,\n    case when run10 like 'success' then 1 when run10 like 'in_progress' then 2 when run10 like 'queued' then 2 when run10 like 'waiting' then 2 when run10 like 'cancelled' then 3 when run10 like 'failure' then 0 else 4 end as run_10\n  from\n    temp\n  where\n    dashboard_category = 'go'\n)\nselect\n  workflow_name,\n  workflow_filename,\n  run_1,\n  run1Id,\n  run_2,\n  run2Id,\n  run_3,\n  run3Id,\n  run_4,\n  run4Id,\n  run_5,\n  run5Id,\n  run_6,\n  run6Id,\n  run_7,\n  run7Id,\n  run_8,\n  run8Id,\n  run_9,\n  run9Id,\n  run_10,\n  run10Id\nfrom\n  workflows;",
+          "rawSql": "with workflows as (\n\twith temp as (SELECT t1.workflow_id, t1.workflow_name, t1.workflow_filename, t1.dashboard_category, t1.run1, t2.run1id ,\nt1.run2, t2.run2id ,\nt1.run3, t2.run3id ,\nt1.run4, t2.run4id ,\nt1.run5, t2.run5id ,\nt1.run6, t2.run6id ,\nt1.run7, t2.run7id ,\nt1.run8, t2.run8id ,\nt1.run9, t2.run9id ,\nt1.run10, t2.run10id \nFROM (SELECT * FROM crosstab('SELECT github_workflows.workflow_id, name as workflow_name, filename AS workflow_filename, dashboard_category, run_number, status \n                              FROM github_workflow_runs\nINNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id\nORDER BY 1,5 DESC\n','SELECT m from generate_series(1,10) m')\nAS c1(workflow_id text, workflow_name text, workflow_filename text, dashboard_category text, run1 text, run2 text,run3 text, \n         run4 text ,run5 text,run6 text, run7 text, \n         run8 text ,run9 text,run10 text) \n\t ) AS t1\n         JOIN (SELECT * FROM crosstab('SELECT name, started_at, github_workflow_runs.url AS run_url\nFROM github_workflow_runs\nINNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id\nORDER BY 1,2 DESC\n\n')\nAS c2(workflow_name text, run1id text, run2id text,run3id text, \n         run4id text ,run5id text,run6id text, run7id text, \n         run8id text ,run9id text,run10id text) \n\t\t\t  ) AS t2\n        ON t1.workflow_name = t2.workflow_name\n\t\t )\n  select\n    *,\n    case when run1 like 'success' then 1 when run1 like 'in_progress' then 2 when run1 like 'queued' then 2 when run1 like 'waiting' then 2 when run1 like 'cancelled' then 3 when run1 like 'failure' then 0 else 4 end as run_1,\n    case when run2 like 'success' then 1 when run2 like 'in_progress' then 2 when run2 like 'queued' then 2 when run2 like 'waiting' then 2 when run2 like 'cancelled' then 3 when run2 like 'failure' then 0 else 4 end as run_2,\n    case when run3 like 'success' then 1 when run3 like 'in_progress' then 2 when run3 like 'queued' then 2 when run3 like 'waiting' then 2 when run3 like 'cancelled' then 3 when run3 like 'failure' then 0 else 4 end as run_3,\n    case when run4 like 'success' then 1 when run4 like 'in_progress' then 2 when run4 like 'queued' then 2 when run4 like 'waiting' then 2 when run4 like 'cancelled' then 3 when run4 like 'failure' then 0 else 4 end as run_4,\n    case when run5 like 'success' then 1 when run5 like 'in_progress' then 2 when run5 like 'queued' then 2 when run5 like 'waiting' then 2 when run5 like 'cancelled' then 3 when run5 like 'failure' then 0 else 4 end as run_5,\n    case when run6 like 'success' then 1 when run6 like 'in_progress' then 2 when run6 like 'queued' then 2 when run6 like 'waiting' then 2 when run6 like 'cancelled' then 3 when run6 like 'failure' then 0 else 4 end as run_6,\n    case when run7 like 'success' then 1 when run7 like 'in_progress' then 2 when run7 like 'queued' then 2 when run7 like 'waiting' then 2 when run7 like 'cancelled' then 3 when run7 like 'failure' then 0 else 4 end as run_7,\n    case when run8 like 'success' then 1 when run8 like 'in_progress' then 2 when run8 like 'queued' then 2 when run8 like 'waiting' then 2 when run8 like 'cancelled' then 3 when run8 like 'failure' then 0 else 4 end as run_8,\n    case when run9 like 'success' then 1 when run9 like 'in_progress' then 2 when run9 like 'queued' then 2 when run9 like 'waiting' then 2 when run9 like 'cancelled' then 3 when run9 like 'failure' then 0 else 4 end as run_9,\n    case when run10 like 'success' then 1 when run10 like 'in_progress' then 2 when run10 like 'queued' then 2 when run10 like 'waiting' then 2 when run10 like 'cancelled' then 3 when run10 like 'failure' then 0 else 4 end as run_10\n  from\n    temp\n  where\n    dashboard_category = 'go'\n AND workflow_name LIKE '%${Workflow}%'\n)\nselect\n  workflow_name,\n  workflow_filename,\n  run_1,\n  run1Id,\n  run_2,\n  run2Id,\n  run_3,\n  run3Id,\n  run_4,\n  run4Id,\n  run_5,\n  run5Id,\n  run_6,\n  run6Id,\n  run_7,\n  run7Id,\n  run_8,\n  run8Id,\n  run_9,\n  run9Id,\n  run_10,\n  run10Id\nfrom\n  workflows;",
           "refId": "A",
           "select": [
             [
@@ -9411,7 +10356,7 @@
         "x": 0,
         "y": 180
       },
-      "id": 6,
+      "id": 11,
       "links": [],
       "options": {
         "cellHeight": "sm",
@@ -9440,7 +10385,7 @@
           "hide": false,
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "with workflows as (\n\twith temp as (SELECT t1.workflow_id, t1.workflow_name, t1.workflow_filename, t1.dashboard_category, t1.run1, t2.run1id ,\nt1.run2, t2.run2id ,\nt1.run3, t2.run3id ,\nt1.run4, t2.run4id ,\nt1.run5, t2.run5id ,\nt1.run6, t2.run6id ,\nt1.run7, t2.run7id ,\nt1.run8, t2.run8id ,\nt1.run9, t2.run9id ,\nt1.run10, t2.run10id \nFROM (SELECT * FROM crosstab('SELECT github_workflows.workflow_id, name as workflow_name, filename AS workflow_filename, dashboard_category, run_number, status \n                              FROM github_workflow_runs\nINNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id\nORDER BY 1,5 DESC\n','SELECT m from generate_series(1,10) m')\nAS c1(workflow_id text, workflow_name text, workflow_filename text, dashboard_category text, run1 text, run2 text,run3 text, \n         run4 text ,run5 text,run6 text, run7 text, \n         run8 text ,run9 text,run10 text) \n\t ) AS t1\n         JOIN (SELECT * FROM crosstab('SELECT name, started_at, github_workflow_runs.url AS run_url\nFROM github_workflow_runs\nINNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id\nORDER BY 1,2 DESC\n\n')\nAS c2(workflow_name text, run1id text, run2id text,run3id text, \n         run4id text ,run5id text,run6id text, run7id text, \n         run8id text ,run9id text,run10id text) \n\t\t\t  ) AS t2\n        ON t1.workflow_name = t2.workflow_name\n\t\t )\n  select\n    *,\n    case when run1 like 'success' then 1 when run1 like 'in_progress' then 2 when run1 like 'queued' then 2 when run1 like 'waiting' then 2 when run1 like 'cancelled' then 3 when run1 like 'failure' then 0 else 4 end as run_1,\n    case when run2 like 'success' then 1 when run2 like 'in_progress' then 2 when run2 like 'queued' then 2 when run2 like 'waiting' then 2 when run2 like 'cancelled' then 3 when run2 like 'failure' then 0 else 4 end as run_2,\n    case when run3 like 'success' then 1 when run3 like 'in_progress' then 2 when run3 like 'queued' then 2 when run3 like 'waiting' then 2 when run3 like 'cancelled' then 3 when run3 like 'failure' then 0 else 4 end as run_3,\n    case when run4 like 'success' then 1 when run4 like 'in_progress' then 2 when run4 like 'queued' then 2 when run4 like 'waiting' then 2 when run4 like 'cancelled' then 3 when run4 like 'failure' then 0 else 4 end as run_4,\n    case when run5 like 'success' then 1 when run5 like 'in_progress' then 2 when run5 like 'queued' then 2 when run5 like 'waiting' then 2 when run5 like 'cancelled' then 3 when run5 like 'failure' then 0 else 4 end as run_5,\n    case when run6 like 'success' then 1 when run6 like 'in_progress' then 2 when run6 like 'queued' then 2 when run6 like 'waiting' then 2 when run6 like 'cancelled' then 3 when run6 like 'failure' then 0 else 4 end as run_6,\n    case when run7 like 'success' then 1 when run7 like 'in_progress' then 2 when run7 like 'queued' then 2 when run7 like 'waiting' then 2 when run7 like 'cancelled' then 3 when run7 like 'failure' then 0 else 4 end as run_7,\n    case when run8 like 'success' then 1 when run8 like 'in_progress' then 2 when run8 like 'queued' then 2 when run8 like 'waiting' then 2 when run8 like 'cancelled' then 3 when run8 like 'failure' then 0 else 4 end as run_8,\n    case when run9 like 'success' then 1 when run9 like 'in_progress' then 2 when run9 like 'queued' then 2 when run9 like 'waiting' then 2 when run9 like 'cancelled' then 3 when run9 like 'failure' then 0 else 4 end as run_9,\n    case when run10 like 'success' then 1 when run10 like 'in_progress' then 2 when run10 like 'queued' then 2 when run10 like 'waiting' then 2 when run10 like 'cancelled' then 3 when run10 like 'failure' then 0 else 4 end as run_10\n  from\n    temp\n  where\n    dashboard_category = 'misc'\n)\nselect\n  workflow_name,\n  workflow_filename,\n  run_1,\n  run1Id,\n  run_2,\n  run2Id,\n  run_3,\n  run3Id,\n  run_4,\n  run4Id,\n  run_5,\n  run5Id,\n  run_6,\n  run6Id,\n  run_7,\n  run7Id,\n  run_8,\n  run8Id,\n  run_9,\n  run9Id,\n  run_10,\n  run10Id\nfrom\n  workflows;",
+          "rawSql": "with workflows as (\n\twith temp as (SELECT t1.workflow_id, t1.workflow_name, t1.workflow_filename, t1.dashboard_category, t1.run1, t2.run1id ,\nt1.run2, t2.run2id ,\nt1.run3, t2.run3id ,\nt1.run4, t2.run4id ,\nt1.run5, t2.run5id ,\nt1.run6, t2.run6id ,\nt1.run7, t2.run7id ,\nt1.run8, t2.run8id ,\nt1.run9, t2.run9id ,\nt1.run10, t2.run10id \nFROM (SELECT * FROM crosstab('SELECT github_workflows.workflow_id, name as workflow_name, filename AS workflow_filename, dashboard_category, run_number, status \n                              FROM github_workflow_runs\nINNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id\nORDER BY 1,5 DESC\n','SELECT m from generate_series(1,10) m')\nAS c1(workflow_id text, workflow_name text, workflow_filename text, dashboard_category text, run1 text, run2 text,run3 text, \n         run4 text ,run5 text,run6 text, run7 text, \n         run8 text ,run9 text,run10 text) \n\t ) AS t1\n         JOIN (SELECT * FROM crosstab('SELECT name, started_at, github_workflow_runs.url AS run_url\nFROM github_workflow_runs\nINNER JOIN github_workflows ON github_workflow_runs.workflow_id = github_workflows.workflow_id\nORDER BY 1,2 DESC\n\n')\nAS c2(workflow_name text, run1id text, run2id text,run3id text, \n         run4id text ,run5id text,run6id text, run7id text, \n         run8id text ,run9id text,run10id text) \n\t\t\t  ) AS t2\n        ON t1.workflow_name = t2.workflow_name\n\t\t )\n  select\n    *,\n    case when run1 like 'success' then 1 when run1 like 'in_progress' then 2 when run1 like 'queued' then 2 when run1 like 'waiting' then 2 when run1 like 'cancelled' then 3 when run1 like 'failure' then 0 else 4 end as run_1,\n    case when run2 like 'success' then 1 when run2 like 'in_progress' then 2 when run2 like 'queued' then 2 when run2 like 'waiting' then 2 when run2 like 'cancelled' then 3 when run2 like 'failure' then 0 else 4 end as run_2,\n    case when run3 like 'success' then 1 when run3 like 'in_progress' then 2 when run3 like 'queued' then 2 when run3 like 'waiting' then 2 when run3 like 'cancelled' then 3 when run3 like 'failure' then 0 else 4 end as run_3,\n    case when run4 like 'success' then 1 when run4 like 'in_progress' then 2 when run4 like 'queued' then 2 when run4 like 'waiting' then 2 when run4 like 'cancelled' then 3 when run4 like 'failure' then 0 else 4 end as run_4,\n    case when run5 like 'success' then 1 when run5 like 'in_progress' then 2 when run5 like 'queued' then 2 when run5 like 'waiting' then 2 when run5 like 'cancelled' then 3 when run5 like 'failure' then 0 else 4 end as run_5,\n    case when run6 like 'success' then 1 when run6 like 'in_progress' then 2 when run6 like 'queued' then 2 when run6 like 'waiting' then 2 when run6 like 'cancelled' then 3 when run6 like 'failure' then 0 else 4 end as run_6,\n    case when run7 like 'success' then 1 when run7 like 'in_progress' then 2 when run7 like 'queued' then 2 when run7 like 'waiting' then 2 when run7 like 'cancelled' then 3 when run7 like 'failure' then 0 else 4 end as run_7,\n    case when run8 like 'success' then 1 when run8 like 'in_progress' then 2 when run8 like 'queued' then 2 when run8 like 'waiting' then 2 when run8 like 'cancelled' then 3 when run8 like 'failure' then 0 else 4 end as run_8,\n    case when run9 like 'success' then 1 when run9 like 'in_progress' then 2 when run9 like 'queued' then 2 when run9 like 'waiting' then 2 when run9 like 'cancelled' then 3 when run9 like 'failure' then 0 else 4 end as run_9,\n    case when run10 like 'success' then 1 when run10 like 'in_progress' then 2 when run10 like 'queued' then 2 when run10 like 'waiting' then 2 when run10 like 'cancelled' then 3 when run10 like 'failure' then 0 else 4 end as run_10\n  from\n    temp\n  where\n    dashboard_category = 'misc'\n AND workflow_name LIKE '%${Workflow}%'\n)\nselect\n  workflow_name,\n  workflow_filename,\n  run_1,\n  run1Id,\n  run_2,\n  run2Id,\n  run_3,\n  run3Id,\n  run_4,\n  run4Id,\n  run_5,\n  run5Id,\n  run_6,\n  run6Id,\n  run_7,\n  run7Id,\n  run_8,\n  run8Id,\n  run_9,\n  run9Id,\n  run_10,\n  run10Id\nfrom\n  workflows;",
           "refId": "A",
           "select": [
             [
@@ -9481,7 +10426,27 @@
   "style": "dark",
   "tags": [],
   "templating": {
-    "list": []
+    "list": [
+      {
+        "current": {
+          "selected": false,
+          "text": "",
+          "value": ""
+        },
+        "hide": 0,
+        "name": "Workflow",
+        "options": [
+          {
+            "selected": true,
+            "text": "",
+            "value": ""
+          }
+        ],
+        "query": "",
+        "skipUrlSync": false,
+        "type": "textbox"
+      }
+    ]
   },
   "time": {
     "from": "now-24h",

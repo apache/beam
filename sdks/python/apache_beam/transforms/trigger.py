@@ -181,8 +181,7 @@ class DataLossReason(Flag):
 # to `reason & flag == flag`
 
 
-def _IncludesMayFinish(reason):
-  # type: (DataLossReason) -> bool
+def _IncludesMayFinish(reason: DataLossReason) -> bool:
   return reason & DataLossReason.MAY_FINISH == DataLossReason.MAY_FINISH
 
 
@@ -267,9 +266,7 @@ class TriggerFn(metaclass=ABCMeta):
     """Clear any state and timers used by this TriggerFn."""
     pass
 
-  def may_lose_data(self, unused_windowing):
-    # type: (core.Windowing) -> DataLossReason
-
+  def may_lose_data(self, unused_windowing: core.Windowing) -> DataLossReason:
     """Returns whether or not this trigger could cause data loss.
 
     A trigger can cause data loss in the following scenarios:
@@ -777,8 +774,7 @@ class _ParallelTriggerFn(TriggerFn, metaclass=ABCMeta):
     return self.combine_op(
         trigger.should_fire(
             time_domain, watermark, window, self._sub_context(context, ix))
-        for ix,
-        trigger in enumerate(self.triggers))
+        for ix, trigger in enumerate(self.triggers))
 
   def on_fire(self, watermark, window, context):
     finished = []
@@ -1422,8 +1418,8 @@ class GeneralTriggerDriver(TriggerDriver):
           (
               element_output_time for element_output_time in (
                   self.timestamp_combiner_impl.assign_output_time(
-                      window, timestamp) for unused_value,
-                  timestamp in elements)
+                      window, timestamp)
+                  for unused_value, timestamp in elements)
               if element_output_time >= output_watermark))
       if output_time is not None:
         state.add_state(window, self.WATERMARK_HOLD, output_time)

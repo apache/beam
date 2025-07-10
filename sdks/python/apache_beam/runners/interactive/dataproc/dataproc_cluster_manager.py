@@ -169,6 +169,7 @@ class DataprocClusterManager:
   def create_flink_cluster(self) -> None:
     """Calls _create_cluster with a configuration that enables FlinkRunner."""
     init_action_path = self.stage_init_action()
+    # https://cloud.google.com/php/docs/reference/cloud-dataproc/latest/V1.Cluster
     cluster = {
         'project_id': self.cluster_metadata.project_id,
         'cluster_name': self.cluster_metadata.cluster_name,
@@ -194,7 +195,8 @@ class DataprocClusterManager:
                 },
                 'service_account_scopes': [
                     'https://www.googleapis.com/auth/cloud-platform'
-                ]
+                ],
+                'internal_ip_only': False
             },
             'master_config': {
                 # There must be 1 and only 1 instance of master.

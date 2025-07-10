@@ -46,6 +46,8 @@ rules:
   addLabels: ['katas']
 - contains: '[x] Component: Website'
   addLabels: ['website']
+- contains: '[x] Component: Infrastructure'
+  addLabels: ['infra']
 - contains: '[x] Component: Spark'
   addLabels: ['spark']
 - contains: '[x] Component: Flink'

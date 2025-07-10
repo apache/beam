@@ -206,3 +206,9 @@ footer {
         margin-bottom: 10px;
     }
 }
+
+/* Make Job action related buttons more visible. */
+.job-action button {
+    border-radius: 5px;
+    padding: 5px;
+}

@@ -105,7 +105,7 @@ If you have additional material that you would like to see here, please let us k
 
 ### Getting Started with Apache Beam Quest
 
-**[Get Started with Apache Beam](https://www.cloudskillsboost.google/quests/310)**  This quest includes four labs that teach you how to write and test Apache Beam pipelines. Three of the labs use Java and one uses Python. Each lab takes about 1.5 hours to complete. When you complete the quest, you're granted a badge that you can use to show your Beam expertise.
+**[Get Started with Apache Beam](https://www.cloudskillsboost.google/course_templates/724)**  This quest includes four labs that teach you how to write and test Apache Beam pipelines. Three of the labs use Java and one uses Python. Each lab takes about 1.5 hours to complete. When you complete the quest, you're granted a badge that you can use to show your Beam expertise.
 
 
 ## Interactive Labs {#interactive-labs}

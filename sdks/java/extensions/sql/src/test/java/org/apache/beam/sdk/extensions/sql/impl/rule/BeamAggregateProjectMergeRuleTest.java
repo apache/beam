@@ -36,6 +36,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.Row;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -107,6 +108,7 @@ public class BeamAggregateProjectMergeRuleTest {
   }
 
   @Test
+  @Ignore("BeamAggregateProjectMergeRule disabled due to CALCITE-6357")
   public void testBeamAggregateProjectMergeRule_withFilterTable() {
     // When an IO does not supports project push-down, Projects should be merged with an aggregate.
     String sqlQuery = "select SUM(id) as id_sum from TEST_FILTER group by name";
@@ -126,6 +128,7 @@ public class BeamAggregateProjectMergeRuleTest {
   }
 
   @Test
+  @Ignore("BeamAggregateProjectMergeRule disabled due to CALCITE-6357")
   public void testBeamAggregateProjectMergeRule_withNoneTable() {
     // When an IO does not supports project push-down, Projects should be merged with an aggregate.
     String sqlQuery = "select SUM(id) as id_sum from TEST_NONE group by name";

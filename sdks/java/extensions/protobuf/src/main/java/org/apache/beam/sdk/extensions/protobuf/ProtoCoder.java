@@ -237,6 +237,11 @@ public class ProtoCoder<T extends Message> extends CustomCoder<T> {
     return protoMessageClass;
   }
 
+  @Override
+  public TypeDescriptor<T> getEncodedTypeDescriptor() {
+    return TypeDescriptor.of(protoMessageClass);
+  }
+
   public Set<Class<?>> getExtensionHosts() {
     return extensionHostClasses;
   }
@@ -289,7 +294,7 @@ public class ProtoCoder<T extends Message> extends CustomCoder<T> {
   }
 
   /** Get the memoized {@link Parser}, possibly initializing it lazily. */
-  protected Parser<T> getParser() {
+  protected synchronized Parser<T> getParser() {
     if (memoizedParser == null) {
       try {
         if (DynamicMessage.class.equals(protoMessageClass)) {

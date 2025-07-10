@@ -25,7 +25,7 @@ import static org.hamcrest.core.Is.is;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Charsets;
+import java.nio.charset.StandardCharsets;
 import org.junit.Test;
 
 /** Tests for {@link FlinkJobServerDriver}. */
@@ -104,7 +104,7 @@ public class FlinkJobServerDriverTest {
       boolean success = false;
       while (!success) {
         newErr.flush();
-        String output = baos.toString(Charsets.UTF_8.name());
+        String output = baos.toString(StandardCharsets.UTF_8.name());
         if (output.contains("JobService started on localhost:")
             && output.contains("ArtifactStagingService started on localhost:")
             && output.contains("ExpansionService started on localhost:")) {
@@ -114,7 +114,8 @@ public class FlinkJobServerDriverTest {
         }
       }
       assertThat(driver.getJobServerUrl(), is(not(nullValue())));
-      assertThat(baos.toString(Charsets.UTF_8.name()), containsString(driver.getJobServerUrl()));
+      assertThat(
+          baos.toString(StandardCharsets.UTF_8.name()), containsString(driver.getJobServerUrl()));
       assertThat(driverThread.isAlive(), is(true));
     } catch (Throwable t) {
       // restore to print exception
@@ -149,7 +150,7 @@ public class FlinkJobServerDriverTest {
       boolean success = false;
       while (!success) {
         newErr.flush();
-        String output = baos.toString(Charsets.UTF_8.name());
+        String output = baos.toString(StandardCharsets.UTF_8.name());
         if (output.contains("JobService started on localhost:")
             && output.contains("ArtifactStagingService started on localhost:")) {
           success = true;
@@ -161,7 +162,8 @@ public class FlinkJobServerDriverTest {
         }
       }
       assertThat(driver.getJobServerUrl(), is(not(nullValue())));
-      assertThat(baos.toString(Charsets.UTF_8.name()), containsString(driver.getJobServerUrl()));
+      assertThat(
+          baos.toString(StandardCharsets.UTF_8.name()), containsString(driver.getJobServerUrl()));
       assertThat(driverThread.isAlive(), is(true));
     } catch (Throwable t) {
       // restore to print exception

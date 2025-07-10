@@ -25,7 +25,6 @@ import copy
 from typing import Iterable
 from typing import List
 from typing import Optional
-from typing import Text
 from typing import Union
 
 from google.cloud.datastore import entity
@@ -153,12 +152,12 @@ class Query(object):
 
 
 class Key(object):
-  def __init__(self,
-               path_elements,  # type: List[Union[Text, int]]
-               parent=None,  # type: Optional[Key]
-               project=None,  # type: Optional[Text]
-               namespace=None  # type: Optional[Text]
-               ):
+  def __init__(
+      self,
+      path_elements: List[Union[str, int]],
+      parent: Optional['Key'] = None,
+      project: Optional[str] = None,
+      namespace: Optional[str] = None):
     """
     Represents a Datastore key.
 
@@ -229,11 +228,7 @@ class Key(object):
 
 
 class Entity(object):
-  def __init__(
-      self,
-      key,  # type: Key
-      exclude_from_indexes=()  # type: Iterable[str]
-  ):
+  def __init__(self, key: Key, exclude_from_indexes: Iterable[str] = ()):
     """
     Represents a Datastore entity.
 

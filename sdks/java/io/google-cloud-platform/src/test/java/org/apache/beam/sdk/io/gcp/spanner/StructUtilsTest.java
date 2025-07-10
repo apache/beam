@@ -30,6 +30,8 @@ import com.google.cloud.Date;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.Type;
+import com.google.spanner.v1.StructType;
+import com.google.spanner.v1.TypeCode;
 import java.math.BigDecimal;
 import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
@@ -52,6 +54,7 @@ public class StructUtilsTest {
             .addDecimalField("f_decimal")
             .addArrayField("f_boolean_array", Schema.FieldType.BOOLEAN)
             .addArrayField("f_string_array", Schema.FieldType.STRING)
+            .addArrayField("f_float_array", Schema.FieldType.FLOAT)
             .addArrayField("f_double_array", Schema.FieldType.DOUBLE)
             .addArrayField("f_decimal_array", Schema.FieldType.DECIMAL)
             .addArrayField("f_date_array", Schema.FieldType.DATETIME)
@@ -64,6 +67,7 @@ public class StructUtilsTest {
             .withFieldValue("f_decimal", BigDecimal.valueOf(Long.MIN_VALUE))
             .withFieldValue("f_boolean_array", ImmutableList.of(false, true))
             .withFieldValue("f_string_array", ImmutableList.of("donald_duck", "micky_mouse"))
+            .withFieldValue("f_float_array", ImmutableList.of(3.0f, 4.0f))
             .withFieldValue("f_double_array", ImmutableList.of(1., 2.))
             .withFieldValue(
                 "f_decimal_array",
@@ -86,6 +90,8 @@ public class StructUtilsTest {
             .toBoolArray(ImmutableList.of(false, true))
             .set("f_string_array")
             .toStringArray(ImmutableList.of("donald_duck", "micky_mouse"))
+            .set("f_float_array")
+            .toFloat32Array(ImmutableList.of(3.0f, 4.0f))
             .set("f_double_array")
             .toFloat64Array(ImmutableList.of(1., 2.))
             .set("f_decimal_array")
@@ -133,10 +139,10 @@ public class StructUtilsTest {
         getSchemaTemplate()
             .addIterableField("f_iterable", Schema.FieldType.INT64)
             .addDecimalField("f_decimal")
-            .addFloatField("f_float")
             .addInt16Field("f_int16")
             .addInt32Field("f_int32")
             .addByteField("f_byte")
+            .addArrayField("f_float_array", Schema.FieldType.FLOAT)
             .addArrayField("f_double_array", Schema.FieldType.DOUBLE)
             .addArrayField("f_decimal_array", Schema.FieldType.DECIMAL)
             .addArrayField("f_boolean_array", Schema.FieldType.BOOLEAN)
@@ -148,10 +154,10 @@ public class StructUtilsTest {
         getRowTemplate(schema)
             .withFieldValue("f_iterable", ImmutableList.of(20L))
             .withFieldValue("f_decimal", BigDecimal.ONE)
-            .withFieldValue("f_float", 0.0f)
             .withFieldValue("f_int16", (short) 2)
             .withFieldValue("f_int32", 0x7fffffff)
             .withFieldValue("f_byte", Byte.parseByte("127"))
+            .withFieldValue("f_float_array", ImmutableList.of(3.0f, 4.0f))
             .withFieldValue("f_double_array", ImmutableList.of(1., 2.))
             .withFieldValue(
                 "f_decimal_array",
@@ -174,14 +180,14 @@ public class StructUtilsTest {
             .toInt64Array(ImmutableList.of(20L))
             .set("f_decimal")
             .to(BigDecimal.ONE)
-            .set("f_float")
-            .to(0.0f)
             .set("f_int16")
             .to((short) 2)
             .set("f_int32")
             .to(0x7fffffff)
             .set("f_byte")
             .to(Byte.parseByte("127"))
+            .set("f_float_array")
+            .toFloat32Array(ImmutableList.of(3.0f, 4.0f))
             .set("f_double_array")
             .toFloat64Array(ImmutableList.of(1., 2.))
             .set("f_decimal_array")
@@ -246,7 +252,7 @@ public class StructUtilsTest {
     assertEquals(Type.int64(), beamTypeToSpannerType(Schema.FieldType.BYTE));
     assertEquals(Type.bytes(), beamTypeToSpannerType(Schema.FieldType.BYTES));
     assertEquals(Type.string(), beamTypeToSpannerType(Schema.FieldType.STRING));
-    assertEquals(Type.float64(), beamTypeToSpannerType(Schema.FieldType.FLOAT));
+    assertEquals(Type.float32(), beamTypeToSpannerType(Schema.FieldType.FLOAT));
     assertEquals(Type.float64(), beamTypeToSpannerType(Schema.FieldType.DOUBLE));
     assertEquals(Type.bool(), beamTypeToSpannerType(Schema.FieldType.BOOLEAN));
     assertEquals(Type.numeric(), beamTypeToSpannerType(Schema.FieldType.DECIMAL));
@@ -258,9 +264,74 @@ public class StructUtilsTest {
         beamTypeToSpannerType(Schema.FieldType.array(Schema.FieldType.INT64)));
   }
 
+  @Test
+  public void testStructTypeToBeamRowSchema() {
+    assertEquals(
+        StructUtils.structTypeToBeamRowSchema(createStructType(), true), createRowSchema());
+  }
+
+  @Test
+  public void testStructTypeToBeamRowSchemaFailsTypeNotSupported() {
+    StructType structTypeWithStruct =
+        createStructType()
+            .toBuilder()
+            .addFields(getFieldForTypeCode("f_struct", TypeCode.STRUCT))
+            .build();
+
+    Exception exception =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> StructUtils.structTypeToBeamRowSchema(structTypeWithStruct, true));
+    checkMessage(
+        "Error processing struct to row: Unsupported type 'STRUCT'.", exception.getMessage());
+  }
+
+  private StructType.Field getFieldForTypeCode(String name, TypeCode typeCode) {
+    return StructType.Field.newBuilder()
+        .setName(name)
+        .setType(com.google.spanner.v1.Type.newBuilder().setCode(typeCode))
+        .build();
+  }
+
+  private StructType createStructType() {
+    return StructType.newBuilder()
+        .addFields(getFieldForTypeCode("f_int64", TypeCode.INT64))
+        .addFields(getFieldForTypeCode("f_float32", TypeCode.FLOAT32))
+        .addFields(getFieldForTypeCode("f_float64", TypeCode.FLOAT64))
+        .addFields(getFieldForTypeCode("f_string", TypeCode.STRING))
+        .addFields(getFieldForTypeCode("f_bytes", TypeCode.BYTES))
+        .addFields(getFieldForTypeCode("f_timestamp", TypeCode.TIMESTAMP))
+        .addFields(getFieldForTypeCode("f_date", TypeCode.DATE))
+        .addFields(getFieldForTypeCode("f_numeric", TypeCode.NUMERIC))
+        .addFields(
+            StructType.Field.newBuilder()
+                .setName("f_array")
+                .setType(
+                    com.google.spanner.v1.Type.newBuilder()
+                        .setCode(TypeCode.ARRAY)
+                        .setArrayElementType(
+                            com.google.spanner.v1.Type.newBuilder().setCode(TypeCode.INT64)))
+                .build())
+        .build();
+  }
+
+  private Schema createRowSchema() {
+    return Schema.of(
+        Schema.Field.nullable("f_int64", Schema.FieldType.INT64),
+        Schema.Field.nullable("f_float32", Schema.FieldType.FLOAT),
+        Schema.Field.nullable("f_float64", Schema.FieldType.DOUBLE),
+        Schema.Field.nullable("f_string", Schema.FieldType.STRING),
+        Schema.Field.nullable("f_bytes", Schema.FieldType.BYTES),
+        Schema.Field.nullable("f_timestamp", Schema.FieldType.DATETIME),
+        Schema.Field.nullable("f_date", Schema.FieldType.DATETIME),
+        Schema.Field.nullable("f_numeric", Schema.FieldType.DECIMAL),
+        Schema.Field.nullable("f_array", Schema.FieldType.array(Schema.FieldType.INT64)));
+  }
+
   private Schema.Builder getSchemaTemplate() {
     return Schema.builder()
         .addNullableField("f_int64", Schema.FieldType.INT64)
+        .addNullableField("f_float32", Schema.FieldType.FLOAT)
         .addNullableField("f_float64", Schema.FieldType.DOUBLE)
         .addNullableField("f_string", Schema.FieldType.STRING)
         .addNullableField("f_bytes", Schema.FieldType.BYTES)
@@ -276,6 +347,7 @@ public class StructUtilsTest {
   private Row.FieldValueBuilder getRowTemplate(Schema schema) {
     return Row.withSchema(schema)
         .withFieldValue("f_int64", 1L)
+        .withFieldValue("f_float32", 2.1f)
         .withFieldValue("f_float64", 5.5)
         .withFieldValue("f_string", "ducky_doo")
         .withFieldValue("f_bytes", ByteArray.copyFrom("random_bytes".getBytes(UTF_8)).toByteArray())
@@ -303,6 +375,7 @@ public class StructUtilsTest {
         .addValue(null)
         .addValue(null)
         .addValue(null)
+        .addValue(null)
         .addValue(null);
   }
 
@@ -310,6 +383,8 @@ public class StructUtilsTest {
     return Struct.newBuilder()
         .set("f_int64")
         .to(1L)
+        .set("f_float32")
+        .to(2.1f)
         .set("f_float64")
         .to(5.5)
         .set("f_string")
@@ -340,6 +415,8 @@ public class StructUtilsTest {
     return Struct.newBuilder()
         .set("f_int64")
         .to((Long) null)
+        .set("f_float32")
+        .to((Float) null)
         .set("f_float64")
         .to((Double) null)
         .set("f_string")

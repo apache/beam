@@ -111,7 +111,7 @@ public static class SquareSum extends CombineFn<Integer, Integer, Integer> {
 String sql =
     "SELECT f_int1, squaresum(f_int2) "
       + "FROM PCOLLECTION "
-      + "GROUP BY f_int2";
+      + "GROUP BY f_int1";
 
 // Create and apply the PTransform representing the query.
 // Register the UDAFs used in the query by calling '.registerUdaf()' by

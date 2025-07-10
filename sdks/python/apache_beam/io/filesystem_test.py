@@ -210,8 +210,8 @@ class TestFileSystem(unittest.TestCase):
         # It's a filter function of type (str, int) -> bool
         # that returns true for expected objects
         filter_func = expected_object_names
-        expected_object_names = [(short_path, size) for short_path,
-                                 size in objects
+        expected_object_names = [(short_path, size)
+                                 for short_path, size in objects
                                  if filter_func(short_path, size)]
 
     for object_name, size in objects:
@@ -219,8 +219,7 @@ class TestFileSystem(unittest.TestCase):
       self.fs._insert_random_file(file_name, size)
 
     expected_file_names = [('gs://%s/%s' % (bucket_name, object_name), size)
-                           for object_name,
-                           size in expected_object_names]
+                           for object_name, size in expected_object_names]
     actual_file_names = [
         (file_metadata.path, file_metadata.size_in_bytes)
         for file_metadata in self._flatten_match(self.fs.match([file_pattern]))
@@ -469,6 +468,21 @@ atomized in instants hammered around the
         second_pass = compressed_fd.readline()
 
         self.assertEqual(first_pass, second_pass)
+
+  def test_read(self):
+    for compression_type in [CompressionTypes.BZIP2,
+                             CompressionTypes.DEFLATE,
+                             CompressionTypes.GZIP,
+                             CompressionTypes.ZSTD,
+                             CompressionTypes.LZMA]:
+      file_name = self._create_compressed_file(compression_type, self.content)
+      with open(file_name, 'rb') as f:
+        compressed_fd = CompressedFile(
+            f, compression_type, read_size=self.read_block_size)
+
+        data = compressed_fd.read()
+
+        self.assertEqual(data, self.content)
 
   def test_tell(self):
     lines = [b'line%d\n' % i for i in range(10)]

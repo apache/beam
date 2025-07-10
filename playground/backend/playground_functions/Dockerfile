@@ -18,7 +18,7 @@
 
 # This Dockerfile is only for local testing
 
-FROM golang:1.20-alpine as build
+FROM golang:1-alpine as build
 
 COPY . /app
 WORKDIR /app/playground_functions

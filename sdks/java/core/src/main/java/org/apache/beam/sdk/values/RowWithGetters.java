@@ -42,21 +42,21 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * the appropriate fields from the POJO.
  */
 @SuppressWarnings("rawtypes")
-public class RowWithGetters extends Row {
-  private final Object getterTarget;
-  private final List<FieldValueGetter> getters;
+public class RowWithGetters<T extends @NonNull Object> extends Row {
+  private final T getterTarget;
+  private final List<FieldValueGetter<T, Object>> getters;
   private @Nullable Map<Integer, @Nullable Object> cache = null;
 
   RowWithGetters(
-      Schema schema, Factory<List<FieldValueGetter>> getterFactory, Object getterTarget) {
+      Schema schema, Factory<List<FieldValueGetter<T, Object>>> getterFactory, T getterTarget) {
     super(schema);
     this.getterTarget = getterTarget;
-    this.getters = getterFactory.create(getterTarget.getClass(), schema);
+    this.getters = getterFactory.create(TypeDescriptor.of(getterTarget.getClass()), schema);
   }
 
   @Override
   @SuppressWarnings({"TypeParameterUnusedInFormals", "unchecked"})
-  public <T> @Nullable T getValue(int fieldIdx) {
+  public <W> W getValue(int fieldIdx) {
     Field field = getSchema().getField(fieldIdx);
     boolean cacheField = cacheFieldType(field);
 
@@ -64,7 +64,7 @@ public class RowWithGetters extends Row {
       cache = new TreeMap<>();
     }
 
-    Object fieldValue;
+    @Nullable Object fieldValue;
     if (cacheField) {
       if (cache == null) {
         cache = new TreeMap<>();
@@ -72,15 +72,12 @@ public class RowWithGetters extends Row {
       fieldValue =
           cache.computeIfAbsent(
               fieldIdx,
-              new Function<Integer, Object>() {
+              new Function<Integer, @Nullable Object>() {
                 @Override
-                public Object apply(Integer idx) {
-                  FieldValueGetter getter = getters.get(idx);
+                public @Nullable Object apply(Integer idx) {
+                  FieldValueGetter<T, Object> getter = getters.get(idx);
                   checkStateNotNull(getter);
-                  @SuppressWarnings("nullness")
-                  @NonNull
-                  Object value = getter.get(getterTarget);
-                  return value;
+                  return getter.get(getterTarget);
                 }
               });
     } else {
@@ -90,7 +87,7 @@ public class RowWithGetters extends Row {
     if (fieldValue == null && !field.getType().getNullable()) {
       throw new RuntimeException("Null value set on non-nullable field " + field);
     }
-    return (T) fieldValue;
+    return (W) fieldValue;
   }
 
   private boolean cacheFieldType(Field field) {
@@ -116,7 +113,7 @@ public class RowWithGetters extends Row {
     return rawValues;
   }
 
-  public List<FieldValueGetter> getGetters() {
+  public List<FieldValueGetter<T, Object>> getGetters() {
     return getters;
   }
 

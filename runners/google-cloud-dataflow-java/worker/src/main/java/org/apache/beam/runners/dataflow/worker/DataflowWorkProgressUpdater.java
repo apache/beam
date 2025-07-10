@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.util.TimeUtil.fromCloudDuration;
 import static org.apache.beam.runners.dataflow.util.TimeUtil.fromCloudTime;
+import static org.apache.beam.sdk.options.ExperimentalOptions.hasExperiment;
 
 import com.google.api.client.util.Clock;
 import com.google.api.services.dataflow.model.ApproximateSplitRequest;
@@ -132,7 +133,7 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
 
         // The key set the in BatchModeExecutionContext is only set in the GroupingShuffleReader
         // which is the correct key. The key is also translated into a Java object in the reader.
-        if (options.isHotKeyLoggingEnabled()) {
+        if (options.isHotKeyLoggingEnabled() || hasExperiment(options, "enable_hot_key_logging")) {
           hotKeyLogger.logHotKeyDetection(
               hotKeyDetection.getUserStepName(),
               TimeUtil.fromCloudDuration(hotKeyDetection.getHotKeyAge()),

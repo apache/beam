@@ -200,11 +200,10 @@ interface RpcQos {
      * provided {@code instant}.
      *
      * @param instant The intended start time of the next rpc
-     * @param <T> The type which will be sent in the request
      * @param <ElementT> The {@link Element} type which the returned buffer will contain
      * @return a new {@link FlushBuffer} which queued messages can be staged to before final flush
      */
-    <T, ElementT extends Element<T>> FlushBuffer<ElementT> newFlushBuffer(Instant instant);
+    <ElementT extends Element<?>> FlushBuffer<ElementT> newFlushBuffer(Instant instant);
 
     /** Record the start time of sending the rpc. */
     void recordRequestStart(Instant start, int numWrites);

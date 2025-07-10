@@ -39,6 +39,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.io.kafka.KafkaIO.WriteRecords;
 import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.SinkMetrics;
 import org.apache.beam.sdk.state.BagState;
@@ -458,6 +459,7 @@ class KafkaExactlyOnceSink<K, V>
       private final String producerName;
       private final WriteRecords<K, V> spec;
       private long committedId;
+      private transient boolean reportedLineage;
 
       ShardWriter(
           int shard,
@@ -524,6 +526,20 @@ class KafkaExactlyOnceSink<K, V>
           ProducerSpEL.commitTransaction(producer);
 
           numTransactions.inc();
+          if (!reportedLineage) {
+            Lineage.getSinks()
+                .add(
+                    "kafka",
+                    ImmutableList.of(
+                        // withBootstrapServers() was required in WriteRecord.expand, expect to be
+                        // non-null
+                        (String)
+                            Preconditions.checkStateNotNull(
+                                spec.getProducerConfig()
+                                    .get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG)),
+                        topic));
+            reportedLineage = true;
+          }
           LOG.debug("{} : committed {} records", shard, lastRecordId - committedId);
 
           committedId = lastRecordId;

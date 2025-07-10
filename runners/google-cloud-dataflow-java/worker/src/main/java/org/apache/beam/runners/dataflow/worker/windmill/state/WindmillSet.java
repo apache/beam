@@ -20,13 +20,7 @@ package org.apache.beam.runners.dataflow.worker.windmill.state;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Optional;
-import org.apache.beam.runners.core.StateNamespace;
-import org.apache.beam.runners.core.StateTag;
-import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
-import org.apache.beam.sdk.coders.BooleanCoder;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.state.MapState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
@@ -35,30 +29,10 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 
 public class WindmillSet<K> extends SimpleWindmillState implements SetState<K> {
-  private final WindmillMap<K, Boolean> windmillMap;
+  private final AbstractWindmillMap<K, Boolean> windmillMap;
 
-  WindmillSet(
-      StateNamespace namespace,
-      StateTag<SetState<K>> address,
-      String stateFamily,
-      Coder<K> keyCoder,
-      WindmillStateCache.ForKeyAndFamily cache,
-      boolean isNewKey) {
-    StateTag<MapState<K, Boolean>> internalMapAddress = StateTags.convertToMapTagInternal(address);
-
-    this.windmillMap =
-        cache
-            .get(namespace, internalMapAddress)
-            .map(map -> (WindmillMap<K, Boolean>) map)
-            .orElseGet(
-                () ->
-                    new WindmillMap<>(
-                        namespace,
-                        internalMapAddress,
-                        stateFamily,
-                        keyCoder,
-                        BooleanCoder.of(),
-                        isNewKey));
+  WindmillSet(AbstractWindmillMap<K, Boolean> windmillMap) {
+    this.windmillMap = windmillMap;
   }
 
   @Override
@@ -117,11 +91,13 @@ public class WindmillSet<K> extends SimpleWindmillState implements SetState<K> {
   @Override
   void initializeForWorkItem(
       WindmillStateReader reader, Supplier<Closeable> scopedReadStateSupplier) {
+    super.initializeForWorkItem(reader, scopedReadStateSupplier);
     windmillMap.initializeForWorkItem(reader, scopedReadStateSupplier);
   }
 
   @Override
   void cleanupAfterWorkItem() {
+    super.cleanupAfterWorkItem();
     windmillMap.cleanupAfterWorkItem();
   }
 

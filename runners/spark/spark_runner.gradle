@@ -171,10 +171,14 @@ dependencies {
   implementation library.java.args4j
   implementation project(path: ":model:fn-execution", configuration: "shadow")
   implementation project(path: ":model:job-management", configuration: "shadow")
-  implementation library.java.vendored_grpc_1_60_1
+  implementation library.java.vendored_grpc_1_69_0
   implementation library.java.vendored_guava_32_1_2_jre
   spark.components.each { component ->
     provided "$component:$spark_version"
+  }
+  if ("$spark_version" >= "3.5.0") {
+    implementation "org.apache.spark:spark-common-utils_$spark_scala_version:$spark_version"
+    implementation "org.apache.spark:spark-sql-api_$spark_scala_version:$spark_version"
   }
   permitUnusedDeclared "org.apache.spark:spark-network-common_$spark_scala_version:$spark_version"
   implementation "io.dropwizard.metrics:metrics-core:4.1.1" // version used by Spark 3.1
@@ -202,6 +206,10 @@ dependencies {
   testImplementation library.java.mockito_core
   testImplementation "org.assertj:assertj-core:3.11.1"
   testImplementation "org.apache.zookeeper:zookeeper:3.4.11"
+  if ("$spark_version" >= "3.5.0") {
+    testImplementation "org.apache.spark:spark-common-utils_$spark_scala_version:$spark_version"
+    testImplementation "org.apache.spark:spark-sql-api_$spark_scala_version:$spark_version"
+  }
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesRunner project(path: ":runners:core-java", configuration: "testRuntimeMigration")
   validatesRunner project(":sdks:java:io:hadoop-format")
@@ -212,6 +220,13 @@ dependencies {
     "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-common:$kv.value"
     // Force paranamer 2.8 to avoid issues when using Scala 2.12
     "hadoopVersion$kv.key" "com.thoughtworks.paranamer:paranamer:2.8"
+    if ("$spark_version" >= "3.5.0") {
+      // Add log4j 2.x dependencies as Spark 3.5+ uses slf4j with log4j 2.x backend
+      "hadoopVersion$kv.key" library.java.log4j2_api
+      "hadoopVersion$kv.key" library.java.log4j2_core
+      "hadoopVersion$kv.key" library.java.log4j2_slf4j2_impl
+      "hadoopVersion$kv.key" library.java.log4j2_log4j12_api
+    }
   }
 }
 
@@ -230,12 +245,21 @@ configurations.all {
 configurations.validatesRunner {
   // Exclude to make sure log4j binding is used
   exclude group: "org.slf4j", module: "slf4j-simple"
+
+  if ("$spark_version" >= "3.5.0") {
+    // Exclude log4j 1.x dependencies to prevent conflict with log4j 2.x used by spark 3.5+
+    exclude group: "log4j", module: "log4j"
+  }
 }
 
 hadoopVersions.each { kv ->
   configurations."hadoopVersion$kv.key" {
     resolutionStrategy {
       force "org.apache.hadoop:hadoop-common:$kv.value"
+    }
+    if ("$spark_version" >= "3.5.0") {
+      // Exclude log4j 1.x dependencies to prevent conflict with log4j 2.x used by spark 3.5+
+      exclude group: "log4j", module: "log4j"
     }
   }
 }
@@ -286,6 +310,13 @@ def applyBatchValidatesRunnerSetup = { Test it ->
 def validatesRunnerBatch = tasks.register("validatesRunnerBatch", Test) {
   applyBatchValidatesRunnerSetup(it)
   systemProperties sparkTestProperties(["--enableSparkMetricSinks":"false"])
+
+  // TODO(https://github.com/apache/beam/issues/31231
+  it.filter {
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.RedistributeTest.testRedistributePreservesMetadata'
+    // TODO(https://github.com/apache/beam/issues/32021)
+    excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$AttemptedMetricTests.testBoundedSourceMetricsInSplit'
+  }
 }
 
 def validatesRunnerBatchWithBoundedSDFExperiment = tasks.register("validatesRunnerBatchWithBoundedSDFExperiment", Test) {
@@ -319,9 +350,12 @@ def validatesRunnerStreaming = tasks.register("validatesRunnerStreaming", Test) 
     filter {
       // UNBOUNDED View.CreatePCollectionView not supported
       excludeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest$BundleInvariantsTests.testWatermarkUpdateMidBundle'
-      excludeTestsMatching 'org.apache.beam.sdk.transforms.ViewTest.testWindowedSideInputNotPresent'
       // TODO(https://github.com/apache/beam/issues/29973)
       excludeTestsMatching 'org.apache.beam.sdk.transforms.ReshuffleTest.testReshufflePreservesMetadata'
+      // TODO(https://github.com/apache/beam/issues/31231
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.RedistributeTest.testRedistributePreservesMetadata'
+      // TODO(https://github.com/apache/beam/issues/32021)
+      excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$AttemptedMetricTests.testBoundedSourceMetricsInSplit'
     }
 
     // TestStream using processing time is not supported in Spark
@@ -334,7 +368,7 @@ def validatesRunnerStreaming = tasks.register("validatesRunnerStreaming", Test) 
     excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
 
     // State and Timers
-    excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithMultipleStages'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
     excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'
@@ -419,6 +453,10 @@ tasks.register("validatesStructuredStreamingRunnerBatch", Test) {
     excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenMultipleCoders'
     // SDF
     excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testLifecycleMethodsBounded'
+    // https://github.com/apache/beam/issues/29972
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$CombineWithContextTests.testHotKeyCombineWithSideInputs'
+    // TODO(https://github.com/apache/beam/issues/32021)
+    excludeTestsMatching 'org.apache.beam.sdk.metrics.MetricsTest$AttemptedMetricTests.testBoundedSourceMetricsInSplit'
   }
 }
 

@@ -23,12 +23,12 @@ on:
 # Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
   actions: write
-  pull-requests: write
-  checks: write
+  pull-requests: read
+  checks: read
   contents: read
   deployments: read
   id-token: none
-  issues: write
+  issues: read
   discussions: read
   packages: read
   pages: read
@@ -42,24 +42,25 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
   INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
   INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
 
 jobs:
-  beam_PerformanceTests_xlang_KafkaIO_Python:
+  # Using 'PerfTests' instead of 'PerformanceTests' to comply with Kafka Strimzi's name length limitations.
+  beam_PerfTests_xlang_KafkaIO_Python:
     if: |
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Python xlang KafkaIO Performance Test'
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-20.04, highmem]
     timeout-minutes: 240
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     strategy:
       matrix:
-        job_name: ["beam_PerformanceTests_xlang_KafkaIO_Python"]
+        job_name: ["beam_PerfTests_xlang_KafkaIO_Python"]
         job_phrase: ["Run Python xlang KafkaIO Performance Test"]
     steps:
       - uses: actions/checkout@v4
@@ -72,35 +73,30 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          python-version: 3.8
-      - name: Authenticate on GCP
-        id: auth
-        uses: google-github-actions/auth@v1
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          python-version: default
       - name: Set k8s access
         uses: ./.github/actions/setup-k8s-access
         with:
-          cluster_name: io-datastores-for-tests
+          cluster_name: kafka-workflows
           k8s_namespace: ${{ matrix.job_name }}-${{ github.run_id }}
+          cluster_zone: us-central1
       - name: Install Kafka
         id: install_kafka
         run: |
-          cd ${{ github.workspace }}/.test-infra/kubernetes/kafka-cluster/
-          kubectl apply -R -f .
-      - name: Get Kafka IP
-        id: kafka_ip
+          kubectl apply -k ${{ github.workspace }}/.test-infra/kafka/strimzi/02-kafka-persistent/overlays/gke-internal-load-balanced
+          kubectl wait kafka beam-testing-cluster --for=condition=Ready --timeout=1800s
+      - name: Set up Kafka brokers
+        id: set_brokers
         run: |
-          kubectl wait svc/outside-0 --for=jsonpath='{.status.loadBalancer.ingress[0].ip}' --timeout=120s
-          kubectl wait svc/outside-1 --for=jsonpath='{.status.loadBalancer.ingress[0].ip}' --timeout=120s
-          kubectl wait svc/outside-2 --for=jsonpath='{.status.loadBalancer.ingress[0].ip}' --timeout=120s
-          KAFKA_BROKER_0_IP=$(kubectl get svc outside-0 -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-          KAFKA_BROKER_1_IP=$(kubectl get svc outside-1 -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-          KAFKA_BROKER_2_IP=$(kubectl get svc outside-2 -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-          echo KAFKA_BROKER_0=$KAFKA_BROKER_0_IP >> $GITHUB_OUTPUT
-          echo KAFKA_BROKER_1=$KAFKA_BROKER_1_IP >> $GITHUB_OUTPUT
-          echo KAFKA_BROKER_2=$KAFKA_BROKER_2_IP >> $GITHUB_OUTPUT
+          declare -a kafka_service_brokers
+          declare -a kafka_service_brokers_ports
+          for INDEX in {0..2}; do
+            kubectl wait svc/beam-testing-cluster-kafka-${INDEX} --for=jsonpath='{.status.loadBalancer.ingress[0].ip}' --timeout=1200s
+            kafka_service_brokers[$INDEX]=$(kubectl get svc beam-testing-cluster-kafka-${INDEX} -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+            kafka_service_brokers_ports[$INDEX]=$(kubectl get svc beam-testing-cluster-kafka-${INDEX} -o jsonpath='{.spec.ports[0].port}')
+            echo "KAFKA_SERVICE_BROKER_${INDEX}=${kafka_service_brokers[$INDEX]}" >> $GITHUB_OUTPUT
+            echo "KAFKA_SERVICE_BROKER_PORTS_${INDEX}=${kafka_service_brokers_ports[$INDEX]}" >> $GITHUB_OUTPUT
+          done
       - name: Prepare test arguments
         uses: ./.github/actions/test-arguments-action
         with:
@@ -110,7 +106,7 @@ jobs:
             ${{ github.workspace }}/.github/workflows/performance-tests-pipeline-options/xlang_KafkaIO_Python.txt
           arguments: |
             --filename_prefix=gs://temp-storage-for-perf-tests/${{ matrix.job_name }}/${{github.run_id}}/
-            --bootstrap_servers=${{ steps.kafka_ip.outputs.KAFKA_BROKER_0 }}:32400,${{ steps.kafka_ip.outputs.KAFKA_BROKER_1 }}:32400,${{ steps.kafka_ip.outputs.KAFKA_BROKER_2 }}:32400
+            --bootstrap_servers=${{ steps.set_brokers.outputs.KAFKA_SERVICE_BROKER_0 }}:${{ steps.set_brokers.outputs.KAFKA_SERVICE_BROKER_PORTS_0 }},${{ steps.set_brokers.outputs.KAFKA_SERVICE_BROKER_1 }}:${{ steps.set_brokers.outputs.KAFKA_SERVICE_BROKER_PORTS_1 }},${{ steps.set_brokers.outputs.KAFKA_SERVICE_BROKER_2 }}:${{ steps.set_brokers.outputs.KAFKA_SERVICE_BROKER_PORTS_2 }}
       - name: run shadowJar
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -123,5 +119,5 @@ jobs:
           arguments: |
             -Prunner=DataflowRunner \
             -PloadTest.mainClass=apache_beam.io.external.xlang_kafkaio_perf_test \
-            -PpythonVersion=3.8 \
-            '-PloadTest.args=${{ env.beam_PerformanceTests_xlang_KafkaIO_Python_test_arguments_1 }}'
+            -PpythonVersion=3.9 \
+            '-PloadTest.args=${{ env.beam_PerfTests_xlang_KafkaIO_Python_test_arguments_1 }}'

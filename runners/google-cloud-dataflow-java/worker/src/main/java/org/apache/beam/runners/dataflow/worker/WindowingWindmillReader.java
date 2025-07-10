@@ -32,8 +32,8 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues.FullWindowedValueCoder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -117,7 +117,7 @@ class WindowingWindmillReader<K, T> extends NativeReader<WindowedValue<KeyedWork
   @Override
   public NativeReaderIterator<WindowedValue<KeyedWorkItem<K, T>>> iterator() throws IOException {
     final K key = keyCoder.decode(context.getSerializedKey().newInput(), Coder.Context.OUTER);
-    final WorkItem workItem = context.getWork();
+    final WorkItem workItem = context.getWorkItem();
     KeyedWorkItem<K, T> keyedWorkItem =
         new WindmillKeyedWorkItem<>(key, workItem, windowCoder, windowsCoder, valueCoder);
     final boolean isEmptyWorkItem =

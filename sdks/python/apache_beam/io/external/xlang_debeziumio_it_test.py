@@ -37,8 +37,8 @@ NUM_RECORDS = 1
 @unittest.skipIf(
     PostgresContainer is None, 'testcontainers package is not installed')
 @unittest.skipIf(
-    TestPipeline().get_pipeline_options().view_as(StandardOptions).runner is
-    None,
+    TestPipeline().get_pipeline_options().view_as(StandardOptions).runner
+    is None,
     'Do not run this test on precommit suites.')
 class CrossLanguageDebeziumIOTest(unittest.TestCase):
   def setUp(self):
@@ -107,7 +107,7 @@ class CrossLanguageDebeziumIOTest(unittest.TestCase):
     for i in range(retries):
       try:
         self.db = PostgresContainer(
-            'debezium/example-postgres:latest',
+            'quay.io/debezium/example-postgres:latest',
             user=self.username,
             password=self.password,
             dbname=self.database)

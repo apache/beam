@@ -171,8 +171,7 @@ def to_json(df, path, orient=None, *args, **kwargs):
 @frame_base.with_docs_from(pd)
 def read_html(path, *args, **kwargs):
   return _ReadFromPandas(
-      lambda *args,
-      **kwargs: pd.read_html(*args, **kwargs)[0],
+      lambda *args, **kwargs: pd.read_html(*args, **kwargs)[0],
       path,
       args,
       kwargs)
@@ -193,8 +192,8 @@ def to_html(df, path, *args, **kwargs):
 
 def _binary_reader(format):
   func = getattr(pd, 'read_%s' % format)
-  result = lambda path, *args, **kwargs: _ReadFromPandas(func, path, args,
-                                                         kwargs)
+  result = lambda path, *args, **kwargs: _ReadFromPandas(
+      func, path, args, kwargs)
   result.__name__ = f'read_{format}'
 
   return result
@@ -202,10 +201,8 @@ def _binary_reader(format):
 
 def _binary_writer(format):
   result = (
-      lambda df,
-      path,
-      *args,
-      **kwargs: _as_pc(df) | _WriteToPandas(f'to_{format}', path, args, kwargs))
+      lambda df, path, *args, **kwargs: _as_pc(df) | _WriteToPandas(
+          f'to_{format}', path, args, kwargs))
   result.__name__ = f'to_{format}'
   return result
 
@@ -280,7 +277,8 @@ class _ReadFromPandas(beam.PTransform):
     first_path = match.metadata_list[0].path
     with io.filesystems.FileSystems.open(first_path) as handle:
       if not self.binary:
-        handle = TextIOWrapper(handle)
+        handle = TextIOWrapper(
+            handle, encoding=self.kwargs.get("encoding", None))
       if self.incremental:
         with self.reader(handle, *self.args, **dict(self.kwargs,
                                                     chunksize=100)) as stream:
@@ -293,9 +291,10 @@ class _ReadFromPandas(beam.PTransform):
         matches_pcoll.pipeline
         | 'DoOnce' >> beam.Create([None])
         | beam.Map(
-            lambda _,
-            paths: {path: ix
-                    for ix, path in enumerate(sorted(paths))},
+            lambda _, paths: {
+                path: ix
+                for ix, path in enumerate(sorted(paths))
+            },
             paths=beam.pvalue.AsList(
                 matches_pcoll | beam.Map(lambda match: match.path))))
 
@@ -493,6 +492,10 @@ class _TruncatingFileHandle(object):
           self._buffer, self._underlying)
       self._buffer_start_pos += len(skip)
 
+  @property
+  def mode(self):
+    return getattr(self._underlying, "mode", "r")
+
   def readable(self):
     return True
 
@@ -572,6 +575,9 @@ class _TruncatingFileHandle(object):
       self._done = True
     return res
 
+  def flush(self):
+    self._underlying.flush()
+
 
 class _ReadFromPandasDoFn(beam.DoFn, beam.RestrictionProvider):
   def __init__(self, reader, args, kwargs, binary, incremental, splitter):
@@ -627,7 +633,8 @@ class _ReadFromPandasDoFn(beam.DoFn, beam.RestrictionProvider):
             splitter=self.splitter or
             _DelimSplitter(b'\n', _DEFAULT_BYTES_CHUNKSIZE))
       if not self.binary:
-        handle = TextIOWrapper(handle)
+        handle = TextIOWrapper(
+            handle, encoding=self.kwargs.get("encoding", None))
       if self.incremental:
         if 'chunksize' not in self.kwargs:
           self.kwargs['chunksize'] = _DEFAULT_LINES_CHUNKSIZE
@@ -688,7 +695,8 @@ class _WriteToPandasFileSink(fileio.FileSink):
     self.buffer = []
     self.empty = self.header = self.footer = None
     if not self.binary:
-      file_handle = TextIOWrapper(file_handle)
+      file_handle = TextIOWrapper(
+          file_handle, encoding=self.kwargs.get("encoding", None))
     self.file_handle = file_handle
 
   def write_to(self, df, file_handle=None):

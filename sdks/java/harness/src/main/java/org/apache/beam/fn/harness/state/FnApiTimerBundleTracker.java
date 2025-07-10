@@ -33,7 +33,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.construction.Timer;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ComparisonChain;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashBasedTable;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;

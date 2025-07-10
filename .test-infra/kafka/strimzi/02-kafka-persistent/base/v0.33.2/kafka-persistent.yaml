@@ -26,7 +26,11 @@ metadata:
   name: beam-testing-cluster
 spec:
   kafka:
-    version: 3.4.0
+    resources:
+      requests:
+        cpu: 8
+        memory: 64Gi
+    version: 3.6.0
     replicas: 3
     config:
       offsets.topic.replication.factor: 3
@@ -40,9 +44,13 @@ spec:
       volumes:
         - id: 0
           type: persistent-claim
-          size: 100Gi
+          size: 500Gi
           deleteClaim: false
   zookeeper:
+    resources:
+      requests:
+        cpu: 1
+        memory: 2Gi
     replicas: 3
     storage:
       type: persistent-claim

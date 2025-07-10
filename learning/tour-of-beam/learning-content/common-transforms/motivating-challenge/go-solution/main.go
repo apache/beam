@@ -28,6 +28,9 @@ package main
 
 import (
 	"context"
+	"strconv"
+	"strings"
+
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
@@ -35,12 +38,11 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/transforms/stats"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/beamx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/debug"
-	"strconv"
-	"strings"
 )
 
 func main() {
 	ctx := context.Background()
+	beam.Init()
 
 	p, s := beam.NewPipelineWithRoot()
 
@@ -73,7 +75,7 @@ func main() {
 	err := beamx.Run(ctx, p)
 
 	if err != nil {
-		log.Exitf(context.Background(), "Failed to execute job: %v", err)
+		log.Exitf(ctx, "Failed to execute job: %v", err)
 	}
 }
 

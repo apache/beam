@@ -27,7 +27,7 @@ import re
 import sys
 import traceback
 
-from google.protobuf import text_format  # type: ignore # not in typeshed
+from google.protobuf import text_format
 
 from apache_beam.internal import pickler
 from apache_beam.io import filesystems
@@ -232,8 +232,7 @@ def _load_pipeline_options(options_json):
     return {
         re.match(portable_option_regex, k).group('key') if re.match(
             portable_option_regex, k) else k: v
-        for k,
-        v in options.items()
+        for k, v in options.items()
     }
 
 

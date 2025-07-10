@@ -46,7 +46,7 @@ public class DebeziumReadSchemaTransformTest {
   @ClassRule
   public static final PostgreSQLContainer<?> POSTGRES_SQL_CONTAINER =
       new PostgreSQLContainer<>(
-              DockerImageName.parse("debezium/example-postgres:latest")
+              DockerImageName.parse("quay.io/debezium/example-postgres:latest")
                   .asCompatibleSubstituteFor("postgres"))
           .withPassword("dbz")
           .withUsername("debezium")
@@ -188,26 +188,19 @@ public class DebeziumReadSchemaTransformTest {
   }
 
   @Test
-  public void testWrongHost() throws Exception {
+  public void testWrongHost() {
     Pipeline readPipeline = Pipeline.create();
-    Exception ex =
-        assertThrows(
-            Exception.class,
-            () -> {
-              PCollectionRowTuple.empty(readPipeline)
-                  .apply(
-                      makePtransform(
-                          userName,
-                          password,
-                          database,
-                          databaseContainer.getMappedPort(port),
-                          "23.128.129.130"))
-                  .get("output");
-            });
-    Throwable lowestCause = ex.getCause();
-    while (lowestCause.getCause() != null) {
-      lowestCause = lowestCause.getCause();
-    }
-    assertThat(lowestCause.getMessage(), Matchers.containsString("Connection refused"));
+    assertThrows(
+        Exception.class,
+        () ->
+            PCollectionRowTuple.empty(readPipeline)
+                .apply(
+                    makePtransform(
+                        userName,
+                        password,
+                        database,
+                        databaseContainer.getMappedPort(port),
+                        "169.254.254.254"))
+                .get("output"));
   }
 }

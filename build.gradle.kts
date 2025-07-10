@@ -44,6 +44,7 @@ tasks.rat {
 
     "**/package-list",
     "**/test.avsc",
+    "**/logical-types.avsc",
     "**/user.avsc",
     "**/test/resources/**/*.txt",
     "**/test/resources/**/*.csv",
@@ -94,6 +95,10 @@ tasks.rat {
 
     // Ignore CPython LICENSE file
     "LICENSE.python",
+
+    // Ignore vendored cloudpickle files
+    "sdks/python/apache_beam/internal/cloudpickle/**",
+    "LICENCE.cloudpickle",
 
     // Json doesn't support comments.
     "**/*.json",
@@ -208,6 +213,9 @@ tasks.rat {
 
     // DuetAI training prompts
     "learning/prompts/**/*.md",
+
+    // Ignore terraform lock files
+    "**/.terraform.lock.hcl"
   )
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
@@ -241,6 +249,8 @@ tasks.register("javaPreCommit") {
   dependsOn(":beam-validate-runner:build")
   dependsOn(":examples:java:build")
   dependsOn(":examples:java:preCommit")
+  dependsOn(":examples:java:sql:build")
+  dependsOn(":examples:java:sql:preCommit")
   dependsOn(":examples:java:twitter:build")
   dependsOn(":examples:java:twitter:preCommit")
   dependsOn(":examples:multi-language:build")
@@ -265,19 +275,21 @@ tasks.register("javaPreCommit") {
   dependsOn(":runners:jet:build")
   dependsOn(":runners:local-java:build")
   dependsOn(":runners:portability:java:build")
+  dependsOn(":runners:prism:java:build")
   dependsOn(":runners:samza:build")
   dependsOn(":runners:samza:job-server:build")
   dependsOn(":runners:spark:3:build")
   dependsOn(":runners:spark:3:job-server:build")
   dependsOn(":runners:twister2:build")
   dependsOn(":sdks:java:build-tools:build")
-  dependsOn(":sdks:java:container:java8:docker")
+  dependsOn(":sdks:java:container:java11:docker")
   dependsOn(":sdks:java:core:build")
   dependsOn(":sdks:java:core:jmh:build")
   dependsOn(":sdks:java:expansion-service:build")
   dependsOn(":sdks:java:expansion-service:app:build")
   dependsOn(":sdks:java:extensions:arrow:build")
   dependsOn(":sdks:java:extensions:avro:build")
+  dependsOn(":sdks:java:extensions:combiners:build")
   dependsOn(":sdks:java:extensions:euphoria:build")
   dependsOn(":sdks:java:extensions:google-cloud-platform-core:build")
   dependsOn(":sdks:java:extensions:jackson:build")
@@ -291,6 +303,7 @@ tasks.register("javaPreCommit") {
   dependsOn(":sdks:java:extensions:sketching:build")
   dependsOn(":sdks:java:extensions:sorter:build")
   dependsOn(":sdks:java:extensions:timeseries:build")
+  dependsOn(":sdks:java:extensions:yaml:build")
   dependsOn(":sdks:java:extensions:zetasketch:build")
   dependsOn(":sdks:java:harness:build")
   dependsOn(":sdks:java:harness:jmh:build")
@@ -299,10 +312,12 @@ tasks.register("javaPreCommit") {
   dependsOn(":sdks:java:io:contextualtextio:build")
   dependsOn(":sdks:java:io:expansion-service:build")
   dependsOn(":sdks:java:io:file-based-io-tests:build")
-  dependsOn(":sdks:java:io:sparkreceiver:2:build")
+  dependsOn(":sdks:java:io:kafka:jmh:build")
+  dependsOn(":sdks:java:io:sparkreceiver:3:build")
   dependsOn(":sdks:java:io:synthetic:build")
   dependsOn(":sdks:java:io:xml:build")
   dependsOn(":sdks:java:javadoc:allJavadoc")
+  dependsOn(":sdks:java:managed:build")
   dependsOn(":sdks:java:testing:expansion-service:build")
   dependsOn(":sdks:java:testing:jpms-tests:build")
   dependsOn(":sdks:java:testing:load-tests:build")
@@ -324,11 +339,6 @@ tasks.register("javaioPreCommit") {
   dependsOn(":sdks:java:io:clickhouse:build")
   dependsOn(":sdks:java:io:debezium:expansion-service:build")
   dependsOn(":sdks:java:io:debezium:build")
-  dependsOn(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-5:build")
-  dependsOn(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-6:build")
-  dependsOn(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-7:build")
-  dependsOn(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-8:build")
-  dependsOn(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-common:build")
   dependsOn(":sdks:java:io:elasticsearch:build")
   dependsOn(":sdks:java:io:file-schema-transform:build")
   dependsOn(":sdks:java:io:google-ads:build")
@@ -373,7 +383,6 @@ tasks.register("sqlPreCommit") {
   dependsOn(":sdks:java:extensions:sql:jdbc:build")
   dependsOn(":sdks:java:extensions:sql:jdbc:preCommit")
   dependsOn(":sdks:java:extensions:sql:perf-tests:build")
-  dependsOn(":sdks:java:extensions:sql:shell:build")
   dependsOn(":sdks:java:extensions:sql:udf-test-provider:build")
   dependsOn(":sdks:java:extensions:sql:udf:build")
   dependsOn(":sdks:java:extensions:sql:zetasql:build")
@@ -404,6 +413,7 @@ tasks.register("javaHadoopVersionsTest") {
   dependsOn(":sdks:java:io:hadoop-file-system:hadoopVersionsTest")
   dependsOn(":sdks:java:io:hadoop-format:hadoopVersionsTest")
   dependsOn(":sdks:java:io:hcatalog:hadoopVersionsTest")
+  dependsOn(":sdks:java:io:iceberg:hadoopVersionsTest")
   dependsOn(":sdks:java:io:parquet:hadoopVersionsTest")
   dependsOn(":sdks:java:extensions:sorter:hadoopVersionsTest")
   dependsOn(":runners:spark:3:hadoopVersionsTest")
@@ -469,10 +479,11 @@ tasks.register("playgroundPreCommit") {
 
 tasks.register("pythonPreCommit") {
   dependsOn(":sdks:python:test-suites:tox:pycommon:preCommitPyCommon")
-  dependsOn(":sdks:python:test-suites:tox:py38:preCommitPy38")
   dependsOn(":sdks:python:test-suites:tox:py39:preCommitPy39")
   dependsOn(":sdks:python:test-suites:tox:py310:preCommitPy310")
   dependsOn(":sdks:python:test-suites:tox:py311:preCommitPy311")
+  dependsOn(":sdks:python:test-suites:tox:py312:preCommitPy312")
+  dependsOn(":sdks:python:test-suites:tox:py313:preCommitPy313")
 }
 
 tasks.register("pythonPreCommitIT") {
@@ -485,38 +496,26 @@ tasks.register("pythonDocsPreCommit") {
 }
 
 tasks.register("pythonDockerBuildPreCommit") {
-  dependsOn(":sdks:python:container:py38:docker")
   dependsOn(":sdks:python:container:py39:docker")
   dependsOn(":sdks:python:container:py310:docker")
   dependsOn(":sdks:python:container:py311:docker")
+  dependsOn(":sdks:python:container:py312:docker")
+  dependsOn(":sdks:python:container:py313:docker")
 }
 
 tasks.register("pythonLintPreCommit") {
-  // TODO(https://github.com/apache/beam/issues/20209): Find a better way to specify lint and formatter tasks without hardcoding py version.
-  dependsOn(":sdks:python:test-suites:tox:py38:lint")
+  dependsOn(":sdks:python:test-suites:tox:pycommon:linter")
 }
 
 tasks.register("pythonFormatterPreCommit") {
-  dependsOn("sdks:python:test-suites:tox:py38:formatter")
-}
-
-tasks.register("python38PostCommit") {
-  dependsOn(":sdks:python:test-suites:dataflow:py38:postCommitIT")
-  dependsOn(":sdks:python:test-suites:direct:py38:postCommitIT")
-  dependsOn(":sdks:python:test-suites:direct:py38:hdfsIntegrationTest")
-  dependsOn(":sdks:python:test-suites:direct:py38:azureIntegrationTest")
-  dependsOn(":sdks:python:test-suites:portable:py38:postCommitPy38")
-  // TODO: https://github.com/apache/beam/issues/22651
-  // The default container uses Python 3.8. The goal here is to
-  // duild Docker images for TensorRT tests during run time for python versions
-  // other than 3.8 and add these tests in other python postcommit suites.
-  dependsOn(":sdks:python:test-suites:dataflow:py38:inferencePostCommitIT")
-  dependsOn(":sdks:python:test-suites:direct:py38:inferencePostCommitIT")
+  dependsOn("sdks:python:test-suites:tox:pycommon:formatter")
 }
 
 tasks.register("python39PostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py39:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py39:postCommitIT")
+  dependsOn(":sdks:python:test-suites:direct:py39:hdfsIntegrationTest")
+  dependsOn(":sdks:python:test-suites:direct:py39:azureIntegrationTest")
   dependsOn(":sdks:python:test-suites:portable:py39:postCommitPy39")
   // TODO (https://github.com/apache/beam/issues/23966)
   // Move this to Python 3.10 test suite once tfx-bsl has python 3.10 wheel.
@@ -527,6 +526,11 @@ tasks.register("python310PostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py310:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py310:postCommitIT")
   dependsOn(":sdks:python:test-suites:portable:py310:postCommitPy310")
+  // TODO: https://github.com/apache/beam/issues/22651
+  // The default container uses Python 3.10. The goal here is to
+  // duild Docker images for TensorRT tests during run time for python versions
+  // other than 3.10 and add these tests in other python postcommit suites.
+  dependsOn(":sdks:python:test-suites:dataflow:py310:inferencePostCommitIT")
 }
 
 tasks.register("python311PostCommit") {
@@ -536,15 +540,30 @@ tasks.register("python311PostCommit") {
   dependsOn(":sdks:python:test-suites:portable:py311:postCommitPy311")
 }
 
+tasks.register("python312PostCommit") {
+  dependsOn(":sdks:python:test-suites:dataflow:py312:postCommitIT")
+  dependsOn(":sdks:python:test-suites:direct:py312:postCommitIT")
+  dependsOn(":sdks:python:test-suites:direct:py312:hdfsIntegrationTest")
+  dependsOn(":sdks:python:test-suites:portable:py312:postCommitPy312")
+  dependsOn(":sdks:python:test-suites:dataflow:py312:inferencePostCommitITPy312")
+}
+
+tasks.register("python313PostCommit") {
+  dependsOn(":sdks:python:test-suites:dataflow:py313:postCommitIT")
+  dependsOn(":sdks:python:test-suites:direct:py313:postCommitIT")
+  dependsOn(":sdks:python:test-suites:direct:py313:hdfsIntegrationTest")
+  dependsOn(":sdks:python:test-suites:portable:py313:postCommitPy312")
+  dependsOn(":sdks:python:test-suites:dataflow:py313:inferencePostCommitITPy312")
+}
+
 tasks.register("portablePythonPreCommit") {
-  dependsOn(":sdks:python:test-suites:portable:py38:preCommitPy38")
-  dependsOn(":sdks:python:test-suites:portable:py311:preCommitPy311")
+  dependsOn(":sdks:python:test-suites:portable:py39:preCommitPy39")
+  dependsOn(":sdks:python:test-suites:portable:py313:preCommitPy313")
 }
 
 tasks.register("pythonSparkPostCommit") {
-  dependsOn(":sdks:python:test-suites:portable:py38:sparkValidatesRunner")
   dependsOn(":sdks:python:test-suites:portable:py39:sparkValidatesRunner")
-  dependsOn(":sdks:python:test-suites:portable:py311:sparkValidatesRunner")
+  dependsOn(":sdks:python:test-suites:portable:py313:sparkValidatesRunner")
 }
 
 tasks.register("websitePreCommit") {
@@ -567,15 +586,15 @@ tasks.register("javaExamplesDataflowPrecommit") {
 
 tasks.register("whitespacePreCommit") {
   // TODO(https://github.com/apache/beam/issues/20209): Find a better way to specify the tasks without hardcoding py version.
-  dependsOn(":sdks:python:test-suites:tox:py38:archiveFilesToLint")
-  dependsOn(":sdks:python:test-suites:tox:py38:unpackFilesToLint")
-  dependsOn(":sdks:python:test-suites:tox:py38:whitespacelint")
+  dependsOn(":sdks:python:test-suites:tox:py39:archiveFilesToLint")
+  dependsOn(":sdks:python:test-suites:tox:py39:unpackFilesToLint")
+  dependsOn(":sdks:python:test-suites:tox:py39:whitespacelint")
 }
 
 tasks.register("typescriptPreCommit") {
   // TODO(https://github.com/apache/beam/issues/20209): Find a better way to specify the tasks without hardcoding py version.
-  dependsOn(":sdks:python:test-suites:tox:py38:eslint")
-  dependsOn(":sdks:python:test-suites:tox:py38:jest")
+  dependsOn(":sdks:python:test-suites:tox:py39:eslint")
+  dependsOn(":sdks:python:test-suites:tox:py39:jest")
 }
 
 tasks.register("pushAllRunnersDockerImages") {
@@ -597,10 +616,14 @@ tasks.register("pushAllRunnersDockerImages") {
 tasks.register("pushAllSdkDockerImages") {
   // Enforce ordering to allow the prune step to happen between runs.
   // This will ensure we don't use up too much space (especially in CI environments)
-  mustRunAfter(":pushAllRunnersDockerImages")
+  if (!project.hasProperty("skip-runner-images")) {
+    mustRunAfter(":pushAllRunnersDockerImages")
+  }
 
   dependsOn(":sdks:java:container:pushAll")
-  dependsOn(":sdks:python:container:pushAll")
+  if (!project.hasProperty("skip-python-images")) {
+    dependsOn(":sdks:python:container:pushAll")
+  }
   dependsOn(":sdks:go:container:pushAll")
   dependsOn(":sdks:typescript:container:pushAll")
 
@@ -617,7 +640,9 @@ tasks.register("pushAllSdkDockerImages") {
 tasks.register("pushAllXlangDockerImages") {
   // Enforce ordering to allow the prune step to happen between runs.
   // This will ensure we don't use up too much space (especially in CI environments)
-  mustRunAfter(":pushAllSdkDockerImages")
+  if (!project.hasProperty("skip-sdk-images")) {
+    mustRunAfter(":pushAllSdkDockerImages")
+  }
 
   dependsOn(":sdks:java:expansion-service:container:docker")
   dependsOn(":sdks:java:transform-service:controller-container:docker")
@@ -634,9 +659,15 @@ tasks.register("pushAllXlangDockerImages") {
 }
 
 tasks.register("pushAllDockerImages") {
-  dependsOn(":pushAllRunnersDockerImages")
-  dependsOn(":pushAllSdkDockerImages")
-  dependsOn(":pushAllXlangDockerImages")
+  if (!project.hasProperty("skip-runner-images")) {
+    dependsOn(":pushAllRunnersDockerImages")
+  }
+  if (!project.hasProperty("skip-sdk-images")) {
+    dependsOn(":pushAllSdkDockerImages")
+  }
+  if (!project.hasProperty("skip-xlang-images")) {
+    dependsOn(":pushAllXlangDockerImages")
+  }
 }
 
 // Use this task to validate the environment set up for Go, Python and Java
@@ -646,9 +677,30 @@ tasks.register("checkSetup") {
   dependsOn(":examples:java:wordCount")
 }
 
+// if not disabled make spotlessApply dependency of compileJava and compileTestJava
+val disableSpotlessCheck: String by project
+val isSpotlessDisabled = (project.hasProperty("disableSpotlessCheck") &&
+        disableSpotlessCheck == "true") || project.hasProperty("disableSpotlessApply")
+if (!isSpotlessDisabled) {
+  subprojects {
+    afterEvaluate {
+      tasks.findByName("spotlessApply")?.let {
+        listOf("compileJava", "compileTestJava").forEach {
+          t -> tasks.findByName(t)?.let { f -> f.dependsOn("spotlessApply") }
+        }
+      }
+    }
+  }
+}
+
 // Generates external transform config
 project.tasks.register("generateExternalTransformsConfig") {
   dependsOn(":sdks:python:generateExternalTransformsConfig")
+}
+
+// Generates the Managed IO Beam web page
+project.tasks.register("generateManagedIOPage") {
+  dependsOn(":sdks:python:generateManagedIOPage")
 }
 
 // Configure the release plugin to do only local work; the release manager determines what, if

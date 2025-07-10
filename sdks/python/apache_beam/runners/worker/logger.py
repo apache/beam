@@ -15,8 +15,6 @@
 # limitations under the License.
 #
 
-# cython: language_level=3
-
 """Python worker logging."""
 
 # pytype: skip-file
@@ -39,15 +37,13 @@ from apache_beam.runners.worker import statesampler
 # context information that changes while work items get executed:
 # work_item_id, step_name, stage_name.
 class _PerThreadWorkerData(threading.local):
-  def __init__(self):
-    # type: () -> None
+  def __init__(self) -> None:
     super().__init__()
     # in the list, as going up and down all the way to zero incurs several
     # reallocations.
-    self.stack = []  # type: List[Dict[str, Any]]
+    self.stack: List[Dict[str, Any]] = []
 
-  def get_data(self):
-    # type: () -> Dict[str, Any]
+  def get_data(self) -> Dict[str, Any]:
     all_data = {}
     for datum in self.stack:
       all_data.update(datum)
@@ -58,9 +54,7 @@ per_thread_worker_data = _PerThreadWorkerData()
 
 
 @contextlib.contextmanager
-def PerThreadLoggingContext(**kwargs):
-  # type: (**Any) -> Iterator[None]
-
+def PerThreadLoggingContext(**kwargs: Any) -> Iterator[None]:
   """A context manager to add per thread attributes."""
   stack = per_thread_worker_data.stack
   stack.append(kwargs)
@@ -72,15 +66,12 @@ def PerThreadLoggingContext(**kwargs):
 
 class JsonLogFormatter(logging.Formatter):
   """A JSON formatter class as expected by the logging standard module."""
-  def __init__(self, job_id, worker_id):
-    # type: (str, str) -> None
+  def __init__(self, job_id: str, worker_id: str) -> None:
     super().__init__()
     self.job_id = job_id
     self.worker_id = worker_id
 
-  def format(self, record):
-    # type: (logging.LogRecord) -> str
-
+  def format(self, record: logging.LogRecord) -> str:
     """Returns a JSON string based on a LogRecord instance.
 
     Args:
@@ -115,7 +106,7 @@ class JsonLogFormatter(logging.Formatter):
         Python thread object. Nevertheless having this value can allow to
         filter log statement from only one specific thread.
     """
-    output = {}  # type: Dict[str, Any]
+    output: Dict[str, Any] = {}
     output['timestamp'] = {
         'seconds': int(record.created), 'nanos': int(record.msecs * 1000000)
     }
@@ -170,9 +161,11 @@ class JsonLogFormatter(logging.Formatter):
     return json.dumps(output)
 
 
-def initialize(job_id, worker_id, log_path, log_level=logging.INFO):
-  # type: (str, str, str, int) -> None
-
+def initialize(
+    job_id: str,
+    worker_id: str,
+    log_path: str,
+    log_level: int = logging.INFO) -> None:
   """Initialize root logger so that we log JSON to a file and text to stdout."""
 
   file_handler = logging.FileHandler(log_path)

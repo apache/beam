@@ -30,7 +30,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/log"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/universal/runnerlib"
-	"github.com/golang/protobuf/proto"
 	df "google.golang.org/api/dataflow/v1b3"
 	"google.golang.org/api/googleapi"
 )
@@ -82,7 +81,7 @@ func Execute(ctx context.Context, raw *pipepb.Pipeline, opts *JobOptions, worker
 	}
 
 	// (2) Upload model to GCS
-	log.Info(ctx, proto.MarshalTextString(raw))
+	log.Info(ctx, raw.String())
 
 	if err := StageModel(ctx, opts.Project, modelURL, protox.MustEncode(raw)); err != nil {
 		return presult, err

@@ -58,7 +58,7 @@ class BeamModulePluginProcessor:
   # So we need to add it to the example project to get the version to sync
   OTHER_CONSTRANTS = [
       "com.google.cloud:google-cloud-bigquery",  # for arrow
-      'com.google.cloud:google-cloud-nio',  # for google-api-services-storage
+      'com.google.cloud:google-cloud-storage',  # for google-api-services-storage
       'com.google.cloud:google-cloud-resourcemanager',  # for google-api-services-cloudresourcemanager
       'com.google.cloud:google-cloud-datastore',  # for google-cloud-dataflow-java-proto-library-all
   ]
@@ -278,7 +278,7 @@ configurations.implementation.canBeResolved = true
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   if len(sys.argv) < 2:
-    print("Usage: python scripts/tools/gcpbomupgrader.py target_version")
+    print("Usage: python scripts/tools/bomupgrader.py target_version")
     exit(1)
   processor = BeamModulePluginProcessor(sys.argv[1])
   processor.run()

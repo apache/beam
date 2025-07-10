@@ -16,9 +16,11 @@
 package gcsx
 
 import (
+	"context"
 	"strings"
 	"testing"
 
+	"cloud.google.com/go/storage"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
@@ -94,5 +96,60 @@ func TestJoin(t *testing.T) {
 		if got, want := Join(test.object, test.elms...), test.result; got != want {
 			t.Errorf("Join(%v, %v) Got: %v Want: %v", test.object, strings.Join(test.elms, ", "), got, want)
 		}
+	}
+}
+
+func TestGetDisableSoftDeletePolicyBucketAttrs(t *testing.T) {
+	attrs := getDisableSoftDeletePolicyBucketAttrs()
+	if attrs == nil {
+		t.Errorf("Fail to getDisableSoftDeletePolicyBucketAttrs.")
+	}
+	if attrs != nil && attrs.SoftDeletePolicy.RetentionDuration != 0 {
+		t.Errorf("attrs has RetentionDuration %v which is not correct", attrs.SoftDeletePolicy.RetentionDuration)
+	}
+}
+
+func TestSoftDeletePolicyWhenEnabled(t *testing.T) {
+	// Save original and defer restore
+	original := getBucketAttrs
+	defer func() { getBucketAttrs = original }()
+
+	// Inject mock behavior
+	getBucketAttrs = func(ctx context.Context, client *storage.Client, bucketName string) (*storage.BucketAttrs, error) {
+		return &storage.BucketAttrs{
+			SoftDeletePolicy: &storage.SoftDeletePolicy{
+				RetentionDuration: 1029,
+			},
+		}, nil
+	}
+
+	// You can pass nil for client because the mock ignores it
+	enabled, err := SoftDeletePolicyEnabled(context.Background(), nil, "mock-bucket")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if !enabled {
+		t.Errorf("Expected soft delete to be enabled, got false")
+	}
+}
+
+func TestSoftDeletePolicyWhenDisabled(t *testing.T) {
+	original := getBucketAttrs
+	defer func() { getBucketAttrs = original }()
+
+	getBucketAttrs = func(ctx context.Context, client *storage.Client, bucketName string) (*storage.BucketAttrs, error) {
+		return &storage.BucketAttrs{
+			SoftDeletePolicy: &storage.SoftDeletePolicy{
+				RetentionDuration: 0,
+			},
+		}, nil
+	}
+
+	enabled, err := SoftDeletePolicyEnabled(context.Background(), nil, "mock-bucket")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if enabled {
+		t.Errorf("Expected soft delete to be disabled, got true")
 	}
 }

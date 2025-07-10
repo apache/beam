@@ -48,12 +48,29 @@ class ImpulseSeqGenRestrictionProvider(core.RestrictionProvider):
   def create_tracker(self, restriction):
     return OffsetRestrictionTracker(restriction)
 
-  def restriction_size(self, unused_element, restriction):
-    return restriction.size()
+  def restriction_size(self, element, restriction):
+    return _sequence_backlog_bytes(element, time.time(), restriction)
 
   # On drain, immediately stop emitting new elements
   def truncate(self, unused_element, unused_restriction):
     return None
+
+
+def _sequence_backlog_bytes(element, now, offset_range):
+  '''
+  Calculates size of the output that the sequence should have emitted up to now.
+  '''
+  start, _, interval = element
+  if isinstance(start, Timestamp):
+    start = start.micros / 1000000
+  assert interval > 0
+
+  now_index = math.floor((now - start) / interval)
+  if now_index < offset_range.start:
+    return 0
+  # We attempt to be precise as some runners scale based upon bytes and
+  # output byte throughput.
+  return 8 * (min(offset_range.stop, now_index) - offset_range.start)
 
 
 class ImpulseSeqGenDoFn(beam.DoFn):
@@ -165,7 +182,7 @@ class PeriodicImpulse(PTransform):
     '''
     :param start_timestamp: Timestamp for first element.
     :param stop_timestamp: Timestamp after which no elements will be output.
-    :param fire_interval: Interval at which to output elements.
+    :param fire_interval: Interval in seconds at which to output elements.
     :param apply_windowing: Whether each element should be assigned to
       individual window. If false, all elements will reside in global window.
     '''

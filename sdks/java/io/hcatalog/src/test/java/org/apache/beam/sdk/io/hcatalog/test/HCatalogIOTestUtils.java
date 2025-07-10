@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.values.KV;
+import org.apache.hadoop.hive.common.type.Date;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hive.hcatalog.common.HCatException;
 import org.apache.hive.hcatalog.data.DefaultHCatRecord;
@@ -119,5 +120,14 @@ public class HCatalogIOTestUtils {
   /** returns a DefaultHCatRecord instance for passed value. */
   private static DefaultHCatRecord toHCatRecord(int value) {
     return new DefaultHCatRecord(Arrays.asList("record " + value, value));
+  }
+
+  /** Returns a list of HCatRecords of passed size with some dummy date as a field. */
+  public static List<HCatRecord> buildHCatRecordsWithDate(int size) {
+    List<HCatRecord> expected = new ArrayList<>();
+    for (int i = 0; i < size; i++) {
+      expected.add(new DefaultHCatRecord(Arrays.asList("record " + i, Date.valueOf("2014-01-20"))));
+    }
+    return expected;
   }
 }

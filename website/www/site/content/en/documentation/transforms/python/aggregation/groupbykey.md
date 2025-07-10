@@ -32,17 +32,9 @@ See more information in the [Beam Programming Guide](/documentation/programming-
 
 We use `GroupByKey` to group all the produce for each season.
 
-{{< highlight language="py" file="sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupbykey.py" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupbykey.py" groupbykey >}}
-{{< /highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/aggregation/groupbykey_test.py" produce_counts >}}
-{{< /highlight >}}
+{{< playground height="700px" >}}
+{{< playground_snippet language="py" path="SDK_PYTHON_GroupByKeySort" show="groupbykey" >}}
+{{< /playground >}}
 
 **Example 2**:
 

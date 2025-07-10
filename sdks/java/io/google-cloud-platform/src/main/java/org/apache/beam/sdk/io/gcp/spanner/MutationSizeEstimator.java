@@ -106,6 +106,8 @@ class MutationSizeEstimator {
     switch (v.getType().getCode()) {
       case BOOL:
         return 1;
+      case FLOAT32:
+        return 4;
       case INT64:
       case FLOAT64:
       case ENUM:
@@ -142,6 +144,8 @@ class MutationSizeEstimator {
     switch (v.getType().getArrayElementType().getCode()) {
       case BOOL:
         return v.getBoolArray().size();
+      case FLOAT32:
+        return 4L * v.getFloat32Array().size();
       case INT64:
       case ENUM:
         return 8L * v.getInt64Array().size();

@@ -120,7 +120,11 @@ public class CoderPropertiesTest {
       error = e;
     }
     assertNotNull("Expected AssertionError", error);
-    assertThat(error.getMessage(), CoreMatchers.containsString("<84>, <101>, <115>, <116>, <68>"));
+    assertThat(
+        error.getMessage(),
+        CoreMatchers.anyOf(
+            CoreMatchers.containsString("<84>, <101>, <115>, <116>, <68>"),
+            CoreMatchers.containsString("<84b>, <101b>, <115b>, <116b>, <68b>")));
   }
 
   @Test

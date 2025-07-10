@@ -44,6 +44,14 @@ coverage:
         base: auto
         paths:
           - "sdks/go/pkg"
+      java:
+        flags: 
+          - java
+        target: auto
+        threshold: 5%
+        base: auto
+        paths:
+          - "sdks/java"
 
 parsers:
   gcov:

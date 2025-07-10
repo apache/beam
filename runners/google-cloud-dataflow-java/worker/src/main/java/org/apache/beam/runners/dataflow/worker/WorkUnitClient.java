@@ -23,12 +23,13 @@ import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemServiceState;
 import com.google.api.services.dataflow.model.WorkItemStatus;
 import com.google.api.services.dataflow.model.WorkerMessage;
+import com.google.api.services.dataflow.model.WorkerMessageResponse;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 
 /** Abstract base class describing a client for WorkItem work units. */
-interface WorkUnitClient {
+public interface WorkUnitClient {
   /**
    * Returns a new WorkItem unit for this Worker to work on or null if no work item is available.
    */
@@ -75,6 +76,7 @@ interface WorkUnitClient {
    * perworkermetrics with this path.
    *
    * @param msg the WorkerMessages to report
+   * @return a list of {@link WorkerMessageResponse}
    */
-  void reportWorkerMessage(List<WorkerMessage> messages) throws IOException;
+  List<WorkerMessageResponse> reportWorkerMessage(List<WorkerMessage> messages) throws IOException;
 }

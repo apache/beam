@@ -20,15 +20,18 @@ plugins { id 'org.apache.beam.module' }
 applyJavaNature( exportJavadoc: false, automaticModuleName: 'org.apache.beam.sdk.io.common')
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Common"
-ext.summary = "Code used by all Beam IOs"
+ext.summary = "Common test fixture used by Beam IOs"
 
 dependencies {
-  testImplementation library.java.vendored_guava_32_1_2_jre
+  implementation library.java.vendored_guava_32_1_2_jre
+  implementation library.java.joda_time
+  implementation library.java.postgres
+  implementation library.java.slf4j_api
+  implementation library.java.testcontainers_jdbc
+  // TODO(https://github.com/apache/beam/issues/31678) HikariCP 5.x requires Java11+
+  implementation 'com.zaxxer:HikariCP:4.0.3'
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+
   testImplementation library.java.junit
   testImplementation library.java.hamcrest
-  testImplementation library.java.postgres
-  testImplementation library.java.testcontainers_mysql
-  testImplementation library.java.testcontainers_postgresql
-  testImplementation 'com.zaxxer:HikariCP-java6:2.3.13'
-  testImplementation project(path: ":sdks:java:core", configuration: "shadow")
 }

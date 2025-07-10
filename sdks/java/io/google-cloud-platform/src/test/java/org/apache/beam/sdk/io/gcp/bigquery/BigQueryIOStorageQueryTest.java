@@ -24,7 +24,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
@@ -307,6 +307,7 @@ public class BigQueryIOStorageQueryTest {
             /* priority = */ QueryPriority.INTERACTIVE,
             /* location = */ null,
             /* queryTempDataset = */ null,
+            /* queryTempProject = */ null,
             /* kmsKey = */ null,
             null,
             new TableRowParser(),
@@ -380,7 +381,8 @@ public class BigQueryIOStorageQueryTest {
             .setParent("projects/" + options.getProject())
             .setReadSession(
                 ReadSession.newBuilder()
-                    .setTable(BigQueryHelpers.toTableResourceName(tempTableReference)))
+                    .setTable(BigQueryHelpers.toTableResourceName(tempTableReference))
+                    .setReadOptions(ReadSession.TableReadOptions.newBuilder()))
             .setMaxStreamCount(requestedStreamCount)
             .build();
 
@@ -419,6 +421,7 @@ public class BigQueryIOStorageQueryTest {
             /* priority = */ QueryPriority.BATCH,
             /* location = */ null,
             /* queryTempDataset = */ null,
+            /* queryTempProject = */ null,
             /* kmsKey = */ null,
             null,
             new TableRowParser(),
@@ -480,7 +483,8 @@ public class BigQueryIOStorageQueryTest {
             .setParent("projects/" + options.getProject())
             .setReadSession(
                 ReadSession.newBuilder()
-                    .setTable(BigQueryHelpers.toTableResourceName(tempTableReference)))
+                    .setTable(BigQueryHelpers.toTableResourceName(tempTableReference))
+                    .setReadOptions(ReadSession.TableReadOptions.newBuilder()))
             .setMaxStreamCount(1024)
             .build();
 
@@ -519,6 +523,7 @@ public class BigQueryIOStorageQueryTest {
             /* priority = */ QueryPriority.BATCH,
             /* location = */ null,
             /* queryTempDataset = */ null,
+            /* queryTempProject = */ null,
             /* kmsKey = */ null,
             null,
             new TableRowParser(),
@@ -649,7 +654,8 @@ public class BigQueryIOStorageQueryTest {
             .setReadSession(
                 ReadSession.newBuilder()
                     .setTable(BigQueryHelpers.toTableResourceName(tempTableReference))
-                    .setDataFormat(DataFormat.AVRO))
+                    .setDataFormat(DataFormat.AVRO)
+                    .setReadOptions(ReadSession.TableReadOptions.newBuilder()))
             .setMaxStreamCount(10)
             .build();
 
@@ -666,6 +672,7 @@ public class BigQueryIOStorageQueryTest {
             /* priority = */ QueryPriority.BATCH,
             /* location = */ null,
             /* queryTempDataset = */ null,
+            /* queryTempProject = */ null,
             /* kmsKey = */ null,
             DataFormat.AVRO,
             new TableRowParser(),
@@ -720,7 +727,8 @@ public class BigQueryIOStorageQueryTest {
             .setParent("projects/" + options.getProject())
             .setReadSession(
                 ReadSession.newBuilder()
-                    .setTable(BigQueryHelpers.toTableResourceName(tempTableReference)))
+                    .setTable(BigQueryHelpers.toTableResourceName(tempTableReference))
+                    .setReadOptions(ReadSession.TableReadOptions.newBuilder()))
             .setMaxStreamCount(10)
             .build();
 
@@ -737,6 +745,7 @@ public class BigQueryIOStorageQueryTest {
             /* priority = */ QueryPriority.BATCH,
             /* location = */ null,
             /* queryTempDataset = */ null,
+            /* queryTempProject = */ null,
             /* kmsKey = */ null,
             null,
             new TableRowParser(),
@@ -761,6 +770,7 @@ public class BigQueryIOStorageQueryTest {
             /* priority = */ QueryPriority.INTERACTIVE,
             /* location = */ "asia-northeast1",
             /* queryTempDataset = */ null,
+            /* queryTempProject = */ null,
             /* kmsKey = */ null,
             null,
             new TableRowParser(),

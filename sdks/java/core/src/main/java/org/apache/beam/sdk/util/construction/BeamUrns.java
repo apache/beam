@@ -18,12 +18,17 @@
 package org.apache.beam.sdk.util.construction;
 
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.vendor.grpc.v1p60p1.com.google.protobuf.ProtocolMessageEnum;
+import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ProtocolMessageEnum;
 
 /** Returns the standard URN of a given enum annotated with [(standard_urn)]. */
 public class BeamUrns {
   /** Returns the standard URN of a given enum annotated with [(standard_urn)]. */
   public static String getUrn(ProtocolMessageEnum value) {
     return value.getValueDescriptor().getOptions().getExtension(RunnerApi.beamUrn);
+  }
+
+  /** Returns the constant value of a given enum annotated with [(beam_constant)]. */
+  public static String getConstant(ProtocolMessageEnum value) {
+    return value.getValueDescriptor().getOptions().getExtension(RunnerApi.beamConstant);
   }
 }

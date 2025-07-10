@@ -32,7 +32,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.Preconditions;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
 import org.apache.beam.sdk.util.construction.graph.PipelineNode;
 import org.apache.beam.sdk.values.PBegin;
@@ -41,6 +40,8 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.flink.api.java.DataSet;
@@ -94,7 +95,7 @@ public class BeamFlinkDataSetAdapter {
     return (DataSet)
         getNonNull(
             applyBeamPTransformInternal(
-                ImmutableMap.<String, DataSet<?>>of(),
+                ImmutableMap.of(),
                 (pipeline, map) -> PBegin.in(pipeline),
                 (output) -> ImmutableMap.of("output", output),
                 transform,
@@ -172,39 +173,34 @@ public class BeamFlinkDataSetAdapter {
           Function<BeamOutputT, Map<String, PCollection<?>>> fromBeamOutput,
           PTransform<? super BeamInputT, BeamOutputT> transform,
           ExecutionEnvironment executionEnvironment) {
-    return BeamAdapterUtils.<DataSet<?>, BeamInputT, BeamOutputT>applyBeamPTransformInternal(
+    return BeamAdapterUtils.applyBeamPTransformInternal(
         inputs,
         toBeamInput,
         fromBeamOutput,
         transform,
         executionEnvironment,
+        true,
         dataSet -> dataSet.getType(),
         pipelineOptions,
         coderRegistry,
-        new BeamAdapterUtils.PipelineFragmentTranslator<DataSet<?>>() {
-          @Override
-          public Map<String, DataSet<?>> translate(
-              Map<String, ? extends DataSet<?>> inputs,
-              RunnerApi.Pipeline pipelineProto,
-              ExecutionEnvironment executionEnvironment) {
-            Map<String, DataSet<?>> outputs = new HashMap<>();
-            FlinkBatchPortablePipelineTranslator translator =
-                FlinkBatchPortablePipelineTranslator.createTranslator(
-                    ImmutableMap.of(
-                        FlinkInput.URN, flinkInputTranslator(inputs),
-                        FlinkOutput.URN, flinkOutputTranslator(outputs)));
-            FlinkBatchPortablePipelineTranslator.BatchTranslationContext context =
-                FlinkBatchPortablePipelineTranslator.createTranslationContext(
-                    JobInfo.create(
-                        "unusedJobId",
-                        "unusedJobName",
-                        "unusedRetrievalToken",
-                        PipelineOptionsTranslation.toProto(pipelineOptions)),
-                    pipelineOptions.as(FlinkPipelineOptions.class),
-                    executionEnvironment);
-            translator.translate(context, translator.prepareForTranslation(pipelineProto));
-            return outputs;
-          }
+        (flinkInputs, pipelineProto, env) -> {
+          Map<String, DataSet<?>> flinkOutputs = new HashMap<>();
+          FlinkBatchPortablePipelineTranslator translator =
+              FlinkBatchPortablePipelineTranslator.createTranslator(
+                  ImmutableMap.of(
+                      FlinkInput.URN, flinkInputTranslator(flinkInputs),
+                      FlinkOutput.URN, flinkOutputTranslator(flinkOutputs)));
+          FlinkBatchPortablePipelineTranslator.BatchTranslationContext context =
+              FlinkBatchPortablePipelineTranslator.createTranslationContext(
+                  JobInfo.create(
+                      "unusedJobId",
+                      "unusedJobName",
+                      "unusedRetrievalToken",
+                      PipelineOptionsTranslation.toProto(pipelineOptions)),
+                  pipelineOptions.as(FlinkPipelineOptions.class),
+                  env);
+          translator.translate(context, translator.prepareForTranslation(pipelineProto));
+          return flinkOutputs;
         });
   }
 
@@ -228,11 +224,11 @@ public class BeamFlinkDataSetAdapter {
           new MapOperator<InputT, WindowedValue<InputT>>(
               flinkInput,
               BeamAdapterCoderUtils.coderToTypeInformation(
-                  WindowedValue.getValueOnlyCoder(
+                  WindowedValues.getValueOnlyCoder(
                       BeamAdapterCoderUtils.typeInformationToCoder(
                           flinkInput.getType(), coderRegistry)),
                   pipelineOptions),
-              x -> WindowedValue.valueInGlobalWindow(x),
+              x -> WindowedValues.valueInGlobalWindow(x),
               "AddGlobalWindows"));
     };
   }
@@ -251,7 +247,6 @@ public class BeamFlinkDataSetAdapter {
       Coder<InputT> outputCoder =
           BeamAdapterCoderUtils.lookupCoder(
               p, Iterables.getOnlyElement(t.getTransform().getInputsMap().values()));
-      // TODO(robertwb): Also handle or disable length prefix coding (for embedded mode at least).
       outputMap.put(
           outputId,
           new MapOperator<WindowedValue<InputT>, InputT>(

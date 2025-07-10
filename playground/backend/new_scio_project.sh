@@ -18,9 +18,10 @@
 if [ -d /opt/sbt-template/scio ]; then
   cp -r /opt/sbt-template/scio scio
 else
-  { printf scio\\nscio\\n; yes; } | sbt new spotify/scio-template.g8
+  { printf scio\\nscio\\n; yes; } | sbt new file:///opt/scio.g8
 
   echo "Compile / run / fork := false" >> scio/build.sbt
   echo "updateOptions := updateOptions.value.withCachedResolution(true)" >> scio/build.sbt
+  echo "libraryDependencies ++= Seq(\"org.apache.beam\" % \"beam-runners-direct-java\" % beamVersion)" >> scio/build.sbt
 fi
 

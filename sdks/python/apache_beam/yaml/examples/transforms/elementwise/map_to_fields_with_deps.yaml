@@ -1,0 +1,51 @@
+# coding=utf-8
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+pipeline:
+  type: chain
+  transforms:
+    - type: Create
+      config:
+        elements:
+          - {sdk: MapReduce, year: 2004}
+          - {sdk: MillWheel, year: 2008}
+          - {sdk: Flume, year: 2010}
+          - {sdk: Dataflow, year: 2014}
+          - {sdk: Apache Beam, year: 2016}
+    - type: MapToFields
+      name: ToRoman
+      config:
+        language: python
+        fields:
+          tool_name: sdk
+          year:
+            callable: |
+              import roman
+
+              def convert(row):
+                return roman.toRoman(row.year)
+        dependencies:
+          - 'roman>=4.2'
+    - type: LogForTesting
+
+# Expected:
+#  Row(tool_name='MapReduce', year='MMIV')
+#  Row(tool_name='MillWheel', year='MMVIII')
+#  Row(tool_name='Flume', year='MMX')
+#  Row(tool_name='Dataflow', year='MMXIV')
+#  Row(tool_name='Apache Beam', year='MMXVI')

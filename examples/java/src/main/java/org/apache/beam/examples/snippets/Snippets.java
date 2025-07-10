@@ -606,8 +606,10 @@ public class Snippets {
     // Run in debug mode to see the output.
     Pipeline p = Pipeline.create();
 
-    // Create a side input that updates each second.
-    PCollectionView<Map<String, String>> map =
+    // Create a side input that updates every 5 seconds.
+    // View as an iterable, not singleton, so that if we happen to trigger more
+    // than once before Latest.globally is computed we can handle both elements.
+    PCollectionView<Iterable<Map<String, String>>> mapIterable =
         p.apply(GenerateSequence.from(0).withRate(1, Duration.standardSeconds(5L)))
             .apply(
                 ParDo.of(
@@ -628,7 +630,7 @@ public class Snippets {
                     .triggering(Repeatedly.forever(AfterProcessingTime.pastFirstElementInPane()))
                     .discardingFiredPanes())
             .apply(Latest.globally())
-            .apply(View.asSingleton());
+            .apply(View.asIterable());
 
     // Consume side input. GenerateSequence generates test data.
     // Use a real source (like PubSubIO or KafkaIO) in production.
@@ -641,7 +643,9 @@ public class Snippets {
 
                       @ProcessElement
                       public void process(ProcessContext c, @Timestamp Instant timestamp) {
-                        Map<String, String> keyMap = c.sideInput(map);
+                        Iterable<Map<String, String>> si = c.sideInput(mapIterable);
+                        // Take an element from the side input iterable (likely length 1)
+                        Map<String, String> keyMap = si.iterator().next();
                         c.outputWithTimestamp(KV.of(1L, c.element()), Instant.now());
 
                         LOG.info(
@@ -651,7 +655,7 @@ public class Snippets {
                             keyMap.get("Key_A"));
                       }
                     })
-                .withSideInputs(map));
+                .withSideInputs(mapIterable));
 
     p.run();
   }

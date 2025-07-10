@@ -128,6 +128,44 @@ func Test_metricsStore_ContributeMetrics(t *testing.T) {
 			want: []*pipepb.MonitoringInfo{
 				makeInfoWBytes(pipepb.MonitoringInfoSpecs_USER_DISTRIBUTION_INT64, []byte{4, 19, 2, 7}),
 			},
+		}, {
+			name: "int64Gauge",
+			input: []map[string][]byte{
+				{"a": []byte{3, 5}},
+				{"a": []byte{14, 2}},
+				{"a": []byte{10, 18}},
+			},
+			shortIDs: map[string]*pipepb.MonitoringInfo{
+				"a": makeInfo(pipepb.MonitoringInfoSpecs_USER_LATEST_INT64),
+			},
+			want: []*pipepb.MonitoringInfo{
+				makeInfoWBytes(pipepb.MonitoringInfoSpecs_USER_LATEST_INT64, []byte{14, 2}),
+			},
+		}, {
+			name: "float64Gauge",
+			input: []map[string][]byte{
+				{"a": append([]byte{2}, doubleBytes(45)...)},
+				{"a": append([]byte{17}, doubleBytes(2)...)},
+				{"a": append([]byte{16}, doubleBytes(200)...)},
+			},
+			shortIDs: map[string]*pipepb.MonitoringInfo{
+				"a": makeInfo(pipepb.MonitoringInfoSpecs_USER_LATEST_DOUBLE),
+			},
+			want: []*pipepb.MonitoringInfo{
+				makeInfoWBytes(pipepb.MonitoringInfoSpecs_USER_LATEST_DOUBLE, append([]byte{17}, doubleBytes(2)...)),
+			},
+		}, {
+			name: "stringSet",
+			input: []map[string][]byte{
+				{"a": []byte{0, 0, 0, 1, 1, 63}},
+				{"a": []byte{0, 0, 0, 2, 1, 63, 1, 63}},
+			},
+			shortIDs: map[string]*pipepb.MonitoringInfo{
+				"a": makeInfo(pipepb.MonitoringInfoSpecs_USER_SET_STRING),
+			},
+			want: []*pipepb.MonitoringInfo{
+				makeInfoWBytes(pipepb.MonitoringInfoSpecs_USER_SET_STRING, []byte{0, 0, 0, 1, 1, 63}),
+			},
 		},
 	}
 

@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
+import org.apache.beam.sdk.metrics.BoundedTrie;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Gauge;
@@ -26,6 +27,7 @@ import org.apache.beam.sdk.metrics.Histogram;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.sdk.metrics.StringSet;
 import org.apache.beam.sdk.util.HistogramData;
 
 /**
@@ -74,8 +76,17 @@ public class DataflowMetricsContainer implements MetricsContainer {
   }
 
   @Override
-  public Histogram getPerWorkerHistogram(
-      MetricName metricName, HistogramData.BucketType bucketType) {
-    return getCurrentContainer().getPerWorkerHistogram(metricName, bucketType);
+  public Histogram getHistogram(MetricName metricName, HistogramData.BucketType bucketType) {
+    return getCurrentContainer().getHistogram(metricName, bucketType);
+  }
+
+  @Override
+  public StringSet getStringSet(MetricName metricName) {
+    return getCurrentContainer().getStringSet(metricName);
+  }
+
+  @Override
+  public BoundedTrie getBoundedTrie(MetricName metricName) {
+    return getCurrentContainer().getBoundedTrie(metricName);
   }
 }

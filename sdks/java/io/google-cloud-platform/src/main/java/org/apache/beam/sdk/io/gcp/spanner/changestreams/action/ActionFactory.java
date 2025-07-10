@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.action;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.cache.WatermarkCache;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.ChangeStreamDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.estimator.ThroughputEstimator;
@@ -151,12 +152,17 @@ public class ActionFactory implements Serializable {
   public synchronized DetectNewPartitionsAction detectNewPartitionsAction(
       PartitionMetadataDao partitionMetadataDao,
       PartitionMetadataMapper partitionMetadataMapper,
+      WatermarkCache watermarkCache,
       ChangeStreamMetrics metrics,
       Duration resumeDuration) {
     if (detectNewPartitionsActionInstance == null) {
       detectNewPartitionsActionInstance =
           new DetectNewPartitionsAction(
-              partitionMetadataDao, partitionMetadataMapper, metrics, resumeDuration);
+              partitionMetadataDao,
+              partitionMetadataMapper,
+              watermarkCache,
+              metrics,
+              resumeDuration);
     }
     return detectNewPartitionsActionInstance;
   }

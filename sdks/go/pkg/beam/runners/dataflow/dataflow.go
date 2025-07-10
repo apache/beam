@@ -47,7 +47,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/runners/dataflow/dataflowlib"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/util/gcsx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/x/hooks/perf"
-	"github.com/golang/protobuf/proto"
 )
 
 // TODO(herohde) 5/16/2017: the Dataflow flags should match the other SDKs.
@@ -235,7 +234,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) (beam.PipelineResult, error)
 	if *dryRun {
 		log.Info(ctx, "Dry-run: not submitting job!")
 
-		log.Info(ctx, proto.MarshalTextString(model))
+		log.Info(ctx, model.String())
 		job, err := dataflowlib.Translate(ctx, model, opts, workerURL, modelURL)
 		if err != nil {
 			return nil, err
@@ -269,6 +268,9 @@ func getJobOptions(ctx context.Context, streaming bool) (*dataflowlib.JobOptions
 	if *stagingLocation == "" {
 		return nil, errors.New("no GCS staging location specified. Use --staging_location=gs://<bucket>/<path>")
 	}
+
+	checkSoftDeletePolicyEnabled(ctx, *stagingLocation, "staging_location")
+
 	var jobLabels map[string]string
 	if *labels != "" {
 		if err := json.Unmarshal([]byte(*labels), &jobLabels); err != nil {
@@ -413,6 +415,8 @@ func getJobOptions(ctx context.Context, streaming bool) (*dataflowlib.JobOptions
 		opts.TempLocation = gcsx.Join(*stagingLocation, "tmp")
 	}
 
+	checkSoftDeletePolicyEnabled(ctx, opts.TempLocation, "temp_location")
+
 	return opts, nil
 }
 
@@ -456,4 +460,29 @@ func getContainerImage(ctx context.Context) string {
 		return envConfig
 	}
 	panic(fmt.Sprintf("Unsupported environment %v", urn))
+}
+
+func checkSoftDeletePolicyEnabled(ctx context.Context, bucketName string, locationName string) {
+	bucket, _, err := gcsx.ParseObject(bucketName)
+	if err != nil {
+		log.Warnf(ctx, "Error parsing bucket name: %v", err)
+		return
+	}
+	client, err := storage.NewClient(ctx)
+	if err != nil {
+		log.Warnf(ctx, "Error creating GCS client: %v", err)
+		return
+	}
+	defer client.Close()
+
+	if enabled, errMsg := gcsx.SoftDeletePolicyEnabled(ctx, client, bucket); errMsg != nil {
+		log.Warnf(ctx, "Error checking SoftDeletePolicy: %v", errMsg)
+	} else if enabled {
+		log.Warnf(ctx, "Bucket %s specified in %s has soft-delete policy enabled. "+
+			"Dataflow jobs use Cloud Storage to store temporary files during pipeline execution. "+
+			"To avoid being billed for unnecessary storage costs, turn off the soft delete feature "+
+			"on buckets that your Dataflow jobs use for temporary storage. "+
+			"For more information, see https://cloud.google.com/storage/docs/use-soft-delete#remove-soft-delete-policy.",
+			bucketName, locationName)
+	}
 }

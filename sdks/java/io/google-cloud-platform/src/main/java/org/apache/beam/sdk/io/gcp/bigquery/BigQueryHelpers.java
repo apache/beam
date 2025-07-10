@@ -17,11 +17,13 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.BackOffUtils;
 import com.google.api.client.util.Sleeper;
+import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobReference;
@@ -31,6 +33,8 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.io.Serializable;
 import java.math.BigInteger;
@@ -40,6 +44,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Matcher;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
@@ -49,6 +54,8 @@ import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -407,6 +414,25 @@ public class BigQueryHelpers {
     return sb.toString();
   }
 
+  public static List<String> dataCatalogSegments(TableReference ref, BigQueryOptions options) {
+    String tableIdBase;
+    int ix = ref.getTableId().indexOf('$');
+    if (ix == -1) {
+      tableIdBase = ref.getTableId();
+    } else {
+      tableIdBase = ref.getTableId().substring(0, ix);
+    }
+    String projectId;
+    if (!Strings.isNullOrEmpty(ref.getProjectId())) {
+      projectId = ref.getProjectId();
+    } else if (!Strings.isNullOrEmpty(options.getBigQueryProject())) {
+      projectId = options.getBigQueryProject();
+    } else {
+      projectId = options.getProject();
+    }
+    return ImmutableList.of(projectId, ref.getDatasetId(), tableIdBase);
+  }
+
   static <K, V> List<V> getOrCreateMapListValue(Map<K, List<V>> map, K key) {
     return map.computeIfAbsent(key, k -> new ArrayList<>());
   }
@@ -702,6 +728,23 @@ public class BigQueryHelpers {
     public String apply(TimePartitioning partitioning) {
       return toJsonString(partitioning);
     }
+  }
+
+  static Clustering clusteringFromJsonFields(String jsonStringClustering) {
+    JsonElement jsonClustering = JsonParser.parseString(jsonStringClustering);
+
+    checkArgument(
+        jsonClustering.isJsonArray(),
+        "Received an invalid Clustering json string: %s."
+            + "Please provide a serialized json array like so: [\"column1\", \"column2\"]",
+        jsonStringClustering);
+
+    List<String> fields =
+        jsonClustering.getAsJsonArray().asList().stream()
+            .map(JsonElement::getAsString)
+            .collect(Collectors.toList());
+
+    return new Clustering().setFields(fields);
   }
 
   static String resolveTempLocation(
