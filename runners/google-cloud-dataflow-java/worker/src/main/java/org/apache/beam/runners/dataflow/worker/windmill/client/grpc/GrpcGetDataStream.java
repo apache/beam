@@ -424,6 +424,8 @@ final class GrpcGetDataStream
           BackOffUtils.next(Sleeper.DEFAULT, backoff);
         } catch (InterruptedException ie) {
           Thread.currentThread().interrupt();
+        } catch (Exception exc) {
+          throw new RuntimeException(exc);
         }
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
