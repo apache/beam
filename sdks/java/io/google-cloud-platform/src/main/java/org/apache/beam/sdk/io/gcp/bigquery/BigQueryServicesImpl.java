@@ -1159,6 +1159,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
             // We verify whether the retryPolicy parameter expects us to retry. If it does, then
             // it will return true. Otherwise it will return false.
             if (retryPolicy.shouldRetry(new InsertRetryPolicy.Context(error))) {
+              // Create row details composed of key value pairs.
               String rowDetails;
               try {
                 rowDetails =
@@ -1180,11 +1181,12 @@ public class BigQueryServicesImpl implements BigQueryServices {
               }
               throw new RuntimeException(
                   String.format(
-                      "A single row of size %s bytes exceeded the BigQueryIO limit of %s. "
-                          + "This may be due to a schema mismatch. "
-                          + "Problematic row field names and types (truncated): %s. "
-                          + "You can change your retry strategy to instead "
-                          + "output this row to a dead-letter queue.",
+                      "We have observed a row of size %s bytes exceeding the "
+                          + "BigQueryIO limit of %s. This may be due to a schema "
+                          + "mismatch. Problematic row field names and types "
+                          + "(truncated): %s. "
+                          + "You can change your retry strategy to unblock this "
+                          + "pipeline, and the row will be output as a failed insert. ",
                       nextRowSize, MAX_BQ_ROW_PAYLOAD_DESC, rowDetails));
             } else {
               numFailedRows += 1;

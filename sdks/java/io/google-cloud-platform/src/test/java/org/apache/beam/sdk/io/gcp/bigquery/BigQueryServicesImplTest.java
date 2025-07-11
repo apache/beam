@@ -1164,7 +1164,7 @@ public class BigQueryServicesImplTest {
                     false,
                     successfulRows));
 
-    assertThat(e.getMessage(), containsString("exceeded the BigQueryIO limit"));
+    assertThat(e.getMessage(), containsString("exceeding the BigQueryIO limit"));
     assertThat(e.getMessage(), containsString("Problematic row field names and types"));
   }
 
