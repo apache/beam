@@ -412,7 +412,12 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		state := NewScopedStateReaderWithCache(c.state, instID, c.cache)
 
 		sampler := newSampler(store)
-		go sampler.start(ctx, samplePeriod)
+		go func() {
+			samplerErr := sampler.start(ctx, samplePeriod)
+			if samplerErr != nil {
+				log.Exitf(ctx, "Failed to sample: %v, the SDK harness will be terminated.", samplerErr)
+			}
+		}()
 
 		err = plan.Execute(ctx, string(instID), exec.DataContext{Data: data, State: state})
 
