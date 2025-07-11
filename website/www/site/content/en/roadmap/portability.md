@@ -123,4 +123,3 @@ Python streaming mode is not yet supported on Spark.
 See [here](/documentation/runtime/sdk-harness-config/) for more information on SDK harness deployment options
 and [here](https://docs.google.com/presentation/d/1Cso0XP9dmj77OD9Bd53C1M3W1sPJF0ZnA20gzb2BPhE/edit?usp=sharing)
 for what goes into writing a portable SDK.
-

@@ -48,10 +48,10 @@ intents:
 widgets:
   codeEditor:
     label: 'Code Text Area'
-  
+
   closeButton:
     label: 'Close'
-  
+
   feedback:
     hint: "Have feedback? We'd love to hear it, but please don't share sensitive information."
     negative: 'Bad Experience'
@@ -81,7 +81,7 @@ widgets:
     notificationTitles:
       run: 'Run Code'
       cancelExecution: 'Cancel Execution'
-  
+
   pipelineOptions:
     options: 'Options'
     raw: 'Raw'

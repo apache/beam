@@ -106,4 +106,3 @@ pc1, pc2 = {'a': pc} | DataframeTransform(lambda a: expr1, expr2)
 [pydoc_SqlTransform]: https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.sql.html#apache_beam.transforms.sql.SqlTransform
 [pydoc_to_dataframe]: https://beam.apache.org/releases/pydoc/current/apache_beam.dataframe.convert.html#apache_beam.dataframe.convert.to_dataframe
 [pydoc_to_pcollection]: https://beam.apache.org/releases/pydoc/current/apache_beam.dataframe.convert.html#apache_beam.dataframe.convert.to_pcollection
-

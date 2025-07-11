@@ -76,4 +76,3 @@ with beam.Pipeline() as p:
   countries = p | 'Countries' >> beam.Create(['australia', 'brazil', 'canada'])
 
   (apply_transforms(fruits, countries) | Output())
-

@@ -377,7 +377,7 @@ if [[ "$RUNNER" == "dataflow" ]]; then
 
     # Push the container
     gcloud docker -- push $CONTAINER:$TAG
-  else 
+  else
     ./gradlew :sdks:go:container:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$TAG -Pcontainer-architecture-list=arm64,amd64 -Ppush-containers
   fi
 

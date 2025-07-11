@@ -88,4 +88,3 @@ optional `PipelineOptions` for configuring its execution. You might also want to
 refer back to the Quickstart for [Java](/get-started/quickstart-java),
 [Python](/get-started/quickstart-py) or [Go](/get-started/quickstart-go) for
 instructions on executing the sample WordCount pipeline.
-

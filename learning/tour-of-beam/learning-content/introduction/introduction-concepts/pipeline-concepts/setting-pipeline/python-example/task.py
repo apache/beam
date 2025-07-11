@@ -72,7 +72,7 @@ def main(argv=None, save_main_session=True):
         # Read the text file[pattern] into a PCollection.
         lines = p | 'Read' >> ReadFromText(known_args.input) \
             | beam.Filter(lambda line: line != "")
-    
+
         # Write the output using a "Write" transform that has side effects.
         # pylint: disable=expression-not-assigned
         output = lines | 'Write' >> WriteToText(known_args.output)

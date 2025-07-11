@@ -29,7 +29,7 @@ spec:
       dockerMTU: 1460
       %{~ if selector == true  ~}
       nodeSelector:
-        runner-pool: ${name} 
+        runner-pool: ${name}
       %{~ endif ~}
       %{~ if taint == true  ~}
       tolerations:
@@ -61,4 +61,3 @@ spec:
           memory: ${limits.memory}
       %{~ endif ~}
       %{~ endif ~}
-

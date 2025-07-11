@@ -41,7 +41,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def _default_crc32c_fn(value):
-  """Calculates crc32c of a bytes object using 
+  """Calculates crc32c of a bytes object using
   either snappy or google-crc32c or crcmod."""
 
   if not _default_crc32c_fn.fn:

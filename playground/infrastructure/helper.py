@@ -250,7 +250,7 @@ def _get_example(filepath: str, filename: str, tag: Tag, sdk: int) -> Example:
 
     # Calculate context line with tag removed. Note: context_line is 1-based, line_start and line_finish are 0-based.
     context_line = tag.context_line if tag.context_line <= tag.line_start else tag.context_line - (tag.line_finish - tag.line_start)
-    
+
     return Example(
         sdk=SdkEnum(sdk),
         tag=tag,

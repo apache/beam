@@ -50,4 +50,3 @@ docker {
 }
 
 dockerPrepare.dependsOn ":sdks:python:container:py${pythonVersionSuffix}:docker"
-

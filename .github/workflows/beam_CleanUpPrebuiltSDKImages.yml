@@ -54,7 +54,7 @@ jobs:
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 180
     strategy:
-      matrix: 
+      matrix:
         job_name: [beam_CleanUpPrebuiltSDKImages]
         job_phrase: [Run Clean Prebuilt Images]
     if: |

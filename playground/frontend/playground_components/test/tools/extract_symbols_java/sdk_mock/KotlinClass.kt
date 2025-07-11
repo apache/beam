@@ -16,6 +16,6 @@
  *  limitations under the License.
  */
 
-public class KotlinClass() { 
+public class KotlinClass() {
     public fun publicMethod() {}
 }

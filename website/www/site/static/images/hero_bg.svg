@@ -28,20 +28,20 @@
 <title>Group 6</title>
 <desc>Created with Sketch.</desc>
 <g id="Group-6">
-	
+
 		<linearGradient id="Rectangle_1_" gradientUnits="userSpaceOnUse" x1="1335.1388" y1="1.0528" x2="1336.1388" y2="5.280000e-02" gradientTransform="matrix(1280 0 0 625 -1708744 2)">
 		<stop  offset="0" style="stop-color:#FBA43B"/>
 		<stop  offset="1" style="stop-color:#F76B1C"/>
 	</linearGradient>
 	<polygon id="Rectangle" class="st0" points="334,84 1614,84 1614,513 334,709 	"/>
-	
+
 		<linearGradient id="Rectangle_3_" gradientUnits="userSpaceOnUse" x1="1335.2172" y1="1.2515" x2="1336.2172" y2="0.2515" gradientTransform="matrix(1280 0 0 326 -1708744 301)">
 		<stop  offset="0" style="stop-color:#FBDA61"/>
 		<stop  offset="0.3622" style="stop-color:#F9B248;stop-opacity:0.6378"/>
 		<stop  offset="1" style="stop-color:#F76B1C;stop-opacity:0"/>
 	</linearGradient>
 	<polygon id="Rectangle_2_" class="st1" points="334,579 1614,383 1614,513 334,709 	"/>
-	
+
 		<linearGradient id="SVGID_1_" gradientUnits="userSpaceOnUse" x1="924.5751" y1="448.575" x2="1380.4249" y2="-7.275" gradientTransform="matrix(1 0 0 -1 0 794)">
 		<stop  offset="0" style="stop-color:#FBDA61;stop-opacity:0"/>
 		<stop  offset="1" style="stop-color:#F76B1C"/>

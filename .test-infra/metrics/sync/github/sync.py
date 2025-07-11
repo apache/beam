@@ -182,7 +182,7 @@ def updateLastSyncTimestamp(timestamp, name):
 
   insertTimestampSqlQuery = f'''INSERT INTO {GH_SYNC_METADATA_TABLE_NAME}
                                   (name, timestamp)
-                                VALUES ('{name}', %s) 
+                                VALUES ('{name}', %s)
                                 ON CONFLICT (name) DO UPDATE
                                   SET timestamp = excluded.timestamp
                                 '''

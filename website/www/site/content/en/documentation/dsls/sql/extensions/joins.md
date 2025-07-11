@@ -68,4 +68,3 @@ strategies remain unchanged.
 
 For this type of `JOIN` bounded input is treated as a side-input by the
 implementation. This means that window/trigger is inherited from upstreams.
-

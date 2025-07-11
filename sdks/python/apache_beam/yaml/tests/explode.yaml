@@ -76,4 +76,3 @@ pipelines:
               - {produce: 'Strawberry', season: 'summer'}
               - {produce: 'Corn', season: 'spring'}
               - {produce: 'Corn', season: 'summer'}
-

@@ -123,4 +123,3 @@ PCollection<Row> result =
             .query(sql)
             .registerUdaf("squaresum", new SquareSum()));
 {{< /highlight >}}
-

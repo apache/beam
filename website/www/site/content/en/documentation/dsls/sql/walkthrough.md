@@ -151,4 +151,3 @@ to either a single `PCollection` or a `PCollectionTuple` which holds multiple
 
 [BeamSqlExample](https://github.com/apache/beam/blob/master/sdks/java/extensions/sql/src/main/java/org/apache/beam/sdk/extensions/sql/example/BeamSqlExample.java)
 in the code repository shows basic usage of both APIs.
-

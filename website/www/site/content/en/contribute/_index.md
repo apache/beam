@@ -249,5 +249,3 @@ A PMC member is also a committer, so if they are not initiated already, they wil
     </div>
   </div>
 </blockquote>
-
-

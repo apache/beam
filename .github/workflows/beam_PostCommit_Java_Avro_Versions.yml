@@ -56,7 +56,7 @@ jobs:
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 240
     strategy:
-      matrix: 
+      matrix:
         job_name: [beam_PostCommit_Java_Avro_Versions]
         job_phrase: [Run Java Avro Versions PostCommit]
     if: |

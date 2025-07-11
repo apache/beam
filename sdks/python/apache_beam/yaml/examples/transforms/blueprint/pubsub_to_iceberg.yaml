@@ -27,7 +27,7 @@ pipeline:
       config:
         topic: "projects/apache-beam-testing/topics/my-topic"
         format: JSON
-        schema: 
+        schema:
           type: object
           properties:
             data: {type: BYTES}
@@ -56,4 +56,3 @@ options:
 #  Row(label='37b', rank=4)
 #  Row(label='37c', rank=3)
 #  Row(label='37d', rank=2)
-

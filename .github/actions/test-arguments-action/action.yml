@@ -38,14 +38,14 @@ runs:
   steps:
     - name: Check if test-type was provided
       shell: bash
-      run: | 
+      run: |
         if [ -z "${{ inputs.test-type }}" ]; then
           echo "Test type was not provided"
           exit 1
         fi
     - name: Check if test-language was provided
       shell: bash
-      run: | 
+      run: |
         if [ -z "${{ inputs.test-language }}" ]; then
           echo "Test language was not provided"
           exit 1

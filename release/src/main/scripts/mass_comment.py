@@ -137,7 +137,7 @@ if __name__ == '__main__':
   dirname = os.path.dirname(__file__)
   with open(os.path.join(dirname, 'jenkins_jobs.txt')) as file:
     comments = [line.strip() for line in file if len(line.strip()) > 0]
-  
+
   for i in range(len(comments)):
     parts = comments[i].split(',')
     comments[i] = (parts[0], parts[1])

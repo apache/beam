@@ -87,4 +87,3 @@ task preCommit(type: Test) {
   dependsOn appliancePreCommit
   dependsOn windmillPreCommit
 }
-

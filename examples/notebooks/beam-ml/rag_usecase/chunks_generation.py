@@ -125,5 +125,3 @@ class _GenerateChunksFn(DoFn):
             element_copy['text'] = section
             element_copy['section_id'] = i + 1
             yield element_copy
-
-

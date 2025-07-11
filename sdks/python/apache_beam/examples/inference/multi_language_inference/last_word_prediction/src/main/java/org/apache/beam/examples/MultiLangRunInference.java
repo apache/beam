@@ -71,14 +71,14 @@ public class MultiLangRunInference {
 
         Pipeline p = Pipeline.create(options);
         PCollection<String> input = p.apply("Read Input", TextIO.read().from(options.getInputFile()));
-        
+
 
         List<String> local_packages=new ArrayList<String>();
         local_packages.add("transformers==4.26.0");
         local_packages.add("torch==1.13.1");
-        local_packages.add(options.getLocalPackage()); 
+        local_packages.add(options.getLocalPackage());
 
-        List<String> packages=new ArrayList<String>();  
+        List<String> packages=new ArrayList<String>();
         input.apply("Predict", PythonExternalTransform.<PCollection<String>, PCollection<String>>from(
                 "multi_language_custom_transform.composite_transform.InferenceTransform")
                 .withKwarg("model", options.getModelName())

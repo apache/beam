@@ -72,4 +72,3 @@ data "google_service_account" "default" {
 data "google_compute_zones" "available" {
   region = data.google_compute_subnetwork.default.region
 }
-

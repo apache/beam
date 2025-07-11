@@ -43,7 +43,7 @@ resource "google_cloudbuild_trigger" "tourofbeam_deployment_trigger" {
       env = local.cloudbuild_init_environment
     }
   }
-  
+
   substitutions = {
     _PG_REGION              = var.pg_region
     _PG_GKE_ZONE            = var.pg_gke_zone
@@ -79,7 +79,7 @@ resource "google_cloudbuild_trigger" "tourofbeam_ci_trigger" {
       machine_type = var.cloudbuild_machine_type
       logging      = "GCS_ONLY"
     }
-    logs_bucket = "gs://${var.tourofbeam_cb_private_bucket}" 
+    logs_bucket = "gs://${var.tourofbeam_cb_private_bucket}"
     step {
       id     = "Run CI"
       script = file("../../../../playground/infrastructure/cloudbuild/cloudbuild_playground_ci_examples.sh")
@@ -186,7 +186,7 @@ resource "google_cloudbuild_trigger" "tourofbeam_cd_manual_trigger" {
       machine_type = var.cloudbuild_machine_type
       logging      = "GCS_ONLY"
     }
-    logs_bucket = "gs://${var.tourofbeam_cb_private_bucket}" 
+    logs_bucket = "gs://${var.tourofbeam_cb_private_bucket}"
 
     step {
       id     = "Run Learning Materials CD"
@@ -214,4 +214,3 @@ resource "google_cloudbuild_trigger" "tourofbeam_cd_manual_trigger" {
   }
 
 }
-

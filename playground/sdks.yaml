@@ -24,4 +24,3 @@ sdks:
     default-example: WordCountWithMetrics
   SDK_SCIO:
     default-example: MinimalWordCount
-

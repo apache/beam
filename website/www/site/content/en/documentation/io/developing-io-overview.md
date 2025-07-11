@@ -192,7 +192,3 @@ For **file-based sinks**, you can use the `FileBasedSink` abstraction that is
 provided by both the Java and Python SDKs. Beam's `FileSystems` utility classes
 can also be useful for reading and writing files. See our language specific
 implementation guides for more details:
-
-
-
-

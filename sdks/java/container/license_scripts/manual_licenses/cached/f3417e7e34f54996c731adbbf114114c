@@ -8,7 +8,7 @@
   j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
   })(window,document,'script','dataLayer','GTM-W8MVQXG');</script>
-  
+
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#00add8">
@@ -19,13 +19,13 @@
 <link rel="icon" href="/images/favicon-gopher.svg" type="image/svg+xml">
 <link rel="me" href="https://hachyderm.io/@golang">
 
-  
+
   <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
   new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
   j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
   })(window,document,'script','dataLayer','GTM-W8MVQXG');</script>
-  
+
 <script src="/js/site.js"></script>
 <meta name="og:url" content="https://go.dev/LICENSE">
 <meta name="og:title" content=" - The Go Programming Language">
@@ -37,10 +37,10 @@
 <meta name="twitter:site" content="@golang">
 </head>
 <body class="Site">
-  
+
 <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-W8MVQXG"
   height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
-  
+
 
 
 <header class="Site-header js-siteHeader">
@@ -69,7 +69,7 @@
                     <div>
                         <a href="/solutions/case-studies">
                           Case Studies
-                          
+
                         </a>
                     </div>
                     <p>Common problems companies solve with Go</p>
@@ -78,7 +78,7 @@
                     <div>
                         <a href="/solutions/use-cases">
                           Use Cases
-                          
+
                         </a>
                     </div>
                     <p>Stories about how and why companies use Go</p>
@@ -87,7 +87,7 @@
                     <div>
                         <a href="/security/">
                           Security
-                          
+
                         </a>
                     </div>
                     <p>How Go can help keep you secure by default</p>
@@ -96,7 +96,7 @@
           </li>
           <li class="Header-menuItem ">
             <a href="/learn/"  aria-label=Learn aria-describedby="dropdown-description">
-              Learn 
+              Learn
             </a>
             <div class="screen-reader-only" id="dropdown-description" hidden>
               Press Enter to activate/deactivate dropdown
@@ -114,7 +114,7 @@
                     <div>
                         <a href="/doc/effective_go">
                           Effective Go
-                          
+
                         </a>
                     </div>
                     <p>Tips for writing clear, performant, and idiomatic Go code</p>
@@ -123,7 +123,7 @@
                     <div>
                         <a href="/doc">
                           Go User Manual
-                          
+
                         </a>
                     </div>
                     <p>A complete introduction to building software with Go</p>
@@ -132,7 +132,7 @@
                     <div>
                         <a href="https://pkg.go.dev/std">
                           Standard library
-                          
+
                         </a>
                     </div>
                     <p>Reference documentation for Go&#39;s standard library</p>
@@ -141,7 +141,7 @@
                     <div>
                         <a href="/doc/devel/release">
                           Release Notes
-                          
+
                         </a>
                     </div>
                     <p>Learn what&#39;s new in each Go release</p>
@@ -150,7 +150,7 @@
           </li>
           <li class="Header-menuItem ">
             <a href="https://pkg.go.dev"  aria-label=Packages aria-describedby="dropdown-description">
-              Packages 
+              Packages
             </a>
             <div class="screen-reader-only" id="dropdown-description" hidden>
               Press Enter to activate/deactivate dropdown
@@ -168,7 +168,7 @@
                     <div>
                         <a href="/talks/">
                           Recorded Talks
-                          
+
                         </a>
                     </div>
                     <p>Videos from prior events</p>
@@ -195,7 +195,7 @@
                     <div>
                         <a href="/blog">
                           Go blog
-                          
+
                         </a>
                     </div>
                     <p>The Go project&#39;s official blog.</p>
@@ -204,7 +204,7 @@
                     <div>
                         <a href="/help">
                           Go project
-                          
+
                         </a>
                     </div>
                     <p>Get help and stay informed from Go</p>
@@ -215,7 +215,7 @@
                     </div>
                     <p></p>
                       <div class="Header-socialIcons">
-                        
+
                         <a class="Header-socialIcon" aria-label="Get connected with google-groups (Opens in new window)" href="https://groups.google.com/g/golang-nuts"><img src="/images/logos/social/google-groups.svg" /></a>
                         <a class="Header-socialIcon" aria-label="Get connected with github (Opens in new window)" href="https://github.com/golang"><img src="/images/logos/social/github.svg" /></a>
                         <a class="Header-socialIcon" aria-label="Get connected with twitter (Opens in new window)" href="https://twitter.com/golang"><img src="/images/logos/social/twitter.svg" /></a>
@@ -231,7 +231,7 @@
         </button>
       </div>
     </nav>
-    
+
   </div>
 </header>
 <aside class="NavigationDrawer js-header">
@@ -242,7 +242,7 @@
       </a>
     </div>
     <ul class="NavigationDrawer-list">
-        
+
           <li class="NavigationDrawer-listItem js-mobile-subnav-trigger  NavigationDrawer-hasSubnav">
             <a href="#"><span>Why Go</span> <i class="material-icons">navigate_next</i></a>
 
@@ -255,36 +255,36 @@
                     <li class="NavigationDrawer-listItem">
                         <a href="/solutions/case-studies">
                           Case Studies
-                          
+
                         </a>
-                      
+
                     </li>
                     <li class="NavigationDrawer-listItem">
                         <a href="/solutions/use-cases">
                           Use Cases
-                          
+
                         </a>
-                      
+
                     </li>
                     <li class="NavigationDrawer-listItem">
                         <a href="/security/">
                           Security
-                          
+
                         </a>
-                      
+
                     </li>
                 </ul>
               </div>
             </div>
           </li>
 
-        
-        
+
+
           <li class="NavigationDrawer-listItem ">
             <a href="/learn/">Learn</a>
           </li>
-        
-        
+
+
           <li class="NavigationDrawer-listItem js-mobile-subnav-trigger  NavigationDrawer-hasSubnav">
             <a href="#"><span>Docs</span> <i class="material-icons">navigate_next</i></a>
 
@@ -297,43 +297,43 @@
                     <li class="NavigationDrawer-listItem">
                         <a href="/doc/effective_go">
                           Effective Go
-                          
+
                         </a>
-                      
+
                     </li>
                     <li class="NavigationDrawer-listItem">
                         <a href="/doc">
                           Go User Manual
-                          
+
                         </a>
-                      
+
                     </li>
                     <li class="NavigationDrawer-listItem">
                         <a href="https://pkg.go.dev/std">
                           Standard library
-                          
+
                         </a>
-                      
+
                     </li>
                     <li class="NavigationDrawer-listItem">
                         <a href="/doc/devel/release">
                           Release Notes
-                          
+
                         </a>
-                      
+
                     </li>
                 </ul>
               </div>
             </div>
           </li>
 
-        
-        
+
+
           <li class="NavigationDrawer-listItem ">
             <a href="https://pkg.go.dev">Packages</a>
           </li>
-        
-        
+
+
           <li class="NavigationDrawer-listItem js-mobile-subnav-trigger  NavigationDrawer-hasSubnav">
             <a href="#"><span>Community</span> <i class="material-icons">navigate_next</i></a>
 
@@ -346,42 +346,42 @@
                     <li class="NavigationDrawer-listItem">
                         <a href="/talks/">
                           Recorded Talks
-                          
+
                         </a>
-                      
+
                     </li>
                     <li class="NavigationDrawer-listItem">
                         <a href="https://www.meetup.com/pro/go">
                           Meetups
                            <i class="material-icons">open_in_new</i>
                         </a>
-                      
+
                     </li>
                     <li class="NavigationDrawer-listItem">
                         <a href="/wiki/Conferences">
                           Conferences
                            <i class="material-icons">open_in_new</i>
                         </a>
-                      
+
                     </li>
                     <li class="NavigationDrawer-listItem">
                         <a href="/blog">
                           Go blog
-                          
+
                         </a>
-                      
+
                     </li>
                     <li class="NavigationDrawer-listItem">
                         <a href="/help">
                           Go project
-                          
+
                         </a>
-                      
+
                     </li>
                     <li class="NavigationDrawer-listItem">
                         <div>Get connected</div>
                         <div class="Header-socialIcons">
-                          
+
                             <a class="Header-socialIcon" href="https://groups.google.com/g/golang-nuts"><img src="/images/logos/social/google-groups.svg" /></a>
                             <a class="Header-socialIcon" href="https://github.com/golang"><img src="/images/logos/social/github.svg" /></a>
                             <a class="Header-socialIcon" href="https://twitter.com/golang"><img src="/images/logos/social/twitter.svg" /></a>
@@ -395,18 +395,18 @@
             </div>
           </li>
 
-        
+
     </ul>
   </nav>
 </aside>
 <div class="NavigationDrawer-scrim js-scrim" role="presentation"></div>
 <main class="SiteContent SiteContent--default" id="main-content">
-  
+
 
 <article class="Texthtml Article">
 
 
-<h1>Text file 
+<h1>Text file
 
 
 <span class="text-muted">LICENSE</span>
@@ -616,21 +616,3 @@
 </section>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
