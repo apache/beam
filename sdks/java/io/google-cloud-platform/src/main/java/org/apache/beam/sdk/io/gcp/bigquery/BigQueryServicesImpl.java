@@ -174,6 +174,8 @@ public class BigQueryServicesImpl implements BigQueryServices {
   // We set it to 9MB, which leaves room for request overhead.
   private static final Integer MAX_BQ_ROW_PAYLOAD = 9 * 1024 * 1024;
 
+  private static final String MAX_BQ_ROW_PAYLOAD_DESC = "9MB";
+
   // The initial backoff for polling the status of a BigQuery job.
   private static final Duration INITIAL_JOB_STATUS_POLL_BACKOFF = Duration.standardSeconds(1);
 
@@ -1155,16 +1157,18 @@ public class BigQueryServicesImpl implements BigQueryServices {
                     .setErrors(ImmutableList.of(new ErrorProto().setReason("row-too-large")));
             // We verify whether the retryPolicy parameter expects us to retry. If it does, then
             // it will return true. Otherwise it will return false.
-            Boolean isRetry = retryPolicy.shouldRetry(new InsertRetryPolicy.Context(error));
-            if (isRetry) {
+            if (retryPolicy.shouldRetry(new InsertRetryPolicy.Context(error))) {
+              String fieldNames = row.keySet().toString();
               throw new RuntimeException(
+                  // While BigQuery supports request sizes up to 10MB,
+                  // BigQueryIO sets the limit at 9MB to leave room for request
+                  // overhead.
                   String.format(
-                      "We have observed a row that is %s bytes in size and exceeded BigQueryIO"
-                          + " limit of 9MB. While BigQuery supports request sizes up to 10MB,"
-                          + " BigQueryIO sets the limit at 9MB to leave room for request"
-                          + " overhead. You may change your retry strategy to unblock this"
-                          + " pipeline, and the row will be output as a failed insert.",
-                      nextRowSize));
+                      "We have observed a row that is %s bytes in size and exceeded the BigQueryIO"
+                          + " limit of %s. This may be due to a schema mismatch. Please check the"
+                          + " field names in your row: %s. You may change your retry strategy to "
+                          + " unblock this pipeline, and the row will be output as a failed insert.",
+                      nextRowSize, MAX_BQ_ROW_PAYLOAD_DESC, fieldNames));
             } else {
               numFailedRows += 1;
               errorContainer.add(failedInserts, error, ref, rowsToPublish.get(rowIndex));
