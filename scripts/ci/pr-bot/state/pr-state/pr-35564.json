@@ -1,7 +1,14 @@
 {
   "commentedAboutFailingChecks": true,
-  "reviewersAssignedForLabels": {},
-  "nextAction": "Author",
+  "reviewersAssignedForLabels": {
+    "python": "jrmccluskey",
+    "java": "m-trieu",
+    "go": "shunping",
+    "build": "Abacn",
+    "website": "kennknowles",
+    "kafka": "johnjcasey"
+  },
+  "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
   "committerAssigned": false
