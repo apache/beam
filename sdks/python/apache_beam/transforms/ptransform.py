@@ -1212,8 +1212,7 @@ def annotate_yaml(constructor):
         # The outermost call is expected to be the most specific.
         'yaml_provider': 'python',
         'yaml_type': 'PyTransform',
-        'yaml_args': config,
-    }
+        'yaml_args': config, }
     return transform
 
   return wrapper
