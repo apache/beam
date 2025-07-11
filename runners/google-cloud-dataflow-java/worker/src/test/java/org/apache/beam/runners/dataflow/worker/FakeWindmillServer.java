@@ -253,7 +253,7 @@ public final class FakeWindmillServer extends WindmillServerStub {
           Windmill.GetWorkResponse response = workToOffer.get(null);
           if (response == null) {
             try {
-              sleepMillis(500);
+              sleepMillis(100);
             } catch (InterruptedException e) {
               halfClose();
               Thread.currentThread().interrupt();
@@ -515,9 +515,9 @@ public final class FakeWindmillServer extends WindmillServerStub {
   public ConcurrentHashMap<Long, Consumer<Windmill.CommitStatus>> waitForDroppedCommits(
       int droppedCommits) {
     LOG.debug("waitForDroppedCommits: {}", droppedCommits);
-    int maxTries = 10;
+    int maxTries = 100;
     while (maxTries-- > 0 && droppedStreamingCommits.size() < droppedCommits) {
-      Uninterruptibles.sleepUninterruptibly(1000, TimeUnit.MILLISECONDS);
+      Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
     }
     assertEquals(droppedCommits, droppedStreamingCommits.size());
     return droppedStreamingCommits;
