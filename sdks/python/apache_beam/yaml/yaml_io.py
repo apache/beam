@@ -480,6 +480,12 @@ def write_to_pubsub(
           field for field in input_schema.fields
           if field.name not in extra_fields
       ])
+
+  if timestamp_attribute:
+    for i, field in enumerate(payload_schema.fields):
+      field.encoding_position = i
+    payload_schema.encoding_positions_set = True
+
   formatter = _create_formatter(format, schema, payload_schema)
   return (
       pcoll | beam.Map(
@@ -600,7 +606,7 @@ def read_from_tfrecord(
     compression_type (CompressionTypes): Used to handle compressed input files.
       Default value is CompressionTypes.AUTO, in which case the file_path's
       extension will be used to detect the compression.
-    validate (bool): Boolean flag to verify that the files exist during the 
+    validate (bool): Boolean flag to verify that the files exist during the
       pipeline creation time.
   """
   return ReadFromTFRecord(
