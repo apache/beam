@@ -26,6 +26,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.google.auto.value.AutoValue;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.io.IOException;
 import java.io.Serializable;
 import java.net.URLClassLoader;
 import java.sql.Connection;
@@ -2843,7 +2844,7 @@ public class JdbcIO {
     }
 
     private void executeBatch(ProcessContext context, Iterable<T> records)
-        throws SQLException, InterruptedException {
+        throws SQLException, IOException, InterruptedException {
       Long startTimeNs = System.nanoTime();
       Sleeper sleeper = Sleeper.DEFAULT;
       BackOff backoff = checkStateNotNull(retryBackOff).backoff();

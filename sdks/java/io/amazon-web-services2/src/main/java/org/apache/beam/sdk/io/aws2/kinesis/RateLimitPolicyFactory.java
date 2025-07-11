@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.aws2.kinesis;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
 import java.util.function.Supplier;
@@ -26,6 +27,8 @@ import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Implement this interface to create a {@code RateLimitPolicy}. Used to create a rate limiter for
@@ -88,6 +91,7 @@ public interface RateLimitPolicyFactory extends Serializable {
    * response is empty or if the consumer is throttled by AWS.
    */
   class DefaultRateLimiter implements RateLimitPolicy {
+    private static final Logger LOG = LoggerFactory.getLogger(DefaultRateLimiter.class);
     private final Sleeper sleeper;
     private final BackOff emptySuccess;
     private final BackOff throttled;
@@ -118,17 +122,25 @@ public interface RateLimitPolicyFactory extends Serializable {
 
     @Override
     public void onSuccess(List<KinesisRecord> records) throws InterruptedException {
-      if (records.isEmpty()) {
-        BackOffUtils.next(sleeper, emptySuccess);
-      } else {
-        emptySuccess.reset();
+      try {
+        if (records.isEmpty()) {
+          BackOffUtils.next(sleeper, emptySuccess);
+        } else {
+          emptySuccess.reset();
+        }
+        throttled.reset();
+      } catch (IOException e) {
+        LOG.warn("Error applying onSuccess rate limit policy", e);
       }
-      throttled.reset();
     }
 
     @Override
     public void onThrottle(KinesisClientThrottledException e) throws InterruptedException {
-      BackOffUtils.next(sleeper, throttled);
+      try {
+        BackOffUtils.next(sleeper, throttled);
+      } catch (IOException ioe) {
+        LOG.warn("Error applying onThrottle rate limit policy", e);
+      }
     }
   }
 }

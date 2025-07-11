@@ -21,6 +21,7 @@ import static org.apache.beam.io.requestresponse.Monitoring.incIfPresent;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.google.auto.value.AutoValue;
+import java.io.IOException;
 import java.util.Optional;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.util.BackOff;
@@ -118,8 +119,12 @@ abstract class Repeater<InputT, OutputT> {
         latestError = Optional.of(e);
       } catch (InterruptedException ignored) {
       }
-      incIfPresent(getBackoffCounter());
-      waitFor = getBackOff().nextBackOffMillis();
+      try {
+        incIfPresent(getBackoffCounter());
+        waitFor = getBackOff().nextBackOffMillis();
+      } catch (IOException e) {
+        throw new UserCodeExecutionException(e);
+      }
     }
     throw latestError.orElse(
         new UserCodeExecutionException("failed to process for input: " + input));
