@@ -115,6 +115,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 import org.apache.beam.fn.harness.logging.QuotaEvent;
 import org.apache.beam.fn.harness.logging.QuotaEvent.QuotaEventCloseable;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
@@ -1158,17 +1159,33 @@ public class BigQueryServicesImpl implements BigQueryServices {
             // We verify whether the retryPolicy parameter expects us to retry. If it does, then
             // it will return true. Otherwise it will return false.
             if (retryPolicy.shouldRetry(new InsertRetryPolicy.Context(error))) {
-              String fieldNames = row.keySet().toString();
+              String rowDetails;
+              try {
+                rowDetails =
+                    row.entrySet().stream()
+                        .map(
+                            entry ->
+                                String.format(
+                                    "'%s': %s",
+                                    entry.getKey(),
+                                    entry.getValue() == null
+                                        ? "null"
+                                        : entry.getValue().getClass().getName()))
+                        .collect(Collectors.joining(", ", "{", "}"));
+              } catch (Exception e) {
+                rowDetails = row.toString();
+              }
+              if (rowDetails.length() > 1024) {
+                rowDetails = rowDetails.substring(0, 1024) + "...}";
+              }
               throw new RuntimeException(
-                  // While BigQuery supports request sizes up to 10MB,
-                  // BigQueryIO sets the limit at 9MB to leave room for request
-                  // overhead.
                   String.format(
-                      "We have observed a row that is %s bytes in size and exceeded the BigQueryIO"
-                          + " limit of %s. This may be due to a schema mismatch. Please check the"
-                          + " field names in your row: %s. You may change your retry strategy to "
-                          + " unblock this pipeline, and the row will be output as a failed insert.",
-                      nextRowSize, MAX_BQ_ROW_PAYLOAD_DESC, fieldNames));
+                      "A single row of size %s bytes exceeded the BigQueryIO limit of %s. "
+                          + "This may be due to a schema mismatch. "
+                          + "Problematic row field names and types (truncated): %s. "
+                          + "You can change your retry strategy to instead "
+                          + "output this row to a dead-letter queue.",
+                      nextRowSize, MAX_BQ_ROW_PAYLOAD_DESC, rowDetails));
             } else {
               numFailedRows += 1;
               errorContainer.add(failedInserts, error, ref, rowsToPublish.get(rowIndex));
