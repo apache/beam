@@ -53,6 +53,7 @@ Beam currently supports the following runners:
 - [Apache Samza Runner](/documentation/runners/samza) <img src="/images/logos/runners/samza.png" height="40px" alt="Apache Samza logo">
 - [Apache Spark Runner](/documentation/runners/spark) <img src="/images/logos/runners/spark.png" height="50px" alt="Apache Spark logo">
 - [Google Cloud Dataflow Runner](/documentation/runners/dataflow) <img src="/images/logos/runners/dataflow.png" height="50px" alt="Google Cloud Dataflow logo">
+- [Hazelcast Jet Runner](/documentation/runners/jet) <img src="/images/logos/runners/jet.png" height="40px" alt="Hazelcast Jet logo">
 - [Twister2 Runner](/documentation/runners/twister2) <img src="/images/logos/runners/twister2.png" height="50px" alt="Twister2 logo">
 
 **Note:** You can always execute your pipeline locally for testing and debugging purposes.
