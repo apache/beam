@@ -1089,6 +1089,7 @@ class CombinerWithSideInputs(unittest.TestCase):
       assert_that(common_items, equal_to([(None, {'🥕'})]))
 
   def test_cpk_with_streaming(self):
+    # With global window side input
     with beam.Pipeline() as p:
 
       def sum_with_floor(vals, min_value=0):
@@ -1100,13 +1101,47 @@ class CombinerWithSideInputs(unittest.TestCase):
       res = (
           p
           | "CreateInputs" >> beam.Create([1, 2, 100, 101, 102])
-          | beam.Map(lambda t: window.TimestampedValue(('k', t), t))
-          | beam.WindowInto(EvenOddWindows())
+          | beam.Map(lambda x: window.TimestampedValue(('k', x), x))
+          | beam.WindowInto(FixedWindows(99))
           | beam.CombinePerKey(
               sum_with_floor,
               min_value=pvalue.AsSingleton(p | beam.Create([100]))))
-      assert_that(
-          res, equal_to([('k', 101), ('k', 102), ('k', 101), ('k', 202)]))
+      assert_that(res, equal_to([('k', 103), ('k', 303)]))
+
+    with beam.Pipeline() as p:
+      min_value = (
+          p
+          | "CreateMinValue" >> beam.Create([
+              window.TimestampedValue(50, 5),
+              window.TimestampedValue(1000, 100)
+          ])
+          | "WindowSideInputs" >> beam.WindowInto(FixedWindows(99)))
+      res = (
+          p
+          | "CreateInputs" >> beam.Create([1, 102])
+          | beam.Map(lambda x: window.TimestampedValue(('k', x), x))
+          | beam.WindowInto(FixedWindows(99))
+          | beam.Map(
+              lambda x, side: (x, side), side=pvalue.AsSingleton(min_value)))
+      assert_that(res, equal_to([(('k', 1), 50), (('k', 102), 1000)]))
+
+    # with matching window side input
+    with beam.Pipeline() as p:
+      min_value = (
+          p
+          | "CreateMinValue" >> beam.Create([
+              window.TimestampedValue(50, 5),
+              window.TimestampedValue(1000, 100)
+          ])
+          | "WindowSideInputs" >> beam.WindowInto(FixedWindows(99)))
+      res = (
+          p
+          | "CreateInputs" >> beam.Create([1, 2, 100, 101, 102])
+          | beam.Map(lambda x: window.TimestampedValue(('k', x), x))
+          | beam.WindowInto(FixedWindows(99))
+          | beam.CombinePerKey(
+              sum_with_floor, min_value=pvalue.AsSingleton(min_value)))
+      assert_that(res, equal_to([('k', 53), ('k', 1303)]))
 
 
 if __name__ == '__main__':
