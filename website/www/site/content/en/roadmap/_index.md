@@ -32,7 +32,7 @@ Below are some highlights for the project as a whole.
 Portability is the primary Beam vision: running pipelines authored with _any SDK_
 on _any runner_. This is a cross-cutting effort across Java, Python, and Go,
 and every Beam runner. Portability is currently supported on the
-[DataFlow](/documentation/runners/dataflow), [Flink](/documentation/runners/flink/), [Jet](/documentation/runners/jet), [Nemo](/documentation/runners/nemo), [Prism](/documentation/runners/prism/), [Samza](/documentation/runners/samza), [Spark](/documentation/runners/spark/), and [Twister2](/documentation/runners/Twister2)
+[DataFlow](/documentation/runners/dataflow), [Flink](/documentation/runners/flink/), [Nemo](/documentation/runners/nemo), [Prism](/documentation/runners/prism/), [Samza](/documentation/runners/samza), [Spark](/documentation/runners/spark/), and [Twister2](/documentation/runners/Twister2)
 runners.
 
 See the details on the [Portability Roadmap](/roadmap/portability/)
