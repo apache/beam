@@ -79,6 +79,10 @@
 * Milvus enrichment handler added (Python) ([#35216](https://github.com/apache/beam/pull/35216)).
   Beam now supports Milvus enrichment handler capabilities for vector, keyword,
   and hybrid search operations.
+* Google CloudSQL enrichment handler added (Python) ([#34398](https://github.com/apache/beam/pull/34398)).
+  Beam now supports data enrichment capabilities using SQL databases, with built-in support for:
+  - Managed PostgreSQL, MySQL, and Microsoft SQL Server instances on CloudSQL
+  - Unmanaged SQL database instances not hosted on CloudSQL (e.g., self-hosted or on-premises databases)
 
 ## Breaking Changes
 
