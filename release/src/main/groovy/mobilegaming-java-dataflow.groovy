@@ -178,12 +178,12 @@ class LeaderBoardRunner {
     InjectorThread.stop()
     LeaderBoardThread.stop()
     t.run("""RUNNING_JOB=`gcloud dataflow jobs list | grep ${jobName} | grep Running | cut -d' ' -f1`
-if [ ! -z "\${RUNNING_JOB}" ] 
-  then 
+if [ ! -z "\${RUNNING_JOB}" ]
+  then
     gcloud dataflow jobs cancel \${RUNNING_JOB}
-  else 
+  else
     echo "Job '${jobName}' is not running."
-fi 
+fi
 """)
 
     if (!isSuccess) {

@@ -32,7 +32,7 @@ where ss_item_sk = i_item_sk and
           i_class in ('wallpaper','parenting','musical')
          )
       or (i_category in ('Shoes','Jewelry','Men') and
-          i_class in ('womens','birdal','pants') 
+          i_class in ('womens','birdal','pants')
         ))
 group by i_category, i_class, i_brand,
          s_store_name, s_company_name, d_moy) tmp1

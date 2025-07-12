@@ -27,4 +27,3 @@ applyPythonNature()
 pythonVersion = '3.10'
 
 apply from: "../common.gradle"
-

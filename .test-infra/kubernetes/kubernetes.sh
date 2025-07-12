@@ -125,8 +125,8 @@ function getAvailablePort() {
 #Usage: ./kubernetes.sh waitForJob <kubernetes job name>  <timeout i.e: 30m, 20s etc.>
 function waitForJob(){
   echo "Waiting for job completion..."
-  jobName=$1 
-  eval "$KUBECTL wait --for=condition=complete --timeout=$2 $jobName" 
+  jobName=$1
+  eval "$KUBECTL wait --for=condition=complete --timeout=$2 $jobName"
   echo "Job completed"
 }
 

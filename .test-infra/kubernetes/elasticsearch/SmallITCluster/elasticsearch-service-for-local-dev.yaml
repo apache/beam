@@ -13,7 +13,7 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-# To create Elasticsearch frontend cluster Kubernetes service. 
+# To create Elasticsearch frontend cluster Kubernetes service.
 # It sets up a load balancer on TCP port 9200 that distributes network traffic to the ES nodes.
 apiVersion: v1
 kind: Service

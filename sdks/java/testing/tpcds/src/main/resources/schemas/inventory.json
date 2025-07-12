@@ -4,4 +4,3 @@
   {"name":"inv_warehouse_sk","type":"identifier"},
   {"name":"inv_quantity_on_hand","type":"integer"}
 ]}
-

@@ -46,7 +46,7 @@ fi
 
 echo "CDLOG Pull Request $PR_URL has been successfully merged into
 Apache Beam GitHub repository. Continuing the process."
-  
+
 echo "CDLOG Continous Deployment of Playground Examples (CD) in the
 progress."
 
@@ -60,7 +60,7 @@ echo "deb https://packages.cloud.google.com/apt cloud-sdk main" > /dev/null 2>&1
 
 /etc/apt/sources.list.d/google-cloud-sdk.list > /dev/null 2>&1
 
-curl https://packages.cloud.google.com/apt/doc/apt-key.gpg > /dev/null 2>&1 | apt-key add - > /dev/null 2>&1 
+curl https://packages.cloud.google.com/apt/doc/apt-key.gpg > /dev/null 2>&1 | apt-key add - > /dev/null 2>&1
 
 apt-get update && apt-get install -y google-cloud-sdk > /dev/null 2>&1
 

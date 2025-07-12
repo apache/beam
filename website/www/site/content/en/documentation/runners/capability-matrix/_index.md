@@ -36,4 +36,3 @@ Note that in the future, we intend to add additional tables beyond the current s
 
 <!-- Summary table -->
 {{< documentation/capability-matrix-single cap-data="capability-matrix" cap-style="cap-summary" cap-view="summary" cap-toggle-details=1 cap-display="block" >}}
-

@@ -51,4 +51,3 @@ runs:
     - name: Installing python SDK
       shell: bash
       run: pip install apache_beam-${RELEASE_VER}.tar.gz[gcp]
-      

@@ -139,7 +139,7 @@ variable "gh_pat_secret_id" {
 variable "data_for_github_pat_secret" {
   description = "The GitHub generated Personal Access Token value"
 }
-#What i understand this is mandatoy but not actually used. Should we document it 
+#What i understand this is mandatoy but not actually used. Should we document it
 variable "trigger_source_repo" {
   description = "Source repo used for github trigger, not used but reqired due to cloudbuild limitation"
   default = "https://github.com/beamplayground/deploy-workaround"
@@ -163,5 +163,5 @@ variable "cloudbuild_machine_type" {
   default = "E2_HIGHCPU_32"
 }
 variable "data_for_cicd_webhook_secret" {
-  description = "secret string that was set when creating the webhook in Github"  
+  description = "secret string that was set when creating the webhook in Github"
 }

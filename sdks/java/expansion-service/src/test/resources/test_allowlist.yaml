@@ -63,5 +63,3 @@ allowedClasses:
 - className: org.apache.beam.sdk.expansion.service.JavaClassLookupTransformProviderTest$DummyTransformWithComplexTypeList
   allowedBuilderMethods:
   - withComplexTypeListField
-
-

@@ -223,4 +223,3 @@ Google Cloud Dataflow. These systems support massively parallel processing.
 
 Please don't hesitate to [reach out](/community/contact-us) if you encounter any
 issues!
-

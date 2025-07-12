@@ -51,11 +51,11 @@ RUN curl -sL https://deb.nodesource.com/setup_lts.x | bash - \
         nodejs \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* 
+    && rm -rf /var/lib/apt/lists/*
 
 RUN npm update -g npm
-    
-RUN npm install postcss postcss-cli autoprefixer 
+
+RUN npm install postcss postcss-cli autoprefixer
 
 # Install yarn
 RUN curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - \

@@ -45,22 +45,22 @@ TABLE_FIELD_NAMES = [
     "Dashboard",
 ]
 
-QUERY_RUNTIME = """SELECT mean("value") AS "mean_value" 
-  FROM 
+QUERY_RUNTIME = """SELECT mean("value") AS "mean_value"
+  FROM
     "{database}"."{retention_policy}"."{measurement}"
-  WHERE 
-      time > (now()- 2w) 
-    AND 
-      time < now() 
+  WHERE
+      time > (now()- 2w)
+    AND
+      time < now()
   GROUP BY time(1w), "metric" FILL(none);"""
 
-QUERY_RUNTIME_MS = """SELECT mean("runtimeMs") AS "mean_value" 
-  FROM 
+QUERY_RUNTIME_MS = """SELECT mean("runtimeMs") AS "mean_value"
+  FROM
     "{database}"."{retention_policy}"."{measurement}"
-  WHERE 
-      time > (now()- 2w) 
-    AND 
-      time < now() 
+  WHERE
+      time > (now()- 2w)
+    AND
+      time < now()
   GROUP BY time(1w), "runner" FILL(none);"""
 
 

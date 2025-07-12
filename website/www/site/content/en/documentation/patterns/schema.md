@@ -54,4 +54,3 @@ The result `Row` is of the type `Row: [Row(emailSchema), Row(phoneSchema)]`, and
 {{< highlight java >}}
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SchemaJoinPatternFormat >}}
 {{< /highlight >}}
-

@@ -74,7 +74,7 @@ class BigQueryVectorSearchParameters:
     restrictions.
 
     Example with flattened metadata column:
-    
+
     Table schema::
 
         embedding: ARRAY<FLOAT64>  # Vector embedding
@@ -88,7 +88,7 @@ class BigQueryVectorSearchParameters:
         ...     embedding_column='embedding',
         ...     columns=['content', 'language'],
         ...     neighbor_count=5,
-        ...     # For column 'language', value comes from 
+        ...     # For column 'language', value comes from
         ...     # chunk.metadata['language']
         ...     metadata_restriction_template="language = '{language}'"
         ... )
@@ -96,7 +96,7 @@ class BigQueryVectorSearchParameters:
         >>> # generates: WHERE language = 'en'
 
     Example with nested repeated metadata:
-    
+
     Table schema::
 
         embedding: ARRAY<FLOAT64>  # Vector embedding
@@ -130,10 +130,10 @@ class BigQueryVectorSearchParameters:
         neighbor_count: Number of similar vectors to return (top-k).
         metadata_restriction_template: Template string or callable for filtering
             vectors. Template string supports two formats:
-            
-            1. For flattened metadata columns: 
-               ``column_name = '{metadata_key}'`` where column_name is the 
-               BigQuery column and metadata_key is used to get the value from 
+
+            1. For flattened metadata columns:
+               ``column_name = '{metadata_key}'`` where column_name is the
+               BigQuery column and metadata_key is used to get the value from
                chunk.metadata[metadata_key].
             2. For nested repeated metadata (ARRAY<STRUCT<key,value>>):
                ``check_metadata(field_name, 'key_to_match', '{metadata_key}')``
@@ -141,20 +141,20 @@ class BigQueryVectorSearchParameters:
                key_to_match is the literal key to search for in the array, and
                metadata_key is used to get value from
                chunk.metadata[metadata_key].
-            
+
             Multiple conditions can be combined using AND/OR operators. For
             example::
-            
+
                 >>> # Combine metadata check with column filter
                 >>> template = (
                 ...     "check_metadata(metadata, 'language', '{language}') "
                 ...     "AND source = '{source}'"
                 ... )
                 >>> # When chunk.metadata = {'language': 'en', 'source': 'web'}
-                >>> # Generates: WHERE 
+                >>> # Generates: WHERE
                 >>> #             check_metadata(metadata, 'language', 'en')
                 >>> #           AND source = 'web'
-        
+
         distance_type: Optional distance metric to use. Supported values:
             COSINE (default), EUCLIDEAN, or DOT_PRODUCT.
         options: Optional dictionary of additional VECTOR_SEARCH options.
@@ -193,13 +193,13 @@ class BigQueryVectorSearchParameters:
     # Create metadata check function only if needed
     metadata_fn = """
         CREATE TEMP FUNCTION check_metadata(
-          metadata ARRAY<STRUCT<key STRING, value STRING>>, 
-          search_key STRING, 
+          metadata ARRAY<STRUCT<key STRING, value STRING>>,
+          search_key STRING,
           search_value STRING
-        ) 
+        )
         AS ((
-            SELECT COUNT(*) > 0 
-            FROM UNNEST(metadata) 
+            SELECT COUNT(*) > 0
+            FROM UNNEST(metadata)
             WHERE key = search_key AND value = search_value
         ));
     """ if self.metadata_restriction_template else ""
@@ -232,13 +232,13 @@ class BigQueryVectorSearchParameters:
       where_clause = f"WHERE {condition}" if condition else ""
       # Create VECTOR_SEARCH for this condition group
       vector_search = f"""
-            SELECT 
+            SELECT
                 query.id,
                 ARRAY_AGG(
                     STRUCT({"distance, " if self.include_distance else ""} {base_columns_str})
                 ) as chunks
             FROM VECTOR_SEARCH(
-                (SELECT {columns_str}, {self.embedding_column} 
+                (SELECT {columns_str}, {self.embedding_column}
                  FROM `{self.table_name}`
                  {where_clause}),
                 '{self.embedding_column}',
@@ -265,14 +265,14 @@ class BigQueryVectorSearchEnrichmentHandler(
     EnrichmentSourceHandler[Union[Chunk, List[Chunk]],
                             List[Tuple[Chunk, Dict[str, Any]]]]):
   """Enrichment handler that performs vector similarity search using BigQuery.
-  
+
   This handler enriches Chunks by finding similar vectors in a BigQuery table
   using the VECTOR_SEARCH function. It supports batching requests for efficiency
   and preserves the original Chunk metadata while adding the search results.
 
   Example:
       >>> from apache_beam.ml.rag.types import Chunk, Content, Embedding
-      >>> 
+      >>>
       >>> # Configure vector search
       >>> params = BigQueryVectorSearchParameters(
       ...     table_name='project.dataset.embeddings',
@@ -281,7 +281,7 @@ class BigQueryVectorSearchEnrichmentHandler(
       ...     neighbor_count=2,
       ...     metadata_restriction_template="language = '{language}'"
       ... )
-      >>> 
+      >>>
       >>> # Create handler
       >>> handler = BigQueryVectorSearchEnrichmentHandler(
       ...     project='my-project',
@@ -289,11 +289,11 @@ class BigQueryVectorSearchEnrichmentHandler(
       ...     min_batch_size=100,
       ...     max_batch_size=1000
       ... )
-      >>> 
+      >>>
       >>> # Use in pipeline
       >>> with beam.Pipeline() as p:
       ...     enriched = (
-      ...         p 
+      ...         p
       ...         | beam.Create([
       ...             Chunk(
       ...                 id='query1',
@@ -342,11 +342,11 @@ class BigQueryVectorSearchEnrichmentHandler(
   def __call__(self, request: Union[Chunk, List[Chunk]], *args,
                **kwargs) -> List[Tuple[Chunk, Dict[str, Any]]]:
     """Process request(s) using BigQuery vector search.
-        
+
         Args:
             request: Single Chunk with embedding or list of Chunk's with
             embeddings to process
-            
+
         Returns:
             Chunk(s) where chunk.metadata['enrichment_output'] contains the
             data retrieved via BigQuery VECTOR_SEARCH.

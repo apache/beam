@@ -600,7 +600,7 @@ def read_from_tfrecord(
     compression_type (CompressionTypes): Used to handle compressed input files.
       Default value is CompressionTypes.AUTO, in which case the file_path's
       extension will be used to detect the compression.
-    validate (bool): Boolean flag to verify that the files exist during the 
+    validate (bool): Boolean flag to verify that the files exist during the
       pipeline creation time.
   """
   return ReadFromTFRecord(

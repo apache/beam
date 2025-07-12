@@ -34,4 +34,3 @@ data:
   QUOTA_ID: quota-id-value
   QUOTA_SIZE: "100"
   QUOTA_REFRESH_INTERVAL: "10s"
-

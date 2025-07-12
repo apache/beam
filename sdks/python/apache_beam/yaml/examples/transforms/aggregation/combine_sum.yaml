@@ -49,7 +49,7 @@ pipeline:
         language: python
         group_by: fruit
         combine:
-          total_quantity: 
+          total_quantity:
             value: quantity
             fn: sum
           mean_price:

@@ -15,9 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# This workflow will take the release notes from 
-# /website/www/site/content/en/blog/beam-${RELEASE_VERSION}.md" 
-# and updated in beam repo. 
+# This workflow will take the release notes from
+# /website/www/site/content/en/blog/beam-${RELEASE_VERSION}.md"
+# and updated in beam repo.
 
 name: Publish Github Release Notes
 
@@ -25,7 +25,7 @@ on:
   workflow_dispatch:
     inputs:
       RELEASE_VERSION:
-        description: Release Version to update notes into beam repo 
+        description: Release Version to update notes into beam repo
         required: true
 permissions: read-all
 
@@ -36,7 +36,7 @@ jobs:
       properties: ${{ steps.test-properties.outputs.properties }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4        
+        uses: actions/checkout@v4
       - id: test-properties
         uses: ./.github/actions/setup-default-test-properties
 

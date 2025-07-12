@@ -13,7 +13,7 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-# To create Elasticsearch frontend cluster Kubernetes service. 
+# To create Elasticsearch frontend cluster Kubernetes service.
 # It sets up a load balancer on TCP port 9200 that distributes network traffic to the ES nodes.
 apiVersion: v1
 kind: Service
@@ -43,27 +43,27 @@ metadata:
     component: elasticsearch
 spec:
   selector:
-    matchLabels: 
+    matchLabels:
       component: elasticsearch
   replicas: 1
   template:
     metadata:
       labels:
-        component: elasticsearch     
+        component: elasticsearch
     spec:
-      initContainers: 
+      initContainers:
       - name: "sysctl"
-        image: busybox 
+        image: busybox
         imagePullPolicy: IfNotPresent
         command: ["sysctl", "-w", "vm.max_map_count=262144"]
-        securityContext: 
+        securityContext:
           privileged: true
       containers:
       - name: es
         securityContext:
           capabilities:
             add:
-# IPC_LOCK capability is enabled to allow Elasticsearch to lock the heap in memory so it will not be swapped.   
+# IPC_LOCK capability is enabled to allow Elasticsearch to lock the heap in memory so it will not be swapped.
               - IPC_LOCK
 # SYS_RESOURCE capability is set to control and override various resource limits.
               - SYS_RESOURCE

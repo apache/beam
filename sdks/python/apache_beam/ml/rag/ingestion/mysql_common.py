@@ -29,16 +29,16 @@ from apache_beam.ml.rag.types import Chunk
 
 def chunk_embedding_fn(chunk: Chunk) -> str:
   """Convert embedding to MySQL vector string format.
-    
+
     Formats dense embedding as a MySQL-compatible vector string.
     Example: [1.0, 2.0] -> '[1.0,2.0]'
-    
+
     Args:
         chunk: Input Chunk object.
-    
+
     Returns:
         str: MySQL vector string representation of the embedding.
-    
+
     Raises:
         ValueError: If chunk has no dense embedding.
     """
@@ -50,7 +50,7 @@ def chunk_embedding_fn(chunk: Chunk) -> str:
 @dataclass
 class ColumnSpec:
   """Specification for mapping Chunk fields to MySQL columns for insertion.
-    
+
     Defines how to extract and format values from Chunks into MySQL database
     columns, handling the full pipeline from Python value to SQL insertion.
 
@@ -62,13 +62,13 @@ class ColumnSpec:
     Attributes:
         column_name: The column name in the database table.
         python_type: Python type for the NamedTuple field that will hold the
-            value. Must be compatible with 
+            value. Must be compatible with
             :class:`~apache_beam.coders.row_coder.RowCoder`.
         value_fn: Function to extract and format the value from a Chunk.
             Takes a Chunk and returns a value of python_type.
         placeholder: Optional placeholder to apply typecasts or functions to
             value ? placeholder e.g. "string_to_vector(?)" for vector columns.
-    
+
     Examples:
 
         Basic text column (uses standard JDBC type mapping):
@@ -158,16 +158,16 @@ class ColumnSpecsBuilder:
       convert_fn: Optional[Callable[[str],
                                     Any]] = None) -> 'ColumnSpecsBuilder':
     """Add ID :class:`.ColumnSpec` with optional type and conversion.
-        
+
         Args:
             column_name: Name for the ID column (defaults to "id")
             python_type: Python type for the column (defaults to str)
             convert_fn: Optional function to convert the chunk ID
                        If None, uses ID as-is
-        
+
         Returns:
             Self for method chaining
-        
+
         Example:
             >>> builder.with_id_spec(
             ...     column_name="doc_id",
@@ -192,16 +192,16 @@ class ColumnSpecsBuilder:
       convert_fn: Optional[Callable[[str],
                                     Any]] = None) -> 'ColumnSpecsBuilder':
     """Add content :class:`.ColumnSpec` with optional type and conversion.
-      
+
       Args:
           column_name: Name for the content column (defaults to "content")
           python_type: Python type for the column (defaults to str)
           convert_fn: Optional function to convert the content text
                       If None, uses content text as-is
-      
+
       Returns:
           Self for method chaining
-      
+
       Example:
           >>> builder.with_content_spec(
           ...     column_name="content_length",
@@ -228,16 +228,16 @@ class ColumnSpecsBuilder:
       convert_fn: Optional[Callable[[Dict[str, Any]], Any]] = None
   ) -> 'ColumnSpecsBuilder':
     """Add metadata :class:`.ColumnSpec` with optional type and conversion.
-      
+
       Args:
           column_name: Name for the metadata column (defaults to "metadata")
           python_type: Python type for the column (defaults to str)
           convert_fn: Optional function to convert the metadata dictionary
                       If None and python_type is str, converts to JSON string
-      
+
       Returns:
           Self for method chaining
-      
+
       Example:
           >>> builder.with_metadata_spec(
           ...     column_name="meta_tags",
@@ -263,19 +263,19 @@ class ColumnSpecsBuilder:
       convert_fn: Callable[[List[float]], Any] = embedding_to_string
   ) -> 'ColumnSpecsBuilder':
     """Add embedding :class:`.ColumnSpec` with optional conversion.
-      
+
       Args:
           column_name: Name for the embedding column (defaults to "embedding")
           convert_fn: Optional function to convert the dense embedding values
                       If None, uses default MySQL vector format
-      
+
       Returns:
           Self for method chaining
-      
+
       Example:
           >>> builder.with_embedding_spec(
           ...     column_name="embedding_vector",
-          ...     convert_fn=lambda values: '[' + ','.join(f"{x:.4f}" 
+          ...     convert_fn=lambda values: '[' + ','.join(f"{x:.4f}"
           ...       for x in values) + ']'
           ... )
       """
@@ -306,7 +306,7 @@ class ColumnSpecsBuilder:
             convert_fn: Optional function to convert the extracted value to
                       desired type. If None, value is used as-is
             default: Default value if field is missing from metadata
-        
+
         Returns:
             Self for chaining
 
@@ -353,23 +353,23 @@ class ColumnSpecsBuilder:
 
   def add_custom_column_spec(self, spec: ColumnSpec) -> 'ColumnSpecsBuilder':
     """Add a custom :class:`.ColumnSpec` to the builder.
-    
+
     Use this method when you need complete control over the
     :class:`.ColumnSpec`, including custom value extraction and type handling.
-    
+
     Args:
         spec: A :class:`.ColumnSpec` instance defining the column name, type,
             value extraction, and optional MySQL function.
-    
+
     Returns:
         Self for method chaining
-    
+
     Examples:
         Custom text column from chunk metadata:
         >>> builder.add_custom_column_spec(
         ...     ColumnSpec.text(
         ...         column_name="source_and_id",
-        ...         value_fn=lambda chunk: 
+        ...         value_fn=lambda chunk:
         ...             f"{chunk.metadata.get('source')}_{chunk.id}"
         ...     )
         ... )
@@ -388,8 +388,8 @@ class ConflictResolution:
 
     Configures conflict handling behavior when inserting records that may
     violate unique constraints using MySQL's ON DUPLICATE KEY UPDATE syntax.
-    
-    MySQL automatically detects conflicts based on PRIMARY KEY or UNIQUE 
+
+    MySQL automatically detects conflicts based on PRIMARY KEY or UNIQUE
     constraints defined on the table.
 
     Attributes:
@@ -400,23 +400,23 @@ class ConflictResolution:
             all fields are updated (for UPDATE action only).
         primary_key_field: Required for IGNORE action. The primary key field
             name to use for the no-op update.
-        
+
     Examples:
         Update all fields on conflict:
         >>> ConflictResolution(action="UPDATE")
-        
+
         Update specific fields on conflict:
         >>> ConflictResolution(
         ...     action="UPDATE",
         ...     update_fields=["embedding", "content"]
         ... )
-        
+
         Ignore conflicts with explicit primary key:
         >>> ConflictResolution(
-        ...     action="IGNORE", 
+        ...     action="IGNORE",
         ...     primary_key_field="id"
         ... )
-        
+
         Ignore conflicts with custom primary key:
         >>> ConflictResolution(
         ...     action="IGNORE",

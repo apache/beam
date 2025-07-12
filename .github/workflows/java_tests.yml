@@ -20,7 +20,7 @@
 name: Java Tests
 on:
   workflow_dispatch:
-  
+
   schedule:
     - cron: '10 2 * * *'
   push:

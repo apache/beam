@@ -131,6 +131,3 @@ class LoadTestsBuilder {
     }
   }
 }
-
-
-

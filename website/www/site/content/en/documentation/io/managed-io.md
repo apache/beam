@@ -880,4 +880,3 @@ For more information on table properties, please visit https://iceberg.apache.or
     </tr>
   </table>
 </div>
-

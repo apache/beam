@@ -905,7 +905,7 @@ export interface FinalizeBundleRequest {
  */
 export interface FinalizeBundleResponse {
 }
-// 
+//
 // Data Plane API
 
 /**
@@ -1016,7 +1016,7 @@ export interface Elements_Timers {
      */
     isLast: boolean;
 }
-// 
+//
 // State API
 
 /**
@@ -1518,9 +1518,9 @@ export interface StateClearRequest {
  */
 export interface StateClearResponse {
 }
-// 
+//
 // Logging API
-// 
+//
 // This is very stable. There can be some changes to how we define a LogEntry,
 // to increase/decrease the severity types, the way we format an exception/stack
 // trace, or the log site.
