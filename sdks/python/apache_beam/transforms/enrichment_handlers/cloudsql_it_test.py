@@ -547,9 +547,9 @@ class BaseCloudSQLDBEnrichment(BaseTestSQLEnrichment):
     super().tearDownClass()
 
 
-@unittest.skipUnless(
-    os.environ.get('ALLOYDB_PASSWORD'),
-    "ALLOYDB_PASSWORD environment var is not provided")
+# @unittest.skipUnless(
+#     os.environ.get('ALLOYDB_PASSWORD'),
+#     "ALLOYDB_PASSWORD environment var is not provided")
 class TestCloudSQLPostgresEnrichment(BaseCloudSQLDBEnrichment):
   _db_adapter = DatabaseTypeAdapter.POSTGRESQL
 
