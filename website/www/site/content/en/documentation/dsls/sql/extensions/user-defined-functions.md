@@ -142,7 +142,6 @@ The core of this mechanism is the `UdfProvider` interface. You create a public c
 
 {{< highlight java >}}
 
-package org.apache.beam.sdk.extensions.sql.provider;
 import com.google.auto.service.AutoService;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.udf.AggregateFn;
@@ -188,7 +187,7 @@ public class UdfTestProvider implements UdfProvider {
     public static class MySum implements AggregateFn < Long, Long, Long > {
         @Override
         public Long createAccumulator() {
-            return 0 L;
+            return 0L;
         }
 
         @Override
@@ -218,7 +217,7 @@ The `@AutoService(UdfProvider.class)` annotation is from Google's AutoService li
 
 Your project's `pom.xml` must include dependencies for Beam SQL and the AutoService library.
 
-{{< highlight xml >}}
+{{< highlight html >}}
 
 <?xml version="1.0"?>
 <project>
@@ -282,7 +281,7 @@ The path provided to `USING JAR` can be a local file path or a path on any distr
 
 ### Loading a UDF
 
-{{< highlight sql >}}
+```
 
 CREATE FUNCTION increment USING JAR 'gs://my-bucket/udfs/my-beam-udfs-1.0.0.jar';
 
@@ -292,11 +291,11 @@ SELECT increment(0);
 
 -- Returns: 1
 
-{{< /highlight >}}
+```
 
 ### Loading a UDAF
 
-{{< highlight sql >}}
+```
 
 CREATE AGGREGATE FUNCTION my_sum USING JAR 'gs://my-bucket/udfs/my-beam-udfs-1.0.0.jar';
 
@@ -304,4 +303,4 @@ CREATE AGGREGATE FUNCTION my_sum USING JAR 'gs://my-bucket/udfs/my-beam-udfs-1.0
 
 SELECT my_sum(f_long) FROM PCOLLECTION;
 
-{{< /highlight >}}
+```
