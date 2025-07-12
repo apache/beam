@@ -1507,7 +1507,9 @@ public class BigQueryServicesImpl implements BigQueryServices {
         @Override
         public void pin() {
           synchronized (this) {
-            Preconditions.checkState(!closed);
+            if (closed) {
+              return; // Silently ignore pin attempts on closed clients
+            }
             ++pins;
           }
         }
@@ -1516,7 +1518,9 @@ public class BigQueryServicesImpl implements BigQueryServices {
         public void unpin() throws Exception {
           boolean closeWriter;
           synchronized (this) {
-            Preconditions.checkState(pins > 0, "Tried to unpin when pins==0");
+            if (pins <= 0) {
+              return; // Ignore unpin attempts when pins is already 0 or negative
+            }
             --pins;
             closeWriter = (pins == 0) && closed;
           }
