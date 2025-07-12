@@ -2785,6 +2785,12 @@ class BeamModulePlugin implements Plugin<Project> {
         ]
       }
 
+      String testJavaVersion = project.findProperty('testJavaVersion')
+      String testJavaHome = null
+      if (testJavaVersion) {
+        testJavaHome = project.findProperty("java${testJavaVersion}Home")
+      }
+
       ['Java': javaPort, 'Python': pythonPort].each { sdk, port ->
         // Task for running testcases in Java SDK
         def javaTask = project.tasks.register(config.name+"JavaUsing"+sdk, Test) {
@@ -2809,6 +2815,9 @@ class BeamModulePlugin implements Plugin<Project> {
             useJUnit{ includeCategories 'org.apache.beam.sdk.testing.UsesPythonExpansionService' }
           } else {
             throw new GradleException("unsupported expansion service for Java validate runner tests.")
+          }
+          if (testJavaHome) {
+            executable = "${testJavaHome}/bin/java"
           }
           // increase maxHeapSize as this is directly correlated to direct memory,
           // see https://issues.apache.org/jira/browse/BEAM-6698
@@ -2845,6 +2854,9 @@ class BeamModulePlugin implements Plugin<Project> {
           args '-c', ". $envDir/bin/activate && cd $pythonDir && ./scripts/run_integration_test.sh $cmdArgs"
           dependsOn setupTask
           dependsOn config.startJobServer
+          if (testJavaHome) {
+            environment "JAVA_HOME", testJavaHome
+          }
         }
         if (sdk != "Python") {
           mainTask.configure{dependsOn pythonTask}
@@ -2869,6 +2881,9 @@ class BeamModulePlugin implements Plugin<Project> {
         dependsOn setupTask
         dependsOn config.startJobServer
         dependsOn ':sdks:java:extensions:sql:expansion-service:shadowJar'
+        if (testJavaHome) {
+          environment "JAVA_HOME", testJavaHome
+        }
       }
       mainTask.configure{dependsOn pythonSqlTask}
       cleanupTask.configure{mustRunAfter pythonSqlTask}
@@ -3131,6 +3146,13 @@ class BeamModulePlugin implements Plugin<Project> {
         project.tasks.register(name) {
           dependsOn setupVirtualenv
           dependsOn ':sdks:python:sdist'
+
+          def testJavaVersion = project.findProperty('testJavaVersion')
+          String testJavaHome = null
+          if (testJavaVersion) {
+            testJavaHome = project.findProperty("java${testJavaVersion}Home")
+          }
+
           if (project.hasProperty('useWheelDistribution')) {
             def pythonVersionNumber  = project.ext.pythonVersion.replace('.', '')
             dependsOn ":sdks:python:bdistPy${pythonVersionNumber}linux"
@@ -3142,6 +3164,9 @@ class BeamModulePlugin implements Plugin<Project> {
               }
               String packageFilename = collection.singleFile.toString()
               project.exec {
+                if (testJavaHome) {
+                  environment "JAVA_HOME", testJavaHome
+                }
                 executable 'sh'
                 args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env ${packageFilename} '$posargs' "
               }
@@ -3152,6 +3177,9 @@ class BeamModulePlugin implements Plugin<Project> {
               project.copy { from project.pythonSdkDeps; into copiedSrcRoot }
               def copiedPyRoot = "${copiedSrcRoot}/sdks/python"
               project.exec {
+                if (testJavaHome) {
+                  environment "JAVA_HOME", testJavaHome
+                }
                 executable 'sh'
                 args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env '$posargs'"
               }

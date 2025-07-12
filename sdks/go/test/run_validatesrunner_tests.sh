@@ -259,6 +259,12 @@ s.close()
 
 TMPDIR=$(mktemp -d)
 
+if [[ -n "$JAVA_HOME" ]]; then
+  JAVA_CMD="$JAVA_HOME/bin/java"
+else
+  JAVA_CMD="java"
+fi
+
 # Set up environment based on runner.
 if [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" || "$RUNNER" == "portable" || "$RUNNER" == "prism" ]]; then
   if [[ -z "$ENDPOINT" ]]; then
@@ -266,7 +272,7 @@ if [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" || "$
     ENDPOINT="localhost:$JOB_PORT"
     echo "No endpoint specified; starting a new $RUNNER job server on $ENDPOINT"
     if [[ "$RUNNER" == "flink" ]]; then
-      java \
+      "$JAVA_CMD" \
           -jar $FLINK_JOB_SERVER_JAR \
           --flink-master [local] \
           --flink-conf-dir $CURRENT_DIRECTORY/../../../runners/flink/src/test/resources \
@@ -274,13 +280,13 @@ if [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "samza" || "$
           --expansion-port 0 \
           --artifact-port 0 &
     elif [[ "$RUNNER" == "samza" ]]; then
-      java \
+      "$JAVA_CMD" \
           -jar $SAMZA_JOB_SERVER_JAR \
           --job-port $JOB_PORT \
           --expansion-port 0 \
           --artifact-port 0 &
     elif [[ "$RUNNER" == "spark" ]]; then
-      java \
+      "$JAVA_CMD" \
           -jar $SPARK_JOB_SERVER_JAR \
           --spark-master-url local \
           --job-port $JOB_PORT \
@@ -311,28 +317,28 @@ if [[ "$RUNNER" != "direct" ]]; then
     EXPANSION_PORT=$(python3 -c "$SOCKET_SCRIPT")
     TEST_EXPANSION_ADDR="localhost:$EXPANSION_PORT"
     echo "No test expansion address specified; starting a new test expansion server on $TEST_EXPANSION_ADDR"
-    java -jar $TEST_EXPANSION_JAR $EXPANSION_PORT &
+    "$JAVA_CMD" -jar $TEST_EXPANSION_JAR $EXPANSION_PORT &
     TEST_EXPANSION_PID=$!
   fi
   if [[ -z "$IO_EXPANSION_ADDR" && -n "$IO_EXPANSION_JAR" ]]; then
     EXPANSION_PORT=$(python3 -c "$SOCKET_SCRIPT")
     IO_EXPANSION_ADDR="localhost:$EXPANSION_PORT"
     echo "No IO expansion address specified; starting a new IO expansion server on $IO_EXPANSION_ADDR"
-    java -jar $IO_EXPANSION_JAR $EXPANSION_PORT &
+    "$JAVA_CMD" -jar $IO_EXPANSION_JAR $EXPANSION_PORT &
     IO_EXPANSION_PID=$!
   fi
   if [[ -z "$SCHEMAIO_EXPANSION_ADDR" && -n "$SCHEMAIO_EXPANSION_JAR" ]]; then
       EXPANSION_PORT=$(python3 -c "$SOCKET_SCRIPT")
       SCHEMAIO_EXPANSION_ADDR="localhost:$EXPANSION_PORT"
       echo "No SchemaIO expansion address specified; starting a new SchemaIO expansion server on $SCHEMAIO_EXPANSION_ADDR"
-      java -jar $SCHEMAIO_EXPANSION_JAR $EXPANSION_PORT &
+      "$JAVA_CMD" -jar $SCHEMAIO_EXPANSION_JAR $EXPANSION_PORT &
       SCHEMAIO_EXPANSION_PID=$!
   fi
   if [[ -z "$DEBEZIUMIO_EXPANSION_ADDR" && -n "$DEBEZIUMIO_EXPANSION_JAR" ]]; then
       EXPANSION_PORT=$(python3 -c "$SOCKET_SCRIPT")
       DEBEZIUMIO_EXPANSION_ADDR="localhost:$EXPANSION_PORT"
       echo "No DebeziumIO expansion address specified; starting a new DebeziumIO expansion server on $DEBEZIUMIO_EXPANSION_ADDR"
-      java -jar $DEBEZIUMIO_EXPANSION_JAR $EXPANSION_PORT &
+      "$JAVA_CMD" -jar $DEBEZIUMIO_EXPANSION_JAR $EXPANSION_PORT &
       DEBEZIUMIO_EXPANSION_PID=$!
   fi
 fi
