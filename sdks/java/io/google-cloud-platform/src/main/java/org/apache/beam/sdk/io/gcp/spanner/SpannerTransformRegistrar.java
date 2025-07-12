@@ -23,6 +23,7 @@ import static com.google.cloud.spanner.TimestampBound.Mode.READ_TIMESTAMP;
 import com.google.auto.service.AutoService;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Mutation;
+import com.google.cloud.spanner.Options.RpcPriority;
 import com.google.cloud.spanner.TimestampBound;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -43,8 +44,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /**
- * Exposes {@link SpannerIO.WriteRows} and {@link SpannerIO.ReadRows} as an external transform for
- * cross-language usage.
+ * Exposes {@link SpannerIO.WriteRows}, {@link SpannerIO.ReadRows} and {@link
+ * SpannerIO.ChangeStreamRead} as an external transform for cross-language usage.
  */
 @AutoService(ExternalTransformRegistrar.class)
 public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
@@ -55,6 +56,8 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
       "beam:transform:org.apache.beam:spanner_insert_or_update:v1";
   public static final String DELETE_URN = "beam:transform:org.apache.beam:spanner_delete:v1";
   public static final String READ_URN = "beam:transform:org.apache.beam:spanner_read:v1";
+  public static final String READ_CHANGE_STREAM_URN =
+      "beam:transform:org.apache.beam:spanner_change_stream_reader:v1";
 
   @Override
   @NonNull
@@ -66,6 +69,7 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
         .put(INSERT_OR_UPDATE_URN, new InsertOrUpdateBuilder())
         .put(DELETE_URN, new DeleteBuilder())
         .put(READ_URN, new ReadBuilder())
+        .put(READ_CHANGE_STREAM_URN, new ChangeStreamReaderBuilder())
         .build();
   }
 
@@ -380,6 +384,115 @@ public class SpannerTransformRegistrar implements ExternalTransformRegistrar {
                 SpannerIO.FailureMode.valueOf(configuration.failureMode));
       }
       return SpannerIO.WriteRows.of(writeTransform, operation, configuration.table);
+    }
+  }
+
+  public static class ChangeStreamReaderBuilder
+      implements ExternalTransformBuilder<
+          ChangeStreamReaderBuilder.Configuration, PBegin, PCollection<String>> {
+
+    public static class Configuration extends CrossLanguageConfiguration {
+      private String changeStreamName = "";
+      private String metadataDatabase = "";
+      private String metadataInstance = "";
+      private @Nullable Timestamp inclusiveStartAt;
+      private @Nullable Timestamp inclusiveEndAt;
+      private @Nullable String metadataTable;
+      private @Nullable RpcPriority rpcPriority;
+      private @Nullable Duration watermarkRefreshRate;
+
+      public void setChangeStreamName(String changeStreamName) {
+        this.changeStreamName = changeStreamName;
+      }
+
+      public void setInclusiveStartAt(@Nullable String inclusiveStartAtString) {
+        if (inclusiveStartAtString != null) {
+          this.inclusiveStartAt = Timestamp.parseTimestamp(inclusiveStartAtString);
+        }
+      }
+
+      public void setInclusiveEndAt(@Nullable String inclusiveEndAtString) {
+        if (inclusiveEndAtString != null) {
+          this.inclusiveEndAt = Timestamp.parseTimestamp(inclusiveEndAtString);
+        }
+      }
+
+      public void setMetadataDatabase(String metadataDatabase) {
+        this.metadataDatabase = metadataDatabase;
+      }
+
+      public void setMetadataInstance(String metadataInstance) {
+        this.metadataInstance = metadataInstance;
+      }
+
+      public void setMetadataTable(@Nullable String metadataTable) {
+        this.metadataTable = metadataTable;
+      }
+
+      public void setRpcPriority(@Nullable String rpcPriorityString) {
+        if (rpcPriorityString != null) {
+          this.rpcPriority = RpcPriority.valueOf(rpcPriorityString);
+        }
+      }
+
+      public void setWatermarkRefreshRate(@Nullable String watermarkRefreshRateString) {
+        if (watermarkRefreshRateString != null) {
+          this.watermarkRefreshRate = Duration.parse(watermarkRefreshRateString);
+        }
+      }
+    }
+
+    @Override
+    @NonNull
+    public PTransform<PBegin, PCollection<String>> buildExternal(
+        ChangeStreamReaderBuilder.Configuration configuration) {
+
+      configuration.checkMandatoryFields();
+
+      if (configuration.changeStreamName.isEmpty()) {
+        throw new IllegalArgumentException("ChangeStreamName can't be empty");
+      }
+
+      if (configuration.metadataInstance.isEmpty()) {
+        throw new IllegalArgumentException("MetadataInstance can't be empty");
+      }
+
+      if (configuration.metadataDatabase.isEmpty()) {
+        throw new IllegalArgumentException("MetadataDatabase can't be empty");
+      }
+
+      SpannerIO.ReadChangeStream readChangeStream =
+          SpannerIO.readChangeStream()
+              .withProjectId(configuration.projectId)
+              .withInstanceId(configuration.instanceId)
+              .withDatabaseId(configuration.databaseId)
+              .withChangeStreamName(configuration.changeStreamName)
+              .withMetadataInstance(configuration.metadataInstance)
+              .withMetadataDatabase(configuration.metadataDatabase);
+
+      if (configuration.inclusiveStartAt != null) {
+        readChangeStream = readChangeStream.withInclusiveStartAt(configuration.inclusiveStartAt);
+      }
+
+      if (configuration.inclusiveEndAt != null) {
+        readChangeStream = readChangeStream.withInclusiveEndAt(configuration.inclusiveEndAt);
+      }
+
+      if (configuration.metadataTable != null) {
+        readChangeStream = readChangeStream.withMetadataTable(configuration.metadataTable);
+      }
+
+      if (configuration.rpcPriority != null) {
+
+        readChangeStream = readChangeStream.withRpcPriority(configuration.rpcPriority);
+      }
+
+      if (configuration.watermarkRefreshRate != null) {
+        readChangeStream =
+            readChangeStream.withWatermarkRefreshRate(configuration.watermarkRefreshRate);
+      }
+
+      return new SpannerIO.ChangeStreamRead(readChangeStream);
     }
   }
 }
