@@ -18,6 +18,7 @@
 # The roles are defined in a YAML file.
 
 import yaml
+import datetime
 from google.cloud import iam_admin_v1
 from google.api_core import exceptions
 
@@ -170,10 +171,15 @@ def write_role_yaml(filename, role_data):
         return
     with open(filename, "w") as f:
         f.write(ASF_LICENSE_HEADER)
+        f.write(f"# This file was generated on {datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC\n\n")
         yaml.dump(role_data, f, default_flow_style=False)
 
-
-def main():
+def get_roles():
+    """
+    Generates the roles based on the predefined services and permissions.
+    This function creates roles for Beam Viewer, Committer, Infra Manager, and Admin.
+    It filters permissions based on the allowed and denied strings defined in the configuration.
+    """
     gcp_viewer_perms = get_role_permissions("roles/viewer", project_id="apache-beam-testing")
     gcp_editor_perms = get_role_permissions("roles/editor", project_id="apache-beam-testing")
 
@@ -181,24 +187,38 @@ def main():
     # This is the base role, so its file contains all its permissions.
     beam_viewer_perms = filter_permissions(gcp_viewer_perms, allowed_strs=BEAM_VIEWER_SERVICES, denied_strs=SECRET_MANAGER_SERVICES+GCP_DESTRUCTIVE_SUFFIXES)
     beam_viewer_role = generate_role("beam_viewer", beam_viewer_perms)
-    write_role_yaml("beam_viewer.role.yaml", beam_viewer_role)
 
     # Generate Beam Committer role
     beam_committer_perms = filter_permissions(gcp_viewer_perms, allowed_strs=BEAM_VIEWER_SERVICES+BEAM_COMMITTER_SERVICES, denied_strs=SECRET_MANAGER_SERVICES+GCP_DESTRUCTIVE_SUFFIXES)
     beam_committer_role = generate_role("beam_committer", (beam_committer_perms-beam_viewer_perms))
-    write_role_yaml("beam_committer.role.yaml", beam_committer_role)
 
     # Generate Beam Infra Manager role
     beam_infra_manager_perms = filter_permissions(gcp_editor_perms, allowed_strs=BEAM_VIEWER_SERVICES+BEAM_COMMITTER_SERVICES+BEAM_INFRA_MANAGER_SERVICES, denied_strs=SECRET_MANAGER_SERVICES+GCP_DESTRUCTIVE_SUFFIXES)
     beam_infra_manager_role = generate_role("beam_infra_manager", (beam_infra_manager_perms-beam_committer_perms-beam_viewer_perms))
-    write_role_yaml("beam_infra_manager.role.yaml", beam_infra_manager_role)
 
     # Generate Beam Admin role
     beam_admin_perms = filter_permissions(gcp_editor_perms, allowed_strs=BEAM_VIEWER_SERVICES+BEAM_COMMITTER_SERVICES+BEAM_INFRA_MANAGER_SERVICES+BEAM_ADMIN_SERVICES, denied_strs=[])
     beam_admin_role = generate_role("beam_admin", (beam_admin_perms-beam_infra_manager_perms-beam_committer_perms-beam_viewer_perms))
-    write_role_yaml("beam_admin.role.yaml", beam_admin_role)
 
-    print("Roles generated successfully.")
+    return {
+        "beam_viewer": beam_viewer_role,
+        "beam_committer": beam_committer_role,
+        "beam_infra_manager": beam_infra_manager_role,
+        "beam_admin": beam_admin_role,
+    }
+
+def main():
+    """
+    Main function to generate the roles and write them to YAML files.
+    It creates a directory for the roles if it doesn't exist and writes each role to its respective file.
+    """
+
+    roles = get_roles()
+
+    for role_name, role_data in roles.items():
+        filename = f"{role_name}.role.yaml"
+        write_role_yaml(filename, role_data)
+        print(f"Generated {filename} with {len(role_data['permissions'])} permissions.")
 
 if __name__ == "__main__":
     main()
