@@ -738,17 +738,13 @@ CREATE EXTERNAL TABLE user_clicks (
 TYPE 'datagen'
 TBLPROPERTIES '{
   "number-of-rows": "1000000",
-  
   "fields.event_id.kind": "sequence",
   "fields.event_id.start": "1",
   "fields.event_id.end": "1000000",
-  
   "fields.user_id.kind": "random",
   "fields.user_id.length": "12",
-
   "fields.click_timestamp.kind": "random",
   "fields.click_timestamp.max-past": "60000",
-
   "fields.score.kind": "random",
   "fields.score.min": "0.0",
   "fields.score.max": "1.0",
