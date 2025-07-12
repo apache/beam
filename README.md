@@ -119,7 +119,7 @@ Here are some resources actively maintained by the Beam community to help you ge
     <td>A certification granted by Google Cloud, certifying proficiency in Beam.</td>
   </tr>
   <tr>
-    <td><a href="https://s.apache.org/beam-community-metrics" target="_blank" rel="noopener noreferrer">Community Metrics </a></td>
+    <td><a href="https://metrics.beam.apache.org/" target="_blank" rel="noopener noreferrer">Community Metrics </a></td>
     <td>Beam's Git Community Metrics.</td>
   </tr>
 </tbody>
