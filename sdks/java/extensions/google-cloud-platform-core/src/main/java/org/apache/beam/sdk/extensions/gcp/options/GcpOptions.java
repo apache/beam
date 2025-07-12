@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings.isNullOrEmpty;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.Sleeper;
@@ -381,8 +382,32 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
         options.setTempLocation(tempLocation);
       } else {
         try {
-          PathValidator validator = options.as(GcsOptions.class).getPathValidator();
-          validator.validateOutputFilePrefixSupported(tempLocation);
+          // When a user supplies a tempLocation, we must validate it.
+          // GcsPathValidator's validate method throws an exception if the path is invalid,
+          // which can occur if the GCS bucket does not exist.
+          // We do not want to retry in cases where the user has supplied a path to a
+          // non-existent bucket, but we would like to retry in the case of a transient
+          // connection issue to GCS.
+          final PathValidator validator = options.as(GcsOptions.class).getPathValidator();
+          ResilientOperation.retry(
+              () -> {
+                validator.validateOutputFilePrefixSupported(tempLocation);
+                return null;
+              },
+              BackOffAdapter.toGcpBackOff(BACKOFF_FACTORY.backoff()),
+              new RetryDeterminer<IOException>() {
+                @Override
+                public boolean shouldRetry(IOException e) {
+                  if (e instanceof GoogleJsonResponseException) {
+                    if (((GoogleJsonResponseException) e).getStatusCode() == 503) {
+                      return true;
+                    }
+                  }
+                  return RetryDeterminer.SOCKET_ERRORS.shouldRetry(e);
+                }
+              },
+              IOException.class,
+              Sleeper.DEFAULT);
         } catch (Exception e) {
           throw new IllegalArgumentException(
               String.format(
