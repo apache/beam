@@ -115,6 +115,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 import org.apache.beam.fn.harness.logging.QuotaEvent;
 import org.apache.beam.fn.harness.logging.QuotaEvent.QuotaEventCloseable;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
@@ -173,6 +174,8 @@ public class BigQueryServicesImpl implements BigQueryServices {
   // The approximate maximum payload of rows for an insertAll request.
   // We set it to 9MB, which leaves room for request overhead.
   private static final Integer MAX_BQ_ROW_PAYLOAD = 9 * 1024 * 1024;
+
+  private static final String MAX_BQ_ROW_PAYLOAD_DESC = "9MB";
 
   // The initial backoff for polling the status of a BigQuery job.
   private static final Duration INITIAL_JOB_STATUS_POLL_BACKOFF = Duration.standardSeconds(1);
@@ -1155,16 +1158,36 @@ public class BigQueryServicesImpl implements BigQueryServices {
                     .setErrors(ImmutableList.of(new ErrorProto().setReason("row-too-large")));
             // We verify whether the retryPolicy parameter expects us to retry. If it does, then
             // it will return true. Otherwise it will return false.
-            Boolean isRetry = retryPolicy.shouldRetry(new InsertRetryPolicy.Context(error));
-            if (isRetry) {
+            if (retryPolicy.shouldRetry(new InsertRetryPolicy.Context(error))) {
+              // Create row details composed of key value pairs.
+              String rowDetails;
+              try {
+                rowDetails =
+                    row.entrySet().stream()
+                        .map(
+                            entry ->
+                                String.format(
+                                    "'%s': %s",
+                                    entry.getKey(),
+                                    entry.getValue() == null
+                                        ? "null"
+                                        : entry.getValue().getClass().getName()))
+                        .collect(Collectors.joining(", ", "{", "}"));
+              } catch (Exception e) {
+                rowDetails = row.toString();
+              }
+              if (rowDetails.length() > 1024) {
+                rowDetails = rowDetails.substring(0, 1024) + "...}";
+              }
               throw new RuntimeException(
                   String.format(
-                      "We have observed a row that is %s bytes in size and exceeded BigQueryIO"
-                          + " limit of 9MB. While BigQuery supports request sizes up to 10MB,"
-                          + " BigQueryIO sets the limit at 9MB to leave room for request"
-                          + " overhead. You may change your retry strategy to unblock this"
-                          + " pipeline, and the row will be output as a failed insert.",
-                      nextRowSize));
+                      "We have observed a row of size %s bytes exceeding the "
+                          + "BigQueryIO limit of %s. This may be due to a schema "
+                          + "mismatch. Problematic row field names and types "
+                          + "(truncated): %s. "
+                          + "You can change your retry strategy to unblock this "
+                          + "pipeline, and the row will be output as a failed insert. ",
+                      nextRowSize, MAX_BQ_ROW_PAYLOAD_DESC, rowDetails));
             } else {
               numFailedRows += 1;
               errorContainer.add(failedInserts, error, ref, rowsToPublish.get(rowIndex));
