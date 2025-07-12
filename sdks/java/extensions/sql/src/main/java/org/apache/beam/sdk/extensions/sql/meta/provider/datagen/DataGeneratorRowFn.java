@@ -29,7 +29,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.Row;
-import org.apache.commons.lang3.RandomStringUtils;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.commons.lang.RandomStringUtils;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
