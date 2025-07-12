@@ -217,8 +217,7 @@ The `@AutoService(UdfProvider.class)` annotation is from Google's AutoService li
 
 Your project's `pom.xml` must include dependencies for Beam SQL and the AutoService library.
 
-{{< highlight html >}}
-
+```
 <?xml version="1.0"?>
 <project>
   <modelVersion>4.0.0</modelVersion>
@@ -258,16 +257,13 @@ Your project's `pom.xml` must include dependencies for Beam SQL and the AutoServ
     </plugins>
   </build>
 </project>
-
-{{< /highlight >}}
+```
 
 ### 3. Build the JAR
 Navigate to your project's root directory and run the Maven `package` command:
 
 ```bash
-
 mvn package
-
 ```
 
 This creates the JAR file (e.g., `target/my-beam-udfs-1.0.0.jar`), which is now ready to be used in the SQL Shell.
@@ -282,7 +278,6 @@ The path provided to `USING JAR` can be a local file path or a path on any distr
 ### Loading a UDF
 
 ```
-
 CREATE FUNCTION increment USING JAR 'gs://my-bucket/udfs/my-beam-udfs-1.0.0.jar';
 
 -- Use the function in a query
@@ -290,17 +285,14 @@ CREATE FUNCTION increment USING JAR 'gs://my-bucket/udfs/my-beam-udfs-1.0.0.jar'
 SELECT increment(0);
 
 -- Returns: 1
-
 ```
 
 ### Loading a UDAF
 
 ```
-
 CREATE AGGREGATE FUNCTION my_sum USING JAR 'gs://my-bucket/udfs/my-beam-udfs-1.0.0.jar';
 
 -- Use the aggregate function in a query
 
 SELECT my_sum(f_long) FROM PCOLLECTION;
-
 ```
