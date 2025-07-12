@@ -270,7 +270,8 @@ class PeriodicImpulse(PTransform):
       stop_timestamp: TimestampTypes = MAX_TIMESTAMP,
       fire_interval: float = 360.0,
       apply_windowing: bool = False,
-      data: Optional[Sequence[Any]] = None):
+      data: Optional[Sequence[Any]] = None,
+      rebase_timestamp: bool = False):
     '''
     :param start_timestamp: Timestamp for first element.
     :param stop_timestamp: Timestamp at or after which no elements will be
@@ -301,21 +302,37 @@ class PeriodicImpulse(PTransform):
         sufficient to cover the duration defined by `start_timestamp`,
         `stop_timestamp`, and `fire_interval`; otherwise, a `ValueError` is
         raised.
+
+    :param rebase_timestamp: Whether to shift the generated timestamps to begin
+      at pipeline execution time. If true, this overrides the start time with
+      the pipeline's actual execution time. The stop time is then adjusted to
+      maintain the original duration between them. This is useful to avoid
+      generating a burst of events at the start of the pipeline due to the
+      implementation of `ImpulseSeqGenDoFn`, which tries to align the generated
+      timestamp with the execution time. Defaults to false.
     '''
     self.start_ts = start_timestamp
     self.stop_ts = stop_timestamp
     self.interval = fire_interval
     self.apply_windowing = apply_windowing
     self.data = data
+    self.rebase_timestamp = rebase_timestamp
 
     if self.data:
       self._validate_and_adjust_duration()
 
   def expand(self, pbegin):
+    if self.rebase_timestamp:
+      duration = Timestamp.of(self.stop_ts) - Timestamp.of(self.start_ts)
+      impulse_element = pbegin | beam.Impulse() | beam.Map(
+          lambda _:
+          [Timestamp.now(), Timestamp.now() + duration, self.interval])
+    else:
+      impulse_element = pbegin | 'ImpulseElement' >> beam.Create(
+          [(self.start_ts, self.stop_ts, self.interval)])
+
     result = (
-        pbegin
-        | 'ImpulseElement' >> beam.Create(
-            [(self.start_ts, self.stop_ts, self.interval)])
+        impulse_element
         | 'GenSequence' >> beam.ParDo(ImpulseSeqGenDoFn(self.data)))
 
     if not self.data:

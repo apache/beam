@@ -32,6 +32,7 @@ from apache_beam.io.restriction_trackers import OffsetRange
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.testing.util import is_empty
 from apache_beam.transforms import trigger
 from apache_beam.transforms import window
 from apache_beam.transforms.periodicsequence import PeriodicImpulse
@@ -285,7 +286,6 @@ class PeriodicImpulseTest(unittest.TestCase):
     times = 30
     for _ in range(times):
       seed = int(time.time() * 1000)
-      seed = 1751135957975
       random.seed(seed)
       n = int(random.randint(1, 100))
       data = list(range(n))
@@ -333,6 +333,26 @@ class PeriodicImpulseTest(unittest.TestCase):
       expected = [1.0, 2.0, 3.0, 4.0]
       assert_that(
           ret, equal_to(expected, lambda x, y: type(x) is type(y) and x == y))
+
+  def test_rebase_timestamp(self):
+    class CheckTimeStamp(beam.DoFn):
+      def process(self, elem):
+        ts = Timestamp.of(elem)
+        now = Timestamp.now()
+        # When rebase is enabled, the timestamp should be closer to now than the
+        # original start.
+        if (ts - Timestamp.of(1)) < (now - ts):
+          yield "wrong"
+
+    with TestPipeline() as p:
+      ret = (
+          p | PeriodicImpulse(
+              start_timestamp=Timestamp.of(1),
+              stop_timestamp=Timestamp.of(5),
+              fire_interval=1,
+              rebase_timestamp=True)
+          | beam.ParDo(CheckTimeStamp()))
+      assert_that(ret, is_empty())
 
 
 if __name__ == '__main__':
