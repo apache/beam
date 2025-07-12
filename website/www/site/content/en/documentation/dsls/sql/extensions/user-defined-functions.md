@@ -19,9 +19,13 @@ limitations under the License.
 
 # Beam SQL extensions: User-defined functions
 
-If Beam SQL does not have a scalar function or aggregate function to meet your
-needs, they can be authored in Java and invoked in your SQL query. These
-are commonly called UDF (for scalar functions) and UDAFs (for aggregate functions).
+If Beam SQL does not have a built-in function to meet your needs, you can create your own **user-defined functions (UDFs)** and **user-defined aggregate functions (UDAFs)** in Java and invoke them in your SQL queries.
+
+There are two primary ways to make your functions available to the SQL engine:
+
+1. **Programmatically**: Registering functions directly in your pipeline code using `SqlTransform.registerUdf()` or `SqlTransform.registerUdaf()`.
+2. **Dynamically via JARs**: Packaging functions into a JAR and loading them in the SQL Shell with the `CREATE FUNCTION` DDL statement. This is the recommended approach for interactive environments.
+
 
 ## Create and specify a User Defined Function (UDF)
 
@@ -124,3 +128,171 @@ PCollection<Row> result =
             .registerUdaf("squaresum", new SquareSum()));
 {{< /highlight >}}
 
+---
+## Creating a UDF JAR for Dynamic Loading
+To load functions dynamically, you package them into a JAR file. Beam uses Java's Service Provider Interface (SPI) to discover the functions within the JAR.
+
+### 1. Implement a UdfProvider
+
+The core of this mechanism is the `UdfProvider` interface. You create a public class that implements this interface, which then exposes your UDFs and UDAFs to the Beam SQL engine.
+
+`UdfProvider` has two methods you need to implement:
+* `userDefinedScalarFunctions()`: Returns a map of scalar functions, where the key is the SQL function name and the value is an instance of the function class.
+* `userDefinedAggregateFunctions()`: Returns a map of aggregate functions.
+
+{{< highlight java >}}
+
+import com.google.auto.service.AutoService;
+import java.util.Map;
+import org.apache.beam.sdk.extensions.sql.udf.AggregateFn;
+import org.apache.beam.sdk.extensions.sql.udf.ScalarFn;
+import org.apache.beam.sdk.extensions.sql.udf.UdfProvider;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+
+/**
+* A UDF provider that makes functions available to the Beam SQL engine.
+* The @AutoService annotation registers this class as a service provider.
+*/
+@AutoService(UdfProvider.class)
+public class UdfTestProvider implements UdfProvider {
+
+    @Override
+    public Map < String, ScalarFn > userDefinedScalarFunctions() {
+        // Maps the SQL function name (e.g., "increment") to the class instance.
+        return ImmutableMap.of(
+            "increment", new IncrementFn()
+        );
+    }
+
+    @Override
+    public Map < String, AggregateFn << ? , ? , ? >> userDefinedAggregateFunctions() {
+        // Maps the SQL aggregate function name (e.g., "my_sum") to the class instance.
+        return ImmutableMap.of("my_sum", new MySum());
+    }
+
+    /**
+     * A simple UDF that increments a long by 1.
+     * The actual function logic is in a method annotated with @ApplyMethod.
+     */
+    public static class IncrementFn extends ScalarFn {
+        @ApplyMethod
+        public Long increment(Long i) {
+            return i + 1;
+        }
+    }
+
+    /**
+     * A simple UDAF that sums long values.
+     */
+    public static class MySum implements AggregateFn < Long, Long, Long > {
+        @Override
+        public Long createAccumulator() {
+            return 0L;
+        }
+
+        @Override
+        public Long addInput(Long accumulator, Long input) {
+            return accumulator + input;
+        }
+
+        @Override
+        public Long mergeAccumulators(Long accumulator, Iterable < Long > accumulators) {
+            for (Long x: accumulators) {
+                accumulator += x;
+            }
+            return accumulator;
+        }
+
+        @Override
+        public Long extractOutput(Long accumulator) {
+            return accumulator;
+        }
+    }
+}
+{{< /highlight >}}
+
+The `@AutoService(UdfProvider.class)` annotation is from Google's AutoService library. It automatically generates the required `META-INF/services/org.apache.beam.sdk.extensions.sql.udf.UdfProvider` file in your JAR, which allows the SPI mechanism to find your provider class.
+
+### 2. Configure the Maven `pom.xml`
+
+Your project's `pom.xml` must include dependencies for Beam SQL and the AutoService library.
+
+```
+<?xml version="1.0"?>
+<project>
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.example</groupId>
+  <artifactId>my-beam-udfs</artifactId>
+  <version>1.0.0</version>
+  <dependencies>
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-extensions-sql</artifactId>
+      <version>2.55.1</version> <!-- Use a recent Beam version -->
+    </dependency>
+    <dependency>
+      <groupId>com.google.auto.service</groupId>
+      <artifactId>auto-service-annotations</artifactId>
+      <version>1.1.1</version>
+    </dependency>
+  </dependencies>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.8.1</version>
+        <configuration>
+          <source>1.8</source>
+          <target>1.8</target>
+          <annotationProcessorPaths>
+            <path>
+              <groupId>com.google.auto.service</groupId>
+              <artifactId>auto-service</artifactId>
+              <version>1.1.1</version>
+            </path>
+          </annotationProcessorPaths>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>
+```
+
+### 3. Build the JAR
+Navigate to your project's root directory and run the Maven `package` command:
+
+```bash
+mvn package
+```
+
+This creates the JAR file (e.g., `target/my-beam-udfs-1.0.0.jar`), which is now ready to be used in the SQL Shell.
+
+---
+## Using Functions in the SQL Shell with `CREATE FUNCTION`
+
+Once your JAR is built, you can load it using the `CREATE FUNCTION` statement. When the JAR is loaded, Beam SQL uses the `UdfProvider` you created to find and register the functions.
+
+The path provided to `USING JAR` can be a local file path or a path on any distributed filesystem supported by your pipeline's `FileSystems` configuration (e.g., Google Cloud Storage, HDFS).
+
+### Loading a UDF
+
+```
+CREATE FUNCTION increment USING JAR 'gs://my-bucket/udfs/my-beam-udfs-1.0.0.jar';
+
+-- Use the function in a query
+
+SELECT increment(0);
+
+-- Returns: 1
+```
+
+### Loading a UDAF
+
+```
+CREATE AGGREGATE FUNCTION my_sum USING JAR 'gs://my-bucket/udfs/my-beam-udfs-1.0.0.jar';
+
+-- Use the aggregate function in a query
+
+SELECT my_sum(f_long) FROM PCOLLECTION;
+```
