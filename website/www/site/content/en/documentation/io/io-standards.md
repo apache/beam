@@ -1462,7 +1462,7 @@ Performance benchmarks are a critical part of best practices for I/Os as they ef
 
 #### Dashboard
 
-Google runs performance tests routinely for built-in I/Os and publishes them to an externally viewable dashboard for [Java](https://s.apache.org/beam-community-metrics/d/bnlHKP3Wz/java-io-it-tests-dataflow?orgId=1) and [Python](https://s.apache.org/beam-community-metrics/d/gP7vMPqZz/python-io-it-tests-dataflow?orgId=1).
+Google runs performance tests routinely for built-in I/Os and publishes them to an externally viewable dashboard for [Java](https://metrics.beam.apache.org/d/bnlHKP3Wz/java-io-it-tests-dataflow?orgId=1) and [Python](https://metrics.beam.apache.org/d/gP7vMPqZz/python-io-it-tests-dataflow?orgId=1).
 
 
 <p><img src="/images/io-standards/io-connector-performance-test-dashboard-screenshot.png" alt="Dataflow performance test dashboard" title="Dataflow performance test dashboard"></img>
