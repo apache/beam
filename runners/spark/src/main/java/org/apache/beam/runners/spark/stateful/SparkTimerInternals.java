@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -43,7 +44,7 @@ import org.joda.time.Instant;
 public class SparkTimerInternals implements TimerInternals {
   private final Instant highWatermark;
   private final Instant synchronizedProcessingTime;
-  private final Set<TimerData> timers = Sets.newHashSet();
+  private final Set<TimerData> timers = Sets.newConcurrentHashSet();
 
   private Instant inputWatermark;
 
@@ -122,7 +123,14 @@ public class SparkTimerInternals implements TimerInternals {
   @Override
   public void deleteTimer(
       StateNamespace namespace, String timerId, String timerFamilyId, TimeDomain timeDomain) {
-    throw new UnsupportedOperationException("Deleting a timer by ID is not yet supported.");
+    this.timers.stream()
+        .filter(
+            timer ->
+                namespace.equals(timer.getNamespace())
+                    && timerId.equals(timer.getTimerId())
+                    && timerFamilyId.equals(timer.getTimerFamilyId())
+                    && timeDomain.equals(timer.getDomain()))
+        .forEach(this::deleteTimer);
   }
 
   @Override
@@ -180,6 +188,43 @@ public class SparkTimerInternals implements TimerInternals {
   public static Iterator<TimerData> deserializeTimers(
       Collection<byte[]> serTimers, TimerDataCoderV2 timerDataCoder) {
     return CoderHelpers.fromByteArrays(serTimers, timerDataCoder).iterator();
+  }
+
+  /**
+   * Checks if there are any expired timers in the {@link TimeDomain#PROCESSING_TIME} domain.
+   *
+   * <p>A timer is considered expired when its timestamp is less than the current processing time.
+   *
+   * @return {@code true} if at least one expired processing timer exists, {@code false} otherwise.
+   */
+  public boolean hasNextProcessingTimer() {
+    final Instant currentProcessingTime = this.currentProcessingTime();
+    return this.timers.stream()
+        .anyMatch(
+            (TimerData timerData) ->
+                timerData.getDomain().equals(TimeDomain.PROCESSING_TIME)
+                    && currentProcessingTime.isAfter(timerData.getTimestamp()));
+  }
+
+  /**
+   * Finds the latest timer in {@link TimeDomain#PROCESSING_TIME} domain that has expired based on
+   * the current processing time.
+   *
+   * <p>A timer is considered expired when its timestamp is less than the current processing time.
+   * If multiple expired timers exist, the one with the latest timestamp will be returned.
+   *
+   * @return The expired processing timer with the latest timestamp if one exists, or {@code null}
+   *     if no processing timers are ready to fire.
+   */
+  public @Nullable TimerData getNextProcessingTimer() {
+    final Instant currentProcessingTime = this.currentProcessingTime();
+    return this.timers.stream()
+        .filter(
+            (TimerData timerData) ->
+                timerData.getDomain().equals(TimeDomain.PROCESSING_TIME)
+                    && currentProcessingTime.isAfter(timerData.getTimestamp()))
+        .max(Comparator.comparing(TimerData::getTimestamp))
+        .orElse(null);
   }
 
   @Override
