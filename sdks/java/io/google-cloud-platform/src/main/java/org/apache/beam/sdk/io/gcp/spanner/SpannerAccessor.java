@@ -229,6 +229,10 @@ public class SpannerAccessor implements AutoCloseable {
       builder.setCredentials(NoCredentials.getInstance());
     }
     String userAgentString = USER_AGENT_PREFIX + "/" + ReleaseInfo.getReleaseInfo().getVersion();
+    SpannerIOMetadata spannerIOMetadata = SpannerIOMetadata.create();
+    if (spannerIOMetadata.getBeamJobId() != null) {
+      userAgentString = userAgentString + "/" + spannerIOMetadata.getBeamJobId();
+    }
     builder.setHeaderProvider(FixedHeaderProvider.create("user-agent", userAgentString));
     ValueProvider<String> databaseRole = spannerConfig.getDatabaseRole();
     if (databaseRole != null && databaseRole.get() != null && !databaseRole.get().isEmpty()) {
