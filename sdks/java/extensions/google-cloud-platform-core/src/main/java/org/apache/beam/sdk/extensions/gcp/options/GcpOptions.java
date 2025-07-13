@@ -389,9 +389,10 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
           // non-existent bucket, but we would like to retry in the case of a transient
           // connection issue to GCS.
           final PathValidator validator = options.as(GcsOptions.class).getPathValidator();
+          final String finalTempLocation = tempLocation;
           ResilientOperation.retry(
               () -> {
-                validator.validateOutputFilePrefixSupported(tempLocation);
+                validator.validateOutputFilePrefixSupported(finalTempLocation);
                 return null;
               },
               BackOffAdapter.toGcpBackOff(BACKOFF_FACTORY.backoff()),
