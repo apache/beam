@@ -579,25 +579,27 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
             return info;
           };
 
-      AtomicReference<AppendClientInfo> appendClientInfo =
-          new AtomicReference<>(APPEND_CLIENTS.get(element.getKey(), getAppendClientInfo));
-      String currentStream = getOrCreateStream.get();
-      if (!currentStream.equals(appendClientInfo.get().getStreamName())) {
-        // Cached append client is inconsistent with persisted state. Throw away cached item and
-        // force it to be
-        // recreated.
-        APPEND_CLIENTS.invalidate(element.getKey());
-        appendClientInfo.set(APPEND_CLIENTS.get(element.getKey(), getAppendClientInfo));
-      }
-
-      TableSchema updatedSchemaValue = updatedSchema.read();
-      if (autoUpdateSchema && updatedSchemaValue != null) {
-        if (appendClientInfo.get().hasSchemaChanged(updatedSchemaValue)) {
-          appendClientInfo.set(
-              AppendClientInfo.of(
-                  updatedSchemaValue, appendClientInfo.get().getCloseAppendClient(), false));
+      AtomicReference<AppendClientInfo> appendClientInfo;
+      synchronized (APPEND_CLIENTS) {
+        appendClientInfo = new AtomicReference<>(APPEND_CLIENTS.get(element.getKey(), getAppendClientInfo));
+        String currentStream = getOrCreateStream.get();
+        if (!currentStream.equals(appendClientInfo.get().getStreamName())) {
+          // Cached append client is inconsistent with persisted state. Throw away cached item and
+          // force it to be
+          // recreated.
           APPEND_CLIENTS.invalidate(element.getKey());
-          APPEND_CLIENTS.put(element.getKey(), appendClientInfo.get());
+          appendClientInfo.set(APPEND_CLIENTS.get(element.getKey(), getAppendClientInfo));
+        }
+
+        TableSchema updatedSchemaValue = updatedSchema.read();
+        if (autoUpdateSchema && updatedSchemaValue != null) {
+          if (appendClientInfo.get().hasSchemaChanged(updatedSchemaValue)) {
+            appendClientInfo.set(
+                AppendClientInfo.of(
+                    updatedSchemaValue, appendClientInfo.get().getCloseAppendClient(), false));
+            APPEND_CLIENTS.invalidate(element.getKey());
+            APPEND_CLIENTS.put(element.getKey(), appendClientInfo.get());
+          }
         }
       }
 
@@ -635,28 +637,31 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                 // Clear the stream name, forcing a new one to be created.
                 streamName.write("");
               }
-              appendClientInfo.set(
-                  appendClientInfo
-                      .get()
-                      .withAppendClient(
-                          writeStreamService,
-                          getOrCreateStream,
-                          false,
-                          defaultMissingValueInterpretation));
-              StreamAppendClient streamAppendClient =
-                  Preconditions.checkArgumentNotNull(
-                      appendClientInfo.get().getStreamAppendClient());
-              String streamNameRead = Preconditions.checkArgumentNotNull(streamName.read());
-              long currentOffset = Preconditions.checkArgumentNotNull(streamOffset.read());
-              for (AppendRowsContext context : contexts) {
-                context.streamName = streamNameRead;
-                streamAppendClient.pin();
-                context.client = appendClientInfo.get().getStreamAppendClient();
-                context.offset = currentOffset;
-                ++context.tryIteration;
-                currentOffset = context.offset + context.protoRows.getSerializedRowsCount();
+              // Synchronize to prevent race condition with clearClients
+              synchronized (APPEND_CLIENTS) {
+                appendClientInfo.set(
+                    appendClientInfo
+                        .get()
+                        .withAppendClient(
+                            writeStreamService,
+                            getOrCreateStream,
+                            false,
+                            defaultMissingValueInterpretation));
+                StreamAppendClient streamAppendClient =
+                    Preconditions.checkArgumentNotNull(
+                        appendClientInfo.get().getStreamAppendClient());
+                String streamNameRead = Preconditions.checkArgumentNotNull(streamName.read());
+                long currentOffset = Preconditions.checkArgumentNotNull(streamOffset.read());
+                for (AppendRowsContext context : contexts) {
+                  context.streamName = streamNameRead;
+                  streamAppendClient.pin();
+                  context.client = appendClientInfo.get().getStreamAppendClient();
+                  context.offset = currentOffset;
+                  ++context.tryIteration;
+                  currentOffset = context.offset + context.protoRows.getSerializedRowsCount();
+                }
+                streamOffset.write(currentOffset);
               }
-              streamOffset.write(currentOffset);
             } catch (Exception e) {
               throw new RuntimeException(e);
             }
@@ -664,9 +669,12 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
 
       Consumer<Iterable<AppendRowsContext>> clearClients =
           contexts -> {
-            APPEND_CLIENTS.invalidate(element.getKey());
-            appendClientInfo.set(appendClientInfo.get().withNoAppendClient());
-            APPEND_CLIENTS.put(element.getKey(), appendClientInfo.get());
+            // Synchronize to prevent race condition with initializeContexts
+            synchronized (APPEND_CLIENTS) {
+              APPEND_CLIENTS.invalidate(element.getKey());
+              appendClientInfo.set(appendClientInfo.get().withNoAppendClient());
+              APPEND_CLIENTS.put(element.getKey(), appendClientInfo.get());
+            }
             for (AppendRowsContext context : contexts) {
               if (context.client != null) {
                 // Unpin in a different thread, as it may execute a blocking close.
@@ -957,11 +965,13 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
             Optional<TableSchema> newSchema =
                 TableSchemaUpdateUtils.getUpdatedSchema(originalSchema, updatedSchemaReturned);
             if (newSchema.isPresent()) {
-              appendClientInfo.set(
-                  AppendClientInfo.of(
-                      newSchema.get(), appendClientInfo.get().getCloseAppendClient(), false));
-              APPEND_CLIENTS.invalidate(element.getKey());
-              APPEND_CLIENTS.put(element.getKey(), appendClientInfo.get());
+              synchronized (APPEND_CLIENTS) {
+                appendClientInfo.set(
+                    AppendClientInfo.of(
+                        newSchema.get(), appendClientInfo.get().getCloseAppendClient(), false));
+                APPEND_CLIENTS.invalidate(element.getKey());
+                APPEND_CLIENTS.put(element.getKey(), appendClientInfo.get());
+              }
               LOG.debug(
                   "Fetched updated schema for table {}:\n\t{}", tableId, updatedSchemaReturned);
               updatedSchema.write(newSchema.get());
@@ -993,7 +1003,9 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
         streamName.clear();
         streamOffset.clear();
         // Make sure that the stream object is closed.
-        APPEND_CLIENTS.invalidate(key);
+        synchronized (APPEND_CLIENTS) {
+          APPEND_CLIENTS.invalidate(key);
+        }
       }
     }
 
