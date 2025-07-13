@@ -143,8 +143,8 @@ class _DictUnionAction(argparse.Action):
   than one of the values, the last value takes precedence.
   """
   def __call__(self, parser, namespace, values, option_string=None):
-    if not hasattr(namespace,
-                   self.dest) or getattr(namespace, self.dest) is None:
+    if not hasattr(namespace, self.dest) or getattr(namespace,
+                                                    self.dest) is None:
       setattr(namespace, self.dest, {})
     getattr(namespace, self.dest).update(values)
 
@@ -194,8 +194,8 @@ class _GcsCustomAuditEntriesAction(argparse.Action):
                                  key] = value
 
   def __call__(self, parser, namespace, values, option_string=None):
-    if not hasattr(namespace,
-                   self.dest) or getattr(namespace, self.dest) is None:
+    if not hasattr(namespace, self.dest) or getattr(namespace,
+                                                    self.dest) is None:
       setattr(namespace, self.dest, {})
       self._custom_audit_entries = getattr(namespace, self.dest)
 
@@ -232,8 +232,8 @@ class _CommaSeparatedListAction(argparse.Action):
   ['abc', 'def', 'master_key=k1=v1,k2=v2']
   """
   def __call__(self, parser, namespace, values, option_string=None):
-    if not hasattr(namespace,
-                   self.dest) or getattr(namespace, self.dest) is None:
+    if not hasattr(namespace, self.dest) or getattr(namespace,
+                                                    self.dest) is None:
       setattr(namespace, self.dest, [])
 
     # Split comma-separated values and extend the list
@@ -791,7 +791,8 @@ def additional_option_ptransform_fn():
 
 # Optional type checks that aren't enabled by default.
 additional_type_checks: Dict[str, Callable[[], None]] = {
-    'ptransform_fn': additional_option_ptransform_fn, }
+    'ptransform_fn': additional_option_ptransform_fn,
+}
 
 
 def enable_all_additional_type_checks():
