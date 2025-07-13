@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.datagen;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -54,10 +55,27 @@ public class DataGeneratorPTransform extends PTransform<PBegin, PCollection<Row>
               + "'number-of-rows' (for bounded) in TBLPROPERTIES.");
     }
 
+    String behavior = properties.path("timestamp.behavior").asText("processing_time");
+    @Nullable String eventTimeColumn = null;
+
+    if ("event_time".equalsIgnoreCase(behavior)) {
+      JsonNode columnNode = properties.path("event_time.timestamp_column");
+
+      if (columnNode.isMissingNode() || columnNode.isNull()) {
+        throw new IllegalArgumentException(
+            "For 'event_time' behavior, 'event_time.timestamp_column' must be specified.");
+      }
+      eventTimeColumn = columnNode.asText();
+
+      long maxOutOfOrdernessMs = properties.path("event_time.max_out_of_orderness").asLong(0L);
+      generator = generator.withTimestampFn(new AdvancingTimestampFn(maxOutOfOrdernessMs));
+    }
+
     return input
         .getPipeline()
         .apply("GenerateSequence", generator)
-        .apply("GenerateRows", ParDo.of(new DataGeneratorRowFn(schema, properties)))
+        .apply(
+            "GenerateRows", ParDo.of(new DataGeneratorRowFn(schema, properties, eventTimeColumn)))
         .setRowSchema(schema);
   }
 }

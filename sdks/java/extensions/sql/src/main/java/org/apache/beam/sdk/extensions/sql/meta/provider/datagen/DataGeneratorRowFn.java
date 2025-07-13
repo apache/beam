@@ -26,9 +26,11 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.commons.lang.RandomStringUtils;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -37,14 +39,17 @@ import org.joda.time.Instant;
 public class DataGeneratorRowFn extends DoFn<Long, Row> {
   private final Schema schema;
   private final ObjectNode properties;
+  private final @Nullable String primaryTimestampField;
 
   private transient Map<String, FieldGenerator> fieldGenerators;
   private transient Random random;
 
   @SuppressWarnings("initialization")
-  public DataGeneratorRowFn(Schema schema, ObjectNode properties) {
+  public DataGeneratorRowFn(
+      Schema schema, ObjectNode properties, @Nullable String primaryTimestampField) {
     this.schema = schema;
     this.properties = properties;
+    this.primaryTimestampField = primaryTimestampField;
   }
 
   @Setup
@@ -58,18 +63,20 @@ public class DataGeneratorRowFn extends DoFn<Long, Row> {
   }
 
   @ProcessElement
-  public void processElement(@Element Long index, OutputReceiver<Row> out) {
+  public void processElement(
+      @Element Long index, @Timestamp Instant timestamp, OutputReceiver<Row> out) {
     Row.Builder rowBuilder = Row.withSchema(schema);
     for (Schema.Field field : schema.getFields()) {
-      FieldGenerator generator =
-          Objects.requireNonNull(fieldGenerators, "fieldGenerators map should not be null")
-              .get(field.getName());
-
-      if (generator == null) {
-        throw new IllegalStateException("No generator found for field: " + field.getName());
+      Object value;
+      if (field.getName().equals(this.primaryTimestampField)) {
+        value = timestamp.toDateTime();
+      } else {
+        FieldGenerator generator = fieldGenerators.get(field.getName());
+        if (generator == null) {
+          throw new IllegalStateException("No generator found for field: " + field.getName());
+        }
+        value = generator.generate(index);
       }
-
-      Object value = generator.generate(index);
       rowBuilder.addValue(value);
     }
     out.output(rowBuilder.build());
@@ -125,18 +132,32 @@ public class DataGeneratorRowFn extends DoFn<Long, Row> {
       return (index) -> start + (index % cycleLength);
     }
 
-    Schema.TypeName typeName = field.getType().getTypeName();
-    switch (typeName) {
-      case STRING:
+    final SqlTypeName sqlTypeName = CalciteUtils.toSqlTypeName(field.getType());
+    if (sqlTypeName == null) {
+      throw new UnsupportedOperationException(
+          "Data generator requires a defined SQL type. Beam type '"
+              + field.getType().getTypeName()
+              + "' on field '"
+              + field.getName()
+              + "' is not supported.");
+    }
+
+    switch (sqlTypeName) {
+      case CHAR:
+      case VARCHAR:
         int length = properties.path("fields." + fieldName + ".length").asInt(10);
         return (index) -> RandomStringUtils.randomAlphanumeric(length);
       case BOOLEAN:
         return (index) -> Objects.requireNonNull(random).nextBoolean();
+      case FLOAT:
       case DOUBLE:
         double minD = properties.path("fields." + fieldName + ".min").asDouble(0.0);
         double maxD = properties.path("fields." + fieldName + ".max").asDouble(1.0);
         return (index) -> minD + (maxD - minD) * Objects.requireNonNull(random).nextDouble();
-      case INT64:
+      case TINYINT:
+      case SMALLINT:
+      case INTEGER:
+      case BIGINT:
         long minL = properties.path("fields." + fieldName + ".min").asLong(0L);
         long maxL = properties.path("fields." + fieldName + ".max").asLong(Long.MAX_VALUE);
         return (index) ->
@@ -147,7 +168,7 @@ public class DataGeneratorRowFn extends DoFn<Long, Row> {
         return (index) ->
             BigDecimal.valueOf(
                 minBd + (maxBd - minBd) * Objects.requireNonNull(random).nextDouble());
-      case DATETIME:
+      case TIMESTAMP:
         JsonNode maxPastNode = properties.path("fields." + fieldName + ".max-past");
         if (!maxPastNode.isMissingNode()) {
           long maxPastMs = maxPastNode.asLong();
@@ -162,7 +183,7 @@ public class DataGeneratorRowFn extends DoFn<Long, Row> {
         }
         return (index) -> Instant.now();
       default:
-        throw new UnsupportedOperationException("Unsupported type for datagen: " + typeName);
+        throw new UnsupportedOperationException("Unsupported SQL type for datagen: " + sqlTypeName);
     }
   }
 }

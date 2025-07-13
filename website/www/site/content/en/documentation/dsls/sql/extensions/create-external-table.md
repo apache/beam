@@ -648,7 +648,7 @@ LOCATION '/home/admin/orders'
 
 The **DataGen** connector allows for creating tables based on in-memory data generation. This is useful for developing and testing queries locally without requiring access to external systems. The DataGen connector is built-in; no additional dependencies are required.
 
-Tables can be either **bounded** (generating a fixed number of rows) or **unbounded** (generating a stream of rows at a specific rate). The connector provides fine-grained controls to customize the generated values for each field.
+Tables can be either **bounded** (generating a fixed number of rows) or **unbounded** (generating a stream of rows at a specific rate). The connector provides fine-grained controls to customize the generated values for each field, including support for event-time windowing.
 
 ### Syntax
 
@@ -660,35 +660,46 @@ TYPE datagen
 
 ### Table Properties (`TBLPROPERTIES`)
 
-The `TBLPROPERTIES` JSON object is used to configure the generator's behavior. You must specify a property to control the number of rows.
+The `TBLPROPERTIES` JSON object is used to configure the generator's behavior.
+
+
+#### General Options
 
 | Key | Required | Description |
 | :--- | :--- | :--- |
 | `number-of-rows` | **Yes** (or `rows-per-second`) | Creates a **bounded** table with a specified total number of rows. |
 | `rows-per-second`| **Yes** (or `number-of-rows`) | Creates an **unbounded** table that generates rows at the specified rate. |
 
+#### Event-Time and Watermark Configuration
+
+| Key | Required | Description |
+| :--- | :--- | :--- |
+| `timestamp.behavior` | No | Specifies the time handling. Can be `'processing_time'` (default) or `'event_time'`. |
+| `event_time.timestamp_column` | **Yes**, if `timestamp.behavior` is `event_time` | The name of the column that will be used to drive the event-time watermark for the stream. |
+| `event_time.max_out_of_orderness` | No | When using `event_time`, this sets the maximum out-of-orderness in **milliseconds** for generated timestamps (e.g., `'5000'` for 5 seconds). Defaults to `0`. |
+
 #### Field-Specific Options
 
 You can customize the generation logic for each column by providing properties with the prefix **`fields.<columnName>.*`**.
 
-| Key | Description |
-| :--- | :--- |
-| `kind` | The type of generator to use. Can be `'random'` (default) or `'sequence'`. |
-| `null-rate`| A `double` between `0.0` and `1.0` indicating the probability that the generated value for this field will be `NULL`. Defaults to `0.0`. |
-| `length` | For `VARCHAR` fields with `kind: 'random'`, specifies the exact length of the generated string. Defaults to `10`. |
-| `min`, `max` | For numeric types (`BIGINT`, `INTEGER`, `DOUBLE`, etc.) with `kind: 'random'`, specifies the inclusive minimum and maximum values for the generated number. |
-| `start`, `end`| For `BIGINT` fields with `kind: 'sequence'`, specifies the inclusive start and end values of the sequence. The sequence will cycle from `start` to `end`. |
+| Key | Description                                                                                                                                                                            |
+| :--- |:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `kind` | The type of generator to use. Can be `'random'` (default) or `'sequence'`.                                                                                                             |
+| `null-rate`| A `double` between `0.0` and `1.0` indicating the probability that the generated value for this field will be `NULL`. Defaults to `0.0`.                                               |
+| `length` | For `VARCHAR` fields with `kind: 'random'`, specifies the exact length of the generated string. Defaults to `10`.                                                                      |
+| `min`, `max` | For numeric types (`BIGINT`, `INTEGER`, `DOUBLE`, etc.) with `kind: 'random'`, specifies the inclusive minimum and maximum values for the generated number.                            |
+| `start`, `end`| For `BIGINT` fields with `kind: 'sequence'`, specifies the inclusive start and end values of the sequence. The sequence will cycle from `start` to `end`.                              |
 | `max-past` | For `TIMESTAMP` fields, specifies the maximum duration in **milliseconds** in the past to generate a random timestamp from. If not set, timestamps are generated for the current time. |
 
 ### Data Type Behavior
 
 * **`TINYINT | SMALLINT | INTEGER | BIGINT`**: Generates random numbers within a range or from a sequence.
 * **`FLOAT | DOUBLE | DECIMAL`**: Generates random floating-point numbers within a specified range.
-* **`VARCHAR`**: Generates random alphanumeric strings.
+* **`CHAR | VARCHAR`**: Generates random alphanumeric strings.
 * **`BOOLEAN`**: Generates random `true` or `false` values.
 * **`TIMESTAMP`**: Generates timestamps based on the current system time unless `max-past` is configured.
 * **`ROW`**: Generates nested data by recursively applying these rules to its sub-fields.
-* **`ARRAY` and `MAP` types are not currently supported.**
+* **`BINARY`, `VARBINARY`, `DATE`, `TIME`,`TIMESTAMP_WITH_LOCAL_TIME_ZONE`,`ARRAY` and `MAP` types are not currently supported.**
 
 ### Examples
 
@@ -749,6 +760,32 @@ TBLPROPERTIES '{
   "fields.score.min": "0.0",
   "fields.score.max": "1.0",
   "fields.score.null-rate": "0.1"
+}'
+```
+
+#### Unbounded Streaming Table with Event Time
+
+This example creates a streaming table that generates 10 rows per second. It uses the `click_timestamp` column to drive the event-time watermark, allowing for up to 5 seconds of out-of-order data. The `ingestion_timestamp` column is populated separately with the processing time.
+
+```sql
+CREATE EXTERNAL TABLE user_clicks (
+    event_id BIGINT,
+    user_id VARCHAR,
+    click_timestamp TIMESTAMP,
+    ingestion_timestamp TIMESTAMP
+)
+TYPE 'datagen'
+TBLPROPERTIES '{
+  "rows-per-second": "10",
+  "timestamp.behavior": "event_time",
+  "event_time.timestamp_column": "click_timestamp",
+  "event_time.max_out_of_orderness": "5000",
+  "fields.event_id.kind": "sequence",
+  "fields.event_id.start": "1",
+  "fields.event_id.end": "1000000",
+  "fields.user_id.kind": "random",
+  "fields.user_id.length": "12",
+  "fields.ingestion_timestamp.kind": "timestamp"
 }'
 ```
 

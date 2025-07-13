@@ -204,4 +204,93 @@ public class DataGeneratorTableProviderTest {
         SqlTransform.query("SELECT * FROM bad_table").withDdlString(createDdl));
     pipeline.run().waitUntilFinish();
   }
+
+  /**
+   * Tests the default processing-time behavior to ensure it still works correctly and that
+   * event-time configuration is not required.
+   */
+  @Test
+  public void testProcessingTimeBehavior() {
+    String createDdl =
+        "CREATE EXTERNAL TABLE processing_time_table (\n"
+            + "  id BIGINT\n"
+            + ") TYPE 'datagen' TBLPROPERTIES '{\n"
+            + "  \"number-of-rows\": \"20\"\n"
+            + "}'";
+
+    PCollection<Row> result =
+        pipeline.apply(
+            "testProcessingTimeBehavior",
+            SqlTransform.query("SELECT * FROM processing_time_table").withDdlString(createDdl));
+
+    PAssert.that(result.apply("CountRows", Count.globally())).containsInAnyOrder(20L);
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  private static class ValidateMultiTimestampFn extends DoFn<Row, Void> {
+    @ProcessElement
+    public void processElement(@Element Row row) {
+      Instant mainEventTime = row.getDateTime("main_event_time").toInstant();
+      Instant secondaryTime = row.getDateTime("secondary_time").toInstant();
+
+      Assert.assertTrue(
+          "Secondary timestamp should be recent",
+          Instant.now().plus(Duration.millis(200)).isAfter(secondaryTime));
+
+      Assert.assertNotEquals(mainEventTime, secondaryTime);
+    }
+  }
+
+  /**
+   * Verifies that a table with multiple timestamp columns works correctly, with one column driving
+   * the watermark and the other being populated independently.
+   */
+  @Test
+  public void testMultipleTimestampColumns() {
+    String createDdl =
+        "CREATE EXTERNAL TABLE multi_ts_table (\n"
+            + "  main_event_time TIMESTAMP,\n"
+            + "  secondary_time TIMESTAMP\n"
+            + ") TYPE 'datagen' TBLPROPERTIES '{\n"
+            + "  \"number-of-rows\": \"10\",\n"
+            + "  \"timestamp.behavior\": \"event_time\",\n"
+            + "  \"event_time.timestamp_column\": \"main_event_time\",\n"
+            + "  \"fields.secondary_time.kind\": \"datetime\",\n"
+            + "  \"fields.secondary_time.now\": \"true\"\n"
+            + "}'";
+
+    PCollection<Row> result =
+        pipeline.apply(
+            "testMultiTimestamp",
+            SqlTransform.query("SELECT * FROM multi_ts_table").withDdlString(createDdl));
+
+    result.apply("ValidateTimestamps", ParDo.of(new ValidateMultiTimestampFn()));
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  /**
+   * Ensures that a misconfiguration (specifying event_time behavior without the required column)
+   * throws a descriptive error.
+   */
+  @Test
+  public void testEventTimeMissingColumnThrowsException() {
+    String createDdl =
+        "CREATE EXTERNAL TABLE bad_event_time_table (\n"
+            + "  ts TIMESTAMP\n"
+            + ") TYPE 'datagen' TBLPROPERTIES '{\n"
+            + "  \"number-of-rows\": \"10\",\n"
+            + "  \"timestamp.behavior\": \"event_time\"\n"
+            + "}'";
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(
+        "For 'event_time' behavior, 'event_time.timestamp_column' must be specified.");
+
+    pipeline.apply(
+        "testMissingEventTimeColumn",
+        SqlTransform.query("SELECT * FROM bad_event_time_table").withDdlString(createDdl));
+    pipeline.run().waitUntilFinish();
+  }
 }
