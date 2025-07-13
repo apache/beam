@@ -222,12 +222,13 @@ class _GcsCustomAuditEntriesAction(argparse.Action):
 
 class _CommaSeparatedListAction(argparse.Action):
   """
-  Argparse Action that splits comma-separated values and appends them to a list.
-  This allows options like --experiments=abc,def to be treated as separate
-  experiments 'abc' and 'def', similar to how Java SDK handles them.
+  Argparse Action that splits comma-separated values and appends them to
+  a list. This allows options like --experiments=abc,def to be treated
+  as separate experiments 'abc' and 'def', similar to how Java SDK handles
+  them.
   
-  For key=value experiments, only splits at commas that are not part of the value.
-  For example: 'abc,def,master_key=k1=v1,k2=v2' becomes
+  For key=value experiments, only splits at commas that are not part of the
+  value. For example: 'abc,def,master_key=k1=v1,k2=v2' becomes
   ['abc', 'def', 'master_key=k1=v1,k2=v2']
   """
   def __call__(self, parser, namespace, values, option_string=None):
