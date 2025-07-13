@@ -22,10 +22,9 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
-@SuppressWarnings("initialization")
 class AdvancingTimestampFn implements SerializableFunction<Long, Instant> {
+  private static final Random RANDOM = new Random();
   private final long maxOutOfOrdernessMs;
-  private transient Random random;
   private final Instant baseTime = Instant.now();
 
   AdvancingTimestampFn(long maxOutOfOrdernessMs) {
@@ -34,12 +33,7 @@ class AdvancingTimestampFn implements SerializableFunction<Long, Instant> {
 
   @Override
   public Instant apply(Long index) {
-    if (random == null) {
-      this.random = new Random();
-    }
-    // Each event advances in time, but we subtract a random delay
-    // to simulate out-of-order data.
-    long delay = (long) (random.nextDouble() * maxOutOfOrdernessMs);
+    long delay = (long) (RANDOM.nextDouble() * maxOutOfOrdernessMs);
     return baseTime.plus(Duration.millis(index * 1000)).minus(Duration.millis(delay));
   }
 }
