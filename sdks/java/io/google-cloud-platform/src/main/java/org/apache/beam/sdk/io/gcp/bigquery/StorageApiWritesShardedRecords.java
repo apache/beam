@@ -581,7 +581,8 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
 
       AtomicReference<AppendClientInfo> appendClientInfo;
       synchronized (APPEND_CLIENTS) {
-        appendClientInfo = new AtomicReference<>(APPEND_CLIENTS.get(element.getKey(), getAppendClientInfo));
+        appendClientInfo =
+            new AtomicReference<>(APPEND_CLIENTS.get(element.getKey(), getAppendClientInfo));
         String currentStream = getOrCreateStream.get();
         if (!currentStream.equals(appendClientInfo.get().getStreamName())) {
           // Cached append client is inconsistent with persisted state. Throw away cached item and
