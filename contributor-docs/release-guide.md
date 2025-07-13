@@ -990,9 +990,14 @@ Merge all of the website pull requests
 - publishing the [Python API reference manual](https://beam.apache.org/releases/pydoc/) and the [Java API reference manual](https://beam.apache.org/releases/javadoc/), and
 - adding the release blog post.
 
-Note: If API documentation updates are not reflected after 6 hours, it may be due to a large number of file changes.
+**Note:** If API documentation updates are not reflected after 6 hours, it may be due to a large number of file changes.
 In this case, try making a trivial commit to the release-docs branch of the https://github.com/apache/beam-site repository.
 If the issue persists, create an infrastructure ticket for assistance (e.g., https://issues.apache.org/jira/browse/INFRA-26708).
+
+**Attention**: Due to [this bug](https://github.com/apache/beam/issues/34694), the Beam YAML documentation cannot be updated correctly for some Java transforms. Please verify that [the updated webpage](https://beam.apache.org/releases/yamldoc/current/#readfromkafka) for `ReadFromKafka` contains complete documentation for all supported parameters. If the documentation is missing or incomplete, you can generate it manually by:
+
+1. Running `./gradlew :sdks:python:generateYamlDocs -PisRelease` on the release branch
+2. Using the generated file `sdks/python/build/yaml-ref.html` to create a PR for updating the YAML documentation manually (see [example PR](https://github.com/apache/beam-site/pull/687))  
 
 ### Publish the Github Release page
 
