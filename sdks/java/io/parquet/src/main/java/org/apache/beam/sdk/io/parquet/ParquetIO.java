@@ -72,6 +72,7 @@ import org.apache.parquet.avro.AvroReadSupport;
 import org.apache.parquet.column.page.PageReadStore;
 import org.apache.parquet.filter2.compat.FilterCompat;
 import org.apache.parquet.filter2.compat.FilterCompat.Filter;
+import org.apache.parquet.filter2.predicate.FilterPredicate;
 import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.ParquetWriter;
 import org.apache.parquet.hadoop.api.InitContext;
@@ -301,6 +302,8 @@ public class ParquetIO {
 
     abstract boolean getInferBeamSchema();
 
+    abstract @Nullable ParquetFilter getPredicate();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -320,6 +323,8 @@ public class ParquetIO {
 
       abstract Builder setConfiguration(SerializableConfiguration configuration);
 
+      abstract Builder setPredicate(ParquetFilter predicate);
+
       abstract Read build();
     }
 
@@ -338,6 +343,12 @@ public class ParquetIO {
           .setProjectionSchema(projectionSchema)
           .setEncoderSchema(encoderSchema)
           .build();
+    }
+
+    /** Specifies a filter predicate to use for filtering records. */
+    public Read withFilter(ParquetFilter predicate) {
+      checkArgument(predicate != null, "predicate can not be null");
+      return toBuilder().setPredicate(predicate).build();
     }
 
     /** Specify Hadoop configuration for ParquetReader. */
@@ -377,7 +388,8 @@ public class ParquetIO {
           readFiles(getSchema())
               .withBeamSchemas(getInferBeamSchema())
               .withAvroDataModel(getAvroDataModel())
-              .withProjection(getProjectionSchema(), getEncoderSchema());
+              .withProjection(getProjectionSchema(), getEncoderSchema())
+              .withFilter(getPredicate());
       if (getConfiguration() != null) {
         readFiles = readFiles.withConfiguration(getConfiguration().get());
       }
@@ -541,7 +553,7 @@ public class ParquetIO {
       checkArgument(!isGenericRecordOutput(), "Parse can't be used for reading as GenericRecord.");
 
       return input
-          .apply(ParDo.of(new SplitReadFn<>(null, null, getParseFn(), getConfiguration())))
+          .apply(ParDo.of(new SplitReadFn<>(null, null, getParseFn(), getConfiguration(), null)))
           .setCoder(inferCoder(input.getPipeline().getCoderRegistry()));
     }
 
@@ -614,6 +626,8 @@ public class ParquetIO {
 
     abstract boolean getInferBeamSchema();
 
+    abstract @Nullable ParquetFilter getPredicate();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -630,6 +644,8 @@ public class ParquetIO {
 
       abstract Builder setInferBeamSchema(boolean inferBeamSchema);
 
+      abstract Builder setPredicate(ParquetFilter predicate);
+
       abstract ReadFiles build();
     }
 
@@ -645,6 +661,14 @@ public class ParquetIO {
           .setProjectionSchema(projectionSchema)
           .setEncoderSchema(encoderSchema)
           .build();
+    }
+
+    /** Specifies a filter predicate to use for filtering records. */
+    public ReadFiles withFilter(ParquetFilter predicate) {
+      if (predicate == null) {
+        return this;
+      }
+      return toBuilder().setPredicate(predicate).build();
     }
 
     /** Specify Hadoop configuration for ParquetReader. */
@@ -673,7 +697,8 @@ public class ParquetIO {
                       getAvroDataModel(),
                       getProjectionSchema(),
                       GenericRecordPassthroughFn.create(),
-                      getConfiguration())))
+                      getConfiguration(),
+                      getPredicate())))
           .setCoder(getCollectionCoder());
     }
 
@@ -718,20 +743,33 @@ public class ParquetIO {
 
       private final SerializableFunction<GenericRecord, T> parseFn;
 
+      private final ParquetFilter parquetFilter;
+
       SplitReadFn(
           GenericData model,
           Schema requestSchema,
           SerializableFunction<GenericRecord, T> parseFn,
-          @Nullable SerializableConfiguration configuration) {
+          @Nullable SerializableConfiguration configuration,
+          @Nullable ParquetFilter predicate) {
 
         this.modelClass = model != null ? model.getClass() : null;
         this.requestSchemaString = requestSchema != null ? requestSchema.toString() : null;
         this.parseFn = checkNotNull(parseFn, "GenericRecord parse function can't be null");
         this.configuration = configuration;
+        this.parquetFilter = predicate;
       }
 
       private ParquetFileReader getParquetFileReader(ReadableFile file) throws Exception {
-        ParquetReadOptions options = HadoopReadOptions.builder(getConfWithModelClass()).build();
+        HadoopReadOptions.Builder optionsBuilder =
+            HadoopReadOptions.builder(getConfWithModelClass());
+        if (parquetFilter != null) {
+          FilterPredicate predicate =
+              ((ParquetFilterFactory.ParquetFilterImpl) parquetFilter).getPredicate();
+          if (predicate != null) {
+            optionsBuilder.withRecordFilter(FilterCompat.get(predicate));
+          }
+        }
+        ParquetReadOptions options = optionsBuilder.build();
         return ParquetFileReader.open(new BeamParquetInputFile(file.openSeekable()), options);
       }
 
@@ -755,7 +793,15 @@ public class ParquetIO {
           AvroReadSupport.setRequestedProjection(
               conf, new Schema.Parser().parse(requestSchemaString));
         }
-        ParquetReadOptions options = HadoopReadOptions.builder(conf).build();
+        HadoopReadOptions.Builder optionsBuilder = HadoopReadOptions.builder(conf);
+        if (parquetFilter != null) {
+          FilterPredicate predicate =
+              ((ParquetFilterFactory.ParquetFilterImpl) parquetFilter).getPredicate();
+          if (predicate != null) {
+            optionsBuilder.withRecordFilter(FilterCompat.get(predicate));
+          }
+        }
+        ParquetReadOptions options = optionsBuilder.build();
         try (ParquetFileReader reader =
             ParquetFileReader.open(new BeamParquetInputFile(file.openSeekable()), options)) {
           Filter filter = checkNotNull(options.getRecordFilter(), "filter");
