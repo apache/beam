@@ -63,9 +63,8 @@ class TableFieldsQueryConfig:
   def __post_init__(self):
     if not self.table_id or not self.where_clause_template:
       raise ValueError(
-          "TableFieldsQueryConfig and " +
-          "TableFunctionQueryConfig must provide table_id " +
-          "and where_clause_template")
+          "TableFieldsQueryConfig must provide table_id and " +
+          "where_clause_template")
 
     if not self.where_clause_fields:
       raise ValueError(
@@ -83,9 +82,8 @@ class TableFunctionQueryConfig:
   def __post_init__(self):
     if not self.table_id or not self.where_clause_template:
       raise ValueError(
-          "TableFieldsQueryConfig and " +
-          "TableFunctionQueryConfig must provide table_id " +
-          "and where_clause_template")
+          "TableFunctionQueryConfig must provide table_id and " +
+          "where_clause_template")
 
     if not self.where_clause_value_fn:
       raise ValueError(
@@ -264,7 +262,7 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
       connection_config = CloudSQLConnectionConfig(
         db_adapter=DatabaseTypeAdapter.POSTGRESQL,
         instance_connection_uri="apache-beam-testing:us-central1:itests",
-        user=postgres,
+        user='postgres',
         password= os.getenv("CLOUDSQL_PG_PASSWORD"))
       query_config=TableFieldsQueryConfig('my_table',"id = '{}'",['id']),
       cloudsql_handler = CloudSQLEnrichmentHandler(
@@ -319,6 +317,7 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
         url=self._connection_config.get_db_url(), creator=connector)
 
   def _execute_query(self, query: str, is_batch: bool, **params):
+    connection = None
     try:
       connection = self._engine.connect()
       transaction = connection.begin()
@@ -328,7 +327,8 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
         if is_batch:
           data = [row._asdict() for row in result]
         else:
-          data = result.first()._asdict()
+          result_row = result.first()
+          data = result_row._asdict() if result_row else {}
         # Explicitly commit the transaction.
         transaction.commit()
         return data
@@ -337,8 +337,8 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
         raise RuntimeError(f"Database operation failed: {e}")
     except Exception as e:
       raise Exception(
-          f'Could not execute the query: {query}. Please check if '
-          f'the query is properly formatted and the table exists. {e}')
+          f'Could not execute the query. Please check if the query is properly '
+          f'formatted and the table exists. {e}')
     finally:
       if connection:
         connection.close()
@@ -454,8 +454,8 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
                 req_dict[field]
                 for field in self._query_config.where_clause_fields
             ]
-          key = ";".join(["%s"] * len(current_values))
-          cache_keys.extend([key % tuple(current_values)])
+          key = ';'.join(map(repr, current_values))
+          cache_keys.append(key)
         except KeyError as e:
           raise KeyError(
               "Make sure the values passed in `where_clause_fields` are the "

@@ -18,10 +18,10 @@ import functools
 import logging
 import os
 import unittest
+import uuid
 from dataclasses import dataclass
 from typing import Optional
 from unittest.mock import MagicMock
-import uuid
 
 import pytest
 
@@ -103,7 +103,6 @@ class SQLEnrichmentTestHelper:
           sql_db_container.start()
           host = sql_db_container.get_container_host_ip()
           port = int(sql_db_container.get_exposed_port(5432))
-
         elif database_type == DatabaseTypeAdapter.MYSQL:
           user, password, db_id = "test", "test", "test"
           sql_db_container = MySqlContainer(
@@ -115,7 +114,6 @@ class SQLEnrichmentTestHelper:
           sql_db_container.start()
           host = sql_db_container.get_container_host_ip()
           port = int(sql_db_container.get_exposed_port(3306))
-
         elif database_type == DatabaseTypeAdapter.SQLSERVER:
           user, password, db_id = "SA", "A_Str0ng_Required_Password", "tempdb"
           sql_db_container = SqlServerContainer(
@@ -457,7 +455,9 @@ class BaseTestSQLEnrichment(unittest.TestCase):
       with TestPipeline() as p:
         _ = (p | beam.Create(requests) | Enrichment(handler))
 
-    expect_err_msg_contains = "Could not execute the query"
+    expect_err_msg_contains = (
+        "Could not execute the query. Please check if the query is properly "
+        "formatted and the table exists.")
     self.assertIn(expect_err_msg_contains, str(context.exception))
 
   @pytest.mark.usefixtures("cache_container")
@@ -498,10 +498,12 @@ class BaseTestSQLEnrichment(unittest.TestCase):
       if not response:
         raise ValueError("No cache entry found for %s" % key)
 
-    # Mock the CloudSQL enrichment handler to avoid actual database calls.
-    # This simulates a cache hit scenario by returning predefined data.
+    # Mocks the CloudSQL enrichment handler to prevent actual database calls.
+    # This ensures that a cache hit scenario does not trigger any database
+    # interaction, raising an exception if an unexpected call occurs.
     actual = CloudSQLEnrichmentHandler.__call__
-    CloudSQLEnrichmentHandler.__call__ = MagicMock(return_value=(beam.Row()))
+    CloudSQLEnrichmentHandler.__call__ = MagicMock(
+        side_effect=Exception("Database should not be called on a cache hit."))
 
     # Run a second pipeline to verify cache is being used.
     with TestPipeline(is_integration_test=True) as test_pipeline:
@@ -542,7 +544,6 @@ class BaseCloudSQLDBEnrichment(BaseTestSQLEnrichment):
   @classmethod
   def tearDownClass(cls):
     super().tearDownClass()
-    cls._db = None
 
 
 @unittest.skipUnless(
