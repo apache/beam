@@ -48,6 +48,10 @@ dependencies {
   implementation "org.apache.parquet:parquet-common:$parquet_version"
   implementation "org.apache.parquet:parquet-hadoop:$parquet_version"
   implementation library.java.avro
+  implementation library.java.vendored_calcite_1_28_0
+  // TODO(https://github.com/apache/beam/issues/21156): Determine how to build without this dependency
+  provided "org.immutables:value:2.8.8"
+  permitUnusedDeclared "org.immutables:value:2.8.8"
   provided library.java.hadoop_client
   permitUnusedDeclared library.java.hadoop_client
   provided library.java.hadoop_common

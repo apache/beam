@@ -40,9 +40,11 @@ import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.io.JsonEncoder;
 import org.apache.avro.reflect.ReflectData;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.io.FileIO;
+import org.apache.beam.sdk.io.parquet.ParquetFilterFactory.ParquetFilterImpl;
 import org.apache.beam.sdk.io.parquet.ParquetIO.GenericRecordPassthroughFn;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.schemas.SchemaCoder;
@@ -153,7 +155,7 @@ public class ParquetIOTest implements Serializable {
   public void testSplitBlockWithLimit() {
     ParquetIO.ReadFiles.SplitReadFn<GenericRecord> testFn =
         new ParquetIO.ReadFiles.SplitReadFn<>(
-            null, null, ParquetIO.GenericRecordPassthroughFn.create(), null);
+            null, null, ParquetIO.GenericRecordPassthroughFn.create(), null, null);
     ArrayList<BlockMetaData> blockList = new ArrayList<>();
     ArrayList<OffsetRange> rangeList;
     BlockMetaData testBlock = mock(BlockMetaData.class);
@@ -515,6 +517,121 @@ public class ParquetIOTest implements Serializable {
                 .from(temporaryFolder.getRoot().getAbsolutePath() + "/*"));
 
     PAssert.that(readBackAsJson).containsInAnyOrder(convertRecordsToJson(expectedRecords));
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testWriteAndReadWithFilter() {
+    List<GenericRecord> allRecords = generateGenericRecords(10);
+
+    List<GenericRecord> expectedRecords = new ArrayList<>();
+    expectedRecords.add(allRecords.get(5));
+
+    mainPipeline
+        .apply(Create.of(allRecords).withCoder(AvroCoder.of(SCHEMA)))
+        .apply(
+            FileIO.<GenericRecord>write()
+                .via(ParquetIO.sink(SCHEMA))
+                .to(temporaryFolder.getRoot().getAbsolutePath()));
+    mainPipeline.run().waitUntilFinish();
+
+    FilterPredicate filterPredicate =
+        FilterApi.eq(FilterApi.binaryColumn("id"), Binary.fromString("5"));
+
+    PCollection<GenericRecord> readBack =
+        readPipeline.apply(
+            ParquetIO.read(SCHEMA)
+                .from(temporaryFolder.getRoot().getAbsolutePath() + "/*")
+                .withFilter(new ParquetFilterImpl(filterPredicate)));
+
+    PAssert.that(readBack).containsInAnyOrder(expectedRecords);
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testReadFilesWithFilter() throws IOException {
+    List<GenericRecord> allRecords = generateGenericRecords(100);
+    List<GenericRecord> expectedRecords = new ArrayList<>();
+    // id = "25" OR id = "75"
+    expectedRecords.add(allRecords.get(25));
+    expectedRecords.add(allRecords.get(75));
+
+    // Write data to a file
+    mainPipeline
+        .apply(Create.of(allRecords).withCoder(AvroCoder.of(SCHEMA)))
+        .apply(
+            FileIO.<GenericRecord>write()
+                .via(ParquetIO.sink(SCHEMA))
+                .to(temporaryFolder.getRoot().getAbsolutePath()));
+    mainPipeline.run().waitUntilFinish();
+
+    // Create a more complex filter
+    FilterPredicate filter =
+        FilterApi.or(
+            FilterApi.eq(FilterApi.binaryColumn("id"), Binary.fromString("25")),
+            FilterApi.eq(FilterApi.binaryColumn("id"), Binary.fromString("75")));
+
+    // Read back using readFiles and apply the filter
+    PCollection<GenericRecord> readBack =
+        readPipeline
+            .apply(FileIO.match().filepattern(temporaryFolder.getRoot().getAbsolutePath() + "/*"))
+            .apply(FileIO.readMatches())
+            .apply(ParquetIO.readFiles(SCHEMA).withFilter(new ParquetFilterImpl(filter)));
+
+    PAssert.that(readBack).containsInAnyOrder(expectedRecords);
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testFilterWithNoResults() {
+    List<GenericRecord> allRecords = generateGenericRecords(50);
+
+    mainPipeline
+        .apply(Create.of(allRecords).withCoder(AvroCoder.of(SCHEMA)))
+        .apply(
+            FileIO.<GenericRecord>write()
+                .via(ParquetIO.sink(SCHEMA))
+                .to(temporaryFolder.getRoot().getAbsolutePath()));
+    mainPipeline.run().waitUntilFinish();
+
+    // Create a filter that will not match any records
+    FilterPredicate filterPredicate =
+        FilterApi.eq(FilterApi.binaryColumn("id"), Binary.fromString("non_existent_id"));
+
+    PCollection<GenericRecord> readBack =
+        readPipeline.apply(
+            ParquetIO.read(SCHEMA)
+                .from(temporaryFolder.getRoot().getAbsolutePath() + "/*")
+                .withFilter(new ParquetFilterImpl(filterPredicate)));
+
+    // Assert that the resulting PCollection is empty
+    PAssert.that(readBack).empty();
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testWriteWithConfiguration() throws IOException {
+    List<GenericRecord> records = generateGenericRecords(100);
+
+    // Example of a writer-side Hadoop configuration property
+    Configuration conf = new Configuration();
+    conf.set("parquet.writer.version", "v2");
+
+    mainPipeline
+        .apply(Create.of(records).withCoder(AvroCoder.of(SCHEMA)))
+        .apply(
+            FileIO.<GenericRecord>write()
+                .via(ParquetIO.sink(SCHEMA).withConfiguration(conf))
+                .to(temporaryFolder.getRoot().getAbsolutePath()));
+
+    PipelineResult.State state = mainPipeline.run().waitUntilFinish();
+    assertEquals(PipelineResult.State.DONE, state);
+
+    // The read side just confirms the data was written correctly.
+    PCollection<GenericRecord> readBack =
+        readPipeline.apply(
+            ParquetIO.read(SCHEMA).from(temporaryFolder.getRoot().getAbsolutePath() + "/*"));
+    PAssert.that(readBack).containsInAnyOrder(records);
     readPipeline.run().waitUntilFinish();
   }
 
