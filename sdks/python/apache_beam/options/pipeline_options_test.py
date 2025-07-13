@@ -920,7 +920,8 @@ class PipelineOptionsTest(unittest.TestCase):
     self.assertEqual(['abc', 'def'], options.get_all_options()['experiments'])
 
   def test_comma_separated_dataflow_service_options(self):
-    """Test that comma-separated dataflow service options are parsed correctly."""
+    """Test that comma-separated dataflow service options are parsed
+    correctly."""
     # Test single option
     options = PipelineOptions(['--dataflow_service_options=option1=value1'])
     self.assertEqual(['option1=value1'],
@@ -928,7 +929,8 @@ class PipelineOptionsTest(unittest.TestCase):
 
     # Test comma-separated options
     options = PipelineOptions([
-        '--dataflow_service_options=option1=value1,option2=value2,option3=value3'
+        '--dataflow_service_options=option1=value1,option2=value2,'
+        'option3=value3'
     ])
     self.assertEqual(['option1=value1', 'option2=value2', 'option3=value3'],
                      options.get_all_options()['dataflow_service_options'])

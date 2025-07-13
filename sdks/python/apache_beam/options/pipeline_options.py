@@ -227,7 +227,8 @@ class _CommaSeparatedListAction(argparse.Action):
   experiments 'abc' and 'def', similar to how Java SDK handles them.
   
   For key=value experiments, only splits at commas that are not part of the value.
-  For example: 'abc,def,master_key=k1=v1,k2=v2' becomes ['abc', 'def', 'master_key=k1=v1,k2=v2']
+  For example: 'abc,def,master_key=k1=v1,k2=v2' becomes
+  ['abc', 'def', 'master_key=k1=v1,k2=v2']
   """
   def __call__(self, parser, namespace, values, option_string=None):
     if not hasattr(namespace,
@@ -236,7 +237,8 @@ class _CommaSeparatedListAction(argparse.Action):
 
     # Split comma-separated values and extend the list
     if isinstance(values, str):
-      # Smart splitting: only split at commas that are not part of key=value pairs
+      # Smart splitting: only split at commas that are not part of
+      # key=value pairs
       split_values = self._smart_split(values)
       getattr(namespace, self.dest).extend(split_values)
     else:
@@ -244,7 +246,8 @@ class _CommaSeparatedListAction(argparse.Action):
       getattr(namespace, self.dest).append(values)
 
   def _smart_split(self, values):
-    """Split comma-separated values, but preserve commas within key=value pairs."""
+    """Split comma-separated values, but preserve commas within
+    key=value pairs."""
     result = []
     current = []
     equals_depth = 0
