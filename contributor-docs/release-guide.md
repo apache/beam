@@ -997,7 +997,7 @@ If the issue persists, create an infrastructure ticket for assistance (e.g., htt
 **Attention**: Due to [this bug](https://github.com/apache/beam/issues/34694), the Beam YAML documentation cannot be updated correctly for some Java transforms. Please verify that [the updated webpage](https://beam.apache.org/releases/yamldoc/current/#readfromkafka) for `ReadFromKafka` contains complete documentation for all supported parameters. If the documentation is missing or incomplete, you can generate it manually by:
 
 1. Running `./gradlew :sdks:python:generateYamlDocs -PisRelease` on the release branch
-2. Using the generated file `sdks/python/build/yaml-ref.html` to create a PR for updating the YAML documentation manually (see [example PR](https://github.com/apache/beam-site/pull/687))  
+2. Using the generated file `sdks/python/build/yaml-ref.html` to create a PR for updating the YAML documentation manually (see [example PR](https://github.com/apache/beam-site/pull/687))
 
 ### Publish the Github Release page
 
