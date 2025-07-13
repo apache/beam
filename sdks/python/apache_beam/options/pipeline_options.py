@@ -143,8 +143,8 @@ class _DictUnionAction(argparse.Action):
   than one of the values, the last value takes precedence.
   """
   def __call__(self, parser, namespace, values, option_string=None):
-    if not hasattr(namespace, self.dest) or getattr(namespace,
-                                                    self.dest) is None:
+    if not hasattr(namespace,
+                   self.dest) or getattr(namespace, self.dest) is None:
       setattr(namespace, self.dest, {})
     getattr(namespace, self.dest).update(values)
 
@@ -194,8 +194,8 @@ class _GcsCustomAuditEntriesAction(argparse.Action):
                                  key] = value
 
   def __call__(self, parser, namespace, values, option_string=None):
-    if not hasattr(namespace, self.dest) or getattr(namespace,
-                                                    self.dest) is None:
+    if not hasattr(namespace,
+                   self.dest) or getattr(namespace, self.dest) is None:
       setattr(namespace, self.dest, {})
       self._custom_audit_entries = getattr(namespace, self.dest)
 
@@ -218,6 +218,66 @@ class _GcsCustomAuditEntriesAction(argparse.Action):
           None,
           "The maximum allowed number of GCS custom audit entries (including the default x-goo-custom-audit-job) is %d."  # pylint: disable=line-too-long
           % _GcsCustomAuditEntriesAction.MAX_ENTRIES)
+
+
+class _CommaSeparatedListAction(argparse.Action):
+  """
+  Argparse Action that splits comma-separated values and appends them to a list.
+  This allows options like --experiments=abc,def to be treated as separate
+  experiments 'abc' and 'def', similar to how Java SDK handles them.
+  
+  For key=value experiments, only splits at commas that are not part of the value.
+  For example: 'abc,def,master_key=k1=v1,k2=v2' becomes ['abc', 'def', 'master_key=k1=v1,k2=v2']
+  """
+  def __call__(self, parser, namespace, values, option_string=None):
+    if not hasattr(namespace,
+                   self.dest) or getattr(namespace, self.dest) is None:
+      setattr(namespace, self.dest, [])
+
+    # Split comma-separated values and extend the list
+    if isinstance(values, str):
+      # Smart splitting: only split at commas that are not part of key=value pairs
+      split_values = self._smart_split(values)
+      getattr(namespace, self.dest).extend(split_values)
+    else:
+      # If values is not a string, just append it
+      getattr(namespace, self.dest).append(values)
+
+  def _smart_split(self, values):
+    """Split comma-separated values, but preserve commas within key=value pairs."""
+    result = []
+    current = []
+    equals_depth = 0
+
+    i = 0
+    while i < len(values):
+      char = values[i]
+
+      if char == '=':
+        equals_depth += 1
+        current.append(char)
+      elif char == ',' and equals_depth <= 1:
+        # This comma is a top-level separator (not inside a complex value)
+        if current:
+          result.append(''.join(current).strip())
+          current = []
+          equals_depth = 0
+      elif char == ',' and equals_depth > 1:
+        # This comma is inside a complex value, keep it
+        current.append(char)
+      elif char == ' ' and not current:
+        # Skip leading spaces
+        pass
+      else:
+        current.append(char)
+
+      i += 1
+
+    # Add the last item
+    if current:
+      result.append(''.join(current).strip())
+
+    return [v for v in result if v]  # Filter out empty values
 
 
 class PipelineOptions(HasDisplayData):
@@ -727,8 +787,7 @@ def additional_option_ptransform_fn():
 
 # Optional type checks that aren't enabled by default.
 additional_type_checks: Dict[str, Callable[[], None]] = {
-    'ptransform_fn': additional_option_ptransform_fn,
-}
+    'ptransform_fn': additional_option_ptransform_fn, }
 
 
 def enable_all_additional_type_checks():
@@ -977,7 +1036,7 @@ class GoogleCloudOptions(PipelineOptions):
         '--dataflow_service_option',
         '--dataflow_service_options',
         dest='dataflow_service_options',
-        action='append',
+        action=_CommaSeparatedListAction,
         default=None,
         help=(
             'Options to configure the Dataflow service. These '
@@ -1412,7 +1471,7 @@ class DebugOptions(PipelineOptions):
         '--experiment',
         '--experiments',
         dest='experiments',
-        action='append',
+        action=_CommaSeparatedListAction,
         default=None,
         help=(
             'Runners may provide a number of experimental features that can be '
