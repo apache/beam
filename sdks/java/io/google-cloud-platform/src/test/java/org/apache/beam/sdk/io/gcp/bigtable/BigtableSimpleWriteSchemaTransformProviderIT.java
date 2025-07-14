@@ -44,6 +44,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.junit.After;
 import org.junit.Before;
@@ -182,6 +183,13 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
         .apply(writeTransform);
     p.run().waitUntilFinish();
 
+    PCollection<Row> inputPCollection = p.apply(Create.of(Arrays.asList(mutationRow1, mutationRow2)));
+    inputPCollection.setRowSchema(testSchema);
+
+    PCollectionRowTuple.of("input", inputPCollection) // Use the schema-set PCollection
+        .apply(writeTransform);
+    p.run().waitUntilFinish();
+
     // get rows from table
     List<com.google.cloud.bigtable.data.v2.models.Row> rows =
         dataClient.readRows(Query.create(tableId)).stream().collect(Collectors.toList());
@@ -233,7 +241,10 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
             .withFieldValue("timestamp_micros", 999_000L)
             .build();
 
-    PCollectionRowTuple.of("input", p.apply(Create.of(Arrays.asList(mutationRow))))
+    PCollection<Row> inputPCollection = p.apply(Create.of(Arrays.asList(mutationRow)));
+    inputPCollection.setRowSchema(testSchema);
+
+    PCollectionRowTuple.of("input", inputPCollection) // Use the schema-set PCollection
         .apply(writeTransform);
     p.run().waitUntilFinish();
 
@@ -278,7 +289,10 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
             .withFieldValue("family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8))
             .build();
 
-    PCollectionRowTuple.of("input", p.apply(Create.of(Arrays.asList(mutationRow))))
+    PCollection<Row> inputPCollection = p.apply(Create.of(Arrays.asList(mutationRow)));
+    inputPCollection.setRowSchema(testSchema);
+
+    PCollectionRowTuple.of("input", inputPCollection) // Use the schema-set PCollection
         .apply(writeTransform);
     p.run().waitUntilFinish();
 
@@ -329,7 +343,10 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
             .withFieldValue("end_timestamp_micros", 100_000_000L)
             .build();
 
-    PCollectionRowTuple.of("input", p.apply(Create.of(Arrays.asList(mutationRow))))
+    PCollection<Row> inputPCollection = p.apply(Create.of(Arrays.asList(mutationRow)));
+    inputPCollection.setRowSchema(testSchema);
+
+    PCollectionRowTuple.of("input", inputPCollection) // Use the schema-set PCollection
         .apply(writeTransform);
     p.run().waitUntilFinish();
 
@@ -369,7 +386,10 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
             .withFieldValue("family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8))
             .build();
 
-    PCollectionRowTuple.of("input", p.apply(Create.of(Arrays.asList(mutationRow))))
+    PCollection<Row> inputPCollection = p.apply(Create.of(Arrays.asList(mutationRow)));
+    inputPCollection.setRowSchema(testSchema);
+
+    PCollectionRowTuple.of("input", inputPCollection) // Use the schema-set PCollection
         .apply(writeTransform);
     p.run().waitUntilFinish();
 
@@ -404,7 +424,10 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
             .withFieldValue("type", "DeleteFromRow")
             .build();
 
-    PCollectionRowTuple.of("input", p.apply(Create.of(Arrays.asList(mutationRow))))
+    PCollection<Row> inputPCollection = p.apply(Create.of(Arrays.asList(mutationRow)));
+    inputPCollection.setRowSchema(testSchema);
+
+    PCollectionRowTuple.of("input", inputPCollection) // Use the schema-set PCollection
         .apply(writeTransform);
     p.run().waitUntilFinish();
 
