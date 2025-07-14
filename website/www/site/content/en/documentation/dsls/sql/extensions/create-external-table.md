@@ -528,6 +528,11 @@ The presence of the `headers` field triggers nested mode usage.
         {`csv`, `avro`, `json`, `proto`, `thrift`}. Defaults to `csv` in
         flattened mode or `json` in nested mode. `csv` does not support nested
         mode.
+    * `watermark.type`: Optional. Defines the strategy for watermark generation. Defaults to `ProcessingTime`. Supported values are:
+      * `ProcessingTime`: Generates watermarks based on the time messages are processed within the Beam pipeline.
+      * `LogAppendTime`: Generates watermarks based on the timestamps that Kafka brokers append to messages.
+      * `CreateTime`: Generates watermarks based on the timestamps embedded in Kafka records by producers.
+    * `watermark.delay`: Optional. Used only with the `CreateTime` watermark type. It specifies the allowed lateness for records as a human-readable string (e.g., `"10 seconds"`, `"2 minutes"`).
 
 ### Read Mode
 

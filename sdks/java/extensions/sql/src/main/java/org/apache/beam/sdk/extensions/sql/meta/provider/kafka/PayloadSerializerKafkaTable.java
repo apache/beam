@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
 import java.util.List;
 import org.apache.beam.sdk.io.kafka.KafkaRecord;
+import org.apache.beam.sdk.io.kafka.TimestampPolicyFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.io.payloads.PayloadSerializer;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -36,8 +37,9 @@ public class PayloadSerializerKafkaTable extends BeamKafkaTable {
       Schema requiredSchema,
       String bootstrapServers,
       List<String> topics,
-      PayloadSerializer serializer) {
-    super(requiredSchema, bootstrapServers, topics);
+      PayloadSerializer serializer,
+      TimestampPolicyFactory timestampPolicyFactory) {
+    super(requiredSchema, bootstrapServers, topics, timestampPolicyFactory);
     this.serializer = serializer;
   }
 
