@@ -16,11 +16,19 @@
 # limitations under the License.
 #
 
+# The pipeline first reads the data stream of taxi rides events from the
+# public PubSub topic and performs some transformations before writing it
+# to a Kafka topic. The pipeline then reads from that Kafka topic and applies
+# the necessary transformation logic, before `RunInference` transform performs
+# remote inference with the Vertex AI model handler and the custom-trained
+# model deployed to a Vertex AI endpoint. The inference result is then
+# parsed and written to a BigQuery table.
+
 pipeline:
   transforms:
-    # ...
+    # Read the data stream of taxi rides event from the public PubSub topic.
     - type: ReadFromPubSub
-      name: TaxiEvents
+      name: ReadPubSub
       config:
         topic: "projects/pubsub-public-data/topics/taxirides-realtime"
         format: "JSON"
@@ -35,10 +43,11 @@ pipeline:
             timestamp: { type: string }
             ride_status: { type: string }
 
-    # ...
+    # Use the `timestamp` value of the data and assign it as
+    # timestamp for each element of the PCollection.
     - type: AssignTimestamps
       name: AssignTimestamps
-      input: TaxiEvents
+      input: ReadPubSub
       config:
         language: python
         timestamp:
@@ -47,7 +56,7 @@ pipeline:
             def fn(row):
               return datetime.fromisoformat(row.timestamp).astimezone(timezone.utc)
 
-    # ...
+    # Assign windows to each element of the unbounded PCollection.
     - type: WindowInto
       name: Windowing
       input: AssignTimestamps
@@ -56,17 +65,18 @@ pipeline:
           type: sessions
           gap: 10m
 
-    # ...
+    # Filter for pick-up taxi ride events
     - type: Filter
-      name: PickupEvents
+      name: FilterPickupEvents
       input: Windowing
       config:
         language: python
         keep: "ride_status == 'pickup'"
 
+    # Map the columns accordingly for pick-up taxi ride events
     - type: MapToFields
       name: FormatPickupEvents
-      input: PickupEvents
+      input: FilterPickupEvents
       config:
         fields:
           ride_id: ride_id
@@ -75,17 +85,18 @@ pipeline:
           pickup_datetime: timestamp
           passenger_count: passenger_count
 
-    # ...
+    # Filter for drop-off taxi ride events
     - type: Filter
-      name: DropoffEvents
+      name: FilterDropoffEvents
       input: Windowing
       config:
         language: python
         keep: "ride_status == 'dropoff'"
 
+    # Map the columns accordingly for drop-off taxi ride events
     - type: MapToFields
       name: FormatDropoffEvents
-      input: DropoffEvents
+      input: FilterDropoffEvents
       config:
         fields:
           ride_id: ride_id
@@ -93,7 +104,8 @@ pipeline:
           dropoff_longitude: longitude
           dropoff_datetime: timestamp
 
-    # ...
+    # Join the pick-up and drop-off taxi ride events together to get
+    # complete taxi trips.
     - type: Join
       name: Join
       input:
@@ -106,7 +118,7 @@ pipeline:
           pickup: [ride_id, passenger_count, pickup_longitude, pickup_latitude, pickup_datetime]
           dropoff: [dropoff_longitude, dropoff_latitude]
 
-    # ...
+    # Send the rows as Kafka records to an existing Kafka topic.
     - type: WriteToKafka
       name: WriteKafka
       input: Join
@@ -121,7 +133,7 @@ pipeline:
           security.protocol: "SASL_PLAINTEXT"
           sasl.mechanism: "PLAIN"
 
-    # ...
+    # Read Kafka records from an existing Kafka topic.
     - type: ReadFromKafka
       name: ReadKafka
       config:
@@ -149,9 +161,9 @@ pipeline:
           security.protocol: "SASL_PLAINTEXT"
           sasl.mechanism: "PLAIN"
 
-    # ...
+    # Create features accordingly for input data to prepare for inference.
     - type: MapToFields
-      name: FeatureEngineering
+      name: GenerateFeatures
       input: ReadKafka
       config:
         language: python
@@ -188,22 +200,21 @@ pipeline:
               def fn(row):
                 return datetime.fromisoformat(row.pickup_datetime).hour
 
-    # ...
-    - type: LogForTesting
-      input: FeatureEngineering
-
-    # ...
+    # With VertexAIModelHandlerJSON model handler,
+    # RunInference transform performs remote inferences by
+    # sending POST requests to the Vertex AI endpoint that
+    # our custom-trained model is being deployed to.
     - type: RunInference
       name: PredictFare
-      input: FeatureEngineering
+      input: GenerateFeatures
       config:
         inference_tag: "inference"
         model_handler:
           type: VertexAIModelHandlerJSON
           config:
-            endpoint_id: "5903336203645616128"
-            project: "silicon-synapse-460717-a0"
-            location: "us-central1"
+            endpoint_id: "{{ ENDPOINT }}"
+            project: "{{ PROJECT }}"
+            location: "{{ LOCATION }}"
             preprocess:
               callable: |
                 def preprocess(row):
@@ -215,6 +226,7 @@ pipeline:
                     'pickup_datetime_weekday', 'pickup_datetime_hour']
                   return [row.as_dict().get(key) for key in input_cols]
 
+    # Parse inference results output
     - type: MapToFields
       name: FormatInferenceOutput
       input: PredictFare
@@ -243,12 +255,12 @@ pipeline:
             callable: 'lambda row: row.inference.inference'
             output_type: number
 
-    # ...
+    # Write all inference results to a BigQuery table.
     - type: WriteToBigQuery
       name: WritePredictionsBQ
       input: FormatInferenceOutput
       config:
-        table: "silicon-synapse-460717-a0.test.nyc_taxifare_predictions"
+        table: "{{ PROJECT }}.{{ DATASET }}.{{ TABLE }}"
         create_disposition: "CREATE_IF_NEEDED"
         write_disposition: "WRITE_APPEND"
 
