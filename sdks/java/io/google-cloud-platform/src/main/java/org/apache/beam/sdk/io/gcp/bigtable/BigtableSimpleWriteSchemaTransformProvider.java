@@ -88,6 +88,8 @@ public class BigtableSimpleWriteSchemaTransformProvider
 
       Schema inputSchema = input.getSinglePCollection().getSchema();
 
+      System.out.println("Input Schema for BigTableMutations: " + inputSchema);
+
       PCollection<KV<ByteString, Iterable<Mutation>>> bigtableMutations = null;
       if (inputSchema.equals(testOriginialSchema)) {
         PCollection<Row> beamRowMutations = input.get(INPUT_TAG);
