@@ -115,7 +115,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.Collectors;
 import org.apache.beam.fn.harness.logging.QuotaEvent;
 import org.apache.beam.fn.harness.logging.QuotaEvent.QuotaEventCloseable;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
@@ -173,9 +172,12 @@ public class BigQueryServicesImpl implements BigQueryServices {
 
   // The approximate maximum payload of rows for an insertAll request.
   // We set it to 9MB, which leaves room for request overhead.
-  private static final Integer MAX_BQ_ROW_PAYLOAD = 9 * 1024 * 1024;
+  private static final Integer MAX_BQ_ROW_PAYLOAD_MB = 9;
 
-  private static final String MAX_BQ_ROW_PAYLOAD_DESC = "9MB";
+  private static final Integer MAX_BQ_ROW_PAYLOAD_BYTES = MAX_BQ_ROW_PAYLOAD_MB * 1024 * 1024;
+
+  private static final String MAX_BQ_ROW_PAYLOAD_DESC =
+      String.format("%sMB", MAX_BQ_ROW_PAYLOAD_MB);
 
   // The initial backoff for polling the status of a BigQuery job.
   private static final Duration INITIAL_JOB_STATUS_POLL_BACKOFF = Duration.standardSeconds(1);
@@ -1152,32 +1154,22 @@ public class BigQueryServicesImpl implements BigQueryServices {
           // If this row's encoding by itself is larger than the maximum row payload, then it's
           // impossible to insert into BigQuery, and so we send it out through the dead-letter
           // queue.
-          if (nextRowSize >= MAX_BQ_ROW_PAYLOAD) {
+          if (nextRowSize >= MAX_BQ_ROW_PAYLOAD_BYTES) {
             InsertErrors error =
                 new InsertErrors()
                     .setErrors(ImmutableList.of(new ErrorProto().setReason("row-too-large")));
             // We verify whether the retryPolicy parameter expects us to retry. If it does, then
             // it will return true. Otherwise it will return false.
             if (retryPolicy.shouldRetry(new InsertRetryPolicy.Context(error))) {
-              // Create row details composed of key value pairs.
-              String rowDetails;
+              // Surface the row schema for debugging.
+              String fieldNames;
               try {
-                rowDetails =
-                    row.entrySet().stream()
-                        .map(
-                            entry ->
-                                String.format(
-                                    "'%s': %s",
-                                    entry.getKey(),
-                                    entry.getValue() == null
-                                        ? "null"
-                                        : entry.getValue().getClass().getName()))
-                        .collect(Collectors.joining(", ", "{", "}"));
+                fieldNames = String.join(", ", row.keySet());
               } catch (Exception e) {
-                rowDetails = row.toString();
+                fieldNames = row.toString();
               }
-              if (rowDetails.length() > 1024) {
-                rowDetails = rowDetails.substring(0, 1024) + "...}";
+              if (fieldNames.length() > 1024) {
+                fieldNames = fieldNames.substring(0, 1024) + "...";
               }
               throw new RuntimeException(
                   String.format(
@@ -1187,7 +1179,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
                           + "(truncated): %s. "
                           + "You can change your retry strategy to unblock this "
                           + "pipeline, and the row will be output as a failed insert. ",
-                      nextRowSize, MAX_BQ_ROW_PAYLOAD_DESC, rowDetails));
+                      nextRowSize, MAX_BQ_ROW_PAYLOAD_DESC, fieldNames));
             } else {
               numFailedRows += 1;
               errorContainer.add(failedInserts, error, ref, rowsToPublish.get(rowIndex));
@@ -1200,7 +1192,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
           // If adding the next row will push the request above BQ row limits, or
           // if the current batch of elements is larger than the targeted request size,
           // we immediately go and issue the data insertion.
-          if (dataSize + nextRowSize >= MAX_BQ_ROW_PAYLOAD
+          if (dataSize + nextRowSize >= MAX_BQ_ROW_PAYLOAD_BYTES
               || dataSize >= maxRowBatchSize
               || rows.size() + 1 > maxRowsPerBatch) {
             // If the row does not fit into the insert buffer, then we take the current buffer,
