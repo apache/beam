@@ -130,7 +130,7 @@ class TestVertexAIFeatureStoreHandler(unittest.TestCase):
         beam.Row(entity_id="16050", name='stripe t-shirt'),
     ]
 
-    with self.assertRaisesRegex(Exception, "NotFound"):
+    with self.assertRaisesRegex(Exception, "does not exist"):
       handler = VertexAIFeatureStoreEnrichmentHandler(
           project=self.project,
           location=self.location,
@@ -224,7 +224,7 @@ class TestVertexAIFeatureStoreHandler(unittest.TestCase):
     feature_store_id = "invalid_name"
     entity_type_id = "movies"
 
-    with self.assertRaisesRegex(Exception, "NotFound"):
+    with self.assertRaisesRegex(Exception, "does not exist"):
       handler = VertexAIFeatureStoreLegacyEnrichmentHandler(
           project=self.project,
           location=self.location,

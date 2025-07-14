@@ -106,7 +106,7 @@ class MatchTest(_TestCaseWithTempDirCleanUp):
     files.append(self._create_temp_file(dir=directories[0]))
     files.append(self._create_temp_file(dir=directories[0]))
 
-    with self.assertRaisesRegex(Exception, "BeamIOError"):
+    with self.assertRaisesRegex(Exception, "Empty match for pattern"):
       with TestPipeline() as p:
         files_pc = (
             p
@@ -259,7 +259,7 @@ class ReadTest(_TestCaseWithTempDirCleanUp):
     files.append(self._create_temp_file(dir=tempdir, content=content))
     files.append(self._create_temp_file(dir=tempdir, content=content))
 
-    with self.assertRaisesRegex(Exception, "BeamIOError"):
+    with self.assertRaisesRegex(Exception, "Directories are not allowed"):
       with TestPipeline() as p:
         _ = (
             p
