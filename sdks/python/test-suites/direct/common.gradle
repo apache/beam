@@ -419,7 +419,12 @@ task feastIntegrationTest {
     }
 }
 
-// Integration tests that runs on non self-hosted environments.
+// Integration tests that must run on non self-hosted environments.
+// These tests are marked with the `require_non_self_hosted` pytest marker
+// because they rely on features like Docker-in-Docker or other system-level
+// configurations that are not supported on Beam's self-hosted GitHub Actions
+// runners. They will be executed on GitHub-hosted runners
+// (e.g., ubuntu-latest). Context: https://github.com/apache/beam/pull/35585
 task nonSelfHostedIntegrationTest {
   dependsOn 'installGcpTest'
   dependsOn ':sdks:python:sdist'

@@ -62,6 +62,11 @@ jobs:
         job_name: [beam_PostCommit_Python]
         job_phrase: [Run Python PostCommit]
         python_version: ['3.9', '3.10', '3.11', '3.12']
+        # Run on both self-hosted and GitHub-hosted runners.
+        # Some tests (marked require_non_self_hosted) can't run on Beam's
+        # self-hosted runners due to Docker-in-Docker or other environment
+        # limitations. These tests will only execute on ubuntu-latest
+        # (GitHub-hosted). Context: https://github.com/apache/beam/pull/35585
         os: [[self-hosted, ubuntu-20.04, highmem22], [ubuntu-latest]]
     if: |
       github.event_name == 'workflow_dispatch' ||
