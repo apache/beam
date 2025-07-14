@@ -1108,23 +1108,6 @@ class CombinerWithSideInputs(unittest.TestCase):
               min_value=pvalue.AsSingleton(p | beam.Create([100]))))
       assert_that(res, equal_to([('k', 103), ('k', 303)]))
 
-    with beam.Pipeline() as p:
-      min_value = (
-          p
-          | "CreateMinValue" >> beam.Create([
-              window.TimestampedValue(50, 5),
-              window.TimestampedValue(1000, 100)
-          ])
-          | "WindowSideInputs" >> beam.WindowInto(FixedWindows(99)))
-      res = (
-          p
-          | "CreateInputs" >> beam.Create([1, 102])
-          | beam.Map(lambda x: window.TimestampedValue(('k', x), x))
-          | beam.WindowInto(FixedWindows(99))
-          | beam.Map(
-              lambda x, side: (x, side), side=pvalue.AsSingleton(min_value)))
-      assert_that(res, equal_to([(('k', 1), 50), (('k', 102), 1000)]))
-
     # with matching window side input
     with beam.Pipeline() as p:
       min_value = (

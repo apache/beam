@@ -18,38 +18,32 @@
 # pytype: skip-file
 
 import collections
-import itertools
-import typing
 
 import apache_beam as beam
-from apache_beam import typehints
-from apache_beam.internal.util import ArgumentPlaceholder
-from apache_beam.transforms.combiners import _CurriedFn
 from apache_beam.utils.windowed_value import WindowedValue
 
-
 from apache_beam.transforms import core
+
+
 class LiftedCombinePerKey(beam.PTransform):
   """An implementation of CombinePerKey that does mapper-side pre-combining.
   """
   def __init__(self, combine_fn, args, kwargs):
-    args_to_check = itertools.chain(args, kwargs.values())
-    if isinstance(combine_fn, _CurriedFn):
-      raise NotImplementedError('Curried CombineFns not supported.')
-      args_to_check = itertools.chain(
-          args_to_check, combine_fn.args, combine_fn.kwargs.values())
-    #if any(isinstance(arg, ArgumentPlaceholder) for arg in args_to_check):
-      # This isn't implemented in dataflow either...
-      #raise NotImplementedError('Deferred CombineFn side inputs.')
     side_input_args = [
-        arg for arg in args if isinstance(arg, beam.pvalue.AsSideInput)]
+        arg for arg in args if isinstance(arg, beam.pvalue.AsSideInput)
+    ]
     side_input_kwargs = {
-        k: v for k, v in kwargs.items()
-        if isinstance(v, beam.pvalue.AsSideInput)}
-    self.args = [arg for arg in args if not isinstance(arg, beam.pvalue.AsSideInput)]
+        k: v
+        for k, v in kwargs.items() if isinstance(v, beam.pvalue.AsSideInput)
+    }
+    self.args = [
+        arg for arg in args if not isinstance(arg, beam.pvalue.AsSideInput)
+    ]
     self.kwargs = {
-        k: v for k, v in kwargs.items()
-        if not isinstance(v, beam.pvalue.AsSideInput)}
+        k: v
+        for k, v in kwargs.items()
+        if not isinstance(v, beam.pvalue.AsSideInput)
+    }
     self.side_input_args = side_input_args
     self.side_input_kwargs = side_input_kwargs
     self._combine_fn = core.CombineFn.from_callable(combine_fn)
@@ -57,20 +51,25 @@ class LiftedCombinePerKey(beam.PTransform):
   def expand(self, pcoll):
     if self.side_input_args:
       PGBKCV = beam.ParDo(
-          PartialGroupByKeyCombiningValues(self._combine_fn, self.args, self.kwargs),
+          PartialGroupByKeyCombiningValues(
+              self._combine_fn, self.args, self.kwargs),
           *self.side_input_args)
     elif self.side_input_kwargs:
       PGBKCV = beam.ParDo(
-          PartialGroupByKeyCombiningValues(self._combine_fn, self.args, self.kwargs),
+          PartialGroupByKeyCombiningValues(
+              self._combine_fn, self.args, self.kwargs),
           **self.side_input_kwargs)
     else:
       PGBKCV = beam.ParDo(
-          PartialGroupByKeyCombiningValues(self._combine_fn, self.args, self.kwargs))
+          PartialGroupByKeyCombiningValues(
+              self._combine_fn, self.args, self.kwargs))
     return (
         pcoll
         | PGBKCV
         | beam.GroupByKey()
-        | beam.ParDo(FinishCombine(self._combine_fn, self.args, self.kwargs), **self.side_input_kwargs))
+        | beam.ParDo(
+            FinishCombine(self._combine_fn, self.args, self.kwargs),
+            **self.side_input_kwargs))
 
 
 class PartialGroupByKeyCombiningValues(beam.DoFn):
@@ -90,20 +89,35 @@ class PartialGroupByKeyCombiningValues(beam.DoFn):
 
   def start_bundle(self):
     self._cache = collections.defaultdict(self._combine_fn.create_accumulator)
+    self._cached_windowed_kwargs = {}
 
   def process(self, element, window=beam.DoFn.WindowParam, **side_input_kwargs):
     side_input_args = []
     k, vi = element
     self._cache[k, window] = self._combine_fn.add_input(
-        self._cache[k, window], vi, *self.args, *side_input_args, **self.kwargs, **side_input_kwargs)
+        self._cache[k, window],
+        vi,
+        *self.args,
+        *side_input_args,
+        **self.kwargs,
+        **side_input_kwargs)
     self.side_input_args = side_input_args
-    self.side_input_kwargs = side_input_kwargs
+    self._cached_windowed_kwargs[window] = side_input_kwargs
 
   def finish_bundle(self):
     for (k, w), va in self._cache.items():
       # We compact the accumulator since a GBK (which necessitates encoding)
       # will follow.
-      yield WindowedValue((k, self._combine_fn.compact(va, *self.args, *self.side_input_args, **self.kwargs, **self.side_input_kwargs)), w.end, (w, ))
+      side_input_kwargs = self._cached_windowed_kwargs[w]
+      yield WindowedValue((
+          k,
+          self._combine_fn.compact(
+              va,
+              *self.args,
+              *self.side_input_args,
+              **self.kwargs,
+              **side_input_kwargs)),
+                          w.end, (w, ))
 
   def teardown(self):
     self._combine_fn.teardown()
@@ -122,18 +136,18 @@ class FinishCombine(beam.DoFn):
   def setup(self):
     self._combine_fn.setup()
 
-  def process(self, element, window=beam.DoFn.WindowParam,
-              **side_input_kwargs):
+  def process(self, element, window=beam.DoFn.WindowParam, **side_input_kwargs):
 
     k, vs = element
     return [(
         k,
         self._combine_fn.extract_output(
-            self._combine_fn.merge_accumulators(vs, *self.args, **self.kwargs, **side_input_kwargs), **side_input_kwargs))]
+            self._combine_fn.merge_accumulators(
+                vs, *self.args, **self.kwargs, **side_input_kwargs),
+            **side_input_kwargs))]
 
   def teardown(self):
     try:
       self._combine_fn.teardown()
     except AttributeError:
       pass
-
