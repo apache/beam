@@ -19,9 +19,9 @@ package org.apache.beam.sdk.extensions.sql.zetasql.translation;
 
 import java.lang.reflect.Method;
 import org.apache.beam.sdk.extensions.sql.impl.ScalarFunctionImpl;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.adapter.enumerable.CallImplementor;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Function;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.ScalarFunction;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.adapter.enumerable.CallImplementor;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.Function;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.ScalarFunction;
 
 /** ZetaSQL-specific extension to {@link ScalarFunctionImpl}. */
 public class ZetaSqlScalarFunctionImpl extends ScalarFunctionImpl {
@@ -38,7 +38,7 @@ public class ZetaSqlScalarFunctionImpl extends ScalarFunctionImpl {
   }
 
   /**
-   * Creates {@link org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Function} from
+   * Creates {@link org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.Function} from
    * given class.
    *
    * <p>If a method of the given name is not found or it does not suit, returns {@code null}.
@@ -55,7 +55,7 @@ public class ZetaSqlScalarFunctionImpl extends ScalarFunctionImpl {
   }
 
   /**
-   * Creates {@link org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Function} from
+   * Creates {@link org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.Function} from
    * given method. When {@code eval} method does not suit, {@code null} is returned.
    *
    * @param method method that is used to implement the function

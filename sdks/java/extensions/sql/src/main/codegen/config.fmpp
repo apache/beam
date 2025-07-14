@@ -21,10 +21,10 @@ data: {
 
       # List of import statements.
       imports: [
-        "org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.ColumnStrategy"
-        "org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlCreate"
-        "org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlDrop"
-        "org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.type.SqlTypeName"
+        "org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.ColumnStrategy"
+        "org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlCreate"
+        "org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlDrop"
+        "org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.type.SqlTypeName"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlCreateCatalog"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlCreateExternalTable"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlCreateFunction"

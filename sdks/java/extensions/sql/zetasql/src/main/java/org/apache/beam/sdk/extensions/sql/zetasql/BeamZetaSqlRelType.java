@@ -20,17 +20,17 @@ package org.apache.beam.sdk.extensions.sql.zetasql;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.rel.CalcRelSplitter;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.ZetaSqlScalarFunctionImpl;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptCluster;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptRule;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelTraitSet;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexCall;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexDynamicParam;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexFieldAccess;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexLiteral;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexProgram;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.validate.SqlUserDefinedFunction;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.RelBuilder;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptCluster;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptRule;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelTraitSet;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexCall;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexDynamicParam;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexFieldAccess;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexLiteral;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexProgram;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.validate.SqlUserDefinedFunction;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RelBuilder;
 
 /** {@link CalcRelSplitter.RelType} for {@link BeamZetaSqlCalcRel}. */
 class BeamZetaSqlRelType extends CalcRelSplitter.RelType {
