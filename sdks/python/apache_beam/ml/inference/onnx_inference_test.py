@@ -514,7 +514,7 @@ class OnnxSklearnRunInferencePipelineTest(OnnxTestBase):
           equal_to(expected_predictions, equals_fn=_compare_prediction_result))
 
   def test_invalid_input_type(self):
-    with self.assertRaises(Exception):
+    with self.assertRaisesRegex(Exception, "InvalidArgument"):
       with TestPipeline() as pipeline:
         examples = [np.array([1], dtype="float32")]
         path = os.path.join(self.tmpdir, 'my_onnx_sklearn_path')

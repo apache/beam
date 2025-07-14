@@ -267,7 +267,7 @@ class NumpyIntAsKeyTest(unittest.TestCase):
     # this type is not supported as the key
     import numpy as np
 
-    with self.assertRaises(Exception):
+    with self.assertRaisesRegex(Exception, "TypeError"):
       with TestPipeline() as p:
         indata = p | "Create" >> beam.Create([(a, int(a))
                                               for a in np.arange(3)])

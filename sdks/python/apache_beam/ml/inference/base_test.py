@@ -1044,7 +1044,7 @@ class RunInferenceBaseTest(unittest.TestCase):
 
   def test_run_inference_unkeyed_examples_with_keyed_model_handler(self):
     pipeline = TestPipeline()
-    with self.assertRaises(Exception):
+    with self.assertRaisesRegex(Exception, "TypeError"):
       examples = [1, 3, 5]
       model_handler = base.KeyedModelHandler(FakeModelHandler())
       _ = (
@@ -1057,7 +1057,7 @@ class RunInferenceBaseTest(unittest.TestCase):
     examples = [1, 3, 5]
     keyed_examples = [(i, example) for i, example in enumerate(examples)]
     model_handler = FakeModelHandler()
-    with self.assertRaises(Exception):
+    with self.assertRaisesRegex(Exception, "TypeError"):
       _ = (
           pipeline | 'keyed' >> beam.Create(keyed_examples)
           | 'RunKeyed' >> base.RunInference(model_handler))

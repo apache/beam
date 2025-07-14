@@ -96,7 +96,7 @@ class TestCaller(unittest.TestCase):
 
   def test_call_timeout(self):
     caller = CallerWithTimeout()
-    with self.assertRaises(Exception):
+    with self.assertRaisesRegex(Exception, "UserCodeTimeoutException"):
       with TestPipeline() as test_pipeline:
         _ = (
             test_pipeline
@@ -105,7 +105,7 @@ class TestCaller(unittest.TestCase):
 
   def test_call_runtime_error(self):
     caller = CallerWithRuntimeError()
-    with self.assertRaises(Exception):
+    with self.assertRaisesRegex(Exception, "UserCodeExecutionException"):
       with TestPipeline() as test_pipeline:
         _ = (
             test_pipeline
@@ -118,7 +118,7 @@ class TestCaller(unittest.TestCase):
 
   def test_caller_backoff_retry_strategy(self):
     caller = CallerThatRetries()
-    with self.assertRaises(Exception) as cm:
+    with self.assertRaisesRegex(Exception, "TooManyRequests") as cm:
       with TestPipeline() as test_pipeline:
         _ = (
             test_pipeline
@@ -128,7 +128,7 @@ class TestCaller(unittest.TestCase):
 
   def test_caller_no_retry_strategy(self):
     caller = CallerThatRetries()
-    with self.assertRaises(Exception) as cm:
+    with self.assertRaisesRegex(Exception, "TooManyRequests") as cm:
       with TestPipeline() as test_pipeline:
         _ = (
             test_pipeline

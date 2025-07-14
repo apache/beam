@@ -285,7 +285,7 @@ class TestBigQueryEnrichmentIT(BigQueryEnrichmentIT):
         column_names=['wrong_column'],
         condition_value_fn=condition_value_fn,
     )
-    with self.assertRaises(Exception):
+    with self.assertRaisesRegex(Exception, "BadRequest"):
       test_pipeline = beam.Pipeline()
       _ = (
           test_pipeline

@@ -153,7 +153,7 @@ class VertexAIEmbeddingsTest(unittest.TestCase):
   def test_with_int_data_types(self):
     embedding_config = VertexAITextEmbeddings(
         model_name=model_name, columns=[test_query_column])
-    with self.assertRaises(Exception):
+    with self.assertRaisesRegex(Exception, "TypeError"):
       with beam.Pipeline() as pipeline:
         _ = (
             pipeline

@@ -858,7 +858,7 @@ class TestBigQueryVectorSearchIT(BigQueryVectorSearchIT):
     handler = BigQueryVectorSearchEnrichmentHandler(
         vector_search_parameters=params)
 
-    with self.assertRaises(Exception):
+    with self.assertRaisesRegex(Exception, "BadRequest"):
       with TestPipeline() as p:
         _ = (p | beam.Create(test_chunks) | Enrichment(handler))
 
@@ -897,7 +897,7 @@ class TestBigQueryVectorSearchIT(BigQueryVectorSearchIT):
     handler = BigQueryVectorSearchEnrichmentHandler(
         vector_search_parameters=params)
 
-    with self.assertRaises(Exception) as context:
+    with self.assertRaisesRegex(Exception, "ValueError") as context:
       with TestPipeline() as p:
         _ = (p | beam.Create(test_chunks) | Enrichment(handler))
     self.assertIn("missing embedding", str(context.exception))
