@@ -38,8 +38,8 @@ import psycopg2
 import pytds
 import sqlalchemy
 import yaml
-from google.cloud.bigtable import client
 from google.cloud import pubsub_v1
+from google.cloud.bigtable import client
 from google.cloud.bigtable_admin_v2.types import instance
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
