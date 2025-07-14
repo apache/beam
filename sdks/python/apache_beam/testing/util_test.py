@@ -236,7 +236,7 @@ class UtilTest(unittest.TestCase):
                   equal_to_per_window(expected))
 
   def test_equal_to_per_window_fail_unexpected_element(self):
-    with self.assertRaisesRegex(Exception, "not in list"):
+    with self.assertRaisesRegex(Exception, "not found in window"):
       start = int(MIN_TIMESTAMP.micros // 1e6) - 5
       end = start + 20
       expected = {
