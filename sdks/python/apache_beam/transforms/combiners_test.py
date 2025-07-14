@@ -1088,6 +1088,23 @@ class CombinerWithSideInputs(unittest.TestCase):
               get_common_items, excluded_chars=beam.pvalue.AsSingleton(pc)))
       assert_that(common_items, equal_to([(None, {'🥕'})]))
 
+    # Test with CombineFn
+    combiner = beam.CombineFn.from_callable(get_common_items)
+    with beam.Pipeline() as pipeline:
+      pc = (pipeline | beam.Create(['🍅']))
+      common_items = (
+          pipeline
+          | 'Create produce' >> beam.Create([
+              {'🍓', '🥕', '🍌', '🍅', '🌶️'},
+              {'🍇', '🥕', '🥝', '🍅', '🥔'},
+              {'🍉', '🥕', '🍆', '🍅', '🍍'},
+              {'🥑', '🥕', '🌽', '🍅', '🥥'},
+          ])
+          | beam.WithKeys(lambda x: None)
+          | 'Get common items' >> beam.CombinePerKey(
+              combiner, excluded_chars=beam.pvalue.AsSingleton(pc)))
+      assert_that(common_items, equal_to([(None, {'🥕'})]))
+
   def test_cpk_with_streaming(self):
     # With global window side input
     with beam.Pipeline() as p:

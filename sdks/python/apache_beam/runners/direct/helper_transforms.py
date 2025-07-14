@@ -46,7 +46,9 @@ class LiftedCombinePerKey(beam.PTransform):
     }
     self.side_input_args = side_input_args
     self.side_input_kwargs = side_input_kwargs
-    self._combine_fn = core.CombineFn.from_callable(combine_fn)
+    if not isinstance(combine_fn, core.CombineFn):
+      combine_fn = core.CombineFn.from_callable(combine_fn)
+    self._combine_fn = combine_fn
 
   def expand(self, pcoll):
     if self.side_input_args:
