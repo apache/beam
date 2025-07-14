@@ -227,9 +227,10 @@ class _CommaSeparatedListAction(argparse.Action):
   as separate experiments 'abc' and 'def', similar to how Java SDK handles
   them.
   
-  For key=value experiments, only splits at commas that are not part of the
-  value. For example: 'abc,def,master_key=k1=v1,k2=v2' becomes
-  ['abc', 'def', 'master_key=k1=v1,k2=v2']
+  If there are key=value experiments in a raw argument, the remaining part of
+  the argument are treated as values and won't split further. For example:
+  'abc,def,master_key=k1=v1,k2=v2' becomes
+  ['abc', 'def', 'master_key=k1=v1,k2=v2'].
   """
   def __call__(self, parser, namespace, values, option_string=None):
     if not hasattr(namespace, self.dest) or getattr(namespace,
