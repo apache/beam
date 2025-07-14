@@ -755,16 +755,15 @@ def parse_test_files(filepattern):
   """
   for path in glob.glob(filepattern):
     # get rid of this before PR
-    if "bigTable" in path:
-      with open(path) as fin:
-        suite_name = os.path.splitext(
-            os.path.basename(path))[0].title().replace('-', '') + 'Test'
-        print(path, suite_name)
-        methods = dict(
-            create_test_methods(
-                yaml.load(fin, Loader=yaml_transform.SafeLineLoader)))
-        globals()[suite_name] = type(
-            suite_name, (unittest.TestCase, ), methods)
+    #if "bigTable" in path:
+    with open(path) as fin:
+      suite_name = os.path.splitext(os.path.basename(path))[0].title().replace(
+          '-', '') + 'Test'
+      print(path, suite_name)
+      methods = dict(
+          create_test_methods(
+              yaml.load(fin, Loader=yaml_transform.SafeLineLoader)))
+      globals()[suite_name] = type(suite_name, (unittest.TestCase, ), methods)
 
 
 # Logging setups
