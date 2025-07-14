@@ -279,7 +279,7 @@ public class SqlOperators {
   }
 
   private static SqlUserDefinedFunction createUdfOperator(
-      String name, Method method, final SqlSyntax syntax, String funGroup, String jarPath) {
+      String name, Method method, final SqlSyntax unused, String funGroup, String jarPath) {
     Function function = ZetaSqlScalarFunctionImpl.create(method, funGroup, jarPath);
     final RelDataTypeFactory typeFactory = createTypeFactory();
 

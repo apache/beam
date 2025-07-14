@@ -63,9 +63,36 @@ public class BeamIOSinkRel extends TableModify
       boolean flattened,
       BeamSqlTable sqlTable,
       Map<String, String> pipelineOptions) {
-    super(
+    this(
         cluster,
         cluster.traitSetOf(BeamLogicalConvention.INSTANCE),
+        table,
+        catalogReader,
+        child,
+        operation,
+        updateColumnList,
+        sourceExpressionList,
+        flattened,
+        sqlTable,
+        pipelineOptions);
+  }
+
+  /** For copy. */
+  private BeamIOSinkRel(
+      RelOptCluster cluster,
+      RelTraitSet traitSet,
+      RelOptTable table,
+      Prepare.CatalogReader catalogReader,
+      RelNode child,
+      Operation operation,
+      @Nullable List<String> updateColumnList,
+      @Nullable List<RexNode> sourceExpressionList,
+      boolean flattened,
+      BeamSqlTable sqlTable,
+      Map<String, String> pipelineOptions) {
+    super(
+        cluster,
+        traitSet,
         table,
         catalogReader,
         child,
@@ -91,20 +118,18 @@ public class BeamIOSinkRel extends TableModify
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
     boolean flattened = isFlattened() || isFlattening;
-    BeamIOSinkRel newRel =
-        new BeamIOSinkRel(
-            getCluster(),
-            getTable(),
-            getCatalogReader(),
-            sole(inputs),
-            getOperation(),
-            getUpdateColumnList(),
-            getSourceExpressionList(),
-            flattened,
-            sqlTable,
-            pipelineOptions);
-    newRel.traitSet = traitSet;
-    return newRel;
+    return new BeamIOSinkRel(
+        getCluster(),
+        traitSet,
+        getTable(),
+        getCatalogReader(),
+        sole(inputs),
+        getOperation(),
+        getUpdateColumnList(),
+        getSourceExpressionList(),
+        flattened,
+        sqlTable,
+        pipelineOptions);
   }
 
   @Override

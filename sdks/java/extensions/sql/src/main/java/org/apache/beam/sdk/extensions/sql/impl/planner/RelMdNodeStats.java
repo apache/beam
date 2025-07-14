@@ -75,7 +75,7 @@ public class RelMdNodeStats implements MetadataHandler<NodeStatsMetadata> {
     // wraps the metadata provider with CachingRelMetadataProvider. However,
     // CachingRelMetadataProvider checks timestamp before returning previous results. Therefore,
     // there wouldn't be a problem in that case.
-    List<Table.Cell<RelNode, List, Object>> keys =
+    List<Table.Cell<RelNode, ?, Object>> keys =
         mq.map.cellSet().stream()
             .filter(entry -> entry != null)
             .filter(entry -> entry.getValue() != null)
