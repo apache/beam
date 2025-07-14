@@ -301,9 +301,8 @@ class PubSubTopicCleaner(StaleCleaner):
         return d
 
     def _delete_resource(self, resource_name: str) -> None:
-        topic_name = resource_name.split('/')[-1]
-        print(f"{self.clock()} - Deleting PubSub topic {topic_name}")
-        self.client.delete_topic(name=resource_name)
+        print(f"{self.clock()} - Deleting PubSub topic {resource_name}")
+        self.client.delete_topic(request={"topic": resource_name})
 
 if __name__ == "__main__":
     project_id = DEFAULT_PROJECT_ID
@@ -323,7 +322,28 @@ if __name__ == "__main__":
         "testing",
         "pubsubNamespace",
         "game_stats_it_input_topic",
-        "game_stats_it_output_topic"
+        "game_stats_it_output_topic",
+        "FhirIO-IT-DSTU2-notifications",
+        "FhirIO-IT-R4-notifications",
+        "FhirIO-IT-STU3-notifications",
+        "integ-test-FhirIOReadIT",
+        "integ-test-PubsubTableProviderIT",
+        "integ-test-PubsubToBigqueryIT",
+        "integ-test-PubsubToIcebergIT",
+        "integ-test-ReadWriteIT",
+        "io-pubsub-lt",
+        "io-pubsub-st",
+        "pubsub-write",
+        "test-backlog",
+        "test1-backlog",
+        "test2-backlog",
+        "test3-backlog",
+        "testpipeline-jenkins",
+        "testpipeline-runner",
+        "test-pub-sub-to",
+        "tf-test",
+        "anomaly-input",
+        "anomaly-output",
     ]
 
     # Create a PubSubTopicCleaner instance
@@ -334,4 +354,4 @@ if __name__ == "__main__":
     cleaner.refresh()
 
     # Delete stale resources
-    cleaner.delete_stale()
+    cleaner.delete_stale(dry_run=False)

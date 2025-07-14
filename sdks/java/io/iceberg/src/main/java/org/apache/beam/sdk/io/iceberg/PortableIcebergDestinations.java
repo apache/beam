@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.util.RowFilter;
 import org.apache.beam.sdk.util.RowStringInterpolator;
@@ -33,17 +34,20 @@ class PortableIcebergDestinations implements DynamicDestinations {
   private final String fileFormat;
 
   private final @Nullable List<String> partitionFields;
+  private final @Nullable Map<String, String> tableProperties;
 
   public PortableIcebergDestinations(
       String destinationTemplate,
       String fileFormat,
       Schema inputSchema,
       @Nullable List<String> partitionFields,
+      @Nullable Map<String, String> tableProperties,
       @Nullable List<String> fieldsToDrop,
       @Nullable List<String> fieldsToKeep,
       @Nullable String onlyField) {
     this.interpolator = new RowStringInterpolator(destinationTemplate, inputSchema);
     this.partitionFields = partitionFields;
+    this.tableProperties = tableProperties;
     RowFilter rf = new RowFilter(inputSchema);
 
     if (fieldsToDrop != null) {
@@ -82,6 +86,7 @@ class PortableIcebergDestinations implements DynamicDestinations {
             IcebergTableCreateConfig.builder()
                 .setSchema(getDataSchema())
                 .setPartitionFields(partitionFields)
+                .setTableProperties(tableProperties)
                 .build())
         .setFileFormat(FileFormat.fromString(fileFormat))
         .build();
