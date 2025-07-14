@@ -19,7 +19,7 @@ package org.apache.beam.sdk.extensions.sql.zetasql;
 
 import org.apache.beam.sdk.extensions.sql.impl.rel.CalcRelSplitter;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamCalcSplittingRule;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.Calc;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.core.Calc;
 
 /** A {@link BeamCalcSplittingRule} to replace {@link Calc} with {@link BeamZetaSqlCalcRel}. */
 public class BeamZetaSqlCalcRule extends BeamCalcSplittingRule {

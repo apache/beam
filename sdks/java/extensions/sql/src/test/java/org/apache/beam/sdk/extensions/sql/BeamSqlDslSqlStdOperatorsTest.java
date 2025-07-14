@@ -44,10 +44,10 @@ import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.integrationtest.BeamSqlBuiltinFunctionsIntegrationTestBase;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.runtime.SqlFunctions;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlKind;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlOperator;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.runtime.SqlFunctions;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlKind;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlOperator;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
@@ -59,7 +59,7 @@ import org.junit.rules.ExpectedException;
 
 /**
  * DSL compliance tests for the row-level operators of {@link
- * org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.fun.SqlStdOperatorTable}.
+ * org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.fun.SqlStdOperatorTable}.
  */
 public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegrationTestBase {
   private static final BigDecimal ZERO_0 = BigDecimal.valueOf(0).setScale(0, UNNECESSARY);

@@ -33,15 +33,15 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptCluster;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptPlanner;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptTable;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelTraitSet;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.prepare.Prepare;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.core.TableModify;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexNode;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql2rel.RelStructuredTypeFlattener;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptCluster;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptPlanner;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptTable;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelTraitSet;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.prepare.Prepare;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.core.TableModify;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql2rel.RelStructuredTypeFlattener;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** BeamRelNode to replace a {@code TableModify} node. */

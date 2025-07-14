@@ -21,9 +21,9 @@ import static org.junit.Assert.assertEquals;
 
 import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.parser.SqlParseException;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.RelConversionException;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.ValidationException;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.parser.SqlParseException;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RelConversionException;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.ValidationException;
 import org.junit.Before;
 import org.junit.Ignore;
 

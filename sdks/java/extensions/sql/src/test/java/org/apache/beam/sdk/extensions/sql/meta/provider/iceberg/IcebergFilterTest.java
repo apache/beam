@@ -32,7 +32,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.commons.lang3.tuple.Pair;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Before;
 import org.junit.Rule;

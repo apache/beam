@@ -32,10 +32,10 @@ import com.google.zetasql.resolvedast.ResolvedSetOperationScanEnums.SetOperation
 import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.Function;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.logical.LogicalIntersect;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.logical.LogicalMinus;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.logical.LogicalUnion;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.logical.LogicalIntersect;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.logical.LogicalMinus;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.logical.LogicalUnion;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
