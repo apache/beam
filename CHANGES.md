@@ -76,6 +76,9 @@
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Add pip-based install support for JupyterLab Sidepanel extension ([#35397](https://github.com/apache/beam/issues/#35397)).
 * [IcebergIO] Create tables with a specified table properties ([#35496](https://github.com/apache/beam/pull/35496))
+* Add support for comma-separated options in Python SDK (Python) ([#35580](https://github.com/apache/beam/pull/35580)).
+  Python SDK now supports comma-separated values for experiments and dataflow_service_options,
+  matching Java SDK behavior while maintaining backward compatibility.
 * Milvus enrichment handler added (Python) ([#35216](https://github.com/apache/beam/pull/35216)).
   Beam now supports Milvus enrichment handler capabilities for vector, keyword,
   and hybrid search operations.
