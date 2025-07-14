@@ -38,6 +38,9 @@ import psycopg2
 import pytds
 import sqlalchemy
 import yaml
+from google.cloud import pubsub_v1
+from google.cloud.bigtable_admin_v2.types import instance
+from google.cloud.bigtable import client
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
 from testcontainers.google import PubSubContainer
@@ -57,9 +60,6 @@ from apache_beam.yaml import yaml_provider
 from apache_beam.yaml import yaml_transform
 from apache_beam.yaml.conftest import yaml_test_files_dir
 from apitools.base.py.exceptions import HttpError
-from google.cloud import pubsub_v1
-from google.cloud.bigtable_admin_v2.types import instance
-from google.cloud.bigtable import client
 
 _LOGGER = logging.getLogger(__name__)
 
