@@ -1029,7 +1029,7 @@ class _PTransformFnPTransform(PTransform):
 
   def default_label(self) -> str:
     # Attempt to give a reasonable name to this transform.
-    # We want it to be reasonably unique, but also not to sensitive to
+    # We want it to be reasonably unique, but also not sensitive to
     # irrelevent parameters to minimize pipeline-to-pipeline variance.
     # For now, use only the first argument (if any), iff it would not make
     # the name unwieldy.
