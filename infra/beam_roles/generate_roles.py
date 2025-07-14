@@ -19,11 +19,14 @@
 
 import yaml
 import datetime
+import os
 from google.cloud import iam_admin_v1
 from google.api_core import exceptions
 
 # Load configuration from YAML file
-with open("roles_config.yaml", "r") as f:
+script_dir = os.path.dirname(os.path.abspath(__file__))
+config_path = os.path.join(script_dir, "roles_config.yaml")
+with open(config_path, "r") as f:
     config = yaml.safe_load(f)
 
 BEAM_VIEWER_SERVICES = config["services"]["viewer"]
