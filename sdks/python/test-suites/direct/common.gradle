@@ -419,6 +419,27 @@ task feastIntegrationTest {
     }
 }
 
+// Integration tests that runs on non self-hosted environments.
+task nonSelfHostedIntegrationTest {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+
+  doLast {
+      def testOpts = basicTestOpts
+      def argMap = [
+          "test_opts": testOpts,
+          "suite": "postCommitIT-direct-py${pythonVersionSuffix}",
+          "collect": "require_non_self_hosted",
+          "runner": "TestDirectRunner",
+      ]
+      def cmdArgs = mapToArgString(argMap)
+      exec {
+        executable 'sh'
+        args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+      }
+    }
+}
+
 // Add all the RunInference framework IT tests to this gradle task that runs on Direct Runner Post commit suite.
 project.tasks.register("inferencePostCommitIT") {
   dependsOn = [
@@ -429,6 +450,7 @@ project.tasks.register("inferencePostCommitIT") {
   'transformersInferenceTest',
   'testcontainersTest',
   'feastIntegrationTest',
+  'nonSelfHostedIntegrationTest',
   // (TODO) https://github.com/apache/beam/issues/25799
    // uncomment tfx bsl tests once tfx supports protobuf 4.x
   // 'tfxInferenceTest',
