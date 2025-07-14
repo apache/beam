@@ -38,7 +38,7 @@ dependencies {
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation project(":sdks:java:extensions:sql")
   implementation project(":sdks:java:extensions:sql:udf")
-  implementation library.java.vendored_calcite_1_28_0
+  implementation library.java.vendored_calcite_1_40_0
   implementation library.java.guava
   implementation library.java.grpc_api
   implementation library.java.joda_time
@@ -55,7 +55,7 @@ dependencies {
   implementation "com.google.zetasql:zetasql-types:$zetasql_version"
   implementation "com.google.zetasql:zetasql-jni-channel:$zetasql_version"
   permitUnusedDeclared "com.google.zetasql:zetasql-jni-channel:$zetasql_version" // BEAM-11761
-  testImplementation library.java.vendored_calcite_1_28_0
+  testImplementation library.java.vendored_calcite_1_40_0
   testImplementation library.java.vendored_guava_32_1_2_jre
   testImplementation library.java.junit
   testImplementation library.java.hamcrest
