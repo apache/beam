@@ -249,7 +249,7 @@ public class CalciteQueryPlanner implements QueryPlanner {
       // here and based on the design we also need to remove the cached values
 
       // We need to first remove the cached values.
-      List<Table.Cell<RelNode, List, Object>> costKeys =
+      List<Table.Cell<RelNode, ?, Object>> costKeys =
           bmq.map.cellSet().stream()
               .filter(entry -> entry.getValue() instanceof BeamCostModel)
               .filter(entry -> ((BeamCostModel) entry.getValue()).isInfinite())
