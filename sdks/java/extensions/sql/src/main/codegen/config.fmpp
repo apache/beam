@@ -25,6 +25,7 @@ data: {
         "org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlCreate"
         "org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlDrop"
         "org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.type.SqlTypeName"
+        "org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.NlsString"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlCreateCatalog"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlCreateDatabase"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlCreateExternalTable"
@@ -64,6 +65,8 @@ data: {
         "AFTER"
         "ALWAYS"
         "APPLY"
+        "ARRAY_AGG"
+        "ARRAY_CONCAT_AGG"
         "ASC"
         "ASSERTION"
         "ASSIGNMENT"
@@ -102,12 +105,19 @@ data: {
         "CONSTRAINTS"
         "CONSTRAINT_SCHEMA"
         "CONSTRUCTOR"
+        "CONTAINS_SUBSTR"
         "CONTINUE"
         "CURSOR_NAME"
         "DATA"
         "DATABASE"
+        "DATE_DIFF"
+        "DATE_TRUNC"
+        "DATETIME_DIFF"
         "DATETIME_INTERVAL_CODE"
         "DATETIME_INTERVAL_PRECISION"
+        "DATETIME_TRUNC"
+        "DAYOFWEEK"
+        "DAYOFYEAR"
         "DAYS"
         "DECADE"
         "DEFAULTS"
@@ -126,6 +136,7 @@ data: {
         "DOMAIN"
         "DOW"
         "DOY"
+        "DOT_FORMAT"
         "DYNAMIC_FUNCTION"
         "DYNAMIC_FUNCTION_CODE"
         "ENCODING"
@@ -148,13 +159,16 @@ data: {
         "GO"
         "GOTO"
         "GRANTED"
+        "GROUP_CONCAT"
         "HIERARCHY"
         "HOP"
         "HOURS"
         "IGNORE"
+        "ILIKE"
         "IMMEDIATE"
         "IMMEDIATELY"
         "IMPLEMENTATION"
+        "INCLUDE"
         "INCLUDING"
         "INCREMENT"
         "INITIALLY"
@@ -222,6 +236,7 @@ data: {
         "PASSTHROUGH"
         "PAST"
         "PATH"
+        "PIVOT"
         "PLACING"
         "PLAN"
         "PLI"
@@ -231,6 +246,7 @@ data: {
         "PRIVILEGES"
         "PUBLIC"
         "QUARTER"
+        "QUARTERS"
         "READ"
         "RELATIVE"
         "REPEATABLE"
@@ -243,6 +259,7 @@ data: {
         "RETURNED_OCTET_LENGTH"
         "RETURNED_SQLSTATE"
         "RETURNING"
+        "RLIKE"
         "ROLE"
         "ROUTINE"
         "ROUTINE_CATALOG"
@@ -260,6 +277,7 @@ data: {
         "SECTION"
         "SECURITY"
         "SELF"
+        "SEPARATOR"
         "SEQUENCE"
         "SERIALIZABLE"
         "SERVER"
@@ -322,6 +340,7 @@ data: {
         "SQL_VARCHAR"
         "STATE"
         "STATEMENT"
+        "STRING_AGG"
         "STRUCTURE"
         "STYLE"
         "SUBCLASS_ORIGIN"
@@ -329,8 +348,12 @@ data: {
         "TABLE_NAME"
         "TEMPORARY"
         "TIES"
+        "TIME_DIFF"
+        "TIME_TRUNC"
         "TIMESTAMPADD"
         "TIMESTAMPDIFF"
+        "TIMESTAMP_DIFF"
+        "TIMESTAMP_TRUNC"
         "TOP_LEVEL_COUNT"
         "TRANSACTION"
         "TRANSACTIONS_ACTIVE"
@@ -347,6 +370,7 @@ data: {
         "UNCOMMITTED"
         "UNCONDITIONAL"
         "UNDER"
+        "UNPIVOT"
         "UNNAMED"
         "USAGE"
         "USER_DEFINED_TYPE_CATALOG"
@@ -359,6 +383,7 @@ data: {
         "VERSION"
         "VIEW"
         "WEEK"
+        "WEEKS"
         "WORK"
         "WRAPPER"
         "WRITE"
@@ -445,6 +470,12 @@ data: {
         "SqlDropCatalog"
       ]
 
+      # List of methods for parsing extensions to "TRUNCATE" calls.
+      # Each must accept arguments "(SqlParserPos pos)".
+      # Example: "SqlTruncate".
+      truncateStatementParserMethods: [
+      ]
+
       # Binary operators tokens
       binaryOperatorsTokens: [
       ]
@@ -461,11 +492,12 @@ data: {
         "parserImpls.ftl"
       ]
 
+      setOptionParserMethod: "SqlSetOption"
       includePosixOperators: false
       includeCompoundIdentifier: true
       includeBraces: true
       includeAdditionalDeclarations: false
-
+      includeParsingStringLiteralAsArrayLiteral: false
     }
 }
 
