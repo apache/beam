@@ -115,6 +115,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 import org.apache.beam.fn.harness.logging.QuotaEvent;
 import org.apache.beam.fn.harness.logging.QuotaEvent.QuotaEventCloseable;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
@@ -1161,15 +1162,25 @@ public class BigQueryServicesImpl implements BigQueryServices {
             // We verify whether the retryPolicy parameter expects us to retry. If it does, then
             // it will return true. Otherwise it will return false.
             if (retryPolicy.shouldRetry(new InsertRetryPolicy.Context(error))) {
-              // Surface the row schema for debugging.
-              String fieldNames;
+              // Create row details composed of schema information.
+              String rowDetails;
               try {
-                fieldNames = String.join(", ", row.keySet());
+                rowDetails =
+                    row.entrySet().stream()
+                        .map(
+                            entry ->
+                                String.format(
+                                    "'%s': %s",
+                                    entry.getKey(),
+                                    entry.getValue() == null
+                                        ? "null"
+                                        : entry.getValue().getClass().getName()))
+                        .collect(Collectors.joining(", ", "{", "}"));
               } catch (Exception e) {
-                fieldNames = row.toString();
+                rowDetails = String.join(",", row.keySet());
               }
-              if (fieldNames.length() > 1024) {
-                fieldNames = fieldNames.substring(0, 1024) + "...";
+              if (rowDetails.length() > 1024) {
+                rowDetails = rowDetails.substring(0, 1024) + "...}";
               }
               throw new RuntimeException(
                   String.format(
@@ -1179,7 +1190,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
                           + "(truncated): %s. "
                           + "You can change your retry strategy to unblock this "
                           + "pipeline, and the row will be output as a failed insert. ",
-                      nextRowSize, MAX_BQ_ROW_PAYLOAD_DESC, fieldNames));
+                      nextRowSize, MAX_BQ_ROW_PAYLOAD_DESC, rowDetails));
             } else {
               numFailedRows += 1;
               errorContainer.add(failedInserts, error, ref, rowsToPublish.get(rowIndex));
