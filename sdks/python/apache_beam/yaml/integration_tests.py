@@ -41,7 +41,7 @@ import yaml
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
 from testcontainers.google import PubSubContainer
-# from testcontainers.kafka import KafkaContainer
+from testcontainers.kafka import KafkaContainer
 from testcontainers.mssql import SqlServerContainer
 from testcontainers.mysql import MySqlContainer
 from testcontainers.postgres import PostgresContainer
@@ -482,32 +482,32 @@ def temp_oracle_database():
     yield f"jdbc:oracle:thin:system/oracle@localhost:{port}/XEPDB1"
 
 
-# @contextlib.contextmanager
-# def temp_kafka_server():
-#   """Context manager to provide a temporary Kafka server for testing.
-#
-#   This function utilizes the 'testcontainers' library to spin up a Kafka
-#   instance within a Docker container. It then yields the bootstrap server
-#   string, which can be used by Kafka clients to connect to this temporary
-#   server.
-#
-#   The Docker container and the Kafka instance are automatically managed
-#   and torn down when the context manager exits.
-#
-#   Yields:
-#       str: The bootstrap server string for the temporary Kafka instance.
-#            Example format: "localhost:XXXXX" or "PLAINTEXT://localhost:XXXXX"
-#
-#   Raises:
-#       Exception: If there's an error starting the Kafka container or
-#                  interacting with the temporary Kafka server.
-#   """
-#   with KafkaContainer() as kafka_container:
-#     try:
-#       yield kafka_container.get_bootstrap_server()
-#     except Exception as err:
-#       logging.error("Error interacting with temporary Kakfa Server: %s", err)
-#       raise err
+@contextlib.contextmanager
+def temp_kafka_server():
+  """Context manager to provide a temporary Kafka server for testing.
+
+  This function utilizes the 'testcontainers' library to spin up a Kafka
+  instance within a Docker container. It then yields the bootstrap server
+  string, which can be used by Kafka clients to connect to this temporary
+  server.
+
+  The Docker container and the Kafka instance are automatically managed
+  and torn down when the context manager exits.
+
+  Yields:
+      str: The bootstrap server string for the temporary Kafka instance.
+           Example format: "localhost:XXXXX" or "PLAINTEXT://localhost:XXXXX"
+
+  Raises:
+      Exception: If there's an error starting the Kafka container or
+                 interacting with the temporary Kafka server.
+  """
+  with KafkaContainer() as kafka_container:
+    try:
+      yield kafka_container.get_bootstrap_server()
+    except Exception as err:
+      logging.error("Error interacting with temporary Kakfa Server: %s", err)
+      raise err
 
 
 @contextlib.contextmanager
@@ -760,19 +760,17 @@ def parse_test_files(filepattern):
   """
   for path in glob.glob(filepattern):
     # get rid of this before PR
-    if "bigTable" in path:
-      with open(path) as fin:
-        suite_name = os.path.splitext(
-            os.path.basename(path))[0].title().replace('-', '') + 'Test'
-        print(path, suite_name)
-        methods = dict(
-            create_test_methods(
-                yaml.load(fin, Loader=yaml_transform.SafeLineLoader)))
-        globals()[suite_name] = type(
-            suite_name, (unittest.TestCase, ), methods)
+    with open(path) as fin:
+      suite_name = os.path.splitext(os.path.basename(path))[0].title().replace(
+          '-', '') + 'Test'
+      print(path, suite_name)
+      methods = dict(
+          create_test_methods(
+              yaml.load(fin, Loader=yaml_transform.SafeLineLoader)))
+      globals()[suite_name] = type(suite_name, (unittest.TestCase, ), methods)
 
 
-# Logging setup
+# Logging setups
 logging.getLogger().setLevel(logging.INFO)
 
 # Dynamically create test methods from the tests directory.
