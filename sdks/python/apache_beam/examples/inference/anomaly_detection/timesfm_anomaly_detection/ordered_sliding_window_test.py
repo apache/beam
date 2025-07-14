@@ -17,10 +17,9 @@
 
 import logging
 import unittest
-
 import apache_beam as beam
-from apache_beam.ml.ts.ordered_sliding_window import FillGapsFn
-from apache_beam.ml.ts.ordered_sliding_window import OrderedSlidingWindowFn
+from apache_beam.examples.inference.anomaly_detection.timesfm_anomaly_detection.ordered_sliding_window import FillGapsFn
+from apache_beam.examples.inference.anomaly_detection.timesfm_anomaly_detection.ordered_sliding_window import OrderedSlidingWindowFn
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
