@@ -17,14 +17,12 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable;
 
-import static java.util.Optional.ofNullable;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
 import com.google.bigtable.v2.Mutation;
 import com.google.bigtable.v2.TimestampRange;
 import com.google.protobuf.ByteString;
-import java.util.Objects;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteSchemaTransformProvider.BigtableWriteSchemaTransformConfiguration;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
@@ -32,6 +30,7 @@ import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
@@ -144,7 +143,10 @@ public class BigtableSimpleWriteSchemaTransformProvider
                       (Row input) -> {
                         @SuppressWarnings("nullness")
                         ByteString key =
-                            ByteString.copyFrom(((Objects.requireNonNull(input.getBytes("key")))));
+                            ByteString.copyFrom(
+                                Preconditions.checkStateNotNull(
+                                    input.getBytes("key"),
+                                    "Encountered row with incorrect 'key' property."));
 
                         Mutation bigtableMutation;
                         String mutationType =
@@ -159,15 +161,19 @@ public class BigtableSimpleWriteSchemaTransformProvider
                                 Mutation.SetCell.newBuilder()
                                     .setValue(
                                         ByteString.copyFrom(
-                                            ((Objects.requireNonNull(input.getBytes("value"))))))
+                                            Preconditions.checkStateNotNull(
+                                                input.getBytes("value"),
+                                                "Encountered SetCell mutation with incorrect 'value' property.")))
                                     .setColumnQualifier(
                                         ByteString.copyFrom(
-                                            ((Objects.requireNonNull(
-                                                input.getBytes("column_qualifier"))))))
+                                            Preconditions.checkStateNotNull(
+                                                input.getBytes("column_qualifier"),
+                                                "Encountered SetCell mutation with incorrect 'column_qualifier' property.")))
                                     .setFamilyNameBytes(
                                         ByteString.copyFrom(
-                                            (Objects.requireNonNull(
-                                                input.getBytes("family_name")))));
+                                            Preconditions.checkStateNotNull(
+                                                input.getBytes("family_name"),
+                                                "Encountered SetCell mutation with incorrect 'family_name' property.")));
                             // Use timestamp if provided, else default to -1 (current
                             // Bigtable
                             // server time)
@@ -186,11 +192,14 @@ public class BigtableSimpleWriteSchemaTransformProvider
                                 Mutation.DeleteFromColumn.newBuilder()
                                     .setColumnQualifier(
                                         ByteString.copyFrom(
-                                            Objects.requireNonNull(
-                                                input.getBytes("column_qualifier"))))
+                                            Preconditions.checkStateNotNull(
+                                                input.getBytes("column_qualifier"),
+                                                "Encountered DeleteFromColumn mutation with incorrect 'column_qualifier' property.")))
                                     .setFamilyNameBytes(
                                         ByteString.copyFrom(
-                                            ofNullable(input.getBytes("family_name")).get()));
+                                            Preconditions.checkStateNotNull(
+                                                input.getBytes("family_name"),
+                                                "Encountered DeleteFromColumn mutation with incorrect 'family_name' property.")));
 
                             // if start or end timestamp provided
                             // Timestamp Range (optional, assuming Long type in Row schema)
@@ -226,8 +235,9 @@ public class BigtableSimpleWriteSchemaTransformProvider
                                         Mutation.DeleteFromFamily.newBuilder()
                                             .setFamilyNameBytes(
                                                 ByteString.copyFrom(
-                                                    ofNullable(input.getBytes("family_name"))
-                                                        .get()))
+                                                    Preconditions.checkStateNotNull(
+                                                        input.getBytes("family_name"),
+                                                        "Encountered DeleteFromFamily mutation with incorrect 'family_name' property.")))
                                             .build())
                                     .build();
                             break;
