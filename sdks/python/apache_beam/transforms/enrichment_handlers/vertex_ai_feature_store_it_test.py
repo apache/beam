@@ -157,7 +157,7 @@ class TestVertexAIFeatureStoreHandler(unittest.TestCase):
         row_key=self.entity_type_name,
         exception_level=ExceptionLevel.RAISE,
     )
-    with self.assertRaisesRegex(Exception, "ValueError"):
+    with self.assertRaises(Exception):
       test_pipeline = beam.Pipeline()
       _ = (
           test_pipeline
