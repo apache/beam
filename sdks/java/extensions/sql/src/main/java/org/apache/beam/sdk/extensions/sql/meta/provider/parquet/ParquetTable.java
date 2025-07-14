@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.parquet;
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -32,8 +31,6 @@ import org.apache.beam.sdk.extensions.sql.meta.ProjectSupport;
 import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.io.FileIO;
-import org.apache.beam.sdk.io.FileSystems;
-import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.parquet.ParquetIO;
 import org.apache.beam.sdk.io.parquet.ParquetIO.Read;
 import org.apache.beam.sdk.schemas.transforms.Convert;
@@ -129,25 +126,9 @@ class ParquetTable extends SchemaBaseBeamTable implements Serializable {
   }
 
   private String resolveFilePattern(String location) {
-    try {
-      MatchResult match = FileSystems.match(location);
-      if (match.status() == MatchResult.Status.OK && !match.metadata().isEmpty()) {
-        MatchResult.Metadata metadata = match.metadata().get(0);
-        if (metadata.resourceId().isDirectory()) {
-          String dirPath = metadata.resourceId().toString();
-          if (dirPath.endsWith("/")) {
-            return dirPath + "*";
-          } else {
-            return dirPath + "/*";
-          }
-        }
-      }
-    } catch (IOException e) {
-      LOG.warn(
-          "Failed to resolve path {}, assuming it is a glob. Error: {}", location, e.getMessage());
+    if (location.endsWith("/")) {
+      return location + "*";
     }
-    // It's a single file, a glob, or a path that couldn't be resolved.
-    // In all cases, we use the location string directly.
     return location;
   }
 }
