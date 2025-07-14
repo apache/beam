@@ -67,10 +67,10 @@ jobs:
         job_phrase: ['Run Python_ML PreCommit']
         python_version: ['3.9','3.10','3.11','3.12']
         # Run on both self-hosted and GitHub-hosted runners.
-        # Some tests (marked require_non_self_hosted) can't run on Beam's
-        # self-hosted runners due to Docker-in-Docker or other environment
-        # limitations. These tests will only execute on ubuntu-latest
-        # (GitHub-hosted). Context: https://github.com/apache/beam/pull/35585
+        # Some tests (marked require_docker_in_docker) can't run on Beam's
+        # self-hosted runners due to Docker-in-Docker environment constraint.
+        # These tests will only execute on ubuntu-latest (GitHub-hosted).
+        # Context: https://github.com/apache/beam/pull/35585
         os: [[self-hosted, ubuntu-20.04, main], [ubuntu-latest]]
     if: |
       github.event_name == 'push' ||
