@@ -66,23 +66,33 @@ pipelines:
 #                  type: 'DeleteFromRow' }
         - type: LogForTesting
 #          commenting for now, will implement after everyone gives feedback on PR
+        - type: MapToFields
+          name: ConvertStringsToBytes
+          config:
+            language: python
+            fields:
+              # For 'SetCell' and 'DeleteFromColumn'
+              key:
+                callable: |
+                  def convert_to_bytes(row):
+                    return bytes(row.key, 'utf-8') if "key" in row._fields else None
+              family_name:
+                callable: |
+                  def convert_to_bytes(row):
+                    return bytes(row.family_name, 'utf-8') if 'family_name' in row._fields else None
+              column_qualifier:
+                callable: |
+                  def convert_to_bytes(row):
+                    return bytes(row.column_qualifier, 'utf-8') if 'column_qualifier' in row._fields else None
+              value:
+                callable: |
+                  def convert_to_bytes(row):
+                    return bytes(row.value, 'utf-8') if 'value' in row._fields else None
+              # The 'type', 'timestamp_micros', 'start_timestamp_micros', 'end_timestamp_micros'
+              # fields are already of the correct type (String, Long) or are optional.
+              # We only need to convert fields that are Strings in YAML but need to be Bytes in Java.
 
-#        - type: MapToFields
-#          name: Create Bytestring
-#          config:
-#            language: python
-#            fields:
-#              bytestr_value:
-#                callable: |
-#                  def all_words(row):
-#                    return bytes(row.input_value)
 
-        #              - key: !!byte cm93MQ==              # Base64 for "row1"
-#                type: 'SetCell'
-#                family_name: !!byte Y2Yy          # Base64 for "cf2"
-#                column_qualifier: !!byte Y3Ex     # Base64 for "cq1"
-#                value: !!byte dmFsdWUy              # Base64 for "value2"
-#                timestamp_micros: 1000
 
 
         - type: WriteToBigTable
