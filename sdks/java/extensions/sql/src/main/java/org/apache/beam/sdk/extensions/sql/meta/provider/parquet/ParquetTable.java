@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.parquet;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,6 +32,8 @@ import org.apache.beam.sdk.extensions.sql.meta.ProjectSupport;
 import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.io.FileIO;
+import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.parquet.ParquetIO;
 import org.apache.beam.sdk.io.parquet.ParquetIO.Read;
 import org.apache.beam.sdk.schemas.transforms.Convert;
@@ -57,7 +60,8 @@ class ParquetTable extends SchemaBaseBeamTable implements Serializable {
   @Override
   public PCollection<Row> buildIOReader(PBegin begin) {
     final Schema schema = AvroUtils.toAvroSchema(table.getSchema());
-    Read read = ParquetIO.read(schema).withBeamSchemas(true).from(table.getLocation() + "/*");
+    String filePattern = resolveFilePattern(table.getLocation());
+    Read read = ParquetIO.read(schema).withBeamSchemas(true).from(filePattern);
     return begin.apply("ParquetIORead", read).apply("ToRows", Convert.toRows());
   }
 
@@ -65,7 +69,8 @@ class ParquetTable extends SchemaBaseBeamTable implements Serializable {
   public PCollection<Row> buildIOReader(
       PBegin begin, BeamSqlTableFilter filters, List<String> fieldNames) {
     final Schema schema = AvroUtils.toAvroSchema(table.getSchema());
-    Read read = ParquetIO.read(schema).withBeamSchemas(true).from(table.getLocation() + "/*");
+    String filePattern = resolveFilePattern(table.getLocation());
+    Read read = ParquetIO.read(schema).withBeamSchemas(true).from(filePattern);
     if (!fieldNames.isEmpty()) {
       Schema projectionSchema = projectSchema(schema, fieldNames);
       LOG.info("Projecting fields schema: {}", projectionSchema);
@@ -121,5 +126,28 @@ class ParquetTable extends SchemaBaseBeamTable implements Serializable {
   @Override
   public ProjectSupport supportsProjects() {
     return ProjectSupport.WITH_FIELD_REORDERING;
+  }
+
+  private String resolveFilePattern(String location) {
+    try {
+      MatchResult match = FileSystems.match(location);
+      if (match.status() == MatchResult.Status.OK && !match.metadata().isEmpty()) {
+        MatchResult.Metadata metadata = match.metadata().get(0);
+        if (metadata.resourceId().isDirectory()) {
+          String dirPath = metadata.resourceId().toString();
+          if (dirPath.endsWith("/")) {
+            return dirPath + "*";
+          } else {
+            return dirPath + "/*";
+          }
+        }
+      }
+    } catch (IOException e) {
+      LOG.warn(
+          "Failed to resolve path {}, assuming it is a glob. Error: {}", location, e.getMessage());
+    }
+    // It's a single file, a glob, or a path that couldn't be resolved.
+    // In all cases, we use the location string directly.
+    return location;
   }
 }
