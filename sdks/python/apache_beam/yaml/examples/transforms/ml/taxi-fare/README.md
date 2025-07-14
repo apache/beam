@@ -71,7 +71,7 @@ export JOB_NAME="streaming-taxiride-prediction`date +%Y%m%d-%H%M%S`"
 export NUM_WORKERS="3"
 
 python -m apache_beam.yaml.main \
-  --yaml_pipeline_file transforms/ml/inference/streaming_sentiment_analysis.yaml \
+  --yaml_pipeline_file transforms/ml/taxi-fare/streaming_sentiment_analysis.yaml \
   --runner DataflowRunner \
   --temp_location $TEMP_LOCATION \
   --project $PROJECT \
