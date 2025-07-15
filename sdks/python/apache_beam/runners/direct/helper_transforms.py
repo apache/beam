@@ -29,43 +29,21 @@ class LiftedCombinePerKey(beam.PTransform):
   """An implementation of CombinePerKey that does mapper-side pre-combining.
   """
   def __init__(self, combine_fn, args, kwargs):
-    # side_input_args = [
-    #     arg for arg in args if isinstance(arg, beam.pvalue.AsSideInput)
-    # ]
-    # side_input_kwargs = {
-    #     k: v
-    #     for k, v in kwargs.items() if isinstance(v, beam.pvalue.AsSideInput)
-    # }
-    # self.args = [
-    #     arg for arg in args if not isinstance(arg, beam.pvalue.AsSideInput)
-    # ]
-    # self.kwargs = {
-    #     k: v
-    #     for k, v in kwargs.items()
-    #     if not isinstance(v, beam.pvalue.AsSideInput)
-    # }
-    self.args = args
-    self.kwargs = kwargs
     side_inputs = {f"_side_input_arg_{i}": si for i, si in enumerate(args)}
     side_inputs.update(kwargs)
     self._side_inputs: dict = side_inputs
-    # self.side_input_args = side_input_args
-    # self.side_input_kwargs = side_input_kwargs
     if not isinstance(combine_fn, core.CombineFn):
       combine_fn = core.CombineFn.from_callable(combine_fn)
     self._combine_fn = combine_fn
 
   def expand(self, pcoll):
-    print(f"{self.side_inputs=}")
     PGBKCV = beam.ParDo(
-        PartialGroupByKeyCombiningValues(self._combine_fn, [], {}),
-        **self._side_inputs)
+        PartialGroupByKeyCombiningValues(self._combine_fn), **self._side_inputs)
     return (
         pcoll
         | PGBKCV
         | beam.GroupByKey()
-        | beam.ParDo(
-            FinishCombine(self._combine_fn, [], {}), **self._side_inputs))
+        | beam.ParDo(FinishCombine(self._combine_fn), **self._side_inputs))
 
 
 def _unpackage_side_inputs(side_inputs):
@@ -85,10 +63,8 @@ class PartialGroupByKeyCombiningValues(beam.DoFn):
 
   As bundles are in-memory-sized, we don't bother flushing until the very end.
   """
-  def __init__(self, combine_fn, args, kwargs):
+  def __init__(self, combine_fn):
     self._combine_fn = combine_fn
-    self.args = args
-    self.kwargs = kwargs
     self.side_input_args = []
     self.side_input_kwargs = {}
 
@@ -103,12 +79,7 @@ class PartialGroupByKeyCombiningValues(beam.DoFn):
     k, vi = element
     side_input_args, side_input_kwargs = _unpackage_side_inputs(side_inputs)
     self._cache[k, window] = self._combine_fn.add_input(
-        self._cache[k, window],
-        vi,
-        *self.args,
-        *side_input_args,
-        **self.kwargs,
-        **side_input_kwargs)
+        self._cache[k, window], vi, *side_input_args, **side_input_kwargs)
     self._cached_windowed_side_inputs[window] = (
         side_input_args, side_input_kwargs)
 
@@ -125,12 +96,8 @@ class PartialGroupByKeyCombiningValues(beam.DoFn):
 class FinishCombine(beam.DoFn):
   """Merges partially combined results.
   """
-  def __init__(self, combine_fn, args, kwargs):
+  def __init__(self, combine_fn):
     self._combine_fn = combine_fn
-    self.args = args
-    self.kwargs = kwargs
-    self.side_input_args = []
-    self.side_input_kwargs = {}
 
   def setup(self):
     self._combine_fn.setup()
