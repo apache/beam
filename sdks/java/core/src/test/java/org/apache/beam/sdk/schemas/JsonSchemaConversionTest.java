@@ -22,12 +22,14 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.utils.JsonUtils;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
 import org.everit.json.schema.ValidationException;
 import org.json.JSONArray;
@@ -285,24 +287,31 @@ public class JsonSchemaConversionTest {
       String stringJsonSchema = new String(ByteStreams.toByteArray(inputStream), "UTF-8");
       Schema parsedSchema = JsonUtils.beamSchemaFromJsonSchema(stringJsonSchema);
 
-      assertThat(parsedSchema.getFieldNames(), containsInAnyOrder("vegetables"));
-      assertThat(
-          parsedSchema.getFields().stream().map(Schema.Field::getType).collect(Collectors.toList()),
-          containsInAnyOrder(
-              Schema.FieldType.array(
-                      Schema.FieldType.row(
-                          Schema.of(
-                              Schema.Field.of("veggieName", Schema.FieldType.STRING),
-                              Schema.Field.of("veggieLike", Schema.FieldType.BOOLEAN),
-                              Schema.Field.nullable(
-                                  "origin",
-                                  Schema.FieldType.row(
-                                      Schema.of(
-                                          Schema.Field.nullable("country", Schema.FieldType.STRING),
-                                          Schema.Field.nullable("town", Schema.FieldType.STRING),
-                                          Schema.Field.nullable(
-                                              "region", Schema.FieldType.STRING)))))))
-                  .withNullable(true)));
+      assertEquals("vegetables", Iterables.getOnlyElement(parsedSchema.getFieldNames()));
+      Schema.Field field = parsedSchema.getField("vegetables");
+
+      // test using equivalency, which permits out-of-orderness
+      assertTrue(
+          field
+              .getType()
+              .equivalent(
+                  Schema.FieldType.array(
+                          Schema.FieldType.row(
+                              Schema.of(
+                                  Schema.Field.of("veggieName", Schema.FieldType.STRING),
+                                  Schema.Field.of("veggieLike", Schema.FieldType.BOOLEAN),
+                                  Schema.Field.nullable(
+                                      "origin",
+                                      Schema.FieldType.row(
+                                          Schema.of(
+                                              Schema.Field.nullable(
+                                                  "country", Schema.FieldType.STRING),
+                                              Schema.Field.nullable(
+                                                  "town", Schema.FieldType.STRING),
+                                              Schema.Field.nullable(
+                                                  "region", Schema.FieldType.STRING)))))))
+                      .withNullable(true),
+                  Schema.EquivalenceNullablePolicy.SAME));
     }
   }
 
