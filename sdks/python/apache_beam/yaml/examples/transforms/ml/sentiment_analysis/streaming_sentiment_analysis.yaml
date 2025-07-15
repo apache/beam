@@ -104,8 +104,8 @@ pipeline:
           sasl.mechanism: "PLAIN"
 
     # Remove unexpected characters from the YouTube
-    # comment string, e.g. emojis, ascii characters outside
-    # the common day-to-day English.
+    # comment string, e.g. emojis, ascii characters
+    # outside the common day-to-day English.
     - type: MapToFields
       name: RemoveWeirdCharacters
       input: ReadFromMyTopic
@@ -117,10 +117,10 @@ pipeline:
             callable: |
               import re
               def filter(row):
-                # Match letters, digits, whitespace and common punctuation
-                allowed = r"A-Za-z0-9\s.,;:!?\'\"()\[\]{}\-_"
-                pattern = re.compile(fr"[^{allowed}]")
-                return pattern.sub("", row.comment_text).strip()
+                # regex match and keep letters, digits, whitespace and common punctuations,
+                # i.e. remove non printable ASCII characters (character codes not in
+                # the range 32 - 126, or \x20 - \x7E).
+                return re.sub(r'[^\x20-\x7E]', '', row.comment_text).strip()
           likes: likes
           replies: replies
 
@@ -170,7 +170,7 @@ pipeline:
           replies: replies
 
     # HuggingFace's distilbert-base-uncased does not distinguish
-    # between 'english' and 'English'.
+    # between upper and lower case tokens.
     # This pipeline makes the same point by converting all words
     # into lowercase.
     - type: MapToFields
@@ -252,6 +252,6 @@ options:
 # Expected:
 #  Row(video_id='XpVt6Z1Gjjo', comment_text='I AM HAPPY', likes=1, replies=1)
 #  Row(video_id='XpVt6Z1Gjjo', comment_text='I AM SAD', likes=1, replies=1)
-#  Row(video_id='XpVt6Z1Gjjo', comment_text='@=@', likes=1, replies=1)
+#  Row(video_id='XpVt6Z1Gjjo', comment_text='§ÁĐ', likes=1, replies=1)
 #  Row(video_id='XpVt6Z1Gjjo', comment_text='i am happy', label='POSITIVE', score=0.95, likes=1, replies=1)
 #  Row(video_id='XpVt6Z1Gjjo', comment_text='i am sad', label='NEGATIVE', score=0.95, likes=1, replies=1)
