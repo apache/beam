@@ -17,15 +17,6 @@
     under the License.
 -->
 
-# Inference Examples Catalog
-
-<!-- TOC -->
-
-* [Inference Examples Catalog](#examples-catalog)
-    * [Streaming Sentiment Analysis](#streaming-sentiment-analysis)
-
-<!-- TOC -->
-
 ## Streaming Sentiment Analysis
 
 The example leverages the `RunInference` transform with Vertex AI
@@ -57,9 +48,16 @@ https://github.com/GoogleCloudPlatform/vertex-ai-samples/blob/main/notebooks/com
 
 BigQuery is the pipeline's sink for the inference result output.
 A BigQuery dataset needs to exist first before the pipeline can
-create/write to a table. See [here](
-https://cloud.google.com/bigquery/docs/datasets) for how to create
-BigQuery datasets.
+create/write to a table. Run the following command to create
+a BigQuery dataset:
+
+```sh
+bq --location=us-central1 mk \
+  --dataset DATASET_ID
+```
+See also [here](
+https://cloud.google.com/bigquery/docs/datasets) for more details on
+how to create BigQuery datasets
 
 The pipeline first reads the YouTube comments .csv dataset from
 GCS bucket and performs some clean-up before writing it to a Kafka
@@ -80,7 +78,7 @@ export JOB_NAME="streaming-sentiment-analysis-`date +%Y%m%d-%H%M%S`"
 export NUM_WORKERS="3"
 
 python -m apache_beam.yaml.main \
-  --yaml_pipeline_file transforms/ml/inference/streaming_sentiment_analysis.yaml \
+  --yaml_pipeline_file transforms/ml/sentiment_analysis/streaming_sentiment_analysis.yaml \
   --runner DataflowRunner \
   --temp_location $TEMP_LOCATION \
   --project $PROJECT \

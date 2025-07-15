@@ -114,7 +114,7 @@ def test_enrichment(
 
 @beam.ptransform.ptransform_fn
 def test_kafka_read(
-    pbegin,
+    pcoll,
     format,
     topic,
     bootstrap_servers,
@@ -126,25 +126,25 @@ def test_kafka_read(
   encode it to raw bytes.
 
   Args:
-    pbegin: The input PCollection.
-    format:
-    topic:
-    bootstrap_servers:
-    auto_offset_reset_config:
-    consumer_config:
+    pcoll: The input PCollection.
+    format: The format of the Kafka messages (e.g., 'RAW').
+    topic: The name of Kafka topic to read from.
+    bootstrap_servers: A list of Kafka bootstrap servers to connect to.
+    auto_offset_reset_config: A configuration for the auto offset reset
+    consumer_config: A dictionary containing additional consumer configurations
 
   Returns:
     A PCollection containing the sample text data in bytes.
   """
 
   return (
-      pbegin | beam.Create(input_data.text_data().split('\n'))
+      pcoll | beam.Create(input_data.text_data().split('\n'))
       | beam.Map(lambda element: beam.Row(payload=element.encode('utf-8'))))
 
 
 @beam.ptransform.ptransform_fn
 def test_pubsub_read(
-    pbegin,
+    pcoll,
     topic: Optional[str] = None,
     subscription: Optional[str] = None,
     format: Optional[str] = None,
@@ -157,7 +157,7 @@ def test_pubsub_read(
   pubsub_messages = input_data.pubsub_messages_data()
 
   return (
-      pbegin
+      pcoll
       | beam.Create([json.loads(msg.data) for msg in pubsub_messages])
       | beam.Map(lambda element: beam.Row(**element)))
 

@@ -59,7 +59,7 @@ def youtube_comments_csv():
       'video_id,comment_text,likes,replies',
       'XpVt6Z1Gjjo,I AM HAPPY,1,1',
       'XpVt6Z1Gjjo,I AM SAD,1,1',
-      'XpVt6Z1Gjjo,@=@,1,1'
+      'XpVt6Z1Gjjo,§ÁĐ,1,1'
   ])
 
 
