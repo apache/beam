@@ -44,7 +44,7 @@ dependencies {
   implementation("com.gradleup.shadow:shadow-gradle-plugin:8.3.8") {                   // Enable shading Java dependencies
     exclude(group="org.codehaus.plexus", module="plexus-xml") // plexus-xml 4.x requires Java17
   }
-  runtimeOnly("org.codehaus.plexus:plexus-xml:3.0.2")
+  runtimeOnly("org.codehaus.plexus:plexus-xml:4.1.0")
   implementation("com.github.spotbugs.snom:spotbugs-gradle-plugin:5.0.14")
 
   runtimeOnly("com.google.protobuf:protobuf-gradle-plugin:0.8.13")                                         // Enable proto code generation
