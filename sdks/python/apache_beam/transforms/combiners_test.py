@@ -1043,6 +1043,7 @@ class CombinerWithSideInputs(unittest.TestCase):
                   (beam.CombineFn.from_callable(get_common_items), False)]
     for combiner, with_kwarg in test_cases:
       self._check_combineperkey_with_side_input(combiner, with_kwarg)
+      self._check_combineglobally_with_side_input(combiner, with_kwarg)
 
   def _check_combineperkey_with_side_input(self, combiner, with_kwarg):
     with beam.Pipeline() as pipeline:
@@ -1063,6 +1064,25 @@ class CombinerWithSideInputs(unittest.TestCase):
           | beam.WithKeys(lambda x: None)
           | cpk)
       assert_that(common_items, equal_to([(None, {'🥕'})]))
+
+  def _check_combineglobally_with_side_input(self, combiner, with_kwarg):
+    with beam.Pipeline() as pipeline:
+      pc = (pipeline | beam.Create(['🍅']))
+      if with_kwarg:
+        cpk = beam.CombineGlobally(
+            combiner, excluded_chars=beam.pvalue.AsSingleton(pc))
+      else:
+        cpk = beam.CombineGlobally(combiner, beam.pvalue.AsSingleton(pc))
+      common_items = (
+          pipeline
+          | 'Create produce' >> beam.Create([
+              {'🍓', '🥕', '🍌', '🍅', '🌶️'},
+              {'🍇', '🥕', '🥝', '🍅', '🥔'},
+              {'🍉', '🥕', '🍆', '🍅', '🍍'},
+              {'🥑', '🥕', '🌽', '🍅', '🥥'},
+          ])
+          | cpk)
+      assert_that(common_items, equal_to([{'🥕'}]))
 
   def test_combinefn_methods_with_side_input(self):
     # Test that the expected combinefn methods are called with the
