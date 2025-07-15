@@ -1495,11 +1495,6 @@ class BeamModulePlugin implements Plugin<Project> {
         project.dependencies {
           errorprone("com.google.errorprone:error_prone_core:$errorprone_version")
           errorprone("jp.skypencil.errorprone.slf4j:errorprone-slf4j:0.1.2")
-          // At least JDk 9 compiler is required, however JDK 8 still can be used but with additional errorproneJavac
-          // configuration. For more details please see https://github.com/tbroyer/gradle-errorprone-plugin#jdk-8-support
-          if (JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) == 0) {
-            errorproneJavac("com.google.errorprone:javac:9+181-r4173-1")
-          }
         }
 
         project.configurations.errorprone { resolutionStrategy.force "com.google.errorprone:error_prone_core:$errorprone_version" }
@@ -1512,8 +1507,7 @@ class BeamModulePlugin implements Plugin<Project> {
           // i.e. Java 9 and up. The flags became mandatory in Java 17 with JEP-403.
           // The -J prefix is not needed if forkOptions.javaHome is unset,
           // see http://github.com/gradle/gradle/issues/22747
-          if (JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0
-          && options.forkOptions.javaHome == null) {
+          if (options.forkOptions.javaHome == null) {
             options.fork = true
             options.forkOptions.jvmArgs += errorProneAddModuleOpts
           }
@@ -1633,7 +1627,7 @@ class BeamModulePlugin implements Plugin<Project> {
         //
         // TODO: Enforce all relocations are always performed to:
         // getJavaRelocatedPath(package_suffix) where package_suffix is something like "com.google.commmon"
-        project.apply plugin: 'com.github.johnrengelman.shadow'
+        project.apply plugin: 'com.gradleup.shadow'
 
         // Create a new configuration 'shadowTest' like 'shadow' for the test scope
         project.configurations {

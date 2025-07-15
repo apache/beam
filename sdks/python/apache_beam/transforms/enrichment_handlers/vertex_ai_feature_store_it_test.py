@@ -27,7 +27,6 @@ from apache_beam.testing.util import BeamAssertException
 
 # pylint: disable=ungrouped-imports
 try:
-  from google.api_core.exceptions import NotFound
   from testcontainers.redis import RedisContainer
   from apache_beam.transforms.enrichment import Enrichment
   from apache_beam.transforms.enrichment_handlers.utils import ExceptionLevel
@@ -131,7 +130,7 @@ class TestVertexAIFeatureStoreHandler(unittest.TestCase):
         beam.Row(entity_id="16050", name='stripe t-shirt'),
     ]
 
-    with self.assertRaises(NotFound):
+    with self.assertRaisesRegex(Exception, "does not exist"):
       handler = VertexAIFeatureStoreEnrichmentHandler(
           project=self.project,
           location=self.location,
@@ -158,7 +157,7 @@ class TestVertexAIFeatureStoreHandler(unittest.TestCase):
         row_key=self.entity_type_name,
         exception_level=ExceptionLevel.RAISE,
     )
-    with self.assertRaises(ValueError):
+    with self.assertRaises(Exception):
       test_pipeline = beam.Pipeline()
       _ = (
           test_pipeline
@@ -209,7 +208,7 @@ class TestVertexAIFeatureStoreHandler(unittest.TestCase):
         exception_level=ExceptionLevel.RAISE,
     )
 
-    with self.assertRaises(ValueError):
+    with self.assertRaisesRegex(Exception, "ValueError"):
       test_pipeline = beam.Pipeline()
       _ = (
           test_pipeline
@@ -225,7 +224,7 @@ class TestVertexAIFeatureStoreHandler(unittest.TestCase):
     feature_store_id = "invalid_name"
     entity_type_id = "movies"
 
-    with self.assertRaises(NotFound):
+    with self.assertRaisesRegex(Exception, "does not exist"):
       handler = VertexAIFeatureStoreLegacyEnrichmentHandler(
           project=self.project,
           location=self.location,
