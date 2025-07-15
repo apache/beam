@@ -1063,18 +1063,34 @@ class EvenOddWindows(window.NonMergingWindowFn):
     return ColoredFixedWindowCoder()
 
 
+def get_common_items(sets, excluded_chars=""):
+  # set.intersection() takes multiple sets as separete arguments.
+  # We unpack the `sets` list into multiple arguments with the * operator.
+  # The combine transform might give us an empty list of `sets`,
+  # so we use a list with an empty set as a default value.
+  common = set.intersection(*(sets or [set()]))
+  return common.difference(excluded_chars)
+
+
 class CombinerWithSideInputs(unittest.TestCase):
-  def test_combineperkey_with_side_kwarg(self):
-    def get_common_items(sets, excluded_chars=""):
-      # set.intersection() takes multiple sets as separete arguments.
-      # We unpack the `sets` list into multiple arguments with the * operator.
-      # The combine transform might give us an empty list of `sets`,
-      # so we use a list with an empty set as a default value.
-      common = set.intersection(*(sets or [set()]))
-      return common.difference(excluded_chars)
+  def test_cpk_with_sinde_input(self):
+    test_cases = [(get_common_items, True),
+                  (beam.CombineFn.from_callable(get_common_items), True),
+                  (get_common_items, False),
+                  (beam.CombineFn.from_callable(get_common_items), False)]
+    for combiner, with_kwarg in test_cases:
+      self._check_combineperkey_with_side_input(combiner, with_kwarg)
+
+  def _check_combineperkey_with_side_input(self, combiner, with_kwarg):
+    print(f"{combiner=}, {with_kwarg=}")
 
     with beam.Pipeline() as pipeline:
       pc = (pipeline | beam.Create(['🍅']))
+      if with_kwarg:
+        cpk = beam.CombinePerKey(
+            combiner, excluded_chars=beam.pvalue.AsSingleton(pc))
+      else:
+        cpk = beam.CombinePerKey(combiner, beam.pvalue.AsSingleton(pc))
       common_items = (
           pipeline
           | 'Create produce' >> beam.Create([
@@ -1084,25 +1100,7 @@ class CombinerWithSideInputs(unittest.TestCase):
               {'🥑', '🥕', '🌽', '🍅', '🥥'},
           ])
           | beam.WithKeys(lambda x: None)
-          | 'Get common items' >> beam.CombinePerKey(
-              get_common_items, excluded_chars=beam.pvalue.AsSingleton(pc)))
-      assert_that(common_items, equal_to([(None, {'🥕'})]))
-
-    # Test with CombineFn
-    combiner = beam.CombineFn.from_callable(get_common_items)
-    with beam.Pipeline() as pipeline:
-      pc = (pipeline | beam.Create(['🍅']))
-      common_items = (
-          pipeline
-          | 'Create produce' >> beam.Create([
-              {'🍓', '🥕', '🍌', '🍅', '🌶️'},
-              {'🍇', '🥕', '🥝', '🍅', '🥔'},
-              {'🍉', '🥕', '🍆', '🍅', '🍍'},
-              {'🥑', '🥕', '🌽', '🍅', '🥥'},
-          ])
-          | beam.WithKeys(lambda x: None)
-          | 'Get common items' >> beam.CombinePerKey(
-              combiner, excluded_chars=beam.pvalue.AsSingleton(pc)))
+          | cpk)
       assert_that(common_items, equal_to([(None, {'🥕'})]))
 
   def test_cpk_with_streaming(self):
