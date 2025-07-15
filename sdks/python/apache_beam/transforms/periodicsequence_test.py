@@ -357,6 +357,8 @@ class PeriodicImpulseTest(unittest.TestCase):
 
   def test_rebase_timestamp_with_wrong_setting(self):
     with self.assertRaises(Exception):
+      # exception is raised because start_timestamp is rebased to the pipeline
+      # execution time, but the stop_timestamp is 5 seconds after unix epoch.
       with TestPipeline() as p:
         _ = (
             p | PeriodicImpulse(
