@@ -2924,6 +2924,9 @@ class CombinePerKey(PTransformWithSideInputs):
           any(isinstance(arg, pvalue.AsSideInput) for arg in kwargs.values()))
 
     if has_side_inputs():
+      # If the CombineFn has deferred side inputs, the python SDK
+      # doesn't implement it.
+      # Use a ParDo-based CombinePerKey instead.
       from apache_beam.runners.direct.helper_transforms import \
         LiftedCombinePerKey
       combine_fn, *args = args
