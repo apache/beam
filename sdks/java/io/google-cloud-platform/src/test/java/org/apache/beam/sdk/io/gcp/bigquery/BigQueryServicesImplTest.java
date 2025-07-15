@@ -1165,7 +1165,7 @@ public class BigQueryServicesImplTest {
                     successfulRows));
 
     assertThat(e.getMessage(), containsString("exceeding the BigQueryIO limit"));
-    assertThat(e.getMessage(), containsString("Problematic row field names and types"));
+    assertThat(e.getMessage(), containsString("Problematic row schema"));
   }
 
   @SuppressWarnings("InlineMeInliner") // inline `Strings.repeat()` - Java 11+ API only
