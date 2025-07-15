@@ -512,6 +512,13 @@ def read_from_iceberg(
 
   Args:
     table: The identifier of the Apache Iceberg table. Example: "db.table1".
+    filter: SQL-like predicate to filter data at scan time.
+      Example: "id > 5 AND status = 'ACTIVE'". Uses Apache Calcite syntax:
+      https://calcite.apache.org/docs/reference.html
+    keep: A subset of column names to read exclusively. If null or empty,
+      all columns will be read.
+    drop: A subset of column names to exclude from reading. If null or empty,
+      all columns will be read.
     catalog_name: The name of the catalog. Example: "local".
     catalog_properties: A map of configuration properties for the Apache Iceberg
       catalog.
@@ -565,9 +572,24 @@ def write_to_iceberg(
       CatalogUtil in the Apache Iceberg documentation.
     config_properties: An optional set of Hadoop configuration properties.
       For more information, see CatalogUtil in the Apache Iceberg documentation.
+    partition_fields: Fields used to create a partition spec that is applied
+      when tables are created. For a field 'foo', the available partition
+      transforms are:
+        - foo
+        - truncate(foo, N)
+        - bucket(foo, N)
+        - hour(foo)
+        - day(foo)
+        - month(foo)
+        - year(foo)
+        - void(foo)
+      For more information on partition transforms, please visit
+      https://iceberg.apache.org/spec/#partition-transforms.
+    table_properties: Iceberg table properties to be set on the table when it
+      is created. For more information on table properties, please visit
+      https://iceberg.apache.org/docs/latest/configuration/#table-properties.
     triggering_frequency_seconds: For streaming write pipelines, the frequency
       at which the sink attempts to produce snapshots, in seconds.
-
     keep: An optional list of field names to keep when writing to the
       destination. Other fields are dropped. Mutually exclusive with drop
       and only.
