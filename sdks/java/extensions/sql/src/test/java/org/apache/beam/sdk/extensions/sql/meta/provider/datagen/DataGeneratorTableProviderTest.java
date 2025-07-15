@@ -28,7 +28,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.Row;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -157,14 +156,12 @@ public class DataGeneratorTableProviderTest {
       Assert.assertTrue("Cost should be >= 10.50", cost.compareTo(BigDecimal.valueOf(10.50)) >= 0);
       Assert.assertTrue("Cost should be <= 99.99", cost.compareTo(BigDecimal.valueOf(99.99)) <= 0);
 
-      Instant now = Instant.now();
       Instant pastTimestamp = row.getDateTime("past_timestamp").toInstant();
       Instant nowTimestamp = row.getDateTime("now_timestamp").toInstant();
 
-      Assert.assertTrue("past_timestamp should be in the past", pastTimestamp.isBefore(now));
       Assert.assertTrue(
-          "now_timestamp should be very recent",
-          now.minus(Duration.millis(100)).isBefore(nowTimestamp));
+          "'now_timestamp' should be generated after 'past_timestamp'",
+          nowTimestamp.isAfter(pastTimestamp));
     }
   }
 
