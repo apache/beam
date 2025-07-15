@@ -588,7 +588,8 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
             .addNullableField("value", FieldType.BYTES) // Nullable for other mutation types
             .addNullableField("column_qualifier", FieldType.BYTES) // Nullable for other types
             .addNullableField("family_name", FieldType.BYTES) // Nullable for DeleteFromRow
-            .addNullableField("timestamp_micros", FieldType.INT64) // Nullable, as not all mutations have it
+            .addNullableField(
+                "timestamp_micros", FieldType.INT64) // Nullable, as not all mutations have it
             // Fields for DeleteFromColumn with Timestamp Range
             .addNullableField("start_timestamp_micros", FieldType.INT64) // Nullable
             .addNullableField("end_timestamp_micros", FieldType.INT64) // Nullable
