@@ -43,6 +43,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -230,7 +231,7 @@ public class SpannerAccessor implements AutoCloseable {
     }
     String userAgentString = USER_AGENT_PREFIX + "/" + ReleaseInfo.getReleaseInfo().getVersion();
     SpannerIOMetadata spannerIOMetadata = SpannerIOMetadata.create();
-    if (spannerIOMetadata.getBeamJobId() != null) {
+    if (!Strings.isNullOrEmpty(spannerIOMetadata.getBeamJobId())) {
       userAgentString = userAgentString + "/" + spannerIOMetadata.getBeamJobId();
     }
     builder.setHeaderProvider(FixedHeaderProvider.create("user-agent", userAgentString));

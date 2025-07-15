@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.spanner;
 
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.extensions.gcp.util.GceMetadataUtil;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -45,7 +46,7 @@ final class SpannerIOMetadata {
 
   private static SpannerIOMetadata refreshInstance() {
     String dataflowJobId = GceMetadataUtil.fetchDataflowJobId();
-    if (dataflowJobId.isEmpty()) {
+    if (Strings.isNullOrEmpty(dataflowJobId)) {
       return new SpannerIOMetadata(null);
     }
 
