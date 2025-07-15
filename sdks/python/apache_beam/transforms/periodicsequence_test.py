@@ -37,6 +37,7 @@ from apache_beam.transforms import trigger
 from apache_beam.transforms import window
 from apache_beam.transforms.periodicsequence import PeriodicImpulse
 from apache_beam.transforms.periodicsequence import PeriodicSequence
+from apache_beam.transforms.periodicsequence import RebaseMode
 from apache_beam.transforms.periodicsequence import _sequence_backlog_bytes
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.utils.timestamp import Timestamp
@@ -350,9 +351,19 @@ class PeriodicImpulseTest(unittest.TestCase):
               start_timestamp=Timestamp.of(1),
               stop_timestamp=Timestamp.of(5),
               fire_interval=1,
-              rebase_timestamp=True)
+              rebase=RebaseMode.REBASE_ALL)
           | beam.ParDo(CheckTimeStamp()))
       assert_that(ret, is_empty())
+
+  def test_rebase_timestamp_with_wrong_setting(self):
+    with self.assertRaises(Exception):
+      with TestPipeline() as p:
+        _ = (
+            p | PeriodicImpulse(
+                start_timestamp=Timestamp.of(1),
+                stop_timestamp=Timestamp.of(5),
+                fire_interval=1,
+                rebase=RebaseMode.REBASE_START))
 
 
 if __name__ == '__main__':
