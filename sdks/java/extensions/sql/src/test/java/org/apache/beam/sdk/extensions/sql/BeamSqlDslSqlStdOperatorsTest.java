@@ -66,6 +66,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
   private static final BigDecimal ZERO_1 = BigDecimal.valueOf(0).setScale(1, UNNECESSARY);
   private static final BigDecimal ONE_0 = BigDecimal.valueOf(1).setScale(0, UNNECESSARY);
   private static final BigDecimal ONE_1 = BigDecimal.valueOf(1).setScale(1, UNNECESSARY);
+  private static final BigDecimal ONE_2 = BigDecimal.valueOf(1).setScale(2, UNNECESSARY);
   private static final BigDecimal TWO_0 = BigDecimal.valueOf(2).setScale(0, UNNECESSARY);
   private static final BigDecimal TWO_1 = BigDecimal.valueOf(2).setScale(1, UNNECESSARY);
 
@@ -311,7 +312,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("c_double + c_bigint", 2.0)
             .addExpr("1 - 1", 0)
             .addExpr("1.0 - 1", ZERO_1)
-            .addExpr("1 - 0.0", ONE_0)
+            .addExpr("1 - 0.0", ONE_1)
             .addExpr("1.0 - 1.0", ZERO_1)
             .addExpr("c_tinyint - c_tinyint", (byte) 0)
             .addExpr("c_smallint - c_smallint", (short) 0)
@@ -326,9 +327,9 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("c_float - c_bigint", 0.0f)
             .addExpr("c_double - c_bigint", 0.0)
             .addExpr("1 * 1", 1)
-            .addExpr("1.0 * 1", ONE_0)
+            .addExpr("1.0 * 1", ONE_1)
             .addExpr("1 * 1.0", ONE_1)
-            .addExpr("1.0 * 1.0", ONE_1)
+            .addExpr("1.0 * 1.0", ONE_2)
             .addExpr("c_tinyint * c_tinyint", (byte) 1)
             .addExpr("c_smallint * c_smallint", (short) 1)
             .addExpr("c_bigint * c_bigint", 1L)
@@ -366,11 +367,11 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("mod(c_bigint, c_bigint)", 0L)
             .addExpr("mod(c_decimal, c_decimal)", ZERO_0)
             .addExpr("mod(c_tinyint, c_decimal)", ZERO_0)
-            // Test overflow
-            .addExpr("c_tinyint_max + c_tinyint_max", (byte) -2)
-            .addExpr("c_smallint_max + c_smallint_max", (short) -2)
-            .addExpr("c_integer_max + c_integer_max", -2)
-            .addExpr("c_bigint_max + c_bigint_max", -2L);
+            // conversions
+            .addExpr("c_tinyint_max + c_smallint", (short) 128)
+            .addExpr("c_integer + c_smallint_max", 32768)
+            .addExpr("c_integer_max + c_bigint", 2147483648L)
+            .addExpr("c_smallint - c_integer_max", -2147483646);
 
     checker.buildRunAndCheck();
   }
@@ -708,8 +709,8 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
 
   @Test
   @SqlOperatorTests({
-    @SqlOperatorTest(name = "CHARACTER_LENGTH", kind = "OTHER_FUNCTION"),
-    @SqlOperatorTest(name = "CHAR_LENGTH", kind = "OTHER_FUNCTION"),
+    @SqlOperatorTest(name = "CHARACTER_LENGTH", kind = "CHAR_LENGTH"),
+    @SqlOperatorTest(name = "CHAR_LENGTH", kind = "CHAR_LENGTH"),
     @SqlOperatorTest(name = "INITCAP", kind = "OTHER_FUNCTION"),
     @SqlOperatorTest(name = "LOWER", kind = "OTHER_FUNCTION"),
     @SqlOperatorTest(name = "POSITION", kind = "POSITION"),
@@ -1129,8 +1130,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
   }
 
   @Test
-  // https://github.com/apache/beam/issues/19001
-  // @SqlOperatorTest(name = "FLOOR", kind = "FLOOR")
+  @SqlOperatorTest(name = "FLOOR", kind = "FLOOR")
   public void testFloor() {
     ExpressionChecker checker =
         new ExpressionChecker()
@@ -1140,14 +1140,14 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("FLOOR(ts TO DAY)", parseTimestampWithUTCTimeZone("1986-02-15 00:00:00"))
             .addExpr("FLOOR(ts TO MONTH)", parseTimestampWithUTCTimeZone("1986-02-01 00:00:00"))
             .addExpr("FLOOR(ts TO YEAR)", parseTimestampWithUTCTimeZone("1986-01-01 00:00:00"))
-            .addExpr("FLOOR(c_double)", 1.0);
+            .addExpr("FLOOR(c_double)", 1.0)
+            .addExpr("FLOOR(-c_double)", -2.0);
 
     checker.buildRunAndCheck(getFloorCeilingTestPCollection());
   }
 
   @Test
-  // https://github.com/apache/beam/issues/19001
-  // @SqlOperatorTest(name = "CEIL", kind = "CEIL")
+  @SqlOperatorTest(name = "CEIL", kind = "CEIL")
   public void testCeil() {
     ExpressionChecker checker =
         new ExpressionChecker()
@@ -1157,7 +1157,8 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr("CEIL(ts TO DAY)", parseTimestampWithUTCTimeZone("1986-02-16 00:00:00"))
             .addExpr("CEIL(ts TO MONTH)", parseTimestampWithUTCTimeZone("1986-03-01 00:00:00"))
             .addExpr("CEIL(ts TO YEAR)", parseTimestampWithUTCTimeZone("1987-01-01 00:00:00"))
-            .addExpr("CEIL(c_double)", 2.0);
+            .addExpr("CEIL(c_double)", 2.0)
+            .addExpr("CEIL(-c_double)", -1.0);
 
     checker.buildRunAndCheck(getFloorCeilingTestPCollection());
   }

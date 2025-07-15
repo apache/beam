@@ -170,6 +170,10 @@ task copyFmppTemplatesFromCalciteCore(type: Copy) {
     line ->
       line.replace('import static org.apache.calcite.', 'import static org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.')
   }
+  filter{
+    line ->
+      line.replace('import com.google.common.', 'import org.apache.beam.vendor.calcite.v1_40_0.com.google.common.')
+  }
 }
 
 // Generate the FMPP sources from the FMPP templates.
