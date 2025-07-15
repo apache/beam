@@ -33,7 +33,6 @@ from apache_beam.testing.util import equal_to
 
 # pylint: disable=ungrouped-imports
 try:
-  from google.api_core.exceptions import BadRequest
   from testcontainers.redis import RedisContainer
   from apache_beam.transforms.enrichment import Enrichment
   from apache_beam.transforms.enrichment_handlers.bigquery import \
@@ -286,7 +285,7 @@ class TestBigQueryEnrichmentIT(BigQueryEnrichmentIT):
         column_names=['wrong_column'],
         condition_value_fn=condition_value_fn,
     )
-    with self.assertRaises(BadRequest):
+    with self.assertRaisesRegex(Exception, "BadRequest"):
       test_pipeline = beam.Pipeline()
       _ = (
           test_pipeline
