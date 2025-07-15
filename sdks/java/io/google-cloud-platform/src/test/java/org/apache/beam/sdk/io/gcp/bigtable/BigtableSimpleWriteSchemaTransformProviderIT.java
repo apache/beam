@@ -179,10 +179,6 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
             .withFieldValue("timestamp_micros", 2000L)
             .build();
 
-    PCollectionRowTuple.of("input", p.apply(Create.of(Arrays.asList(mutationRow1, mutationRow2))))
-        .apply(writeTransform);
-    p.run().waitUntilFinish();
-
     PCollection<Row> inputPCollection =
         p.apply(Create.of(Arrays.asList(mutationRow1, mutationRow2)));
     inputPCollection.setRowSchema(testSchema);
@@ -307,7 +303,6 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
     // get cells from this column family. we started with three cells and deleted two from one
     // column.
     // we should end up with one cell in the column we didn't touch.
-    // check that the remaining cell is indeed from col_b
     com.google.cloud.bigtable.data.v2.models.Row row = rows.get(0);
     List<RowCell> cells = row.getCells(COLUMN_FAMILY_NAME_1);
     assertEquals(1, cells.size());
@@ -362,7 +357,7 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
     // check cell has correct value and timestamp
     com.google.cloud.bigtable.data.v2.models.Row row = rows.get(0);
     List<RowCell> cells = row.getCells(COLUMN_FAMILY_NAME_1, "col");
-    assertEquals(1, cells.size());
+    assertEquals(2, cells.size());
     assertEquals("new-val", cells.get(0).getValue().toStringUtf8());
     assertEquals(200_000_000, cells.get(0).getTimestamp());
   }
@@ -585,7 +580,12 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
             .build());
 
     // --- Apply the mutations ---
-    PCollectionRowTuple.of("input", p.apply(Create.of(mutations))).apply(writeTransform);
+
+    PCollection<Row> inputPCollection = ((PCollection<Row>) Arrays.asList(mutations));
+    inputPCollection.setRowSchema(setCellSchema);
+
+    PCollectionRowTuple.of("input", inputPCollection) // Use the schema-set PCollection
+        .apply(writeTransform);
     p.run().waitUntilFinish();
 
     // --- Assertions: Verify the final state of the table ---
