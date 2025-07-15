@@ -29,8 +29,7 @@ class LiftedCombinePerKey(beam.PTransform):
   """An implementation of CombinePerKey that does mapper-side pre-combining.
   """
   def __init__(self, combine_fn, args, kwargs):
-    side_inputs = {f"_side_input_arg_{i}": si for i, si in enumerate(args)}
-    side_inputs.update(kwargs)
+    side_inputs = _pack_side_inputs(args, kwargs)
     self._side_inputs: dict = side_inputs
     if not isinstance(combine_fn, core.CombineFn):
       combine_fn = core.CombineFn.from_callable(combine_fn)
@@ -46,8 +45,22 @@ class LiftedCombinePerKey(beam.PTransform):
         | beam.ParDo(FinishCombine(self._combine_fn), **self._side_inputs))
 
 
-def _unpackage_side_inputs(side_inputs):
-  """Unpackages side inputs from a dict of side input args and kwargs."""
+def _pack_side_inputs(side_input_args, side_input_kwargs):
+  if len(side_input_args) >= 10:
+    # If we have more than 10 side inputs, we can't use the
+    # _side_input_arg_{i} as our keys since they won't sort
+    # correctly. Just punt for now, more than 10 args probably
+    # doesn't happen often.
+    raise NotImplementedError
+  side_inputs = {}
+  for i, si in enumerate(side_input_args):
+    side_inputs[f'_side_input_arg_{i}'] = si
+  for k, v in sorted(side_input_kwargs.items(), key=lambda x: x[0]):
+    side_inputs[k] = v
+  return side_inputs
+
+
+def _unpack_side_inputs(side_inputs):
   side_input_args = []
   side_input_kwargs = {}
   for k, v in sorted(side_inputs.items(), key=lambda x: x[0]):
@@ -77,7 +90,7 @@ class PartialGroupByKeyCombiningValues(beam.DoFn):
 
   def process(self, element, window=beam.DoFn.WindowParam, **side_inputs):
     k, vi = element
-    side_input_args, side_input_kwargs = _unpackage_side_inputs(side_inputs)
+    side_input_args, side_input_kwargs = _unpack_side_inputs(side_inputs)
     self._cache[k, window] = self._combine_fn.add_input(
         self._cache[k, window], vi, *side_input_args, **side_input_kwargs)
     self._cached_windowed_side_inputs[window] = (
@@ -102,11 +115,10 @@ class FinishCombine(beam.DoFn):
   def setup(self):
     self._combine_fn.setup()
 
-  def process(self, element, window=beam.DoFn.WindowParam, **side_input_kwargs):
+  def process(self, element, window=beam.DoFn.WindowParam, **side_inputs):
 
     k, vs = element
-    side_input_args, side_input_kwargs = _unpackage_side_inputs(
-      side_input_kwargs)
+    side_input_args, side_input_kwargs = _unpack_side_inputs(side_inputs)
     return [(
         k,
         self._combine_fn.extract_output(
