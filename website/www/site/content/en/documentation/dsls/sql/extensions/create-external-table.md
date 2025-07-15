@@ -70,6 +70,7 @@ tableElement: columnName fieldType [ NOT NULL ]
     *   `bigtable`
     *   `pubsub`
     *   `kafka`
+    *   `parquet`
     *   `text`
 *   `location`: The I/O specific location of the underlying table, specified as
     a [String
@@ -553,6 +554,104 @@ Write Mode supports writing to a topic.
 ### Schema
 
 For CSV only simple types are supported.
+
+## Parquet
+
+### Syntax
+
+```
+CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
+TYPE parquet
+LOCATION '/path/to/files/'
+```
+
+* `LOCATION`: The path to the Parquet file(s). The interpretation of the path is based on a convention:
+    * **Directory:** A path ending with a forward slash (`/`) is treated as a directory. Beam reads all files within that directory. Example: `'gs://my-bucket/orders/'`.
+    * **Glob Pattern:** A path containing wildcard characters (`*`, `?`, `[]`) is treated as a glob pattern that the underlying file system expands. Example: `'gs://my-bucket/orders/date=2025-*-??/*.parquet'`.
+    * **Single File:** A full path that does not end in a slash and contains no wildcards is treated as a path to a single file. Example: `'gs://my-bucket/orders/data.parquet'`.
+
+### Read Mode
+
+Supports reading from Parquet files specified by the `LOCATION`. Predicate and projection push-down are supported to improve performance.
+
+### Write Mode
+
+Supports writing to a set of sharded Parquet files in a specified directory.
+
+### Schema
+
+The specified schema is used to read and write Parquet files. The schema is converted to an Avro schema internally for `ParquetIO`. Beam SQL types map to Avro types as follows:
+
+<table>
+  <tr>
+   <td><b>Beam SQL Type</b>
+   </td>
+   <td><b>Avro Type</b>
+   </td>
+  </tr>
+  <tr>
+   <td>TINYINT, SMALLINT, INTEGER, BIGINT &nbsp;
+   </td>
+   <td>long
+   </td>
+  </tr>
+  <tr>
+   <td>FLOAT, DOUBLE
+   </td>
+   <td>double
+   </td>
+  </tr>
+  <tr>
+   <td>DECIMAL
+   </td>
+   <td>bytes (with logical type)
+   </td>
+  </tr>
+  <tr>
+   <td>BOOLEAN
+   </td>
+   <td>boolean
+   </td>
+  </tr>
+  <tr>
+   <td>DATE, TIME, TIMESTAMP
+   </td>
+   <td>long (with logical type)
+   </td>
+  </tr>
+  <tr>
+   <td>CHAR, VARCHAR
+   </td>
+   <td>string
+   </td>
+  </tr>
+  <tr>
+   <td>ARRAY
+   </td>
+   <td>array
+   </td>
+  </tr>
+  <tr>
+   <td>ROW
+   </td>
+   <td>record
+   </td>
+  </tr>
+</table>
+
+### Example
+
+```
+CREATE EXTERNAL TABLE daily_orders (
+  order_id BIGINT,
+  product_name VARCHAR,
+  purchase_ts TIMESTAMP
+)
+TYPE parquet
+LOCATION '/gcs/my-data/orders/2025-07-14/*';
+```
+
+---
 
 ## MongoDB
 
