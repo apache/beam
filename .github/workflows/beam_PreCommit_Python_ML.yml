@@ -104,8 +104,8 @@ jobs:
           arguments: |
             -Pposargs="${{
               contains(matrix.os, 'self-hosted') &&
-                'apache_beam/ml/ -m ''not require_non_self_hosted''' ||
-                'apache_beam/ml/ -m ''require_non_self_hosted'''
+                'apache_beam/ml/ -m ''not require_docker_in_docker''' ||
+                'apache_beam/ml/ -m ''require_docker_in_docker'''
             }}" \
             -PpythonVersion=${{ matrix.python_version }}
       - name: Archive Python Test Results
