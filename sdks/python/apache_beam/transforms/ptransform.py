@@ -228,6 +228,9 @@ class _AddMaterializationTransforms(_PValueishTransform):
     from apache_beam import ParDo
 
     class _MaterializeValuesDoFn(DoFn):
+      def __init__(self):
+        self.is_materialize_values_do_fn = True
+
       def process(self, element):
         result.elements.append(element)
 
@@ -1027,11 +1030,18 @@ class _PTransformFnPTransform(PTransform):
       pass
     return self._fn(pcoll, *args, **kwargs)
 
-  def default_label(self):
+  def default_label(self) -> str:
+    # Attempt to give a reasonable name to this transform.
+    # We want it to be reasonably unique, but also not sensitive to
+    # irrelevent parameters to minimize pipeline-to-pipeline variance.
+    # For now, use only the first argument (if any), iff it would not make
+    # the name unwieldy.
     if self._args:
-      return '%s(%s)' % (
-          label_from_callable(self._fn), label_from_callable(self._args[0]))
-    return label_from_callable(self._fn)
+      first_arg_string = label_from_callable(self._args[0])
+      suffix = '(%s)' % first_arg_string if len(first_arg_string) <= 16 else ''
+    else:
+      suffix = ''
+    return label_from_callable(self._fn) + suffix
 
 
 def ptransform_fn(fn):

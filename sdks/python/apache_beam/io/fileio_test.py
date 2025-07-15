@@ -106,7 +106,7 @@ class MatchTest(_TestCaseWithTempDirCleanUp):
     files.append(self._create_temp_file(dir=directories[0]))
     files.append(self._create_temp_file(dir=directories[0]))
 
-    with self.assertRaises(beam.io.filesystem.BeamIOError):
+    with self.assertRaisesRegex(Exception, "Empty match for pattern"):
       with TestPipeline() as p:
         files_pc = (
             p
@@ -259,7 +259,7 @@ class ReadTest(_TestCaseWithTempDirCleanUp):
     files.append(self._create_temp_file(dir=tempdir, content=content))
     files.append(self._create_temp_file(dir=tempdir, content=content))
 
-    with self.assertRaises(beam.io.filesystem.BeamIOError):
+    with self.assertRaisesRegex(Exception, "Directories are not allowed"):
       with TestPipeline() as p:
         _ = (
             p
@@ -501,10 +501,14 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
         fileio.TextSink()  # pass a FileSink object
     ]
 
+    # Test assumes that all records will be handled by same worker process,
+    # pin to FnApiRunner to guarantee hthis
+    runner = 'FnApiRunner'
+
     for sink in sink_params:
       dir = self._new_tempdir()
 
-      with TestPipeline() as p:
+      with TestPipeline(runner) as p:
         _ = (
             p
             | "Create" >> beam.Create(range(100))
@@ -515,7 +519,7 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
                 sink=sink,
                 file_naming=fileio.destination_prefix_naming("test")))
 
-      with TestPipeline() as p:
+      with TestPipeline(runner) as p:
         result = (
             p
             | fileio.MatchFiles(FileSystems.join(dir, '*'))
