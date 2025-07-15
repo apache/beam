@@ -107,8 +107,8 @@ jobs:
             -PuseWheelDistribution \
             -Pposargs="${{
               contains(matrix.os, 'self-hosted') &&
-                '-m ''not require_non_self_hosted''' ||
-                '-m ''require_non_self_hosted'''
+                '-m ''not require_docker_in_docker''' ||
+                '-m ''require_docker_in_docker'''
             }}" \
             -PpythonVersion=${{ matrix.python_version }} \
         env:
