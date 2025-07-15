@@ -1,8 +1,8 @@
 {
   "commentedAboutFailingChecks": true,
   "reviewersAssignedForLabels": {
-    "python": "damccorm",
-    "java": "m-trieu",
+    "python": "jrmccluskey",
+    "java": "kennknowles",
     "spanner": "nielm"
   },
   "nextAction": "Reviewers",
