@@ -364,6 +364,8 @@ class RecordingManager:
     runner = self.user_pipeline.runner
     if isinstance(runner, ir.InteractiveRunner):
       runner = runner._underlying_runner
+    if hasattr(runner, 'is_interactive'):
+      runner.is_interactive()
 
     # Make sure that sources without a user reference are still cached.
     ie.current_env().add_user_pipeline(self.user_pipeline)

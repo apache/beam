@@ -37,8 +37,6 @@ def pardo_dofn_methods(test=None):
   # Portable runners do not guarantee that teardown will be executed, so we
   # use FnApiRunner instead of prism.
   runner = 'FnApiRunner'
-  # TODO(damccorm) - remove after next release
-  runner = 'DirectRunner'
   # [START pardo_dofn_methods]
   import apache_beam as beam
 

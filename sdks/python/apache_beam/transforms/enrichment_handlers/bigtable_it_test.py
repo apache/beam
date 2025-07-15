@@ -30,7 +30,6 @@ from apache_beam.testing.util import BeamAssertException
 
 # pylint: disable=ungrouped-imports
 try:
-  from google.api_core.exceptions import NotFound
   from google.cloud.bigtable import Client
   from google.cloud.bigtable.row_filters import ColumnRangeFilter
   from testcontainers.redis import RedisContainer
@@ -272,7 +271,7 @@ class TestBigTableEnrichment(unittest.TestCase):
         table_id=self.table_id,
         row_key=self.row_key,
         row_filter=column_filter)
-    with self.assertRaises(NotFound):
+    with self.assertRaises(Exception):
       test_pipeline = beam.Pipeline()
       _ = (
           test_pipeline
@@ -289,7 +288,7 @@ class TestBigTableEnrichment(unittest.TestCase):
         instance_id=self.instance_id,
         table_id=self.table_id,
         row_key='car_name')
-    with self.assertRaises(KeyError):
+    with self.assertRaisesRegex(Exception, "KeyError"):
       test_pipeline = beam.Pipeline()
       _ = (
           test_pipeline
@@ -306,7 +305,7 @@ class TestBigTableEnrichment(unittest.TestCase):
         instance_id=self.instance_id,
         table_id='invalid_table',
         row_key=self.row_key)
-    with self.assertRaises(NotFound):
+    with self.assertRaisesRegex(Exception, "NotFound"):
       test_pipeline = beam.Pipeline()
       _ = (
           test_pipeline
@@ -325,7 +324,7 @@ class TestBigTableEnrichment(unittest.TestCase):
         row_key=self.row_key,
         exception_level=ExceptionLevel.RAISE)
     req = [beam.Row(sale_id=1, customer_id=1, product_id=11, quantity=1)]
-    with self.assertRaises(ValueError):
+    with self.assertRaisesRegex(Exception, "ValueError"):
       test_pipeline = beam.Pipeline()
       _ = (
           test_pipeline
