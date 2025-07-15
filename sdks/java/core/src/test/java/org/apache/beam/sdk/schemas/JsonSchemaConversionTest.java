@@ -26,6 +26,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Arrays;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.utils.JsonUtils;
@@ -290,7 +291,12 @@ public class JsonSchemaConversionTest {
       assertEquals("vegetables", Iterables.getOnlyElement(parsedSchema.getFieldNames()));
       Schema.Field field = parsedSchema.getField("vegetables");
 
-      // test using equivalency, which permits out-of-orderness
+      // 2 out of 3 top-level fields are required, so ordering should be preserved on that level
+      assertEquals(
+          Arrays.asList("veggieName", "veggieLike", "origin"),
+          field.getType().getCollectionElementType().getRowSchema().getFieldNames());
+      // inner schema contains nullable fields, which can be out of order. test the remaining using
+      // equivalency instead
       assertTrue(
           field
               .getType()
