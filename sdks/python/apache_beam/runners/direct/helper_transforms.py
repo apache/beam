@@ -17,8 +17,6 @@
 
 # pytype: skip-file
 
-import collections
-
 import apache_beam as beam
 from apache_beam.utils.windowed_value import WindowedValue
 
@@ -85,12 +83,16 @@ class PartialGroupByKeyCombiningValues(beam.DoFn):
     self._combine_fn.setup()
 
   def start_bundle(self):
-    self._cache = collections.defaultdict(self._combine_fn.create_accumulator)
+    self._cache = dict()
     self._cached_windowed_side_inputs = {}
 
   def process(self, element, window=beam.DoFn.WindowParam, **side_inputs):
     k, vi = element
     side_input_args, side_input_kwargs = _unpack_side_inputs(side_inputs)
+    if (k, window) not in self._cache:
+      self._cache[(k, window)] = self._combine_fn.create_accumulator(
+          *side_input_args, **side_input_kwargs)
+
     self._cache[k, window] = self._combine_fn.add_input(
         self._cache[k, window], vi, *side_input_args, **side_input_kwargs)
     self._cached_windowed_side_inputs[window] = (
@@ -100,7 +102,12 @@ class PartialGroupByKeyCombiningValues(beam.DoFn):
     for (k, w), va in self._cache.items():
       # We compact the accumulator since a GBK (which necessitates encoding)
       # will follow.
-      yield WindowedValue((k, self._combine_fn.compact(va)), w.end, (w, ))
+      side_input_args, side_input_kwargs = (
+          self._cached_windowed_side_inputs[w])
+      yield WindowedValue((
+          k,
+          self._combine_fn.compact(va, *side_input_args, **side_input_kwargs)),
+                          w.end, (w, ))
 
   def teardown(self):
     self._combine_fn.teardown()

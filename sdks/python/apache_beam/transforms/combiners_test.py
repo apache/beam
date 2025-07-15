@@ -1156,18 +1156,17 @@ class CombinerWithSideInputs(unittest.TestCase):
         data = json.load(f)
         expected_args = [0, 1]
         expected_kwargs = {"static_kwarg": 2, "deferred_kwarg": 3}
-        self.assertEqual(data["create_accumulator_args"], [])
-        self.assertEqual(data["create_accumulator_kwargs"], {})
-        self.assertEqual(data["compact_args"], [])
-        self.assertEqual(data["compact_kwargs"], {})
-        for key in ["add_input_args",
-                    "merge_accumulators_args",
-                    "extract_output_args"]:
-          self.assertEqual(data[key], expected_args)
-        for key in ["add_input_kwargs",
-                    "merge_accumulators_kwargs",
-                    "extract_output_kwargs"]:
-          self.assertEqual(data[key], expected_kwargs)
+        method_names = [
+            "create_accumulator",
+            "compact",
+            "add_input",
+            "merge_accumulators",
+            "extract_output"
+        ]
+        for key in method_names:
+          print(f"Checking {key}")
+          self.assertEqual(data[key + "_args"], expected_args)
+          self.assertEqual(data[key + "_kwargs"], expected_kwargs)
 
   def test_cpk_with_streaming(self):
     # With global window side input
