@@ -80,12 +80,6 @@ class ParquetTable extends SchemaBaseBeamTable implements Serializable {
 
     // If no fields are projected or filtered, read the full schema.
     final Schema schema = AvroUtils.toAvroSchema(table.getSchema());
-    String filePattern = resolveFilePattern(table.getLocation());
-    Read read = ParquetIO.read(schema).withBeamSchemas(true).from(filePattern);
-    if (!fieldNames.isEmpty()) {
-      Schema projectionSchema = projectSchema(schema, fieldNames);
-      LOG.info("Projecting fields schema: {}", projectionSchema);
-      read = read.withProjection(projectionSchema, projectionSchema);
     Schema readSchema =
         requiredFieldsForRead.isEmpty()
             ? schema
@@ -93,7 +87,8 @@ class ParquetTable extends SchemaBaseBeamTable implements Serializable {
 
     LOG.info("Projecting fields schema: {}", readSchema);
 
-    Read read = ParquetIO.read(readSchema).withBeamSchemas(true).from(table.getLocation() + "/*");
+    String filePattern = resolveFilePattern(table.getLocation());
+    Read read = ParquetIO.read(schema).withBeamSchemas(true).from(filePattern);
     read = read.withProjection(readSchema, readSchema);
 
     if (filter instanceof ParquetFilter) {
