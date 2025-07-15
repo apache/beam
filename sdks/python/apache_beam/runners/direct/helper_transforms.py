@@ -36,11 +36,11 @@ class LiftedCombinePerKey(beam.PTransform):
     self._combine_fn = combine_fn
 
   def expand(self, pcoll):
-    PGBKCV = beam.ParDo(
-        PartialGroupByKeyCombiningValues(self._combine_fn), **self._side_inputs)
     return (
         pcoll
-        | PGBKCV
+        | beam.ParDo(
+            PartialGroupByKeyCombiningValues(self._combine_fn),
+            **self._side_inputs)
         | beam.GroupByKey()
         | beam.ParDo(FinishCombine(self._combine_fn), **self._side_inputs))
 
@@ -55,7 +55,7 @@ def _pack_side_inputs(side_input_args, side_input_kwargs):
   side_inputs = {}
   for i, si in enumerate(side_input_args):
     side_inputs[f'_side_input_arg_{i}'] = si
-  for k, v in sorted(side_input_kwargs.items(), key=lambda x: x[0]):
+  for k, v in side_input_kwargs.items():
     side_inputs[k] = v
   return side_inputs
 
