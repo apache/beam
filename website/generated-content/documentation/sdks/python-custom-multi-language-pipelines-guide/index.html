@@ -116,7 +116,7 @@
 </span></span><span class=line><span class=cl>    <span class=k>return</span> <span class=n>Collections</span><span class=o>.</span><span class=na>singletonList</span><span class=o>(</span><span class=s>&#34;output&#34;</span><span class=o>);</span>
 </span></span><span class=line><span class=cl>  <span class=o>}</span>
 </span></span></code></pre></div><h2 id=build-an-expansion-service-that-contains-the-transform>Build an expansion service that contains the transform</h2><p>Use an expansion service to make the transform available to foreign SDKs.</p><p>First, build a shaded JAR file that includes:</p><ol><li>the transform,</li><li>the <a href=https://central.sonatype.com/artifact/org.apache.beam/beam-sdks-java-expansion-service><strong>ExpansionService artifact</strong></a>,</li><li>and some additional dependencies.</li></ol><h3 id=gradle-build-file>Gradle build file</h3><div class=highlight><pre tabindex=0 class=chroma><code class=language-groovy data-lang=groovy><span class=line><span class=cl><span class=n>plugins</span> <span class=o>{</span>
-</span></span><span class=line><span class=cl>    <span class=n>id</span> <span class=s1>&#39;com.github.johnrengelman.shadow&#39;</span> <span class=n>version</span> <span class=s1>&#39;8.1.1&#39;</span>
+</span></span><span class=line><span class=cl>    <span class=n>id</span> <span class=s1>&#39;com.gradleup.shadow&#39;</span> <span class=n>version</span> <span class=s1>&#39;8.3.8&#39;</span>
 </span></span><span class=line><span class=cl>    <span class=n>id</span> <span class=s1>&#39;application&#39;</span>
 </span></span><span class=line><span class=cl><span class=o>}</span>
 </span></span><span class=line><span class=cl>
