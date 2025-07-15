@@ -228,6 +228,9 @@ class _AddMaterializationTransforms(_PValueishTransform):
     from apache_beam import ParDo
 
     class _MaterializeValuesDoFn(DoFn):
+      def __init__(self):
+        self.is_materialize_values_do_fn = True
+
       def process(self, element):
         result.elements.append(element)
 

@@ -447,8 +447,8 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
         validate=False,
         temp_file_format=bigquery_tools.FileFormat.JSON)
 
-    # Need to test this with the DirectRunner to avoid serializing mocks
-    with TestPipeline('DirectRunner') as p:
+    # Need to test this with the FnApiRunner to avoid serializing mocks
+    with TestPipeline('FnApiRunner') as p:
       outputs = p | beam.Create(_ELEMENTS) | transform
 
       dest_files = outputs[bqfl.BigQueryBatchFileLoads.DESTINATION_FILE_PAIRS]

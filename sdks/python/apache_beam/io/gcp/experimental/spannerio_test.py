@@ -387,7 +387,7 @@ class SpannerReadTest(unittest.TestCase):
   def test_invalid_transaction(
       self, mock_batch_snapshot_class, mock_client_class):
     # test exception raises at pipeline execution time
-    with self.assertRaises(ValueError), TestPipeline() as p:
+    with self.assertRaisesRegex(Exception, "ValueError"), TestPipeline() as p:
       transaction = (
           p | beam.Create([{
               "invalid": "transaction"
