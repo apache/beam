@@ -19,6 +19,8 @@
 # pytype: skip-file
 
 import itertools
+import json
+import os
 import random
 import time
 import unittest
@@ -1073,7 +1075,7 @@ def get_common_items(sets, excluded_chars=""):
 
 
 class CombinerWithSideInputs(unittest.TestCase):
-  def test_cpk_with_sinde_input(self):
+  def test_cpk_with_side_input(self):
     test_cases = [(get_common_items, True),
                   (beam.CombineFn.from_callable(get_common_items), True),
                   (get_common_items, False),
@@ -1082,8 +1084,6 @@ class CombinerWithSideInputs(unittest.TestCase):
       self._check_combineperkey_with_side_input(combiner, with_kwarg)
 
   def _check_combineperkey_with_side_input(self, combiner, with_kwarg):
-    print(f"{combiner=}, {with_kwarg=}")
-
     with beam.Pipeline() as pipeline:
       pc = (pipeline | beam.Create(['🍅']))
       if with_kwarg:
@@ -1102,6 +1102,85 @@ class CombinerWithSideInputs(unittest.TestCase):
           | beam.WithKeys(lambda x: None)
           | cpk)
       assert_that(common_items, equal_to([(None, {'🥕'})]))
+
+  def test_combiner_with_side_input(self):
+    # Test that every combinefn is called with static and deferred side inputs
+    fname = "combiner_side_inputs.json"
+
+    def set_in_json(key, values):
+      current_json = {}
+      if os.path.exists(fname):
+        with open(fname, "r") as f:
+          current_json = json.load(f)
+      current_json[key] = values
+      with open(fname, "w") as f:
+        json.dump(current_json, f)
+
+    class MyCombiner(beam.CombineFn):
+      def create_accumulator(self, *args, **kwargs):
+        set_in_json("create_accumulator_args", args)
+        set_in_json("create_accumulator_kwargs", kwargs)
+        return args, kwargs
+
+      def add_input(self, accumulator, input, *args, **kwargs):
+        set_in_json("add_input_args", args)
+        set_in_json("add_input_kwargs", kwargs)
+        return accumulator
+
+      def merge_accumulators(self, accumulators, *args, **kwargs):
+        set_in_json("merge_accumulators_args", args)
+        set_in_json("merge_accumulators_kwargs", kwargs)
+        return args, kwargs
+
+      def compact(self, accumulator, *args, **kwargs):
+        set_in_json("compact_args", args)
+        set_in_json("compact_kwargs", kwargs)
+        return accumulator
+
+      def extract_output(self, accumulator, *args, **kwargs):
+        set_in_json("extract_output_args", args)
+        set_in_json("extract_output_kwargs", kwargs)
+        return accumulator
+
+    with beam.Pipeline() as p:
+      static_pos_arg = 0
+      deferred_pos_arg = beam.pvalue.AsSingleton(
+          p | "CreateDeferredSideInput" >> beam.Create([1]))
+      static_kwarg = 2
+      deferred_kwarg = beam.pvalue.AsSingleton(
+          p | "CreateDeferredSideInputKwarg" >> beam.Create([3]))
+      res = (
+          p
+          | "CreateInputs" >> beam.Create([(None, None)])
+          | beam.CombinePerKey(
+              MyCombiner(),
+              static_pos_arg,
+              deferred_pos_arg,
+              static_kwarg=static_kwarg,
+              deferred_kwarg=deferred_kwarg))
+      assert_that(
+          res,
+          equal_to([(None, ((0, 1), {
+              'static_kwarg': 2, 'deferred_kwarg': 3
+          }))]))
+
+    # Check that the combinefn was called with the expected arguments
+    with open(fname, "r") as f:
+      data = json.load(f)
+      expected_args = [0, 1]
+      expected_kwargs = {"static_kwarg": 2, "deferred_kwarg": 3}
+      self.assertEqual(data["create_accumulator_args"], [])
+      self.assertEqual(data["create_accumulator_kwargs"], {})
+      self.assertEqual(data["compact_args"], [])
+      self.assertEqual(data["compact_kwargs"], {})
+      for key in ["add_input_args",
+                  "merge_accumulators_args",
+                  "extract_output_args"]:
+        self.assertEqual(data[key], expected_args)
+      for key in ["add_input_kwargs",
+                  "merge_accumulators_kwargs",
+                  "extract_output_kwargs"]:
+        self.assertEqual(data[key], expected_kwargs)
 
   def test_cpk_with_streaming(self):
     # With global window side input

@@ -116,11 +116,7 @@ class PartialGroupByKeyCombiningValues(beam.DoFn):
     for (k, w), va in self._cache.items():
       # We compact the accumulator since a GBK (which necessitates encoding)
       # will follow.
-      side_input_args, side_input_kwargs = self._cached_windowed_side_inputs[w]
-      yield WindowedValue((
-          k,
-          self._combine_fn.compact(va, *side_input_args, **side_input_kwargs)),
-                          w.end, (w, ))
+      yield WindowedValue((k, self._combine_fn.compact(va)), w.end, (w, ))
 
   def teardown(self):
     self._combine_fn.teardown()
@@ -149,7 +145,8 @@ class FinishCombine(beam.DoFn):
         self._combine_fn.extract_output(
             self._combine_fn.merge_accumulators(
                 vs, *side_input_args, **side_input_kwargs),
-            **{}))]
+            *side_input_args,
+            **side_input_kwargs))]
 
   def teardown(self):
     try:
