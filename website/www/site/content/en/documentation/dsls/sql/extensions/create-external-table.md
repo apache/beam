@@ -672,11 +672,11 @@ The `TBLPROPERTIES` JSON object is used to configure the generator's behavior.
 
 #### Event-Time and Watermark Configuration
 
-| Key | Required | Description |
-| :--- | :--- | :--- |
-| `timestamp.behavior` | No | Specifies the time handling. Can be `'processing_time'` (default) or `'event_time'`. |
-| `event_time.timestamp_column` | **Yes**, if `timestamp.behavior` is `event_time` | The name of the column that will be used to drive the event-time watermark for the stream. |
-| `event_time.max_out_of_orderness` | No | When using `event_time`, this sets the maximum out-of-orderness in **milliseconds** for generated timestamps (e.g., `'5000'` for 5 seconds). Defaults to `0`. |
+| Key                               | Required                                         | Description                                                                                                                                                   |
+|:----------------------------------|:-------------------------------------------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `timestamp.behavior`              | No                                               | Specifies the time handling. Can be `'processing-time'` (default) or `'event-time'`.                                                                          |
+| `event-time.timestamp-column`     | **Yes**, if `timestamp.behavior` is `event-time` | The name of the column that will be used to drive the event-time watermark for the stream.                                                                    |
+| `event-time.max-out-of-orderness` | No                                               | When using `event-time`, this sets the maximum out-of-orderness in **milliseconds** for generated timestamps (e.g., `'5000'` for 5 seconds). Defaults to `0`. |
 
 #### Field-Specific Options
 
@@ -777,9 +777,9 @@ CREATE EXTERNAL TABLE user_clicks (
 TYPE 'datagen'
 TBLPROPERTIES '{
   "rows-per-second": "10",
-  "timestamp.behavior": "event_time",
-  "event_time.timestamp_column": "click_timestamp",
-  "event_time.max_out_of_orderness": "5000",
+  "timestamp.behavior": "event-time",
+  "event-time.timestamp-column": "click_timestamp",
+  "event-time.max-out-of-orderness": "5000",
   "fields.event_id.kind": "sequence",
   "fields.event_id.start": "1",
   "fields.event_id.end": "1000000",

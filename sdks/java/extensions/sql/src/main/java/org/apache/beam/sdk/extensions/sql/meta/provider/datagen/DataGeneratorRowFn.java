@@ -23,8 +23,7 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
-import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
@@ -42,7 +41,6 @@ public class DataGeneratorRowFn extends DoFn<Long, Row> {
   private final @Nullable String primaryTimestampField;
 
   private transient Map<String, FieldGenerator> fieldGenerators;
-  private transient Random random;
 
   @SuppressWarnings("initialization")
   public DataGeneratorRowFn(
@@ -54,7 +52,6 @@ public class DataGeneratorRowFn extends DoFn<Long, Row> {
 
   @Setup
   public void setup() {
-    this.random = new Random();
     this.fieldGenerators = new HashMap<>();
 
     for (Schema.Field field : schema.getFields()) {
@@ -95,7 +92,7 @@ public class DataGeneratorRowFn extends DoFn<Long, Row> {
 
     if (nullRate > 0) {
       return (index) ->
-          Objects.requireNonNull(random).nextDouble() < nullRate
+          ThreadLocalRandom.current().nextDouble() < nullRate
               ? null
               : valueGenerator.generate(index);
     }
@@ -105,32 +102,6 @@ public class DataGeneratorRowFn extends DoFn<Long, Row> {
   private FieldGenerator createValueGeneratorForField(Schema.Field field) {
     String fieldName = field.getName();
     String kind = properties.path("fields." + fieldName + ".kind").asText("random");
-
-    if ("sequence".equalsIgnoreCase(kind)) {
-      JsonNode startNode = properties.path("fields." + fieldName + ".start");
-      JsonNode endNode = properties.path("fields." + fieldName + ".end");
-
-      if (startNode.isMissingNode() && endNode.isMissingNode()) {
-        return (index) -> index; // Simple, non-cycling sequence
-      }
-
-      if (startNode.isMissingNode() || endNode.isMissingNode()) {
-        throw new IllegalArgumentException(
-            "For a cycling sequence generator, both 'start' and 'end' must be specified.");
-      }
-
-      long start = startNode.asLong();
-      long end = endNode.asLong();
-
-      if (start > end) {
-        throw new IllegalArgumentException(
-            String.format(
-                "For sequence generator, 'start' (%d) cannot be greater than 'end' (%d).",
-                start, end));
-      }
-      long cycleLength = end - start + 1;
-      return (index) -> start + (index % cycleLength);
-    }
 
     final SqlTypeName sqlTypeName = CalciteUtils.toSqlTypeName(field.getType());
     if (sqlTypeName == null) {
@@ -142,32 +113,72 @@ public class DataGeneratorRowFn extends DoFn<Long, Row> {
               + "' is not supported.");
     }
 
+    if ("sequence".equalsIgnoreCase(kind)) {
+      if (!SqlTypeName.INT_TYPES.contains(sqlTypeName)) {
+        throw new IllegalArgumentException(
+            String.format(
+                "The 'sequence' generator for integers only supports integer types, but field '%s' is of type '%s'.",
+                field.getName(), sqlTypeName));
+      }
+
+      JsonNode startNode = properties.path("fields." + fieldName + ".start");
+      JsonNode endNode = properties.path("fields." + fieldName + ".end");
+
+      if (startNode.isMissingNode() && endNode.isMissingNode()) {
+        return (index) -> index;
+      }
+
+      if (startNode.isMissingNode() || endNode.isMissingNode()) {
+        throw new IllegalArgumentException(
+            "For a cycling sequence generator, both 'start' and 'end' must be specified.");
+      }
+
+      long start = startNode.asLong(0L);
+      long end = endNode.asLong(Long.MAX_VALUE);
+
+      if (start > end) {
+        throw new IllegalArgumentException(
+            String.format(
+                "For sequence generator, 'start' (%d) cannot be greater than 'end' (%d).",
+                start, end));
+      }
+      long cycleLength = end - start + 1;
+      switch (sqlTypeName) {
+        case INTEGER:
+          return (index) -> (int) (start + (index % cycleLength));
+        case SMALLINT:
+          return (index) -> (short) (start + (index % cycleLength));
+        case TINYINT:
+          return (index) -> (byte) (start + (index % cycleLength));
+        default: // BIGINT
+          return (index) -> start + (index % cycleLength);
+      }
+    }
+
     switch (sqlTypeName) {
       case CHAR:
       case VARCHAR:
         int length = properties.path("fields." + fieldName + ".length").asInt(10);
         return (index) -> RandomStringUtils.randomAlphanumeric(length);
       case BOOLEAN:
-        return (index) -> Objects.requireNonNull(random).nextBoolean();
+        return (index) -> ThreadLocalRandom.current().nextBoolean();
       case FLOAT:
       case DOUBLE:
         double minD = properties.path("fields." + fieldName + ".min").asDouble(0.0);
         double maxD = properties.path("fields." + fieldName + ".max").asDouble(1.0);
-        return (index) -> minD + (maxD - minD) * Objects.requireNonNull(random).nextDouble();
+        return (index) -> minD + (maxD - minD) * ThreadLocalRandom.current().nextDouble();
       case TINYINT:
       case SMALLINT:
       case INTEGER:
       case BIGINT:
         long minL = properties.path("fields." + fieldName + ".min").asLong(0L);
         long maxL = properties.path("fields." + fieldName + ".max").asLong(Long.MAX_VALUE);
-        return (index) ->
-            minL + (long) (Objects.requireNonNull(random).nextDouble() * (maxL - minL));
+        return (index) -> minL + (long) (ThreadLocalRandom.current().nextDouble() * (maxL - minL));
       case DECIMAL:
         double minBd = properties.path("fields." + fieldName + ".min").asDouble(0.0);
         double maxBd = properties.path("fields." + fieldName + ".max").asDouble(1000.0);
         return (index) ->
-            BigDecimal.valueOf(
-                minBd + (maxBd - minBd) * Objects.requireNonNull(random).nextDouble());
+            BigDecimal.valueOf(minBd + (maxBd - minBd) * ThreadLocalRandom.current().nextDouble());
       case TIMESTAMP:
         JsonNode maxPastNode = properties.path("fields." + fieldName + ".max-past");
         if (!maxPastNode.isMissingNode()) {
@@ -179,7 +190,7 @@ public class DataGeneratorRowFn extends DoFn<Long, Row> {
               Instant.now()
                   .minus(
                       Duration.millis(
-                          (long) (Objects.requireNonNull(random).nextDouble() * maxPastMs)));
+                          (long) (ThreadLocalRandom.current().nextDouble() * maxPastMs)));
         }
         return (index) -> Instant.now();
       default:

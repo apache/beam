@@ -17,13 +17,12 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.datagen;
 
-import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 class AdvancingTimestampFn implements SerializableFunction<Long, Instant> {
-  private static final Random RANDOM = new Random();
   private final long maxOutOfOrdernessMs;
   private final Instant baseTime = Instant.now();
 
@@ -33,7 +32,7 @@ class AdvancingTimestampFn implements SerializableFunction<Long, Instant> {
 
   @Override
   public Instant apply(Long index) {
-    long delay = (long) (RANDOM.nextDouble() * maxOutOfOrdernessMs);
+    long delay = (long) (ThreadLocalRandom.current().nextDouble() * maxOutOfOrdernessMs);
     return baseTime.plus(Duration.millis(index * 1000)).minus(Duration.millis(delay));
   }
 }

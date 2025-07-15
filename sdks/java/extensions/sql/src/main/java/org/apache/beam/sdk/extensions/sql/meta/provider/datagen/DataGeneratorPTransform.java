@@ -55,19 +55,35 @@ public class DataGeneratorPTransform extends PTransform<PBegin, PCollection<Row>
               + "'number-of-rows' (for bounded) in TBLPROPERTIES.");
     }
 
-    String behavior = properties.path("timestamp.behavior").asText("processing_time");
+    String behavior = properties.path("timestamp.behavior").asText("processing-time");
     @Nullable String eventTimeColumn = null;
 
-    if ("event_time".equalsIgnoreCase(behavior)) {
-      JsonNode columnNode = properties.path("event_time.timestamp_column");
+    if ("event-time".equalsIgnoreCase(behavior)) {
+      JsonNode columnNode = properties.path("event-time.timestamp-column");
 
       if (columnNode.isMissingNode() || columnNode.isNull()) {
         throw new IllegalArgumentException(
-            "For 'event_time' behavior, 'event_time.timestamp_column' must be specified.");
+            "For 'event-time' behavior, 'event-time.timestamp-column' must be specified.");
       }
       eventTimeColumn = columnNode.asText();
 
-      long maxOutOfOrdernessMs = properties.path("event_time.max_out_of_orderness").asLong(0L);
+      // Validate that the specified column exists and is of type TIMESTAMP.
+      if (!schema.hasField(eventTimeColumn)) {
+        throw new IllegalArgumentException(
+            String.format(
+                "The specified 'event-time.timestamp-column' ('%s') does not exist in the table schema.",
+                eventTimeColumn));
+      }
+
+      Schema.Field eventTimeField = schema.getField(eventTimeColumn);
+      if (!Schema.TypeName.DATETIME.equals(eventTimeField.getType().getTypeName())) {
+        throw new IllegalArgumentException(
+            String.format(
+                "The specified 'event-time.timestamp-column' ('%s') must be of type TIMESTAMP, but was '%s'.",
+                eventTimeColumn, eventTimeField.getType()));
+      }
+
+      long maxOutOfOrdernessMs = properties.path("event_time.max-out-of-orderness").asLong(0L);
       generator = generator.withTimestampFn(new AdvancingTimestampFn(maxOutOfOrdernessMs));
     }
 

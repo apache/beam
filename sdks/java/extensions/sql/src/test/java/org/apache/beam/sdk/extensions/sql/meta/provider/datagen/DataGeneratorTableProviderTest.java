@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.datagen;
 
 import java.math.BigDecimal;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -163,7 +164,7 @@ public class DataGeneratorTableProviderTest {
       Assert.assertTrue("past_timestamp should be in the past", pastTimestamp.isBefore(now));
       Assert.assertTrue(
           "now_timestamp should be very recent",
-          now.plus(Duration.millis(100)).isAfter(nowTimestamp));
+          now.minus(Duration.millis(100)).isBefore(nowTimestamp));
     }
   }
 
@@ -230,13 +231,10 @@ public class DataGeneratorTableProviderTest {
 
   private static class ValidateMultiTimestampFn extends DoFn<Row, Void> {
     @ProcessElement
-    public void processElement(@Element Row row) {
+    public void processElement(@Element Row row, @Timestamp Instant rowTs) {
       Instant mainEventTime = row.getDateTime("main_event_time").toInstant();
       Instant secondaryTime = row.getDateTime("secondary_time").toInstant();
-
-      Assert.assertTrue(
-          "Secondary timestamp should be recent",
-          Instant.now().plus(Duration.millis(200)).isAfter(secondaryTime));
+      Assert.assertEquals(mainEventTime, rowTs);
 
       Assert.assertNotEquals(mainEventTime, secondaryTime);
     }
@@ -254,8 +252,8 @@ public class DataGeneratorTableProviderTest {
             + "  secondary_time TIMESTAMP\n"
             + ") TYPE 'datagen' TBLPROPERTIES '{\n"
             + "  \"number-of-rows\": \"10\",\n"
-            + "  \"timestamp.behavior\": \"event_time\",\n"
-            + "  \"event_time.timestamp_column\": \"main_event_time\",\n"
+            + "  \"timestamp.behavior\": \"event-time\",\n"
+            + "  \"event-time.timestamp-column\": \"main_event_time\",\n"
             + "  \"fields.secondary_time.kind\": \"datetime\",\n"
             + "  \"fields.secondary_time.now\": \"true\"\n"
             + "}'";
@@ -271,7 +269,7 @@ public class DataGeneratorTableProviderTest {
   }
 
   /**
-   * Ensures that a misconfiguration (specifying event_time behavior without the required column)
+   * Ensures that a misconfiguration (specifying event-time behavior without the required column)
    * throws a descriptive error.
    */
   @Test
@@ -281,16 +279,104 @@ public class DataGeneratorTableProviderTest {
             + "  ts TIMESTAMP\n"
             + ") TYPE 'datagen' TBLPROPERTIES '{\n"
             + "  \"number-of-rows\": \"10\",\n"
-            + "  \"timestamp.behavior\": \"event_time\"\n"
+            + "  \"timestamp.behavior\": \"event-time\"\n"
             + "}'";
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(
-        "For 'event_time' behavior, 'event_time.timestamp_column' must be specified.");
+        "For 'event-time' behavior, 'event-time.timestamp-column' must be specified.");
 
     pipeline.apply(
         "testMissingEventTimeColumn",
         SqlTransform.query("SELECT * FROM bad_event_time_table").withDdlString(createDdl));
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testEventTimeColumnNotFoundThrowsException() {
+    String createDdl =
+        "CREATE EXTERNAL TABLE bad_ts_table (id BIGINT) "
+            + "TYPE 'datagen' TBLPROPERTIES '{"
+            + "  \"rows-per-second\": \"10\","
+            + "  \"timestamp.behavior\": \"event-time\","
+            + "  \"event-time.timestamp-column\": \"ts\"" // "ts" does not exist
+            + "}'";
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("does not exist in the table schema");
+
+    pipeline.apply(
+        "testEventTimeColumnNotFound",
+        SqlTransform.query("SELECT * FROM bad_ts_table").withDdlString(createDdl));
+    pipeline.run();
+  }
+
+  @Test
+  public void testEventTimeColumnWrongTypeThrowsException() {
+    String createDdl =
+        "CREATE EXTERNAL TABLE bad_ts_table (ts VARCHAR) "
+            + "TYPE 'datagen' TBLPROPERTIES '{"
+            + "  \"rows-per-second\": \"10\","
+            + "  \"timestamp.behavior\": \"event-time\","
+            + "  \"event-time.timestamp-column\": \"ts\""
+            + "}'";
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("must be of type TIMESTAMP, but was");
+
+    pipeline.apply(
+        "testEventTimeColumnWrongType",
+        SqlTransform.query("SELECT * FROM bad_ts_table").withDdlString(createDdl));
+    pipeline.run();
+  }
+
+  @Test
+  public void testSequenceOnWrongTypeThrowsException() {
+    String createDdl =
+        "CREATE EXTERNAL TABLE bad_seq_table (name VARCHAR) "
+            + "TYPE 'datagen' TBLPROPERTIES '{"
+            + "  \"number-of-rows\": \"10\","
+            + "  \"fields.name.kind\": \"sequence\""
+            + "}'";
+
+    thrown.expectMessage("generator for integers only supports integer types");
+
+    pipeline.apply(
+        "testSequenceOnWrongType",
+        SqlTransform.query("SELECT * FROM bad_seq_table").withDdlString(createDdl));
+    pipeline.run();
+  }
+
+  @Test
+  public void testEventTimeWatermarkAdvances() {
+    String createDdl =
+        "CREATE EXTERNAL TABLE unbounded_table (\n"
+            + "  ts TIMESTAMP,\n"
+            + "  id BIGINT\n"
+            + ") TYPE 'datagen' TBLPROPERTIES '{\n"
+            + "  \"number-of-rows\": \"5\",\n"
+            + "  \"timestamp.behavior\": \"event-time\",\n"
+            + "  \"event-time.timestamp-column\": \"ts\",\n"
+            + "  \"fields.id.kind\": \"sequence\"\n"
+            + "}'";
+
+    String sql = "SELECT COUNT(id) FROM unbounded_table GROUP BY TUMBLE(ts, INTERVAL '2' SECOND)";
+
+    PCollection<Row> results =
+        pipeline.apply("testWatermarkAdvances", SqlTransform.query(sql).withDdlString(createDdl));
+
+    PAssert.that(results)
+        .containsInAnyOrder(
+            Row.withSchema(Schema.of(Schema.Field.of("c0", Schema.FieldType.INT64)))
+                .addValue(2L) // for window [0s, 2s)
+                .build(),
+            Row.withSchema(Schema.of(Schema.Field.of("c0", Schema.FieldType.INT64)))
+                .addValue(2L) // for window [2s, 4s)
+                .build(),
+            Row.withSchema(Schema.of(Schema.Field.of("c0", Schema.FieldType.INT64)))
+                .addValue(1L) // for window [4s, 6s)
+                .build());
+
     pipeline.run().waitUntilFinish();
   }
 }
