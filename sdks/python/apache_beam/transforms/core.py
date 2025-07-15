@@ -2981,21 +2981,10 @@ class CombinePerKey(PTransformWithSideInputs):
     return lambda element, *args, **kwargs: None
 
   def expand(self, pcoll):
-    def has_side_inputs():
-      return (
-          any(isinstance(arg, pvalue.AsSideInput) for arg in self.args) or any(
-              isinstance(arg, pvalue.AsSideInput)
-              for arg in self.kwargs.values()))
-
-    if has_side_inputs():
-      from apache_beam.runners.direct.helper_transforms import \
-        LiftedCombinePerKey
-      return pcoll | LiftedCombinePerKey(self.fn, *self.args, **self.kwargs)
-    else:
-      args, kwargs = util.insert_values_in_args(
-          self.args, self.kwargs, self.side_inputs)
-      return pcoll | GroupByKey() | 'Combine' >> CombineValues(
-          self.fn, *args, **kwargs)
+    args, kwargs = util.insert_values_in_args(
+        self.args, self.kwargs, self.side_inputs)
+    return pcoll | GroupByKey() | 'Combine' >> CombineValues(
+        self.fn, *args, **kwargs)
 
   def default_type_hints(self):
     result = self.fn.get_type_hints()

@@ -1024,47 +1024,6 @@ class CombineGloballyTest(unittest.TestCase):
           | beam.CombineGlobally(sum).without_defaults())
 
 
-class ColoredFixedWindow(window.BoundedWindow):
-  def __init__(self, end, color):
-    super().__init__(end)
-    self.color = color
-
-  def __hash__(self):
-    return hash((self.end, self.color))
-
-  def __eq__(self, other):
-    return (
-        type(self) == type(other) and self.end == other.end and
-        self.color == other.color)
-
-
-class ColoredFixedWindowCoder(beam.coders.Coder):
-  kv_coder = beam.coders.TupleCoder(
-      [beam.coders.TimestampCoder(), beam.coders.StrUtf8Coder()])
-
-  def encode(self, colored_window):
-    return self.kv_coder.encode((colored_window.end, colored_window.color))
-
-  def decode(self, encoded_window):
-    return ColoredFixedWindow(*self.kv_coder.decode(encoded_window))
-
-  def is_deterministic(self):
-    return True
-
-
-class EvenOddWindows(window.NonMergingWindowFn):
-  def assign(self, context):
-    timestamp = context.timestamp
-    return [
-        ColoredFixedWindow(
-            timestamp - timestamp % 10 + 10,
-            'red' if timestamp.micros // 1000000 % 2 else 'black')
-    ]
-
-  def get_window_coder(self):
-    return ColoredFixedWindowCoder()
-
-
 def get_common_items(sets, excluded_chars=""):
   # set.intersection() takes multiple sets as separete arguments.
   # We unpack the `sets` list into multiple arguments with the * operator.
