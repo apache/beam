@@ -22,8 +22,10 @@ import itertools
 import json
 import os
 import random
+import tempfile
 import time
 import unittest
+from pathlib import Path
 
 import hamcrest as hc
 import pytest
@@ -1062,84 +1064,90 @@ class CombinerWithSideInputs(unittest.TestCase):
           | cpk)
       assert_that(common_items, equal_to([(None, {'🥕'})]))
 
-  def test_combiner_with_side_input(self):
-    # Test that every combinefn is called with static and deferred side inputs
-    fname = "combiner_side_inputs.json"
-
-    def set_in_json(key, values):
-      current_json = {}
-      if os.path.exists(fname):
-        with open(fname, "r") as f:
-          current_json = json.load(f)
-      current_json[key] = values
+  def test_combinefn_methods_with_side_input(self):
+    # Test that the expected combinefn methods are called with the
+    # expected arguments when using side inputs in CombinePerKey.
+    with tempfile.TemporaryDirectory() as tmp_dirname:
+      fname = str(Path(tmp_dirname) / "combinefn_calls.json")
       with open(fname, "w") as f:
-        json.dump(current_json, f)
+        json.dump({}, f)
 
-    class MyCombiner(beam.CombineFn):
-      def create_accumulator(self, *args, **kwargs):
-        set_in_json("create_accumulator_args", args)
-        set_in_json("create_accumulator_kwargs", kwargs)
-        return args, kwargs
+      def set_in_json(key, values):
+        current_json = {}
+        if os.path.exists(fname):
+          with open(fname, "r") as f:
+            current_json = json.load(f)
+        current_json[key] = values
+        with open(fname, "w") as f:
+          json.dump(current_json, f)
 
-      def add_input(self, accumulator, input, *args, **kwargs):
-        set_in_json("add_input_args", args)
-        set_in_json("add_input_kwargs", kwargs)
-        return accumulator
+      class MyCombiner(beam.CombineFn):
+        def create_accumulator(self, *args, **kwargs):
+          set_in_json("create_accumulator_args", args)
+          set_in_json("create_accumulator_kwargs", kwargs)
+          return args, kwargs
 
-      def merge_accumulators(self, accumulators, *args, **kwargs):
-        set_in_json("merge_accumulators_args", args)
-        set_in_json("merge_accumulators_kwargs", kwargs)
-        return args, kwargs
+        def add_input(self, accumulator, input, *args, **kwargs):
+          set_in_json("add_input_args", args)
+          set_in_json("add_input_kwargs", kwargs)
+          return accumulator
 
-      def compact(self, accumulator, *args, **kwargs):
-        set_in_json("compact_args", args)
-        set_in_json("compact_kwargs", kwargs)
-        return accumulator
+        def merge_accumulators(self, accumulators, *args, **kwargs):
+          set_in_json("merge_accumulators_args", args)
+          set_in_json("merge_accumulators_kwargs", kwargs)
+          return args, kwargs
 
-      def extract_output(self, accumulator, *args, **kwargs):
-        set_in_json("extract_output_args", args)
-        set_in_json("extract_output_kwargs", kwargs)
-        return accumulator
+        def compact(self, accumulator, *args, **kwargs):
+          set_in_json("compact_args", args)
+          set_in_json("compact_kwargs", kwargs)
+          return accumulator
 
-    with beam.Pipeline() as p:
-      static_pos_arg = 0
-      deferred_pos_arg = beam.pvalue.AsSingleton(
-          p | "CreateDeferredSideInput" >> beam.Create([1]))
-      static_kwarg = 2
-      deferred_kwarg = beam.pvalue.AsSingleton(
-          p | "CreateDeferredSideInputKwarg" >> beam.Create([3]))
-      res = (
-          p
-          | "CreateInputs" >> beam.Create([(None, None)])
-          | beam.CombinePerKey(
-              MyCombiner(),
-              static_pos_arg,
-              deferred_pos_arg,
-              static_kwarg=static_kwarg,
-              deferred_kwarg=deferred_kwarg))
-      assert_that(
-          res,
-          equal_to([(None, ((0, 1), {
-              'static_kwarg': 2, 'deferred_kwarg': 3
-          }))]))
+        def extract_output(self, accumulator, *args, **kwargs):
+          set_in_json("extract_output_args", args)
+          set_in_json("extract_output_kwargs", kwargs)
+          return accumulator
 
-    # Check that the combinefn was called with the expected arguments
-    with open(fname, "r") as f:
-      data = json.load(f)
-      expected_args = [0, 1]
-      expected_kwargs = {"static_kwarg": 2, "deferred_kwarg": 3}
-      self.assertEqual(data["create_accumulator_args"], [])
-      self.assertEqual(data["create_accumulator_kwargs"], {})
-      self.assertEqual(data["compact_args"], [])
-      self.assertEqual(data["compact_kwargs"], {})
-      for key in ["add_input_args",
-                  "merge_accumulators_args",
-                  "extract_output_args"]:
-        self.assertEqual(data[key], expected_args)
-      for key in ["add_input_kwargs",
-                  "merge_accumulators_kwargs",
-                  "extract_output_kwargs"]:
-        self.assertEqual(data[key], expected_kwargs)
+      with beam.Pipeline() as p:
+        static_pos_arg = 0
+        deferred_pos_arg = beam.pvalue.AsSingleton(
+            p | "CreateDeferredSideInput" >> beam.Create([1]))
+        static_kwarg = 2
+        deferred_kwarg = beam.pvalue.AsSingleton(
+            p | "CreateDeferredSideInputKwarg" >> beam.Create([3]))
+        res = (
+            p
+            | "CreateInputs" >> beam.Create([(None, None)])
+            | beam.CombinePerKey(
+                MyCombiner(),
+                static_pos_arg,
+                deferred_pos_arg,
+                static_kwarg=static_kwarg,
+                deferred_kwarg=deferred_kwarg))
+        assert_that(
+            res,
+            equal_to([
+                (None, ((0, 1), {
+                    'static_kwarg': 2, 'deferred_kwarg': 3
+                }))
+            ]))
+
+      # Check that the combinefn was called with the expected arguments
+      with open(fname, "r") as f:
+        data = json.load(f)
+        expected_args = [0, 1]
+        expected_kwargs = {"static_kwarg": 2, "deferred_kwarg": 3}
+        self.assertEqual(data["create_accumulator_args"], [])
+        self.assertEqual(data["create_accumulator_kwargs"], {})
+        self.assertEqual(data["compact_args"], [])
+        self.assertEqual(data["compact_kwargs"], {})
+        for key in ["add_input_args",
+                    "merge_accumulators_args",
+                    "extract_output_args"]:
+          self.assertEqual(data[key], expected_args)
+        for key in ["add_input_kwargs",
+                    "merge_accumulators_kwargs",
+                    "extract_output_kwargs"]:
+          self.assertEqual(data[key], expected_kwargs)
 
   def test_cpk_with_streaming(self):
     # With global window side input
