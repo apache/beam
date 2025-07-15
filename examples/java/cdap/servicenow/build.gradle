@@ -21,7 +21,7 @@ import groovy.json.JsonOutput
 plugins {
     id 'java'
     id 'org.apache.beam.module'
-    id 'com.github.johnrengelman.shadow'
+    id 'com.gradleup.shadow'
 }
 
 applyJavaNature(
