@@ -259,8 +259,8 @@ s.close()
 
 TMPDIR=$(mktemp -d)
 
-if [[ -n "$JAVA_HOME" ]]; then
-  JAVA_CMD="$JAVA_HOME/bin/java"
+if [[ -n "$JAVA_HOME_JOB_SERVER" ]]; then
+  JAVA_CMD="$JAVA_HOME_JOB_SERVER/bin/java"
 else
   JAVA_CMD="java"
 fi
@@ -374,18 +374,7 @@ if [[ "$RUNNER" == "dataflow" ]]; then
   CONTAINER=us.gcr.io/$PROJECT/$USER/beam_go_sdk
   echo "Using container $CONTAINER"
 
-  # TODO(https://github.com/apache/beam/issues/27674): remove this branch once the jenkins VM can build multiarch, or jenkins is deprecated.
-  if [[ "$USER" == "jenkins" ]]; then
-    ./gradlew :sdks:go:container:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$TAG
-
-    # Verify it exists
-    docker images | grep $TAG
-
-    # Push the container
-    gcloud docker -- push $CONTAINER:$TAG
-  else 
-    ./gradlew :sdks:go:container:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$TAG -Pcontainer-architecture-list=arm64,amd64 -Ppush-containers
-  fi
+  ./gradlew :sdks:go:container:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$TAG -Pcontainer-architecture-list=arm64,amd64 -Ppush-containers
 
   if [[ -n "$TEST_EXPANSION_ADDR" || -n "$IO_EXPANSION_ADDR" || -n "$SCHEMAIO_EXPANSION_ADDR" || -n "$DEBEZIUMIO_EXPANSION_ADDR" ]]; then
     ARGS="$ARGS --experiments=use_portable_job_submission"
@@ -395,7 +384,7 @@ if [[ "$RUNNER" == "dataflow" ]]; then
       JAVA_TAG=$(date +%Y%m%d-%H%M%S)
       JAVA_CONTAINER=us.gcr.io/$PROJECT/$USER/beam_java11_sdk
       echo "Using container $JAVA_CONTAINER for cross-language java transforms"
-      ./gradlew :sdks:java:container:java11:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$JAVA_TAG -Pjava11Home=$JAVA11_HOME
+      ./gradlew :sdks:java:container:java11:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$JAVA_TAG
 
       # Verify it exists
       docker images | grep $JAVA_TAG
@@ -457,9 +446,6 @@ if [[ "$RUNNER" == "dataflow" ]]; then
   # Note: we don't delete the multi-arch containers here because this command only deletes the manifest list with the tag,
   # the associated container images can't be deleted because they are not tagged. However, multi-arch containers that are
   # older than 6 weeks old are deleted by stale_dataflow_prebuilt_image_cleaner.sh that runs daily.
-  if [[ "$USER" == "jenkins" ]]; then
-    gcloud --quiet container images delete $CONTAINER:$TAG || echo "Failed to delete container"
-  fi
   if [[ -n "$TEST_EXPANSION_ADDR" || -n "$IO_EXPANSION_ADDR" || -n "$SCHEMAIO_EXPANSION_ADDR" || -n "$DEBEZIUMIO_EXPANSION_ADDR" ]]; then
     # Delete the java cross-language container locally and remotely
     docker rmi $JAVA_CONTAINER:$JAVA_TAG || echo "Failed to remove container"
