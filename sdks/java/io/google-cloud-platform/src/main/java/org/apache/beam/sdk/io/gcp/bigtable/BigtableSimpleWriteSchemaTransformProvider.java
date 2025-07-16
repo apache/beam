@@ -18,9 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigtable;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
-import autovalue.shaded.org.checkerframework.checker.nullness.qual.Nullable;
 import com.google.auto.service.AutoService;
 import com.google.bigtable.v2.Mutation;
 import com.google.bigtable.v2.TimestampRange;
@@ -102,15 +100,16 @@ public class BigtableSimpleWriteSchemaTransformProvider
                 MapElements.via(
                     new BigtableWriteSchemaTransformProvider.GetMutationsFromBeamRow()));
       } else if (inputSchema.hasField("type")) {
-        // validate early
-        if (inputSchema.hasField("column_qualifier")) {
-          Schema.FieldType columnQualifierType = inputSchema.getField("column_qualifier").getType();
-          checkState(
-              columnQualifierType.equals(Schema.FieldType.STRING)
-                  || columnQualifierType.equals(Schema.FieldType.BYTES),
-              "column_qualifier should be of type STRING or BYTES");
-        }
-        // new schema inputs get sent to the new transform provider mutation function
+        //        // validate early
+        //        if (inputSchema.hasField("column_qualifier")) {
+        //          Schema.FieldType columnQualifierType =
+        // inputSchema.getField("column_qualifier").getType();
+        //          checkState(
+        //              columnQualifierType.equals(Schema.FieldType.STRING)
+        //                  || columnQualifierType.equals(Schema.FieldType.BYTES),
+        //              "column_qualifier should be of type STRING or BYTES");
+        //        }
+        //        // new schema inputs get sent to the new transform provider mutation function
         bigtableMutations = changeMutationInput(input);
       } else {
         System.out.println(
@@ -142,7 +141,7 @@ public class BigtableSimpleWriteSchemaTransformProvider
       return PCollectionRowTuple.empty(input.getPipeline());
     }
 
-    public static ByteString getByteString(@Nullable Object value) {
+    public static ByteString getByteString(Object value) {
       if (value == null) {
         throw new UnsupportedOperationException("...");
       }

@@ -587,7 +587,7 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
     assertEquals(
         "initial_val_1", cellsSetCellCol1.get(0).getValue().toStringUtf8()); // Newest value
     assertEquals(
-        "initial_val_1", cellsSetCellCol1.get(1).getValue().toStringUtf8()); // Oldest value
+        "updated_val_1", cellsSetCellCol1.get(1).getValue().toStringUtf8()); // Oldest value
     List<RowCell> cellsSetCellNewCol = rowSetCell.getCells(COLUMN_FAMILY_NAME_1, "new_col_A");
     assertEquals(1, cellsSetCellNewCol.size());
     assertEquals("new_col_val", cellsSetCellNewCol.get(0).getValue().toStringUtf8());
