@@ -473,7 +473,6 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
             .map(rowFilter::filter)
             .collect(Collectors.toList());
 
-    System.out.println("expected: " + expectedRows);
     Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
     config.put(
         "filter",
