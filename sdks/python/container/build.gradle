@@ -71,6 +71,7 @@ for(int i=min_python_version; i<=max_python_version; ++i) {
 
 tasks.register("pushAll") {
   dependsOn ':sdks:python:container:distroless:pushAll'
+  dependsOn ':sdks:python:container:ml:pushAll'
   for(int ver=min_python_version; ver<=max_python_version; ++ver) {
       if (!project.hasProperty("skip-python-3" + ver + "-images")) {
         dependsOn ':sdks:python:container:push3' + ver
