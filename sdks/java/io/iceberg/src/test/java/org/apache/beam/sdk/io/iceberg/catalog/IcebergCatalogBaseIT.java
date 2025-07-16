@@ -33,6 +33,7 @@ import static org.junit.Assume.assumeTrue;
 import com.google.api.services.storage.model.StorageObject;
 import java.io.IOException;
 import java.io.Serializable;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -466,18 +467,17 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
         populateTable(table).stream()
             .filter(
                 row ->
-                    row.getDateTime("datetime_tz")
-                            .isAfter(
-                                DateTime.parse("2025-01-01T01:00:00")
-                                    .withZone(DateTimeZone.forOffsetHours(4)))
+                    row.getLogicalTypeValue("datetime", LocalDateTime.class)
+                            .isAfter(LocalDateTime.parse("2025-01-01T09:00:00"))
                         && (row.getInt32("int_field") < 500 || row.getInt32("modulo_5") == 3))
             .map(rowFilter::filter)
             .collect(Collectors.toList());
 
+    System.out.println("expected: " + expectedRows);
     Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
     config.put(
         "filter",
-        "\"datetime_tz\" > '2025-01-01 06:00' AND (\"int_field\" < 500 OR \"modulo_5\" = 3)");
+        "\"datetime\" > '2025-01-01 09:00' AND (\"int_field\" < 500 OR \"modulo_5\" = 3)");
     config.put("keep", keepFields);
 
     PCollection<Row> rows =
