@@ -41,7 +41,7 @@ task dataflowValidatesRunner() {
     ]
     exec {
       if (fork_java_home) {
-        environment "JAVA_HOME", fork_java_home
+        environment "JAVA_HOME_JOB_SERVER", fork_java_home
       }
       executable "sh"
       args "-c", "./run_validatesrunner_tests.sh ${options.join(' ')}"
@@ -66,7 +66,7 @@ task dataflowValidatesRunnerARM64() {
     ]
     exec {
       if (fork_java_home) {
-        environment "JAVA_HOME", fork_java_home
+        environment "JAVA_HOME_JOB_SERVER", fork_java_home
       }
       executable "sh"
       args "-c", "./run_validatesrunner_tests.sh ${options.join(' ')}"
@@ -95,7 +95,7 @@ task flinkValidatesRunner {
     ]
     exec {
       if (fork_java_home) {
-        environment "JAVA_HOME", fork_java_home
+        environment "JAVA_HOME_JOB_SERVER", fork_java_home
       }
       executable "sh"
       args "-c", "./run_validatesrunner_tests.sh ${options.join(' ')}"
@@ -123,7 +123,7 @@ task samzaValidatesRunner {
     ]
     exec {
       if (fork_java_home) {
-        environment "JAVA_HOME", fork_java_home
+        environment "JAVA_HOME_JOB_SERVER", fork_java_home
       }
       executable "sh"
       args "-c", "./run_validatesrunner_tests.sh ${options.join(' ')}"
@@ -151,7 +151,7 @@ task sparkValidatesRunner {
     ]
     exec {
       if (fork_java_home) {
-        environment "JAVA_HOME", fork_java_home
+        environment "JAVA_HOME_JOB_SERVER", fork_java_home
       }
       executable "sh"
       args "-c", "./run_validatesrunner_tests.sh ${options.join(' ')}"
@@ -190,7 +190,7 @@ tasks.register("ulrValidatesRunner") {
     }
     exec {
       if (fork_java_home) {
-        environment "JAVA_HOME", fork_java_home
+        environment "JAVA_HOME_JOB_SERVER", fork_java_home
       }
       executable "sh"
       args "-c", ". ${envdir}/bin/activate && ./run_validatesrunner_tests.sh ${options.join(' ')}"
@@ -217,7 +217,7 @@ task prismValidatesRunner {
     ]
     exec {
       if (fork_java_home) {
-        environment "JAVA_HOME", fork_java_home
+        environment "JAVA_HOME_JOB_SERVER", fork_java_home
       }
       executable "sh"
       args "-c", "./run_validatesrunner_tests.sh ${options.join(' ')}"
@@ -262,7 +262,7 @@ ext.goIoValidatesRunnerTask = { proj, name, scriptOpts, pipelineOpts ->
       logger.info("Running the command: sh -c ./run_validatesrunner_tests.sh ${options.join(' ')}")
       exec {
         if (fork_java_home) {
-          environment "JAVA_HOME", fork_java_home
+          environment "JAVA_HOME_JOB_SERVER", fork_java_home
         }
         executable "sh"
         args "-c", "./run_validatesrunner_tests.sh ${options.join(' ')}"
