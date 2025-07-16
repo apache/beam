@@ -188,10 +188,7 @@ public class BigtableSimpleWriteSchemaTransformProvider
                                 Mutation.SetCell.newBuilder()
                                     .setValue(getByteString(input.getValue("value")))
                                     .setColumnQualifier(
-                                        ByteString.copyFrom(
-                                            Preconditions.checkStateNotNull(
-                                                input.getBytes("column_qualifier"),
-                                                "Encountered SetCell mutation with incorrect 'column_qualifier' property.")))
+                                        getByteString(input.getValue("column_qualifier")))
                                     .setFamilyNameBytes(
                                         ByteString.copyFrom(
                                             Preconditions.checkStateNotNull(

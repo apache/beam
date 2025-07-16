@@ -380,9 +380,9 @@
   config:
     mappings:
       'ReadFromBigTable':
-        project: 'project_Id'
-        instance: 'instanceId'
-        table: 'tableId'
+        project: 'project_id'
+        instance: 'instance_id'
+        table: 'table_id'
       'WriteToBigTable':
         project: 'project_id'
         instance: 'instance_id'
