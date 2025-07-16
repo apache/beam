@@ -1170,7 +1170,9 @@ class CombinerWithSideInputs(unittest.TestCase):
 
   def test_cpk_with_streaming(self):
     # With global window side input
-    with beam.Pipeline() as p:
+    options = PipelineOptions()
+    options.view_as(StandardOptions).streaming = True
+    with TestPipeline(options=options) as p:
 
       def sum_with_floor(vals, min_value=0):
         vals_sum = sum(vals)
@@ -1189,7 +1191,7 @@ class CombinerWithSideInputs(unittest.TestCase):
       assert_that(res, equal_to([('k', 103), ('k', 303)]))
 
     # with matching window side input
-    with beam.Pipeline() as p:
+    with TestPipeline(options=options) as p:
       min_value = (
           p
           | "CreateMinValue" >> beam.Create([
