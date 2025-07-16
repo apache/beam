@@ -1527,6 +1527,8 @@ def _check_fn_use_yield_and_return(fn):
       #_LOGGER.warning(return_none_warning)
 
     return False
+  except TypeError:
+    raise
   except Exception as e:
     _LOGGER.debug(str(e))
     return False
