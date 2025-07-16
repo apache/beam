@@ -181,7 +181,7 @@ class SentenceTransformerEmbeddingsTest(unittest.TestCase):
     model_name = DEFAULT_MODEL_NAME
     embedding_config = SentenceTransformerEmbeddings(
         model_name=model_name, columns=[test_query_column])
-    with self.assertRaises(TypeError):
+    with self.assertRaisesRegex(Exception, "Embeddings can only be generated"):
       with beam.Pipeline() as pipeline:
         _ = (
             pipeline
@@ -316,7 +316,7 @@ class SentenceTransformerEmbeddingsTest(unittest.TestCase):
         model_name=IMAGE_MODEL_NAME,
         columns=[test_query_column],
         image_model=True)
-    with self.assertRaises(TypeError):
+    with self.assertRaisesRegex(Exception, "Embeddings can only be generated"):
       with beam.Pipeline() as pipeline:
         _ = (
             pipeline

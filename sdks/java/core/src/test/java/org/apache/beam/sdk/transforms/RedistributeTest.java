@@ -224,8 +224,8 @@ public class RedistributeTest implements Serializable {
                     afterRedistributeTimestamp,
                     equalTo(originalTimestamp));
 
-                PaneInfo originalPaneInfo = elem.getValue().getPane();
-                PaneInfo afterRedistributePaneInfo = elem.getPane();
+                PaneInfo originalPaneInfo = elem.getValue().getPaneInfo();
+                PaneInfo afterRedistributePaneInfo = elem.getPaneInfo();
                 assertThat(
                     "Redistribute did not preserve pane info for " + elem,
                     afterRedistributePaneInfo,

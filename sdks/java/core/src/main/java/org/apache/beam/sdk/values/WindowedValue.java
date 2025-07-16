@@ -37,14 +37,8 @@ public interface WindowedValue<T> {
   /** Returns the windows of this {@code WindowedValue}. */
   Collection<? extends BoundedWindow> getWindows();
 
-  /** @deprecated Do not use; only here for ease of migration/container update. */
-  @Deprecated
-  PaneInfo getPane();
-
   /** The {@link PaneInfo} associated with this WindowedValue. */
-  default PaneInfo getPaneInfo() {
-    return getPane();
-  }
+  PaneInfo getPaneInfo();
 
   /**
    * A representation of each of the actual values represented by this compressed {@link

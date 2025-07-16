@@ -27,19 +27,19 @@ import java.io.Serializable;
 public class SubProcessConfiguration implements Serializable {
 
   // Source GCS directory where the C++ library is located gs://bucket/tests
-  public String sourcePath;
+  private String sourcePath;
 
   // Working directory for the process I/O
-  public String workerPath;
+  private String workerPath;
 
   // The maximum time to wait for the sub-process to complete
-  public Integer waitTime;
+  private Integer waitTime;
 
   // "As sub-processes can be heavy weight match the concurrency level to num cores on the machines"
-  public Integer concurrency;
+  private Integer concurrency;
 
   // Should log files only be uploaded if error
-  public Boolean onlyUpLoadLogsOnError;
+  private Boolean onlyUpLoadLogsOnError;
 
   public Boolean getOnlyUpLoadLogsOnError() {
     return onlyUpLoadLogsOnError;

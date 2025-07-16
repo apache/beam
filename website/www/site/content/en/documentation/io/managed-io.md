@@ -96,6 +96,8 @@ and Beam SQL is invoked via the Managed API under the hood.
         drop (<code>list[<span style="color: green;">str</span>]</code>)<br>
         keep (<code>list[<span style="color: green;">str</span>]</code>)<br>
         only (<code style="color: green">str</code>)<br>
+        partition_fields (<code>list[<span style="color: green;">str</span>]</code>)<br>
+        table_properties (<code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>)<br>
         triggering_frequency_seconds (<code style="color: #f54251">int32</code>)<br>
       </td>
     </tr>
@@ -395,6 +397,40 @@ and Beam SQL is invoked via the Managed API under the hood.
       </td>
       <td>
         The name of a single record field that should be written. Is mutually exclusive with 'keep' and 'drop'.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        partition_fields
+      </td>
+      <td>
+        <code>list[<span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        Fields used to create a partition spec that is applied when tables are created. For a field 'foo', the available partition transforms are:
+
+- `foo`
+- `truncate(foo, N)`
+- `bucket(foo, N)`
+- `hour(foo)`
+- `day(foo)`
+- `month(foo)`
+- `year(foo)`
+- `void(foo)`
+
+For more information on partition transforms, please visit https://iceberg.apache.org/spec/#partition-transforms.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        table_properties
+      </td>
+      <td>
+        <code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        Iceberg table properties to be set on the table when it is created.
+For more information on table properties, please visit https://iceberg.apache.org/docs/latest/configuration/#table-properties.
       </td>
     </tr>
     <tr>

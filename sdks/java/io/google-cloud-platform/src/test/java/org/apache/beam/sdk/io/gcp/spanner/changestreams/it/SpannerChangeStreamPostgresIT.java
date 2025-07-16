@@ -51,6 +51,7 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -58,8 +59,14 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class SpannerChangeStreamPostgresIT {
 
+  @Rule public transient Timeout globalTimeout = Timeout.seconds(3600);
+
   @ClassRule
-  public static final IntegrationTestEnv ENV = new IntegrationTestEnv(/*isPostgres=*/ true);
+  public static final IntegrationTestEnv ENV =
+      new IntegrationTestEnv(
+          /*isPostgres=*/ true,
+          /*isPlacementTableBasedChangeStream=*/ false,
+          /*host=*/ Optional.empty());
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 

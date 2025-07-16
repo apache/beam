@@ -107,10 +107,10 @@ public class WindmillKeyedWorkItemTest {
       long timestamp,
       String value,
       IntervalWindow window,
-      PaneInfo pane)
+      PaneInfo paneInfo)
       throws IOException {
     ByteString encodedMetadata =
-        WindmillSink.encodeMetadata(WINDOWS_CODER, Collections.singletonList(window), pane);
+        WindmillSink.encodeMetadata(WINDOWS_CODER, Collections.singletonList(window), paneInfo);
     chunk
         .addMessagesBuilder()
         .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(new Instant(timestamp)))

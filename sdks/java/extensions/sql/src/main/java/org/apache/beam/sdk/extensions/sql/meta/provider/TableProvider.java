@@ -79,4 +79,8 @@ public interface TableProvider {
   default TableProvider getSubProvider(String name) {
     return null;
   }
+
+  default boolean supportsPartitioning(Table table) {
+    return false;
+  }
 }

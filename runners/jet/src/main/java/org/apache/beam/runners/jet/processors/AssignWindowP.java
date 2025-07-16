@@ -78,7 +78,7 @@ public class AssignWindowP<T> extends AbstractProcessor {
                       inputValue.getValue(),
                       inputValue.getTimestamp(),
                       windows,
-                      inputValue.getPane());
+                      inputValue.getPaneInfo());
               traverser.accept(Utils.encode(outputValue, outputCoder));
               return traverser;
             });

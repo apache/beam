@@ -405,7 +405,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public PaneInfo pane() {
-      return elem.getPane();
+      return elem.getPaneInfo();
     }
 
     @Override
@@ -437,7 +437,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
       checkNotNull(tag, "Tag passed to outputWithTimestamp cannot be null");
       checkTimestamp(elem.getTimestamp(), timestamp);
-      outputWindowedValue(tag, output, timestamp, elem.getWindows(), elem.getPane());
+      outputWindowedValue(tag, output, timestamp, elem.getWindows(), elem.getPaneInfo());
     }
 
     @Override

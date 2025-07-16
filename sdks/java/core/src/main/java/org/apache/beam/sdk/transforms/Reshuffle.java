@@ -188,7 +188,7 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
                       KV.of(kv.getKey(), kv.getValue().getValue()),
                       kv.getValue().getTimestamp(),
                       Collections.singleton(kv.getValue().getWindow()),
-                      kv.getValue().getPane());
+                      kv.getValue().getPaneInfo());
                 }
               }));
     }

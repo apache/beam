@@ -94,7 +94,7 @@ class WindowAssignTranslatorBatch<T>
                   return window;
                 }
               });
-      return WindowedValues.of(element, timestamp, windows, value.getPane());
+      return WindowedValues.of(element, timestamp, windows, value.getPaneInfo());
     };
   }
 

@@ -117,8 +117,7 @@ class BigqueryV2(base_api.BaseApiClient):
         request_field='',
         request_type_name='BigqueryDatasetsDeleteRequest',
         response_type_name='BigqueryDatasetsDeleteResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Get(self, request, global_params=None):
       r"""Returns the dataset specified by datasetID.
@@ -142,8 +141,7 @@ class BigqueryV2(base_api.BaseApiClient):
         request_field='',
         request_type_name='BigqueryDatasetsGetRequest',
         response_type_name='Dataset',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Insert(self, request, global_params=None):
       r"""Creates a new empty dataset.
@@ -167,8 +165,7 @@ class BigqueryV2(base_api.BaseApiClient):
         request_field='dataset',
         request_type_name='BigqueryDatasetsInsertRequest',
         response_type_name='Dataset',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def List(self, request, global_params=None):
       r"""Lists all datasets in the specified project to which you have been granted the READER dataset role.
@@ -192,8 +189,7 @@ class BigqueryV2(base_api.BaseApiClient):
         request_field='',
         request_type_name='BigqueryDatasetsListRequest',
         response_type_name='DatasetList',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Patch(self, request, global_params=None):
       r"""Updates information in an existing dataset. The update method replaces the entire dataset resource, whereas the patch method only replaces fields that are provided in the submitted dataset resource. This method supports patch semantics.
@@ -217,8 +213,7 @@ class BigqueryV2(base_api.BaseApiClient):
         request_field='dataset',
         request_type_name='BigqueryDatasetsPatchRequest',
         response_type_name='Dataset',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Update(self, request, global_params=None):
       r"""Updates information in an existing dataset. The update method replaces the entire dataset resource, whereas the patch method only replaces fields that are provided in the submitted dataset resource.
@@ -242,8 +237,7 @@ class BigqueryV2(base_api.BaseApiClient):
         request_field='dataset',
         request_type_name='BigqueryDatasetsUpdateRequest',
         response_type_name='Dataset',
-        supports_download=False,
-    )
+        supports_download=False, )
 
   class JobsService(base_api.BaseApiService):
     """Service class for the jobs resource."""
@@ -286,8 +280,7 @@ class BigqueryV2(base_api.BaseApiClient):
         request_field='',
         request_type_name='BigqueryJobsCancelRequest',
         response_type_name='JobCancelResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Get(self, request, global_params=None):
       r"""Returns information about a specific job. Job information is available for a six month period after creation. Requires that you're the person who ran the job, or have the Is Owner project role.
@@ -311,8 +304,7 @@ class BigqueryV2(base_api.BaseApiClient):
         request_field='',
         request_type_name='BigqueryJobsGetRequest',
         response_type_name='Job',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def GetQueryResults(self, request, global_params=None):
       r"""Retrieves the results of a query job.
@@ -337,8 +329,7 @@ class BigqueryV2(base_api.BaseApiClient):
         request_field='',
         request_type_name='BigqueryJobsGetQueryResultsRequest',
         response_type_name='GetQueryResultsResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Insert(self, request, global_params=None, upload=None):
       r"""Starts a new asynchronous job. Requires the Can View project role.
@@ -370,8 +361,7 @@ class BigqueryV2(base_api.BaseApiClient):
         request_field='job',
         request_type_name='BigqueryJobsInsertRequest',
         response_type_name='Job',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def List(self, request, global_params=None):
       r"""Lists all jobs that you started in the specified project. Job information is available for a six month period after creation. The job list is sorted in reverse chronological order, by job creation time. Requires the Can View project role, or the Is Owner project role if you set the allUsers property.
@@ -391,21 +381,14 @@ class BigqueryV2(base_api.BaseApiClient):
         ordered_params=['projectId'],
         path_params=['projectId'],
         query_params=[
-            'allUsers',
-            'maxCreationTime',
-            'maxResults',
-            'minCreationTime',
-            'pageToken',
-            'parentJobId',
-            'projection',
-            'stateFilter'
+            'allUsers', 'maxCreationTime', 'maxResults', 'minCreationTime',
+            'pageToken', 'parentJobId', 'projection', 'stateFilter'
         ],
         relative_path='projects/{projectId}/jobs',
         request_field='',
         request_type_name='BigqueryJobsListRequest',
         response_type_name='JobList',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Query(self, request, global_params=None):
       r"""Runs a BigQuery SQL query synchronously and returns query results if the query completes within a specified timeout.
@@ -429,8 +412,7 @@ class BigqueryV2(base_api.BaseApiClient):
         request_field='queryRequest',
         request_type_name='BigqueryJobsQueryRequest',
         response_type_name='QueryResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
   class ModelsService(base_api.BaseApiService):
     """Service class for the models resource."""
@@ -466,8 +448,7 @@ class BigqueryV2(base_api.BaseApiClient):
         request_field='',
         request_type_name='BigqueryModelsDeleteRequest',
         response_type_name='BigqueryModelsDeleteResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Get(self, request, global_params=None):
       r"""Gets the specified model resource by model ID.
@@ -494,8 +475,7 @@ class BigqueryV2(base_api.BaseApiClient):
         request_field='',
         request_type_name='BigqueryModelsGetRequest',
         response_type_name='Model',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def List(self, request, global_params=None):
       r"""Lists all models in the specified dataset. Requires the READER dataset role.
@@ -520,8 +500,7 @@ class BigqueryV2(base_api.BaseApiClient):
         request_field='',
         request_type_name='BigqueryModelsListRequest',
         response_type_name='ListModelsResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Patch(self, request, global_params=None):
       r"""Patch specific fields in the specified model.
@@ -548,8 +527,7 @@ class BigqueryV2(base_api.BaseApiClient):
         request_field='model',
         request_type_name='BigqueryModelsPatchRequest',
         response_type_name='Model',
-        supports_download=False,
-    )
+        supports_download=False, )
 
   class ProjectsService(base_api.BaseApiService):
     """Service class for the projects resource."""
@@ -582,8 +560,7 @@ class BigqueryV2(base_api.BaseApiClient):
         request_field='',
         request_type_name='BigqueryProjectsGetServiceAccountRequest',
         response_type_name='GetServiceAccountResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def List(self, request, global_params=None):
       r"""Lists all projects to which you have been granted any project role.
@@ -607,8 +584,7 @@ class BigqueryV2(base_api.BaseApiClient):
         request_field='',
         request_type_name='BigqueryProjectsListRequest',
         response_type_name='ProjectList',
-        supports_download=False,
-    )
+        supports_download=False, )
 
   class RoutinesService(base_api.BaseApiService):
     """Service class for the routines resource."""
@@ -644,8 +620,7 @@ class BigqueryV2(base_api.BaseApiClient):
         request_field='',
         request_type_name='BigqueryRoutinesDeleteRequest',
         response_type_name='BigqueryRoutinesDeleteResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Get(self, request, global_params=None):
       r"""Gets the specified routine resource by routine ID.
@@ -672,8 +647,7 @@ class BigqueryV2(base_api.BaseApiClient):
         request_field='',
         request_type_name='BigqueryRoutinesGetRequest',
         response_type_name='Routine',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Insert(self, request, global_params=None):
       r"""Creates a new routine in the dataset.
@@ -698,8 +672,7 @@ class BigqueryV2(base_api.BaseApiClient):
         request_field='routine',
         request_type_name='BigqueryRoutinesInsertRequest',
         response_type_name='Routine',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def List(self, request, global_params=None):
       r"""Lists all routines in the specified dataset. Requires the READER dataset role.
@@ -724,8 +697,7 @@ class BigqueryV2(base_api.BaseApiClient):
         request_field='',
         request_type_name='BigqueryRoutinesListRequest',
         response_type_name='ListRoutinesResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Update(self, request, global_params=None):
       r"""Updates information in an existing routine. The update method replaces the entire Routine resource.
@@ -752,8 +724,7 @@ class BigqueryV2(base_api.BaseApiClient):
         request_field='routine',
         request_type_name='BigqueryRoutinesUpdateRequest',
         response_type_name='Routine',
-        supports_download=False,
-    )
+        supports_download=False, )
 
   class RowAccessPoliciesService(base_api.BaseApiService):
     """Service class for the rowAccessPolicies resource."""
@@ -789,8 +760,7 @@ class BigqueryV2(base_api.BaseApiClient):
         request_field='',
         request_type_name='BigqueryRowAccessPoliciesListRequest',
         response_type_name='ListRowAccessPoliciesResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
   class TabledataService(base_api.BaseApiService):
     """Service class for the tabledata resource."""
@@ -824,8 +794,7 @@ class BigqueryV2(base_api.BaseApiClient):
         request_field='tableDataInsertAllRequest',
         request_type_name='BigqueryTabledataInsertAllRequest',
         response_type_name='TableDataInsertAllResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def List(self, request, global_params=None):
       r"""Retrieves table data from a specified set of rows. Requires the READER dataset role.
@@ -851,8 +820,7 @@ class BigqueryV2(base_api.BaseApiClient):
         request_field='',
         request_type_name='BigqueryTabledataListRequest',
         response_type_name='TableDataList',
-        supports_download=False,
-    )
+        supports_download=False, )
 
   class TablesService(base_api.BaseApiService):
     """Service class for the tables resource."""
@@ -886,8 +854,7 @@ class BigqueryV2(base_api.BaseApiClient):
         request_field='',
         request_type_name='BigqueryTablesDeleteRequest',
         response_type_name='BigqueryTablesDeleteResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Get(self, request, global_params=None):
       r"""Gets the specified table resource by table ID. This method does not return the data in the table, it only returns the table resource, which describes the structure of this table.
@@ -912,8 +879,7 @@ class BigqueryV2(base_api.BaseApiClient):
         request_field='',
         request_type_name='BigqueryTablesGetRequest',
         response_type_name='Table',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def GetIamPolicy(self, request, global_params=None):
       r"""Gets the access control policy for a resource. Returns an empty policy if the resource exists and does not have a policy set.
@@ -939,8 +905,7 @@ class BigqueryV2(base_api.BaseApiClient):
         request_field='getIamPolicyRequest',
         request_type_name='BigqueryTablesGetIamPolicyRequest',
         response_type_name='Policy',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Insert(self, request, global_params=None):
       r"""Creates a new, empty table in the dataset.
@@ -964,8 +929,7 @@ class BigqueryV2(base_api.BaseApiClient):
         request_field='table',
         request_type_name='BigqueryTablesInsertRequest',
         response_type_name='Table',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def List(self, request, global_params=None):
       r"""Lists all tables in the specified dataset. Requires the READER dataset role.
@@ -989,8 +953,7 @@ class BigqueryV2(base_api.BaseApiClient):
         request_field='',
         request_type_name='BigqueryTablesListRequest',
         response_type_name='TableList',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Patch(self, request, global_params=None):
       r"""Updates information in an existing table. The update method replaces the entire table resource, whereas the patch method only replaces fields that are provided in the submitted table resource. This method supports patch semantics.
@@ -1015,8 +978,7 @@ class BigqueryV2(base_api.BaseApiClient):
         request_field='table',
         request_type_name='BigqueryTablesPatchRequest',
         response_type_name='Table',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def SetIamPolicy(self, request, global_params=None):
       r"""Sets the access control policy on the specified resource. Replaces any existing policy. Can return `NOT_FOUND`, `INVALID_ARGUMENT`, and `PERMISSION_DENIED` errors.
@@ -1042,8 +1004,7 @@ class BigqueryV2(base_api.BaseApiClient):
         request_field='setIamPolicyRequest',
         request_type_name='BigqueryTablesSetIamPolicyRequest',
         response_type_name='Policy',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def TestIamPermissions(self, request, global_params=None):
       r"""Returns permissions that a caller has on the specified resource. If the resource does not exist, this will return an empty set of permissions, not a `NOT_FOUND` error. Note: This operation is designed to be used for building permission-aware UIs and command-line tools, not for authorization checking. This operation may "fail open" without warning.
@@ -1069,8 +1030,7 @@ class BigqueryV2(base_api.BaseApiClient):
         request_field='testIamPermissionsRequest',
         request_type_name='BigqueryTablesTestIamPermissionsRequest',
         response_type_name='TestIamPermissionsResponse',
-        supports_download=False,
-    )
+        supports_download=False, )
 
     def Update(self, request, global_params=None):
       r"""Updates information in an existing table. The update method replaces the entire table resource, whereas the patch method only replaces fields that are provided in the submitted table resource.
@@ -1095,5 +1055,4 @@ class BigqueryV2(base_api.BaseApiClient):
         request_field='table',
         request_type_name='BigqueryTablesUpdateRequest',
         response_type_name='Table',
-        supports_download=False,
-    )
+        supports_download=False, )

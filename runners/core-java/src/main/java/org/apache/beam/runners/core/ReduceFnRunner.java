@@ -1037,28 +1037,28 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
     }
 
     // Calculate the pane info.
-    final PaneInfo pane = paneInfoTracker.getNextPaneInfo(directContext, isFinished).read();
+    final PaneInfo paneInfo = paneInfoTracker.getNextPaneInfo(directContext, isFinished).read();
 
     // Only emit a pane if it has data or empty panes are observable.
-    if (needToEmit(isEmpty, isFinished, pane.getTiming())) {
+    if (needToEmit(isEmpty, isFinished, paneInfo.getTiming())) {
       // Run reduceFn.onTrigger method.
       final List<W> windows = Collections.singletonList(directContext.window());
       ReduceFn<K, InputT, OutputT, W>.OnTriggerContext renamedTriggerContext =
           contextFactory.forTrigger(
               directContext.window(),
-              pane,
+              paneInfo,
               StateStyle.RENAMED,
               toOutput -> {
                 // We're going to output panes, so commit the (now used) PaneInfo.
                 // This is unnecessary if the trigger isFinished since the saved
                 // state will be immediately deleted.
                 if (!isFinished) {
-                  paneInfoTracker.storeCurrentPaneInfo(directContext, pane);
+                  paneInfoTracker.storeCurrentPaneInfo(directContext, paneInfo);
                 }
 
                 // Output the actual value.
                 outputter.output(
-                    WindowedValues.of(KV.of(key, toOutput), outputTimestamp, windows, pane));
+                    WindowedValues.of(KV.of(key, toOutput), outputTimestamp, windows, paneInfo));
               });
 
       reduceFn.onTrigger(renamedTriggerContext);

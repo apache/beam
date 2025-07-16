@@ -387,7 +387,8 @@ class SpannerReadTest(unittest.TestCase):
   def test_invalid_transaction(
       self, mock_batch_snapshot_class, mock_client_class):
     # test exception raises at pipeline execution time
-    with self.assertRaises(ValueError), TestPipeline() as p:
+    error_string = "Invalid transaction object"
+    with self.assertRaisesRegex(Exception, error_string), TestPipeline() as p:
       transaction = (
           p | beam.Create([{
               "invalid": "transaction"
@@ -448,7 +449,11 @@ class SpannerWriteTest(unittest.TestCase):
             [('1234', "mutations-inset-1233-updated")]),
     ]
 
-    p = TestPipeline()
+    # TODO(https://github.com/apache/beam/issues/34549): This test relies on
+    # metrics filtering which doesn't work on Prism yet because Prism renames
+    # steps (e.g. "Do" becomes "ref_AppliedPTransform_Do_7").
+    # https://github.com/apache/beam/blob/5f9cd73b7c9a2f37f83971ace3a399d633201dd1/sdks/python/apache_beam/runners/portability/fn_api_runner/fn_runner.py#L1590
+    p = TestPipeline('FnApiRunner')
     _ = (
         p
         | beam.Create(mutations)
@@ -475,7 +480,11 @@ class SpannerWriteTest(unittest.TestCase):
         WriteMutation.insert(
             "roles", ("key", "rolename"), [('1234', "mutations-inset-1234")])
     ] * 50
-    p = TestPipeline()
+    # TODO(https://github.com/apache/beam/issues/34549): This test relies on
+    # metrics filtering which doesn't work on Prism yet because Prism renames
+    # steps (e.g. "Do" becomes "ref_AppliedPTransform_Do_7").
+    # https://github.com/apache/beam/blob/5f9cd73b7c9a2f37f83971ace3a399d633201dd1/sdks/python/apache_beam/runners/portability/fn_api_runner/fn_runner.py#L1590
+    p = TestPipeline('FnApiRunner')
     _ = (
         p
         | beam.Create(mutations)
@@ -514,7 +523,11 @@ class SpannerWriteTest(unittest.TestCase):
         MutationGroup([WriteMutation.delete("roles", ks)])
     ]
 
-    p = TestPipeline()
+    # TODO(https://github.com/apache/beam/issues/34549): This test relies on
+    # metrics filtering which doesn't work on Prism yet because Prism renames
+    # steps (e.g. "Do" becomes "ref_AppliedPTransform_Do_7").
+    # https://github.com/apache/beam/blob/5f9cd73b7c9a2f37f83971ace3a399d633201dd1/sdks/python/apache_beam/runners/portability/fn_api_runner/fn_runner.py#L1590
+    p = TestPipeline('FnApiRunner')
     _ = (
         p
         | beam.Create(mutation_groups)

@@ -1016,28 +1016,28 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                 KV.of(splitResult.getPrimaryInFullyProcessedWindowsRoot().getValue(), fullSize),
                 splitResult.getPrimaryInFullyProcessedWindowsRoot().getTimestamp(),
                 splitResult.getPrimaryInFullyProcessedWindowsRoot().getWindows(),
-                splitResult.getPrimaryInFullyProcessedWindowsRoot().getPane()),
+                splitResult.getPrimaryInFullyProcessedWindowsRoot().getPaneInfo()),
         splitResult.getPrimarySplitRoot() == null
             ? null
             : WindowedValues.of(
                 KV.of(splitResult.getPrimarySplitRoot().getValue(), primarySize),
                 splitResult.getPrimarySplitRoot().getTimestamp(),
                 splitResult.getPrimarySplitRoot().getWindows(),
-                splitResult.getPrimarySplitRoot().getPane()),
+                splitResult.getPrimarySplitRoot().getPaneInfo()),
         splitResult.getResidualSplitRoot() == null
             ? null
             : WindowedValues.of(
                 KV.of(splitResult.getResidualSplitRoot().getValue(), residualSize),
                 splitResult.getResidualSplitRoot().getTimestamp(),
                 splitResult.getResidualSplitRoot().getWindows(),
-                splitResult.getResidualSplitRoot().getPane()),
+                splitResult.getResidualSplitRoot().getPaneInfo()),
         splitResult.getResidualInUnprocessedWindowsRoot() == null
             ? null
             : WindowedValues.of(
                 KV.of(splitResult.getResidualInUnprocessedWindowsRoot().getValue(), fullSize),
                 splitResult.getResidualInUnprocessedWindowsRoot().getTimestamp(),
                 splitResult.getResidualInUnprocessedWindowsRoot().getWindows(),
-                splitResult.getResidualInUnprocessedWindowsRoot().getPane()));
+                splitResult.getResidualInUnprocessedWindowsRoot().getPaneInfo()));
   }
 
   private HandlesSplits.SplitResult trySplitForWindowObservingTruncateRestriction(
@@ -1120,7 +1120,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                         KV.of(currentRestriction, currentWatermarkEstimatorState)),
                     currentElement.getTimestamp(),
                     primaryFullyProcessedWindows,
-                    currentElement.getPane()),
+                    currentElement.getPaneInfo()),
             splitResult == null
                 ? null
                 : WindowedValues.of(
@@ -1129,7 +1129,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                         KV.of(splitResult.getPrimary(), currentWatermarkEstimatorState)),
                     currentElement.getTimestamp(),
                     currentWindow,
-                    currentElement.getPane()),
+                    currentElement.getPaneInfo()),
             splitResult == null
                 ? null
                 : WindowedValues.of(
@@ -1138,7 +1138,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                         KV.of(splitResult.getResidual(), watermarkAndState.getValue())),
                     currentElement.getTimestamp(),
                     currentWindow,
-                    currentElement.getPane()),
+                    currentElement.getPaneInfo()),
             residualUnprocessedWindows.isEmpty()
                 ? null
                 : WindowedValues.of(
@@ -1147,7 +1147,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                         KV.of(currentRestriction, currentWatermarkEstimatorState)),
                     currentElement.getTimestamp(),
                     residualUnprocessedWindows,
-                    currentElement.getPane()));
+                    currentElement.getPaneInfo()));
     return windowedSplitResult;
   }
 
@@ -1980,7 +1980,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       outputTo(
           mainOutputConsumer,
           WindowedValues.of(
-              output, currentElement.getTimestamp(), currentWindow, currentElement.getPane()));
+              output, currentElement.getTimestamp(), currentWindow, currentElement.getPaneInfo()));
     }
 
     @Override
@@ -1994,7 +1994,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       outputTo(
           consumer,
           WindowedValues.of(
-              output, currentElement.getTimestamp(), currentWindow, currentElement.getPane()));
+              output, currentElement.getTimestamp(), currentWindow, currentElement.getPaneInfo()));
     }
 
     @Override
@@ -2003,7 +2003,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       // runners can provide proper timestamps.
       outputTo(
           mainOutputConsumer,
-          WindowedValues.of(output, timestamp, currentWindow, currentElement.getPane()));
+          WindowedValues.of(output, timestamp, currentWindow, currentElement.getPaneInfo()));
     }
 
     @Override
@@ -2027,7 +2027,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
       }
       outputTo(
-          consumer, WindowedValues.of(output, timestamp, currentWindow, currentElement.getPane()));
+          consumer,
+          WindowedValues.of(output, timestamp, currentWindow, currentElement.getPaneInfo()));
     }
 
     @Override
@@ -2084,7 +2085,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           currentWindow,
           currentElement.getTimestamp(),
           currentElement.getTimestamp(),
-          currentElement.getPane(),
+          currentElement.getPaneInfo(),
           timeDomain);
     }
 
@@ -2096,7 +2097,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           currentWindow,
           currentElement.getTimestamp(),
           currentElement.getTimestamp(),
-          currentElement.getPane());
+          currentElement.getPaneInfo());
     }
   }
 
@@ -2143,7 +2144,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                       size),
                   currentElement.getTimestamp(),
                   currentWindow,
-                  currentElement.getPane()));
+                  currentElement.getPaneInfo()));
     }
 
     @Override
@@ -2188,7 +2189,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                       size),
                   timestamp,
                   currentWindow,
-                  currentElement.getPane()));
+                  currentElement.getPaneInfo()));
     }
 
     @Override
@@ -2356,7 +2357,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                       size),
                   timestamp,
                   currentElement.getWindows(),
-                  currentElement.getPane()));
+                  currentElement.getPaneInfo()));
     }
 
     @Override
@@ -2452,7 +2453,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       outputTo(
           mainOutputConsumer,
           WindowedValues.of(
-              output, timestamp, currentElement.getWindows(), currentElement.getPane()));
+              output, timestamp, currentElement.getWindows(), currentElement.getPaneInfo()));
     }
 
     @Override
@@ -2476,7 +2477,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       outputTo(
           consumer,
           WindowedValues.of(
-              output, timestamp, currentElement.getWindows(), currentElement.getPane()));
+              output, timestamp, currentElement.getWindows(), currentElement.getPaneInfo()));
     }
 
     @Override
@@ -2786,7 +2787,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public PaneInfo pane() {
-      return currentElement.getPane();
+      return currentElement.getPaneInfo();
     }
 
     @Override
@@ -2826,7 +2827,10 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         outputTo(
             mainOutputConsumer,
             WindowedValues.of(
-                output, currentTimer.getHoldTimestamp(), currentWindow, currentTimer.getPane()));
+                output,
+                currentTimer.getHoldTimestamp(),
+                currentWindow,
+                currentTimer.getPaneInfo()));
       }
 
       @Override
@@ -2834,7 +2838,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         checkOnWindowExpirationTimestamp(timestamp);
         outputTo(
             mainOutputConsumer,
-            WindowedValues.of(output, timestamp, currentWindow, currentTimer.getPane()));
+            WindowedValues.of(output, timestamp, currentWindow, currentTimer.getPaneInfo()));
       }
 
       @Override
@@ -2857,7 +2861,10 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         outputTo(
             consumer,
             WindowedValues.of(
-                output, currentTimer.getHoldTimestamp(), currentWindow, currentTimer.getPane()));
+                output,
+                currentTimer.getHoldTimestamp(),
+                currentWindow,
+                currentTimer.getPaneInfo()));
       }
 
       @Override
@@ -2869,7 +2876,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
         }
         outputTo(
-            consumer, WindowedValues.of(output, timestamp, currentWindow, currentTimer.getPane()));
+            consumer,
+            WindowedValues.of(output, timestamp, currentWindow, currentTimer.getPaneInfo()));
       }
 
       @Override
@@ -3122,7 +3130,10 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         outputTo(
             mainOutputConsumer,
             WindowedValues.of(
-                output, currentTimer.getHoldTimestamp(), currentWindow, currentTimer.getPane()));
+                output,
+                currentTimer.getHoldTimestamp(),
+                currentWindow,
+                currentTimer.getPaneInfo()));
       }
 
       @Override
@@ -3130,7 +3141,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         checkTimerTimestamp(timestamp);
         outputTo(
             mainOutputConsumer,
-            WindowedValues.of(output, timestamp, currentWindow, currentTimer.getPane()));
+            WindowedValues.of(output, timestamp, currentWindow, currentTimer.getPaneInfo()));
       }
 
       @Override
@@ -3154,7 +3165,10 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         outputTo(
             consumer,
             WindowedValues.of(
-                output, currentTimer.getHoldTimestamp(), currentWindow, currentTimer.getPane()));
+                output,
+                currentTimer.getHoldTimestamp(),
+                currentWindow,
+                currentTimer.getPaneInfo()));
       }
 
       @Override
@@ -3166,7 +3180,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
         }
         outputTo(
-            consumer, WindowedValues.of(output, timestamp, currentWindow, currentTimer.getPane()));
+            consumer,
+            WindowedValues.of(output, timestamp, currentWindow, currentTimer.getPaneInfo()));
       }
 
       @Override
@@ -3409,7 +3424,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           currentWindow,
           currentTimer.getHoldTimestamp(),
           currentTimer.getFireTimestamp(),
-          currentTimer.getPane(),
+          currentTimer.getPaneInfo(),
           timeDomain);
     }
 
@@ -3421,7 +3436,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           currentWindow,
           currentTimer.getHoldTimestamp(),
           currentTimer.getFireTimestamp(),
-          currentTimer.getPane());
+          currentTimer.getPaneInfo());
     }
 
     @Override

@@ -61,12 +61,10 @@ import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
-import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
-import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
 import org.apache.beam.runners.core.metrics.ShortIdMap;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.Pipeline;
@@ -144,7 +142,6 @@ import org.joda.time.Instant;
 import org.joda.time.format.PeriodFormat;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.runners.Enclosed;
@@ -725,10 +722,11 @@ public class FnApiDoFnRunnerTest implements Serializable {
     }
 
     @Test
-    @Ignore("https://github.com/apache/beam/issues/20872")
     public void testUsingMetrics() throws Exception {
+      MetricsEnvironment.setMetricsSupported(true);
       MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
-      MetricsContainerImpl metricsContainer = metricsContainerRegistry.getUnboundContainer();
+      MetricsContainerImpl metricsContainer =
+          metricsContainerRegistry.getContainer(TEST_TRANSFORM_ID);
       Closeable closeable = MetricsEnvironment.scopedMetricsContainer(metricsContainer);
       FixedWindows windowFn = FixedWindows.of(Duration.millis(1L));
       IntervalWindow windowA = windowFn.assignWindow(new Instant(1L));
@@ -812,23 +810,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
       Iterables.getOnlyElement(context.getTearDownFunctions()).run();
       assertThat(mainOutputValues, empty());
 
-      List<MonitoringInfo> expected = new ArrayList<MonitoringInfo>();
+      List<MonitoringInfo> expected = new ArrayList<>();
       SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
-      builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
-      builder.setLabel(
-          MonitoringInfoConstants.Labels.PCOLLECTION, "Window.Into()/Window.Assign.out");
-      builder.setInt64SumValue(2);
-      expected.add(builder.build());
-
-      builder = new SimpleMonitoringInfoBuilder();
-      builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
-      builder.setLabel(
-          MonitoringInfoConstants.Labels.PCOLLECTION,
-          "pTransformId/ParMultiDo(TestSideInputIsAccessibleForDownstreamCallers).output");
-      builder.setInt64SumValue(2);
-      expected.add(builder.build());
-
-      builder = new SimpleMonitoringInfoBuilder();
       builder
           .setUrn(MonitoringInfoConstants.Urns.USER_SUM_INT64)
           .setLabel(
@@ -841,23 +824,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
       builder.setInt64SumValue(2);
       expected.add(builder.build());
 
-      builder = new SimpleMonitoringInfoBuilder();
-      builder.setUrn(MonitoringInfoConstants.Urns.SAMPLED_BYTE_SIZE);
-      builder.setLabel(
-          MonitoringInfoConstants.Labels.PCOLLECTION, "Window.Into()/Window.Assign.out");
-      builder.setInt64DistributionValue(DistributionData.create(4, 2, 2, 2));
-      expected.add(builder.build());
-
-      builder = new SimpleMonitoringInfoBuilder();
-      builder.setUrn(Urns.SAMPLED_BYTE_SIZE);
-      builder.setLabel(
-          MonitoringInfoConstants.Labels.PCOLLECTION,
-          "pTransformId/ParMultiDo(TestSideInputIsAccessibleForDownstreamCallers).output");
-      builder.setInt64DistributionValue(DistributionData.create(10, 2, 5, 5));
-      expected.add(builder.build());
-
       closeable.close();
-      List<MonitoringInfo> result = new ArrayList<MonitoringInfo>();
+      List<MonitoringInfo> result = new ArrayList<>();
       for (MonitoringInfo mi : metricsContainerRegistry.getMonitoringInfos()) {
         result.add(mi);
       }
@@ -910,6 +878,11 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
     @Test
     public void testTimers() throws Exception {
+      MetricsEnvironment.setMetricsSupported(true);
+      MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+      MetricsContainerImpl metricsContainer =
+          metricsContainerRegistry.getContainer(TEST_TRANSFORM_ID);
+      Closeable closeable = MetricsEnvironment.scopedMetricsContainer(metricsContainer);
       dateTimeProvider.setDateTimeFixed(10000L);
 
       Pipeline p = Pipeline.create();
@@ -1136,6 +1109,32 @@ public class FnApiDoFnRunnerTest implements Serializable {
                       .build())
               .getData(),
           fakeStateClient.getData());
+
+      List<MonitoringInfo> expected = new ArrayList<MonitoringInfo>();
+      SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
+      builder
+          .setUrn(MonitoringInfoConstants.Urns.USER_SUM_INT64)
+          .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, TestTimerfulDoFn.class.getName())
+          .setLabel(MonitoringInfoConstants.Labels.NAME, TestTimerfulDoFn.USER_COUNTER_ELEMS_NAME);
+      builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, TEST_TRANSFORM_ID);
+      builder.setInt64SumValue(4);
+      expected.add(builder.build());
+
+      builder = new SimpleMonitoringInfoBuilder();
+      builder
+          .setUrn(MonitoringInfoConstants.Urns.USER_SUM_INT64)
+          .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, TestTimerfulDoFn.class.getName())
+          .setLabel(MonitoringInfoConstants.Labels.NAME, TestTimerfulDoFn.USER_COUNTER_TIMERS_NAME);
+      builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, TEST_TRANSFORM_ID);
+      builder.setInt64SumValue(15);
+      expected.add(builder.build());
+
+      closeable.close();
+      List<MonitoringInfo> result = new ArrayList<MonitoringInfo>();
+      for (MonitoringInfo mi : metricsContainerRegistry.getMonitoringInfos()) {
+        result.add(mi);
+      }
+      assertThat(result, containsInAnyOrder(expected.toArray()));
     }
 
     private <K> org.apache.beam.sdk.util.construction.Timer<K> timerInGlobalWindow(
@@ -1175,6 +1174,13 @@ public class FnApiDoFnRunnerTest implements Serializable {
     }
 
     private static class TestTimerfulDoFn extends DoFn<KV<String, String>, String> {
+      public static final String USER_COUNTER_TIMERS_NAME = "userCountedTimers";
+      public static final String USER_COUNTER_ELEMS_NAME = "userCountedElements";
+
+      private final Counter counterTimers =
+          Metrics.counter(TestTimerfulDoFn.class, USER_COUNTER_TIMERS_NAME);
+      private final Counter counterElems =
+          Metrics.counter(TestTimerfulDoFn.class, USER_COUNTER_ELEMS_NAME);
 
       @StateId("bag")
       private final StateSpec<BagState<String>> bagStateSpec = StateSpecs.bag(StringUtf8Coder.of());
@@ -1200,6 +1206,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
           @TimerId("processing") Timer processingTimeTimer,
           @TimerFamily("event-family") TimerMap eventTimerFamily,
           @TimerFamily("processing-family") TimerMap processingTimerFamily) {
+        counterElems.inc();
         context.output(
             "key:"
                 + context.element().getKey()
@@ -1235,6 +1242,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
           @TimerId("processing") Timer processingTimeTimer,
           @TimerFamily("event-family") TimerMap eventTimerFamily,
           @TimerFamily("processing-family") TimerMap processingTimerFamily) {
+        counterTimers.inc();
+
         context.output("key:" + key + " event" + Iterables.toString(bagState.read()));
         bagState.add("event");
         eventTimeTimer
@@ -1259,6 +1268,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
           @TimerId("processing") Timer processingTimeTimer,
           @TimerFamily("event-family") TimerMap eventTimerFamily,
           @TimerFamily("processing-family") TimerMap processingTimerFamily) {
+        counterTimers.inc();
+
         context.output("key:" + key + " processing" + Iterables.toString(bagState.read()));
         bagState.add("processing");
 
@@ -1285,6 +1296,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
           @TimerId("processing") Timer processingTimeTimer,
           @TimerFamily("event-family") TimerMap eventTimerFamily,
           @TimerFamily("processing-family") TimerMap processingTimerFamily) {
+        counterTimers.inc();
+
         context.output("key:" + key + " event-family" + Iterables.toString(bagState.read()));
         bagState.add("event-family");
 
@@ -1310,6 +1323,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
           @TimerId("processing") Timer processingTimeTimer,
           @TimerFamily("event-family") TimerMap eventTimerFamily,
           @TimerFamily("processing-family") TimerMap processingTimerFamily) {
+        counterTimers.inc();
+
         context.output("key:" + key + " processing-family" + Iterables.toString(bagState.read()));
         bagState.add("processing-family");
 
@@ -2267,7 +2282,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
                     3.0),
                 firstValue.getTimestamp(),
                 window1,
-                firstValue.getPane()));
+                firstValue.getPaneInfo()));
         assertEquals(
             decode(inputCoder, residualRoot.getApplication().getElement()),
             WindowedValues.of(
@@ -2280,7 +2295,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
                     2.0),
                 firstValue.getTimestamp(),
                 window1,
-                firstValue.getPane()));
+                firstValue.getPaneInfo()));
         assertEquals(
             decode(inputCoder, residualRootForUnprocessedWindows.getApplication().getElement()),
             WindowedValues.of(
@@ -2293,7 +2308,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
                     5.0),
                 firstValue.getTimestamp(),
                 window2,
-                firstValue.getPane()));
+                firstValue.getPaneInfo()));
         splitListener.clear();
 
         // Check that before processing an element we don't report progress
@@ -2320,37 +2335,37 @@ public class FnApiDoFnRunnerTest implements Serializable {
                     "5:5",
                     GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(5)),
                     window1,
-                    firstValue.getPane()),
+                    firstValue.getPaneInfo()),
                 WindowedValues.of(
                     "5:6",
                     GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(6)),
                     window1,
-                    firstValue.getPane()),
+                    firstValue.getPaneInfo()),
                 WindowedValues.of(
                     "5:7",
                     GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(7)),
                     window1,
-                    firstValue.getPane()),
+                    firstValue.getPaneInfo()),
                 WindowedValues.of(
                     "2:0",
                     GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(0)),
                     window1,
-                    firstValue.getPane()),
+                    firstValue.getPaneInfo()),
                 WindowedValues.of(
                     "2:1",
                     GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(1)),
                     window1,
-                    firstValue.getPane()),
+                    firstValue.getPaneInfo()),
                 WindowedValues.of(
                     "2:0",
                     GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(0)),
                     window2,
-                    firstValue.getPane()),
+                    firstValue.getPaneInfo()),
                 WindowedValues.of(
                     "2:1",
                     GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(1)),
                     window2,
-                    firstValue.getPane())));
+                    firstValue.getPaneInfo())));
         assertTrue(splitListener.getPrimaryRoots().isEmpty());
         assertTrue(splitListener.getResidualRoots().isEmpty());
         mainOutputValues.clear();
@@ -2412,22 +2427,22 @@ public class FnApiDoFnRunnerTest implements Serializable {
                     "7:0",
                     GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(0)),
                     window1,
-                    splitValue.getPane()),
+                    splitValue.getPaneInfo()),
                 WindowedValues.of(
                     "7:1",
                     GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(1)),
                     window1,
-                    splitValue.getPane()),
+                    splitValue.getPaneInfo()),
                 WindowedValues.of(
                     "7:2",
                     GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(2)),
                     window1,
-                    splitValue.getPane()),
+                    splitValue.getPaneInfo()),
                 WindowedValues.of(
                     "7:3",
                     GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.millis(3)),
                     window1,
-                    splitValue.getPane())));
+                    splitValue.getPaneInfo())));
 
         BundleApplication primaryRoot = Iterables.getOnlyElement(trySplitResult.getPrimaryRoots());
         assertEquals(2, trySplitResult.getResidualRoots().size());
@@ -2501,7 +2516,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
                     5.0),
                 splitValue.getTimestamp(),
                 window2,
-                splitValue.getPane()),
+                splitValue.getPaneInfo()),
             inputCoder.decode(
                 residualRootInUnprocessedWindows.getApplication().getElement().newInput()));
 
@@ -2717,14 +2732,14 @@ public class FnApiDoFnRunnerTest implements Serializable {
                       3.0),
                   splitValue.getTimestamp(),
                   window1,
-                  splitValue.getPane()),
+                  splitValue.getPaneInfo()),
               WindowedValues.of(
                   KV.of(
                       KV.of("7", KV.of(new OffsetRange(0, 3), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                       3.0),
                   splitValue.getTimestamp(),
                   window2,
-                  splitValue.getPane())));
+                  splitValue.getPaneInfo())));
 
       SplitResult expectedElementSplit = createSplitResult(0);
       BundleApplication expectedElementSplitPrimary =
@@ -2736,7 +2751,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
                   KV.of("7", KV.of(new OffsetRange(0, 6), GlobalWindow.TIMESTAMP_MIN_VALUE)), 6.0),
               splitValue.getTimestamp(),
               window1,
-              splitValue.getPane()),
+              splitValue.getPaneInfo()),
           primaryBytes);
       BundleApplication expectedWindowedPrimary =
           BundleApplication.newBuilder()
@@ -2753,7 +2768,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
                   KV.of("7", KV.of(new OffsetRange(0, 6), GlobalWindow.TIMESTAMP_MIN_VALUE)), 6.0),
               splitValue.getTimestamp(),
               window3,
-              splitValue.getPane()),
+              splitValue.getPaneInfo()),
           residualBytes);
       DelayedBundleApplication expectedWindowedResidual =
           DelayedBundleApplication.newBuilder()
@@ -3027,28 +3042,28 @@ public class FnApiDoFnRunnerTest implements Serializable {
                       2.0),
                   firstValue.getTimestamp(),
                   window1,
-                  firstValue.getPane()),
+                  firstValue.getPaneInfo()),
               WindowedValues.of(
                   KV.of(
                       KV.of("5", KV.of(new OffsetRange(0, 2), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                       2.0),
                   firstValue.getTimestamp(),
                   window2,
-                  firstValue.getPane()),
+                  firstValue.getPaneInfo()),
               WindowedValues.of(
                   KV.of(
                       KV.of("2", KV.of(new OffsetRange(0, 1), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                       1.0),
                   firstValue.getTimestamp(),
                   window1,
-                  firstValue.getPane()),
+                  firstValue.getPaneInfo()),
               WindowedValues.of(
                   KV.of(
                       KV.of("2", KV.of(new OffsetRange(0, 1), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                       1.0),
                   firstValue.getTimestamp(),
                   window2,
-                  firstValue.getPane())));
+                  firstValue.getPaneInfo())));
       mainOutputValues.clear();
 
       assertTrue(context.getFinishBundleFunctions().isEmpty());
@@ -3150,14 +3165,14 @@ public class FnApiDoFnRunnerTest implements Serializable {
                       2.0),
                   firstValue.getTimestamp(),
                   ImmutableList.of(window1, window2),
-                  firstValue.getPane()),
+                  firstValue.getPaneInfo()),
               WindowedValues.of(
                   KV.of(
                       KV.of("2", KV.of(new OffsetRange(0, 1), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                       1.0),
                   firstValue.getTimestamp(),
                   ImmutableList.of(window1, window2),
-                  firstValue.getPane())));
+                  firstValue.getPaneInfo())));
       mainOutputValues.clear();
 
       assertTrue(context.getFinishBundleFunctions().isEmpty());
@@ -3340,14 +3355,14 @@ public class FnApiDoFnRunnerTest implements Serializable {
                   KV.of(primaryRestriction, currentWatermarkEstimatorState)),
               currentElement.getTimestamp(),
               window,
-              currentElement.getPane()),
+              currentElement.getPaneInfo()),
           WindowedValues.of(
               KV.of(
                   currentElement.getValue(),
                   KV.of(residualRestriction, watermarkAndState.getValue())),
               currentElement.getTimestamp(),
               window,
-              currentElement.getPane()));
+              currentElement.getPaneInfo()));
     }
 
     private KV<WindowedValue, WindowedValue> createSplitAcrossWindows(
@@ -3361,7 +3376,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
                       KV.of(currentRestriction, currentWatermarkEstimatorState)),
                   currentElement.getTimestamp(),
                   primaryWindows,
-                  currentElement.getPane()),
+                  currentElement.getPaneInfo()),
           residualWindows.isEmpty()
               ? null
               : WindowedValues.of(
@@ -3370,7 +3385,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
                       KV.of(currentRestriction, currentWatermarkEstimatorState)),
                   currentElement.getTimestamp(),
                   residualWindows,
-                  currentElement.getPane()));
+                  currentElement.getPaneInfo()));
     }
 
     private KV<WindowedValue, WindowedValue> createSplitWithSizeInWindow(
@@ -3384,7 +3399,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
                   (double) (primaryRestriction.getTo() - primaryRestriction.getFrom())),
               currentElement.getTimestamp(),
               window,
-              currentElement.getPane()),
+              currentElement.getPaneInfo()),
           WindowedValues.of(
               KV.of(
                   KV.of(
@@ -3393,7 +3408,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
                   (double) (residualRestriction.getTo() - residualRestriction.getFrom())),
               currentElement.getTimestamp(),
               window,
-              currentElement.getPane()));
+              currentElement.getPaneInfo()));
     }
 
     private KV<WindowedValue, WindowedValue> createSplitWithSizeAcrossWindows(
@@ -3409,7 +3424,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
                       (double) (currentRestriction.getTo() - currentRestriction.getFrom())),
                   currentElement.getTimestamp(),
                   primaryWindows,
-                  currentElement.getPane()),
+                  currentElement.getPaneInfo()),
           residualWindows.isEmpty()
               ? null
               : WindowedValues.of(
@@ -3420,7 +3435,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
                       (double) (currentRestriction.getTo() - currentRestriction.getFrom())),
                   currentElement.getTimestamp(),
                   residualWindows,
-                  currentElement.getPane()));
+                  currentElement.getPaneInfo()));
     }
 
     @Before

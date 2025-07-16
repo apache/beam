@@ -215,8 +215,8 @@ public class ReshuffleTest implements Serializable {
                     afterReshuffleTimestamp,
                     equalTo(originalTimestamp));
 
-                PaneInfo originalPaneInfo = elem.getValue().getPane();
-                PaneInfo afterReshufflePaneInfo = elem.getPane();
+                PaneInfo originalPaneInfo = elem.getValue().getPaneInfo();
+                PaneInfo afterReshufflePaneInfo = elem.getPaneInfo();
                 assertThat(
                     "Reshuffle did not preserve pane info for " + elem,
                     afterReshufflePaneInfo,

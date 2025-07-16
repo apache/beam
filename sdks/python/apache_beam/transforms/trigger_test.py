@@ -700,7 +700,9 @@ class TriggerPipelineTest(unittest.TestCase):
               }.items())))
 
   def test_always(self):
-    with TestPipeline() as p:
+    # Pin to FnApiRunner since portable runner could trigger differently if
+    # using bundle sizes of greater than 1.
+    with TestPipeline('FnApiRunner') as p:
 
       def construct_timestamped(k, t):
         return TimestampedValue((k, t), t)
@@ -1350,7 +1352,12 @@ class BatchTranscriptTest(TranscriptTest):
           if IntervalWindow(*pane['window']) not in merged_away
       ]
 
-    with TestPipeline() as p:
+    # TODO(https://github.com/apache/beam/issues/34549): This test relies on
+    # the correct error message being reported, but because of how it is
+    # structured Prism often fails on splitting at the same time as it fails
+    # on an element, leading to good logs but potentially inconsistent error
+    # messages. Its not a bug, but it does mess with regex matching.
+    with TestPipeline('FnApiRunner') as p:
       input_pc = (
           p
           | beam.Create(inputs)

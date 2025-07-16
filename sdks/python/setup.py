@@ -97,12 +97,6 @@ PACKAGE_DOWNLOAD_URL = 'https://pypi.python.org/pypi/apache-beam'
 PACKAGE_AUTHOR = 'Apache Software Foundation'
 PACKAGE_EMAIL = 'dev@beam.apache.org'
 PACKAGE_KEYWORDS = 'apache beam'
-PACKAGE_LONG_DESCRIPTION = '''
-Apache Beam is a unified programming model for both batch and streaming
-data processing, enabling efficient execution across diverse distributed
-execution engines and providing extensibility points for connecting to
-different technologies and user communities.
-'''
 
 RECOMMENDED_MIN_PIP_VERSION = '19.3.0'
 try:
@@ -321,13 +315,26 @@ if __name__ == '__main__':
     ])
   else:
     extensions = []
+
+  try:
+    long_description = ((Path(__file__).parent /
+                         "README.md").read_text(encoding='utf-8'))
+  except FileNotFoundError:
+    long_description = (
+        'Apache Beam is a unified programming model for both batch and '
+        'streaming data processing, enabling efficient execution across '
+        'diverse distributed execution engines and providing extensibility '
+        'points for connecting to different technologies and user '
+        'communities.')
+
   # Keep all dependencies inlined in the setup call, otherwise Dependabot won't
   # be able to parse it.
   setuptools.setup(
       name=PACKAGE_NAME,
       version=PACKAGE_VERSION,
       description=PACKAGE_DESCRIPTION,
-      long_description=PACKAGE_LONG_DESCRIPTION,
+      long_description=long_description,
+      long_description_content_type='text/markdown',
       url=PACKAGE_URL,
       download_url=PACKAGE_DOWNLOAD_URL,
       author=PACKAGE_AUTHOR,
@@ -389,11 +396,12 @@ if __name__ == '__main__':
           'pytz>=2018.3',
           'redis>=5.0.0,<6',
           'regex>=2020.6.8',
-          'requests>=2.24.0,<3.0.0',
+          'requests>=2.32.4,<3.0.0',
           'sortedcontainers>=2.4.0',
           'typing-extensions>=3.7.0',
           'zstandard>=0.18.0,<1',
           'pyyaml>=3.12,<7.0.0',
+          'pymilvus>=2.5.10,<3.0.0',
           # Dynamic dependencies must be specified in a separate list, otherwise
           # Dependabot won't be able to parse the main list. Any dynamic
           # dependencies will not receive updates from Dependabot.
@@ -412,6 +420,7 @@ if __name__ == '__main__':
               'virtualenv-clone>=0.5,<1.0',
           ],
           'test': [
+              'cloud-sql-python-connector[pg8000]>=1.0.0,<2.0.0',
               'docstring-parser>=0.15,<1.0',
               'freezegun>=0.3.12',
               'jinja2>=3.0,<3.2',
@@ -426,17 +435,17 @@ if __name__ == '__main__':
               'pytest-xdist>=2.5.0,<4',
               'pytest-timeout>=2.1.0,<3',
               'scikit-learn>=0.20.0',
-              'setuptools',
               'sqlalchemy>=1.3,<3.0',
               'psycopg2-binary>=2.8.5,<2.9.10; python_version <= "3.9"',
               'psycopg2-binary>=2.8.5,<3.0; python_version >= "3.10"',
-              'testcontainers[mysql,kafka]>=3.0.3,<4.0.0',
+              'testcontainers[mysql,kafka,milvus]>=4.0.0,<5.0.0',
               'cryptography>=41.0.2',
               'hypothesis>5.0.0,<7.0.0',
               'virtualenv-clone>=0.5,<1.0',
               'mysql-connector-python>=9.3.0',
               'python-tds>=1.16.1',
-              'sqlalchemy-pytds>=1.0.2'
+              'sqlalchemy-pytds>=1.0.2',
+              'oracledb>=3.1.1'
           ],
           'gcp': [
               'cachetools>=3.1.0,<6',
@@ -562,12 +571,12 @@ if __name__ == '__main__':
           # in https://github.com/apache/beam/blob/master/sdks/python/tox.ini
           # For more info, see
           # https://docs.google.com/document/d/1c84Gc-cZRCfrU8f7kWGsNR2o8oSRjCM-dGHO9KvPWPw/edit?usp=sharing
-          'torch': ['torch<=1.13.0,<2.1.0'],
-          'tensorflow': ['tensorflow>=2.12rc1,<2.13'],
+          'torch': ['torch>=1.9.0,<2.8.0'],
+          'tensorflow': ['tensorflow>=2.12rc1,<2.17'],
           'transformers': [
               'transformers>=4.28.0,<4.49.0',
-              'tensorflow==2.12.0',
-              'torch>=1.9.0,<2.1.0'
+              'tensorflow>=2.12.0',
+              'torch>=1.9.0'
           ],
           'tft': ['tensorflow_transform>=1.14.0,<1.15.0'],
           'onnx': [

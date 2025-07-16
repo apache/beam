@@ -75,7 +75,7 @@ public class ViewP extends AbstractProcessor {
       values.merge(
           window,
           new TimestampAndValues(
-              windowedValue.getPane(), windowedValue.getTimestamp(), windowedValue.getValue()),
+              windowedValue.getPaneInfo(), windowedValue.getTimestamp(), windowedValue.getValue()),
           (o, n) -> o.merge(timestampCombiner, n));
     }
 
@@ -95,7 +95,7 @@ public class ViewP extends AbstractProcessor {
                                 e.getValue().values,
                                 e.getValue().timestamp,
                                 Collections.singleton(e.getKey()),
-                                e.getValue().pane);
+                                e.getValue().paneInfo);
                         return Utils.encode(outputValue, outputCoder);
                       }));
     }
@@ -113,10 +113,10 @@ public class ViewP extends AbstractProcessor {
   private static class TimestampAndValues {
     private final List<Object> values = new ArrayList<>();
     private Instant timestamp;
-    private PaneInfo pane;
+    private PaneInfo paneInfo;
 
-    TimestampAndValues(PaneInfo pane, Instant timestamp, Object value) {
-      this.pane = pane;
+    TimestampAndValues(PaneInfo paneInfo, Instant timestamp, Object value) {
+      this.paneInfo = paneInfo;
       this.timestamp = timestamp;
       this.values.add(value);
     }
@@ -126,7 +126,7 @@ public class ViewP extends AbstractProcessor {
     }
 
     TimestampAndValues merge(TimestampCombiner timestampCombiner, TimestampAndValues other) {
-      pane = other.pane;
+      paneInfo = other.paneInfo;
       timestamp = timestampCombiner.combine(timestamp, other.timestamp);
       values.addAll(other.values);
       return this;

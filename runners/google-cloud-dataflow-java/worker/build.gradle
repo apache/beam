@@ -90,7 +90,7 @@ applyJavaNature(
                 "org/slf4j/jul/**"
         ],
         generatedClassPatterns: [
-                /^org\.apache\.beam\.runners\.dataflow\.worker\.windmill.*/,
+                /^org\.apache\.beam\.runners\.dataflow\.worker\.windmill\..*AutoBuilder.*/,
                 /^org\.apache\.beam\.runners\.dataflow\.worker\..*AutoBuilder.*/,
         ],
         shadowClosure: {

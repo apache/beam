@@ -177,24 +177,24 @@ public class WindowEvaluatorFactoryTest {
                 valueInIntervalWindow.getValue(),
                 valueInIntervalWindow.getTimestamp(),
                 ImmutableSet.of(wMinus1, wMinusSlide),
-                valueInIntervalWindow.getPane()),
+                valueInIntervalWindow.getPaneInfo()),
 
             // Value in three windows mapped to three windowed values in the same multiple windows
             isWindowedValue(
                 valueInGlobalAndTwoIntervalWindows.getValue(),
                 valueInGlobalAndTwoIntervalWindows.getTimestamp(),
                 ImmutableSet.of(w1, w2),
-                valueInGlobalAndTwoIntervalWindows.getPane()),
+                valueInGlobalAndTwoIntervalWindows.getPaneInfo()),
             isWindowedValue(
                 valueInGlobalAndTwoIntervalWindows.getValue(),
                 valueInGlobalAndTwoIntervalWindows.getTimestamp(),
                 ImmutableSet.of(w1, w2),
-                valueInGlobalAndTwoIntervalWindows.getPane()),
+                valueInGlobalAndTwoIntervalWindows.getPaneInfo()),
             isWindowedValue(
                 valueInGlobalAndTwoIntervalWindows.getValue(),
                 valueInGlobalAndTwoIntervalWindows.getTimestamp(),
                 ImmutableSet.of(w1, w2),
-                valueInGlobalAndTwoIntervalWindows.getPane())));
+                valueInGlobalAndTwoIntervalWindows.getPaneInfo())));
   }
 
   @Test
@@ -220,14 +220,14 @@ public class WindowEvaluatorFactoryTest {
                 new IntervalWindow(
                     valueInGlobalWindow.getTimestamp(),
                     valueInGlobalWindow.getTimestamp().plus(Duration.millis(1L))),
-                valueInGlobalWindow.getPane()),
+                valueInGlobalWindow.getPaneInfo()),
 
             // Value in interval window mapped to the same window
             isWindowedValue(
                 valueInIntervalWindow.getValue(),
                 valueInIntervalWindow.getTimestamp(),
                 valueInIntervalWindow.getWindows(),
-                valueInIntervalWindow.getPane()),
+                valueInIntervalWindow.getPaneInfo()),
 
             // Value in global window and two interval windows exploded and mapped in both ways
             isSingleWindowedValue(
@@ -236,17 +236,17 @@ public class WindowEvaluatorFactoryTest {
                 new IntervalWindow(
                     valueInGlobalAndTwoIntervalWindows.getTimestamp(),
                     valueInGlobalAndTwoIntervalWindows.getTimestamp().plus(Duration.millis(1L))),
-                valueInGlobalAndTwoIntervalWindows.getPane()),
+                valueInGlobalAndTwoIntervalWindows.getPaneInfo()),
             isSingleWindowedValue(
                 valueInGlobalAndTwoIntervalWindows.getValue(),
                 valueInGlobalAndTwoIntervalWindows.getTimestamp(),
                 intervalWindow1,
-                valueInGlobalAndTwoIntervalWindows.getPane()),
+                valueInGlobalAndTwoIntervalWindows.getPaneInfo()),
             isSingleWindowedValue(
                 valueInGlobalAndTwoIntervalWindows.getValue(),
                 valueInGlobalAndTwoIntervalWindows.getTimestamp(),
                 intervalWindow2,
-                valueInGlobalAndTwoIntervalWindows.getPane())));
+                valueInGlobalAndTwoIntervalWindows.getPaneInfo())));
   }
 
   private CommittedBundle<Long> createInputBundle() {

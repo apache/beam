@@ -447,8 +447,8 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
         validate=False,
         temp_file_format=bigquery_tools.FileFormat.JSON)
 
-    # Need to test this with the DirectRunner to avoid serializing mocks
-    with TestPipeline('DirectRunner') as p:
+    # Need to test this with the FnApiRunner to avoid serializing mocks
+    with TestPipeline('FnApiRunner') as p:
       outputs = p | beam.Create(_ELEMENTS) | transform
 
       dest_files = outputs[bqfl.BigQueryBatchFileLoads.DESTINATION_FILE_PAIRS]
@@ -541,7 +541,10 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
         validate=False,
         load_job_project_id='loadJobProject')
 
-    with TestPipeline('DirectRunner') as p:
+    # TODO(https://github.com/apache/beam/issues/34549): This test relies on
+    # lineage metrics which Prism doesn't seem to handle correctly. Defaulting
+    # to FnApiRunner instead.
+    with TestPipeline('FnApiRunner') as p:
       outputs = p | beam.Create(_ELEMENTS) | transform
       jobs = outputs[bqfl.BigQueryBatchFileLoads.DESTINATION_JOBID_PAIRS] \
              | "GetJobs" >> beam.Map(lambda x: x[1])
@@ -571,7 +574,10 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     bq_client.jobs.Insert.return_value = result_job
     bq_client.tables.Delete.return_value = None
 
-    with TestPipeline('DirectRunner') as p:
+    # TODO(https://github.com/apache/beam/issues/34549): This test relies on
+    # lineage metrics which Prism doesn't seem to handle correctly. Defaulting
+    # to FnApiRunner instead.
+    with TestPipeline('FnApiRunner') as p:
       outputs = (
           p
           | beam.Create(_ELEMENTS, reshuffle=False)
@@ -709,7 +715,10 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
     bq_client.jobs.Insert.return_value = result_job
     bq_client.tables.Delete.return_value = None
 
-    with TestPipeline('DirectRunner') as p:
+    # TODO(https://github.com/apache/beam/issues/34549): This test relies on
+    # lineage metrics which Prism doesn't seem to handle correctly. Defaulting
+    # to FnApiRunner instead.
+    with TestPipeline('FnApiRunner') as p:
       outputs = (
           p
           | beam.Create(_ELEMENTS, reshuffle=False)

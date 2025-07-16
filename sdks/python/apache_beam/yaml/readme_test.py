@@ -260,7 +260,9 @@ def create_test_method(test_type, test_name, test_yaml):
         with mock.patch(
             'apache_beam.yaml.yaml_provider.ExternalProvider.create_transform',
             lambda *args, **kwargs: _Fakes.SomeTransform(*args, **kwargs)):
-          p = beam.Pipeline(options=PipelineOptions(**options))
+          # Uses the FnApiRunner to ensure errors are mocked/passed through
+          # correctly
+          p = beam.Pipeline('FnApiRunner', options=PipelineOptions(**options))
           yaml_transform.expand_pipeline(
               p, modified_yaml, yaml_provider.merge_providers([test_provider]))
       if test_type == 'BUILD':

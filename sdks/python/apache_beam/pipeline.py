@@ -766,6 +766,12 @@ class Pipeline(HasDisplayData):
             'streaming jobs.' % full_label)
     self.applied_labels.add(full_label)
 
+    if pvalueish is None:
+      full_label = self._current_transform().full_label
+      raise TypeCheckError(
+          f'Transform "{full_label}" was applied to the output of '
+          f'an object of type None.')
+
     pvalueish, inputs = transform._extract_input_pvalues(pvalueish)
     try:
       if not isinstance(inputs, dict):
@@ -805,9 +811,6 @@ class Pipeline(HasDisplayData):
       self._assert_not_applying_PDone(pvalueish, transform)
 
       pvalueish_result = self.runner.apply(transform, pvalueish, self._options)
-      if pvalueish_result is None:
-        pvalueish_result = pvalue.PDone(self)
-        pvalueish_result.producer = current
 
       if type_options is not None and type_options.pipeline_type_check:
         transform.type_check_outputs(pvalueish_result)
@@ -1232,6 +1235,8 @@ class AppliedPTransform(object):
 
     self.annotations = annotations
 
+    self.display_data = {}
+
   @property
   def inputs(self):
     return tuple(self.main_inputs.values())
@@ -1435,6 +1440,11 @@ class AppliedPTransform(object):
         (transform_urn not in Pipeline.runner_implemented_transforms())):
       environment_id = context.get_environment_id_for_resource_hints(
           self.resource_hints)
+    if self.transform is not None:
+      display_data = DisplayData.create_from(
+          self.transform, extra_items=self.display_data)
+    else:
+      display_data = None
 
     return beam_runner_api_pb2.PTransform(
         unique_name=self.full_label,
@@ -1454,8 +1464,7 @@ class AppliedPTransform(object):
         environment_id=environment_id,
         annotations=self.annotations,
         # TODO(https://github.com/apache/beam/issues/18012): Add display_data.
-        display_data=DisplayData.create_from(self.transform).to_proto()
-        if self.transform else None)
+        display_data=display_data.to_proto() if display_data else None)
 
   @staticmethod
   def from_runner_api(
