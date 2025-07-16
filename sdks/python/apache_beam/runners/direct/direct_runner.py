@@ -195,8 +195,6 @@ class SwitchingDirectRunner(PipelineRunner):
     # Use BundleBasedDirectRunner if other runners are missing needed features.
     runner = BundleBasedDirectRunner()
 
-
-
     # Check whether all transforms used in the pipeline are supported by the
     # FnApiRunner, and the pipeline was not meant to be run as streaming.
     if _FnApiRunnerSupportVisitor().accept(pipeline):
