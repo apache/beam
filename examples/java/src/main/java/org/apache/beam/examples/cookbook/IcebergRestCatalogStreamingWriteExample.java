@@ -18,7 +18,7 @@
 package org.apache.beam.examples.cookbook;
 
 import com.google.auth.oauth2.GoogleCredentials;
-import com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
