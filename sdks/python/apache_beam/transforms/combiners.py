@@ -991,6 +991,11 @@ class LatestCombineFn(core.CombineFn):
 
 class LiftedCombinePerKey(core.PTransform):
   """An implementation of CombinePerKey that does mapper-side pre-combining.
+
+  This shouldn't generally be used directly except for use-cases where a
+  runner doesn't support CombinePerKey. This implementation manually implements
+  a CombinePerKey using ParDos, as opposed to runner implementations which may
+  use a more efficient implementation.
   """
   def __init__(self, combine_fn, args, kwargs):
     side_inputs = _pack_side_inputs(args, kwargs)
