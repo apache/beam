@@ -100,9 +100,9 @@ pipelines:
             project: 'apache-beam-testing'
             instance: 'bt-write-tests'
             table: 'test-table'
-      options:
-        project: "apache-beam-testing"
-        temp_location: "{TEMP_DIR}"
+#      options:
+#        project: "apache-beam-testing"
+#        temp_location: "{TEMP_DIR}"
   - pipeline:
       type: chain
       transforms:

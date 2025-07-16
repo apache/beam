@@ -470,117 +470,8 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
         RowMutation.create(tableId, "row-final-check")
             .setCell(COLUMN_FAMILY_NAME_1, "col_final_1", "val_final_1"));
 
-    // --- Define Schemas for various mutation types ---
+    // --- Define Schema for various mutation types ---
 
-    // Schema for SetCell
-    Schema setCellSchema =
-        Schema.builder()
-            .addByteArrayField("key")
-            .addStringField("type")
-            .addByteArrayField("value")
-            .addByteArrayField("column_qualifier")
-            .addByteArrayField("family_name")
-            .addField("timestamp_micros", FieldType.INT64)
-            .build();
-
-    // Schema for DeleteFromColumn
-    Schema deleteFromColumnSchema =
-        Schema.builder()
-            .addByteArrayField("key")
-            .addStringField("type")
-            .addByteArrayField("column_qualifier")
-            .addByteArrayField("family_name")
-            .build();
-
-    // Schema for DeleteFromColumn with Timestamp Range
-    Schema deleteFromColumnTsSchema =
-        Schema.builder()
-            .addByteArrayField("key")
-            .addStringField("type")
-            .addByteArrayField("column_qualifier")
-            .addByteArrayField("family_name")
-            .addField("start_timestamp_micros", FieldType.INT64)
-            .addField("end_timestamp_micros", FieldType.INT64)
-            .build();
-
-    // Schema for DeleteFromFamily
-    Schema deleteFromFamilySchema =
-        Schema.builder()
-            .addByteArrayField("key")
-            .addStringField("type")
-            .addByteArrayField("family_name")
-            .build();
-
-    // Schema for DeleteFromRow
-    Schema deleteFromRowSchema =
-        Schema.builder().addByteArrayField("key").addStringField("type").build();
-
-    // --- Create a list of mutation Rows ---
-    List<Row> mutations = new ArrayList<>();
-
-    // 1. SetCell (Update an existing cell, add a new cell)
-    // Update "row-setcell", col_initial_1
-    mutations.add(
-        Row.withSchema(setCellSchema)
-            .withFieldValue("key", "row-setcell".getBytes(StandardCharsets.UTF_8))
-            .withFieldValue("type", "SetCell")
-            .withFieldValue("value", "updated_val_1".getBytes(StandardCharsets.UTF_8))
-            .withFieldValue("column_qualifier", "col_initial_1".getBytes(StandardCharsets.UTF_8))
-            .withFieldValue("family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8))
-            .withFieldValue("timestamp_micros", 3000L)
-            .build());
-    // Add new cell to "row-setcell"
-    mutations.add(
-        Row.withSchema(setCellSchema)
-            .withFieldValue("key", "row-setcell".getBytes(StandardCharsets.UTF_8))
-            .withFieldValue("type", "SetCell")
-            .withFieldValue("value", "new_col_val".getBytes(StandardCharsets.UTF_8))
-            .withFieldValue("column_qualifier", "new_col_A".getBytes(StandardCharsets.UTF_8))
-            .withFieldValue("family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8))
-            .withFieldValue("timestamp_micros", 4000L)
-            .build());
-
-    // 2. DeleteFromColumn
-    // Delete "col_to_delete_A" from "row-delete-col"
-    mutations.add(
-        Row.withSchema(deleteFromColumnSchema)
-            .withFieldValue("key", "row-delete-col".getBytes(StandardCharsets.UTF_8))
-            .withFieldValue("type", "DeleteFromColumn")
-            .withFieldValue("column_qualifier", "col_to_delete_A".getBytes(StandardCharsets.UTF_8))
-            .withFieldValue("family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8))
-            .build());
-
-    // 3. DeleteFromColumn with Timestamp Range
-    // Delete "ts_col" with timestamp 1000 from "row-delete-col-ts"
-    mutations.add(
-        Row.withSchema(deleteFromColumnTsSchema)
-            .withFieldValue("key", "row-delete-col-ts".getBytes(StandardCharsets.UTF_8))
-            .withFieldValue("type", "DeleteFromColumn")
-            .withFieldValue("column_qualifier", "ts_col".getBytes(StandardCharsets.UTF_8))
-            .withFieldValue("family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8))
-            .withFieldValue("start_timestamp_micros", 999L) // Inclusive
-            .withFieldValue("end_timestamp_micros", 1001L) // Exclusive
-            .build());
-
-    // 4. DeleteFromFamily
-    // Delete COLUMN_FAMILY_NAME_1 from "row-delete-family"
-    mutations.add(
-        Row.withSchema(deleteFromFamilySchema)
-            .withFieldValue("key", "row-delete-family".getBytes(StandardCharsets.UTF_8))
-            .withFieldValue("type", "DeleteFromFamily")
-            .withFieldValue("family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8))
-            .build());
-
-    // 5. DeleteFromRow
-    // Delete "row-delete-row"
-    mutations.add(
-        Row.withSchema(deleteFromRowSchema)
-            .withFieldValue("key", "row-delete-row".getBytes(StandardCharsets.UTF_8))
-            .withFieldValue("type", "DeleteFromRow")
-            .build());
-
-    // --- Apply the mutations ---
-    // Define the comprehensive "Uber-Schema"
     Schema uberSchema =
         Schema.builder()
             .addByteArrayField("key") // Key is always present and non-null
@@ -601,6 +492,71 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
                 "end_timestamp_micros", FieldType.INT64) // Used by DeleteFromColumn with range
             .build();
 
+    // --- Create a list of mutation Rows ---
+    List<Row> mutations = new ArrayList<>();
+
+    // 1. SetCell (Update an existing cell, add a new cell)
+    // Update "row-setcell", col_initial_1
+    mutations.add(
+        Row.withSchema(uberSchema)
+            .withFieldValue("key", "row-setcell".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("type", "SetCell")
+            .withFieldValue("value", "updated_val_1".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("column_qualifier", "col_initial_1".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("timestamp_micros", 3000L)
+            .build());
+    // Add new cell to "row-setcell"
+    mutations.add(
+        Row.withSchema(uberSchema)
+            .withFieldValue("key", "row-setcell".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("type", "SetCell")
+            .withFieldValue("value", "new_col_val".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("column_qualifier", "new_col_A".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("timestamp_micros", 4000L)
+            .build());
+
+    // 2. DeleteFromColumn
+    // Delete "col_to_delete_A" from "row-delete-col"
+    mutations.add(
+        Row.withSchema(uberSchema)
+            .withFieldValue("key", "row-delete-col".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("type", "DeleteFromColumn")
+            .withFieldValue("column_qualifier", "col_to_delete_A".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8))
+            .build());
+
+    // 3. DeleteFromColumn with Timestamp Range
+    // Delete "ts_col" with timestamp 1000 from "row-delete-col-ts"
+    mutations.add(
+        Row.withSchema(uberSchema)
+            .withFieldValue("key", "row-delete-col-ts".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("type", "DeleteFromColumn")
+            .withFieldValue("column_qualifier", "ts_col".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("start_timestamp_micros", 999L) // Inclusive
+            .withFieldValue("end_timestamp_micros", 1001L) // Exclusive
+            .build());
+
+    // 4. DeleteFromFamily
+    // Delete COLUMN_FAMILY_NAME_1 from "row-delete-family"
+    mutations.add(
+        Row.withSchema(uberSchema)
+            .withFieldValue("key", "row-delete-family".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("type", "DeleteFromFamily")
+            .withFieldValue("family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8))
+            .build());
+
+    // 5. DeleteFromRow
+    // Delete "row-delete-row"
+    mutations.add(
+        Row.withSchema(uberSchema)
+            .withFieldValue("key", "row-delete-row".getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("type", "DeleteFromRow")
+            .build());
+
+    // --- Apply the mutations --
     PCollection<Row> inputPCollection = p.apply(Create.of(mutations));
     inputPCollection.setRowSchema(uberSchema); // Set the comprehensive schema for the PCollection
 

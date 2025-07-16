@@ -18,11 +18,15 @@
 package org.apache.beam.sdk.io.gcp.bigtable;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
+import autovalue.shaded.org.checkerframework.checker.nullness.qual.Nullable;
+import com.google.api.gax.rpc.InvalidArgumentException;
 import com.google.auto.service.AutoService;
 import com.google.bigtable.v2.Mutation;
 import com.google.bigtable.v2.TimestampRange;
 import com.google.protobuf.ByteString;
+import com.sun.jdi.request.InvalidRequestStateException;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableWriteSchemaTransformProvider.BigtableWriteSchemaTransformConfiguration;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
@@ -100,6 +104,13 @@ public class BigtableSimpleWriteSchemaTransformProvider
                 MapElements.via(
                     new BigtableWriteSchemaTransformProvider.GetMutationsFromBeamRow()));
       } else if (inputSchema.hasField("type")) {
+        // validate early
+        if (inputSchema.hasField("column_qualifier")) {
+          Schema.FieldType columnQualifierType =
+          inputSchema.getField("column_qualifier").getType();
+          checkState(columnQualifierType.equals(Schema.FieldType.STRING) ||
+                    columnQualifierType.equals(Schema.FieldType.BYTES), "column_qualifier should be of type STRING or BYTES");
+        }
         // new schema inputs get sent to the new transform provider mutation function
         bigtableMutations = changeMutationInput(input);
       } else {
@@ -107,7 +118,7 @@ public class BigtableSimpleWriteSchemaTransformProvider
             "Inputted Schema is Invalid; the schema should be formatted in one of two ways:\n "
                 + "key\": ByteString\n"
                 + "\"type\": String\n"
-                + "\"column_qualifier\": ByteString\n"
+                + "\"column_qualifier\": String/ByteString\n"
                 + "\"family_name\": ByteString\n"
                 + "\"timestamp_micros\": Long\n"
                 + "\"start_timestamp_micros\": Long\n"
@@ -130,6 +141,21 @@ public class BigtableSimpleWriteSchemaTransformProvider
             "Inputted Schema caused mutation error, check error logs and input schema format");
       }
       return PCollectionRowTuple.empty(input.getPipeline());
+    }
+
+    public static ByteString getByteString(@Nullable Object value) {
+      if (value == null) {
+        throw new UnsupportedOperationException("...");
+      }
+      ByteString valueByteString;
+      if (value instanceof byte[]) {
+        valueByteString = ByteString.copyFrom((byte[]) value);
+      } else if (value instanceof String) {
+        valueByteString = ByteString.copyFromUtf8((String) value);
+      } else {
+        throw new UnsupportedOperationException("...");
+      }
+      return valueByteString;
     }
 
     public PCollection<KV<ByteString, Iterable<Mutation>>> changeMutationInput(
@@ -161,11 +187,7 @@ public class BigtableSimpleWriteSchemaTransformProvider
                             @SuppressWarnings("nullness")
                             Mutation.SetCell.Builder setMutation =
                                 Mutation.SetCell.newBuilder()
-                                    .setValue(
-                                        ByteString.copyFrom(
-                                            Preconditions.checkStateNotNull(
-                                                input.getBytes("value"),
-                                                "Encountered SetCell mutation with incorrect 'value' property.")))
+                                    .setValue(getByteString(input.getValue("value")))
                                     .setColumnQualifier(
                                         ByteString.copyFrom(
                                             Preconditions.checkStateNotNull(
