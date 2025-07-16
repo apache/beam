@@ -85,7 +85,7 @@ jobs:
         with:
           gradle-command: :runners:google-cloud-dataflow-java:validatesRunner
           arguments: |
-            -PtestJavaVersion=${{ matrix.java_version }}
+            -PtestJavaVersion=${{ matrix.java_version }} \
             -Pjava${{ matrix.java_version }}Home=$JAVA_HOME_${{ matrix.java_version }}_X64 \
           max-workers: 12
       - name: Archive JUnit Test Results
