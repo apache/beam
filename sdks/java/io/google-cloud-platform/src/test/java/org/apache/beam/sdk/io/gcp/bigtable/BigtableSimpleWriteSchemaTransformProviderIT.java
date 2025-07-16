@@ -580,20 +580,20 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
             .build());
 
     // --- Apply the mutations ---
+    // Define the comprehensive "Uber-Schema"
     Schema uberSchema =
         Schema.builder()
-            .addByteArrayField("key")
-            .addStringField("type")
-            // Fields for SetCell
-            .addNullableField("value", FieldType.BYTES) // Nullable for other mutation types
-            .addNullableField("column_qualifier", FieldType.BYTES) // Nullable for other types
-            .addNullableField("family_name", FieldType.BYTES) // Nullable for DeleteFromRow
-            .addNullableField(
-                "timestamp_micros", FieldType.INT64) // Nullable, as not all mutations have it
-            // Fields for DeleteFromColumn with Timestamp Range
-            .addNullableField("start_timestamp_micros", FieldType.INT64) // Nullable
-            .addNullableField("end_timestamp_micros", FieldType.INT64) // Nullable
+            .addByteArrayField("key") // Key is always present and non-null
+            .addStringField("type")   // Type is always present and non-null (e.g., "SetCell", "DeleteFromRow")
+            // All other fields are conditional based on the 'type' of mutation, so they must be nullable.
+            .addNullableField("value", FieldType.BYTES) // Used by SetCell
+            .addNullableField("column_qualifier", FieldType.BYTES) // Used by SetCell, DeleteFromColumn
+            .addNullableField("family_name", FieldType.BYTES) // Used by SetCell, DeleteFromColumn, DeleteFromFamily
+            .addNullableField("timestamp_micros", FieldType.INT64) // Optional for SetCell
+            .addNullableField("start_timestamp_micros", FieldType.INT64) // Used by DeleteFromColumn with range
+            .addNullableField("end_timestamp_micros", FieldType.INT64) // Used by DeleteFromColumn with range
             .build();
+
     PCollection<Row> inputPCollection = p.apply(Create.of(mutations));
     inputPCollection.setRowSchema(uberSchema); // Set the comprehensive schema for the PCollection
 
