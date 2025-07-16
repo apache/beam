@@ -100,6 +100,44 @@ pipelines:
             project: 'apache-beam-testing'
             instance: 'bt-write-tests'
             table: 'test-table'
+      options:
+        project: "apache-beam-testing"
+        temp_location: "{TEMP_DIR}"
+  - pipeline:
+      type: chain
+      transforms:
+        - type: ReadFromBigTable
+          config:
+            project: 'apache-beam-testing'
+            instance: 'bt-write-tests'
+            table: 'test-table'
+        - type: MapToFields # Convert bytes back to strings for comparison
+          name: ConvertBytesToStrings
+          config:
+            language: python
+            fields:
+              key:
+                callable: |
+                  def convert_to_string(row):
+                    return row.key.decode('utf-8') if row.key is not None else None
+              family_name:
+                callable: |
+                  def convert_to_string(row):
+                    return row.family_name.decode('utf-8') if row.family_name is not None else None
+              column_qualifier:
+                callable: |
+                  def convert_to_string(row):
+                    return row.column_qualifier.decode('utf-8') if row.column_qualifier is not None else None
+              value:
+                callable: |
+                  def convert_to_string(row):
+                    return row.value.decode('utf-8') if row.value is not None else None
+        - type: AssertEqual
+          config:
+            elements:
+              # These should match the original Create elements, potentially adjusted for Bigtable's representation
+              - { key: 'row1', type: 'SetCell', family_name: 'cf1', column_qualifier: 'cq1', value: 'value1', timestamp_micros: -1 }
+              - { key: 'row1', type: 'SetCell', family_name: 'cf2', column_qualifier: 'cq1', value: 'value2', timestamp_micros: 1000 }
 #      options:
 #          project: "apache-beam-testing"
 #          temp_location: "{TEMP_DIR}"
