@@ -575,6 +575,7 @@ def write_to_iceberg(
     partition_fields: Fields used to create a partition spec that is applied
       when tables are created. For a field 'foo', the available partition
       transforms are:
+
         - foo
         - truncate(foo, N)
         - bucket(foo, N)
