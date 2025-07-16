@@ -80,10 +80,6 @@ jobs:
           java-version: |
             ${{ matrix.java_version }}
             11
-      - name: run jar Java${{ matrix.java_version }} script
-        run: |
-          ./gradlew runners:google-cloud-dataflow-java:testJar :runners:google-cloud-dataflow-java:worker:shadowJar \
-          -Dorg.gradle.java.home=$JAVA_HOME_${{ matrix.java_version }}_X64
       - name: run validatesRunner Java${{ matrix.java_version }} script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
