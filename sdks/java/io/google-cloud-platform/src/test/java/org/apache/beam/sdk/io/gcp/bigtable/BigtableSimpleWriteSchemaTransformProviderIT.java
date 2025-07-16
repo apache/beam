@@ -128,7 +128,7 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
             .setInstanceId(instanceId)
             .setTableId(tableId)
             .build();
-    writeTransform = new BigtableSimpleWriteSchemaTransformProvider().from(config);
+    writeTransform = new BigtableWriteSchemaTransformProvider().from(config);
   }
 
   @After
