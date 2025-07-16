@@ -584,14 +584,21 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
     Schema uberSchema =
         Schema.builder()
             .addByteArrayField("key") // Key is always present and non-null
-            .addStringField("type")   // Type is always present and non-null (e.g., "SetCell", "DeleteFromRow")
-            // All other fields are conditional based on the 'type' of mutation, so they must be nullable.
+            .addStringField(
+                "type") // Type is always present and non-null (e.g., "SetCell", "DeleteFromRow")
+            // All other fields are conditional based on the 'type' of mutation, so they must be
+            // nullable.
             .addNullableField("value", FieldType.BYTES) // Used by SetCell
-            .addNullableField("column_qualifier", FieldType.BYTES) // Used by SetCell, DeleteFromColumn
-            .addNullableField("family_name", FieldType.BYTES) // Used by SetCell, DeleteFromColumn, DeleteFromFamily
+            .addNullableField(
+                "column_qualifier", FieldType.BYTES) // Used by SetCell, DeleteFromColumn
+            .addNullableField(
+                "family_name",
+                FieldType.BYTES) // Used by SetCell, DeleteFromColumn, DeleteFromFamily
             .addNullableField("timestamp_micros", FieldType.INT64) // Optional for SetCell
-            .addNullableField("start_timestamp_micros", FieldType.INT64) // Used by DeleteFromColumn with range
-            .addNullableField("end_timestamp_micros", FieldType.INT64) // Used by DeleteFromColumn with range
+            .addNullableField(
+                "start_timestamp_micros", FieldType.INT64) // Used by DeleteFromColumn with range
+            .addNullableField(
+                "end_timestamp_micros", FieldType.INT64) // Used by DeleteFromColumn with range
             .build();
 
     PCollection<Row> inputPCollection = p.apply(Create.of(mutations));
