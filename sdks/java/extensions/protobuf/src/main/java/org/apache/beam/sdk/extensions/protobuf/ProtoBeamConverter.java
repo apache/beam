@@ -268,27 +268,28 @@ public class ProtoBeamConverter {
     }
   }
 
-  static <@NonNull ProtoUnwrappedT, @NonNull BeamT>
+  /** Gets a converter from non-null Proto value to non-null Beam. */
+  static <ProtoUnwrappedT, BeamT>
       ProtoToBeamConverter<Object, BeamT> createWrappableProtoToBeamConverter(
           ProtoToBeamConverter<ProtoUnwrappedT, BeamT> converter) {
     return protoValue -> {
-      ProtoUnwrappedT unwrappedProtoValue;
+      @NonNull ProtoUnwrappedT unwrappedProtoValue;
       if (protoValue instanceof Message) {
         // A google protobuf wrapper
         Message protoWrapper = (Message) protoValue;
         Descriptors.FieldDescriptor wrapperValueFieldDescriptor =
             protoWrapper.getDescriptorForType().findFieldByNumber(1);
         unwrappedProtoValue =
-            (ProtoUnwrappedT)
+            (@NonNull ProtoUnwrappedT)
                 Preconditions.checkNotNull(protoWrapper.getField(wrapperValueFieldDescriptor));
       } else {
-        unwrappedProtoValue = (ProtoUnwrappedT) protoValue;
+        unwrappedProtoValue = (@NonNull ProtoUnwrappedT) protoValue;
       }
       return converter.convert(unwrappedProtoValue);
     };
   }
 
-  static <@NonNull BeamT, ProtoUnwrappedT extends @NonNull Object>
+  static <BeamT, ProtoUnwrappedT>
       BeamToProtoConverter<BeamT, Object> createWrappableBeamToProtoConverter(
           Descriptors.FieldDescriptor fieldDescriptor,
           BeamToProtoConverter<BeamT, ProtoUnwrappedT> converter) {
@@ -308,33 +309,37 @@ public class ProtoBeamConverter {
     };
   }
 
-  interface BeamToProtoConverter<@NonNull BeamT, @NonNull ProtoT> {
+  interface BeamToProtoConverter<BeamT, ProtoT> {
     BeamToProtoConverter<?, ?> IDENTITY = value -> value;
 
-    static <@NonNull T> BeamToProtoConverter<T, T> identity() {
+    static <T> BeamToProtoConverter<T, T> identity() {
       return (BeamToProtoConverter<T, T>) IDENTITY;
     }
 
-    ProtoT convert(BeamT value);
+    @NonNull
+    ProtoT convert(@NonNull BeamT value);
   }
 
-  interface FromProtoGetter<@Nullable BeamT> {
+  interface FromProtoGetter<BeamT> {
+    @Nullable
     BeamT getFromProto(Message message);
   }
 
   @FunctionalInterface
-  interface ProtoToBeamConverter<@NonNull ProtoT, @NonNull BeamT> {
+  interface ProtoToBeamConverter<ProtoT, BeamT> {
     ProtoToBeamConverter<?, ?> IDENTITY = protoValue -> protoValue;
 
-    static <@NonNull T> ProtoToBeamConverter<T, T> identity() {
+    static <T> ProtoToBeamConverter<T, T> identity() {
       return (ProtoToBeamConverter<T, T>) IDENTITY;
     }
 
-    BeamT convert(ProtoT protoValue);
+    @NonNull
+    BeamT convert(@NonNull ProtoT protoValue);
   }
 
-  interface ToProtoSetter<@Nullable BeamT> {
-    void setToProto(Message.Builder message, Schema.FieldType fieldType, BeamT beamFieldValue);
+  interface ToProtoSetter<BeamT> {
+    void setToProto(
+        Message.Builder message, Schema.FieldType fieldType, @Nullable BeamT beamFieldValue);
   }
 
   static class FromProto implements SerializableFunction<Message, Row> {
@@ -377,18 +382,15 @@ public class ProtoBeamConverter {
     }
   }
 
-  static class FromProtoFieldGetter<@NonNull ProtoT, @NonNull BeamT>
-      implements FromProtoGetter<@Nullable BeamT> {
+  static class FromProtoFieldGetter<ProtoT, BeamT> implements FromProtoGetter<BeamT> {
     private final Schema.Field field;
     private final ProtoToBeamConverter<ProtoT, BeamT> converter;
 
-    @SuppressWarnings("unchecked")
     FromProtoFieldGetter(Schema.Field field) {
       this.field = field;
       converter = (ProtoToBeamConverter<ProtoT, BeamT>) createProtoToBeamConverter(field.getType());
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public @Nullable BeamT getFromProto(Message message) {
       try {
@@ -408,7 +410,7 @@ public class ProtoBeamConverter {
           protoValue = message.getField(fieldDescriptor);
         }
 
-        return protoValue != null ? converter.convert((ProtoT) protoValue) : null;
+        return protoValue != null ? converter.convert((@NonNull ProtoT) protoValue) : null;
       } catch (RuntimeException e) {
         throw new RuntimeException(
             String.format("Failed to get field from proto. field: %s", field.getName()), e);
@@ -462,7 +464,7 @@ public class ProtoBeamConverter {
 
   static class ToProto implements SerializableFunction<Row, Message> {
     private transient Descriptors.Descriptor descriptor;
-    private transient Map<String, ToProtoSetter<@Nullable Object>> toProtos;
+    private transient Map<String, ToProtoSetter<Object>> toProtos;
 
     public ToProto(Descriptors.Descriptor descriptor) {
       initialize(descriptor);
@@ -479,7 +481,7 @@ public class ProtoBeamConverter {
               fieldDescriptor.getRealContainingOneof();
           if (realContainingOneof.getField(0) == fieldDescriptor) {
             ToProtoSetter<?> setter = new ToProtoOneOfSetter(realContainingOneof);
-            toProtos.put(realContainingOneof.getName(), (ToProtoSetter<@Nullable Object>) setter);
+            toProtos.put(realContainingOneof.getName(), (ToProtoSetter<Object>) setter);
           }
           // continue
         } else {
@@ -492,10 +494,9 @@ public class ProtoBeamConverter {
     public Message apply(Row row) {
       Schema schema = row.getSchema();
       DynamicMessage.Builder message = DynamicMessage.newBuilder(descriptor);
-      for (Map.Entry<String, ToProtoSetter<@Nullable Object>> entry : toProtos.entrySet()) {
+      for (Map.Entry<String, ToProtoSetter<Object>> entry : toProtos.entrySet()) {
         String fieldName = entry.getKey();
-        @SuppressWarnings("unchecked")
-        ToProtoSetter<@Nullable Object> converter = entry.getValue();
+        ToProtoSetter<Object> converter = entry.getValue();
         converter.setToProto(
             message, schema.getField(fieldName).getType(), row.getValue(fieldName));
       }
@@ -513,12 +514,10 @@ public class ProtoBeamConverter {
     }
   }
 
-  static class ToProtoFieldSetter<@NonNull BeamT, ProtoT extends @NonNull Object>
-      implements ToProtoSetter<@Nullable BeamT> {
+  static class ToProtoFieldSetter<BeamT, ProtoT> implements ToProtoSetter<BeamT> {
     private final Descriptors.FieldDescriptor fieldDescriptor;
     private final BeamToProtoConverter<BeamT, ProtoT> converter;
 
-    @SuppressWarnings("unchecked")
     ToProtoFieldSetter(Descriptors.FieldDescriptor fieldDescriptor) {
       this.fieldDescriptor = fieldDescriptor;
       this.converter =
