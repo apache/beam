@@ -186,7 +186,8 @@ public class BigtableWriteSchemaTransformProvider
                 .withInstanceId(configuration.getInstanceId())
                 .withProjectId(configuration.getProjectId()));
       } else {
-        throw new RuntimeException("Inputted Schema caused mutation error, check error logs and input schema format");
+        throw new RuntimeException(
+            "Inputted Schema caused mutation error, check error logs and input schema format");
       }
       return PCollectionRowTuple.empty(input.getPipeline());
     }
