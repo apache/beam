@@ -175,7 +175,7 @@ public class IcebergRestCatalogStreamingWriteExample {
         "Warehouse location where the table's data will be written to. "
             + "As of 07/14/25 BigLake only supports Single Region buckets")
     @Validation.Required
-    @Default.String("gs://iceberg_taxi_rides")
+    @Default.String("gs://biglake_taxi_rides")
     String getWarehouse();
 
     void setWarehouse(String warehouse);
