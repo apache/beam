@@ -141,7 +141,6 @@ public class BigtableWriteSchemaTransformProvider
       this.configuration = configuration;
     }
 
-
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       checkArgument(
