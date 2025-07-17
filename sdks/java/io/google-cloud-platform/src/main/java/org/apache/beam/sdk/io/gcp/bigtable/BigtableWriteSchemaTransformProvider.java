@@ -230,7 +230,7 @@ public class BigtableWriteSchemaTransformProvider
                                         ByteString.copyFrom(
                                             Preconditions.checkStateNotNull(
                                                 input.getBytes("column_qualifier"),
-                                                "Encountered SetCell mutation with incorrect 'family_name' property. ")))
+                                                "Encountered SetCell mutation with incorrect 'column_qualifier' property. ")))
                                     .setFamilyNameBytes(
                                         ByteString.copyFrom(
                                             Preconditions.checkStateNotNull(
