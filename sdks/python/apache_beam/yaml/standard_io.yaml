@@ -375,7 +375,7 @@
 #BigTable
 - type: renaming
   transforms:
-    'ReadFromBigTable': 'ReadFromBigTable'
+    #'ReadFromBigTable': 'ReadFromBigTable'
     'WriteToBigTable': 'WriteToBigTable'
   config:
     mappings:
