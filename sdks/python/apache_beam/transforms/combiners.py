@@ -31,8 +31,6 @@ from typing import Union
 
 import numpy as np
 
-from apache_beam.utils.windowed_value import WindowedValue
-
 from apache_beam import typehints
 from apache_beam.transforms import core
 from apache_beam.transforms import cy_combiners
@@ -43,6 +41,7 @@ from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
 from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import Timestamp
+from apache_beam.utils.windowed_value import WindowedValue
 
 __all__ = [
     'Count',
