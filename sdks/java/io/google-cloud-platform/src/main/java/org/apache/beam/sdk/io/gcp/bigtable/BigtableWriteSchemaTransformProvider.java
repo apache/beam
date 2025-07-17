@@ -141,6 +141,7 @@ public class BigtableWriteSchemaTransformProvider
       this.configuration = configuration;
     }
 
+
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       checkArgument(
@@ -159,51 +160,25 @@ public class BigtableWriteSchemaTransformProvider
                 // function
                 MapElements.via(new GetMutationsFromBeamRow()));
       } else if (inputSchema.hasField("type")) {
-        checkState(
-            inputSchema.getField("key").getType().equals(Schema.FieldType.BYTES),
-            "Schema field 'key' should be of type BYTES.");
-
-        checkState(
-            inputSchema.getField("type").getType().equals(Schema.FieldType.STRING),
-            "Schema field 'type' should be of type STRING.");
-
+        validateField(inputSchema, "key", Schema.TypeName.BYTES);
+        validateField(inputSchema, "type", Schema.TypeName.STRING);
         if (inputSchema.hasField("value")) {
-          checkState(
-              inputSchema.getField("value").getType().equals(Schema.FieldType.BYTES),
-              "Schema field 'value' should be of type BYTES.");
+          validateField(inputSchema, "value", Schema.TypeName.BYTES);
         }
-
         if (inputSchema.hasField("column_qualifier")) {
-          checkState(
-              inputSchema.getField("column_qualifier").getType().equals(Schema.FieldType.BYTES),
-              "Schema field 'column_qualifier' should be of type BYTES.");
+          validateField(inputSchema, "column_qualifier", Schema.TypeName.BYTES);
         }
-
         if (inputSchema.hasField("family_name")) {
-          checkState(
-              inputSchema.getField("family_name").getType().equals(Schema.FieldType.BYTES),
-              "Schema field 'family_name' should be of type BYTES.");
+          validateField(inputSchema, "family_name", Schema.TypeName.BYTES);
         }
-
         if (inputSchema.hasField("timestamp_micros")) {
-          checkState(
-              inputSchema.getField("timestamp_micros").getType().equals(Schema.FieldType.INT64),
-              "Schema field 'timestamp_micros' should be of type INT64.");
+          validateField(inputSchema, "timestamp_micros", Schema.TypeName.INT64);
         }
-
         if (inputSchema.hasField("start_timestamp_micros")) {
-          checkState(
-              inputSchema
-                  .getField("start_timestamp_micros")
-                  .getType()
-                  .equals(Schema.FieldType.INT64),
-              "Schema field 'start_timestamp_micros' should be of type INT64.");
+          validateField(inputSchema, "start_timestamp_micros", Schema.TypeName.INT64);
         }
-
         if (inputSchema.hasField("end_timestamp_micros")) {
-          checkState(
-              inputSchema.getField("end_timestamp_micros").getType().equals(Schema.FieldType.INT64),
-              "Schema field 'end_timestamp_micros' should be of type INT64.");
+          validateField(inputSchema, "end_timestamp_micros", Schema.TypeName.INT64);
         }
         bigtableMutations = changeMutationInput(input);
       } else {
@@ -236,6 +211,16 @@ public class BigtableWriteSchemaTransformProvider
             "Inputted Schema caused mutation error, check error logs and input schema format");
       }
       return PCollectionRowTuple.empty(input.getPipeline());
+    }
+
+    private void validateField(Schema inputSchema, String field, Schema.TypeName expectedType) {
+      Schema.TypeName actualType = inputSchema.getField(field).getType().getTypeName();
+      checkState(
+          actualType.equals(expectedType),
+          "Schema field '%s' should be of type %s, but was %s.",
+          field,
+          expectedType,
+          actualType);
     }
 
     public PCollection<KV<ByteString, Iterable<Mutation>>> changeMutationInput(

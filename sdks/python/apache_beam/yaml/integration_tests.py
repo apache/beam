@@ -164,7 +164,7 @@ def temp_bigtable_table(project, prefix='yaml_bt_it_'):
   INSTANCE = "bt-write-tests"
   TABLE_ID = "test-table"
 
-  instance_id = (INSTANCE)
+  instance_id = instance_prefix(INSTANCE)
 
   clientT = client.Client(admin=True, project=project)
   # create cluster and instance
@@ -190,7 +190,7 @@ def temp_bigtable_table(project, prefix='yaml_bt_it_'):
   col_fam.create()
 
   #yielding the tmp table for all the bigTable tests
-  yield f'{instance_id}.{project}.tmp_table'
+  yield instance_id
 
   #try catch for deleting table and instance after all tests are ran
   try:
@@ -753,14 +753,16 @@ def parse_test_files(filepattern):
       For example, 'path/to/tests/*.yaml'.
   """
   for path in glob.glob(filepattern):
-    with open(path) as fin:
-      suite_name = os.path.splitext(os.path.basename(path))[0].title().replace(
-          '-', '') + 'Test'
-      print(path, suite_name)
-      methods = dict(
-          create_test_methods(
-              yaml.load(fin, Loader=yaml_transform.SafeLineLoader)))
-      globals()[suite_name] = type(suite_name, (unittest.TestCase, ), methods)
+    if "bigtable" in path:
+      with open(path) as fin:
+        suite_name = os.path.splitext(
+            os.path.basename(path))[0].title().replace('-', '') + 'Test'
+        print(path, suite_name)
+        methods = dict(
+            create_test_methods(
+                yaml.load(fin, Loader=yaml_transform.SafeLineLoader)))
+        globals()[suite_name] = type(
+            suite_name, (unittest.TestCase, ), methods)
 
 
 # Logging setups
