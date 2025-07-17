@@ -55,6 +55,9 @@ import org.joda.time.Duration;
  * aggregates passenger counts within fixed 10-second windows by minute of the ride, and writes the
  * results to a single Iceberg table. The Iceberg sink triggers writes every 30 seconds, creating
  * new snapshots.
+ *
+ * <p>This example is a demonstration of the Iceberg REST Catalog. For more information, see the
+ * documentation at {@link https://cloud.google.com/bigquery/docs/blms-rest-catalog}.
  */
 public class IcebergRestCatalogStreamingWriteExample {
 
@@ -87,6 +90,9 @@ public class IcebergRestCatalogStreamingWriteExample {
     final String catalogName = options.getCatalogName();
     final int triggeringFrequencySeconds = 30;
 
+    // Note: The token expires in 1 hour, and users may need to re-run the pipeline.
+    // Upcoming changes in Iceberg and the BigLake Metastore with the Iceberg REST Catalog
+    // will support token refreshing and credential vending.
     Map<String, String> catalogProps =
         ImmutableMap.<String, String>builder()
             .put("type", "rest")
