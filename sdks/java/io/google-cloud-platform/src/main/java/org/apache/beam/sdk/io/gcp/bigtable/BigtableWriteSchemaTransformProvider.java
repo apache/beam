@@ -72,7 +72,7 @@ public class BigtableWriteSchemaTransformProvider
 
   @Override
   public String identifier() {
-    return "beam:schematransform:org.apache.beam:bigtable_simple_write:v1";
+    return "beam:schematransform:org.apache.beam:bigtable_write:v1";
   }
 
   @Override
@@ -162,16 +162,6 @@ public class BigtableWriteSchemaTransformProvider
                 MapElements.via(
                     new BigtableWriteSchemaTransformProvider.GetMutationsFromBeamRow()));
       } else if (inputSchema.hasField("type")) {
-        //        // validate early doesn't work for all mutations IT test but it does help
-        //        if (inputSchema.hasField("column_qualifier")) {
-        //          Schema.FieldType columnQualifierType =
-        // inputSchema.getField("column_qualifier").getType();
-        //          checkState(
-        //              columnQualifierType.equals(Schema.FieldType.STRING)
-        //                  || columnQualifierType.equals(Schema.FieldType.BYTES),
-        //              "column_qualifier should be of type STRING or BYTES");
-        //        }
-        //        // new schema inputs get sent to the new transform provider mutation function
         bigtableMutations = changeMutationInput(input);
       } else {
         System.out.println(
@@ -196,9 +186,7 @@ public class BigtableWriteSchemaTransformProvider
                 .withInstanceId(configuration.getInstanceId())
                 .withProjectId(configuration.getProjectId()));
       } else {
-        checkArgument(
-            true,
-            "Inputted Schema caused mutation error, check error logs and input schema format");
+        throw new RuntimeException("Inputted Schema caused mutation error, check error logs and input schema format");
       }
       return PCollectionRowTuple.empty(input.getPipeline());
     }

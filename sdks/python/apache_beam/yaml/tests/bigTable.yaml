@@ -48,24 +48,8 @@ pipelines:
                   column_qualifier: "cq1",
                   value: "value2",
                   timestamp_micros: 1000}
-#              # Deletes all cells in a specific column, optionally within a time range.
-#              - {key: 'row2',
-#                  type: 'DeleteFromColumn',
-#                  family_name: "cf1",
-#                  column_qualifier: "cq1",
-#                  start_timestamp_micros: 2000,
-#                  end_timestamp_micros: 5000 }
 #
-#              # Deletes all cells in a specific column family.
-#              - {key: 'row3',
-#                  type: 'DeleteFromFamily',
-#                  family_name: "cf2" }
-#
-#              # Deletes all cells in a specific row.
-#              - {key: 'row4',
-#                  type: 'DeleteFromRow' }
         - type: LogForTesting
-#          commenting for now, will implement after everyone gives feedback on PR
         - type: MapToFields
           name: ConvertStringsToBytes
           config:
@@ -100,9 +84,6 @@ pipelines:
             project: 'apache-beam-testing'
             instance: 'bt-write-tests'
             table: 'test-table'
-#      options:
-#        project: "apache-beam-testing"
-#        temp_location: "{TEMP_DIR}"
 #  - pipeline:
 #      type: chain
 #      transforms:
@@ -138,35 +119,4 @@ pipelines:
 #              # These should match the original Create elements, potentially adjusted for Bigtable's representation
 #              - {key: 'row1', type: 'SetCell', family_name: 'cf1', column_qualifier: 'cq1', value: 'value1', timestamp_micros: -1}
 #              - {key: 'row1', type: 'SetCell', family_name: 'cf2', column_qualifier: 'cq1', value: 'value2', timestamp_micros: 1000}
-#      options:
-#          project: "apache-beam-testing"
-#          temp_location: "{TEMP_DIR}"
-#      - type: WriteToBigTable
-#        name: WriteBigTableData
-#        input: CreateSampleMutations
-#        config:
-#          project: 'dummy-project-id' # These will likely be overridden or mocked by the test runner
-#          instance: 'dummy-instance-id'
-#          table: 'dummy-table-id'
-#  - pipeline:
-#    type: chain
-#    transforms:
-#      - type: ReadFromBigTable
-#        config:
-#          project: 'apache-beam-testing' # These will likely be overridden or mocked by the test runner
-#          instance: 'bt-write-tests'
-#          table: 'test-table'
-#      - type: AssertEqual
-#        config:
-#          elements:
-#            - {key: 'row1',type: 'SetCell',family_name: 'cf1',column_qualifier: 'cq1',value: 'value1_from_yaml',timestamp_micros: -1}
-#            - {key: 'row1',type: 'SetCell',family_name: 'cf2',column_qualifier: 'cq1',value: 'value2',timestamp_micros: 1000 }
-
-#    options:
-#      project: "apache-beam-testing"
-#      temp_location: "{TEMP_DIR}"
 #
-#
-#    options:
-#        project: "apache-beam-testing"
-#        temp_location: "{TEMP_DIR}"

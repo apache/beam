@@ -734,7 +734,6 @@ def create_test_methods(spec):
     yield f'test_{suffix}', test
 
 
-# Add bigTable, if not big table it skips (temporarily)
 def parse_test_files(filepattern):
   """Parses YAML test files and dynamically creates test cases.
 
@@ -754,8 +753,6 @@ def parse_test_files(filepattern):
       For example, 'path/to/tests/*.yaml'.
   """
   for path in glob.glob(filepattern):
-    # get rid of this before PR
-    # if "bigTable" in path:
     with open(path) as fin:
       suite_name = os.path.splitext(os.path.basename(path))[0].title().replace(
           '-', '') + 'Test'

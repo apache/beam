@@ -392,6 +392,6 @@
       type: beamJar
       transforms:
         'ReadFromBigTable': 'beam:schematransform:org.apache.beam:bigtable_read:v1'
-        'WriteToBigTable': 'beam:schematransform:org.apache.beam:bigtable_simple_write:v1'
+        'WriteToBigTable': 'beam:schematransform:org.apache.beam:bigtable_write:v1'
       config:
         gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'
