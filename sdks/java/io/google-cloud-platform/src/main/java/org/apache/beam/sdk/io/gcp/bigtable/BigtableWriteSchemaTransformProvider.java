@@ -70,8 +70,7 @@ public class BigtableWriteSchemaTransformProvider
       Schema.builder()
           .addByteArrayField("key")
           .addArrayField(
-              "mutations",
-              Schema.FieldType.map(Schema.FieldType.STRING, Schema.FieldType.BYTES))
+              "mutations", Schema.FieldType.map(Schema.FieldType.STRING, Schema.FieldType.BYTES))
           .build();
 
   @Override
@@ -149,8 +148,6 @@ public class BigtableWriteSchemaTransformProvider
           String.format(
               "Could not find expected input [%s] to %s.", INPUT_TAG, getClass().getSimpleName()));
 
-
-
       Schema inputSchema = input.getSinglePCollection().getSchema();
 
       PCollection<KV<ByteString, Iterable<Mutation>>> bigtableMutations = null;
@@ -160,57 +157,68 @@ public class BigtableWriteSchemaTransformProvider
             beamRowMutations.apply(
                 // Original schema inputs gets sent out to the original transform provider mutations
                 // function
-                MapElements.via(
-                    new GetMutationsFromBeamRow()));
+                MapElements.via(new GetMutationsFromBeamRow()));
       } else if (inputSchema.hasField("type")) {
-        checkState(inputSchema.getField("type").getType().equals(Schema.FieldType.STRING),
+        checkState(
+            inputSchema.getField("type").getType().equals(Schema.FieldType.STRING),
             "Schema field 'type' should be of type STRING.");
 
         if (inputSchema.hasField("value")) {
-          checkState(inputSchema.getField("value").getType().equals(Schema.FieldType.BYTES),
+          checkState(
+              inputSchema.getField("value").getType().equals(Schema.FieldType.BYTES),
               "Schema field 'value' should be of type BYTES.");
         }
 
         if (inputSchema.hasField("column_qualifier")) {
-          checkState(inputSchema.getField("column_qualifier").getType().equals(Schema.FieldType.BYTES),
+          checkState(
+              inputSchema.getField("column_qualifier").getType().equals(Schema.FieldType.BYTES),
               "Schema field 'column_qualifier' should be of type BYTES.");
         }
 
         if (inputSchema.hasField("family_name")) {
-          checkState(inputSchema.getField("family_name").getType().equals(Schema.FieldType.BYTES),
+          checkState(
+              inputSchema.getField("family_name").getType().equals(Schema.FieldType.BYTES),
               "Schema field 'family_name' should be of type BYTES.");
         }
 
         if (inputSchema.hasField("timestamp_micros")) {
-          checkState(inputSchema.getField("timestamp_micros").getType().equals(Schema.FieldType.INT64),
+          checkState(
+              inputSchema.getField("timestamp_micros").getType().equals(Schema.FieldType.INT64),
               "Schema field 'timestamp_micros' should be of type BYTES.");
         }
 
         if (inputSchema.hasField("start_timestamp_micros")) {
-          checkState(inputSchema.getField("start_timestamp_micros").getType().equals(Schema.FieldType.INT64),
+          checkState(
+              inputSchema
+                  .getField("start_timestamp_micros")
+                  .getType()
+                  .equals(Schema.FieldType.INT64),
               "Schema field 'start_timestamp_micros' should be of type BYTES.");
         }
 
         if (inputSchema.hasField("end_timestamp_micros")) {
-          checkState(inputSchema.getField("end_timestamp_micros").getType().equals(Schema.FieldType.INT64),
+          checkState(
+              inputSchema.getField("end_timestamp_micros").getType().equals(Schema.FieldType.INT64),
               "Schema field 'end_timestamp_micros' should be of type BYTES.");
         }
         bigtableMutations = changeMutationInput(input);
       } else {
-        throw new RuntimeException("Input Schema is invalid: " + inputSchema
-            + "\n\nSchema should be formatted in one of two ways:\n "
-            + "key\": ByteString\n"
-            + "\"type\": String\n"
-            + "\"value\": ByteString\n"
-            + "\"column_qualifier\": ByteString\n"
-            + "\"family_name\": ByteString\n"
-            + "\"timestamp_micros\": Long\n"
-            + "\"start_timestamp_micros\": Long\n"
-            + "\"end_timestamp_micros\": Long\n"
-            + "\nOR\n"
-            + "\n"
-            + "\"key\": ByteString\n"
-            + "(\"mutations\", contains map(String, ByteString) of mutations in the mutation schema format");
+        throw new RuntimeException(
+            "Input Schema is invalid: "
+                + inputSchema
+                + "\n\nSchema should be formatted in one of two ways:\n "
+                + "key\": ByteString\n"
+                + "\"type\": String\n"
+                + "\"value\": ByteString\n"
+                + "\"column_qualifier\": ByteString\n"
+                + "\"family_name\": ByteString\n"
+                + "\"timestamp_micros\": Long\n"
+                + "\"start_timestamp_micros\": Long\n"
+                + "\"end_timestamp_micros\": Long\n"
+                + "\nOR\n"
+                + "\n"
+                + "\"key\": ByteString\n"
+                + "(\"mutations\", contains map(String, ByteString) of mutations in the mutation schema format");
       }
 
       if (bigtableMutations != null) {
@@ -344,7 +352,8 @@ public class BigtableWriteSchemaTransformProvider
                             throw new RuntimeException(
                                 String.format(
                                     "Unexpected mutation type [%s]: Key value is %s",
-                                    ((input.getString("type"))), Arrays.toString(input.getBytes("key"))));
+                                    ((input.getString("type"))),
+                                    Arrays.toString(input.getBytes("key"))));
                         }
                         return KV.of(key, bigtableMutation);
                       }));
