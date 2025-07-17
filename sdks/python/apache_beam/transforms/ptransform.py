@@ -1030,18 +1030,11 @@ class _PTransformFnPTransform(PTransform):
       pass
     return self._fn(pcoll, *args, **kwargs)
 
-  def default_label(self) -> str:
-    # Attempt to give a reasonable name to this transform.
-    # We want it to be reasonably unique, but also not sensitive to
-    # irrelevent parameters to minimize pipeline-to-pipeline variance.
-    # For now, use only the first argument (if any), iff it would not make
-    # the name unwieldy.
+  def default_label(self):
     if self._args:
-      first_arg_string = label_from_callable(self._args[0])
-      suffix = '(%s)' % first_arg_string if len(first_arg_string) <= 16 else ''
-    else:
-      suffix = ''
-    return label_from_callable(self._fn) + suffix
+      return '%s(%s)' % (
+          label_from_callable(self._fn), label_from_callable(self._args[0]))
+    return label_from_callable(self._fn)
 
 
 def ptransform_fn(fn):
