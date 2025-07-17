@@ -195,6 +195,11 @@ class TestScripts {
      }
    }
 
+   static boolean isSnapshotUrl(String url) {
+     return (url.startsWith('https://repository.apache.org/content/repositories/snapshots') ||
+       url.startsWith('https://repository.apache.org/content/groups/snapshots'))
+   }
+
    // Run a maven command, setting up a new local repository and a settings.xml with a custom repository if needed
    private String _mvn(String args) {
      String mvnlocalPath = var.mavenLocalPath
@@ -203,33 +208,40 @@ class TestScripts {
      }
      def m2 = new File(mvnlocalPath, ".m2/repository")
      m2.mkdirs()
+     def repoId = 'test.release'
+     def archetypeCatalog = ''
+     if (isSnapshotUrl(var.repoUrl)) {
+       repoId = 'archetype'
+       archetypeCatalog = '-DarchetypeCatalog=remote'
+     }
      def settings = new File(mvnlocalPath, "settings.xml")
      if(!settings.exists()) {
-     settings.write """
-       <settings>
-         <localRepository>${m2.absolutePath}</localRepository>
-           <profiles>
-             <profile>
-               <id>testrel</id>
-                 <repositories>
-                   <repository>
-                     <id>test.release</id>
-                     <url>${var.repoUrl}</url>
-                   </repository>
-                 </repositories>
-               </profile>
-             </profiles>
-        </settings>
-         """
+       settings.write """
+<settings>
+ <localRepository>${m2.absolutePath}</localRepository>
+   <profiles>
+     <profile>
+       <id>testrel</id>
+         <repositories>
+           <repository>
+             <id>${repoId}</id>
+             <url>${var.repoUrl}</url>
+           </repository>
+         </repositories>
+       </profile>
+     </profiles>
+</settings>
+"""
      }
-     def cmd = "mvn ${args} -s ${settings.absolutePath} -Ptestrel -B"
+
+     def cmd = "mvn ${args} -s ${settings.absolutePath} -Ptestrel ${archetypeCatalog} -B"
      String path = System.getenv("PATH");
      // Set the path on jenkins executors to use a recent maven
      // MAVEN_HOME is not set on some executors, so default to 3.5.2
      String maven_home = System.getenv("MAVEN_HOME") ?: '/usr/local/maven'
      println "Using maven ${maven_home}"
      def mvnPath = "${maven_home}/bin"
-     def setPath = "export PATH=\"${mvnPath}:${path}\" && "
+     def setPath = path.contains(mvnPath) ? "" : "export PATH=\"${mvnPath}:${path}\" && "
      return _execute(setPath + cmd)
    }
 
