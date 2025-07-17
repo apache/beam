@@ -379,11 +379,10 @@
     'WriteToBigTable': 'WriteToBigTable'
   config:
     mappings:
-      ##Not exposing Read yet
-#      'ReadFromBigTable':
-#        project: 'project_id'
-#        instance: 'instance_id'
-#        table: 'table_id'
+      'ReadFromBigTable':
+        project: 'project_id'
+        instance: 'instance_id'
+        table: 'table_id'
       'WriteToBigTable':
         project: 'project_id'
         instance: 'instance_id'
