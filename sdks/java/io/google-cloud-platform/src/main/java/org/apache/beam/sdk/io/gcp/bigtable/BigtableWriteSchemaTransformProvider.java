@@ -160,6 +160,10 @@ public class BigtableWriteSchemaTransformProvider
                 MapElements.via(new GetMutationsFromBeamRow()));
       } else if (inputSchema.hasField("type")) {
         checkState(
+            inputSchema.getField("key").getType().equals(Schema.FieldType.BYTES),
+            "Schema field 'key' should be of type BYTES.");
+
+        checkState(
             inputSchema.getField("type").getType().equals(Schema.FieldType.STRING),
             "Schema field 'type' should be of type STRING.");
 
@@ -184,7 +188,7 @@ public class BigtableWriteSchemaTransformProvider
         if (inputSchema.hasField("timestamp_micros")) {
           checkState(
               inputSchema.getField("timestamp_micros").getType().equals(Schema.FieldType.INT64),
-              "Schema field 'timestamp_micros' should be of type BYTES.");
+              "Schema field 'timestamp_micros' should be of type INT64.");
         }
 
         if (inputSchema.hasField("start_timestamp_micros")) {
@@ -193,13 +197,13 @@ public class BigtableWriteSchemaTransformProvider
                   .getField("start_timestamp_micros")
                   .getType()
                   .equals(Schema.FieldType.INT64),
-              "Schema field 'start_timestamp_micros' should be of type BYTES.");
+              "Schema field 'start_timestamp_micros' should be of type INT64.");
         }
 
         if (inputSchema.hasField("end_timestamp_micros")) {
           checkState(
               inputSchema.getField("end_timestamp_micros").getType().equals(Schema.FieldType.INT64),
-              "Schema field 'end_timestamp_micros' should be of type BYTES.");
+              "Schema field 'end_timestamp_micros' should be of type INT64.");
         }
         bigtableMutations = changeMutationInput(input);
       } else {
@@ -249,7 +253,7 @@ public class BigtableWriteSchemaTransformProvider
                             ByteString.copyFrom(
                                 Preconditions.checkStateNotNull(
                                     input.getBytes("key"),
-                                    "Encountered row with incorrect 'key' property."));
+                                    "Encountered row with null 'key' property."));
 
                         Mutation bigtableMutation;
                         String mutationType =
