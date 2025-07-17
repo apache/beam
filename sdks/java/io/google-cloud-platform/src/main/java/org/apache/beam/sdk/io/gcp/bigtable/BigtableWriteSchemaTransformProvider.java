@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigtable;
 
 import static java.util.Optional.ofNullable;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
@@ -64,6 +65,14 @@ public class BigtableWriteSchemaTransformProvider
     extends TypedSchemaTransformProvider<BigtableWriteSchemaTransformConfiguration> {
 
   private static final String INPUT_TAG = "input";
+
+  private static final Schema BATCHED_MUTATIONS_SCHEMA =
+      Schema.builder()
+          .addByteArrayField("key")
+          .addArrayField(
+              "mutations",
+              Schema.FieldType.map(Schema.FieldType.STRING, Schema.FieldType.BYTES))
+          .build();
 
   @Override
   protected SchemaTransform from(BigtableWriteSchemaTransformConfiguration configuration) {
@@ -140,43 +149,68 @@ public class BigtableWriteSchemaTransformProvider
           String.format(
               "Could not find expected input [%s] to %s.", INPUT_TAG, getClass().getSimpleName()));
 
-      Schema testOriginialSchema =
-          Schema.builder()
-              .addByteArrayField("key")
-              .addArrayField(
-                  "mutations",
-                  Schema.FieldType.map(Schema.FieldType.STRING, Schema.FieldType.BYTES))
-              .build();
+
 
       Schema inputSchema = input.getSinglePCollection().getSchema();
 
-      System.out.println("Input Schema for BigTableMutations: " + inputSchema);
-
       PCollection<KV<ByteString, Iterable<Mutation>>> bigtableMutations = null;
-      if (inputSchema.equals(testOriginialSchema)) {
+      if (inputSchema.equals(BATCHED_MUTATIONS_SCHEMA)) {
         PCollection<Row> beamRowMutations = input.get(INPUT_TAG);
         bigtableMutations =
             beamRowMutations.apply(
                 // Original schema inputs gets sent out to the original transform provider mutations
                 // function
                 MapElements.via(
-                    new BigtableWriteSchemaTransformProvider.GetMutationsFromBeamRow()));
+                    new GetMutationsFromBeamRow()));
       } else if (inputSchema.hasField("type")) {
+        checkState(inputSchema.getField("type").getType().equals(Schema.FieldType.STRING),
+            "Schema field 'type' should be of type STRING.");
+
+        if (inputSchema.hasField("value")) {
+          checkState(inputSchema.getField("value").getType().equals(Schema.FieldType.BYTES),
+              "Schema field 'value' should be of type BYTES.");
+        }
+
+        if (inputSchema.hasField("column_qualifier")) {
+          checkState(inputSchema.getField("column_qualifier").getType().equals(Schema.FieldType.BYTES),
+              "Schema field 'column_qualifier' should be of type BYTES.");
+        }
+
+        if (inputSchema.hasField("family_name")) {
+          checkState(inputSchema.getField("family_name").getType().equals(Schema.FieldType.BYTES),
+              "Schema field 'family_name' should be of type BYTES.");
+        }
+
+        if (inputSchema.hasField("timestamp_micros")) {
+          checkState(inputSchema.getField("timestamp_micros").getType().equals(Schema.FieldType.INT64),
+              "Schema field 'timestamp_micros' should be of type BYTES.");
+        }
+
+        if (inputSchema.hasField("start_timestamp_micros")) {
+          checkState(inputSchema.getField("start_timestamp_micros").getType().equals(Schema.FieldType.INT64),
+              "Schema field 'start_timestamp_micros' should be of type BYTES.");
+        }
+
+        if (inputSchema.hasField("end_timestamp_micros")) {
+          checkState(inputSchema.getField("end_timestamp_micros").getType().equals(Schema.FieldType.INT64),
+              "Schema field 'end_timestamp_micros' should be of type BYTES.");
+        }
         bigtableMutations = changeMutationInput(input);
       } else {
-        System.out.println(
-            "Inputted Schema is Invalid; the schema should be formatted in one of two ways:\n "
-                + "key\": ByteString\n"
-                + "\"type\": String\n"
-                + "\"column_qualifier\": ByteString\n"
-                + "\"family_name\": ByteString\n"
-                + "\"timestamp_micros\": Long\n"
-                + "\"start_timestamp_micros\": Long\n"
-                + "\"end_timestamp_micros\": Long"
-                + "OR\n"
-                + "\n"
-                + "\"key\": ByteString\n"
-                + "(\"mutations\", contains map(String, ByteString) of mutations in the mutation schema format");
+        throw new RuntimeException("Input Schema is invalid: " + inputSchema
+            + "\n\nSchema should be formatted in one of two ways:\n "
+            + "key\": ByteString\n"
+            + "\"type\": String\n"
+            + "\"value\": ByteString\n"
+            + "\"column_qualifier\": ByteString\n"
+            + "\"family_name\": ByteString\n"
+            + "\"timestamp_micros\": Long\n"
+            + "\"start_timestamp_micros\": Long\n"
+            + "\"end_timestamp_micros\": Long\n"
+            + "\nOR\n"
+            + "\n"
+            + "\"key\": ByteString\n"
+            + "(\"mutations\", contains map(String, ByteString) of mutations in the mutation schema format");
       }
 
       if (bigtableMutations != null) {
@@ -203,7 +237,6 @@ public class BigtableWriteSchemaTransformProvider
                           TypeDescriptor.of(ByteString.class), TypeDescriptor.of(Mutation.class)))
                   .via(
                       (Row input) -> {
-                        @SuppressWarnings("nullness")
                         ByteString key =
                             ByteString.copyFrom(
                                 Preconditions.checkStateNotNull(
@@ -218,24 +251,23 @@ public class BigtableWriteSchemaTransformProvider
                         }
                         switch (mutationType) {
                           case "SetCell":
-                            @SuppressWarnings("nullness")
                             Mutation.SetCell.Builder setMutation =
                                 Mutation.SetCell.newBuilder()
                                     .setValue(
                                         ByteString.copyFrom(
                                             Preconditions.checkStateNotNull(
                                                 input.getBytes("value"),
-                                                "Encountered SetCell mutation with incorrect 'family_name' property.")))
+                                                "Encountered SetCell mutation with null 'value' property.")))
                                     .setColumnQualifier(
                                         ByteString.copyFrom(
                                             Preconditions.checkStateNotNull(
                                                 input.getBytes("column_qualifier"),
-                                                "Encountered SetCell mutation with incorrect 'column_qualifier' property. ")))
+                                                "Encountered SetCell mutation with null 'column_qualifier' property. ")))
                                     .setFamilyNameBytes(
                                         ByteString.copyFrom(
                                             Preconditions.checkStateNotNull(
                                                 input.getBytes("family_name"),
-                                                "Encountered SetCell mutation with incorrect 'family_name' property.")));
+                                                "Encountered SetCell mutation with null 'family_name' property.")));
                             // Use timestamp if provided, else default to -1 (current
                             // Bigtable
                             // server time)
@@ -249,19 +281,18 @@ public class BigtableWriteSchemaTransformProvider
                             break;
                           case "DeleteFromColumn":
                             // set timestamp range if applicable
-                            @SuppressWarnings("nullness")
                             Mutation.DeleteFromColumn.Builder deleteMutation =
                                 Mutation.DeleteFromColumn.newBuilder()
                                     .setColumnQualifier(
                                         ByteString.copyFrom(
                                             Preconditions.checkStateNotNull(
                                                 input.getBytes("column_qualifier"),
-                                                "Encountered DeleteFromColumn mutation with incorrect 'column_qualifier' property.")))
+                                                "Encountered DeleteFromColumn mutation with null 'column_qualifier' property.")))
                                     .setFamilyNameBytes(
                                         ByteString.copyFrom(
                                             Preconditions.checkStateNotNull(
                                                 input.getBytes("family_name"),
-                                                "Encountered DeleteFromColumn mutation with incorrect 'family_name' property.")));
+                                                "Encountered DeleteFromColumn mutation with null 'family_name' property.")));
 
                             // if start or end timestamp provided
                             // Timestamp Range (optional, assuming Long type in Row schema)
@@ -299,7 +330,7 @@ public class BigtableWriteSchemaTransformProvider
                                                 ByteString.copyFrom(
                                                     Preconditions.checkStateNotNull(
                                                         input.getBytes("family_name"),
-                                                        "Encountered DeleteFromFamily mutation with incorrect 'family_name' property.")))
+                                                        "Encountered DeleteFromFamily mutation with null 'family_name' property.")))
                                             .build())
                                     .build();
                             break;
@@ -312,8 +343,8 @@ public class BigtableWriteSchemaTransformProvider
                           default:
                             throw new RuntimeException(
                                 String.format(
-                                    "Unexpected mutation type [%s]: %s",
-                                    ((input.getString("type"))), input));
+                                    "Unexpected mutation type [%s]: Key value is %s",
+                                    ((input.getString("type"))), Arrays.toString(input.getBytes("key"))));
                         }
                         return KV.of(key, bigtableMutation);
                       }));
