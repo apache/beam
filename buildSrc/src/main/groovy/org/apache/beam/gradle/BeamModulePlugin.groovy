@@ -2588,7 +2588,8 @@ class BeamModulePlugin implements Plugin<Project> {
       if (sharedMavenLocal) {
         argsNeeded.add("--mavenLocalPath=${sharedMavenLocal}")
       }
-      if (config.runner == 'Dataflow' && releaseRepo == snapshotUrl) {
+      if (config.runner == 'Dataflow' && (releaseRepo.startsWith(snapshotUrl) ||
+              releaseRepo.startsWith('https://repository.apache.org/content/groups/snapshots'))) {
         // override Dataflow worker/SDK harness Java when run on snapshot
         argsNeeded.add('--experiments=use_staged_dataflow_worker_jar,use_runner_v2')
       }
