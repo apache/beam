@@ -379,15 +379,15 @@
     'WriteToBigTable': 'WriteToBigTable'
   config:
     mappings:
-      'ReadFromBigTable':
-        project: 'project_id'
-        instance: 'instance_id'
-        table: 'table_id'
+      ##Not exposing Read yet
+#      'ReadFromBigTable':
+#        project: 'project_id'
+#        instance: 'instance_id'
+#        table: 'table_id'
       'WriteToBigTable':
         project: 'project_id'
         instance: 'instance_id'
         table: 'table_id'
-        Rows: "rows"
     underlying_provider:
       type: beamJar
       transforms:
