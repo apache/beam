@@ -33,6 +33,7 @@ t.describe 'Run Apache Beam Java SDK Quickstart - Dataflow'
     // Remove any count files
     t.run """gsutil rm gs://${t.gcsBucket()}/count* || echo 'No files'"""
 
+    def maybeExperiments = t.experiments() ? "--experiments=${ t.experiments()}" : ''
     // Run the wordcount example with the Dataflow runner
     t.run """mvn compile exec:java -q \
       -Dmaven.wagon.http.retryHandler.class=default \
@@ -43,7 +44,7 @@ t.describe 'Run Apache Beam Java SDK Quickstart - Dataflow'
       -Dexec.mainClass=org.apache.beam.examples.WordCount \
       -Dexec.args="--runner=DataflowRunner \
                    --project=${t.gcpProject()} \
-                   --region=${t.gcpRegion()} \
+                   --region=${t.gcpRegion()} ${maybeExperiments} \
                    --gcpTempLocation=gs://${t.gcsBucket()}/tmp \
                    --output=gs://${t.gcsBucket()}/counts \
                    --inputFile=gs://apache-beam-samples/shakespeare/*" \

@@ -37,6 +37,7 @@ class TestScripts {
      static String bqDataset
      static String pubsubTopic
      static String mavenLocalPath
+     static String experiments
    }
 
    def TestScripts(String[] args) {
@@ -49,6 +50,7 @@ class TestScripts {
      cli.bqDataset(args:1, "BigQuery Dataset")
      cli.pubsubTopic(args:1, "PubSub Topic")
      cli.mavenLocalPath(args:1, "Maven local path")
+     cli.experiments(args:1, "Comma seperated experiments pipeline options")
 
      def options = cli.parse(args)
      var.repoUrl = options.repourl
@@ -79,6 +81,10 @@ class TestScripts {
          var.mavenLocalPath = options.mavenLocalPath
          println "Maven local path: ${var.mavenLocalPath}"
      }
+     if (options.experiments) {
+        var.experiments = options.experiments
+        println "experiments: ${var.experiments}"
+     }
    }
 
    def ver() {
@@ -103,6 +109,10 @@ class TestScripts {
 
    def pubsubTopic() {
      return var.pubsubTopic
+   }
+
+   def experiments() {
+     return var.experiments
    }
 
    // Both documents the overal scenario and creates a clean temp directory

@@ -108,6 +108,9 @@ class MobileGamingCommands {
         break
       default:
         testScripts.error("Cannot find example ${exampleName} in archetypes.")
+      if (testScripts.experiments()) {
+        args["experiments"] = testScripts.experiments()
+      }
     }
 
     StringBuilder exampleArgs = new StringBuilder("--tempLocation=gs://${testScripts.gcsBucket()}/tmp --runner=${runner} ")

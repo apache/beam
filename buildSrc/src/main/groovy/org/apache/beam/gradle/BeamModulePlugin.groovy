@@ -2562,7 +2562,8 @@ class BeamModulePlugin implements Plugin<Project> {
 
       def taskName = "run${config.type}Java${config.runner}"
       def releaseVersion = project.findProperty('ver') ?: project.version
-      def releaseRepo = project.findProperty('repourl') ?: 'https://repository.apache.org/content/repositories/snapshots'
+      final def snapshotUrl = 'https://repository.apache.org/content/repositories/snapshots'
+      def releaseRepo = project.findProperty('repourl') ?: snapshotUrl
       // shared maven local path for maven archetype projects
       def sharedMavenLocal = project.findProperty('mavenLocalPath') ?: ''
       def argsNeeded = [
@@ -2586,6 +2587,10 @@ class BeamModulePlugin implements Plugin<Project> {
       }
       if (sharedMavenLocal) {
         argsNeeded.add("--mavenLocalPath=${sharedMavenLocal}")
+      }
+      if (config.runner == 'Dataflow' && releaseRepo == snapshotUrl) {
+        // override Dataflow worker/SDK harness Java when run on snapshot
+        argsNeeded.add('--experiments=use_staged_dataflow_worker_jar,use_runner_v2')
       }
       project.evaluationDependsOn(':release')
       project.task(taskName, dependsOn: ':release:classes', type: JavaExec) {
