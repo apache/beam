@@ -16,8 +16,8 @@
 # under the License.
 
 
-#Action used to trigger a failed check re-run within a PR using a comment. Add this action to your workflow with an if condition 
-#to check if the comment is present 
+#Action used to trigger a failed check re-run within a PR using a comment. Add this action to your workflow with an if condition
+#to check if the comment is present
 #If the check is failed this will trigger it again. If its not failed a new instance of workflow will run which will not show in the status box or checks tab in the PR and can be found in the actions tab https://github.com/apache/beam/actions
 
 name: "Setup Kuberenetes Access"
@@ -44,7 +44,7 @@ runs:
   steps:
   - name: Check if inputs were provided
     shell: bash
-    run: | 
+    run: |
       if [ -z "${{ inputs.k8s_namespace }}" ]; then
         echo "Kubernetes namespace not provided"
         exit 1
@@ -61,7 +61,7 @@ runs:
       gcloud container clusters get-credentials ${{ inputs.cluster_name }} --zone ${{ inputs.cluster_zone }} --project apache-beam-testing
   - name: Create namespace
     shell: bash
-    run: | 
+    run: |
       kubectl create namespace ${{ steps.replace_namespace.outputs.TEST_NAMESPACE }}
   - name: Set default namespace
     shell: bash

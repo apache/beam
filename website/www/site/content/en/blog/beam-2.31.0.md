@@ -74,4 +74,3 @@ Nathan J. Mehl, Pablo Estrada, Peter Sobot, Reuven Lax, Robert Bradshaw,
 Robert Burke, roger-mike, Sam Rohde, Sam Whittle, Stephan Hoyer, Tom Underhill,
 tvalentyn, Uday Singh, Udi Meiri, Vitaly Terentyev, Xinyu Liu, Yichi Zhang,
 Yifan Mai, yoshiki.obata, zhoufek
-

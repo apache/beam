@@ -74,4 +74,3 @@ can be referenced by a pull request and shows up in release notes.
 *Example P4 issues*
 
  - spelling errors in comments or code
-

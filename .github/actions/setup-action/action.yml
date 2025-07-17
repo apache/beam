@@ -64,7 +64,7 @@ runs:
       with:
         github_token: ${{ inputs.github_token }}
         github_job: ${{ inputs.github_job || github.job }}
-        github_repository: ${{ github.repository }}     
+        github_repository: ${{ github.repository }}
         github_current_run_id: ${{ github.run_id }}
         pull_request_url: ${{ github.event.issue.pull_request.url }}
     ## Used for jobs that spawn docker containers and need to mount gcloud config directory

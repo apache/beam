@@ -96,14 +96,14 @@ class GeminiModelHandler(RemoteModelHandler[Any, PredictionResult,
       project: the GCP project to use for Vertex AI requests. Setting this
         parameter routes requests to Vertex AI. If this paramter is provided,
         location must also be provided and api_key should not be set.
-      location: the GCP project to use for Vertex AI requests. Setting this 
+      location: the GCP project to use for Vertex AI requests. Setting this
         parameter routes requests to Vertex AI. If this paramter is provided,
         project must also be provided and api_key should not be set.
       min_batch_size: optional. the minimum batch size to use when batching
         inputs.
       max_batch_size: optional. the maximum batch size to use when batching
         inputs.
-      max_batch_duration_secs: optional. the maximum amount of time to buffer 
+      max_batch_duration_secs: optional. the maximum amount of time to buffer
         a batch before emitting; used in streaming contexts.
     """
     self._batching_kwargs = {}

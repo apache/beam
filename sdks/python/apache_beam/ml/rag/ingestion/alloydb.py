@@ -31,19 +31,19 @@ from apache_beam.ml.rag.ingestion.postgres_common import ConflictResolution
 @dataclass
 class AlloyDBLanguageConnectorConfig:
   """Configuration options for AlloyDB language connector.
-    
+
     Contains all parameters needed to configure a connection using the AlloyDB
     Java connector via JDBC. For details see
     https://github.com/GoogleCloudPlatform/alloydb-java-connector/blob/main/docs/jdbc.md
-    
+
     Attributes:
         username: Database username.
         password: Database password. Can be empty string when using IAM.
         database_name: Name of the database to connect to.
-        instance_name: Fullly qualified instance. Format: 
+        instance_name: Fullly qualified instance. Format:
             'projects/<PROJECT>/locations/<REGION>/clusters/<CLUSTER>/instances
             /<INSTANCE>'
-        ip_type: IP type to use for connection. Either 'PRIVATE' (default), 
+        ip_type: IP type to use for connection. Either 'PRIVATE' (default),
             'PUBLIC' 'PSC.
         enable_iam_auth: Whether to enable IAM authentication. Default is False
         target_principal: Optional service account to impersonate for
@@ -72,7 +72,7 @@ class AlloyDBLanguageConnectorConfig:
 
   def to_jdbc_url(self) -> str:
     """Convert options to a properly formatted JDBC URL.
-      
+
       Returns:
           JDBC URL string configured with all options.
       """
@@ -137,7 +137,7 @@ class AlloyDBVectorWriterConfig(PostgresVectorWriterConfig):
       conflict_resolution: Optional[ConflictResolution] = ConflictResolution(
           on_conflict_fields=[], action='IGNORE')):
     """Configuration for writing vectors to AlloyDB.
-    
+
     Supports flexible schema configuration through column specifications and
     conflict resolution strategies.
 
@@ -154,7 +154,7 @@ class AlloyDBVectorWriterConfig(PostgresVectorWriterConfig):
             :class:`~.postgres_common.ConflictResolution`
             strategy for handling insert conflicts. ON CONFLICT DO NOTHING by
             default.
-    
+
     Examples:
         Basic usage with default schema:
 

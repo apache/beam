@@ -69,12 +69,12 @@ jobs:
 
         echo "------Checking Hash Value for apache_beam-${RELEASE}rc${{ github.event.inputs.RC }}.tar.gz-----"
         sha512sum -c "apache_beam-${RELEASE}rc${{ github.event.inputs.RC }}.tar.gz.sha512"
-        
+
         for artifact in *.whl; do
           echo "----------Checking Hash Value for ${artifact} wheel-----------"
           sha512sum -c "${artifact}.sha512"
         done
-        
+
         echo "===================Removing sha512 files======================="
         rm $(ls | grep -i ".*.sha512$")
 

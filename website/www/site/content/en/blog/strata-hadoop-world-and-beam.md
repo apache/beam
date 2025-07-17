@@ -44,4 +44,3 @@ On management and thought leader side, Beam went from “what’s Beam?” at pr
 We rounded out the tutorial with live demonstrations of Beam running on Apache Spark, Apache Flink, the local runner, and DataFlow runner. Then, we brought in the big brainpower and had a Q and A session.
 
 If you’re attending a conference, we encourage you to look for a Beam session. If you want to use these materials to give your own Beam talk or tutorial, we’re happy to help you. In addition to this tutorial, we have [other presentation materials](/contribute/presentation-materials/). You can reach out to us on the [user mailing list](/get-started/support/).
-

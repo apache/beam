@@ -103,7 +103,7 @@ class XGBoostModelHandler(ModelHandler[ExampleT, PredictionT, ModelT], ABC):
         inputs.
       max_batch_size: optional. the maximum batch size to use when batching
         inputs.
-      max_batch_duration_secs: optional. the maximum amount of time to buffer 
+      max_batch_duration_secs: optional. the maximum amount of time to buffer
         a batch before emitting; used in streaming contexts.
       kwargs: 'env_vars' can be used to set environment variables
         before loading the model.

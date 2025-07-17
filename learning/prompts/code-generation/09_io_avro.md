@@ -39,5 +39,3 @@ if __name__ == "__main__":
 The `ReadAvroOptions` class is used to define the command-line argument `--path`, which specifies the path to the Avro file. This code uses [pipeline options](https://beam.apache.org/documentation/patterns/pipeline-options/) for the required `path` argument.
 
 The code creates an Apache Beam pipeline using the `ReadAvroOptions` class to set the Avro file path and the [`ReadFromAvro` transform](https://beam.apache.org/releases/pydoc/current/apache_beam.io.avroio.html#apache_beam.io.avroio.ReadFromAvro) to read data from the file.
-
-

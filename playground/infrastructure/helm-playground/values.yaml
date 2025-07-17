@@ -41,4 +41,3 @@ autoscaling:
    utilization:
      memoryUtilization: 80
      cpuUtilization: 95
-     

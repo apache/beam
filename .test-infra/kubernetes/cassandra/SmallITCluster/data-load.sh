@@ -14,8 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Hashcode for 1000 records is 1a30ad400afe4ebf5fde75f5d2d95408, 
-# For test with query to select one record from 1000 docs, 
+# Hashcode for 1000 records is 1a30ad400afe4ebf5fde75f5d2d95408,
+# For test with query to select one record from 1000 docs,
 # hashcode is 7bead6d6385c5f4dd0524720cd320b49
 
 # Script to load data using YCSB on Cassandra one node cluster.

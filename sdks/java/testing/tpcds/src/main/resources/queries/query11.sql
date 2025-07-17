@@ -33,11 +33,11 @@ with year_total as (
  group by c_customer_id
          ,c_first_name
          ,c_last_name
-         ,c_preferred_cust_flag 
+         ,c_preferred_cust_flag
          ,c_birth_country
          ,c_login
          ,c_email_address
-         ,d_year 
+         ,d_year
  union all
  select c_customer_id customer_id
        ,c_first_name customer_first_name
@@ -57,13 +57,13 @@ with year_total as (
  group by c_customer_id
          ,c_first_name
          ,c_last_name
-         ,c_preferred_cust_flag 
+         ,c_preferred_cust_flag
          ,c_birth_country
          ,c_login
          ,c_email_address
          ,d_year
          )
-  select  
+  select
                   t_s_secyear.customer_id
                  ,t_s_secyear.customer_first_name
                  ,t_s_secyear.customer_last_name

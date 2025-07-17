@@ -143,4 +143,3 @@ will:
    easier for users to author, maintain, upgrade and migrate their big-data
    workloads will lead to significant growth in the number of production
    big-data deployments.
-

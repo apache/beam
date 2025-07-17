@@ -17,12 +17,12 @@
 
 
 
-locals { 
-    cloudbuild_init_environment = [ 
+locals {
+    cloudbuild_init_environment = [
     "REPO_NAME=$_REPO_NAME" ,
     "BRANCH_NAME=$_BRANCH_NAME",
     "ENVIRONMENT_NAME=$_ENVIRONMENT_NAME",
-    "TF_VAR_env=$_ENVIRONMENT_NAME",  
+    "TF_VAR_env=$_ENVIRONMENT_NAME",
     "TF_VAR_project_id=$PROJECT_ID",
     "TF_VAR_network_name=$_NETWORK_NAME",
     "TF_VAR_subnetwork_name=$_SUBNETWORK_NAME",
@@ -39,10 +39,10 @@ locals {
     "TF_VAR_ip_address_name=$_IPADDRESS_NAME",
     "TF_VAR_repository_id=$_DOCKER_REPO_NAME",
     "TF_VAR_service_account_id=$_SERVICEACCOUNT_ID",
-    "TF_VAR_gke_machine_type=$_GKE_MACHINE_TYPE"] 
-    
-  
-    cloudbuild_deploy_environment = [ 
+    "TF_VAR_gke_machine_type=$_GKE_MACHINE_TYPE"]
+
+
+    cloudbuild_deploy_environment = [
     "REPO_NAME=$_REPO_NAME" ,
     "BRANCH_NAME=$_BRANCH_NAME",
     "ENVIRONMENT_NAME=$_ENVIRONMENT_NAME",
@@ -50,7 +50,7 @@ locals {
     "DNS_NAME=$_DNS_NAME",
     "SDK_TAG=$_SDK_TAG",
     "CONTAINER_TAG=$_CONTAINER_TAG",
-    "TF_VAR_env=$_ENVIRONMENT_NAME",  
+    "TF_VAR_env=$_ENVIRONMENT_NAME",
     "TF_VAR_project_id=$PROJECT_ID",
     "TF_VAR_network_name=$_NETWORK_NAME",
     "TF_VAR_subnetwork_name=$_SUBNETWORK_NAME",
@@ -66,10 +66,10 @@ locals {
     "TF_VAR_ip_address_name=$_IPADDRESS_NAME",
     "TF_VAR_repository_id=$_DOCKER_REPO_NAME",
     "TF_VAR_service_account_id=$_SERVICEACCOUNT_ID",
-    "TF_VAR_gke_machine_type=$_GKE_MACHINE_TYPE"] 
+    "TF_VAR_gke_machine_type=$_GKE_MACHINE_TYPE"]
 
 
-    cloudbuild_cd_environment = [ 
+    cloudbuild_cd_environment = [
     "PROJECT_ID=$PROJECT_ID",
     "DATASTORE_NAMESPACE=$_DATASTORE_NAMESPACE",
     "DNS_NAME=$_DNS_NAME",
@@ -87,7 +87,7 @@ locals {
     "FORCE_CD=false",
     ]
 
-    cloudbuild_cd_environment_manual = [ 
+    cloudbuild_cd_environment_manual = [
     "PROJECT_ID=$PROJECT_ID",
     "DATASTORE_NAMESPACE=$_DATASTORE_NAMESPACE",
     "DNS_NAME=$_DNS_NAME",
@@ -105,7 +105,7 @@ locals {
     "FORCE_CD=true"
     ]
 
-    cloudbuild_ci_environment = [ 
+    cloudbuild_ci_environment = [
     "PROJECT_ID=$PROJECT_ID",
     "PR_BRANCH=$_PR_BRANCH",
     "PR_URL=$_PR_URL",

@@ -60,9 +60,9 @@ import type { InstructionRequest } from "./beam_fn_api";
 import type { InstructionResponse } from "./beam_fn_api";
 import type { DuplexStreamingCall } from "@protobuf-ts/runtime-rpc";
 import type { RpcOptions } from "@protobuf-ts/runtime-rpc";
-// 
+//
 // Control Plane API
-// 
+//
 // Progress reporting and splitting still need further vetting. Also, this may
 // change with the addition of new types of instructions/responses related to
 // metrics.
@@ -89,9 +89,9 @@ export interface IBeamFnControlClient {
      */
     getProcessBundleDescriptor(input: GetProcessBundleDescriptorRequest, options?: RpcOptions): UnaryCall<GetProcessBundleDescriptorRequest, ProcessBundleDescriptor>;
 }
-// 
+//
 // Control Plane API
-// 
+//
 // Progress reporting and splitting still need further vetting. Also, this may
 // change with the addition of new types of instructions/responses related to
 // metrics.

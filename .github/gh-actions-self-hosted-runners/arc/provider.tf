@@ -65,5 +65,5 @@ provider "github" {
     installation_id = data.google_secret_manager_secret_version.github_app_install_id.secret_data
   }
   owner = var.organization
-  
+
 }

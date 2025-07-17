@@ -260,4 +260,3 @@ task ulrDockerValidatesRunner {
 task ulrLoopbackValidatesRunner {
   dependsOn createUlrValidatesRunnerTask("ulrLoopbackValidatesRunnerTests", "LOOPBACK")
 }
-

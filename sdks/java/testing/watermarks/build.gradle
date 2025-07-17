@@ -93,4 +93,3 @@ task run(type: JavaExec) {
   classpath = configurations.gradleRun
   args loadTestArgs.split()
 }
-

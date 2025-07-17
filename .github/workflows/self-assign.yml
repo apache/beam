@@ -14,7 +14,7 @@
 # limitations under the License.
 
 name: Assign or close an issue
-on: 
+on:
   issue_comment:
     types: [created]
 jobs:
@@ -133,7 +133,7 @@ jobs:
                     return;
                   }
                 }
-                
+
                 if (bodyString == '.set-labels') {
                   console.log(`Setting labels to ${labelsToActionOn}`);
                   github.rest.issues.setLabels({

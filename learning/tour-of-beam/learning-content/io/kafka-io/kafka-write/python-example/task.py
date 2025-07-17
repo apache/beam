@@ -43,8 +43,8 @@ bootstrap_servers = {"bootstrap.servers": "kafka_server:9092"}
 input = p | beam.Create([{"key": "foo", "value": "bar"}])
 
 """
-This pipeline is an example of how you can use Apache Beam's KafkaIO (in Python SDK) to write data to a Kafka 
-topic.Make sure your Kafka server is accessible and running, and the topic exists. 
+This pipeline is an example of how you can use Apache Beam's KafkaIO (in Python SDK) to write data to a Kafka
+topic.Make sure your Kafka server is accessible and running, and the topic exists.
 """
 
 # (input |  "Write to Kafka" >> WriteToKafka(

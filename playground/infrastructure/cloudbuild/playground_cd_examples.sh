@@ -82,7 +82,7 @@ LogOutput "Input variables:
  BEAM_USE_WEBGRPC=$BEAM_USE_WEBGRPC
  DATASTORE_NAMESPACE=$DATASTORE_NAMESPACE
  FORCE_CD=$FORCE_CD"
- 
+
 
 # Script starts in a clean environment in Cloud Build. Set minimal required environment variables
 if [ -z "$PATH" ]; then
@@ -130,7 +130,7 @@ do
         LogOutput "FORCE_CD is true. Example deployment for SDK_${sdk^^} is forced"
         example_has_changed="true"
     else
-        LogOutput "------------------Starting checker.py for SDK_${sdk^^}------------------"    
+        LogOutput "------------------Starting checker.py for SDK_${sdk^^}------------------"
         cd $BEAM_ROOT_DIR/playground/infrastructure
         python3 checker.py \
         --verbose \
@@ -159,7 +159,7 @@ do
         eval "check_${sdk}_passed"="true"
         continue
     fi
-    
+
     cd $BEAM_ROOT_DIR/playground/infrastructure
     LogOutput "Running ci_cd.py for SDK $sdk"
 

@@ -58,20 +58,20 @@ env:
   INFLUXDB_USER: ${{ secrets.INFLUXDB_USER }}
   INFLUXDB_USER_PASSWORD: ${{ secrets.INFLUXDB_USER_PASSWORD }}
   tpcdsBigQueryArgs: |
-    --bigQueryTable=tpcds 
-    --bigQueryDataset=tpcds 
-    --project=apache-beam-testing 
-    --resourceNameMode=QUERY_RUNNER_AND_MODE 
-    --exportSummaryToBigQuery=true 
-    --tempLocation=gs://temp-storage-for-perf-tests/tpcds 
+    --bigQueryTable=tpcds
+    --bigQueryDataset=tpcds
+    --project=apache-beam-testing
+    --resourceNameMode=QUERY_RUNNER_AND_MODE
+    --exportSummaryToBigQuery=true
+    --tempLocation=gs://temp-storage-for-perf-tests/tpcds
   tpcdsInfluxDBArgs: |
-    --influxDatabase=beam_test_metrics 
-    --influxHost=http://10.128.0.96:8086 
-    --baseInfluxMeasurement=tpcds 
-    --exportSummaryToInfluxDB=true 
-    --influxRetentionPolicy=forever 
+    --influxDatabase=beam_test_metrics
+    --influxHost=http://10.128.0.96:8086
+    --baseInfluxMeasurement=tpcds
+    --exportSummaryToInfluxDB=true
+    --influxRetentionPolicy=forever
   tpcdsQueriesArg: 3,7,10,25,26,29,35,38,40,42,43,52,55,69,79,83,84,87,93,96
-    
+
 jobs:
   beam_PostCommit_Java_Tpcds_Flink:
     if: |

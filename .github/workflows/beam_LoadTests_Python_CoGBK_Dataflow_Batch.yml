@@ -85,7 +85,7 @@ jobs:
             ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/python_CoGBK_Dataflow_Batch_2MB.txt
       - name: Set current datetime
         id: datetime
-        run: | 
+        run: |
           echo "datetime=$(date '+%m%d%H%M%S' --utc)" >> $GITHUB_OUTPUT
       # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: run CoGBK 2GB of 100B records with a single key

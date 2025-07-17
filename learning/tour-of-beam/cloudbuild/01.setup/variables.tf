@@ -33,5 +33,3 @@ variable "tourofbeam_cd_sa" {
   description = "The ID of the cloud build service account responsible for running Tour of Beam CD checks and scripts"
   default = "tourofbeam-cloudbuild-cd-sa"
 }
-
-

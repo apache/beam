@@ -103,4 +103,3 @@ Some metrics commonly used for benchmarking are:
 
 You can also derive other relevant metrics, such as in the following example.
 * `Total time taken for inference` = `num_inferences x inference_batch_latency_micro_secs_MEAN`
-

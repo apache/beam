@@ -60,7 +60,7 @@ spec:
               value: DC1
             - name: CASSANDRA_RACK
               value: Kubernetes Cluster
-# Number of tokens currently configured to 1. If this is not configured, default value is 256. You can change it as per requirement.			  
+# Number of tokens currently configured to 1. If this is not configured, default value is 256. You can change it as per requirement.
             - name: CASSANDRA_NUM_TOKENS
               value: '1'
           ports:

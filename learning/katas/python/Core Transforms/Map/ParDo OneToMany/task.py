@@ -42,4 +42,3 @@ with beam.Pipeline() as p:
   (p | beam.Create(['Hello Beam', 'It is awesome'])
      | beam.ParDo(BreakIntoWordsDoFn())
      | beam.LogElements())
-

@@ -11,7 +11,7 @@
     margin: 0.25in 0.5in 0.25in 0.5in;
     tab-interval: 0.5in;
     }
-  p {  	
+  p {
     margin-left: auto;
     margin-top:  0.5em;
     margin-bottom: 0.5em;

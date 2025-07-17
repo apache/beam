@@ -59,7 +59,7 @@ pipelines:
     options:
       yaml_experimental_features: ['ML']
 
-  # MLTransform with read_artifact_location based on previous 
+  # MLTransform with read_artifact_location based on previous
   # write_artifact_location
   - pipeline:
       type: chain
@@ -89,4 +89,3 @@ pipelines:
               - {num_scaled: 100.0}
     options:
       yaml_experimental_features: ['ML']
-

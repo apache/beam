@@ -49,4 +49,3 @@ type WordsAlphabet struct {
 func (wa *WordsAlphabet) String() string {
 	return fmt.Sprintf("WordsAlphabet%+v", *wa)
 }
-

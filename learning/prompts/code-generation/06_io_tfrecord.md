@@ -56,5 +56,3 @@ if __name__ == "__main__":
 The `TFRecordOptions` class defines the command-line argument `file_pattern`, which is used to configure the `ReadFromTFRecord` transform. This argument is parsed from the command line using [pipeline options](https://beam.apache.org/documentation/patterns/pipeline-options/).
 
 The `ReadFromTFRecord` transform is a built-in Apache Beam transform that reads data from a `TFRecord` file. By default, `TFRecordIO` transforms use `coders.BytesCoder()`. For more information, see [`ReadFromTFRecord` transform](https://beam.apache.org/releases/pydoc/current/apache_beam.io.tfrecordio.html#apache_beam.io.tfrecordio.ReadFromTFRecord).
-
-

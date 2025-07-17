@@ -64,4 +64,3 @@ message MessageWithOptions {
     int32 field_with_fieldoption_repeated_enum = 816;
 
 }
-

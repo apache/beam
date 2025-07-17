@@ -67,4 +67,3 @@ To run the postcommit tests:
 ```bash
 pytest -v integration_tests.py --test_files_dir="extended_tests"
 ```
-

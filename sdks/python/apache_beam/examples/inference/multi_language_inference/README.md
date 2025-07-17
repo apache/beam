@@ -66,4 +66,3 @@ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.MultiLangRunInfe
 
 The `localPackage` argument is the path to a locally available package compiled as a tarball. This package must be created by the user and contain the python transforms used in the pipeline.
 Make sure to run this in the [`last_word_prediction`](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples/inference/multi_language_inference/last_word_prediction) directory. This will start the Java pipeline.
-

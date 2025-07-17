@@ -35,4 +35,3 @@ public class TestCompletions {
         p.apply(Fi<caret>);
     }
 }
-

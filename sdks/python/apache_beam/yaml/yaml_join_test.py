@@ -150,7 +150,7 @@ class YamlJoinTest(unittest.TestCase):
               f_id: id
             q:
               - name
-              - quantity    
+              - quantity
         ''') | ToRow()
 
       assert_that(

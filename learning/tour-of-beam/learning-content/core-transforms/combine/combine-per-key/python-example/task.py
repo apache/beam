@@ -54,4 +54,3 @@ with beam.Pipeline() as p:
                     (PLAYER_3, 25), (PLAYER_2, 75)])
      | beam.CombinePerKey(sum)
      | Output())
-

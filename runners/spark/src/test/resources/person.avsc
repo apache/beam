@@ -23,4 +23,4 @@
   {"name": "name", "type": ["string", "null"] },
   {"name": "age", "type": "int"},
   {"name": "siblingnames", "type" : ["null", { "type": "array", "items": "string" }], "default": null } ]
-} 
+}

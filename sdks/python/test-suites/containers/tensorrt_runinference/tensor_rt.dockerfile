@@ -16,7 +16,7 @@
 
 ARG BUILD_IMAGE=nvcr.io/nvidia/tensorrt:23.05-py3
 
-FROM ${BUILD_IMAGE} 
+FROM ${BUILD_IMAGE}
 
 ENV PATH="/usr/src/tensorrt/bin:${PATH}"
 
@@ -32,4 +32,4 @@ RUN pip install --upgrade pip \
     && pip install cuda-python
 
 ENTRYPOINT [ "/opt/apache/beam/boot" ]
-RUN apt-get update && apt-get install -y python3.10-venv 
+RUN apt-get update && apt-get install -y python3.10-venv

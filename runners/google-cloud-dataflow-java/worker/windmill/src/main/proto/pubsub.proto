@@ -35,4 +35,3 @@ message PubsubMessage {
   string message_id = 3;
   google.protobuf.Timestamp publish_time = 4;
 }
-

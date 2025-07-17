@@ -74,4 +74,3 @@ func doFn(iw beam.Window, et beam.EventTime, element X) Y {
     <a href="https://beam.apache.org/documentation/programming-guide/#windowing">
     windowing</a>.
 </div>
-

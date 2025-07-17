@@ -30,4 +30,3 @@ func Read(s beam.Scope, glob string) beam.PCollection {
 func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
 	return beam.ParDo(s, strings.ToUpper, input)
 }
-

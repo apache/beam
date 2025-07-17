@@ -54,7 +54,7 @@ class GRPCClient:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self._channel.__aexit__(exc_type, exc_val, exc_tb)
 
-    async def run_code(self, 
+    async def run_code(self,
         code: str,
         sdk: SdkEnum,
         pipeline_options: str,

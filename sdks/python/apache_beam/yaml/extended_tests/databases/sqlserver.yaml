@@ -50,4 +50,3 @@ pipelines:
               - {value: 123, rank: 0}
               - {value: 456, rank: 1}
               - {value: 789, rank: 2}
-    

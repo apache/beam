@@ -183,4 +183,3 @@ pipelines:
             elements:
               - {a: 1, c: 100}
               - {a: 2, c: 200}
-

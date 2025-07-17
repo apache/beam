@@ -46,7 +46,3 @@ with beam.Pipeline() as p:
 This example uses the [`RunInference`](https://beam.apache.org/documentation/transforms/python/elementwise/runinference/) transform from the `tfx_bsl` library, directing it to the local directory where the model is stored. The transform takes `tf.train.Example` type elements as inputs and produces `tensorflow_serving.apis.prediction_log_pb2.PredictionLog` type elements as outputs.
 
 Depending on the signature of your model, you can extract values from the output. For the prediction output format of exported models for each model type, refer to the [Prediction output format](https://cloud.google.com/bigquery/docs/exporting-models#prediction_output_format) section in the BigQuery documentation.
-
-
-
-

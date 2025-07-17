@@ -243,5 +243,3 @@ When using streaming execution, keep the following considerations in mind.
 
 3. Streaming execution [pricing](https://cloud.google.com/dataflow/pricing)
    differs from batch execution.
-
-

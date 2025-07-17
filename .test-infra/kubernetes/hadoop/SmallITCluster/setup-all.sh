@@ -38,4 +38,3 @@ hadoop_master_pod_name="$(kubectl get pods --selector=name=hadoop -o jsonpath='{
 
 echo "For local tests please add the following entry to /etc/hosts file"
 printf "%s\\t%s\\n" "${external_ip}" "${hadoop_master_pod_name}"
-

@@ -50,5 +50,3 @@ jobs:
         run: |
           git tag -a ${{ github.event.inputs.VERSION_TAG }} -m ${{ github.event.inputs.RC_TAG }}
           git push https://github.com/apache/beam ${{ github.event.inputs.VERSION_TAG }}
-
-

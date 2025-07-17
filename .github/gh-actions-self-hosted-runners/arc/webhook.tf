@@ -27,5 +27,5 @@ resource "github_repository_webhook" "webhook" {
     insecure_ssl = false
   }
   active       = true
-  events       = ["workflow_job"]  
+  events       = ["workflow_job"]
 }

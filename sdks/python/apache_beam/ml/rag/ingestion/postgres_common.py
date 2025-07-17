@@ -30,16 +30,16 @@ from apache_beam.ml.rag.types import Chunk
 
 def chunk_embedding_fn(chunk: Chunk) -> str:
   """Convert embedding to PostgreSQL array string.
-    
+
     Formats dense embedding as a PostgreSQL-compatible array string.
     Example: [1.0, 2.0] -> '{1.0,2.0}'
-    
+
     Args:
         chunk: Input Chunk object.
-    
+
     Returns:
         str: PostgreSQL array string representation of the embedding.
-    
+
     Raises:
         ValueError: If chunk has no dense embedding.
     """
@@ -51,7 +51,7 @@ def chunk_embedding_fn(chunk: Chunk) -> str:
 @dataclass
 class ColumnSpec:
   """Specification for mapping Chunk fields to SQL columns for insertion.
-    
+
     Defines how to extract and format values from Chunks into database columns,
     handling the full pipeline from Python value to SQL insertion.
 
@@ -71,7 +71,7 @@ class ColumnSpec:
             Common examples:
             - "::float[]" for vector arrays
             - "::jsonb" for JSON data
-    
+
     Examples:
         Basic text column (uses standard JDBC type mapping):
         >>> ColumnSpec.text(
@@ -83,7 +83,7 @@ class ColumnSpec:
         Vector column with explicit array casting:
         >>> ColumnSpec.vector(
         ...     column_name="embedding",
-        ...     value_fn=lambda chunk: '{' + 
+        ...     value_fn=lambda chunk: '{' +
         ...         ','.join(map(str, chunk.embedding.dense_embedding)) + '}'
         ... )
         # Results in: INSERT INTO table (embedding) VALUES (?::float[])
@@ -168,17 +168,17 @@ class ColumnSpecsBuilder:
       convert_fn: Optional[Callable[[str], Any]] = None,
       sql_typecast: Optional[str] = None) -> 'ColumnSpecsBuilder':
     """Add ID :class:`.ColumnSpec` with optional type and conversion.
-        
+
         Args:
             column_name: Name for the ID column (defaults to "id")
             python_type: Python type for the column (defaults to str)
             convert_fn: Optional function to convert the chunk ID
                        If None, uses ID as-is
             sql_typecast: Optional SQL type cast
-        
+
         Returns:
             Self for method chaining
-        
+
         Example:
             >>> builder.with_id_spec(
             ...     column_name="doc_id",
@@ -205,17 +205,17 @@ class ColumnSpecsBuilder:
       convert_fn: Optional[Callable[[str], Any]] = None,
       sql_typecast: Optional[str] = None) -> 'ColumnSpecsBuilder':
     """Add content :class:`.ColumnSpec` with optional type and conversion.
-      
+
       Args:
           column_name: Name for the content column (defaults to "content")
           python_type: Python type for the column (defaults to str)
           convert_fn: Optional function to convert the content text
                       If None, uses content text as-is
           sql_typecast: Optional SQL type cast
-      
+
       Returns:
           Self for method chaining
-      
+
       Example:
           >>> builder.with_content_spec(
           ...     column_name="content_length",
@@ -244,17 +244,17 @@ class ColumnSpecsBuilder:
       convert_fn: Optional[Callable[[Dict[str, Any]], Any]] = None,
       sql_typecast: Optional[str] = "::jsonb") -> 'ColumnSpecsBuilder':
     """Add metadata :class:`.ColumnSpec` with optional type and conversion.
-      
+
       Args:
           column_name: Name for the metadata column (defaults to "metadata")
           python_type: Python type for the column (defaults to str)
           convert_fn: Optional function to convert the metadata dictionary
                       If None and python_type is str, converts to JSON string
           sql_typecast: Optional SQL type cast (defaults to "::jsonb")
-      
+
       Returns:
           Self for method chaining
-      
+
       Example:
           >>> builder.with_metadata_spec(
           ...     column_name="meta_tags",
@@ -283,19 +283,19 @@ class ColumnSpecsBuilder:
       convert_fn: Optional[Callable[[List[float]], Any]] = None
   ) -> 'ColumnSpecsBuilder':
     """Add embedding :class:`.ColumnSpec` with optional conversion.
-      
+
       Args:
           column_name: Name for the embedding column (defaults to "embedding")
           convert_fn: Optional function to convert the dense embedding values
                       If None, uses default PostgreSQL array format
-      
+
       Returns:
           Self for method chaining
-      
+
       Example:
           >>> builder.with_embedding_spec(
           ...     column_name="embedding_vector",
-          ...     convert_fn=lambda values: '{' + ','.join(f"{x:.4f}" 
+          ...     convert_fn=lambda values: '{' + ','.join(f"{x:.4f}"
           ...       for x in values) + '}'
           ... )
       """
@@ -330,7 +330,7 @@ class ColumnSpecsBuilder:
                       desired type. If None, value is used as-is
             default: Default value if field is missing from metadata
             sql_typecast: Optional SQL type cast (e.g. "::timestamp")
-        
+
         Returns:
             Self for chaining
 
@@ -385,17 +385,17 @@ class ColumnSpecsBuilder:
 
   def add_custom_column_spec(self, spec: ColumnSpec) -> 'ColumnSpecsBuilder':
     """Add a custom :class:`.ColumnSpec` to the builder.
-    
+
     Use this method when you need complete control over the :class:`.ColumnSpec`
     , including custom value extraction and type handling.
-    
+
     Args:
         spec: A :class:`.ColumnSpec` instance defining the column name, type,
             value extraction, and optional SQL type casting.
-    
+
     Returns:
         Self for method chaining
-    
+
     Examples:
         Custom text column from chunk metadata:
 
@@ -430,12 +430,12 @@ class ConflictResolution:
             IGNORE: Skips conflicting records.
         update_fields: Optional list of fields to update on conflict. If None,
             all non-conflict fields are updated.
-        
+
     Examples:
         Simple primary key:
 
         >>> ConflictResolution("id")
-        
+
         Composite key with specific update fields:
 
         >>> ConflictResolution(
@@ -443,7 +443,7 @@ class ConflictResolution:
         ...     action="UPDATE",
         ...     update_fields=["embedding", "content"]
         ... )
-        
+
         Ignore conflicts:
 
         >>> ConflictResolution(

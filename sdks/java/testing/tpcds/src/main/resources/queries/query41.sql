@@ -16,12 +16,12 @@
 
 select  distinct(i_product_name)
  from item i1
- where i_manufact_id between 742 and 742+40 
+ where i_manufact_id between 742 and 742+40
    and (select count(*) as item_cnt
         from item
         where (i_manufact = i1.i_manufact and
-        ((i_category = 'Women' and 
-        (i_color = 'orchid' or i_color = 'papaya') and 
+        ((i_category = 'Women' and
+        (i_color = 'orchid' or i_color = 'papaya') and
         (i_units = 'Pound' or i_units = 'Lb') and
         (i_size = 'petite' or i_size = 'medium')
         ) or
@@ -41,8 +41,8 @@ select  distinct(i_product_name)
         (i_size = 'petite' or i_size = 'medium')
         ))) or
        (i_manufact = i1.i_manufact and
-        ((i_category = 'Women' and 
-        (i_color = 'salmon' or i_color = 'midnight') and 
+        ((i_category = 'Women' and
+        (i_color = 'salmon' or i_color = 'midnight') and
         (i_units = 'Oz' or i_units = 'Box') and
         (i_size = 'petite' or i_size = 'medium')
         ) or

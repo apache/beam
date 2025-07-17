@@ -28,7 +28,7 @@ pipeline:
       config:
         subscription: "projects/apache-beam-testing/subscription/my-subscription"
         format: JSON
-        schema: 
+        schema:
           type: object
           properties:
             data: {type: BYTES}

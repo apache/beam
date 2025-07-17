@@ -18,12 +18,12 @@
 #
 
 resource "google_dns_managed_zone" "private-zone-private-googleapis" {
-  project     = var.project_id 
+  project     = var.project_id
 
   name        = "${var.network_name}googleapis-com"
   dns_name    = "googleapis.com."
   description = "Private GoogleApi Zone"
-  
+
   visibility = "private"
 
   private_visibility_config {
@@ -49,4 +49,4 @@ resource "google_dns_record_set" "cname-private-googleapis" {
   type         = "CNAME"
   ttl          = 300
   rrdatas      = ["private.googleapis.com."]
-} 
+}

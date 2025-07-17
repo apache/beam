@@ -38,4 +38,3 @@ if (!instance.installState.isSetupComplete()) {
 }
 
 instance.save()
-

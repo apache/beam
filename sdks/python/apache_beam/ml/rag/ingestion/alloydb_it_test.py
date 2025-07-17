@@ -200,7 +200,7 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
     self.read_test_pipeline.not_use_test_runner_api = True
     # Read pipeline to verify
     read_query = f"""
-          SELECT 
+          SELECT
               CAST(id AS VARCHAR(255)),
               CAST(content AS VARCHAR(255)),
               CAST(embedding AS text),
@@ -288,7 +288,7 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
 
     self.read_test_pipeline.not_use_test_runner_api = True
     read_query = f"""
-          SELECT 
+          SELECT
               CAST(id AS VARCHAR(255)),
               CAST(content AS VARCHAR(255)),
               CAST(embedding AS text),
@@ -399,7 +399,7 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
 
     # Read and verify
     read_query = f"""
-          SELECT 
+          SELECT
               CAST(custom_id AS VARCHAR(255)),
               CAST(embedding_vec AS text),
               CAST(content_col AS VARCHAR(255)),
@@ -497,7 +497,7 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
 
     # Read and verify
     read_query = f"""
-          SELECT 
+          SELECT
               CAST(custom_id AS VARCHAR(255)),
               CAST(embedding_vec AS text),
               CAST(content_col AS VARCHAR(255)),
@@ -575,7 +575,7 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
 
     # Read and verify only id and embedding
     read_query = f"""
-          SELECT 
+          SELECT
               CAST(id AS VARCHAR(255)),
               CAST(embedding AS text)
           FROM {self.default_table_name}
@@ -679,7 +679,7 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
 
     # Read and verify
     read_query = f"""
-            SELECT 
+            SELECT
                 CAST(id AS VARCHAR(255)),
                 CAST(embedding AS text),
                 CAST(content AS VARCHAR(255)),
@@ -764,7 +764,7 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
           | "Write initial chunks" >> config.create_write_transform())
 
     read_query = f"""
-          SELECT 
+          SELECT
               CAST(id AS VARCHAR(255)),
               CAST(content AS VARCHAR(255)),
               CAST(embedding AS text),
@@ -853,7 +853,7 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
           | "Write initial chunks" >> config.create_write_transform())
 
     read_query = f"""
-          SELECT 
+          SELECT
               CAST(id AS VARCHAR(255)),
               CAST(content AS VARCHAR(255)),
               CAST(embedding AS text),
@@ -915,7 +915,7 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
       assert_that(chunks, equal_to([test_chunks]), label='updated_chunks_check')
 
   def test_conflict_resolution_default_update_fields(self):
-    """Test conflict resolution with default update fields (all non-conflict 
+    """Test conflict resolution with default update fields (all non-conflict
     fields)."""
     self.skip_if_dataflow_runner()
     num_records = 20
@@ -951,7 +951,7 @@ class AlloydbVectorWriterConfigTest(unittest.TestCase):
 
     # Verify initial data was written correctly
     read_query = f"""
-          SELECT 
+          SELECT
               CAST(id AS VARCHAR(255)),
               CAST(content AS VARCHAR(255)),
               CAST(embedding AS text),

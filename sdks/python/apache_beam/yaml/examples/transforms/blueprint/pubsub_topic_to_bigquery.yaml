@@ -28,7 +28,7 @@ pipeline:
       config:
         topic: "projects/apache-beam-testing/topics/my-topic"
         format: JSON
-        schema: 
+        schema:
           type: object
           properties:
             data: {type: BYTES}

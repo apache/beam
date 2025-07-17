@@ -40,11 +40,11 @@ class LangChainChunker(ChunkingTransformProvider):
       metadata_fields: List[str],
       chunk_id_fn: Optional[ChunkIdFn] = None):
     """A ChunkingTransformProvider that uses LangChain text splitters.
-  
+
     This provider integrates LangChain's text splitting capabilities into
     Beam's MLTransform framework. It supports various text splitting strategies
     through LangChain's TextSplitter interface, including recursive character
-    splitting and other methods. 
+    splitting and other methods.
 
     The provider:
     - Takes documents with text content and metadata
@@ -55,17 +55,17 @@ class LangChainChunker(ChunkingTransformProvider):
     Example usage:
       ```python
       from langchain.text_splitter import RecursiveCharacterTextSplitter
-      
+
       splitter = RecursiveCharacterTextSplitter(
           chunk_size=100,
           chunk_overlap=20
       )
-      
+
       chunker = LangChainChunker(text_splitter=splitter)
-      
+
       with beam.Pipeline() as p:
         chunks = (
-            p 
+            p
             | beam.Create([{'text': 'long document...', 'source': 'doc.txt'}])
             | MLTransform(...).with_transform(chunker))
       ```

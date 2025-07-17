@@ -52,4 +52,3 @@ with beam.Pipeline(options=options) as p:
 For more information, see the [BigQuery I/O connector documentation](https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.bigquery.html).
 
 For samples that show common pipeline configurations, see [Pipeline option patterns](https://beam.apache.org/documentation/patterns/pipeline-options/).
-

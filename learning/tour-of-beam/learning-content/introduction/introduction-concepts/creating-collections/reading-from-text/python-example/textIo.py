@@ -59,5 +59,3 @@ with beam.Pipeline() as p:
             | beam.combiners.Sample.FixedSizeGlobally(10) \
             | beam.FlatMap(lambda word: word) \
             | 'Log output words' >> Output(prefix = 'Word: ')
-
-

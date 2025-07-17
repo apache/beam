@@ -23,7 +23,7 @@ import fetch from 'node-fetch';
 const ONE_HOUR = 60 * 60 * 1000;
 
 function sendReport(title, report) {
-      
+
     nodemailer.createTransport({
         service: process.env['ISSUE_REPORT_SENDER_EMAIL_SERVICE'], // e.g. "gmail"
         auth: {
@@ -50,7 +50,7 @@ function formatIssues(header, issues) {
         report += `${issue.html_url} ${issue.title}\n`;
     }
     report += "\n\n"
-    
+
     return report;
 }
 

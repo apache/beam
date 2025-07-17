@@ -24,4 +24,3 @@ variable "project_id" {
 variable "environment" {
   description = "The name of the environment for deployment. Will create directory where terraform config files will be stored"
 }
-

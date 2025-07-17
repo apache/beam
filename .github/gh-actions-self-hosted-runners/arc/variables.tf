@@ -19,7 +19,7 @@
 
 variable "project_id" {
     description = "Google Project ID to use for deployment"
-    
+
 }
 variable "region" {
     description = "Google Region to use for deployment"
@@ -66,10 +66,10 @@ variable "existing_ip_name" {
     description = "Name of existing IP to use for ingress"
     default = ""
 }
-variable "subnetwork_cidr_range" { 
+variable "subnetwork_cidr_range" {
     description = "CIDR range for subnetwork"
     default = "10.128.0.0/20"
-  
+
 }
 variable "service_account_id" {
     description = "ID of service account to use for deployment. This can be Name, full Email or Fully Qualified Path"
@@ -98,7 +98,7 @@ variable "main_runner" {
         cpu = string
         memory = string
         }), { cpu = "500m",
-              memory = "500Mi" 
+              memory = "500Mi"
         })
       limits = optional(object({
         cpu = optional(string)
@@ -127,7 +127,7 @@ variable "additional_runner_pools" {
         cpu = string
         memory = string
         }), { cpu = "500m",
-              memory = "500Mi" 
+              memory = "500Mi"
         })
       limits = optional(object({
         cpu = optional(string)

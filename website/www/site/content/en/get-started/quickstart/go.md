@@ -190,4 +190,3 @@ issues!
 [NewPipelineWithRoot]: https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam#NewPipelineWithRoot
 [ParDo]: https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam#ParDo
 [Title]: https://pkg.go.dev/strings#Title
-

@@ -99,4 +99,3 @@ terraform apply -var-file=environments/environment_name.env
 # Maintanance
 
 - To access the ARC k8s cluster call the `get_kubeconfig_command` terraform output and run the command
-

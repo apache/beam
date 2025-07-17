@@ -195,4 +195,3 @@ Separating lambdas into a helper function by using `beam.Map(median_house_value_
 For more guidance about testing on Beam and Dataflow, see the [Google Cloud documentation](https://cloud.google.com/dataflow/docs/guides/develop-and-test-pipelines). For more examples of unit testing in Beam, see the `base_test.py` [code](https://github.com/apache/beam/blob/736cf50430b375d32093e793e1556567557614e9/sdks/python/apache_beam/ml/inference/base_test.py#L262).
 
 Special thanks to Robert Bradshaw, Danny McCormick, XQ Hu, Surjit Singh, and Rebecca Spzer, who helped refine the ideas in this post.
-

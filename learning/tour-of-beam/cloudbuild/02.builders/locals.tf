@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-locals { 
+locals {
    cloudbuild_init_environment = [
    "BRANCH_NAME=$_BRANCH_NAME",
    "REPO_NAME=$_REPO_NAME" ,
@@ -27,7 +27,7 @@ locals {
    "PROJECT_ID=$PROJECT_ID",
    "STATE_BUCKET=$_STATE_BUCKET",
 
-   # Learning material 
+   # Learning material
    "DATASTORE_PROJECT_ID=$PROJECT_ID",
    "DATASTORE_NAMESPACE=$_PG_DATASTORE_NAMESPACE",
    "TOB_LEARNING_ROOT=$_TOB_LEARNING_ROOT",
@@ -39,7 +39,7 @@ locals {
    "TF_VAR_datastore_namespace=$_PG_DATASTORE_NAMESPACE",
    ]
 
-   cloudbuild_cd_environment = [ 
+   cloudbuild_cd_environment = [
    "PROJECT_ID=$PROJECT_ID",
    "DATASTORE_NAMESPACE=$_DATASTORE_NAMESPACE",
    "DNS_NAME=$_DNS_NAME",
@@ -55,13 +55,13 @@ locals {
    "PR_COMMIT=$_PR_COMMIT",
    "CD_SCRIPT_PATH=beam/playground/infrastructure/cloudbuild/playground_cd_examples.sh",
    "FORCE_CD=false",
-   # Learning material 
+   # Learning material
    "DATASTORE_PROJECT_ID=$PROJECT_ID",
    "DATASTORE_NAMESPACE=$_DATASTORE_NAMESPACE",
    "TOB_LEARNING_ROOT=$_TOB_LEARNING_ROOT",
     ]
 
-   cloudbuild_cd_environment_manual = [ 
+   cloudbuild_cd_environment_manual = [
    "PROJECT_ID=$PROJECT_ID",
    "DNS_NAME=$_DNS_NAME",
    "PR_URL=URL",
@@ -76,13 +76,13 @@ locals {
    "PR_COMMIT=$_PR_COMMIT",
    "CD_SCRIPT_PATH=beam/playground/infrastructure/cloudbuild/playground_cd_examples.sh",
    "FORCE_CD=true",
-   # Learning material 
+   # Learning material
    "DATASTORE_PROJECT_ID=$PROJECT_ID",
    "DATASTORE_NAMESPACE=$_DATASTORE_NAMESPACE",
    "TOB_LEARNING_ROOT=$_TOB_LEARNING_ROOT",
     ]
 
-   cloudbuild_ci_environment = [ 
+   cloudbuild_ci_environment = [
    "PROJECT_ID=$PROJECT_ID",
    "PR_BRANCH=$_PR_BRANCH",
    "PR_URL=$_PR_URL",

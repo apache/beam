@@ -61,7 +61,7 @@ pipelines:
               fields: ['label']
               row_restriction_template: "label = '37a'"
             timeout: 30
-          
+
         - type: MapToFields
           config:
             language: python

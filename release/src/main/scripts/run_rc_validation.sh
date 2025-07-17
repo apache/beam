@@ -604,7 +604,7 @@ if [[ ("$python_xlang_quickstart" = true) \
     PYTHON_MULTILANG_QUICKSTART_OUTPUT_FILE_NAME=${PYTHON_MULTILANG_QUICKSTART_FILE_PREFIX}_output
     PYTHON_MULTILANG_QUICKSTART_EXPECTED_OUTPUT_FILE_NAME=${PYTHON_MULTILANG_QUICKSTART_FILE_PREFIX}_expected_output
     PYTHON_MULTILANG_QUICKSTART_SORTED_OUTPUT_FILE_NAME=${PYTHON_MULTILANG_QUICKSTART_FILE_PREFIX}_sorted_output
-    
+
     # Cleaning up data from any previous runs.
     rm ${PYTHON_MULTILANG_QUICKSTART_FILE_PREFIX}*
     rm ./beam-examples-multi-language-${RELEASE_VER}.jar
@@ -624,7 +624,7 @@ if [[ ("$python_xlang_quickstart" = true) \
     # Downloading the expansion service jar.
     wget ${REPO_URL}/org/apache/beam/beam-examples-multi-language/${RELEASE_VER}/beam-examples-multi-language-${RELEASE_VER}.jar
     JAVA_EXPANSION_SERVICE_PORT=33333
-    
+
     # Starting up the expansion service in a seperate shell.
     echo "A new terminal will pop up and start a java expansion service."
     gnome-terminal -x sh -c \
@@ -746,7 +746,7 @@ if [[ ("$java_xlang_quickstart" = true) \
     --expansionService=localhost:${PYTHON_EXPANSION_SERVICE_PORT} \
     --output=${JAVA_MULTILANG_QUICKSTART_OUTPUT_FILE_NAME}"
 
-    # We cannot validate local output since 
+    # We cannot validate local output since
     # TODO: Write output to GCS and validate when Python portable runner can forward credentials to GCS appropriately.
 
     java_xlang_quickstart_status=$?

@@ -40,7 +40,7 @@ metadata:
   name: es-master
   labels:
     component: elasticsearch
-    role: master 
+    role: master
 spec:
   selector:
     matchLabels:
@@ -207,10 +207,10 @@ spec:
     spec:
       initContainers:
       - name: "sysctl"
-        image: busybox 
+        image: busybox
         imagePullPolicy: IfNotPresent
         command: ["sysctl", "-w", "vm.max_map_count=1048575"]
-        securityContext: 
+        securityContext:
           privileged: true
       containers:
       - name: es-data

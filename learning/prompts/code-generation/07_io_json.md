@@ -46,4 +46,3 @@ if __name__ == "__main__":
 The `JsonOptions` class is a custom class that extends the `PipelineOptions` object. This code uses [pipeline options](https://beam.apache.org/documentation/patterns/pipeline-options/) to parse command-line arguments.
 
 The [`ReadFromJson`](https://beam.apache.org/releases/pydoc/current/apache_beam.io.textio.html#apache_beam.io.textio.ReadFromJson) transform is a built-in Apache Beam transform that reads data from a JSON file.
-

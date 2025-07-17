@@ -22,7 +22,7 @@ resource "helm_release" "cert-manager" {
   create_namespace = true
   repository = "https://charts.jetstack.io"
   chart      = "cert-manager"
-  
+
   atomic = "true"
   timeout = 100
 

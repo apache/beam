@@ -300,12 +300,12 @@ class ScaleToGaussian(TFTOperation):
       elementwise: bool = False,
       name: Optional[str] = None):
     """
-    This operation scales the given input column values to an approximately 
+    This operation scales the given input column values to an approximately
     normal distribution with mean 0 and variance of 1. The Gaussian
     transformation is only applied if the column has long tails;
     otherwise, the transformation is the same as normalizing to z scores.
 
-    For more information, see: 
+    For more information, see:
     https://www.tensorflow.org/tfx/transform/api_docs/python/tft/scale_to_gaussian
 
     Args:
@@ -373,7 +373,7 @@ class ApplyBucketsWithInterpolation(TFTOperation):
       name: Optional[str] = None):
     """Interpolates values within the provided buckets and then normalizes to
     [0, 1].
-    
+
     Input values are bucketized based on the provided boundaries such that the
     input is mapped to a positive index i for which `bucket_boundaries[i-1] <=
     element < bucket_boundaries[i]`, if it exists. The values are then
@@ -688,7 +688,7 @@ class HashStrings(TFTOperation):
       key: Optional[tuple[int, int]] = None,
       name: Optional[str] = None):
     '''Hashes strings into the provided number of buckets.
-    
+
     Args:
       columns: A list of the column names to apply the transformation on.
       hash_buckets: the number of buckets to hash the strings into.
@@ -730,7 +730,7 @@ class DeduplicateTensorPerRow(TFTOperation):
 
     Args:
       columns: A list of the columns to apply the transformation on.
-      name: optional. A name for this operation. 
+      name: optional. A name for this operation.
     """
     self.name = name
     super().__init__(columns)

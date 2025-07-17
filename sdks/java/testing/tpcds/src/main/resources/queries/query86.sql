@@ -21,7 +21,7 @@ select
    ,grouping(i_category)+grouping(i_class) as lochierarchy
    ,rank() over (
  	partition by grouping(i_category)+grouping(i_class),
- 	case when grouping(i_class) = 0 then i_category end 
+ 	case when grouping(i_class) = 0 then i_category end
  	order by sum(ws_net_paid) desc) as rank_within_parent
  from
     web_sales

@@ -57,13 +57,13 @@ pipeline:
         language: python
         group_by: global_key
         combine:
-          min_price: 
+          min_price:
             value: unit_price
             fn: min
-          mean_price: 
+          mean_price:
             value: unit_price
             fn: mean
-          max_price: 
+          max_price:
             value: unit_price
             fn: max
     # Removes unwanted global key

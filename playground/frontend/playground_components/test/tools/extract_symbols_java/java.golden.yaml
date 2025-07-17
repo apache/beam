@@ -1,13 +1,13 @@
-ExtendedPublicClass: 
-  methods: 
+ExtendedPublicClass:
+  methods:
   - extendedPublicMethod
-  properties: 
+  properties:
   - extendedPublicField
-PublicClass: 
-  methods: 
+PublicClass:
+  methods:
   - anotherPublicMethod
   - publicMethod
-  properties: 
+  properties:
   - anotherPublicField
   - publicField
 Test: {}

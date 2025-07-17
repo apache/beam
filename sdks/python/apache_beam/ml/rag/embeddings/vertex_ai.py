@@ -53,7 +53,7 @@ class VertexAITextEmbeddings(EmbeddingsManager):
       **kwargs):
     """Utilizes Vertex AI text embeddings for semantic search and RAG
         pipelines.
-        
+
         Args:
             model_name: Name of the Vertex AI text embedding model
             title: Optional title for the text content

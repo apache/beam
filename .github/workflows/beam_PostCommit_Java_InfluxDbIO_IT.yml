@@ -56,7 +56,7 @@ jobs:
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 100
     strategy:
-      matrix: 
+      matrix:
         job_name: [beam_PostCommit_Java_InfluxDbIO_IT]
         job_phrase: [Run Java InfluxDbIO_IT]
     if: |
@@ -81,10 +81,10 @@ jobs:
           k8s_namespace: ${{ matrix.job_name }}-${{ github.run_id }}
       - name: Install InfluxDB
         id: install_influxdb
-        run: | 
+        run: |
           kubectl apply -f ${{ github.workspace }}/.test-infra/kubernetes/influxdb/influxdb.yml
           kubectl wait --timeout 2m svc/influxdb-load-balancer-service --for=jsonpath='{.status.loadBalancer.ingress[0].ip}'
-          loadbalancer_IP=$(kubectl get svc influxdb-load-balancer-service -o jsonpath='{.status.loadBalancer.ingress[0].ip}') 
+          loadbalancer_IP=$(kubectl get svc influxdb-load-balancer-service -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
           echo influxdb_IP=$loadbalancer_IP >> $GITHUB_OUTPUT
       - name: Run Java InfluxDbIO_IT
         uses: ./.github/actions/gradle-command-self-hosted-action

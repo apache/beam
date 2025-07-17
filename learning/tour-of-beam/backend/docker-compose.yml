@@ -17,7 +17,7 @@ version: "3"
 
 services:
   datastore:
-    build: integration_tests/emulators/datastore 
+    build: integration_tests/emulators/datastore
     volumes:
       - ${DATASTORE_EMULATOR_DATADIR}:/opt/data
     environment:
@@ -28,7 +28,7 @@ services:
     command: --consistency=1.0 --store-on-disk
 
   firebase_auth:
-    build: integration_tests/emulators/firebase 
+    build: integration_tests/emulators/firebase
     environment:
       - PROJECT_ID=${GOOGLE_CLOUD_PROJECT}
     ports:

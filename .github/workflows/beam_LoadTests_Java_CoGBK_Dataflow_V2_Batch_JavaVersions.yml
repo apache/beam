@@ -87,7 +87,7 @@ jobs:
             ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_CoGBK_Dataflow_Batch_100b_Multiple_Keys.txt
             ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_CoGBK_Dataflow_Batch_10kB.txt
             ${{ github.workspace }}/.github/workflows/load-tests-pipeline-options/java_CoGBK_Dataflow_Batch_2MB.txt
-          arguments: |            
+          arguments: |
             --influxTags={\"runnerVersion\":\"v2\",\"jdk\":\"java${{ matrix.java_version }}\"}
       # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: run CoGBK 2GB 100  byte records - single key

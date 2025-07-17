@@ -52,7 +52,7 @@ async function monitorRunnerStatus() {
             org: process.env.ORG
             },
         )
-        
+
         //Filtering BEAM runners
         let beamRunners = runners.filter(runner => {
             return runner.labels.find(label => label.name == "beam")

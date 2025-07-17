@@ -116,4 +116,3 @@ Output:
 {{< highlight class="notebook-skip" >}}
 {{< code_sample "sdks/python/apache_beam/examples/snippets/transforms/elementwise/mltransform_test.py" mltransform_compute_and_apply_vocabulary_with_scalar >}}
 {{< /highlight >}}
-

@@ -92,7 +92,7 @@ class DatabaseTestHelper:
     if self.db_config.database_type == "postgresql":
       self.read_queries = {
           self.default_table_name: f"""
-                    SELECT 
+                    SELECT
                         CAST(id AS VARCHAR(255)),
                         CAST(content AS VARCHAR(255)),
                         CAST(embedding AS text),
@@ -100,7 +100,7 @@ class DatabaseTestHelper:
                     FROM {self.default_table_name}
                 """,
           self.custom_table_name: f"""
-                    SELECT 
+                    SELECT
                         CAST(custom_id AS VARCHAR(255)),
                         CAST(embedding_vec AS text),
                         CAST(content_col AS VARCHAR(255)),
@@ -109,7 +109,7 @@ class DatabaseTestHelper:
                     ORDER BY custom_id
                 """,
           self.metadata_conflicts_table: f"""
-                    SELECT 
+                    SELECT
                         CAST(id AS VARCHAR(255)),
                         CAST(embedding AS text),
                         CAST(content AS VARCHAR(255)),
@@ -122,7 +122,7 @@ class DatabaseTestHelper:
     elif self.db_config.database_type == "mysql":
       self.read_queries = {
           self.default_table_name: f"""
-                    SELECT 
+                    SELECT
                         CAST(id AS CHAR(255)) as id,
                         CAST(content AS CHAR(255)) as content,
                         vector_to_string(embedding) as embedding,
@@ -130,7 +130,7 @@ class DatabaseTestHelper:
                     FROM {self.default_table_name}
                 """,
           self.custom_table_name: f"""
-                    SELECT 
+                    SELECT
                         CAST(custom_id AS CHAR(255)) as custom_id,
                         vector_to_string(embedding_vec) as embedding_vec,
                         CAST(content_col AS CHAR(255)) as content_col,
@@ -139,7 +139,7 @@ class DatabaseTestHelper:
                     ORDER BY custom_id
                 """,
           self.metadata_conflicts_table: f"""
-                    SELECT 
+                    SELECT
                         CAST(id AS CHAR(255)) as id,
                         vector_to_string(embedding) as embedding,
                         CAST(content AS CHAR(255)) as content,
@@ -434,10 +434,10 @@ class CloudSQLVectorWriterConfigTest(unittest.TestCase):
   @parameterized.expand([(POSTGRES_CONFIG), (MYSQL_CONFIG)])
   def test_default_config(self, db_config):
     """Test basic write and read operations with default configuration.
-      
+
       This test validates the most basic CloudSQL vector database functionality:
       - Default table schema: id (VARCHAR), content (TEXT), embedding (VECTOR),
-        metadata (JSON/JSONB) 
+        metadata (JSON/JSONB)
       - Default column specifications (no customization)
       - Default conflict resolution (IGNORE on primary key conflicts)
       - Write chunks to database and read them back
@@ -476,25 +476,25 @@ class CloudSQLVectorWriterConfigTest(unittest.TestCase):
   ])
   def test_conflict_resolution(self, db_config, action, update_fields):
     """Test conflict resolution strategies when primary key conflicts occur.
-    
+
       This test validates different approaches to handling duplicate primary
       keys:
-      
+
       UPDATE with specific fields:
       - When duplicate ID encountered, update only specified fields (embedding,
         content)
       - Other fields (metadata) remain unchanged from original record
-      
+
       IGNORE:
       - When duplicate ID encountered, keep original record unchanged
-      
+
       UPDATE_ALL (default update fields):
       - When duplicate ID encountered, update ALL non-key fields
       - This includes content, embedding, AND metadata
-      
+
       Scenario for all strategies:
       1. Insert initial records
-      2. Insert records with same IDs but different content/embeddings  
+      2. Insert records with same IDs but different content/embeddings
       3. Verify final state matches expected conflict resolution behavior
       """
     self.skip_if_dataflow_runner()
@@ -564,20 +564,20 @@ class CloudSQLVectorWriterConfigTest(unittest.TestCase):
   def test_custom_column_names_and_value_functions(self, db_config):
     """Test completely custom column specifications with custom value
       extraction.
-    
+
       This test validates advanced customization of how chunk data is stored:
-      
+
       Custom column names:
       - custom_id (instead of 'id')
-      - embedding_vec (instead of 'embedding') 
+      - embedding_vec (instead of 'embedding')
       - content_col (instead of 'content')
-      
+
       Custom value extraction functions:
       - ID: Extract timestamp from metadata and prefix with "timestamp_"
       - Content: Prefix content with its character length "10:actual_content"
       - Embedding: Use custom embedding extraction function
-      
-      This tests the flexibility to completely reshape how chunk data maps 
+
+      This tests the flexibility to completely reshape how chunk data maps
       to database columns, useful for integrating with existing database schemas
       or applying business-specific transformations.
       """
@@ -653,21 +653,21 @@ class CloudSQLVectorWriterConfigTest(unittest.TestCase):
   def test_custom_type_conversion_with_default_columns(self, db_config):
     """Test custom type conversion and SQL typecasting with modified column
       names.
-    
+
       This test validates data type handling and database-specific SQL features:
-      
+
       Type conversion:
       - Convert string IDs to integers before storage
       - Apply length-prefix transformation to content
-      
+
       SQL typecasting (database-specific):
       - PostgreSQL: Use ::text typecast for converted integers
       - MySQL: Rely on automatic type conversion (no explicit typecast)
-      
+
       Column name customization:
       - Use custom names but with standard spec builders (not completely custom
         functions)
-      
+
       This tests the ability to adapt data types for database constraints
       while maintaining the standard chunk-to-database mapping logic.
     """
@@ -743,16 +743,16 @@ class CloudSQLVectorWriterConfigTest(unittest.TestCase):
   @parameterized.expand([(POSTGRES_CONFIG), (MYSQL_CONFIG)])
   def test_default_id_embedding_specs(self, db_config):
     """Test minimal schema with only ID and embedding columns.
-  
+
       This test validates the ability to create a minimal vector database
       schema:
       - Only stores id and embedding fields
       - content and metadata columns are excluded from the table
       - Tests that the system correctly handles missing/null fields
-      
-      Use case: When you only need vector similarity search without storing 
+
+      Use case: When you only need vector similarity search without storing
       the original content or metadata (perhaps stored elsewhere).
-      
+
       Validation:
       - Chunks written with content/metadata are stored with those fields as
         null
@@ -788,7 +788,7 @@ class CloudSQLVectorWriterConfigTest(unittest.TestCase):
         helper, helper.default_table_name)
     if db_config.database_type == "postgresql":
       jdbc_params['query'] = f"""
-            SELECT 
+            SELECT
                 CAST(id AS VARCHAR(255)),
                 CAST(embedding AS text)
             FROM {helper.default_table_name}
@@ -796,7 +796,7 @@ class CloudSQLVectorWriterConfigTest(unittest.TestCase):
         """
     elif db_config.database_type == "mysql":
       jdbc_params['query'] = f"""
-            SELECT 
+            SELECT
                 CAST(id AS CHAR(255)) as id,
                 vector_to_string(embedding) as embedding
             FROM {helper.default_table_name}
@@ -810,16 +810,16 @@ class CloudSQLVectorWriterConfigTest(unittest.TestCase):
   @parameterized.expand([(POSTGRES_CONFIG), (MYSQL_CONFIG)])
   def test_metadata_field_extraction(self, db_config):
     """Test extracting specific metadata fields into separate database columns.
-      
+
       This test validates the ability to:
-      - Extract specific fields from the JSON metadata object 
+      - Extract specific fields from the JSON metadata object
       - Map them to dedicated database columns (e.g., metadata.source -> source
         column)
       - Apply database-specific SQL typecasts (PostgreSQL ::timestamp vs MySQL
         default)
       - Store and retrieve the extracted fields correctly
-      
-      This is different from default metadata handling which stores the entire 
+
+      This is different from default metadata handling which stores the entire
       metadata object as JSON in a single column.
       """
     self.skip_if_dataflow_runner()
@@ -891,19 +891,19 @@ class CloudSQLVectorWriterConfigTest(unittest.TestCase):
   @parameterized.expand([(POSTGRES_CONFIG), (MYSQL_CONFIG)])
   def test_composite_unique_constraint_conflicts(self, db_config):
     """Test conflict resolution when unique constraints span multiple columns.
-      
-      This test validates conflict resolution when the unique constraint is NOT 
+
+      This test validates conflict resolution when the unique constraint is NOT
       on the primary key, but on a combination of other columns (source +
       timestamp).
-      
+
       Scenario:
       1. Insert records with unique (source, timestamp) combinations
       2. Attempt to insert records with same (source, timestamp) but different
          IDs and content
       3. Verify that conflict resolution (UPDATE) works correctly based on
          composite key
-      
-      This is different from test_conflict_resolution which tests conflicts on 
+
+      This is different from test_conflict_resolution which tests conflicts on
       the primary key field only.
       """
     self.skip_if_dataflow_runner()

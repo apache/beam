@@ -26,7 +26,7 @@ metadata:
     cloud.google.com/neg: '{"ingress": true}'
 spec:
   ports:
-  - name: https       
+  - name: https
     port: {{ .Values.service.port }}
     protocol: TCP
     targetPort: {{ .Values.service.targetPort }}

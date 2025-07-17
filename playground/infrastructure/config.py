@@ -120,4 +120,3 @@ class Origin(str, Enum):
     PG_BEAMDOC = 'PG_BEAMDOC'
     TB_EXAMPLES = 'TB_EXAMPLES'
     TB_USER = 'TB_USER'
-

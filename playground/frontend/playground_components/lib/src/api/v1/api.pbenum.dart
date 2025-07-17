@@ -119,4 +119,3 @@ class EmulatorType extends $pb.ProtobufEnum {
 
   const EmulatorType._($core.int v, $core.String n) : super(v, n);
 }
-

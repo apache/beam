@@ -52,12 +52,12 @@ class ChunkingTransformProvider(MLTransformProvider):
       >>> class MyChunker(ChunkingTransformProvider):
       ...     def get_splitter_transform(self):
       ...         return beam.ParDo(MySplitterDoFn())
-      ... 
+      ...
       >>> chunker = MyChunker(chunk_id_fn=my_id_function)
-      >>> 
+      >>>
       >>> with beam.Pipeline() as p:
       ...     chunks = (
-      ...         p 
+      ...         p
       ...         | beam.Create([{'text': 'document...', 'source': 'doc.txt'}])
       ...         | MLTransform(...).with_transform(chunker))
 

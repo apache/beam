@@ -31,4 +31,4 @@ spec:
     targetPort: {{ .Values.service.targetPort }}
   selector:
     app: frontend
-  type: {{ .Values.service.type }} 
+  type: {{ .Values.service.type }}

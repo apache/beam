@@ -98,4 +98,3 @@ jobs:
           -Pdocker-tag-list=${{ env.release }},${{ github.sha }},$(date +'%Y-%m-%d') \
           --no-daemon \
           --no-parallel
-

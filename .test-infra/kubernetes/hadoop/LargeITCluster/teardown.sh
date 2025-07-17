@@ -18,4 +18,3 @@
 set -e
 
 kubectl delete -f hdfs-multi-datanode-cluster.yml
-

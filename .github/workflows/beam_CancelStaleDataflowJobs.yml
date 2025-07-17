@@ -54,7 +54,7 @@ jobs:
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 120
     strategy:
-      matrix: 
+      matrix:
         job_name: [beam_CancelStaleDataflowJobs]
         job_phrase: [Run Cancel Stale Dataflow Jobs]
     if: |
@@ -77,4 +77,3 @@ jobs:
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :beam-test-tools:cancelStaleDataflowJobs
-

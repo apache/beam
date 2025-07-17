@@ -24,4 +24,3 @@ COPY ./provisioning /etc/beamgrafana/provisioning
 COPY ./dashboards /etc/beamgrafana/dashboards
 
 ENV GF_PATHS_PROVISIONING /etc/beamgrafana/provisioning
-

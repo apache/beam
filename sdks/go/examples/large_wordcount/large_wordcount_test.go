@@ -41,7 +41,7 @@ six seven eight nine ten`
 
 var file2 string = `zero one two
  three four
-five six seven 
+five six seven
 eight nine`
 
 func TestLargeWordcount_Loopback(t *testing.T) {

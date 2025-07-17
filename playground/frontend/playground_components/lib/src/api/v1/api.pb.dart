@@ -2562,4 +2562,3 @@ class GetMetadataResponse extends $pb.GeneratedMessage {
   @$pb.TagNumber(4)
   void clearBeamSdkVersion() => clearField(4);
 }
-

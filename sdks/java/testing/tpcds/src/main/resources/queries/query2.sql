@@ -19,12 +19,12 @@ with wscs as
         ,sales_price
   from (select ws_sold_date_sk sold_date_sk
               ,ws_ext_sales_price sales_price
-        from web_sales 
+        from web_sales
         union all
         select cs_sold_date_sk sold_date_sk
               ,cs_ext_sales_price sales_price
         from catalog_sales)),
- wswscs as 
+ wswscs as
  (select d_week_seq,
         sum(case when (d_day_name='Sunday') then sales_price else null end) sun_sales,
         sum(case when (d_day_name='Monday') then sales_price else null end) mon_sales,
@@ -54,7 +54,7 @@ with wscs as
         ,thu_sales thu_sales1
         ,fri_sales fri_sales1
         ,sat_sales sat_sales1
-  from wswscs,date_dim 
+  from wswscs,date_dim
   where date_dim.d_week_seq = wswscs.d_week_seq and
         d_year = 2001) y,
  (select wswscs.d_week_seq d_week_seq2
@@ -66,7 +66,7 @@ with wscs as
         ,fri_sales fri_sales2
         ,sat_sales sat_sales2
   from wswscs
-      ,date_dim 
+      ,date_dim
   where date_dim.d_week_seq = wswscs.d_week_seq and
         d_year = 2001+1) z
  where d_week_seq1=d_week_seq2-53

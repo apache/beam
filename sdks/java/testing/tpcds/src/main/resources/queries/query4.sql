@@ -87,7 +87,7 @@ union all
          ,c_email_address
          ,d_year
          )
-  select  
+  select
                   t_s_secyear.customer_id
                  ,t_s_secyear.customer_first_name
                  ,t_s_secyear.customer_last_name

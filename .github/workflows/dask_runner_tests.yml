@@ -94,4 +94,3 @@ jobs:
         with:
           name: pytest-${{matrix.os}}-${{matrix.params.py_ver}}
           path: sdks/python/pytest**.xml
-

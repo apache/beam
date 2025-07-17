@@ -92,4 +92,3 @@ func hasExpectedAugmentedScope(p *beam.Pipeline) bool {
 	}
 	return false
 }
-

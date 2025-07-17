@@ -64,7 +64,7 @@ pipeline:
                       return 'Medium Cost'
                   else:
                       return 'High Cost'
-                      
+
     # Writing the transformed data to a CSV file
     - type: WriteToCsv
       name: WriteBig

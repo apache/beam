@@ -36,4 +36,4 @@ spec:
     targetPort: 6379
   selector:
     app: backend-go
-  type: {{ .Values.service.type }} 
+  type: {{ .Values.service.type }}

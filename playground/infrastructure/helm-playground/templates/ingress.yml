@@ -17,7 +17,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: ingress-playground
-  annotations: 
+  annotations:
      kubernetes.io/ingress.global-static-ip-name: {{ .Values.static_ip_name }}
      networking.gke.io/managed-certificates: {{ .Values.project_id }}
      networking.gke.io/v1beta1.FrontendConfig: pg-frontend

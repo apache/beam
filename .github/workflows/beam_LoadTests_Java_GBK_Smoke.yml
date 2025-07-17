@@ -87,7 +87,7 @@ jobs:
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:testing:load-tests:run
-          arguments: |            
+          arguments: |
             -PloadTest.mainClass=org.apache.beam.sdk.loadtests.GroupByKeyLoadTest \
             -Prunner=:runners:direct-java  \
             '-PloadTest.args=${{ env.beam_LoadTests_Java_GBK_Smoke_test_arguments_1 }}' \
@@ -95,7 +95,7 @@ jobs:
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:testing:load-tests:run
-          arguments: |            
+          arguments: |
             -PloadTest.mainClass=org.apache.beam.sdk.loadtests.GroupByKeyLoadTest \
             -Prunner=:runners:google-cloud-dataflow-java \
             '-PloadTest.args=${{ env.beam_LoadTests_Java_GBK_Smoke_test_arguments_2 }}' \

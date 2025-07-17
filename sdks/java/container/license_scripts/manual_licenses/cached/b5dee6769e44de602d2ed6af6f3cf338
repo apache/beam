@@ -19,7 +19,7 @@
 @media (max-width:30em) { #content img.imgright { display: none; }}
 --></style>
 <link rel="alternate" type="application/rdf+xml"
-      href="/licenses/lgpl-3.0.rdf" /> 
+      href="/licenses/lgpl-3.0.rdf" />
 <!-- begin translist file -->
 
 <link rel="alternate" type="text/html" href="/licenses/lgpl-3.0.html" hreflang="x-default" />
@@ -121,10 +121,10 @@ href="https://www.fsf.org/associate/support_freedom?referrer=4052">JOIN&nbsp;THE
 
 
   <li id="tabLicenses" class="active">
-     <span class='no-display'>=</span> 
+     <span class='no-display'>=</span>
     <a href="/licenses/licenses.html">LICENSES</a>
     <span class="gnun-split"></span>
-     <span class='no-display'>=</span> 
+     <span class='no-display'>=</span>
   </li>
 
 
@@ -183,14 +183,14 @@ href="https://www.fsf.org/associate/support_freedom?referrer=4052">JOIN&nbsp;THE
        own software</a></li>
   <li><a href="/licenses/translations.html">Translations
        of the LGPL</a></li>
-  <li>The GNU LGPL in other formats: 
+  <li>The GNU LGPL in other formats:
        <a href="/licenses/lgpl-3.0.txt">plain text</a>,
        <a href="/licenses/lgpl-3.0.dbk">Docbook</a>,
        <a href="/licenses/lgpl-3.0-standalone.html">standalone HTML</a>,
        <a href="/licenses/lgpl-3.0.tex">LaTeX</a>,
-       <a href="/licenses/lgpl-3.0.texi">Texinfo</a>, 
-       <a href="/licenses/lgpl-3.0.md">Markdown</a>, 
-       <a href="/licenses/lgpl-3.0.odt">ODF</a>, 
+       <a href="/licenses/lgpl-3.0.texi">Texinfo</a>,
+       <a href="/licenses/lgpl-3.0.md">Markdown</a>,
+       <a href="/licenses/lgpl-3.0.odt">ODF</a>,
        <a href="/licenses/lgpl-3.0.rtf">RTF</a>,
        <a href="/licenses/lgpl+gpl-3.0.txt">LGPL+GPL</a></li>
   <li><a href="/graphics/license-logos.html">LGPLv3 logos</a> to use

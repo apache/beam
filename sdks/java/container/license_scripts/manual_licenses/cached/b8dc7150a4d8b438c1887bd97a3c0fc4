@@ -375,7 +375,7 @@ window.plausible = window.plausible || function() { (window.plausible.q = window
 <link rel="apple-touch-icon" href="https://i0.wp.com/opensource.org/wp-content/uploads/2023/01/cropped-cropped-OSI_Horizontal_Logo_0-e1674081292667.png?fit=180%2C180&#038;ssl=1" />
 <meta name="msapplication-TileImage" content="https://i0.wp.com/opensource.org/wp-content/uploads/2023/01/cropped-cropped-OSI_Horizontal_Logo_0-e1674081292667.png?fit=270%2C270&#038;ssl=1" />
 		<style type="text/css" id="wp-custom-css">
-			
+
 /*prev*/
 
 .jetpack-instant-search__search-results-search-form {
@@ -404,7 +404,7 @@ window.plausible = window.plausible || function() { (window.plausible.q = window
 	font-size:2rem;
 	font-weight:700;
 	margin-top: 2em;
-} 
+}
 .entry-content h3 {
 	color: #414042;
 	font-size:1.5rem;
@@ -440,14 +440,14 @@ blockquote > *, .wp-block-pullquote > *, .wp-block-quote > * {
 	.header--blog-name img {
 	margin-top: -16px;
 	}
-		
+
 		.nav-main--menu > li:hover > ul, .nav-main--menu > li:focus > ul, .nav-main--menu li.tab-active > ul {
 			max-height: 800px;
 		}
-	
+
 }
 
-/* 
+/*
  * Styles for OSI Sponsors Block    */
 .block-editor-block-list__block.wp-block-osi-sponsors-list {
     padding-top: 1.2rem;
@@ -472,7 +472,7 @@ blockquote > *, .wp-block-pullquote > *, .wp-block-quote > * {
 	visibility: visible;
 	margin: 22px auto 0;
 	font-size: 1.25rem;
-	
+
 }
 #sc_event_details_8996 {
 	display: none
@@ -485,7 +485,7 @@ blockquote > *, .wp-block-pullquote > *, .wp-block-quote > * {
 	border: 2px black solid;
 	margin:0;
 	padding: 15px 20px;
-} 
+}
 #pre-footer .wpcf7 input[type=submit] {
 	background-color:black;
 	color:white;
@@ -621,7 +621,7 @@ blockquote > *, .wp-block-pullquote > *, .wp-block-quote > * {
   margin-bottom: 10px;
   margin-top: 0;
 }
-.sidebar .wp-block-latest-posts__post-date, 
+.sidebar .wp-block-latest-posts__post-date,
 .sidebar .wp-block-post-date, .wp-block-coblocks-posts__date {
 	color: #1d1d1d;
   font-size: 13px;
@@ -630,7 +630,7 @@ blockquote > *, .wp-block-pullquote > *, .wp-block-quote > * {
 }
 .sidebar .wp-block-latest-comments__comment-excerpt p,
 .sidebar .wp-block-latest-comments__comment-excerpt,
-.sidebar .has-avatars .wp-block-latest-comments__comment .wp-block-latest-comments__comment-excerpt, 
+.sidebar .has-avatars .wp-block-latest-comments__comment .wp-block-latest-comments__comment-excerpt,
 .sidebar .has-avatars .wp-block-latest-comments__comment .wp-block-latest-comments__comment-meta {
 	margin: 0;
 	margin-left:0;
@@ -893,7 +893,7 @@ form.customize-unpreviewable {
 </ul></div>				</nav><!-- #site-navigation -->
 				<section class="open-search-wrapper">
 				<a aria-label="Open Search" class="open-search open-button jetpack-search-filter__link" href="#">
-					
+
 <svg xmlns="http://www.w3.org/2000/svg" width="44px" height="44px" viewBox="0 0 44 44">
 <path fill="#414042" d="M19.2568,28.5067c2.0558,0,4.0528-0.686,5.6746-1.9494l6.1188,6.1197
 	c0.457,0.4415,1.1854,0.4288,1.6268-0.0283c0.4307-0.446,0.4307-1.153,0-1.5989l-6.1187-6.1196
@@ -950,12 +950,12 @@ form.customize-unpreviewable {
 <p>The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.</p>
 <p>THE SOFTWARE IS PROVIDED &#8220;AS IS&#8221;, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.</p>
 </div>
-<div class="syndication-links"></div>			
+<div class="syndication-links"></div>
 			<hr />
 			<div class="license-comments">
 							</div>
 		</div>
-		
+
 		<aside class="sidebar content--sidebar license-sidebar sidebar-main" role="complementary">
 			<section class="widget_text widget wp-block-column custom_html-3 widget_custom_html"><div class="widget_text widget-inner"><div class="textwidget custom-html-widget"><!-- <div style="border: 1px solid #ccc;
     border-radius: 15px;
@@ -977,19 +977,19 @@ form.customize-unpreviewable {
 	<p style="font-size:0.8rem">The Open Source Initiative (OSI) is a 501(c)3 public benefit corporation, founded in 1998.</p>
 </div> --></div></div></section>		</aside><!-- .license-sidebar -->
 	</div><!-- .entry-content -->
-	
-	
+
+
 
 </article><!-- #post-395 -->
 		</section>
 	</main><!-- #primary -->
 
-	
+
 </section>
 
 
 		<footer id="colophon" class="footer site-footer" role="contentinfo">
-				
+
 				<div class="footer--inner">
 					<section class="footer-cta">
 						<div class="wp-block-columns">
@@ -1080,7 +1080,7 @@ form.customize-unpreviewable {
 		<div class="jetpack-instant-search__widget-area" style="display: none">
 							<div id="jetpack-search-filters-4" class="widget jetpack-filters widget_search">			<div id="jetpack-search-filters-4-wrapper" class="jetpack-instant-search-wrapper">
 		</div></div>					</div>
-		
+
 <!-- Consent Management powered by Complianz | GDPR/CCPA Cookie Consent https://wordpress.org/plugins/complianz-gdpr -->
 <div id="cmplz-cookiebanner-container"><div class="cmplz-cookiebanner cmplz-hidden banner-1 bottom-right-view-preferences optin cmplz-bottom-right cmplz-categories-type-view-preferences" aria-modal="true" data-nosnippet="true" role="dialog" aria-live="polite" aria-labelledby="cmplz-header-1-optin" aria-describedby="cmplz-message-1-optin">
 	<div class="cmplz-header">

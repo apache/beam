@@ -791,4 +791,3 @@ For more details about the Beam SQL syntax, check out the Beam Calcite SQL
 [compatibility](/documentation/dsls/sql/calcite/overview/)
 and the Apache Calcite SQL
 [syntax](https://calcite.apache.org/docs/reference.html).
-

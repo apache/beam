@@ -63,4 +63,3 @@ The `ReadFromBigtable` transform returns a `PCollection` of `PartialRowData` obj
 For more information, see the [BigTable I/O connector documentation](https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.bigtableio.html).
 
 For samples that show common pipeline configurations, see [Pipeline option patterns](https://beam.apache.org/documentation/patterns/pipeline-options/).
-

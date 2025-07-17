@@ -36,4 +36,3 @@ for the next release.
 
 A feature can block a release if there is community consensus to delay a
 release in order to include the feature.
-

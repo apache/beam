@@ -164,7 +164,7 @@ pipelines:
                   if any(fruit[0].upper() in 'AEIOU' for fruit in produce_list):
                     return 'yummy'
                   else:
-                    return 'not_yummy'            
+                    return 'not_yummy'
             language: python
             outputs:
               - "yummy"

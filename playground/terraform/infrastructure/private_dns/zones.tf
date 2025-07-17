@@ -21,12 +21,12 @@ resource "google_dns_managed_zone" "private-zone-apis" {
 
   for_each = var.private_zones
 
-  project     = var.project_id 
+  project     = var.project_id
 
   name        = "${var.network_name}-${replace(each.key,".","-")}"
   dns_name    = format("%s%s",each.key,".")
   description = "Private ${each.key} Zone"
-  
+
   visibility = "private"
 
   private_visibility_config {
@@ -58,6 +58,4 @@ resource "google_dns_record_set" "cname-private-zone" {
   type         = "CNAME"
   ttl          = 300
   rrdatas      = [each.value.dns_name]
-} 
-
-
+}

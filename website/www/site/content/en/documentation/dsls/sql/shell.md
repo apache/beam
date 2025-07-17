@@ -148,4 +148,3 @@ You can also build your own standalone package for SQL shell using `distZip` or 
 ls ./sdks/java/extensions/sql/jdbc/build/distributions/
 beam-sdks-java-extensions-sql-jdbc-2.66.0-SNAPSHOT.tar beam-sdks-java-extensions-sql-jdbc-2.66.0-SNAPSHOT.zip
 ```
-

@@ -63,5 +63,3 @@ variable "init_min_count" {
   description = "Initial cluster node count"
   default     = 1
 }
-  
-

@@ -15,6 +15,6 @@
 - id: home-hero-heading
   translation: The Unified Apache Beam Model
 - id: home-hero-subheading
-  translation: The easiest way to do batch and streaming data processing. Write once, run anywhere data processing for mission-critical production workloads. 
+  translation: The easiest way to do batch and streaming data processing. Write once, run anywhere data processing for mission-critical production workloads.
 - id: home-hero-button
   translation: Link to GitHub Repo

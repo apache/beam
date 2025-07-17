@@ -48,7 +48,7 @@ message Field {
   // OPTIONAL. Human readable description of this field, such as the query that generated it.
   string description = 2;
   FieldType type = 3;
-  
+
   int32 id = 4;
    // OPTIONAL. The position of this field's data when encoded, e.g. with beam:coder:row:v1.
    // Either no fields in a given row are have encoding position populated,

@@ -139,7 +139,7 @@ class OpenAITextEmbeddings(EmbeddingsManager):
     """
     Embedding Config for OpenAI Text Embedding models.
     Text Embeddings are generated for a batch of text using the OpenAI API.
-    
+
     Args:
       model_name: Name of the OpenAI embedding model
       columns: The columns where the embeddings will be stored in the output

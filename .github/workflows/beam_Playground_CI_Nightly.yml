@@ -57,7 +57,7 @@ jobs:
     runs-on: [self-hosted, ubuntu-20.04, highmem]
     name: "beam_Playground_CI_Nightly"
     strategy:
-      matrix: 
+      matrix:
         sdk: ["python", "java", "go"]
       fail-fast: false
     steps:
@@ -88,11 +88,11 @@ jobs:
           CONTAINER_ID=$(docker run -d -e PROTOCOL_TYPE=TCP apache/beam_playground-backend-${{ matrix.sdk }}:nightly)
           echo "container_id=$CONTAINER_ID" >> $GITHUB_ENV
       - name: Get Container IP
-        run: | 
+        run: |
           CONTAINER_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' ${{ env.container_id }})
           echo "container_ip=$CONTAINER_IP" >> $GITHUB_ENV
       - name: Run CI
-        env: 
+        env:
           SERVER_ADDRESS: ${{ env.container_ip }}:8080
           BEAM_EXAMPLE_CATEGORIES: ${{ env.BEAM_ROOT_DIR }}/playground/categories.yaml
           SDK: ${{ matrix.sdk }}

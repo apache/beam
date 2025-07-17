@@ -39,4 +39,3 @@ with beam.Pipeline() as pipeline:
 In the provided example, the `model_metadata_pcoll` parameter expects a `PCollection` of `ModelMetadata` compatible with the `AsSingleton` marker. Given that the pipeline employs the `WatchFilePattern` class as a side input, it automatically manages windowing and encapsulates the output into `ModelMetadata`.
 
 For more information, refer to the [Use `WatchFilePattern` to auto-update ML models in RunInference](https://beam.apache.org/documentation/ml/side-input-updates/) section in the Apache Beam documentation.
-

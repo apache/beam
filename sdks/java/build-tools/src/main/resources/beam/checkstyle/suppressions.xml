@@ -21,11 +21,11 @@
   <suppress checks="JavadocPackage" files=".*[\\\/]maven-archetypes[\\\/].*"/>
   <suppress checks="JavadocPackage" files=".*[\\\/]examples[\\\/].*"/>
   <suppress checks="JavadocPackage" files=".*[\\\/]build[\\\/]source-overrides[\\\/].*"/>
-  
+
   <suppress checks="JavadocMethod" files=".*Test\.java"/>
   <suppress checks="JavadocMethod" files=".*[\\\/]src[\\\/]test[\\\/].*"/>
   <suppress checks="JavadocMethod" files=".*[\\\/]examples[\\\/].*"/>
-  
+
 
   <!-- suppress all checks in the generated directories -->
   <suppress checks=".*" files=".+[\\\/]generated[\\\/].+\.java" />

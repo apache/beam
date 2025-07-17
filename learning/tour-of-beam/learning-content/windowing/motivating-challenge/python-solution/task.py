@@ -70,4 +70,3 @@ with beam.Pipeline() as p:
   (input | 'window' >>  beam.WindowInto(window.SlidingWindows(10, 5))
   | 'Sum above cost' >> beam.CombineGlobally(max).without_defaults()
   | 'Log above cost' >> Output())
-

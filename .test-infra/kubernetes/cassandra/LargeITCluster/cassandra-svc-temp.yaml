@@ -14,8 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Temporary cassandra single node cluster set up 
-# to connect to production cluster through cqlsh remotely. 
+# Temporary cassandra single node cluster set up
+# to connect to production cluster through cqlsh remotely.
 # Headless service that allows us to get the IP addresses of our Cassandra nodes
 apiVersion: v1
 kind: Service

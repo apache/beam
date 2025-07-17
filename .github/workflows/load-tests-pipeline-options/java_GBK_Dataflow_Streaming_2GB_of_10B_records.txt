@@ -22,7 +22,7 @@
 --sourceOptions={"numRecords":200000000,"keySizeBytes":1,"valueSizeBytes":9}
 --fanout=1
 --iterations=1
---numWorkers=5 
+--numWorkers=5
 --autoscalingAlgorithm=NONE
 --streaming=true
 --inputWindowDurationSec=1200

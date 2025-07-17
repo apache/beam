@@ -81,4 +81,3 @@ Learn more about portable schemas from this [presentation](https://s.apache.org/
 
 Euphoria is Beam's newest API, offering a high-level, fluent style for
 Beam Java developers. See the [Euphoria API Roadmap](/roadmap/euphoria).
-

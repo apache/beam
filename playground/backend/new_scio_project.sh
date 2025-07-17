@@ -24,4 +24,3 @@ else
   echo "updateOptions := updateOptions.value.withCachedResolution(true)" >> scio/build.sbt
   echo "libraryDependencies ++= Seq(\"org.apache.beam\" % \"beam-runners-direct-java\" % beamVersion)" >> scio/build.sbt
 fi
-

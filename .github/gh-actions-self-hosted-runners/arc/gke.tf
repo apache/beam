@@ -78,7 +78,7 @@ resource "google_container_node_pool" "additional_runner_pools" {
     labels = {
       "runner-pool" = each.value.name
     }
-   
+
     dynamic "taint" {
       for_each = each.value.enable_taint == true ? [1] : []
       content {

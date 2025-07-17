@@ -672,7 +672,7 @@ class CodersTest(unittest.TestCase):
 
             def __eq__(self, other):
                 return type(other) is type(self) and other.value == self.value
-        
+
         # Test cases for all special deterministic types
         # NOTE: When this script run in a subprocess the module is considered
         #  __main__. Dill cannot pickle enums in __main__ because it
@@ -701,7 +701,7 @@ class CodersTest(unittest.TestCase):
 
         coder = coders.FastPrimitivesCoder()
         deterministic_coder = coders.DeterministicFastPrimitivesCoder(coder, 'step')
-        
+
         results = {}
         for test_name, value in test_cases:
             try:
@@ -710,10 +710,10 @@ class CodersTest(unittest.TestCase):
             except Exception as e:
               logging.warning("Encoding failed with %s", e)
               sys.exit(1)
-        
+
         sys.stdout.buffer.write(pickle.dumps(results))
-                
-        
+
+
     ''')
 
     def run_subprocess():

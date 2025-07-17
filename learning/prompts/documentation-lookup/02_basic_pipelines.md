@@ -16,4 +16,3 @@ with beam.Pipeline() as pipeline:
 ```
 
 When you create your pipeline, you need to set [configuration options](https://beam.apache.org/documentation/programming-guide/#configuring-pipeline-options). You can set your pipeline’s configuration options programmatically. You can also set the options ahead of time, or read them from the command line, and then pass them to the `Pipeline` object when you create the object. This option is often easier than setting the pipeline configuration options programmatically.
-

@@ -59,7 +59,7 @@ jobs:
     timeout-minutes: 120
     strategy:
       fail-fast: false
-      matrix: 
+      matrix:
         job_name: [beam_PostCommit_Java_Examples_Dataflow_ARM]
         job_phrase: [Run Java_Examples_Dataflow_ARM PostCommit]
         java_version: ['8','11','17','21']

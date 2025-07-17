@@ -17,6 +17,3 @@ To execute machine learning inference tasks, Apache Beam provides the RunInferen
 The `RunInference` transform efficiently handles models of any size, making it suitable for large language models (LLMs) and other complex architectures. You can find an example of deploying and performing inference on large language models (LLMs) in the 'RunInference' section of the Apache Beam documentation.
 
 For more information on implementing AI/ML pipelines using Apache Beam, see the 'Get started with AI/ML pipelines' section in the Apache Beam documentation.
-
-
-

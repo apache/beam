@@ -19,7 +19,7 @@
  data "google_service_account" "tourofbeam_deployer" {
    account_id   = var.tourofbeam_deploy_sa
  }
- 
+
  data "google_service_account" "tourofbeam_ci_runner" {
     account_id   = var.tourofbeam_ci_sa
   }
@@ -38,4 +38,3 @@
   secret      = var.gh_pat_secret_id
   version     = "latest"
 }
- 

@@ -16,7 +16,7 @@
 
 --region=us-central1
 --appName=load_tests_Java17_Dataflow_V2_streaming_GBK_7
---tempLocation=gs://temp-storage-for-perf-tests/loadtests 
+--tempLocation=gs://temp-storage-for-perf-tests/loadtests
 --influxMeasurement=java_streaming_gbk_7
 --influxTags={"runnerVersion":"v2","jdk":"java17"}
 --publishToInfluxDB=true

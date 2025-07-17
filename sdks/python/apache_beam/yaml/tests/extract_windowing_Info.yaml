@@ -31,7 +31,7 @@ pipelines:
           config:
             language: python
             fields:
-              label: 
+              label:
                 callable: "lambda x: x.label"
               rank:
                 callable: "lambda x: x.rank"
@@ -48,7 +48,7 @@ pipelines:
               - {label: "37a", rank: 1, timestamp: Timestamp(-9223372036854.775000), window_start: Timestamp(-9223372036854.775000), window_end: Timestamp(9223371950454.775000)}
               - {label: "389a", rank: 2, timestamp: Timestamp(-9223372036854.775000), window_start: Timestamp(-9223372036854.775000), window_end: Timestamp(9223371950454.775000)}
 
-  
+
   # Simply extract windowing info with all available fields
   - pipeline:
       type: chain
@@ -66,7 +66,7 @@ pipelines:
           config:
             language: python
             fields:
-              label: 
+              label:
                 callable: "lambda x: x.label"
               rank:
                 callable: "lambda x: x.rank"
@@ -91,7 +91,7 @@ pipelines:
               - {label: "37a", rank: 1, timestamp: Timestamp(-9223372036854.775000), window_start: Timestamp(-9223372036854.775000), window_end: Timestamp(9223371950454.775000), window_string: 'GlobalWindow', window_type: 'GlobalWindow', window_object: 'GlobalWindow', pane_info: "PaneInfoTuple(is_first=True, is_last=True, timing='UNKNOWN', index=0, nonspeculative_index=0)"}
               - {label: "389a", rank: 2, timestamp: Timestamp(-9223372036854.775000), window_start: Timestamp(-9223372036854.775000), window_end: Timestamp(9223371950454.775000), window_string: 'GlobalWindow', window_type: 'GlobalWindow', window_object: 'GlobalWindow', pane_info: "PaneInfoTuple(is_first=True, is_last=True, timing='UNKNOWN', index=0, nonspeculative_index=0)"}
 
-  
+
   # Simply extract windowing info with a few fields renamed
   - pipeline:
       type: chain
@@ -104,7 +104,7 @@ pipelines:
               - {label: "389a", rank: 2}
         - type: ExtractWindowingInfo
           config:
-            fields: 
+            fields:
               ts: timestamp
               ws: window_start
               pane: pane_info
@@ -112,7 +112,7 @@ pipelines:
           config:
             language: python
             fields:
-              label: 
+              label:
                 callable: "lambda x: x.label"
               rank:
                 callable: "lambda x: x.rank"
@@ -128,4 +128,3 @@ pipelines:
               - {label: "11a", rank: 0, ts: Timestamp(-9223372036854.775000), ws: Timestamp(-9223372036854.775000), pane: "PaneInfoTuple(is_first=True, is_last=True, timing='UNKNOWN', index=0, nonspeculative_index=0)"}
               - {label: "37a", rank: 1, ts: Timestamp(-9223372036854.775000), ws: Timestamp(-9223372036854.775000), pane: "PaneInfoTuple(is_first=True, is_last=True, timing='UNKNOWN', index=0, nonspeculative_index=0)"}
               - {label: "389a", rank: 2, ts: Timestamp(-9223372036854.775000), ws: Timestamp(-9223372036854.775000), pane: "PaneInfoTuple(is_first=True, is_last=True, timing='UNKNOWN', index=0, nonspeculative_index=0)"}
-

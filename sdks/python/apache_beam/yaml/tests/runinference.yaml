@@ -26,7 +26,7 @@ pipelines:
               - question: "Where is the Eiffel Tower located?"
         - type: RunInference
           config:
-            model_handler: 
+            model_handler:
               type: "VertexAIModelHandlerJSON"
               config:
                 endpoint_id: 9157860935048626176
@@ -39,8 +39,8 @@ pipelines:
           name: TransformInferenceBeamRowsToSimpleSchemaRows
           config:
             constructor: __callable__
-            kwargs: 
-              source: | 
+            kwargs:
+              source: |
                 import apache_beam as beam
                 def simplify_elements(pcoll):
                   return pcoll | beam.Map(lambda row: beam.Row(dummy_field=1))

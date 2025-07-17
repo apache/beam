@@ -44,4 +44,3 @@ func main() {
 		log.Exitf(ctx, "Failed to execute job: %v", err)
 	}
 }
-

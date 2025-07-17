@@ -76,4 +76,3 @@ variable "display_name" {
   default     = "Playground Cache"
   description = "Display name for Redis service"
 }
-

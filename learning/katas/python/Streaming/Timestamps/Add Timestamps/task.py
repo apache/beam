@@ -59,4 +59,3 @@ with beam.Pipeline() as p:
        ])
      | beam.ParDo(AddTimestampDoFn())
      | beam.LogElements(with_timestamp=True))
-

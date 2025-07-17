@@ -151,5 +151,5 @@ jobs:
         if: always()
         run: |
           ${{ github.workspace }}/.test-infra/dataproc/flink_cluster.sh delete
-        
+
         # TODO(https://github.com/apache/beam/issues/20146) Re-enable auto builds after these tests pass.

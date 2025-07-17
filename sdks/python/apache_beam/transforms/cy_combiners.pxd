@@ -113,4 +113,3 @@ cdef class ComparableValue(object):
   cdef readonly object value, _less_than_fn, _comparable_value
   cdef readonly bint requires_hydration
   cpdef hydrate(self, object less_than_fn, object key_fn)
-

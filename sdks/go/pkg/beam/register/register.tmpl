@@ -188,7 +188,7 @@ func registerDoFn{{$processElementIn}}x{{$processElementOut}}StructWrappersAndFu
         if teardownWrapper != nil {
             m["Teardown"] = teardownWrapper(fn)
         }
-        
+
         return m
     }
     reflectx.RegisterStructWrapper(reflect.TypeOf(doFn).Elem(), wrapperFn)
@@ -562,7 +562,7 @@ func registerDoFnTypes(doFn any) {
    // Register the doFn
    runtime.RegisterType(reflect.TypeOf(doFn).Elem())
    schema.RegisterType(reflect.TypeOf(doFn).Elem())
-  
+
    // Register all types in the DoFn
    registerMethodTypes(reflect.ValueOf(doFn).MethodByName("ProcessElement").Type())
 }

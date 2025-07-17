@@ -1201,5 +1201,3 @@ directory.
 * [BigQuery filters](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/cookbook/filters.py)
   reads weather station data from a BigQuery table, manipulates BigQuery rows in
   memory, and writes the results to a BigQuery table.
-
-

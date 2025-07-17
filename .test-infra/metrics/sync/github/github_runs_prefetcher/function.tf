@@ -26,49 +26,49 @@ resource "google_cloudfunctions_function" "prefetcher" {
 
   available_memory_mb   = 2048
   timeout               = 538
-  
+
 
   environment_variables = {
     "GH_NUMBER_OF_WORKFLOW_RUNS_TO_FETCH" = "30"
   }
 
   secret_environment_variables {
-    key = "GH_APP_ID" 
+    key = "GH_APP_ID"
     secret = "gh-app_id"
     version = "latest"
   }
    secret_environment_variables {
-    key = "GH_PEM_KEY" 
+    key = "GH_PEM_KEY"
     secret = "gh-pem_key"
     version = "latest"
   }
     secret_environment_variables {
-    key = "GH_APP_INSTALLATION_ID" 
+    key = "GH_APP_INSTALLATION_ID"
     secret = "gh-app_installation_id"
     version = "latest"
   }
     secret_environment_variables {
-    key = "DB_DBNAME" 
+    key = "DB_DBNAME"
     secret = "github_actions_workflows_db_name"
     version = "latest"
   }
     secret_environment_variables {
-    key = "DB_DBUSERNAME" 
+    key = "DB_DBUSERNAME"
     secret = "github_actions_workflows_db_user"
     version = "latest"
   }
     secret_environment_variables {
-    key = "DB_DBPWD" 
+    key = "DB_DBPWD"
     secret = "github_actions_workflows_db_pass"
     version = "latest"
   }
     secret_environment_variables {
-    key = "DB_PORT" 
+    key = "DB_PORT"
     secret = "github_actions_workflows_db_port"
     version = "latest"
   }
     secret_environment_variables {
-    key = "DB_HOST" 
+    key = "DB_HOST"
     secret = "github_actions_workflows_db_host"
     version = "latest"
   }

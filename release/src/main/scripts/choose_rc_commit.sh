@@ -143,7 +143,7 @@ fi
   if [[ "$PUSH_TAG" == yes ]] ; then
     git push --follow-tags origin "sdks/$RC_TAG"
     git push --follow-tags origin "$RC_TAG"
-  else 
+  else
     echo "Not pushing tag $RC_TAG. You can push it manually or run with --push-tag."
   fi
 }

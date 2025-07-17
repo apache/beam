@@ -606,7 +606,7 @@ export interface MethodDescriptorProto {
 // Each of the definitions above may have "options" attached.  These are
 // just annotations which may cause code to be generated slightly differently
 // or may contain hints for code that manipulates protocol messages.
-// 
+//
 // Clients may define custom options as extensions of the *Options messages.
 // These extensions may not yet be known at parsing time, so the parser cannot
 // store the values in them.  Instead it stores them in a field in the *Options
@@ -614,7 +614,7 @@ export interface MethodDescriptorProto {
 // across all *Options messages. We then use this field to populate the
 // extensions when we build a descriptor, at which point all protos have been
 // parsed and so all extensions are known.
-// 
+//
 // Extension numbers for custom options may be chosen as follows:
 // * For options which will only be used within a single application or
 //   organization, or for experimental options, use field numbers 50000

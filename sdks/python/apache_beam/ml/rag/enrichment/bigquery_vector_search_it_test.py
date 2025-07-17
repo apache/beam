@@ -152,13 +152,13 @@ class TestBigQueryVectorSearchIT(BigQueryVectorSearchIT):
   @classmethod
   def create_table(cls, table_name, schema_fields, table_data):
     """Create a BigQuery table with the specified schema and data.
-    
+
     Args:
         table_name: Name of the table to create
         schema_fields: List of field definitions in the format:
             (name, type, [mode, [subfields]])
         table_data: List of dictionaries containing the data to insert
-    
+
     Returns:
         Fully qualified table name (project.dataset.table)
     """

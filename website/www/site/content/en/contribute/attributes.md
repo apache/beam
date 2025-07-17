@@ -67,4 +67,3 @@ In particular, if a code contributor:
 - They earnestly try to make Beam better with code review
 - They accept and integrate feedback on their code
 - They know, follow, and enforce Beam’s practices while reviewing/merging code - style, documentation, testing, backward compatibility, etc.
-

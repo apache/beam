@@ -85,4 +85,3 @@ We are ML Engineers, working at [Intuitive.Cloud](www.intuitive.cloud), where we
 Participating in the hackathon was a great learning opportunity, huge thanks to the organizers, mentors, and the Apache Beam community!
 
 \- [Aditya Shukla](https://www.linkedin.com/in/adityashukla8/) & [Darshan Kanade](https://in.linkedin.com/in/darshan-kanade-0797851b3)
-

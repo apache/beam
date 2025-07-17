@@ -26,7 +26,7 @@ with ss as
  where ws_sold_date_sk = d_date_sk
   and ws_bill_addr_sk=ca_address_sk
  group by ca_county,d_qoy, d_year)
- select 
+ select
         ss1.ca_county
        ,ss1.d_year
        ,ws2.web_sales/ws1.web_sales web_q1_q2_increase
@@ -58,7 +58,7 @@ with ss as
     and ws1.ca_county = ws3.ca_county
     and ws3.d_qoy = 3
     and ws3.d_year =2000
-    and case when ws1.web_sales > 0 then ws2.web_sales/ws1.web_sales else null end 
+    and case when ws1.web_sales > 0 then ws2.web_sales/ws1.web_sales else null end
        > case when ss1.store_sales > 0 then ss2.store_sales/ss1.store_sales else null end
     and case when ws2.web_sales > 0 then ws3.web_sales/ws2.web_sales else null end
        > case when ss2.store_sales > 0 then ss3.store_sales/ss2.store_sales else null end
