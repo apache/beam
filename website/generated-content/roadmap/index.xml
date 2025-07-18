@@ -190,11 +190,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 &lt;h1 id="java-sdk-roadmap">Java SDK Roadmap&lt;/h1>
-&lt;h2 id="next-java-lts-version-support-java-21">Next Java LTS version support (Java 21)&lt;/h2>
+&lt;h2 id="next-java-lts-version-support-java-25">Next Java LTS version support (Java 25)&lt;/h2>
 &lt;p>Work to support the next LTS release of Java is in progress. For more details
 about the scope and info on the various tasks please see the GitHub Issue.&lt;/p>
 &lt;ul>
-&lt;li>GitHub: &lt;a href="https://github.com/apache/beam/issues/28120">#28120&lt;/a>&lt;/li>
+&lt;li>GitHub: &lt;a href="https://github.com/apache/beam/issues/35627">#35627&lt;/a>&lt;/li>
 &lt;/ul></description></item><item><title>Roadmap: Multi-SDK Connector Efforts</title><link>/roadmap/connectors-multi-sdk/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/roadmap/connectors-multi-sdk/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
