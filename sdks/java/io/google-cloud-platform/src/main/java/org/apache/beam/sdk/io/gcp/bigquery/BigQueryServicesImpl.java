@@ -1188,11 +1188,6 @@ public class BigQueryServicesImpl implements BigQueryServices {
                 rowDetails = validateRowSchema(row, tableSchema);
               }
 
-              // Shorten row details if too long for human readability
-              if (rowDetails.length() > 1024) {
-                rowDetails = rowDetails.substring(0, 1024) + "...}";
-              }
-
               // Basic log to return
               String bqLimitLog =
                   String.format(
@@ -1366,12 +1361,13 @@ public class BigQueryServicesImpl implements BigQueryServices {
      * schema. The formatted string shows the field names in the row indicating any mismatches
      * unknown entries.
      *
-     * <p>For example, a {@link TableRow} with a "names" and "age" fields, where the schema expects
-     * "name" and "age" would return "name".
+     * <p>For example, a {@link TableRow} with a "names" field, where the schema expects
+     * "name" would return "names".
      *
-     * <pre>{@code {'name': java.lang.String, 'age': java.lang.Integer}}</pre>
+     * <pre>{@code {'name': java.lang.String}</pre>
      *
-     * <p>If a field exists in the row but not in the schema, it's marked as "Unknown fields".
+     * <p>If a field exists in the row but not in the schema, 
+     * "Unknown fields" is prefixed to the log.</p>
      *
      * @param row The {@link TableRow} to validate.
      * @param tableSchema The {@link TableSchema} to check against.
@@ -1382,7 +1378,8 @@ public class BigQueryServicesImpl implements BigQueryServices {
       Set<String> bqSchemaFields =
           tableSchema.getFieldsList().stream().map(f -> f.getName()).collect(Collectors.toSet());
 
-      return row.keySet().stream()
+      // Validate
+      String rowDetails = row.keySet().stream()
           .map(
               fieldName -> {
                 if (!bqSchemaFields.contains(fieldName)) {
@@ -1392,6 +1389,12 @@ public class BigQueryServicesImpl implements BigQueryServices {
               })
           .filter(s -> !s.isEmpty())
           .collect(Collectors.joining(", ", "{Unknown fields: ", "}"));
+
+      // Shorten row details if too long for human readability
+      if (rowDetails.length() > 1024) {
+        rowDetails = rowDetails.substring(0, 1024) + "...}";
+      }
+      return rowDetails;
     }
 
     @Override
