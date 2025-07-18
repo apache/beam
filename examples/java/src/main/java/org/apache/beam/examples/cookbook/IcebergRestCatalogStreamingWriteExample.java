@@ -38,6 +38,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -137,11 +138,9 @@ public class IcebergRestCatalogStreamingWriteExample {
                     .via(
                         (Row row) -> {
                           Long passengerCount = row.getInt64("passenger_count");
-                          DateTime timestamp = (DateTime) row.getDateTime("timestamp");
-                          if (timestamp == null) {
-                            throw new IllegalStateException(
-                                "Timestamp should not be null at this stage.");
-                          }
+                          DateTime timestamp =
+                              (DateTime)
+                                  Preconditions.checkStateNotNull(row.getDateTime("timestamp"));
                           String minute = timestamp.toString("yyyy-MM-dd HH:mm");
                           return KV.of(minute, passengerCount);
                         }))
