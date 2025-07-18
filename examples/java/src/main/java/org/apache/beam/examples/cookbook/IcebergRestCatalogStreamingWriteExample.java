@@ -44,7 +44,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
-import org.joda.time.DateTime;
 import org.joda.time.Duration;
 
 /**
@@ -136,14 +135,11 @@ public class IcebergRestCatalogStreamingWriteExample {
                 MapElements.into(
                         TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.longs()))
                     .via(
-                        (Row row) -> {
-                          Long passengerCount = row.getInt64("passenger_count");
-                          DateTime timestamp =
-                              (DateTime)
-                                  Preconditions.checkStateNotNull(row.getDateTime("timestamp"));
-                          String minute = timestamp.toString("yyyy-MM-dd HH:mm");
-                          return KV.of(minute, passengerCount);
-                        }))
+                        row ->
+                            KV.of(
+                                Preconditions.checkStateNotNull(row.getDateTime("timestamp"))
+                                    .toString("yyyy-MM-dd HH:mm"),
+                                row.getInt64("passenger_count"))))
             .apply("SumPassengerCountPerMinute", Sum.longsPerKey())
             .apply(
                 "FormatAggregatedRowForIceberg",
