@@ -28,4 +28,3 @@ Subfolders organize code according to the target environement.
 Usage of this code minimally requires the terraform command-line interface.
 See [terraform](https://terraform.io) for further details. See individual
 subfolders for additional requirements for the target environment.
-

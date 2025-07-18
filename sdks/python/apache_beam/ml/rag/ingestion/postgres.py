@@ -116,7 +116,7 @@ class PostgresVectorWriterConfig(VectorDatabaseWriteConfig):
       conflict_resolution: Optional[ConflictResolution] = ConflictResolution(
           on_conflict_fields=[], action='IGNORE')):
     """Configuration for writing vectors to Postgres using jdbc.
-    
+
     Supports flexible schema configuration through column specifications and
     conflict resolution strategies.
 
@@ -134,7 +134,7 @@ class PostgresVectorWriterConfig(VectorDatabaseWriteConfig):
             :class:`~.postgres_common.ConflictResolution`
             strategy for handling insert conflicts. ON CONFLICT DO NOTHING by
             default.
-    
+
     Examples:
         Simple case with default schema:
 

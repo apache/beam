@@ -57,9 +57,9 @@ import type { GetProcessBundleDescriptorRequest } from "./beam_fn_api";
 import type { InstructionRequest } from "./beam_fn_api";
 import type { InstructionResponse } from "./beam_fn_api";
 import * as grpc from "@grpc/grpc-js";
-// 
+//
 // Control Plane API
-// 
+//
 // Progress reporting and splitting still need further vetting. Also, this may
 // change with the addition of new types of instructions/responses related to
 // metrics.
@@ -90,9 +90,9 @@ export interface IBeamFnControlClient {
     getProcessBundleDescriptor(input: GetProcessBundleDescriptorRequest, options: grpc.CallOptions, callback: (err: grpc.ServiceError | null, value?: ProcessBundleDescriptor) => void): grpc.ClientUnaryCall;
     getProcessBundleDescriptor(input: GetProcessBundleDescriptorRequest, callback: (err: grpc.ServiceError | null, value?: ProcessBundleDescriptor) => void): grpc.ClientUnaryCall;
 }
-// 
+//
 // Control Plane API
-// 
+//
 // Progress reporting and splitting still need further vetting. Also, this may
 // change with the addition of new types of instructions/responses related to
 // metrics.

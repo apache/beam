@@ -62,4 +62,3 @@ Supported windowing functions:
 ```
 
 **Note:** When no windowing function is specified in the query, then windowing strategy of the input `PCollections` is unchanged by the SQL query. If windowing function is specified in the query, then the windowing function of the `PCollection` is updated accordingly, but trigger stays unchanged.
-

@@ -76,7 +76,7 @@ jobs:
     steps:
       - name: Extract GCS Bucket Name
         run: echo "GCS_BUCKET_NAME=$(echo ${{ github.event.inputs.GCS_BUCKET }} | sed 's/^gs:\/\///')" >> $GITHUB_ENV
-      
+
       - name: Checkout code at RC tag
         uses: actions/checkout@v4
         with:
@@ -99,7 +99,7 @@ jobs:
           echo "Creating PubSub topic: ${{ env.PUBSUB_TOPIC }} in project ${{ env.GCP_PROJECT_ID }}"
           gcloud pubsub topics create --project=${{ env.GCP_PROJECT_ID }} ${{ env.PUBSUB_TOPIC }}
         shell: bash
-  
+
       # Run the Mobile Gaming example test using Gradle
       - name: Run MobileGaming Java Dataflow Test
         uses: ./.github/actions/gradle-command-self-hosted-action

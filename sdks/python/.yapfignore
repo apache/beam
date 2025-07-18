@@ -25,4 +25,3 @@ apache_beam/portability/api/*
 
 # Avoid excessive wrapping.
 apache_beam/examples/snippets/transforms/aggregation/groupby_test.py
-

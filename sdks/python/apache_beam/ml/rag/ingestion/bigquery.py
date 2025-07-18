@@ -33,7 +33,7 @@ ChunkToDictFn = Callable[[Chunk], Dict[str, any]]
 @dataclass
 class SchemaConfig:
   """Configuration for custom BigQuery schema and row conversion.
-  
+
   Allows overriding the default schema and row conversion logic for BigQuery
   vector storage. This enables custom table schemas beyond the default
   id/embedding/content/metadata structure.
@@ -70,7 +70,7 @@ class BigQueryVectorWriterConfig(VectorDatabaseWriteConfig):
       *,  # Force keyword arguments
       schema_config: Optional[SchemaConfig] = None):
     """Configuration for writing vectors to BigQuery using managed transforms.
-    
+
     Supports both default schema (id, embedding, content, metadata columns) and
     custom schemas through SchemaConfig.
 
@@ -106,7 +106,7 @@ class BigQueryVectorWriterConfig(VectorDatabaseWriteConfig):
             conversion.
             If not provided, uses default schema with id, embedding, content and
             metadata columns.
-    
+
     Raises:
         ValueError: If write_config doesn't include table specification.
     """

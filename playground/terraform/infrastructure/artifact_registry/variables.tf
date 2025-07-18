@@ -30,5 +30,3 @@ variable "id" {
   description = "ID of Artifact Registry"
   default     = "playground-repository"
 }
-
-

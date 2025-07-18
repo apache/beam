@@ -55,7 +55,7 @@ pipeline:
             output_type: string
           customer_email:
             callable: 'lambda x: x.customer_email'
-            output_type: string 
+            output_type: string
           product_id:
             callable: 'lambda x: x.product_id'
             output_type: integer

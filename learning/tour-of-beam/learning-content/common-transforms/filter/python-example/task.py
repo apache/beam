@@ -50,4 +50,3 @@ with beam.Pipeline() as p:
   # The elements filtered with the beam.Filter()
    | beam.Filter(lambda num: num % 2 == 0)
    | Output(prefix='PCollection filtered value: '))
-

@@ -62,4 +62,3 @@ jobs:
         with:
           version: v1.49.0
           working-directory: learning/tour-of-beam/backend
-

@@ -46,4 +46,3 @@ Tip 1: Use tags in your subject line.
 A tag is a word within a pair of brackets [] that indicate the type of message you’re sending. For example: [Bug] or [Proposal] or [Question] or [Idea]. Tags help folks navigate emails easier.
 
 Tip 2: If you’re asking a troubleshooting question, provide as much information as possible to help others replicate your issue or find possible solutions.
-

@@ -765,4 +765,3 @@ is submitted, but before it is executed. The SDK submitting a pipeline acts
 as an artifact server to the runner receiving the request, and in turn the
 runner then acts as an artifact server to the workers (environments) hosting
 the users UDFs.
-

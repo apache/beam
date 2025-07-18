@@ -665,11 +665,11 @@ def beam_schema_to_avro_schema(
 
 def unnest_primitive_type(beam_type: schema_pb2.FieldType):
   """unnests beam types that map to avro primitives or unions.
-      
+
       if mapping to a avro primitive or a union, don't nest the field type
       for complex types, like arrays, we need to nest the type.
       Example: { 'type': 'string' } -> 'string'
-      { 'type': 'array', 'items': 'string' } 
+      { 'type': 'array', 'items': 'string' }
       -> { 'type': 'array', 'items': 'string' }
 
       Args:

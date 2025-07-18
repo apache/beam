@@ -52,5 +52,3 @@ with beam.Pipeline() as p:
            | beam.combiners.Sample.FixedSizeGlobally(100) \
            | beam.FlatMap(lambda line: line) \
            | Output()
-
-

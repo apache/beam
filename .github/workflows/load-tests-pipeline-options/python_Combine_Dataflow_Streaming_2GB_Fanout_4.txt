@@ -14,7 +14,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
---region=us-central1 
+--region=us-central1
 --temp_location=gs://temp-storage-for-perf-tests/smoketests
 --publish_to_big_query=true
 --metrics_dataset=load_test

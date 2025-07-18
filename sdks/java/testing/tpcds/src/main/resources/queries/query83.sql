@@ -21,10 +21,10 @@ with sr_items as
       item,
       date_dim
  where sr_item_sk = i_item_sk
- and   d_date    in 
+ and   d_date    in
 	(select d_date
 	from date_dim
-	where d_week_seq in 
+	where d_week_seq in
 		(select d_week_seq
 		from date_dim
 	  where d_date in ('1998-01-02','1998-10-15','1998-11-10')))
@@ -37,10 +37,10 @@ with sr_items as
       item,
       date_dim
  where cr_item_sk = i_item_sk
- and   d_date    in 
+ and   d_date    in
 	(select d_date
 	from date_dim
-	where d_week_seq in 
+	where d_week_seq in
 		(select d_week_seq
 		from date_dim
 	  where d_date in ('1998-01-02','1998-10-15','1998-11-10')))
@@ -53,10 +53,10 @@ with sr_items as
       item,
       date_dim
  where wr_item_sk = i_item_sk
- and   d_date    in 
+ and   d_date    in
 	(select d_date
 	from date_dim
-	where d_week_seq in 
+	where d_week_seq in
 		(select d_week_seq
 		from date_dim
 		where d_date in ('1998-01-02','1998-10-15','1998-11-10')))
@@ -74,7 +74,7 @@ with sr_items as
      ,cr_items
      ,wr_items
  where sr_items.item_id=cr_items.item_id
-   and sr_items.item_id=wr_items.item_id 
+   and sr_items.item_id=wr_items.item_id
  order by sr_items.item_id
          ,sr_item_qty
  limit 100

@@ -73,4 +73,3 @@ resource "google_project_iam_member" "tourofbeam_cd_sa_roles" {
   member  = "serviceAccount:${google_service_account.tourofbeam_cd_sa.email}"
   project = var.project_id
 }
-

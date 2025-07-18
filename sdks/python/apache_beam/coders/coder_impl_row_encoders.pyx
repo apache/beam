@@ -164,5 +164,3 @@ cdef class BoolRowColumnEncoder(AtomicTypeRowColumnEncoder):
 BoolRowColumnEncoder.register(schema_pb2.BOOLEAN, np.int8().dtype)
 BoolRowColumnEncoder.register(schema_pb2.BOOLEAN, np.uint8().dtype)
 BoolRowColumnEncoder.register(schema_pb2.BOOLEAN, np.bool_().dtype)
-
-

@@ -37,4 +37,3 @@ dependencies {
   permitUnusedDeclared project(":sdks:java:io:snowflake")
   runtimeOnly library.java.slf4j_jdk14
 }
-

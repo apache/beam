@@ -24,4 +24,4 @@ spec:
     - scio.{{ .Values.dns_name }}
     - python.{{ .Values.dns_name }}
     - router.{{ .Values.dns_name }}
-    - {{ .Values.dns_name }}  
+    - {{ .Values.dns_name }}

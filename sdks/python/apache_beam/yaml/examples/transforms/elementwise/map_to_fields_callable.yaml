@@ -36,7 +36,7 @@ pipeline:
           element:
             callable: "lambda row: row.element.strip('# \\n')"
     - type: LogForTesting
-      
+
 # Expected:
 #  Row(element='🍓Strawberry')
 #  Row(element='🥕Carrot')

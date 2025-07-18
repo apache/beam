@@ -24,12 +24,12 @@ from apache_beam.ml.transforms.base import EmbeddingTypeAdapter
 
 def create_rag_adapter() -> EmbeddingTypeAdapter[Chunk, Chunk]:
   """Creates adapter for converting between Chunk and Embedding types.
-    
+
     The adapter:
     - Extracts text from Chunk.content.text for embedding
     - Creates Embedding objects from model output
     - Sets Embedding in Chunk.embedding
-    
+
     Returns:
         EmbeddingTypeAdapter configured for RAG pipeline types
     """

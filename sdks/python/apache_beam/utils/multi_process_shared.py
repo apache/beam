@@ -308,7 +308,7 @@ class MultiProcessShared(Generic[T]):
 
   def unsafe_hard_delete(self):
     """Force deletes the underlying object
-    
+
       This function should be used with great care since any other references
       to this object will now be invalid and may lead to strange errors. Only
       call unsafe_hard_delete if either (a) you are sure no other references

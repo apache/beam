@@ -41,7 +41,7 @@ This example demonstrates how to execute external C++ binaries as subprocesses w
     -Dpackage=org.apache.beam.examples \
     -DinteractiveMode=false
     ```
-    
+
 2. **Build the project:**
 
     *   Navigate to the root of the repository (`word-count-beam/`):

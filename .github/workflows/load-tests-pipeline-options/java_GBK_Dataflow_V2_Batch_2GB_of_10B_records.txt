@@ -14,7 +14,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
---region=us-central1 
+--region=us-central1
 --appName=load_tests_Java11_Dataflow_V2_batch_GBK_1
 --tempLocation=gs://temp-storage-for-perf-tests/loadtests
 --influxMeasurement=java_batch_gbk_1

@@ -31,7 +31,7 @@ pipelines:
           config:
             language: python
             fields:
-              record: 
+              record:
                 callable: |
                   def process(row):
                     return row.name.encode('utf-8')
@@ -55,7 +55,7 @@ pipelines:
           config:
             language: python
             fields:
-              record: 
+              record:
                 callable: |
                   def process(row):
                     return row.record.decode('utf-8')
