@@ -223,19 +223,7 @@ public class StateFetchingIterators {
 
       @Override
       public long getWeight() {
-        return wholeBlock.getWeight();
-      }
-    }
-
-    private static <T> long sumWeight(List<Block<T>> blocks) {
-      try {
-        long sum = 0;
-        for (Block<T> block : blocks) {
-          sum = Math.addExact(sum, block.getWeight());
-        }
-        return sum;
-      } catch (ArithmeticException e) {
-        return Long.MAX_VALUE;
+        return wholeBlock.getWeight() + 8;
       }
     }
 
@@ -249,7 +237,15 @@ public class StateFetchingIterators {
 
       @Override
       public long getWeight() {
-        return sumWeight(blocks);
+        try {
+          long sum = 8 + blocks.size() * 8L;
+          for (Block<T> block : blocks) {
+            sum = Math.addExact(sum, block.getWeight());
+          }
+          return sum;
+        } catch (ArithmeticException e) {
+          return Long.MAX_VALUE;
+        }
       }
 
       BlocksPrefix(List<Block<T>> blocks) {
@@ -281,7 +277,7 @@ public class StateFetchingIterators {
 
       public static <T> Block<T> mutatedBlock(WeightedList<T> weightedList) {
         return new AutoValue_StateFetchingIterators_CachingStateIterable_Block<>(
-            weightedList.getBacking(), null, weightedList.getWeight());
+            weightedList.getBacking(), null, weightedList.getWeight() + 24);
       }
 
       public static <T> Block<T> fromValues(List<T> values, @Nullable ByteString nextToken) {
@@ -291,7 +287,7 @@ public class StateFetchingIterators {
       public static <T> Block<T> fromValues(
           WeightedList<T> values, @Nullable ByteString nextToken) {
         return new AutoValue_StateFetchingIterators_CachingStateIterable_Block<>(
-            values.getBacking(), nextToken, values.getWeight() + Caches.weigh(nextToken));
+            values.getBacking(), nextToken, values.getWeight() + Caches.weigh(nextToken) + 24);
       }
 
       abstract List<T> getValues();
