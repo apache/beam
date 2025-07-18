@@ -52,9 +52,11 @@ const (
 	disableJammAgentOption              = "disable_jamm_agent"
 	enableGoogleCloudProfilerOption     = "enable_google_cloud_profiler"
 	enableGoogleCloudHeapSamplingOption = "enable_google_cloud_heap_sampling"
+	enableOpenTelemetryAgentOption      = "enable_open_telemetry_agent"
 	googleCloudProfilerAgentBaseArgs    = "-agentpath:/opt/google_cloud_profiler/profiler_java_agent.so=-logtostderr,-cprof_service=%s,-cprof_service_version=%s"
 	googleCloudProfilerAgentHeapArgs    = googleCloudProfilerAgentBaseArgs + ",-cprof_enable_heap_sampling,-cprof_heap_sampling_interval=2097152"
 	jammAgentArgs                       = "-javaagent:/opt/apache/beam/jars/jamm.jar"
+	openTelemetryAgentArgs              = "-javaagent:/opt/apache/beam/jars/opentelemetry-javaagent.jar"
 )
 
 func main() {
@@ -223,13 +225,19 @@ func main() {
 		args = append(args, jammAgentArgs)
 	}
 
+	enableOpenTelemetryAgent := strings.Contains(options, enableOpenTelemetryAgentOption)
+	if enableOpenTelemetryAgent {
+		args = append(args, openTelemetryAgentArgs)
+		logger.Printf(ctx, "Enabling OpenTelemetry agent.")
+	}
+
 	// If heap dumping is enabled, configure the JVM to dump it on oom events.
 	if pipelineOptions, ok := info.GetPipelineOptions().GetFields()["options"]; ok {
 		if heapDumpOption, ok := pipelineOptions.GetStructValue().GetFields()["enableHeapDumps"]; ok {
 			if heapDumpOption.GetBoolValue() {
-			  args = append(args, "-XX:+HeapDumpOnOutOfMemoryError",
-			                "-Dbeam.fn.heap_dump_dir="+filepath.Join(dir, "heapdumps"),
-			                "-XX:HeapDumpPath="+filepath.Join(dir, "heapdumps", "heap_dump.hprof"))
+				args = append(args, "-XX:+HeapDumpOnOutOfMemoryError",
+					"-Dbeam.fn.heap_dump_dir="+filepath.Join(dir, "heapdumps"),
+					"-XX:HeapDumpPath="+filepath.Join(dir, "heapdumps", "heap_dump.hprof"))
 			}
 		}
 	}
