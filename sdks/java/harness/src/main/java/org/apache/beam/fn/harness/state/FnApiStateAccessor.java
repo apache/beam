@@ -66,6 +66,7 @@ import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
 import org.apache.beam.sdk.util.CombineFnUtil;
+import org.apache.beam.sdk.util.Weighted;
 import org.apache.beam.sdk.util.construction.BeamUrns;
 import org.apache.beam.sdk.util.construction.PCollectionViewTranslation;
 import org.apache.beam.sdk.util.construction.RehydratedComponents;
@@ -975,7 +976,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
     throw new UnsupportedOperationException("WatermarkHoldState is unsupported by the Fn API.");
   }
 
-  private static class UserStateCacheTokenKey {
+  private static class UserStateCacheTokenKey implements Weighted {
     private final ByteString bytes;
     private final int hash;
 
@@ -996,6 +997,11 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
     @Override
     public int hashCode() {
       return hash;
+    }
+
+    @Override
+    public long getWeight() {
+      return 16 + bytes.size();
     }
   }
 
@@ -1092,7 +1098,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
     return rval;
   }
 
-  private static class BagStateKey {
+  private static class BagStateKey implements Weighted {
     private final String pTransformId;
     private final String stateId;
     private final ByteString window;
@@ -1124,6 +1130,11 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
     public int hashCode() {
       return hash;
     }
+
+    @Override
+    public long getWeight() {
+      return 40 + pTransformId.length() + stateId.length() + window.size() + key.size();
+    }
   }
 
   private StateKey createBagUserStateKey(String stateId) {
@@ -1151,7 +1162,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
     return rval;
   }
 
-  public static class MultimapStateKey {
+  public static class MultimapStateKey implements Weighted {
     private final String pTransformId;
     private final String stateId;
     private final ByteString window;
@@ -1183,6 +1194,11 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
     public int hashCode() {
       return hash;
     }
+
+    @Override
+    public long getWeight() {
+      return 40 + pTransformId.length() + stateId.length() + window.size() + key.size();
+    }
   }
 
   private StateKey createMultimapKeysUserStateKey(String stateId) {
@@ -1209,7 +1225,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
     return rval;
   }
 
-  public static class OrderedListStateKey {
+  public static class OrderedListStateKey implements Weighted {
     private final String pTransformId;
     private final String stateId;
     private final ByteString window;
@@ -1240,6 +1256,11 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
     @Override
     public int hashCode() {
       return hash;
+    }
+
+    @Override
+    public long getWeight() {
+      return 40 + pTransformId.length() + stateId.length() + window.size() + key.size();
     }
   }
 
