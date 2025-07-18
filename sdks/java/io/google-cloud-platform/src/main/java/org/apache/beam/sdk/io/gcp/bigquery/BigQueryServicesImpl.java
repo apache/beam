@@ -1196,11 +1196,11 @@ public class BigQueryServicesImpl implements BigQueryServices {
                       nextRowSize, MAX_BQ_ROW_PAYLOAD_DESC);
 
               // Add on row schema diff details if present
-              if (rowDetails.length() > 0) {
+              if (!rowDetails.isEmpty()) {
                 bqLimitLog +=
                     String.format(
                         " This is probably due to a schema "
-                            + "mismatch. Problematic row schema: %s.",
+                            + "mismatch. Problematic row had extra schema fields: %s.",
                         rowDetails);
               }
               throw new RuntimeException(bqLimitLog);
