@@ -195,7 +195,7 @@ public abstract class BigQueryWriteConfiguration {
   public abstract @Nullable String getOnly();
 
   @SchemaFieldDescription("A list of columns to cluster the BigQuery table by.")
-  public abstract @Nullable List<String> getClustering();
+  public abstract @Nullable List<String> getClusteringFields();
 
   /** Builder for {@link BigQueryWriteConfiguration}. */
   @AutoValue.Builder
@@ -229,7 +229,7 @@ public abstract class BigQueryWriteConfiguration {
 
     public abstract Builder setOnly(String only);
 
-    public abstract Builder setClustering(List<String> clustering);
+    public abstract Builder setClusteringFields(List<String> clusteringFields);
 
     /** Builds a {@link BigQueryWriteConfiguration} instance. */
     public abstract BigQueryWriteConfiguration build();

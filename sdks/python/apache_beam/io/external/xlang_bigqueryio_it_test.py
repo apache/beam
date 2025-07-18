@@ -249,6 +249,11 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     table = 'write_with_clustering'
     table_id = '{}:{}.{}'.format(self.project, self.dataset_id, table)
 
+    bq_matcher = BigqueryFullResultMatcher(
+        project=self.project,
+        query="SELECT * FROM {}.{}".format(self.dataset_id, table),
+        data=self.parse_expected_data(self.ELEMENTS))
+
     with beam.Pipeline(argv=self.args) as p:
       _ = (
           p
@@ -268,6 +273,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     clustering_fields = table.clustering.fields if table.clustering else []
 
     self.assertEqual(clustering_fields, ['int'])
+    hamcrest_assert(p, bq_matcher)
 
   def test_write_with_beam_rows_cdc(self):
     table = 'write_with_beam_rows_cdc'

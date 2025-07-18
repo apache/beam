@@ -52,7 +52,7 @@ public class PortableBigQueryDestinations extends DynamicDestinations<Row, Strin
   private final @Nullable List<String> clusteringFields;
 
   public PortableBigQueryDestinations(Schema rowSchema, BigQueryWriteConfiguration configuration) {
-    this.clusteringFields = configuration.getClustering();
+    this.clusteringFields = configuration.getClusteringFields();
     // DYNAMIC_DESTINATIONS magic string is the old way of doing it for cross-language.
     // In that case, we do no interpolation
     if (!configuration.getTable().equals(DYNAMIC_DESTINATIONS)) {

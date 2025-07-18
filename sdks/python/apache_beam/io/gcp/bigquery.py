@@ -2637,7 +2637,7 @@ class StorageWriteToBigQuery(PTransform):
       if callable(self.additional_bq_parameters):
         raise NotImplementedError(
             "Currently, dynamic clustering and timepartitioning is not "
-            "supported for this write method.")
+            "supported for STORAGE_WRITE_API write method.")
       clustering_fields = (
           self.additional_bq_parameters.get("clustering", {}).get("fields", []))
 
@@ -2656,7 +2656,7 @@ class StorageWriteToBigQuery(PTransform):
             use_at_least_once_semantics=self._use_at_least_once,
             use_cdc_writes=self._use_cdc_writes,
             primary_key=self._primary_key,
-            clustering=clustering_fields,
+            clustering_fields=clustering_fields,
             error_handling={
                 'output': StorageWriteToBigQuery.FAILED_ROWS_WITH_ERRORS
             }))
