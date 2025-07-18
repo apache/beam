@@ -33,6 +33,7 @@ import static org.junit.Assume.assumeTrue;
 import com.google.api.services.storage.model.StorageObject;
 import java.io.IOException;
 import java.io.Serializable;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -291,7 +292,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
                   .addValue(Float.valueOf(strNum + "." + strNum))
                   .build();
 
-          long timestampMillis = offset2025Millis + TimeUnit.MICROSECONDS.toHours(num);
+          long timestampMillis = offset2025Millis + TimeUnit.HOURS.toMillis(num);
           return Row.withSchema(BEAM_SCHEMA)
               .addValue("value_" + strNum)
               .addValue(String.valueOf((char) (97 + num % 5)))
@@ -302,8 +303,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
               .addValue(LongStream.range(0, num % 10).boxed().collect(Collectors.toList()))
               .addValue(num % 2 == 0 ? null : nestedRow)
               .addValue(num)
-              .addValue(
-                  new DateTime(timestampMillis).withZone(DateTimeZone.forOffsetHoursMinutes(3, 25)))
+              .addValue(new DateTime(timestampMillis).withZone(DateTimeZone.forOffsetHours(4)))
               .addValue(DateTimeUtil.timestampFromMicros(timestampMillis * 1000))
               .addValue(DateTimeUtil.dateFromDays(Integer.parseInt(strNum)))
               .addValue(DateTimeUtil.timeFromMicros(num))
@@ -460,20 +460,23 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   public void testReadWithFilterAndColumnPruning_keep() throws Exception {
     Table table = catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA);
 
-    List<String> keepFields = Arrays.asList("bool_field", "modulo_5", "str");
+    List<String> keepFields = Arrays.asList("datetime_tz", "modulo_5", "str");
     RowFilter rowFilter = new RowFilter(BEAM_SCHEMA).keep(keepFields);
 
     List<Row> expectedRows =
         populateTable(table).stream()
             .filter(
                 row ->
-                    row.getBoolean("bool_field")
+                    row.getLogicalTypeValue("datetime", LocalDateTime.class)
+                            .isAfter(LocalDateTime.parse("2025-01-01T09:00:00"))
                         && (row.getInt32("int_field") < 500 || row.getInt32("modulo_5") == 3))
             .map(rowFilter::filter)
             .collect(Collectors.toList());
 
     Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
-    config.put("filter", "\"bool_field\" = TRUE AND (\"int_field\" < 500 OR \"modulo_5\" = 3)");
+    config.put(
+        "filter",
+        "\"datetime\" > '2025-01-01 09:00' AND (\"int_field\" < 500 OR \"modulo_5\" = 3)");
     config.put("keep", keepFields);
 
     PCollection<Row> rows =
