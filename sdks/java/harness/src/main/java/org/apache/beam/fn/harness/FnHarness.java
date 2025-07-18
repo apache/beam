@@ -276,8 +276,7 @@ public class FnHarness {
 
     IdGenerator idGenerator = IdGenerators.decrementingLongs();
     ShortIdMap metricsShortIds = new ShortIdMap();
-    UnboundedScheduledExecutorService executorService =
-        new UnboundedScheduledExecutorService();
+    UnboundedScheduledExecutorService executorService = new UnboundedScheduledExecutorService();
     options.as(ExecutorOptions.class).setScheduledExecutorService(executorService);
     ExecutionStateSampler executionStateSampler =
         new ExecutionStateSampler(options, System::currentTimeMillis);
