@@ -1166,52 +1166,45 @@ public class BigQueryServicesImpl implements BigQueryServices {
             if (retryPolicy.shouldRetry(new InsertRetryPolicy.Context(error))) {
               // Obtain table schema
               TableSchema tableSchema = null;
-              try {
-                String tableSpec = BigQueryHelpers.toTableSpec(ref);
-                if (tableSchemaCache.containsKey(tableSpec)) {
-                  tableSchema = tableSchemaCache.get(tableSpec);
-                } else {
-                  Table table = getTable(ref);
-                  if (table != null) {
-                    table.getSchema();
-                    tableSchema =
-                        TableRowToStorageApiProto.schemaToProtoTableSchema(table.getSchema());
-                    tableSchemaCache.put(tableSpec, tableSchema);
-                  }
+              String tableSpec = BigQueryHelpers.toTableSpec(ref);
+              if (tableSchemaCache.containsKey(tableSpec)) {
+                tableSchema = tableSchemaCache.get(tableSpec);
+              } else {
+                Table table = getTable(ref);
+                if (table != null) {
+                  tableSchema =
+                      TableRowToStorageApiProto.schemaToProtoTableSchema(table.getSchema());
+                  tableSchemaCache.put(tableSpec, tableSchema);
                 }
-              } catch (Exception e) {
-                LOG.warn("Could not fetch table schema for {}.", ref, e);
               }
 
-              // Create BigQuery schema map to use for formatting
-              String rowDetails;
-              try {
-                if (tableSchema != null) {
-                  // Creates bqSchemaMap containing field name, field type, and
-                  // possibly field mode if available.
-                  Map<String, String> bqSchemaMap =
-                      tableSchema.getFieldsList().stream()
-                          .collect(Collectors.toMap(f -> f.getName(), f -> f.getType().name()));
-                  rowDetails = formatRowWithSchema(row, bqSchemaMap);
-                } else {
-                  rowDetails = formatRowWithoutSchema(row);
-                }
-              } catch (Exception e) {
-                rowDetails = row.keySet().toString();
+              // Validate row schema
+              String rowDetails = "";
+              if (tableSchema != null) {
+                rowDetails = validateRowSchema(row, tableSchema);
               }
+
+              // Shorten row details if too long for human readability
               if (rowDetails.length() > 1024) {
                 rowDetails = rowDetails.substring(0, 1024) + "...}";
               }
 
-              throw new RuntimeException(
+              // Basic log to return
+              String bqLimitLog =
                   String.format(
                       "We have observed a row of size %s bytes exceeding the "
-                          + "BigQueryIO limit of %s. This is probably due to a schema "
-                          + "mismatch. Problematic row schema "
-                          + "(truncated): %s. You can change your retry strategy "
-                          + "to unblock this pipeline, and the row will be output "
-                          + "as a failed insert. ",
-                      nextRowSize, MAX_BQ_ROW_PAYLOAD_DESC, rowDetails));
+                          + "BigQueryIO limit of %s.",
+                      nextRowSize, MAX_BQ_ROW_PAYLOAD_DESC);
+
+              // Add on row schema diff details if present
+              if (rowDetails.length() > 0) {
+                bqLimitLog +=
+                    String.format(
+                        " This is probably due to a schema "
+                            + "mismatch. Problematic row schema: %s.",
+                        rowDetails);
+              }
+              throw new RuntimeException(bqLimitLog);
             } else {
               numFailedRows += 1;
               errorContainer.add(failedInserts, error, ref, rowsToPublish.get(rowIndex));
@@ -1365,76 +1358,36 @@ public class BigQueryServicesImpl implements BigQueryServices {
     }
 
     /**
-     * Formats a {@link TableRow} for logging, comparing the provided row against a BigQuery schema.
-     * The formatted string shows the type of each field in the row, and indicates any mismatches
-     * between the row's types and the schema's expected types.
+     * Validates a {@link TableRow} for logging, comparing the provided row against a BigQuery
+     * schema. The formatted string shows the field names in the row indicating any mismatches
+     * unknown entries.
      *
-     * <p>For example, a {@link TableRow} with a "name" (String) and "age" (Integer) field, where
-     * the schema expects a String and Integer respectively, would be formatted as:
+     * <p>For example, a {@link TableRow} with a "names" and "age" fields, where the schema expects
+     * "name" and "age" would return "name".
      *
      * <pre>{@code {'name': java.lang.String, 'age': java.lang.Integer}}</pre>
      *
-     * <p>If a field exists in the row but not in the schema, it's marked as "Unknown field". If a
-     * field's type doesn't match the schema, it's shown as "Provided: X, Expected: Y".
+     * <p>If a field exists in the row but not in the schema, it's marked as "Unknown fields".
      *
-     * @param row The {@link TableRow} to format.
-     * @param bqSchemaMap A map of field names to their expected BigQuery types (e.g., "STRING",
-     *     "INTEGER").
-     * @return A string representation of the row, indicating the type of each field and any schema
-     *     mismatches.
+     * @param row The {@link TableRow} to validate.
+     * @param tableSchema The {@link TableSchema} to check against.
+     * @return A string representation of the row, indicating any schema mismatches.
      */
-    private String formatRowWithSchema(TableRow row, Map<String, String> bqSchemaMap) {
-      Set<String> allBQFieldNames = new HashSet<>(bqSchemaMap.keySet());
+    private String validateRowSchema(TableRow row, TableSchema tableSchema) {
+      // Creates bqSchemaFields containing field names
+      Set<String> bqSchemaFields =
+          tableSchema.getFieldsList().stream().map(f -> f.getName()).collect(Collectors.toSet());
 
-      return allBQFieldNames.stream()
-          .sorted()
+      return row.keySet().stream()
           .map(
               fieldName -> {
-                // Check that row field exists in BQ Table
-                String providedType;
-                // Row field matches existing BQ Table field
-                if (row.containsKey(fieldName)) {
-                  Object value = row.get(fieldName);
-                  providedType = value == null ? "null" : value.getClass().getName();
-                } else {
-                  // Row field doesn't exist in BQ Table
-                  return String.format("'%s': Unknown field", fieldName);
-                }
-
-                // Compare field types
-                String expectedType = bqSchemaMap.get(fieldName);
-                if (!providedType.contains(expectedType)) {
-                  return String.format(
-                      "'%s': (Provided: %s, Expected: %s)", fieldName, providedType, expectedType);
+                if (!bqSchemaFields.contains(fieldName)) {
+                  return fieldName;
                 }
                 return "";
               })
           .filter(s -> !s.isEmpty())
-          .collect(Collectors.joining(", ", "{", "}"));
-    }
-
-    /**
-     * Formats a {@link TableRow} for logging, showing only the keys and the Java class names of the
-     * corresponding values. This is useful for debugging schema-related issues without logging the
-     * potentially large or sensitive data contained in the row.
-     *
-     * <p>For example, a {@link TableRow} with a "name" (String) and "age" (Integer) would be
-     * formatted as:
-     *
-     * <pre>{@code {'name': java.lang.String, 'age': java.lang.Integer}}</pre>
-     *
-     * @param row The {@link TableRow} to format.
-     * @return A string representation of the row's structure.
-     */
-    private String formatRowWithoutSchema(TableRow row) {
-      return row.entrySet().stream()
-          .map(
-              entry ->
-                  String.format(
-                      "'%s': %s",
-                      entry.getKey(),
-                      entry.getValue() == null ? "null" : entry.getValue().getClass().getName()))
-          .collect(Collectors.joining(", ", "{", "}"));
+          .collect(Collectors.joining(", ", "{Unknown fields: ", "}"));
     }
 
     @Override
