@@ -1166,16 +1166,20 @@ public class BigQueryServicesImpl implements BigQueryServices {
             if (retryPolicy.shouldRetry(new InsertRetryPolicy.Context(error))) {
               // Obtain table schema
               TableSchema tableSchema = null;
-              String tableSpec = BigQueryHelpers.toTableSpec(ref);
-              if (tableSchemaCache.containsKey(tableSpec)) {
-                tableSchema = tableSchemaCache.get(tableSpec);
-              } else {
-                Table table = getTable(ref);
-                if (table != null) {
-                  tableSchema =
-                      TableRowToStorageApiProto.schemaToProtoTableSchema(table.getSchema());
-                  tableSchemaCache.put(tableSpec, tableSchema);
+              try {
+                String tableSpec = BigQueryHelpers.toTableSpec(ref);
+                if (tableSchemaCache.containsKey(tableSpec)) {
+                  tableSchema = tableSchemaCache.get(tableSpec);
+                } else {
+                  Table table = getTable(ref);
+                  if (table != null) {
+                    tableSchema =
+                        TableRowToStorageApiProto.schemaToProtoTableSchema(table.getSchema());
+                    tableSchemaCache.put(tableSpec, tableSchema);
+                  }
                 }
+              } catch (Exception e) {
+                LOG.warn("Failed to get table schema", e);
               }
 
               // Validate row schema
