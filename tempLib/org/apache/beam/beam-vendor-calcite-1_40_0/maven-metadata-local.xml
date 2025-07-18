@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata>
+  <groupId>org.apache.beam</groupId>
+  <artifactId>beam-vendor-calcite-1_40_0</artifactId>
+  <versioning>
+    <latest>0.1-SNAPSHOT</latest>
+    <versions>
+      <version>0.1-SNAPSHOT</version>
+    </versions>
+    <lastUpdated>20250714194916</lastUpdated>
+  </versioning>
+</metadata>
