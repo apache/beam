@@ -21,10 +21,13 @@ import static java.util.stream.Collectors.toList;
 
 import com.google.api.services.bigquery.model.TableCell;
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.cloud.bigquery.storage.v1.AnnotationsProto;
 import com.google.cloud.bigquery.storage.v1.BigDecimalByteStringEncoder;
+import com.google.cloud.bigquery.storage.v1.BigQuerySchemaUtil;
 import com.google.cloud.bigquery.storage.v1.TableFieldSchema;
 import com.google.cloud.bigquery.storage.v1.TableSchema;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.DescriptorProtos.DescriptorProto;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
 import com.google.protobuf.DescriptorProtos.FieldDescriptorProto.Label;
@@ -487,7 +490,11 @@ public class TableRowToStorageApiProto {
     DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
     for (final Map.Entry<String, Object> entry : map.entrySet()) {
       String key = entry.getKey().toLowerCase();
-      @Nullable FieldDescriptor fieldDescriptor = descriptor.findFieldByName(key);
+      String protoFieldName =
+          BigQuerySchemaUtil.isProtoCompatible(key)
+              ? key
+              : BigQuerySchemaUtil.generatePlaceholderFieldName(key);
+      @Nullable FieldDescriptor fieldDescriptor = descriptor.findFieldByName(protoFieldName);
       if (fieldDescriptor == null) {
         if (unknownFields != null) {
           unknownFields.set(key, entry.getValue());
@@ -724,9 +731,18 @@ public class TableRowToStorageApiProto {
     return TableSchema.newBuilder().addAllFields(tableFields).build();
   }
 
+  private static String fieldNameFromProtoFieldDescriptor(FieldDescriptor fieldDescriptor) {
+    if (fieldDescriptor.getOptions().hasExtension(AnnotationsProto.columnName)) {
+      return fieldDescriptor.getOptions().getExtension(AnnotationsProto.columnName);
+    } else {
+      return fieldDescriptor.getName();
+    }
+  }
+
   static TableFieldSchema tableFieldSchemaFromDescriptorField(FieldDescriptor fieldDescriptor) {
     TableFieldSchema.Builder tableFieldSchemaBuilder = TableFieldSchema.newBuilder();
-    tableFieldSchemaBuilder = tableFieldSchemaBuilder.setName(fieldDescriptor.getName());
+    tableFieldSchemaBuilder =
+        tableFieldSchemaBuilder.setName(fieldNameFromProtoFieldDescriptor(fieldDescriptor));
 
     switch (fieldDescriptor.getType()) {
       case MESSAGE:
@@ -809,8 +825,21 @@ public class TableRowToStorageApiProto {
           "Reserved field name " + fieldSchema.getName() + " in user schema.");
     }
     FieldDescriptorProto.Builder fieldDescriptorBuilder = FieldDescriptorProto.newBuilder();
-    fieldDescriptorBuilder = fieldDescriptorBuilder.setName(fieldSchema.getName().toLowerCase());
+    final String fieldName = fieldSchema.getName().toLowerCase();
+    fieldDescriptorBuilder = fieldDescriptorBuilder.setName(fieldName);
     fieldDescriptorBuilder = fieldDescriptorBuilder.setNumber(fieldNumber);
+    if (!BigQuerySchemaUtil.isProtoCompatible(fieldName)) {
+      fieldDescriptorBuilder =
+          fieldDescriptorBuilder.setName(
+              BigQuerySchemaUtil.generatePlaceholderFieldName(fieldName));
+
+      Message.Builder fieldOptionBuilder = DescriptorProtos.FieldOptions.newBuilder();
+      fieldOptionBuilder =
+          fieldOptionBuilder.setField(AnnotationsProto.columnName.getDescriptor(), fieldName);
+      fieldDescriptorBuilder =
+          fieldDescriptorBuilder.setOptions(
+              (DescriptorProtos.FieldOptions) fieldOptionBuilder.build());
+    }
     switch (fieldSchema.getType()) {
       case STRUCT:
         DescriptorProto nested =
@@ -1113,12 +1142,13 @@ public class TableRowToStorageApiProto {
     for (Map.Entry<FieldDescriptor, Object> field : message.getAllFields().entrySet()) {
       StringBuilder fullName = new StringBuilder();
       FieldDescriptor fieldDescriptor = field.getKey();
-      fullName = fullName.append(namePrefix).append(fieldDescriptor.getName());
+      String fieldName = fieldNameFromProtoFieldDescriptor(fieldDescriptor);
+      fullName = fullName.append(namePrefix).append(fieldName);
       Object fieldValue = field.getValue();
       if ((includeCdcColumns || !StorageApiCDC.COLUMNS.contains(fullName.toString()))
-          && includeField.test(fieldDescriptor.getName())) {
+          && includeField.test(fieldName)) {
         tableRow.put(
-            fieldDescriptor.getName(),
+            fieldName,
             jsonValueFromMessageValue(
                 fieldDescriptor, fieldValue, true, includeField, fullName.append(".").toString()));
       }
