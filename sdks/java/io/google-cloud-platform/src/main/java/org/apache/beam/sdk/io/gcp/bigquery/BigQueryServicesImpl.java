@@ -1366,7 +1366,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
      *
      * <pre>{@code {'name': java.lang.String}</pre>
      *
-     * <p>If a field exists in the row but not in the schema, 
+     * <p>If a field exists in the row but not in the schema,
      * "Unknown fields" is prefixed to the log.</p>
      *
      * @param row The {@link TableRow} to validate.
@@ -1379,16 +1379,17 @@ public class BigQueryServicesImpl implements BigQueryServices {
           tableSchema.getFieldsList().stream().map(f -> f.getName()).collect(Collectors.toSet());
 
       // Validate
-      String rowDetails = row.keySet().stream()
-          .map(
-              fieldName -> {
-                if (!bqSchemaFields.contains(fieldName)) {
-                  return fieldName;
-                }
-                return "";
-              })
-          .filter(s -> !s.isEmpty())
-          .collect(Collectors.joining(", ", "{Unknown fields: ", "}"));
+      String rowDetails =
+          row.keySet().stream()
+              .map(
+                  fieldName -> {
+                    if (!bqSchemaFields.contains(fieldName)) {
+                      return fieldName;
+                    }
+                    return "";
+                  })
+              .filter(s -> !s.isEmpty())
+              .collect(Collectors.joining(", ", "{Unknown fields: ", "}"));
 
       // Shorten row details if too long for human readability
       if (rowDetails.length() > 1024) {

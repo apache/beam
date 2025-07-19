@@ -1241,7 +1241,8 @@ public class BigQueryServicesImplTest {
 
     assertThat(e.getMessage(), containsString("exceeding the BigQueryIO limit"));
     assertThat(
-        e.getMessage(), containsString("Problematic row had extra schema fields: {Unknown fields: badField}"));
+        e.getMessage(),
+        containsString("Problematic row had extra schema fields: {Unknown fields: badField}"));
   }
 
   @SuppressWarnings("InlineMeInliner") // inline `Strings.repeat()` - Java 11+ API only
