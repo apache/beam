@@ -25,6 +25,7 @@ from google.cloud import pubsub_v1, storage
 
 # Resource types
 PUBSUB_TOPIC_RESOURCE = "pubsub_topic"
+PUBSUB_SUBSCRIPTION_RESOURCE = "pubsub_subscription"
 
 # Storage constants
 STORAGE_PREFIX = "stale_cleaner/"
@@ -34,6 +35,7 @@ PROJECT_PATH_PREFIX = "projects/" # Prefix for the project path in GCP *This is 
 
 # Time constants (in seconds)
 DEFAULT_PUBSUB_TOPIC_THRESHOLD = 86400  # 1 day
+DEFAULT_PUBSUB_SUBSCRIPTION_THRESHOLD = 86400  # 1 day
 DEFAULT_TIME_THRESHOLD = 3600  # 1 hour
 
 # Default values for testing
@@ -285,6 +287,12 @@ class StaleCleaner:
 
 # PubSub topic cleaner
 class PubSubTopicCleaner(StaleCleaner):
+    """
+    This cleaner will delete PubSub topics that are stale based on the time threshold.
+    It uses the PubSub API to list and delete topics.
+    It also applies prefix filtering to only delete topics that match the specified prefixes.
+    """
+
     def __init__(self, project_id: str, bucket_name: str,
                     prefixes: list = None, time_threshold: int = DEFAULT_PUBSUB_TOPIC_THRESHOLD,
                     clock: Clock = None) -> None:
@@ -304,7 +312,50 @@ class PubSubTopicCleaner(StaleCleaner):
         print(f"{self.clock()} - Deleting PubSub topic {resource_name}")
         self.client.delete_topic(request={"topic": resource_name})
 
-if __name__ == "__main__":
+# PubSub Subscription cleaner
+class PubSubSubscriptionCleaner(StaleCleaner):
+    """
+    This cleaner will delete PubSub subscriptions that are stale based on the time threshold.
+    It uses the PubSub API to list and delete subscriptions.
+    It also applies prefix filtering to only delete subscriptions that match the specified prefixes.
+    It checks if the subscription is detached (whether it has a topic associated with it).
+    If it is detached, it will be considered stale and eligible for deletion.
+    """
+
+    def __init__(self, project_id: str, bucket_name: str,
+                    prefixes: list = None, time_threshold: int = DEFAULT_PUBSUB_SUBSCRIPTION_THRESHOLD,
+                    clock: Clock = None) -> None:
+        super().__init__(project_id, PUBSUB_SUBSCRIPTION_RESOURCE, bucket_name, prefixes, time_threshold, clock)
+        self.client = None  # Will be initialized in each method that needs it
+
+    def _active_resources(self) -> dict:
+        d = {}
+        self.client = pubsub_v1.SubscriberClient()
+
+        with self.client:
+            for subscription in self.client.list_subscriptions(request={"project": self.project_path}):
+                subscription_name = subscription.name
+                # Apply prefix filtering if prefixes are defined
+                if not self.prefixes or any(subscription_name.startswith(f"{self.project_path}/subscriptions/{prefix}") for prefix in self.prefixes):
+                    # Check if the subscription has a topic associated with it
+                    if subscription.detached:
+                        d[subscription_name] = GoogleCloudResource(resource_name=subscription_name, clock=self.clock)
+
+        return d
+
+    def _delete_resource(self, resource_name: str) -> None:
+        self.client = pubsub_v1.SubscriberClient()
+        print(f"{self.clock()} - Deleting PubSub subscription {resource_name}")
+        with self.client:
+            subscription_path = self.client.subscription_path(self.project_id, resource_name)
+            self.client.delete_subscription(request={"subscription": subscription_path})
+
+def clean_pubsub_topics():
+    """ Clean up stale PubSub topics in the specified GCP project.
+    This function initializes the PubSubTopicCleaner with the default project ID and bucket name,
+    and a predefined list of topic prefixes.
+    It then refreshes the resources and deletes any stale topics.
+    """
     project_id = DEFAULT_PROJECT_ID
     bucket_name = DEFAULT_BUCKET_NAME
 
@@ -322,7 +373,28 @@ if __name__ == "__main__":
         "testing",
         "pubsubNamespace",
         "game_stats_it_input_topic",
-        "game_stats_it_output_topic"
+        "game_stats_it_output_topic",
+        "FhirIO-IT-DSTU2-notifications",
+        "FhirIO-IT-R4-notifications",
+        "FhirIO-IT-STU3-notifications",
+        "integ-test-FhirIOReadIT",
+        "integ-test-PubsubTableProviderIT",
+        "integ-test-PubsubToBigqueryIT",
+        "integ-test-PubsubToIcebergIT",
+        "integ-test-ReadWriteIT",
+        "io-pubsub-lt",
+        "io-pubsub-st",
+        "pubsub-write",
+        "test-backlog",
+        "test1-backlog",
+        "test2-backlog",
+        "test3-backlog",
+        "testpipeline-jenkins",
+        "testpipeline-runner",
+        "test-pub-sub-to",
+        "tf-test",
+        "anomaly-input",
+        "anomaly-output",
     ]
 
     # Create a PubSubTopicCleaner instance
@@ -334,3 +406,32 @@ if __name__ == "__main__":
 
     # Delete stale resources
     cleaner.delete_stale(dry_run=False)
+
+def clean_pubsub_subscriptions():
+    """ Clean up stale PubSub subscriptions in the specified GCP project.
+    This function initializes the PubSubSubscriptionCleaner with the default project ID and bucket name,
+    and a predefined list of subscription prefixes.
+    It then refreshes the resources and deletes any stale subscriptions.
+    """
+    project_id = DEFAULT_PROJECT_ID
+    bucket_name = DEFAULT_BUCKET_NAME
+
+    # No prefixes are defined for subscriptions so we will delete all stale subscriptions
+    prefixes = []
+
+    # Create a PubSubSubscriptionCleaner instance
+    cleaner = PubSubSubscriptionCleaner(project_id=project_id, bucket_name=bucket_name,
+                                        prefixes=prefixes, time_threshold=DEFAULT_PUBSUB_SUBSCRIPTION_THRESHOLD)
+
+    # Refresh resources
+    cleaner.refresh()
+
+    # Delete stale resources
+    cleaner.delete_stale(dry_run=True) # Keep dry_run=True to avoid accidental deletions during testing
+
+if __name__ == "__main__":
+    # Clean up stale PubSub topics
+    clean_pubsub_topics()
+
+    # Clean up stale PubSub subscriptions
+    clean_pubsub_subscriptions()

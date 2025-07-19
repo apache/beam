@@ -622,7 +622,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def influxdb_version = "2.19"
     def httpclient_version = "4.5.13"
     def httpcore_version = "4.4.14"
-    def iceberg_bqms_catalog_version = "1.6.1-1.0.0"
+    def iceberg_bqms_catalog_version = "1.6.1-1.0.1"
     def jackson_version = "2.15.4"
     def jaxb_api_version = "2.3.3"
     def jsr305_version = "3.0.2"
@@ -676,7 +676,6 @@ class BeamModulePlugin implements Plugin<Project> {
         auto_value_annotations                      : "com.google.auto.value:auto-value-annotations:$autovalue_version",
         // TODO: https://github.com/apache/beam/issues/34993 after stopping supporting Java 8
         avro                                        : "org.apache.avro:avro:1.11.4",
-        avro_tests                                  : "org.apache.avro:avro:1.11.3:tests",
         aws_java_sdk2_apache_client                 : "software.amazon.awssdk:apache-client:$aws_java_sdk2_version",
         aws_java_sdk2_netty_client                  : "software.amazon.awssdk:netty-nio-client:$aws_java_sdk2_version",
         aws_java_sdk2_auth                          : "software.amazon.awssdk:auth:$aws_java_sdk2_version",
@@ -1495,11 +1494,6 @@ class BeamModulePlugin implements Plugin<Project> {
         project.dependencies {
           errorprone("com.google.errorprone:error_prone_core:$errorprone_version")
           errorprone("jp.skypencil.errorprone.slf4j:errorprone-slf4j:0.1.2")
-          // At least JDk 9 compiler is required, however JDK 8 still can be used but with additional errorproneJavac
-          // configuration. For more details please see https://github.com/tbroyer/gradle-errorprone-plugin#jdk-8-support
-          if (JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) == 0) {
-            errorproneJavac("com.google.errorprone:javac:9+181-r4173-1")
-          }
         }
 
         project.configurations.errorprone { resolutionStrategy.force "com.google.errorprone:error_prone_core:$errorprone_version" }
@@ -1512,8 +1506,7 @@ class BeamModulePlugin implements Plugin<Project> {
           // i.e. Java 9 and up. The flags became mandatory in Java 17 with JEP-403.
           // The -J prefix is not needed if forkOptions.javaHome is unset,
           // see http://github.com/gradle/gradle/issues/22747
-          if (JavaVersion.VERSION_1_8.compareTo(JavaVersion.current()) < 0
-          && options.forkOptions.javaHome == null) {
+          if (options.forkOptions.javaHome == null) {
             options.fork = true
             options.forkOptions.jvmArgs += errorProneAddModuleOpts
           }
@@ -1633,7 +1626,7 @@ class BeamModulePlugin implements Plugin<Project> {
         //
         // TODO: Enforce all relocations are always performed to:
         // getJavaRelocatedPath(package_suffix) where package_suffix is something like "com.google.commmon"
-        project.apply plugin: 'com.github.johnrengelman.shadow'
+        project.apply plugin: 'com.gradleup.shadow'
 
         // Create a new configuration 'shadowTest' like 'shadow' for the test scope
         project.configurations {
@@ -2785,6 +2778,12 @@ class BeamModulePlugin implements Plugin<Project> {
         ]
       }
 
+      String testJavaVersion = project.findProperty('testJavaVersion')
+      String testJavaHome = null
+      if (testJavaVersion) {
+        testJavaHome = project.findProperty("java${testJavaVersion}Home")
+      }
+
       ['Java': javaPort, 'Python': pythonPort].each { sdk, port ->
         // Task for running testcases in Java SDK
         def javaTask = project.tasks.register(config.name+"JavaUsing"+sdk, Test) {
@@ -2809,6 +2808,9 @@ class BeamModulePlugin implements Plugin<Project> {
             useJUnit{ includeCategories 'org.apache.beam.sdk.testing.UsesPythonExpansionService' }
           } else {
             throw new GradleException("unsupported expansion service for Java validate runner tests.")
+          }
+          if (testJavaHome) {
+            executable = "${testJavaHome}/bin/java"
           }
           // increase maxHeapSize as this is directly correlated to direct memory,
           // see https://issues.apache.org/jira/browse/BEAM-6698
@@ -2845,6 +2847,9 @@ class BeamModulePlugin implements Plugin<Project> {
           args '-c', ". $envDir/bin/activate && cd $pythonDir && ./scripts/run_integration_test.sh $cmdArgs"
           dependsOn setupTask
           dependsOn config.startJobServer
+          if (testJavaHome) {
+            environment "JAVA_HOME", testJavaHome
+          }
         }
         if (sdk != "Python") {
           mainTask.configure{dependsOn pythonTask}
@@ -2869,6 +2874,9 @@ class BeamModulePlugin implements Plugin<Project> {
         dependsOn setupTask
         dependsOn config.startJobServer
         dependsOn ':sdks:java:extensions:sql:expansion-service:shadowJar'
+        if (testJavaHome) {
+          environment "JAVA_HOME", testJavaHome
+        }
       }
       mainTask.configure{dependsOn pythonSqlTask}
       cleanupTask.configure{mustRunAfter pythonSqlTask}
@@ -3131,6 +3139,13 @@ class BeamModulePlugin implements Plugin<Project> {
         project.tasks.register(name) {
           dependsOn setupVirtualenv
           dependsOn ':sdks:python:sdist'
+
+          def testJavaVersion = project.findProperty('testJavaVersion')
+          String testJavaHome = null
+          if (testJavaVersion) {
+            testJavaHome = project.findProperty("java${testJavaVersion}Home")
+          }
+
           if (project.hasProperty('useWheelDistribution')) {
             def pythonVersionNumber  = project.ext.pythonVersion.replace('.', '')
             dependsOn ":sdks:python:bdistPy${pythonVersionNumber}linux"
@@ -3142,6 +3157,9 @@ class BeamModulePlugin implements Plugin<Project> {
               }
               String packageFilename = collection.singleFile.toString()
               project.exec {
+                if (testJavaHome) {
+                  environment "JAVA_HOME", testJavaHome
+                }
                 executable 'sh'
                 args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env ${packageFilename} '$posargs' "
               }
@@ -3152,6 +3170,9 @@ class BeamModulePlugin implements Plugin<Project> {
               project.copy { from project.pythonSdkDeps; into copiedSrcRoot }
               def copiedPyRoot = "${copiedSrcRoot}/sdks/python"
               project.exec {
+                if (testJavaHome) {
+                  environment "JAVA_HOME", testJavaHome
+                }
                 executable 'sh'
                 args '-c', ". ${project.ext.envdir}/bin/activate && cd ${copiedPyRoot} && scripts/run_tox.sh $tox_env '$posargs'"
               }
