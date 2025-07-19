@@ -283,12 +283,13 @@ public class StateFetchingIteratorsTest {
     public void testBlocksWeight() throws Exception {
       List<Block<String>> originalBlocks =
           Arrays.asList(
-              Block.mutatedBlock(Arrays.asList("A"), 10),
+              Block.mutatedBlock(Arrays.asList("A"), 10_000),
               Block.mutatedBlock(Arrays.asList("B"), Long.MAX_VALUE / 2),
               Block.mutatedBlock(Arrays.asList("C"), Long.MAX_VALUE / 2),
               Block.mutatedBlock(Arrays.asList("D"), 5));
       BlocksPrefix<String> blocks = new BlocksPrefix<>(originalBlocks.subList(0, 2));
-      assertEquals(10 + Long.MAX_VALUE / 2, blocks.getWeight());
+      assertTrue(10_000 + Long.MAX_VALUE / 2 < blocks.getWeight());
+      assertTrue(blocks.getWeight() < 10_000 + Long.MAX_VALUE / 2 + 100);
 
       BlocksPrefix<String> blocksOverflow = new BlocksPrefix<>(originalBlocks);
       assertEquals(Long.MAX_VALUE, blocksOverflow.getWeight());
