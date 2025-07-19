@@ -47,6 +47,7 @@ import org.apache.beam.sdk.fn.stream.PrefetchableIterator;
 import org.apache.beam.sdk.util.Weighted;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.AbstractIterator;
 
@@ -286,8 +287,16 @@ public class StateFetchingIterators {
 
       public static <T> Block<T> fromValues(
           WeightedList<T> values, @Nullable ByteString nextToken) {
+        long weight = values.getWeight() + 24;
+        if (nextToken != null) {
+          if (nextToken.isEmpty()) {
+            nextToken = ByteString.EMPTY;
+          } else {
+            weight += Caches.weigh(nextToken);
+          }
+        }
         return new AutoValue_StateFetchingIterators_CachingStateIterable_Block<>(
-            values.getBacking(), nextToken, values.getWeight() + Caches.weigh(nextToken) + 24);
+            values.getBacking(), nextToken, weight);
       }
 
       abstract List<T> getValues();
