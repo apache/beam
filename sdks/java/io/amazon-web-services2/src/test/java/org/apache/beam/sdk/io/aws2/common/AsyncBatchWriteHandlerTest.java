@@ -219,11 +219,16 @@ public class AsyncBatchWriteHandlerTest {
     assertThat(future).isNotDone();
 
     // complete responses and unblock last request
+    CompletableFuture<List<Boolean>> nextResults = new CompletableFuture<>();
     resultsByPos.complete(emptyList());
+    resultsByPos = nextResults;
 
     eventually(
         5,
         () -> verify(handler.submitFn, times(CONCURRENCY + 1)).apply("destination", emptyList()));
+
+    nextResults.complete(emptyList());
+
     handler.waitForCompletion();
     assertThat(future).isDone();
   }
