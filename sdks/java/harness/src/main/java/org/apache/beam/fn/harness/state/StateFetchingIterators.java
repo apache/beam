@@ -218,7 +218,7 @@ public class StateFetchingIterators {
 
       @Override
       public long getWeight() {
-        return 0;
+        return 8;
       }
     }
 
@@ -417,7 +417,11 @@ public class StateFetchingIterators {
      * requesting data from the state cache.
      */
     public void clearAndAppend(WeightedList<T> values) {
-      cache.put(IterableCacheKey.INSTANCE, new MutatedBlocks<>(Block.mutatedBlock(values)));
+      if (values.isEmpty()) {
+        cache.put(IterableCacheKey.INSTANCE, new EmptyBlocks<>());
+      } else {
+        cache.put(IterableCacheKey.INSTANCE, new MutatedBlocks<>(Block.mutatedBlock(values)));
+      }
     }
 
     @Override
@@ -434,7 +438,14 @@ public class StateFetchingIterators {
      * cache.
      */
     public void append(List<T> values) {
-      append(new WeightedList<>(values, Caches.weigh(values)));
+      if (values.isEmpty()) {
+        return;
+      }
+      if (values.size() == 1) {
+        append(new WeightedList<>(values, Caches.weigh(values.get(0))));
+      } else {
+        append(new WeightedList<>(values, Caches.weigh(values)));
+      }
     }
 
     /**
