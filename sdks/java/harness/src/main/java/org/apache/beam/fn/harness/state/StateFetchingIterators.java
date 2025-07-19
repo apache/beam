@@ -209,6 +209,19 @@ public class StateFetchingIterators {
       public abstract List<Block<T>> getBlocks();
     }
 
+    static class EmptyBlocks<T> extends Blocks<T> {
+
+      @Override
+      public List<Block<T>> getBlocks() {
+        return Collections.emptyList();
+      }
+
+      @Override
+      public long getWeight() {
+        return 0;
+      }
+    }
+
     static class MutatedBlocks<T> extends Blocks<T> {
 
       private final Block<T> wholeBlock;
@@ -272,13 +285,12 @@ public class StateFetchingIterators {
     @AutoValue
     abstract static class Block<T> implements Weighted {
 
-      public static <T> Block<T> mutatedBlock(List<T> values, long weight) {
-        return mutatedBlock(new WeightedList<>(values, weight));
+      public static <T> Block<T> mutatedBlock(List<T> values) {
+        return fromValues(values, null);
       }
 
-      public static <T> Block<T> mutatedBlock(WeightedList<T> weightedList) {
-        return new AutoValue_StateFetchingIterators_CachingStateIterable_Block<>(
-            weightedList.getBacking(), null, weightedList.getWeight() + 24);
+      public static <T> Block<T> mutatedBlock(WeightedList<T> values) {
+        return fromValues(values, null);
       }
 
       public static <T> Block<T> fromValues(List<T> values, @Nullable ByteString nextToken) {
@@ -388,7 +400,11 @@ public class StateFetchingIterators {
      * requesting data from the state cache.
      */
     public void clearAndAppend(List<T> values) {
-      clearAndAppend(new WeightedList<>(values, Caches.weigh(values)));
+      if (values.isEmpty()) {
+        cache.put(IterableCacheKey.INSTANCE, new EmptyBlocks<>());
+      } else {
+        cache.put(IterableCacheKey.INSTANCE, new MutatedBlocks<>(Block.mutatedBlock(values)));
+      }
     }
 
     /**
