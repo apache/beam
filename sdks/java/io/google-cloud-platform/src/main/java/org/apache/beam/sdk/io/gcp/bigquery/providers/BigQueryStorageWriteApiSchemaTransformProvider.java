@@ -307,7 +307,6 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
             CreateDisposition.valueOf(configuration.getCreateDisposition().toUpperCase());
         write = write.withCreateDisposition(createDisposition);
       }
-
       if (!Strings.isNullOrEmpty(configuration.getWriteDisposition())) {
         WriteDisposition writeDisposition =
             WriteDisposition.valueOf(configuration.getWriteDisposition().toUpperCase());
