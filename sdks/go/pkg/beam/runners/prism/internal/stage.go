@@ -180,9 +180,9 @@ func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, c
 	progTick := time.NewTicker(baseTick)
 	defer progTick.Stop()
 	var dataFinished, bundleFinished bool
-	// If we have no data outputs, we still need to have progress & splits
+	// If we have no data outputs and timers, we still need to have progress & splits
 	// while waiting for bundle completion.
-	if b.OutputCount == 0 {
+	if b.OutputCount+len(b.HasTimers) == 0 {
 		dataFinished = true
 	}
 	var resp *fnpb.ProcessBundleResponse
@@ -208,8 +208,9 @@ progress:
 			ticked = true
 			resp, err := b.Progress(ctx, wk)
 			if err != nil {
-				slog.Debug("SDK Error from progress, aborting progress", "bundle", rb, "error", err.Error())
-				break progress
+				slog.Debug("SDK Error from progress request, aborting progress update and turning off future progress updates", "bundle", rb, "error", err.Error())
+				progTick.Stop()
+				continue progress
 			}
 			index, unknownIDs := j.ContributeTentativeMetrics(resp)
 			if len(unknownIDs) > 0 {
@@ -224,8 +225,11 @@ progress:
 				slog.Debug("splitting report", "bundle", rb, "index", index)
 				sr, err := b.Split(ctx, wk, 0.5 /* fraction of remainder */, nil /* allowed splits */)
 				if err != nil {
-					slog.Warn("SDK Error from split, aborting splits", "bundle", rb, "error", err.Error())
-					break progress
+					slog.Warn("SDK Error from split, aborting splits and failing bundle", "bundle", rb, "error", err.Error())
+					if b.BundleErr != nil {
+						b.BundleErr = err
+					}
+					return b.BundleErr
 				}
 				if sr.GetChannelSplits() == nil {
 					slog.Debug("SDK returned no splits", "bundle", rb)

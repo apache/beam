@@ -85,8 +85,6 @@ import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Deadline;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.MethodDescriptor;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Status;
-import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.StatusRuntimeException;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.inprocess.InProcessChannelBuilder;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.inprocess.InProcessServerBuilder;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
@@ -119,7 +117,11 @@ public class GrpcWindmillServerTest {
   private final long clientId = 10L;
   private final Set<ManagedChannel> openedChannels = new HashSet<>();
   private final MutableHandlerRegistry serviceRegistry = new MutableHandlerRegistry();
-  @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
+
+  @Rule
+  public transient Timeout globalTimeout =
+      Timeout.builder().withTimeout(10, TimeUnit.MINUTES).withLookingForStuckThread(true).build();
+
   @Rule public GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
   @Rule public ErrorCollector errorCollector = new ErrorCollector();
   private Server server;
@@ -484,7 +486,6 @@ public class GrpcWindmillServerTest {
   }
 
   @Test
-  @SuppressWarnings("FutureReturnValueIgnored")
   public void testStreamingGetData() throws Exception {
     // This server responds to GetDataRequests with responses that mirror the requests.
     serviceRegistry.addService(
@@ -625,7 +626,7 @@ public class GrpcWindmillServerTest {
     for (int i = 0; i < 100; ++i) {
       final String key = "key" + i;
       final String s = i % 5 == 0 ? largeString(i) : "tag";
-      executor.submit(
+      executor.execute(
           () -> {
             try {
               errorCollector.checkThat(
@@ -1237,120 +1238,6 @@ public class GrpcWindmillServerTest {
         receivedAllHeartbeatRequests = true;
       }
     }
-  }
-
-  @Test
-  public void testThrottleSignal() throws Exception {
-    // This server responds with work items until the throttleMessage limit is hit at which point it
-    // returns RESOURCE_EXHAUSTED errors for throttleTime msecs after which it resumes sending
-    // work items.
-    final int throttleTime = 2000;
-    final int throttleMessage = 15;
-    serviceRegistry.addService(
-        new CloudWindmillServiceV1Alpha1ImplBase() {
-          long throttleStartTime = -1;
-          int messageCount = 0;
-
-          @Override
-          public StreamObserver<StreamingGetWorkRequest> getWorkStream(
-              StreamObserver<StreamingGetWorkResponseChunk> responseObserver) {
-            return new StreamObserver<StreamingGetWorkRequest>() {
-              boolean sawHeader = false;
-
-              @Override
-              public void onNext(StreamingGetWorkRequest request) {
-                messageCount++;
-                // If we are at the throttleMessage limit or we are currently throttling send an
-                // error.
-                if (messageCount == throttleMessage || throttleStartTime != -1) {
-                  // If throttling has not started yet then start it.
-                  if (throttleStartTime == -1) {
-                    throttleStartTime = Instant.now().getMillis();
-                  }
-                  // If throttling has started and it has been throttleTime since we started
-                  // throttling stop throttling.
-                  if (throttleStartTime != -1
-                      && ((Instant.now().getMillis() - throttleStartTime) > throttleTime)) {
-                    throttleStartTime = -1;
-                  }
-                  StatusRuntimeException error =
-                      new StatusRuntimeException(Status.RESOURCE_EXHAUSTED);
-                  responseObserver.onError(error);
-                  return;
-                }
-                // We are not throttling this message so respond as normal.
-                try {
-                  long maxItems;
-                  if (!sawHeader) {
-                    sawHeader = true;
-                    maxItems = request.getRequest().getMaxItems();
-                  } else {
-                    maxItems = request.getRequestExtension().getMaxItems();
-                  }
-
-                  for (int item = 0; item < maxItems; item++) {
-                    long id = ThreadLocalRandom.current().nextLong();
-                    ByteString serializedResponse =
-                        WorkItem.newBuilder()
-                            .setKey(ByteString.copyFromUtf8("somewhat_long_key"))
-                            .setWorkToken(id)
-                            .setShardingKey(id)
-                            .build()
-                            .toByteString();
-
-                    StreamingGetWorkResponseChunk.Builder builder =
-                        StreamingGetWorkResponseChunk.newBuilder()
-                            .setStreamId(id)
-                            .addSerializedWorkItem(serializedResponse)
-                            .setRemainingBytesForWorkItem(0)
-                            .setComputationMetadata(
-                                ComputationWorkItemMetadata.newBuilder()
-                                    .setComputationId("computation")
-                                    .setInputDataWatermark(1L)
-                                    .setDependentRealtimeInputWatermark(1L)
-                                    .build());
-                    try {
-                      responseObserver.onNext(builder.build());
-                    } catch (IllegalStateException e) {
-                      // Client closed stream, we're done.
-                      return;
-                    }
-                  }
-                } catch (Exception e) {
-                  errorCollector.addError(e);
-                }
-              }
-
-              @Override
-              public void onError(Throwable throwable) {}
-
-              @Override
-              public void onCompleted() {
-                responseObserver.onCompleted();
-              }
-            };
-          }
-        });
-
-    // Read the stream of WorkItems until 100 of them are received.
-    CountDownLatch latch = new CountDownLatch(100);
-    GetWorkStream stream =
-        client.getWorkStream(
-            GetWorkRequest.newBuilder().setClientId(10).setMaxItems(3).setMaxBytes(10000).build(),
-            (String computation,
-                @Nullable Instant inputDataWatermark,
-                Instant synchronizedProcessingTime,
-                Windmill.WorkItem workItem,
-                long serializedWorkItemSize,
-                ImmutableList<LatencyAttribution> getWorkStreamLatencies) -> latch.countDown());
-    // Wait for 100 items or 30 seconds.
-    assertTrue(latch.await(30, TimeUnit.SECONDS));
-    // Confirm that we report at least as much throttle time as our server sent errors for.  We will
-    // actually report more due to backoff in restarting streams.
-    assertTrue(this.client.getAndResetThrottleTime() > throttleTime);
-
-    stream.halfClose();
-    assertTrue(stream.awaitTermination(30, TimeUnit.SECONDS));
   }
 
   class ResponseErrorInjector<Stream extends StreamObserver> {

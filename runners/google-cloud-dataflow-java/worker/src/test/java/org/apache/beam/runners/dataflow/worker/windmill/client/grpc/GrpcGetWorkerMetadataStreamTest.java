@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -38,7 +37,6 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataR
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkerMetadataResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillEndpoints;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException;
-import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.inprocess.InProcessChannelBuilder;
@@ -93,7 +91,6 @@ public class GrpcGetWorkerMetadataStreamTest {
         (GrpcGetWorkerMetadataStream)
             streamFactory.createGetWorkerMetadataStream(
                 () -> CloudWindmillMetadataServiceV1Alpha1Grpc.newStub(inProcessChannel),
-                new ThrottleTimer(),
                 endpointsConsumer);
     getWorkerMetadataStream.start();
     return getWorkerMetadataStream;
@@ -239,7 +236,8 @@ public class GrpcGetWorkerMetadataStreamTest {
   }
 
   @Test
-  public void testGetWorkerMetadata_correctlyAddsAndRemovesStreamFromRegistry() {
+  public void testGetWorkerMetadata_correctlyAddsAndRemovesStreamFromRegistry()
+      throws InterruptedException {
     GetWorkerMetadataTestStub testStub =
         new GetWorkerMetadataTestStub(new TestGetWorkMetadataRequestObserver());
     stream = getWorkerMetadataTestStream(testStub, new TestWindmillEndpointsConsumer());
@@ -252,7 +250,9 @@ public class GrpcGetWorkerMetadataStreamTest {
 
     assertTrue(streamFactory.streamRegistry().contains(stream));
     stream.halfClose();
-    assertFalse(streamFactory.streamRegistry().contains(stream));
+    while (streamFactory.streamRegistry().contains(stream)) {
+      Thread.sleep(100);
+    }
   }
 
   @Test

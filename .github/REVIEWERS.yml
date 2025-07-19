@@ -66,8 +66,6 @@ labels:
     exclusionList: []
   - name: website
     reviewers:
-      - rszper
-      - melap
       - damccorm
       - liferoad
       - kennknowles
@@ -76,9 +74,9 @@ fallbackReviewers:
   - Abacn
   - chamikaramj
   - damccorm
-  - johnjcasey
   - jrmccluskey
   - kennknowles
+  - liferoad
   - robertwb
   - shunping
   - tvalentyn

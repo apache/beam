@@ -941,7 +941,7 @@ public class FileIO {
        */
       String getFilename(
           BoundedWindow window,
-          PaneInfo pane,
+          PaneInfo paneInfo,
           int numShards,
           int shardIndex,
           Compression compression);
@@ -958,9 +958,9 @@ public class FileIO {
      */
     public static FileNaming defaultNaming(
         final ValueProvider<String> prefix, final ValueProvider<String> suffix) {
-      return (window, pane, numShards, shardIndex, compression) -> {
+      return (window, paneInfo, numShards, shardIndex, compression) -> {
         checkArgument(window != null, "window can not be null");
-        checkArgument(pane != null, "pane can not be null");
+        checkArgument(paneInfo != null, "pane can not be null");
         checkArgument(compression != null, "compression can not be null");
         StringBuilder res = new StringBuilder(prefix.get());
         if (window != GlobalWindow.INSTANCE) {
@@ -976,12 +976,12 @@ public class FileIO {
           IntervalWindow iw = (IntervalWindow) window;
           res.append(iw.start().toString()).append("-").append(iw.end().toString());
         }
-        boolean isOnlyFiring = pane.isFirst() && pane.isLast();
+        boolean isOnlyFiring = paneInfo.isFirst() && paneInfo.isLast();
         if (!isOnlyFiring) {
           if (res.length() > 0) {
             res.append("-");
           }
-          res.append(pane.getIndex());
+          res.append(paneInfo.getIndex());
         }
         if (res.length() > 0) {
           res.append("-");
@@ -999,10 +999,10 @@ public class FileIO {
 
     public static FileNaming relativeFileNaming(
         final ValueProvider<String> baseDirectory, final FileNaming innerNaming) {
-      return (window, pane, numShards, shardIndex, compression) ->
+      return (window, paneInfo, numShards, shardIndex, compression) ->
           FileSystems.matchNewResource(baseDirectory.get(), true /* isDirectory */)
               .resolve(
-                  innerNaming.getFilename(window, pane, numShards, shardIndex, compression),
+                  innerNaming.getFilename(window, paneInfo, numShards, shardIndex, compression),
                   RESOLVE_FILE)
               .toString();
     }
@@ -1042,6 +1042,8 @@ public class FileIO {
     abstract boolean getAutoSharding();
 
     abstract boolean getNoSpilling();
+
+    abstract @Nullable Integer getMaxNumWritersPerBundle();
 
     abstract @Nullable ErrorHandler<BadRecord, ?> getBadRecordErrorHandler();
 
@@ -1092,6 +1094,9 @@ public class FileIO {
       abstract Builder<DestinationT, UserT> setAutoSharding(boolean autosharding);
 
       abstract Builder<DestinationT, UserT> setNoSpilling(boolean noSpilling);
+
+      abstract Builder<DestinationT, UserT> setMaxNumWritersPerBundle(
+          @Nullable Integer maxNumWritersPerBundle);
 
       abstract Builder<DestinationT, UserT> setBadRecordErrorHandler(
           @Nullable ErrorHandler<BadRecord, ?> badRecordErrorHandler);
@@ -1327,6 +1332,15 @@ public class FileIO {
     }
 
     /**
+     * Set the maximum number of writers created in a bundle before spilling to shuffle. See {@link
+     * WriteFiles#withMaxNumWritersPerBundle()}.
+     */
+    public Write<DestinationT, UserT> withMaxNumWritersPerBundle(
+        @Nullable Integer maxNumWritersPerBundle) {
+      return toBuilder().setMaxNumWritersPerBundle(maxNumWritersPerBundle).build();
+    }
+
+    /**
      * Configures a new {@link Write} with an ErrorHandler. For configuring an ErrorHandler, see
      * {@link ErrorHandler}. Whenever a record is formatted, or a lookup for a dynamic destination
      * is performed, and that operation fails, the exception is passed to the error handler. This is
@@ -1424,6 +1438,9 @@ public class FileIO {
       resolvedSpec.setIgnoreWindowing(getIgnoreWindowing());
       resolvedSpec.setAutoSharding(getAutoSharding());
       resolvedSpec.setNoSpilling(getNoSpilling());
+      if (getMaxNumWritersPerBundle() != null) {
+        resolvedSpec.setMaxNumWritersPerBundle(getMaxNumWritersPerBundle());
+      }
 
       Write<DestinationT, UserT> resolved = resolvedSpec.build();
       WriteFiles<UserT, DestinationT, ?> writeFiles =
@@ -1444,6 +1461,9 @@ public class FileIO {
       }
       if (getNoSpilling()) {
         writeFiles = writeFiles.withNoSpilling();
+      }
+      if (getMaxNumWritersPerBundle() != null) {
+        writeFiles = writeFiles.withMaxNumWritersPerBundle(getMaxNumWritersPerBundle());
       }
       if (getBadRecordErrorHandler() != null) {
         writeFiles = writeFiles.withBadRecordErrorHandler(getBadRecordErrorHandler());

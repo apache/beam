@@ -14,7 +14,7 @@ import {
   ReactWidget,
   SessionContext,
   ISessionContext,
-  sessionContextDialogs
+  SessionContextDialogs
 } from '@jupyterlab/apputils';
 import { IRenderMimeRegistry } from '@jupyterlab/rendermime';
 import { ServiceManager } from '@jupyterlab/services';
@@ -64,7 +64,7 @@ export class SidePanel extends BoxPanel {
     } else {
       let sessionModel = sessionModelItr.next();
       while (sessionModel !== undefined) {
-        if (sessionModel.kernel.id !== firstModel.kernel.id) {
+        if (sessionModel.value.kernel.id !== firstModel.value.kernel.id) {
           // There is more than one unique running kernel.
           onlyOneUniqueKernelExists = false;
           break;
@@ -78,7 +78,7 @@ export class SidePanel extends BoxPanel {
       // kernel.
       if (onlyOneUniqueKernelExists) {
         this._sessionContext.sessionManager.connectTo({
-          model: firstModel,
+          model: firstModel.value,
           kernelConnectionOptions: {
             // Only one connection can handleComms. Leave it to the connection
             // established by the opened notebook.
@@ -86,10 +86,11 @@ export class SidePanel extends BoxPanel {
           }
         });
         // Connect to the unique kernel.
-        this._sessionContext.changeKernel(firstModel.kernel);
+        this._sessionContext.changeKernel(firstModel.value.kernel);
       } else {
         // Let the user choose among sessions and kernels when there is no
         // or more than 1 running kernels.
+        const sessionContextDialogs = new SessionContextDialogs();
         await sessionContextDialogs.selectKernel(this._sessionContext);
       }
     } catch (err) {

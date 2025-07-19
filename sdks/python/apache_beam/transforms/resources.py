@@ -235,6 +235,10 @@ def resource_hints_from_options(
     return {}
   hints = {}
   option_specified_hints = options.view_as(StandardOptions).resource_hints
+
+  if isinstance(option_specified_hints, dict):
+    return parse_resource_hints(option_specified_hints)
+
   for hint in option_specified_hints:
     if '=' in hint:
       k, v = hint.split('=', maxsplit=1)

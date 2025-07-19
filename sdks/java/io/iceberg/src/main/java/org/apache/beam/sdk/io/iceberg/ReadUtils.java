@@ -43,7 +43,10 @@ import org.apache.iceberg.data.Record;
 import org.apache.iceberg.data.parquet.GenericParquetReaders;
 import org.apache.iceberg.encryption.EncryptedFiles;
 import org.apache.iceberg.encryption.EncryptedInputFile;
+import org.apache.iceberg.expressions.Evaluator;
+import org.apache.iceberg.expressions.Expression;
 import org.apache.iceberg.hadoop.HadoopInputFile;
+import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.mapping.NameMapping;
@@ -191,5 +194,15 @@ public class ReadUtils {
             .collect(Collectors.toList());
 
     return snapshotIds;
+  }
+
+  public static CloseableIterable<Record> maybeApplyFilter(
+      CloseableIterable<Record> iterable, IcebergScanConfig scanConfig) {
+    Expression filter = scanConfig.getFilter();
+    Evaluator evaluator = scanConfig.getEvaluator();
+    if (filter != null && evaluator != null && filter.op() != Expression.Operation.TRUE) {
+      return CloseableIterable.filter(iterable, evaluator::eval);
+    }
+    return iterable;
   }
 }

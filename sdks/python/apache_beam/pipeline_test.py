@@ -61,6 +61,7 @@ from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import IntervalWindow
 from apache_beam.transforms.window import SlidingWindows
 from apache_beam.transforms.window import TimestampedValue
+from apache_beam.typehints import TypeCheckError
 from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 
@@ -156,6 +157,24 @@ class PipelineTest(unittest.TestCase):
       pcoll2 = pipeline | 'label2' >> Create(iter((4, 5, 6)))
       pcoll3 = pcoll2 | 'do' >> FlatMap(lambda x: [x + 10])
       assert_that(pcoll3, equal_to([14, 15, 16]), label='pcoll3')
+
+  def test_unexpected_PDone_errmsg(self):
+    """
+    Test that a nice error message is raised if a transform that
+    returns None (i.e. produces no PCollection) is used as input
+    to a PTransform.
+    """
+    class DoNothingTransform(PTransform):
+      def expand(self, pcoll):
+        return None
+
+    class ParentTransform(PTransform):
+      def expand(self, pcoll):
+        return pcoll | DoNothingTransform()
+
+    with pytest.raises(TypeCheckError, match=r".*applied to the output"):
+      with TestPipeline() as pipeline:
+        _ = pipeline | ParentTransform() | beam.Map(lambda x: x + 1)
 
   @mock.patch('logging.info')
   def test_runner_overrides_default_pickler(self, mock_info):
@@ -412,7 +431,7 @@ class PipelineTest(unittest.TestCase):
     def raise_exception(exn):
       raise exn
 
-    with self.assertRaises(ValueError):
+    with self.assertRaises(Exception):
       with Pipeline() as p:
         # pylint: disable=expression-not-assigned
         p | Create([ValueError('msg')]) | Map(raise_exception)
@@ -620,6 +639,35 @@ class PipelineTest(unittest.TestCase):
     self.assertNotIn(multi.letters, visitor.visited)
     self.assertNotIn(multi.numbers, visitor.visited)
 
+  def test_filter_typehint(self):
+    # Check input type hint and output type hint are both specified.
+    def always_true_with_all_typehints(x: int) -> bool:
+      return True
+
+    # Check only input type hint is specified.
+    def always_true_only_inptype(x: int):
+      return True
+
+    # Check only output type hint is specified.
+    def always_true_only_outptype(x) -> bool:
+      return True
+
+    # Check if inp type hint is Any that we can still infer
+    # from the input pcollection type
+    def always_true_any_inptype(x: typehints.Any) -> bool:
+      return True
+
+    for filter_fn in [always_true_with_all_typehints,
+                      always_true_only_inptype,
+                      always_true_only_outptype,
+                      always_true_any_inptype]:
+      with TestPipeline() as p:
+        pcoll = (
+            p
+            | beam.Create([1, 2, 3]).with_input_types(int)
+            | beam.Filter(filter_fn))
+      self.assertEqual(pcoll.element_type, int)
+
   def test_kv_ptransform_honor_type_hints(self):
 
     # The return type of this DoFn cannot be inferred by the default
@@ -702,6 +750,23 @@ class PipelineTest(unittest.TestCase):
     self.assertIs(pcoll2_unbounded.is_bounded, False)
     self.assertIs(merged.is_bounded, False)
 
+  def test_incompatible_pcollection_errmsg(self):
+    with pytest.raises(Exception,
+                       match=r".*Map\(print\).*Got a PBegin/Pipeline instead."):
+      with beam.Pipeline() as pipeline:
+        _ = (pipeline | beam.Map(print))
+
+    class ParentTransform(PTransform):
+      def expand(self, pcoll):
+        return pcoll | beam.Map(print)
+
+    with pytest.raises(
+        Exception,
+        match=r".*ParentTransform/Map\(print\).*Got a PBegin/Pipeline instead."
+    ):
+      with beam.Pipeline() as pipeline:
+        _ = (pipeline | ParentTransform())
+
   def test_incompatible_submission_and_runtime_envs_fail_pipeline(self):
     with mock.patch(
         'apache_beam.transforms.environments.sdk_base_version_capability'
@@ -714,7 +779,9 @@ class PipelineTest(unittest.TestCase):
           RuntimeError,
           'Pipeline construction environment and pipeline runtime '
           'environment are not compatible.'):
-        with TestPipeline() as p:
+        # TODO(https://github.com/apache/beam/issues/34549): Prism doesn't
+        # pass through capabilities as part of the ProcessBundleDescriptor.
+        with TestPipeline('FnApiRunner') as p:
           _ = p | Create([None])
 
 
@@ -854,7 +921,7 @@ class DoFnTest(unittest.TestCase):
       return (x, context_a, context_b, context_c)
 
     self.assertEqual(_TestContext.live_contexts, 0)
-    with TestPipeline() as p:
+    with TestPipeline('FnApiRunner') as p:
       pcoll = p | Create([1, 2]) | beam.Map(test_map)
       assert_that(pcoll, equal_to([(1, 'a', 'b', 'c'), (2, 'a', 'b', 'c')]))
     self.assertEqual(_TestContext.live_contexts, 0)

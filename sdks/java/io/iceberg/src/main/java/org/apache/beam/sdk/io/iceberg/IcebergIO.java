@@ -497,6 +497,8 @@ public class IcebergIO {
 
     abstract @Nullable List<String> getDrop();
 
+    abstract @Nullable String getFilter();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -524,6 +526,8 @@ public class IcebergIO {
       abstract Builder setKeep(@Nullable List<String> fields);
 
       abstract Builder setDrop(@Nullable List<String> fields);
+
+      abstract Builder setFilter(@Nullable String filter);
 
       abstract ReadRows build();
     }
@@ -572,6 +576,10 @@ public class IcebergIO {
       return toBuilder().setDrop(drop).build();
     }
 
+    public ReadRows withFilter(@Nullable String filter) {
+      return toBuilder().setFilter(filter).build();
+    }
+
     @Override
     public PCollection<Row> expand(PBegin input) {
       TableIdentifier tableId =
@@ -595,6 +603,7 @@ public class IcebergIO {
               .setUseCdc(getUseCdc())
               .setKeepFields(getKeep())
               .setDropFields(getDrop())
+              .setFilterString(getFilter())
               .build();
       scanConfig.validate(table);
 

@@ -31,8 +31,8 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.AbstractWindmillS
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.GetWorkerMetadataStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException;
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.observers.StreamObserverFactory;
-import org.apache.beam.runners.dataflow.worker.windmill.client.throttling.ThrottleTimer;
 import org.apache.beam.sdk.util.BackOff;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Status;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,7 +44,6 @@ public final class GrpcGetWorkerMetadataStream
   private static final WorkerMetadataRequest HEALTH_CHECK_REQUEST =
       WorkerMetadataRequest.getDefaultInstance();
   private final WorkerMetadataRequest workerMetadataRequest;
-  private final ThrottleTimer getWorkerMetadataThrottleTimer;
   private final Consumer<WindmillEndpoints> serverMappingConsumer;
   private final Object metadataLock;
 
@@ -59,7 +58,6 @@ public final class GrpcGetWorkerMetadataStream
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
       int logEveryNStreamFailures,
       JobHeader jobHeader,
-      ThrottleTimer getWorkerMetadataThrottleTimer,
       Consumer<WindmillEndpoints> serverMappingConsumer) {
     super(
         LOG,
@@ -71,7 +69,6 @@ public final class GrpcGetWorkerMetadataStream
         logEveryNStreamFailures,
         "");
     this.workerMetadataRequest = WorkerMetadataRequest.newBuilder().setHeader(jobHeader).build();
-    this.getWorkerMetadataThrottleTimer = getWorkerMetadataThrottleTimer;
     this.serverMappingConsumer = serverMappingConsumer;
     this.latestResponse = WorkerMetadataResponse.getDefaultInstance();
     this.metadataLock = new Object();
@@ -85,7 +82,6 @@ public final class GrpcGetWorkerMetadataStream
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
       int logEveryNStreamFailures,
       JobHeader jobHeader,
-      ThrottleTimer getWorkerMetadataThrottleTimer,
       Consumer<WindmillEndpoints> serverMappingUpdater) {
     return new GrpcGetWorkerMetadataStream(
         startGetWorkerMetadataRpcFn,
@@ -94,17 +90,7 @@ public final class GrpcGetWorkerMetadataStream
         streamRegistry,
         logEveryNStreamFailures,
         jobHeader,
-        getWorkerMetadataThrottleTimer,
         serverMappingUpdater);
-  }
-
-  /**
-   * Each instance of {@link AbstractWindmillStream} owns its own responseObserver that calls
-   * onResponse().
-   */
-  @Override
-  protected void onResponse(WorkerMetadataResponse response) {
-    extractWindmillEndpointsFrom(response).ifPresent(serverMappingConsumer);
   }
 
   /**
@@ -133,21 +119,30 @@ public final class GrpcGetWorkerMetadataStream
   }
 
   @Override
+  protected PhysicalStreamHandler newResponseHandler() {
+    return new PhysicalStreamHandler() {
+
+      @Override
+      public void onResponse(WorkerMetadataResponse response) {
+        extractWindmillEndpointsFrom(response).ifPresent(serverMappingConsumer);
+      }
+
+      @Override
+      public boolean hasPendingRequests() {
+        return false;
+      }
+
+      @Override
+      public void onDone(Status status) {}
+
+      @Override
+      public void appendHtml(PrintWriter writer) {}
+    };
+  }
+
+  @Override
   protected void onNewStream() throws WindmillStreamShutdownException {
     trySend(workerMetadataRequest);
-  }
-
-  @Override
-  protected void shutdownInternal() {}
-
-  @Override
-  protected boolean hasPendingRequests() {
-    return false;
-  }
-
-  @Override
-  protected void startThrottleTimer() {
-    getWorkerMetadataThrottleTimer.start();
   }
 
   @Override

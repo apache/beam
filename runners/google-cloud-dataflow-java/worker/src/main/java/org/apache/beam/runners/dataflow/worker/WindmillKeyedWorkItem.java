@@ -34,8 +34,9 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicate;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
@@ -106,11 +107,11 @@ public class WindmillKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> 
                     WindmillTimeUtils.windmillToHarnessTimestamp(message.getTimestamp());
                 Collection<? extends BoundedWindow> windows =
                     WindmillSink.decodeMetadataWindows(windowsCoder, message.getMetadata());
-                PaneInfo pane = WindmillSink.decodeMetadataPane(message.getMetadata());
+                PaneInfo paneInfo = WindmillSink.decodeMetadataPane(message.getMetadata());
 
                 InputStream inputStream = message.getData().newInput();
                 ElemT value = valueCoder.decode(inputStream, Coder.Context.OUTER);
-                return WindowedValue.of(value, timestamp, windows, pane);
+                return WindowedValues.of(value, timestamp, windows, paneInfo);
               } catch (IOException e) {
                 throw new RuntimeException(e);
               }

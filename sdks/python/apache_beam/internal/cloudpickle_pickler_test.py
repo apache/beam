@@ -213,8 +213,12 @@ self.assertEqual(DataClass(datum='abc'), loads(dumps(DataClass(datum='abc'))))
     ''')
 
   def test_best_effort_determinism_not_implemented(self):
-    with self.assertRaises(NotImplementedError):
+    with self.assertLogs('apache_beam.internal.cloudpickle_pickler',
+                         "WARNING") as l:
       dumps(123, enable_best_effort_determinism=True)
+      self.assertIn(
+          'Ignoring unsupported option: enable_best_effort_determinism',
+          '\n'.join(l.output))
 
 
 if __name__ == '__main__':

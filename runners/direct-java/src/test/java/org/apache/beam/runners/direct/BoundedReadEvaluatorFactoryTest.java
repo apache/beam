@@ -53,9 +53,10 @@ import org.apache.beam.sdk.testing.SourceTestUtils;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.construction.SplittableParDo;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.hamcrest.Matchers;
@@ -262,7 +263,7 @@ public class BoundedReadEvaluatorFactoryTest {
     UncommittedBundle<BoundedSourceShard<Long>> rootBundle = bundleFactory.createRootBundle();
     for (BoundedSource<Long> split : splits) {
       BoundedSourceShard<Long> shard = BoundedSourceShard.of(split);
-      rootBundle.add(WindowedValue.valueInGlobalWindow(shard));
+      rootBundle.add(WindowedValues.valueInGlobalWindow(shard));
     }
     CommittedBundle<BoundedSourceShard<Long>> shards = rootBundle.commit(Instant.now());
 
@@ -301,7 +302,7 @@ public class BoundedReadEvaluatorFactoryTest {
     TransformEvaluator<BoundedSourceShard<Long>> evaluator =
         factory.forApplication(
             sourceTransform, bundleFactory.createRootBundle().commit(Instant.now()));
-    evaluator.processElement(WindowedValue.valueInGlobalWindow(BoundedSourceShard.of(source)));
+    evaluator.processElement(WindowedValues.valueInGlobalWindow(BoundedSourceShard.of(source)));
     evaluator.finishBundle();
     CommittedBundle<Long> committed = output.commit(Instant.now());
     assertThat(committed.getElements(), containsInAnyOrder(gw(2L), gw(3L), gw(1L)));
@@ -321,7 +322,7 @@ public class BoundedReadEvaluatorFactoryTest {
     TransformEvaluator<BoundedSourceShard<Long>> evaluator =
         factory.forApplication(
             sourceTransform, bundleFactory.createRootBundle().commit(Instant.now()));
-    evaluator.processElement(WindowedValue.valueInGlobalWindow(BoundedSourceShard.of(source)));
+    evaluator.processElement(WindowedValues.valueInGlobalWindow(BoundedSourceShard.of(source)));
     evaluator.finishBundle();
     CommittedBundle<Long> committed = output.commit(Instant.now());
     assertThat(committed.getElements(), emptyIterable());
@@ -453,6 +454,6 @@ public class BoundedReadEvaluatorFactoryTest {
   }
 
   private static WindowedValue<Long> gw(Long elem) {
-    return WindowedValue.valueInGlobalWindow(elem);
+    return WindowedValues.valueInGlobalWindow(elem);
   }
 }

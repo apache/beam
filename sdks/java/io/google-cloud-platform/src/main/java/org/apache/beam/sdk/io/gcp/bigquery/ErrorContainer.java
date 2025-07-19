@@ -45,13 +45,13 @@ public interface ErrorContainer<T> extends Serializable {
                   Preconditions.checkArgumentNotNull(tableRow.getFailsafeValue()),
                   tableRow.getTimestamp(),
                   tableRow.getWindow(),
-                  tableRow.getPane()));
+                  tableRow.getPaneInfo()));
 
   ErrorContainer<BigQueryInsertError> BIG_QUERY_INSERT_ERROR_ERROR_CONTAINER =
       (failedInserts, error, ref, tableRow) -> {
         BigQueryInsertError err = new BigQueryInsertError(tableRow.getFailsafeValue(), error, ref);
         failedInserts.add(
             ValueInSingleWindow.of(
-                err, tableRow.getTimestamp(), tableRow.getWindow(), tableRow.getPane()));
+                err, tableRow.getTimestamp(), tableRow.getWindow(), tableRow.getPaneInfo()));
       };
 }

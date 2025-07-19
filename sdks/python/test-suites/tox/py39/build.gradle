@@ -37,7 +37,7 @@ project.tasks.register("preCommitPyCoverage") {
 }
 
 // Dep Postcommit runs test suites that evaluate compatibility of particular
-// dependencies. It is exercised on a single Python version.
+// dependencies. Each suite is exercised on at most one python version.
 //
 // Should still leave at least one version in PreCommit unless the marked tests
 // are also exercised by existing PreCommit
@@ -84,6 +84,14 @@ postCommitPyDep.dependsOn "testPy39pyarrow-15"
 toxTask "testPy39pyarrow-16", "py39-pyarrow-16", "${posargs}"
 test.dependsOn "testPy39pyarrow-16"
 postCommitPyDep.dependsOn "testPy39pyarrow-16"
+
+toxTask "testPy39pyarrow-17", "py39-pyarrow-17", "${posargs}"
+test.dependsOn "testPy39pyarrow-17"
+postCommitPyDep.dependsOn "testPy39pyarrow-17"
+
+toxTask "testPy39pyarrow-18", "py39-pyarrow-18", "${posargs}"
+test.dependsOn "testPy39pyarrow-18"
+postCommitPyDep.dependsOn "testPy39pyarrow-18"
 
 // Create a test task for each supported minor version of pandas
 toxTask "testPy39pandas-14", "py39-pandas-14", "${posargs}"

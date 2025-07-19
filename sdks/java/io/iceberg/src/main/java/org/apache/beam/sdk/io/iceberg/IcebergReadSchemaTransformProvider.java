@@ -95,7 +95,8 @@ public class IcebergReadSchemaTransformProvider
                   IcebergIO.readRows(configuration.getIcebergCatalog())
                       .from(TableIdentifier.parse(configuration.getTable()))
                       .keeping(configuration.getKeep())
-                      .dropping(configuration.getDrop()));
+                      .dropping(configuration.getDrop())
+                      .withFilter(configuration.getFilter()));
 
       return PCollectionRowTuple.of(OUTPUT_TAG, output);
     }
@@ -131,6 +132,12 @@ public class IcebergReadSchemaTransformProvider
         "A subset of column names to exclude from reading. If null or empty, all columns will be read.")
     abstract @Nullable List<String> getDrop();
 
+    @SchemaFieldDescription(
+        "SQL-like predicate to filter data at scan time. Example: \"id > 5 AND status = 'ACTIVE'\". "
+            + "Uses Apache Calcite syntax: https://calcite.apache.org/docs/reference.html")
+    @Nullable
+    abstract String getFilter();
+
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setTable(String table);
@@ -144,6 +151,8 @@ public class IcebergReadSchemaTransformProvider
       abstract Builder setKeep(List<String> keep);
 
       abstract Builder setDrop(List<String> drop);
+
+      abstract Builder setFilter(String filter);
 
       abstract Configuration build();
     }

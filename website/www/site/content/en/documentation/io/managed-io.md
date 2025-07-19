@@ -63,6 +63,7 @@ and Beam SQL is invoked via the Managed API under the hood.
         catalog_properties (<code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>)<br>
         config_properties (<code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>)<br>
         drop (<code>list[<span style="color: green;">str</span>]</code>)<br>
+        filter (<code style="color: green">str</code>)<br>
         from_snapshot (<code style="color: #f54251">int64</code>)<br>
         from_timestamp (<code style="color: #f54251">int64</code>)<br>
         keep (<code>list[<span style="color: green;">str</span>]</code>)<br>
@@ -84,6 +85,7 @@ and Beam SQL is invoked via the Managed API under the hood.
         catalog_properties (<code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>)<br>
         config_properties (<code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>)<br>
         drop (<code>list[<span style="color: green;">str</span>]</code>)<br>
+        filter (<code style="color: green">str</code>)<br>
         keep (<code>list[<span style="color: green;">str</span>]</code>)<br>
       </td>
       <td>
@@ -94,6 +96,8 @@ and Beam SQL is invoked via the Managed API under the hood.
         drop (<code>list[<span style="color: green;">str</span>]</code>)<br>
         keep (<code>list[<span style="color: green;">str</span>]</code>)<br>
         only (<code style="color: green">str</code>)<br>
+        partition_fields (<code>list[<span style="color: green;">str</span>]</code>)<br>
+        table_properties (<code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>)<br>
         triggering_frequency_seconds (<code style="color: #f54251">int32</code>)<br>
       </td>
     </tr>
@@ -205,6 +209,17 @@ and Beam SQL is invoked via the Managed API under the hood.
       </td>
       <td>
         A subset of column names to exclude from reading. If null or empty, all columns will be read.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        filter
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        SQL-like predicate to filter data at scan time. Example: "id > 5 AND status = 'ACTIVE'". Uses Apache Calcite syntax: https://calcite.apache.org/docs/reference.html
       </td>
     </tr>
     <tr>
@@ -386,6 +401,40 @@ and Beam SQL is invoked via the Managed API under the hood.
     </tr>
     <tr>
       <td>
+        partition_fields
+      </td>
+      <td>
+        <code>list[<span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        Fields used to create a partition spec that is applied when tables are created. For a field 'foo', the available partition transforms are:
+
+- `foo`
+- `truncate(foo, N)`
+- `bucket(foo, N)`
+- `hour(foo)`
+- `day(foo)`
+- `month(foo)`
+- `year(foo)`
+- `void(foo)`
+
+For more information on partition transforms, please visit https://iceberg.apache.org/spec/#partition-transforms.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        table_properties
+      </td>
+      <td>
+        <code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        Iceberg table properties to be set on the table when it is created.
+For more information on table properties, please visit https://iceberg.apache.org/docs/latest/configuration/#table-properties.
+      </td>
+    </tr>
+    <tr>
+      <td>
         triggering_frequency_seconds
       </td>
       <td>
@@ -460,6 +509,17 @@ and Beam SQL is invoked via the Managed API under the hood.
       </td>
       <td>
         A subset of column names to exclude from reading. If null or empty, all columns will be read.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        filter
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        SQL-like predicate to filter data at scan time. Example: "id > 5 AND status = 'ACTIVE'". Uses Apache Calcite syntax: https://calcite.apache.org/docs/reference.html
       </td>
     </tr>
     <tr>

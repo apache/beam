@@ -76,10 +76,11 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.Reiterable;
 import org.apache.beam.sdk.util.common.Reiterator;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -171,7 +172,7 @@ public class GroupingShuffleReaderTest {
   private List<ShuffleEntry> writeShuffleEntries(
       List<KV<Integer, List<KV<Integer, Integer>>>> input, boolean sortValues) throws Exception {
     Coder<WindowedValue<KV<Integer, KV<Integer, Integer>>>> sinkElemCoder =
-        WindowedValue.getFullCoder(
+        WindowedValues.getFullCoder(
             KvCoder.of(
                 BigEndianIntegerCoder.of(),
                 KvCoder.of(BigEndianIntegerCoder.of(), BigEndianIntegerCoder.of())),
@@ -200,7 +201,7 @@ public class GroupingShuffleReaderTest {
           ++kvCount;
           actualSizes.add(
               shuffleSinkWriter.add(
-                  WindowedValue.of(
+                  WindowedValues.of(
                       KV.of(key, value),
                       timestamp,
                       Lists.newArrayList(window),
@@ -336,7 +337,7 @@ public class GroupingShuffleReaderTest {
       ValuesToRead valuesToRead)
       throws Exception {
     Coder<WindowedValue<KV<Integer, Iterable<KV<Integer, Integer>>>>> sourceElemCoder =
-        WindowedValue.getFullCoder(
+        WindowedValues.getFullCoder(
             KvCoder.of(
                 BigEndianIntegerCoder.of(),
                 IterableCoder.of(
@@ -478,7 +479,7 @@ public class GroupingShuffleReaderTest {
     TestShuffleReadCounterFactory shuffleReadCounterFactory = new TestShuffleReadCounterFactory();
 
     Coder<WindowedValue<KV<Integer, Iterable<KV<Integer, Integer>>>>> sourceElemCoder =
-        WindowedValue.getFullCoder(
+        WindowedValues.getFullCoder(
             KvCoder.of(
                 BigEndianIntegerCoder.of(),
                 IterableCoder.of(
@@ -637,7 +638,7 @@ public class GroupingShuffleReaderTest {
             null,
             null,
             stop,
-            WindowedValue.getFullCoder(
+            WindowedValues.getFullCoder(
                 KvCoder.of(
                     BigEndianIntegerCoder.of(), IterableCoder.of(BigEndianIntegerCoder.of())),
                 IntervalWindow.getCoder()),
@@ -701,7 +702,7 @@ public class GroupingShuffleReaderTest {
             null,
             null,
             null,
-            WindowedValue.getFullCoder(
+            WindowedValues.getFullCoder(
                 KvCoder.of(
                     BigEndianIntegerCoder.of(), IterableCoder.of(BigEndianIntegerCoder.of())),
                 IntervalWindow.getCoder()),
@@ -773,7 +774,7 @@ public class GroupingShuffleReaderTest {
             null,
             null,
             null,
-            WindowedValue.getFullCoder(
+            WindowedValues.getFullCoder(
                 KvCoder.of(
                     BigEndianIntegerCoder.of(), IterableCoder.of(BigEndianIntegerCoder.of())),
                 IntervalWindow.getCoder()),
@@ -879,7 +880,7 @@ public class GroupingShuffleReaderTest {
             null,
             null,
             null,
-            WindowedValue.getFullCoder(
+            WindowedValues.getFullCoder(
                 KvCoder.of(
                     BigEndianIntegerCoder.of(), IterableCoder.of(BigEndianIntegerCoder.of())),
                 IntervalWindow.getCoder()),
@@ -958,7 +959,7 @@ public class GroupingShuffleReaderTest {
             null,
             null,
             stop,
-            WindowedValue.getFullCoder(
+            WindowedValues.getFullCoder(
                 KvCoder.of(
                     BigEndianIntegerCoder.of(), IterableCoder.of(BigEndianIntegerCoder.of())),
                 IntervalWindow.getCoder()),

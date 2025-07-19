@@ -22,6 +22,7 @@ import static java.util.Collections.singletonList;
 import static org.apache.beam.sdk.io.iceberg.IcebergScanConfig.resolveSchema;
 import static org.apache.beam.sdk.io.iceberg.IcebergUtils.icebergSchemaToBeamSchema;
 import static org.apache.beam.sdk.io.iceberg.TestFixtures.createRecord;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.iceberg.types.Types.NestedField.required;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -31,8 +32,10 @@ import static org.junit.Assume.assumeTrue;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -344,6 +347,52 @@ public class IcebergIOReadTest {
         .satisfies(
             (Iterable<Row> rows) -> {
               assertThat(rows, containsInAnyOrder(dropFilter.filter(originalRows).toArray()));
+              return null;
+            });
+
+    testPipeline.run();
+  }
+
+  @Test
+  public void testScanWithFilter() throws Exception {
+    TableIdentifier tableId =
+        TableIdentifier.of("default", "table" + Long.toString(UUID.randomUUID().hashCode(), 16));
+    Table simpleTable = warehouse.createTable(tableId, TestFixtures.SCHEMA);
+
+    List<List<Record>> expectedRecords = warehouse.commitData(simpleTable);
+
+    IcebergIO.ReadRows read =
+        IcebergIO.readRows(catalogConfig())
+            .from(tableId)
+            .withFilter(
+                "\"id\" < 10 AND \"id\" >= 2 AND  \"data\" <> 'clammy' AND \"data\" <> 'brainy'")
+            .keeping(Arrays.asList("id"));
+
+    if (useIncrementalScan) {
+      read = read.withCdc().toSnapshot(simpleTable.currentSnapshot().snapshotId());
+    }
+    final Schema outputSchema = icebergSchemaToBeamSchema(TestFixtures.SCHEMA.select("id"));
+    final List<Row> expectedRows =
+        expectedRecords.stream()
+            .flatMap(List::stream)
+            .filter(
+                record -> {
+                  long id = checkStateNotNull((Long) record.getField("id"));
+                  String data = checkStateNotNull((String) record.getField("data"));
+                  return id < 10
+                      && id >= 2
+                      && !Objects.equals(data, "clammy")
+                      && !Objects.equals(data, "brainy");
+                })
+            .map(record -> IcebergUtils.icebergRecordToBeamRow(outputSchema, record))
+            .collect(Collectors.toList());
+
+    PCollection<Row> output = testPipeline.apply(read).apply(new PrintRow());
+
+    PAssert.that(output)
+        .satisfies(
+            (Iterable<Row> rows) -> {
+              assertThat(rows, containsInAnyOrder(expectedRows.toArray()));
               return null;
             });
 

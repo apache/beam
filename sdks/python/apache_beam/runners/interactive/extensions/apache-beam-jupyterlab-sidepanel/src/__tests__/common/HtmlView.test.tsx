@@ -16,46 +16,64 @@
 
 import * as React from 'react';
 
-import { render, unmountComponentAtNode } from 'react-dom';
+import { createRoot, Root } from 'react-dom/client';
 
-import { act } from 'react-dom/test-utils';
+import { act } from 'react';
 
 import { HtmlView, IHtmlProvider, importHtml } from '../../common/HtmlView';
+import { waitFor } from '@testing-library/dom';
 
 let container: null | Element = null;
+let root: Root | null = null;
 beforeEach(() => {
   container = document.createElement('div');
   document.body.appendChild(container);
+  root = createRoot(container);
 });
 
-afterEach(() => {
-  unmountComponentAtNode(container);
-  container.remove();
-  container = null;
-  jest.clearAllMocks();
+afterEach(async () => {
+  try {
+    if (root) {
+      await act(async () => {
+        root.unmount();
+        await new Promise(resolve => setTimeout(resolve, 0));
+      });
+    }
+  } catch (error) {
+    console.warn('During unmount:', error);
+  } finally {
+    if (container?.parentNode) {
+      container.remove();
+    }
+    jest.clearAllMocks();
+    container = null;
+    root = null;
+  }
 });
 
 describe('HtmlView', () => {
-  it('renders provided html', () => {
+  it('renders provided html', async () => {
     const htmlViewRef: React.RefObject<HtmlView> = React.createRef<HtmlView>();
     const spiedConsole = jest.spyOn(console, 'log');
     const fakeHtmlProvider = {
       html: '<div>Test</div>',
       script: ['console.log(1);', 'console.log(2);']
     } as IHtmlProvider;
-    act(() => {
-      render(
-        <HtmlView ref={htmlViewRef} htmlProvider={fakeHtmlProvider} />,
-        container
+    await act(async () => {
+      root.render(
+        <HtmlView ref={htmlViewRef} htmlProvider={fakeHtmlProvider} />
       );
-      const htmlView = htmlViewRef.current;
-      if (htmlView) {
-        htmlView.updateRender();
-      }
     });
-    const htmlViewElement: Element = container.firstElementChild;
-    expect(htmlViewElement.tagName).toBe('DIV');
-    expect(htmlViewElement.innerHTML).toBe('<div>Test</div>');
+    await act(async () => {
+      htmlViewRef.current?.updateRender();
+    });
+
+    await waitFor(() => {
+      const htmlViewElement = container.firstElementChild as Element;
+      expect(htmlViewElement.tagName).toBe('DIV');
+      expect(htmlViewElement.innerHTML).toBe('<div>Test</div>');
+    });
+
     expect(spiedConsole).toHaveBeenCalledWith(1);
     expect(spiedConsole).toHaveBeenCalledWith(2);
     expect(spiedConsole).toHaveBeenCalledTimes(2);
@@ -64,7 +82,7 @@ describe('HtmlView', () => {
   it(
     'only executes incrementally updated Javascript ' +
       'as html provider updated',
-    () => {
+    async () => {
       const htmlViewRef: React.RefObject<HtmlView> =
         React.createRef<HtmlView>();
       const spiedConsole = jest.spyOn(console, 'log');
@@ -72,20 +90,23 @@ describe('HtmlView', () => {
         html: '<div></div>',
         script: ['console.log(1);']
       } as IHtmlProvider;
-      act(() => {
-        render(
-          <HtmlView ref={htmlViewRef} htmlProvider={fakeHtmlProvider} />,
-          container
+      await act(async () => {
+        root.render(
+          <HtmlView ref={htmlViewRef} htmlProvider={fakeHtmlProvider} />
         );
-        const htmlView = htmlViewRef.current;
-        if (htmlView) {
-          htmlView.updateRender();
-        }
       });
-      expect(spiedConsole).toHaveBeenCalledWith(1);
-      expect(spiedConsole).toHaveBeenCalledTimes(1);
+      await act(async () => {
+        htmlViewRef.current?.updateRender();
+      });
+
+      await waitFor(() => {
+        expect(spiedConsole).toHaveBeenCalledWith(1);
+        expect(spiedConsole).toHaveBeenCalledTimes(1);
+      });
+
       fakeHtmlProvider.script.push('console.log(2);');
-      act(() => {
+
+      await act(async () => {
         const htmlView = htmlViewRef.current;
         if (htmlView) {
           htmlView.updateRender();
@@ -97,11 +118,11 @@ describe('HtmlView', () => {
   );
 });
 describe('Function importHtml', () => {
-  it('imports webcomponents script', () => {
-    act(() => {
+  it('imports webcomponents script', async () => {
+    await act(async () => {
       importHtml([]);
     });
-    const scriptElement: Element = document.head.firstElementChild;
+    const scriptElement = document.head.firstElementChild as Element;
     expect(scriptElement.tagName).toBe('SCRIPT');
     expect(scriptElement.getAttribute('src')).toBe(
       'https://cdnjs.cloudflare.com/ajax/libs/webcomponentsjs/1.3.3/webcomponents-lite.js'

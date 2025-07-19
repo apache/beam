@@ -20,6 +20,8 @@ package org.apache.beam.sdk.io.iceberg;
 import static org.apache.beam.sdk.io.iceberg.IcebergWriteSchemaTransformProvider.Configuration;
 import static org.apache.beam.sdk.io.iceberg.IcebergWriteSchemaTransformProvider.INPUT_TAG;
 import static org.apache.beam.sdk.io.iceberg.IcebergWriteSchemaTransformProvider.SNAPSHOTS_TAG;
+import static org.apache.iceberg.util.DateTimeUtil.dateFromDays;
+import static org.apache.iceberg.util.DateTimeUtil.timestampFromMicros;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 
@@ -59,7 +61,6 @@ import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.IcebergGenerics;
 import org.apache.iceberg.data.Record;
-import org.apache.iceberg.util.DateTimeUtil;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.joda.time.DateTime;
@@ -74,6 +75,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.yaml.snakeyaml.Yaml;
 
+/** Tests for {@link IcebergWriteSchemaTransformProvider}. */
 @RunWith(JUnit4.class)
 public class IcebergWriteSchemaTransformProviderTest {
 
@@ -418,8 +420,8 @@ public class IcebergWriteSchemaTransformProviderTest {
     List<Row> rows = new ArrayList<>();
     for (int i = 0; i < 30; i++) {
       long millis = i * 100_00_000_000L;
-      LocalDate localDate = DateTimeUtil.dateFromDays(i * 100);
-      LocalDateTime localDateTime = DateTimeUtil.timestampFromMicros(millis * 1000);
+      LocalDate localDate = dateFromDays(i * 100);
+      LocalDateTime localDateTime = timestampFromMicros(millis * 1000);
       DateTime dateTime = new DateTime(millis).withZone(DateTimeZone.forOffsetHoursMinutes(3, 25));
       Row row =
           Row.withSchema(schema)
@@ -457,5 +459,193 @@ public class IcebergWriteSchemaTransformProviderTest {
         p.apply(Managed.read(Managed.ICEBERG).withConfig(config)).getSinglePCollection();
     PAssert.that(readRows).containsInAnyOrder(rows);
     p.run();
+  }
+
+  @Test
+  public void testWriteCreateTableWithPartitionSpec() {
+    String identifier = "default.table_" + Long.toString(UUID.randomUUID().hashCode(), 16);
+    Schema schema =
+        Schema.builder()
+            .addStringField("i_str")
+            .addStringField("t_str")
+            .addInt32Field("b_int")
+            .addNullableStringField("n_str")
+            .addLogicalTypeField("y_datetime", SqlTypes.DATETIME)
+            .addLogicalTypeField("m_date", SqlTypes.DATE)
+            .addLogicalTypeField("d_date", SqlTypes.DATE)
+            .addDateTimeField("h_datetimetz")
+            .build();
+
+    Map<String, Object> config =
+        ImmutableMap.of(
+            "table",
+            identifier,
+            "catalog_properties",
+            ImmutableMap.of("type", "hadoop", "warehouse", warehouse.location),
+            "partition_fields",
+            Arrays.asList(
+                "i_str",
+                "truncate(t_str, 5)",
+                "bucket(b_int, 3)",
+                "void(n_str)",
+                "year(y_datetime)",
+                "month(m_date)",
+                "day(d_date)",
+                "hour(h_datetimetz)"));
+
+    List<Row> rows = new ArrayList<>();
+    for (int i = 0; i < 30; i++) {
+      long millis = i * 10_000_000_000L;
+      Row row =
+          Row.withSchema(schema)
+              .addValues(
+                  "identity_" + i,
+                  i + "_truncate",
+                  i,
+                  "always_null?",
+                  timestampFromMicros(millis * 1000),
+                  dateFromDays(i * 100),
+                  dateFromDays(i * 100),
+                  new DateTime(millis).withZone(DateTimeZone.forOffsetHoursMinutes(3, 25)))
+              .build();
+      rows.add(row);
+    }
+
+    PCollection<Row> result =
+        testPipeline
+            .apply("Records To Add", Create.of(rows))
+            .setRowSchema(schema)
+            .apply(Managed.write(Managed.ICEBERG).withConfig(config))
+            .get(SNAPSHOTS_TAG);
+
+    PAssert.that(result)
+        .satisfies(new VerifyOutputs(Collections.singletonList(identifier), "append"));
+    testPipeline.run().waitUntilFinish();
+
+    Pipeline p = Pipeline.create(TestPipeline.testingPipelineOptions());
+    PCollection<Row> readRows =
+        p.apply(Managed.read(Managed.ICEBERG).withConfig(config)).getSinglePCollection();
+    PAssert.that(readRows).containsInAnyOrder(rows);
+    p.run().waitUntilFinish();
+
+    org.apache.iceberg.Schema icebergSchema = IcebergUtils.beamSchemaToIcebergSchema(schema);
+    PartitionSpec expectedSpec =
+        PartitionSpec.builderFor(icebergSchema)
+            .identity("i_str")
+            .truncate("t_str", 5)
+            .bucket("b_int", 3)
+            .alwaysNull("n_str")
+            .year("y_datetime")
+            .month("m_date")
+            .day("d_date")
+            .hour("h_datetimetz")
+            .build();
+    Table table = warehouse.loadTable(TableIdentifier.parse(identifier));
+    assertEquals(expectedSpec, table.spec());
+  }
+
+  @Test
+  public void testWriteCreateTableWithTablePropertiesSpec() {
+    String identifier = "default.table_" + Long.toString(UUID.randomUUID().hashCode(), 16);
+    Schema schema = Schema.builder().addStringField("str").addInt32Field("int").build();
+
+    // Use real Iceberg table property keys
+    Map<String, String> tableProperties =
+        ImmutableMap.of(
+            "write.format.default", "orc",
+            "commit.retry.num-retries", "5",
+            "read.split.target-size", "134217728");
+
+    Map<String, Object> config =
+        ImmutableMap.of(
+            "table",
+            identifier,
+            "catalog_properties",
+            ImmutableMap.of("type", "hadoop", "warehouse", warehouse.location),
+            "table_properties",
+            tableProperties);
+
+    List<Row> rows = new ArrayList<>();
+    for (int i = 0; i < 10; i++) {
+      Row row = Row.withSchema(schema).addValues("str_" + i, i).build();
+      rows.add(row);
+    }
+
+    PCollection<Row> result =
+        testPipeline
+            .apply("Records To Add", Create.of(rows))
+            .setRowSchema(schema)
+            .apply(Managed.write(Managed.ICEBERG).withConfig(config))
+            .get(SNAPSHOTS_TAG);
+
+    PAssert.that(result)
+        .satisfies(new VerifyOutputs(Collections.singletonList(identifier), "append"));
+    testPipeline.run().waitUntilFinish();
+
+    // Read back and check records are correct
+    Pipeline p = Pipeline.create(TestPipeline.testingPipelineOptions());
+    PCollection<Row> readRows =
+        p.apply(Managed.read(Managed.ICEBERG).withConfig(config)).getSinglePCollection();
+    PAssert.that(readRows).containsInAnyOrder(rows);
+    p.run().waitUntilFinish();
+
+    Table table = warehouse.loadTable(TableIdentifier.parse(identifier));
+    // Assert that the table properties are set on the Iceberg table
+    assertEquals("orc", table.properties().get("write.format.default"));
+    assertEquals("5", table.properties().get("commit.retry.num-retries"));
+    assertEquals("134217728", table.properties().get("read.split.target-size"));
+  }
+
+  @Test
+  public void testWriteCreateTableWithTableProperties() {
+    String identifier = "default.table_" + Long.toString(UUID.randomUUID().hashCode(), 16);
+    Schema schema = Schema.builder().addStringField("str").addInt32Field("int").build();
+    org.apache.iceberg.Schema icebergSchema = IcebergUtils.beamSchemaToIcebergSchema(schema);
+    PartitionSpec spec = PartitionSpec.unpartitioned();
+    Map<String, String> tableProperties =
+        ImmutableMap.of(
+            "write.format.default", "orc",
+            "commit.retry.num-retries", "5",
+            "read.split.target-size", "134217728");
+
+    // Create the table with properties
+    warehouse.createTable(TableIdentifier.parse(identifier), icebergSchema, spec, tableProperties);
+
+    List<Row> rows = new ArrayList<>();
+    for (int i = 0; i < 10; i++) {
+      Row row = Row.withSchema(schema).addValues("str_" + i, i).build();
+      rows.add(row);
+    }
+
+    Map<String, Object> config =
+        ImmutableMap.of(
+            "table",
+            identifier,
+            "catalog_properties",
+            ImmutableMap.of("type", "hadoop", "warehouse", warehouse.location));
+
+    PCollection<Row> result =
+        testPipeline
+            .apply("Records To Add", Create.of(rows))
+            .setRowSchema(schema)
+            .apply(Managed.write(Managed.ICEBERG).withConfig(config))
+            .get(SNAPSHOTS_TAG);
+
+    PAssert.that(result)
+        .satisfies(new VerifyOutputs(Collections.singletonList(identifier), "append"));
+    testPipeline.run().waitUntilFinish();
+
+    // Read back and check records are correct
+    Pipeline p = Pipeline.create(TestPipeline.testingPipelineOptions());
+    PCollection<Row> readRows =
+        p.apply(Managed.read(Managed.ICEBERG).withConfig(config)).getSinglePCollection();
+    PAssert.that(readRows).containsInAnyOrder(rows);
+    p.run().waitUntilFinish();
+
+    Table table = warehouse.loadTable(TableIdentifier.parse(identifier));
+    // Assert that the table properties are set on the Iceberg table
+    assertEquals("orc", table.properties().get("write.format.default"));
+    assertEquals("5", table.properties().get("commit.retry.num-retries"));
+    assertEquals("134217728", table.properties().get("read.split.target-size"));
   }
 }

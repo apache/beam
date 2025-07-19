@@ -34,17 +34,11 @@ createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'Spark')
 
 // Additional supported Spark versions (used in compatibility tests)
 def sparkVersions = [
-    "350": "3.5.0",
-    "341": "3.4.1",
-    "340": "3.4.0",
-    "332": "3.3.2",
-    "331": "3.3.1",
-    "330": "3.3.0",
-    "324": "3.2.4",
-    "323": "3.2.3",
-    "321": "3.2.1",
-    "312": "3.1.2",
-    "311": "3.1.1"
+    "35": "3.5.5",
+    "34": "3.4.4",
+    "33": "3.3.4",
+    // "32": "3.2.4", // tests on 3.2 failed due to incompatible with slf4j 2
+    "31": "3.1.3",
 ]
 
 sparkVersions.each { kv ->

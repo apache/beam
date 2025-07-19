@@ -122,6 +122,18 @@ class ExternalTransformProviderIT(unittest.TestCase):
 
       assert_that(numbers, equal_to([i for i in range(10)]))
 
+  def test_run_generate_sequence_with_rate(self):
+    provider = ExternalTransformProvider(
+        BeamJarExpansionService(":sdks:java:io:expansion-service:shadowJar"))
+
+    with beam.Pipeline() as p:
+      numbers = p | provider.GenerateSequence(
+          start=0, end=3, rate={
+              'elements': 1, 'seconds': 1
+          }) | beam.Map(lambda row: row.value)
+
+      assert_that(numbers, equal_to([0, 1, 2]))
+
 
 @pytest.mark.xlang_wrapper_generation
 @unittest.skipUnless(

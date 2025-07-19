@@ -49,8 +49,26 @@ t.describe 'Run Apache Beam Java SDK Quickstart - Dataflow'
                    --inputFile=gs://apache-beam-samples/shakespeare/*" \
                     -Pdataflow-runner"""
 
+    int retries = 5
+    int waitTime = 15 // seconds
+    def outputPath = "gs://${t.gcsBucket()}/count"
+    def outputFound = false
+    for (int i = 0; i < retries; i++) {
+      def files = t.run("gsutil ls ${outputPath}*")
+      if (files?.trim()) {
+        outputFound = true
+        break
+      }
+      t.intent("Output not found yet. Waiting ${waitTime}s...")
+      Thread.sleep(waitTime * 1000)
+    }
+
+    if (!outputFound) {
+      throw new RuntimeException("No output files found for WordCount after ${retries * waitTime} seconds.")
+    }
+
     // Verify wordcount text
-    String result = t.run """gsutil cat gs://${t.gcsBucket()}/count* | grep Montague:"""
+    String result = t.run """gsutil cat ${outputPath}* | grep Montague:"""
     t.see "Montague: 47", result
 
     // Remove count files

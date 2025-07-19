@@ -17,6 +17,9 @@
  */
 package org.apache.beam.fn.harness;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
 import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.util.Map;
@@ -32,19 +35,17 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.util.SerializableUtils;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.RehydratedComponents;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues.WindowedValueCoder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Executes different components of Combine PTransforms. */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class CombineRunners {
 
   /** A registrar which provides a factory to handle combine component PTransforms. */
@@ -74,7 +75,7 @@ public class CombineRunners {
     private final CombineFn<InputT, AccumT, ?> combineFn;
     private final FnDataReceiver<WindowedValue<KV<KeyT, AccumT>>> output;
     private final Coder<KeyT> keyCoder;
-    private PrecombineGroupingTable<KeyT, InputT, AccumT> groupingTable;
+    private @Nullable PrecombineGroupingTable<KeyT, InputT, AccumT> groupingTable;
     private boolean isGloballyWindowed;
 
     PrecombineRunner(
@@ -104,6 +105,12 @@ public class CombineRunners {
       this.isGloballyWindowed = isGloballyWindowed;
     }
 
+    private PrecombineGroupingTable<KeyT, InputT, AccumT> getGroupingTable() {
+      return checkStateNotNull(
+          this.groupingTable,
+          "groupingTable not initialized. Did you call this outside of the context of bundle processing?");
+    }
+
     void startBundle() {
       groupingTable =
           PrecombineGroupingTable.combiningAndSampling(
@@ -116,11 +123,11 @@ public class CombineRunners {
     }
 
     void processElement(WindowedValue<KV<KeyT, InputT>> elem) throws Exception {
-      groupingTable.put(elem, output::accept);
+      getGroupingTable().put(elem, output::accept);
     }
 
     void finishBundle() throws Exception {
-      groupingTable.flush(output::accept);
+      getGroupingTable().flush(output::accept);
       groupingTable = null;
     }
   }
@@ -140,11 +147,15 @@ public class CombineRunners {
           RehydratedComponents.forComponents(context.getComponents());
       String mainInputTag =
           Iterables.getOnlyElement(context.getPTransform().getInputsMap().keySet());
+
       RunnerApi.PCollection mainInput =
-          context
-              .getComponents()
-              .getPcollectionsMap()
-              .get(context.getPTransform().getInputsOrThrow(mainInputTag));
+          checkArgumentNotNull(
+              context
+                  .getComponents()
+                  .getPcollectionsMap()
+                  .get(context.getPTransform().getInputsOrThrow(mainInputTag)),
+              "PreCombine missing main input for tag: %s",
+              mainInputTag);
 
       // Input coder may sometimes be WindowedValueCoder depending on runner, instead of the
       // expected KvCoder.

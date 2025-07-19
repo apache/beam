@@ -161,6 +161,9 @@ def _nonnull_coder_from_type(field_type):
       return BytesCoder()
   elif type_info == "array_type":
     return IterableCoder(_coder_from_type(field_type.array_type.element_type))
+  elif type_info == "iterable_type":
+    return IterableCoder(
+        _coder_from_type(field_type.iterable_type.element_type))
   elif type_info == "map_type":
     return MapCoder(
         _coder_from_type(field_type.map_type.key_type),

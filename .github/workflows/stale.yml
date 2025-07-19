@@ -36,7 +36,10 @@ jobs:
         stale-pr-label: 'stale'
         days-before-pr-stale: 60
         days-before-pr-close: 7
-        days-before-issue-close: -1
-        days-before-issue-stale: -1
+        stale-issue-label: 'stale'
+        stale-issue-message: 'This issue has been marked as stale due to 150 days of inactivity. It will be closed in 30 days if no further activity occurs. If you think that’s incorrect or this issue still needs to be addressed, please simply write any comment. If closed, you can reopen the issue at any time. Thank you for your contributions.'
+        close-issue-message: 'This issue has been closed due to lack of activity. If you think that is incorrect, you can reopen the issue at any time.'
+        days-before-issue-stale: 150
+        days-before-issue-close: 30
         exempt-pr-labels: "pinned,security"
         operations-per-run: 100

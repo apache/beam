@@ -31,9 +31,7 @@ from pathlib import Path
 
 # pylint: disable=ungrouped-imports
 import setuptools
-from pkg_resources import normalize_path
-from pkg_resources import parse_version
-from pkg_resources import to_filename
+from packaging.version import parse
 from setuptools import Command
 
 # pylint: disable=wrong-import-order
@@ -41,6 +39,14 @@ from setuptools import Command
 # using legacy behavior from distutils.
 # https://setuptools.readthedocs.io/en/latest/history.html#v48-0-0
 from distutils.errors import DistutilsError  # isort:skip
+
+
+def to_filename(name: str) -> str:
+  return name.replace('-', '_')
+
+
+def normalize_path(filename):
+  return os.path.normcase(os.path.realpath(os.path.normpath(filename)))
 
 
 class mypy(Command):
@@ -91,17 +97,11 @@ PACKAGE_DOWNLOAD_URL = 'https://pypi.python.org/pypi/apache-beam'
 PACKAGE_AUTHOR = 'Apache Software Foundation'
 PACKAGE_EMAIL = 'dev@beam.apache.org'
 PACKAGE_KEYWORDS = 'apache beam'
-PACKAGE_LONG_DESCRIPTION = '''
-Apache Beam is a unified programming model for both batch and streaming
-data processing, enabling efficient execution across diverse distributed
-execution engines and providing extensibility points for connecting to
-different technologies and user communities.
-'''
 
 RECOMMENDED_MIN_PIP_VERSION = '19.3.0'
 try:
   _PIP_VERSION = distribution('pip').version
-  if parse_version(_PIP_VERSION) < parse_version(RECOMMENDED_MIN_PIP_VERSION):
+  if parse(_PIP_VERSION) < parse(RECOMMENDED_MIN_PIP_VERSION):
     warnings.warn(
         "You are using version {0} of pip. " \
         "However, the recommended min version is {1}.".format(
@@ -116,7 +116,7 @@ except PackageNotFoundError:
 REQUIRED_CYTHON_VERSION = '3.0.0'
 try:
   _CYTHON_VERSION = distribution('cython').version
-  if parse_version(_CYTHON_VERSION) < parse_version(REQUIRED_CYTHON_VERSION):
+  if parse(_CYTHON_VERSION) < parse(REQUIRED_CYTHON_VERSION):
     warnings.warn(
         "You are using version {0} of cython. " \
         "However, version {1} is recommended.".format(
@@ -145,9 +145,10 @@ if sys.platform == 'win32' and sys.maxsize <= 2**32:
   pyarrow_dependency = ['']
 else:
   pyarrow_dependency = [
-      'pyarrow>=3.0.0,<17.0.0',
+      'pyarrow>=3.0.0,<19.0.0',
       # NOTE(https://github.com/apache/beam/issues/29392): We can remove this
       # once Beam increases the pyarrow lower bound to a version that fixes CVE.
+      # (lower bound >= 14.0.1)
       'pyarrow-hotfix<1'
   ]
 
@@ -222,18 +223,18 @@ def generate_external_transform_wrappers():
     script_exists = os.path.exists(
         os.path.join(sdk_dir, 'gen_xlang_wrappers.py'))
     config_exists = os.path.exists(
-        os.path.join(os.path.dirname(sdk_dir),
-                     'standard_external_transforms.yaml'))
+        os.path.join(
+            os.path.dirname(sdk_dir), 'standard_external_transforms.yaml'))
     # we need both the script and the standard transforms config file.
     # at build time, we don't have access to apache_beam to discover and
     # retrieve external transforms, so the config file has to already exist
     if not script_exists or not config_exists:
       generated_transforms_dir = os.path.join(
-        sdk_dir, 'apache_beam', 'transforms', 'xlang')
+          sdk_dir, 'apache_beam', 'transforms', 'xlang')
 
       # if exists, this directory will have at least its __init__.py file
       if (not os.path.exists(generated_transforms_dir) or
-              len(os.listdir(generated_transforms_dir)) <= 1):
+          len(os.listdir(generated_transforms_dir)) <= 1):
         message = 'External transform wrappers have not been generated '
         if not script_exists:
           message += 'and the generation script `gen_xlang_wrappers.py`'
@@ -251,13 +252,16 @@ def generate_external_transform_wrappers():
         os.path.join(sdk_dir, 'gen_xlang_wrappers.py'),
         '--cleanup',
         '--transforms-config-source',
-        os.path.join(os.path.dirname(sdk_dir),
-                     'standard_external_transforms.yaml')
-    ], capture_output=True, check=True)
+        os.path.join(
+            os.path.dirname(sdk_dir), 'standard_external_transforms.yaml')
+    ],
+                   capture_output=True,
+                   check=True)
   except subprocess.CalledProcessError as err:
     raise RuntimeError(
         'Could not generate external transform wrappers due to '
-        'error: %s', err.stderr)
+        'error: %s',
+        err.stderr)
 
 
 def get_portability_package_data():
@@ -311,13 +315,26 @@ if __name__ == '__main__':
     ])
   else:
     extensions = []
+
+  try:
+    long_description = ((Path(__file__).parent /
+                         "README.md").read_text(encoding='utf-8'))
+  except FileNotFoundError:
+    long_description = (
+        'Apache Beam is a unified programming model for both batch and '
+        'streaming data processing, enabling efficient execution across '
+        'diverse distributed execution engines and providing extensibility '
+        'points for connecting to different technologies and user '
+        'communities.')
+
   # Keep all dependencies inlined in the setup call, otherwise Dependabot won't
   # be able to parse it.
   setuptools.setup(
       name=PACKAGE_NAME,
       version=PACKAGE_VERSION,
       description=PACKAGE_DESCRIPTION,
-      long_description=PACKAGE_LONG_DESCRIPTION,
+      long_description=long_description,
+      long_description_content_type='text/markdown',
       url=PACKAGE_URL,
       download_url=PACKAGE_DOWNLOAD_URL,
       author=PACKAGE_AUTHOR,
@@ -350,7 +367,8 @@ if __name__ == '__main__':
           'fastavro>=0.23.6,<2',
           'fasteners>=0.3,<1.0',
           # TODO(https://github.com/grpc/grpc/issues/37710): Unpin grpc
-          'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,<1.66.0',  # pylint: disable=line-too-long
+          'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,<1.66.0; python_version <= "3.12"',  # pylint: disable=line-too-long
+          'grpcio>=1.67.0; python_version >= "3.13"',
           'hdfs>=2.1.0,<3.0.0',
           'httplib2>=0.8,<0.23.0',
           'jsonschema>=4.0.0,<5.0.0',
@@ -378,11 +396,12 @@ if __name__ == '__main__':
           'pytz>=2018.3',
           'redis>=5.0.0,<6',
           'regex>=2020.6.8',
-          'requests>=2.24.0,<3.0.0',
+          'requests>=2.32.4,<3.0.0',
           'sortedcontainers>=2.4.0',
           'typing-extensions>=3.7.0',
           'zstandard>=0.18.0,<1',
           'pyyaml>=3.12,<7.0.0',
+          'pymilvus>=2.5.10,<3.0.0',
           # Dynamic dependencies must be specified in a separate list, otherwise
           # Dependabot won't be able to parse the main list. Any dynamic
           # dependencies will not receive updates from Dependabot.
@@ -401,6 +420,7 @@ if __name__ == '__main__':
               'virtualenv-clone>=0.5,<1.0',
           ],
           'test': [
+              'cloud-sql-python-connector[pg8000]>=1.0.0,<2.0.0',
               'docstring-parser>=0.15,<1.0',
               'freezegun>=0.3.12',
               'jinja2>=3.0,<3.2',
@@ -415,18 +435,23 @@ if __name__ == '__main__':
               'pytest-xdist>=2.5.0,<4',
               'pytest-timeout>=2.1.0,<3',
               'scikit-learn>=0.20.0',
-              'setuptools',
               'sqlalchemy>=1.3,<3.0',
-              'psycopg2-binary>=2.8.5,<3.0.0,!=2.9.10',
-              'testcontainers[mysql]>=3.0.3,<4.0.0',
+              'psycopg2-binary>=2.8.5,<2.9.10; python_version <= "3.9"',
+              'psycopg2-binary>=2.8.5,<3.0; python_version >= "3.10"',
+              'testcontainers[mysql,kafka,milvus]>=4.0.0,<5.0.0',
               'cryptography>=41.0.2',
               'hypothesis>5.0.0,<7.0.0',
               'virtualenv-clone>=0.5,<1.0',
+              'mysql-connector-python>=9.3.0',
+              'python-tds>=1.16.1',
+              'sqlalchemy-pytds>=1.0.2',
+              'oracledb>=3.1.1'
           ],
           'gcp': [
               'cachetools>=3.1.0,<6',
               'google-api-core>=2.0.0,<3',
-              'google-apitools>=0.5.31,<0.5.32',
+              'google-apitools>=0.5.31,<0.5.32; python_version <= "3.12"',
+              'google-apitools>=0.5.32,<0.5.33; python_version >= "3.13"',
               # NOTE: Maintainers, please do not require google-auth>=2.x.x
               # Until this issue is closed
               # https://github.com/googleapis/google-cloud-python/issues/10566
@@ -458,7 +483,7 @@ if __name__ == '__main__':
           'interactive': [
               'facets-overview>=1.1.0,<2',
               'google-cloud-dataproc>=5.0.0,<6',
-              'ipython>=8,<9',
+              'ipython>=7,<9',
               'ipykernel>=6,<7',
               'ipywidgets>=8,<9',
               # Skip version 6.1.13 due to
@@ -546,20 +571,14 @@ if __name__ == '__main__':
           # in https://github.com/apache/beam/blob/master/sdks/python/tox.ini
           # For more info, see
           # https://docs.google.com/document/d/1c84Gc-cZRCfrU8f7kWGsNR2o8oSRjCM-dGHO9KvPWPw/edit?usp=sharing
-          'torch': [
-              'torch<=1.13.0,<=2.0.0'
-          ],
-          'tensorflow': [
-              'tensorflow>=2.12rc1,<2.13'
-          ],
+          'torch': ['torch>=1.9.0,<2.8.0'],
+          'tensorflow': ['tensorflow>=2.12rc1,<2.17'],
           'transformers': [
               'transformers>=4.28.0,<4.49.0',
-              'tensorflow==2.12.0',
-              'torch>=1.9.0,<2.1.0'
+              'tensorflow>=2.12.0',
+              'torch>=1.9.0'
           ],
-          'tft': [
-              'tensorflow_transform>=1.14.0,<1.15.0'
-          ],
+          'tft': ['tensorflow_transform>=1.14.0,<1.15.0'],
           'onnx': [
               'onnxruntime==1.13.1',
               'torch==1.13.1',
@@ -568,13 +587,8 @@ if __name__ == '__main__':
               'skl2onnx==1.13',
               'transformers==4.25.1'
           ],
-          'xgboost': [
-              'xgboost>=1.6.0,<2.1.3',
-              'datatable==1.0.0'
-          ],
-          'tensorflow-hub': [
-              'tensorflow-hub>=0.14.0,<0.16.0'
-          ]
+          'xgboost': ['xgboost>=1.6.0,<2.1.3', 'datatable==1.0.0'],
+          'tensorflow-hub': ['tensorflow-hub>=0.14.0,<0.16.0']
       },
       zip_safe=False,
       # PyPI package information.
@@ -586,6 +600,7 @@ if __name__ == '__main__':
           'Programming Language :: Python :: 3.10',
           'Programming Language :: Python :: 3.11',
           'Programming Language :: Python :: 3.12',
+          'Programming Language :: Python :: 3.13',
           # When updating version classifiers, also update version warnings
           # above and in apache_beam/__init__.py.
           'Topic :: Software Development :: Libraries',

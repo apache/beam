@@ -39,7 +39,6 @@ import org.mockito.Mockito;
 
 @RunWith(JUnit4.class)
 public class StreamingWorkerStatusReporterTest {
-  private static final long DEFAULT_WINDMILL_QUOTA_THROTTLE_TIME = 1000;
   private static final long DEFAULT_HARNESS_REPORTING_PERIOD = 10000;
   private static final long DEFAULT_PER_WORKER_METRICS_PERIOD = 30000;
 
@@ -83,7 +82,6 @@ public class StreamingWorkerStatusReporterTest {
     return StreamingWorkerStatusReporter.builder()
         .setPublishCounters(true)
         .setDataflowServiceClient(mockWorkUnitClient)
-        .setWindmillQuotaThrottleTime(() -> DEFAULT_WINDMILL_QUOTA_THROTTLE_TIME)
         .setAllStageInfo(Collections::emptyList)
         .setFailureTracker(mockFailureTracker)
         .setStreamingCounters(StreamingCounters.create())

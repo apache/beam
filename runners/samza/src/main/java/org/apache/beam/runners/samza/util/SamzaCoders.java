@@ -22,8 +22,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.samza.serializers.Serde;
 
 /** Utils for Coders creation/conversion in Samza. */
@@ -38,7 +39,7 @@ public class SamzaCoders {
     final Coder<T> coder = pCollection.getCoder();
     final Coder<? extends BoundedWindow> windowCoder =
         pCollection.getWindowingStrategy().getWindowFn().windowCoder();
-    return WindowedValue.FullWindowedValueCoder.of(coder, windowCoder);
+    return WindowedValues.FullWindowedValueCoder.of(coder, windowCoder);
   }
 
   public static <T> Serde<T> toSerde(final Coder<T> coder) {

@@ -25,6 +25,7 @@ import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Map;
+import java.util.Objects;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.Job;
@@ -56,10 +57,7 @@ public class SerializableConfiguration implements Externalizable {
   public SerializableConfiguration() {}
 
   public SerializableConfiguration(Configuration conf) {
-    if (conf == null) {
-      throw new NullPointerException("Configuration must not be null.");
-    }
-    this.conf = conf;
+    this.conf = Objects.requireNonNull(conf, "Configuration must not be null.");
   }
 
   public Configuration get() {

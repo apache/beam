@@ -141,6 +141,14 @@ public final class PipelineOperator {
     return waitForConditionAndExecute(config, conditionCheck, this::cancelJobAndFinish);
   }
 
+  /**
+   * Similar to {@link #waitForConditionAndCancel(Config, Supplier...)} but force-cancels the job.
+   */
+  public Result waitForConditionAndForceCancel(Config config, Supplier<Boolean>... conditionCheck)
+      throws IOException {
+    return waitForConditionAndExecute(config, conditionCheck, this::forceCancelJobAndFinish);
+  }
+
   private Result waitForConditionAndExecute(
       Config config,
       Supplier<Boolean>[] conditionCheck,
@@ -168,6 +176,12 @@ public final class PipelineOperator {
   /** Similar to {@link #drainJobAndFinish} but cancels the job instead of draining. */
   public Result cancelJobAndFinish(Config config) throws IOException {
     client.cancelJob(config.project(), config.region(), config.jobId());
+    return waitUntilDone(config);
+  }
+
+  /** Similar to {@link #cancelJobAndFinish(Config)} but force-cancels the job. */
+  public Result forceCancelJobAndFinish(Config config) throws IOException {
+    client.forceCancelJob(config.project(), config.region(), config.jobId());
     return waitUntilDone(config);
   }
 

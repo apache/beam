@@ -29,14 +29,15 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.runners.core.DoFnRunner;
-import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.sdk.fn.test.TestExecutors;
 import org.apache.beam.sdk.fn.test.TestExecutors.TestExecutorService;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.joda.time.Instant;
@@ -101,7 +102,7 @@ public class SparkInputDataProcessorTest {
         setUpCtx(processor.getOutputManager(), desiredWriteCount, writeCount);
 
     Iterator<WindowedValue<String>> input =
-        Lists.newArrayList(WindowedValue.valueInGlobalWindow("tick")).iterator();
+        Lists.newArrayList(WindowedValues.valueInGlobalWindow("tick")).iterator();
     Iterator result = processor.createOutputIterator(input, ctx);
 
     CountDownLatch maxReached = new CountDownLatch(1);
@@ -146,7 +147,7 @@ public class SparkInputDataProcessorTest {
         setUpCtx(processor.getOutputManager(), desiredWriteCount, writeCount);
 
     Iterator<WindowedValue<String>> input =
-        Lists.newArrayList(WindowedValue.valueInGlobalWindow("tick")).iterator();
+        Lists.newArrayList(WindowedValues.valueInGlobalWindow("tick")).iterator();
     Iterator result = processor.createOutputIterator(input, ctx);
 
     // this will trigger input processing via doFn
@@ -168,7 +169,7 @@ public class SparkInputDataProcessorTest {
     SparkProcessContext<String, String, String> ctx =
         setUpCtx(processor.getOutputManager(), desiredWriteCount, writeCount);
 
-    WindowedValue<String> value = WindowedValue.valueInGlobalWindow("tick");
+    WindowedValue<String> value = WindowedValues.valueInGlobalWindow("tick");
     Iterator<WindowedValue<String>> input = Lists.newArrayList(value).iterator();
     Iterator result = processor.createOutputIterator(input, ctx);
 
@@ -193,7 +194,7 @@ public class SparkInputDataProcessorTest {
     SparkProcessContext<String, String, String> ctx =
         setUpCtx(processor.getOutputManager(), desiredWriteCount, writeCount);
 
-    WindowedValue<String> value = WindowedValue.valueInGlobalWindow("tick");
+    WindowedValue<String> value = WindowedValues.valueInGlobalWindow("tick");
     Iterator<WindowedValue<String>> input = Lists.newArrayList(value).iterator();
     Iterator result = processor.createOutputIterator(input, ctx);
 
@@ -209,7 +210,7 @@ public class SparkInputDataProcessorTest {
 
   @SuppressWarnings({"unchecked", "rawtypes"})
   private SparkProcessContext<String, String, String> setUpCtx(
-      DoFnRunners.OutputManager output, int desiredCount, AtomicInteger producedCount) {
+      WindowedValueMultiReceiver output, int desiredCount, AtomicInteger producedCount) {
     SparkProcessContext ctx = Mockito.mock(SparkProcessContext.class);
     TestDoFnRunner runner = new TestDoFnRunner(output, desiredCount, producedCount);
 
@@ -223,13 +224,13 @@ public class SparkInputDataProcessorTest {
 
   private static class TestDoFnRunner implements DoFnRunner<String, String> {
 
-    private final DoFnRunners.OutputManager output;
+    private final WindowedValueMultiReceiver output;
     private final AtomicInteger producedCount;
     private final int desiredCount;
     private final TestDoFn fn = new TestDoFn();
 
     TestDoFnRunner(
-        DoFnRunners.OutputManager output, int desiredCount, AtomicInteger producedCount) {
+        WindowedValueMultiReceiver output, int desiredCount, AtomicInteger producedCount) {
       this.output = output;
       this.producedCount = producedCount;
       this.desiredCount = desiredCount;
@@ -269,7 +270,7 @@ public class SparkInputDataProcessorTest {
       @DoFn.ProcessElement
       public void processElement(@Element String value) {
         for (int i = 0; i < desiredCount; i++) {
-          output.output(new TupleTag<>("key"), WindowedValue.valueInGlobalWindow(value + "_" + i));
+          output.output(new TupleTag<>("key"), WindowedValues.valueInGlobalWindow(value + "_" + i));
           producedCount.incrementAndGet();
         }
       }

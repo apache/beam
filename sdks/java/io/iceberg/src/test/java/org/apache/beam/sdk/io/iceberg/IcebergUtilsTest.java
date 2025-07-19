@@ -38,6 +38,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.types.Type;
@@ -242,6 +243,27 @@ public class IcebergUtilsTest {
           Types.ListType.ofRequired(1, Types.StringType.get()),
           list);
     }
+
+    @Test
+    public void testListOfRecords() {
+      Record actual =
+          IcebergUtils.beamRowToIcebergRecord(RECORD_LIST_ICEBERG_SCHEMA, ROW_LIST_OF_ROWS);
+      assertEquals(RECORD_LIST_OF_RECORDS, actual);
+    }
+
+    @Test
+    public void testIterableOfRecords() {
+      Record actual =
+          IcebergUtils.beamRowToIcebergRecord(RECORD_LIST_ICEBERG_SCHEMA, ROW_ITERABLE_OF_ROWS);
+      assertEquals(RECORD_LIST_OF_RECORDS, actual);
+    }
+
+    @Test
+    public void testMapOfRecords() {
+      Record actual =
+          IcebergUtils.beamRowToIcebergRecord(RECORD_MAP_ICEBERG_SCHEMA, ROW_MAP_OF_ROWS);
+      assertEquals(RECORD_MAP_OF_RECORDS, actual);
+    }
   }
 
   @RunWith(JUnit4.class)
@@ -418,7 +440,121 @@ public class IcebergUtilsTest {
           Schema.FieldType.iterable(Schema.FieldType.STRING),
           list);
     }
+
+    @Test
+    public void testListOfRecords() {
+      Row actual =
+          IcebergUtils.icebergRecordToBeamRow(ROW_LIST_BEAM_SCHEMA, RECORD_LIST_OF_RECORDS);
+      assertEquals(ROW_LIST_OF_ROWS, actual);
+    }
+
+    @Test
+    public void testIterableOfRecords() {
+      Row actual =
+          IcebergUtils.icebergRecordToBeamRow(ROW_ITERABLE_BEAM_SCHEMA, RECORD_ITERABLE_OF_RECORDS);
+      assertEquals(ROW_ITERABLE_OF_ROWS, actual);
+    }
+
+    @Test
+    public void testMapOfRecords() {
+      Row actual = IcebergUtils.icebergRecordToBeamRow(ROW_MAP_BEAM_SCHEMA, RECORD_MAP_OF_RECORDS);
+      assertEquals(ROW_MAP_OF_ROWS, actual);
+    }
   }
+
+  static final Schema NESTED_BEAM_SCHEMA =
+      Schema.builder()
+          .addArrayField("str_list", Schema.FieldType.STRING)
+          .addInt32Field("int")
+          .build();
+  static final Schema ROW_LIST_BEAM_SCHEMA =
+      Schema.builder()
+          .addArrayField("list", Schema.FieldType.row(NESTED_BEAM_SCHEMA))
+          .addBooleanField("bool")
+          .build();
+  static final Schema ROW_ITERABLE_BEAM_SCHEMA =
+      Schema.builder()
+          .addIterableField("list", Schema.FieldType.row(NESTED_BEAM_SCHEMA))
+          .addBooleanField("bool")
+          .build();
+  static final Schema ROW_MAP_BEAM_SCHEMA =
+      Schema.builder()
+          .addMapField("map", Schema.FieldType.STRING, Schema.FieldType.row(NESTED_BEAM_SCHEMA))
+          .build();
+  static final org.apache.iceberg.Schema NESTED_ICEBERG_SCHEMA =
+      new org.apache.iceberg.Schema(
+          required(4, "str_list", Types.ListType.ofRequired(6, Types.StringType.get())),
+          required(5, "int", Types.IntegerType.get()));
+  static final org.apache.iceberg.Schema RECORD_LIST_ICEBERG_SCHEMA =
+      new org.apache.iceberg.Schema(
+          required(
+              1,
+              "list",
+              Types.ListType.ofRequired(3, Types.StructType.of(NESTED_ICEBERG_SCHEMA.columns()))),
+          required(2, "bool", Types.BooleanType.get()));
+  static final org.apache.iceberg.Schema RECORD_MAP_ICEBERG_SCHEMA =
+      new org.apache.iceberg.Schema(
+          required(
+              1,
+              "map",
+              Types.MapType.ofRequired(
+                  2,
+                  3,
+                  Types.StringType.get(),
+                  Types.StructType.of(NESTED_ICEBERG_SCHEMA.columns()))));
+  static final List<Record> LIST_OF_RECORDS =
+      Arrays.asList(
+          GenericRecord.create(NESTED_ICEBERG_SCHEMA)
+              .copy(ImmutableMap.of("str_list", Arrays.asList("a", "b", "c"), "int", 123)),
+          GenericRecord.create(NESTED_ICEBERG_SCHEMA)
+              .copy(ImmutableMap.of("str_list", Arrays.asList("x", "y", "z"), "int", 789)));
+  static final Record RECORD_LIST_OF_RECORDS =
+      GenericRecord.create(RECORD_LIST_ICEBERG_SCHEMA)
+          .copy(ImmutableMap.of("list", LIST_OF_RECORDS, "bool", true));
+  static final Record RECORD_ITERABLE_OF_RECORDS =
+      GenericRecord.create(RECORD_LIST_ICEBERG_SCHEMA)
+          .copy(
+              ImmutableMap.of(
+                  "list", Iterables.unmodifiableIterable(LIST_OF_RECORDS), "bool", true));
+  static final List<Row> LIST_OF_ROWS =
+      Arrays.asList(
+          Row.withSchema(NESTED_BEAM_SCHEMA).addValues(Arrays.asList("a", "b", "c"), 123).build(),
+          Row.withSchema(NESTED_BEAM_SCHEMA).addValues(Arrays.asList("x", "y", "z"), 789).build());
+  static final Row ROW_LIST_OF_ROWS =
+      Row.withSchema(ROW_LIST_BEAM_SCHEMA).addValues(LIST_OF_ROWS, true).build();
+  static final Row ROW_ITERABLE_OF_ROWS =
+      Row.withSchema(ROW_ITERABLE_BEAM_SCHEMA)
+          .addValues(Iterables.unmodifiableIterable(LIST_OF_ROWS), true)
+          .build();
+  static final Record RECORD_MAP_OF_RECORDS =
+      GenericRecord.create(RECORD_MAP_ICEBERG_SCHEMA)
+          .copy(
+              ImmutableMap.of(
+                  "map",
+                  ImmutableMap.of(
+                      "key_1",
+                      GenericRecord.create(NESTED_ICEBERG_SCHEMA)
+                          .copy(
+                              ImmutableMap.of(
+                                  "str_list", Arrays.asList("a", "b", "c"), "int", 123)),
+                      "key_2",
+                      GenericRecord.create(NESTED_ICEBERG_SCHEMA)
+                          .copy(
+                              ImmutableMap.of(
+                                  "str_list", Arrays.asList("x", "y", "z"), "int", 789)))));
+  static final Row ROW_MAP_OF_ROWS =
+      Row.withSchema(ROW_MAP_BEAM_SCHEMA)
+          .addValues(
+              ImmutableMap.of(
+                  "key_1",
+                  Row.withSchema(NESTED_BEAM_SCHEMA)
+                      .addValues(Arrays.asList("a", "b", "c"), 123)
+                      .build(),
+                  "key_2",
+                  Row.withSchema(NESTED_BEAM_SCHEMA)
+                      .addValues(Arrays.asList("x", "y", "z"), 789)
+                      .build()))
+          .build();
 
   @RunWith(JUnit4.class)
   public static class SchemaTests {
@@ -700,9 +836,9 @@ public class IcebergUtilsTest {
 
     static final Schema BEAM_SCHEMA_LIST =
         Schema.builder()
-            .addIterableField("arr_str", Schema.FieldType.STRING)
-            .addIterableField("arr_int", Schema.FieldType.INT32)
-            .addIterableField("arr_bool", Schema.FieldType.BOOLEAN)
+            .addArrayField("arr_str", Schema.FieldType.STRING)
+            .addArrayField("arr_int", Schema.FieldType.INT32)
+            .addArrayField("arr_bool", Schema.FieldType.BOOLEAN)
             .build();
     static final org.apache.iceberg.Schema ICEBERG_SCHEMA_LIST =
         new org.apache.iceberg.Schema(

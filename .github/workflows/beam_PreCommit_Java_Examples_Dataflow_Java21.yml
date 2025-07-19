@@ -93,14 +93,14 @@ jobs:
         comment_phrase: ${{ matrix.job_phrase }}
         github_token: ${{ secrets.GITHUB_TOKEN }}
         github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
-    # The test requires Java 21 and Java 8 versions.
-    # Java 8 is installed second because JAVA_HOME needs to point to Java 8.
+    # The test requires Java 21 and Java 11 versions.
+    # Java 11 is installed second because JAVA_HOME needs to point to Java 11.
     - name: Setup environment
       uses: ./.github/actions/setup-environment-action
       with:
         java-version: |
           21
-          8
+          11
     - name: Clean
       uses: ./.github/actions/gradle-command-self-hosted-action
       with:
@@ -112,7 +112,7 @@ jobs:
     - name: Build and Test
       uses: ./.github/actions/gradle-command-self-hosted-action
       with:
-        gradle-command: :runners:google-cloud-dataflow-java:examples:preCommit
+        gradle-command: :runners:google-cloud-dataflow-java:examples:preCommit :runners:google-cloud-dataflow-java:examplesJavaDistrolessRunnerV2PreCommit
         arguments: |
           -PdisableSpotlessCheck=true \
           -PdisableCheckStyle=true \

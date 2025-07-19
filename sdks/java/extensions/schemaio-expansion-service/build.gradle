@@ -29,6 +29,12 @@ applyJavaNature(
         }
 )
 
+configurations.runtimeClasspath {
+  // Pin avro to 1.11.4 due to https://github.com/apache/beam/issues/34968
+  // cannot upgrade this to the latest version due to https://github.com/apache/beam/issues/34993
+  resolutionStrategy.force 'org.apache.avro:avro:1.11.4'
+}
+
 dependencies {
     implementation project(path: ":sdks:java:expansion-service")
     permitUnusedDeclared project(path: ":sdks:java:expansion-service") // BEAM-11761
@@ -56,8 +62,13 @@ dependencies {
     permitUnusedDeclared 'com.microsoft.sqlserver:mssql-jdbc:12.2.0.jre11' // BEAM-11761
     implementation 'com.google.cloud:alloydb-jdbc-connector:1.2.0'
     permitUnusedDeclared 'com.google.cloud:alloydb-jdbc-connector:1.2.0'
+    implementation 'com.google.cloud.sql:postgres-socket-factory:1.25.0'
+    permitUnusedDeclared 'com.google.cloud.sql:postgres-socket-factory:1.25.0'
+    implementation 'com.google.cloud.sql:mysql-socket-factory-connector-j-8:1.25.0'
+    permitUnusedDeclared 'com.google.cloud.sql:mysql-socket-factory-connector-j-8:1.25.0'
     testImplementation library.java.junit
     testImplementation library.java.mockito_core
+    runtimeOnly ("org.xerial:sqlite-jdbc:3.49.1.0")
 }
 
 task runExpansionService (type: JavaExec) {

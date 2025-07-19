@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter.BAD_RECORD_TAG;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.nio.charset.StandardCharsets;
@@ -525,12 +526,9 @@ public class ReadFromKafkaDoFnTest {
         new OffsetRangeTracker(new OffsetRange(startOffset, startOffset + 3));
     KafkaSourceDescriptor descriptor =
         KafkaSourceDescriptor.of(topicPartition, null, null, null, null, null);
-    ProcessContinuation result =
-        dofnInstanceWithBrokenSeek.processElement(descriptor, tracker, null, receiver);
-    assertEquals(ProcessContinuation.stop(), result);
-    assertEquals(
-        createExpectedRecords(descriptor, startOffset, 3, "key", "value"),
-        receiver.getGoodRecords());
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> dofnInstanceWithBrokenSeek.processElement(descriptor, tracker, null, receiver));
   }
 
   @Test

@@ -110,17 +110,17 @@ Apache Beam provides two BOMs:
 
 - `beam-sdks-java-bom`: manages Apache Beam dependencies, which allows
   you to specify the version only one time
-- `beam-sdks-java-io-google-cloud-platform-bom`: manages Apache Beam, Google Cloud,
+- `beam-sdks-java-google-cloud-platform-bom`: manages Apache Beam, Google Cloud,
   and third-party dependencies
 
 Because errors are more likely to occur when you use third-party dependencies,
-the `beam-sdks-java-io-google-cloud-platform-bom` BOM is recommended.
+the `beam-sdks-java-google-cloud-platform-bom` BOM is recommended.
 
 ### Import the BOM
 
 To use a BOM, import the BOM into your Maven or Gradle
 dependency configuration. For example, to
-use `beam-sdks-java-io-google-cloud-platform-bom`,
+use `beam-sdks-java-google-cloud-platform-bom`,
 make the following changes in the `pom.xml` file of your SDK artifact.
 In the following examples, replace _BEAM_VERSION_ with the appropriate
 Apache Beam SDK version.

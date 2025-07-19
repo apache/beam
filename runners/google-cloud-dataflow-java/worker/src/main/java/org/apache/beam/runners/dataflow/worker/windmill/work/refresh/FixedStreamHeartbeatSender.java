@@ -81,7 +81,7 @@ public final class FixedStreamHeartbeatSender implements HeartbeatSender {
   }
 
   @Override
-  public boolean equals(Object obj) {
+  public boolean equals(@Nullable Object obj) {
     return obj instanceof FixedStreamHeartbeatSender
         && getDataStream.equals(((FixedStreamHeartbeatSender) obj).getDataStream);
   }

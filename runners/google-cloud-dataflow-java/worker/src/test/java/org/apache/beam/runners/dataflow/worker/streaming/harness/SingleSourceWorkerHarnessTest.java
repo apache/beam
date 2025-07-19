@@ -60,8 +60,6 @@ public class SingleSourceWorkerHarnessTest {
         .setWaitForResources(waitForResources)
         .setStreamingWorkScheduler(streamingWorkScheduler)
         .setComputationStateFetcher(computationStateFetcher)
-        // no-op throttle time supplier.
-        .setThrottledTimeTracker(() -> 0L)
         .setGetWorkSender(getWorkSender)
         .build();
   }

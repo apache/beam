@@ -750,6 +750,20 @@ class PipelineOptionsTest(unittest.TestCase):
             'x-goog-custom-audit-id': '1234'
         })
 
+  def test_gcs_custom_audit_entries_wo_duplicated_prefix(self):
+    options = PipelineOptions([
+        '--gcs_custom_audit_entry=x-goog-custom-audit-user=test-user',
+        '--gcs_custom_audit_entries={"job":"test-job", "id":"1234"}'
+    ])
+    entries = options.view_as(GoogleCloudOptions).gcs_custom_audit_entries
+    self.assertDictEqual(
+        entries,
+        {
+            'x-goog-custom-audit-user': 'test-user',
+            'x-goog-custom-audit-job': 'test-job',
+            'x-goog-custom-audit-id': '1234'
+        })
+
   @mock.patch('apache_beam.options.pipeline_options._BeamArgumentParser.error')
   def test_gcs_custom_audit_entries_with_errors(self, mock_error):
     long_key = 'a' * 65
@@ -878,6 +892,58 @@ class PipelineOptionsTest(unittest.TestCase):
           'Invalid GCS path (badGSpath), given for the option: ' \
             'staging_location.'
         ])
+
+  def test_comma_separated_experiments(self):
+    """Test that comma-separated experiments are parsed correctly."""
+    # Test single experiment
+    options = PipelineOptions(['--experiments=abc'])
+    self.assertEqual(['abc'], options.get_all_options()['experiments'])
+
+    # Test comma-separated experiments
+    options = PipelineOptions(['--experiments=abc,def,ghi'])
+    self.assertEqual(['abc', 'def', 'ghi'],
+                     options.get_all_options()['experiments'])
+
+    # Test multiple flags with comma-separated values
+    options = PipelineOptions(
+        ['--experiments=abc,def', '--experiments=ghi,jkl'])
+    self.assertEqual(['abc', 'def', 'ghi', 'jkl'],
+                     options.get_all_options()['experiments'])
+
+    # Test with spaces around commas
+    options = PipelineOptions(['--experiments=abc, def , ghi'])
+    self.assertEqual(['abc', 'def', 'ghi'],
+                     options.get_all_options()['experiments'])
+
+    # Test empty values are filtered out
+    options = PipelineOptions(['--experiments=abc,,def,'])
+    self.assertEqual(['abc', 'def'], options.get_all_options()['experiments'])
+
+  def test_comma_separated_dataflow_service_options(self):
+    """Test that comma-separated dataflow service options are parsed
+    correctly."""
+    # Test single option
+    options = PipelineOptions(['--dataflow_service_options=option1=value1'])
+    self.assertEqual(['option1=value1'],
+                     options.get_all_options()['dataflow_service_options'])
+
+    # Test comma-separated options
+    options = PipelineOptions([
+        '--dataflow_service_options=option1=value1,option2=value2,'
+        'option3=value3'
+    ])
+    self.assertEqual(['option1=value1', 'option2=value2', 'option3=value3'],
+                     options.get_all_options()['dataflow_service_options'])
+
+    # Test multiple flags with comma-separated values
+    options = PipelineOptions([
+        '--dataflow_service_options=option1=value1,option2=value2',
+        '--dataflow_service_options=option3=value3,option4=value4'
+    ])
+    self.assertEqual([
+        'option1=value1', 'option2=value2', 'option3=value3', 'option4=value4'
+    ],
+                     options.get_all_options()['dataflow_service_options'])
 
 
 if __name__ == '__main__':

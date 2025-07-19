@@ -52,7 +52,6 @@ from apache_beam.transforms.display_test import DisplayDataItemMatcher
 
 try:
   import pyarrow as pa
-  import pyarrow.lib as pl
   import pyarrow.parquet as pq
 except ImportError:
   pa = None
@@ -338,17 +337,16 @@ class TestParquet(unittest.TestCase):
       ARROW_MAJOR_VERSION >= 13,
       'pyarrow 13.x and above does not throw ArrowInvalid error')
   def test_sink_transform_int96(self):
-    with tempfile.NamedTemporaryFile() as dst:
+    with self.assertRaisesRegex(Exception, 'would lose data'):
+      # Should throw an error "ArrowInvalid: Casting from timestamp[ns] to
+      # timestamp[us] would lose data"
+      dst = tempfile.NamedTemporaryFile()
       path = dst.name
-      # pylint: disable=c-extension-no-member
-      with self.assertRaises(pl.ArrowInvalid):
-        # Should throw an error "ArrowInvalid: Casting from timestamp[ns] to
-        # timestamp[us] would lose data"
-        with TestPipeline() as p:
-          _ = p \
-          | Create(self.RECORDS) \
-          | WriteToParquet(
-              path, self.SCHEMA96, num_shards=1, shard_name_template='')
+      with TestPipeline() as p:
+        _ = p \
+        | Create(self.RECORDS) \
+        | WriteToParquet(
+            path, self.SCHEMA96, num_shards=1, shard_name_template='')
 
   def test_sink_transform(self):
     with TemporaryDirectory() as tmp_dirname:
@@ -487,7 +485,11 @@ class TestParquet(unittest.TestCase):
     self._run_parquet_test(file_name, None, 10000, True, expected_result)
 
   def test_dynamic_work_rebalancing(self):
-    file_name = self._write_data(count=120, row_group_size=20)
+    # This test depends on count being sufficiently large + the ratio of
+    # count to row_group_size also being sufficiently large (but the required
+    # ratio to pass varies for values of row_group_size and, somehow, the
+    # version of pyarrow being tested against.)
+    file_name = self._write_data(count=280, row_group_size=20)
     source = _create_parquet_source(file_name)
 
     splits = [split for split in source.split(desired_bundle_size=float('inf'))]
@@ -567,7 +569,8 @@ class TestParquet(unittest.TestCase):
   def test_sink_transform_multiple_row_group(self):
     with TemporaryDirectory() as tmp_dirname:
       path = os.path.join(tmp_dirname + "tmp_filename")
-      with TestPipeline() as p:
+      # Pin to FnApiRunner since test assumes fixed bundle size
+      with TestPipeline('FnApiRunner') as p:
         # writing 623200 bytes of data
         _ = p \
         | Create(self.RECORDS * 4000) \

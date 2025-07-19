@@ -42,6 +42,11 @@ from apache_beam.runners.portability import stager
 
 _LOGGER = logging.getLogger(__name__)
 
+try:
+  import setuptools
+except ImportError:
+  setuptools = None
+
 
 class StagerTest(unittest.TestCase):
   def setUp(self):
@@ -393,7 +398,46 @@ class StagerTest(unittest.TestCase):
     self.assertTrue(
         cm.exception.args[0].startswith(
             'The --setup_file option expects the full path to a file named '
-            'setup.py instead of '))
+            'setup.py or pyproject.toml instead of '))
+
+  def test_setup_file_supplies_unexpected_filename(self):
+    staging_dir = self.make_temp_dir()
+    source_dir = self.make_temp_dir()
+
+    options = PipelineOptions()
+    self.update_options(options)
+    options.view_as(SetupOptions).setup_file = (
+        os.path.join(source_dir, 'xyz-pyproject.toml'))
+
+    self.create_temp_file(
+        os.path.join(source_dir, 'xyz-pyproject.toml'), 'notused')
+    with self.assertRaises(RuntimeError) as cm:
+      self.stager.create_and_stage_job_resources(
+          options, staging_location=staging_dir)
+    self.assertTrue(
+        cm.exception.args[0].startswith(
+            'The --setup_file option expects the full path to a file named '
+            'setup.py or pyproject.toml instead of '))
+
+  @unittest.skipIf(setuptools is None, "setuptools not available in this env")
+  def test_setup_file_as_setup_dot_py_file(self):
+    source_dir = self.make_temp_dir()
+
+    options = PipelineOptions()
+    self.update_options(options)
+    options.view_as(SetupOptions).setup_file = (
+        os.path.join(source_dir, 'setup.py'))
+
+    self.create_temp_file(
+        os.path.join(source_dir, 'setup.py'),
+        "from setuptools import setup; setup(name='my_package')")
+    temp_dir = tempfile.mkdtemp()
+    resources = self.stager.create_job_resources(
+        options=options, temp_dir=temp_dir)
+    file_path = list(self.stager.extract_staging_tuple_iter(resources))[0][0]
+
+    self.assertEqual(
+        os.path.join(temp_dir, 'my_package-0.0.0.tar.gz'), file_path)
 
   def test_sdk_location_default(self):
     staging_dir = self.make_temp_dir()
