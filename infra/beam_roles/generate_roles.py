@@ -23,19 +23,6 @@ import os
 from google.cloud import iam_admin_v1
 from google.api_core import exceptions
 
-# Load configuration from YAML file
-script_dir = os.path.dirname(os.path.abspath(__file__))
-config_path = os.path.join(script_dir, "roles_config.yaml")
-with open(config_path, "r") as f:
-    config = yaml.safe_load(f)
-
-BEAM_VIEWER_SERVICES = config["services"]["viewer"]
-BEAM_COMMITTER_SERVICES = config["services"]["committer"]
-BEAM_INFRA_MANAGER_SERVICES = config["services"]["infra_manager"]
-BEAM_ADMIN_SERVICES = config["services"]["admin"]
-SECRET_MANAGER_SERVICES = config["services"]["secret_manager"]
-GCP_DESTRUCTIVE_SUFFIXES = config["destructive_suffixes"]
-
 # Permissions cache to avoid repeated API calls.
 permissions_cache = {}
 
@@ -66,15 +53,15 @@ def get_permission_stage(permission_name: str, project_id: str) -> str:
         permission_name: The name of the permission to check, e.g., 'storage.buckets.create'.
         project_id: The ID of the GCP project to check against.
     Returns:
-        The support level of the permission as a string, or None if the permission is not found.
+        The support level of the permission as a string, or "" if the permission is not found.
     """
     global permissions_cache
 
     try:
-        if project_id in permissions_cache:
-            return permissions_cache[project_id].get(permission_name, None)
+        if f"{project_id}-stage" in permissions_cache:
+            return permissions_cache[f"{project_id}-stage"].get(permission_name, "")
         else:
-            permissions_cache[project_id] = {}
+            permissions_cache[f"{project_id}-stage"] = {}
 
         client = iam_admin_v1.IAMClient()
         resource = f"//cloudresourcemanager.googleapis.com/projects/{project_id}"
@@ -85,23 +72,23 @@ def get_permission_stage(permission_name: str, project_id: str) -> str:
         )
 
         for permission in client.query_testable_permissions(request=request):
-            permissions_cache[project_id][permission.name] = permission.custom_roles_support_level
+            permissions_cache[f"{project_id}-stage"][permission.name] = permission.custom_roles_support_level
 
-        return permissions_cache.get(permission_name, None)
+        return permissions_cache[f"{project_id}-stage"].get(permission_name, "")
 
     except exceptions.PermissionDenied as e:
         print(f"Error: Permission denied. Ensure you have 'resourcemanager.projects.get' on project '{project_id}'.")
         print(f"Details: {e}")
-        return None
+        return ""
     except exceptions.NotFound as e:
         print(f"Error: Project '{project_id}' not found.")
         print(f"Details: {e}")
-        return None
+        return ""
     except Exception as e:
         print(f"An unexpected error occurred while fetching permissions: {e}")
-        return None
+        return ""
 
-def get_role_permissions(role_name: str, project_id: str = None) -> list[str]:
+def get_role_permissions(role_name: str, project_id: str = "") -> list[str]:
     """
     Gets the permissions included in a predefined or custom IAM role, filtered to only GA permissions.
 
@@ -114,7 +101,17 @@ def get_role_permissions(role_name: str, project_id: str = None) -> list[str]:
     Returns:
         A list of GA permissions associated with the role.
     """
+
+    global permissions_cache
+    print(f"Fetching permissions for role: {role_name} in project: {project_id}")
+
     try:
+        if f"{project_id}-role" in permissions_cache and role_name in permissions_cache[f"{project_id}-role"]:
+            return permissions_cache[f"{project_id}-role"].get(role_name, [])
+        else:
+            if f"{project_id}-role" not in permissions_cache:
+                permissions_cache[f"{project_id}-role"] = {}
+
         client = iam_admin_v1.IAMClient()
         request = iam_admin_v1.GetRoleRequest(
             name=role_name,
@@ -126,6 +123,8 @@ def get_role_permissions(role_name: str, project_id: str = None) -> list[str]:
             stage = get_permission_stage(perm, project_id)
             if stage == iam_admin_v1.Permission.CustomRolesSupportLevel.SUPPORTED:
                 ga_perms.append(perm)
+        
+        permissions_cache[f"{project_id}-role"][role_name] = ga_perms
         return ga_perms
     except exceptions.NotFound:
         print(f"Error: The role '{role_name}' was not found.")
@@ -134,28 +133,24 @@ def get_role_permissions(role_name: str, project_id: str = None) -> list[str]:
         print(f"An unexpected error occurred: {e}")
         return []
 
-def filter_permissions(permissions: list[str], allowed_strs: list[str] = None, denied_strs: list[str] = None) -> set[str]:
+def filter_permissions(permissions: list[str], allowed_prefixes: list[str] = [], denied_suffixes: list[str] = []) -> set[str]:
     """
     Filters permissions based on the provided services.
 
     Args:
         permissions: A list of permissions to filter.
-        allowed_strs: A list of strings that permissions must contain to be included.
-        denied_strs: A list of strings that permissions must not contain to be included.
+        allowed_prefixes: A list of strings that permissions must contain to be included.
+        denied_suffixes: A list of strings that permissions must not contain to be included.
     Returns:
         A list of permissions that match the specified services.
     """
 
-    if allowed_strs is None:
-        allowed_strs = []
-    if denied_strs is None:
-        denied_strs = GCP_DESTRUCTIVE_SUFFIXES
-
     filtered_permissions = set()
 
     for perm in permissions:
-        if any(allowed in perm for allowed in allowed_strs) and not any(denied in perm for denied in denied_strs):
-            filtered_permissions.add(perm)
+        if any(perm.startswith(prefix) for prefix in allowed_prefixes):
+            if not any(perm.endswith(suffix) for suffix in denied_suffixes):
+                filtered_permissions.add(perm)
 
     return filtered_permissions
 
@@ -177,38 +172,93 @@ def write_role_yaml(filename, role_data):
         f.write(f"# This file was generated on {datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC\n\n")
         yaml.dump(role_data, f, default_flow_style=False)
 
+def get_config():
+    """
+    Reads the roles configuration from the YAML file and returns it as a dictionary.
+    The configuration includes services, roles, and suffixes for filtering permissions.
+    """
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    config_path = os.path.join(script_dir, "roles_config.yaml")
+    with open(config_path, "r") as f:
+        config = yaml.safe_load(f)
+
+    # Each role inherits permissions from the previous role.
+    # This means that the viewer role has all the permissions of the committer role, and so on.
+    # The roles are defined in the order of viewer, committer, infra_manager, and admin.
+    # The viewer role is the base role, so its file contains all its
+
+    response = {
+        "project_id": config.get("project_id", "apache-beam-testing"),
+        "roles_prefix": config.get("roles_prefix", "beam"),
+        "role": {}
+    }
+
+    # Add suffixes to the response
+    suffixes = {}
+    for suffix in config.get("suffixes", []):
+        suffixes[suffix["name"]] = suffix["values"]
+
+    services = set()
+    roles = set()
+
+    # Sort roles by hierarchy to ensure they are processed in the correct order.
+    config["roles"].sort(key=lambda x: int(x.get("hierarchy", 0)))
+
+    for role in config["roles"]:
+        services.update(role.get("services", []))
+        roles.update(role.get("roles", []))
+
+        response["role"][role["name"]] = {
+            "name": role["name"],
+            "description": role.get("description", f"This is the {role['name']} role"),
+            "services": services.copy(),
+            "roles": roles.copy(),
+            "except_suffixes": [],
+        }
+
+        # If the role has except_suffixes, add them to the response
+        suffix_set = set()
+        for except_suffix in role.get("except_suffixes", []):
+            if except_suffix in suffixes:
+                suffix_set.update(suffixes[except_suffix])
+            else:
+                raise ValueError(f"Unknown suffix '{except_suffix}' in role '{role['name']}'")
+        if suffix_set:
+            response["role"][role["name"]]["except_suffixes"] = list(suffix_set)
+
+    return response
+
 def get_roles():
     """
     Generates the roles based on the predefined services and permissions.
     This function creates roles for Beam Viewer, Committer, Infra Manager, and Admin.
     It filters permissions based on the allowed and denied strings defined in the configuration.
     """
-    gcp_viewer_perms = get_role_permissions("roles/viewer", project_id="apache-beam-testing")
-    gcp_editor_perms = get_role_permissions("roles/editor", project_id="apache-beam-testing")
 
-    # Generate Beam Viewer role
-    # This is the base role, so its file contains all its permissions.
-    beam_viewer_perms = filter_permissions(gcp_viewer_perms, allowed_strs=BEAM_VIEWER_SERVICES, denied_strs=SECRET_MANAGER_SERVICES+GCP_DESTRUCTIVE_SUFFIXES)
-    beam_viewer_role = generate_role("beam_viewer", beam_viewer_perms)
+    config = get_config()
+    response = {}
 
-    # Generate Beam Committer role
-    beam_committer_perms = filter_permissions(gcp_viewer_perms, allowed_strs=BEAM_VIEWER_SERVICES+BEAM_COMMITTER_SERVICES, denied_strs=SECRET_MANAGER_SERVICES+GCP_DESTRUCTIVE_SUFFIXES)
-    beam_committer_role = generate_role("beam_committer", (beam_committer_perms-beam_viewer_perms))
+    project_id = config["project_id"]
 
-    # Generate Beam Infra Manager role
-    beam_infra_manager_perms = filter_permissions(gcp_editor_perms, allowed_strs=BEAM_VIEWER_SERVICES+BEAM_COMMITTER_SERVICES+BEAM_INFRA_MANAGER_SERVICES, denied_strs=SECRET_MANAGER_SERVICES+GCP_DESTRUCTIVE_SUFFIXES)
-    beam_infra_manager_role = generate_role("beam_infra_manager", (beam_infra_manager_perms-beam_committer_perms-beam_viewer_perms))
+    permissions_added = set()
 
-    # Generate Beam Admin role
-    beam_admin_perms = filter_permissions(gcp_editor_perms, allowed_strs=BEAM_VIEWER_SERVICES+BEAM_COMMITTER_SERVICES+BEAM_INFRA_MANAGER_SERVICES+BEAM_ADMIN_SERVICES, denied_strs=[])
-    beam_admin_role = generate_role("beam_admin", (beam_admin_perms-beam_infra_manager_perms-beam_committer_perms-beam_viewer_perms))
+    for role in config["role"].values():
+        print(f"Generating role: {config['roles_prefix']}_{role['name']} with services: {role['services']} and roles: {role['roles']}")
+        # Get the permissions for each base role.
+        role_permissions = set()
+        for role_name in role["roles"]:
+            role_permissions.update(get_role_permissions(role_name, project_id))
+        role["permissions"] = filter_permissions(
+            permissions=list(role_permissions),
+            allowed_prefixes=list(role["services"]),
+            denied_suffixes=role.get("except_suffixes", [])
+        )
+        # Remove already added permissions to avoid duplicates.
+        role["permissions"] = role["permissions"].difference(permissions_added)
+        permissions_added.update(role["permissions"])
+        response[f"{config['roles_prefix']}_{role['name']}"] = generate_role(f"{config['roles_prefix']}_{role['name']}", role["permissions"])
 
-    return {
-        "beam_viewer": beam_viewer_role,
-        "beam_committer": beam_committer_role,
-        "beam_infra_manager": beam_infra_manager_role,
-        "beam_admin": beam_admin_role,
-    }
+    return response
 
 def main():
     """
