@@ -72,6 +72,7 @@ public class BeamRuleSets {
 
           // push a filter into a join
           CoreRules.FILTER_INTO_JOIN,
+          CoreRules.FILTER_SUB_QUERY_TO_CORRELATE,
           // push filter into the children of a join
           CoreRules.JOIN_CONDITION_PUSH,
           // push filter through an aggregation

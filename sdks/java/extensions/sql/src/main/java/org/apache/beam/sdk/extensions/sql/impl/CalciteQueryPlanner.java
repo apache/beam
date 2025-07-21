@@ -59,6 +59,7 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.parser.SqlP
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.parser.SqlParser;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.parser.SqlParserImplFactory;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.util.SqlOperatorTables;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql2rel.SqlToRelConverter;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.FrameworkConfig;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.Frameworks;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.Planner;
@@ -141,6 +142,9 @@ public class CalciteQueryPlanner implements QueryPlanner {
     final SqlOperatorTable opTab0 =
         connection.config().fun(SqlOperatorTable.class, SqlStdOperatorTable.instance());
 
+    // Revert the flag flip of CALCITE-3870 which led to missing rules
+    SqlToRelConverter.Config sqlToRelConfig = SqlToRelConverter.config().withExpand(true);
+
     return Frameworks.newConfigBuilder()
         .parserConfig(parserConfig.build())
         .defaultSchema(defaultSchema)
@@ -150,6 +154,7 @@ public class CalciteQueryPlanner implements QueryPlanner {
         .costFactory(BeamCostModel.FACTORY)
         .typeSystem(connection.getTypeFactory().getTypeSystem())
         .operatorTable(SqlOperatorTables.chain(opTab0, catalogReader))
+        .sqlToRelConverterConfig(sqlToRelConfig)
         .build();
   }
 
