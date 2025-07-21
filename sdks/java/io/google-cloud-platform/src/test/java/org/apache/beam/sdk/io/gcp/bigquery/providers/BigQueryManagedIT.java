@@ -103,7 +103,7 @@ public class BigQueryManagedIT {
     String table =
         String.format("%s.%s.%s", PROJECT, BIG_QUERY_DATASET_ID, testName.getMethodName());
     Map<String, Object> writeConfig =
-        ImmutableMap.of("table", table, "clustering", Collections.singletonList("str"));
+        ImmutableMap.of("table", table, "clustering_fields", Collections.singletonList("str"));
 
     // file loads requires a GCS temp location
     String tempLocation = writePipeline.getOptions().as(TestPipelineOptions.class).getTempRoot();
