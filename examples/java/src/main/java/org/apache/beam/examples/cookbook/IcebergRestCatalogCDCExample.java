@@ -73,6 +73,8 @@ public class IcebergRestCatalogCDCExample {
     final String warehouseLocation = options.getWarehouse();
     final String projectName = options.getProject();
     final String catalogName = options.getCatalogName();
+    final int pollIntervalSeconds = 120;
+    final int triggeringFrequencySeconds = 30;
 
     // Note: The token expires in 1 hour, and users may need to re-run the pipeline.
     // Upcoming changes in Iceberg and the BigLake Metastore with the Iceberg REST Catalog
@@ -98,7 +100,7 @@ public class IcebergRestCatalogCDCExample {
             .put("catalog_name", catalogName)
             .put("catalog_properties", catalogProps)
             .put("streaming", true)
-            .put("poll_interval_seconds", 120)
+            .put("poll_interval_seconds", pollIntervalSeconds)
             .build();
 
     PCollection<Row> cdcEvents =
@@ -141,7 +143,7 @@ public class IcebergRestCatalogCDCExample {
             .put("table", destinationTable)
             .put("catalog_properties", catalogProps)
             .put("catalog_name", catalogName)
-            .put("triggering_frequency_seconds", 30)
+            .put("triggering_frequency_seconds", triggeringFrequencySeconds)
             .build();
 
     aggregatedRows.apply(
