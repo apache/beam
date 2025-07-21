@@ -1714,7 +1714,7 @@ class BigQueryWriteFn(DoFn):
 
         if (should_retry and
             self._retry_strategy in [RetryStrategy.RETRY_ON_TRANSIENT_ERROR,
-                                     RetryStrategy.RETRY_ALL]):
+                                     RetryStrategy.RETRY_ALWAYS]):
           log_level = logging.WARN
         else:
           log_level = logging.ERROR
