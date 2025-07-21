@@ -112,9 +112,9 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
       _LOGGER.warning('Discarding unrecognized arguments %s' % unknown_args)
     self.set_flink_job_server_jar(
         known_args.flink_job_server_jar or
-        job_server.JavaJarJobServer.path_to_beam_jar(
-            (':runners:flink:%s:job-server:shadowJar' %
-             FlinkRunnerOptions.PUBLISHED_FLINK_VERSIONS[-1])))
+        job_server.JavaJarJobServer.path_to_beam_jar((
+            ':runners:flink:%s:job-server:shadowJar' %
+            FlinkRunnerOptions.PUBLISHED_FLINK_VERSIONS[-1])))
     self.environment_type = known_args.environment_type
     self.environment_options = known_args.environment_options
 
