@@ -36,6 +36,7 @@ from apache_beam.io.external.generate_sequence import GenerateSequence
 from apache_beam.io.kafka import ReadFromKafka
 from apache_beam.io.kafka import WriteToKafka
 from apache_beam.options.pipeline_options import DebugOptions
+from apache_beam.options.pipeline_options import FlinkRunnerOptions
 from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.portability import job_server
@@ -112,7 +113,8 @@ class FlinkRunnerTest(portable_runner_test.PortableRunnerTest):
     self.set_flink_job_server_jar(
         known_args.flink_job_server_jar or
         job_server.JavaJarJobServer.path_to_beam_jar(
-            (':runners:flink:%s:job-server:shadowJar' % '1.19')))
+            (':runners:flink:%s:job-server:shadowJar' %
+             FlinkRunnerOptions.PUBLISHED_FLINK_VERSIONS[-1])))
     self.environment_type = known_args.environment_type
     self.environment_options = known_args.environment_options
 
