@@ -91,6 +91,13 @@
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*requestresponse.*" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*examples.*webapis.*" />
 
+  <!-- Calcite exceptions -->
+  <!-- Vendored calcite is used within extensions/sql, for other Beam components that only need
+      calcite-core, unvendored calcite is allowed in case-by-case scenario. -->
+  <!-- iceberg/hive already comes with unvendored calcite with newer version. -->
+  <suppress id="ForbidCalcite" files="sdk.*io.*iceberg.*FilterUtils" />
+
+
   <!-- Flink -->
   <!-- Checkstyle does not correctly detect package files across multiple source directories. -->
   <suppress checks="JavadocPackage" files=".*runners.flink.*AbstractStreamOperatorCompat\.java"/>
