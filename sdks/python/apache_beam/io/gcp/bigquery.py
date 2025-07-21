@@ -1712,8 +1712,9 @@ class BigQueryWriteFn(DoFn):
         # The log level is:
         # - WARNING when should_retry is true, else ERROR.
 
-        if (should_retry and self._retry_strategy in 
-            [RetryStrategy.RETRY_ON_TRANSIENT_ERROR, RetryStrategy.RETRY_ALL]):
+        if (should_retry and
+            self._retry_strategy in [RetryStrategy.RETRY_ON_TRANSIENT_ERROR,
+                                     RetryStrategy.RETRY_ALL]):
           log_level = logging.WARN
         else:
           log_level = logging.ERROR
