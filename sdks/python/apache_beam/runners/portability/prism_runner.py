@@ -184,7 +184,7 @@ class PrismJobServer(job_server.SubprocessJobServer):
     try:
       st = os.stat(target_url)
       os.chmod(target_url, st.st_mode | stat.S_IEXEC)
-    except:
+    except PermissionError:
       _LOGGER.warning(
           'Could not change permissions of prism binary; invoking may fail if '
           + 'current process does not have exec permissions on binary.')
