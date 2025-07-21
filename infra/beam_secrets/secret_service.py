@@ -71,7 +71,7 @@ class SecretService:
         self._get_secrets_names()  # Retrieve existing secrets
 
     def _get_secrets_names(self) -> None:
-        """Retrieves the list of secrets from the Secret Manager."""
+        """Retrieves the list of secrets from the Secret Manager and populates the `secrets_names` list."""
         print("Retrieving existing secrets...")
         for secret in self.client.list_secrets(request={"parent": self.parent}):
             secret_id = secret.name.split("/")[-1]
@@ -117,7 +117,7 @@ class SecretService:
         print(f"Created secret: {response.name}")
         return response.name
 
-    def add_secret_version(self, secret_name: str, payload: bytes) -> str:
+    def add_secret_version(self, secret_name: str, payload: bytes|str) -> str:
         """
         Adds a new version to the specified secret with the given payload.
         If the secret does not exist, it will be created first.
@@ -132,7 +132,7 @@ class SecretService:
         secret_id = self._create_secret(secret_name)
         payload_bytes = payload.encode('utf-8') if isinstance(payload, str) else payload
 
-        if not isinstance(payload_bytes, bytes):
+        if not isinstance(payload_bytes, (bytes, str)):
             raise TypeError("Payload must be a bytes object or a string that can be encoded to bytes.")
 
         crc32c = google_crc32c.Checksum()
@@ -150,7 +150,6 @@ class SecretService:
 
         versions = list(self.client.list_secret_versions(request={"parent": secret_id}))
         if len(versions) > self.max_versions_to_keep:
-            versions.sort(key=lambda v: v.create_time)
             versions = [v for v in versions if v.state != secretmanager.SecretVersion.State.DESTROYED]
             if not versions:
                 raise ValueError("No enabled secret versions found to destroy.")
@@ -234,10 +233,12 @@ if __name__ == "__main__":
     # Example usage
     secret_name = "example-secret"
 
-    for i in range(10):
+    # Adding multiple versions of a secret
+    for i in range(1, 4):
         secret_version = secret_service.add_secret_version(secret_name, f"This is test secret version {i+1}")
         print(f"Added secret version: {secret_version}")
 
+    # Retrieving the latest version of the secret, it should return 4
     retrieved_secret = secret_service.get_secret_version(secret_name)
     print(f"Retrieved secret: {retrieved_secret.decode('utf-8')}")
 
@@ -247,6 +248,7 @@ if __name__ == "__main__":
     print("Attempting to retrieve the latest version after disabling...")
     try:
         retrieved_secret = secret_service.get_secret_version(secret_name)
+        # This should retrieve the latest enabled version, which is now 3
         print(f"Retrieved secret after disabling: {retrieved_secret.decode('utf-8')}")
     except Exception as e:
         print(f"Error retrieving secret after disabling: {e}")
