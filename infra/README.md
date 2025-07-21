@@ -48,20 +48,21 @@ The roles are defined in the `roles_config.yaml` file. Each role includes a name
 The defined roles are:
 
 - `beam_viewer`: Read-only access to the Beam project. Excludes secret management permissions.
+- `beam_commiter`: User access to the the resources in the Beam project.
 - `beam_infra_manager`: Editor access to the Beam project, excluding destructive permissions.
 - `beam_admin`: Full access to the Beam project, including destructive capabilities and secret management.
 
 Roles are structured in a hierarchy, allowing for inheritance of permissions. Each role builds upon the previous one. The hierarchy is as follows:
 
 ```plaintext
-beam_viewer < beam_infra_manager < beam_admin
+beam_viewer < beam_commiter < beam_infra_manager < beam_admin
 ```
 
 ### Modifying Roles services
 
-Each role can have its associated services modified. The services are defined in the `roles_config.yaml` file under each role's `services` section.
+Each role can have its associated base roles and services. The `roles_config.yaml` file defines the services associated with each role. For example, the `beam_viewer` role has read-only access to the project, while the `beam_infra_manager` role has editor access but excludes destructive permissions.
 
-To modify the services associated with a role, edit the `roles_config.yaml` file and update the relevant service lists under each role. After making changes, re-run the `generate_roles.py` script to apply the updates.
+To modify the services associated with a role, edit the `roles_config.yaml` file and update the relevant service and roles lists under each role. After making changes, re-run the `generate_roles.py` script to apply the updates.
 
 The `generate_roles.py` script, install the dependencies using:
 
@@ -115,7 +116,7 @@ terraform apply
 
 Remember that you need to have the necessary permissions in the GCP project to manage users and roles.
 
----
+> Note: The roles should be the ones created with the `generate_roles.py` script, but you can also use the predefined roles in GCP for more granular control when needed.
 
 ## Python Scripts
 
