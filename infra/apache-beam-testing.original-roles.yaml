@@ -16,7 +16,7 @@
 #
 
 # Exported original IAM policy for project apache-beam-testing
-# Generated on 2025-07-17 14:32:33
+# Generated on 2025-07-21 13:35:42
 
 - username: WhatWouldAustinDo
   email: WhatWouldAustinDo@gmail.com
@@ -25,7 +25,9 @@
 - username: a.khorbaladze
   email: a.khorbaladze@akvelon.us
   permissions:
+  - role: roles/container.admin
   - role: roles/editor
+  - role: roles/secretmanager.admin
 - username: aaronleeiv
   email: aaronleeiv@google.com
   permissions:
@@ -343,12 +345,14 @@
 - username: phucnh402
   email: phucnh402@gmail.com
   permissions:
+  - role: roles/biglake.admin
   - role: roles/container.admin
   - role: roles/dataflow.admin
   - role: roles/editor
   - role: roles/iam.serviceAccountUser
   - role: roles/logging.logWriter
   - role: roles/logging.viewer
+  - role: roles/storage.admin
 - username: polecito.em
   email: polecito.em@gmail.com
   permissions:

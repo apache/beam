@@ -123,10 +123,11 @@ def migrate_permissions(data: list) -> list:
     The rules are:
     - If the user has owner role, leave it as is, remove any other role as it is redundant.
     - If the user has any admin or secret related role, it will be migrated to the beam_admin role.
-    - If the user has an editor role but not an admin or secret related role, it will be migrated to the beam_infra_manager role.
-    - The rest of the roles will be migrated to the beam_viewer role.
+    - If the user has an editor role or any user role but not an admin or secret related role, it will be migrated to the beam_infra_manager role.
+    - If the user has a role that is not only viewer, it will be migrated to the beam_committer role.
+    - The users with just viewer roles will be migrated to the beam_viewer role.
 
-    The rules are in a hierarchical order, meaning that if a user has a hight role, it will also have the lower roles.
+    The rules are in a hierarchical order, meaning that if a user has a high role, it will also have the lower roles.
 
     Args:
         data: A list of dictionaries containing user permissions and details.
@@ -146,6 +147,7 @@ def migrate_permissions(data: list) -> list:
             "beam_owner": False,
             "beam_admin": False,
             "beam_infra_manager": False,
+            "beam_committer": False,
             "beam_viewer": False
         }
 
@@ -159,10 +161,16 @@ def migrate_permissions(data: list) -> list:
             elif 'admin' in role.lower() or 'secretmanager' in role.lower():
                 new_roles["beam_admin"] = True
                 new_roles["beam_infra_manager"] = True
+                new_roles["beam_committer"] = True
                 new_roles["beam_viewer"] = True
             # If it is an editor role, it will be migrated to the beam_infra_manager.
             elif role == "roles/editor":
                 new_roles["beam_infra_manager"] = True
+                new_roles["beam_committer"] = True
+                new_roles["beam_viewer"] = True
+            elif role != "roles/viewer":
+                # If it is a role that is not only viewer, it will be migrated to the beam_committer role.
+                new_roles["beam_committer"] = True
                 new_roles["beam_viewer"] = True
             # If it is a viewer role, it will be migrated to the beam_viewer role.
             else:
@@ -182,6 +190,8 @@ def migrate_permissions(data: list) -> list:
                 migrated_entry["permissions"].append({"role": "projects/PROJECT-ID/roles/beam_admin"})
             if new_roles["beam_infra_manager"]:
                 migrated_entry["permissions"].append({"role": "projects/PROJECT-ID/roles/beam_infra_manager"})
+            if new_roles["beam_committer"]:
+                migrated_entry["permissions"].append({"role": "projects/PROJECT-ID/roles/beam_committer"})
             if new_roles["beam_viewer"]:
                 migrated_entry["permissions"].append({"role": "projects/PROJECT-ID/roles/beam_viewer"})
 
@@ -203,7 +213,7 @@ def get_gcp_role_permissions(role_id: str) -> list:
     request = GetRoleRequest(name=role_id)
     role = client.get_role(request=request)
 
-    return role.included_permissions
+    return list(role.included_permissions)
 
 def get_roles_from_file(file_path: str) -> list:
     """
@@ -341,7 +351,7 @@ def permission_differences(project_id: str, user_email: str) -> list:
 
     return differences_list
 
-def to_yaml_file(data: list, output_file: str, header_info: str = None) -> None:
+def to_yaml_file(data: list, output_file: str, header_info: str = "") -> None:
     """
     Converts a list of dictionaries to a YAML formatted string.
     Include the apache license header on the files
