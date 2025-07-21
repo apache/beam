@@ -316,7 +316,11 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
     self._engine = create_engine(
         url=self._connection_config.get_db_url(), creator=connector)
 
-  def _execute_query(self, query: str, is_batch: bool, **params):
+  def _execute_query(
+      self,
+      query: str,
+      is_batch: bool,
+      **params) -> Union[List[Dict[str, Any]], Dict[str, Any]]:
     connection = None
     try:
       connection = self._engine.connect()

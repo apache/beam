@@ -90,7 +90,7 @@ class SQLEnrichmentTestHelper:
       sql_client_retries=3) -> Optional[SQLDBContainerInfo]:
     info = None
     for i in range(sql_client_retries):
-      sql_db_container = None
+      sql_db_container = DbContainer("")
       try:
         if database_type == DatabaseTypeAdapter.POSTGRESQL:
           user, password, db_id = "test", "test", "test"
