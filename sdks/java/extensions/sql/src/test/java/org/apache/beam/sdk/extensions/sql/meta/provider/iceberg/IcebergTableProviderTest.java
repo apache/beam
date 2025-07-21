@@ -46,7 +46,7 @@ public class IcebergTableProviderTest {
 
   @Test
   public void testGetTableType() {
-    assertEquals("iceberg", catalog.metaStore().getTableType());
+    assertNotNull(catalog.metaStore().getProvider("iceberg"));
   }
 
   @Test
