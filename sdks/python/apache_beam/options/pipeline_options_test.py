@@ -405,16 +405,25 @@ class PipelineOptionsTest(unittest.TestCase):
     self.assertEqual(options.get_all_options()['experiments'], None)
 
   def test_worker_options(self):
-    options = PipelineOptions(['--machine_type', 'abc', '--disk_type', 'def'])
+    options = PipelineOptions([
+        '--machine_type',
+        'abc',
+        '--disk_type',
+        'def',
+        '--element_processing_timeout',
+        '10',
+    ])
     worker_options = options.view_as(WorkerOptions)
     self.assertEqual(worker_options.machine_type, 'abc')
     self.assertEqual(worker_options.disk_type, 'def')
+    self.assertEqual(worker_options.element_processing_timeout, 10)
 
     options = PipelineOptions(
         ['--worker_machine_type', 'abc', '--worker_disk_type', 'def'])
     worker_options = options.view_as(WorkerOptions)
     self.assertEqual(worker_options.machine_type, 'abc')
     self.assertEqual(worker_options.disk_type, 'def')
+    self.assertIsNone(worker_options.element_processing_timeout)
 
   def test_beam_services_empty(self):
     with mock.patch.dict(os.environ, {}, clear=True):
