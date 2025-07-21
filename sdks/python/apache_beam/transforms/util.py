@@ -99,7 +99,8 @@ __all__ = [
     'Tee',
     'Values',
     'WithKeys',
-    'GroupIntoBatches'
+    'GroupIntoBatches',
+    'WaitOn'
 ]
 
 K = TypeVar('K')
