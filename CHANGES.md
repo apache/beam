@@ -49,7 +49,6 @@
 ## Bugfixes
 
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
-* [Python] Fixed dicomio tags mismatch in integration tests.
 
 ## Security Fixes
 * Fixed [CVE-YYYY-NNNN](https://www.cve.org/CVERecord?id=CVE-YYYY-NNNN) (Java/Python/Go) ([#X](https://github.com/apache/beam/issues/X)).
@@ -101,6 +100,7 @@
 
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * [YAML] Fixed handling of missing optional fields in JSON parsing ([#35179](https://github.com/apache/beam/issues/35179)).
+* [Python] Fixed dicomio tags mismatch in integration tests. ([#35657](https://github.com/apache/beam/pull/35657)).
 
 ## Known Issues
 
