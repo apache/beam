@@ -153,9 +153,16 @@ public class FilterUtils {
   }
 
   private static Expression convert(SqlNode expression, Schema schema) throws SqlParseException {
+    if (expression instanceof SqlIdentifier) {
+      String fieldName = ((SqlIdentifier) expression).getSimple();
+      if (schema.caseInsensitiveFindField(fieldName).type().equals(Types.BooleanType.get())) {
+        return Expressions.equal(fieldName, true);
+      }
+    }
     checkArgument(
         expression instanceof SqlBasicCall,
-        String.format("Expected SqlBasicCall, get %s", expression.getClass().getName()));
+        String.format(
+            "Expected SqlBasicCall, got %s: %s", expression.getClass().getName(), expression));
     SqlBasicCall call = (SqlBasicCall) expression;
 
     SqlOperator op = call.getOperator();
