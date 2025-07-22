@@ -116,11 +116,11 @@ def _search_module_or_class(callable, node, qual_name_parts):
   if first_part == '<lambda>':
     for name in dir(node):
       value = getattr(node, name)
-      if (isinstance(value, type(callable))
-          and value.__code__ == callable.__code__):
+      if (isinstance(value, type(callable)) and
+          value.__code__ == callable.__code__):
         return name + '.__code__'
-      elif (isinstance(value, types.FunctionType)
-            and value.__defaults__ is not None):
+      elif (isinstance(value, types.FunctionType) and
+            value.__defaults__ is not None):
         # Python functions can have other functions as default parameters which
         # might contain the code object so we have to search them.
         for i, default_param_value in enumerate(value.__defaults__):
@@ -129,8 +129,7 @@ def _search_module_or_class(callable, node, qual_name_parts):
             return _extend_path(name, _extend_path(f'__defaults__[{i}]', path))
   else:
     return _extend_path(
-        first_part, _search(callable, getattr(node, first_part), rest)
-    )
+        first_part, _search(callable, getattr(node, first_part), rest))
 
 
 def _search_function(callable, node, qual_name_parts):
@@ -154,8 +153,7 @@ def _search_function(callable, node, qual_name_parts):
   # the code object of the function.
   if first_part == '<locals>':
     return _extend_path(
-        '__code__', _search(callable, node.__code__, qual_name_parts)
-    )
+        '__code__', _search(callable, node.__code__, qual_name_parts))
 
 
 def _search_code(callable, node, qual_name_parts):
@@ -247,12 +245,10 @@ def _search_lambda(callable, code_objects_by_name, qual_name_parts):
 _SINGLE_NAME_PATTERN = re.compile(r'co_consts\[([a-zA-Z0-9\<\>_-]+)]')
 # Matches a path like: co_consts[<lambda>, ('x',)]
 _LAMBDA_WITH_ARGS_PATTERN = re.compile(
-    r"co_consts\[(<[^>]+>),\s*(\('[^']*'\s*,\s*\))\]"
-)
+    r"co_consts\[(<[^>]+>),\s*(\('[^']*'\s*,\s*\))\]")
 # Matches a path like: co_consts[<lambda>, ('x',), 1234567890]
 _LAMBDA_WITH_HASH_PATTERN = re.compile(
-    r"co_consts\[(<[^>]+>),\s*(\('[^']*'\s*,\s*\)),\s*(.+)\]"
-)
+    r"co_consts\[(<[^>]+>),\s*(\('[^']*'\s*,\s*\)),\s*(.+)\]")
 # Matches a path like: __defaults__[0]
 _DEFAULT_PATTERN = re.compile(r'(__defaults__)\[(\d+)\]')
 # Matches an argument like: 'x'
@@ -284,8 +280,7 @@ def _get_code_object_from_single_name_pattern(obj, name_result, path):
 
 
 def _get_code_object_from_lambda_with_args_pattern(
-    obj, lambda_with_args_result, path
-):
+    obj, lambda_with_args_result, path):
   """Returns the code object from a lambda with args pattern.
 
   Args:
@@ -304,8 +299,7 @@ def _get_code_object_from_lambda_with_args_pattern(
   for name, objects in code_objects.items():
     for obj_ in objects:
       args = tuple(
-          re.findall(_ARGUMENT_PATTERN, lambda_with_args_result.group(2))
-      )
+          re.findall(_ARGUMENT_PATTERN, lambda_with_args_result.group(2)))
       if obj_.co_varnames == args:
         return obj_
   raise AttributeError(f'Could not find code object with path: {path}')
@@ -332,8 +326,7 @@ def _get_code_object_from_lambda_with_hash_pattern(
   for name, objects in code_objects.items():
     for obj_ in objects:
       args = tuple(
-          re.findall(_ARGUMENT_PATTERN, lambda_with_hash_result.group(2))
-      )
+          re.findall(_ARGUMENT_PATTERN, lambda_with_hash_result.group(2)))
       if obj_.co_varnames == args:
         hash_value = lambda_with_hash_result.group(3)
         if hash_value == str(_create_bytecode_hash(obj_)):
@@ -363,19 +356,16 @@ def _get_code_from_stable_reference(path):
       obj = _get_code_object_from_single_name_pattern(obj, name_result, path)
     elif lambda_with_args_result := _LAMBDA_WITH_ARGS_PATTERN.fullmatch(part):
       obj = _get_code_object_from_lambda_with_args_pattern(
-          obj, lambda_with_args_result, path
-      )
+          obj, lambda_with_args_result, path)
     elif lambda_with_hash_result := _LAMBDA_WITH_HASH_PATTERN.fullmatch(part):
       obj = _get_code_object_from_lambda_with_hash_pattern(
-          obj, lambda_with_hash_result, path
-      )
+          obj, lambda_with_hash_result, path)
     elif default_result := _DEFAULT_PATTERN.fullmatch(part):
       index = int(default_result.group(2))
       if index >= len(obj.__defaults__):
         raise ValueError(
             f'Index {index} is out of bounds for obj.__defaults__'
-            f' {len(obj.__defaults__)} in path {path}'
-        )
+            f' {len(obj.__defaults__)} in path {path}')
       obj = getattr(obj, '__defaults__')[index]
     else:
       obj = getattr(obj, part)
@@ -396,9 +386,8 @@ def _signature(obj):
   """
   if isinstance(obj, types.CodeType):
     arg_count = (
-        obj.co_argcount
-        + obj.co_kwonlyargcount
-        + (obj.co_flags & 4 == 4)  # PyCF_VARARGS
+        obj.co_argcount + obj.co_kwonlyargcount +
+        (obj.co_flags & 4 == 4)  # PyCF_VARARGS
         + (obj.co_flags & 8 == 8)  # PyCF_VARKEYWORDS
     )
     return obj.co_varnames[:arg_count]
