@@ -478,7 +478,9 @@ if __name__ == '__main__':
               # --extra-index-url or --index-url in requirements.txt in
               # Dataflow, which allows installing python packages from private
               # Python repositories in GAR.
-              'keyrings.google-artifactregistry-auth'
+              'keyrings.google-artifactregistry-auth',
+              # tox dependency which doesn't conflict with cachetools<6
+              'tox<4.28.0'
           ],
           'interactive': [
               'facets-overview>=1.1.0,<2',

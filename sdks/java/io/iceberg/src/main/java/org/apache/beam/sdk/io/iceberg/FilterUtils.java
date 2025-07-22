@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
+import static java.time.format.DateTimeFormatter.ISO_LOCAL_TIME;
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
@@ -24,6 +26,10 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.format.DateTimeParseException;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +47,10 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlNodeList
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlOperator;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.parser.SqlParseException;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.parser.SqlParser;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.DateString;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.TimeString;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.TimestampString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.Schema;
@@ -312,6 +322,7 @@ public class FilterUtils {
   }
 
   private static Object convertLiteral(SqlLiteral literal, String field, TypeID type) {
+    SqlTypeName typeName = literal.getTypeName();
     switch (type) {
       case BOOLEAN:
         return literal.getValueAs(Boolean.class);
@@ -328,17 +339,69 @@ public class FilterUtils {
       case STRING:
         return literal.getValueAs(String.class);
       case DATE:
-        LocalDate date = LocalDate.parse(literal.getValueAs(String.class));
+        LocalDate date;
+        if (SqlTypeName.STRING_TYPES.contains(typeName)) {
+          date = LocalDate.parse(literal.getValueAs(String.class));
+        } else if (SqlTypeName.DATE.equals(typeName)) {
+          DateString dateValue = literal.getValueAs(DateString.class);
+          date = LocalDate.parse(dateValue.toString());
+        } else {
+          throw new IllegalArgumentException("Unexpected date type: " + literal.getTypeName());
+        }
         return DateTimeUtil.daysFromDate(date);
       case TIME:
-        LocalTime time = LocalTime.parse(literal.getValueAs(String.class));
+        LocalTime time;
+        if (SqlTypeName.STRING_TYPES.contains(typeName)) {
+          time = LocalTime.parse(literal.getValueAs(String.class));
+        } else if (SqlTypeName.TIME.equals(typeName)) {
+          TimeString timeString = literal.getValueAs(TimeString.class);
+          time = LocalTime.parse(timeString.toString());
+        } else {
+          throw new IllegalArgumentException("Unexpected date type: " + literal.getTypeName());
+        }
         return DateTimeUtil.microsFromTime(time);
       case TIMESTAMP:
-        LocalDateTime dateTime = LocalDateTime.parse(literal.getValueAs(String.class));
-        return DateTimeUtil.microsFromTimestamp(dateTime);
+        LocalDateTime datetime;
+        if (SqlTypeName.STRING_TYPES.contains(typeName)) {
+          String value = literal.getValueAs(String.class);
+          datetime = getLocalDateTime(value);
+        } else if (SqlTypeName.DATE.equals(typeName)) {
+          DateString dateString = literal.getValueAs(DateString.class);
+          datetime = LocalDateTime.of(LocalDate.parse(dateString.toString()), LocalTime.MIN);
+        } else if (SqlTypeName.TIMESTAMP.equals(typeName)) {
+          TimestampString timestampString = literal.getValueAs(TimestampString.class);
+          datetime = getLocalDateTime(timestampString.toString());
+        } else {
+          throw new IllegalArgumentException("Unexpected timestamp type: " + literal.getTypeName());
+        }
+        return DateTimeUtil.microsFromTimestamp(datetime);
       default:
         throw new IllegalArgumentException(
             String.format("Unsupported filter type in field '%s': %s", field, type));
     }
   }
+
+  private static LocalDateTime getLocalDateTime(String value) {
+    LocalDateTime datetime;
+    for (DateTimeFormatter formatter : DATE_TIME_FORMATTERS) {
+      try {
+        datetime = LocalDateTime.parse(value, formatter);
+        return datetime;
+      } catch (DateTimeParseException ignored) {
+      }
+    }
+    return LocalDateTime.of(LocalDate.parse(value), LocalTime.MIN);
+  }
+
+  private static final List<DateTimeFormatter> DATE_TIME_FORMATTERS =
+      Arrays.asList(
+          DateTimeFormatter.ISO_LOCAL_DATE_TIME, // e.g., 2023-10-26T10:30:00[.SSSSSSSSS]
+          new DateTimeFormatterBuilder()
+              .parseCaseInsensitive()
+              .append(ISO_LOCAL_DATE)
+              .appendLiteral(' ')
+              .append(ISO_LOCAL_TIME)
+              .toFormatter(), // e.g. 2023-10-26 10:30:00[.SSSSSSSSS]
+          ISO_LOCAL_DATE // For cases where you only have a date, then combine with a default time
+          );
 }
