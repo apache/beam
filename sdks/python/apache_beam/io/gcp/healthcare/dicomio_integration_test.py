@@ -64,7 +64,6 @@ NUM_INSTANCE = 18
 RAND_LEN = 15
 SCOPES = ['https://www.googleapis.com/auth/cloud-platform']
 
-
 # Tags that are returned by the API now but were not in the expected files
 VOLATILE_TAGS = {"00080056", "00081190"}
 
@@ -191,20 +190,22 @@ class DICOMIoIntegrationTest(unittest.TestCase):
           p
           | 'create all dict' >> beam.Create([input_dict_all])
           | 'search all' >> DicomSearch()
-          | 'normalize all' >> beam.Map(normalize_outer)
-      )
+          | 'normalize all' >> beam.Map(normalize_outer))
       results_refine = (
           p
           | 'create refine dict' >> beam.Create([input_dict_refine])
           | 'search refine' >> DicomSearch()
-          | 'normalize refine' >> beam.Map(normalize_outer)
-      )
+          | 'normalize refine' >> beam.Map(normalize_outer))
 
       expected_all_norm = normalize_outer(expected_dict_all)
       expected_refine_norm = normalize_outer(expected_dict_refine)
 
-      assert_that(results_all, equal_to([expected_all_norm]), label='all search assert')
-      assert_that(results_refine, equal_to([expected_refine_norm]), label='refine search assert')
+      assert_that(
+          results_all, equal_to([expected_all_norm]), label='all search assert')
+      assert_that(
+          results_refine,
+          equal_to([expected_refine_norm]),
+          label='refine search assert')
 
   @pytest.mark.it_postcommit
   def test_dicom_store_instance_from_gcs(self):
@@ -239,7 +240,9 @@ class DICOMIoIntegrationTest(unittest.TestCase):
     self.assertEqual(status_code, 200)
 
     actual_norm = [normalize_instance(r) for r in result]
-    expected_norm = [normalize_instance(r) for r in self.expected_output_all_metadata]
+    expected_norm = [
+        normalize_instance(r) for r in self.expected_output_all_metadata
+    ]
 
     # Order-insensitive deep equality
     self.assertCountEqual(actual_norm, expected_norm)
