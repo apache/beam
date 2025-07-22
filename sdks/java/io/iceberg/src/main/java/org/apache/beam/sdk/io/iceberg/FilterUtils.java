@@ -155,8 +155,9 @@ public class FilterUtils {
   private static Expression convert(SqlNode expression, Schema schema) throws SqlParseException {
     if (expression instanceof SqlIdentifier) {
       String fieldName = ((SqlIdentifier) expression).getSimple();
-      if (schema.caseInsensitiveFindField(fieldName).type().equals(Types.BooleanType.get())) {
-        return Expressions.equal(fieldName, true);
+      Types.NestedField field = schema.caseInsensitiveFindField(fieldName);
+      if (field.type().equals(Types.BooleanType.get())) {
+        return Expressions.equal(field.name(), true);
       }
     }
     checkArgument(
