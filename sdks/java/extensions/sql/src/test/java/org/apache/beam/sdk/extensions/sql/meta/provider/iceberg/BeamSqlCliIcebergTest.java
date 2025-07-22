@@ -94,8 +94,8 @@ public class BeamSqlCliIcebergTest {
     thrown.expectMessage("Database 'new_namespace' already exists.");
     cli.execute("CREATE DATABASE new_namespace");
 
-    // cleanup
-    catalog.dropDatabase("new_namespace", true);
+    // assert there was a database, and cleanup
+    assertTrue(catalog.dropDatabase("new_namespace", true));
   }
 
   @Test
@@ -113,8 +113,8 @@ public class BeamSqlCliIcebergTest {
     thrown.expectMessage("Cannot use database: 'non_existent' not found.");
     cli.execute("USE DATABASE non_existent");
 
-    // cleanup
-    catalog.dropDatabase("new_namespace", true);
+    // assert there was a database, and cleanup
+    assertTrue(catalog.dropDatabase("new_namespace", true));
   }
 
   @Test
