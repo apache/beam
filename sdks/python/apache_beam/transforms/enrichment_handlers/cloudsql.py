@@ -326,14 +326,12 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
       try:
         result = connection.execute(text(query), **params)
         # Materialize results while transaction is active.
+        data: Union[List[Dict[str, Any]], Dict[str, Any]]
         if is_batch:
-          data: List[Dict[str, Any]] = [row._asdict() for row in result]
+          data = [row._asdict() for row in result]
         else:
           result_row = result.first()
-          if result_row:
-            data: Dict[str, Any] = result_row._asdict()
-          else:
-            data = {}
+          data = result_row._asdict() if result_row else {}
         # Explicitly commit the transaction.
         transaction.commit()
         return data
