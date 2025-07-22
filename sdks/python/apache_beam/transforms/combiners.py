@@ -1039,7 +1039,7 @@ def _unpack_side_inputs(side_inputs):
   return side_input_args, side_input_kwargs
 
 
-class PartialGroupByKeyCombiningValues(core.DoFn):
+class _PartialGroupByKeyCombiningValues(core.DoFn):
   """Aggregates values into a per-key-window cache.
 
   As bundles are in-memory-sized, we don't bother flushing until the very end.
