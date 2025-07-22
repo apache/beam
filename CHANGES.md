@@ -84,6 +84,7 @@
 * Milvus enrichment handler added (Python) ([#35216](https://github.com/apache/beam/pull/35216)).
   Beam now supports Milvus enrichment handler capabilities for vector, keyword,
   and hybrid search operations.
+* [Beam SQL] Add support for DATABASEs, with an implementation for Iceberg ([]())
 
 ## Breaking Changes
 
