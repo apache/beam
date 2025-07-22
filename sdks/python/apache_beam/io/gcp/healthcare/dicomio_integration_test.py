@@ -92,13 +92,13 @@ def create_dicom_store(project_id, dataset_id, region, dicom_store_id):
   credential, _ = default(SCOPES)
   session = requests.AuthorizedSession(credential)
   api_endpoint = "{}/projects/{}/locations/{}".format(
-    HEALTHCARE_BASE_URL, project_id, region)
+      HEALTHCARE_BASE_URL, project_id, region)
 
   # base of dicomweb path.
   dicomweb_path = "{}/datasets/{}/dicomStores".format(api_endpoint, dataset_id)
 
   response = session.post(
-    dicomweb_path, params={"dicomStoreId": dicom_store_id})
+      dicomweb_path, params={"dicomStoreId": dicom_store_id})
   response.raise_for_status()
   return response.status_code
 
@@ -108,11 +108,11 @@ def delete_dicom_store(project_id, dataset_id, region, dicom_store_id):
   credential, _ = default(SCOPES)
   session = requests.AuthorizedSession(credential)
   api_endpoint = "{}/projects/{}/locations/{}".format(
-    HEALTHCARE_BASE_URL, project_id, region)
+      HEALTHCARE_BASE_URL, project_id, region)
 
   # base of dicomweb path.
   dicomweb_path = "{}/datasets/{}/dicomStores/{}".format(
-    api_endpoint, dataset_id, dicom_store_id)
+      api_endpoint, dataset_id, dicom_store_id)
 
   response = session.delete(dicomweb_path)
   response.raise_for_status()
@@ -123,7 +123,7 @@ def get_gcs_file_http(file_name):
   # Get gcs file from REST Api
   file_name = file_name.replace('/', '%2F')
   api_endpoint = "{}/b/{}/o/{}?alt=media".format(
-    GCS_BASE_URL, BUCKET_NAME, file_name)
+      GCS_BASE_URL, BUCKET_NAME, file_name)
 
   credential, _ = default(SCOPES)
   session = requests.AuthorizedSession(credential)
@@ -139,13 +139,13 @@ class DICOMIoIntegrationTest(unittest.TestCase):
     self.test_pipeline = TestPipeline(is_integration_test=True)
     self.project = self.test_pipeline.get_option('project')
     self.expected_output_all_metadata = get_gcs_file_http(
-      METADATA_DIR_PATH + META_DATA_ALL_NAME)
+        METADATA_DIR_PATH + META_DATA_ALL_NAME)
     self.expected_output_refined_metadata = get_gcs_file_http(
-      METADATA_DIR_PATH + META_DATA_REFINED_NAME)
+        METADATA_DIR_PATH + META_DATA_REFINED_NAME)
 
     # create a temp Dicom store based on the time stamp
     self.temp_dicom_store = "DICOM_store_" + datetime.datetime.now().strftime(
-      '%Y-%m-%d_%H%M%S.%f_') + random_string_generator(RAND_LEN)
+        '%Y-%m-%d_%H%M%S.%f_') + random_string_generator(RAND_LEN)
     create_dicom_store(self.project, DATA_SET_ID, REGION, self.temp_dicom_store)
 
   def tearDown(self):
@@ -170,7 +170,7 @@ class DICOMIoIntegrationTest(unittest.TestCase):
     input_dict_refine['dicom_store_id'] = PERSISTENT_DICOM_STORE_NAME
     input_dict_refine['search_type'] = "instances"
     input_dict_refine['params'] = {
-      'StudyInstanceUID': 'study_000000001', 'limit': 500, 'offset': 0
+        'StudyInstanceUID': 'study_000000001', 'limit': 500, 'offset': 0
     }
 
     expected_dict_all = {}
@@ -201,11 +201,11 @@ class DICOMIoIntegrationTest(unittest.TestCase):
       expected_refine_norm = normalize_outer(expected_dict_refine)
 
       assert_that(
-        results_all, equal_to([expected_all_norm]), label='all search assert')
+          results_all, equal_to([expected_all_norm]), label='all search assert')
       assert_that(
-        results_refine,
-        equal_to([expected_refine_norm]),
-        label='refine search assert')
+          results_refine,
+          equal_to([expected_refine_norm]),
+          label='refine search assert')
 
   @pytest.mark.it_postcommit
   def test_dicom_store_instance_from_gcs(self):
@@ -228,7 +228,7 @@ class DICOMIoIntegrationTest(unittest.TestCase):
           | UploadToDicomStore(input_dict_store, 'fileio')
           | beam.Map(lambda x: x['success']))
       assert_that(
-        results, equal_to(expected_output), label='store first assert')
+          results, equal_to(expected_output), label='store first assert')
 
     # Check the metadata using client
     credential, _ = default(SCOPES)
@@ -241,7 +241,7 @@ class DICOMIoIntegrationTest(unittest.TestCase):
 
     actual_norm = [normalize_instance(r) for r in result]
     expected_norm = [
-      normalize_instance(r) for r in self.expected_output_all_metadata
+        normalize_instance(r) for r in self.expected_output_all_metadata
     ]
 
     # Order-insensitive deep equality
