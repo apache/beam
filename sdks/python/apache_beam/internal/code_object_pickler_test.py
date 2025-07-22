@@ -1,6 +1,6 @@
-from apache_beam.internal import code_object_pickler
+import unittest
 
-from google3.testing.pybase import googletest
+from apache_beam.internal import code_object_pickler
 from google3.testing.pybase import parameterized
 
 
@@ -153,3 +153,7 @@ class DillTest(parameterized.TestCase):
     path = code_object_pickler._get_code_path(callable)
     actual = code_object_pickler._get_code_from_stable_reference(path)
     self.assertEqual(actual, callable.__code__)
+
+if __name__ == "__main__":
+  unittest.main()
+  
