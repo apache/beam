@@ -31,22 +31,17 @@ top_level_lambda = lambda x: 1
 def get_nested_function():
   def nested_function():
     return 1
+
   return nested_function
 
 
 def get_lambda_from_dictionary():
-  d = {
-      "a": lambda x: 1,
-      "b": lambda y: 2
-  }
+  d = {"a": lambda x: 1, "b": lambda y: 2}
   return d["a"]
 
 
 def get_lambda_from_dictionary_same_args():
-  d = {
-      "a": lambda x: 1,
-      "b": lambda x: x + 1
-  }
+  d = {"a": lambda x: 1, "b": lambda x: x + 1}
   return d["a"]
 
 
@@ -88,6 +83,7 @@ class ClassWithNestedFunction:
   def process(self):
     def nested_function():
       return 1
+
     return nested_function
 
 
@@ -105,56 +101,69 @@ class ClassWithNestedClass:
 class ClassWithNestedLambda:
   def process(self):
     def get_lambda_from_dictionary():
-      d = {
-          "a": lambda x: 1,
-          "b": lambda y: 2
-      }
+      d = {"a": lambda x: 1, "b": lambda y: 2}
       return d["a"]
+
     return get_lambda_from_dictionary()
 
+
 test_cases = [
-        (top_level_function, "__main__.top_level_function.__code__"),
-        (top_level_lambda, "__main__.top_level_lambda.__code__"),
-        (get_nested_function(),
-         ("__main__.get_nested_function.__code__.co_consts"
-          "[nested_function]")),
-        (get_lambda_from_dictionary(),
-         ("__main__.get_lambda_from_dictionary.__code__.co_consts"
-          "[<lambda>, ('x',)]")),
-        (get_lambda_from_dictionary_same_args(),
-         ("__main__.get_lambda_from_dictionary_same_args.__code__.co_consts"
-          "[<lambda>, ('x',), "
-          "ac455edc80140a7f12ad229519456f71]")),
-        (function_with_lambda_default_argument(),
-         ("__main__.function_with_lambda_default_argument.__defaults__[0]"
-          ".__code__")),
-        (function_with_function_default_argument(),
-         "__main__.top_level_function.__code__"),
-        (add_one,
-         "__main__.function_decorator.__code__.co_consts[<lambda>]"),
-        (ClassWithFunction.process,
-         "__main__.ClassWithFunction.process.__code__"),
-        (ClassWithStaticMethod.static_method,
-         "__main__.ClassWithStaticMethod.static_method.__code__"),
-        (ClassWithClassMethod.class_method,
-         "__main__.ClassWithClassMethod.class_method.__code__"),
-        (ClassWithNestedFunction().process(),
-         ("__main__.ClassWithNestedFunction.process.__code__.co_consts"
-          "[nested_function]")),
-        (ClassWithLambda().process(),
-         "__main__.ClassWithLambda.process.__code__.co_consts[<lambda>]"),
-        (ClassWithNestedClass.InnerClass().process,
-         "__main__.ClassWithNestedClass.InnerClass.process.__code__"),
-        (ClassWithNestedLambda().process(),
-         ("__main__.ClassWithNestedLambda.process.__code__.co_consts"
-          "[get_lambda_from_dictionary].co_consts[<lambda>, ('x',)]")),
-        (ClassWithNestedLambda.process,
-         "__main__.ClassWithNestedLambda.process.__code__"),
-    ]
+    (top_level_function, "__main__.top_level_function.__code__"),
+    (top_level_lambda, "__main__.top_level_lambda.__code__"),
+    (
+        get_nested_function(),
+        ("__main__.get_nested_function.__code__.co_consts"
+         "[nested_function]")),
+    (
+        get_lambda_from_dictionary(),
+        (
+            "__main__.get_lambda_from_dictionary.__code__.co_consts"
+            "[<lambda>, ('x',)]")),
+    (
+        get_lambda_from_dictionary_same_args(),
+        (
+            "__main__.get_lambda_from_dictionary_same_args.__code__.co_consts"
+            "[<lambda>, ('x',), "
+            "ac455edc80140a7f12ad229519456f71]")),
+    (
+        function_with_lambda_default_argument(),
+        (
+            "__main__.function_with_lambda_default_argument.__defaults__[0]"
+            ".__code__")),
+    (
+        function_with_function_default_argument(),
+        "__main__.top_level_function.__code__"),
+    (add_one, "__main__.function_decorator.__code__.co_consts[<lambda>]"),
+    (ClassWithFunction.process, "__main__.ClassWithFunction.process.__code__"),
+    (
+        ClassWithStaticMethod.static_method,
+        "__main__.ClassWithStaticMethod.static_method.__code__"),
+    (
+        ClassWithClassMethod.class_method,
+        "__main__.ClassWithClassMethod.class_method.__code__"),
+    (
+        ClassWithNestedFunction().process(),
+        (
+            "__main__.ClassWithNestedFunction.process.__code__.co_consts"
+            "[nested_function]")),
+    (
+        ClassWithLambda().process(),
+        "__main__.ClassWithLambda.process.__code__.co_consts[<lambda>]"),
+    (
+        ClassWithNestedClass.InnerClass().process,
+        "__main__.ClassWithNestedClass.InnerClass.process.__code__"),
+    (
+        ClassWithNestedLambda().process(),
+        (
+            "__main__.ClassWithNestedLambda.process.__code__.co_consts"
+            "[get_lambda_from_dictionary].co_consts[<lambda>, ('x',)]")),
+    (
+        ClassWithNestedLambda.process,
+        "__main__.ClassWithNestedLambda.process.__code__"),
+]
 
 
 class DillTest(parameterized.TestCase):
-
   @parameterized.parameters(test_cases)
   def test_get_code_path(self, callable, expected):
     actual = code_object_pickler._get_code_path(callable)
@@ -170,6 +179,7 @@ class DillTest(parameterized.TestCase):
     path = code_object_pickler._get_code_path(callable)
     actual = code_object_pickler._get_code_from_stable_reference(path)
     self.assertEqual(actual, callable.__code__)
+
 
 if __name__ == "__main__":
   unittest.main()
