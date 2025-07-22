@@ -25,4 +25,3 @@ def my_function():
     c = 3
     return c
   return b
-  
