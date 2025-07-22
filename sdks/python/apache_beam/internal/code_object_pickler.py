@@ -23,9 +23,11 @@ import re
 import sys
 import types
 
+
 def get_normalized_path(path):
   """Returns a normalized path. This function is intended to be overridden."""
   return path
+
 
 def _get_code_path(callable):
   """Returns the stable reference to the code object.
