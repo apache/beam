@@ -2723,13 +2723,14 @@ class StorageWriteToBigQuery(PTransform):
         lambda row_and_error: row_and_error[0])
     if not is_rows:
       # return back from Beam Rows to Python dict elements
-      failed_rows = failed_rows | beam.Map(
-          lambda row: getattr(row, 'as_dict', row._asdict)())
+      failed_rows = failed_rows | beam.Map(lambda row: row._asdict())
+
       failed_rows_with_errors = failed_rows_with_errors | beam.Map(
           lambda row: {
-              "error_message": row.error_message, "failed_row": getattr(
-                  row, 'as_dict', row._asdict)()
-          })
+              "error_message": row.error_message,
+              "failed_row": row.failed_row._asdict()
+          }
+      )
 
     return WriteResult(
         method=WriteToBigQuery.Method.STORAGE_WRITE_API,
