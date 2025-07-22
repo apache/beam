@@ -1,5 +1,7 @@
 """Tests for generating stable identifiers for Python __code__ to use for Pickle serialization."""
 
+import unittest
+
 from apache_beam.internal import code_object_pickler
 from apache_beam.internal.test_cases import after_module_add_function
 from apache_beam.internal.test_cases import after_module_add_lambda_variable
@@ -16,10 +18,8 @@ from apache_beam.internal.test_cases import before_module_with_functions
 from apache_beam.internal.test_cases import before_module_with_lambdas
 from apache_beam.internal.test_cases import module_with_default_argument
 
-from google3.testing.pybase import googletest
 
-
-class CodePathTest(googletest.TestCase):
+class CodePathTest(unittest.TestCase):
 
   def test_get_code_from_stable_reference_empty_path(self):
     with self.assertRaisesRegex(ValueError, "Path must not be empty"):
@@ -420,4 +420,4 @@ class CodePathTest(googletest.TestCase):
 
 
 if __name__ == "__main__":
-  googletest.main()
+  unittest.main()
