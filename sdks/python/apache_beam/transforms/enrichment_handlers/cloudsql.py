@@ -317,14 +317,14 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
         url=self._connection_config.get_db_url(), creator=connector)
 
   def _execute_query(
-      self, query: str, is_batch: bool,
-      **params: Dict[str, Any]) -> Union[List[Dict[str, Any]], Dict[str, Any]]:
+      self, query: str,
+      is_batch: bool) -> Union[List[Dict[str, Any]], Dict[str, Any]]:
     connection = None
     try:
       connection = self._engine.connect()
       transaction = connection.begin()
       try:
-        result = connection.execute(text(query), **params)
+        result = connection.execute(text(query))
         # Materialize results while transaction is active.
         data: Union[List[Dict[str, Any]], Dict[str, Any]]
         if is_batch:
