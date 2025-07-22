@@ -1002,6 +1002,7 @@ class _PTransformFnPTransform(PTransform):
     self._fn = fn
     self._args = args
     self._kwargs = kwargs
+    self._use_backwards_compatible_label = True
 
   def display_data(self):
     res = {
@@ -1030,12 +1031,27 @@ class _PTransformFnPTransform(PTransform):
       pass
     return self._fn(pcoll, *args, **kwargs)
 
-  def default_label(self):
-    if self._args:
-      return '%s(%s)' % (
-          label_from_callable(self._fn), label_from_callable(self._args[0]))
-    return label_from_callable(self._fn)
+  def set_options(self, options):
+    # Avoid circular import.
+    from apache_beam.transforms.util import is_compat_version_prior_to
+    self._use_backwards_compatible_label = is_compat_version_prior_to(
+        options, '2.67.0')
 
+  def default_label(self):
+    # Attempt to give a reasonable name to this transform.
+    # We want it to be reasonably unique, but also not sensitive to
+    # irrelevent parameters to minimize pipeline-to-pipeline variance.
+    # For now, use only the first argument (if any), iff it would not make
+    # the name unwieldy.
+    if self._args:
+      first_arg_string = label_from_callable(self._args[0])
+      if self._use_backwards_compatible_label or len(first_arg_string) <= 16:
+        suffix = '(%s)' % first_arg_string
+      else:
+        suffix = '(%s...)' % first_arg_string[:16].replace('\n', ' ')
+    else:
+      suffix = ''
+    return label_from_callable(self._fn) + suffix
 
 def ptransform_fn(fn):
   # type: (Callable) -> Callable[..., _PTransformFnPTransform]
