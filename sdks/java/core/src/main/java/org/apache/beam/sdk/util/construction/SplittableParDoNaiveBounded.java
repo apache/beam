@@ -47,12 +47,14 @@ import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.OutputBuilder;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
@@ -524,22 +526,16 @@ public class SplittableParDoNaiveBounded {
       public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
         return new OutputReceiver<OutputT>() {
           @Override
-          public void output(OutputT output) {
-            outerContext.output(output);
-          }
-
-          @Override
-          public void outputWithTimestamp(OutputT output, Instant timestamp) {
-            outerContext.outputWithTimestamp(output, timestamp);
-          }
-
-          @Override
-          public void outputWindowedValue(
-              OutputT output,
-              Instant timestamp,
-              Collection<? extends BoundedWindow> windows,
-              PaneInfo paneInfo) {
-            outerContext.outputWindowedValue(output, timestamp, windows, paneInfo);
+          public OutputBuilder<OutputT> builder(OutputT value) {
+            return WindowedValues.<OutputT>builder()
+                .setValue(value)
+                .setReceiver(
+                    windowedValue ->
+                        outerContext.outputWindowedValue(
+                            windowedValue.getValue(),
+                            windowedValue.getTimestamp(),
+                            windowedValue.getWindows(),
+                            windowedValue.getPaneInfo()));
           }
         };
       }
@@ -551,22 +547,17 @@ public class SplittableParDoNaiveBounded {
           public <T> OutputReceiver<T> get(TupleTag<T> tag) {
             return new OutputReceiver<T>() {
               @Override
-              public void output(T output) {
-                outerContext.output(tag, output);
-              }
-
-              @Override
-              public void outputWithTimestamp(T output, Instant timestamp) {
-                outerContext.outputWithTimestamp(tag, output, timestamp);
-              }
-
-              @Override
-              public void outputWindowedValue(
-                  T output,
-                  Instant timestamp,
-                  Collection<? extends BoundedWindow> windows,
-                  PaneInfo paneInfo) {
-                outerContext.outputWindowedValue(tag, output, timestamp, windows, paneInfo);
+              public OutputBuilder<T> builder(T value) {
+                return WindowedValues.<T>builder()
+                    .setValue(value)
+                    .setReceiver(
+                        windowedValue ->
+                            outerContext.outputWindowedValue(
+                                tag,
+                                windowedValue.getValue(),
+                                windowedValue.getTimestamp(),
+                                windowedValue.getWindows(),
+                                windowedValue.getPaneInfo()));
               }
             };
           }
