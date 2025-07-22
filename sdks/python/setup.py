@@ -480,7 +480,7 @@ if __name__ == '__main__':
               # Python repositories in GAR.
               'keyrings.google-artifactregistry-auth',
               # tox dependency which doesn't conflict with cachetools<6
-              'tox==4.27.0'
+              'tox<4.28.0'
           ],
           'interactive': [
               'facets-overview>=1.1.0,<2',
