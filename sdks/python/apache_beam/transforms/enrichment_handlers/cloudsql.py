@@ -392,8 +392,8 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
     # Formulate the query, execute it, and return a list of original requests
     # paired with their responses.
     query = raw_query.format(*values)
-    responses_dict = self._execute_query(query, is_batch=True)
-    for response in responses_dict:
+    responses: List[Dict[str, Any]] = self._execute_query(query, is_batch=True)
+    for response in responses:
       response_row = beam.Row(**response)
       response_key = self.create_row_key(response_row)
       if response_key in requests_map:
@@ -419,7 +419,7 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
             "Make sure the values passed in `where_clause_fields` are "
             "the keys in the input `beam.Row`." + str(e))
       query = self.query_template.format(*values)
-    response_dict = self._execute_query(query, is_batch=False)
+    response_dict: Dict[str, Any] = self._execute_query(query, is_batch=False)
     return request, beam.Row(**response_dict)
 
   def create_row_key(self, row: beam.Row):
