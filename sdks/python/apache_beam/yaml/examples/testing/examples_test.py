@@ -37,6 +37,7 @@ import yaml
 import apache_beam as beam
 from apache_beam import PCollection
 from apache_beam.examples.snippets.util import assert_matches_stdout
+from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.typehints.row_type import RowTypeConstraint
@@ -45,7 +46,6 @@ from apache_beam.yaml import yaml_provider
 from apache_beam.yaml import yaml_transform
 from apache_beam.yaml.readme_test import TestEnvironment
 from apache_beam.yaml.readme_test import replace_recursive
-from apache_beam.ml.inference.base import PredictionResult
 
 from . import input_data
 
