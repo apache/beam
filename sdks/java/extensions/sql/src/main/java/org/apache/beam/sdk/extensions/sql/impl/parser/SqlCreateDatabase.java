@@ -72,7 +72,6 @@ public class SqlCreateDatabase extends SqlCreate implements BeamSqlParser.Execut
       writer.keyword("IF NOT EXISTS");
     }
     databaseName.unparse(writer, leftPrec, rightPrec);
-    writer.keyword("TYPE");
   }
 
   @Override
