@@ -15,6 +15,13 @@
 # limitations under the License.
 #
 
+import collections
+import hashlib
+import inspect
+import os
+import re
+import sys
+import types
 
 def get_normalized_path(path):
   """Returns a normalized path. This function is intended to be overridden."""
