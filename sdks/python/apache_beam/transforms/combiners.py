@@ -1007,10 +1007,10 @@ class LiftedCombinePerKey(core.PTransform):
     return (
         pcoll
         | core.ParDo(
-            PartialGroupByKeyCombiningValues(self._combine_fn),
+            _PartialGroupByKeyCombiningValues(self._combine_fn),
             **self._side_inputs)
         | core.GroupByKey()
-        | core.ParDo(FinishCombine(self._combine_fn), **self._side_inputs))
+        | core.ParDo(_FinishCombine(self._combine_fn), **self._side_inputs))
 
 
 def _pack_side_inputs(side_input_args, side_input_kwargs):
@@ -1083,7 +1083,7 @@ class _PartialGroupByKeyCombiningValues(core.DoFn):
     self._combine_fn.teardown()
 
 
-class FinishCombine(core.DoFn):
+class _FinishCombine(core.DoFn):
   """Merges partially combined results.
   """
   def __init__(self, combine_fn):
