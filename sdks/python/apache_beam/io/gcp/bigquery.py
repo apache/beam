@@ -2727,10 +2727,9 @@ class StorageWriteToBigQuery(PTransform):
 
       failed_rows_with_errors = failed_rows_with_errors | beam.Map(
           lambda row: {
-              "error_message": row.error_message,
-              "failed_row": row.failed_row._asdict()
-          }
-      )
+              "error_message": row.error_message, "failed_row": row.failed_row.
+              _asdict()
+          })
 
     return WriteResult(
         method=WriteToBigQuery.Method.STORAGE_WRITE_API,
