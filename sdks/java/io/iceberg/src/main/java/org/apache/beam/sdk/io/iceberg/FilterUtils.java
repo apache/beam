@@ -153,7 +153,9 @@ public class FilterUtils {
   }
 
   private static Expression convert(SqlNode expression, Schema schema) throws SqlParseException {
-    checkArgument(expression instanceof SqlBasicCall);
+    checkArgument(
+        expression instanceof SqlBasicCall,
+        String.format("Expected SqlBasicCall, get %s", expression.getClass().getName()));
     SqlBasicCall call = (SqlBasicCall) expression;
 
     SqlOperator op = call.getOperator();
