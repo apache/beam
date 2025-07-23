@@ -305,8 +305,7 @@ def _get_code_object_from_lambda_with_args_pattern(
 
 
 def _get_code_object_from_lambda_with_hash_pattern(
-    obj, lambda_with_hash_result, path
-):
+    obj, lambda_with_hash_result, path):
   """Returns the code object from a lambda with hash pattern.
 
   Args:
