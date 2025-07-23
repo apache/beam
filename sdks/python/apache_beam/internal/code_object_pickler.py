@@ -18,7 +18,6 @@
 import collections
 import hashlib
 import inspect
-import os
 import re
 import sys
 import types
