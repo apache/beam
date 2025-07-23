@@ -29,6 +29,8 @@ When you apply `Wait.On`, the elements of the main `PCollection` will not be pro
 PCollection<String> main = ...;
 PCollection<Void> signal = ...;
 
+// Wait for 'signal' to complete before processing 'main'
+// Elements pass through unchanged after 'signal' finishes
 PCollection<String> result = main.apply(Wait.on(signal));
 
 // Example 2: Using multiple signals
@@ -36,6 +38,7 @@ PCollection<String> main = ...;
 PCollection<Void> signal1 = ...;
 PCollection<Void> signal2 = ...;
 
+// Wait for both signal1 and signal2 to complete before processing main
 PCollection<String> result = main.apply(Wait.on(signal1, signal2));
 
 // Example 3: Streaming mode with windowing

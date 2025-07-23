@@ -33,6 +33,8 @@ with beam.Pipeline() as p:
     main = p | 'CreateMain' >> beam.Create([1, 2, 3])
     side = p | 'CreateSide' >> beam.Create(['a', 'b', 'c'])
 
+    # Wait for 'side' to complete before processing 'main'
+    # Elements [1, 2, 3] pass through unchanged after 'side' finishes
     result = main | 'WaitOnSide' >> WaitOn(side)
     result | beam.Map(print)
 
@@ -42,6 +44,7 @@ with beam.Pipeline() as p:
     side1 = p | 'CreateSide1' >> beam.Create(['a', 'b', 'c'])
     side2 = p | 'CreateSide2' >> beam.Create(['x', 'y', 'z'])
 
+    # Wait for both side1 and side2 to complete before processing main
     result = main | 'WaitOnSides' >> WaitOn(side1, side2)
     result | beam.Map(print)
 
