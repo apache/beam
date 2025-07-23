@@ -51,7 +51,7 @@ class ClassWithNestedFunction:
     def nested_function():
       c = 3
       return c
-      
+
     a = 1
     b = lambda: 2
     return b
@@ -61,11 +61,11 @@ class ClassWithNestedFunction2:
   def my_method():
     a = 1
     b = lambda: 2
-    
+
     def nested_function():
       c = 3
       return c
-      
+
     return b
 
 
