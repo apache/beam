@@ -54,6 +54,15 @@ def products_csv():
   ])
 
 
+def youtube_comments_csv():
+  return '\n'.join([
+      'video_id,comment_text,likes,replies',
+      'XpVt6Z1Gjjo,I AM HAPPY,1,1',
+      'XpVt6Z1Gjjo,I AM SAD,1,1',
+      'XpVt6Z1Gjjo,§ÁĐ,1,1'
+  ])
+
+
 def spanner_orders_data():
   return [{
       'order_id': 1,
