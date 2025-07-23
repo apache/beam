@@ -3,7 +3,7 @@
   <groupId>org.apache.beam</groupId>
   <artifactId>beam-vendor-calcite-1_40_0</artifactId>
   <versioning>
-    <lastUpdated>20250714194916</lastUpdated>
+    <lastUpdated>20250723173931</lastUpdated>
     <snapshot>
       <localCopy>true</localCopy>
     </snapshot>
@@ -11,12 +11,12 @@
       <snapshotVersion>
         <extension>jar</extension>
         <value>0.1-SNAPSHOT</value>
-        <updated>20250714194916</updated>
+        <updated>20250723173931</updated>
       </snapshotVersion>
       <snapshotVersion>
         <extension>pom</extension>
         <value>0.1-SNAPSHOT</value>
-        <updated>20250714194916</updated>
+        <updated>20250723173931</updated>
       </snapshotVersion>
     </snapshotVersions>
   </versioning>
