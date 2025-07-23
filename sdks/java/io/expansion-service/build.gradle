@@ -72,6 +72,9 @@ dependencies {
   permitUnusedDeclared project(":sdks:java:io:kafka") // BEAM-11761
   implementation project(":sdks:java:io:kafka:upgrade")
   permitUnusedDeclared project(":sdks:java:io:kafka:upgrade") // BEAM-11761
+  testImplementation library.java.junit
+  testImplementation library.java.slf4j_api
+  testRuntimeOnly library.java.slf4j_jdk14
 
   // **** IcebergIO catalogs ****
   // HiveCatalog
