@@ -622,7 +622,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def influxdb_version = "2.19"
     def httpclient_version = "4.5.13"
     def httpcore_version = "4.4.14"
-    def iceberg_bqms_catalog_version = "1.6.1-1.0.0"
+    def iceberg_bqms_catalog_version = "1.6.1-1.0.1"
     def jackson_version = "2.15.4"
     def jaxb_api_version = "2.3.3"
     def jsr305_version = "3.0.2"
@@ -676,7 +676,6 @@ class BeamModulePlugin implements Plugin<Project> {
         auto_value_annotations                      : "com.google.auto.value:auto-value-annotations:$autovalue_version",
         // TODO: https://github.com/apache/beam/issues/34993 after stopping supporting Java 8
         avro                                        : "org.apache.avro:avro:1.11.4",
-        avro_tests                                  : "org.apache.avro:avro:1.11.3:tests",
         aws_java_sdk2_apache_client                 : "software.amazon.awssdk:apache-client:$aws_java_sdk2_version",
         aws_java_sdk2_netty_client                  : "software.amazon.awssdk:netty-nio-client:$aws_java_sdk2_version",
         aws_java_sdk2_auth                          : "software.amazon.awssdk:auth:$aws_java_sdk2_version",
