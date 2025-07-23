@@ -69,7 +69,7 @@ class ClassWithFunction:
 
 class ClassWithStaticMethod:
   @staticmethod
-  def static_method():  # pylint: disable=staticmethod-use
+  def static_method():
     return 1
 
 
@@ -183,4 +183,3 @@ class DillTest(parameterized.TestCase):
 
 if __name__ == "__main__":
   unittest.main()
-  
