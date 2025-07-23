@@ -64,8 +64,8 @@ NUM_INSTANCE = 18
 RAND_LEN = 15
 SCOPES = ['https://www.googleapis.com/auth/cloud-platform']
 
-# Tags that are returned by the API now but were not in the expected files
-VOLATILE_TAGS = {"00080056", "00081190"}
+# Tag 00081190 contains temp store name which contains currentDate
+VOLATILE_TAGS = {"00081190"}
 
 
 def normalize_outer(elem: dict) -> dict:
