@@ -18,7 +18,7 @@
 import unittest
 
 from apache_beam.internal import code_object_pickler
-from absl.testing import parameterized
+from parameterized import parameterized
 
 
 def top_level_function():
