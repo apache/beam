@@ -23,7 +23,8 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.io.PrintWriter;
 import java.time.Duration;
-import java.util.HashSet;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
@@ -154,7 +155,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
       halfClosePhysicalStreamAfter = Duration.ZERO;
     }
     this.halfClosePhysicalStreamAfter = halfClosePhysicalStreamAfter;
-    this.closingPhysicalStreams = new HashSet<>();
+    this.closingPhysicalStreams = Collections.newSetFromMap(new IdentityHashMap<>());
     this.executor =
         Executors.newSingleThreadScheduledExecutor(
             new ThreadFactoryBuilder()
@@ -280,14 +281,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
         break;
       } catch (Exception e) {
         logger.error("Failed to create new stream, retrying: ", e);
-        synchronized (this) {
-          currentPhysicalStream = null;
-          if (halfCloseFuture != null) {
-            halfCloseFuture.cancel(false);
-            halfCloseFuture = null;
-          }
-          clearPhysicalStreamForDebug();
-        }
+        clearCurrentPhysicalStream(true);
         try {
           long sleep = backoff.nextBackOffMillis();
           debugMetrics.recordRestartReason("Failed to create new stream, retrying: " + e);
@@ -500,11 +494,6 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     }
   }
 
-  @SuppressWarnings("nullness")
-  private void clearPhysicalStreamForDebug() {
-    currentPhysicalStreamForDebug.set(null);
-  }
-
   private void onHalfClosePhysicalStreamTimeout(PhysicalStreamHandler handler) {
     synchronized (this) {
       if (currentPhysicalStream != handler || clientClosed || isShutdown) {
@@ -513,9 +502,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
       try {
         handler.streamDebugMetrics.recordHalfClose();
         closingPhysicalStreams.add(handler);
-        currentPhysicalStream = null;
-        halfCloseFuture = null; // This is the currently running future.
-        clearPhysicalStreamForDebug();
+        clearCurrentPhysicalStream(false);
         requestObserver.onCompleted();
       } catch (Exception e) {
         // XXX figure out
@@ -537,12 +524,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     synchronized (this) {
       final boolean wasActiveStream = currentPhysicalStream == handler;
       if (currentPhysicalStream == handler) {
-        clearPhysicalStreamForDebug();
-        currentPhysicalStream = null;
-        if (halfCloseFuture != null) {
-          halfCloseFuture.cancel(false);
-          halfCloseFuture = null;
-        }
+        clearCurrentPhysicalStream(true);
       } else {
         checkState(closingPhysicalStreams.remove(handler));
       }
@@ -586,6 +568,16 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     }
     recordStreamRestart(status);
     startStream();
+  }
+
+  @SuppressWarnings("nullness")
+  private synchronized void clearCurrentPhysicalStream(boolean cancelHalfCloseFuture) {
+    currentPhysicalStream = null;
+    if (halfCloseFuture != null && cancelHalfCloseFuture) {
+      halfCloseFuture.cancel(false);
+    }
+    halfCloseFuture = null;
+    currentPhysicalStreamForDebug.set(null);
   }
 
   private void recordStreamRestart(Status status) {
