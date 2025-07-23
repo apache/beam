@@ -37,7 +37,6 @@ version = "0.1"
 
 def calcite_version = "1.40.0"
 def avatica_version = "1.26.0"
-def protobuf_version = "3.25.5"
 def prefix = "org.apache.beam.vendor.calcite.v1_40_0"
 
 List<String> packagesToRelocate = [
@@ -66,12 +65,6 @@ vendorJava(
                 "org.apache.calcite:calcite-core:$calcite_version",
                 "org.apache.calcite:calcite-linq4j:$calcite_version",
                 "org.apache.calcite.avatica:avatica-core:$avatica_version",
-
-                // BEAM-13616: Override the version of protobuf to patch a security vulnerability.
-                // This override can be removed once we upgrade to a newer version of calcite that
-                // depends on protobuf >= 3.19.2.
-                "com.google.protobuf:protobuf-java:$protobuf_version",
-                "com.google.protobuf:protobuf-java-util:$protobuf_version",
         ],
         runtimeDependencies: [
                 library.java.slf4j_api,
