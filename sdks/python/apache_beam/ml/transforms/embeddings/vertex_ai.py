@@ -104,7 +104,7 @@ class _VertexAITextEmbeddingHandler(RemoteModelHandler):
 
   def request(
       self,
-      batch: Sequence[TextEmbeddingInput],
+      batch: Sequence[str],
       model: TextEmbeddingModel,
       inference_args: Optional[dict[str, Any]] = None):
     embeddings = []
