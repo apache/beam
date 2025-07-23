@@ -21,8 +21,6 @@ import static org.apache.beam.sdk.managed.Managed.ICEBERG_CDC;
 
 import com.google.auth.oauth2.GoogleCredentials;
 import java.io.IOException;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.RowCoder;
@@ -33,7 +31,6 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -42,30 +39,32 @@ import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.joda.time.DateTime;
 import org.joda.time.Duration;
 
 /**
- * This example reads a continuous stream of change data capture (CDC) events from an Apache Iceberg
- * table. It processes these events to calculate the hourly total of passengers and writes the
- * aggregated results into a new Iceberg table.
+ * This pipeline demonstrates how to read a continuous stream of change data capture (CDC) events
+ * from an Apache Iceberg table. It processes these events to calculate the hourly total of
+ * passengers and writes the aggregated results into a new Iceberg table.
  *
- * <p>This pipeline can be used to read the output of {@link
+ * <p>This pipeline can be used to process the output of {@link
  * IcebergRestCatalogStreamingWriteExample}.
  */
 public class IcebergRestCatalogCDCExample {
-  // The schema for the source table with minute aggregated data
-  public static final Schema SOURCE_SCHEMA =
-      Schema.builder().addStringField("ride_minute").addInt64Field("passenger_count").build();
 
-  // The schema for the destination table with hourly aggregated data
+  // Schema for the source table containing minute-level aggregated data
+  public static final Schema SOURCE_SCHEMA =
+      Schema.builder().addDateTimeField("ride_minute").addInt64Field("passenger_count").build();
+
+  // Schema for the destination table containing hourly aggregated data
   public static final Schema HOURLY_PASSENGER_COUNT_SCHEMA =
-      Schema.builder().addStringField("ride_hour").addInt64Field("passenger_count").build();
+      Schema.builder().addDateTimeField("ride_hour").addInt64Field("passenger_count").build();
 
   public static void main(String[] args) throws IOException {
     IcebergCdcOptions options =
         PipelineOptionsFactory.fromArgs(args).withValidation().as(IcebergCdcOptions.class);
-    options.setProject("apache-beam-testing");
 
     final String sourceTable = options.getSourceTable();
     final String destinationTable = options.getDestinationTable();
@@ -76,9 +75,8 @@ public class IcebergRestCatalogCDCExample {
     final int pollIntervalSeconds = 120;
     final int triggeringFrequencySeconds = 30;
 
-    // Note: The token expires in 1 hour, and users may need to re-run the pipeline.
-    // Upcoming changes in Iceberg and the BigLake Metastore with the Iceberg REST Catalog
-    // will support token refreshing and credential vending.
+    // Note: The token expires in 1 hour. Users may need to re-run the pipeline.
+    // Future updates to Iceberg and the BigLake Metastore will support token refreshing.
     Map<String, String> catalogProps =
         ImmutableMap.<String, String>builder()
             .put("type", "rest")
@@ -94,78 +92,73 @@ public class IcebergRestCatalogCDCExample {
 
     Pipeline p = Pipeline.create(options);
 
+    // Configure the Iceberg CDC read
     Map<String, Object> icebergReadConfig =
         ImmutableMap.<String, Object>builder()
             .put("table", sourceTable)
+            .put("filter", "\"ride_minute\" IS NOT NULL AND \"passenger_count\" IS NOT NULL")
+            .put("keep", ImmutableList.of("ride_minute", "passenger_count"))
             .put("catalog_name", catalogName)
             .put("catalog_properties", catalogProps)
             .put("streaming", true)
             .put("poll_interval_seconds", pollIntervalSeconds)
             .build();
 
+    // Read CDC events from the source Iceberg table
     PCollection<Row> cdcEvents =
         p.apply("ReadFromIceberg", Managed.read(ICEBERG_CDC).withConfig(icebergReadConfig))
             .getSinglePCollection()
             .setRowSchema(SOURCE_SCHEMA);
 
+    // Aggregate passenger counts per hour
     PCollection<Row> aggregatedRows =
         cdcEvents
             .apply(
-                "FilterNullFields",
-                Filter.by(
-                    (Row row) ->
-                        row.getInt64("passenger_count") != null
-                            && row.getString("ride_minute") != null))
-            .apply(
-                "ApplyFixedWindow", Window.<Row>into(FixedWindows.of(Duration.standardMinutes(10))))
-            .apply("ExtractHourAndPassengerCount", ParDo.of(new ExtractHourAndPassengerCount()))
+                "ApplyHourlyWindow", Window.<Row>into(FixedWindows.of(Duration.standardMinutes(10))))
+            .apply("ExtractHourAndCount", ParDo.of(new ExtractHourAndPassengerCount()))
             .apply("SumPassengerCountPerHour", Sum.longsPerKey())
-            .apply(
-                "FormatAggregatedRow",
-                ParDo.of(
-                    new DoFn<KV<String, Long>, Row>() {
-                      @ProcessElement
-                      public void processElement(
-                          @Element KV<String, Long> kv, OutputReceiver<Row> out) {
-                        Row row =
-                            Row.withSchema(HOURLY_PASSENGER_COUNT_SCHEMA)
-                                .withFieldValue("ride_hour", kv.getKey())
-                                .withFieldValue("passenger_count", kv.getValue())
-                                .build();
-                        System.out.println(row);
-                        out.output(row);
-                      }
-                    }))
+            .apply("FormatToRow", ParDo.of(new FormatAggregatedRow()))
             .setCoder(RowCoder.of(HOURLY_PASSENGER_COUNT_SCHEMA));
 
+    // Configure the Iceberg write
     Map<String, Object> icebergWriteConfig =
         ImmutableMap.<String, Object>builder()
             .put("table", destinationTable)
+            .put("partition_fields", ImmutableList.of("day(ride_hour)"))
             .put("catalog_properties", catalogProps)
             .put("catalog_name", catalogName)
             .put("triggering_frequency_seconds", triggeringFrequencySeconds)
             .build();
 
+    // Write the aggregated results to the destination Iceberg table
     aggregatedRows.apply(
         "WriteToIceberg", Managed.write(Managed.ICEBERG).withConfig(icebergWriteConfig));
 
     p.run().waitUntilFinish();
   }
 
-  private static class ExtractHourAndPassengerCount extends DoFn<Row, KV<String, Long>> {
-    private static final DateTimeFormatter INPUT_FORMATTER =
-        DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-    private static final DateTimeFormatter OUTPUT_FORMATTER =
-        DateTimeFormatter.ofPattern("yyyy-MM-dd HH:00");
+  private static class FormatAggregatedRow extends DoFn<KV<String, Long>, Row> {
+    @ProcessElement
+    public void processElement(@Element KV<String, Long> kv, OutputReceiver<Row> out) {
+      Row row =
+          Row.withSchema(HOURLY_PASSENGER_COUNT_SCHEMA)
+              .withFieldValue("ride_hour", DateTime.parse(kv.getKey()))
+              .withFieldValue("passenger_count", kv.getValue())
+              .build();
+      out.output(row);
+    }
+  }
 
+  private static class ExtractHourAndPassengerCount extends DoFn<Row, KV<String, Long>> {
     @ProcessElement
     public void processElement(@Element Row row, OutputReceiver<KV<String, Long>> out) {
-      LocalDateTime rideDateTime =
-          LocalDateTime.parse(
-              Preconditions.checkStateNotNull(row.getString("ride_minute")), INPUT_FORMATTER);
+      DateTime rideMinute =
+          ((DateTime) Preconditions.checkStateNotNull(row.getDateTime("ride_minute")))
+              .withSecondOfMinute(0)
+              .withMillisOfSecond(0);
       out.output(
           KV.of(
-              rideDateTime.format(OUTPUT_FORMATTER),
+              rideMinute.toString(),
               Preconditions.checkStateNotNull(row.getInt64("passenger_count"))));
     }
   }
@@ -185,7 +178,7 @@ public class IcebergRestCatalogCDCExample {
     void setDestinationTable(String destinationTable);
 
     @Description("Warehouse location for the Iceberg catalog")
-    @Default.String("gs://biglake_taxi_rides")
+    @Default.String("gs://biglake_taxi_ride_metrics")
     String getWarehouse();
 
     void setWarehouse(String warehouse);
