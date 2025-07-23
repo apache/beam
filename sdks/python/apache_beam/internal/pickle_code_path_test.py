@@ -71,7 +71,7 @@ class CodePathTest(unittest.TestCase):
     self.assertEqual(
         code_object_pickler._get_code_from_stable_reference(
             code_object_pickler._get_code_path(
-                before_module_with_classes.AddLocalVariable.my_method()).
+                before_module_with_classes.AddLocalVariable.my_method(self)).
             replace("before_module_with_classes", "after_module_with_classes")),
         after_module_with_classes.AddLocalVariable.my_method().__code__,
     )
@@ -80,7 +80,7 @@ class CodePathTest(unittest.TestCase):
     self.assertEqual(
         code_object_pickler._get_code_from_stable_reference(
             code_object_pickler._get_code_path(
-                before_module_with_classes.RemoveLocalVariable.my_method()).
+                before_module_with_classes.RemoveLocalVariable.my_method(self)).
             replace("before_module_with_classes", "after_module_with_classes")),
         after_module_with_classes.RemoveLocalVariable.my_method().__code__,
     )
@@ -89,7 +89,7 @@ class CodePathTest(unittest.TestCase):
     self.assertEqual(
         code_object_pickler._get_code_from_stable_reference(
             code_object_pickler._get_code_path(
-                before_module_with_classes.AddLambdaVariable.my_method()).
+                before_module_with_classes.AddLambdaVariable.my_method(self)).
             replace("before_module_with_classes", "after_module_with_classes")),
         after_module_with_classes.AddLambdaVariable.my_method().__code__,
     )
@@ -98,14 +98,14 @@ class CodePathTest(unittest.TestCase):
     with self.assertRaisesRegex(AttributeError, "object has no attribute"):
       code_object_pickler._get_code_from_stable_reference(
           code_object_pickler._get_code_path(
-              before_module_with_classes.RemoveLambdaVariable.my_method()).
+              before_module_with_classes.RemoveLambdaVariable.my_method(self)).
           replace("before_module_with_classes", "after_module_with_classes"))
 
   def test_get_code_nested_function_in_class(self):
     self.assertEqual(
         code_object_pickler._get_code_from_stable_reference(
             code_object_pickler._get_code_path(
-                before_module_with_classes.ClassWithNestedFunction.my_method()).
+                before_module_with_classes.ClassWithNestedFunction.my_method(self)).
             replace("before_module_with_classes", "after_module_with_classes")),
         after_module_with_classes.ClassWithNestedFunction.my_method().__code__,
     )
@@ -114,7 +114,7 @@ class CodePathTest(unittest.TestCase):
     self.assertEqual(
         code_object_pickler._get_code_from_stable_reference(
             code_object_pickler._get_code_path(
-                before_module_with_classes.ClassWithNestedFunction2.my_method()
+                before_module_with_classes.ClassWithNestedFunction2.my_method(self)
             ).replace(
                 "before_module_with_classes", "after_module_with_classes")),
         after_module_with_classes.ClassWithNestedFunction2.my_method().__code__,
@@ -124,7 +124,7 @@ class CodePathTest(unittest.TestCase):
     self.assertEqual(
         code_object_pickler._get_code_from_stable_reference(
             code_object_pickler._get_code_path(
-                before_module_with_classes.ClassWithTwoMethods.my_method()).
+                before_module_with_classes.ClassWithTwoMethods.my_method(self)).
             replace("before_module_with_classes", "after_module_with_classes")),
         after_module_with_classes.ClassWithTwoMethods.my_method().__code__,
     )
@@ -133,7 +133,7 @@ class CodePathTest(unittest.TestCase):
     self.assertEqual(
         code_object_pickler._get_code_from_stable_reference(
             code_object_pickler._get_code_path(
-                before_module_with_classes.RemoveMethod.my_method()).replace(
+                before_module_with_classes.RemoveMethod.my_method(self)).replace(
                     "before_module_with_classes", "after_module_with_classes")),
         after_module_with_classes.RemoveMethod.my_method().__code__,
     )
@@ -230,80 +230,80 @@ class CodePathTest(unittest.TestCase):
   def test_identifiers_new_local_variable_in_class(self):
     self.assertEqual(
         code_object_pickler._get_code_path(
-            before_module_with_classes.AddLocalVariable.my_method()).replace(
+            before_module_with_classes.AddLocalVariable.my_method(self)).replace(
                 "before_module_with_classes", "module_name"),
         code_object_pickler._get_code_path(
-            after_module_with_classes.AddLocalVariable.my_method()).replace(
+            after_module_with_classes.AddLocalVariable.my_method(self)).replace(
                 "after_module_with_classes", "module_name"),
     )
 
   def test_identifiers_remove_local_variable_in_class(self):
     self.assertEqual(
         code_object_pickler._get_code_path(
-            before_module_with_classes.RemoveLocalVariable.my_method()).replace(
+            before_module_with_classes.RemoveLocalVariable.my_method(self)).replace(
                 "before_module_with_classes", "module_name"),
         code_object_pickler._get_code_path(
-            after_module_with_classes.RemoveLocalVariable.my_method()).replace(
+            after_module_with_classes.RemoveLocalVariable.my_method(self)).replace(
                 "after_module_with_classes", "module_name"),
     )
 
   def test_identifiers_add_lambda_variable_in_class(self):
     self.assertNotEqual(
         code_object_pickler._get_code_path(
-            before_module_with_classes.AddLambdaVariable.my_method()).replace(
+            before_module_with_classes.AddLambdaVariable.my_method(self)).replace(
                 "before_module_with_classes", "module_name"),
         code_object_pickler._get_code_path(
-            after_module_with_classes.AddLambdaVariable.my_method()).replace(
+            after_module_with_classes.AddLambdaVariable.my_method(self)).replace(
                 "after_module_with_classes", "module_name"),
     )
 
   def test_identifiers_remove_lambda_variable_in_class(self):
     self.assertNotEqual(
         code_object_pickler._get_code_path(
-            before_module_with_classes.RemoveLambdaVariable.my_method()).
+            before_module_with_classes.RemoveLambdaVariable.my_method(self)).
         replace("before_module_with_classes", "module_name"),
         code_object_pickler._get_code_path(
-            after_module_with_classes.RemoveLambdaVariable.my_method()).replace(
+            after_module_with_classes.RemoveLambdaVariable.my_method(self)).replace(
                 "after_module_with_classes", "module_name"),
     )
 
   def test_identifiers_nested_function_in_class(self):
     self.assertEqual(
         code_object_pickler._get_code_path(
-            before_module_with_classes.ClassWithNestedFunction.my_method()
+            before_module_with_classes.ClassWithNestedFunction.my_method(self)
         ).replace("before_module_with_classes", "module_name"),
         code_object_pickler._get_code_path(
-            after_module_with_classes.ClassWithNestedFunction.my_method()).
+            after_module_with_classes.ClassWithNestedFunction.my_method(self)).
         replace("after_module_with_classes", "module_name"),
     )
 
   def test_identifiers_nested_function_2_in_class(self):
     self.assertEqual(
         code_object_pickler._get_code_path(
-            before_module_with_classes.ClassWithNestedFunction2.my_method()
+            before_module_with_classes.ClassWithNestedFunction2.my_method(self)
         ).replace("before_module_with_classes", "module_name"),
         code_object_pickler._get_code_path(
-            after_module_with_classes.ClassWithNestedFunction2.my_method()).
+            after_module_with_classes.ClassWithNestedFunction2.my_method(self)).
         replace("after_module_with_classes", "module_name"),
     )
 
   def test_identifiers_add_new_function_in_class(self):
     self.assertEqual(
         code_object_pickler._get_code_path(
-            before_module_with_classes.ClassWithTwoMethods.my_method()).replace(
+            before_module_with_classes.ClassWithTwoMethods.my_method(self)).replace(
                 "before_module_with_classes", "module_name"),
         code_object_pickler._get_code_path(
-            after_module_with_classes.ClassWithTwoMethods.my_method()).replace(
+            after_module_with_classes.ClassWithTwoMethods.my_method(self)).replace(
                 "after_module_with_classes", "module_name"),
     )
 
   def test_identifiers_remove_function_in_class(self):
     self.assertEqual(
         code_object_pickler._get_code_path(
-            before_module_with_classes.RemoveMethod.my_method()).replace(
+            before_module_with_classes.RemoveMethod.my_method(self)).replace(
                 "before_module_with_classes", "module_name"),
         code_object_pickler._get_code_path(
-            after_module_with_classes.RemoveMethod.my_method()).replace(
+            after_module_with_classes.RemoveMethod.my_method(self)).replace(
                 "after_module_with_classes", "module_name"),
     )
 
