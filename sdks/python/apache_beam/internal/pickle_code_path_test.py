@@ -15,9 +15,10 @@
 # limitations under the License.
 #
 
-"""Tests for generating stable identifiers for Python __code__ to use for Pickle serialization."""
+"""Tests for generating stable identifiers to use for Pickle serialization."""
 
 import unittest
+import apache_beam.internal.test_cases
 
 from apache_beam.internal import code_object_pickler
 from apache_beam.internal.test_cases import after_module_add_function
@@ -33,7 +34,6 @@ from apache_beam.internal.test_cases import after_module_with_single_class
 from apache_beam.internal.test_cases import before_module_with_classes
 from apache_beam.internal.test_cases import before_module_with_functions
 from apache_beam.internal.test_cases import before_module_with_lambdas
-from apache_beam.internal.test_cases import module_with_default_argument
 
 
 class CodePathTest(unittest.TestCase):
