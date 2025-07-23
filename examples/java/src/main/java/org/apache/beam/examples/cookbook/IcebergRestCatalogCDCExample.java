@@ -51,6 +51,12 @@ import org.joda.time.Duration;
  *
  * <p>This pipeline can be used to process the output of {@link
  * IcebergRestCatalogStreamingWriteExample}.
+ *
+ * <p>This example is a demonstration of the Iceberg REST Catalog. For more information, see the
+ * documentation at {@link https://cloud.google.com/bigquery/docs/blms-rest-catalog}.
+ *
+ * <p>For more information on Apache Beam Iceberg Managed-IO features, see the documentation at
+ * {@link https://beam.apache.org/documentation/io/managed-io/}.
  */
 public class IcebergRestCatalogCDCExample {
 
@@ -167,7 +173,7 @@ public class IcebergRestCatalogCDCExample {
   /** Pipeline options for this example. */
   public interface IcebergCdcOptions extends GcpOptions {
     @Description("The source Iceberg table to read CDC events from")
-    @Default.String("taxi_dataset.passenger_count_by_minute")
+    @Default.String("taxi_dataset.ride_metrics_by_minute")
     String getSourceTable();
 
     void setSourceTable(String sourceTable);

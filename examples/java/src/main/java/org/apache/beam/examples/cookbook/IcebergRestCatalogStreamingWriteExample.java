@@ -109,7 +109,7 @@ public class IcebergRestCatalogStreamingWriteExample {
     IcebergPipelineOptions options =
         PipelineOptionsFactory.fromArgs(args).withValidation().as(IcebergPipelineOptions.class);
 
-    final String tableIdentifier = "taxi_dataset.passenger_count_by_minute";
+    final String tableIdentifier = "taxi_dataset.ride_metrics_by_minute";
     final String pubsubTopic = options.getTopic();
     final String catalogUri = options.getCatalogUri();
     final String warehouseLocation = options.getWarehouse();
