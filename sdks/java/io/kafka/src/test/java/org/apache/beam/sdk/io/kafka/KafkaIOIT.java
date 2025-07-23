@@ -1149,16 +1149,15 @@ public class KafkaIOIT {
     pReadOptions.setRegion("us-central1");
     pReadOptions.setJobName("testManagedIOWithSchemaRegistry" + UUID.randomUUID());
     Pipeline pRead = Pipeline.create(pReadOptions);
-    String topicName = "TestManagedIOWithSchemaRegistry";
+    String topicName = "TestManagedReadAndWriteIOWithSchemaRegistry";
     String schemaRegistryUrl =
         "https://managedkafka.googleapis.com/v1/projects/dataflow-testing-311516/locations/us-east7/schemaRegistries/fozzie_test";
     String bootstrapServer =
         "bootstrap.fozzie-test-cluster.us-central1.managedkafka.dataflow-testing-311516.cloud.goog:9092";
     String schemaRegistrySubject = topicName + "-value";
-    final Schema KAFKA_TOPIC_SCHEMA =
+    final Schema beamRowSchema =
         Schema.builder().addStringField("name").addInt32Field("age").build();
 
-    Schema beamRowSchema = Schema.builder().addStringField("name").addInt32Field("age").build();
     Row row1 =
         Row.withSchema(beamRowSchema)
             .withFieldValue("name", "Alice Wonderland")
@@ -1246,6 +1245,24 @@ public class KafkaIOIT {
       //              .put("producer_config_updates", producerConfigUpdates)
       //              .build();
 
+      ImmutableMap<String, Object> producerConfigUpdates =
+          ImmutableMap.<String, Object>builder()
+              .put(KafkaAvroSerializerConfig.SCHEMA_REGISTRY_URL_CONFIG, schemaRegistryUrl)
+              .put(KafkaAvroSerializerConfig.BEARER_AUTH_CREDENTIALS_SOURCE, "CUSTOM")
+              .put("auto.register.schemas", true)
+              .put(
+                  "bearer.auth.custom.provider.class",
+                  "com.google.cloud.hosted.kafka.auth.GcpBearerAuthCredentialProvider")
+              .put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_SSL")
+              .put(SaslConfigs.SASL_MECHANISM, "OAUTHBEARER")
+              .put(
+                  SaslConfigs.SASL_LOGIN_CALLBACK_HANDLER_CLASS,
+                  "com.google.cloud.hosted.kafka.auth.GcpLoginCallbackHandler")
+              .put(
+                  SaslConfigs.SASL_JAAS_CONFIG,
+                  "org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required;")
+              .build();
+
       PCollection<Row> inputRows =
           writePipeline.apply(
               "CreateSampleRows", Create.of(sampleRows).withCoder(RowCoder.of(beamRowSchema)));
@@ -1259,30 +1276,7 @@ public class KafkaIOIT {
                       .put("bootstrap_servers", bootstrapServer)
                       .put("topic", topicName)
                       .put("format", "AVRO")
-                      .put(
-                          "producer_config_updates",
-                          ImmutableMap.of(
-                              KafkaAvroSerializerConfig.SCHEMA_REGISTRY_URL_CONFIG,
-                              schemaRegistryUrl,
-                              KafkaAvroSerializerConfig.BEARER_AUTH_CREDENTIALS_SOURCE,
-                              "CUSTOM",
-                              "auto.register.schemas",
-                              "true",
-                              "bearer.auth.custom.provider.class",
-                              "com.google.cloud.hosted.kafka.auth.GcpBearerAuthCredentialProvider",
-                              CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
-                              "SASL_SSL",
-                              SaslConfigs.SASL_MECHANISM,
-                              "OAUTHBEARER",
-                              SaslConfigs.SASL_LOGIN_CALLBACK_HANDLER_CLASS,
-                              "com.google.cloud.hosted.kafka.auth.GcpLoginCallbackHandler",
-                              SaslConfigs.SASL_JAAS_CONFIG,
-                              "org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required;",
-                              ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
-                              org.apache.kafka.common.serialization.StringSerializer.class
-                                  .getName(),
-                              ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
-                              KafkaAvroSerializer.class.getName()))
+                      .put("producer_config_updates", producerConfigUpdates)
                       .build()));
 
       ImmutableMap<String, Object> config =
@@ -1314,20 +1308,20 @@ public class KafkaIOIT {
           pRead
               .apply(Managed.read(Managed.KAFKA).withConfig(config))
               .get("output")
-              .setCoder(RowCoder.of(KAFKA_TOPIC_SCHEMA));
+              .setCoder(RowCoder.of(beamRowSchema));
 
       PAssert.that(output)
           .containsInAnyOrder(
               ImmutableList.of(
-                  Row.withSchema(KAFKA_TOPIC_SCHEMA)
+                  Row.withSchema(beamRowSchema)
                       .withFieldValue("name", "Alice Wonderland")
                       .withFieldValue("age", 25)
                       .build(),
-                  Row.withSchema(KAFKA_TOPIC_SCHEMA)
+                  Row.withSchema(beamRowSchema)
                       .withFieldValue("name", "Bob The Builder")
                       .withFieldValue("age", 30)
                       .build(),
-                  Row.withSchema(KAFKA_TOPIC_SCHEMA)
+                  Row.withSchema(beamRowSchema)
                       .withFieldValue("name", "Charlie Chaplin")
                       .withFieldValue("age", 35)
                       .build()));

@@ -31,6 +31,9 @@ import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.extensions.protobuf.ProtoByteUtils;
 import org.apache.beam.sdk.metrics.Counter;
@@ -169,16 +172,19 @@ public class KafkaWriteSchemaTransformProvider
       private Long errorsInBundle = 0L;
       private final boolean handleErrors;
       private final Schema errorSchema;
+      private TupleTag<KV<byte[], GenericRecord>> recordOutputTag;
 
       public RecordErrorCounterFn(
           String name,
           SerializableFunction<Row, GenericRecord> toRecordsFn,
           Schema errorSchema,
-          boolean handleErrors) {
+          boolean handleErrors,
+          TupleTag<KV<byte[], GenericRecord>> recordOutputTag) {
         this.toRecordsFn = toRecordsFn;
         this.errorCounter = Metrics.counter(KafkaWriteSchemaTransformProvider.class, name);
         this.handleErrors = handleErrors;
         this.errorSchema = errorSchema;
+        this.recordOutputTag = recordOutputTag;
       }
 
       @ProcessElement
@@ -196,8 +202,7 @@ public class KafkaWriteSchemaTransformProvider
           receiver.get(ERROR_TAG).output(ErrorHandling.errorRecord(errorSchema, row, e));
         }
         if (output != null) {
-          TupleTag<KV<byte[], GenericRecord>> recordOutputTag = new TupleTag<>();
-          receiver.get(recordOutputTag).output(output);
+          receiver.get(this.recordOutputTag).output(output);
         }
       }
 
@@ -248,10 +253,6 @@ public class KafkaWriteSchemaTransformProvider
         }
 
       } else {
-        for (Map.Entry<String, String> entry :
-            configuration.getProducerConfigUpdates().entrySet()) {
-          LOG.info("CONFIG KEY: {}\nCONFIG VALUE: {}\n", entry.getKey(), entry.getValue());
-        }
         if (configuration.getProducerConfigUpdates() == null) {
           LOG.info("NO CONFIG UPDATE MAP FOUND.");
         } else if (!configuration.getProducerConfigUpdates().containsKey("schema.registry.url")) {
@@ -270,14 +271,13 @@ public class KafkaWriteSchemaTransformProvider
       }
 
       boolean handleErrors = ErrorHandling.hasOutput(configuration.getErrorHandling());
-      final Map<String, String> configOverrides = configuration.getProducerConfigUpdates();
+      final Map<String, Object> configOverrides = configuration.getProducerConfigUpdates();
       Schema errorSchema = ErrorHandling.errorSchema(inputSchema);
       PCollectionTuple outputTuple;
       if (toRecordsFn != null) {
         LOG.info("Convert to GenericRecord");
         final TupleTag<KV<byte[], GenericRecord>> recordOutputTag =
             new TupleTag<KV<byte[], GenericRecord>>() {};
-        LOG.info("recordOutputTag created: {}", recordOutputTag.toString());
         //        outputTuple = null;
         outputTuple =
             input
@@ -289,11 +289,14 @@ public class KafkaWriteSchemaTransformProvider
                                 "Kafka-write-error-counter",
                                 toRecordsFn,
                                 errorSchema,
-                                handleErrors))
+                                handleErrors,
+                                recordOutputTag))
                         .withOutputTags(recordOutputTag, TupleTagList.of(ERROR_TAG)));
 
         outputTuple
             .get(recordOutputTag)
+            .setCoder(
+                KvCoder.of(ByteArrayCoder.of(), AvroCoder.of(AvroUtils.toAvroSchema(inputSchema))))
             .apply(
                 "Map Rows to GenericRecords",
                 KafkaIO.<byte[], GenericRecord>write()
@@ -302,7 +305,7 @@ public class KafkaWriteSchemaTransformProvider
                     .withProducerConfigUpdates(
                         configOverrides == null
                             ? new HashMap<>()
-                            : new HashMap<String, Object>(configOverrides))
+                            : new HashMap<>(configOverrides))
                     .withKeySerializer(ByteArraySerializer.class)
                     .withValueSerializer((Class) KafkaAvroSerializer.class));
       } else {
@@ -391,7 +394,7 @@ public class KafkaWriteSchemaTransformProvider
             + " you may use this. See a detailed list:"
             + " https://docs.confluent.io/platform/current/installation/configuration/producer-configs.html")
     @Nullable
-    public abstract Map<String, String> getProducerConfigUpdates();
+    public abstract Map<String, Object> getProducerConfigUpdates();
 
     @SchemaFieldDescription("This option specifies whether and where to output unwritable rows.")
     @Nullable
@@ -425,7 +428,7 @@ public class KafkaWriteSchemaTransformProvider
 
       public abstract Builder setBootstrapServers(String bootstrapServers);
 
-      public abstract Builder setProducerConfigUpdates(Map<String, String> producerConfigUpdates);
+      public abstract Builder setProducerConfigUpdates(Map<String, Object> producerConfigUpdates);
 
       public abstract Builder setErrorHandling(ErrorHandling errorHandling);
 
