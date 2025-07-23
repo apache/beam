@@ -20,8 +20,6 @@
 # to install Vertex AI Python SDK.
 
 import logging
-import time
-from collections.abc import Iterable
 from collections.abc import Sequence
 from typing import Any
 from typing import Optional
@@ -32,15 +30,12 @@ from google.auth.credentials import Credentials
 
 import apache_beam as beam
 import vertexai
-from apache_beam.io.components.adaptive_throttler import AdaptiveThrottler
-from apache_beam.metrics.metric import Metrics
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import RemoteModelHandler
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.transforms.base import EmbeddingsManager
 from apache_beam.ml.transforms.base import _ImageEmbeddingHandler
 from apache_beam.ml.transforms.base import _TextEmbeddingHandler
-from apache_beam.utils import retry
 from vertexai.language_models import TextEmbeddingInput
 from vertexai.language_models import TextEmbeddingModel
 from vertexai.vision_models import Image
