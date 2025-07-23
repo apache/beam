@@ -1045,7 +1045,7 @@ class _PTransformFnPTransform(PTransform):
     # the name unwieldy.
     if self._args:
       first_arg_string = label_from_callable(self._args[0])
-      if self._use_backwards_compatible_label or len(first_arg_string) <= 16:
+      if self._use_backwards_compatible_label or len(first_arg_string) <= 19:
         suffix = '(%s)' % first_arg_string
       else:
         suffix = '(%s...)' % first_arg_string[:16].replace('\n', ' ')
