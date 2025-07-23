@@ -938,9 +938,7 @@ class YamlProviders:
       This function creates a unified schema that contains all fields from all
       input PCollections. Fields are made optional to handle missing values.
       """
-      from apache_beam.typehints import row_type
       from apache_beam.typehints.schemas import named_fields_from_element_type
-      from typing import Optional
 
       # Collect all schemas
       schemas = []
@@ -965,8 +963,13 @@ class YamlProviders:
             existing_type = all_fields[field_name]
             if existing_type != field_type:
               from apache_beam.typehints import typehints
+              # Extract inner types from Optional if needed
+              existing_inner = (
+                  existing_type.__args__[0]
+                  if hasattr(existing_type, '__args__') and
+                  len(existing_type.__args__) == 1 else existing_type)
               # Make it optional since not all elements may have this field
-              all_fields[field_name] = Optional[typehints.Union[existing_type,
+              all_fields[field_name] = Optional[typehints.Union[existing_inner,
                                                                 field_type]]
           else:
             # Make field optional since not all PCollections may have it
@@ -982,7 +985,8 @@ class YamlProviders:
       return None
 
     def _unify_element_with_schema(self, element, target_schema):
-      """Convert an element to match the target schema, preserving existing fields only."""
+      """Convert an element to match the target schema, preserving existing 
+      fields only."""
       if target_schema is None:
         return element
 
@@ -994,8 +998,8 @@ class YamlProviders:
       else:
         return element
 
-      # Create new element with only the fields that exist in the original element
-      # plus None for fields that are expected but missing
+      # Create new element with only the fields that exist in the original
+      # element plus None for fields that are expected but missing
       unified_dict = {}
       for field_name in target_schema._fields:
         if field_name in element_dict:
