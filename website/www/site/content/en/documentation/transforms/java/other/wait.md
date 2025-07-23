@@ -17,37 +17,71 @@ limitations under the License.
 -->
 
 # Wait.On
+<table align="left">
+    <a target="_blank" class="button"
+        href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Wait.html">
+      <img src="/images/logos/sdks/java.png" width="20px" height="20px"
+           alt="Javadoc" />
+     Javadoc
+    </a>
+</table>
+<br><br>
 
-`Wait.On` is a transform that delays the processing of a main `PCollection` until one or more other `PCollections` (signals) have finished processing. This is useful for enforcing ordering or dependencies between different parts of a pipeline, especially when some outputs interact with external systems (such as writing to a database).
+`Wait.On` returns a `PCollection` with the contents identical to the input `PCollection`, but delays the downstream processing until one or more other `PCollections` (signals) have finished processing. This is useful for enforcing ordering or dependencies between different parts of a pipeline, especially when some outputs interact with external systems (such as writing to a database).
 
-When you apply `Wait.On`, the elements of the main `PCollection` will not be processed until all the specified signal `PCollections` have completed. In streaming mode, this is enforced per window: the corresponding window of each waited-on `PCollection` must be complete before elements are passed through.
+When you apply `Wait.On`, the elements of the main `PCollection` will not be emitted for downstream processing until the computations required to produce the specified signal `PCollections` have completed. In streaming mode, this is enforced per window: the corresponding window of each waited-on `PCollection` must close before elements are passed through.
 
 ## Examples
 
 ```java
 // Example 1: Basic usage
-PCollection<String> main = ...;
-PCollection<Void> signal = ...;
+Pipeline p = Pipeline.create();
+PCollection<String> main = p.apply("CreateMain", Create.of("item1", "item2", "item3"));
+PCollection<Void> signal = p.apply("CreateSignal", Create.of("trigger"))
+    .apply("ProcessSignal", ParDo.of(new DoFn<String, Void>() {
+        @ProcessElement
+        public void processElement(ProcessContext c) throws InterruptedException {
+            // Simulate some processing time
+            Thread.sleep(2000);
+            // Signal processing complete
+        }
+    }));
 
 // Wait for 'signal' to complete before processing 'main'
 // Elements pass through unchanged after 'signal' finishes
-PCollection<String> result = main.apply(Wait.on(signal));
+PCollection<String> result = main.apply("WaitOnSignal", Wait.on(signal))
+    .apply("ProcessAfterWait", MapElements.into(TypeDescriptors.strings())
+        .via(item -> "Processed: " + item))
+    .apply("LogResults", ParDo.of(new DoFn<String, Void>() {
+        @ProcessElement
+        public void processElement(ProcessContext c) {
+            System.out.println(c.element());
+        }
+    }));
 
 // Example 2: Using multiple signals
-PCollection<String> main = ...;
-PCollection<Void> signal1 = ...;
-PCollection<Void> signal2 = ...;
+PCollection<String> main2 = p.apply("CreateMain2", Create.of("data1", "data2"));
+PCollection<Void> signal1 = p.apply("CreateSignal1", Create.of("setup"))
+    .apply("SetupDatabase", ParDo.of(new DoFn<String, Void>() {
+        @ProcessElement
+        public void processElement(ProcessContext c) throws InterruptedException {
+            // Simulate database setup
+            Thread.sleep(1000);
+        }
+    }));
+PCollection<Void> signal2 = p.apply("CreateSignal2", Create.of("config"))
+    .apply("LoadConfig", ParDo.of(new DoFn<String, Void>() {
+        @ProcessElement
+        public void processElement(ProcessContext c) throws InterruptedException {
+            // Simulate config loading
+            Thread.sleep(1500);
+        }
+    }));
 
 // Wait for both signal1 and signal2 to complete before processing main
-PCollection<String> result = main.apply(Wait.on(signal1, signal2));
-
-// Example 3: Streaming mode with windowing
-PCollection<String> main = ...;
-PCollection<Void> signal = ...;
-
-PCollection<String> result = main
-    .apply(Window.into(FixedWindows.of(Duration.standardMinutes(5))))
-    .apply(Wait.on(signal));
+PCollection<String> result2 = main2.apply("WaitOnSignals", Wait.on(signal1, signal2))
+    .apply("TransformData", MapElements.into(TypeDescriptors.strings())
+        .via(data -> data.toUpperCase() + "_READY"));
 ```
 
 ## Related transforms
