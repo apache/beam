@@ -292,7 +292,7 @@ class CodePathTest(unittest.TestCase):
     self.assertEqual(
         code_object_pickler._get_code_path(
             before_module_with_classes.ClassWithTwoMethods.my_method()).replace(
-                 "before_module_with_classes", "module_name"),
+                "before_module_with_classes", "module_name"),
         code_object_pickler._get_code_path(
             after_module_with_classes.ClassWithTwoMethods.my_method()).replace(
                 "after_module_with_classes", "module_name"),
