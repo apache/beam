@@ -163,7 +163,7 @@ test_cases = [
 ]
 
 
-class DillTest(parameterized.TestCase):
+class DillTest(unittest.TestCase):
   @parameterized.parameters(test_cases)
   def test_get_code_path(self, callable, expected):
     actual = code_object_pickler._get_code_path(callable)
