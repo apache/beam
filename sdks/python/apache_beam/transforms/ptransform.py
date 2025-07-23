@@ -1037,7 +1037,7 @@ class _PTransformFnPTransform(PTransform):
     self._use_backwards_compatible_label = is_compat_version_prior_to(
         options, '2.67.0')
 
-  def default_label(self):
+  def default_label(self) -> str:
     # Attempt to give a reasonable name to this transform.
     # We want it to be reasonably unique, but also not sensitive to
     # irrelevent parameters to minimize pipeline-to-pipeline variance.
