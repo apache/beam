@@ -19,7 +19,7 @@
 
 
 class MyClass:
-  def another_function():
+  def another_function(self):
     a = 1
     b = lambda: 2
     return b
