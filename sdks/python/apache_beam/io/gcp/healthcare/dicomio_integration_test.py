@@ -68,16 +68,13 @@ SCOPES = ['https://www.googleapis.com/auth/cloud-platform']
 VOLATILE_TAGS = {"00080056", "00081190"}
 
 
-# ---------- helpers ----------
-def normalize_outer(element: dict) -> dict:
-  """Normalize a full dictionary returned by the transforms (has 'result', 'status', etc.)."""
-  element = dict(element)  # shallow copy
-  element["result"] = [normalize_instance(d) for d in element.get("result", [])]
-  return element
+def normalize_outer(elem: dict) -> dict:
+  elem = dict(elem)  # shallow copy
+  elem["result"] = [normalize_instance(d) for d in elem.get("result", [])]
+  return elem
 
 
 def normalize_instance(instance: dict) -> dict:
-  """Drop volatile tags from a single DICOM instance dict."""
   return {k: v for k, v in instance.items() if k not in VOLATILE_TAGS}
 
 
