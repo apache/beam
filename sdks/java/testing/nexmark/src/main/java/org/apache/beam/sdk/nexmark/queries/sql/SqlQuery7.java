@@ -55,17 +55,16 @@ public class SqlQuery7 extends NexmarkQueryTransform<Bid> {
 
     String queryString =
         String.format(
-            ""
-                + " SELECT B.auction, B.price, B.bidder, B.dateTime, B.extra "
-                + "    FROM (SELECT B.auction, B.price, B.bidder, B.dateTime, B.extra, "
-                + "       TUMBLE_START(B.dateTime, INTERVAL '%1$d' SECOND) AS starttime "
+            " SELECT B.auction, B.price, B.bidder, B.`dateTime`, B.extra "
+                + "    FROM (SELECT B.auction, B.price, B.bidder, B.`dateTime`, B.extra, "
+                + "       TUMBLE_START(B.`dateTime`, INTERVAL '%1$d' SECOND) AS starttime "
                 + "    FROM Bid B "
-                + "    GROUP BY B.auction, B.price, B.bidder, B.dateTime, B.extra, "
-                + "       TUMBLE(B.dateTime, INTERVAL '%1$d' SECOND)) B "
+                + "    GROUP BY B.auction, B.price, B.bidder, B.`dateTime`, B.extra, "
+                + "       TUMBLE(B.`dateTime`, INTERVAL '%1$d' SECOND)) B "
                 + " JOIN (SELECT MAX(B1.price) AS maxprice, "
-                + "       TUMBLE_START(B1.dateTime, INTERVAL '%1$d' SECOND) AS starttime "
+                + "       TUMBLE_START(B1.`dateTime`, INTERVAL '%1$d' SECOND) AS starttime "
                 + "    FROM Bid B1 "
-                + "    GROUP BY TUMBLE(B1.dateTime, INTERVAL '%1$d' SECOND)) B1 "
+                + "    GROUP BY TUMBLE(B1.`dateTime`, INTERVAL '%1$d' SECOND)) B1 "
                 + " ON B.starttime = B1.starttime AND B.price = B1.maxprice ",
             configuration.windowSizeSec);
     query = SqlTransform.query(queryString);

@@ -218,9 +218,9 @@ public class IcebergReadWriteIT {
             + "'char', "
             + "ARRAY['123', '456'], "
             + "ARRAY["
-            + "ROW(ARRAY['abc', 'xyz'], 123), "
-            + "ROW(ARRAY['foo', 'bar'], 456), "
-            + "ROW(ARRAY['cat', 'dog'], 789)]"
+            + "CAST(ROW(ARRAY['abc', 'xyz'], 123) AS ROW(c_arr_struct_arr VARCHAR ARRAY, c_arr_struct_integer INTEGER)), "
+            + "CAST(ROW(ARRAY['foo', 'bar'], 456) AS ROW(c_arr_struct_arr VARCHAR ARRAY, c_arr_struct_integer INTEGER)), "
+            + "CAST(ROW(ARRAY['cat', 'dog'], 789) AS ROW(c_arr_struct_arr VARCHAR ARRAY, c_arr_struct_integer INTEGER))]"
             + ")";
     BeamSqlRelUtils.toPCollection(writePipeline, sqlEnv.parseQuery(insertStatement));
     writePipeline.run().waitUntilFinish();

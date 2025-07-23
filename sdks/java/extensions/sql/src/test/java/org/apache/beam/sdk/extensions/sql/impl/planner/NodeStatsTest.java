@@ -21,11 +21,11 @@ import org.apache.beam.sdk.extensions.sql.impl.rel.BaseRelTest;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelOptCluster;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.RelTraitSet;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.plan.volcano.RelSubset;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.RelNode;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.SingleRel;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptCluster;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelTraitSet;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.volcano.RelSubset;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.SingleRel;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -62,7 +62,7 @@ public class NodeStatsTest extends BaseRelTest {
   public void testUnknownRel() {
     String sql = " select * from ORDER_DETAILS1 ";
     RelNode root = env.parseQuery(sql);
-    RelNode unknown = new UnknownRel(root.getCluster(), null, null);
+    RelNode unknown = new UnknownRel(root.getCluster(), RelTraitSet.createEmpty(), null);
     NodeStats nodeStats =
         unknown
             .metadata(NodeStatsMetadata.class, unknown.getCluster().getMetadataQuery())

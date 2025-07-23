@@ -23,7 +23,7 @@ import com.google.zetasql.Value;
 import io.grpc.Status;
 import java.time.LocalTime;
 import java.util.List;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.avatica.util.TimeUnit;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;

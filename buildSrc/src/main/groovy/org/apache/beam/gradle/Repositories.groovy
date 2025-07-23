@@ -55,7 +55,10 @@ class Repositories {
           snapshotsOnly()
         }
       }
-
+      maven {
+        url "${project.rootDir}/tempLib"
+        content { includeGroup "org.apache.beam" }
+      }
       // Apache release snapshots
       maven { url "https://repository.apache.org/content/repositories/releases" }
     }
