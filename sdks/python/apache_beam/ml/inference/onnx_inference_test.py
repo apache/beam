@@ -40,7 +40,6 @@ if bool(1):  # lint doesn't like an unconditional `raise`.
 try:
   import onnxruntime as ort
   import torch
-  from onnxruntime.capi.onnxruntime_pybind11_state import InvalidArgument
   import tensorflow as tf
   import tf2onnx
   from tensorflow.keras import layers
@@ -406,8 +405,7 @@ class OnnxPytorchRunInferencePipelineTest(OnnxTestBase):
           equal_to(expected_predictions, equals_fn=_compare_prediction_result))
 
   def test_invalid_input_type(self):
-    with self.assertRaisesRegex(InvalidArgument,
-                                "Got invalid dimensions for input"):
+    with self.assertRaisesRegex(Exception, "Got invalid dimensions for input"):
       with TestPipeline() as pipeline:
         examples = [np.array([1], dtype="float32")]
         path = os.path.join(self.tmpdir, 'my_onnx_pytorch_path')
@@ -461,8 +459,7 @@ class OnnxTensorflowRunInferencePipelineTest(OnnxTestBase):
           equal_to(expected_predictions, equals_fn=_compare_prediction_result))
 
   def test_invalid_input_type(self):
-    with self.assertRaisesRegex(InvalidArgument,
-                                "Got invalid dimensions for input"):
+    with self.assertRaisesRegex(Exception, "Got invalid dimensions for input"):
       with TestPipeline() as pipeline:
         examples = [np.array([1], dtype="float32")]
         path = os.path.join(self.tmpdir, 'my_onnx_tensorflow_path')
@@ -517,7 +514,7 @@ class OnnxSklearnRunInferencePipelineTest(OnnxTestBase):
           equal_to(expected_predictions, equals_fn=_compare_prediction_result))
 
   def test_invalid_input_type(self):
-    with self.assertRaises(InvalidArgument):
+    with self.assertRaisesRegex(Exception, "InvalidArgument"):
       with TestPipeline() as pipeline:
         examples = [np.array([1], dtype="float32")]
         path = os.path.join(self.tmpdir, 'my_onnx_sklearn_path')

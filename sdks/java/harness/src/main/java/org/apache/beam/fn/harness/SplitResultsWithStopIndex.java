@@ -20,6 +20,7 @@ package org.apache.beam.fn.harness;
 import com.google.auto.value.AutoValue;
 import org.apache.beam.sdk.annotations.Internal;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 
 @AutoValue
 @AutoValue.CopyAnnotations
@@ -27,15 +28,18 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 abstract class SplitResultsWithStopIndex {
   public static SplitResultsWithStopIndex of(
       WindowedSplitResult windowSplit,
-      HandlesSplits.SplitResult downstreamSplit,
+      HandlesSplits.@Nullable SplitResult downstreamSplit,
       int newWindowStopIndex) {
     return new AutoValue_SplitResultsWithStopIndex(
         windowSplit, downstreamSplit, newWindowStopIndex);
   }
 
-  public abstract @Nullable WindowedSplitResult getWindowSplit();
+  @Pure
+  public abstract WindowedSplitResult getWindowSplit();
 
+  @Pure
   public abstract HandlesSplits.@Nullable SplitResult getDownstreamSplit();
 
+  @Pure
   public abstract int getNewWindowStopIndex();
 }

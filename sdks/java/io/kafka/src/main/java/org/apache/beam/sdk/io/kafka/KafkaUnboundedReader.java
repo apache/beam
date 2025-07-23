@@ -494,11 +494,10 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     }
 
     synchronized long backlogMessageCount() {
-      if (latestOffset < 0 || nextOffset < 0) {
+      if (latestOffset < 0 || nextOffset < 0 || latestOffset < nextOffset) {
         return UnboundedReader.BACKLOG_UNKNOWN;
       }
-      double remaining = latestOffset - nextOffset;
-      return Math.max(0, (long) Math.ceil(remaining));
+      return latestOffset - nextOffset;
     }
 
     synchronized TimestampPolicyContext mkTimestampPolicyContext() {

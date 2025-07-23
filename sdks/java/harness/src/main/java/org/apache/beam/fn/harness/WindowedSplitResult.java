@@ -21,6 +21,7 @@ import com.google.auto.value.AutoValue;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 
 /** Internal class to hold the primary and residual roots when converted to an input element. */
 @AutoValue
@@ -28,10 +29,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @Internal
 abstract class WindowedSplitResult {
   public static WindowedSplitResult forRoots(
-      WindowedValue<?> primaryInFullyProcessedWindowsRoot,
-      WindowedValue<?> primarySplitRoot,
-      WindowedValue<?> residualSplitRoot,
-      WindowedValue<?> residualInUnprocessedWindowsRoot) {
+      @Nullable WindowedValue<?> primaryInFullyProcessedWindowsRoot,
+      @Nullable WindowedValue<?> primarySplitRoot,
+      @Nullable WindowedValue<?> residualSplitRoot,
+      @Nullable WindowedValue<?> residualInUnprocessedWindowsRoot) {
     return new AutoValue_WindowedSplitResult(
         primaryInFullyProcessedWindowsRoot,
         primarySplitRoot,
@@ -39,11 +40,15 @@ abstract class WindowedSplitResult {
         residualInUnprocessedWindowsRoot);
   }
 
+  @Pure
   public abstract @Nullable WindowedValue<?> getPrimaryInFullyProcessedWindowsRoot();
 
+  @Pure
   public abstract @Nullable WindowedValue<?> getPrimarySplitRoot();
 
+  @Pure
   public abstract @Nullable WindowedValue<?> getResidualSplitRoot();
 
+  @Pure
   public abstract @Nullable WindowedValue<?> getResidualInUnprocessedWindowsRoot();
 }

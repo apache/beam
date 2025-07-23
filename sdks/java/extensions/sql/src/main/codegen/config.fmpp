@@ -26,11 +26,14 @@ data: {
         "org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlDrop"
         "org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.type.SqlTypeName"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlCreateCatalog"
+        "org.apache.beam.sdk.extensions.sql.impl.parser.SqlCreateDatabase"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlCreateExternalTable"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlCreateFunction"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlDropCatalog"
+        "org.apache.beam.sdk.extensions.sql.impl.parser.SqlDropDatabase"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlDdlNodes"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlUseCatalog"
+        "org.apache.beam.sdk.extensions.sql.impl.parser.SqlUseDatabase"
         "org.apache.beam.sdk.extensions.sql.impl.parser.SqlSetOptionBeam"
         "org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils"
         "org.apache.beam.sdk.schemas.Schema"
@@ -395,6 +398,7 @@ data: {
       # Example: SqlShowDatabases(), SqlShowTables().
       statementParserMethods: [
         "SqlUseCatalog(Span.of(), null)"
+        "SqlUseDatabase(Span.of(), null)"
         "SqlSetOptionBeam(Span.of(), null)"
       ]
 
@@ -427,6 +431,7 @@ data: {
       # Each must accept arguments "(SqlParserPos pos, boolean replace)".
       createStatementParserMethods: [
         "SqlCreateCatalog"
+        "SqlCreateDatabase"
         "SqlCreateExternalTable"
         "SqlCreateFunction"
         "SqlCreateTableNotSupportedMessage"
@@ -436,6 +441,7 @@ data: {
       # Each must accept arguments "(SqlParserPos pos)".
       dropStatementParserMethods: [
         "SqlDropTable"
+        "SqlDropDatabase"
         "SqlDropCatalog"
       ]
 

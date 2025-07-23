@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+import enum
 import math
 import time
 import warnings
@@ -216,6 +217,21 @@ class PeriodicSequence(PTransform):
         | 'MapToTimestamped' >> beam.Map(lambda tt: TimestampedValue(tt, tt)))
 
 
+class RebaseMode(enum.Enum):
+  '''Controls how the start and stop timestamps are rebased to execution time.
+
+  Attributes:
+    REBASE_NONE: Timestamps are not changed.
+    REBASE_ALL: Both start and stop timestamps are rebased, preserving the
+      original duration.
+    REBASE_START: Only the start timestamp is rebased; the stop timestamp
+      is unchanged.
+  '''
+  REBASE_NONE = 0
+  REBASE_ALL = 1
+  REBASE_START = 2
+
+
 class PeriodicImpulse(PTransform):
   '''
   PeriodicImpulse transform generates an infinite sequence of elements with
@@ -270,7 +286,8 @@ class PeriodicImpulse(PTransform):
       stop_timestamp: TimestampTypes = MAX_TIMESTAMP,
       fire_interval: float = 360.0,
       apply_windowing: bool = False,
-      data: Optional[Sequence[Any]] = None):
+      data: Optional[Sequence[Any]] = None,
+      rebase: RebaseMode = RebaseMode.REBASE_NONE):
     '''
     :param start_timestamp: Timestamp for first element.
     :param stop_timestamp: Timestamp at or after which no elements will be
@@ -301,21 +318,36 @@ class PeriodicImpulse(PTransform):
         sufficient to cover the duration defined by `start_timestamp`,
         `stop_timestamp`, and `fire_interval`; otherwise, a `ValueError` is
         raised.
+
+    :param rebase: Controls how the start and stop timestamps are rebased to
+      execution time. See `RebaseMode` for more details. Defaults to
+      `REBASE_NONE`.
     '''
     self.start_ts = start_timestamp
     self.stop_ts = stop_timestamp
     self.interval = fire_interval
     self.apply_windowing = apply_windowing
     self.data = data
+    self.rebase = rebase
 
     if self.data:
       self._validate_and_adjust_duration()
 
   def expand(self, pbegin):
+    if self.rebase == RebaseMode.REBASE_ALL:
+      duration = Timestamp.of(self.stop_ts) - Timestamp.of(self.start_ts)
+      impulse_element = pbegin | beam.Impulse() | beam.Map(
+          lambda _:
+          [Timestamp.now(), Timestamp.now() + duration, self.interval])
+    elif self.rebase == RebaseMode.REBASE_START:
+      impulse_element = pbegin | beam.Impulse() | beam.Map(
+          lambda _: [Timestamp.now(), self.stop_ts, self.interval])
+    else:
+      impulse_element = pbegin | 'ImpulseElement' >> beam.Create(
+          [(self.start_ts, self.stop_ts, self.interval)])
+
     result = (
-        pbegin
-        | 'ImpulseElement' >> beam.Create(
-            [(self.start_ts, self.stop_ts, self.interval)])
+        impulse_element
         | 'GenSequence' >> beam.ParDo(ImpulseSeqGenDoFn(self.data)))
 
     if not self.data:

@@ -25,6 +25,7 @@ from stale_cleaner import (
     GoogleCloudResource,
     StaleCleaner,
     PubSubTopicCleaner,
+    PubSubSubscriptionCleaner,
     FakeClock,
     DEFAULT_TIME_THRESHOLD,
     PUBSUB_TOPIC_RESOURCE,
@@ -390,6 +391,86 @@ class StaleCleanerTest(unittest.TestCase):
         self.assertNotIn("deleted-resource", self.cleaner.deleted_resources)
 
 
+class PubSubSubscriptionCleanerTest(unittest.TestCase):
+    """Tests for the PubSubSubscriptionCleaner class."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.project_id = "test-project"
+        self.bucket_name = "test-bucket"
+        self.prefixes = ["test-prefix"]
+        self.time_threshold = 86400  # 1 day
+        self.fake_clock = FakeClock("2025-05-28T10:00:00")
+
+        # Mock PubSub client
+        self.mock_client_patcher = mock.patch('google.cloud.pubsub_v1.SubscriberClient')
+        self.MockSubscriberClientClass = self.mock_client_patcher.start()
+        self.mock_subscriber_client = self.MockSubscriberClientClass.return_value
+
+        # Create a test cleaner
+        self.cleaner = PubSubSubscriptionCleaner(
+            project_id=self.project_id,
+            bucket_name=self.bucket_name,
+            prefixes=self.prefixes,
+            time_threshold=self.time_threshold,
+            clock=self.fake_clock
+        )
+
+        self.cleaner._write_resources = SilencedMock()
+        self.cleaner._stored_resources = SilencedMock(return_value={})
+
+    def tearDown(self):
+        """Tear down test fixtures."""
+        self.mock_client_patcher.stop()
+
+    def test_init(self):
+        """Test initialization."""
+        self.assertEqual(self.cleaner.project_id, self.project_id)
+        self.assertEqual(self.cleaner.bucket_name, self.bucket_name)
+        self.assertEqual(self.cleaner.prefixes, self.prefixes)
+        self.assertEqual(self.cleaner.time_threshold, self.time_threshold)
+        self.assertIsInstance(self.cleaner.clock, FakeClock)
+
+    def test_active_resources(self):
+        """Test _active_resources method."""
+        # Mock subscriptions
+        sub1 = mock.Mock()
+        sub1.name = "projects/test-project/subscriptions/test-prefix-sub1"
+        sub1.topic = "projects/test-project/topics/some-topic"
+
+        sub2 = mock.Mock()
+        sub2.name = "projects/test-project/subscriptions/test-prefix-sub2-detached"
+        sub2.topic = "_deleted-topic_"
+
+        sub3 = mock.Mock()
+        sub3.name = "projects/test-project/subscriptions/other-prefix-sub3"
+        sub3.topic = "projects/test-project/topics/another-topic"
+
+        self.mock_subscriber_client.list_subscriptions.return_value = [sub1, sub2, sub3]
+
+        with SilencePrint():
+            active = self.cleaner._active_resources()
+
+        self.assertIn("projects/test-project/subscriptions/test-prefix-sub1", active)
+        self.assertIn("projects/test-project/subscriptions/test-prefix-sub2-detached", active)
+        self.assertNotIn("projects/test-project/subscriptions/other-prefix-sub3", active)
+        self.assertEqual(len(active), 2)
+
+    def test_delete_resource(self):
+        """Test _delete_resource method."""
+        sub_name = "test-sub-to-delete"
+        subscription_path = f"projects/{self.project_id}/subscriptions/{sub_name}"
+        self.mock_subscriber_client.subscription_path.return_value = subscription_path
+
+        with SilencePrint():
+            self.cleaner._delete_resource(sub_name)
+
+        self.mock_subscriber_client.subscription_path.assert_called_once_with(self.project_id, sub_name)
+        self.mock_subscriber_client.delete_subscription.assert_called_once_with(
+            request={'subscription': subscription_path}
+        )
+
+
 class PubSubTopicCleanerTest(unittest.TestCase):
     """Tests for the PubSubTopicCleaner class."""
 
@@ -484,10 +565,10 @@ class PubSubTopicCleanerTest(unittest.TestCase):
             self.cleaner._delete_resource(resource_name)
 
             # Check that delete_topic was called
-            self.cleaner.client.delete_topic.assert_called_once_with(name=resource_name)
+            self.cleaner.client.delete_topic.assert_called_once_with(request={'topic': resource_name})
 
             # Check that correct message was printed
-            mock_print.assert_called_once_with(f"{self.cleaner.clock()} - Deleting PubSub topic test-topic")
+            mock_print.assert_called_once_with(f"{self.cleaner.clock()} - Deleting PubSub topic {resource_name}")
 
 if __name__ == '__main__':
     unittest.main()

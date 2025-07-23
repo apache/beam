@@ -26,7 +26,9 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -212,12 +214,21 @@ public class GrpcCommitWorkStreamTest {
     }
     Windmill.StreamingCommitWorkRequest request = streamInfo.requests.take();
     assertEquals(5, request.getCommitChunkCount());
-    for (int i = 0; i < 5; ++i) {
-      assertEquals(i + 1, request.getCommitChunk(i).getRequestId());
-      Windmill.WorkItemCommitRequest parsedRequest =
-          Windmill.WorkItemCommitRequest.parseFrom(
-              request.getCommitChunk(i).getSerializedWorkItemCommit());
-      assertEquals(parsedRequest.getWorkToken(), i);
+    {
+      // Check if request ids and work tokens match.
+      Map<Long, Long> requestIdWorkTokenMap = new HashMap<>();
+      Map<Long, Long> expectedRequestIdWorkTokenMap = new HashMap<>();
+      for (int i = 0; i < 5; ++i) {
+        Windmill.WorkItemCommitRequest parsedRequest =
+            Windmill.WorkItemCommitRequest.parseFrom(
+                request.getCommitChunk(i).getSerializedWorkItemCommit());
+        requestIdWorkTokenMap.put(
+            request.getCommitChunk(i).getRequestId(), parsedRequest.getWorkToken());
+      }
+      for (int i = 1; i <= 5; ++i) {
+        expectedRequestIdWorkTokenMap.put((long) i, (long) (i - 1));
+      }
+      assertThat(requestIdWorkTokenMap).containsExactlyEntriesIn(expectedRequestIdWorkTokenMap);
     }
     // Send back that 1 and 5 finished.
     streamInfo.responseObserver.onNext(
@@ -232,12 +243,21 @@ public class GrpcCommitWorkStreamTest {
         waitForConnectionAndConsumeHeader();
     Windmill.StreamingCommitWorkRequest reconnectRequest = reconnectStreamInfo.requests.take();
     assertEquals(3, reconnectRequest.getCommitChunkCount());
-    for (int i = 0; i < 3; ++i) {
-      assertEquals(i + 2, reconnectRequest.getCommitChunk(i).getRequestId());
-      Windmill.WorkItemCommitRequest parsedRequest =
-          Windmill.WorkItemCommitRequest.parseFrom(
-              reconnectRequest.getCommitChunk(i).getSerializedWorkItemCommit());
-      assertEquals(i + 1, parsedRequest.getWorkToken());
+    {
+      // Check if request ids and work tokens match.
+      Map<Long, Long> requestIdWorkTokenMap = new HashMap<>();
+      Map<Long, Long> expectedRequestIdWorkTokenMap = new HashMap<>();
+      for (int i = 0; i < 3; ++i) {
+        Windmill.WorkItemCommitRequest parsedRequest =
+            Windmill.WorkItemCommitRequest.parseFrom(
+                reconnectRequest.getCommitChunk(i).getSerializedWorkItemCommit());
+        requestIdWorkTokenMap.put(
+            reconnectRequest.getCommitChunk(i).getRequestId(), parsedRequest.getWorkToken());
+      }
+      for (int i = 2; i <= 4; ++i) {
+        expectedRequestIdWorkTokenMap.put((long) i, (long) (i - 1));
+      }
+      assertThat(requestIdWorkTokenMap).containsExactlyEntriesIn(expectedRequestIdWorkTokenMap);
     }
     // Send back that 2 and 3 finished.
     reconnectStreamInfo.responseObserver.onNext(
@@ -281,12 +301,21 @@ public class GrpcCommitWorkStreamTest {
     }
     Windmill.StreamingCommitWorkRequest request = streamInfo.requests.take();
     assertEquals(5, request.getCommitChunkCount());
-    for (int i = 0; i < 5; ++i) {
-      assertEquals(i + 1, request.getCommitChunk(i).getRequestId());
-      Windmill.WorkItemCommitRequest parsedRequest =
-          Windmill.WorkItemCommitRequest.parseFrom(
-              request.getCommitChunk(i).getSerializedWorkItemCommit());
-      assertEquals(parsedRequest.getWorkToken(), i);
+    {
+      // Check if request ids and work tokens match.
+      Map<Long, Long> requestIdWorkTokenMap = new HashMap<>();
+      Map<Long, Long> expectedRequestIdWorkTokenMap = new HashMap<>();
+      for (int i = 0; i < 5; ++i) {
+        Windmill.WorkItemCommitRequest parsedRequest =
+            Windmill.WorkItemCommitRequest.parseFrom(
+                request.getCommitChunk(i).getSerializedWorkItemCommit());
+        requestIdWorkTokenMap.put(
+            request.getCommitChunk(i).getRequestId(), parsedRequest.getWorkToken());
+      }
+      for (int i = 1; i <= 5; ++i) {
+        expectedRequestIdWorkTokenMap.put((long) i, (long) (i - 1));
+      }
+      assertThat(requestIdWorkTokenMap).containsExactlyEntriesIn(expectedRequestIdWorkTokenMap);
     }
     // Half-close the logical stream. This shouldn't prevent reconnection of the physical stream
     // from succeeding.
@@ -310,12 +339,21 @@ public class GrpcCommitWorkStreamTest {
 
     Windmill.StreamingCommitWorkRequest reconnectRequest = reconnectStreamInfo.requests.take();
     assertEquals(3, reconnectRequest.getCommitChunkCount());
-    for (int i = 0; i < 3; ++i) {
-      assertEquals(i + 2, reconnectRequest.getCommitChunk(i).getRequestId());
-      Windmill.WorkItemCommitRequest parsedRequest =
-          Windmill.WorkItemCommitRequest.parseFrom(
-              reconnectRequest.getCommitChunk(i).getSerializedWorkItemCommit());
-      assertEquals(i + 1, parsedRequest.getWorkToken());
+    {
+      // Check if request ids and work tokens match.
+      Map<Long, Long> requestIdWorkTokenMap = new HashMap<>();
+      Map<Long, Long> expectedRequestIdWorkTokenMap = new HashMap<>();
+      for (int i = 0; i < 3; ++i) {
+        Windmill.WorkItemCommitRequest parsedRequest =
+            Windmill.WorkItemCommitRequest.parseFrom(
+                reconnectRequest.getCommitChunk(i).getSerializedWorkItemCommit());
+        requestIdWorkTokenMap.put(
+            reconnectRequest.getCommitChunk(i).getRequestId(), parsedRequest.getWorkToken());
+      }
+      for (int i = 2; i <= 4; ++i) {
+        expectedRequestIdWorkTokenMap.put((long) i, (long) (i - 1));
+      }
+      assertThat(requestIdWorkTokenMap).containsExactlyEntriesIn(expectedRequestIdWorkTokenMap);
     }
     assertNull(streamInfo.onDone.get());
 

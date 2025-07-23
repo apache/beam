@@ -1205,7 +1205,7 @@ public class JmsIO {
       }
 
       void connect() throws JMSException {
-        if (this.producer == null) {
+        if (this.connection == null) {
           ConnectionFactory connectionFactory = spec.getConnectionFactory();
           if (spec.getUsername() != null) {
             this.connection =
@@ -1226,8 +1226,6 @@ public class JmsIO {
           } else if (spec.getTopic() != null) {
             this.destination = session.createTopic(spec.getTopic());
           }
-          // Create producer with null destination. Destination will be set with producer.send().
-          startProducer();
         }
       }
 
@@ -1337,6 +1335,13 @@ public class JmsIO {
               throw exception;
             } else {
               publicationRetries.inc();
+              this.jmsConnection.close();
+              try {
+                this.jmsConnection.connect();
+                this.jmsConnection.startProducer();
+              } catch (JMSException e) {
+                LOG.warn("Reconnect failed, will retry", e);
+              }
             }
           }
         }
