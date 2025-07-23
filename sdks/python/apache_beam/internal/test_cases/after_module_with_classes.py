@@ -19,7 +19,7 @@
 
 
 class AddLocalVariable:
-  def my_method():
+  def my_method(self):
     a = 1
     b = lambda: 2
     new_local_variable = 3
@@ -27,13 +27,13 @@ class AddLocalVariable:
 
 
 class RemoveLocalVariable:
-  def my_method():
+  def my_method(self):
     b = lambda: 2
     return b
 
 
 class AddLambdaVariable:
-  def my_method():
+  def my_method(self):
     a = 1
     b = lambda: 2
     c = lambda: 3
@@ -41,13 +41,13 @@ class AddLambdaVariable:
 
 
 class RemoveLambdaVariable:
-  def my_method():
+  def my_method(self):
     b = lambda: 2
     return b
 
 
 class ClassWithNestedFunction:
-  def my_method():
+  def my_method(self):
     def nested_function():
       c = 3
       return c
@@ -58,7 +58,7 @@ class ClassWithNestedFunction:
 
 
 class ClassWithNestedFunction2:
-  def my_method():
+  def my_method(self):
     a = 1
     b = lambda: 2
 
@@ -70,19 +70,19 @@ class ClassWithNestedFunction2:
 
 
 class ClassWithTwoMethods:
-  def another_method():
+  def another_method(self):
     a = 1
     b = lambda: 2
     return b
 
-  def my_method():
+  def my_method(self):
     a = 1
     b = lambda: 2
     return b
 
 
 class RemoveMethod:
-  def my_method():
+  def my_method(self):
     a = 1
 
     b = lambda: 2
