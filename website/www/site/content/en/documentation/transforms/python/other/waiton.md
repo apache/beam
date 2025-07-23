@@ -18,44 +18,38 @@ limitations under the License.
 
 # WaitOn
 
-`WaitOn` delays the processing of a main `PCollection` until one or more other `PCollections` (signals) have finished processing. This is useful for enforcing ordering or dependencies between different parts of a pipeline, especially when some outputs interact with external systems (such as writing to a database).
+`WaitOn` returns a `PCollection` with the contents identical to the input `PCollection`, but delays the downstream processing until one or more other `PCollections` (signals) have finished processing. This is useful for enforcing ordering or dependencies between different parts of a pipeline, especially when some outputs interact with external systems (such as writing to a database).
 
-When you apply `WaitOn`, the elements of the main `PCollection` will not be processed until all the specified signal `PCollections` have completed. In streaming mode, this is enforced per window: the corresponding window of each waited-on `PCollection` must be complete before elements are passed through.
+When you apply `WaitOn`, the elements of the main `PCollection` will not be emitted for downstream processing until the computations required to produce the specified signal `PCollections` have completed. In streaming mode, this is enforced per window: the corresponding window of each waited-on `PCollection` must close before elements are passed through.
 
 ## Examples
 
 ```python
+import time
 import apache_beam as beam
 from apache_beam.transforms.util import WaitOn
 
 # Example 1: Basic usage
 with beam.Pipeline() as p:
     main = p | 'CreateMain' >> beam.Create([1, 2, 3])
-    side = p | 'CreateSide' >> beam.Create(['a', 'b', 'c'])
+    signal = (p | 'CreateSignal' >> beam.Create(['a', 'b', 'c'])
+               | 'ProcessSignal' >> beam.Map(lambda x: time.sleep(2) or x))
 
-    # Wait for 'side' to complete before processing 'main'
-    # Elements [1, 2, 3] pass through unchanged after 'side' finishes
-    result = main | 'WaitOnSide' >> WaitOn(side)
+    # Wait for 'signal' to complete before processing 'main'
+    # Elements [1, 2, 3] pass through unchanged after 'signal' finishes
+    result = main | 'WaitOnSignal' >> WaitOn(signal)
     result | beam.Map(print)
 
 # Example 2: Using multiple signals
 with beam.Pipeline() as p:
     main = p | 'CreateMain' >> beam.Create([1, 2, 3])
-    side1 = p | 'CreateSide1' >> beam.Create(['a', 'b', 'c'])
-    side2 = p | 'CreateSide2' >> beam.Create(['x', 'y', 'z'])
+    signal1 = (p | 'CreateSignal1' >> beam.Create(['a', 'b', 'c'])
+                | 'ProcessSignal1' >> beam.Map(lambda x: time.sleep(1) or x.upper()))
+    signal2 = (p | 'CreateSignal2' >> beam.Create(['x', 'y', 'z'])
+                | 'ProcessSignal2' >> beam.Map(lambda x: time.sleep(3) or x * 2))
 
-    # Wait for both side1 and side2 to complete before processing main
-    result = main | 'WaitOnSides' >> WaitOn(side1, side2)
-    result | beam.Map(print)
-
-# Example 3: Streaming mode with windowing
-with beam.Pipeline() as p:
-    main = (p | 'CreateMain' >> beam.Create([1, 2, 3])
-             | "ApplyWindow" >> beam.WindowInto(FixedWindows(5 * 60)))
-    side = (p | 'CreateSide' >> beam.Create(['a', 'b', 'c'])
-             | "ApplyWindow" >> beam.WindowInto(FixedWindows(5 * 60)))
-
-    result = main | 'WaitOnSignal' >> WaitOn(side)
+    # Wait for both signal1 and signal2 to complete before processing main
+    result = main | 'WaitOnSignals' >> WaitOn(signal1, signal2)
     result | beam.Map(print)
 ```
 
