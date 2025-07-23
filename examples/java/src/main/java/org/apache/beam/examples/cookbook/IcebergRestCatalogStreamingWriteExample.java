@@ -53,13 +53,13 @@ import org.joda.time.Duration;
 
 /**
  * Reads real-time NYC taxi ride information from {@code
- * projects/pubsub-public-data/topics/taxirides-realtime} and writes aggregated metrics data
- * to an Iceberg table using Beam's {@link Managed} IcebergIO sink.
+ * projects/pubsub-public-data/topics/taxirides-realtime} and writes aggregated metrics data to an
+ * Iceberg table using Beam's {@link Managed} IcebergIO sink.
  *
  * <p>This is a streaming pipeline that processes taxi ride events, filters for 'dropoff' status,
- * aggregates metrics within fixed 10-second windows by minute of the ride, and writes the
- * results to a single Iceberg table. The Iceberg sink triggers writes every 30 seconds, creating
- * new snapshots.
+ * aggregates metrics within fixed 10-second windows by minute of the ride, and writes the results
+ * to a single Iceberg table. The Iceberg sink triggers writes every 30 seconds, creating new
+ * snapshots.
  *
  * <p>This example is a demonstration of the Iceberg REST Catalog. For more information, see the
  * documentation at {@link https://cloud.google.com/bigquery/docs/blms-rest-catalog}.
@@ -151,7 +151,7 @@ public class IcebergRestCatalogStreamingWriteExample {
             "ExtractMinuteAsKey",
             WithKeys.<String, Row>of(
                 (Row row) ->
-                    Preconditions.checkStateNotNull(row.getDateTime("timestamp"))
+                    ((DateTime) Preconditions.checkStateNotNull(row.getDateTime("timestamp")))
                         .withSecondOfMinute(0)
                         .withMillisOfSecond(0)
                         .toString()))

@@ -114,7 +114,8 @@ public class IcebergRestCatalogCDCExample {
     PCollection<Row> aggregatedRows =
         cdcEvents
             .apply(
-                "ApplyHourlyWindow", Window.<Row>into(FixedWindows.of(Duration.standardMinutes(10))))
+                "ApplyHourlyWindow",
+                Window.<Row>into(FixedWindows.of(Duration.standardMinutes(10))))
             .apply("ExtractHourAndCount", ParDo.of(new ExtractHourAndPassengerCount()))
             .apply("SumPassengerCountPerHour", Sum.longsPerKey())
             .apply("FormatToRow", ParDo.of(new FormatAggregatedRow()))
@@ -152,13 +153,13 @@ public class IcebergRestCatalogCDCExample {
   private static class ExtractHourAndPassengerCount extends DoFn<Row, KV<String, Long>> {
     @ProcessElement
     public void processElement(@Element Row row, OutputReceiver<KV<String, Long>> out) {
-      DateTime rideMinute =
+      DateTime rideHour =
           ((DateTime) Preconditions.checkStateNotNull(row.getDateTime("ride_minute")))
               .withSecondOfMinute(0)
               .withMillisOfSecond(0);
       out.output(
           KV.of(
-              rideMinute.toString(),
+              rideHour.toString(),
               Preconditions.checkStateNotNull(row.getInt64("passenger_count"))));
     }
   }
