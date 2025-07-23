@@ -1053,6 +1053,7 @@ class _PTransformFnPTransform(PTransform):
       suffix = ''
     return label_from_callable(self._fn) + suffix
 
+
 def ptransform_fn(fn):
   # type: (Callable) -> Callable[..., _PTransformFnPTransform]
 
