@@ -477,6 +477,37 @@ class YamlTransformE2ETest(unittest.TestCase):
         b'1000000000',
         proto)
 
+  def test_flatten_unifies_schemas(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      _ = p | YamlTransform(
+          '''
+            type: composite
+            transforms:
+              - type: Create
+                name: Create1
+                config:
+                  elements:
+                    - {ride_id: '1', passenger_count: 1}
+                    - {ride_id: '2', passenger_count: 2}
+              - type: Create
+                name: Create2
+                config:
+                  elements:
+                    - {ride_id: '3'}
+                    - {ride_id: '4'}
+              - type: Flatten
+                input: [Create1, Create2]
+              - type: AssertEqual
+                input: Flatten
+                config:
+                  elements:
+                    - {ride_id: '1', passenger_count: 1}
+                    - {ride_id: '2', passenger_count: 2}
+                    - {ride_id: '3'}
+                    - {ride_id: '4'}
+          ''')
+
 
 class ErrorHandlingTest(unittest.TestCase):
   def test_error_handling_outputs(self):

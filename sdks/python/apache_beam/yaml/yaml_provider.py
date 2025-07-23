@@ -932,6 +932,79 @@ class YamlProviders:
       # pylint: disable=useless-parent-delegation
       super().__init__()
 
+    def _merge_schemas(self, pcolls):
+      """Merge schemas from multiple PCollections to create a unified schema.
+      
+      This function creates a unified schema that contains all fields from all
+      input PCollections. Fields are made optional to handle missing values.
+      """
+      from apache_beam.typehints import row_type
+      from apache_beam.typehints.schemas import named_fields_from_element_type
+      from typing import Optional
+
+      # Collect all schemas
+      schemas = []
+      for pcoll in pcolls:
+        if hasattr(pcoll, 'element_type') and pcoll.element_type:
+          try:
+            fields = named_fields_from_element_type(pcoll.element_type)
+            schemas.append(dict(fields))
+          except (ValueError, TypeError):
+            # If we can't extract schema, skip this PCollection
+            continue
+
+      if not schemas:
+        return None
+
+      # Merge all field names and types, making them optional
+      all_fields = {}
+      for schema in schemas:
+        for field_name, field_type in schema.items():
+          if field_name in all_fields:
+            # If field exists with different type, use Union
+            existing_type = all_fields[field_name]
+            if existing_type != field_type:
+              from apache_beam.typehints import typehints
+              # Make it optional since not all elements may have this field
+              all_fields[field_name] = Optional[typehints.Union[existing_type,
+                                                                field_type]]
+          else:
+            # Make field optional since not all PCollections may have it
+            all_fields[field_name] = Optional[field_type]
+
+      # Create unified schema
+      if all_fields:
+        from apache_beam.typehints.schemas import named_fields_to_schema
+        from apache_beam.typehints.schemas import named_tuple_from_schema
+        unified_schema = named_fields_to_schema(list(all_fields.items()))
+        return named_tuple_from_schema(unified_schema)
+
+      return None
+
+    def _unify_element_with_schema(self, element, target_schema):
+      """Convert an element to match the target schema, preserving existing fields only."""
+      if target_schema is None:
+        return element
+
+      # If element is already a named tuple, convert to dict first
+      if hasattr(element, '_asdict'):
+        element_dict = element._asdict()
+      elif isinstance(element, dict):
+        element_dict = element
+      else:
+        return element
+
+      # Create new element with only the fields that exist in the original element
+      # plus None for fields that are expected but missing
+      unified_dict = {}
+      for field_name in target_schema._fields:
+        if field_name in element_dict:
+          unified_dict[field_name] = element_dict[field_name]
+        else:
+          unified_dict[field_name] = None
+
+      return target_schema(**unified_dict)
+
     def expand(self, pcolls):
       if isinstance(pcolls, beam.PCollection):
         pipeline_arg = {}
@@ -942,7 +1015,28 @@ class YamlProviders:
       else:
         pipeline_arg = {'pipeline': pcolls.pipeline}
         pcolls = ()
-      return pcolls | beam.Flatten(**pipeline_arg)
+
+      if not pcolls:
+        return pcolls | beam.Flatten(**pipeline_arg)
+
+      # Try to unify schemas
+      unified_schema = self._merge_schemas(pcolls)
+
+      if unified_schema is None:
+        # No schema unification needed, use standard flatten
+        return pcolls | beam.Flatten(**pipeline_arg)
+
+      # Apply schema unification to each PCollection
+      unified_pcolls = []
+      for i, pcoll in enumerate(pcolls):
+        unified_pcoll = pcoll | f'UnifySchema{i}' >> beam.Map(
+            lambda element, schema=unified_schema: self.
+            _unify_element_with_schema(element, schema)).with_output_types(
+                unified_schema)
+        unified_pcolls.append(unified_pcoll)
+
+      # Flatten the unified PCollections
+      return unified_pcolls | beam.Flatten(**pipeline_arg)
 
   class WindowInto(beam.PTransform):
     # pylint: disable=line-too-long
