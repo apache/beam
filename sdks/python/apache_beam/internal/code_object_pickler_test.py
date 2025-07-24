@@ -131,7 +131,7 @@ test_cases = [
         (
             "apache_beam.internal.code_object_pickler_test.get_lambda_from_dictionary_same_args.__code__.co_consts"
             "[<lambda>, ('x',), "
-            "ac455edc80140a7f12ad229519456f71]")),
+            "a484a2b05a3ad69b07c7239c3c69c290]")),
     (
         function_with_lambda_default_argument(),
         (
