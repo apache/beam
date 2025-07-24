@@ -294,9 +294,9 @@ class VertexAIImageEmbeddingsTest(unittest.TestCase):
     'Vertex AI Python SDK is not installed.')
 class VertexAIMultiModalEmbeddingsTest(unittest.TestCase):
   def setUp(self) -> None:
-    self.artifact_location = tempfile.mkdtemp(prefix='_vertex_ai_image_test')
+    self.artifact_location = tempfile.mkdtemp(prefix='_vertex_ai_multi_modal_test')
     self.gcs_artifact_location = os.path.join(
-        'gs://temp-storage-for-perf-tests/vertex_ai_image', uuid.uuid4().hex)
+        'gs://temp-storage-for-perf-tests/vertex_ai_multi_modal', uuid.uuid4().hex)
     self.model_name = "multimodalembedding"
     self.image_path = "gs://apache-beam-ml/testing/inputs/vertex_images/sunflowers/1008566138_6927679c8a.jpg"  # pylint: disable=line-too-long
 
