@@ -963,6 +963,7 @@ class YamlProviders:
             existing_type = all_fields[field_name]
             if existing_type != field_type:
               from apache_beam.typehints import typehints
+              from typing import Any
               # Extract inner types from Optional if needed
               existing_inner = (
                   existing_type.__args__[0]
@@ -971,9 +972,15 @@ class YamlProviders:
               field_inner = (
                   field_type.__args__[0] if hasattr(field_type, '__args__') and
                   len(field_type.__args__) == 1 else field_type)
-              # Make it optional since not all elements may have this field
-              all_fields[field_name] = Optional[typehints.Union[existing_inner,
-                                                                field_inner]]
+              # Avoid creating Union with Any or invalid types
+              if existing_inner == Any or field_inner == Any:
+                all_fields[field_name] = Optional[Any]
+              elif existing_inner == field_inner:
+                all_fields[field_name] = Optional[existing_inner]
+              else:
+                # Make it optional since not all elements may have this field
+                all_fields[field_name] = Optional[typehints.Union[existing_inner,
+                                                                  field_inner]]
           else:
             # Make field optional since not all PCollections may have it
             all_fields[field_name] = Optional[field_type]
