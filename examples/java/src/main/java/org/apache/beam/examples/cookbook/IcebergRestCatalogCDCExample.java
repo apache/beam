@@ -52,6 +52,10 @@ import org.joda.time.Duration;
  * <p>This pipeline can be used to process the output of {@link
  * IcebergRestCatalogStreamingWriteExample}.
  *
+ * <p>This pipeline also includes a flag {@code --triggerStreamingWrite} which, when enabled, will
+ * start the {@link IcebergRestCatalogStreamingWriteExample} in a separate thread to populate the
+ * source table. This is useful for execute the end-to-end functionality.
+ *
  * <p>This example is a demonstration of the Iceberg REST Catalog. For more information, see the
  * documentation at {@link https://cloud.google.com/bigquery/docs/blms-rest-catalog}.
  *
@@ -71,6 +75,27 @@ public class IcebergRestCatalogCDCExample {
   public static void main(String[] args) throws IOException {
     IcebergCdcOptions options =
         PipelineOptionsFactory.fromArgs(args).withValidation().as(IcebergCdcOptions.class);
+
+    if (options.getTriggerStreamingWrite()) {
+      new Thread(
+              () -> {
+                try {
+                  IcebergRestCatalogStreamingWriteExample.main(
+                      new String[] {
+                        "--runner=" + options.getRunner().getSimpleName(),
+                        "--project=" + options.getProject(),
+                        "--topic=" + options.getTopic(),
+                        "--icebergTable=" + options.getSourceTable(),
+                        "--catalogUri=" + options.getCatalogUri(),
+                        "--warehouse=" + options.getWarehouse(),
+                        "--catalogName=" + options.getCatalogName()
+                      });
+                } catch (IOException e) {
+                  throw new RuntimeException(e);
+                }
+              })
+          .start();
+    }
 
     final String sourceTable = options.getSourceTable();
     final String destinationTable = options.getDestinationTable();
@@ -201,5 +226,17 @@ public class IcebergRestCatalogCDCExample {
     String getCatalogName();
 
     void setCatalogName(String catalogName);
+
+    @Description("Trigger the streaming write example")
+    @Default.Boolean(false)
+    boolean getTriggerStreamingWrite();
+
+    void setTriggerStreamingWrite(boolean triggerStreamingWrite);
+
+    @Description("The Pub/Sub topic to read from for the streaming write example")
+    @Default.String("projects/pubsub-public-data/topics/taxirides-realtime")
+    String getTopic();
+
+    void setTopic(String topic);
   }
 }

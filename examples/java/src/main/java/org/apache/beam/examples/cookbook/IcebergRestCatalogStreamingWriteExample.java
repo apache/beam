@@ -109,7 +109,7 @@ public class IcebergRestCatalogStreamingWriteExample {
     IcebergPipelineOptions options =
         PipelineOptionsFactory.fromArgs(args).withValidation().as(IcebergPipelineOptions.class);
 
-    final String tableIdentifier = "taxi_dataset.ride_metrics_by_minute";
+    final String tableIdentifier = options.getIcebergTable();
     final String pubsubTopic = options.getTopic();
     final String catalogUri = options.getCatalogUri();
     final String warehouseLocation = options.getWarehouse();
@@ -283,6 +283,13 @@ public class IcebergRestCatalogStreamingWriteExample {
     String getTopic();
 
     void setTopic(String value);
+
+    @Description("The iceberg table to write to.")
+    @Validation.Required
+    @Default.String("taxi_dataset.ride_metrics_by_minute")
+    String getIcebergTable();
+
+    void setIcebergTable(String value);
 
     @Validation.Required
     @Default.String("taxi_rides")
