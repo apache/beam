@@ -118,7 +118,8 @@ class CodePathTest(unittest.TestCase):
                     self)).replace(
                         "before_module_with_classes",
                         "after_module_with_classes")),
-        after_module_with_classes.ClassWithNestedFunction.my_method(self).__code__,
+        after_module_with_classes.ClassWithNestedFunction.my_method(
+            self).__code__,
     )
 
   def test_get_code_nested_function_2_in_class(self):
@@ -129,7 +130,8 @@ class CodePathTest(unittest.TestCase):
                     self)).replace(
                         "before_module_with_classes",
                         "after_module_with_classes")),
-        after_module_with_classes.ClassWithNestedFunction2.my_method(self).__code__,
+        after_module_with_classes.ClassWithNestedFunction2.my_method(
+            self).__code__,
     )
 
   def test_get_code_add_new_function_in_class(self):
