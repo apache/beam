@@ -67,8 +67,18 @@ def parse_known_args(argv):
 
 class PostProcessor(beam.DoFn):
   def process(self, element: PredictionResult) -> Iterable[str]:
-    yield "Input: " + str(element.example) + " Output: " + str(
-        element.inference[1][0].content.parts[0].text)
+
+    inference = getattr(element, "inference", None)
+
+    if hasattr(inference[1], "content"):
+      yield inference[1].content.parts[0].text
+      return
+
+    if isinstance(inference[1], (tuple, list)) and len(inference) > 1:
+      yield "Input: " + str(element.example) + " Output: " + str(
+          inference[1][0].content.parts[0].text)
+    else:
+      yield "Can't decode inference for element: " + str(element.example)
 
 
 def run(
