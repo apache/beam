@@ -944,7 +944,8 @@ class YamlProviders:
         pcolls = ()
 
       # Check schema compatibility for non-empty collections
-      # Skip validation for auto-generated flattens (those with "-Flatten[" in the label)
+      # Skip validation for auto-generated flattens
+      # (those with "-Flatten[" in the label)
       if len(pcolls) > 1 and not (hasattr(self, 'label') and self.label and
                                   '-Flatten[' in self.label):
         from apache_beam.typehints import schemas

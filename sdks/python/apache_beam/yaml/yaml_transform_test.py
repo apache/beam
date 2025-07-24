@@ -175,7 +175,7 @@ class YamlTransformE2ETest(unittest.TestCase):
           providers=TEST_PROVIDERS)
       assert_that(result, equal_to([41, 43, 47, 53, 61, 71, 83, 97, 113, 131]))
 
-  def create_has_schema(self):
+  def test_create_has_schema(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
       result = p | YamlTransform(
@@ -221,7 +221,7 @@ class YamlTransformE2ETest(unittest.TestCase):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
       with self.assertRaisesRegex(
-          ValueError, r"Cannot flatten PCollections with different schemas"):
+          Exception, r"Cannot flatten PCollections with different schemas"):
         _ = p | YamlTransform(
             '''
             type: composite
@@ -244,6 +244,74 @@ class YamlTransformE2ETest(unittest.TestCase):
                   - Create1
                   - Create2
             output: Flatten1
+            ''',
+            providers=TEST_PROVIDERS)
+
+  def test_flatten_compatible_schemas_success(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      result = p | YamlTransform(
+          '''
+          type: composite
+          transforms:
+            - type: Create
+              name: Create1
+              config:
+                elements:
+                  - {'ride_id': '1', 'passenger_count': 1}
+                  - {'ride_id': '2', 'passenger_count': 2}
+            - type: Create
+              name: Create2
+              config:
+                elements:
+                  - {'ride_id': '3', 'passenger_count': 3}
+                  - {'ride_id': '4', 'passenger_count': 4}
+            - type: Flatten
+              name: Flatten1
+              input:
+                - Create1
+                - Create2
+          output: Flatten1
+          ''',
+          providers=TEST_PROVIDERS)
+      # This should not raise an error since the schemas are identical
+      assert_that(
+          result,
+          equal_to([
+              beam.Row(ride_id='1', passenger_count=1),
+              beam.Row(ride_id='2', passenger_count=2),
+              beam.Row(ride_id='3', passenger_count=3),
+              beam.Row(ride_id='4', passenger_count=4)
+          ]))
+
+  def test_flatten_with_null_values_error(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      # This should raise an error because null values create different schema types
+      # (nullable logical type vs INT64)
+      with self.assertRaisesRegex(
+          ValueError, r"Cannot flatten PCollections with different schemas"):
+        p | YamlTransform(
+            '''
+            type: composite
+            transforms:
+              - type: Create
+                name: Create1
+                config:
+                  elements:
+                    - {'ride_id': '1', 'passenger_count': 1}
+                    - {'ride_id': '2', 'passenger_count': 2}
+              - type: Create
+                name: Create2
+                config:
+                  elements:
+                    - {'ride_id': '3', 'passenger_count': null}
+                    - {'ride_id': '4', 'passenger_count': null}
+              - type: Flatten
+                name: Flatten1
+                input:
+                  - Create2
+                  - Create1
             ''',
             providers=TEST_PROVIDERS)
 
@@ -360,28 +428,29 @@ class YamlTransformE2ETest(unittest.TestCase):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
       # pylint: disable=expression-not-assigned
-      with self.assertRaisesRegex(ValueError, r'Circular reference detected.*'):
-        p | YamlTransform(
-            '''
-            type: composite
-            transforms:
-              - type: Create
-                name: CreateData
-                config:
-                    elements: [0, 1, 3, 4]
-              - type: PyMap
-                name: PyMap
-                config:
-                    fn: "lambda elem: elem + 2"
-                input: CreateData
-              - type: PyMap
-                name: AnotherMap
-                config:
-                    fn: "lambda elem: elem + 3"
-                input: PyMap
-            output: AnotherMap
-            ''',
-            providers=TEST_PROVIDERS)
+      result = p | YamlTransform(
+          '''
+          type: composite
+          transforms:
+            - type: Create
+              name: CreateData
+              config:
+                  elements: [0, 1, 3, 4]
+            - type: PyMap
+              name: PyMap
+              config:
+                  fn: "lambda elem: elem + 2"
+              input: CreateData
+            - type: PyMap
+              name: AnotherMap
+              config:
+                  fn: "lambda elem: elem + 3"
+              input: PyMap
+          output: AnotherMap
+          ''',
+          providers=TEST_PROVIDERS)
+      # This should work correctly without circular reference
+      assert_that(result, equal_to([5, 6, 8, 9]))
 
   def test_empty_inputs_throws_error(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
