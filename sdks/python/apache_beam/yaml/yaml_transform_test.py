@@ -222,7 +222,7 @@ class YamlTransformE2ETest(unittest.TestCase):
         pickle_library='cloudpickle')) as p:
       with self.assertRaisesRegex(
           ValueError, r"Cannot flatten PCollections with different schemas"):
-        p | YamlTransform(
+        _ = p | YamlTransform(
             '''
             type: composite
             transforms:
