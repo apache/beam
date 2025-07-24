@@ -605,7 +605,8 @@ class YamlTransformE2ETest(unittest.TestCase):
           ''')
 
   def test_flatten_unifies_with_missing_fields(self):
-    """Test that Flatten correctly unifies schemas when some inputs have missing fields."""
+    """Test that Flatten correctly unifies schemas when some inputs have
+    missing fields."""
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
       _ = p | YamlTransform(
@@ -616,8 +617,10 @@ class YamlTransformE2ETest(unittest.TestCase):
                 name: Create1
                 config:
                   elements:
-                    - {id: '1', name: 'Alice', department: 'Engineering', salary: 75000}
-                    - {id: '2', name: 'Bob', department: 'Marketing', salary: 65000}
+                    - {id: '1', name: 'Alice', department: 'Engineering',
+                       salary: 75000}
+                    - {id: '2', name: 'Bob', department: 'Marketing',
+                       salary: 65000}
               - type: Create
                 name: Create2
                 config:
@@ -630,14 +633,17 @@ class YamlTransformE2ETest(unittest.TestCase):
                 input: Flatten
                 config:
                   elements:
-                    - {id: '1', name: 'Alice', department: 'Engineering', salary: 75000}
-                    - {id: '2', name: 'Bob', department: 'Marketing', salary: 65000}
+                    - {id: '1', name: 'Alice', department: 'Engineering',
+                       salary: 75000}
+                    - {id: '2', name: 'Bob', department: 'Marketing',
+                       salary: 65000}
                     - {id: '3', name: 'Charlie', department: 'Sales'}
                     - {id: '4', name: 'Diana'}
           ''')
 
   def test_flatten_unifies_complex_mixed_schemas(self):
-    """Test that Flatten correctly unifies complex mixed schemas."""
+    """Test that Flatten correctly unifies complex mixed
+    schemas."""
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
       result = p | YamlTransform(
@@ -648,7 +654,8 @@ class YamlTransformE2ETest(unittest.TestCase):
                 name: Create1
                 config:
                   elements:
-                    - {id: 1, name: 'Product A', price: 29.99, categories: ['electronics', 'gadgets']}
+                    - {id: 1, name: 'Product A', price: 29.99,
+                       categories: ['electronics', 'gadgets']}
                     - {id: 2, name: 'Product B', price: 15.50, categories: ['books']}
               - type: Create
                 name: Create2
@@ -660,7 +667,8 @@ class YamlTransformE2ETest(unittest.TestCase):
                 name: Create3
                 config:
                   elements:
-                    - {id: 5, name: 'Product E', price: 5.00, categories: []}
+                    - {id: 5, name: 'Product E', price: 5.00,
+                       categories: []}
               - type: Flatten
                 input: [Create1, Create2, Create3]
             output: Flatten
@@ -690,8 +698,10 @@ class YamlTransformE2ETest(unittest.TestCase):
               row,
               'categories',
               row.get('categories') if hasattr(row, 'get') else None)
-          assert price is not None or row_id == 3, f"Missing price field in row {row}"
-          assert categories is not None or row_id == 4, f"Missing categories field in row {row}"
+          assert price is not None or row_id == 3, \
+              f"Missing price field in row {row}"
+          assert categories is not None or row_id == 4, \
+              f"Missing categories field in row {row}"
 
       assert_that(result, check_result)
 
