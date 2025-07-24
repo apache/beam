@@ -932,6 +932,53 @@ class YamlProviders:
       # pylint: disable=useless-parent-delegation
       super().__init__()
 
+    def _unify_field_types(self, existing_type, field_type):
+      """Unify two field types, handling Optional and List types."""
+      from apache_beam.typehints import typehints
+
+      # Extract inner types from Optional if needed
+      existing_inner = (
+          existing_type.__args__[0] if hasattr(existing_type, '__args__') and
+          len(existing_type.__args__) == 1 else existing_type)
+      field_inner = (
+          field_type.__args__[0] if hasattr(field_type, '__args__') and
+          len(field_type.__args__) == 1 else field_type)
+
+      # Handle type unification more carefully
+      if existing_inner == Any or field_inner == Any:
+        return Optional[Any]
+      elif existing_inner == field_inner:
+        return Optional[existing_inner]
+      else:
+        # Check for list types and prioritize them over other types
+        from apache_beam.typehints import typehints as th
+        existing_is_list = (
+            hasattr(existing_inner, '__origin__') and
+            existing_inner.__origin__ in (list, th.List))
+        field_is_list = (
+            hasattr(field_inner, '__origin__') and
+            field_inner.__origin__ in (list, th.List))
+
+        if existing_is_list and field_is_list:
+          # Both are list types, unify their element types
+          existing_elem = existing_inner.__args__[
+              0] if existing_inner.__args__ else Any
+          field_elem = field_inner.__args__[0] if field_inner.__args__ else Any
+          if existing_elem == field_elem:
+            return Optional[th.List[existing_elem]]
+          else:
+            return Optional[th.List[Any]]
+        elif existing_is_list:
+          # Existing is list, keep it as list type
+          return Optional[existing_inner]
+        elif field_is_list:
+          # New field is list, use list type
+          return Optional[field_inner]
+        else:
+          # Neither is a list, use Any to avoid unsupported Union
+          # types in schema translation
+          return Optional[Any]
+
     def _merge_schemas(self, pcolls):
       """Merge schemas from multiple PCollections to create a unified schema.
       
@@ -962,50 +1009,8 @@ class YamlProviders:
             # If field exists with different type, use Union
             existing_type = all_fields[field_name]
             if existing_type != field_type:
-              from apache_beam.typehints import typehints
-              from typing import Any
-              # Extract inner types from Optional if needed
-              existing_inner = (
-                  existing_type.__args__[0]
-                  if hasattr(existing_type, '__args__') and
-                  len(existing_type.__args__) == 1 else existing_type)
-              field_inner = (
-                  field_type.__args__[0] if hasattr(field_type, '__args__') and
-                  len(field_type.__args__) == 1 else field_type)
-              # Handle type unification more carefully
-              if existing_inner == Any or field_inner == Any:
-                all_fields[field_name] = Optional[Any]
-              elif existing_inner == field_inner:
-                all_fields[field_name] = Optional[existing_inner]
-              else:
-                # Check for list types and prioritize them over other types
-                from apache_beam.typehints import typehints as th
-                existing_is_list = (
-                    hasattr(existing_inner, '__origin__') and
-                    existing_inner.__origin__ in (list, th.List))
-                field_is_list = (
-                    hasattr(field_inner, '__origin__') and
-                    field_inner.__origin__ in (list, th.List))
-
-                if existing_is_list and field_is_list:
-                  # Both are list types, unify their element types
-                  existing_elem = existing_inner.__args__[
-                      0] if existing_inner.__args__ else Any
-                  field_elem = field_inner.__args__[
-                      0] if field_inner.__args__ else Any
-                  if existing_elem == field_elem:
-                    all_fields[field_name] = Optional[th.List[existing_elem]]
-                  else:
-                    all_fields[field_name] = Optional[th.List[Any]]
-                elif existing_is_list:
-                  # Existing is list, keep it as list type
-                  all_fields[field_name] = Optional[existing_inner]
-                elif field_is_list:
-                  # New field is list, use list type
-                  all_fields[field_name] = Optional[field_inner]
-                else:
-                  # Neither is a list, use Any to avoid unsupported Union types in schema translation
-                  all_fields[field_name] = Optional[Any]
+              all_fields[field_name] = self._unify_field_types(
+                  existing_type, field_type)
           else:
             # Make field optional since not all PCollections may have it
             all_fields[field_name] = Optional[field_type]
