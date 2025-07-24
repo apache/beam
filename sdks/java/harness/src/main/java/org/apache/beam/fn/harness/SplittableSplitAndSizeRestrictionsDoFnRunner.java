@@ -359,7 +359,7 @@ public class SplittableSplitAndSizeRestrictionsDoFnRunner<
 
   /** This context outputs KV<KV<Element, KV<Restriction, WatermarkEstimatorState>>, Size>. */
   private class SizedRestrictionNonWindowObservingArgumentProvider
-      extends SplitRestrictionArgumentProvider {
+      extends SplitRestrictionArgumentProvider implements OutputReceiver<RestrictionT> {
     @Override
     public void output(RestrictionT subrestriction) {
       double size = getSize(subrestriction);
