@@ -535,7 +535,7 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
             incomingMessageWithRequestTime.ackId(), incomingMessageWithRequestTime);
         STATE.ackDeadline.put(
             incomingMessageWithRequestTime.ackId(),
-            requestTimeMsSinceEpoch + STATE.ackTimeoutSec * 1000);
+            requestTimeMsSinceEpoch + STATE.ackTimeoutSec * 1000L);
         if (incomingMessages.size() >= batchSize) {
           break;
         }
@@ -588,7 +588,7 @@ public class PubsubTestClient extends PubsubClient implements Serializable {
               STATE.pendingAckIncomingMessages.containsKey(ackId),
               "No message with ACK id %s is waiting for an ACK",
               ackId);
-          STATE.ackDeadline.put(ackId, STATE.clock.currentTimeMillis() + deadlineSeconds * 1000);
+          STATE.ackDeadline.put(ackId, STATE.clock.currentTimeMillis() + deadlineSeconds * 1000L);
         } else {
           checkState(
               STATE.ackDeadline.remove(ackId) != null,

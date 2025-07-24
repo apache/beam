@@ -163,8 +163,7 @@ public class CombineTranslationTest {
       final PCollectionView<Iterable<String>> sideInputs =
           pipeline.apply(Create.of("foo")).apply(View.asIterable());
 
-      CombineFnWithContext<Integer, int[], Integer> combineFn =
-          new TestCombineFnWithContext();
+      CombineFnWithContext<Integer, int[], Integer> combineFn = new TestCombineFnWithContext();
 
       input.apply(Combine.globally(combineFn).withSideInputs(sideInputs).withoutDefaults());
       final AtomicReference<AppliedPTransform<?, ?, Combine.Globally<?, ?>>> combine =

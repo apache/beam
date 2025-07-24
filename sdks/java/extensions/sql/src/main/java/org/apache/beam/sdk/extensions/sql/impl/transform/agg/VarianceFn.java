@@ -78,7 +78,7 @@ public class VarianceFn<T extends Number> extends Combine.CombineFn<T, VarianceA
   private boolean isSample; // flag to determine return value should be Variance Pop or Sample
   private SerializableFunction<BigDecimal, T> decimalConverter;
 
-  public static <V extends Number> VarianceFn newPopulation(Schema.TypeName typeName) {
+  public static VarianceFn newPopulation(Schema.TypeName typeName) {
     return newPopulation(BigDecimalConverter.forSqlType(typeName));
   }
 
@@ -88,7 +88,7 @@ public class VarianceFn<T extends Number> extends Combine.CombineFn<T, VarianceA
     return new VarianceFn<>(POP, decimalConverter);
   }
 
-  public static <V extends Number> VarianceFn newSample(Schema.TypeName typeName) {
+  public static VarianceFn newSample(Schema.TypeName typeName) {
     return newSample(BigDecimalConverter.forSqlType(typeName));
   }
 

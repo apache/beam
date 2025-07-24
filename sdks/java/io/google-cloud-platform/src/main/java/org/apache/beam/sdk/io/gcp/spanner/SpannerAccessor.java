@@ -269,7 +269,7 @@ public class SpannerAccessor implements AutoCloseable {
       // fetch instanceConfigId is fail-free.
       // Do not emit warning when serviceFactory is overridden (e.g. in tests).
       if (spannerConfig.getServiceFactory() == null) {
-        LOG.warn("unable to get Spanner instanceConfigId for {}: {}", instanceId, e.getMessage());
+        LOG.warn("unable to get Spanner instanceConfigId for {}", instanceId, e);
       }
     }
 

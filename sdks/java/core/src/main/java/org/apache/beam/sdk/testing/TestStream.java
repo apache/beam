@@ -66,7 +66,6 @@ import org.joda.time.Instant;
  */
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447),
-  "EnumOrdinal" // for encoding
 })
 public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
   private final List<Event<T>> events;

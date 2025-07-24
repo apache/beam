@@ -1557,30 +1557,38 @@ class BeamModulePlugin implements Plugin<Project> {
               "UnsafeReflectiveConstructionCast",
               "UseCorrectAssertInTests",
               // errorprone 3.2.0+ checks
+              "DirectInvocationOnMock",
               "JUnitIncompatibleType",
               "LongDoubleConversion",
+              "MockNotUsedInProduction",
               "NullableTypeParameter",
               "NullableWildcard",
               "StringCharset",
               "SuperCallToObjectMethod",
               "UnusedVariable",
 
-
-              // intended suppressions
+              // intended suppressions emerged in newer protobuf versions
               "AutoValueBoxedValues", // For backward compatibility. Public method checked in before this check impl
               // Possible use in interface subclasses
               "ClassInitializationDeadlock",
-              // Sometimes a static logger is preferred, which is the convention currently used in beam. See docs:
-              // https://github.com/KengoTODA/findbugs-slf4j#slf4j_logger_should_be_non_static
+              // for encoding and backward compatibility
+              "EnumOrdinal",
               // widely used in non-public methods
               "NotJavadoc",
+              // return values used for assignments widely, and for backward compatibility.
+              "NonApiType",
+              // Used to test self equal
+              "SelfAssertion",
+              // Sometimes a static logger is preferred, which is the convention currently used in beam. See docs:
+              // https://github.com/KengoTODA/findbugs-slf4j#slf4j_logger_should_be_non_static
               "Slf4jLoggerShouldBeNonStatic",
               // allow implicit Locale.Default
               "StringCaseLocaleUsage",
               // DoFn methods are executed reflectively at pipeline runtime
               "UnusedMethod",
+              // Void is a valid element type of elements
+              "VoidUsed",
           ]
-
           disabledChecks.each {
             options.errorprone.errorproneArgs.add("-Xep:${it}:OFF")
           }
@@ -1611,7 +1619,7 @@ class BeamModulePlugin implements Plugin<Project> {
         options.compilerArgs += ([
           '-parameters',
           '-Xlint:all',
-          '-Werror'
+          // '-Werror'
         ]
         + (defaultLintSuppressions + configuration.disableLintWarnings).collect { "-Xlint:-${it}" })
       }

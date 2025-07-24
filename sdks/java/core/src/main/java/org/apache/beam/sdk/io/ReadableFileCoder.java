@@ -54,7 +54,6 @@ public class ReadableFileCoder extends StructuredCoder<FileIO.ReadableFile> {
     this.metadataCoder = metadataCoder;
   }
 
-  @SuppressWarnings("EnumOrdinal") // for encoding
   @Override
   public void encode(
       FileIO.ReadableFile value, @UnknownKeyFor @NonNull @Initialized OutputStream outStream)
