@@ -30,6 +30,7 @@ from typing import Generic
 from typing import Iterable
 from typing import List
 from typing import Optional
+from typing import TypedDict
 from typing import TypeVar
 from typing import Union
 from typing import cast
@@ -797,3 +798,42 @@ class _ImageEmbeddingHandler(_EmbeddingHandler):
     return (
         self._underlying.get_metrics_namespace() or
         'BeamML_ImageEmbeddingHandler')
+
+
+class _MultiModalEmbeddingHandler(_EmbeddingHandler):
+  """
+  A ModelHandler intended to be work on
+  list[dict[str, TypedDict(Image, Video, str)]] inputs.
+
+  The inputs to the model handler are expected to be a list of dicts.
+
+  For example, if the original mode is used with RunInference to take a
+  PCollection[E] to a PCollection[P], this ModelHandler would take a
+  PCollection[dict[str, E]] to a PCollection[dict[str, P]].
+
+  _MultiModalEmbeddingHandler will accept an EmbeddingsManager instance, which
+  contains the details of the model to be loaded and the inference_fn to be
+  used. The purpose of _MultiMOdalEmbeddingHandler is to generate embeddings
+  for image, video, and text inputs using the EmbeddingsManager instance.
+
+  If the input is not an Image representation column, a RuntimeError will be
+  raised.
+
+  This is an internal class and offers no backwards compatibility guarantees.
+
+  Args:
+    embeddings_manager: An EmbeddingsManager instance.
+  """
+  def _validate_column_data(self, batch):
+    # Don't want to require framework-specific imports
+    # here, so just catch columns of primatives for now.
+    if isinstance(batch[0], (int, str, float, bool)):
+      raise TypeError(
+          'Embeddings can only be generated on '
+          ' dict[str, dataclass] types. '
+          f'Got dict[str, {type(batch[0])}] instead.')
+
+  def get_metrics_namespace(self) -> str:
+    return (
+        self._underlying.get_metrics_namespace() or
+        'BeamML_MultiModalEmbeddingHandler')
