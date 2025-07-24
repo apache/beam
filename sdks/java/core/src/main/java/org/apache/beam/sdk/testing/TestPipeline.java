@@ -82,7 +82,11 @@ import org.junit.runners.model.Statement;
  * </ul>
  *
  * <p>Use {@link PAssert} for tests, as it integrates with this test harness in both direct and
- * remote execution modes. For example:
+ * remote execution modes.
+ *
+ * <h3>JUnit 4 Usage</h3>
+ *
+ * For JUnit 4 tests, use this class as a TestRule:
  *
  * <pre><code>
  * {@literal @Rule}
@@ -97,6 +101,23 @@ import org.junit.runners.model.Statement;
  *  }
  * </code></pre>
  *
+ * <h3>JUnit 5 Usage</h3>
+ *
+ * For JUnit 5 tests, use {@link TestPipelineExtension}:
+ *
+ * <pre><code>
+ * {@literal @ExtendWith}(TestPipelineExtension.class)
+ * class MyPipelineTest {
+ *   {@literal @Test}
+ *   {@literal @Category}(NeedsRunner.class)
+ *   void myPipelineTest(TestPipeline pipeline) {
+ *     final PCollection&lt;String&gt; pCollection = pipeline.apply(...)
+ *     PAssert.that(pCollection).containsInAnyOrder(...);
+ *     pipeline.run();
+ *   }
+ * }
+ * </code></pre>
+ *
  * <p>For pipeline runners, it is required that they must throw an {@link AssertionError} containing
  * the message from the {@link PAssert} that failed.
  *
@@ -108,7 +129,7 @@ public class TestPipeline extends Pipeline implements TestRule {
 
   private final PipelineOptions options;
 
-  private static class PipelineRunEnforcement {
+  static class PipelineRunEnforcement {
 
     @SuppressWarnings("WeakerAccess")
     protected boolean enableAutoRunIfMissing;
@@ -117,7 +138,7 @@ public class TestPipeline extends Pipeline implements TestRule {
 
     protected boolean runAttempted;
 
-    private PipelineRunEnforcement(final Pipeline pipeline) {
+    PipelineRunEnforcement(final Pipeline pipeline) {
       this.pipeline = pipeline;
     }
 
@@ -138,7 +159,7 @@ public class TestPipeline extends Pipeline implements TestRule {
     }
   }
 
-  private static class PipelineAbandonedNodeEnforcement extends PipelineRunEnforcement {
+  static class PipelineAbandonedNodeEnforcement extends PipelineRunEnforcement {
 
     // Null until the pipeline has been run
     private @MonotonicNonNull List<TransformHierarchy.Node> runVisitedNodes;
@@ -164,7 +185,7 @@ public class TestPipeline extends Pipeline implements TestRule {
       }
     }
 
-    private PipelineAbandonedNodeEnforcement(final TestPipeline pipeline) {
+    PipelineAbandonedNodeEnforcement(final TestPipeline pipeline) {
       super(pipeline);
       runVisitedNodes = null;
     }
@@ -574,7 +595,7 @@ public class TestPipeline extends Pipeline implements TestRule {
     }
   }
 
-  private static class IsEmptyVisitor extends PipelineVisitor.Defaults {
+  static class IsEmptyVisitor extends PipelineVisitor.Defaults {
     private boolean empty = true;
 
     public boolean isEmpty() {

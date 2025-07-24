@@ -107,6 +107,13 @@ dependencies {
   shadowTest library.java.everit_json_schema
   provided library.java.junit
   provided library.java.hamcrest
+  // Add JUnit 5 support
+  provided platform('org.junit:junit-bom:5.10.0')
+  provided 'org.junit.jupiter:junit-jupiter-api'
+  provided 'org.junit.jupiter:junit-jupiter-engine'
+  testImplementation platform('org.junit:junit-bom:5.10.0')
+  testImplementation 'org.junit.jupiter:junit-jupiter-api'
+  testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine'
   provided 'io.airlift:aircompressor:0.18'
   provided 'com.facebook.presto.hadoop:hadoop-apache2:3.2.0-1'
   provided library.java.zstd_jni
@@ -129,4 +136,10 @@ dependencies {
 project.tasks.compileTestJava {
   // TODO: fix other places with warnings in tests and delete this option
   options.compilerArgs += ['-Xlint:-rawtypes']
+}
+
+// Configure test task to use both JUnit 4 and JUnit 5
+test {
+  useJUnitPlatform()
+  useJUnit()
 }
