@@ -968,9 +968,12 @@ class YamlProviders:
                   existing_type.__args__[0]
                   if hasattr(existing_type, '__args__') and
                   len(existing_type.__args__) == 1 else existing_type)
+              field_inner = (
+                  field_type.__args__[0] if hasattr(field_type, '__args__') and
+                  len(field_type.__args__) == 1 else field_type)
               # Make it optional since not all elements may have this field
               all_fields[field_name] = Optional[typehints.Union[existing_inner,
-                                                                field_type]]
+                                                                field_inner]]
           else:
             # Make field optional since not all PCollections may have it
             all_fields[field_name] = Optional[field_type]
