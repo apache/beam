@@ -934,8 +934,6 @@ class YamlProviders:
 
     def _unify_field_types(self, existing_type, field_type):
       """Unify two field types, handling Optional and List types."""
-      from apache_beam.typehints import typehints
-
       # Extract inner types from Optional if needed
       existing_inner = (
           existing_type.__args__[0] if hasattr(existing_type, '__args__') and
