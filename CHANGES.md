@@ -85,6 +85,7 @@
   Beam now supports Milvus enrichment handler capabilities for vector, keyword,
   and hybrid search operations.
 * [Beam SQL] Add support for DATABASEs, with an implementation for Iceberg ([]())
+* Respect BatchSize and MaxBufferingDuration when using `JdbcIO.WriteWithResults`. Previously, these settings were ignored ([#35669](https://github.com/apache/beam/pull/35669)).
 
 ## Breaking Changes
 
