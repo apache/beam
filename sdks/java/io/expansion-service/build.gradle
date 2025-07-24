@@ -51,6 +51,7 @@ configurations.runtimeClasspath {
 }
 
 shadowJar {
+  exclude "META-INF/maven/**"
   manifest {
     attributes(["Multi-Release": true])
   }

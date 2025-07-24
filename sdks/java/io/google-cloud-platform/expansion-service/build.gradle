@@ -48,13 +48,14 @@ dependencies {
     runtimeOnly library.java.slf4j_jdk14
 }
 
-task runExpansionService (type: JavaExec) {
+tasks.register('runExpansionService', JavaExec) {
     mainClass = "org.apache.beam.sdk.expansion.service.ExpansionService"
     classpath = sourceSets.test.runtimeClasspath
     args = [project.findProperty("constructionService.port") ?: "8097"]
 }
 
 shadowJar {
+    exclude "META-INF/maven/**"
     manifest {
         attributes(["Multi-Release": true])
     }
