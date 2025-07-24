@@ -72,11 +72,9 @@ class SecretService:
 
     def _get_secrets_names(self) -> None:
         """Retrieves the list of secrets from the Secret Manager and populates the `secrets_names` list."""
-        print("Retrieving existing secrets...")
         for secret in self.client.list_secrets(request={"parent": self.parent}):
             secret_id = secret.name.split("/")[-1]
             if secret_id.startswith(self.secret_name_prefix):
-                print(f"Found secret: {secret_id}")
                 self.secrets_names.append(secret_id)
 
     def _create_secret(self, secret_id: str) -> str:
@@ -92,13 +90,10 @@ class SecretService:
         Returns:
             str: The id of the created secret.
         """
-        print(f"Creating secret with ID: {secret_id}")
         secret_name = f"{self.secret_name_prefix}-{secret_id}"
         if secret_name in self.secrets_names:
-            print(f"Secret {secret_name} already exists. Returning existing secret path.")
             name = self.client.secret_path(self.project_id, secret_name)
             return name
-
 
         response = self.client.create_secret(
             request={
@@ -114,8 +109,37 @@ class SecretService:
         )
 
         self.secrets_names.append(secret_name)
-        print(f"Created secret: {response.name}")
         return response.name
+
+    def _rotate_secret(self, secret_name: str, new_version_payload: bytes|str) -> None:
+        """
+        Rotates the specified secret by creating a new version of it and disabling the oldest enabled version.
+
+        Args:
+            secret_name (str): The name of the secret to rotate.
+            new_version_payload (bytes|str): The payload for the new secret version.
+        """
+        secret_id = self._create_secret(secret_name)
+
+        self.add_secret_version(secret_name, new_version_payload)
+
+        # Disable the oldest enabled version
+        self.disable_secret_version(secret_name, version_id="oldest")
+    
+    def _delete_secret(self, secret_name: str) -> None:
+        """
+        Deletes the specified secret and all its versions.
+
+        Args:
+            secret_name (str): The name of the secret to delete.
+        """
+        secret_full_name = f"{self.secret_name_prefix}-{secret_name}"
+        if secret_full_name not in self.secrets_names:
+            raise ValueError(f"Secret {secret_name} does not exist. Please create it first.")
+
+        name = self.client.secret_path(self.project_id, secret_full_name)
+        self.client.delete_secret(request={"name": name})
+        self.secrets_names.remove(secret_full_name)
 
     def add_secret_version(self, secret_name: str, payload: bytes|str) -> str:
         """
@@ -128,7 +152,6 @@ class SecretService:
         Returns:
             str: The name of the newly created secret version.
         """
-        print(f"Adding secret version to: {secret_name}")
         secret_id = self._create_secret(secret_name)
         payload_bytes = payload.encode('utf-8') if isinstance(payload, str) else payload
 
@@ -155,7 +178,6 @@ class SecretService:
                 raise ValueError("No enabled secret versions found to destroy.")
             oldest_version = versions[0]
             self.client.destroy_secret_version(request={"name": oldest_version.name})
-            print(f"Destroyed oldest secret version: {oldest_version.name}")
 
         return response.name
 
@@ -170,7 +192,6 @@ class SecretService:
         Returns:
             bytes: The payload of the specified secret version.
         """
-        print(f"Retrieving secret version for: {secret_name}, version: {version_id}")
 
         secret_full_name = f"{self.secret_name_prefix}-{secret_name}"
         if secret_full_name not in self.secrets_names:
@@ -197,34 +218,46 @@ class SecretService:
 
         return response.payload.data
 
-    def disable_secret_version(self, secret_name: str, version_id: str = "latest") -> None:
+    def disable_secret_version(self, secret_name: str, version_id: str = "oldest") -> None:
         """
         Disables a specific version of a secret. If the version is "latest", it disables the latest enabled version.
 
         Args:
             secret_name (str): The name of the secret from which to delete the version.
-            version_id (str): The version ID to delete. Defaults to "latest".
+            version_id (str): The version ID to delete. Defaults to "oldest", "latest" can also be used.
         """
-        print(f"Disabling secret version for: {secret_name}, version: {version_id}")
         secret_full_name = f"{self.secret_name_prefix}-{secret_name}"
 
         if secret_full_name not in self.secrets_names:
-            print(f"Secret {secret_name} does not exist. Not deleting anything.")
             return
 
         parent = self.client.secret_path(self.project_id, secret_full_name)
+        versions = self.client.list_secret_versions(request={"parent": parent})
 
         if version_id == "latest":
-            for version in self.client.list_secret_versions(request={"parent": parent}):
+            for version in versions:
                 if version.state == secretmanager.SecretVersion.State.ENABLED:
                     version_id = version.name.split("/")[-1]
                     break
             else:
                 raise ValueError(f"No enabled versions found for secret {secret_name}.")
+        elif version_id == "oldest":
+            for version in reversed(list(versions)):
+                if version.state == secretmanager.SecretVersion.State.ENABLED:
+                    version_id = version.name.split("/")[-1]
+                    break
+            else:
+                raise ValueError(f"No enabled versions found for secret {secret_name}.")
+        else:
+            version_exists = any(version.name.split("/")[-1] == version_id for version in versions)
+            if not version_exists:
+                raise ValueError(f"Version {version_id} does not exist for secret {secret_name}.")
 
         name = f"projects/{self.project_id}/secrets/{secret_full_name}/versions/{version_id}"
         response = self.client.disable_secret_version(request={"name": name})
-        print(f"Disabled secret version: {response.name}")
+
+        if response.name.split("/")[-1] != version_id and response.state != secretmanager.SecretVersion.State.DISABLED:
+            raise ValueError(f"Failed to disable secret version {version_id} for secret {secret_name}.")
 
 if __name__ == "__main__":
     config = load_config()
@@ -233,16 +266,21 @@ if __name__ == "__main__":
     # Example usage
     secret_name = "example-secret"
 
+    # Deleting the secret
+    print(f"Deleting secret: {secret_name}")
+    secret_service._delete_secret(secret_name)
+    print(f"Secret {secret_name} deleted successfully.")
+
     # Adding multiple versions of a secret
     for i in range(1, 4):
-        secret_version = secret_service.add_secret_version(secret_name, f"This is test secret version {i+1}")
+        secret_version = secret_service.add_secret_version(secret_name, f"This is test secret version {i}")
         print(f"Added secret version: {secret_version}")
 
     # Retrieving the latest version of the secret, it should return 4
     retrieved_secret = secret_service.get_secret_version(secret_name)
     print(f"Retrieved secret: {retrieved_secret.decode('utf-8')}")
 
-    secret_service.disable_secret_version(secret_name)
+    secret_service.disable_secret_version(secret_name, version_id="latest")
     print(f"Disabled secret latest version for: {secret_name}")
 
     print("Attempting to retrieve the latest version after disabling...")
@@ -252,3 +290,14 @@ if __name__ == "__main__":
         print(f"Retrieved secret after disabling: {retrieved_secret.decode('utf-8')}")
     except Exception as e:
         print(f"Error retrieving secret after disabling: {e}")
+    
+    # Rotate the secret
+    new_version_payload = "This is a new secret version payload"
+    print(f"Rotating secret {secret_name} with new payload: {new_version_payload}")
+    secret_service._rotate_secret(secret_name, new_version_payload)
+
+    retrieved_secret = secret_service.get_secret_version(secret_name)
+    print(f"Retrieved secret after rotation: {retrieved_secret.decode('utf-8')}")
+
+
+
