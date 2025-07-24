@@ -88,7 +88,7 @@
 
 ## Known Issues
 
-* ([#35666](https://github.com/apache/beam/issues/35666)). YAML Flatten incorrectly drops fields when input PCollections' schema are different. This issue exists for all versions since 2.52.0.
+* ([#X](https://github.com/apache/beam/issues/X)).
 
 # [2.67.0] - Unreleased
 
@@ -139,6 +139,7 @@
 ## Known Issues
 
 * ([#X](https://github.com/apache/beam/issues/X)).
+* ([#35666](https://github.com/apache/beam/issues/35666)). YAML Flatten incorrectly drops fields when input PCollections' schema are different. This issue exists for all versions since 2.52.0.
 
 # [2.66.0] - 2025-07-01
 
