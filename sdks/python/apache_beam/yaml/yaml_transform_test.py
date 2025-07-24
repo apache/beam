@@ -541,7 +541,8 @@ class YamlTransformE2ETest(unittest.TestCase):
           ''')
 
   def test_flatten_unifies_different_types(self):
-    """Test that Flatten correctly unifies schemas with different field types."""
+    """Test that Flatten correctly unifies schemas with different 
+    field types."""
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
       _ = p | YamlTransform(
@@ -656,7 +657,8 @@ class YamlTransformE2ETest(unittest.TestCase):
                   elements:
                     - {id: 1, name: 'Product A', price: 29.99,
                        categories: ['electronics', 'gadgets']}
-                    - {id: 2, name: 'Product B', price: 15.50, categories: ['books']}
+                    - {id: 2, name: 'Product B', price: 15.50,
+                       categories: ['books']}
               - type: Create
                 name: Create2
                 config:
@@ -674,14 +676,16 @@ class YamlTransformE2ETest(unittest.TestCase):
             output: Flatten
           ''')
 
-      # Verify that the result contains all expected elements with proper schema unification
+      # Verify that the result contains all expected elements
+      # with proper schema unification
       def check_result(actual):
         expected_ids = {1, 2, 3, 4, 5}
         actual_ids = {
             getattr(row, 'id', row.get('id') if hasattr(row, 'get') else None)
             for row in actual
         }
-        assert actual_ids == expected_ids, f"Expected IDs {expected_ids}, got {actual_ids}"
+        assert actual_ids == expected_ids, (
+            f"Expected IDs {expected_ids}, got {actual_ids}")
 
         # Check that all rows have required fields
         for row in actual:
