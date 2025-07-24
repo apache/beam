@@ -942,6 +942,31 @@ class YamlProviders:
       else:
         pipeline_arg = {'pipeline': pcolls.pipeline}
         pcolls = ()
+
+      # Check schema compatibility for non-empty collections
+      if len(pcolls) > 1:
+        from apache_beam.typehints import schemas
+        schemas_to_check = []
+        for pcoll in pcolls:
+          if hasattr(pcoll, 'element_type') and pcoll.element_type:
+            try:
+              schema = schemas.schema_from_element_type(pcoll.element_type)
+              schemas_to_check.append(schema)
+            except TypeError:
+              # Skip PCollections without schema
+              pass
+
+        # If we have schemas to check, ensure they are all the same
+        if len(schemas_to_check) > 1:
+          first_schema = schemas_to_check[0]
+          for i, schema in enumerate(schemas_to_check[1:], 1):
+            if schema != first_schema:
+              raise RuntimeError(
+                  f"Cannot flatten PCollections with different schemas. "
+                  f"PCollection 0 has schema {first_schema}, "
+                  f"but PCollection {i} has schema {schema}. "
+                  "All PCollections must have the same schema.")
+
       return pcolls | beam.Flatten(**pipeline_arg)
 
   class WindowInto(beam.PTransform):

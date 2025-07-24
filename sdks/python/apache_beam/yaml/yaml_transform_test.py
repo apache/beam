@@ -217,6 +217,36 @@ class YamlTransformE2ETest(unittest.TestCase):
           providers=TEST_PROVIDERS)
       assert_that(result, equal_to([1, 4, 9, 10000, 40000]))
 
+  def test_flatten_different_schemas_error(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      with self.assertRaisesRegex(
+          ValueError, r"Cannot flatten PCollections with different schemas"):
+        p | YamlTransform(
+            '''
+            type: composite
+            transforms:
+              - type: Create
+                name: Create1
+                config:
+                  elements:
+                    - {'ride_id': '1', 'passenger_count': 1}
+                    - {'ride_id': '2', 'passenger_count': 2}
+              - type: Create
+                name: Create2
+                config:
+                  elements:
+                    - {'ride_id': '3'}
+                    - {'ride_id': '4'}
+              - type: Flatten
+                name: Flatten1
+                input:
+                  - Create1
+                  - Create2
+            output: Flatten1
+            ''',
+            providers=TEST_PROVIDERS)
+
   def test_csv_to_json(self):
     try:
       import pandas as pd
