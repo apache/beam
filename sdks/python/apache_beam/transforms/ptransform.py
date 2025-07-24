@@ -1035,7 +1035,7 @@ class _PTransformFnPTransform(PTransform):
     # Avoid circular import.
     from apache_beam.transforms.util import is_compat_version_prior_to
     self._use_backwards_compatible_label = is_compat_version_prior_to(
-        options, '2.67.0')
+        options, '2.68.0')
 
   def default_label(self) -> str:
     # Attempt to give a reasonable name to this transform.
