@@ -24,7 +24,6 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 from typing import Optional
-from typing import TypedDict
 
 from google.api_core.exceptions import ServerError
 from google.api_core.exceptions import TooManyRequests
