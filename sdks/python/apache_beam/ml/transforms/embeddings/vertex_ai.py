@@ -290,6 +290,7 @@ class VertexAIImageEmbeddings(EmbeddingsManager):
         model_handler=_ImageEmbeddingHandler(self),
         inference_args=self.inference_args)
 
+
 @dataclass
 class VertexAIMultiModalInput:
   image: Optional[Image] = None
