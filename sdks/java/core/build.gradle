@@ -108,10 +108,10 @@ dependencies {
   provided library.java.junit
   provided library.java.hamcrest
   // Add JUnit 5 support
-  provided platform('org.junit:junit-bom:5.10.0')
+  provided platform('org.junit:junit-bom:5.13.4')
   provided 'org.junit.jupiter:junit-jupiter-api'
   provided 'org.junit.jupiter:junit-jupiter-engine'
-  testImplementation platform('org.junit:junit-bom:5.10.0')
+  testImplementation platform('org.junit:junit-bom:5.13.4')
   testImplementation 'org.junit.jupiter:junit-jupiter-api'
   testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine'
   provided 'io.airlift:aircompressor:0.18'
