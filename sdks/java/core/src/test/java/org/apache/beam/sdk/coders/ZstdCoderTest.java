@@ -107,6 +107,7 @@ public class ZstdCoderTest {
   }
 
   @Test
+  @SuppressWarnings("JUnitIncompatibleType") // intended
   public void testCoderEquals() throws Exception {
     // True if coder, dict and level are equal.
     assertEquals(

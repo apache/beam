@@ -188,11 +188,7 @@ public class TransformUpgrader implements AutoCloseable {
     return pipeline;
   }
 
-  private <
-          InputT extends PInput,
-          OutputT extends POutput,
-          TransformT extends org.apache.beam.sdk.transforms.PTransform<InputT, OutputT>>
-      RunnerApi.Pipeline updateTransformViaTransformService(
+  private RunnerApi.Pipeline updateTransformViaTransformService(
           RunnerApi.Pipeline runnerAPIpipeline,
           String transformId,
           Endpoints.ApiServiceDescriptor transformServiceEndpoint,

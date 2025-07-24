@@ -42,6 +42,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>Note: This does not uniquely identify a pane, and should not be used for comparisons.
  */
+@SuppressWarnings("EnumOrdinal") // for encoding
 public final class PaneInfo {
   /**
    * Enumerates the possibilities for the timing of this pane firing related to the input and output

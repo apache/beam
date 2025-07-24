@@ -164,12 +164,7 @@ public class CombineTranslationTest {
           pipeline.apply(Create.of("foo")).apply(View.asIterable());
 
       CombineFnWithContext<Integer, int[], Integer> combineFn =
-          new TestCombineFnWithContext() {
-            @Override
-            public Integer extractOutput(int[] accumulator, Context c) {
-              return accumulator[0];
-            }
-          };
+          new TestCombineFnWithContext();
 
       input.apply(Combine.globally(combineFn).withSideInputs(sideInputs).withoutDefaults());
       final AtomicReference<AppliedPTransform<?, ?, Combine.Globally<?, ?>>> combine =
@@ -209,7 +204,7 @@ public class CombineTranslationTest {
 
     @Override
     public Void extractOutput(Void accumulator) {
-      return accumulator;
+      return null;
     }
 
     @Override
@@ -219,7 +214,7 @@ public class CombineTranslationTest {
 
     @Override
     public Void addInput(Void accumulator, Integer input) {
-      return accumulator;
+      return null;
     }
 
     @Override
