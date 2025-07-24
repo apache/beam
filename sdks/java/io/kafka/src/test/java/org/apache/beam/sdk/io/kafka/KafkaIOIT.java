@@ -24,12 +24,16 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assume.assumeFalse;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.confluent.kafka.serializers.KafkaAvroSerializer;
+import io.confluent.kafka.serializers.KafkaAvroSerializerConfig;
 import java.io.IOException;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
@@ -38,11 +42,18 @@ import java.util.UUID;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
+import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericRecord;
+import org.apache.beam.runners.dataflow.DataflowRunner;
+import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.Read;
@@ -95,12 +106,14 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewPartitions;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.Deserializer;
@@ -945,6 +958,386 @@ public class KafkaIOIT {
     PipelineResult readResult = readPipeline.run();
     readResult.waitUntilFinish(Duration.standardSeconds(options.getReadTimeout()));
     assertEquals(PipelineResult.State.DONE, readResult.getState());
+  }
+
+  @Ignore
+  @Test
+  public void testReadAvroGenericRecordsWithSchemaRegistry() {
+    // Define test resources. The Schema Registry and BootstrapURL should be static and remain
+    // unchanged.
+    String topicName = "TestManagedIOWithSchemaRegistry";
+    String schemaRegistryUrl =
+        "https://managedkafka.googleapis.com/v1/projects/apache-beam-testing/locations/us-central1/schemaRegistries/managed_io_with_schema_registry_integration_test";
+    String bootstrapServer =
+        "bootstrap.kafkaio-testing.us-central1.managedkafka.apache-beam-testing.cloud.goog:9092";
+    String schemaRegistrySubject = topicName + "-value";
+    final Schema kafkaTopicSchema =
+        Schema.builder().addStringField("name").addInt32Field("age").build();
+    String schemaString =
+        "{\n"
+            + "  \"type\":\"record\",\n"
+            + "  \"name\": \"Person\",\n"
+            + "  \"fields\": [\n"
+            + "    {\"name\":\"name\",\"type\":\"string\"},\n"
+            + "    {\"name\":\"age\",\"type\":\"int\"}\n"
+            + "  ]\n"
+            + "}\n";
+
+    // This test is required to run on Dataflow to invoke the latest version of the transform.
+    // Set up the dataflow pipeline options to match the other test options.
+    DataflowPipelineOptions pReadOptions =
+        PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
+
+    List<String> experiments = new ArrayList<>();
+    experiments.add("use_sdf_read");
+    experiments.add("beam_fn_api");
+
+    pReadOptions.setAppName("KafkaIOIT-testReadAvroGenericRecordsWithSchemaRegistry");
+    pReadOptions.setExperiments(experiments);
+    pReadOptions.setRunner(DataflowRunner.class);
+    pReadOptions.setProject("apache-beam-testing");
+    pReadOptions.setRegion("us-central1");
+    pReadOptions.setJobName("testManagedIOWithSchemaRegistry" + UUID.randomUUID());
+
+    Pipeline pRead = Pipeline.create(pReadOptions);
+
+    org.apache.avro.Schema.Parser parser = new org.apache.avro.Schema.Parser();
+    org.apache.avro.Schema avroSchema = parser.parse(schemaString);
+
+    GenericRecord record1 = new GenericData.Record(avroSchema);
+    GenericRecord record2 = new GenericData.Record(avroSchema);
+    GenericRecord record3 = new GenericData.Record(avroSchema);
+
+    record1.put("name", "Alice Wonderland");
+    record1.put("age", 25);
+
+    record2.put("name", "Bob The Builder");
+    record2.put("age", 30);
+
+    record3.put("name", "Charlie Chaplin");
+    record3.put("age", 35);
+
+    ArrayList<KV<String, GenericRecord>> sampleData = new ArrayList<>();
+    sampleData.add(KV.of("1", record1));
+    sampleData.add(KV.of("2", record2));
+    sampleData.add(KV.of("3", record3));
+
+    AdminClient client =
+        AdminClient.create(
+            ImmutableMap.of(
+                "bootstrap.servers",
+                bootstrapServer,
+                CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
+                "SASL_SSL",
+                SaslConfigs.SASL_MECHANISM,
+                "OAUTHBEARER",
+                SaslConfigs.SASL_LOGIN_CALLBACK_HANDLER_CLASS,
+                "com.google.cloud.hosted.kafka.auth.GcpLoginCallbackHandler",
+                SaslConfigs.SASL_JAAS_CONFIG,
+                "org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required;"));
+
+    try {
+      client.createTopics(ImmutableSet.of(new NewTopic(topicName, 1, (short) 1)));
+
+      ImmutableMap<String, Object> producerConfigUpdates =
+          ImmutableMap.<String, Object>builder()
+              .put(KafkaAvroSerializerConfig.SCHEMA_REGISTRY_URL_CONFIG, schemaRegistryUrl)
+              .put(KafkaAvroSerializerConfig.BEARER_AUTH_CREDENTIALS_SOURCE, "CUSTOM")
+              .put("auto.register.schemas", true)
+              .put(
+                  "bearer.auth.custom.provider.class",
+                  "com.google.cloud.hosted.kafka.auth.GcpBearerAuthCredentialProvider")
+              .put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_SSL")
+              .put(SaslConfigs.SASL_MECHANISM, "OAUTHBEARER")
+              .put(
+                  SaslConfigs.SASL_LOGIN_CALLBACK_HANDLER_CLASS,
+                  "com.google.cloud.hosted.kafka.auth.GcpLoginCallbackHandler")
+              .put(
+                  SaslConfigs.SASL_JAAS_CONFIG,
+                  "org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required;")
+              .build();
+
+      PCollection<KV<String, GenericRecord>> inputRecords =
+          writePipeline.apply(
+              "CreateSampleData",
+              Create.of(sampleData)
+                  .withCoder(KvCoder.of(StringUtf8Coder.of(), AvroCoder.of(avroSchema))));
+
+      inputRecords.apply(
+          "Write to Kafka",
+          KafkaIO.<String, GenericRecord>write()
+              .withBootstrapServers(bootstrapServer)
+              .withTopic(topicName)
+              .withKeySerializer(StringSerializer.class)
+              .withGCPApplicationDefaultCredentials()
+              .withProducerConfigUpdates(producerConfigUpdates)
+              .withValueSerializer((Class) KafkaAvroSerializer.class));
+
+      ImmutableMap<String, Object> config =
+          ImmutableMap.<String, Object>builder()
+              .put(
+                  "bootstrap_servers",
+                  "bootstrap.fozzie-test-cluster.us-central1.managedkafka.dataflow-testing-311516.cloud.goog:9092")
+              .put(
+                  "consumer_config_updates",
+                  ImmutableMap.of(
+                      "auto.offset.reset",
+                      "earliest",
+                      CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
+                      "SASL_SSL",
+                      SaslConfigs.SASL_MECHANISM,
+                      "OAUTHBEARER",
+                      SaslConfigs.SASL_LOGIN_CALLBACK_HANDLER_CLASS,
+                      "com.google.cloud.hosted.kafka.auth.GcpLoginCallbackHandler",
+                      SaslConfigs.SASL_JAAS_CONFIG,
+                      "org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required;"))
+              .put("topic", topicName)
+              .put("confluent_schema_registry_url", schemaRegistryUrl)
+              .put("confluent_schema_registry_subject", schemaRegistrySubject)
+              .put("max_read_time_seconds", 20)
+              .put("format", "AVRO")
+              .build();
+
+      PCollection<Row> output =
+          pRead
+              .apply(Managed.read(Managed.KAFKA).withConfig(config))
+              .get("output")
+              .setCoder(RowCoder.of(kafkaTopicSchema));
+
+      PAssert.that(output)
+          .containsInAnyOrder(
+              ImmutableList.of(
+                  Row.withSchema(kafkaTopicSchema)
+                      .withFieldValue("name", "Alice Wonderland")
+                      .withFieldValue("age", 25)
+                      .build(),
+                  Row.withSchema(kafkaTopicSchema)
+                      .withFieldValue("name", "Bob The Builder")
+                      .withFieldValue("age", 30)
+                      .build(),
+                  Row.withSchema(kafkaTopicSchema)
+                      .withFieldValue("name", "Charlie Chaplin")
+                      .withFieldValue("age", 35)
+                      .build()));
+
+      writePipeline.run().waitUntilFinish();
+      PipelineResult readResult = pRead.run();
+
+      // Pipeline should only take about 5 minutes to execute, so this should be enough of a buffer
+      // for timeouts.
+      PipelineResult.State readState = readResult.waitUntilFinish(Duration.standardMinutes(10));
+
+      // Fail the test if pipeline failed.
+      assertNotEquals(PipelineResult.State.FAILED, readState);
+    } finally {
+      client.deleteTopics(ImmutableSet.of(topicName));
+      client.close();
+    }
+  }
+
+  @Test
+  public void testReadAndWriteAvroGenericRecordsWithSchemaRegistry() {
+    DataflowPipelineOptions pReadOptions =
+        PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
+    pReadOptions.setAppName("KafkaIOIT-testReadAvroGenericRecordsWithSchemaRegistry");
+    List<String> experiments = new ArrayList<>();
+    experiments.add("use_sdf_read");
+    experiments.add("beam_fn_api");
+    pReadOptions.setExperiments(experiments);
+    pReadOptions.setRunner(DataflowRunner.class);
+    pReadOptions.setProject("dataflow-testing-311516");
+    pReadOptions.setRegion("us-central1");
+    pReadOptions.setJobName("testManagedIOWithSchemaRegistry" + UUID.randomUUID());
+    Pipeline pRead = Pipeline.create(pReadOptions);
+    String topicName = "TestManagedReadAndWriteIOWithSchemaRegistry";
+    String schemaRegistryUrl =
+        "https://managedkafka.googleapis.com/v1/projects/dataflow-testing-311516/locations/us-east7/schemaRegistries/fozzie_test";
+    String bootstrapServer =
+        "bootstrap.fozzie-test-cluster.us-central1.managedkafka.dataflow-testing-311516.cloud.goog:9092";
+    String schemaRegistrySubject = topicName + "-value";
+    final Schema beamRowSchema =
+        Schema.builder().addStringField("name").addInt32Field("age").build();
+
+    Row row1 =
+        Row.withSchema(beamRowSchema)
+            .withFieldValue("name", "Alice Wonderland")
+            .withFieldValue("age", 25)
+            .build();
+    Row row2 =
+        Row.withSchema(beamRowSchema)
+            .withFieldValue("name", "Bob The Buidler")
+            .withFieldValue("age", 30)
+            .build();
+    Row row3 =
+        Row.withSchema(beamRowSchema)
+            .withFieldValue("name", "Charlie Chaplin")
+            .withFieldValue("age", 35)
+            .build();
+
+    ArrayList<Row> sampleRows = new ArrayList<>();
+    sampleRows.add(row1);
+    sampleRows.add(row2);
+    sampleRows.add(row3);
+
+    AdminClient client =
+        AdminClient.create(
+            ImmutableMap.of(
+                "bootstrap.servers",
+                bootstrapServer,
+                CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
+                "SASL_SSL",
+                SaslConfigs.SASL_MECHANISM,
+                "OAUTHBEARER",
+                SaslConfigs.SASL_LOGIN_CALLBACK_HANDLER_CLASS,
+                "com.google.cloud.hosted.kafka.auth.GcpLoginCallbackHandler",
+                SaslConfigs.SASL_JAAS_CONFIG,
+                "org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required;"));
+
+    try {
+      client.createTopics(ImmutableSet.of(new NewTopic(topicName, 1, (short) 1)));
+
+      //      ImmutableMap<String, Object> producerConfigUpdates =
+      //              ImmutableMap.of(KafkaAvroSerializerConfig.SCHEMA_REGISTRY_URL_CONFIG,
+      // schemaRegistryUrl,
+      //                      KafkaAvroSerializerConfig.BEARER_AUTH_CREDENTIALS_SOURCE, "CUSTOM",
+      //                      "auto.register.schemas", "true",
+      //                      "bearer.auth.custom.provider.class",
+      // "com.google.cloud.hosted.kafka.auth.GcpBearerAuthCredentialProvider",
+      //                      CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_SSL",
+      //                      SaslConfigs.SASL_MECHANISM, "OAUTHBEARER",
+      //                      SaslConfigs.SASL_LOGIN_CALLBACK_HANDLER_CLASS,
+      //                      "com.google.cloud.hosted.kafka.auth.GcpLoginCallbackHandler",
+      //                      SaslConfigs.SASL_JAAS_CONFIG,
+      // "org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required;",
+      //                      ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
+      // org.apache.kafka.common.serialization.StringSerializer.class.getName(),
+      //                      ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
+      // KafkaAvroSerializer.class.getName());
+      //          ImmutableMap.<String, Object>builder()
+      //              .put(KafkaAvroSerializerConfig.SCHEMA_REGISTRY_URL_CONFIG, schemaRegistryUrl)
+      //              .put(KafkaAvroSerializerConfig.BEARER_AUTH_CREDENTIALS_SOURCE, "CUSTOM")
+      //              .put("auto.register.schemas", "true")
+      //              .put(
+      //                  "bearer.auth.custom.provider.class",
+      //                  "com.google.cloud.hosted.kafka.auth.GcpBearerAuthCredentialProvider")
+      //              .put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_SSL")
+      //              .put(SaslConfigs.SASL_MECHANISM, "OAUTHBEARER")
+      //              .put(
+      //                  SaslConfigs.SASL_LOGIN_CALLBACK_HANDLER_CLASS,
+      //                  "com.google.cloud.hosted.kafka.auth.GcpLoginCallbackHandler")
+      //              .put(
+      //                  SaslConfigs.SASL_JAAS_CONFIG,
+      //                  "org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule
+      // required;")
+      //              .put(
+      //                  ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
+      //                  org.apache.kafka.common.serialization.StringSerializer.class.getName())
+      //              .put(
+      //                  ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
+      // KafkaAvroSerializer.class.getName())
+      //              .build();
+
+      //      ImmutableMap<String, Object> managedWriteConfig =
+      //          ImmutableMap.<String, Object>builder()
+      //              .put("bootstrap_servers", bootstrapServer)
+      //              .put("topic", topicName)
+      //              .put("format", "AVRO")
+      //              .put("producer_config_updates", producerConfigUpdates)
+      //              .build();
+
+      ImmutableMap<String, Object> producerConfigUpdates =
+          ImmutableMap.<String, Object>builder()
+              .put(KafkaAvroSerializerConfig.SCHEMA_REGISTRY_URL_CONFIG, schemaRegistryUrl)
+              .put(KafkaAvroSerializerConfig.BEARER_AUTH_CREDENTIALS_SOURCE, "CUSTOM")
+              .put("auto.register.schemas", true)
+              .put(
+                  "bearer.auth.custom.provider.class",
+                  "com.google.cloud.hosted.kafka.auth.GcpBearerAuthCredentialProvider")
+              .put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_SSL")
+              .put(SaslConfigs.SASL_MECHANISM, "OAUTHBEARER")
+              .put(
+                  SaslConfigs.SASL_LOGIN_CALLBACK_HANDLER_CLASS,
+                  "com.google.cloud.hosted.kafka.auth.GcpLoginCallbackHandler")
+              .put(
+                  SaslConfigs.SASL_JAAS_CONFIG,
+                  "org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required;")
+              .build();
+
+      PCollection<Row> inputRows =
+          writePipeline.apply(
+              "CreateSampleRows", Create.of(sampleRows).withCoder(RowCoder.of(beamRowSchema)));
+      String inputTag = "input";
+      PCollectionRowTuple inputRowTuple = PCollectionRowTuple.of(inputTag, inputRows);
+      inputRowTuple.apply(
+          "Write to Kafka",
+          Managed.write(Managed.KAFKA)
+              .withConfig(
+                  ImmutableMap.<String, Object>builder()
+                      .put("bootstrap_servers", bootstrapServer)
+                      .put("topic", topicName)
+                      .put("format", "AVRO")
+                      .put("producer_config_updates", producerConfigUpdates)
+                      .build()));
+
+      ImmutableMap<String, Object> config =
+          ImmutableMap.<String, Object>builder()
+              .put(
+                  "bootstrap_servers",
+                  "bootstrap.fozzie-test-cluster.us-central1.managedkafka.dataflow-testing-311516.cloud.goog:9092")
+              .put(
+                  "consumer_config_updates",
+                  ImmutableMap.of(
+                      "auto.offset.reset",
+                      "earliest",
+                      CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
+                      "SASL_SSL",
+                      SaslConfigs.SASL_MECHANISM,
+                      "OAUTHBEARER",
+                      SaslConfigs.SASL_LOGIN_CALLBACK_HANDLER_CLASS,
+                      "com.google.cloud.hosted.kafka.auth.GcpLoginCallbackHandler",
+                      SaslConfigs.SASL_JAAS_CONFIG,
+                      "org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required;"))
+              .put("topic", topicName)
+              .put("confluent_schema_registry_url", schemaRegistryUrl)
+              .put("confluent_schema_registry_subject", schemaRegistrySubject)
+              .put("max_read_time_seconds", 20)
+              .put("format", "AVRO")
+              .build();
+
+      PCollection<Row> output =
+          pRead
+              .apply(Managed.read(Managed.KAFKA).withConfig(config))
+              .get("output")
+              .setCoder(RowCoder.of(beamRowSchema));
+
+      PAssert.that(output)
+          .containsInAnyOrder(
+              ImmutableList.of(
+                  Row.withSchema(beamRowSchema)
+                      .withFieldValue("name", "Alice Wonderland")
+                      .withFieldValue("age", 25)
+                      .build(),
+                  Row.withSchema(beamRowSchema)
+                      .withFieldValue("name", "Bob The Builder")
+                      .withFieldValue("age", 30)
+                      .build(),
+                  Row.withSchema(beamRowSchema)
+                      .withFieldValue("name", "Charlie Chaplin")
+                      .withFieldValue("age", 35)
+                      .build()));
+
+      writePipeline.run().waitUntilFinish();
+      PipelineResult readResult = pRead.run();
+
+      // Only waiting 5 seconds here because we don't expect any processing at this point
+      PipelineResult.State readState = readResult.waitUntilFinish(Duration.standardMinutes(10));
+
+      // Fail the test if pipeline failed.
+      assertNotEquals(PipelineResult.State.FAILED, readState);
+    } finally {
+      client.deleteTopics(ImmutableSet.of(topicName));
+      client.close();
+    }
   }
 
   private static class DelayedCheckStopReadingFn implements CheckStopReadingFn {
