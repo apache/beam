@@ -35,24 +35,24 @@ When you apply `Wait.On`, the elements of the main `PCollection` will not be emi
 
 ```java
 // Example 1: Basic usage
-Pipeline p = Pipeline.create();
-PCollection<String> main = p.apply("CreateMain", Create.of("item1", "item2", "item3"));
-PCollection<Void> signal = p.apply("CreateSignal", Create.of("trigger"))
-    .apply("ProcessSignal", ParDo.of(new DoFn<String, Void>() {
-        @ProcessElement
-        public void processElement(ProcessContext c) throws InterruptedException {
-            // Simulate some processing time
-            Thread.sleep(2000);
-            // Signal processing complete
-        }
+    PCollection<String> main = p.apply("CreateMain", Create.of("item1", "item2", "item3"));
+    PCollection<Void> signal = p.apply("CreateSignal", Create.of("trigger"))
+        .apply("ProcessSignal", ParDo.of(new DoFn<String, Void>() {
+            @ProcessElement
+            public void processElement(ProcessContext c) throws InterruptedException {
+                // Simulate some processing time
+                Thread.sleep(2000);
+                // Signal processing complete
+            }
     }));
 
-// Wait for 'signal' to complete before processing 'main'
-// Elements pass through unchanged after 'signal' finishes
-PCollection<String> result = main.apply("WaitOnSignal", Wait.on(signal))
-    .apply("ProcessAfterWait", MapElements.into(TypeDescriptors.strings())
-        .via(item -> "Processed: " + item))
-    .apply("LogResults", ParDo.of(new DoFn<String, Void>() {
+    // Wait for 'signal' to complete before processing 'main'
+    // Elements pass through unchanged after 'signal' finishes
+    PCollection<String> processed = main.apply("WaitOnSignal", Wait.on(signal))
+        .apply("ProcessAfterWait", MapElements.into(TypeDescriptors.strings())
+            .via(item -> "Processed: " + item));
+  // [END write_output]
+    processed.apply("LogResults", ParDo.of(new DoFn<String, Void>() {
         @ProcessElement
         public void processElement(ProcessContext c) {
             System.out.println(c.element());
@@ -60,28 +60,43 @@ PCollection<String> result = main.apply("WaitOnSignal", Wait.on(signal))
     }));
 
 // Example 2: Using multiple signals
-PCollection<String> main2 = p.apply("CreateMain2", Create.of("data1", "data2"));
-PCollection<Void> signal1 = p.apply("CreateSignal1", Create.of("setup"))
-    .apply("SetupDatabase", ParDo.of(new DoFn<String, Void>() {
-        @ProcessElement
-        public void processElement(ProcessContext c) throws InterruptedException {
-            // Simulate database setup
-            Thread.sleep(1000);
-        }
-    }));
-PCollection<Void> signal2 = p.apply("CreateSignal2", Create.of("config"))
-    .apply("LoadConfig", ParDo.of(new DoFn<String, Void>() {
-        @ProcessElement
-        public void processElement(ProcessContext c) throws InterruptedException {
-            // Simulate config loading
-            Thread.sleep(1500);
-        }
-    }));
+    // The PCollection to be processed after the signals.
+    PCollection<String> main2 = p.apply("CreateMain2", Create.of("data1", "data2"));
 
-// Wait for both signal1 and signal2 to complete before processing main
-PCollection<String> result2 = main2.apply("WaitOnSignals", Wait.on(signal1, signal2))
-    .apply("TransformData", MapElements.into(TypeDescriptors.strings())
-        .via(data -> data.toUpperCase() + "_READY"));
+    // Signal 1: Simulate a long-running setup task.
+    PCollection<Void> signal1 = p.apply("CreateSignal1", Create.of("setup"))
+        .apply("SetupDatabase", ParDo.of(new DoFn<String, Void>() {
+          @ProcessElement
+          public void processElement(ProcessContext c) throws InterruptedException {
+            System.out.println("Starting database setup...");
+            Thread.sleep(1000);
+            System.out.println("Database setup complete.");
+          }
+        }));
+
+    // Signal 2: Simulate loading a configuration file.
+    PCollection<Void> signal2 = p.apply("CreateSignal2", Create.of("config"))
+        .apply("LoadConfig", ParDo.of(new DoFn<String, Void>() {
+          @ProcessElement
+          public void processElement(ProcessContext c) throws InterruptedException {
+            System.out.println("Loading configuration...");
+            Thread.sleep(1500);
+            System.out.println("Configuration loaded.");
+          }
+        }));
+
+    // Wait for both signal1 and signal2 to complete before processing main2.
+    PCollection<String> result2 = main2.apply("WaitOnSignals", Wait.on(signal1, signal2))
+        .apply("TransformData", MapElements.into(TypeDescriptors.strings())
+            .via(data -> data.toUpperCase() + "_READY"));
+
+    // Log the final results.
+    result2.apply("LogResults", ParDo.of(new DoFn<String, Void>() {
+        @ProcessElement
+        public void processElement(ProcessContext c) {
+            System.out.println("Final Result: " + c.element());
+        }
+    }));
 ```
 
 ## Related transforms
