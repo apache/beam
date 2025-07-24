@@ -972,15 +972,40 @@ class YamlProviders:
               field_inner = (
                   field_type.__args__[0] if hasattr(field_type, '__args__') and
                   len(field_type.__args__) == 1 else field_type)
-              # Avoid creating Union with Any or invalid types
+              # Handle type unification more carefully
               if existing_inner == Any or field_inner == Any:
                 all_fields[field_name] = Optional[Any]
               elif existing_inner == field_inner:
                 all_fields[field_name] = Optional[existing_inner]
               else:
-                # Make it optional since not all elements may have this field
-                all_fields[field_name] = Optional[typehints.Union[existing_inner,
-                                                                  field_inner]]
+                # Check for list types and prioritize them over other types
+                from apache_beam.typehints import typehints as th
+                existing_is_list = (
+                    hasattr(existing_inner, '__origin__') and
+                    existing_inner.__origin__ in (list, th.List))
+                field_is_list = (
+                    hasattr(field_inner, '__origin__') and
+                    field_inner.__origin__ in (list, th.List))
+
+                if existing_is_list and field_is_list:
+                  # Both are list types, unify their element types
+                  existing_elem = existing_inner.__args__[
+                      0] if existing_inner.__args__ else Any
+                  field_elem = field_inner.__args__[
+                      0] if field_inner.__args__ else Any
+                  if existing_elem == field_elem:
+                    all_fields[field_name] = Optional[th.List[existing_elem]]
+                  else:
+                    all_fields[field_name] = Optional[th.List[Any]]
+                elif existing_is_list:
+                  # Existing is list, keep it as list type
+                  all_fields[field_name] = Optional[existing_inner]
+                elif field_is_list:
+                  # New field is list, use list type
+                  all_fields[field_name] = Optional[field_inner]
+                else:
+                  # Neither is a list, use Any to avoid unsupported Union types in schema translation
+                  all_fields[field_name] = Optional[Any]
           else:
             # Make field optional since not all PCollections may have it
             all_fields[field_name] = Optional[field_type]
@@ -1013,7 +1038,15 @@ class YamlProviders:
       unified_dict = {}
       for field_name in target_schema._fields:
         if field_name in element_dict:
-          unified_dict[field_name] = element_dict[field_name]
+          value = element_dict[field_name]
+          # Ensure the value matches the expected type
+          # This is particularly important for list fields
+          if value is not None and not isinstance(value, list) and hasattr(
+              value, '__iter__') and not isinstance(value, (str, bytes)):
+            # Convert iterables to lists if needed
+            unified_dict[field_name] = list(value)
+          else:
+            unified_dict[field_name] = value
         else:
           unified_dict[field_name] = None
 
