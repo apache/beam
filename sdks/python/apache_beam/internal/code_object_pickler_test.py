@@ -106,13 +106,11 @@ test_cases = [
     (
         top_level_function,
         "apache_beam.internal.code_object_pickler_test.top_level_function"       
-        ".__code__"
-    ),
+        ".__code__"),
     (
         top_level_lambda,
         "apache_beam.internal.code_object_pickler_test.top_level_lambda"
-        ".__code__"
-    ),
+        ".__code__"),
     (
         get_nested_function(),
         (
@@ -122,7 +120,8 @@ test_cases = [
         get_lambda_from_dictionary(),
         (
             "apache_beam.internal.code_object_pickler_test"
-            ".get_lambda_from_dictionary.__code__.co_consts[<lambda>, ('x',)]")),
+            ".get_lambda_from_dictionary.__code__.co_consts[<lambda>, ('x',)]")
+    ),
     (
         function_with_lambda_default_argument(),
         (
@@ -131,28 +130,23 @@ test_cases = [
     (
         function_with_function_default_argument(),
         "apache_beam.internal.code_object_pickler_test.top_level_function"
-        ".__code__"
-    ),
+        ".__code__"),
     (
         add_one,
         "apache_beam.internal.code_object_pickler_test.function_decorator"
-        ".__code__.co_consts[<lambda>]"
-    ),
+        ".__code__.co_consts[<lambda>]"),
     (
         ClassWithFunction.process,
         "apache_beam.internal.code_object_pickler_test.ClassWithFunction.process"
-        ".__code__"
-    ),
+        ".__code__"),
     (
         ClassWithStaticMethod.static_method,
         "apache_beam.internal.code_object_pickler_test.ClassWithStaticMethod"
-        ".static_method.__code__"
-    ),
+        ".static_method.__code__"),
     (
         ClassWithClassMethod.class_method,
         "apache_beam.internal.code_object_pickler_test.ClassWithClassMethod"
-        ".class_method.__code__"
-    ),
+        ".class_method.__code__"),
     (
         ClassWithNestedFunction().process(),
         (
@@ -162,13 +156,11 @@ test_cases = [
     (
         ClassWithLambda().process(),
         "apache_beam.internal.code_object_pickler_test.ClassWithLambda.process"
-        ".__code__.co_consts[<lambda>]"
-    ),
+        ".__code__.co_consts[<lambda>]"),
     (
         ClassWithNestedClass.InnerClass().process,
         "apache_beam.internal.code_object_pickler_test.ClassWithNestedClass"
-        ".InnerClass.process.__code__"
-    ),
+        ".InnerClass.process.__code__"),
     (
         ClassWithNestedLambda().process(),
         (
@@ -178,8 +170,7 @@ test_cases = [
     (
         ClassWithNestedLambda.process,
         "apache_beam.internal.code_object_pickler_test.ClassWithNestedLambda"
-        ".process.__code__"
-    ),
+        ".process.__code__"),
 ]
 
 
