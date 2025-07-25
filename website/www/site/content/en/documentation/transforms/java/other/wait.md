@@ -32,9 +32,12 @@ limitations under the License.
 When you apply `Wait.On`, the elements of the main `PCollection` will not be emitted for downstream processing until the computations required to produce the specified signal `PCollections` have completed. In streaming mode, this is enforced per window: the corresponding window of each waited-on `PCollection` must close before elements are passed through.
 
 ## Examples
+**Example 1**: Basic usage
 
-```java
-// Example 1: Basic usage
+{{< highlight java >}}
+    PipelineOptions options = PipelineOptionsFactory.create();
+    Pipeline p = Pipeline.create(options);
+ 
     PCollection<String> main = p.apply("CreateMain", Create.of("item1", "item2", "item3"));
     PCollection<Void> signal = p.apply("CreateSignal", Create.of("trigger"))
         .apply("ProcessSignal", ParDo.of(new DoFn<String, Void>() {
@@ -51,15 +54,21 @@ When you apply `Wait.On`, the elements of the main `PCollection` will not be emi
     PCollection<String> processed = main.apply("WaitOnSignal", Wait.on(signal))
         .apply("ProcessAfterWait", MapElements.into(TypeDescriptors.strings())
             .via(item -> "Processed: " + item));
-  // [END write_output]
+
     processed.apply("LogResults", ParDo.of(new DoFn<String, Void>() {
         @ProcessElement
         public void processElement(ProcessContext c) {
             System.out.println(c.element());
         }
     }));
+{{< /highlight >}}
 
-// Example 2: Using multiple signals
+**Example 2**: Using multiple signals
+
+{{< highlight java >}}
+    PipelineOptions options = PipelineOptionsFactory.create();
+    Pipeline p = Pipeline.create(options);
+    
     // The PCollection to be processed after the signals.
     PCollection<String> main2 = p.apply("CreateMain2", Create.of("data1", "data2"));
 
@@ -97,7 +106,7 @@ When you apply `Wait.On`, the elements of the main `PCollection` will not be emi
             System.out.println("Final Result: " + c.element());
         }
     }));
-```
+{{< /highlight >}}
 
 ## Related transforms
 * [Flatten](/documentation/transforms/java/other/flatten) merges multiple `PCollection` objects into a single logical `PCollection`.
