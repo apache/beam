@@ -3997,8 +3997,8 @@ class Create(PTransform):
         final_type = non_none_types.pop()
       elif len(non_none_types) == 1 and len(field_types) == 2:
         final_type = typing.Optional[non_none_types.pop()]
-      else:
-        raise TypeError("No types found for row: %s", self.values)
+      else:  # No available field types
+        raise TypeError("No types found for field %s", field)
 
       final_fields.append((field, final_type))
 
