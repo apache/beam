@@ -279,7 +279,15 @@ public class FnHarness {
     ExecutorService executorService =
         options.as(ExecutorOptions.class).getScheduledExecutorService();
     ExecutionStateSampler executionStateSampler =
-        new ExecutionStateSampler(options, System::currentTimeMillis);
+        new ExecutionStateSampler(
+            options,
+            System::currentTimeMillis,
+            message -> {
+              System.err.println(
+                  "\n*** FATAL ERROR: Timeout occurred! Exiting JVM with status 1. ***");
+              System.err.println("Details: " + message);
+              System.exit(1);
+            });
 
     final @Nullable DataSampler dataSampler = DataSampler.create(options);
 
