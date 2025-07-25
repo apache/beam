@@ -105,68 +105,80 @@ class ClassWithNestedLambda:
 test_cases = [
     (
         top_level_function,
-        "apache_beam.internal.code_object_pickler_test.top_level_function.__code__"
+        "apache_beam.internal.code_object_pickler_test.top_level_function"       
+        ".__code__"
     ),
     (
         top_level_lambda,
-        "apache_beam.internal.code_object_pickler_test.top_level_lambda.__code__"
+        "apache_beam.internal.code_object_pickler_test.top_level_lambda"
+        ".__code__"
     ),
     (
         get_nested_function(),
         (
-            "apache_beam.internal.code_object_pickler_test.get_nested_function.__code__.co_consts"
-            "[nested_function]")),
+            "apache_beam.internal.code_object_pickler_test.get_nested_function"
+            ".__code__.co_consts[nested_function]")),
     (
         get_lambda_from_dictionary(),
         (
-            "apache_beam.internal.code_object_pickler_test.get_lambda_from_dictionary.__code__.co_consts"
-            "[<lambda>, ('x',)]")),
+            "apache_beam.internal.code_object_pickler_test"
+            ".get_lambda_from_dictionary.__code__.co_consts[<lambda>, ('x',)]")),
     (
         function_with_lambda_default_argument(),
         (
-            "apache_beam.internal.code_object_pickler_test.function_with_lambda_default_argument.__defaults__[0]"
-            ".__code__")),
+            "apache_beam.internal.code_object_pickler_test"
+            ".function_with_lambda_default_argument.__defaults__[0].__code__")),
     (
         function_with_function_default_argument(),
-        "apache_beam.internal.code_object_pickler_test.top_level_function.__code__"
+        "apache_beam.internal.code_object_pickler_test.top_level_function"
+        ".__code__"
     ),
     (
         add_one,
-        "apache_beam.internal.code_object_pickler_test.function_decorator.__code__.co_consts[<lambda>]"
+        "apache_beam.internal.code_object_pickler_test.function_decorator"
+        ".__code__.co_consts[<lambda>]"
     ),
     (
         ClassWithFunction.process,
-        "apache_beam.internal.code_object_pickler_test.ClassWithFunction.process.__code__"
+        "apache_beam.internal.code_object_pickler_test.ClassWithFunction.process"
+        ".__code__"
     ),
     (
         ClassWithStaticMethod.static_method,
-        "apache_beam.internal.code_object_pickler_test.ClassWithStaticMethod.static_method.__code__"
+        "apache_beam.internal.code_object_pickler_test.ClassWithStaticMethod"
+        ".static_method.__code__"
     ),
     (
         ClassWithClassMethod.class_method,
-        "apache_beam.internal.code_object_pickler_test.ClassWithClassMethod.class_method.__code__"
+        "apache_beam.internal.code_object_pickler_test.ClassWithClassMethod"
+        ".class_method.__code__"
     ),
     (
         ClassWithNestedFunction().process(),
         (
-            "apache_beam.internal.code_object_pickler_test.ClassWithNestedFunction.process.__code__.co_consts"
+            "apache_beam.internal.code_object_pickler_test"
+            ".ClassWithNestedFunction.process.__code__.co_consts"
             "[nested_function]")),
     (
         ClassWithLambda().process(),
-        "apache_beam.internal.code_object_pickler_test.ClassWithLambda.process.__code__.co_consts[<lambda>]"
+        "apache_beam.internal.code_object_pickler_test.ClassWithLambda.process"
+        ".__code__.co_consts[<lambda>]"
     ),
     (
         ClassWithNestedClass.InnerClass().process,
-        "apache_beam.internal.code_object_pickler_test.ClassWithNestedClass.InnerClass.process.__code__"
+        "apache_beam.internal.code_object_pickler_test.ClassWithNestedClass"
+        ".InnerClass.process.__code__"
     ),
     (
         ClassWithNestedLambda().process(),
         (
-            "apache_beam.internal.code_object_pickler_test.ClassWithNestedLambda.process.__code__.co_consts"
-            "[get_lambda_from_dictionary].co_consts[<lambda>, ('x',)]")),
+            "apache_beam.internal.code_object_pickler_test.ClassWithNestedLambda"
+            ".process.__code__.co_consts[get_lambda_from_dictionary].co_consts"
+            "[<lambda>, ('x',)]")),
     (
         ClassWithNestedLambda.process,
-        "apache_beam.internal.code_object_pickler_test.ClassWithNestedLambda.process.__code__"
+        "apache_beam.internal.code_object_pickler_test.ClassWithNestedLambda"
+        ".process.__code__"
     ),
 ]
 
