@@ -889,31 +889,67 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
             // Given that we split
             // the ProtoRows iterable at 2MB and the max request size is 10MB, this scenario seems
             // nearly impossible.
-            LOG.error(
-                "A request containing more than one row is over the request size limit of "
-                    + maxRequestSize
-                    + ". This is unexpected. All rows in the request will be sent to the failed-rows PCollection.");
+            LOG.warn(
+                "A request containing more than one row is over the request size limit of {}. "
+                    + "This is unexpected. BigQueryIO will now split the request and send valid rows individually.",
+                maxRequestSize);
           }
+          // We will split the ProtoRows and send them in smaller batches.
+          ProtoRows.Builder nextRows = ProtoRows.newBuilder();
+          List<org.joda.time.Instant> nextTimestamps = Lists.newArrayList();
+          List<@Nullable TableRow> nextFailsafeTableRows = Lists.newArrayList();
+
           for (int i = 0; i < splitValue.getProtoRows().getSerializedRowsCount(); ++i) {
-            org.joda.time.Instant timestamp = splitValue.getTimestamps().get(i);
-            TableRow failedRow = splitValue.getFailsafeTableRows().get(i);
-            if (failedRow == null) {
-              ByteString rowBytes = splitValue.getProtoRows().getSerializedRows(i);
-              failedRow = appendClientInfo.get().toTableRow(rowBytes, Predicates.alwaysTrue());
+            ByteString rowBytes = splitValue.getProtoRows().getSerializedRows(i);
+            if (nextRows.build().getSerializedSize() + rowBytes.size() >= maxRequestSize
+                && nextRows.getSerializedRowsCount() > 0) {
+              AppendRowsContext context =
+                  new AppendRowsContext(
+                      element.getKey(), nextRows.build(), nextTimestamps, nextFailsafeTableRows);
+              contexts.add(context);
+              retryManager.addOperation(runOperation, onError, onSuccess, context);
+              recordsAppended.inc(nextRows.getSerializedRowsCount());
+              appendSizeDistribution.update(context.protoRows.getSerializedRowsCount());
+              ++numAppends;
+
+              nextRows = ProtoRows.newBuilder();
+              nextTimestamps = Lists.newArrayList();
+              nextFailsafeTableRows = Lists.newArrayList();
             }
-            o.get(failedRowsTag)
-                .outputWithTimestamp(
-                    new BigQueryStorageApiInsertError(
-                        failedRow, "Row payload too large. Maximum size " + maxRequestSize),
-                    timestamp);
+            if (rowBytes.size() >= maxRequestSize) {
+              // This single row is too large, send it to the failed rows PCollection.
+              org.joda.time.Instant timestamp = splitValue.getTimestamps().get(i);
+              TableRow failedRow = splitValue.getFailsafeTableRows().get(i);
+              if (failedRow == null) {
+                failedRow = appendClientInfo.get().toTableRow(rowBytes, Predicates.alwaysTrue());
+              }
+              o.get(failedRowsTag)
+                  .outputWithTimestamp(
+                      new BigQueryStorageApiInsertError(
+                          failedRow, "Row payload too large. Maximum size " + maxRequestSize),
+                      timestamp);
+              rowsSentToFailedRowsCollection.inc();
+              BigQuerySinkMetrics.appendRowsRowStatusCounter(
+                      BigQuerySinkMetrics.RowStatus.FAILED,
+                      BigQuerySinkMetrics.PAYLOAD_TOO_LARGE,
+                      shortTableId)
+                  .inc(1);
+            } else {
+              nextRows.addSerializedRows(rowBytes);
+              nextTimestamps.add(splitValue.getTimestamps().get(i));
+              nextFailsafeTableRows.add(splitValue.getFailsafeTableRows().get(i));
+            }
           }
-          int numRowsFailed = splitValue.getProtoRows().getSerializedRowsCount();
-          rowsSentToFailedRowsCollection.inc(numRowsFailed);
-          BigQuerySinkMetrics.appendRowsRowStatusCounter(
-                  BigQuerySinkMetrics.RowStatus.FAILED,
-                  BigQuerySinkMetrics.PAYLOAD_TOO_LARGE,
-                  shortTableId)
-              .inc(numRowsFailed);
+          if (nextRows.getSerializedRowsCount() > 0) {
+            AppendRowsContext context =
+                new AppendRowsContext(
+                    element.getKey(), nextRows.build(), nextTimestamps, nextFailsafeTableRows);
+            contexts.add(context);
+            retryManager.addOperation(runOperation, onError, onSuccess, context);
+            recordsAppended.inc(nextRows.getSerializedRowsCount());
+            appendSizeDistribution.update(context.protoRows.getSerializedRowsCount());
+            ++numAppends;
+          }
         } else {
           ++numAppends;
           // RetryManager
