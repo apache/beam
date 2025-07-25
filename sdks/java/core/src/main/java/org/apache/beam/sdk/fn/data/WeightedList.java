@@ -19,15 +19,20 @@ package org.apache.beam.sdk.fn.data;
 
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
+import org.apache.beam.sdk.util.Weighted;
 
 /** Facade for a {@link List<T>} that keeps track of weight, for cache limit reasons. */
-public class WeightedList<T> {
+public class WeightedList<T> implements Weighted {
 
   /** Original list that is being wrapped. */
   private final List<T> backing;
 
   /** Weight of all the elements being tracked. */
   private final AtomicLong weight;
+
+  public static <T> WeightedList<T> of(List<T> backing, long weight) {
+    return new WeightedList<>(backing, weight);
+  }
 
   public WeightedList(List<T> backing, long weight) {
     this.backing = backing;
@@ -46,6 +51,7 @@ public class WeightedList<T> {
     return this.backing.isEmpty();
   }
 
+  @Override
   public long getWeight() {
     return weight.longValue();
   }
