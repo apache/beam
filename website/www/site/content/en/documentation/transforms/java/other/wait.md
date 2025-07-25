@@ -37,7 +37,7 @@ When you apply `Wait.On`, the elements of the main `PCollection` will not be emi
 {{< highlight java >}}
     PipelineOptions options = PipelineOptionsFactory.create();
     Pipeline p = Pipeline.create(options);
- 
+
     PCollection<String> main = p.apply("CreateMain", Create.of("item1", "item2", "item3"));
     PCollection<Void> signal = p.apply("CreateSignal", Create.of("trigger"))
         .apply("ProcessSignal", ParDo.of(new DoFn<String, Void>() {
@@ -68,7 +68,7 @@ When you apply `Wait.On`, the elements of the main `PCollection` will not be emi
 {{< highlight java >}}
     PipelineOptions options = PipelineOptionsFactory.create();
     Pipeline p = Pipeline.create(options);
-    
+
     // The PCollection to be processed after the signals.
     PCollection<String> main2 = p.apply("CreateMain2", Create.of("data1", "data2"));
 
