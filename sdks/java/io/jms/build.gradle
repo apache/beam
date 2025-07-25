@@ -39,7 +39,8 @@ dependencies {
   testImplementation library.java.activemq_kahadb_store
   testImplementation library.java.activemq_client
   testImplementation library.java.hamcrest
-  testImplementation library.java.junit
+  // Explicitly specify JUnit 4 version to avoid conflicts with JUnit 5 BOM in core
+  testImplementation "junit:junit:4.13.2"
   testImplementation library.java.mockito_core
   testImplementation library.java.mockito_inline
   testImplementation library.java.qpid_jms_client
