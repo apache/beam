@@ -44,8 +44,8 @@ pipelines:
                 timestamp_micros: -1}
               - {key: 'row1',
                   type: 'SetCell',
-                  family_name: "cf2",
-                  column_qualifier: "cq1",
+                  family_name: "cf1",
+                  column_qualifier: "cq2",
                   value: "value2",
                   timestamp_micros: 1000}
 
@@ -85,3 +85,30 @@ pipelines:
             project: 'apache-beam-testing'
             instance: "{BT_INSTANCE}"
             table: 'test-table'
+  - pipeline:
+      type: chain
+      transforms:
+        - type: ReadFromBigTable
+          config:
+            project: 'apache-beam-testing'
+            instance: "{BT_INSTANCE}"
+            table: 'test-table'
+            flatten: True
+        - type: MapToFields
+          config:
+            language: python
+            fields:
+              key:
+                callable: |
+                  def convert_to_bytes(row):
+                    return row.key.decode("utf-8") if "key" in row._fields else None
+
+
+        - type: AssertEqual
+          config:
+            elements:
+              - {'key': 'row1'}
+              - {'key': 'row1' }
+        - type: LogForTesting
+
+

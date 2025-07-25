@@ -375,15 +375,16 @@
 #BigTable
 - type: renaming
   transforms:
-    #'ReadFromBigTable': 'ReadFromBigTable'
+    'ReadFromBigTable': 'ReadFromBigTable'
     'WriteToBigTable': 'WriteToBigTable'
   config:
     mappings:
       #Temp removing read from bigTable IO
-#      'ReadFromBigTable':
-#        project: 'project_id'
-#        instance: 'instance_id'
-#        table: 'table_id'
+      'ReadFromBigTable':
+        project: 'project_id'
+        instance: 'instance_id'
+        table: 'table_id'
+        flatten: "flatten"
       'WriteToBigTable':
         project: 'project_id'
         instance: 'instance_id'
@@ -391,7 +392,7 @@
     underlying_provider:
       type: beamJar
       transforms:
-#        'ReadFromBigTable': 'beam:schematransform:org.apache.beam:bigtable_read:v1'
+        'ReadFromBigTable': 'beam:schematransform:org.apache.beam:bigtable_read:v1'
         'WriteToBigTable': 'beam:schematransform:org.apache.beam:bigtable_write:v1'
       config:
         gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'
