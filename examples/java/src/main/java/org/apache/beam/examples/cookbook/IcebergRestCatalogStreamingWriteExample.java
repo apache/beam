@@ -85,6 +85,9 @@ public class IcebergRestCatalogStreamingWriteExample {
           .addInt64Field("passenger_count")
           .build();
 
+  public static final String TAXI_RIDES_TOPIC =
+      "projects/pubsub-public-data/topics/taxirides-realtime";
+
   /**
    * Checks if a {@link Row} contains all required fields.
    *
@@ -110,7 +113,6 @@ public class IcebergRestCatalogStreamingWriteExample {
         PipelineOptionsFactory.fromArgs(args).withValidation().as(IcebergPipelineOptions.class);
 
     final String tableIdentifier = options.getIcebergTable();
-    final String pubsubTopic = options.getTopic();
     final String catalogUri = options.getCatalogUri();
     final String warehouseLocation = options.getWarehouse();
     final String projectName = options.getProject();
@@ -142,7 +144,7 @@ public class IcebergRestCatalogStreamingWriteExample {
 
     Pipeline p = Pipeline.create(options);
 
-    p.apply("ReadFromPubSub", PubsubIO.readStrings().fromTopic(pubsubTopic))
+    p.apply("ReadFromPubSub", PubsubIO.readStrings().fromTopic(TAXI_RIDES_TOPIC))
         .apply("ConvertJsonToRow", JsonToRow.withSchema(TAXIRIDES_SCHEMA))
         .apply("FilterNullFields", Filter.by(r -> areAllFieldsPresent(r)))
         .apply("FilterDropoffRides", Filter.by(r -> "dropoff".equals(r.getString("ride_status"))))
@@ -276,13 +278,6 @@ public class IcebergRestCatalogStreamingWriteExample {
     String getCatalogUri();
 
     void setCatalogUri(String value);
-
-    @Description("The Pub/Sub topic to read from.")
-    @Validation.Required
-    @Default.String("projects/pubsub-public-data/topics/taxirides-realtime")
-    String getTopic();
-
-    void setTopic(String value);
 
     @Description("The iceberg table to write to.")
     @Validation.Required

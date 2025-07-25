@@ -84,7 +84,6 @@ public class IcebergRestCatalogCDCExample {
                       new String[] {
                         "--runner=" + options.getRunner().getSimpleName(),
                         "--project=" + options.getProject(),
-                        "--topic=" + options.getTopic(),
                         "--icebergTable=" + options.getSourceTable(),
                         "--catalogUri=" + options.getCatalogUri(),
                         "--warehouse=" + options.getWarehouse(),
@@ -232,11 +231,5 @@ public class IcebergRestCatalogCDCExample {
     boolean getTriggerStreamingWrite();
 
     void setTriggerStreamingWrite(boolean triggerStreamingWrite);
-
-    @Description("The Pub/Sub topic to read from for the streaming write example")
-    @Default.String("projects/pubsub-public-data/topics/taxirides-realtime")
-    String getTopic();
-
-    void setTopic(String topic);
   }
 }
