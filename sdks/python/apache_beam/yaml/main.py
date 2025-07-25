@@ -25,6 +25,13 @@ import yaml
 
 import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
+# The following imports force the registration of JDBC logical types.
+# When running a Beam YAML pipeline, the expansion service handles JDBCIO using
+# Java transforms, bypassing the Python module (`apache_beam.io.jdbc`) that
+# registers these types. These imports load the module, preventing a
+# "logical type not found" error.
+from apache_beam.io.jdbc import JdbcDateType  # pylint: disable=unused-import
+from apache_beam.io.jdbc import JdbcTimeType  # pylint: disable=unused-import
 from apache_beam.transforms import resources
 from apache_beam.yaml import yaml_testing
 from apache_beam.yaml import yaml_transform

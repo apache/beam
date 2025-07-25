@@ -59,6 +59,37 @@
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
 
+# [2.68.0] - Unreleased
+
+## Highlights
+
+* New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
+* New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
+
+## I/Os
+
+* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+
+## New Features / Improvements
+
+* Respect BatchSize and MaxBufferingDuration when using `JdbcIO.WriteWithResults`. Previously, these settings were ignored ([#35669](https://github.com/apache/beam/pull/35669)).
+
+## Breaking Changes
+
+* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+
+## Deprecations
+
+* X behavior is deprecated and will be removed in X versions ([#X](https://github.com/apache/beam/issues/X)).
+
+## Bugfixes
+
+* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+
+## Known Issues
+
+* ([#X](https://github.com/apache/beam/issues/X)).
+
 # [2.67.0] - Unreleased
 
 ## Highlights
@@ -84,6 +115,7 @@
 * Milvus enrichment handler added (Python) ([#35216](https://github.com/apache/beam/pull/35216)).
   Beam now supports Milvus enrichment handler capabilities for vector, keyword,
   and hybrid search operations.
+* [Beam SQL] Add support for DATABASEs, with an implementation for Iceberg ([]())
 
 ## Breaking Changes
 
@@ -100,10 +132,14 @@
 
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * [YAML] Fixed handling of missing optional fields in JSON parsing ([#35179](https://github.com/apache/beam/issues/35179)).
+* [Python] Fix WriteToBigQuery transform using CopyJob does not work with WRITE_TRUNCATE write disposition ([#34247](https://github.com/apache/beam/issues/34247))
+* [Python] Fixed dicomio tags mismatch in integration tests ([#35658](https://github.com/apache/beam/pull/35658)).
+
 
 ## Known Issues
 
 * ([#X](https://github.com/apache/beam/issues/X)).
+* ([#35666](https://github.com/apache/beam/issues/35666)). YAML Flatten incorrectly drops fields when input PCollections' schema are different. This issue exists for all versions since 2.52.0.
 
 # [2.66.0] - 2025-07-01
 
