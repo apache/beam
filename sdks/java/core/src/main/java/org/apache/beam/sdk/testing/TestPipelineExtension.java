@@ -53,9 +53,20 @@ import org.junit.jupiter.api.extension.ParameterResolver;
  * }
  * </code></pre>
  *
- * <p>The extension will automatically inject a {@link TestPipeline} instance as a parameter to test
- * methods that declare it. It also handles the lifecycle of the pipeline, including enforcement of
- * pipeline execution and abandoned node detection.
+ * <p>You can also create the extension yourself for more control:
+ *
+ * <pre><code>
+ * class MyPipelineTest {
+ *   {@literal @}RegisterExtension
+ *   final TestPipelineExtension pipeline = TestPipelineExtension.create();
+ *
+ *   {@literal @}Test
+ *   void testUsingPipeline() {
+ *     pipeline.apply(...);
+ *     pipeline.run();
+ *   }
+ * }
+ * </code></pre>
  */
 public class TestPipelineExtension
     implements BeforeEachCallback, AfterEachCallback, ParameterResolver {
@@ -64,6 +75,28 @@ public class TestPipelineExtension
       ExtensionContext.Namespace.create(TestPipelineExtension.class);
   private static final String PIPELINE_KEY = "testPipeline";
   private static final String ENFORCEMENT_KEY = "enforcement";
+
+  /** Creates a new TestPipelineExtension with default options. */
+  public static TestPipelineExtension create() {
+    return new TestPipelineExtension();
+  }
+
+  /** Creates a new TestPipelineExtension with custom options. */
+  public static TestPipelineExtension fromOptions(PipelineOptions options) {
+    return new TestPipelineExtension(options);
+  }
+
+  private TestPipeline testPipeline;
+
+  /** Creates a TestPipelineExtension with default options. */
+  public TestPipelineExtension() {
+    this.testPipeline = TestPipeline.create();
+  }
+
+  /** Creates a TestPipelineExtension with custom options. */
+  public TestPipelineExtension(PipelineOptions options) {
+    this.testPipeline = TestPipeline.fromOptions(options);
+  }
 
   @Override
   public boolean supportsParameter(
@@ -74,12 +107,23 @@ public class TestPipelineExtension
   @Override
   public Object resolveParameter(
       ParameterContext parameterContext, ExtensionContext extensionContext) {
-    return getOrCreateTestPipeline(extensionContext);
+    if (this.testPipeline == null) {
+      return getOrCreateTestPipeline(extensionContext);
+    } else {
+      return this.testPipeline;
+    }
   }
 
   @Override
   public void beforeEach(ExtensionContext context) throws Exception {
-    TestPipeline pipeline = getOrCreateTestPipeline(context);
+    TestPipeline pipeline;
+
+    if (this.testPipeline != null) {
+      pipeline = this.testPipeline;
+    } else {
+      pipeline = getOrCreateTestPipeline(context);
+    }
+
     Optional<PipelineRunEnforcement> enforcement = getOrCreateEnforcement(context);
 
     // Set application name based on test method
@@ -178,9 +222,6 @@ public class TestPipelineExtension
         .filter(annotation -> annotation instanceof Category)
         .map(annotation -> (Category) annotation)
         .flatMap(category -> Arrays.stream(category.value()))
-        .anyMatch(
-            clazz ->
-                NeedsRunner.class.isAssignableFrom(clazz)
-                    || ValidatesRunner.class.isAssignableFrom(clazz));
+        .anyMatch(categoryClass -> NeedsRunner.class.isAssignableFrom(categoryClass));
   }
 }

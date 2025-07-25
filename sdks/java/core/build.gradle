@@ -111,9 +111,14 @@ dependencies {
   provided platform('org.junit:junit-bom:5.13.4')
   provided 'org.junit.jupiter:junit-jupiter-api'
   provided 'org.junit.jupiter:junit-jupiter-engine'
+  // Ensure JUnit 4 is explicitly included for backward compatibility
+  provided 'junit:junit:4.13.2'
   testImplementation platform('org.junit:junit-bom:5.13.4')
   testImplementation 'org.junit.jupiter:junit-jupiter-api'
+  testImplementation 'junit:junit:4.13.2' // Explicit JUnit 4 for tests
   testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine'
+  // Add JUnit 4/5 bridge for compatibility
+  testImplementation 'org.junit.vintage:junit-vintage-engine:5.13.4'
   provided 'io.airlift:aircompressor:0.18'
   provided 'com.facebook.presto.hadoop:hadoop-apache2:3.2.0-1'
   provided library.java.zstd_jni
