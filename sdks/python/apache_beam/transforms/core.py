@@ -72,6 +72,7 @@ from apache_beam.typehints.typehints import is_consistent_with
 from apache_beam.typehints.typehints import visit_inner_types
 from apache_beam.utils import urns
 from apache_beam.utils.timestamp import Duration
+from collections import defaultdict
 
 if typing.TYPE_CHECKING:
   from google.protobuf import message  # pylint: disable=ungrouped-imports
@@ -3962,9 +3963,46 @@ class Create(PTransform):
   def infer_output_type(self, unused_input_type):
     if not self.values:
       return typehints.Any
-    return typehints.Union[[
-        trivial_inference.instance_to_type(v) for v in self.values
-    ]]
+
+    try:
+      if not all(isinstance(v, pvalue.Row) for v in self.values):
+        raise TypeError("All data must be Rows.")
+      first_fields = self.values[0].as_dict().keys()
+      if not all(v.as_dict().keys() == first_fields for v in self.values):
+        raise TypeError("All rows must have the same fields.")
+    except (TypeError, AttributeError):
+      # For non-Row or inconsistent rows.
+      return typehints.Union[[
+          trivial_inference.instance_to_type(v) for v in self.values
+      ]]
+
+    # Save field types for each field
+    field_types_by_field = defaultdict(set)
+    for row in self.values:
+      row_dict = row.as_dict()
+      for field in first_fields:
+        field_types_by_field[field].add(
+            trivial_inference.instance_to_type(row_dict.get(field)))
+
+    # Determine the appropriate type for each field
+    final_fields = []
+    for field in first_fields:
+      field_types = field_types_by_field[field]
+      non_none_types = {t for t in field_types if t is not type(None)}
+
+      if len(non_none_types) > 1:
+        raise TypeError(
+            "Multiple types found for field %s: %s", field, non_none_types)
+      elif len(non_none_types) == 1 and len(field_types) == 1:
+        final_type = non_none_types.pop()
+      elif len(non_none_types) == 1 and len(field_types) == 2:
+        final_type = typing.Optional[non_none_types.pop()]
+      else:
+        raise TypeError("No types found for row: %s", self.values)
+
+      final_fields.append((field, final_type))
+
+    return row_type.RowTypeConstraint.from_fields(final_fields)
 
   def get_output_type(self):
     return (
