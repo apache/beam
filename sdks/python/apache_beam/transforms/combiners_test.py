@@ -19,15 +19,20 @@
 # pytype: skip-file
 
 import itertools
+import json
+import os
 import random
+import tempfile
 import time
 import unittest
+from pathlib import Path
 
 import hamcrest as hc
 import pytest
 
 import apache_beam as beam
 import apache_beam.transforms.combiners as combine
+from apache_beam import pvalue
 from apache_beam.metrics import Metrics
 from apache_beam.metrics import MetricsFilter
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -1019,6 +1024,187 @@ class CombineGloballyTest(unittest.TestCase):
               accumulation_mode=trigger.AccumulationMode.DISCARDING,
           )
           | beam.CombineGlobally(sum).without_defaults())
+
+
+def get_common_items(sets, excluded_chars=""):
+  # set.intersection() takes multiple sets as separete arguments.
+  # We unpack the `sets` list into multiple arguments with the * operator.
+  # The combine transform might give us an empty list of `sets`,
+  # so we use a list with an empty set as a default value.
+  common = set.intersection(*(sets or [set()]))
+  return common.difference(excluded_chars)
+
+
+class CombinerWithSideInputs(unittest.TestCase):
+  def test_cpk_with_side_input(self):
+    test_cases = [(get_common_items, True),
+                  (beam.CombineFn.from_callable(get_common_items), True),
+                  (get_common_items, False),
+                  (beam.CombineFn.from_callable(get_common_items), False)]
+    for combiner, with_kwarg in test_cases:
+      self._check_combineperkey_with_side_input(combiner, with_kwarg)
+      self._check_combineglobally_with_side_input(combiner, with_kwarg)
+
+  def _check_combineperkey_with_side_input(self, combiner, with_kwarg):
+    with beam.Pipeline() as pipeline:
+      pc = (pipeline | beam.Create(['🍅']))
+      if with_kwarg:
+        cpk = beam.CombinePerKey(
+            combiner, excluded_chars=beam.pvalue.AsSingleton(pc))
+      else:
+        cpk = beam.CombinePerKey(combiner, beam.pvalue.AsSingleton(pc))
+      common_items = (
+          pipeline
+          | 'Create produce' >> beam.Create([
+              {'🍓', '🥕', '🍌', '🍅', '🌶️'},
+              {'🍇', '🥕', '🥝', '🍅', '🥔'},
+              {'🍉', '🥕', '🍆', '🍅', '🍍'},
+              {'🥑', '🥕', '🌽', '🍅', '🥥'},
+          ])
+          | beam.WithKeys(lambda x: None)
+          | cpk)
+      assert_that(common_items, equal_to([(None, {'🥕'})]))
+
+  def _check_combineglobally_with_side_input(self, combiner, with_kwarg):
+    with beam.Pipeline() as pipeline:
+      pc = (pipeline | beam.Create(['🍅']))
+      if with_kwarg:
+        cpk = beam.CombineGlobally(
+            combiner, excluded_chars=beam.pvalue.AsSingleton(pc))
+      else:
+        cpk = beam.CombineGlobally(combiner, beam.pvalue.AsSingleton(pc))
+      common_items = (
+          pipeline
+          | 'Create produce' >> beam.Create([
+              {'🍓', '🥕', '🍌', '🍅', '🌶️'},
+              {'🍇', '🥕', '🥝', '🍅', '🥔'},
+              {'🍉', '🥕', '🍆', '🍅', '🍍'},
+              {'🥑', '🥕', '🌽', '🍅', '🥥'},
+          ])
+          | cpk)
+      assert_that(common_items, equal_to([{'🥕'}]))
+
+  def test_combinefn_methods_with_side_input(self):
+    # Test that the expected combinefn methods are called with the
+    # expected arguments when using side inputs in CombinePerKey.
+    with tempfile.TemporaryDirectory() as tmp_dirname:
+      fname = str(Path(tmp_dirname) / "combinefn_calls.json")
+      with open(fname, "w") as f:
+        json.dump({}, f)
+
+      def set_in_json(key, values):
+        current_json = {}
+        if os.path.exists(fname):
+          with open(fname, "r") as f:
+            current_json = json.load(f)
+        current_json[key] = values
+        with open(fname, "w") as f:
+          json.dump(current_json, f)
+
+      class MyCombiner(beam.CombineFn):
+        def create_accumulator(self, *args, **kwargs):
+          set_in_json("create_accumulator_args", args)
+          set_in_json("create_accumulator_kwargs", kwargs)
+          return args, kwargs
+
+        def add_input(self, accumulator, input, *args, **kwargs):
+          set_in_json("add_input_args", args)
+          set_in_json("add_input_kwargs", kwargs)
+          return accumulator
+
+        def merge_accumulators(self, accumulators, *args, **kwargs):
+          set_in_json("merge_accumulators_args", args)
+          set_in_json("merge_accumulators_kwargs", kwargs)
+          return args, kwargs
+
+        def compact(self, accumulator, *args, **kwargs):
+          set_in_json("compact_args", args)
+          set_in_json("compact_kwargs", kwargs)
+          return accumulator
+
+        def extract_output(self, accumulator, *args, **kwargs):
+          set_in_json("extract_output_args", args)
+          set_in_json("extract_output_kwargs", kwargs)
+          return accumulator
+
+      with beam.Pipeline() as p:
+        static_pos_arg = 0
+        deferred_pos_arg = beam.pvalue.AsSingleton(
+            p | "CreateDeferredSideInput" >> beam.Create([1]))
+        static_kwarg = 2
+        deferred_kwarg = beam.pvalue.AsSingleton(
+            p | "CreateDeferredSideInputKwarg" >> beam.Create([3]))
+        res = (
+            p
+            | "CreateInputs" >> beam.Create([(None, None)])
+            | beam.CombinePerKey(
+                MyCombiner(),
+                static_pos_arg,
+                deferred_pos_arg,
+                static_kwarg=static_kwarg,
+                deferred_kwarg=deferred_kwarg))
+        assert_that(
+            res,
+            equal_to([
+                (None, ((0, 1), {
+                    'static_kwarg': 2, 'deferred_kwarg': 3
+                }))
+            ]))
+
+      # Check that the combinefn was called with the expected arguments
+      with open(fname, "r") as f:
+        data = json.load(f)
+        expected_args = [0, 1]
+        expected_kwargs = {"static_kwarg": 2, "deferred_kwarg": 3}
+        method_names = [
+            "create_accumulator",
+            "compact",
+            "add_input",
+            "merge_accumulators",
+            "extract_output"
+        ]
+        for key in method_names:
+          print(f"Checking {key}")
+          self.assertEqual(data[key + "_args"], expected_args)
+          self.assertEqual(data[key + "_kwargs"], expected_kwargs)
+
+  def test_cpk_with_windows(self):
+    # With global window side input
+    with TestPipeline() as p:
+
+      def sum_with_floor(vals, min_value=0):
+        vals_sum = sum(vals)
+        if vals_sum < min_value:
+          vals_sum += min_value
+        return vals_sum
+
+      res = (
+          p
+          | "CreateInputs" >> beam.Create([1, 2, 100, 101, 102])
+          | beam.Map(lambda x: window.TimestampedValue(('k', x), x))
+          | beam.WindowInto(FixedWindows(99))
+          | beam.CombinePerKey(
+              sum_with_floor,
+              min_value=pvalue.AsSingleton(p | beam.Create([100]))))
+      assert_that(res, equal_to([('k', 103), ('k', 303)]))
+
+    # with matching window side input
+    with TestPipeline() as p:
+      min_value = (
+          p
+          | "CreateMinValue" >> beam.Create([
+              window.TimestampedValue(50, 5),
+              window.TimestampedValue(1000, 100)
+          ])
+          | "WindowSideInputs" >> beam.WindowInto(FixedWindows(99)))
+      res = (
+          p
+          | "CreateInputs" >> beam.Create([1, 2, 100, 101, 102])
+          | beam.Map(lambda x: window.TimestampedValue(('k', x), x))
+          | beam.WindowInto(FixedWindows(99))
+          | beam.CombinePerKey(
+              sum_with_floor, min_value=pvalue.AsSingleton(min_value)))
+      assert_that(res, equal_to([('k', 53), ('k', 1303)]))
 
 
 if __name__ == '__main__':

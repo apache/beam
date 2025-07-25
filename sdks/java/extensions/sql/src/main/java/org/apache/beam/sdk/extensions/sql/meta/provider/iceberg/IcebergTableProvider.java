@@ -28,7 +28,6 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig;
 import org.apache.beam.sdk.io.iceberg.TableAlreadyExistsException;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,30 +37,11 @@ import org.slf4j.LoggerFactory;
  */
 public class IcebergTableProvider implements TableProvider {
   private static final Logger LOG = LoggerFactory.getLogger(IcebergTableProvider.class);
-  // TODO(ahmedabu98): extend this to the IO implementation so
-  //  other SDKs can make use of it too
-  private static final String BEAM_HADOOP_PREFIX = "beam.catalog.hadoop";
   @VisibleForTesting final IcebergCatalogConfig catalogConfig;
   private final Map<String, Table> tables = new HashMap<>();
 
-  public IcebergTableProvider(String name, Map<String, String> properties) {
-    ImmutableMap.Builder<String, String> catalogProps = ImmutableMap.builder();
-    ImmutableMap.Builder<String, String> hadoopProps = ImmutableMap.builder();
-
-    for (Map.Entry<String, String> entry : properties.entrySet()) {
-      if (entry.getKey().startsWith(BEAM_HADOOP_PREFIX)) {
-        hadoopProps.put(entry.getKey(), entry.getValue());
-      } else {
-        catalogProps.put(entry.getKey(), entry.getValue());
-      }
-    }
-
-    catalogConfig =
-        IcebergCatalogConfig.builder()
-            .setCatalogName(name)
-            .setCatalogProperties(catalogProps.build())
-            .setConfigProperties(hadoopProps.build())
-            .build();
+  public IcebergTableProvider(IcebergCatalogConfig catalogConfig) {
+    this.catalogConfig = catalogConfig;
   }
 
   @Override

@@ -181,8 +181,13 @@ class PrismJobServer(job_server.SubprocessJobServer):
 
     _LOGGER.info("Prism binary path resolved to: %s", target_url)
     # Make sure the binary is executable.
-    st = os.stat(target_url)
-    os.chmod(target_url, st.st_mode | stat.S_IEXEC)
+    try:
+      st = os.stat(target_url)
+      os.chmod(target_url, st.st_mode | stat.S_IEXEC)
+    except PermissionError:
+      _LOGGER.warning(
+          'Could not change permissions of prism binary; invoking may fail if '
+          + 'current process does not have exec permissions on binary.')
     return target_url
 
   @staticmethod
