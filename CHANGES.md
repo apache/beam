@@ -108,7 +108,7 @@
 
 * Added support for Processing time Timer in the Spark Classic runner ([#33633](https://github.com/apache/beam/issues/33633)).
 * Added JUnit 5 extension support via TestPipelineExtension class to enable modern testing practices while maintaining backward compatibility with existing JUnit 4 TestRule-based tests (Java) ([#18733](https://github.com/apache/beam/issues/18733)).
-* Added JUnit BOM version 5.13.4 for improved testing capabilities and bug fixes (Java) ([#18733](https://github.com/apache/beam/issues/18733)).
+* Added minimal JUnit 5 dependencies (junit-jupiter-api, junit-jupiter-engine 5.10.0) for TestPipelineExtension support without affecting existing JUnit 4 tests (Java) ([#18733](https://github.com/apache/beam/issues/18733)).
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Add pip-based install support for JupyterLab Sidepanel extension ([#35397](https://github.com/apache/beam/issues/#35397)).
 * [IcebergIO] Create tables with a specified table properties ([#35496](https://github.com/apache/beam/pull/35496))
