@@ -18,7 +18,7 @@
 # Dockerfile for installing the necessary dependencies for building Hadoop.
 # See BUILDING.txt.
 
-FROM ubuntu:20.04
+FROM ubuntu:24.04
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -62,12 +62,13 @@ ENV LC_ALL en_US.UTF-8
 ###
 # Install grpcio-tools mypy-protobuf for `python3 sdks/python/setup.py sdist` to work
 ###
-RUN pip3 install grpcio-tools mypy-protobuf
+RUN pip3 install --break-system-packages grpcio-tools mypy-protobuf
 
 ###
 # Install useful tools
 # Install distlib to avoid https://github.com/pypa/virtualenv/issues/2006
-RUN pip3 install distlib==0.3.1 yapf==0.29.0 pytest
+# Specify the version of pluggy to fix it to the version installed on the system.
+RUN pip3 install --break-system-packages distlib==0.3.1 yapf==0.29.0 pytest pluggy==1.4.0
 ###
 
 ###
