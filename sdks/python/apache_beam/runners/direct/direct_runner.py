@@ -184,6 +184,13 @@ class SwitchingDirectRunner(PipelineRunner):
             for state in state_specs:
               if isinstance(state, userstate.CombiningValueStateSpec):
                 self.supported_by_prism_runner = False
+          if isinstance(
+              dofn,
+              beam.transforms.combiners._PartialGroupByKeyCombiningValues):
+            if len(transform.side_inputs) > 0:
+              # Prism doesn't support side input combiners (this is within spec)
+              self.supported_by_prism_runner = False
+
         # TODO(https://github.com/apache/beam/issues/33623): Prism seems to
         # not handle session windows correctly. Examples are:
         # util_test.py::ReshuffleTest::test_reshuffle_window_fn_preserved
