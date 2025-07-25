@@ -29,6 +29,7 @@ import time
 import traceback
 import types
 import typing
+from collections import defaultdict
 from itertools import dropwhile
 
 from apache_beam import coders
@@ -72,7 +73,6 @@ from apache_beam.typehints.typehints import is_consistent_with
 from apache_beam.typehints.typehints import visit_inner_types
 from apache_beam.utils import urns
 from apache_beam.utils.timestamp import Duration
-from collections import defaultdict
 
 if typing.TYPE_CHECKING:
   from google.protobuf import message  # pylint: disable=ungrouped-imports
