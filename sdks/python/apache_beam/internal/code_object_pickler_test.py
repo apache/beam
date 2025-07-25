@@ -105,7 +105,7 @@ class ClassWithNestedLambda:
 test_cases = [
     (
         top_level_function,
-        "apache_beam.internal.code_object_pickler_test.top_level_function"       
+        "apache_beam.internal.code_object_pickler_test.top_level_function"
         ".__code__"),
     (
         top_level_lambda,
