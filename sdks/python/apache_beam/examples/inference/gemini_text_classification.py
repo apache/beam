@@ -77,6 +77,18 @@ class PostProcessor(beam.DoFn):
       yield inference.text
       return
 
+    if hasattr(inference[1], "text"):
+      yield inference[1].text
+      return
+
+    if hasattr(inference[1][0], "text"):
+      yield inference[1][0].text
+      return
+
+    if hasattr(inference[1][0].content, "text"):
+      yield inference[1][0].content.text
+      return
+
     yield "Input: " + str(element.example) + " Output: " + str(
         element.inference[1][0].content.parts[0].text)
 
