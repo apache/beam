@@ -86,7 +86,7 @@ public class IOITHelper {
         function.run();
         return;
       } catch (Exception e) {
-        LOG.warn("Attempt #{} of {} failed: {}.", attempts, maxAttempts, e.getMessage());
+        LOG.warn("Attempt #{} of {} failed", attempts, maxAttempts, e);
         if (attempts == maxAttempts) {
           throw e;
         } else {

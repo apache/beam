@@ -689,7 +689,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     }
 
     @StartBundle
-    public void startBundle(StartBundleContext c) {
+    public void startBundle(StartBundleContext unused) {
       // Reset state in case of reuse. We need to make sure that each bundle gets unique writers.
       writers = Maps.newHashMap();
     }

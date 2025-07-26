@@ -212,7 +212,7 @@ public class CountingSourceTest {
     Instant started = Instant.now();
     p.run();
     Instant finished = Instant.now();
-    Duration expectedDuration = period.multipliedBy((int) numElements);
+    Duration expectedDuration = period.multipliedBy(numElements);
     assertThat(started.plus(expectedDuration).isBefore(finished), is(true));
   }
 
