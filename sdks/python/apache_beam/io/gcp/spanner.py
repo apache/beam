@@ -145,6 +145,20 @@ class ReadFromSpannerSchema(NamedTuple):
   time_unit: Optional[str]
 
 
+class ReadChangeStreamFromSpannerSchema(NamedTuple):
+  instance_id: str
+  database_id: str
+  project_id: str
+  changeStreamName: str
+  inclusiveStartAt: str
+  inclusiveEndAt: Optional[str]
+  metadataDatabase: str
+  metadataInstance: str
+  metadataTable: Optional[str]
+  rpcPriority: Optional[str]
+  watermarkRefreshRate: Optional[str]
+
+
 class ReadFromSpanner(ExternalTransform):
   """
   A PTransform which reads from the specified Spanner instance's database.
@@ -653,6 +667,95 @@ class SpannerUpdate(ExternalTransform):
                 max_cumulative_backoff=max_cumulative_backoff,
                 failure_mode=_get_enum_name(failure_mode),
                 high_priority=high_priority,
+            ),
+        ),
+        expansion_service=expansion_service or default_io_expansion_service(),
+    )
+
+
+class ReadChangeStreamFromSpanner(ExternalTransform):
+  """
+  A PTransform to read Change Streams from Google Cloud Spanner.
+
+  The output of this transform is a PCollection of JSON strings,
+  where each string represents a com.google.cloud.spanner.DataChangeRecord.
+
+  Example:
+
+  with beam.Pipeline(options=pipeline_options) as p:
+    p | 
+    "ReadFromSpannerChangeStream" >> beam_spanner.ReadChangeStreamFromSpanner( 
+        project_id="spanner-project-id", 
+        instance_id="spanner-instance-id", 
+        database_id="spanner-database-id", 
+        changeStreamName="spanner-change-stream", 
+        inclusiveStartAt="2025-05-20T10:00:00Z",
+        metadataDatabase="spanner-metadata-database",
+        metadataInstance="spanner-metadata-instance")
+
+  Experimental; no backwards compatibility guarantees.
+  """
+
+  URN = 'beam:transform:org.apache.beam:spanner_change_stream_reader:v1'
+
+  def __init__(
+      self,
+      project_id,
+      instance_id,
+      database_id,
+      changeStreamName,
+      metadataDatabase,
+      metadataInstance,
+      inclusiveStartAt,
+      inclusiveEndAt=None,
+      metadataTable=None,
+      rpcPriority=None,
+      watermarkRefreshRate=None,
+      expansion_service=None,
+  ):
+    """
+        Reads Change Streams from Google Cloud Spanner.
+        
+        :param project_id: (Required) Specifies the Cloud Spanner project.
+        :param instance_id: (Required) Specifies the Cloud Spanner 
+          instance.
+        :param database_id: (Required) Specifies the Cloud Spanner 
+          database.
+        :param changeStreamName: (Required) The name of the Spanner 
+          change stream to read.
+        :param metadataDatabase: (Required) The database where the 
+          change stream metadata is stored.
+        :param metadataInstance: (Required) The instance where the 
+          change stream metadata database resides.
+        :param inclusiveStartAt: (Required) An inclusive start timestamp 
+          for reading the change stream.
+        :param inclusiveEndAt: (Optional) An inclusive end timestamp for 
+          reading the change stream. If not specified, the stream will be 
+          read indefinitely.
+        :param metadataTable: (Optional) The name of the metadata table used 
+          by the change stream connector. If not specified, a default table 
+          name will be used.
+        :param rpcPriority: (Optional) The RPC priority for Spanner operations. 
+          Can be 'HIGH', 'MEDIUM', or 'LOW'.
+        :param watermarkRefreshRate: (Optional) The duration at which the 
+          watermark is refreshed.
+        """
+
+    super().__init__(
+        self.URN,
+        NamedTupleBasedPayloadBuilder(
+            ReadChangeStreamFromSpannerSchema(
+                instance_id=instance_id,
+                database_id=database_id,
+                project_id=project_id,
+                changeStreamName=changeStreamName,
+                inclusiveStartAt=inclusiveStartAt,
+                inclusiveEndAt=inclusiveEndAt,
+                metadataDatabase=metadataDatabase,
+                metadataInstance=metadataInstance,
+                metadataTable=metadataTable,
+                rpcPriority=rpcPriority,
+                watermarkRefreshRate=watermarkRefreshRate,
             ),
         ),
         expansion_service=expansion_service or default_io_expansion_service(),
