@@ -1157,6 +1157,39 @@ class PTransformLabelsTest(unittest.TestCase):
     self.assertTrue('*Sample*/Group' in pipeline.applied_labels)
     self.assertTrue('*Sample*/Distinct' in pipeline.applied_labels)
 
+  def test_ptransformfn_default_label(self):
+    @beam.ptransform_fn
+    def MyTransform(self, suffix="xyz"):
+      return pcoll | beam.Map(lambda s: s + suffix)
+
+    pipeline = TestPipeline()
+    pcoll = pipeline | beam.Create(['a', 'b', 'c'])
+
+    _ = pcoll | MyTransform()
+    self.assertIn('MyTransform', pipeline.applied_labels)
+    _ = pcoll | MyTransform("suffix")
+    self.assertIn('MyTransform(suffix)', pipeline.applied_labels)
+    _ = pcoll | MyTransform("looooooooooooooooooooooooooooooooooooooooong")
+    self.assertIn('MyTransform(looooooooo...oooong)', pipeline.applied_labels)
+
+  def test_ptransformfn_legacy_default_label(self):
+    @beam.ptransform_fn
+    def MyTransform(self, suffix="xyz"):
+      return pcoll | beam.Map(lambda s: s + suffix)
+
+    pipeline = TestPipeline(
+        options=PipelineOptions(update_compatibility_version='2.67.0'))
+    pcoll = pipeline | beam.Create(['a', 'b', 'c'])
+
+    _ = pcoll | MyTransform()
+    self.assertIn('MyTransform', pipeline.applied_labels)
+    _ = pcoll | MyTransform("suffix")
+    self.assertIn('MyTransform(suffix)', pipeline.applied_labels)
+    _ = pcoll | MyTransform("looooooooooooooooooooooooooooooooooooooooong")
+    self.assertIn(
+        'MyTransform(looooooooooooooooooooooooooooooooooooooooong)',
+        pipeline.applied_labels)
+
   def test_combine_with_label(self):
     vals = [1, 2, 3, 4, 5, 6, 7]
     with TestPipeline() as pipeline:
