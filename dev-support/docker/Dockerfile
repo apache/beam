@@ -68,7 +68,7 @@ RUN pip3 install --break-system-packages grpcio-tools mypy-protobuf
 # Install useful tools
 # Install distlib to avoid https://github.com/pypa/virtualenv/issues/2006
 # Specify the version of pluggy to fix it to the version installed on the system.
-RUN pip3 install --break-system-packages distlib==0.3.1 yapf==0.29.0 pytest pluggy==1.4.0
+RUN pip3 install --break-system-packages distlib==0.3.9 yapf==0.43.0 pytest pluggy==1.4.0
 ###
 
 ###
