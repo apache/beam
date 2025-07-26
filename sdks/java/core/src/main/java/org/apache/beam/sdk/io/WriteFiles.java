@@ -1250,9 +1250,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       // before we return from this processElement call. This allows us to perform the writes/closes
       // in parallel with the prior elements close calls and bounds the amount of data buffered to
       // limit the number of OOMs.
-      CompletionStage<List<Void>> pastCloseFutures = MoreFutures.allAsList(closeFutures);
+      CompletionStage<Void> pastCloseFutures = MoreFutures.allOf(closeFutures);
       closeFutures.clear();
-
       // Close all writers in the background
       for (Map.Entry<DestinationT, Writer<DestinationT, OutputT>> entry : writers.entrySet()) {
         int shard = c.element().getKey().getShardNumber();
@@ -1267,7 +1266,6 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
                 new FileResult<>(writer.getOutputFile(), shard, window, c.pane(), entry.getKey())));
         closeWriterInBackground(writer);
       }
-
       // Block on completing the past closes before returning. We do so after starting the current
       // closes in the background so that they can happen in parallel.
       MoreFutures.get(pastCloseFutures);
@@ -1293,7 +1291,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     @FinishBundle
     public void finishBundle(FinishBundleContext c) throws Exception {
       try {
-        MoreFutures.get(MoreFutures.allAsList(closeFutures));
+        MoreFutures.get(MoreFutures.allOf(closeFutures));
         // If all writers were closed without exception, output the results to the next stage.
         for (KV<Instant, FileResult<DestinationT>> result : deferredOutput) {
           c.output(result.getValue(), result.getKey(), result.getValue().getWindow());
