@@ -861,8 +861,8 @@ def preprocess_flattened_inputs(spec):
       def all_inputs(t):
         for key, values in t.get('input', {}).items():
           if isinstance(values, list):
-            for ix, values in enumerate(values):
-              yield f'{key}{ix}', values
+            for ix, value in enumerate(values):
+              yield f'{key}{ix}', value
           else:
             yield key, values
 
