@@ -77,6 +77,7 @@
 ## Breaking Changes
 
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+* Previously deprecated Beam ZetaSQL component has been removed from new releases ([#34423](https://github.com/apache/beam/issues/34423)).
 
 ## Deprecations
 

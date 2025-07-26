@@ -50,9 +50,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 public class SqlTransformSchemaTransformProvider implements SchemaTransformProvider {
 
   private static final Map<String, Class<? extends QueryPlanner>> QUERY_PLANNERS =
-      ImmutableMap.of(
-          "zetasql", org.apache.beam.sdk.extensions.sql.zetasql.ZetaSQLQueryPlanner.class,
-          "calcite", org.apache.beam.sdk.extensions.sql.impl.CalciteQueryPlanner.class);
+      ImmutableMap.of("calcite", org.apache.beam.sdk.extensions.sql.impl.CalciteQueryPlanner.class);
   private static final EnumerationType QUERY_ENUMERATION =
       EnumerationType.create(QUERY_PLANNERS.keySet().stream().collect(Collectors.toList()));
 
