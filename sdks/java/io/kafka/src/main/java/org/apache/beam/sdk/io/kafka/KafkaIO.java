@@ -107,7 +107,6 @@ import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.kafka.clients.CommonClientConfigs;
@@ -1859,7 +1858,8 @@ public class KafkaIO {
                   .getOptions()
                   .as(StreamingOptions.class)
                   .getUpdateCompatibilityVersion();
-          if (!Strings.isNullOrEmpty(requestedVersionString)
+          if (requestedVersionString != null
+              && !requestedVersionString.isEmpty()
               && TransformUpgrader.compareVersions(requestedVersionString, "2.66.0") < 0) {
             // Use discouraged Impulse for backwards compatibility with previous released versions.
             output =
@@ -2831,7 +2831,8 @@ public class KafkaIO {
                 .getOptions()
                 .as(StreamingOptions.class)
                 .getUpdateCompatibilityVersion();
-        if (!Strings.isNullOrEmpty(requestedVersionString)
+        if (requestedVersionString != null
+            && !requestedVersionString.isEmpty()
             && TransformUpgrader.compareVersions(requestedVersionString, "2.60.0") < 0) {
           // Redistribute is not allowed with commits prior to 2.59.0, since there is a Reshuffle
           // prior to the redistribute. The reshuffle will occur before commits are offsetted and
