@@ -67,6 +67,16 @@ def parse_known_args(argv):
 
 class PostProcessor(beam.DoFn):
   def process(self, element: PredictionResult) -> Iterable[str]:
+    if hasattr(element, "text"):
+      yield element.text
+      return
+
+    inference = getattr(element, "inference", None)
+
+    if hasattr(inference, "text"):
+      yield inference.text
+      return
+
     yield "Input: " + str(element.example) + " Output: " + str(
         element.inference[1][0].content.parts[0].text)
 
