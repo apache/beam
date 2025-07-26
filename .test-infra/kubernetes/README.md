@@ -41,4 +41,3 @@ Currently, OAuth is the standard authentication method, previous usernames and p
 Some Beam Performance tests need to be logged into the cluster so they can create its own resources, the correct method to do so is by setting up the right Kubeconfig inside the worker and execute get credentials within GCP.
 
 In the future if you need to create an automatic process that need to have access to the cluster, use OAuth inside your script or job.
-

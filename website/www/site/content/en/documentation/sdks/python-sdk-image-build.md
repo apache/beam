@@ -303,4 +303,3 @@ after [docker login](https://docs.docker.com/reference/cli/docker/login/).
 docker tag apache/beam_python3.10_sdk:2.60.0 <my-account>/beam_python3.10_sdk:2.60.0-custom
 docker push <my-account>/beam_python3.10_sdk:2.60.0-custom
 ```
-

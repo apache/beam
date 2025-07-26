@@ -29,7 +29,7 @@ coverage:
   status:
     project:
       python:
-        flags: 
+        flags:
           - python
         target: auto
         threshold: 5%
@@ -37,7 +37,7 @@ coverage:
         paths:
           - "sdks/python"
       go:
-        flags: 
+        flags:
           - go
         target: auto
         threshold: 5%
@@ -45,7 +45,7 @@ coverage:
         paths:
           - "sdks/go/pkg"
       java:
-        flags: 
+        flags:
           - java
         target: auto
         threshold: 5%
@@ -63,7 +63,7 @@ parsers:
 
 fixes:
   - "apache_beam/::sdks/python/apache_beam/"
-  
+
 github_checks:
   annotations: false
 

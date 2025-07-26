@@ -59,7 +59,7 @@ spec:
          requests:
            memory: "1000Mi"
            cpu: "1000m"
-         limits: 
+         limits:
            cpu: "4000m"
            memory: "16000Mi"
   replicas: {{ .Values.replicaCount  }}

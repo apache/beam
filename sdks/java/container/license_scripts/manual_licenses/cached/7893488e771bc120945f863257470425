@@ -20,24 +20,24 @@
 		<title>ANTLR v4 License</title>
 
 		<!--[if lt IE 9]><script src="//html5shim.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
-		
-		
+
+
 		<link rel="stylesheet" href="css/fontface/Droid-Sans/stylesheet.css" type="text/css" media="screen" />
 		<link rel="stylesheet" href="css/fontface/Droid-Serif/stylesheet.css" type="text/css" media="screen" />
 		<link rel="stylesheet" href="css/fontface/DejaVu-Sans-Mono/stylesheet.css" type="text/css" media="screen" />
-			
+
 		<link rel="stylesheet" href="css/antlr.css" type="text/css" media="screen" />
-		
+
 		<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
-		<script src="scripts/selectivizr-min.js"></script>	
-		<script src="scripts/cycle.js"></script>	
-		<script src="scripts/rounded.js"></script>	
-		<script src="scripts/watermark.js"></script>	
-		
+		<script src="scripts/selectivizr-min.js"></script>
+		<script src="scripts/cycle.js"></script>
+		<script src="scripts/rounded.js"></script>
+		<script src="scripts/watermark.js"></script>
+
 		<script type="text/javascript" src="scripts/lib/jquery.mousewheel-3.0.6.pack.js"></script>
 		<script type="text/javascript" src="scripts/source/jquery.fancybox.js?v=2.0.6"></script>
-		<link rel="stylesheet" type="text/css" href="scripts/source/jquery.fancybox.css?v=2.0.6" media="screen" />		
-	
+		<link rel="stylesheet" type="text/css" href="scripts/source/jquery.fancybox.css?v=2.0.6" media="screen" />
+
 
 	</head>
 
@@ -60,7 +60,7 @@
 <div id="main">
 
 	<div id="content">
-	
+
 	<h1>ANTLR 4 License</h1>
 
 <i>[The BSD License]</i><br>
@@ -90,7 +90,7 @@ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
 THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.</p>
-	
+
 <br>
 <h1>Developer's Certificate of Origin</h1>
 
@@ -105,7 +105,7 @@ of origin</a>. To contribute:</p>
 </ul>
 
 	</div><!--/content-->
-	
+
 <div id="sidebar">
     <script src="scripts/leftnav.js"></script>
 </div><!--/sidebar-->
@@ -116,13 +116,13 @@ of origin</a>. To contribute:</p>
 </div><!--/container-->
 
 <div class="clear"><!--necessary nudge--></div>
-</div><!--/wrapper-->	
+</div><!--/wrapper-->
 
 <footer>
 	<script src="scripts/bottomnav.js"></script>
 </footer>
 
-<script src="scripts/functions.js"></script>	
+<script src="scripts/functions.js"></script>
 
 </body>
 </html>

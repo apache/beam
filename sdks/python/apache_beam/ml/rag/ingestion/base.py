@@ -24,7 +24,7 @@ from apache_beam.ml.rag.types import Chunk
 
 class VectorDatabaseWriteConfig(ABC):
   """Abstract base class for vector database configurations in RAG pipelines.
-  
+
   VectorDatabaseWriteConfig defines the interface for configuring vector
   database writes in RAG pipelines. Implementations should provide
   database-specific configuration and create appropriate write transforms.
@@ -38,7 +38,7 @@ class VectorDatabaseWriteConfig(ABC):
     >>> class BigQueryVectorWriterConfig(VectorDatabaseWriteConfig):
     ...     def __init__(self, table: str):
     ...         self.embedding_column = embedding_column
-    ...         
+    ...
     ...     def create_write_transform(self):
     ...         return beam.io.WriteToBigQuery(
     ...             table=self.table
@@ -47,7 +47,7 @@ class VectorDatabaseWriteConfig(ABC):
   @abstractmethod
   def create_write_transform(self) -> beam.PTransform[Chunk, Any]:
     """Creates a PTransform that writes embeddings to the vector database.
-    
+
     Returns:
         A PTransform that accepts PCollection[Chunk] and writes the chunks'
         embeddings and metadata to the configured vector database.
@@ -61,7 +61,7 @@ class VectorDatabaseWriteConfig(ABC):
 
 class VectorDatabaseWriteTransform(beam.PTransform):
   """A PTransform for writing embedded chunks to vector databases.
-  
+
   This transform uses a VectorDatabaseWriteConfig to write chunks with
   embeddings to vector database. It handles validating the config and applying
   the database-specific write transform.
@@ -71,7 +71,7 @@ class VectorDatabaseWriteTransform(beam.PTransform):
     ...     table='project.dataset.embeddings',
     ...     embedding_column='embedding'
     ... )
-    >>> 
+    >>>
     >>> with beam.Pipeline() as p:
     ...     chunks = p | beam.Create([...])  # PCollection[Chunk]
     ...     chunks | VectorDatabaseWriteTransform(config)
@@ -80,13 +80,13 @@ class VectorDatabaseWriteTransform(beam.PTransform):
       database_config: Configuration for the target vector database.
           Must be a subclass of VectorDatabaseWriteConfig that implements
           create_write_transform().
-  
+
   Raises:
       TypeError: If database_config is not a VectorDatabaseWriteConfig instance.
   """
   def __init__(self, database_config: VectorDatabaseWriteConfig):
     """Initialize transform with database config.
-        
+
         Args:
             database_config: Configuration for target vector database.
         """
@@ -99,14 +99,14 @@ class VectorDatabaseWriteTransform(beam.PTransform):
   def expand(self,
              pcoll: beam.PCollection[Chunk]) -> beam.PTransform[Chunk, Any]:
     """Creates and applies the database-specific write transform.
-    
+
     Args:
         pcoll: PCollection of Chunks with embeddings to write to the
             vector database. Each Chunk must have:
             - An embedding
             - An ID
             - Metadata used to filter results as specified by database config
-            
+
     Returns:
         Result of writing to database (implementation specific).
     """

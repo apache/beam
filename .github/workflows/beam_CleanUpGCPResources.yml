@@ -54,7 +54,7 @@ jobs:
     runs-on: [self-hosted, ubuntu-20.04, main]
     timeout-minutes: 100
     strategy:
-      matrix: 
+      matrix:
         job_name: [beam_CleanUpGCPResources]
         job_phrase: [Run Clean GCP Resources]
     if: |

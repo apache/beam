@@ -16,7 +16,7 @@
 resource "google_storage_bucket" "bucket" {
   name     = "github_workflow_prefetcher_function"
   location = "US"
-  
+
 }
 
 resource "google_storage_bucket_object" "archive" {
@@ -24,5 +24,3 @@ resource "google_storage_bucket_object" "archive" {
   bucket = google_storage_bucket.bucket.name
   source = "code.zip"
 }
-
-

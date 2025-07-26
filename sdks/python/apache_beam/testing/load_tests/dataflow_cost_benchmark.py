@@ -45,7 +45,7 @@ class DataflowCostBenchmark(LoadTest):
   If using InfluxDB with Basic HTTP authentication enabled, provide the
   following environment options: `INFLUXDB_USER` and `INFLUXDB_USER_PASSWORD`.
 
-  If the hardware configuration for the job includes use of a GPU, please 
+  If the hardware configuration for the job includes use of a GPU, please
   specify the version in use with the Accelerator enumeration. This is used to
   calculate the cost of the job later, as different accelerators have different
   billing rates per hour of use.

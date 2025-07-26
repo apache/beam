@@ -13,7 +13,7 @@
 <!-- Parent-Version: 1.98 -->
 <!-- This page is derived from /server/standards/boilerplate.html -->
 <title>GNU Lesser General Public License v2.1 - GNU Project - Free Software Foundation</title>
-<link rel="alternate" type="application/rdf+xml" href="lgpl-2.1.rdf" /> 
+<link rel="alternate" type="application/rdf+xml" href="lgpl-2.1.rdf" />
 <!-- begin translist file -->
 
 <link rel="alternate" type="text/html" href="/licenses/old-licenses/lgpl-2.1.html" hreflang="x-default" />
@@ -111,10 +111,10 @@ href="https://www.fsf.org/associate/support_freedom?referrer=4052">JOIN&nbsp;THE
 
 
   <li id="tabLicenses" class="active">
-     <span class='no-display'>=</span> 
+     <span class='no-display'>=</span>
     <a href="/licenses/licenses.html">LICENSES</a>
     <span class="gnun-split"></span>
-     <span class='no-display'>=</span> 
+     <span class='no-display'>=</span>
   </li>
 
 
@@ -177,9 +177,9 @@ href="https://www.fsf.org/associate/support_freedom?referrer=4052">JOIN&nbsp;THE
     formats: <a href="/licenses/old-licenses/lgpl-2.1.txt">plain text</a>, <a
     href="/licenses/old-licenses/lgpl-2.1.texi">Texinfo</a>, <a
     href="/licenses/old-licenses/lgpl-2.1-standalone.html">standalone HTML</a>, <a
-    href="/licenses/old-licenses/lgpl-2.1.dbk">Docbook</a>, 
-    <a href="/licenses/old-licenses/lgpl-2.1.md">Markdown</a>, 
-    <a href="/licenses/old-licenses/lgpl-2.1.odt">ODF</a>, 
+    href="/licenses/old-licenses/lgpl-2.1.dbk">Docbook</a>,
+    <a href="/licenses/old-licenses/lgpl-2.1.md">Markdown</a>,
+    <a href="/licenses/old-licenses/lgpl-2.1.odt">ODF</a>,
     <a href="/licenses/old-licenses/lgpl-2.1.rtf">RTF</a>, and
     <a href="/licenses/old-licenses/lgpl-2.1.tex">LaTeX</a>
 </li>
@@ -196,7 +196,7 @@ the Lesser GPL for your next library</a> article.</p>
 
 <h3>Table of Contents</h3>
 <ul>
-  <li><a id="TOC1" href="#SEC1">GNU LESSER GENERAL PUBLIC LICENSE</a> 
+  <li><a id="TOC1" href="#SEC1">GNU LESSER GENERAL PUBLIC LICENSE</a>
     <ul>
       <li><a id="TOC2" href="#SEC2">Preamble</a></li>
       <li><a id="TOC3" href="#SEC3">TERMS AND CONDITIONS FOR COPYING,

@@ -26,9 +26,9 @@ class BeamShortcut {
   //
   // A list is required because a [LogicalKeySet] discards the original order.
   final List<LogicalKeyboardKey> keys;
-  
+
   LogicalKeySet get keySet => LogicalKeySet.fromSet(keys.toSet());
-  
+
   final BeamIntent actionIntent;
   final CallbackAction Function(BuildContext) createAction;
 

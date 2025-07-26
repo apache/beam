@@ -30,4 +30,3 @@ func tokenizeFn(input string, emit func(out string)) {
 		emit(k)
 	}
 }
-

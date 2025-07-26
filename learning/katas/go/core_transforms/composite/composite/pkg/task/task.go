@@ -36,4 +36,3 @@ func extractNonSpaceCharacters(s beam.Scope, input beam.PCollection) beam.PColle
 		}
 	}, input)
 }
-

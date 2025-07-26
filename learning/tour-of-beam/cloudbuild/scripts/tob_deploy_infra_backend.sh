@@ -44,7 +44,7 @@ tar xf flutter_linux_$FLUTTER_VERSION-stable.tar.xz
 
 git config --global --add safe.directory /usr/local/bin/flutter
 
-mv flutter /usr/local/bin/flutter 
+mv flutter /usr/local/bin/flutter
 
 export PATH="$PATH:/usr/local/bin/flutter/bin"
 
@@ -87,4 +87,3 @@ export QUALIFIED_WEB_APP_ID=${WEB_APP_ID}-${TF_VAR_environment}
 cd learning/tour-of-beam/backend
 
 go run ./cmd/ci_cd/ci_cd.go
-

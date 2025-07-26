@@ -32,16 +32,16 @@ from apache_beam.ml.rag.ingestion.jdbc_common import WriteConfig
 @dataclass
 class LanguageConnectorConfig:
   """Configuration options for CloudSQL Java language connector.
-    
+
     Set parameters to connect connection to a CloudSQL instance using
     Java language connector connector. For details see
     https://github.com/GoogleCloudPlatform/cloud-sql-jdbc-socket-factory/blob/main/docs/jdbc.md
-    
+
     Attributes:
         username: Database username.
         password: Database password. Can be empty string when using IAM.
         database_name: Name of the database to connect to.
-        instance_name: Instance connection name. Format: 
+        instance_name: Instance connection name. Format:
             '<PROJECT>:<REGION>:<INSTANCE>'
         ip_type: Preferred order of IP types used to connect via a comma
             list of strings.
@@ -117,7 +117,7 @@ class LanguageConnectorConfig:
 class _PostgresConnectorConfig(LanguageConnectorConfig):
   def to_jdbc_url(self) -> str:
     """Convert options to a properly formatted JDBC URL.
-      
+
       Returns:
           JDBC URL string configured with all options.
       """
@@ -152,7 +152,7 @@ class CloudSQLPostgresVectorWriterConfig(postgres.PostgresVectorWriterConfig):
           postgres_common.ConflictResolution] = postgres_common.
       ConflictResolution(on_conflict_fields=[], action='IGNORE')):
     """Configuration for writing vectors to ClouSQL Postgres.
-    
+
     Supports flexible schema configuration through column specifications and
     conflict resolution strategies.
 
@@ -169,7 +169,7 @@ class CloudSQLPostgresVectorWriterConfig(postgres.PostgresVectorWriterConfig):
             :class:`~.postgres_common.ConflictResolution`
             strategy for handling insert conflicts. ON CONFLICT DO NOTHING by
             default.
-    
+
     Examples:
         Basic usage with default schema:
 

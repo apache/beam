@@ -160,7 +160,7 @@ indent-string='  '
 indent-after-paren=4
 
 # Regexp for a line that is allowed to be longer than the limit.
-# Long import lines or URLs in comments or pydocs. 
+# Long import lines or URLs in comments or pydocs.
 ignore-long-lines=(?x)
   (^\s*(import|from)\s
    |^\s*(\#\ )?<?(https?|ftp):\/\/[^\s\/$.?#].[^\s]*>?$

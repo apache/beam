@@ -31,4 +31,3 @@ java -jar beam-sdks-java-transform-service-app-<Beam version for the jar>.jar --
 The Beam Transform service includes several portable transforms implemented in the Apache Beam Java and Python SDKs:
 * Java transforms: Google Cloud I/O connectors, the Kafka I/O connector, and the JDBC I/O connector.
 * Python transforms: all portable transforms implemented within the Apache Beam Python SDK, such as RunInference and DataFrame transforms.
-

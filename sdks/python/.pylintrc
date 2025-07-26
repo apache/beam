@@ -114,7 +114,7 @@ disable =
   locally-disabled,
   logging-not-lazy,
   missing-docstring,
-  modified-iterating-list, 
+  modified-iterating-list,
   multiple-statements,
   no-self-use,
   no-else-break,

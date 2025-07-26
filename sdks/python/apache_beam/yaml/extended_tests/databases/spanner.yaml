@@ -58,7 +58,7 @@ pipelines:
               instance: "{SPANNER_TABLE[1]}"
               database: "{SPANNER_TABLE[2]}"
               query: 'SELECT * FROM tmp_table where UserId = "01"'
-              
+
         - type: AssertEqual
           config:
             elements:
@@ -90,6 +90,6 @@ pipelines:
             instance: "{SPANNER_TABLE[1]}"
             database: "{SPANNER_TABLE[2]}"
             table: "{SPANNER_TABLE[3]}"
-            columns: 
+            columns:
               - "{SPANNER_TABLE[4][0]}"
               - "{SPANNER_TABLE[4][1]}"

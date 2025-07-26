@@ -638,4 +638,3 @@ Each dashboard contains:
 - graphs in batch mode
 - graphs in streaming mode
 - graphs for all the queries.
-

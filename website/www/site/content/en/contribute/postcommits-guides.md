@@ -67,5 +67,3 @@ to disable a test, use the following guidelines:
 While the test is disabled, contributors should not push code to the failing
 test's coverage area. The code area is not properly tested until you fix the
 test.
-
-

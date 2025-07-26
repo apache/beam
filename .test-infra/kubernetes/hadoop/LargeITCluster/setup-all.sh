@@ -51,4 +51,3 @@ for pod in "${datanodes_pods[@]}"; do
 done
 
 echo "Done."
-
