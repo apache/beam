@@ -3964,15 +3964,13 @@ class Create(PTransform):
     if not self.values:
       return typehints.Any
 
-    try:
-      first_fields = self.values[0].as_dict().keys()
-      if not all(v.as_dict().keys() == first_fields for v in self.values):
-        raise TypeError("All rows must have the same fields.")
-    except (TypeError, AttributeError):
-      # For non-Row or inconsistent rows.
+    # No field data - just use default Union.
+    if not hasattr(self.values[0], 'as_dict'):
       return typehints.Union[[
           trivial_inference.instance_to_type(v) for v in self.values
       ]]
+
+    first_fields = self.values[0].as_dict().keys()
 
     # Save field types for each field
     field_types_by_field = defaultdict(set)
@@ -3995,7 +3993,7 @@ class Create(PTransform):
         final_type = non_none_types.pop()
       elif len(non_none_types) == 1 and len(field_types) == 2:
         final_type = typing.Optional[non_none_types.pop()]
-      else:  # No available field types
+      else:
         raise TypeError("No types found for field %s", field)
 
       final_fields.append((field, final_type))
