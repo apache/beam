@@ -21,6 +21,7 @@
 import logging
 import os
 import tempfile
+import typing
 import unittest
 from typing import TypeVar
 
@@ -30,6 +31,7 @@ import apache_beam as beam
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.window import FixedWindows
+from apache_beam.typehints import row_type
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import typehints
 
@@ -320,6 +322,33 @@ class FlatMapTest(unittest.TestCase):
             | beam.Create([[1, 2, 3]], reshuffle=False)
             | beam.FlatMap()
             | beam.Map(lambda s: s.upper()).with_input_types(str))
+
+
+class CreateInferOutputSchemaTest(unittest.TestCase):
+  def test_multiple_types_for_field_raises_error(self):
+    with self.assertRaisesRegex(
+        TypeError,
+        "('Multiple types found for field %s: %s', 'a', " +
+        "{<class 'int'>, <class 'str'>})"):
+      beam.Create([beam.Row(a=1), beam.Row(a='foo')]).infer_output_type(None)
+
+  def test_single_type_for_field(self):
+    output_type = beam.Create([beam.Row(a=1),
+                               beam.Row(a=2)]).infer_output_type(None)
+    self.assertEqual(
+        output_type, row_type.RowTypeConstraint.from_fields([('a', int)]))
+
+  def test_optional_type_for_field(self):
+    output_type = beam.Create([beam.Row(a=1),
+                               beam.Row(a=None)]).infer_output_type(None)
+    self.assertEqual(
+        output_type,
+        row_type.RowTypeConstraint.from_fields([('a', typing.Optional[int])]))
+
+  def test_none_type_for_field_raises_error(self):
+    with self.assertRaisesRegex(TypeError,
+                                "('No types found for field %s', 'a')"):
+      beam.Create([beam.Row(a=None), beam.Row(a=None)]).infer_output_type(None)
 
 
 if __name__ == '__main__':
