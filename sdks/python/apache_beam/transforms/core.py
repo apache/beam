@@ -3965,8 +3965,6 @@ class Create(PTransform):
       return typehints.Any
 
     try:
-      if not all(isinstance(v, pvalue.Row) for v in self.values):
-        raise TypeError("All data must be Rows.")
       first_fields = self.values[0].as_dict().keys()
       if not all(v.as_dict().keys() == first_fields for v in self.values):
         raise TypeError("All rows must have the same fields.")
