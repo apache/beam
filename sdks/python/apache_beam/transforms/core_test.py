@@ -326,11 +326,12 @@ class FlatMapTest(unittest.TestCase):
 
 class CreateInferOutputSchemaTest(unittest.TestCase):
   def test_multiple_types_for_field_raises_error(self):
-    with self.assertRaisesRegex(
-        TypeError,
-        "('Multiple types found for field %s: %s', 'a', " +
-        "{<class 'int'>, <class 'str'>})"):
+    with self.assertRaises(TypeError) as cm:
       beam.Create([beam.Row(a=1), beam.Row(a='foo')]).infer_output_type(None)
+    self.assertEqual(
+        cm.exception.args[0], "Multiple types found for field %s: %s")
+    self.assertEqual(cm.exception.args[1], 'a')
+    self.assertEqual(cm.exception.args[2], {int, str})
 
   def test_single_type_for_field(self):
     output_type = beam.Create([beam.Row(a=1),
