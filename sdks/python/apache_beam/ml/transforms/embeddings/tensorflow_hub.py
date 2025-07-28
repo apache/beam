@@ -18,18 +18,24 @@ from collections.abc import Iterable
 from typing import Optional
 
 import apache_beam as beam
-import tensorflow as tf
-import tensorflow_hub as hub
-import tensorflow_text as text  # required to register TF ops. # pylint: disable=unused-import
 from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RunInference
-from apache_beam.ml.inference.tensorflow_inference import TFModelHandlerTensor
-from apache_beam.ml.inference.tensorflow_inference import default_tensor_inference_fn
 from apache_beam.ml.transforms.base import EmbeddingsManager
 from apache_beam.ml.transforms.base import _ImageEmbeddingHandler
 from apache_beam.ml.transforms.base import _TextEmbeddingHandler
+
+try:
+  from apache_beam.ml.inference.tensorflow_inference import TFModelHandlerTensor
+  from apache_beam.ml.inference.tensorflow_inference import default_tensor_inference_fn
+
+  import tensorflow as tf
+  import tensorflow_hub as hub
+  import tensorflow_text as text  # required to register TF ops. # pylint: disable=unused-import
+except ImportError:
+  class TFModelHandlerTensor: pass
+  tf, hub, text = None, None, None
 
 __all__ = ['TensorflowHubTextEmbeddings', 'TensorflowHubImageEmbeddings']
 
@@ -41,6 +47,13 @@ class _TensorflowHubModelHandler(TFModelHandlerTensor):
   Note: Intended for internal use only. No backwards compatibility guarantees.
   """
   def __init__(self, preprocessing_url: Optional[str], *args, **kwargs):
+    if not (tf and hub and text):
+      raise ImportError(
+          "tensorflow, tensorflow_hub and tensorflow_text are required to use "
+          "TensorflowHubTextEmbeddings and TensorflowHubImageEmbeddings. "
+          "Please install them with using "
+          "`pip install tensorflow tensorflow_hub tensorflow_text`.")
+
     self.preprocessing_url = preprocessing_url
     super().__init__(*args, **kwargs)
 

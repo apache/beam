@@ -29,17 +29,21 @@ from google.api_core.exceptions import TooManyRequests
 from google.auth.credentials import Credentials
 
 import apache_beam as beam
-import vertexai
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import RemoteModelHandler
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.transforms.base import EmbeddingsManager
 from apache_beam.ml.transforms.base import _ImageEmbeddingHandler
 from apache_beam.ml.transforms.base import _TextEmbeddingHandler
-from vertexai.language_models import TextEmbeddingInput
-from vertexai.language_models import TextEmbeddingModel
-from vertexai.vision_models import Image
-from vertexai.vision_models import MultiModalEmbeddingModel
+
+try:
+  import vertexai
+  from vertexai.language_models import TextEmbeddingInput
+  from vertexai.language_models import TextEmbeddingModel
+  from vertexai.vision_models import Image
+  from vertexai.vision_models import MultiModalEmbeddingModel
+except ImportError:
+  vertexai = None
 
 __all__ = ["VertexAITextEmbeddings", "VertexAIImageEmbeddings"]
 
@@ -89,6 +93,13 @@ class _VertexAITextEmbeddingHandler(RemoteModelHandler):
       location: Optional[str] = None,
       credentials: Optional[Credentials] = None,
       **kwargs):
+    if not vertexai:
+      raise ImportError(
+          "Vertex AI Python SDK is required to use "
+          "VertexAITextEmbeddings and VertexAIImageEmbeddings. "
+          "Please install it with using "
+          "`pip install apache-beam[gcp]`.")
+
     vertexai.init(project=project, location=location, credentials=credentials)
     self.model_name = model_name
     if task_type not in TASK_TYPE_INPUTS:

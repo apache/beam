@@ -37,6 +37,21 @@ try:
 except ImportError:
   tft = None  # type: ignore
 
+import pkgutil
+import importlib
+
+from apache_beam.ml.transforms import embeddings
+
+# Iterate over all submodules in the 'embeddings' package path
+for module_info in pkgutil.iter_modules(embeddings.__path__, f"{embeddings.__name__}."):
+  try:
+    submodule = importlib.import_module(module_info.name)
+    for name in getattr(submodule, '__all__', []):
+      _transform_constructors[name] = getattr(submodule, name)
+  except ImportError:
+    # Skip any modules that fail to import
+    continue
+
 
 class ModelHandlerProvider:
   handler_types: dict[str, Callable[..., "ModelHandlerProvider"]] = {}

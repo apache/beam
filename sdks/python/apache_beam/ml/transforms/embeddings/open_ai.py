@@ -22,15 +22,19 @@ from typing import TypeVar
 from typing import Union
 
 import apache_beam as beam
-import openai
 from apache_beam.ml.inference.base import RemoteModelHandler
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.transforms.base import EmbeddingsManager
 from apache_beam.ml.transforms.base import _TextEmbeddingHandler
 from apache_beam.pvalue import PCollection
 from apache_beam.pvalue import Row
-from openai import APIError
-from openai import RateLimitError
+
+try:
+  import openai
+  from openai import APIError
+  from openai import RateLimitError
+except ImportError:
+  openai = None
 
 __all__ = ["OpenAITextEmbeddings"]
 
@@ -71,6 +75,12 @@ class _OpenAITextEmbeddingHandler(RemoteModelHandler):
       user: Optional[str] = None,
       max_batch_size: Optional[int] = None,
   ):
+    if not openai:
+      raise ImportError(
+          "OpenAI Python SDK is required to use "
+          "OpenAITextEmbeddings. "
+          "Please install it with using `pip install openai`.")
+    
     super().__init__(
         namespace="OpenAITextEmbeddings",
         num_retries=5,

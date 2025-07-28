@@ -71,7 +71,7 @@ class _SentenceTransformerModelHandler(ModelHandler):
     if not SentenceTransformer:
       raise ImportError(
           "sentence-transformers is required to use "
-          "SentenceTransformerEmbeddings."
+          "SentenceTransformerEmbeddings. "
           "Please install it with using `pip install sentence-transformers`.")
 
   def run_inference(
