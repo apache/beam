@@ -187,7 +187,7 @@ def _dict_input_fn(
     columns: Sequence[str], batch: Sequence[Union[Dict[str, Any],
                                                   beam.Row]]) -> List[str]:
   """Extract text from specified columns in batch."""
-  if hasattr(batch[0], '_asdict'):
+  if batch and hasattr(batch[0], '_asdict'):
     batch = [row._asdict() for row in batch]
 
   if not batch or not isinstance(batch[0], dict):
