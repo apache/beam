@@ -72,11 +72,12 @@
 
 ## New Features / Improvements
 
-* Respect BatchSize and MaxBufferingDuration when using `JdbcIO.WriteWithResults`. Previously, these settings were ignored ([#35669](https://github.com/apache/beam/pull/35669)).
+* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Breaking Changes
 
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+* Previously deprecated Beam ZetaSQL component has been removed from new releases ([#34423](https://github.com/apache/beam/issues/34423)).
 
 ## Deprecations
 
@@ -116,6 +117,7 @@
   Beam now supports Milvus enrichment handler capabilities for vector, keyword,
   and hybrid search operations.
 * [Beam SQL] Add support for DATABASEs, with an implementation for Iceberg ([]())
+* Respect BatchSize and MaxBufferingDuration when using `JdbcIO.WriteWithResults`. Previously, these settings were ignored ([#35669](https://github.com/apache/beam/pull/35669)).
 
 ## Breaking Changes
 
