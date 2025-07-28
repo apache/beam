@@ -274,7 +274,7 @@ public class BigtableReadSchemaTransformProvider
             Row flattenedRow =
                 Row.withSchema(FLATTENED_ROW_SCHEMA)
                     .withFieldValue("key", key)
-                    .withFieldValue("column_family,", familyName)
+                    .withFieldValue("column_family", familyName)
                     .withFieldValue("column_qualifier", qualifierName)
                     .withFieldValue("cells", cells)
                     .build();
