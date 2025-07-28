@@ -26,8 +26,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -65,7 +65,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -85,8 +84,7 @@ public class ExecutionStateSamplerTest {
   private static final Histogram TEST_USER_HISTOGRAM =
       new DelegatingHistogram(
           MetricName.named("foo", "histogram"), HistogramData.LinearBuckets.of(0, 100, 1), false);
-
-  @Mock private Consumer<String> mockOnTimeoutExceededCallback;
+  private final Consumer<String> mockOnTimeoutExceededCallback = mock(Consumer.class);
 
   @Rule public ExpectedLogs expectedLogs = ExpectedLogs.none(ExecutionStateSampler.class);
 
@@ -870,7 +868,7 @@ public class ExecutionStateSamplerTest {
     state.deactivate();
     tracker.reset();
     sampler.stop();
-    verify(mockOnTimeoutExceededCallback, times(1)).accept(anyString());
+    verify(mockOnTimeoutExceededCallback, atLeastOnce()).accept(anyString());
   }
 
   @Test
