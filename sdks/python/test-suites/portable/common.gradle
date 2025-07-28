@@ -112,7 +112,10 @@ def createProcessWorker = tasks.register("createProcessWorker") {
   if (Os.isFamily(Os.FAMILY_MAC))
     osType = 'darwin'
   def workerScript = "${project(":sdks:python:container:").buildDir.absolutePath}/target/launcher/${osType}_amd64/boot"
-  def sdkWorkerFileCode = "sh -c \"pip=`which pip` . ${envdir}/bin/activate && ${workerScript} \$* \""
+  def sdkWorkerFileCode = """#!/bin/sh
+. ${envdir}/bin/activate
+exec ${workerScript} "\"\$@\""
+"""
   outputs.file sdkWorkerFile
   doLast {
     sdkWorkerFile.write sdkWorkerFileCode

@@ -1859,6 +1859,7 @@ public class KafkaIO {
                   .as(StreamingOptions.class)
                   .getUpdateCompatibilityVersion();
           if (requestedVersionString != null
+              && !requestedVersionString.isEmpty()
               && TransformUpgrader.compareVersions(requestedVersionString, "2.66.0") < 0) {
             // Use discouraged Impulse for backwards compatibility with previous released versions.
             output =
@@ -2831,6 +2832,7 @@ public class KafkaIO {
                 .as(StreamingOptions.class)
                 .getUpdateCompatibilityVersion();
         if (requestedVersionString != null
+            && !requestedVersionString.isEmpty()
             && TransformUpgrader.compareVersions(requestedVersionString, "2.60.0") < 0) {
           // Redistribute is not allowed with commits prior to 2.59.0, since there is a Reshuffle
           // prior to the redistribute. The reshuffle will occur before commits are offsetted and

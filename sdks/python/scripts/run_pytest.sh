@@ -30,22 +30,48 @@ envname=${1?First argument required: suite base name}
 posargs=$2
 pytest_args=$3
 
-if [[ $pytest_args =~ "-m" ]] || [[ $posargs =~ "-m" ]]; then
-  echo "$0 cannot be called with -m as it interferes with 'no_xdist' logic, see BEAM-12985."
-  exit 1
-fi
-
 # strip leading/trailing quotes from posargs because it can get double quoted as its passed through.
 posargs=$(sed -e 's/^"//' -e 's/"$//' -e "s/'$//" -e "s/^'//" <<<$posargs)
 echo "pytest_args: $pytest_args"
 echo "posargs: $posargs"
 
-# Run with pytest-xdist and without.
+# Define the regex for extracting the -m argument value
+marker_regex="-m\s+('[^']+'|\"[^\"]+\"|[^ ]+)"
+
+# Initialize the user_marker variable.
+user_marker=""
+
+# Isolate the user-provided -m argument (matching only).
+if [[ $pytest_args =~ "-m" ]]; then
+  # Extract the marker value using the defined regex.
+  user_marker=$(echo "$pytest_args" | sed -nE "s/.*$marker_regex.*/\1/p")
+fi
+
+# Remove the -m argument from pytest_args (substitution only).
+if [[ -n $user_marker ]]; then
+  pytest_args=$(echo "$pytest_args" | sed -E "s/$marker_regex//")
+fi
+
+# Combine user-provided marker with script's internal logic.
+marker_for_parallel_tests="not no_xdist"
+marker_for_sequential_tests="no_xdist"
+
+if [[ -n $user_marker ]]; then
+  # Combine user marker with internal markers.
+  marker_for_parallel_tests="($user_marker) and ($marker_for_parallel_tests)"
+  marker_for_sequential_tests="($user_marker) and ($marker_for_sequential_tests)"
+fi
+
+# Run tests in parallel.
+echo "Running parallel tests with: pytest -m \"$marker_for_parallel_tests\" $pytest_args"
 pytest -v -rs -o junit_suite_name=${envname} \
-  --junitxml=pytest_${envname}.xml -m 'not no_xdist' -n 6 --import-mode=importlib ${pytest_args} --pyargs ${posargs}
+  --junitxml=pytest_${envname}.xml -m "$marker_for_parallel_tests" -n 6 --import-mode=importlib ${pytest_args} --pyargs ${posargs}
 status1=$?
+
+# Run tests sequentially.
+echo "Running sequential tests with: pytest -m \"$marker_for_sequential_tests\" $pytest_args"
 pytest -v -rs -o junit_suite_name=${envname}_no_xdist \
-  --junitxml=pytest_${envname}_no_xdist.xml -m 'no_xdist' --import-mode=importlib ${pytest_args} --pyargs ${posargs}
+  --junitxml=pytest_${envname}_no_xdist.xml -m "$marker_for_sequential_tests" --import-mode=importlib ${pytest_args} --pyargs ${posargs}
 status2=$?
 
 # Exit with error if no tests were run in either suite (status code 5).
