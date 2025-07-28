@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+import hashlib
 import unittest
 
 from apache_beam.internal import code_object_pickler
