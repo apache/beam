@@ -64,6 +64,27 @@ class ServiceAccountManager:
             logger.info(f"Service account already exists: {existing_account.email}")
             return existing_account
     
+    def get_service_account(self, account_id: str) -> types.ServiceAccount:
+        """
+        Retrieves a service account by its unique identifier or email.
+
+        Args:
+            account_id (str): The unique identifier or email of the service account.
+        
+        Returns:
+            types.ServiceAccount: The service account object.
+        """
+        request = types.GetServiceAccountRequest()
+        request.name = f"projects/{self.project_id}/serviceAccounts/{account_id}"
+
+        try:
+            service_account = self.client.get_service_account(request=request)
+            logger.info(f"Retrieved service account: {service_account.email}")
+            return service_account
+        except exceptions.NotFound:
+            logger.error(f"Service account {account_id} not found")
+            raise
+    
     def enable_service_account(self, account_id: str) -> types.ServiceAccount:
         """
         Enables a service account in the specified project.
@@ -81,12 +102,7 @@ class ServiceAccountManager:
         self.client.enable_service_account(request=request)
         time.sleep(5)
 
-        get_request = types.GetServiceAccountRequest()
-        get_request.name = name
-
-        self.client.get_service_account(request=get_request)
-
-        service_account = self.client.get_service_account(request=get_request)
+        service_account = self.get_service_account(account_id)
         if not service_account.disabled:
             logger.info(f"Enabled service account: {account_id}")
         else:
@@ -145,7 +161,7 @@ class ServiceAccountManager:
 
         accounts = self.client.list_service_accounts(request=request)
         logger.info(f"Listed service accounts: {[account.email for account in accounts.accounts]}")
-        return list(accounts)
+        return list(accounts.accounts)
 
     def create_service_account_key(self, account_id: str) -> types.ServiceAccountKey:
         """
@@ -193,6 +209,30 @@ class ServiceAccountManager:
         self.client.delete_service_account_key(request=request)
         logger.info(f"Deleted service account key: {key_id} for account: {account_id}")
         return
+    
+    def delete_oldest_service_account_key(self, account_id: str) -> Optional[types.ServiceAccountKey]:
+        """
+        Deletes the oldest key for the specified service account.
+        If no keys exist, returns None.
+
+        Args:
+            account_id (str): The unique identifier or email of the service account.
+        
+        Returns:
+            Optional[types.ServiceAccountKey]: The deleted service account key object, or None if no keys exist.
+        """
+        keys = self.list_service_account_keys(account_id)
+        if not keys:
+            logger.info(f"No keys found for service account: {account_id}")
+            return None
+        
+        # Sort keys by creation time (oldest first)
+        keys.sort(key=lambda k: k.valid_after_time)
+        oldest_key = keys[0]
+
+        self.delete_service_account_key(account_id, oldest_key.name.split('/')[-1])
+        logger.info(f"Deleted oldest key for service account: {account_id}")
+        return oldest_key
     
     def list_service_account_keys(self, account_id: str) -> List[iam_admin_v1.ServiceAccountKey]:
         """
