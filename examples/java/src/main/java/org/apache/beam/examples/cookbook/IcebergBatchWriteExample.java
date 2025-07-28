@@ -98,14 +98,14 @@ public class IcebergBatchWriteExample {
         "Warehouse location where the table's data will be written to. "
             + "As of 07/14/25 BigLake only supports Single Region buckets")
     @Validation.Required
-    @Default.String("gs://analytics_tarun2")
+    @Default.String("gs://analytics_warehouse")
     String getWarehouse();
 
     void setWarehouse(String warehouse);
 
     @Description("The Iceberg table to write to, in the format 'dataset.table'.")
     @Validation.Required
-    @Default.String("analytics_dataset2.transactions_by_browser")
+    @Default.String("analytics_dataset.transactions_by_browser")
     String getIcebergTable();
 
     void setIcebergTable(String value);
