@@ -102,13 +102,35 @@ pipelines:
                 callable: |
                   def convert_to_bytes(row):
                     return row.key.decode("utf-8") if "key" in row._fields else None
-
-
         - type: AssertEqual
           config:
             elements:
               - {'key': 'row1'}
               - {'key': 'row1' }
+        - type: LogForTesting
+
+  - pipeline:
+      type: chain
+      transforms:
+        - type: ReadFromBigTable
+          config:
+            project: 'apache-beam-testing'
+            instance: "{BT_INSTANCE}"
+            table: 'test-table'
+            flatten: False
+        - type: MapToFields
+          config:
+            language: python
+            fields:
+              key:
+                callable: |
+                  def convert_to_bytes(row):
+                    return row.key.decode("utf-8") if "key" in row._fields else None
+
+        - type: AssertEqual
+          config:
+            elements:
+              - { 'key': 'row1' }
         - type: LogForTesting
 
 

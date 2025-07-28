@@ -156,7 +156,6 @@ public class BigtableReadSchemaTransformProvider
           String.format(
               "Input to %s is expected to be empty, but is not.", getClass().getSimpleName()));
 
-
       PCollection<com.google.bigtable.v2.Row> bigtableRows =
           input
               .getPipeline()
@@ -165,11 +164,6 @@ public class BigtableReadSchemaTransformProvider
                       .withTableId(configuration.getTableId())
                       .withInstanceId(configuration.getInstanceId())
                       .withProjectId(configuration.getProjectId()));
-
-      // ParDo fucntion implements fork logic if flatten == True
-
-      // Determine the output schema based on the flatten configuration.
-      // The default for flatten is true.
 
       Schema outputSchema =
           Boolean.FALSE.equals(configuration.getFlatten()) ? ROW_SCHEMA : FLATTENED_ROW_SCHEMA;
@@ -183,8 +177,7 @@ public class BigtableReadSchemaTransformProvider
     }
   }
 
-
-  //old logic for reference
+  // old logic for reference
   //  public static class BigtableRowToBeamRow extends SimpleFunction<com.google.bigtable.v2.Row,
   // Row> {
   //    @Override

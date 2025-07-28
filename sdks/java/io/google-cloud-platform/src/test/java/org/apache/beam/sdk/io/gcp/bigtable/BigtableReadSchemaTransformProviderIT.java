@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.bigtable;
 
 import static org.apache.beam.sdk.io.gcp.bigtable.BigtableReadSchemaTransformProvider.CELL_SCHEMA;
+import static org.apache.beam.sdk.io.gcp.bigtable.BigtableReadSchemaTransformProvider.FLATTENED_ROW_SCHEMA;
 import static org.apache.beam.sdk.io.gcp.bigtable.BigtableReadSchemaTransformProvider.ROW_SCHEMA;
 import static org.junit.Assert.assertThrows;
 
@@ -208,7 +209,6 @@ public class BigtableReadSchemaTransformProviderIT {
     }
     LOG.info("Finished writing {} rows to table {}", numRows, tableId);
 
-    // FIX: Explicitly set flatten to false to match the expected nested rows.
     BigtableReadSchemaTransformConfiguration config =
         BigtableReadSchemaTransformConfiguration.builder()
             .setTableId(tableId)
@@ -223,6 +223,110 @@ public class BigtableReadSchemaTransformProviderIT {
 
     LOG.info("This is the rows: " + rows);
 
+    PAssert.that(rows).containsInAnyOrder(expectedRows);
+    p.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testReadFlatten() {
+    int numRows = 20;
+    List<Row> expectedRows = new ArrayList<>();
+    for (int i = 1; i <= numRows; i++) {
+      String key = "key" + i;
+      byte[] keyBytes = key.getBytes(StandardCharsets.UTF_8);
+      String valueA = "value a" + i;
+      byte[] valueABytes = valueA.getBytes(StandardCharsets.UTF_8);
+      String valueB = "value b" + i;
+      byte[] valueBBytes = valueB.getBytes(StandardCharsets.UTF_8);
+      String valueC = "value c" + i;
+      byte[] valueCBytes = valueC.getBytes(StandardCharsets.UTF_8);
+      String valueD = "value d" + i;
+      byte[] valueDBytes = valueD.getBytes(StandardCharsets.UTF_8);
+      long timestamp = 1000L * i;
+
+      // Write a row with four distinct columns to Bigtable
+      RowMutation rowMutation =
+          RowMutation.create(tableId, key)
+              .setCell(COLUMN_FAMILY_NAME_1, "a", timestamp, valueA)
+              .setCell(COLUMN_FAMILY_NAME_1, "b", timestamp, valueB)
+              .setCell(COLUMN_FAMILY_NAME_2, "c", timestamp, valueC)
+              .setCell(COLUMN_FAMILY_NAME_2, "d", timestamp, valueD);
+      dataClient.mutateRow(rowMutation);
+
+      // For each Bigtable row, we expect four flattened Beam Rows as output.
+      // Each Row corresponds to one column.
+      expectedRows.add(
+          Row.withSchema(FLATTENED_ROW_SCHEMA)
+              .withFieldValue("key", keyBytes)
+              .withFieldValue("family", COLUMN_FAMILY_NAME_1)
+              .withFieldValue("qualifier", "a")
+              .withFieldValue(
+                  "cells",
+                  Arrays.asList(
+                      Row.withSchema(CELL_SCHEMA)
+                          .withFieldValue("value", valueABytes)
+                          .withFieldValue("timestamp_micros", timestamp)
+                          .build()))
+              .build());
+
+      expectedRows.add(
+          Row.withSchema(FLATTENED_ROW_SCHEMA)
+              .withFieldValue("key", keyBytes)
+              .withFieldValue("family", COLUMN_FAMILY_NAME_1)
+              .withFieldValue("qualifier", "b")
+              .withFieldValue(
+                  "cells",
+                  Arrays.asList(
+                      Row.withSchema(CELL_SCHEMA)
+                          .withFieldValue("value", valueBBytes)
+                          .withFieldValue("timestamp_micros", timestamp)
+                          .build()))
+              .build());
+
+      expectedRows.add(
+          Row.withSchema(FLATTENED_ROW_SCHEMA)
+              .withFieldValue("key", keyBytes)
+              .withFieldValue("family", COLUMN_FAMILY_NAME_2)
+              .withFieldValue("qualifier", "c")
+              .withFieldValue(
+                  "cells",
+                  Arrays.asList(
+                      Row.withSchema(CELL_SCHEMA)
+                          .withFieldValue("value", valueCBytes)
+                          .withFieldValue("timestamp_micros", timestamp)
+                          .build()))
+              .build());
+
+      expectedRows.add(
+          Row.withSchema(FLATTENED_ROW_SCHEMA)
+              .withFieldValue("key", keyBytes)
+              .withFieldValue("family", COLUMN_FAMILY_NAME_2)
+              .withFieldValue("qualifier", "d")
+              .withFieldValue(
+                  "cells",
+                  Arrays.asList(
+                      Row.withSchema(CELL_SCHEMA)
+                          .withFieldValue("value", valueDBytes)
+                          .withFieldValue("timestamp_micros", timestamp)
+                          .build()))
+              .build());
+    }
+    LOG.info("Finished writing {} rows to table {} with Flatten state true", numRows, tableId);
+
+    // Configure the transform to use flatten mode (the default).
+    BigtableReadSchemaTransformConfiguration config =
+        BigtableReadSchemaTransformConfiguration.builder()
+            .setTableId(tableId)
+            .setInstanceId(instanceId)
+            .setProjectId(projectId)
+            .setFlatten(true)
+            .build();
+
+    SchemaTransform transform = new BigtableReadSchemaTransformProvider().from(config);
+
+    PCollection<Row> rows = PCollectionRowTuple.empty(p).apply(transform).get("output");
+
+    // Assert that the actual rows match the expected flattened rows.
     PAssert.that(rows).containsInAnyOrder(expectedRows);
     p.run().waitUntilFinish();
   }
