@@ -516,7 +516,6 @@ if __name__ == '__main__':
               'skl2onnx',
               'pillow',
               'pyod',
-              'sentence-transformers',
               'tensorflow',
               'tensorflow-hub',
               'tensorflow-text',
