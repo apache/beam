@@ -70,13 +70,19 @@ class PostProcessor(beam.DoFn):
 
     inference = getattr(element, "inference", None)
 
-    if hasattr(inference[1], "content"):
-      yield inference[1].content.parts[0].text
+    if not isinstance(inference, (tuple, list)) or len(inference) < 2:
+      yield "Can't decode inference for element: " + str(element.example)
       return
 
-    if isinstance(inference[1], (tuple, list)) and len(inference) > 1:
+    prediction_payload = inference[1]
+
+    if hasattr(prediction_payload, "content"):
+      yield prediction_payload.content.parts[0].text
+      return
+
+    if isinstance(prediction_payload, (tuple, list)) and prediction_payload:
       yield "Input: " + str(element.example) + " Output: " + str(
-          inference[1][0].content.parts[0].text)
+          prediction_payload[0].content.parts[0].text)
     else:
       yield "Can't decode inference for element: " + str(element.example)
 
