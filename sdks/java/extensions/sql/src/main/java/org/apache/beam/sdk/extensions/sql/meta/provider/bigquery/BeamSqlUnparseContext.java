@@ -128,9 +128,11 @@ public class BeamSqlUnparseContext extends SqlImplementor.SimpleContext {
     } else if (SqlKind.SEARCH.equals(rex.getKind())) {
       // Workaround CALCITE-4716
       RexCall search = (RexCall) rex;
-      RexLocalRef ref = (RexLocalRef) search.operands.get(1);
-      RexLiteral literal = (RexLiteral) program.getExprList().get(ref.getIndex());
-      rex = search.clone(search.getType(), ImmutableList.of(search.operands.get(0), literal));
+      if (search.operands.get(1) instanceof RexLocalRef) {
+        RexLocalRef ref = (RexLocalRef) search.operands.get(1);
+        RexLiteral literal = (RexLiteral) program.getExprList().get(ref.getIndex());
+        rex = search.clone(search.getType(), ImmutableList.of(search.operands.get(0), literal));
+      }
     }
 
     return super.toSql(program, rex);

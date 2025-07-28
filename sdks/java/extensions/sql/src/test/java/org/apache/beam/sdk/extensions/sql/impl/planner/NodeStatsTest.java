@@ -62,7 +62,7 @@ public class NodeStatsTest extends BaseRelTest {
   public void testUnknownRel() {
     String sql = " select * from ORDER_DETAILS1 ";
     RelNode root = env.parseQuery(sql);
-    RelNode unknown = new UnknownRel(root.getCluster(), null, null);
+    RelNode unknown = new UnknownRel(root.getCluster(), RelTraitSet.createEmpty(), null);
     NodeStats nodeStats =
         unknown
             .metadata(NodeStatsMetadata.class, unknown.getCluster().getMetadataQuery())
