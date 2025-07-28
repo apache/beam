@@ -188,7 +188,7 @@ def _dict_input_fn(
                                                   beam.Row]]) -> List[str]:
   """Extract text from specified columns in batch."""
   if batch and hasattr(batch[0], '_asdict'):
-    batch = [row._asdict() for row in batch]
+    batch = [row._asdict() for row in batch if hasattr(row, '_asdict')]
 
   if not batch or not isinstance(batch[0], dict):
     raise TypeError(
@@ -200,7 +200,7 @@ def _dict_input_fn(
   expected_columns = set(columns)
   # Process one batch item at a time
   for item in batch:
-    item_keys = item.keys()
+    item_keys = item.keys() if isinstance(item, dict) else set()
     if set(item_keys) != expected_keys:
       extra_keys = item_keys - expected_keys
       missing_keys = expected_keys - item_keys
@@ -216,19 +216,20 @@ def _dict_input_fn(
 
     # Get all columns for this item
     for col in columns:
-      result.append(item[col])
+      if isinstance(item, dict):
+        result.append(item[col])
   return result
 
 
 def _dict_output_fn(
     columns: Sequence[str],
     batch: Sequence[Union[Dict[str, Any], beam.Row]],
-    embeddings: Sequence[Any]) -> List[Union[Dict[str, Any], beam.Row]]:
+    embeddings: Sequence[Any]) -> List[Dict[str, Any]]:
   """Map embeddings back to columns in batch."""
   is_beam_row = False
   if batch and hasattr(batch[0], '_asdict'):
     is_beam_row = True
-    batch = [row._asdict() for row in batch]
+    batch = [row._asdict() for row in batch if hasattr(row, '_asdict')]
 
   result = []
   for batch_idx, item in enumerate(batch):
@@ -238,7 +239,7 @@ def _dict_output_fn(
     result.append(item)
 
   if is_beam_row:
-    result = [beam.Row(**item) for item in result]
+    result = [beam.Row(**item) for item in result if isinstance(item, dict)]
   return result
 
 
