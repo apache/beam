@@ -119,4 +119,25 @@ public class RestrictionTrackers {
       return new RestrictionTrackerObserver<>(restrictionTracker, claimObserver);
     }
   }
+
+  public static <RestrictionT, PositionT> RestrictionTracker<RestrictionT, PositionT> synchronize(
+      RestrictionTracker<RestrictionT, PositionT> restrictionTracker) {
+    if (restrictionTracker instanceof RestrictionTracker.HasProgress) {
+      return new RestrictionTrackerObserverWithProgress<>(
+          restrictionTracker, (ClaimObserver<PositionT>) NOOP_CLAIM_OBSERVER);
+    } else {
+      return new RestrictionTrackerObserver<>(
+          restrictionTracker, (ClaimObserver<PositionT>) NOOP_CLAIM_OBSERVER);
+    }
+  }
+
+  static class NoopClaimObserver<PositionT> implements ClaimObserver<PositionT> {
+    @Override
+    public void onClaimed(PositionT position) {}
+
+    @Override
+    public void onClaimFailed(PositionT position) {}
+  }
+
+  private static final NoopClaimObserver<Object> NOOP_CLAIM_OBSERVER = new NoopClaimObserver<>();
 }
