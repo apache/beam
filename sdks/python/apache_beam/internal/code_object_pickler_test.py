@@ -40,6 +40,11 @@ def get_lambda_from_dictionary():
   return d["a"]
 
 
+def get_lambda_from_dictionary_same_args():
+  d = {"a": lambda x: 1, "b": lambda x: x + 1}
+  return d["a"]
+
+
 def function_with_lambda_default_argument(fn=lambda x: 1):
   return fn
 
@@ -121,6 +126,13 @@ test_cases = [
         (
             "apache_beam.internal.code_object_pickler_test"
             ".get_lambda_from_dictionary.__code__.co_consts[<lambda>, ('x',)]")
+    ),
+    (
+        get_lambda_from_dictionary_same_args(),
+        (
+            "apache_beam.internal.code_object_pickler_test"
+            ".get_lambda_from_dictionary.__code__.co_consts[<lambda>, ('x',), " +
+            hashlib.md5(.... .__code__).hexdigest() + "]")
     ),
     (
         function_with_lambda_default_argument(),
