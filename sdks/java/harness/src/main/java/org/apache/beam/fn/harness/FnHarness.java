@@ -278,15 +278,15 @@ public class FnHarness {
     ShortIdMap metricsShortIds = new ShortIdMap();
     ExecutorService executorService =
         options.as(ExecutorOptions.class).getScheduledExecutorService();
+    CompletableFuture<Void> samplerTerminationFuture = new CompletableFuture<>();
     ExecutionStateSampler executionStateSampler =
         new ExecutionStateSampler(
             options,
             System::currentTimeMillis,
             message -> {
-              System.err.println(
-                  "\n*** FATAL ERROR: Timeout occurred! Exiting JVM with status 1. ***");
-              System.err.println("Details: " + message);
-              System.exit(1);
+              String errMsg = "FATAL ERROR: Timeout occurred! Exiting JVM. Details:" + message;
+              samplerTerminationFuture.completeExceptionally(
+                  new RuntimeException(errMsg));
             });
 
     final @Nullable DataSampler dataSampler = DataSampler.create(options);
@@ -421,9 +421,9 @@ public class FnHarness {
               executorService,
               handlers);
       if (options.as(SdkHarnessOptions.class).getEnableLogViaFnApi()) {
-        CompletableFuture.anyOf(control.terminationFuture(), logging.terminationFuture()).get();
+        CompletableFuture.anyOf(control.terminationFuture(), logging.terminationFuture(), samplerTerminationFuture).get();
       } else {
-        control.terminationFuture().get();
+        CompletableFuture.anyOf(control.terminationFuture(), samplerTerminationFuture).get();
       }
       if (beamFnStatusClient != null) {
         beamFnStatusClient.close();

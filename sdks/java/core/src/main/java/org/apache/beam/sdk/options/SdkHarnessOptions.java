@@ -434,7 +434,7 @@ public interface SdkHarnessOptions extends PipelineOptions, MemoryMonitorOptions
    */
   @Description(
       "The time limit (minute) that an SDK worker allows for a PTransform operation "
-          + "before signaling the runner harness to restart the SDK worker.")
+          + "before signaling the runner harness to restart the SDK worker. There is no time limit if the value is set to 0.")
   @NonNegative
   int getElementProcessingTimeoutMinutes();
 
