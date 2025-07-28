@@ -224,7 +224,7 @@ def _dict_input_fn(
 def _dict_output_fn(
     columns: Sequence[str],
     batch: Sequence[Union[Dict[str, Any], beam.Row]],
-    embeddings: Sequence[Any]) -> List[Dict[str, Any]]:
+    embeddings: Sequence[Any]) -> list[Union[dict[str, Any], beam.Row]]:
   """Map embeddings back to columns in batch."""
   is_beam_row = False
   if batch and hasattr(batch[0], '_asdict'):
@@ -235,7 +235,8 @@ def _dict_output_fn(
   for batch_idx, item in enumerate(batch):
     for col_idx, col in enumerate(columns):
       embedding_idx = batch_idx * len(columns) + col_idx
-      item[col] = embeddings[embedding_idx]
+      if isinstance(item, dict):
+        item[col] = embeddings[embedding_idx]
     result.append(item)
 
   if is_beam_row:
