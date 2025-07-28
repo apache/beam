@@ -22,7 +22,6 @@ import java.util.List;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleApplication;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * An interface that may be used to extend a {@link FnDataReceiver} signalling that the downstream
@@ -31,7 +30,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public interface HandlesSplits {
 
   /** Returns null if the split was unsuccessful. */
-  @Nullable
   SplitResult trySplit(double fractionOfRemainder);
 
   /** Returns the current progress of the active element as a fraction between 0.0 and 1.0. */
