@@ -132,9 +132,10 @@ test_cases = [
         get_lambda_from_dictionary_same_args(),
         (
             "apache_beam.internal.code_object_pickler_test"
-            ".get_lambda_from_dictionary.__code__.co_consts[<lambda>, ('x',), " +
-            hashlib.md5(get_lambda_from_dictionary.__code__.co_code).hexdigest() + "]")
-    ),
+            ".get_lambda_from_dictionary.__code__.co_consts[<lambda>, ('x',), "
+            + hashlib.md5(
+                get_lambda_from_dictionary.__code__.co_code).hexdigest() +
+            "]")),
     (
         function_with_lambda_default_argument(),
         (
