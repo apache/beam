@@ -20,7 +20,7 @@ package org.apache.beam.sdk.extensions.sql.impl.cep;
 import java.io.Serializable;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexCall;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexCall;
 
 /** Core pattern class that stores the definition of a single pattern. */
 @SuppressWarnings({
