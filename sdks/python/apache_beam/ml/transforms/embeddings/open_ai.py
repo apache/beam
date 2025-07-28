@@ -80,7 +80,7 @@ class _OpenAITextEmbeddingHandler(RemoteModelHandler):
           "OpenAI Python SDK is required to use "
           "OpenAITextEmbeddings. "
           "Please install it with using `pip install openai`.")
-    
+
     super().__init__(
         namespace="OpenAITextEmbeddings",
         num_retries=5,

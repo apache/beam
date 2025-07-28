@@ -20,10 +20,14 @@ from collections.abc import Callable
 from typing import Any
 from typing import Optional
 
+import pkgutil
+import importlib
+
 import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference import RunInference
 from apache_beam.ml.inference.base import KeyedModelHandler
+from apache_beam.ml.transforms import embeddings
 from apache_beam.typehints.row_type import RowTypeConstraint
 from apache_beam.utils import python_callable
 from apache_beam.yaml import options
@@ -37,13 +41,9 @@ try:
 except ImportError:
   tft = None  # type: ignore
 
-import pkgutil
-import importlib
-
-from apache_beam.ml.transforms import embeddings
-
 # Iterate over all submodules in the 'embeddings' package path
-for module_info in pkgutil.iter_modules(embeddings.__path__, f"{embeddings.__name__}."):
+for module_info in pkgutil.iter_modules(embeddings.__path__,
+                                        f"{embeddings.__name__}."):
   try:
     submodule = importlib.import_module(module_info.name)
     for name in getattr(submodule, '__all__', []):

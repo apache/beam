@@ -34,7 +34,10 @@ try:
   import tensorflow_hub as hub
   import tensorflow_text as text  # required to register TF ops. # pylint: disable=unused-import
 except ImportError:
-  class TFModelHandlerTensor: pass
+
+  class TFModelHandlerTensor:
+    pass
+
   tf, hub, text = None, None, None
 
 __all__ = ['TensorflowHubTextEmbeddings', 'TensorflowHubImageEmbeddings']
