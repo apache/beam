@@ -183,9 +183,13 @@ class ProcessHandler(
     """
 
 
-def _dict_input_fn(columns: Sequence[str],
-                   batch: Sequence[Dict[str, Any]]) -> List[str]:
+def _dict_input_fn(
+    columns: Sequence[str], batch: Sequence[Union[Dict[str, Any],
+                                                  beam.Row]]) -> List[str]:
   """Extract text from specified columns in batch."""
+  if hasattr(batch[0], '_asdict'):
+    batch = [row._asdict() for row in batch]
+
   if not batch or not isinstance(batch[0], dict):
     raise TypeError(
         'Expected data to be dicts, got '
@@ -221,12 +225,20 @@ def _dict_output_fn(
     batch: Sequence[Dict[str, Any]],
     embeddings: Sequence[Any]) -> List[Dict[str, Any]]:
   """Map embeddings back to columns in batch."""
+  is_beam_row = False
+  if hasattr(batch[0], '_asdict'):
+    is_beam_row = True
+    batch = [row._asdict() for row in batch]
+
   result = []
   for batch_idx, item in enumerate(batch):
     for col_idx, col in enumerate(columns):
       embedding_idx = batch_idx * len(columns) + col_idx
       item[col] = embeddings[embedding_idx]
     result.append(item)
+
+  if is_beam_row:
+    result = [beam.Row(**item) for item in result]
   return result
 
 

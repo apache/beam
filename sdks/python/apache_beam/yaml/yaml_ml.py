@@ -28,12 +28,31 @@ from apache_beam.typehints.row_type import RowTypeConstraint
 from apache_beam.utils import python_callable
 from apache_beam.yaml import options
 from apache_beam.yaml.yaml_utils import SafeLineLoader
+import pkgutil
+from importlib import import_module
+
+
+def list_submodules(package):
+  """
+    Lists all submodules within a given package.
+    """
+  submodules = []
+  for _, module_name, _ in pkgutil.walk_packages(
+      package.__path__, package.__name__ + '.'):
+    if 'test' in module_name:
+      continue
+    submodules.append(module_name)
+  return submodules
+
 
 try:
   from apache_beam.ml.transforms import tft
   from apache_beam.ml.transforms.base import MLTransform
   # TODO(robertwb): Is this all of them?
-  _transform_constructors = tft.__dict__
+  _transform_constructors = {}
+  for module_name in list_submodules(beam.ml.transforms):
+    module = import_module(module_name)
+    _transform_constructors |= module.__dict__
 except ImportError:
   tft = None  # type: ignore
 
