@@ -108,9 +108,7 @@ class TestQdrantDenseSearchEnrichment(unittest.TestCase):
           connection_parameters=connection_params,
           search_parameters=search_params)
       _ = handler._dense_search([chunk])
-    self.assertIn(
-        "missing dense embedding required for dense search",
-        str(context.exception))
+    self.assertIn("missing dense embedding", str(context.exception))
 
 
 class TestQdrantSparseSearchEnrichment(unittest.TestCase):

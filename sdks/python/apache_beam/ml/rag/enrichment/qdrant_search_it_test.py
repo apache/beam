@@ -98,7 +98,6 @@ def assert_chunks_equivalent(
     expected_chunks,
     check_dense=True,
     check_sparse=True,
-    check_id_order=True,
 ):
   actual_sorted = sorted(actual_chunks, key=lambda c: c.id)
   expected_sorted = sorted(expected_chunks, key=lambda c: c.id)
@@ -116,10 +115,7 @@ def assert_chunks_equivalent(
     assert "enrichment_data" in actual.metadata
     actual_data = actual.metadata["enrichment_data"]
     expected_data = expected.metadata["enrichment_data"]
-    if check_id_order:
-      assert actual_data["id"] == expected_data["id"]
-    else:
-      assert set(actual_data["id"]) == set(expected_data["id"])
+    assert actual_data["id"] == expected_data["id"]
     for a, e in zip(actual_data["payload"], expected_data["payload"]):
       assert a["content"] == e["content"]
       assert a["metadata"] == e["metadata"]
@@ -371,8 +367,7 @@ class TestQdrantSearchEnrichmentIT(unittest.TestCase):
               actual,
               expected_chunks,
               check_dense=True,
-              check_sparse=False,
-              check_id_order=True, ),
+              check_sparse=False, ),
       )
 
   def test_sparse_search_values(self):
@@ -475,8 +470,7 @@ class TestQdrantSearchEnrichmentIT(unittest.TestCase):
               actual,
               expected_chunks,
               check_dense=False,
-              check_sparse=True,
-              check_id_order=True, ),
+              check_sparse=True, ),
       )
 
   def test_hybrid_search_values(self):
@@ -548,8 +542,7 @@ class TestQdrantSearchEnrichmentIT(unittest.TestCase):
               actual,
               expected_chunks,
               check_dense=True,
-              check_sparse=True,
-              check_id_order=False, ),
+              check_sparse=True, ),
       )
 
 
