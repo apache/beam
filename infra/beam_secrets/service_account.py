@@ -145,7 +145,7 @@ class ServiceAccountManager:
 
         accounts = self.client.list_service_accounts(request=request)
         logger.info(f"Listed service accounts: {[account.email for account in accounts.accounts]}")
-        return accounts.accounts
+        return list(accounts)
 
     def create_service_account_key(self, account_id: str) -> types.ServiceAccountKey:
         """
