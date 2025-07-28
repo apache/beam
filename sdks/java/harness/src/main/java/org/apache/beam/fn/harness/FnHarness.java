@@ -285,8 +285,7 @@ public class FnHarness {
             System::currentTimeMillis,
             message -> {
               String errMsg = "FATAL ERROR: Timeout occurred! Exiting JVM. Details:" + message;
-              samplerTerminationFuture.completeExceptionally(
-                  new RuntimeException(errMsg));
+              samplerTerminationFuture.completeExceptionally(new RuntimeException(errMsg));
             });
 
     final @Nullable DataSampler dataSampler = DataSampler.create(options);
@@ -421,7 +420,9 @@ public class FnHarness {
               executorService,
               handlers);
       if (options.as(SdkHarnessOptions.class).getEnableLogViaFnApi()) {
-        CompletableFuture.anyOf(control.terminationFuture(), logging.terminationFuture(), samplerTerminationFuture).get();
+        CompletableFuture.anyOf(
+                control.terminationFuture(), logging.terminationFuture(), samplerTerminationFuture)
+            .get();
       } else {
         CompletableFuture.anyOf(control.terminationFuture(), samplerTerminationFuture).get();
       }
