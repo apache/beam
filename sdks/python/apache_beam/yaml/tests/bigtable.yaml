@@ -93,7 +93,6 @@ pipelines:
             project: 'apache-beam-testing'
             instance: "{BT_INSTANCE}"
             table: 'test-table'
-            flatten: True
         - type: MapToFields
           config:
             language: python

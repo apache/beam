@@ -177,42 +177,6 @@ public class BigtableReadSchemaTransformProvider
     }
   }
 
-  // old logic for reference
-  //  public static class BigtableRowToBeamRow extends SimpleFunction<com.google.bigtable.v2.Row,
-  // Row> {
-  //    @Override
-  //    public Row apply(com.google.bigtable.v2.Row bigtableRow) {
-  //      // The collection of families is represented as a Map of column families.
-  //      // Each column family is represented as a Map of columns.
-  //      // Each column is represented as a List of cells
-  //      // Each cell is represented as a Beam Row consisting of value and timestamp_micros
-  //      Map<String, Map<String, List<Row>>> families = new HashMap<>();
-  //
-  //      for (Family fam : bigtableRow.getFamiliesList()) {
-  //        // Map of column qualifier to list of cells
-  //        Map<String, List<Row>> columns = new HashMap<>();
-  //        for (Column col : fam.getColumnsList()) {
-  //          List<Row> cells = new ArrayList<>();
-  //          for (Cell cell : col.getCellsList()) {
-  //            Row cellRow =
-  //                Row.withSchema(CELL_SCHEMA)
-  //                    .withFieldValue("value", ByteBuffer.wrap(cell.getValue().toByteArray()))
-  //                    .withFieldValue("timestamp_micros", cell.getTimestampMicros())
-  //                    .build();
-  //            cells.add(cellRow);
-  //          }
-  //          columns.put(col.getQualifier().toStringUtf8(), cells);
-  //        }
-  //        families.put(fam.getName(), columns);
-  //      }
-  //      Row beamRow =
-  //          Row.withSchema(ROW_SCHEMA)
-  //              .withFieldValue("key", ByteBuffer.wrap(bigtableRow.getKey().toByteArray()))
-  //              .withFieldValue("column_families", families)
-  //              .build();
-  //      return beamRow;
-  //    }
-  //  }
   /**
    * A {@link DoFn} that converts a Bigtable {@link com.google.bigtable.v2.Row} to a Beam {@link
    * Row}. It supports both a nested representation and a flattened representation where each column
