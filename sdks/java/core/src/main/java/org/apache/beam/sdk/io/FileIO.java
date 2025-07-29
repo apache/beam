@@ -373,8 +373,10 @@ public class FileIO {
   public static MatchAll matchAll() {
     return new AutoValue_FileIO_MatchAll.Builder()
         .setConfiguration(MatchConfiguration.create(EmptyMatchTreatment.ALLOW_IF_WILDCARD))
+            .setAvoidReshuffle(false)
         .build();
   }
+
 
   /**
    * Converts each result of {@link #match} or {@link #matchAll} to a {@link ReadableFile} which can
@@ -677,11 +679,21 @@ public class FileIO {
       abstract Builder setConfiguration(MatchConfiguration configuration);
 
       abstract MatchAll build();
+
+      abstract Builder setAvoidReshuffle(boolean b);
     }
 
     /** Like {@link Match#withConfiguration}. */
     public MatchAll withConfiguration(MatchConfiguration configuration) {
       return toBuilder().setConfiguration(configuration).build();
+    }
+
+    public MatchAll avoidReshuffle() {
+      return toBuilder().setAvoidReshuffle(true).build();
+    }
+
+    public MatchAll withAvoidReshuffle(boolean avoidReshuffle) {
+      return toBuilder().setAvoidReshuffle(avoidReshuffle).build();
     }
 
     /** Like {@link Match#withEmptyMatchTreatment}. */
@@ -723,8 +735,15 @@ public class FileIO {
           res = input.apply(createWatchTransform(new ExtractFilenameFn())).apply(Values.create());
         }
       }
-      return res.apply(Reshuffle.viaRandomKey());
+      // Apply Reshuffle conditionally based on the new flag
+      if (getAvoidReshuffle()) {
+        return res; // No reshuffle
+      } else {
+        return res.apply(Reshuffle.viaRandomKey());
+      }
     }
+
+    public abstract boolean getAvoidReshuffle();
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
