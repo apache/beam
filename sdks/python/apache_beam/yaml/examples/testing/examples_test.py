@@ -119,7 +119,7 @@ def test_kafka_read(
     pcoll,
     topic: Optional[str] = None,
     format: Optional[str] = None,
-    schem: Optional[Any] = None,
+    schema: Optional[Any] = None,
     bootstrap_servers: Optional[str] = None,
     auto_offset_reset_config: Optional[str] = None,
     consumer_config: Optional[Any] = None):
@@ -131,13 +131,15 @@ def test_kafka_read(
 
   Args:
     pcoll: The input PCollection.
-    format: The format of the Kafka messages (e.g., 'RAW').
     topic: The name of Kafka topic to read from.
+    format: The format of the Kafka messages (e.g., 'RAW').
+    schema: The schema of the Kafka messages.
     bootstrap_servers: A list of Kafka bootstrap servers to connect to.
-    auto_offset_reset_config: A configuration for the auto offset reset
-    consumer_config: A dictionary containing additional consumer configurations
+    auto_offset_reset_config: A configuration for the auto offset reset.
+    consumer_config: A map for additional consumer configuration parameters.
+
   Returns:
-    A PCollection containing the sample text data in bytes.
+    A PCollection containing the sample data.
   """
 
   if topic == 'test-topic':
@@ -176,6 +178,9 @@ def test_pubsub_read(
     attributes_map: A string representing a mapping of attributes.
     id_attribute: The attribute to use as the ID for the message.
     timestamp_attribute: The attribute to use as the timestamp for the message.
+
+  Returns:
+    A PCollection containing the sample data.
   """
 
   if topic == 'test-topic':
