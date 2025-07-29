@@ -932,56 +932,12 @@ class YamlProviders:
       # pylint: disable=useless-parent-delegation
       super().__init__()
 
-    def _unify_field_types(self, existing_type, field_type):
-      """Unify two field types, handling Optional and List types."""
-      # Extract inner types from Optional if needed
-      existing_inner = (
-          existing_type.__args__[0] if hasattr(existing_type, '__args__') and
-          len(existing_type.__args__) == 1 else existing_type)
-      field_inner = (
-          field_type.__args__[0] if hasattr(field_type, '__args__') and
-          len(field_type.__args__) == 1 else field_type)
-
-      # Handle type unification more carefully
-      if existing_inner == Any or field_inner == Any:
-        return Optional[Any]
-      elif existing_inner == field_inner:
-        return Optional[existing_inner]
-      else:
-        # Check for list types and prioritize them over other types
-        from apache_beam.typehints import typehints as th
-        existing_is_list = (
-            hasattr(existing_inner, '__origin__') and
-            existing_inner.__origin__ in (list, th.List))
-        field_is_list = (
-            hasattr(field_inner, '__origin__') and
-            field_inner.__origin__ in (list, th.List))
-
-        if existing_is_list and field_is_list:
-          # Both are list types, unify their element types
-          existing_elem = existing_inner.__args__[
-              0] if existing_inner.__args__ else Any
-          field_elem = field_inner.__args__[0] if field_inner.__args__ else Any
-          if existing_elem == field_elem:
-            return Optional[th.List[existing_elem]]
-          else:
-            return Optional[th.List[Any]]
-        elif existing_is_list:
-          # Existing is list, keep it as list type
-          return Optional[existing_inner]
-        elif field_is_list:
-          # New field is list, use list type
-          return Optional[field_inner]
-        else:
-          # Neither is a list, use Any to avoid unsupported Union
-          # types in schema translation
-          return Optional[Any]
-
     def _merge_schemas(self, pcolls):
       """Merge schemas from multiple PCollections to create a unified schema.
-      
+
       This function creates a unified schema that contains all fields from all
       input PCollections. Fields are made optional to handle missing values.
+      If fields have different types, they are unified to Optional[Any].
       """
       from apache_beam.typehints.schemas import named_fields_from_element_type
 
@@ -999,31 +955,27 @@ class YamlProviders:
       if not schemas:
         return None
 
-      # Merge all field names and types, making them optional
-      all_fields = {}
-      for schema in schemas:
-        for field_name, field_type in schema.items():
-          if field_name in all_fields:
-            # If field exists with different type, use Union
-            existing_type = all_fields[field_name]
-            if existing_type != field_type:
-              all_fields[field_name] = self._unify_field_types(
-                  existing_type, field_type)
-          else:
-            # Make field optional since not all PCollections may have it
-            all_fields[field_name] = Optional[field_type]
+      # Merge all field names and types.
+      all_field_names = set().union(*(s.keys() for s in schemas))
+      unified_fields = {}
+      for name in all_field_names:
+        present_types = {s[name] for s in schemas if name in s}
+        if len(present_types) > 1:
+          unified_fields[name] = Optional[Any]
+        else:
+          unified_fields[name] = Optional[present_types.pop()]
 
       # Create unified schema
-      if all_fields:
+      if unified_fields:
         from apache_beam.typehints.schemas import named_fields_to_schema
         from apache_beam.typehints.schemas import named_tuple_from_schema
-        unified_schema = named_fields_to_schema(list(all_fields.items()))
+        unified_schema = named_fields_to_schema(list(unified_fields.items()))
         return named_tuple_from_schema(unified_schema)
 
       return None
 
     def _unify_element_with_schema(self, element, target_schema):
-      """Convert an element to match the target schema, preserving existing 
+      """Convert an element to match the target schema, preserving existing
       fields only."""
       if target_schema is None:
         return element
@@ -1034,6 +986,8 @@ class YamlProviders:
       elif isinstance(element, dict):
         element_dict = element
       else:
+        # This element is not a row, so it can't be unified with a
+        # row schema.
         return element
 
       # Create new element with only the fields that exist in the original
@@ -1045,7 +999,9 @@ class YamlProviders:
           # Ensure the value matches the expected type
           # This is particularly important for list fields
           if value is not None and not isinstance(value, list) and hasattr(
-              value, '__iter__') and not isinstance(value, (str, bytes)):
+              value,
+              '__iter__') and not isinstance(value, (str, bytes)) and not hasattr(
+                  value, '_asdict'):
             # Convert iterables to lists if needed
             unified_dict[field_name] = list(value)
           else:
@@ -1076,7 +1032,7 @@ class YamlProviders:
         # No schema unification needed, use standard flatten
         return pcolls | beam.Flatten(**pipeline_arg)
 
-      # Apply schema unification to each PCollection
+      # Apply schema unification to each PCollection before flattening.
       unified_pcolls = []
       for i, pcoll in enumerate(pcolls):
         unified_pcoll = pcoll | f'UnifySchema{i}' >> beam.Map(
