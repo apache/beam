@@ -45,7 +45,7 @@ bq --location=us-central1 mk \
 ```
 See also [here](
 https://cloud.google.com/bigquery/docs/datasets) for more details on
-how to create BigQuery datasets
+how to create BigQuery datasets.
 
 A trained model hosted on Vertex AI is needed before being able to use
 the Vertex AI model handler. To train and deploy a custom model for the
@@ -60,8 +60,7 @@ remote inference with the Vertex AI model handler and the custom-trained
 model deployed to a Vertex AI endpoint. The inference result is then
 parsed and written to a BigQuery table.
 
-Run the pipeline (replace with appropriate variables in the command
-below):
+Run the pipeline (replace with appropriate variables in the command below):
 
 ```sh
 export PROJECT="$(gcloud config get-value project)"
@@ -71,7 +70,8 @@ export JOB_NAME="streaming-taxiride-prediction`date +%Y%m%d-%H%M%S`"
 export NUM_WORKERS="3"
 
 python -m apache_beam.yaml.main \
-  --yaml_pipeline_file transforms/ml/taxi-fare/streaming_sentiment_analysis.yaml \
+  --yaml_pipeline_file transforms/ml/taxi_fare/streaming_taxifare_prediction.
+  yaml \
   --runner DataflowRunner \
   --temp_location $TEMP_LOCATION \
   --project $PROJECT \

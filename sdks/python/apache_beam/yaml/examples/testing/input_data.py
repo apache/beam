@@ -191,56 +191,48 @@ def pubsub_messages_data():
   ]
 
 
-def pubsub_taxiride_events_data():
+def pubsub_taxi_ride_events_data():
   """
   Provides a list of PubsubMessage objects for testing taxi ride events.
   """
   return [
       PubsubMessage(
-          data=
-          b"{\"ride_id\": \"1\", \"longitude\": 11.0, \"latitude\": -11.0, "
+          data=b"{\"ride_id\": \"1\", \"longitude\": 11.0, \"latitude\": -11.0, "
           b"\"passenger_count\": 1, \"meter_reading\": 100.0, \"timestamp\": "
           b"\"2025-01-01T00:29:00.00000-04:00\", \"ride_status\": \"pickup\"}",
           attributes={}),
       PubsubMessage(
-          data=
-          b"{\"ride_id\": \"2\", \"longitude\": 22.0, \"latitude\": -22.0, "
+          data=b"{\"ride_id\": \"2\", \"longitude\": 22.0, \"latitude\": -22.0, "
           b"\"passenger_count\": 2, \"meter_reading\": 100.0, \"timestamp\": "
           b"\"2025-01-01T00:30:00.00000-04:00\", \"ride_status\": \"pickup\"}",
           attributes={}),
       PubsubMessage(
-          data=
-          b"{\"ride_id\": \"1\", \"longitude\": 13.0, \"latitude\": -13.0, "
+          data=b"{\"ride_id\": \"1\", \"longitude\": 13.0, \"latitude\": -13.0, "
           b"\"passenger_count\": 1, \"meter_reading\": 100.0, \"timestamp\": "
           b"\"2025-01-01T00:31:00.00000-04:00\", \"ride_status\": \"enroute\"}",
           attributes={}),
       PubsubMessage(
-          data=
-          b"{\"ride_id\": \"2\", \"longitude\": 24.0, \"latitude\": -24.0, "
+          data=b"{\"ride_id\": \"2\", \"longitude\": 24.0, \"latitude\": -24.0, "
           b"\"passenger_count\": 2, \"meter_reading\": 100.0, \"timestamp\": "
           b"\"2025-01-01T00:32:00.00000-04:00\", \"ride_status\": \"enroute\"}",
           attributes={}),
       PubsubMessage(
-          data=
-          b"{\"ride_id\": \"3\", \"longitude\": 33.0, \"latitude\": -33.0, "
+          data=b"{\"ride_id\": \"3\", \"longitude\": 33.0, \"latitude\": -33.0, "
           b"\"passenger_count\": 3, \"meter_reading\": 100.0, \"timestamp\": "
           b"\"2025-01-01T00:35:00.00000-04:00\", \"ride_status\": \"enroute\"}",
           attributes={}),
       PubsubMessage(
-          data=
-          b"{\"ride_id\": \"4\", \"longitude\": 44.0, \"latitude\": -44.0, "
+          data=b"{\"ride_id\": \"4\", \"longitude\": 44.0, \"latitude\": -44.0, "
           b"\"passenger_count\": 4, \"meter_reading\": 100.0, \"timestamp\": "
           b"\"2025-01-01T00:35:00.00000-04:00\", \"ride_status\": \"dropoff\"}",
           attributes={}),
       PubsubMessage(
-          data=
-          b"{\"ride_id\": \"1\", \"longitude\": 15.0, \"latitude\": -15.0, "
+          data=b"{\"ride_id\": \"1\", \"longitude\": 15.0, \"latitude\": -15.0, "
           b"\"passenger_count\": 1, \"meter_reading\": 100.0, \"timestamp\": "
           b"\"2025-01-01T00:33:00.00000-04:00\", \"ride_status\": \"dropoff\"}",
           attributes={}),
       PubsubMessage(
-          data=
-          b"{\"ride_id\": \"2\", \"longitude\": 26.0, \"latitude\": -26.0, "
+          data=b"{\"ride_id\": \"2\", \"longitude\": 26.0, \"latitude\": -26.0, "
           b"\"passenger_count\": 2, \"meter_reading\": 100.0, \"timestamp\": "
           b"\"2025-01-01T00:34:00.00000-04:00\", \"ride_status\": \"dropoff\"}",
           attributes={}),
