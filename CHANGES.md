@@ -140,6 +140,7 @@
 * [YAML] Fixed handling of missing optional fields in JSON parsing ([#35179](https://github.com/apache/beam/issues/35179)).
 * [Python] Fix WriteToBigQuery transform using CopyJob does not work with WRITE_TRUNCATE write disposition ([#34247](https://github.com/apache/beam/issues/34247))
 * [Python] Fixed dicomio tags mismatch in integration tests ([#35658](https://github.com/apache/beam/pull/35658)).
+* [Java] Fixed spammy logging issues that affected versions 2.64.0 to 2.66.0.
 
 
 ## Known Issues
@@ -191,6 +192,9 @@
 * (Python) Fixed cloudpickle overwriting class states every time loading a same object of dynamic class ([#35062](https://github.com/apache/beam/issues/35062)).
 * [Python] Fixed pip install apache-beam[interactive] causes crash on google colab ([#35148](https://github.com/apache/beam/pull/35148)).
 * [IcebergIO] Fixed Beam <-> Iceberg conversion logic for arrays of structs and maps of structs ([#35230](https://github.com/apache/beam/pull/35230)).
+
+## Known Issues
+* [Java] Using histogram metrics can cause spammy logs. To mitigate this issue, filter worker startup logs, or upgrade to 2.67.0.
 
 # [2.65.0] - 2025-05-12
 
@@ -246,6 +250,7 @@
 * [Python] GroupIntoBatches may fail in streaming pipelines. This is caused by cloudpickle. To mitigate this issue specify `pickle_library=dill` in pipeline options ([#35062](https://github.com/apache/beam/issues/35062))
 * [Python] vLLM breaks dataflow logging. To mitigate this issue, set the `VLLM_CONFIGURE_LOGGING=0` environment variable in your custom container.
 * [Python] vLLM leaks connections causing a throughput bottleneck and underutilization of GPU. To mitigate this issue increase the number of `number_of_worker_harness_threads`.
+* [Java] Using histogram metrics can cause spammy logs. To mitigate this issue, filter worker startup logs, or upgrade to 2.67.0.
 
 # [2.64.0] - 2025-03-31
 
@@ -290,6 +295,7 @@
 
 * (Java) Current version of protobuf has a [bug](https://github.com/protocolbuffers/protobuf/issues/20599) leading to incompatibilities with clients using older versions of Protobuf ([example issue](https://github.com/GoogleCloudPlatform/DataflowTemplates/issues/2191)). This issue has been seen in SpannerIO in particular. Tracked in [#34452](https://github.com/GoogleCloudPlatform/DataflowTemplates/issues/34452).
 * (Java) When constructing `SpannerConfig` for `SpannerIO`, calling `withHost` with a null or empty host will now result in a Null Pointer Exception (`java.lang.NullPointerException: Cannot invoke "java.lang.CharSequence.length()" because "this.text" is null`). See https://github.com/GoogleCloudPlatform/DataflowTemplates/issues/34489 for context.
+* [Java] Using histogram metrics can cause spammy logs. To mitigate this issue, filter worker startup logs, or upgrade to 2.67.0.
 
 # [2.63.0] - 2025-02-18
 
