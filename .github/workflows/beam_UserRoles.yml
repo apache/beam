@@ -27,7 +27,7 @@ on:
     branches:
       - main
     paths:
-      - 'infra/users.yml'
+      - 'infra/iam/users.yml'
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -52,11 +52,11 @@ jobs:
         with:
           terraform_version: 1.12.2
       - name: Initialize Terraform
-        working-directory: ./infra
+        working-directory: ./infra/iam
         run: terraform init
       - name: Terraform Plan
-        working-directory: ./infra
+        working-directory: ./infra/iam
         run: terraform plan -out=tfplan
       - name: Terraform Apply
-        working-directory: ./infra
+        working-directory: ./infra/iam
         run: terraform apply -auto-approve tfplan
