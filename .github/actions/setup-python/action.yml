@@ -1,0 +1,38 @@
+name: 'Setup Python Environment'
+description: 'Installs Python and caches dependencies'
+inputs:
+  python-version:
+    required: true
+    description: 'Install Python version'
+  python-cache:
+    required: false
+    description: 'Whether to enable Python pip caching'
+    default: true
+  tox-cache:
+    required: false
+    description: 'Whether to enable tox environment caching'
+    default: true
+runs:
+  using: "composite"
+  steps:
+    - name: Install Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+        cache: ${{ inputs.python-cache && 'pip' || 'none' }}
+        cache-dependency-path: |
+          sdks/python/setup.py
+          sdks/python/tox.ini
+
+    - name: Cache tox environments
+      if: ${{ inputs.tox-cache == 'true' }}
+      uses: actions/cache@v4
+      with:
+        path: |
+          sdks/python/target/.tox
+          !sdks/python/target/.tox/**/log
+          !sdks/python/target/.tox/.package_cache
+        key: tox-${{ runner.os }}-py${{ inputs.python-version }}-${{ hashFiles('sdks/python/tox.ini') }}-${{ hashFiles('sdks/python/setup.py') }}
+        restore-keys: |
+          tox-${{ runner.os }}-py${{ inputs.python-version }}-${{ hashFiles('sdks/python/tox.ini') }}-
+          tox-${{ runner.os }}-py${{ inputs.python-version }}-

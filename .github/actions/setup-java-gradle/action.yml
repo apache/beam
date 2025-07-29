@@ -1,0 +1,23 @@
+name: 'Setup Java and Gradle'
+description: 'Installs Java and sets up Gradle for a job'
+inputs:
+  java-version:
+    required: false
+    description: "The Java version to install. Use 'default' for version 11."
+    default: 'default'
+  disable-cache:
+    required: false
+    description: 'Whether to disable the gradle cache'
+    default: false
+runs:
+  using: "composite"
+  steps:
+    - name: Install Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: ${{ inputs.java-version == 'default' && '11' || inputs.java-version }}
+    - name: Setup Gradle
+      uses: gradle/gradle-build-action@v3
+      with:
+        cache-disabled: ${{ inputs.disable-cache }}
