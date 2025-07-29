@@ -25,7 +25,7 @@ runs:
           sdks/python/tox.ini
 
     - name: Cache tox environments
-      if: ${{ inputs.tox-cache == 'true' }}
+      if: ${{ inputs.tox-cache }}
       uses: actions/cache@v4
       with:
         path: |
