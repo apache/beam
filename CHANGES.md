@@ -77,7 +77,11 @@
 ## Breaking Changes
 
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
-* Previously deprecated Beam ZetaSQL component has been removed from new releases ([#34423](https://github.com/apache/beam/issues/34423)).
+* Previously deprecated Beam ZetaSQL component has been removed ([#34423](https://github.com/apache/beam/issues/34423)).
+  ZetaSQL users could migrate to Calcite SQL with BigQuery dialect enabled.
+* Upgraded Beam vendored Calcite to 1.40.0 for Beam SQL ([#35483](https://github.com/apache/beam/issues/35483)), which
+  improves support for BigQuery and other SQL dialects. Note: Minor behavior changes are observed such as output
+  significant digits related to casting.
 
 ## Deprecations
 
