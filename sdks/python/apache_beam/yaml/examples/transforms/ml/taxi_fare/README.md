@@ -66,12 +66,11 @@ Run the pipeline (replace with appropriate variables in the command below):
 export PROJECT="$(gcloud config get-value project)"
 export TEMP_LOCATION="gs://YOUR-BUCKET/tmp"
 export REGION="us-central1"
-export JOB_NAME="streaming-taxiride-prediction`date +%Y%m%d-%H%M%S`"
+export JOB_NAME="streaming-taxifare-prediction`date +%Y%m%d-%H%M%S`"
 export NUM_WORKERS="3"
 
 python -m apache_beam.yaml.main \
-  --yaml_pipeline_file transforms/ml/taxi_fare/streaming_taxifare_prediction.
-  yaml \
+  --yaml_pipeline_file transforms/ml/taxi_fare/streaming_taxifare_prediction.yaml \
   --runner DataflowRunner \
   --temp_location $TEMP_LOCATION \
   --project $PROJECT \

@@ -37,6 +37,7 @@ import yaml
 import apache_beam as beam
 from apache_beam import PCollection
 from apache_beam.examples.snippets.util import assert_matches_stdout
+from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.typehints.row_type import RowTypeConstraint
@@ -45,8 +46,6 @@ from apache_beam.yaml import yaml_provider
 from apache_beam.yaml import yaml_transform
 from apache_beam.yaml.readme_test import TestEnvironment
 from apache_beam.yaml.readme_test import replace_recursive
-from apache_beam.yaml.yaml_ml import ModelHandlerProvider
-from apache_beam.ml.inference.base import ModelHandler, ModelT, ExampleT, PredictionResult
 
 from . import input_data
 
@@ -124,6 +123,22 @@ def test_kafka_read(
     bootstrap_servers: Optional[str] = None,
     auto_offset_reset_config: Optional[str] = None,
     consumer_config: Optional[Any] = None):
+  """
+  Mocks the ReadFromKafka transform for testing purposes.
+
+  This PTransform simulates the behavior of the ReadFromKafka transform by
+  reading from predefined in-memory data based on the Kafka topic argument.
+
+  Args:
+    pcoll: The input PCollection.
+    format: The format of the Kafka messages (e.g., 'RAW').
+    topic: The name of Kafka topic to read from.
+    bootstrap_servers: A list of Kafka bootstrap servers to connect to.
+    auto_offset_reset_config: A configuration for the auto offset reset
+    consumer_config: A dictionary containing additional consumer configurations
+  Returns:
+    A PCollection containing the sample text data in bytes.
+  """
 
   if topic == 'test-topic':
     kafka_byte_messages = KAFKA_TOPICS['test-topic']
@@ -146,6 +161,22 @@ def test_pubsub_read(
     attributes_map: Optional[str] = None,
     id_attribute: Optional[str] = None,
     timestamp_attribute: Optional[str] = None):
+  """
+  Mocks the ReadFromPubSub transform for testing purposes.
+
+  This PTransform simulates the behavior of the ReadFromPubSub transform by
+  reading from predefined in-memory data based on the Pub/Sub topic argument.
+  Args:
+    pcoll: The input PCollection.
+    topic: The name of Pub/Sub topic to read from.
+    subscription: The name of Pub/Sub subscription to read from.
+    format: The format of the Pub/Sub messages (e.g., 'JSON').
+    schema: The schema of the Pub/Sub messages.
+    attributes: A list of attributes to include in the output.
+    attributes_map: A string representing a mapping of attributes.
+    id_attribute: The attribute to use as the ID for the message.
+    timestamp_attribute: The attribute to use as the timestamp for the message.
+  """
 
   if topic == 'test-topic':
     pubsub_messages = PUBSUB_TOPICS['test-topic']
@@ -334,6 +365,11 @@ def create_test_method(
         substr in spec_filename
         for substr in ['deps', 'streaming_sentiment_analysis'])
 
+  def _java_deps_involved(spec_filename):
+    return any(
+        substr in spec_filename
+        for substr in ['java_deps', 'streaming_taxifare_prediction'])
+
   if _python_deps_involved(pipeline_spec_file):
     test_yaml_example = pytest.mark.no_xdist(test_yaml_example)
     test_yaml_example = unittest.skipIf(
@@ -348,7 +384,7 @@ def create_test_method(
         'Github actions environment issue.')(
             test_yaml_example)
 
-  if 'java_deps' in pipeline_spec_file:
+  if _java_deps_involved(pipeline_spec_file):
     test_yaml_example = pytest.mark.xlang_sql_expansion_service(
         test_yaml_example)
     test_yaml_example = unittest.skipIf(
