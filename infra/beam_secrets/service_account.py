@@ -202,38 +202,72 @@ class ServiceAccountManager:
         Args:
             account_id (str): The unique identifier or email of the service account.
             key_id (str): The ID of the key to delete.
+        
+        Raises:
+            exceptions.NotFound: If the key does not exist.
+            exceptions.FailedPrecondition: If the key cannot be deleted due to constraints.
         """
         request = types.DeleteServiceAccountKeyRequest()
         request.name = f"projects/{self.project_id}/serviceAccounts/{account_id}/keys/{key_id}"
 
-        self.client.delete_service_account_key(request=request)
-        logger.info(f"Deleted service account key: {key_id} for account: {account_id}")
-        return
-    
-    def delete_oldest_service_account_key(self, account_id: str) -> Optional[types.ServiceAccountKey]:
+        try:
+            self.client.delete_service_account_key(request=request)
+            logger.info(f"Deleted service account key: {key_id} for account: {account_id}")
+        except exceptions.NotFound:
+            logger.warning(f"Service account key {key_id} not found for account: {account_id} (may have been already deleted)")
+            raise
+        except exceptions.FailedPrecondition as e:
+            logger.warning(f"Failed to delete service account key {key_id} for account: {account_id}. Error: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error deleting service account key {key_id} for account: {account_id}. Error: {e}")
+            raise
+
+    def delete_oldest_service_account_keys(self, account_id: str, max_keys: int = 2) -> List[types.ServiceAccountKey]:
         """
         Deletes the oldest key for the specified service account.
         If no keys exist, returns None.
 
         Args:
             account_id (str): The unique identifier or email of the service account.
+            max_keys (int): The maximum number of keys to keep. Defaults to 2.
         
         Returns:
-            Optional[types.ServiceAccountKey]: The deleted service account key object, or None if no keys exist.
+            List[types.ServiceAccountKey]: A list of service account keys that were deleted.
         """
         keys = self.list_service_account_keys(account_id)
         if not keys:
             logger.info(f"No keys found for service account: {account_id}")
-            return None
+            return []
         
         # Sort keys by creation time (oldest first)
         keys.sort(key=lambda k: k.valid_after_time)
-        oldest_key = keys[0]
 
-        self.delete_service_account_key(account_id, oldest_key.name.split('/')[-1])
-        logger.info(f"Deleted oldest key for service account: {account_id}")
-        return oldest_key
-    
+        # If the number of keys is less than or equal to max_keys, do not delete any keys
+        if len(keys) <= max_keys:
+            logger.info(f"Service account {account_id} has {len(keys)} keys, not deleting any.")
+            return []
+        
+        deleted_keys = []
+        failed_deletions = []
+        while len(keys) > max_keys:
+            oldest_key = keys.pop(0)
+            try:
+                self.delete_service_account_key(account_id, oldest_key.name.split('/')[-1])
+                deleted_keys.append(oldest_key)
+                logger.info(f"Deleted oldest service account key: {oldest_key.name} for account: {account_id}")
+            except (exceptions.NotFound, exceptions.FailedPrecondition) as e:
+                logger.warning(f"Could not delete key {oldest_key.name}: {e}. Continuing with other keys.")
+                failed_deletions.append(oldest_key)
+            except Exception as e:
+                logger.error(f"Unexpected error deleting key {oldest_key.name}: {e}. Stopping deletion process.")
+                break
+
+        if failed_deletions:
+            logger.info(f"Failed to delete {len(failed_deletions)} keys for service account: {account_id}")
+            
+        return deleted_keys
+
     def list_service_account_keys(self, account_id: str) -> List[iam_admin_v1.ServiceAccountKey]:
         """
         Lists all keys for the specified service account.
@@ -251,34 +285,46 @@ class ServiceAccountManager:
         logger.info(f"Listed keys for service account: {account_id}")
         return list(response.keys)
     
-    def test_service_account_key(self, key_data: bytes) -> bool:
+    def test_service_account_key(self, key_data: bytes, max_retries: int = 5, initial_delay: float = 1.0) -> bool:
         """
         Tests if a service account key is valid by attempting to authenticate and make an API call.
+        Includes retry logic to handle key propagation delays.
 
         Args:
             key_data (bytes): The private key data from the service account key.
+            max_retries (int): Maximum number of retry attempts (default: 5).
+            initial_delay (float): Initial delay between retries in seconds (default: 1.0).
         
         Returns:
             bool: True if the key is valid and can authenticate, False otherwise.
         """
         try:
             key_info = json.loads(key_data.decode('utf-8'))
-            
-            credentials = service_account.Credentials.from_service_account_info(
-                key_info,
-                scopes=['https://www.googleapis.com/auth/cloud-platform']
-            )
-            
-            request = Request()
-            credentials.refresh(request)
-            
-            logger.info(f"Service account key is valid and can authenticate")
-            return True
-                
         except json.JSONDecodeError as json_error:
             logger.error(f"Invalid JSON in service account key: {json_error}")
             return False
-        except Exception as auth_error:
-            logger.error(f"Authentication failed with service account key: {auth_error}")
-            return False
+        
+        for attempt in range(max_retries):
+            try:
+                credentials = service_account.Credentials.from_service_account_info(
+                    key_info,
+                    scopes=['https://www.googleapis.com/auth/cloud-platform']
+                )
+                
+                request = Request()
+                credentials.refresh(request)
+                
+                logger.info(f"Service account key is valid and can authenticate")
+                return True
+                    
+            except Exception as auth_error:
+                if attempt < max_retries - 1:  # Don't log on the last attempt
+                    delay = initial_delay * (2 ** attempt)  # Exponential backoff
+                    logger.warning(f"Authentication attempt {attempt + 1} failed (will retry in {delay}s): {auth_error}")
+                    time.sleep(delay)
+                else:
+                    logger.error(f"Authentication failed with service account key after {max_retries} attempts: {auth_error}")
+                    return False
+        
+        return False
     

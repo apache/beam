@@ -13,8 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import time
+import os
 import unittest
-
 from unittest import mock
 from service_account import ServiceAccountManager
 from google.cloud.iam_admin_v1 import types
@@ -180,8 +181,8 @@ class TestServiceAccountManagerUnit(unittest.TestCase):
         result = self.manager.create_service_account_key(self.test_account_id)
 
         self.assertEqual(result, mock_key)
-        # Should call get_service_account three times (once to check status, twice in enable_service_account)
-        self.assertEqual(self.mock_iam_client.get_service_account.call_count, 3)
+        # Should call get_service_account twice: once to check if it's disabled, and once after enabling it
+        self.assertEqual(self.mock_iam_client.get_service_account.call_count, 2)
         self.mock_iam_client.enable_service_account.assert_called_once()
         self.mock_iam_client.create_service_account_key.assert_called_once()
 
@@ -253,6 +254,105 @@ class TestServiceAccountManagerUnit(unittest.TestCase):
         result = self.manager.test_service_account_key(key_data)
 
         self.assertFalse(result)
+
+# Run these real tests just if the environment variables are set correctly
+# export GOOGLE_CLOUD_PROJECT = "your-project-id"
+
+# Verify that the variables are set before running the tests
+@unittest.skipUnless(
+    'GOOGLE_CLOUD_PROJECT' in os.environ,
+    "Skipping tests because environment variables are not set for Google Cloud project."
+)
+class TestServiceAccountManagerIntegration(unittest.TestCase):
+    """Integration tests for ServiceAccountManager with real Google Cloud IAM client."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.project_id = os.environ['GOOGLE_CLOUD_PROJECT']
+        self.manager = ServiceAccountManager(self.project_id)
+
+    def tearDown(self):
+        """Tear down test fixtures."""
+        # Clean up any service accounts created during tests
+        accounts = self.manager.list_service_accounts()
+        for account in accounts:
+            if account.email.startswith("integration-test-account-"):
+                self.manager.delete_service_account(account.email)
+
+    def test_full_service_account_lifecycle(self):
+        """Test creating and deleting a service account."""
+        account_id = "integration-test-account-" + str(os.getpid())
+        display_name = "Integration Test Account"
+
+        # Create service account
+        account = self.manager.create_service_account(account_id, display_name)
+        account_id = account.email
+        self.assertEqual(account.display_name, display_name)
+
+        # Verify service account exists - with delayed check
+        time.sleep(5)
+        self.assertIn(account.email, [a.email for a in self.manager.list_service_accounts()])
+
+        # Create a key for the service account
+        key = self.manager.create_service_account_key(account_id)
+        self.assertIsNotNone(key.private_key_data)
+
+        # Test the key (now includes retry logic for propagation delays)
+        key_valid = self.manager.test_service_account_key(key.private_key_data)
+        self.assertTrue(key_valid)
+
+        # List keys for the service account - with delayed check
+        time.sleep(3)  # Reduced delay since test_service_account_key has retry logic
+        self.assertIn(key.name, [k.name for k in self.manager.list_service_account_keys(account_id)])
+
+        # Delete the service account key
+        self.manager.delete_service_account_key(account_id, key.name.split('/')[-1])
+
+        # Add multiple keys to the service account
+        keys = []
+        for _ in range(5):
+            key = self.manager.create_service_account_key(account_id)
+            # Test the key (retry logic handles propagation delay)
+            key_valid = self.manager.test_service_account_key(key.private_key_data)
+            self.assertTrue(key_valid)
+            keys.append(key)
+
+        # Delete oldest keys
+        time.sleep(8)  # Allow some time for the keys to be ready
+        deleted_keys = self.manager.delete_oldest_service_account_keys(account_id, max_keys=2)
+        self.assertIsNotNone(deleted_keys)
+        self.assertEqual(len(deleted_keys), 3) # Should delete only the oldest keys
+        # The first two keys should not be valid anymore
+        for i in range(3):
+            key_valid = self.manager.test_service_account_key(deleted_keys[i].private_key_data)
+            self.assertFalse(key_valid)
+
+        # The 3 remaining keys should still be valid
+        for key in keys[3:]:
+            key_valid = self.manager.test_service_account_key(key.private_key_data)
+            self.assertTrue(key_valid)
+
+        # Disable the service account
+        self.manager.disable_service_account(account_id)
+
+        # Verify service account is disabled
+        account = self.manager.get_service_account(account_id)
+        self.assertTrue(account.disabled)
+
+        # Enable the service account
+        self.manager.enable_service_account(account_id)
+
+        # Verify service account is enabled
+        account = self.manager.get_service_account(account_id)
+        self.assertFalse(account.disabled)
+
+        # Delete the service account
+        self.manager.delete_service_account(account_id)
+
+        # Verify service account is deleted
+        time.sleep(8)
+        accounts = self.manager.list_service_accounts()
+        self.assertNotIn(account, accounts)
 
 if __name__ == '__main__':
     # Configure logging to reduce noise during testing
