@@ -999,9 +999,8 @@ class YamlProviders:
           # Ensure the value matches the expected type
           # This is particularly important for list fields
           if value is not None and not isinstance(value, list) and hasattr(
-              value,
-              '__iter__') and not isinstance(value, (str, bytes)) and not hasattr(
-                  value, '_asdict'):
+              value, '__iter__') and not isinstance(
+                  value, (str, bytes)) and not hasattr(value, '_asdict'):
             # Convert iterables to lists if needed
             unified_dict[field_name] = list(value)
           else:
