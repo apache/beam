@@ -932,6 +932,18 @@ class _IdentityWindowFn(NonMergingWindowFn):
     return self._window_coder
 
 
+def is_v1_prior_to_v2(v1, v2):
+  if v1 is None:
+    return False
+
+  v1 = tuple(map(int, v1.split('.')[0:3]))
+  v2 = tuple(map(int, v2.split('.')[0:3]))
+  for i in range(min(len(v1), len(v2))):
+    if v1[i] < v2[i]:
+      return True
+  return False
+
+
 def is_compat_version_prior_to(options, breaking_change_version):
   # This function is used in a branch statement to determine whether we should
   # keep the old behavior prior to a breaking change or use the new behavior.
@@ -940,15 +952,8 @@ def is_compat_version_prior_to(options, breaking_change_version):
   update_compatibility_version = options.view_as(
       pipeline_options.StreamingOptions).update_compatibility_version
 
-  if update_compatibility_version is None:
-    return False
-
-  compat_version = tuple(map(int, update_compatibility_version.split('.')[0:3]))
-  change_version = tuple(map(int, breaking_change_version.split('.')[0:3]))
-  for i in range(min(len(compat_version), len(change_version))):
-    if compat_version[i] < change_version[i]:
-      return True
-  return False
+  return is_v1_prior_to_v2(
+      v1=update_compatibility_version, v2=breaking_change_version)
 
 
 def reify_metadata_default_window(

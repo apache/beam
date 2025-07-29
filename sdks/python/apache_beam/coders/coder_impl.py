@@ -50,7 +50,6 @@ from typing import Set
 from typing import Tuple
 from typing import Type
 
-import dill
 import numpy as np
 from fastavro import parse_schema
 from fastavro import schemaless_reader
@@ -58,6 +57,7 @@ from fastavro import schemaless_writer
 
 from apache_beam.coders import observable
 from apache_beam.coders.avro_record import AvroRecord
+from apache_beam.internal import cloudpickle_pickler
 from apache_beam.typehints.schemas import named_tuple_from_schema
 from apache_beam.utils import proto_utils
 from apache_beam.utils import windowed_value
@@ -70,6 +70,11 @@ try:
   import dataclasses
 except ImportError:
   dataclasses = None  # type: ignore
+
+try:
+  import dill
+except ImportError:
+  dill = None  # type: ignore
 
 if TYPE_CHECKING:
   import proto
@@ -354,14 +359,30 @@ NESTED_STATE_TYPE = 104
 _ITERABLE_LIKE_TYPES = set()  # type: Set[Type]
 
 
+def _verify_dill_compat():
+  if not dill:
+    raise RuntimeError("Error importing dill for encoding deterministic" \
+                       "  special dill types. Ensure dill version '0.3.1.1'" \
+                       "  is installed in the execution environment.")
+  if dill.__version__ != "0.3.1.1":
+    raise RuntimeError("Error verifying dill compatibility forencoding " \
+                       "deterministic special dill types. Ensure dill "
+                       "version '0.3.1.1' is installed in the execution " \
+                        "environment. Found dill version '{dill.__version__}")
+
+
 class FastPrimitivesCoderImpl(StreamCoderImpl):
   """For internal use only; no backwards-compatibility guarantees."""
   def __init__(
-      self, fallback_coder_impl, requires_deterministic_step_label=None):
+      self,
+      fallback_coder_impl,
+      requires_deterministic_step_label=None,
+      force_use_dill=False):
     self.fallback_coder_impl = fallback_coder_impl
     self.iterable_coder_impl = IterableCoderImpl(self)
     self.requires_deterministic_step_label = requires_deterministic_step_label
     self.warn_deterministic_fallback = True
+    self.force_use_dill = force_use_dill
 
   @staticmethod
   def register_iterable_like_type(t):
@@ -525,10 +546,20 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
         "please provide a type hint for the input of '%s'" %
         (value, type(value), self.requires_deterministic_step_label))
 
-  def encode_type(self, t, stream):
+  def encode_type_2_66_0(self, t, stream):
+    _verify_dill_compat()
     stream.write(dill.dumps(t), True)
 
+  def encode_type(self, t, stream):
+    if self.force_use_dill:
+      return self.encode_type_2_66_0(t, stream)
+    bs = cloudpickle_pickler.dumps(
+        t, config=cloudpickle_pickler.NO_DYNAMIC_CLASS_TRACKING_CONFIG)
+    stream.write(bs, True)
+
   def decode_type(self, stream):
+    if self.force_use_dill:
+      return _unpickle_type_2_66_0(stream.read_all(True))
     return _unpickle_type(stream.read_all(True))
 
   def decode_from_stream(self, stream, nested):
@@ -589,17 +620,30 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
 _unpickled_types = {}  # type: Dict[bytes, type]
 
 
-def _unpickle_type(bs):
+def _unpickle_type_2_66_0(bs):
   t = _unpickled_types.get(bs, None)
   if t is None:
+    _verify_dill_compat()
     t = _unpickled_types[bs] = dill.loads(bs)
     # Fix unpicklable anonymous named tuples for Python 3.6.
     if t.__base__ is tuple and hasattr(t, '_fields'):
       try:
         pickle.loads(pickle.dumps(t))
       except pickle.PicklingError:
-        t.__reduce__ = lambda self: (_unpickle_named_tuple, (bs, tuple(self)))
+        t.__reduce__ = lambda self: (
+            _unpickle_named_tuple_2_66_0, (bs, tuple(self)))
   return t
+
+
+def _unpickle_named_tuple_2_66_0(bs, items):
+  return _unpickle_type_2_66_0(bs)(*items)
+
+
+def _unpickle_type(bs):
+  if not _unpickled_types.get(bs, None):
+    _unpickled_types[bs] = cloudpickle_pickler.loads(bs)
+
+  return _unpickled_types[bs]
 
 
 def _unpickle_named_tuple(bs, items):
@@ -837,6 +881,7 @@ class IntervalWindowCoderImpl(StreamCoderImpl):
       if IntervalWindow is None:
         from apache_beam.transforms.window import IntervalWindow
     # instantiating with None is not part of the public interface
+    # pylint: disable=too-many-function-args
     typed_value = IntervalWindow(None, None)  # type: ignore[arg-type]
     typed_value._end_micros = (
         1000 * self._to_normal_time(in_.read_bigendian_uint64()))

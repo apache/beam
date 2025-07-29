@@ -918,16 +918,18 @@ class CloudpickleCoder(_PickleCoderBase):
         cloudpickle_pickler.dumps, cloudpickle_pickler.loads)
 
 
-class DeterministicFastPrimitivesCoder(FastCoder):
+class DeterministicFastPrimitivesCoderV2(FastCoder):
   """Throws runtime errors when encoding non-deterministic values."""
   def __init__(self, coder, step_label):
     self._underlying_coder = coder
     self._step_label = step_label
 
   def _create_impl(self):
+
     return coder_impl.FastPrimitivesCoderImpl(
         self._underlying_coder.get_impl(),
-        requires_deterministic_step_label=self._step_label)
+        requires_deterministic_step_label=self._step_label,
+        force_use_dill=False)
 
   def is_deterministic(self):
     # type: () -> bool
@@ -945,6 +947,66 @@ class DeterministicFastPrimitivesCoder(FastCoder):
 
   def to_type_hint(self):
     return Any
+
+  def to_runner_api_parameter(self, context):
+    # type: (Optional[PipelineContext]) -> Tuple[str, Any, Sequence[Coder]]
+    return (
+        python_urns.PICKLED_CODER,
+        google.protobuf.wrappers_pb2.BytesValue(value=serialize_coder(self)),
+        ())
+
+
+class DeterministicFastPrimitivesCoder(FastCoder):
+  """Throws runtime errors when encoding non-deterministic values."""
+  def __init__(self, coder, step_label):
+    self._underlying_coder = coder
+    self._step_label = step_label
+
+  def _create_impl(self):
+    return coder_impl.FastPrimitivesCoderImpl(
+        self._underlying_coder.get_impl(),
+        requires_deterministic_step_label=self._step_label,
+        force_use_dill=True)
+
+  def is_deterministic(self):
+    # type: () -> bool
+    return True
+
+  def is_kv_coder(self):
+    # type: () -> bool
+    return True
+
+  def key_coder(self):
+    return self
+
+  def value_coder(self):
+    return self
+
+  def to_type_hint(self):
+    return Any
+
+
+def _should_force_use_dill(update_compatibility_version):
+  from apache_beam.transforms.util import is_v1_prior_to_v2
+
+  if not is_v1_prior_to_v2(v1=update_compatibility_version, v2="2.67.0"):
+    return False
+
+  try:
+    import dill
+    assert dill.__version__ == "0.3.1.1"
+  except Exception as e:
+    raise RuntimeError("Error using dill for encoding special types. Ensure" \
+                       " dill version '0.3.1.1' is installed in execution and" \
+                      f" runtime environment. Error {e}")
+  return True
+
+
+def _update_compatible_deterministic_fast_primitives_coder(
+    coder, step_label, update_compatibility_version):
+  if _should_force_use_dill(update_compatibility_version):
+    return DeterministicFastPrimitivesCoder(coder, step_label)
+  return DeterministicFastPrimitivesCoderV2(coder, step_label)
 
 
 class FastPrimitivesCoder(FastCoder):
@@ -968,7 +1030,8 @@ class FastPrimitivesCoder(FastCoder):
     if self.is_deterministic():
       return self
     else:
-      return DeterministicFastPrimitivesCoder(self, step_label)
+      return _update_compatible_deterministic_fast_primitives_coder(
+          self, step_label, update_compatibility_version)
 
   def to_type_hint(self):
     return Any
