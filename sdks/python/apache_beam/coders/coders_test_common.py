@@ -34,6 +34,8 @@ from typing import List
 from typing import NamedTuple
 
 import pytest
+from parameterized import param
+from parameterized import parameterized
 
 from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
 from apache_beam.coders import coders
@@ -58,6 +60,7 @@ except ImportError:
   dataclasses = None  # type: ignore
 
 MyNamedTuple = collections.namedtuple('A', ['x', 'y'])  # type: ignore[name-match]
+AnotherNamedTuple = collections.namedtuple('AnotherNamedTuple', ['x', 'y'])
 MyTypedNamedTuple = NamedTuple('MyTypedNamedTuple', [('f1', int), ('f2', str)])
 
 
@@ -230,9 +233,15 @@ class CodersTest(unittest.TestCase):
     coder = coders._MemoizingPickleCoder()
     self.check_coder(coder, *self.test_values)
 
-  def test_deterministic_coder(self):
+  @parameterized.expand([
+      param(compat_version=None),
+      param(compat_version="2.66.0"),
+  ])
+  def test_deterministic_coder(self, compat_version):
     coder = coders.FastPrimitivesCoder()
-    deterministic_coder = coders.DeterministicFastPrimitivesCoder(coder, 'step')
+    deterministic_coder = coder.as_deterministic_coder(
+        step_label="step", update_compatibility_version=compat_version)
+
     self.check_coder(deterministic_coder, *self.test_values_deterministic)
     for v in self.test_values_deterministic:
       self.check_coder(coders.TupleCoder((deterministic_coder, )), (v, ))
@@ -254,8 +263,16 @@ class CodersTest(unittest.TestCase):
 
     self.check_coder(deterministic_coder, test_message.MessageA(field1='value'))
 
+    # Skip this test during cloudpickle. Dill monkey patches the __reduce__
+    # method for anonymous named tuples (MyNamedTuple) which is not pickleable.
+    # Since the test is parameterized the type gets colbbered.
+    if compat_version:
+      self.check_coder(
+          deterministic_coder, [MyNamedTuple(1, 2), MyTypedNamedTuple(1, 'a')])
+
     self.check_coder(
-        deterministic_coder, [MyNamedTuple(1, 2), MyTypedNamedTuple(1, 'a')])
+        deterministic_coder,
+        [AnotherNamedTuple(1, 2), MyTypedNamedTuple(1, 'a')])
 
     if dataclasses is not None:
       self.check_coder(deterministic_coder, FrozenDataClass(1, 2))
@@ -265,9 +282,10 @@ class CodersTest(unittest.TestCase):
       with self.assertRaises(TypeError):
         self.check_coder(
             deterministic_coder, FrozenDataClass(UnFrozenDataClass(1, 2), 3))
-      with self.assertRaises(TypeError):
-        self.check_coder(
-            deterministic_coder, MyNamedTuple(UnFrozenDataClass(1, 2), 3))
+        with self.assertRaises(TypeError):
+          self.check_coder(
+              deterministic_coder,
+              AnotherNamedTuple(UnFrozenDataClass(1, 2), 3))
 
     self.check_coder(deterministic_coder, list(MyEnum))
     self.check_coder(deterministic_coder, list(MyIntEnum))
@@ -610,15 +628,21 @@ class CodersTest(unittest.TestCase):
                 1, (window.IntervalWindow(11, 21), ),
                 PaneInfo(True, False, 1, 2, 3))))
 
-  def test_cross_process_encoding_of_special_types_is_deterministic(self):
+  @parameterized.expand([
+      param(compat_version="2.67.0"),
+      param(compat_version="2.66.0"),
+  ])
+  def test_cross_process_encoding_of_special_types_is_deterministic(
+      self, compat_version):
     """Test cross-process determinism for all special deterministic types"""
 
     if sys.executable is None:
       self.skipTest('No Python interpreter found')
 
+
     # pylint: disable=line-too-long
     script = textwrap.dedent(
-        '''\
+        f'''\
         import pickle
         import sys
         import collections
@@ -626,13 +650,18 @@ class CodersTest(unittest.TestCase):
         import logging
 
         from apache_beam.coders import coders
-        from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
-        from typing import NamedTuple
+        from apache_beam.coders.coders_test_common import MyNamedTuple
+        from apache_beam.coders.coders_test_common import MyTypedNamedTuple
+        from apache_beam.coders.coders_test_common import MyEnum
+        from apache_beam.coders.coders_test_common import MyIntEnum
+        from apache_beam.coders.coders_test_common import MyIntFlag
+        from apache_beam.coders.coders_test_common import MyFlag
+        from apache_beam.coders.coders_test_common import DefinesGetState
+        from apache_beam.coders.coders_test_common import DefinesGetAndSetState
+        from apache_beam.coders.coders_test_common import FrozenDataClass
 
-        try:
-            import dataclasses
-        except ImportError:
-            dataclasses = None
+
+        from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
 
         logging.basicConfig(
             level=logging.INFO,
@@ -640,38 +669,6 @@ class CodersTest(unittest.TestCase):
             stream=sys.stderr,
             force=True
         )
-
-        # Define all the special types that encode_special_deterministic handles
-        MyNamedTuple = collections.namedtuple('A', ['x', 'y'])
-        MyTypedNamedTuple = NamedTuple('MyTypedNamedTuple', [('f1', int), ('f2', str)])
-
-        class MyEnum(enum.Enum):
-            E1 = 5
-            E2 = enum.auto()
-            E3 = 'abc'
-
-        MyIntEnum = enum.IntEnum('MyIntEnum', 'I1 I2 I3')
-        MyIntFlag = enum.IntFlag('MyIntFlag', 'F1 F2 F3')
-        MyFlag = enum.Flag('MyFlag', 'F1 F2 F3')
-
-        if dataclasses is not None:
-            @dataclasses.dataclass(frozen=True)
-            class FrozenDataClass:
-                a: int
-                b: int
-
-        class DefinesGetAndSetState:
-            def __init__(self, value):
-                self.value = value
-
-            def __getstate__(self):
-                return self.value
-
-            def __setstate__(self, value):
-                self.value = value
-
-            def __eq__(self, other):
-                return type(other) is type(self) and other.value == self.value
         
         # Test cases for all special deterministic types
         # NOTE: When this script run in a subprocess the module is considered
@@ -683,26 +680,27 @@ class CodersTest(unittest.TestCase):
             ("named_tuple_simple", MyNamedTuple(1, 2)),
             ("typed_named_tuple", MyTypedNamedTuple(1, 'a')),
             ("named_tuple_list", [MyNamedTuple(1, 2), MyTypedNamedTuple(1, 'a')]),
-            # ("enum_single", MyEnum.E1),
-            # ("enum_list", list(MyEnum)),
-            # ("int_enum_list", list(MyIntEnum)),
-            # ("int_flag_list", list(MyIntFlag)),
-            # ("flag_list", list(MyFlag)),
+            ("enum_single", MyEnum.E1),
+            ("enum_list", list(MyEnum)),
+            ("int_enum_list", list(MyIntEnum)),
+            ("int_flag_list", list(MyIntFlag)),
+            ("flag_list", list(MyFlag)),
             ("getstate_setstate_simple", DefinesGetAndSetState(1)),
             ("getstate_setstate_complex", DefinesGetAndSetState((1, 2, 3))),
             ("getstate_setstate_list", [DefinesGetAndSetState(1), DefinesGetAndSetState((1, 2, 3))]),
         ]
 
-        if dataclasses is not None:
-            test_cases.extend([
-                ("frozen_dataclass", FrozenDataClass(1, 2)),
-                ("frozen_dataclass_list", [FrozenDataClass(1, 2), FrozenDataClass(3, 4)]),
-            ])
-
-        coder = coders.FastPrimitivesCoder()
-        deterministic_coder = coders.DeterministicFastPrimitivesCoder(coder, 'step')
         
-        results = {}
+        test_cases.extend([
+            ("frozen_dataclass", FrozenDataClass(1, 2)),
+            ("frozen_dataclass_list", [FrozenDataClass(1, 2), FrozenDataClass(3, 4)]),
+        ])
+
+        compat_version = "{compat_version}"
+        coder = coders.FastPrimitivesCoder()
+        deterministic_coder = coder.as_deterministic_coder("step", update_compatibility_version=compat_version)
+        
+        results = dict()
         for test_name, value in test_cases:
             try:
                 encoded = deterministic_coder.encode(value)
@@ -730,7 +728,8 @@ class CodersTest(unittest.TestCase):
     results2 = run_subprocess()
 
     coder = coders.FastPrimitivesCoder()
-    deterministic_coder = coders.DeterministicFastPrimitivesCoder(coder, 'step')
+    deterministic_coder = coder.as_deterministic_coder(
+        "step", update_compatibility_version=compat_version)
 
     for test_name in results1:
       data1 = results1[test_name]
