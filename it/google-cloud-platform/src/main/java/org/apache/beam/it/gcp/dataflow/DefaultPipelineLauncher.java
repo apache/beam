@@ -49,9 +49,11 @@ import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricsFilter;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
+import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
@@ -311,6 +313,13 @@ public class DefaultPipelineLauncher extends AbstractPipelineLauncher {
           if (!Strings.isNullOrEmpty(pipelineOptions.getTempLocation())) {
             optionFromConfig.add(
                 String.format("--tempLocation=%s", pipelineOptions.getTempLocation()));
+          }
+          // for snapshot Beam running on runner v2, need to use staged SDK harness
+          if (ReleaseInfo.getReleaseInfo().isDevSdkVersion()
+              && (ExperimentalOptions.hasExperiment(pipelineOptions, "use_runner_v2")
+                  || (!Strings.isNullOrEmpty(options.parameters().get("experiments"))
+                      && options.parameters().get("experiments").contains("use_runner_v2")))) {
+            optionFromConfig.add("--experiments=use_staged_dataflow_worker_jar");
           }
 
           // dataflow runner specific options

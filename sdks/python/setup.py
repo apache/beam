@@ -448,7 +448,7 @@ if __name__ == '__main__':
               'oracledb>=3.1.1'
           ],
           'gcp': [
-              'cachetools>=3.1.0,<6',
+              'cachetools>=3.1.0,<7',
               'google-api-core>=2.0.0,<3',
               'google-apitools>=0.5.31,<0.5.32; python_version <= "3.12"',
               'google-apitools>=0.5.32,<0.5.33; python_version >= "3.13"',
@@ -478,9 +478,7 @@ if __name__ == '__main__':
               # --extra-index-url or --index-url in requirements.txt in
               # Dataflow, which allows installing python packages from private
               # Python repositories in GAR.
-              'keyrings.google-artifactregistry-auth',
-              # tox dependency which doesn't conflict with cachetools<6
-              'tox<4.28.0'
+              'keyrings.google-artifactregistry-auth'
           ],
           'interactive': [
               'facets-overview>=1.1.0,<2',
