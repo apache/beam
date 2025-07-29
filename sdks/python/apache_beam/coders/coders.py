@@ -180,7 +180,8 @@ class Coder(object):
     """
     return False
 
-  def as_deterministic_coder(self, step_label, error_message=None):
+  def as_deterministic_coder(
+      self, step_label, error_message=None, update_compatibility_version=None):
     """Returns a deterministic version of self, if possible.
 
     Otherwise raises a value error.
@@ -531,10 +532,13 @@ class MapCoder(FastCoder):
     # Map ordering is non-deterministic
     return False
 
-  def as_deterministic_coder(self, step_label, error_message=None):
+  def as_deterministic_coder(
+      self, step_label, error_message=None, update_compatibility_version=None):
     return DeterministicMapCoder(
-        self._key_coder.as_deterministic_coder(step_label, error_message),
-        self._value_coder.as_deterministic_coder(step_label, error_message))
+        self._key_coder.as_deterministic_coder(
+            step_label, error_message, update_compatibility_version),
+        self._value_coder.as_deterministic_coder(
+            step_label, error_message, update_compatibility_version))
 
   def __eq__(self, other):
     return (
@@ -609,12 +613,13 @@ class NullableCoder(FastCoder):
     # type: () -> bool
     return self._value_coder.is_deterministic()
 
-  def as_deterministic_coder(self, step_label, error_message=None):
+  def as_deterministic_coder(
+      self, step_label, error_message=None, update_compatibility_version=None):
     if self.is_deterministic():
       return self
     else:
       deterministic_value_coder = self._value_coder.as_deterministic_coder(
-          step_label, error_message)
+          step_label, error_message, update_compatibility_version)
       return NullableCoder(deterministic_value_coder)
 
   def __eq__(self, other):
@@ -876,7 +881,8 @@ class _MemoizingPickleCoder(_PickleCoderBase):
 
     return coder_impl.CallbackCoderImpl(_nonhashable_dumps, pickler.loads)
 
-  def as_deterministic_coder(self, step_label, error_message=None):
+  def as_deterministic_coder(
+      self, step_label, error_message=None, update_compatibility_version=None):
     return FastPrimitivesCoder(self, requires_deterministic=step_label)
 
   def to_type_hint(self):
@@ -891,7 +897,8 @@ class PickleCoder(_PickleCoderBase):
     return coder_impl.CallbackCoderImpl(
         lambda x: dumps(x, protocol), pickle.loads)
 
-  def as_deterministic_coder(self, step_label, error_message=None):
+  def as_deterministic_coder(
+      self, step_label, error_message=None, update_compatibility_version=None):
     return FastPrimitivesCoder(self, requires_deterministic=step_label)
 
   def to_type_hint(self):
@@ -956,7 +963,8 @@ class FastPrimitivesCoder(FastCoder):
     # type: () -> bool
     return self._fallback_coder.is_deterministic()
 
-  def as_deterministic_coder(self, step_label, error_message=None):
+  def as_deterministic_coder(
+      self, step_label, error_message=None, update_compatibility_version=None):
     if self.is_deterministic():
       return self
     else:
@@ -1055,7 +1063,8 @@ class ProtoCoder(FastCoder):
     # a Map.
     return False
 
-  def as_deterministic_coder(self, step_label, error_message=None):
+  def as_deterministic_coder(
+      self, step_label, error_message=None, update_compatibility_version=None):
     return DeterministicProtoCoder(self.proto_message_type)
 
   def __eq__(self, other):
@@ -1101,7 +1110,8 @@ class DeterministicProtoCoder(ProtoCoder):
     # type: () -> bool
     return True
 
-  def as_deterministic_coder(self, step_label, error_message=None):
+  def as_deterministic_coder(
+      self, step_label, error_message=None, update_compatibility_version=None):
     return self
 
 
@@ -1188,12 +1198,14 @@ class TupleCoder(FastCoder):
     # type: () -> bool
     return all(c.is_deterministic() for c in self._coders)
 
-  def as_deterministic_coder(self, step_label, error_message=None):
+  def as_deterministic_coder(
+      self, step_label, error_message=None, update_compatibility_version=None):
     if self.is_deterministic():
       return self
     else:
       return TupleCoder([
-          c.as_deterministic_coder(step_label, error_message)
+          c.as_deterministic_coder(
+              step_label, error_message, update_compatibility_version)
           for c in self._coders
       ])
 
@@ -1267,12 +1279,14 @@ class TupleSequenceCoder(FastCoder):
     # type: () -> bool
     return self._elem_coder.is_deterministic()
 
-  def as_deterministic_coder(self, step_label, error_message=None):
+  def as_deterministic_coder(
+      self, step_label, error_message=None, update_compatibility_version=None):
     if self.is_deterministic():
       return self
     else:
       return TupleSequenceCoder(
-          self._elem_coder.as_deterministic_coder(step_label, error_message))
+          self._elem_coder.as_deterministic_coder(
+              step_label, error_message, update_compatibility_version))
 
   @classmethod
   def from_type_hint(cls, typehint, registry):
@@ -1307,12 +1321,14 @@ class ListLikeCoder(FastCoder):
     # type: () -> bool
     return self._elem_coder.is_deterministic()
 
-  def as_deterministic_coder(self, step_label, error_message=None):
+  def as_deterministic_coder(
+      self, step_label, error_message=None, update_compatibility_version=None):
     if self.is_deterministic():
       return self
     else:
       return type(self)(
-          self._elem_coder.as_deterministic_coder(step_label, error_message))
+          self._elem_coder.as_deterministic_coder(
+              step_label, error_message, update_compatibility_version))
 
   def value_coder(self):
     return self._elem_coder
