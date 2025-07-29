@@ -16,6 +16,7 @@
 #
 
 """This module defines yaml wrappings for some ML transforms."""
+import logging
 import pkgutil
 from collections.abc import Callable
 from importlib import import_module
@@ -50,11 +51,16 @@ try:
   from apache_beam.ml.transforms.base import MLTransform
   # TODO(robertwb): Is this all of them?
   _transform_constructors = {}
-  for module_name in list_submodules(beam.ml.transforms):
-    module = import_module(module_name)
-    _transform_constructors |= module.__dict__
 except ImportError:
   tft = None  # type: ignore
+
+# Load all available ML Transform modules
+for module_name in list_submodules(beam.ml.transforms):
+  try:
+    module = import_module(module_name)
+    _transform_constructors |= module.__dict__
+  except ImportError as e:
+    logging.warning('Could not load ML transform module %s: %s', module_name, e)
 
 
 class ModelHandlerProvider:
