@@ -258,8 +258,8 @@ public class BigtableReadSchemaTransformProviderIT {
       expectedRows.add(
           Row.withSchema(FLATTENED_ROW_SCHEMA)
               .withFieldValue("key", keyBytes)
-              .withFieldValue("family", COLUMN_FAMILY_NAME_1)
-              .withFieldValue("qualifier", "a")
+              .withFieldValue("family_name", COLUMN_FAMILY_NAME_1)
+              .withFieldValue("column_qualifier", "a")
               .withFieldValue(
                   "cells",
                   Arrays.asList(
@@ -272,8 +272,8 @@ public class BigtableReadSchemaTransformProviderIT {
       expectedRows.add(
           Row.withSchema(FLATTENED_ROW_SCHEMA)
               .withFieldValue("key", keyBytes)
-              .withFieldValue("family", COLUMN_FAMILY_NAME_1)
-              .withFieldValue("qualifier", "b")
+              .withFieldValue("family_name", COLUMN_FAMILY_NAME_1)
+              .withFieldValue("column_qualifier", "b")
               .withFieldValue(
                   "cells",
                   Arrays.asList(
@@ -286,8 +286,8 @@ public class BigtableReadSchemaTransformProviderIT {
       expectedRows.add(
           Row.withSchema(FLATTENED_ROW_SCHEMA)
               .withFieldValue("key", keyBytes)
-              .withFieldValue("family", COLUMN_FAMILY_NAME_2)
-              .withFieldValue("qualifier", "c")
+              .withFieldValue("family_name", COLUMN_FAMILY_NAME_2)
+              .withFieldValue("column_qualifier", "c")
               .withFieldValue(
                   "cells",
                   Arrays.asList(
@@ -300,8 +300,8 @@ public class BigtableReadSchemaTransformProviderIT {
       expectedRows.add(
           Row.withSchema(FLATTENED_ROW_SCHEMA)
               .withFieldValue("key", keyBytes)
-              .withFieldValue("family", COLUMN_FAMILY_NAME_2)
-              .withFieldValue("qualifier", "d")
+              .withFieldValue("family_name", COLUMN_FAMILY_NAME_2)
+              .withFieldValue("column_qualifier", "d")
               .withFieldValue(
                   "cells",
                   Arrays.asList(
