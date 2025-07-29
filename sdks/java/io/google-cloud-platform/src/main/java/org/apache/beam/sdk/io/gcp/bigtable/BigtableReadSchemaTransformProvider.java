@@ -189,25 +189,35 @@ public class BigtableReadSchemaTransformProvider
       this.configuration = configuration;
     }
 
+    private List<Row> convertCells(List<Cell> bigtableCells) {
+      List<Row> beamCells = new ArrayList<>();
+      for (Cell cell : bigtableCells) {
+        Row cellRow =
+            Row.withSchema(CELL_SCHEMA)
+                .withFieldValue("value", cell.getValue().toByteArray())
+                .withFieldValue("timestamp_micros", cell.getTimestampMicros())
+                .build();
+        beamCells.add(cellRow);
+      }
+      return beamCells;
+    }
+
     @ProcessElement
     public void processElement(
         @Element com.google.bigtable.v2.Row bigtableRow, OutputReceiver<Row> out) {
       // The builder defaults flatten to true. We check for an explicit false setting to disable it.
+
       if (Boolean.FALSE.equals(configuration.getFlatten())) {
         // Non-flattening logic (original behavior): one output row per Bigtable row.
         Map<String, Map<String, List<Row>>> families = new HashMap<>();
         for (Family fam : bigtableRow.getFamiliesList()) {
           Map<String, List<Row>> columns = new HashMap<>();
           for (Column col : fam.getColumnsList()) {
-            List<Row> cells = new ArrayList<>();
-            for (Cell cell : col.getCellsList()) {
-              Row cellRow =
-                  Row.withSchema(CELL_SCHEMA)
-                      .withFieldValue("value", cell.getValue().toByteArray())
-                      .withFieldValue("timestamp_micros", cell.getTimestampMicros())
-                      .build();
-              cells.add(cellRow);
-            }
+
+            List<Cell> bigTableCells = col.getCellsList();
+
+            List<Row> cells = convertCells(bigTableCells);
+
             columns.put(col.getQualifier().toStringUtf8(), cells);
           }
           families.put(fam.getName(), columns);

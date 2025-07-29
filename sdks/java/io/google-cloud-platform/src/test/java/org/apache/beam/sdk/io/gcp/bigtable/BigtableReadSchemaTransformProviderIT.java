@@ -221,8 +221,6 @@ public class BigtableReadSchemaTransformProviderIT {
 
     PCollection<Row> rows = PCollectionRowTuple.empty(p).apply(transform).get("output");
 
-    LOG.info("This is the rows: " + rows);
-
     PAssert.that(rows).containsInAnyOrder(expectedRows);
     p.run().waitUntilFinish();
   }
