@@ -30,17 +30,15 @@ import apache_beam as beam
 from apache_beam.transforms.util import WaitOn
 
 # Example 1: Basic usage
-  with beam.Pipeline(options=pipeline_options) as p:
-    main = p | 'CreateMain' >> beam.Create([1, 2, 3])
-    signal = (
-        p | 'CreateSignal' >> beam.Create(['a', 'b'])
-        | 'ProcessSignal' >> beam.Map(lambda x: print(f"Processing signal element: {x}") or time.sleep(2)))
-
-    # Wait for 'signal' to complete before processing 'main'
-    result = main | 'WaitOnSignal' >> WaitOn(signal)
-
-    # Print each result to logs.
-    result | 'PrintExample1' >> beam.Map(lambda x: print(f"Example 1 Final Output: {x}"))
+with beam.Pipeline(options=pipeline_options) as p:
+  main = p | 'CreateMain' >> beam.Create([1, 2, 3])
+  signal = (
+      p | 'CreateSignal' >> beam.Create(['a', 'b'])
+      | 'ProcessSignal' >> beam.Map(lambda x: print(f"Processing signal element: {x}") or time.sleep(2)))
+  # Wait for 'signal' to complete before processing 'main'
+  result = main | 'WaitOnSignal' >> WaitOn(signal)
+  # Print each result to logs.
+  result | 'PrintExample1' >> beam.Map(lambda x: print(f"Example 1 Final Output: {x}"))
 
 # Example 2: Using multiple signals
   with beam.Pipeline(options=pipeline_options) as p:
