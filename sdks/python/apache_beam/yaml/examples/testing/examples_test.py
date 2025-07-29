@@ -37,7 +37,6 @@ import yaml
 import apache_beam as beam
 from apache_beam import PCollection
 from apache_beam.examples.snippets.util import assert_matches_stdout
-from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.typehints.row_type import RowTypeConstraint
@@ -46,6 +45,8 @@ from apache_beam.yaml import yaml_provider
 from apache_beam.yaml import yaml_transform
 from apache_beam.yaml.readme_test import TestEnvironment
 from apache_beam.yaml.readme_test import replace_recursive
+from apache_beam.yaml.yaml_ml import ModelHandlerProvider
+from apache_beam.ml.inference.base import ModelHandler, ModelT, ExampleT, PredictionResult
 
 from . import input_data
 
@@ -117,31 +118,21 @@ def test_enrichment(
 @beam.ptransform.ptransform_fn
 def test_kafka_read(
     pcoll,
-    format,
-    topic,
-    bootstrap_servers,
-    auto_offset_reset_config,
-    consumer_config):
-  """
-  This PTransform simulates the behavior of the ReadFromKafka transform
-  with the RAW format by simply using some fixed sample text data and
-  encode it to raw bytes.
+    topic: Optional[str] = None,
+    format: Optional[str] = None,
+    schem: Optional[Any] = None,
+    bootstrap_servers: Optional[str] = None,
+    auto_offset_reset_config: Optional[str] = None,
+    consumer_config: Optional[Any] = None):
 
-  Args:
-    pcoll: The input PCollection.
-    format: The format of the Kafka messages (e.g., 'RAW').
-    topic: The name of Kafka topic to read from.
-    bootstrap_servers: A list of Kafka bootstrap servers to connect to.
-    auto_offset_reset_config: A configuration for the auto offset reset
-    consumer_config: A dictionary containing additional consumer configurations
+  if topic == 'test-topic':
+    kafka_byte_messages = KAFKA_TOPICS['test-topic']
+    return (
+        pcoll
+        | beam.Create([msg.decode('utf-8') for msg in kafka_byte_messages])
+        | beam.Map(lambda element: beam.Row(payload=element.encode('utf-8'))))
 
-  Returns:
-    A PCollection containing the sample text data in bytes.
-  """
-
-  return (
-      pcoll | beam.Create(input_data.text_data().split('\n'))
-      | beam.Map(lambda element: beam.Row(payload=element.encode('utf-8'))))
+  return None
 
 
 @beam.ptransform.ptransform_fn
@@ -156,13 +147,88 @@ def test_pubsub_read(
     id_attribute: Optional[str] = None,
     timestamp_attribute: Optional[str] = None):
 
-  pubsub_messages = input_data.pubsub_messages_data()
+  if topic == 'test-topic':
+    pubsub_messages = PUBSUB_TOPICS['test-topic']
+    return (
+        pcoll
+        | beam.Create([json.loads(msg.data) for msg in pubsub_messages])
+        | beam.Map(lambda element: beam.Row(**element))
+    )
+  elif topic == 'taxi-ride-topic':
+    pubsub_messages = PUBSUB_TOPICS['taxi-ride-topic']
+    schema = input_data.TaxiRideEventSchema
+    return (
+        pcoll
+        | beam.Create([json.loads(msg.data) for msg in pubsub_messages])
+        | beam.Map(lambda element: beam.Row(**element))
+            .with_output_types(schema)
+    )
 
-  return (
-      pcoll
-      | beam.Create([json.loads(msg.data) for msg in pubsub_messages])
-      | beam.Map(lambda element: beam.Row(**element)))
+  return None
 
+
+# @ModelHandlerProvider.register_handler_type('TestTaxiFareModelHandler')
+# class TestTaxiFareModelHandlerProvider(ModelHandlerProvider):
+#   class _TestTaxiFareModelHandler(ModelHandler):
+#     def __init__(self, *args, **kwargs):
+#       """
+#         A mock implementation of Vertex AI model handler for testing purposes.
+#         This handler simulates a taxi fare prediction model deployed on a Vertex AI endpoint.
+#       """
+#       pass
+#
+#     def load_model(self) -> ModelT:
+#       pass
+#
+#     def run_inference(
+#         self,
+#         batch: Sequence[ExampleT],
+#         model: ModelT,
+#         inference_args: Optional[dict[str, Any]] = None
+#     ) -> Iterable[PredictionResult]:
+#       """
+#       Simulates a prediction by returning a fixed fare for each ride.
+#       """
+#       return [PredictionResult(row, 10.0, '123') for row in batch]
+#
+#   def __init__(
+#       self,
+#       endpoint_id: str,
+#       project: str,
+#       location: str,
+#       preprocess: dict[str, str],
+#       postprocess: Optional[dict[str, str]] = None,
+#       experiment: Optional[str] = None,
+#       network: Optional[str] = None,
+#       private: bool = False,
+#       min_batch_size: Optional[int] = None,
+#       max_batch_size: Optional[int] = None,
+#       max_batch_duration_secs: Optional[int] = None):
+#     """
+#     A mock Vertex AI model handler for testing purposes.
+#     Most arguments, aside from `preprocess` and `postprocess`, are ignored
+#     since this is a mock model handler that does not actually connect to
+#     a Vertex AI endpoint.
+#     """
+#     _handler = self._TestTaxiFareModelHandler(
+#         endpoint_id,
+#         project,
+#         location,
+#         experiment,
+#         network,
+#         private,
+#         min_batch_size,
+#         max_batch_size,
+#         max_batch_duration_secs)
+#     super().__init__(_handler, preprocess, postprocess)
+#
+#   @staticmethod
+#   def validate(model_handler_spec):
+#     pass
+#
+#   def inference_output_type(self):
+#     return RowTypeConstraint.from_fields([('example', Any), ('inference', Any),
+#                                           ('model_id', Optional[str])])
 
 @beam.ptransform.ptransform_fn
 def test_run_inference(pcoll, inference_tag, model_handler):
@@ -181,14 +247,10 @@ def test_run_inference(pcoll, inference_tag, model_handler):
     input = row._asdict()
 
     row = {
-        inference_tag: PredictionResult(
-            input['comment_text'],
-            [{
-                'label': 'POSITIVE'
-                if 'happy' in input['comment_text'] else 'NEGATIVE',
-                'score': 0.95
-            }]),
-        **input
+      inference_tag: PredictionResult(
+        input,
+        10.0),
+      **input
     }
 
     return beam.Row(**row)
@@ -198,12 +260,54 @@ def test_run_inference(pcoll, inference_tag, model_handler):
                         for (name,
                              typ) in user_type._fields] if user_type else []
   inference_output_type = RowTypeConstraint.from_fields([
-      ('example', Any), ('inference', Any), ('model_id', Optional[str])
+    ('example', Any), ('inference', Any), ('model_id', Optional[str])
   ])
   schema = RowTypeConstraint.from_fields(
-      user_schema_fields + [(str(inference_tag), inference_output_type)])
+    user_schema_fields + [(str(inference_tag), inference_output_type)])
 
   return pcoll | beam.Map(_fn).with_output_types(schema)
+
+
+# @beam.ptransform.ptransform_fn
+# def test_run_inference(pcoll, inference_tag, model_handler):
+#   """
+#   This PTransform simulates the behavior of the RunInference transform.
+#
+#   Args:
+#     pcoll: The input PCollection.
+#     inference_tag: The tag to use for the returned inference.
+#     model_handler: A configuration for the respective ML model handler
+#
+#   Returns:
+#     A PCollection containing the enriched data.
+#   """
+#   def _fn(row):
+#     input = row._asdict()
+#
+#     row = {
+#         inference_tag: PredictionResult(
+#             input['comment_text'],
+#             [{
+#                 'label': 'POSITIVE'
+#                 if 'happy' in input['comment_text'] else 'NEGATIVE',
+#                 'score': 0.95
+#             }]),
+#         **input
+#     }
+#
+#     return beam.Row(**row)
+#
+#   user_type = RowTypeConstraint.from_user_type(pcoll.element_type.user_type)
+#   user_schema_fields = [(name, type(typ) if not isinstance(typ, type) else typ)
+#                         for (name,
+#                              typ) in user_type._fields] if user_type else []
+#   inference_output_type = RowTypeConstraint.from_fields([
+#       ('example', Any), ('inference', Any), ('model_id', Optional[str])
+#   ])
+#   schema = RowTypeConstraint.from_fields(
+#       user_schema_fields + [(str(inference_tag), inference_output_type)])
+#
+#   return pcoll | beam.Map(_fn).with_output_types(schema)
 
 
 TEST_PROVIDERS = {
@@ -500,6 +604,7 @@ def _kafka_test_preprocessor(
     for transform in pipeline.get('transforms', []):
       if transform.get('type', '') == 'ReadFromKafka':
         transform['type'] = 'TestReadFromKafka'
+        transform['config']['topic'] = 'test-topic'
 
   return test_spec
 
@@ -525,8 +630,7 @@ def _kafka_test_preprocessor(
     'test_oracle_to_bigquery_yaml',
     'test_mysql_to_bigquery_yaml',
     'test_spanner_to_bigquery_yaml',
-    'test_streaming_sentiment_analysis_yaml',
-    'test_enrich_spanner_with_bigquery_yaml'
+    'test_streaming_sentiment_analysis_yaml'
 ])
 def _io_write_test_preprocessor(
     test_spec: dict, expected: List[str], env: TestEnvironment):
@@ -740,6 +844,7 @@ def _pubsub_io_read_test_preprocessor(
     for transform in pipeline.get('transforms', []):
       if transform.get('type', '') == 'ReadFromPubSub':
         transform['type'] = 'TestReadFromPubSub'
+        transform['config']['topic'] = 'test-topic'
 
   return test_spec
 
@@ -909,10 +1014,99 @@ def _streaming_sentiment_analysis_test_preprocessor(
   return test_spec
 
 
+@YamlExamplesTestSuite.register_test_preprocessor(
+    'test_streaming_taxifare_prediction_yaml')
+def _streaming_taxifare_prediction_test_preprocessor(
+    test_spec: dict, expected: List[str], env: TestEnvironment):
+  """
+  Preprocessor for tests that involve the streaming sentiment analysis example.
+
+  This preprocessor replaces several IO transforms and the RunInference transform.
+  This allows the test to verify the pipeline's correctness without relying on
+  external data sources and the model hosted on VertexAI.
+
+  Args:
+    test_spec: The dictionary representation of the YAML pipeline specification.
+    expected: A list of strings representing the expected output of the
+      pipeline.
+    env: The TestEnvironment object providing utilities for creating temporary
+      files.
+
+  Returns:
+    The modified test_spec dictionary with several involved IO transforms and
+    the RunInference transform replaced.
+  """
+
+  if pipeline := test_spec.get('pipeline', None):
+    for transform in pipeline.get('transforms', []):
+      if transform.get('type', '') == 'ReadFromPubSub':
+        transform['type'] = 'TestReadFromPubSub'
+        transform['config']['topic'] = 'taxi-ride-topic'
+
+      if transform.get('type', '') == 'WriteToKafka':
+        transform['type'] = 'MapToFields'
+        transform['config'] = {
+            k: v
+            for (k, v) in transform.get('config', {}).items()
+            if k.startswith('__')
+        }
+        transform['config']['fields'] = {
+            'ride_id': 'ride_id',
+            'pickup_longitude': 'pickup_longitude',
+            'pickup_latitude': 'pickup_latitude',
+            'pickup_datetime': 'pickup_datetime',
+            'dropoff_longitude': 'dropoff_longitude',
+            'dropoff_latitude': 'dropoff_latitude',
+            'passenger_count': 'passenger_count',
+        }
+
+      if transform.get('type', '') == 'ReadFromKafka':
+        transform['type'] = 'MapToFields'
+        transform['config'] = {
+            k: v
+            for (k, v) in transform.get('config', {}).items()
+            if k.startswith('__')
+        }
+        transform['input'] = 'WriteKafka'
+        transform['config']['fields'] = {
+          'ride_id': 'ride_id',
+          'pickup_longitude': 'pickup_longitude',
+          'pickup_latitude': 'pickup_latitude',
+          'pickup_datetime': 'pickup_datetime',
+          'dropoff_longitude': 'dropoff_longitude',
+          'dropoff_latitude': 'dropoff_latitude',
+          'passenger_count': 'passenger_count',
+        }
+
+      if transform.get('type', '') == 'WriteToBigQuery':
+        transform['type'] = 'LogForTesting'
+        transform['config'] = {
+          k: v
+          for (k, v) in transform.get('config', {}).items()
+          if (k.startswith('__') or k == 'error_handling')
+        }
+
+      if transform.get('type', '') == 'RunInference':
+        transform['type'] = 'TestRunInference'
+        # transform['config']['model_handler'][
+        #     'type'] = 'TestTaxiFareModelHandler'
+
+  return test_spec
+
+
 INPUT_FILES = {
     'products.csv': input_data.products_csv(),
     'kinglear.txt': input_data.text_data(),
     'youtube-comments.csv': input_data.youtube_comments_csv()
+}
+
+KAFKA_TOPICS = {
+    'test-topic': input_data.kafka_messages_data(),
+}
+
+PUBSUB_TOPICS = {
+    'test-topic': input_data.pubsub_messages_data(),
+    'taxi-ride-topic': input_data.pubsub_taxiride_events_data()
 }
 
 INPUT_TABLES = {

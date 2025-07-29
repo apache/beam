@@ -174,6 +174,7 @@ pipeline:
           dropoff_longitude: dropoff_longitude
           dropoff_latitude: dropoff_latitude
           passenger_count: passenger_count
+          pickup_datetime: pickup_datetime
           pickup_datetime_year:
             callable: |
               from datetime import datetime
@@ -242,6 +243,9 @@ pipeline:
           pickup_latitude:
             expression: pickup_latitude
             output_type: number
+          pickup_datetime:
+            expression: pickup_datetime
+            output_type: string
           dropoff_longitude:
             expression: dropoff_longitude
             output_type: number
@@ -266,3 +270,7 @@ pipeline:
 
 options:
   yaml_experimental_features: ML
+
+# Expected:
+#  Row(ride_id='1', pickup_longitude=11.0, pickup_latitude=-11.0, pickup_datetime='2025-01-01T00:29:00.00000-04:00', dropoff_longitude=15.0, dropoff_latitude=-15.0, passenger_count=1, predicted_fare_amount=10.0)
+#  Row(ride_id='2', pickup_longitude=22.0, pickup_latitude=-22.0, pickup_datetime='2025-01-01T00:30:00.00000-04:00', dropoff_longitude=26.0, dropoff_latitude=-26.0, passenger_count=2, predicted_fare_amount=10.0)
