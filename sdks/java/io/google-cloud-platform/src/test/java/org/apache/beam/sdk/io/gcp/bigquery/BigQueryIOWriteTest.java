@@ -1452,9 +1452,19 @@ public class BigQueryIOWriteTest implements Serializable {
       assumeTrue(!useStorageApiApproximate);
       assumeTrue(useStreaming);
     }
+    TableSchema tableSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("number").setType("INTEGER"),
+                    // Make sure to exercise the name override by specifying an illegal proto field
+                    // name.
+                    new TableFieldSchema().setName("123_number").setType("INTEGER")));
+
     List<TableRow> elements = Lists.newArrayList();
     for (int i = 0; i < 30; ++i) {
-      elements.add(new TableRow().set("number", String.valueOf(i)));
+      String value = String.valueOf(i);
+      elements.add(new TableRow().set("number", value).set("123_number", value));
     }
 
     TestStream<TableRow> testStream =
@@ -1473,11 +1483,7 @@ public class BigQueryIOWriteTest implements Serializable {
         BigQueryIO.writeTableRows()
             .to("project-id:dataset-id.table-id")
             .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-            .withSchema(
-                new TableSchema()
-                    .setFields(
-                        ImmutableList.of(
-                            new TableFieldSchema().setName("number").setType("INTEGER"))))
+            .withSchema(tableSchema)
             .withTestServices(fakeBqServices)
             .withoutValidation();
 
@@ -2398,7 +2404,8 @@ public class BigQueryIOWriteTest implements Serializable {
                     new TableFieldSchema().setName("name").setType("STRING"),
                     new TableFieldSchema().setName("number").setType("INTEGER"),
                     new TableFieldSchema().setName("req").setType("STRING"),
-                    new TableFieldSchema().setName("double_number").setType("INTEGER")));
+                    new TableFieldSchema().setName("double_number").setType("INTEGER"),
+                    new TableFieldSchema().setName("12_special_name").setType("STRING")));
     fakeDatasetService.createTable(new Table().setTableReference(tableRef).setSchema(tableSchema));
 
     LongFunction<TableRow> getRowSet =
@@ -2408,7 +2415,8 @@ public class BigQueryIOWriteTest implements Serializable {
                   new TableRow()
                       .set("name", "name" + i)
                       .set("number", Long.toString(i))
-                      .set("double_number", Long.toString(i * 2));
+                      .set("double_number", Long.toString(i * 2))
+                      .set("12_special_name", "name" + i);
               if (i <= 5) {
                 row = row.set("req", "foo");
               }
@@ -2424,7 +2432,8 @@ public class BigQueryIOWriteTest implements Serializable {
                             new TableCell().setV(Long.toString(i)),
                             new TableCell().setV("name" + i),
                             new TableCell().setV(i > 5 ? null : "foo"),
-                            new TableCell().setV(Long.toString(i * 2))));
+                            new TableCell().setV(Long.toString(i * 2)),
+                            new TableCell().setV("name" + i)));
 
     LongFunction<TableRow> getRow = useSet ? getRowSet : getRowSetF;
 

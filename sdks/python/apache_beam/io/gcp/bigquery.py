@@ -1768,11 +1768,14 @@ class BigQueryWriteFn(DoFn):
             'Errors were {}'.format(("" if should_retry else " not"), errors))
 
         # The log level is:
-        # - WARNING when we are continuing to retry, and have a deadline.
-        # - ERROR when we will no longer retry, or MAY retry forever.
-        log_level = (
-            logging.WARN if should_retry or self._retry_strategy
-            != RetryStrategy.RETRY_ALWAYS else logging.ERROR)
+        # - WARNING when should_retry is true, else ERROR.
+
+        if (should_retry and
+            self._retry_strategy in [RetryStrategy.RETRY_ON_TRANSIENT_ERROR,
+                                     RetryStrategy.RETRY_ALWAYS]):
+          log_level = logging.WARN
+        else:
+          log_level = logging.ERROR
 
         _LOGGER.log(log_level, message)
 
@@ -2364,6 +2367,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           table_side_inputs=self.table_side_inputs,
           create_disposition=self.create_disposition,
           write_disposition=self.write_disposition,
+          additional_bq_parameters=self.additional_bq_parameters,
           triggering_frequency=self.triggering_frequency,
           use_at_least_once=self.use_at_least_once,
           with_auto_sharding=self.with_auto_sharding,
@@ -2611,6 +2615,7 @@ class StorageWriteToBigQuery(PTransform):
       schema=None,
       create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
       write_disposition=BigQueryDisposition.WRITE_APPEND,
+      additional_bq_parameters=None,
       triggering_frequency=0,
       use_at_least_once=False,
       with_auto_sharding=False,
@@ -2623,6 +2628,7 @@ class StorageWriteToBigQuery(PTransform):
     self._schema = schema
     self._create_disposition = create_disposition
     self._write_disposition = write_disposition
+    self.additional_bq_parameters = additional_bq_parameters
     self._triggering_frequency = triggering_frequency
     self._use_at_least_once = use_at_least_once
     self._with_auto_sharding = with_auto_sharding
@@ -2698,6 +2704,15 @@ class StorageWriteToBigQuery(PTransform):
       # communicate to Java that this write should use dynamic destinations
       table = StorageWriteToBigQuery.DYNAMIC_DESTINATIONS
 
+    clustering_fields = []
+    if self.additional_bq_parameters:
+      if callable(self.additional_bq_parameters):
+        raise NotImplementedError(
+            "Currently, dynamic clustering and timepartitioning is not "
+            "supported for STORAGE_WRITE_API write method.")
+      clustering_fields = (
+          self.additional_bq_parameters.get("clustering", {}).get("fields", []))
+
     output = (
         input_beam_rows
         | SchemaAwareExternalTransform(
@@ -2713,6 +2728,7 @@ class StorageWriteToBigQuery(PTransform):
             use_at_least_once_semantics=self._use_at_least_once,
             use_cdc_writes=self._use_cdc_writes,
             primary_key=self._primary_key,
+            clustering_fields=clustering_fields,
             error_handling={
                 'output': StorageWriteToBigQuery.FAILED_ROWS_WITH_ERRORS
             }))
@@ -2723,11 +2739,12 @@ class StorageWriteToBigQuery(PTransform):
         lambda row_and_error: row_and_error[0])
     if not is_rows:
       # return back from Beam Rows to Python dict elements
-      failed_rows = failed_rows | beam.Map(lambda row: row.as_dict())
+      failed_rows = failed_rows | beam.Map(lambda row: row._asdict())
+
       failed_rows_with_errors = failed_rows_with_errors | beam.Map(
           lambda row: {
               "error_message": row.error_message, "failed_row": row.failed_row.
-              as_dict()
+              _asdict()
           })
 
     return WriteResult(

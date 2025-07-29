@@ -20,8 +20,6 @@
 # to install Vertex AI Python SDK.
 
 import logging
-import time
-from collections.abc import Iterable
 from collections.abc import Sequence
 from typing import Any
 from typing import Optional
@@ -32,14 +30,12 @@ from google.auth.credentials import Credentials
 
 import apache_beam as beam
 import vertexai
-from apache_beam.io.components.adaptive_throttler import AdaptiveThrottler
-from apache_beam.metrics.metric import Metrics
 from apache_beam.ml.inference.base import ModelHandler
+from apache_beam.ml.inference.base import RemoteModelHandler
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.ml.transforms.base import EmbeddingsManager
 from apache_beam.ml.transforms.base import _ImageEmbeddingHandler
 from apache_beam.ml.transforms.base import _TextEmbeddingHandler
-from apache_beam.utils import retry
 from vertexai.language_models import TextEmbeddingInput
 from vertexai.language_models import TextEmbeddingModel
 from vertexai.vision_models import Image
@@ -80,7 +76,7 @@ def _retry_on_appropriate_gcp_error(exception):
   return isinstance(exception, (TooManyRequests, ServerError))
 
 
-class _VertexAITextEmbeddingHandler(ModelHandler):
+class _VertexAITextEmbeddingHandler(RemoteModelHandler):
   """
   Note: Intended for internal use and guarantees no backwards compatibility.
   """
@@ -92,7 +88,7 @@ class _VertexAITextEmbeddingHandler(ModelHandler):
       project: Optional[str] = None,
       location: Optional[str] = None,
       credentials: Optional[Credentials] = None,
-  ):
+      **kwargs):
     vertexai.init(project=project, location=location, credentials=credentials)
     self.model_name = model_name
     if task_type not in TASK_TYPE_INPUTS:
@@ -101,47 +97,16 @@ class _VertexAITextEmbeddingHandler(ModelHandler):
     self.task_type = task_type
     self.title = title
 
-    # Configure AdaptiveThrottler and throttling metrics for client-side
-    # throttling behavior.
-    # See https://docs.google.com/document/d/1ePorJGZnLbNCmLD9mR7iFYOdPsyDA1rDnTpYnbdrzSU/edit?usp=sharing
-    # for more details.
-    self.throttled_secs = Metrics.counter(
-        VertexAIImageEmbeddings, "cumulativeThrottlingSeconds")
-    self.throttler = AdaptiveThrottler(
-        window_ms=1, bucket_ms=1, overload_ratio=2)
+    super().__init__(
+        namespace='VertexAITextEmbeddingHandler',
+        retry_filter=_retry_on_appropriate_gcp_error,
+        **kwargs)
 
-  @retry.with_exponential_backoff(
-      num_retries=5, retry_filter=_retry_on_appropriate_gcp_error)
-  def get_request(
-      self,
-      text_batch: Sequence[TextEmbeddingInput],
-      model: TextEmbeddingModel,
-      throttle_delay_secs: int):
-    while self.throttler.throttle_request(time.time() * _MSEC_TO_SEC):
-      LOGGER.info(
-          "Delaying request for %d seconds due to previous failures",
-          throttle_delay_secs)
-      time.sleep(throttle_delay_secs)
-      self.throttled_secs.inc(throttle_delay_secs)
-
-    try:
-      req_time = time.time()
-      prediction = model.get_embeddings(list(text_batch))
-      self.throttler.successful_request(req_time * _MSEC_TO_SEC)
-      return prediction
-    except TooManyRequests as e:
-      LOGGER.warning("request was limited by the service with code %i", e.code)
-      raise
-    except Exception as e:
-      LOGGER.error("unexpected exception raised as part of request, got %s", e)
-      raise
-
-  def run_inference(
+  def request(
       self,
       batch: Sequence[str],
-      model: Any,
-      inference_args: Optional[dict[str, Any]] = None,
-  ) -> Iterable:
+      model: TextEmbeddingModel,
+      inference_args: Optional[dict[str, Any]] = None):
     embeddings = []
     batch_size = _BATCH_SIZE
     for i in range(0, len(batch), batch_size):
@@ -151,12 +116,11 @@ class _VertexAITextEmbeddingHandler(ModelHandler):
               text=text, title=self.title, task_type=self.task_type)
           for text in text_batch_strs
       ]
-      embeddings_batch = self.get_request(
-          text_batch=text_batch, model=model, throttle_delay_secs=5)
+      embeddings_batch = model.get_embeddings(list(text_batch))
       embeddings.extend([el.values for el in embeddings_batch])
     return embeddings
 
-  def load_model(self):
+  def create_client(self) -> TextEmbeddingModel:
     model = TextEmbeddingModel.from_pretrained(self.model_name)
     return model
 
@@ -205,6 +169,7 @@ class VertexAITextEmbeddings(EmbeddingsManager):
     self.credentials = credentials
     self.title = title
     self.task_type = task_type
+    self.kwargs = kwargs
     super().__init__(columns=columns, **kwargs)
 
   def get_model_handler(self) -> ModelHandler:
@@ -215,7 +180,7 @@ class VertexAITextEmbeddings(EmbeddingsManager):
         credentials=self.credentials,
         title=self.title,
         task_type=self.task_type,
-    )
+        **self.kwargs)
 
   def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
     return RunInference(
@@ -223,7 +188,7 @@ class VertexAITextEmbeddings(EmbeddingsManager):
         inference_args=self.inference_args)
 
 
-class _VertexAIImageEmbeddingHandler(ModelHandler):
+class _VertexAIImageEmbeddingHandler(RemoteModelHandler):
   def __init__(
       self,
       model_name: str,
@@ -231,60 +196,29 @@ class _VertexAIImageEmbeddingHandler(ModelHandler):
       project: Optional[str] = None,
       location: Optional[str] = None,
       credentials: Optional[Credentials] = None,
-  ):
+      **kwargs):
     vertexai.init(project=project, location=location, credentials=credentials)
     self.model_name = model_name
     self.dimension = dimension
 
-    # Configure AdaptiveThrottler and throttling metrics for client-side
-    # throttling behavior.
-    # See https://docs.google.com/document/d/1ePorJGZnLbNCmLD9mR7iFYOdPsyDA1rDnTpYnbdrzSU/edit?usp=sharing
-    # for more details.
-    self.throttled_secs = Metrics.counter(
-        VertexAIImageEmbeddings, "cumulativeThrottlingSeconds")
-    self.throttler = AdaptiveThrottler(
-        window_ms=1, bucket_ms=1, overload_ratio=2)
+    super().__init__(
+        namespace='VertexAIImageEmbeddingHandler',
+        retry_filter=_retry_on_appropriate_gcp_error,
+        **kwargs)
 
-  @retry.with_exponential_backoff(
-      num_retries=5, retry_filter=_retry_on_appropriate_gcp_error)
-  def get_request(
+  def request(
       self,
-      img: Image,
+      imgs: Sequence[Image],
       model: MultiModalEmbeddingModel,
-      throttle_delay_secs: int):
-    while self.throttler.throttle_request(time.time() * _MSEC_TO_SEC):
-      LOGGER.info(
-          "Delaying request for %d seconds due to previous failures",
-          throttle_delay_secs)
-      time.sleep(throttle_delay_secs)
-      self.throttled_secs.inc(throttle_delay_secs)
-
-    try:
-      req_time = time.time()
-      prediction = model.get_embeddings(image=img, dimension=self.dimension)
-      self.throttler.successful_request(req_time * _MSEC_TO_SEC)
-      return prediction
-    except TooManyRequests as e:
-      LOGGER.warning("request was limited by the service with code %i", e.code)
-      raise
-    except Exception as e:
-      LOGGER.error("unexpected exception raised as part of request, got %s", e)
-      raise
-
-  def run_inference(
-      self,
-      batch: Sequence[Image],
-      model: MultiModalEmbeddingModel,
-      inference_args: Optional[dict[str, Any]] = None,
-  ) -> Iterable:
+      inference_args: Optional[dict[str, Any]] = None):
     embeddings = []
-    # Maximum request size for muli-model embedding models is 1.
-    for img in batch:
-      embedding_response = self.get_request(img, model, throttle_delay_secs=5)
-      embeddings.append(embedding_response.image_embedding)
+    # Max request size for multi-modal embedding models is 1
+    for img in imgs:
+      prediction = model.get_embeddings(image=img, dimension=self.dimension)
+      embeddings.append(prediction.image_embedding)
     return embeddings
 
-  def load_model(self):
+  def create_client(self):
     model = MultiModalEmbeddingModel.from_pretrained(self.model_name)
     return model
 
@@ -327,6 +261,7 @@ class VertexAIImageEmbeddings(EmbeddingsManager):
     self.project = project
     self.location = location
     self.credentials = credentials
+    self.kwargs = kwargs
     if dimension is not None and dimension not in (128, 256, 512, 1408):
       raise ValueError(
           "dimension argument must be one of 128, 256, 512, or 1408")
@@ -340,7 +275,7 @@ class VertexAIImageEmbeddings(EmbeddingsManager):
         project=self.project,
         location=self.location,
         credentials=self.credentials,
-    )
+        **self.kwargs)
 
   def get_ptransform_for_processing(self, **kwargs) -> beam.PTransform:
     return RunInference(

@@ -196,8 +196,20 @@ class SwitchingDirectRunner(PipelineRunner):
     runner = BundleBasedDirectRunner()
 
     # Check whether all transforms used in the pipeline are supported by the
+    # FnApiRunner, and the pipeline was not meant to be run as streaming.
+    if _FnApiRunnerSupportVisitor().accept(pipeline):
+      from apache_beam.portability.api import beam_provision_api_pb2
+      from apache_beam.runners.portability.fn_api_runner import fn_runner
+      from apache_beam.runners.portability.portable_runner import JobServiceHandle
+      all_options = options.get_all_options()
+      encoded_options = JobServiceHandle.encode_pipeline_options(all_options)
+      provision_info = fn_runner.ExtendedProvisionInfo(
+          beam_provision_api_pb2.ProvisionInfo(
+              pipeline_options=encoded_options))
+      runner = fn_runner.FnApiRunner(provision_info=provision_info)
+    # Check whether all transforms used in the pipeline are supported by the
     # PrismRunner
-    if _PrismRunnerSupportVisitor().accept(pipeline, self._is_interactive):
+    elif _PrismRunnerSupportVisitor().accept(pipeline, self._is_interactive):
       _LOGGER.info('Running pipeline with PrismRunner.')
       from apache_beam.runners.portability import prism_runner
       runner = prism_runner.PrismRunner()
@@ -220,19 +232,6 @@ class SwitchingDirectRunner(PipelineRunner):
         _LOGGER.info('Exception with PrismRunner:\n %s\n' % (e))
         _LOGGER.info('Falling back to DirectRunner')
         runner = BundleBasedDirectRunner()
-
-    # Check whether all transforms used in the pipeline are supported by the
-    # FnApiRunner, and the pipeline was not meant to be run as streaming.
-    if _FnApiRunnerSupportVisitor().accept(pipeline):
-      from apache_beam.portability.api import beam_provision_api_pb2
-      from apache_beam.runners.portability.fn_api_runner import fn_runner
-      from apache_beam.runners.portability.portable_runner import JobServiceHandle
-      all_options = options.get_all_options()
-      encoded_options = JobServiceHandle.encode_pipeline_options(all_options)
-      provision_info = fn_runner.ExtendedProvisionInfo(
-          beam_provision_api_pb2.ProvisionInfo(
-              pipeline_options=encoded_options))
-      runner = fn_runner.FnApiRunner(provision_info=provision_info)
 
     return runner.run_pipeline(pipeline, options)
 
@@ -390,7 +389,7 @@ def _get_transform_overrides(pipeline_options):
 
   # Importing following locally to avoid a circular dependency.
   from apache_beam.pipeline import PTransformOverride
-  from apache_beam.runners.direct.helper_transforms import LiftedCombinePerKey
+  from apache_beam.transforms.combiners import LiftedCombinePerKey
   from apache_beam.runners.direct.sdf_direct_runner import ProcessKeyedElementsViaKeyedWorkItemsOverride
   from apache_beam.runners.direct.sdf_direct_runner import SplittableParDoOverride
 
