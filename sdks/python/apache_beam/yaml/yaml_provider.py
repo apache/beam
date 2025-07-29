@@ -756,6 +756,43 @@ def dicts_to_rows(o):
     return o
 
 
+def _unify_element_with_schema(element, target_schema):
+  """Convert an element to match the target schema, preserving existing
+    fields only."""
+  if target_schema is None:
+    return element
+
+  # If element is already a named tuple, convert to dict first
+  if hasattr(element, '_asdict'):
+    element_dict = element._asdict()
+  elif isinstance(element, dict):
+    element_dict = element
+  else:
+    # This element is not a row, so it can't be unified with a
+    # row schema.
+    return element
+
+  # Create new element with only the fields that exist in the original
+  # element plus None for fields that are expected but missing
+  unified_dict = {}
+  for field_name in target_schema._fields:
+    if field_name in element_dict:
+      value = element_dict[field_name]
+      # Ensure the value matches the expected type
+      # This is particularly important for list fields
+      if value is not None and not isinstance(value, list) and hasattr(
+          value, '__iter__') and not isinstance(
+              value, (str, bytes)) and not hasattr(value, '_asdict'):
+        # Convert iterables to lists if needed
+        unified_dict[field_name] = list(value)
+      else:
+        unified_dict[field_name] = value
+    else:
+      unified_dict[field_name] = None
+
+  return target_schema(**unified_dict)
+
+
 class YamlProviders:
   class AssertEqual(beam.PTransform):
     """Asserts that the input contains exactly the elements provided.
@@ -974,42 +1011,6 @@ class YamlProviders:
 
       return None
 
-    def _unify_element_with_schema(self, element, target_schema):
-      """Convert an element to match the target schema, preserving existing
-      fields only."""
-      if target_schema is None:
-        return element
-
-      # If element is already a named tuple, convert to dict first
-      if hasattr(element, '_asdict'):
-        element_dict = element._asdict()
-      elif isinstance(element, dict):
-        element_dict = element
-      else:
-        # This element is not a row, so it can't be unified with a
-        # row schema.
-        return element
-
-      # Create new element with only the fields that exist in the original
-      # element plus None for fields that are expected but missing
-      unified_dict = {}
-      for field_name in target_schema._fields:
-        if field_name in element_dict:
-          value = element_dict[field_name]
-          # Ensure the value matches the expected type
-          # This is particularly important for list fields
-          if value is not None and not isinstance(value, list) and hasattr(
-              value, '__iter__') and not isinstance(
-                  value, (str, bytes)) and not hasattr(value, '_asdict'):
-            # Convert iterables to lists if needed
-            unified_dict[field_name] = list(value)
-          else:
-            unified_dict[field_name] = value
-        else:
-          unified_dict[field_name] = None
-
-      return target_schema(**unified_dict)
-
     def expand(self, pcolls):
       if isinstance(pcolls, beam.PCollection):
         pipeline_arg = {}
@@ -1035,9 +1036,8 @@ class YamlProviders:
       unified_pcolls = []
       for i, pcoll in enumerate(pcolls):
         unified_pcoll = pcoll | f'UnifySchema{i}' >> beam.Map(
-            lambda element, schema=unified_schema: self.
-            _unify_element_with_schema(element, schema)).with_output_types(
-                unified_schema)
+            _unify_element_with_schema,
+            target_schema=unified_schema).with_output_types(unified_schema)
         unified_pcolls.append(unified_pcoll)
 
       # Flatten the unified PCollections
