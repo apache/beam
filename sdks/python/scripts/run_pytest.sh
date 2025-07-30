@@ -42,14 +42,14 @@ marker_regex="-m\s+('[^']+'|\"[^\"]+\"|[^ ]+)"
 user_marker=""
 
 # Isolate the user-provided -m argument (matching only).
-if [[ $pytest_args =~ "-m" ]]; then
+if [[ $posargs =~ "-m" ]]; then
   # Extract the marker value using the defined regex.
-  user_marker=$(echo "$pytest_args" | sed -nE "s/.*$marker_regex.*/\1/p")
+  user_marker=$(echo "$posargs" | sed -nE "s/.*$marker_regex.*/\1/p")
 fi
 
-# Remove the -m argument from pytest_args (substitution only).
+# Remove the -m argument from posargs (substitution only).
 if [[ -n $user_marker ]]; then
-  pytest_args=$(echo "$pytest_args" | sed -E "s/$marker_regex//")
+  posargs=$(echo "$posargs" | sed -E "s/$marker_regex//")
 fi
 
 # Combine user-provided marker with script's internal logic.
@@ -63,7 +63,7 @@ if [[ -n $user_marker ]]; then
 fi
 
 # Run tests in parallel.
-echo "Running parallel tests with: pytest -m \"$marker_for_parallel_tests\" $pytest_args"
+echo "Running parallel tests with: pytest -m \"$marker_for_parallel_tests\" $posargs"
 pytest -v -rs -o junit_suite_name=${envname} \
   --junitxml=pytest_${envname}.xml -m "$marker_for_parallel_tests" -n 6 --import-mode=importlib ${pytest_args} --pyargs ${posargs}
 status1=$?
