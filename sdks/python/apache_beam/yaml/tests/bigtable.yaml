@@ -37,17 +37,17 @@ pipelines:
           config:
             elements:
               - {key: 'row1',
-                type: 'SetCell',
-                family_name: "cf1",
-                column_qualifier: "cq1",
-                value: "value1",
-                timestamp_micros: -1}
+                 type: 'SetCell',
+                 family_name: "cf1",
+                 column_qualifier: "cq1",
+                 value: "value1",
+                 timestamp_micros: 5000}
               - {key: 'row1',
-                  type: 'SetCell',
-                  family_name: "cf1",
-                  column_qualifier: "cq2",
-                  value: "value2",
-                  timestamp_micros: 1000}
+                 type: 'SetCell',
+                 family_name: "cf1",
+                 column_qualifier: "cq2",
+                 value: "value2",
+                 timestamp_micros: 1000}
 
         - type: LogForTesting
         - type: MapToFields
@@ -63,9 +63,7 @@ pipelines:
               type:
                 type
               family_name:
-                callable: |
-                  def convert_to_bytes(row):
-                    return bytes(row.family_name, 'utf-8') if 'family_name' in row._fields else None
+                family_name
               column_qualifier:
                 callable: |
                   def convert_to_bytes(row):
@@ -99,13 +97,37 @@ pipelines:
             fields:
               key:
                 callable: |
-                  def convert_to_bytes(row):
+                  def convert_to_string(row):
                     return row.key.decode("utf-8") if "key" in row._fields else None
+              family_name:
+                family_name
+              column_qualifier:
+                callable: |
+                  def convert_to_string(row):
+                    return row.column_qualifier.decode("utf-8") if "column_qualifier" in row._fields else None
+              cells:
+                callable: |
+                  def convert_to_string(row):
+                    cell_bytes = []
+                    for (value, timestamp) in row.cells:
+                      value_bytes = value.decode("utf-8")
+                      cell_bytes.append(beam.Row(value=value_bytes, timestamp_micros=timestamp))
+                    return cell_bytes
         - type: AssertEqual
           config:
             elements:
-              - {'key': 'row1'}
-              - {'key': 'row1' }
+              - { key: 'row1',
+                  family_name: "cf1",
+                  column_qualifier: "cq1",
+                  cells:[{
+                    value: "value1",
+                    timestamp_micros: 5000}]}
+              - { key: 'row1',
+                  family_name: "cf1",
+                  column_qualifier: "cq2",
+                  cells: [{
+                    value: "value2",
+                    timestamp_micros: 1000 } ] }
         - type: LogForTesting
 
   - pipeline:
@@ -126,10 +148,29 @@ pipelines:
                   def convert_to_bytes(row):
                     return row.key.decode("utf-8") if "key" in row._fields else None
 
+              column_families:
+                column_families
+
         - type: AssertEqual
           config:
             elements:
-              - { 'key': 'row1' }
+              - {key: 'row1',
+                # Use explicit map syntax to match the actual output
+                 column_families: {
+                   cf1: {
+                     cq1: [
+                       { value: "value1", timestamp_micros: 5000 }
+                     ],
+                     cq2: [
+                       { value: "value2", timestamp_micros: 1000 }
+                     ]
+                   }
+                 }
+              }
+        #                - {'key': 'row1',
+        #                   column_families: {cf1: {cq2:
+        #                                             [BeamSchema_3281a0ae_fe85_474b_9030_86fbed58833a(value=b'value2', timestamp_micros=1000)], 'cq1': [BeamSchema_3281a0ae_fe85_474b_9030_86fbed58833a(value=b'value1', timestamp_micros=5000)]}}}
+
         - type: LogForTesting
 
 
