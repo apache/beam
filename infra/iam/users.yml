@@ -15,7 +15,7 @@
 # limitations under the License.
 
 # Exported IAM policy for project apache-beam-testing
-# Generated on 2025-07-25 21:10:46 UTC
+# Generated on 2025-07-30 22:43:34 UTC
 
 - username: WhatWouldAustinDo
   email: WhatWouldAustinDo@gmail.com
@@ -487,6 +487,10 @@
   email: tanusharmaa@google.com
   permissions:
   - role: roles/editor
+- username: tarunannapareddy1997
+  email: tarunannapareddy1997@gmail.com
+  permissions:
+  - role: roles/bigquery.admin
 - username: timur.sultanov.akvelon
   email: timur.sultanov.akvelon@gmail.com
   permissions:

@@ -24,7 +24,7 @@ terraform {
   }
 
   backend "gcs" {
-    bucket  = "testing-me-460223-tfstate"
+    bucket  = "beam-terraform-infra-state"
     prefix  = "terraform/state"
   }
 }

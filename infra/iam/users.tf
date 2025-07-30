@@ -33,8 +33,8 @@ locals {
           description           = lookup(perm, "description", null)
           request_description   = lookup(perm, "request_description", null)
           expiry_date           = lookup(perm, "expiry_date", null)
-        #} if perm != null && lookup(perm, "role", null) != null
-        # Testing without the owner role to avoid conflicts
+        # Owner roles need to be handled separately, they require the user
+        # to accept their assignment.
         } if perm != null && lookup(perm, "role", null) != null && perm.role != "roles/owner"
     ]
   ])
