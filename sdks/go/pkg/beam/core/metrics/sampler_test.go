@@ -45,7 +45,7 @@ func TestSampler(t *testing.T) {
 	bctx := SetBundleID(ctx, "test")
 	interval := 200 * time.Millisecond
 	st := GetStore(bctx)
-	s := NewSampler(st, "")
+	s := NewSampler(st, 0 * time.Minute)
 
 	pctx := SetPTransformID(bctx, "transform")
 	label := "transform"
@@ -89,7 +89,7 @@ func TestSampler_TwoPTransforms(t *testing.T) {
 	bctx := SetBundleID(ctx, "bundle")
 	interval := 200 * time.Millisecond
 	st := GetStore(bctx)
-	s := NewSampler(st, "")
+	s := NewSampler(st, 0 * time.Minute)
 
 	ctxA := SetPTransformID(bctx, "transformA")
 	ctxB := SetPTransformID(bctx, "transformB")
@@ -142,7 +142,7 @@ func TestSamplerWithoutRestartLullTimeout(t *testing.T) {
 	bctx := SetBundleID(ctx, "test")
 	interval := 20 * time.Minute
 	st := GetStore(bctx)
-	s := NewSampler(st, "-1")
+	s := NewSampler(st, 0 * time.Minute)
 
 	pctx := SetPTransformID(bctx, "transform")
 
@@ -159,7 +159,7 @@ func TestSamplerWithRestartLullTimeout(t *testing.T) {
 	bctx := SetBundleID(ctx, "test")
 	interval := 4 * time.Minute
 	st := GetStore(bctx)
-	s := NewSampler(st, "10m")
+	s := NewSampler(st, 10*time.Minute)
 
 	pctx := SetPTransformID(bctx, "transform")
 
@@ -210,7 +210,7 @@ func BenchmarkMsec_Sample(b *testing.B) {
 	pt := NewPTransformState("transform")
 	pt.Set(pctx, StartBundle)
 	st := GetStore(bctx)
-	s := NewSampler(st, "")
+	s := NewSampler(st, 0 * time.Minute)
 	interval := 200 * time.Millisecond
 	for i := 0; i < b.N; i++ {
 		s.Sample(bctx, interval)
@@ -227,7 +227,7 @@ func BenchmarkMsec_Combined(b *testing.B) {
 	bctx := SetBundleID(ctx, "benchmark")
 
 	st := GetStore(bctx)
-	s := NewSampler(st, "")
+	s := NewSampler(st, 0 * time.Minute)
 	done := make(chan int)
 	interval := 200 * time.Millisecond
 	go func(done chan int, s StateSampler) {
@@ -253,22 +253,4 @@ func BenchmarkMsec_Combined(b *testing.B) {
 		ptB.Set(ctxB, ProcessBundle)
 	}
 	close(done)
-}
-
-func TestGetRestartLullTimeout(t *testing.T) {
-	if got, want := getRestartLullTimeout("-1"), 0*time.Minute; got != want {
-		t.Errorf("getRestartLullTimeout() = %v, want %v", got, want)
-	}
-	if got, want := getRestartLullTimeout("test"), 0*time.Minute; got != want {
-		t.Errorf("getRestartLullTimeout() = %v, want %v", got, want)
-	}
-	if got, want := getRestartLullTimeout("10m"), 10*time.Minute; got != want {
-		t.Errorf("getRestartLullTimeout() = %v, want %v", got, want)
-	}
-	if got, want := getRestartLullTimeout("5m"), 10*time.Minute; got != want {
-		t.Errorf("getRestartLullTimeout() = %v, want %v", got, want)
-	}
-	if got, want := getRestartLullTimeout("20m"), 20*time.Minute; got != want {
-		t.Errorf("getRestartLullTimeout() = %v, want %v", got, want)
-	}
 }
