@@ -137,19 +137,17 @@ class GCSLogHandler(logging.Handler):
 class SecretService:
     """Service to manage GCP API keys rotation."""
 
+    # Configuration
     project_id: str
     secret_name_prefix: str
     rotation_interval: int
     max_versions_to_keep: int
-    bucket_name: str
-    log_file_prefix: str
-    logging_level: str
+    secrets_names: List[str]
+
+    # Clients
     client: secretmanager.SecretManagerServiceClient
     logger: logging.Logger
-    gcs_handler: Optional[GCSLogHandler]
     manager: ServiceAccountManager
-    parent: str
-    secrets_names: List[str]
 
     def __init__(self, config: ConfigDict) -> None:
         """
@@ -172,9 +170,9 @@ class SecretService:
         self.secret_name_prefix = config['secret_name_prefix']
         self.rotation_interval = config['rotation_interval']
         self.max_versions_to_keep = config['max_versions_to_keep']
-        self.bucket_name = config['bucket_name']
-        self.log_file_prefix = config['log_file_prefix']
-        self.logging_level = config.get('logging_level', 'INFO').upper()
+        bucket_name = config['bucket_name']
+        log_file_prefix = config['log_file_prefix']
+        logging_level = config.get('logging_level', 'INFO').upper()
 
         if not self.project_id.strip():
             raise ValueError("Configuration 'project_id' cannot be empty.")
@@ -184,14 +182,14 @@ class SecretService:
             raise ValueError("Configuration 'rotation_interval' must be positive.")
         if self.max_versions_to_keep <= 0:
             raise ValueError("Configuration 'max_versions_to_keep' must be positive.")
-        if not self.bucket_name.strip():
+        if not bucket_name.strip():
             raise ValueError("Configuration 'bucket_name' cannot be empty.")
-        if not self.log_file_prefix.strip():
+        if not log_file_prefix.strip():
             raise ValueError("Configuration 'log_file_prefix' cannot be empty.")
 
         self.client = secretmanager.SecretManagerServiceClient() # Initialize the Secret Manager client
         self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(self.logging_level)
+        self.logger.setLevel(logging_level)
         
         # Clear any existing handlers to avoid duplicates
         self.logger.handlers.clear()
@@ -204,20 +202,17 @@ class SecretService:
         
         # Add GCS handler for persistent logging
         try:
-            gcs_handler = GCSLogHandler(self.bucket_name, self.log_file_prefix, self.project_id)
+            gcs_handler = GCSLogHandler(bucket_name, log_file_prefix, self.project_id)
             gcs_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s')
             gcs_handler.setFormatter(gcs_formatter)
             self.logger.addHandler(gcs_handler)
-            self.gcs_handler = gcs_handler
             self.logger.info("GCS logging handler initialized successfully")
             self.logger.info(f"Logs will be stored at: {gcs_handler.get_log_file_path()}")
         except Exception as e:
             self.logger.warning(f"Failed to initialize GCS logging handler: {e}. Logs will only be written to console.")
-            self.gcs_handler = None
         
         self.manager = ServiceAccountManager(self.project_id, self.logger)
 
-        self.parent = f"projects/{self.project_id}"
         self.secrets_names = []  # List to hold the names of the secrets
         self._get_secrets_names()  # Retrieve existing secrets
 
@@ -236,15 +231,16 @@ class SecretService:
 
     def get_log_file_path(self) -> Optional[str]:
         """Get the GCS path where logs are being stored."""
-        if hasattr(self, 'gcs_handler') and self.gcs_handler:
-            return self.gcs_handler.get_log_file_path()
+        for handler in self.logger.handlers:
+            if isinstance(handler, GCSLogHandler):
+                return handler.get_log_file_path()
         return None
 
     def _get_secrets_names(self) -> None:
         """Retrieves the list of secrets from the Secret Manager and populates the `secrets_names` list."""
         self.logger.info(f"Retrieving secrets with prefix '{self.secret_name_prefix}' from project '{self.project_id}'")
         secret_count = 0
-        for secret in self.client.list_secrets(request={"parent": self.parent}):
+        for secret in self.client.list_secrets(request={"parent": f"projects/{self.project_id}"}):
             secret_id = secret.name.split("/")[-1]
             if secret_id.startswith(self.secret_name_prefix):
                 self.secrets_names.append(secret_id)
@@ -273,7 +269,7 @@ class SecretService:
         self.logger.info(f"Creating new secret '{secret_name}' with TTL of {self.rotation_interval} days")
         response = self.client.create_secret(
             request={
-                "parent": self.parent,
+                "parent": f"projects/{self.project_id}",
                 "secret_id": f"{secret_name}",
                 "secret": {
                     "replication": {
