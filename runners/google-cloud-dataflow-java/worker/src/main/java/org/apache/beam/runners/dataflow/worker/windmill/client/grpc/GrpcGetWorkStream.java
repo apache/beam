@@ -21,6 +21,7 @@ import java.io.PrintWriter;
 import java.time.Duration;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkRequest;
@@ -70,17 +71,18 @@ final class GrpcGetWorkStream
       int logEveryNStreamFailures,
       boolean requestBatchedGetWorkResponse,
       WorkItemReceiver receiver,
-      Duration halfClosePhysicalStreamAfter) {
+      Duration halfClosePhysicalStreamAfter,
+      ScheduledExecutorService executor) {
     super(
         LOG,
-        "GetWorkStream",
         startGetWorkRpcFn,
         backoff,
         streamObserverFactory,
         streamRegistry,
         logEveryNStreamFailures,
         backendWorkerToken,
-        halfClosePhysicalStreamAfter);
+        halfClosePhysicalStreamAfter,
+        executor);
     this.request = request;
     this.receiver = receiver;
     this.inflightMessages = new AtomicLong();
@@ -101,7 +103,8 @@ final class GrpcGetWorkStream
       int logEveryNStreamFailures,
       boolean requestBatchedGetWorkResponse,
       WorkItemReceiver receiver,
-      Duration halfClosePhysicalStreamAfter) {
+      Duration halfClosePhysicalStreamAfter,
+      ScheduledExecutorService executor) {
     return new GrpcGetWorkStream(
         backendWorkerToken,
         startGetWorkRpcFn,
@@ -112,7 +115,8 @@ final class GrpcGetWorkStream
         logEveryNStreamFailures,
         requestBatchedGetWorkResponse,
         receiver,
-        halfClosePhysicalStreamAfter);
+        halfClosePhysicalStreamAfter,
+        executor);
   }
 
   private void sendRequestExtension(long moreItems, long moreBytes) {

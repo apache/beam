@@ -24,6 +24,7 @@ import java.time.Duration;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import javax.annotation.concurrent.GuardedBy;
@@ -100,17 +101,18 @@ final class GrpcDirectGetWorkStream
       GetDataClient getDataClient,
       WorkCommitter workCommitter,
       WorkItemScheduler workItemScheduler,
-      Duration halfClosePhysicalStreamAfter) {
+      Duration halfClosePhysicalStreamAfter,
+      ScheduledExecutorService executorService) {
     super(
         LOG,
-        "GetWorkStream",
         startGetWorkRpcFn,
         backoff,
         streamObserverFactory,
         streamRegistry,
         logEveryNStreamFailures,
         backendWorkerToken,
-        halfClosePhysicalStreamAfter);
+        halfClosePhysicalStreamAfter,
+        executorService);
     this.requestHeader = requestHeader;
     this.workItemScheduler = workItemScheduler;
     this.heartbeatSender = heartbeatSender;
@@ -142,7 +144,8 @@ final class GrpcDirectGetWorkStream
       GetDataClient getDataClient,
       WorkCommitter workCommitter,
       WorkItemScheduler workItemScheduler,
-      Duration halfClosePhysicalStreamAfter) {
+      Duration halfClosePhysicalStreamAfter,
+      ScheduledExecutorService executor) {
     return new GrpcDirectGetWorkStream(
         backendWorkerToken,
         startGetWorkRpcFn,
@@ -156,7 +159,8 @@ final class GrpcDirectGetWorkStream
         getDataClient,
         workCommitter,
         workItemScheduler,
-        halfClosePhysicalStreamAfter);
+        halfClosePhysicalStreamAfter,
+        executor);
   }
 
   private static Watermarks createWatermarks(

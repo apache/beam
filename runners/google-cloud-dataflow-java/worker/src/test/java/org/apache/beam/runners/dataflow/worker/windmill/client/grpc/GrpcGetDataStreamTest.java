@@ -27,7 +27,6 @@ import static org.junit.Assert.fail;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -117,7 +116,7 @@ public class GrpcGetDataStreamTest {
         (GrpcGetDataStream)
             GrpcWindmillStreamFactory.of(TEST_JOB_HEADER)
                 .setDirectStreamingRpcPhysicalStreamHalfCloseAfter(handover)
-                .setScheduledExecutorService(Optional.ofNullable(executor))
+                .setScheduledExecutorService(executor)
                 .build()
                 .createDirectGetDataStream(
                     WindmillConnection.builder()
@@ -329,7 +328,7 @@ public class GrpcGetDataStreamTest {
     TriggeredScheduledExecutorService triggeredExecutor = new TriggeredScheduledExecutorService();
     GrpcGetDataStream getDataStream =
         createGetDataStreamWithPhysicalStreamHandover(
-            java.time.Duration.ofSeconds(1234), triggeredExecutor);
+            java.time.Duration.ofSeconds(60), triggeredExecutor);
     FakeWindmillGrpcService.GetDataStreamInfo streamInfo = waitForConnectionAndConsumeHeader();
 
     // These will block until they are successfully sent.
@@ -418,6 +417,205 @@ public class GrpcGetDataStreamTest {
     assertTrue(getDataStream.awaitTermination(10, TimeUnit.SECONDS));
   }
 
+  @Test
+  public void testRequestKeyedData_multiplePhysicalStreams_newStreamFailsBeforeHalfClosedFinished()
+      throws InterruptedException, ExecutionException {
+    TriggeredScheduledExecutorService triggeredExecutor = new TriggeredScheduledExecutorService();
+    GrpcGetDataStream getDataStream =
+        createGetDataStreamWithPhysicalStreamHandover(
+            java.time.Duration.ofSeconds(60), triggeredExecutor);
+    FakeWindmillGrpcService.GetDataStreamInfo streamInfo = waitForConnectionAndConsumeHeader();
+
+    // These will block until they are successfully sent.
+    Windmill.KeyedGetDataRequest keyedGetDataRequest =
+        Windmill.KeyedGetDataRequest.newBuilder()
+            .setKey(ByteString.EMPTY)
+            .setShardingKey(1)
+            .setCacheToken(1)
+            .setWorkToken(1)
+            .build();
+    CompletableFuture<Windmill.KeyedGetDataResponse> sendFuture =
+        CompletableFuture.supplyAsync(
+            () -> {
+              try {
+                return getDataStream.requestKeyedData("computationId", keyedGetDataRequest);
+              } catch (WindmillStreamShutdownException e) {
+                throw new RuntimeException(e);
+              }
+            });
+
+    Windmill.StreamingGetDataRequest request = streamInfo.requests.take();
+    assertThat(request.getRequestIdList()).containsExactly(1L);
+    assertEquals(keyedGetDataRequest, request.getStateRequest(0).getRequests(0));
+
+    // A new stream should be created due to handover.
+    assertTrue(triggeredExecutor.unblockNextFuture());
+
+    FakeWindmillGrpcService.GetDataStreamInfo streamInfo2 = waitForConnectionAndConsumeHeader();
+    assertNull(streamInfo.onDone.get());
+
+    // Before stream 1 is finished simulate stream 2 failing.
+    streamInfo2.responseObserver.onError(new IOException("stream 2 failed"));
+    // A new stream should be created and handle the new requests.
+    FakeWindmillGrpcService.GetDataStreamInfo streamInfo3 = waitForConnectionAndConsumeHeader();
+    assertNull(streamInfo.onDone.get());
+
+    Windmill.KeyedGetDataRequest keyedGetDataRequest2 =
+        Windmill.KeyedGetDataRequest.newBuilder()
+            .setKey(ByteString.EMPTY)
+            .setShardingKey(2)
+            .setCacheToken(2)
+            .setWorkToken(2)
+            .build();
+    CompletableFuture<Windmill.KeyedGetDataResponse> sendFuture2 =
+        CompletableFuture.supplyAsync(
+            () -> {
+              try {
+                return getDataStream.requestKeyedData("computationId", keyedGetDataRequest2);
+              } catch (WindmillStreamShutdownException e) {
+                throw new RuntimeException(e);
+              }
+            });
+    Windmill.StreamingGetDataRequest request2 = streamInfo3.requests.take();
+    assertThat(request2.getRequestIdList()).containsExactly(2L);
+    assertEquals(keyedGetDataRequest2, request2.getStateRequest(0).getRequests(0));
+
+    Windmill.KeyedGetDataResponse keyedGetDataResponse2 =
+        Windmill.KeyedGetDataResponse.newBuilder()
+            .setShardingKey(2)
+            .setKey(ByteString.EMPTY)
+            .build();
+    streamInfo3.responseObserver.onNext(
+        Windmill.StreamingGetDataResponse.newBuilder()
+            .addRequestId(2)
+            .addSerializedResponse(keyedGetDataResponse2.toByteString())
+            .build());
+
+    Windmill.KeyedGetDataResponse keyedGetDataResponse =
+        Windmill.KeyedGetDataResponse.newBuilder()
+            .setShardingKey(1)
+            .setKey(ByteString.EMPTY)
+            .build();
+    streamInfo.responseObserver.onNext(
+        Windmill.StreamingGetDataResponse.newBuilder()
+            .addRequestId(1)
+            .addSerializedResponse(keyedGetDataResponse.toByteString())
+            .build());
+    assertThat(sendFuture.join()).isEqualTo(keyedGetDataResponse);
+    assertThat(sendFuture2.join()).isEqualTo(keyedGetDataResponse2);
+
+    // Close the stream.
+    getDataStream.halfClose();
+    assertNull(streamInfo.onDone.get());
+    fakeService.expectNoMoreStreams();
+    streamInfo.responseObserver.onCompleted();
+    streamInfo3.responseObserver.onCompleted();
+
+    assertTrue(getDataStream.awaitTermination(10, TimeUnit.SECONDS));
+  }
+
+  @Test
+  public void testRequestKeyedData_multiplePhysicalStreams_multipleHandovers()
+      throws InterruptedException, ExecutionException {
+    TriggeredScheduledExecutorService triggeredExecutor = new TriggeredScheduledExecutorService();
+    GrpcGetDataStream getDataStream =
+        createGetDataStreamWithPhysicalStreamHandover(
+            java.time.Duration.ofSeconds(60), triggeredExecutor);
+    FakeWindmillGrpcService.GetDataStreamInfo streamInfo = waitForConnectionAndConsumeHeader();
+
+    // These will block until they are successfully sent.
+    Windmill.KeyedGetDataRequest keyedGetDataRequest =
+        Windmill.KeyedGetDataRequest.newBuilder()
+            .setKey(ByteString.EMPTY)
+            .setShardingKey(1)
+            .setCacheToken(1)
+            .setWorkToken(1)
+            .build();
+    CompletableFuture<Windmill.KeyedGetDataResponse> sendFuture =
+        CompletableFuture.supplyAsync(
+            () -> {
+              try {
+                return getDataStream.requestKeyedData("computationId", keyedGetDataRequest);
+              } catch (WindmillStreamShutdownException e) {
+                throw new RuntimeException(e);
+              }
+            });
+
+    // XXX blocking here
+    Windmill.StreamingGetDataRequest request = streamInfo.requests.take();
+    assertThat(request.getRequestIdList()).containsExactly(1L);
+    assertEquals(keyedGetDataRequest, request.getStateRequest(0).getRequests(0));
+
+    // A new stream should be created due to handover.
+    assertTrue(triggeredExecutor.unblockNextFuture());
+
+    FakeWindmillGrpcService.GetDataStreamInfo streamInfo2 = waitForConnectionAndConsumeHeader();
+    assertNull(streamInfo.onDone.get());
+
+    // Trigger second handover before streamInfo1 completes
+    assertTrue(triggeredExecutor.unblockNextFuture());
+    FakeWindmillGrpcService.GetDataStreamInfo streamInfo3 = waitForConnectionAndConsumeHeader();
+    assertNull(streamInfo2.onDone.get());
+
+    Windmill.KeyedGetDataRequest keyedGetDataRequest2 =
+        Windmill.KeyedGetDataRequest.newBuilder()
+            .setKey(ByteString.EMPTY)
+            .setShardingKey(2)
+            .setCacheToken(2)
+            .setWorkToken(2)
+            .build();
+    CompletableFuture<Windmill.KeyedGetDataResponse> sendFuture2 =
+        CompletableFuture.supplyAsync(
+            () -> {
+              try {
+                return getDataStream.requestKeyedData("computationId", keyedGetDataRequest2);
+              } catch (WindmillStreamShutdownException e) {
+                throw new RuntimeException(e);
+              }
+            });
+    Windmill.StreamingGetDataRequest request2 = streamInfo3.requests.take();
+    assertThat(request2.getRequestIdList()).containsExactly(2L);
+    assertEquals(keyedGetDataRequest2, request2.getStateRequest(0).getRequests(0));
+
+    Windmill.KeyedGetDataResponse keyedGetDataResponse2 =
+        Windmill.KeyedGetDataResponse.newBuilder()
+            .setShardingKey(2)
+            .setKey(ByteString.EMPTY)
+            .build();
+    streamInfo3.responseObserver.onNext(
+        Windmill.StreamingGetDataResponse.newBuilder()
+            .addRequestId(2)
+            .addSerializedResponse(keyedGetDataResponse2.toByteString())
+            .build());
+
+    Windmill.KeyedGetDataResponse keyedGetDataResponse =
+        Windmill.KeyedGetDataResponse.newBuilder()
+            .setShardingKey(1)
+            .setKey(ByteString.EMPTY)
+            .build();
+    streamInfo.responseObserver.onNext(
+        Windmill.StreamingGetDataResponse.newBuilder()
+            .addRequestId(1)
+            .addSerializedResponse(keyedGetDataResponse.toByteString())
+            .build());
+    assertThat(sendFuture.join()).isEqualTo(keyedGetDataResponse);
+    assertThat(sendFuture2.join()).isEqualTo(keyedGetDataResponse2);
+
+    // Close the stream.
+    getDataStream.halfClose();
+    assertNull(streamInfo.onDone.get());
+
+    // Simulate an error on the grpc stream, this should trigger an error on all
+    // existing requests but no new connection since we half-closed and nothing left after
+    // responding with errors.
+    fakeService.expectNoMoreStreams();
+    streamInfo.responseObserver.onCompleted();
+    streamInfo2.responseObserver.onCompleted();
+    streamInfo3.responseObserver.onCompleted();
+
+    assertTrue(getDataStream.awaitTermination(10, TimeUnit.SECONDS));
+  }
+
   // XXX more handover tests needed such as:
   // - when half-closed background stream fails and retries need to occur on new stream
   // - when active stream fails with a background stream, new stream needs to be created and should
@@ -427,7 +625,6 @@ public class GrpcGetDataStreamTest {
   //   make sure requests eventually retried
   // - logical halfclose with background streams
   // - shutdown with background streams
-
   private FakeWindmillGrpcService.GetDataStreamInfo waitForConnectionAndConsumeHeader() {
     try {
       FakeWindmillGrpcService.GetDataStreamInfo info = fakeService.waitForConnectedGetDataStream();

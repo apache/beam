@@ -22,6 +22,7 @@ import java.io.PrintWriter;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
@@ -60,17 +61,18 @@ public final class GrpcGetWorkerMetadataStream
       int logEveryNStreamFailures,
       JobHeader jobHeader,
       Consumer<WindmillEndpoints> serverMappingConsumer,
-      Duration halfClosePhysicalStreamAfter) {
+      Duration halfClosePhysicalStreamAfter,
+      ScheduledExecutorService executorService) {
     super(
         LOG,
-        "GetWorkerMetadataStream",
         startGetWorkerMetadataRpcFn,
         backoff,
         streamObserverFactory,
         streamRegistry,
         logEveryNStreamFailures,
         "",
-        halfClosePhysicalStreamAfter);
+        halfClosePhysicalStreamAfter,
+        executorService);
     this.workerMetadataRequest = WorkerMetadataRequest.newBuilder().setHeader(jobHeader).build();
     this.serverMappingConsumer = serverMappingConsumer;
     this.latestResponse = WorkerMetadataResponse.getDefaultInstance();
@@ -86,7 +88,8 @@ public final class GrpcGetWorkerMetadataStream
       int logEveryNStreamFailures,
       JobHeader jobHeader,
       Consumer<WindmillEndpoints> serverMappingUpdater,
-      Duration halfClosePhysicalStreamAfter) {
+      Duration halfClosePhysicalStreamAfter,
+      ScheduledExecutorService executorService) {
     return new GrpcGetWorkerMetadataStream(
         startGetWorkerMetadataRpcFn,
         backoff,
@@ -95,7 +98,8 @@ public final class GrpcGetWorkerMetadataStream
         logEveryNStreamFailures,
         jobHeader,
         serverMappingUpdater,
-        halfClosePhysicalStreamAfter);
+        halfClosePhysicalStreamAfter,
+        executorService);
   }
 
   /**

@@ -17,10 +17,10 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client;
 
-import io.opencensus.common.Duration;
+import java.time.Duration;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.Delayed;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -33,14 +33,14 @@ import javax.annotation.Nullable;
 
 public class TriggeredScheduledExecutorService extends ThreadPoolExecutor
     implements ScheduledExecutorService {
-  private final ConcurrentLinkedDeque<FakeScheduledFuture> futures = new ConcurrentLinkedDeque<>();
+  private final BlockingQueue<FakeScheduledFuture> futures = new LinkedBlockingQueue<>();
 
   public TriggeredScheduledExecutorService() {
     super(0, 100, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
   }
 
-  public boolean unblockNextFuture() {
-    @Nullable FakeScheduledFuture f = futures.poll();
+  public boolean unblockNextFuture() throws InterruptedException {
+    @Nullable FakeScheduledFuture f = futures.take();
     if (f == null) {
       return false;
     }
@@ -51,8 +51,12 @@ public class TriggeredScheduledExecutorService extends ThreadPoolExecutor
   @Override
   public ScheduledFuture<?> schedule(Runnable runnable, long l, TimeUnit timeUnit) {
     FakeScheduledFuture f =
-        new FakeScheduledFuture(runnable, Duration.fromMillis(timeUnit.toMillis(l)));
-    futures.add(f);
+        new FakeScheduledFuture(runnable, Duration.ofMillis(timeUnit.toMillis(l)));
+    try {
+      futures.put(f);
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    }
     return f;
   }
 
@@ -75,11 +79,11 @@ public class TriggeredScheduledExecutorService extends ThreadPoolExecutor
 
   private class FakeScheduledFuture implements ScheduledFuture<Void> {
     private final Runnable r;
-    private final java.time.Duration delay;
+    private final Duration delay;
     private transient boolean cancelled;
     private final CompletableFuture<Void> delegateFuture = new CompletableFuture<>();
 
-    private FakeScheduledFuture(Runnable r, java.time.Duration delay) {
+    private FakeScheduledFuture(Runnable r, Duration delay) {
       this.r = r;
       this.delay = delay;
     }
@@ -109,6 +113,7 @@ public class TriggeredScheduledExecutorService extends ThreadPoolExecutor
     @Override
     public boolean cancel(boolean b) {
       cancelled = true;
+      return true;
     }
 
     @Override

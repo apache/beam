@@ -28,6 +28,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
@@ -60,7 +61,12 @@ public class AbstractWindmillStreamTest {
 
   private TestStream newStream(
       Function<StreamObserver<Integer>, StreamObserver<Integer>> clientFactory) {
-    return new TestStream(clientFactory, streamRegistry, streamObserverFactory, Duration.ZERO);
+    return new TestStream(
+        clientFactory,
+        streamRegistry,
+        streamObserverFactory,
+        Duration.ZERO,
+        Executors.newScheduledThreadPool(0));
   }
 
   @Test
@@ -148,17 +154,18 @@ public class AbstractWindmillStreamTest {
         Function<StreamObserver<Integer>, StreamObserver<Integer>> clientFactory,
         Set<AbstractWindmillStream<?, ?>> streamRegistry,
         StreamObserverFactory streamObserverFactory,
-        Duration halfCloseAfterTimeout) {
+        Duration halfCloseAfterTimeout,
+        ScheduledExecutorService executorService) {
       super(
           LoggerFactory.getLogger(AbstractWindmillStreamTest.class),
-          "Test",
           clientFactory,
           FluentBackoff.DEFAULT.backoff(),
           streamObserverFactory,
           streamRegistry,
           1,
           "Test",
-          java.time.Duration.of(halfCloseAfterTimeout.getMillis(), ChronoUnit.MILLIS));
+          java.time.Duration.of(halfCloseAfterTimeout.getMillis(), ChronoUnit.MILLIS),
+          executorService);
     }
 
     @Override

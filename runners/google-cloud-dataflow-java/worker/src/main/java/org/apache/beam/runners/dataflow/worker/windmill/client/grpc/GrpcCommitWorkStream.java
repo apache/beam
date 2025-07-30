@@ -138,6 +138,7 @@ final class GrpcCommitWorkStream
   }
 
   @Override
+  @SuppressWarnings("ReferenceEquality")
   protected synchronized void onFlushPending(boolean isNewStream)
       throws WindmillStreamShutdownException {
     if (isNewStream) {
@@ -183,6 +184,7 @@ final class GrpcCommitWorkStream
 
   private class CommitWorkPhysicalStreamHandler extends PhysicalStreamHandler {
     @Override
+    @SuppressWarnings("ReferenceEquality")
     public void onResponse(StreamingCommitResponse response) {
       CommitCompletionFailureHandler failureHandler = new CommitCompletionFailureHandler();
       for (int i = 0; i < response.getRequestIdCount(); ++i) {
@@ -220,6 +222,7 @@ final class GrpcCommitWorkStream
     }
 
     @Override
+    @SuppressWarnings("ReferenceEquality")
     public boolean hasPendingRequests() {
       return pending.entrySet().stream().anyMatch(e -> e.getValue().handler == this);
     }
@@ -232,6 +235,7 @@ final class GrpcCommitWorkStream
     }
 
     @Override
+    @SuppressWarnings("ReferenceEquality")
     public void appendHtml(PrintWriter writer) {
       writer.format(
           "CommitWorkStream: %d pending",

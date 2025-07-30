@@ -33,6 +33,7 @@ import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -113,17 +114,18 @@ final class GrpcGetDataStream
       int streamingRpcBatchLimit,
       boolean sendKeyedGetDataRequests,
       Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses,
-      java.time.Duration halfClosePhysicalStreamAfter) {
+      java.time.Duration halfClosePhysicalStreamAfter,
+      ScheduledExecutorService executorService) {
     super(
         LOG,
-        "GetDataStream",
         startGetDataRpcFn,
         backoff,
         streamObserverFactory,
         streamRegistry,
         logEveryNStreamFailures,
         backendWorkerToken,
-        halfClosePhysicalStreamAfter);
+        halfClosePhysicalStreamAfter,
+        executorService);
     this.idGenerator = idGenerator;
     this.jobHeader = jobHeader;
     this.streamingRpcBatchLimit = streamingRpcBatchLimit;
@@ -149,7 +151,8 @@ final class GrpcGetDataStream
       int streamingRpcBatchLimit,
       boolean sendKeyedGetDataRequests,
       Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses,
-      java.time.Duration halfClosePhysicalStreamAfter) {
+      java.time.Duration halfClosePhysicalStreamAfter,
+      ScheduledExecutorService executor) {
     return new GrpcGetDataStream(
         backendWorkerToken,
         startGetDataRpcFn,
@@ -162,7 +165,8 @@ final class GrpcGetDataStream
         streamingRpcBatchLimit,
         sendKeyedGetDataRequests,
         processHeartbeatResponses,
-        halfClosePhysicalStreamAfter);
+        halfClosePhysicalStreamAfter,
+        executor);
   }
 
   private static WindmillStreamShutdownException shutdownExceptionFor(QueuedBatch batch) {

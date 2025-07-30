@@ -169,12 +169,6 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     this.debugMetrics = StreamDebugMetrics.create();
   }
 
-  private static String createThreadName(String streamType, String backendWorkerToken) {
-    return !backendWorkerToken.isEmpty()
-        ? String.format("%s-%s-WindmillStream-thread", streamType, backendWorkerToken)
-        : String.format("%s-WindmillStream-thread", streamType);
-  }
-
   /** Represents a physical grpc stream that is part of the logical windmill stream. */
   protected abstract class PhysicalStreamHandler {
 
@@ -202,7 +196,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     private final StreamDebugMetrics streamDebugMetrics = StreamDebugMetrics.create();
 
     @Override
-    public final boolean equals(Object obj) {
+    public final boolean equals(@Nullable Object obj) {
       return this == obj;
     }
 
@@ -498,6 +492,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     }
   }
 
+  @SuppressWarnings("ReferenceEquality")
   private synchronized void onHalfClosePhysicalStreamTimeout(PhysicalStreamHandler handler) {
     if (currentPhysicalStream != handler || clientClosed || isShutdown) {
       return;
@@ -523,6 +518,15 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     }
     try {
       onFlushPending(true);
+      if (clientClosed) {
+        halfClose();
+      } else if (!halfClosePhysicalStreamAfter.isZero()) {
+        halfCloseFuture =
+            executor.schedule(
+                () -> onHalfClosePhysicalStreamTimeout(newStreamHandler),
+                halfClosePhysicalStreamAfter.getSeconds(),
+                TimeUnit.SECONDS);
+      }
     } catch (Exception e) {
       logger.debug(
           "Exception while flushing pending to current stream, onPhysicalStreamCompletion will be called and handle",
@@ -530,6 +534,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     }
   }
 
+  @SuppressWarnings("ReferenceEquality")
   private void onPhysicalStreamCompletion(Status status, PhysicalStreamHandler handler) {
     synchronized (this) {
       final boolean wasActiveStream = currentPhysicalStream == handler;
