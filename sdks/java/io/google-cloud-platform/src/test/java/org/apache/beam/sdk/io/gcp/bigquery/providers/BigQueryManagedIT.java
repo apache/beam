@@ -73,8 +73,6 @@ public class BigQueryManagedIT {
           Schema.Field.of("number", Schema.FieldType.INT64),
           Schema.Field.of("dest", Schema.FieldType.INT64));
 
-  // Schema.Field.of("field_date", Schema.FieldType.DATETIME)
-
   private static final SerializableFunction<Long, Row> ROW_FUNC =
       l -> Row.withSchema(SCHEMA).addValue(Long.toString(l)).addValue(l).addValue(l % 3).build();
 

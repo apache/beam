@@ -813,7 +813,7 @@ For more information on table properties, please visit https://iceberg.apache.or
     </tr>
     <tr>
       <td>
-        Time Partitiong
+        Time Partitioning
       </td>
       <td>
         <code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>

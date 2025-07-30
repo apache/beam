@@ -2702,7 +2702,7 @@ class StorageWriteToBigQuery(PTransform):
       table = StorageWriteToBigQuery.DYNAMIC_DESTINATIONS
 
     clustering_fields = []
-    time_partitioning_config= {}
+    time_partitioning_config= None
 
     if self.additional_bq_parameters:
       if callable(self.additional_bq_parameters):
