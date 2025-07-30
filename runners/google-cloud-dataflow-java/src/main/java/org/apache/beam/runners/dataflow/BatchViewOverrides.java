@@ -64,6 +64,7 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.SystemDoFnInternal;
+import org.apache.beam.sdk.values.ElementMetadata;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
@@ -1376,6 +1377,11 @@ class BatchViewOverrides {
     }
 
     @Override
+    public WindowedValue<T> withElementMetadata(ElementMetadata elementMetadata) {
+      return this;
+    }
+
+    @Override
     public T getValue() {
       return value;
     }
@@ -1393,6 +1399,21 @@ class BatchViewOverrides {
     @Override
     public PaneInfo getPaneInfo() {
       return PaneInfo.NO_FIRING;
+    }
+
+    @Override
+    public @Nullable String getCurrentRecordId() {
+      return null;
+    }
+
+    @Override
+    public @Nullable Long getCurrentRecordOffset() {
+      return null;
+    }
+
+    @Override
+    public @Nullable ElementMetadata getElementMetadata() {
+      return null;
     }
 
     @Override

@@ -102,6 +102,7 @@ import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.ParDoTranslation;
 import org.apache.beam.sdk.util.construction.RehydratedComponents;
 import org.apache.beam.sdk.util.construction.Timer;
+import org.apache.beam.sdk.values.ElementMetadata;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
@@ -1667,6 +1668,34 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         }
         outputTo(consumer, WindowedValues.of(output, timestamp, window, PaneInfo.NO_FIRING));
       }
+
+      @Override
+      public void output(
+          OutputT output,
+          Instant timestamp,
+          BoundedWindow window,
+          ElementMetadata elementMetadata) {
+        outputTo(
+            mainOutputConsumer,
+            WindowedValues.of(output, timestamp, window, PaneInfo.NO_FIRING, elementMetadata));
+      }
+
+      @Override
+      public <T> void output(
+          TupleTag<T> tag,
+          T output,
+          Instant timestamp,
+          BoundedWindow window,
+          ElementMetadata elementMetadata) {
+        FnDataReceiver<WindowedValue<T>> consumer =
+            (FnDataReceiver) localNameToConsumer.get(tag.getId());
+        if (consumer == null) {
+          throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
+        }
+        outputTo(
+            consumer,
+            WindowedValues.of(output, timestamp, window, PaneInfo.NO_FIRING, elementMetadata));
+      }
     }
 
     private final FinishBundleArgumentProvider.Context context =
@@ -1759,6 +1788,20 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
 
     @Override
+    public void outputWindowedValue(
+        OutputT output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        ElementMetadata elementMetadata) {
+      // TODO(https://github.com/apache/beam/issues/29637): Check that timestamp is valid once all
+      // runners can provide proper timestamps.
+      outputTo(
+          mainOutputConsumer,
+          WindowedValues.of(output, timestamp, windows, paneInfo, elementMetadata));
+    }
+
+    @Override
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
       // TODO(https://github.com/apache/beam/issues/29637): Check that timestamp is valid once all
       // runners can provide proper timestamps.
@@ -1787,6 +1830,22 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
       }
       outputTo(consumer, WindowedValues.of(output, timestamp, windows, paneInfo));
+    }
+
+    @Override
+    public <T> void outputWindowedValue(
+        TupleTag<T> tag,
+        T output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        ElementMetadata elementMetadata) {
+      FnDataReceiver<WindowedValue<T>> consumer =
+          (FnDataReceiver) localNameToConsumer.get(tag.getId());
+      if (consumer == null) {
+        throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
+      }
+      outputTo(consumer, WindowedValues.of(output, timestamp, windows, paneInfo, elementMetadata));
     }
 
     @Override
@@ -1887,6 +1946,19 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
 
     @Override
+    public void outputWindowedValue(
+        OutputT output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        ElementMetadata elementMetadata) {
+      checkTimestamp(timestamp);
+      outputTo(
+          mainOutputConsumer,
+          WindowedValues.of(output, timestamp, windows, paneInfo, elementMetadata));
+    }
+
+    @Override
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
       checkTimestamp(timestamp);
       FnDataReceiver<WindowedValue<T>> consumer =
@@ -1914,6 +1986,23 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
       }
       outputTo(consumer, WindowedValues.of(output, timestamp, windows, paneInfo));
+    }
+
+    @Override
+    public <T> void outputWindowedValue(
+        TupleTag<T> tag,
+        T output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        ElementMetadata elementMetadata) {
+      checkTimestamp(timestamp);
+      FnDataReceiver<WindowedValue<T>> consumer =
+          (FnDataReceiver) localNameToConsumer.get(tag.getId());
+      if (consumer == null) {
+        throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
+      }
+      outputTo(consumer, WindowedValues.of(output, timestamp, windows, paneInfo, elementMetadata));
     }
   }
 
@@ -2206,6 +2295,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
 
     @Override
+    public ElementMetadata elementMetadata() {
+      return currentElement.getElementMetadata();
+    }
+
+    @Override
     public PaneInfo pane() {
       return currentElement.getPaneInfo();
     }
@@ -2272,6 +2366,19 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       }
 
       @Override
+      public void outputWindowedValue(
+          OutputT output,
+          Instant timestamp,
+          Collection<? extends BoundedWindow> windows,
+          PaneInfo paneInfo,
+          ElementMetadata elementMetadata) {
+        checkOnWindowExpirationTimestamp(timestamp);
+        outputTo(
+            mainOutputConsumer,
+            WindowedValues.of(output, timestamp, windows, paneInfo, elementMetadata));
+      }
+
+      @Override
       public <T> void output(TupleTag<T> tag, T output) {
         FnDataReceiver<WindowedValue<T>> consumer =
             (FnDataReceiver) localNameToConsumer.get(tag.getId());
@@ -2311,6 +2418,17 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         FnDataReceiver<WindowedValue<T>> consumer =
             (FnDataReceiver) localNameToConsumer.get(tag.getId());
         outputTo(consumer, WindowedValues.of(output, timestamp, windows, paneInfo));
+      }
+
+      @Override
+      public <T> void outputWindowedValue(
+          TupleTag<T> tag,
+          T output,
+          Instant timestamp,
+          Collection<? extends BoundedWindow> windows,
+          PaneInfo paneInfo,
+          ElementMetadata elementMetadata) {
+        // todo
       }
 
       @SuppressWarnings(
@@ -2575,6 +2693,19 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       }
 
       @Override
+      public void outputWindowedValue(
+          OutputT output,
+          Instant timestamp,
+          Collection<? extends BoundedWindow> windows,
+          PaneInfo paneInfo,
+          ElementMetadata elementMetadata) {
+        checkTimerTimestamp(timestamp);
+        outputTo(
+            mainOutputConsumer,
+            WindowedValues.of(output, timestamp, windows, paneInfo, elementMetadata));
+      }
+
+      @Override
       public <T> void output(TupleTag<T> tag, T output) {
         checkTimerTimestamp(currentTimer.getHoldTimestamp());
         FnDataReceiver<WindowedValue<T>> consumer =
@@ -2611,6 +2742,15 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           Instant timestamp,
           Collection<? extends BoundedWindow> windows,
           PaneInfo paneInfo) {}
+
+      @Override
+      public <T> void outputWindowedValue(
+          TupleTag<T> tag,
+          T output,
+          Instant timestamp,
+          Collection<? extends BoundedWindow> windows,
+          PaneInfo paneInfo,
+          ElementMetadata elementMetadata) {}
 
       @Override
       public TimeDomain timeDomain() {

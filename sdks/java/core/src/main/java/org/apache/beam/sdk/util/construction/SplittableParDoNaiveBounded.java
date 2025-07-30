@@ -46,6 +46,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.values.ElementMetadata;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
@@ -399,6 +400,27 @@ public class SplittableParDoNaiveBounded {
 
                 @Override
                 public <T> void output(
+                    TupleTag<T> tag,
+                    T output,
+                    Instant timestamp,
+                    BoundedWindow window,
+                    ElementMetadata elementMetadata) {
+                  throw new UnsupportedOperationException(
+                      "Output from FinishBundle for SDF is not supported in naive implementation");
+                }
+
+                @Override
+                public void output(
+                    @Nullable OutputT output,
+                    Instant timestamp,
+                    BoundedWindow window,
+                    ElementMetadata elementMetadata) {
+                  throw new UnsupportedOperationException(
+                      "Output from FinishBundle for SDF is not supported in naive implementation");
+                }
+
+                @Override
+                public <T> void output(
                     TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
                   throw new UnsupportedOperationException(
                       "Output from FinishBundle for SDF is not supported in naive implementation");
@@ -618,6 +640,16 @@ public class SplittableParDoNaiveBounded {
       }
 
       @Override
+      public void outputWindowedValue(
+          OutputT output,
+          Instant timestamp,
+          Collection<? extends BoundedWindow> windows,
+          PaneInfo paneInfo,
+          ElementMetadata elementMetadata) {
+        outerContext.outputWindowedValue(output, timestamp, windows, paneInfo, elementMetadata);
+      }
+
+      @Override
       public <T> void output(TupleTag<T> tag, T output) {
         outerContext.output(tag, output);
       }
@@ -638,6 +670,17 @@ public class SplittableParDoNaiveBounded {
       }
 
       @Override
+      public <T> void outputWindowedValue(
+          TupleTag<T> tag,
+          T output,
+          Instant timestamp,
+          Collection<? extends BoundedWindow> windows,
+          PaneInfo paneInfo,
+          ElementMetadata elementMetadata) {
+          outerContext.outputWindowedValue(tag, output, timestamp, windows, paneInfo, elementMetadata);
+      }
+
+      @Override
       public InputT element() {
         return element;
       }
@@ -655,6 +698,11 @@ public class SplittableParDoNaiveBounded {
       @Override
       public PaneInfo pane() {
         return outerContext.pane();
+      }
+
+      @Override
+      public ElementMetadata elementMetadata() {
+        return outerContext.elementMetadata();
       }
 
       @Override

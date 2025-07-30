@@ -46,6 +46,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
+import org.apache.beam.sdk.values.ElementMetadata;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
@@ -379,6 +380,11 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     }
 
     @Override
+    public ElementMetadata elementMetadata() {
+      return element.getElementMetadata();
+    }
+
+    @Override
     public PaneInfo pane() {
       return element.getPaneInfo();
     }
@@ -412,6 +418,21 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     }
 
     @Override
+    public void outputWindowedValue(
+        OutputT value,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        ElementMetadata elementMetadata) {
+      noteOutput();
+      if (watermarkEstimator instanceof TimestampObservingWatermarkEstimator) {
+        ((TimestampObservingWatermarkEstimator) watermarkEstimator).observeTimestamp(timestamp);
+      }
+      outputReceiver.output(
+          mainOutputTag, WindowedValues.of(value, timestamp, windows, paneInfo, elementMetadata));
+    }
+
+    @Override
     public <T> void output(TupleTag<T> tag, T value) {
       outputWithTimestamp(tag, value, element.getTimestamp());
     }
@@ -434,6 +455,22 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
         ((TimestampObservingWatermarkEstimator) watermarkEstimator).observeTimestamp(timestamp);
       }
       outputReceiver.output(tag, WindowedValues.of(value, timestamp, windows, paneInfo));
+    }
+
+    @Override
+    public <T> void outputWindowedValue(
+        TupleTag<T> tag,
+        T value,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo paneInfo,
+        ElementMetadata elementMetadata) {
+      noteOutput();
+      if (watermarkEstimator instanceof TimestampObservingWatermarkEstimator) {
+        ((TimestampObservingWatermarkEstimator) watermarkEstimator).observeTimestamp(timestamp);
+      }
+      outputReceiver.output(
+          tag, WindowedValues.of(value, timestamp, windows, paneInfo, elementMetadata));
     }
 
     private void noteOutput() {

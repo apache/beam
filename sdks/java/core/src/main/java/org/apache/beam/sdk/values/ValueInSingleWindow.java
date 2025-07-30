@@ -57,12 +57,23 @@ public abstract class ValueInSingleWindow<T> {
   /** Returns the window of this {@code ValueInSingleWindow}. */
   public abstract BoundedWindow getWindow();
 
+  public abstract @Nullable ElementMetadata getElementMetadata();
+
   /** Returns the pane of this {@code ValueInSingleWindow} in its window. */
   public abstract PaneInfo getPaneInfo();
 
   public static <T> ValueInSingleWindow<T> of(
+      T value,
+      Instant timestamp,
+      BoundedWindow window,
+      PaneInfo paneInfo,
+      @Nullable ElementMetadata elementMetadata) {
+    return new AutoValue_ValueInSingleWindow<>(value, timestamp, window, elementMetadata, paneInfo);
+  }
+
+  public static <T> ValueInSingleWindow<T> of(
       T value, Instant timestamp, BoundedWindow window, PaneInfo paneInfo) {
-    return new AutoValue_ValueInSingleWindow<>(value, timestamp, window, paneInfo);
+    return of(value, timestamp, window, paneInfo, null);
   }
 
   /** A coder for {@link ValueInSingleWindow}. */
@@ -110,7 +121,7 @@ public abstract class ValueInSingleWindow<T> {
       BoundedWindow window = windowCoder.decode(inStream);
       PaneInfo paneInfo = PaneInfo.PaneInfoCoder.INSTANCE.decode(inStream);
       T value = valueCoder.decode(inStream, context);
-      return new AutoValue_ValueInSingleWindow<>(value, timestamp, window, paneInfo);
+      return new AutoValue_ValueInSingleWindow<>(value, timestamp, window, null, paneInfo);
     }
 
     @Override
