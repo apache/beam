@@ -50,11 +50,11 @@ try:
   from apache_beam.ml.transforms import tft
   from apache_beam.ml.transforms.base import MLTransform
   # TODO(robertwb): Is this all of them?
-  _transform_constructors = {}
 except ImportError:
   tft = None  # type: ignore
 
 # Load all available ML Transform modules
+_transform_constructors = {}
 for module_name in _list_submodules(beam.ml.transforms):
   try:
     module = import_module(module_name)
