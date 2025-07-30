@@ -65,9 +65,8 @@ pipelines:
 
             - type: Sql
               config:
-                dialect: zetasql
                 query:
-                  "SELECT a, cast(b AS STRING) as s FROM PCOLLECTION"
+                  "SELECT a, cast(b AS VARCHAR) as s FROM PCOLLECTION"
 
             - type: AssertEqual
               config:

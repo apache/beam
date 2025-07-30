@@ -1706,7 +1706,7 @@ keysPerBundle:
 		}
 
 		var toProcessForKey []element
-
+		var toSkipForKey []element
 		// Can we pre-compute this bit when adding to pendingByKeys?
 		// startBundle is in run in a single scheduling goroutine, so moving per-element code
 		// to be computed by the bundle parallel goroutines will speed things up a touch.
@@ -1715,28 +1715,39 @@ keysPerBundle:
 			// if we're after the end of window, or after the window expiry deadline.
 			// We will only ever trigger aggregations by watermark at most twice, once the watermark passes the window ends for OnTime completion,
 			// and once for when the window is closing.
-			elm := dnt.elements[0]
+			elm := heap.Pop(&dnt.elements).(element)
+			shouldSkip := false
+
 			if watermark <= elm.window.MaxTimestamp() {
 				// The watermark hasn't passed the end of the window yet, we do nothing.
-				break
+				shouldSkip = true
 			}
 			// Watermark is past the end of this window. Have we fired an OnTime pane yet?
 			state := ss.state[LinkID{}][elm.window][string(elm.keyBytes)]
 			// If this is not the ontime firing for this key.
 
-			if state.Pane.Timing != typex.PaneEarly && watermark <= ss.strat.EarliestCompletion(elm.window) {
+			if !shouldSkip && state.Pane.Timing != typex.PaneEarly && watermark <= ss.strat.EarliestCompletion(elm.window) {
 				// The watermark is still before the earliest final completion for this window.
 				// Do not add further data for this firing.
 				// If this is the Never trigger, we also don't fire OnTime until after the earliest completion.
-				break
+				shouldSkip = true
 			}
-			if ss.strat.IsNeverTrigger() && watermark <= ss.strat.EarliestCompletion(elm.window) {
+			if !shouldSkip && ss.strat.IsNeverTrigger() && watermark <= ss.strat.EarliestCompletion(elm.window) {
 				// The NeverTrigger only has a single firing at the end of window + allowed lateness.
-				break
+				shouldSkip = true
 			}
-			e := heap.Pop(&dnt.elements).(element)
 
-			toProcessForKey = append(toProcessForKey, e)
+			if shouldSkip {
+				toSkipForKey = append(toSkipForKey, elm)
+			} else {
+				toProcessForKey = append(toProcessForKey, elm)
+			}
+		}
+
+		// Re-add skipped elements to the heap.
+		// This ensures that `dnt.elements` reflects only the truly skipped elements for future processing.
+		for _, elm := range toSkipForKey {
+			heap.Push(&dnt.elements, elm)
 		}
 
 		// Get the pane for the aggregation correct, only mutate it once per key and window.

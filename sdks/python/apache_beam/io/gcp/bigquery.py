@@ -1590,6 +1590,21 @@ class BigQueryWriteFn(DoFn):
         additional_create_parameters=self.additional_bq_parameters)
     _KNOWN_TABLES.add(str_table_reference)
 
+  def _check_row_size(self, row_and_insert_id) -> Tuple[int, Optional[str]]:
+    """Returns error string when the row estimated size is too big"""
+    row_byte_size = get_deep_size(row_and_insert_id)
+
+    # Check if individual row exceeds size limit
+    if row_byte_size >= self._max_insert_payload_size:
+      row_mb_size = row_byte_size / 1_000_000
+      max_mb_size = self._max_insert_payload_size / 1_000_000
+      return (
+          row_byte_size,
+          (
+              f"Received row with size {row_mb_size}MB that exceeds "
+              f"the maximum insert payload size set ({max_mb_size}MB)."))
+    return (row_byte_size, None)
+
   def process(
       self, element, window_value=DoFn.WindowedValueParam, *schema_side_inputs):
     destination = bigquery_tools.get_hashable_destination(element[0])
@@ -1606,20 +1621,15 @@ class BigQueryWriteFn(DoFn):
 
     if not self.with_batched_input:
       row_and_insert_id = element[1]
-      row_byte_size = get_deep_size(row_and_insert_id)
+      row_byte_size, row_too_big_error = self._check_row_size(row_and_insert_id)
 
       # send large rows that exceed BigQuery insert limits to DLQ
-      if row_byte_size >= self._max_insert_payload_size:
-        row_mb_size = row_byte_size / 1_000_000
-        max_mb_size = self._max_insert_payload_size / 1_000_000
-        error = (
-            f"Received row with size {row_mb_size}MB that exceeds "
-            f"the maximum insert payload size set ({max_mb_size}MB).")
+      if row_too_big_error is not None:
         return [
             pvalue.TaggedOutput(
                 BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS,
                 window_value.with_value(
-                    (destination, row_and_insert_id[0], error))),
+                    (destination, row_and_insert_id[0], row_too_big_error))),
             pvalue.TaggedOutput(
                 BigQueryWriteFn.FAILED_ROWS,
                 window_value.with_value((destination, row_and_insert_id[0])))
@@ -1643,11 +1653,50 @@ class BigQueryWriteFn(DoFn):
       if self._total_buffered_rows >= self._max_buffered_rows:
         return self._flush_all_batches()
     else:
-      # The input is already batched per destination, flush the rows now.
+      # The input is already batched per destination
+      # but we verify the payload size.
+      # The batch might be split into smaller batches
       batched_rows = element[1]
-      for r in batched_rows:
-        self._rows_buffer[destination].append((r, window_value))
-      return self._flush_batch(destination)
+      failed_outputs = []
+      current_batch = []
+      current_batch_size = 0
+
+      for row in batched_rows:
+        row_byte_size, row_too_big_error = self._check_row_size(row)
+        # Check if individual row exceeds size limit
+        if row_too_big_error is not None:
+          failed_outputs.extend([
+              pvalue.TaggedOutput(
+                  BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS,
+                  window_value.with_value(
+                      (destination, row[0], row_too_big_error))),
+              pvalue.TaggedOutput(
+                  BigQueryWriteFn.FAILED_ROWS,
+                  window_value.with_value((destination, row[0])))
+          ])
+          continue
+
+        # Check if adding this row would exceed batch size limit
+        if (len(current_batch) != 0 and
+            current_batch_size + row_byte_size > self._max_insert_payload_size):
+
+          self._rows_buffer[destination].extend(
+              ((batch_row, window_value) for batch_row in current_batch))
+          failed_outputs.extend(self._flush_batch(destination))
+
+          # Start new batch with current row
+          current_batch = [row]
+          current_batch_size = row_byte_size
+        else:
+          current_batch.append(row)
+          current_batch_size += row_byte_size
+
+      if current_batch:
+        for batch_row in current_batch:
+          self._rows_buffer[destination].append((batch_row, window_value))
+        failed_outputs.extend(self._flush_batch(destination))
+
+      return failed_outputs
 
   def finish_bundle(self):
     bigquery_tools.BigQueryWrapper.HISTOGRAM_METRIC_LOGGER.log_metrics(
@@ -1719,11 +1768,14 @@ class BigQueryWriteFn(DoFn):
             'Errors were {}'.format(("" if should_retry else " not"), errors))
 
         # The log level is:
-        # - WARNING when we are continuing to retry, and have a deadline.
-        # - ERROR when we will no longer retry, or MAY retry forever.
-        log_level = (
-            logging.WARN if should_retry or self._retry_strategy
-            != RetryStrategy.RETRY_ALWAYS else logging.ERROR)
+        # - WARNING when should_retry is true, else ERROR.
+
+        if (should_retry and
+            self._retry_strategy in [RetryStrategy.RETRY_ON_TRANSIENT_ERROR,
+                                     RetryStrategy.RETRY_ALWAYS]):
+          log_level = logging.WARN
+        else:
+          log_level = logging.ERROR
 
         _LOGGER.log(log_level, message)
 
@@ -2315,6 +2367,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           table_side_inputs=self.table_side_inputs,
           create_disposition=self.create_disposition,
           write_disposition=self.write_disposition,
+          additional_bq_parameters=self.additional_bq_parameters,
           triggering_frequency=self.triggering_frequency,
           use_at_least_once=self.use_at_least_once,
           with_auto_sharding=self.with_auto_sharding,
@@ -2562,6 +2615,7 @@ class StorageWriteToBigQuery(PTransform):
       schema=None,
       create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
       write_disposition=BigQueryDisposition.WRITE_APPEND,
+      additional_bq_parameters=None,
       triggering_frequency=0,
       use_at_least_once=False,
       with_auto_sharding=False,
@@ -2574,6 +2628,7 @@ class StorageWriteToBigQuery(PTransform):
     self._schema = schema
     self._create_disposition = create_disposition
     self._write_disposition = write_disposition
+    self.additional_bq_parameters = additional_bq_parameters
     self._triggering_frequency = triggering_frequency
     self._use_at_least_once = use_at_least_once
     self._with_auto_sharding = with_auto_sharding
@@ -2649,6 +2704,15 @@ class StorageWriteToBigQuery(PTransform):
       # communicate to Java that this write should use dynamic destinations
       table = StorageWriteToBigQuery.DYNAMIC_DESTINATIONS
 
+    clustering_fields = []
+    if self.additional_bq_parameters:
+      if callable(self.additional_bq_parameters):
+        raise NotImplementedError(
+            "Currently, dynamic clustering and timepartitioning is not "
+            "supported for STORAGE_WRITE_API write method.")
+      clustering_fields = (
+          self.additional_bq_parameters.get("clustering", {}).get("fields", []))
+
     output = (
         input_beam_rows
         | SchemaAwareExternalTransform(
@@ -2664,6 +2728,7 @@ class StorageWriteToBigQuery(PTransform):
             use_at_least_once_semantics=self._use_at_least_once,
             use_cdc_writes=self._use_cdc_writes,
             primary_key=self._primary_key,
+            clustering_fields=clustering_fields,
             error_handling={
                 'output': StorageWriteToBigQuery.FAILED_ROWS_WITH_ERRORS
             }))
@@ -2674,11 +2739,12 @@ class StorageWriteToBigQuery(PTransform):
         lambda row_and_error: row_and_error[0])
     if not is_rows:
       # return back from Beam Rows to Python dict elements
-      failed_rows = failed_rows | beam.Map(lambda row: row.as_dict())
+      failed_rows = failed_rows | beam.Map(lambda row: row._asdict())
+
       failed_rows_with_errors = failed_rows_with_errors | beam.Map(
           lambda row: {
               "error_message": row.error_message, "failed_row": row.failed_row.
-              as_dict()
+              _asdict()
           })
 
     return WriteResult(

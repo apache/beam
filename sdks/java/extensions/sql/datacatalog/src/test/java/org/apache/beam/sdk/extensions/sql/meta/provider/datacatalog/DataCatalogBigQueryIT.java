@@ -26,7 +26,6 @@ import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
 import org.apache.beam.sdk.extensions.sql.impl.CalciteQueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner;
-import org.apache.beam.sdk.extensions.sql.zetasql.ZetaSQLQueryPlanner;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.Method;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
@@ -59,11 +58,7 @@ public class DataCatalogBigQueryIT {
     /** Parameterized by which SQL dialect, since the syntax here is the same. */
     @Parameterized.Parameters(name = "{0}")
     public static Iterable<Object[]> dialects() {
-      return Arrays.asList(
-          new Object[][] {
-            {"ZetaSQL", ZetaSQLQueryPlanner.class},
-            {"CalciteSQL", CalciteQueryPlanner.class}
-          });
+      return Arrays.asList(new Object[][] {{"CalciteSQL", CalciteQueryPlanner.class}});
     }
 
     @SuppressWarnings("initialization.fields.uninitialized")
