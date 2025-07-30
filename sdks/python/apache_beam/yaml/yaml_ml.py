@@ -49,7 +49,6 @@ def _list_submodules(package):
 try:
   from apache_beam.ml.transforms import tft
   from apache_beam.ml.transforms.base import MLTransform
-  # TODO(robertwb): Is this all of them?
 except ImportError:
   tft = None  # type: ignore
 
