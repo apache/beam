@@ -61,7 +61,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
   BIGQUERY_DATASET = 'python_xlang_storage_write'
 
   ELEMENTS = [
-      # (int, float, numeric, string, bool, bytes, timestamp)
+      # (int, float, numeric, string, bool, bytes, timestamp, timestamp)
       {
           "int": 1,
           "float": 0.1,
@@ -110,8 +110,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
     self.args = self.test_pipeline.get_full_options_as_args()
-    # self.project = self.test_pipeline.get_option('project')
-    self.project = "tanusharmaa"
+    self.project = self.test_pipeline.get_option('project')
     self._runner = PipelineOptions(self.args).get_all_options()['runner']
 
     self.bigquery_client = BigQueryWrapper()
