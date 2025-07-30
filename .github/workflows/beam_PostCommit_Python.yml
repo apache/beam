@@ -67,7 +67,8 @@ jobs:
         # self-hosted runners due to Docker-in-Docker environment constraint.
         # These tests will only execute on ubuntu-latest (GitHub-hosted).
         # Context: https://github.com/apache/beam/pull/35585
-        os: [[self-hosted, ubuntu-20.04, highmem22], [ubuntu-latest]]
+        # Temporary removed the ubuntu-latest env till resolving deps issues.
+        os: [[self-hosted, ubuntu-20.04, highmem22]]
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'pull_request_target' ||
