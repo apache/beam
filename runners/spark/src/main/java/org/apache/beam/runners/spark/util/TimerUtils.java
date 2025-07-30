@@ -32,6 +32,7 @@ import org.apache.beam.runners.spark.translation.AbstractInOutIterator;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.values.ElementMetadata;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -111,6 +112,21 @@ public class TimerUtils {
     }
 
     @Override
+    public @Nullable String getCurrentRecordId() {
+      return null;
+    }
+
+    @Override
+    public @Nullable Long getCurrentRecordOffset() {
+      return null;
+    }
+
+    @Override
+    public @Nullable ElementMetadata getElementMetadata() {
+      return null;
+    }
+
+    @Override
     public Iterable<WindowedValue<T>> explodeWindows() {
       return Collections.emptyList();
     }
@@ -123,6 +139,11 @@ public class TimerUtils {
     @Override
     public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
       return new WindowedValueForTimerMarker<>(newValue);
+    }
+
+    @Override
+    public WindowedValue<T> withElementMetadata(ElementMetadata elementMetadata) {
+      return this;
     }
 
     @Override

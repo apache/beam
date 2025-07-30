@@ -2427,8 +2427,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           ElementMetadata elementMetadata) {
         checkOnWindowExpirationTimestamp(timestamp);
         FnDataReceiver<WindowedValue<T>> consumer =
-                (FnDataReceiver) localNameToConsumer.get(tag.getId());
-        outputTo(consumer, WindowedValues.of(output, timestamp, windows, paneInfo, elementMetadata));
+            (FnDataReceiver) localNameToConsumer.get(tag.getId());
+        outputTo(
+            consumer, WindowedValues.of(output, timestamp, windows, paneInfo, elementMetadata));
       }
 
       @SuppressWarnings(

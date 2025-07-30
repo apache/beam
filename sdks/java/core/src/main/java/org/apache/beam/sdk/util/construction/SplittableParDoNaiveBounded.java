@@ -677,7 +677,8 @@ public class SplittableParDoNaiveBounded {
           Collection<? extends BoundedWindow> windows,
           PaneInfo paneInfo,
           ElementMetadata elementMetadata) {
-          outerContext.outputWindowedValue(tag, output, timestamp, windows, paneInfo, elementMetadata);
+        outerContext.outputWindowedValue(
+            tag, output, timestamp, windows, paneInfo, elementMetadata);
       }
 
       @Override
