@@ -18,22 +18,49 @@
 # Cloud storage to keep track of the logging information.
 # It is configured by the `config.yaml` file in the same directory.
 
-import yaml
-import logging
 import google_crc32c
-from service_account import ServiceAccountManager
+import io
+import logging
+import yaml
+from datetime import timedelta, datetime
 from google.cloud import secretmanager
 from google.cloud import storage
-from datetime import timedelta, datetime
-import io
+from typing import List, Optional, Union, Dict, TypedDict
+from service_account import ServiceAccountManager
+
 
 # --- Configuration ---
 CONFIG_FILE = 'config.yaml'
 
+class ConfigDict(TypedDict):
+    project_id: str
+    secret_name_prefix: str
+    rotation_interval: int
+    max_versions_to_keep: int
+    bucket_name: str
+    log_file_prefix: str
+    logging_level: str
+
+def load_config() -> ConfigDict:
+    """Loads the configuration from the YAML file."""
+    with open(CONFIG_FILE, 'r') as f:
+        return yaml.safe_load(f)
+
 class GCSLogHandler(logging.Handler):
     """Custom logging handler that writes logs to Google Cloud Storage."""
+
+    bucket_name: str
+    log_file_prefix: str
+    project_id: str
+    storage_client: storage.Client
+    bucket: storage.Bucket
+    log_buffer: io.StringIO
+    log_entries_count: int
+    max_buffer_size: int
+    session_logs: List[str]
+    blob_name: str
     
-    def __init__(self, bucket_name: str, log_file_prefix: str, project_id: str):
+    def __init__(self, bucket_name: str, log_file_prefix: str, project_id: str) -> None:
         """
         Initialize the GCS log handler.
         
@@ -56,8 +83,8 @@ class GCSLogHandler(logging.Handler):
         session_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.blob_name = f"{self.log_file_prefix}/secret_service_{session_timestamp}.log"
         self.session_logs = []  # Store all logs for the session
-        
-    def emit(self, record):
+
+    def emit(self, record: logging.LogRecord) -> None:
         """
         Emit a log record to the buffer and flush to GCS when buffer is full.
         
@@ -76,8 +103,8 @@ class GCSLogHandler(logging.Handler):
                 
         except Exception:
             self.handleError(record)
-    
-    def flush_to_gcs(self):
+
+    def flush_to_gcs(self) -> None:
         """Flush the log buffer to Google Cloud Storage."""
         if self.log_entries_count == 0:
             return
@@ -97,56 +124,70 @@ class GCSLogHandler(logging.Handler):
             print(f"Failed to upload logs to GCS: {e}", file=sys.stderr)
             print(f"Log file would be: {self.blob_name}", file=sys.stderr)
     
-    def close(self):
+    def close(self) -> None:
         """Close the handler and flush remaining logs to GCS."""
         self.flush_to_gcs()
         super().close()
-    
-    def get_log_file_path(self):
+
+    def get_log_file_path(self) -> str:
         """Get the GCS path for the current log file."""
         return f"gs://{self.bucket_name}/{self.blob_name}"
 
-def load_config():
-    """Loads the configuration from the YAML file."""
-    with open(CONFIG_FILE, 'r') as f:
-        return yaml.safe_load(f)
 
 class SecretService:
     """Service to manage GCP API keys rotation."""
 
-    def __init__(self, config):
+    project_id: str
+    secret_name_prefix: str
+    rotation_interval: int
+    max_versions_to_keep: int
+    bucket_name: str
+    log_file_prefix: str
+    logging_level: str
+    client: secretmanager.SecretManagerServiceClient
+    logger: logging.Logger
+    gcs_handler: Optional[GCSLogHandler]
+    manager: ServiceAccountManager
+    parent: str
+    secrets_names: List[str]
+
+    def __init__(self, config: ConfigDict) -> None:
         """
         Initializes the SecretService with the provided configuration.
 
         Args:
-            config (dict): Configuration dictionary containing the necessary parameters.
+            config (ConfigDict): Configuration dictionary containing:
+                - project_id: GCP project ID
+                - secret_name_prefix: Prefix for secret names
+                - rotation_interval: Interval in days for secret rotation 
+                - max_versions_to_keep: Maximum number of secret versions to keep
+                - bucket_name: GCS bucket name for logging
+                - log_file_prefix: Prefix for log file names
+                - logging_level: Logging level (e.g., 'INFO', 'DEBUG')
         Raises:
             ValueError: If any required configuration parameter is missing.
         """
-        self.project_id = config.get('project_id')
-        self.secret_name_prefix = config.get('secret_name_prefix')
-        self.rotation_interval = config.get('rotation_interval')
-        self.max_versions_to_keep = config.get('max_versions_to_keep')
-        self.bucket_name = config.get('bucket_name')
-        self.log_file_prefix = config.get('log_file_prefix')
+
+        self.project_id = config['project_id']
+        self.secret_name_prefix = config['secret_name_prefix']
+        self.rotation_interval = config['rotation_interval']
+        self.max_versions_to_keep = config['max_versions_to_keep']
+        self.bucket_name = config['bucket_name']
+        self.log_file_prefix = config['log_file_prefix']
         self.logging_level = config.get('logging_level', 'INFO').upper()
 
-        if not all([self.project_id, self.secret_name_prefix, self.rotation_interval,
-                    self.max_versions_to_keep, self.bucket_name, self.log_file_prefix]):
-            if not self.project_id:
-                raise ValueError("Configuration is missing 'project_id'.")
-            if not self.secret_name_prefix:
-                raise ValueError("Configuration is missing 'secret_name_prefix'.")
-            if not self.rotation_interval:
-                raise ValueError("Configuration is missing 'rotation_interval'.")
-            if not self.max_versions_to_keep:
-                raise ValueError("Configuration is missing 'max_versions_to_keep'.")
-            if not self.bucket_name:
-                raise ValueError("Configuration is missing 'bucket_name'.")
-            if not self.log_file_prefix:
-                raise ValueError("Configuration is missing 'log_file_prefix'.")
-            if not self.logging_level:
-                raise ValueError("Configuration is missing 'logging_level'.")
+        if not self.project_id.strip():
+            raise ValueError("Configuration 'project_id' cannot be empty.")
+        if not self.secret_name_prefix.strip():
+            raise ValueError("Configuration 'secret_name_prefix' cannot be empty.")
+        if self.rotation_interval <= 0:
+            raise ValueError("Configuration 'rotation_interval' must be positive.")
+        if self.max_versions_to_keep <= 0:
+            raise ValueError("Configuration 'max_versions_to_keep' must be positive.")
+        if not self.bucket_name.strip():
+            raise ValueError("Configuration 'bucket_name' cannot be empty.")
+        if not self.log_file_prefix.strip():
+            raise ValueError("Configuration 'log_file_prefix' cannot be empty.")
 
         self.client = secretmanager.SecretManagerServiceClient() # Initialize the Secret Manager client
         self.logger = logging.getLogger(__name__)
@@ -182,18 +223,18 @@ class SecretService:
 
         self.logger.info(f"Initialized SecretService for project: {self.project_id}")
 
-    def __del__(self):
+    def __del__(self) -> None:
         """Destructor to ensure logs are flushed when the service is destroyed."""
         self.flush_logs()
 
-    def flush_logs(self):
+    def flush_logs(self) -> None:
         """Manually flush all logs to Google Cloud Storage."""
         for handler in self.logger.handlers:
             if isinstance(handler, GCSLogHandler):
                 handler.flush_to_gcs()
                 self.logger.info("Logs flushed to Google Cloud Storage")
 
-    def get_log_file_path(self):
+    def get_log_file_path(self) -> Optional[str]:
         """Get the GCS path where logs are being stored."""
         if hasattr(self, 'gcs_handler') and self.gcs_handler:
             return self.gcs_handler.get_log_file_path()
@@ -247,7 +288,7 @@ class SecretService:
         self.logger.info(f"Successfully created secret '{secret_name}'")
         return response.name
 
-    def _rotate_secret(self, secret_name: str, new_version_payload: bytes|str) -> None:
+    def _rotate_secret(self, secret_name: str, new_version_payload: Union[bytes, str]) -> None:
         """
         Rotates the specified secret by creating a new version of it and disabling the oldest enabled version.
 
@@ -286,7 +327,7 @@ class SecretService:
         self.secrets_names.remove(secret_full_name)
         self.logger.info(f"Successfully deleted secret '{secret_name}'")
 
-    def add_secret_version(self, secret_name: str, payload: bytes|str) -> str:
+    def add_secret_version(self, secret_name: str, payload: Union[bytes, str]) -> str:
         """
         Adds a new version to the specified secret with the given payload.
         If the secret does not exist, it will be created first.
