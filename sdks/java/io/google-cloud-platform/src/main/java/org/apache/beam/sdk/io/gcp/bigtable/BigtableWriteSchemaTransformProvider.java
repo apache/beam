@@ -260,9 +260,9 @@ public class BigtableWriteSchemaTransformProvider
                                                 input.getBytes("column_qualifier"),
                                                 "Encountered SetCell mutation with null 'column_qualifier' property. ")))
                                     .setFamilyName(
-                                            Preconditions.checkStateNotNull(
-                                                input.getString("family_name"),
-                                                "Encountered SetCell mutation with null 'family_name' property."));
+                                        Preconditions.checkStateNotNull(
+                                            input.getString("family_name"),
+                                            "Encountered SetCell mutation with null 'family_name' property."));
                             // Use timestamp if provided, else default to -1 (current
                             // Bigtable
                             // server time)
@@ -284,9 +284,9 @@ public class BigtableWriteSchemaTransformProvider
                                                 input.getBytes("column_qualifier"),
                                                 "Encountered DeleteFromColumn mutation with null 'column_qualifier' property.")))
                                     .setFamilyName(
-                                            Preconditions.checkStateNotNull(
-                                                input.getString("family_name"),
-                                                "Encountered DeleteFromColumn mutation with null 'family_name' property."));
+                                        Preconditions.checkStateNotNull(
+                                            input.getString("family_name"),
+                                            "Encountered DeleteFromColumn mutation with null 'family_name' property."));
 
                             // if start or end timestamp provided
                             // Timestamp Range (optional, assuming Long type in Row schema)
@@ -321,9 +321,9 @@ public class BigtableWriteSchemaTransformProvider
                                     .setDeleteFromFamily(
                                         Mutation.DeleteFromFamily.newBuilder()
                                             .setFamilyName(
-                                                    Preconditions.checkStateNotNull(
-                                                        input.getString("family_name"),
-                                                        "Encountered DeleteFromFamily mutation with null 'family_name' property."))
+                                                Preconditions.checkStateNotNull(
+                                                    input.getString("family_name"),
+                                                    "Encountered DeleteFromFamily mutation with null 'family_name' property."))
                                             .build())
                                     .build();
                             break;
