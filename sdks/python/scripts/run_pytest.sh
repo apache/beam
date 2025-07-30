@@ -32,10 +32,10 @@ pytest_args=$3
 
 # strip leading/trailing quotes from posargs because it can get double quoted as
 # its passed through.
-if [[ $posargs == \"*\" ]]; then
+if [[ $posargs == '"'*'"' ]]; then
   # If wrapped in double quotes, remove them
   posargs="${posargs:1:${#posargs}-2}"
-elif [[ $posargs == \'*\' ]]; then
+elif [[ $posargs == "'"*"'" ]]; then
   # If wrapped in single quotes, remove them.
   posargs="${posargs:1:${#posargs}-2}"
 fi
@@ -70,7 +70,6 @@ if [[ $posargs =~ $marker_regex ]]; then
   posargs="${posargs/$full_match/}"
 fi
 
-
 # Combine user-provided marker with script's internal logic.
 marker_for_parallel_tests="not no_xdist"
 marker_for_sequential_tests="no_xdist"
@@ -97,8 +96,9 @@ while [[ $# -gt 0 ]]; do
   if [[ "$arg" == -* ]]; then
     options+=" $arg"
 
-    # Handle options that take a value (like -k).
-    if [[ "$arg" == "-k" && $# -gt 0 ]]; then
+    # Check if there's a next argument and it doesn't start with a dash.
+    # This assumes it's a value for the current option.
+    if [[ $# -gt 0 && "$1" != -* ]]; then
       # Get the next argument.
       next_arg="$1"
 
@@ -126,13 +126,13 @@ fi
 pytest_command_args="$options $pyargs_section"
 
 # Run tests in parallel.
-echo "Running parallel tests with: pytest -m \"$marker_for_parallel_tests\" $posargs"
+echo "Running parallel tests with: pytest -m \"$marker_for_parallel_tests\" $pytest_command_args"
 pytest -v -rs -o junit_suite_name=${envname} \
   --junitxml=pytest_${envname}.xml -m "$marker_for_parallel_tests" -n 6 --import-mode=importlib ${pytest_args} ${pytest_command_args}
 status1=$?
 
 # Run tests sequentially.
-echo "Running sequential tests with: pytest -m \"$marker_for_sequential_tests\" $pytest_args"
+echo "Running sequential tests with: pytest -m \"$marker_for_sequential_tests\" $pytest_command_args"
 pytest -v -rs -o junit_suite_name=${envname}_no_xdist \
   --junitxml=pytest_${envname}_no_xdist.xml -m "$marker_for_sequential_tests" --import-mode=importlib ${pytest_args} ${pytest_command_args}
 status2=$?
