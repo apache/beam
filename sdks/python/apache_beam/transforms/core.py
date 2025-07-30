@@ -3987,8 +3987,7 @@ class Create(PTransform):
       non_none_types = {t for t in field_types if t is not type(None)}
 
       if len(non_none_types) > 1:
-        raise TypeError(
-            "Multiple types found for field %s: %s", field, non_none_types)
+        final_type = typing.Union[tuple(non_none_types)]
       elif len(non_none_types) == 1 and len(field_types) == 1:
         final_type = non_none_types.pop()
       elif len(non_none_types) == 1 and len(field_types) == 2:
