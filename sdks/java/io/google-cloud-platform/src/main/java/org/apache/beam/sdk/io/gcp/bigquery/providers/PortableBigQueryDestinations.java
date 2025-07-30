@@ -25,6 +25,7 @@ import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.TableConstraints;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.api.services.bigquery.model.TimePartitioning;
 import java.util.List;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.annotations.Internal;
@@ -33,6 +34,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.AvroWriteRequest;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils;
 import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinations;
 import org.apache.beam.sdk.io.gcp.bigquery.TableDestination;
+import org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryWriteConfiguration.TimePartitioningConfig;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.RowFilter;
@@ -50,9 +52,11 @@ public class PortableBigQueryDestinations extends DynamicDestinations<Row, Strin
   private final @Nullable List<String> primaryKey;
   private final RowFilter rowFilter;
   private final @Nullable List<String> clusteringFields;
+  private final @Nullable TimePartitioningConfig timePartitioningConfig;
 
   public PortableBigQueryDestinations(Schema rowSchema, BigQueryWriteConfiguration configuration) {
     this.clusteringFields = configuration.getClusteringFields();
+    this.timePartitioningConfig = configuration.getTimePartitioningConfig();
     // DYNAMIC_DESTINATIONS magic string is the old way of doing it for cross-language.
     // In that case, we do no interpolation
     if (!configuration.getTable().equals(DYNAMIC_DESTINATIONS)) {
@@ -83,9 +87,40 @@ public class PortableBigQueryDestinations extends DynamicDestinations<Row, Strin
   @Override
   public TableDestination getTable(String destination) {
 
+    TimePartitioning timePartitioning = null;
+
+    if (timePartitioningConfig != null) {
+      String type = timePartitioningConfig.getType();
+      String field = timePartitioningConfig.getField();
+      Long expirationMs = timePartitioningConfig.getExpirationMs();
+      Boolean requirePartitionFilter = timePartitioningConfig.getRequirePartitionFilter();
+
+      if (type == null) {
+        throw new IllegalArgumentException(
+            "TimePartitioning 'type' must be specified (DAY, HOUR, MONTH, or YEAR).");
+      }
+
+      timePartitioning =
+          new TimePartitioning().setType(type); // type is required, as checked earlier
+
+      if (field != null) {
+        timePartitioning.setField(field);
+      }
+
+      if (expirationMs != null) {
+        timePartitioning.setExpirationMs(expirationMs);
+      }
+
+      if (requirePartitionFilter != null) {
+        timePartitioning.setRequirePartitionFilter(requirePartitionFilter);
+      }
+    }
+
     if (clusteringFields != null && !clusteringFields.isEmpty()) {
       Clustering clustering = new Clustering().setFields(clusteringFields);
-      return new TableDestination(destination, null, null, clustering);
+      return new TableDestination(destination, null, timePartitioning, clustering);
+    } else if (timePartitioning != null) {
+      return new TableDestination(destination, null, timePartitioning);
     }
     return new TableDestination(destination, null);
   }

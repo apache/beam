@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigquery.providers;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
+import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -55,6 +56,39 @@ public abstract class BigQueryWriteConfiguration {
       public abstract Builder setOutput(String output);
 
       public abstract ErrorHandling build();
+    }
+  }
+
+  @AutoValue
+  public abstract static class TimePartitioningConfig implements Serializable {
+    @SchemaFieldDescription("The time partitioning type.")
+    public abstract @Nullable String getType();
+
+    @SchemaFieldDescription("If not set, the table is partitioned by pseudo column '_PARTITIONTIME'; if set, the table is partitioned by this field.")
+    public abstract @Nullable String getField();
+
+    @SchemaFieldDescription("The number of milliseconds for which to keep the storage for a partition.")
+    public abstract @Nullable Long getExpirationMs();
+
+    @SchemaFieldDescription("If set to true, queries over this table require a partition filter.")
+    public abstract @Nullable Boolean getRequirePartitionFilter();
+
+    public static Builder builder() {
+      return new AutoValue_BigQueryWriteConfiguration_TimePartitioningConfig.Builder();
+    }
+
+    @AutoValue.Builder
+    public abstract static class Builder implements Serializable {
+
+      public abstract Builder setType(String type);
+
+      public abstract Builder setField(String field);
+
+      public abstract Builder setExpirationMs(Long expirationMs);
+
+      public abstract Builder setRequirePartitionFilter(Boolean requirePartitionFilter);
+
+      public abstract TimePartitioningConfig build();
     }
   }
 
@@ -197,6 +231,9 @@ public abstract class BigQueryWriteConfiguration {
   @SchemaFieldDescription("A list of columns to cluster the BigQuery table by.")
   public abstract @Nullable List<String> getClusteringFields();
 
+  @SchemaFieldDescription("Configuration for BigQuery time partitioning.")
+  public abstract @Nullable TimePartitioningConfig getTimePartitioningConfig();
+
   /** Builder for {@link BigQueryWriteConfiguration}. */
   @AutoValue.Builder
   public abstract static class Builder {
@@ -230,6 +267,8 @@ public abstract class BigQueryWriteConfiguration {
     public abstract Builder setOnly(String only);
 
     public abstract Builder setClusteringFields(List<String> clusteringFields);
+
+    public abstract Builder setTimePartitioningConfig(TimePartitioningConfig config);
 
     /** Builds a {@link BigQueryWriteConfiguration} instance. */
     public abstract BigQueryWriteConfiguration build();

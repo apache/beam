@@ -811,6 +811,18 @@ For more information on table properties, please visit https://iceberg.apache.or
         Determines how often to 'commit' progress into BigQuery. Default is every 5 seconds.
       </td>
     </tr>
+    <tr>
+      <td>
+        Time Partitiong
+      </td>
+      <td>
+        <code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        Configuration for time-based partitioning on a DATE, TIMESTAMP, or DATETIME column when writing to the output table.
+      </td>
+    </tr>
+    <tr>
   </table>
 </div>
 

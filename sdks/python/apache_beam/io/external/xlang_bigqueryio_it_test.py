@@ -69,7 +69,8 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
           "str": "a",
           "bool": True,
           "bytes": b'a',
-          "timestamp": Timestamp(1000, 100)
+          "timestamp": Timestamp(1000, 100),
+          "event_time": Timestamp(1722243600)
       },
       {
           "int": 2,
@@ -78,7 +79,8 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
           "str": "b",
           "bool": False,
           "bytes": b'b',
-          "timestamp": Timestamp(2000, 200)
+          "timestamp": Timestamp(2000, 200),
+          "event_time": Timestamp(1722277200)
       },
       {
           "int": 3,
@@ -87,7 +89,8 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
           "str": "c",
           "bool": True,
           "bytes": b'd',
-          "timestamp": Timestamp(3000, 300)
+          "timestamp": Timestamp(3000, 300),
+          "event_time": Timestamp(1722304200)
       },
       {
           "int": 4,
@@ -96,17 +99,19 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
           "str": "d",
           "bool": False,
           "bytes": b'd',
-          "timestamp": Timestamp(4000, 400)
+          "timestamp": Timestamp(4000, 400),
+          "event_time": Timestamp(1722383999)
       }
   ]
   ALL_TYPES_SCHEMA = (
       "int:INTEGER,float:FLOAT,numeric:NUMERIC,str:STRING,"
-      "bool:BOOLEAN,bytes:BYTES,timestamp:TIMESTAMP")
+      "bool:BOOLEAN,bytes:BYTES,timestamp:TIMESTAMP,event_time:TIMESTAMP")
 
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
     self.args = self.test_pipeline.get_full_options_as_args()
-    self.project = self.test_pipeline.get_option('project')
+    # self.project = self.test_pipeline.get_option('project')
+    self.project = "tanusharmaa"
     self._runner = PipelineOptions(self.args).get_all_options()['runner']
 
     self.bigquery_client = BigQueryWrapper()
@@ -266,13 +271,76 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
               write_disposition='WRITE_TRUNCATE',
               additional_bq_parameters={'clustering': {
                   'fields': ['int']
-              }}))
+              }
+              }))
 
     # After pipeline finishes, verify clustering is applied
     table = self.bigquery_client.get_table(self.project, self.dataset_id, table)
     clustering_fields = table.clustering.fields if table.clustering else []
 
     self.assertEqual(clustering_fields, ['int'])
+    hamcrest_assert(p, bq_matcher)
+
+  def test_write_with_time_partitioning(self):
+    table = 'write_with_time_partitioning'
+    table_id = '{}:{}.{}'.format(self.project, self.dataset_id, table)
+
+    EXPECTED_DATA = [
+      # (int, float, numeric, string, bool, bytes, timestamp, timestamp)
+      {
+          "int": 1,
+          "float": 0.1,
+          "numeric": Decimal("1.11"),
+          "str": "a",
+          "bool": True,
+          "bytes": b'a',
+          "timestamp": Timestamp(1000, 100),
+          "event_time": Timestamp(1722243600)
+      },
+      {
+          "int": 2,
+          "float": 0.2,
+          "numeric": Decimal("2.22"),
+          "str": "b",
+          "bool": False,
+          "bytes": b'b',
+          "timestamp": Timestamp(2000, 200),
+          "event_time": Timestamp(1722277200)
+      }
+  ]
+
+    bq_matcher = BigqueryFullResultMatcher(
+        project=self.project,
+        query="SELECT * FROM {}.{} WHERE DATE(event_time) = '2024-07-29'"
+              .format(self.dataset_id, table),
+        data=self.parse_expected_data(EXPECTED_DATA))
+
+    with beam.Pipeline(argv=self.args) as p:
+      _ = (
+          p
+          | "Create test data" >> beam.Create(self.ELEMENTS)
+          | beam.io.WriteToBigQuery(
+              table=table_id,
+              method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
+              schema=self.ALL_TYPES_SCHEMA,
+              create_disposition='CREATE_IF_NEEDED',
+              write_disposition='WRITE_TRUNCATE',
+              additional_bq_parameters={
+                'timePartitioning': {
+                    'type': 'DAY',
+                    'field': 'event_time',
+                    'expiration_ms': 2592000000,
+                    'require_partition_filter': True
+                }
+              }))
+
+    # After pipeline finishes, verify time partitioning is applied
+    table = self.bigquery_client.get_table(self.project, self.dataset_id, table)
+
+    self.assertEqual(table.timePartitioning.type, 'DAY')
+    self.assertEqual(table.timePartitioning.field, 'event_time')
+    self.assertEqual(table.timePartitioning.requirePartitionFilter, True)
+    self.assertEqual(table.timePartitioning.expirationMs, 2592000000)
     hamcrest_assert(p, bq_matcher)
 
   def test_write_with_beam_rows_cdc(self):
