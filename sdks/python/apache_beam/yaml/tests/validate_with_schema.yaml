@@ -43,55 +43,53 @@ pipelines:
               - {name: "Alice", age: 30, score: 95.5}
               - {name: "Bob", age: 25, score: 88.0}
 
-  # TODO - Rethink error handling since schema mismatch in Create transform
-  # isn't allowed anymore.
   # Validate a Beam Row with a predefined schema with error handling
-  # - pipeline:
-  #     type: composite
-  #     transforms:
-  #       - type: Create
-  #         config:
-  #           elements:
-  #             - {name: "Alice", age: 30, score: 95.5}
-  #             - {name: "Bob", age: 25, score: 88.0}
-  #             - {name: "Charlie", age: 27, score: "apple"} 
-  #             - {name: "David", age: "twenty", score: 90.0} 
-  #             - {name: 30, age: 40, score: 100.0}               
-  #       - type: ValidateWithSchema
-  #         input: Create
-  #         config:
-  #           schema:
-  #             type: object
-  #             properties:
-  #               name:
-  #                 type: string
-  #               age:
-  #                 type: integer
-  #               score:
-  #                 type: number
-  #             required: [name, age, score]
-  #           error_handling:
-  #             output: invalid_rows
-  #       - type: MapToFields
-  #         input: ValidateWithSchema.invalid_rows
-  #         config:
-  #           language: python
-  #           fields:
-  #             name: "element.name"
-  #             age: "element.age"
-  #             score: "element.score"
-  #       - type: AssertEqual
-  #         input: MapToFields
-  #         config:
-  #           elements:
-  #             - {name: "Charlie", age: 27, score: "apple"} 
-  #             - {name: "David", age: "twenty", score: 90.0} 
-  #             - {name: 30, age: 40, score: 100.0}   
-  #       - type: AssertEqual
-  #         input: ValidateWithSchema
-  #         config:
-  #           elements:
-  #             - {name: "Alice", age: 30, score: 95.5}
-  #             - {name: "Bob", age: 25, score: 88.0}
+  - pipeline:
+      type: composite
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - {name: "Alice", age: 30, score: 95.5}
+              - {name: "Bob", age: 25, score: 88.0}
+              - {name: "Charlie", age: 27, score: "apple"} 
+              - {name: "David", age: "twenty", score: 90.0} 
+              - {name: 30, age: 40, score: 100.0}               
+        - type: ValidateWithSchema
+          input: Create
+          config:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                age:
+                  type: integer
+                score:
+                  type: number
+              required: [name, age, score]
+            error_handling:
+              output: invalid_rows
+        - type: MapToFields
+          input: ValidateWithSchema.invalid_rows
+          config:
+            language: python
+            fields:
+              name: "element.name"
+              age: "element.age"
+              score: "element.score"
+        - type: AssertEqual
+          input: MapToFields
+          config:
+            elements:
+              - {name: "Charlie", age: 27, score: "apple"} 
+              - {name: "David", age: "twenty", score: 90.0} 
+              - {name: 30, age: 40, score: 100.0}   
+        - type: AssertEqual
+          input: ValidateWithSchema
+          config:
+            elements:
+              - {name: "Alice", age: 30, score: 95.5}
+              - {name: "Bob", age: 25, score: 88.0}
 
 
