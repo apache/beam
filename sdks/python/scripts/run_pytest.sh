@@ -43,7 +43,7 @@ echo "pytest_args: $pytest_args"
 echo "posargs: $posargs"
 
 # Define the regex for extracting the -m argument value
-marker_regex="-m\s+('[^']+'|\"[^\"]+\"|[^ ]+)"
+marker_regex="-m\s+('[^']+'|\"[^\"]+\"|\([^)]+\)|[^ ]+)"
 
 # Initialize the user_marker variable.
 user_marker=""
