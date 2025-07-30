@@ -49,7 +49,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  * to a new Iceberg table managed by the BigQuery Metastore.
  *
  * <p>This example is a demonstration of the Iceberg BigQuery Metastore. For more information, see
- * the documentation at {@link https://cloud.google.com/bigquery/docs/blms-use-dataproc}.
+ * the documentation at https://cloud.google.com/bigquery/docs/blms-use-dataproc.
  */
 public class IcebergBatchWriteExample {
 
@@ -58,6 +58,16 @@ public class IcebergBatchWriteExample {
 
   public static final Schema AGGREGATED_SCHEMA =
       Schema.builder().addStringField("browser").addInt64Field("transaction_count").build();
+
+  private static Row flattenAnalyticsRow(Row row) {
+    Row device = Preconditions.checkStateNotNull(row.getRow("device"));
+    Row totals = Preconditions.checkStateNotNull(row.getRow("totals"));
+    return Row.withSchema(BQ_SCHEMA)
+        .withFieldValue("browser", Preconditions.checkStateNotNull(device.getString("browser")))
+        .withFieldValue(
+            "transactions", Preconditions.checkStateNotNull(totals.getInt64("transactions")))
+        .build();
+  }
 
   static class ExtractBrowserTransactionsFn extends DoFn<Row, KV<String, Long>> {
     @ProcessElement
@@ -184,19 +194,7 @@ public class IcebergBatchWriteExample {
         .apply(
             "Flatten",
             MapElements.into(TypeDescriptors.rows())
-                .via(
-                    (Row row) -> {
-                      Row device = Preconditions.checkStateNotNull(row.getRow("device"));
-                      Row totals = Preconditions.checkStateNotNull(row.getRow("totals"));
-                      return Row.withSchema(BQ_SCHEMA)
-                          .withFieldValue(
-                              "browser",
-                              Preconditions.checkStateNotNull(device.getString("browser")))
-                          .withFieldValue(
-                              "transactions",
-                              Preconditions.checkStateNotNull(totals.getInt64("transactions")))
-                          .build();
-                    }))
+                .via(IcebergBatchWriteExample::flattenAnalyticsRow))
         .setRowSchema(BQ_SCHEMA)
         .apply("CountTransactions", new CountTransactions())
         .setRowSchema(AGGREGATED_SCHEMA)
