@@ -91,11 +91,13 @@ public class ExecutionStateSampler {
   private final Set<ExecutionStateTracker> activeStateTrackers;
 
   private final Future<Void> stateSamplingThread;
-  private final Consumer<String> onTimeoutExceededCallback;
+  @Nullable private final Consumer<String> onTimeoutExceededCallback;
 
   @SuppressWarnings("methodref.receiver.bound" /* Synchronization ensures proper initialization */)
   public ExecutionStateSampler(
-      PipelineOptions options, MillisProvider clock, Consumer<String> onTimeoutExceededCallback) {
+      PipelineOptions options,
+      MillisProvider clock,
+      @Nullable Consumer<String> onTimeoutExceededCallback) {
     String samplingPeriodMills =
         ExperimentalOptions.getExperimentValue(
             options, ExperimentalOptions.STATE_SAMPLING_PERIOD_MILLIS);
@@ -196,17 +198,14 @@ public class ExecutionStateSampler {
         Thread.sleep(difference);
       } else {
         long millisSinceLastSample = currentTimeMillis - lastSampleTimeMillis;
+        Optional<String> timeoutMsg = Optional.empty();
         synchronized (activeStateTrackers) {
           for (ExecutionStateTracker activeTracker : activeStateTrackers) {
-            Optional<String> errMsg =
-                activeTracker.takeSample(currentTimeMillis, millisSinceLastSample);
-            if (errMsg.isPresent() && this.onTimeoutExceededCallback != null) {
-              this.onTimeoutExceededCallback.accept(
-                  String.format(
-                      "Exception caught: %s The SDK worker will terminate and restart because the"
-                          + " lull time is longer than %d minutes",
-                      errMsg.get(),
-                      TimeUnit.MILLISECONDS.toMinutes(this.userSpecifiedLullTimeMsForRestart)));
+            timeoutMsg =
+                timeoutMsg.or(
+                    () -> activeTracker.takeSample(currentTimeMillis, millisSinceLastSample));
+            if (timeoutMsg.isPresent() && this.onTimeoutExceededCallback != null) {
+              this.onTimeoutExceededCallback.accept(timeoutMsg.get());
             }
           }
         }
