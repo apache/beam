@@ -76,8 +76,8 @@ marker_for_sequential_tests="no_xdist"
 
 if [[ -n $user_marker ]]; then
   # Combine user marker with internal markers.
-  marker_for_parallel_tests="($user_marker) and ($marker_for_parallel_tests)"
-  marker_for_sequential_tests="($user_marker) and ($marker_for_sequential_tests)"
+  marker_for_parallel_tests="$user_marker and ($marker_for_parallel_tests)"
+  marker_for_sequential_tests="$user_marker and ($marker_for_sequential_tests)"
 fi
 
 # Parse posargs to separate pytest options from test paths.
