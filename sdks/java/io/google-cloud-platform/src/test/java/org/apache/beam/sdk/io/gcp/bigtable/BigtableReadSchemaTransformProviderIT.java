@@ -162,7 +162,6 @@ public class BigtableReadSchemaTransformProviderIT {
       dataClient.mutateRow(rowMutation);
 
       // Set up expected Beam Row
-      // FIX: Use byte[] instead of ByteBuffer
       Map<String, List<Row>> columns1 = new HashMap<>();
       columns1.put(
           "a",
@@ -257,7 +256,7 @@ public class BigtableReadSchemaTransformProviderIT {
           Row.withSchema(FLATTENED_ROW_SCHEMA)
               .withFieldValue("key", keyBytes)
               .withFieldValue("family_name", COLUMN_FAMILY_NAME_1)
-              .withFieldValue("column_qualifier", "a")
+              .withFieldValue("column_qualifier", "a".getBytes(StandardCharsets.UTF_8))
               .withFieldValue(
                   "cells",
                   Arrays.asList(
@@ -271,7 +270,7 @@ public class BigtableReadSchemaTransformProviderIT {
           Row.withSchema(FLATTENED_ROW_SCHEMA)
               .withFieldValue("key", keyBytes)
               .withFieldValue("family_name", COLUMN_FAMILY_NAME_1)
-              .withFieldValue("column_qualifier", "b")
+              .withFieldValue("column_qualifier", "b".getBytes(StandardCharsets.UTF_8))
               .withFieldValue(
                   "cells",
                   Arrays.asList(
@@ -285,7 +284,7 @@ public class BigtableReadSchemaTransformProviderIT {
           Row.withSchema(FLATTENED_ROW_SCHEMA)
               .withFieldValue("key", keyBytes)
               .withFieldValue("family_name", COLUMN_FAMILY_NAME_2)
-              .withFieldValue("column_qualifier", "c")
+              .withFieldValue("column_qualifier", "c".getBytes(StandardCharsets.UTF_8))
               .withFieldValue(
                   "cells",
                   Arrays.asList(
@@ -299,7 +298,7 @@ public class BigtableReadSchemaTransformProviderIT {
           Row.withSchema(FLATTENED_ROW_SCHEMA)
               .withFieldValue("key", keyBytes)
               .withFieldValue("family_name", COLUMN_FAMILY_NAME_2)
-              .withFieldValue("column_qualifier", "d")
+              .withFieldValue("column_qualifier", "d".getBytes(StandardCharsets.UTF_8))
               .withFieldValue(
                   "cells",
                   Arrays.asList(

@@ -325,7 +325,7 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
             .addByteArrayField("key")
             .addStringField("type")
             .addByteArrayField("column_qualifier")
-            .addByteArrayField("family_name")
+            .addStringField("family_name")
             .addField("start_timestamp_micros", FieldType.INT64)
             .addField("end_timestamp_micros", FieldType.INT64)
             .build();
@@ -334,7 +334,7 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
             .withFieldValue("key", "key-1".getBytes(StandardCharsets.UTF_8))
             .withFieldValue("type", "DeleteFromColumn")
             .withFieldValue("column_qualifier", "col".getBytes(StandardCharsets.UTF_8))
-            .withFieldValue("family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("family_name", COLUMN_FAMILY_NAME_1)
             .withFieldValue("start_timestamp_micros", 99_990_000L)
             .withFieldValue("end_timestamp_micros", 100_000_000L)
             .build();
@@ -373,13 +373,13 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
         Schema.builder()
             .addByteArrayField("key")
             .addStringField("type")
-            .addByteArrayField("family_name")
+            .addStringField("family_name")
             .build();
     Row mutationRow =
         Row.withSchema(testSchema)
             .withFieldValue("key", "key-1".getBytes(StandardCharsets.UTF_8))
             .withFieldValue("type", "DeleteFromFamily")
-            .withFieldValue("family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("family_name", COLUMN_FAMILY_NAME_1)
             .build();
 
     PCollection<Row> inputPCollection = p.apply(Create.of(Arrays.asList(mutationRow)));
@@ -484,7 +484,7 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
                 "column_qualifier", FieldType.BYTES) // Used by SetCell, DeleteFromColumn
             .addNullableField(
                 "family_name",
-                FieldType.BYTES) // Used by SetCell, DeleteFromColumn, DeleteFromFamily
+                FieldType.STRING) // Used by SetCell, DeleteFromColumn, DeleteFromFamily
             .addNullableField("timestamp_micros", FieldType.INT64) // Optional for SetCell
             .addNullableField(
                 "start_timestamp_micros", FieldType.INT64) // Used by DeleteFromColumn with range
@@ -503,7 +503,7 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
             .withFieldValue("type", "SetCell")
             .withFieldValue("value", "updated_val_1".getBytes(StandardCharsets.UTF_8))
             .withFieldValue("column_qualifier", "col_initial_1".getBytes(StandardCharsets.UTF_8))
-            .withFieldValue("family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("family_name", COLUMN_FAMILY_NAME_1)
             .withFieldValue("timestamp_micros", 3000L)
             .build());
     // Add new cell to "row-setcell"
@@ -513,7 +513,7 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
             .withFieldValue("type", "SetCell")
             .withFieldValue("value", "new_col_val".getBytes(StandardCharsets.UTF_8))
             .withFieldValue("column_qualifier", "new_col_A".getBytes(StandardCharsets.UTF_8))
-            .withFieldValue("family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("family_name", COLUMN_FAMILY_NAME_1)
             .withFieldValue("timestamp_micros", 4000L)
             .build());
 
@@ -524,7 +524,7 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
             .withFieldValue("key", "row-delete-col".getBytes(StandardCharsets.UTF_8))
             .withFieldValue("type", "DeleteFromColumn")
             .withFieldValue("column_qualifier", "col_to_delete_A".getBytes(StandardCharsets.UTF_8))
-            .withFieldValue("family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("family_name", COLUMN_FAMILY_NAME_1)
             .build());
 
     // 3. DeleteFromColumn with Timestamp Range
@@ -534,7 +534,7 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
             .withFieldValue("key", "row-delete-col-ts".getBytes(StandardCharsets.UTF_8))
             .withFieldValue("type", "DeleteFromColumn")
             .withFieldValue("column_qualifier", "ts_col".getBytes(StandardCharsets.UTF_8))
-            .withFieldValue("family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("family_name", COLUMN_FAMILY_NAME_1)
             .withFieldValue("start_timestamp_micros", 999L) // Inclusive
             .withFieldValue("end_timestamp_micros", 1001L) // Exclusive
             .build());
@@ -545,7 +545,7 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
         Row.withSchema(uberSchema)
             .withFieldValue("key", "row-delete-family".getBytes(StandardCharsets.UTF_8))
             .withFieldValue("type", "DeleteFromFamily")
-            .withFieldValue("family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("family_name", COLUMN_FAMILY_NAME_1)
             .build());
 
     // 5. DeleteFromRow

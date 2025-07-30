@@ -24,6 +24,7 @@ import com.google.auto.value.AutoValue;
 import com.google.bigtable.v2.Cell;
 import com.google.bigtable.v2.Column;
 import com.google.bigtable.v2.Family;
+import com.google.protobuf.ByteString;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -74,7 +75,7 @@ public class BigtableReadSchemaTransformProvider
       Schema.builder()
           .addByteArrayField("key")
           .addStringField("family_name")
-          .addStringField("column_qualifier")
+          .addByteArrayField("column_qualifier")
           .addArrayField("cells", Schema.FieldType.row(CELL_SCHEMA))
           .build();
 
@@ -234,7 +235,7 @@ public class BigtableReadSchemaTransformProvider
         for (Family fam : bigtableRow.getFamiliesList()) {
           String familyName = fam.getName();
           for (Column col : fam.getColumnsList()) {
-            String qualifierName = col.getQualifier().toStringUtf8();
+            ByteString qualifierName = col.getQualifier();
             List<Row> cells = new ArrayList<>();
             for (Cell cell : col.getCellsList()) {
               Row cellRow =
@@ -249,7 +250,7 @@ public class BigtableReadSchemaTransformProvider
                 Row.withSchema(FLATTENED_ROW_SCHEMA)
                     .withFieldValue("key", key)
                     .withFieldValue("family_name", familyName)
-                    .withFieldValue("column_qualifier", qualifierName)
+                    .withFieldValue("column_qualifier", qualifierName.toByteArray())
                     .withFieldValue("cells", cells)
                     .build();
             out.output(flattenedRow);
