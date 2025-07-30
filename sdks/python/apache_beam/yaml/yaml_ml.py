@@ -33,7 +33,7 @@ from apache_beam.yaml import options
 from apache_beam.yaml.yaml_utils import SafeLineLoader
 
 
-def list_submodules(package):
+def _list_submodules(package):
   """
     Lists all submodules within a given package.
     """
@@ -55,12 +55,13 @@ except ImportError:
   tft = None  # type: ignore
 
 # Load all available ML Transform modules
-for module_name in list_submodules(beam.ml.transforms):
+for module_name in _list_submodules(beam.ml.transforms):
   try:
     module = import_module(module_name)
     _transform_constructors |= module.__dict__
   except ImportError as e:
-    logging.warning('Could not load ML transform module %s: %s', module_name, e)
+    logging.warning('Could not load ML transform module %s: %s.  Please ' \
+                    'install the necessary module dependencies', module_name, e)
 
 
 class ModelHandlerProvider:
