@@ -1169,6 +1169,10 @@ class GoogleCloudOptions(PipelineOptions):
     elif not staging_errors and not temp_errors:
       self._warn_if_soft_delete_policy_enabled('temp_location')
       self._warn_if_soft_delete_policy_enabled('staging_location')
+      _LOGGER.warning(
+        "Both temp_location and staging_location are invalid. "
+        "Expected format is 'gs://<bucket>/<object>'. "
+        "Attempting to create a default GCS bucket.")
       return []
     # Both staging and temp locations are bad, try to use default bucket.
     else:
