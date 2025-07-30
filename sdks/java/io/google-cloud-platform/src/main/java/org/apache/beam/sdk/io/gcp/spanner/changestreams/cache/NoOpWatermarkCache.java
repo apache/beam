@@ -35,6 +35,6 @@ public class NoOpWatermarkCache implements WatermarkCache {
 
   @Override
   public @Nullable Timestamp getUnfinishedMinWatermark() {
-    return dao.getUnfinishedMinWatermark();
+    return dao.getUnfinishedMinWatermarkFrom(Timestamp.MIN_VALUE);
   }
 }

@@ -17,20 +17,17 @@
  */
 package org.apache.beam.sdk.util;
 
-import java.io.IOException;
+import org.apache.beam.sdk.annotations.Internal;
 
-/**
- * Back-off policy when retrying an operation.
- *
- * <p><b>Note</b>: This interface is copied from Google API client library to avoid its dependency.
- */
+/** Back-off policy when retrying an operation. */
+@Internal
 public interface BackOff {
 
   /** Indicates that no more retries should be made for use in {@link #nextBackOffMillis()}. */
   long STOP = -1L;
 
   /** Reset to initial state. */
-  void reset() throws IOException;
+  void reset();
 
   /**
    * Gets the number of milliseconds to wait before retrying the operation or {@link #STOP} to
@@ -47,7 +44,7 @@ public interface BackOff {
    * }
    * </pre>
    */
-  long nextBackOffMillis() throws IOException;
+  long nextBackOffMillis();
 
   /**
    * Fixed back-off policy whose back-off time is always zero, meaning that the operation is retried
@@ -57,10 +54,10 @@ public interface BackOff {
       new BackOff() {
 
         @Override
-        public void reset() throws IOException {}
+        public void reset() {}
 
         @Override
-        public long nextBackOffMillis() throws IOException {
+        public long nextBackOffMillis() {
           return 0;
         }
       };
@@ -73,10 +70,10 @@ public interface BackOff {
       new BackOff() {
 
         @Override
-        public void reset() throws IOException {}
+        public void reset() {}
 
         @Override
-        public long nextBackOffMillis() throws IOException {
+        public long nextBackOffMillis() {
           return STOP;
         }
       };

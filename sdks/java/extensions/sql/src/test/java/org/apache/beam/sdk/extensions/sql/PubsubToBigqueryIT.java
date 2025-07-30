@@ -53,7 +53,7 @@ public class PubsubToBigqueryIT implements Serializable {
   @Test
   public void testSimpleInsert() throws Exception {
     String createCatalog = "CREATE CATALOG my_catalog TYPE `local`";
-    String setCatalog = "SET CATALOG my_catalog";
+    String setCatalog = "USE CATALOG my_catalog";
     String pubsubTableString =
         "CREATE EXTERNAL TABLE pubsub_topic (\n"
             + "event_timestamp TIMESTAMP, \n"

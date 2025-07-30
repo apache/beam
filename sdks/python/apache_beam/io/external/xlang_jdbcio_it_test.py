@@ -119,7 +119,8 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
           'postgresql',
           'org.postgresql.Driver'),
       'mysql': DbData(
-          lambda: MySqlContainer(), ['mysql:mysql-connector-java:8.0.28'],
+          lambda: MySqlContainer(dialect='pymysql'),
+          ['mysql:mysql-connector-java:8.0.28'],
           'mysql',
           'com.mysql.cj.jdbc.Driver')
   }
@@ -141,13 +142,13 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
           'username': 'test',
           'password': 'test',
           'host': container.get_container_host_ip(),
-          'port': container.get_exposed_port(container.port_to_expose),
+          'port': container.get_exposed_port(container.port),
           'database_name': 'test',
           'driver_class_name': db_data.connector,
           'classpath': db_data.classpath,
           'jdbc_url': (
               f'jdbc:{db_data.db_string}://{container.get_container_host_ip()}:'
-              f'{container.get_exposed_port(container.port_to_expose)}/test'),
+              f'{container.get_exposed_port(container.port)}/test'),
           'binary_type': POSTGRES_BINARY_TYPE
           if db_type == 'postgres' else MYSQL_BINARY_TYPE
       }

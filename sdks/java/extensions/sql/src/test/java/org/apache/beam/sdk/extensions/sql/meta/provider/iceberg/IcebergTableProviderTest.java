@@ -23,24 +23,19 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import java.util.List;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.sql.TableUtils;
-import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
-import org.apache.beam.sdk.extensions.sql.meta.catalog.InMemoryCatalogManager;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.vendor.calcite.v1_28_0.com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.calcite.v1_40_0.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Test;
 
 /** UnitTest for {@link IcebergTableProvider}. */
 public class IcebergTableProviderTest {
-  private final IcebergTableProvider provider =
-      new IcebergTableProvider(
+  private final IcebergCatalog catalog =
+      new IcebergCatalog(
           "test_catalog",
           ImmutableMap.of(
               "catalog-impl", "org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog",
@@ -51,7 +46,7 @@ public class IcebergTableProviderTest {
 
   @Test
   public void testGetTableType() {
-    assertEquals("iceberg", provider.getTableType());
+    assertNotNull(catalog.metaStore().getProvider("iceberg"));
   }
 
   @Test
@@ -64,40 +59,14 @@ public class IcebergTableProviderTest {
         fakeTableBuilder("my_table")
             .properties(TableUtils.parseProperties(propertiesString))
             .build();
-    BeamSqlTable sqlTable = provider.buildBeamSqlTable(table);
+    BeamSqlTable sqlTable = catalog.metaStore().buildBeamSqlTable(table);
 
     assertNotNull(sqlTable);
     assertTrue(sqlTable instanceof IcebergTable);
 
     IcebergTable icebergTable = (IcebergTable) sqlTable;
     assertEquals("namespace.my_table", icebergTable.tableIdentifier);
-    assertEquals(provider.catalogConfig, icebergTable.catalogConfig);
-  }
-
-  @Test
-  public void testBuildBeamSqlTableWithPartitionFields() {
-    List<String> partitionFields = ImmutableList.of("id", "truncate(name, 3)");
-    InMemoryCatalogManager catalogManager = new InMemoryCatalogManager();
-    BeamSqlEnv sqlEnv =
-        BeamSqlEnv.builder(catalogManager)
-            .setPipelineOptions(PipelineOptionsFactory.create())
-            .build();
-
-    sqlEnv.executeDdl("CREATE CATALOG my_catalog TYPE iceberg");
-    sqlEnv.executeDdl("SET CATALOG my_catalog");
-    sqlEnv.executeDdl(
-        "CREATE EXTERNAL TABLE test_partitioned_table(\n"
-            + "  id INTEGER,\n"
-            + "  name VARCHAR) \n"
-            + "TYPE 'iceberg' \n"
-            + "PARTITIONED BY ('id', 'truncate(name, 3)') \n"
-            + "LOCATION 'namespace.test_partitioned_table'");
-
-    Table result = catalogManager.currentCatalog().metaStore().getTable("test_partitioned_table");
-    Table expected =
-        fakeTableBuilder("test_partitioned_table").partitionFields(partitionFields).build();
-
-    assertEquals(expected, result);
+    assertEquals(catalog.catalogConfig, icebergTable.catalogConfig);
   }
 
   private static Table.Builder fakeTableBuilder(String name) {

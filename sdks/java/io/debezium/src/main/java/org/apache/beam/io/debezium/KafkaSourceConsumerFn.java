@@ -19,6 +19,7 @@ package org.apache.beam.io.debezium;
 
 import static org.apache.beam.io.debezium.KafkaConnectUtils.debeziumRecordInstant;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.debezium.document.Document;
 import io.debezium.document.DocumentReader;
 import io.debezium.document.DocumentWriter;
@@ -131,6 +132,7 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
     this(connectorClass, fn, maxRecords, null);
   }
 
+  @SuppressFBWarnings("ST_WRITE_TO_STATIC_FROM_INSTANCE_METHOD")
   @GetInitialRestriction
   public OffsetHolder getInitialRestriction(@Element Map<String, String> unused)
       throws IOException {

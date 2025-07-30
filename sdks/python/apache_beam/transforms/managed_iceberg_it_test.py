@@ -16,8 +16,8 @@
 #
 
 import os
-import time
 import unittest
+import uuid
 
 import pytest
 
@@ -53,7 +53,7 @@ class ManagedIcebergIT(unittest.TestCase):
 
   def test_write_read_pipeline(self):
     iceberg_config = {
-        "table": "test_iceberg_write_read.test_" + str(int(time.time())),
+        "table": "test_iceberg_write_read.test_" + uuid.uuid4().hex,
         "catalog_name": "default",
         "catalog_properties": {
             "type": "hadoop",
