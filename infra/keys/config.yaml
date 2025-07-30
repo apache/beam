@@ -36,6 +36,7 @@ max_versions_to_keep: 5
 
 # The secret rotation logs will be stored in a GCP bucket.
 bucket_name: "testing-me-460223-tfstate"
-
 # The log file will be stored in the bucket with the following prefix
-log_file_prefix: "beam-secrets-rotation/"
+log_file_prefix: "beam-secrets-rotation"
+# Logging level for the secrets rotation service
+logging_level: "INFO" # Options: DEBUG, INFO, WARNING, ERROR, CRITICAL

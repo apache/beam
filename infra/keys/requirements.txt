@@ -16,5 +16,8 @@
 
 # This file is used to install the dependencies for the infrastructure
 
+PyYAML==6.0.2
+google-cloud-iam==2.19.1
 google-cloud-secret-manager==2.24.0
+google-cloud-storage==3.2.0
 google-crc32c==1.7.1
