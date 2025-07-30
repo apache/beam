@@ -518,6 +518,7 @@ if __name__ == '__main__':
               'pyod',
               'tensorflow',
               'tensorflow-hub',
+              'tensorflow-text',
               'tensorflow-transform',
               'tf2onnx',
               'torch',
