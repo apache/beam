@@ -226,7 +226,7 @@ public abstract class DoFn<InputT extends @Nullable Object, OutputT extends @Nul
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo,
-        ElementMetadata elementMetadata);
+        @Nullable ElementMetadata elementMetadata);
 
     /**
      * Adds the given element to the output {@code PCollection} with the given tag.

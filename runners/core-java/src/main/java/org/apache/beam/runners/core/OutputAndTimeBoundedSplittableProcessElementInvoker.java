@@ -450,11 +450,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo paneInfo) {
-      noteOutput();
-      if (watermarkEstimator instanceof TimestampObservingWatermarkEstimator) {
-        ((TimestampObservingWatermarkEstimator) watermarkEstimator).observeTimestamp(timestamp);
-      }
-      outputReceiver.output(tag, WindowedValues.of(value, timestamp, windows, paneInfo));
+      outputWindowedValue(tag, value, timestamp, windows, paneInfo, null);
     }
 
     @Override

@@ -2414,10 +2414,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           Instant timestamp,
           Collection<? extends BoundedWindow> windows,
           PaneInfo paneInfo) {
-        checkOnWindowExpirationTimestamp(timestamp);
-        FnDataReceiver<WindowedValue<T>> consumer =
-            (FnDataReceiver) localNameToConsumer.get(tag.getId());
-        outputTo(consumer, WindowedValues.of(output, timestamp, windows, paneInfo));
+        outputWindowedValue(tag, output, timestamp, windows, paneInfo, null);
       }
 
       @Override
@@ -2428,7 +2425,10 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           Collection<? extends BoundedWindow> windows,
           PaneInfo paneInfo,
           ElementMetadata elementMetadata) {
-        // todo
+        checkOnWindowExpirationTimestamp(timestamp);
+        FnDataReceiver<WindowedValue<T>> consumer =
+                (FnDataReceiver) localNameToConsumer.get(tag.getId());
+        outputTo(consumer, WindowedValues.of(output, timestamp, windows, paneInfo, elementMetadata));
       }
 
       @SuppressWarnings(

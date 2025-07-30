@@ -230,7 +230,7 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
         } else {
           rawId = context.getCurrentRecordId();
         }
-        if (rawId.length == 0) {
+        if (rawId == null || rawId.length == 0) {
           throw new RuntimeException(
               "Unexpected empty record ID while offset-based deduplication enabled.");
         }
@@ -242,7 +242,7 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
         } else {
           rawOffset = context.getCurrentRecordOffset();
         }
-        if (rawOffset.length == 0) {
+        if (rawOffset == null || rawOffset.length == 0) {
           throw new RuntimeException(
               "Unexpected empty record offset while offset-based deduplication enabled.");
         }

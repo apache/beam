@@ -1623,7 +1623,7 @@ public class KafkaIO {
       if (getOffsetDeduplication() != null && getOffsetDeduplication() && isRedistributed()) {
         checkState(
             !isAllowDuplicates(),
-            "withOffsetDeduplication and withRedistribute are set but withAllowDuplicates is set to false.");
+            "withOffsetDeduplication and withRedistribute can only be used when withAllowDuplicates is set to false.");
       }
       if (getOffsetDeduplication() != null && getOffsetDeduplication() && !isRedistributed()) {
         LOG.warn(
