@@ -23,14 +23,12 @@ from google.oauth2 import service_account
 from google.auth.transport.requests import Request
 from google.api_core import exceptions
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-
 class ServiceAccountManager:
-    def __init__(self, project_id: str) -> None:
+    def __init__(self, project_id: str, logger: logging.Logger) -> None:
         self.project_id = project_id
         self.client = iam_admin_v1.IAMClient()
+        self.logger = logger
+        self.logger.info(f"Initialized ServiceAccountManager for project: {self.project_id}")
 
     def create_service_account(self, account_id: str, display_name: Optional[str] = None) -> types.ServiceAccount:
         """
@@ -53,7 +51,7 @@ class ServiceAccountManager:
 
         try:
             account = self.client.create_service_account(request=request)
-            logger.info(f"Created service account: {account.email}")
+            self.logger.info(f"Created service account: {account.email}")
             return account
         except exceptions.Conflict:
             service_account_email = f"{account_id}@{self.project_id}.iam.gserviceaccount.com"
@@ -61,7 +59,7 @@ class ServiceAccountManager:
             get_request.name = f"projects/{self.project_id}/serviceAccounts/{service_account_email}"
             
             existing_account = self.client.get_service_account(request=get_request)
-            logger.info(f"Service account already exists: {existing_account.email}")
+            self.logger.info(f"Service account already exists: {existing_account.email}")
             return existing_account
     
     def get_service_account(self, account_id: str) -> types.ServiceAccount:
@@ -79,10 +77,10 @@ class ServiceAccountManager:
 
         try:
             service_account = self.client.get_service_account(request=request)
-            logger.info(f"Retrieved service account: {service_account.email}")
+            self.logger.info(f"Retrieved service account: {service_account.email}")
             return service_account
         except exceptions.NotFound:
-            logger.error(f"Service account {account_id} not found")
+            self.logger.error(f"Service account {account_id} not found")
             raise
     
     def enable_service_account(self, account_id: str) -> types.ServiceAccount:
@@ -104,9 +102,9 @@ class ServiceAccountManager:
 
         service_account = self.get_service_account(account_id)
         if not service_account.disabled:
-            logger.info(f"Enabled service account: {account_id}")
+            self.logger.info(f"Enabled service account: {account_id}")
         else:
-            logger.warning(f"Failed to enable service account: {account_id}")
+            self.logger.warning(f"Failed to enable service account: {account_id}")
         return service_account
 
     def disable_service_account(self, account_id: str) -> types.ServiceAccount:
@@ -131,9 +129,9 @@ class ServiceAccountManager:
 
         service_account = self.client.get_service_account(request=get_request)
         if service_account.disabled:
-            logger.info(f"Disabled service account: {account_id}")
+            self.logger.info(f"Disabled service account: {account_id}")
         else:
-            logger.warning(f"Failed to disable service account: {account_id}")
+            self.logger.warning(f"Failed to disable service account: {account_id}")
         return service_account
 
     def delete_service_account(self, account_id: str) -> None:
@@ -147,7 +145,7 @@ class ServiceAccountManager:
         request.name = f"projects/{self.project_id}/serviceAccounts/{account_id}"
 
         self.client.delete_service_account(request=request)
-        logger.info(f"Deleted service account: {account_id}")
+        self.logger.info(f"Deleted service account: {account_id}")
 
     def list_service_accounts(self) -> List[iam_admin_v1.ServiceAccount]:
         """
@@ -160,7 +158,7 @@ class ServiceAccountManager:
         request.name = f"projects/{self.project_id}"
 
         accounts = self.client.list_service_accounts(request=request)
-        logger.info(f"Listed service accounts: {[account.email for account in accounts.accounts]}")
+        self.logger.info(f"Listed service accounts: {[account.email for account in accounts.accounts]}")
         return list(accounts.accounts)
 
     def create_service_account_key(self, account_id: str) -> types.ServiceAccountKey:
@@ -182,17 +180,17 @@ class ServiceAccountManager:
         try:
             service_account = self.client.get_service_account(request=get_request)
             if service_account.disabled:
-                logger.info(f"Service account {account_id} is disabled. Enabling it first.")
+                self.logger.info(f"Service account {account_id} is disabled. Enabling it first.")
                 self.enable_service_account(account_id)
         except exceptions.NotFound:
-            logger.error(f"Service account {account_id} not found")
+            self.logger.error(f"Service account {account_id} not found")
             raise
 
         request = types.CreateServiceAccountKeyRequest()
         request.name = f"projects/{self.project_id}/serviceAccounts/{account_id}"
 
         key = self.client.create_service_account_key(request=request)
-        logger.info(f"Created service account key for {account_id}")
+        self.logger.info(f"Created service account key for {account_id}")
         return key
     
     def delete_service_account_key(self, account_id: str, key_id: str) -> None:
@@ -212,15 +210,15 @@ class ServiceAccountManager:
 
         try:
             self.client.delete_service_account_key(request=request)
-            logger.info(f"Deleted service account key: {key_id} for account: {account_id}")
+            self.logger.info(f"Deleted service account key: {key_id} for account: {account_id}")
         except exceptions.NotFound:
-            logger.warning(f"Service account key {key_id} not found for account: {account_id} (may have been already deleted)")
+            self.logger.warning(f"Service account key {key_id} not found for account: {account_id} (may have been already deleted)")
             raise
         except exceptions.FailedPrecondition as e:
-            logger.warning(f"Failed to delete service account key {key_id} for account: {account_id}. Error: {e}")
+            self.logger.warning(f"Failed to delete service account key {key_id} for account: {account_id}. Error: {e}")
             raise
         except Exception as e:
-            logger.error(f"Unexpected error deleting service account key {key_id} for account: {account_id}. Error: {e}")
+            self.logger.error(f"Unexpected error deleting service account key {key_id} for account: {account_id}. Error: {e}")
             raise
 
     def delete_oldest_service_account_keys(self, account_id: str, max_keys: int = 2) -> List[types.ServiceAccountKey]:
@@ -237,7 +235,7 @@ class ServiceAccountManager:
         """
         keys = self.list_service_account_keys(account_id)
         if not keys:
-            logger.info(f"No keys found for service account: {account_id}")
+            self.logger.info(f"No keys found for service account: {account_id}")
             return []
         
         # Sort keys by creation time (oldest first)
@@ -245,7 +243,7 @@ class ServiceAccountManager:
 
         # If the number of keys is less than or equal to max_keys, do not delete any keys
         if len(keys) <= max_keys:
-            logger.info(f"Service account {account_id} has {len(keys)} keys, not deleting any.")
+            self.logger.info(f"Service account {account_id} has {len(keys)} keys, not deleting any.")
             return []
         
         deleted_keys = []
@@ -255,17 +253,17 @@ class ServiceAccountManager:
             try:
                 self.delete_service_account_key(account_id, oldest_key.name.split('/')[-1])
                 deleted_keys.append(oldest_key)
-                logger.info(f"Deleted oldest service account key: {oldest_key.name} for account: {account_id}")
+                self.logger.info(f"Deleted oldest service account key: {oldest_key.name} for account: {account_id}")
             except (exceptions.NotFound, exceptions.FailedPrecondition) as e:
-                logger.warning(f"Could not delete key {oldest_key.name}: {e}. Continuing with other keys.")
+                self.logger.warning(f"Could not delete key {oldest_key.name}: {e}. Continuing with other keys.")
                 failed_deletions.append(oldest_key)
             except Exception as e:
-                logger.error(f"Unexpected error deleting key {oldest_key.name}: {e}. Stopping deletion process.")
+                self.logger.error(f"Unexpected error deleting key {oldest_key.name}: {e}. Stopping deletion process.")
                 break
 
         if failed_deletions:
-            logger.info(f"Failed to delete {len(failed_deletions)} keys for service account: {account_id}")
-            
+            self.logger.info(f"Failed to delete {len(failed_deletions)} keys for service account: {account_id}")
+
         return deleted_keys
 
     def list_service_account_keys(self, account_id: str) -> List[iam_admin_v1.ServiceAccountKey]:
@@ -282,7 +280,7 @@ class ServiceAccountManager:
         request.name = f"projects/{self.project_id}/serviceAccounts/{account_id}"
 
         response = self.client.list_service_account_keys(request=request)
-        logger.info(f"Listed keys for service account: {account_id}")
+        self.logger.info(f"Listed keys for service account: {account_id}")
         return list(response.keys)
     
     def test_service_account_key(self, key_data: bytes, max_retries: int = 5, initial_delay: float = 1.0) -> bool:
@@ -301,7 +299,7 @@ class ServiceAccountManager:
         try:
             key_info = json.loads(key_data.decode('utf-8'))
         except json.JSONDecodeError as json_error:
-            logger.error(f"Invalid JSON in service account key: {json_error}")
+            self.logger.error(f"Invalid JSON in service account key: {json_error}")
             return False
         
         for attempt in range(max_retries):
@@ -313,17 +311,17 @@ class ServiceAccountManager:
                 
                 request = Request()
                 credentials.refresh(request)
-                
-                logger.info(f"Service account key is valid and can authenticate")
+
+                self.logger.info(f"Service account key is valid and can authenticate")
                 return True
                     
             except Exception as auth_error:
                 if attempt < max_retries - 1:  # Don't log on the last attempt
                     delay = initial_delay * (2 ** attempt)  # Exponential backoff
-                    logger.warning(f"Authentication attempt {attempt + 1} failed (will retry in {delay}s): {auth_error}")
+                    self.logger.warning(f"Authentication attempt {attempt + 1} failed (will retry in {delay}s): {auth_error}")
                     time.sleep(delay)
                 else:
-                    logger.error(f"Authentication failed with service account key after {max_retries} attempts: {auth_error}")
+                    self.logger.error(f"Authentication failed with service account key after {max_retries} attempts: {auth_error}")
                     return False
         
         return False

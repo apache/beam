@@ -35,8 +35,11 @@ class TestServiceAccountManagerUnit(unittest.TestCase):
         self.mock_iam_client_class = self.iam_client_patcher.start()
         self.mock_iam_client = self.mock_iam_client_class.return_value
         
+        # Create a mock logger
+        self.mock_logger = mock.MagicMock()
+        
         # Create the service account manager
-        self.manager = ServiceAccountManager(self.project_id)
+        self.manager = ServiceAccountManager(self.project_id, self.mock_logger)
 
     def tearDown(self):
         """Tear down test fixtures."""
@@ -269,7 +272,10 @@ class TestServiceAccountManagerIntegration(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         self.project_id = os.environ['GOOGLE_CLOUD_PROJECT']
-        self.manager = ServiceAccountManager(self.project_id)
+        # Create a logger for integration tests
+        import logging
+        self.logger = logging.getLogger(__name__)
+        self.manager = ServiceAccountManager(self.project_id, self.logger)
 
     def tearDown(self):
         """Tear down test fixtures."""
