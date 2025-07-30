@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+# THIS IS NOT SUPPOSED TO RUN AFTER THE MIGRATION.
 # This script is used to export the IAM policy of a Google Cloud project to a YAML format.
 # It retrieves the IAM policy bindings, parses the members, and formats the output in a structured
 # YAML format, excluding service accounts and groups. The output includes usernames, emails, and
@@ -187,10 +188,19 @@ def main():
         nargs='?',
         default="users.yml"
     )
+    parser.add_argument(
+        "--yes-i-know-what-i-am-doing",
+        action="store_true",
+        help="If set, the script will proceed"
+    )
 
     args = parser.parse_args()
     project_id = args.project_id
     output_file = args.output_file
+
+    if not args.yes_i_know_what_i_am_doing:
+        logger.error("You must use the --yes-i-know-what-i-am-doing flag to proceed.")
+        return
 
     # Export the IAM policy for the specified project
     iam_data = export_project_iam(project_id)
