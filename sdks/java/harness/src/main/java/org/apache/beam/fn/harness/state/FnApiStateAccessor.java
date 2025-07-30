@@ -1001,7 +1001,10 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
 
     @Override
     public long getWeight() {
-      return 16L + bytes.size();
+      // 12 = 4 bytes for int + 8 for reference.
+      // This doesn't account for backing memory of bytes but reducing
+      // overhead of weighing is more important.
+      return 12L + bytes.size();
     }
   }
 
@@ -1015,7 +1018,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
           return Caches.subCache(
               processWideCache,
               new UserStateCacheTokenKey(token.getToken()),
-              new BagStateKey(stateKey.getBagUserState()));
+              new BagUserStateCacheKey(stateKey.getBagUserState()));
         }
         break;
       case MULTIMAP_KEYS_USER_STATE:
@@ -1026,7 +1029,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
           return Caches.subCache(
               processWideCache,
               new UserStateCacheTokenKey(token.getToken()),
-              new MultimapStateKey(stateKey.getMultimapKeysUserState()));
+              new MultimapKeysUserStateCacheKey(stateKey.getMultimapKeysUserState()));
         }
         break;
       case ORDERED_LIST_USER_STATE:
@@ -1037,7 +1040,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
           return Caches.subCache(
               processWideCache,
               new UserStateCacheTokenKey(token.getToken()),
-              new OrderedListStateKey(stateKey.getOrderedListUserState()));
+              new OrderedListUserStateCacheKey(stateKey.getOrderedListUserState()));
         }
         break;
       case ITERABLE_SIDE_INPUT:
@@ -1098,42 +1101,60 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
     return rval;
   }
 
-  private static class BagStateKey implements Weighted {
-    private final String pTransformId;
+  // Shared base for implementation of cache keys with the same
+  // fields that also uses the subclass for hashing and equality.
+  private abstract static class UserStateCacheKeyBase implements Weighted {
+    private final String ptransformId;
     private final String stateId;
     private final ByteString window;
     private final ByteString key;
     private final int hash;
 
-    public BagStateKey(StateKey.BagUserState proto) {
-      this.window = proto.getWindow();
-      this.key = proto.getKey();
-      this.pTransformId = proto.getTransformId();
-      this.stateId = proto.getUserStateId();
-      this.hash = Objects.hash(BagStateKey.class, window, key, pTransformId, stateId);
+    protected UserStateCacheKeyBase(
+        Class subclass, String ptransformId, String stateId, ByteString window, ByteString key) {
+      this.ptransformId = ptransformId;
+      this.stateId = stateId;
+      this.window = window;
+      this.key = key;
+      this.hash = Objects.hash(subclass, ptransformId, stateId, window, key);
     }
 
     @Override
-    public boolean equals(Object o) {
-      if (!(o instanceof BagStateKey)) {
+    public final boolean equals(Object o) {
+      if (!(o instanceof UserStateCacheKeyBase)) {
         return false;
       }
-      BagStateKey other = (BagStateKey) o;
+      UserStateCacheKeyBase other = (UserStateCacheKeyBase) o;
       return hash == other.hash
-          && pTransformId.equals(other.pTransformId)
+          && this.getClass().equals(o.getClass())
+          && ptransformId.equals(other.ptransformId)
           && stateId.equals(other.stateId)
           && window.equals(other.window)
           && key.equals(other.key);
     }
 
     @Override
-    public int hashCode() {
+    public final int hashCode() {
       return hash;
     }
 
     @Override
-    public long getWeight() {
-      return 40L + pTransformId.length() + stateId.length() + window.size() + key.size();
+    public final long getWeight() {
+      // 36 = 4 bytes for int + 8 * 4 references.
+      // This doesn't account for backing memory of bytes but reducing
+      // overhead of weighing is more important.
+      return 36L + ptransformId.length() + stateId.length() + window.size() + key.size();
+    }
+  }
+
+  private static final class BagUserStateCacheKey extends UserStateCacheKeyBase {
+    public BagUserStateCacheKey(StateKey.BagUserState proto) {
+      super(
+          BagUserStateCacheKey.class,
+          proto.getTransformId(),
+          proto.getUserStateId(),
+          proto.getWindow(),
+          proto.getKey());
     }
   }
 
@@ -1162,42 +1183,14 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
     return rval;
   }
 
-  public static class MultimapStateKey implements Weighted {
-    private final String pTransformId;
-    private final String stateId;
-    private final ByteString window;
-    private final ByteString key;
-    private final int hash;
-
-    public MultimapStateKey(StateKey.MultimapKeysUserState proto) {
-      this.window = proto.getWindow();
-      this.key = proto.getKey();
-      this.pTransformId = proto.getTransformId();
-      this.stateId = proto.getUserStateId();
-      this.hash = Objects.hash(MultimapStateKey.class, window, key, pTransformId, stateId);
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (!(o instanceof FnApiStateAccessor.MultimapStateKey)) {
-        return false;
-      }
-      MultimapStateKey other = (MultimapStateKey) o;
-      return hash == other.hash
-          && pTransformId.equals(other.pTransformId)
-          && stateId.equals(other.stateId)
-          && window.equals(other.window)
-          && key.equals(other.key);
-    }
-
-    @Override
-    public int hashCode() {
-      return hash;
-    }
-
-    @Override
-    public long getWeight() {
-      return 40L + pTransformId.length() + stateId.length() + window.size() + key.size();
+  private static final class MultimapKeysUserStateCacheKey extends UserStateCacheKeyBase {
+    public MultimapKeysUserStateCacheKey(StateKey.MultimapKeysUserState proto) {
+      super(
+          MultimapKeysUserStateCacheKey.class,
+          proto.getTransformId(),
+          proto.getUserStateId(),
+          proto.getWindow(),
+          proto.getKey());
     }
   }
 
@@ -1225,42 +1218,14 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
     return rval;
   }
 
-  public static class OrderedListStateKey implements Weighted {
-    private final String pTransformId;
-    private final String stateId;
-    private final ByteString window;
-    private final ByteString key;
-    private final int hash;
-
-    public OrderedListStateKey(StateKey.OrderedListUserState proto) {
-      this.window = proto.getWindow();
-      this.key = proto.getKey();
-      this.pTransformId = proto.getTransformId();
-      this.stateId = proto.getUserStateId();
-      this.hash = Objects.hash(OrderedListStateKey.class, window, key, pTransformId, stateId);
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (!(o instanceof FnApiStateAccessor.OrderedListStateKey)) {
-        return false;
-      }
-      OrderedListStateKey other = (OrderedListStateKey) o;
-      return hash == other.hash
-          && pTransformId.equals(other.pTransformId)
-          && stateId.equals(other.stateId)
-          && window.equals(other.window)
-          && key.equals(other.key);
-    }
-
-    @Override
-    public int hashCode() {
-      return hash;
-    }
-
-    @Override
-    public long getWeight() {
-      return 40L + pTransformId.length() + stateId.length() + window.size() + key.size();
+  private static final class OrderedListUserStateCacheKey extends UserStateCacheKeyBase {
+    public OrderedListUserStateCacheKey(StateKey.OrderedListUserState proto) {
+      super(
+          OrderedListUserStateCacheKey.class,
+          proto.getTransformId(),
+          proto.getUserStateId(),
+          proto.getWindow(),
+          proto.getKey());
     }
   }
 
