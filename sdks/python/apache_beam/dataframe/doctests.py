@@ -288,7 +288,7 @@ class _DeferrredDataframeOutputChecker(doctest.OutputChecker):
       except Exception:
         got = traceback.format_exc()
 
-    if sys.version_info < (3, 11) and 'NumpyExtensionArray' in got:
+    if 'NumpyExtensionArray' in got:
       # Work around formatting differences (np.int32(1) vs 1).
       got = re.sub('np.(int32|str_)[(]([^()]+)[)]', r'\2', got)
       got = re.sub('np.complex128[(]([^()]+)[)]', r'(\1)', got)

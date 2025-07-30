@@ -141,7 +141,7 @@
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * [YAML] Fixed handling of missing optional fields in JSON parsing ([#35179](https://github.com/apache/beam/issues/35179)).
 * [Python] Fix WriteToBigQuery transform using CopyJob does not work with WRITE_TRUNCATE write disposition ([#34247](https://github.com/apache/beam/issues/34247))
-* [Python] Fixed dicomio tags mismatch in integration tests ([#35658](https://github.com/apache/beam/pull/35658)).
+* [Python] Fixed dicomio tags mismatch in integration tests ([#30760](https://github.com/apache/beam/issues/30760)).
 * [Java] Fixed spammy logging issues that affected versions 2.64.0 to 2.66.0.
 
 
