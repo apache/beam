@@ -372,7 +372,7 @@ public class BigtableWriteSchemaTransformProvider
                     .setTimestampMicros(
                         mutation.containsKey("timestamp_micros")
                             ? Longs.fromByteArray(
-                            ofNullable(mutation.get("timestamp_micros")).get())
+                                ofNullable(mutation.get("timestamp_micros")).get())
                             : -1);
             bigtableMutation = Mutation.newBuilder().setSetCell(setMutation.build()).build();
             break;
