@@ -23,10 +23,13 @@ import com.google.auto.value.AutoBuilder;
 import java.io.PrintWriter;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
@@ -59,6 +62,7 @@ import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.AbstractStub;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -81,6 +85,15 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
   private static final int NO_HEALTH_CHECKS = -1;
   private static final String NO_BACKEND_WORKER_TOKEN = "";
   private static final String DISPATCHER_DEBUG_NAME = "Dispatcher";
+  private static final Supplier<ScheduledExecutorService> DIRECT_STREAM_SCHEDULED_EXECUTOR_SERVICE =
+      Suppliers.memoize(
+          () ->
+              Executors.newScheduledThreadPool(
+                  4,
+                  new ThreadFactoryBuilder()
+                      .setDaemon(true)
+                      .setNameFormat("WindmillStream-%d")
+                      .build()));
 
   private final JobHeader jobHeader;
   private final int logEveryNStreamFailures;
@@ -95,6 +108,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
   private final boolean requestBatchedGetWorkResponse;
   private final Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses;
   private final java.time.Duration directStreamingRpcPhysicalStreamHalfCloseAfter;
+  private final Optional<ScheduledExecutorService> executor;
 
   private GrpcWindmillStreamFactory(
       JobHeader jobHeader,
@@ -105,7 +119,8 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
       boolean requestBatchedGetWorkResponse,
       Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses,
       Supplier<Duration> maxBackOffSupplier,
-      java.time.Duration directStreamingRpcPhysicalStreamHalfCloseAfter) {
+      java.time.Duration directStreamingRpcPhysicalStreamHalfCloseAfter,
+      Optional<ScheduledExecutorService> executor) {
     this.jobHeader = jobHeader;
     this.logEveryNStreamFailures = logEveryNStreamFailures;
     this.streamingRpcBatchLimit = streamingRpcBatchLimit;
@@ -125,6 +140,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
     this.streamIdGenerator = new AtomicLong();
     this.directStreamingRpcPhysicalStreamHalfCloseAfter =
         directStreamingRpcPhysicalStreamHalfCloseAfter;
+    this.executor = executor;
   }
 
   /** @implNote Used for {@link AutoBuilder} {@link Builder} class, do not call directly. */
@@ -138,7 +154,8 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
       Consumer<List<ComputationHeartbeatResponse>> processHeartbeatResponses,
       Supplier<Duration> maxBackOffSupplier,
       int healthCheckIntervalMillis,
-      java.time.Duration directStreamingRpcPhysicalStreamHalfCloseAfter) {
+      java.time.Duration directStreamingRpcPhysicalStreamHalfCloseAfter,
+      Optional<ScheduledExecutorService> executor) {
     GrpcWindmillStreamFactory streamFactory =
         new GrpcWindmillStreamFactory(
             jobHeader,
@@ -149,7 +166,8 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
             requestBatchedGetWorkResponse,
             processHeartbeatResponses,
             maxBackOffSupplier,
-            directStreamingRpcPhysicalStreamHalfCloseAfter);
+            directStreamingRpcPhysicalStreamHalfCloseAfter,
+            executor);
 
     if (healthCheckIntervalMillis >= 0) {
       // Health checks are run on background daemon thread, which will only be cleaned up on JVM
@@ -189,7 +207,8 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         .setRequestBatchedGetWorkResponse(false)
         .setProcessHeartbeatResponses(ignored -> {})
         .setDirectStreamingRpcPhysicalStreamHalfCloseAfter(
-            DEFAULT_DIRECT_STREAMING_RPC_PHYSICAL_STREAM_HALF_CLOSE_AFTER);
+            DEFAULT_DIRECT_STREAMING_RPC_PHYSICAL_STREAM_HALF_CLOSE_AFTER)
+        .setScheduledExecutorService(Optional.empty());
   }
 
   private static <T extends AbstractStub<T>> T withDefaultDeadline(T stub) {
@@ -225,7 +244,8 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         logEveryNStreamFailures,
         requestBatchedGetWorkResponse,
         processWorkItem,
-        java.time.Duration.ZERO);
+        java.time.Duration.ZERO,
+        executor.orElseGet(() -> createSingleThreadScheduledExecutor("GetWork")));
   }
 
   public GetWorkStream createDirectGetWorkStream(
@@ -249,7 +269,8 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         getDataClient,
         workCommitter,
         workItemScheduler,
-        directStreamingRpcPhysicalStreamHalfCloseAfter);
+        directStreamingRpcPhysicalStreamHalfCloseAfter,
+        executor.orElseGet(DIRECT_STREAM_SCHEDULED_EXECUTOR_SERVICE));
   }
 
   public GetDataStream createGetDataStream(CloudWindmillServiceV1Alpha1Stub stub) {
@@ -265,7 +286,8 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         streamingRpcBatchLimit,
         sendKeyedGetDataRequests,
         processHeartbeatResponses,
-        java.time.Duration.ZERO);
+        java.time.Duration.ZERO,
+        executor.orElseGet(() -> createSingleThreadScheduledExecutor("GetWorkerMetadata")));
   }
 
   public GetDataStream createDirectGetDataStream(WindmillConnection connection) {
@@ -282,7 +304,16 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         streamingRpcBatchLimit,
         sendKeyedGetDataRequests,
         processHeartbeatResponses,
-        directStreamingRpcPhysicalStreamHalfCloseAfter);
+        directStreamingRpcPhysicalStreamHalfCloseAfter,
+        executor.orElseGet(DIRECT_STREAM_SCHEDULED_EXECUTOR_SERVICE));
+  }
+
+  private ScheduledExecutorService createSingleThreadScheduledExecutor(String debugStreamTypeName) {
+    return Executors.newSingleThreadScheduledExecutor(
+        new ThreadFactoryBuilder()
+            .setDaemon(true)
+            .setNameFormat(String.format("%s-WindmillStream-thread", debugStreamTypeName))
+            .build());
   }
 
   public CommitWorkStream createCommitWorkStream(CloudWindmillServiceV1Alpha1Stub stub) {
@@ -296,7 +327,9 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         jobHeader,
         streamIdGenerator,
         streamingRpcBatchLimit,
-        java.time.Duration.ZERO);
+        java.time.Duration.ZERO,
+        createSingleThreadScheduledExecutor("CommitWork"),
+        executor.orElseGet(DIRECT_STREAM_SCHEDULED_EXECUTOR_SERVICE));
   }
 
   public CommitWorkStream createDirectCommitWorkStream(WindmillConnection connection) {
@@ -311,7 +344,8 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         jobHeader,
         streamIdGenerator,
         streamingRpcBatchLimit,
-        directStreamingRpcPhysicalStreamHalfCloseAfter);
+        directStreamingRpcPhysicalStreamHalfCloseAfter,
+        executor.orElseGet(DIRECT_STREAM_SCHEDULED_EXECUTOR_SERVICE));
   }
 
   public GetWorkerMetadataStream createGetWorkerMetadataStream(
@@ -325,7 +359,8 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         logEveryNStreamFailures,
         jobHeader,
         onNewWindmillEndpoints,
-        directStreamingRpcPhysicalStreamHalfCloseAfter);
+        directStreamingRpcPhysicalStreamHalfCloseAfter,
+        executor.orElseGet(() -> createSingleThreadScheduledExecutor("GetWorkerMetadataStream")));
   }
 
   private StreamObserverFactory newStreamObserverFactory() {
@@ -372,6 +407,8 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
     Builder setRequestBatchedGetWorkResponse(boolean enabled);
 
     Builder setDirectStreamingRpcPhysicalStreamHalfCloseAfter(java.time.Duration timeout);
+
+    Builder setScheduledExecutorService(Optional<ScheduledExecutorService> executor);
 
     GrpcWindmillStreamFactory build();
   }

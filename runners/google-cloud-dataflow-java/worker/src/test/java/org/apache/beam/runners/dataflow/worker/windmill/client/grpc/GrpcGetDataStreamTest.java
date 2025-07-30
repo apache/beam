@@ -27,17 +27,21 @@ import static org.junit.Assert.fail;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillConnection;
+import org.apache.beam.runners.dataflow.worker.windmill.client.TriggeredScheduledExecutorService;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamShutdownException;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
@@ -107,11 +111,13 @@ public class GrpcGetDataStreamTest {
     return getDataStream;
   }
 
-  private GrpcGetDataStream createGetDataStreamWithPhysicalStreamHandover(Duration handover) {
+  private GrpcGetDataStream createGetDataStreamWithPhysicalStreamHandover(
+      Duration handover, @Nullable ScheduledExecutorService executor) {
     GrpcGetDataStream getDataStream =
         (GrpcGetDataStream)
             GrpcWindmillStreamFactory.of(TEST_JOB_HEADER)
                 .setDirectStreamingRpcPhysicalStreamHalfCloseAfter(handover)
+                .setScheduledExecutorService(Optional.ofNullable(executor))
                 .build()
                 .createDirectGetDataStream(
                     WindmillConnection.builder()
@@ -320,11 +326,10 @@ public class GrpcGetDataStreamTest {
   @Test
   public void testRequestKeyedData_multiplePhysicalStreams()
       throws InterruptedException, ExecutionException {
-    // XXX To make this not take as long and not be flaky we need some way to trigger the handover
-    // future
-    // instead of waiting for it.
+    TriggeredScheduledExecutorService triggeredExecutor = new TriggeredScheduledExecutorService();
     GrpcGetDataStream getDataStream =
-        createGetDataStreamWithPhysicalStreamHandover(java.time.Duration.ofSeconds(10));
+        createGetDataStreamWithPhysicalStreamHandover(
+            java.time.Duration.ofSeconds(1234), triggeredExecutor);
     FakeWindmillGrpcService.GetDataStreamInfo streamInfo = waitForConnectionAndConsumeHeader();
 
     // These will block until they are successfully sent.
@@ -350,6 +355,8 @@ public class GrpcGetDataStreamTest {
     assertEquals(keyedGetDataRequest, request.getStateRequest(0).getRequests(0));
 
     // A new stream should be created due to handover.
+    assertTrue(triggeredExecutor.unblockNextFuture());
+
     FakeWindmillGrpcService.GetDataStreamInfo streamInfo2 = waitForConnectionAndConsumeHeader();
     assertNull(streamInfo.onDone.get());
 

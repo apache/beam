@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -87,17 +88,18 @@ final class GrpcCommitWorkStream
       JobHeader jobHeader,
       AtomicLong idGenerator,
       int streamingRpcBatchLimit,
-      Duration halfClosePhysicalStreamAfter) {
+      Duration halfClosePhysicalStreamAfter,
+      ScheduledExecutorService executor) {
     super(
         LOG,
-        "CommitWorkStream",
         startCommitWorkRpcFn,
         backoff,
         streamObserverFactory,
         streamRegistry,
         logEveryNStreamFailures,
         backendWorkerToken,
-        halfClosePhysicalStreamAfter);
+        halfClosePhysicalStreamAfter,
+        executor);
     this.idGenerator = idGenerator;
     this.jobHeader = jobHeader;
     this.streamingRpcBatchLimit = streamingRpcBatchLimit;
@@ -114,7 +116,8 @@ final class GrpcCommitWorkStream
       JobHeader jobHeader,
       AtomicLong idGenerator,
       int streamingRpcBatchLimit,
-      Duration halfClosePhysicalStreamAfter) {
+      Duration halfClosePhysicalStreamAfter,
+      ScheduledExecutorService executor) {
     return new GrpcCommitWorkStream(
         backendWorkerToken,
         startCommitWorkRpcFn,
@@ -125,7 +128,8 @@ final class GrpcCommitWorkStream
         jobHeader,
         idGenerator,
         streamingRpcBatchLimit,
-        halfClosePhysicalStreamAfter);
+        halfClosePhysicalStreamAfter,
+        executor);
   }
 
   @Override

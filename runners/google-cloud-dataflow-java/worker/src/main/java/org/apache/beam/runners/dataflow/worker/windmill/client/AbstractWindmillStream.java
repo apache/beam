@@ -27,7 +27,6 @@ import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
@@ -44,7 +43,6 @@ import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.api.client.util.Sleeper;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Status;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
@@ -135,14 +133,14 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   // will be half-closed and a new physical stream will be created after this duraction.
   protected AbstractWindmillStream(
       Logger logger,
-      String debugStreamType,
       Function<StreamObserver<ResponseT>, StreamObserver<RequestT>> clientFactory,
       BackOff backoff,
       StreamObserverFactory streamObserverFactory,
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
       int logEveryNStreamFailures,
       String backendWorkerToken,
-      Duration halfClosePhysicalStreamAfter) {
+      Duration halfClosePhysicalStreamAfter,
+      ScheduledExecutorService executor) {
     checkArgument(!halfClosePhysicalStreamAfter.isNegative());
     this.backendWorkerToken = backendWorkerToken;
     this.physicalStreamFactory =
@@ -156,12 +154,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     }
     this.halfClosePhysicalStreamAfter = halfClosePhysicalStreamAfter;
     this.closingPhysicalStreams = Collections.newSetFromMap(new IdentityHashMap<>());
-    this.executor =
-        Executors.newSingleThreadScheduledExecutor(
-            new ThreadFactoryBuilder()
-                .setDaemon(true)
-                .setNameFormat(createThreadName(debugStreamType, backendWorkerToken))
-                .build());
+    this.executor = executor;
     this.backoff = backoff;
     this.streamRegistry = streamRegistry;
     this.logEveryNStreamFailures = logEveryNStreamFailures;
@@ -207,8 +200,19 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     public abstract void appendHtml(PrintWriter writer);
 
     private final StreamDebugMetrics streamDebugMetrics = StreamDebugMetrics.create();
+
+    @Override
+    public final boolean equals(Object obj) {
+      return this == obj;
+    }
+
+    @Override
+    public final int hashCode() {
+      return System.identityHashCode(this);
+    }
   }
 
+  /* Constructs and returns a new handler to be associated with a physical stream. */
   protected abstract PhysicalStreamHandler newResponseHandler();
 
   protected abstract void onFlushPending(boolean isNewStream)
@@ -494,29 +498,35 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
     }
   }
 
-  private void onHalfClosePhysicalStreamTimeout(PhysicalStreamHandler handler) {
-    synchronized (this) {
-      if (currentPhysicalStream != handler || clientClosed || isShutdown) {
-        return;
-      }
-      try {
-        handler.streamDebugMetrics.recordHalfClose();
-        closingPhysicalStreams.add(handler);
-        clearCurrentPhysicalStream(false);
-        requestObserver.onCompleted();
-      } catch (Exception e) {
-        // XXX figure out
-      }
-      try {
-        @NonNull PhysicalStreamHandler streamHandler = newResponseHandler();
-        streamHandler.streamDebugMetrics.recordStart();
-        currentPhysicalStream = streamHandler;
-        currentPhysicalStreamForDebug.set(currentPhysicalStream);
-        requestObserver.reset(physicalStreamFactory.apply(new ResponseObserver(streamHandler)));
-        onFlushPending(true);
-      } catch (Exception e) {
-        // XXX figure out
-      }
+  private synchronized void onHalfClosePhysicalStreamTimeout(PhysicalStreamHandler handler) {
+    if (currentPhysicalStream != handler || clientClosed || isShutdown) {
+      return;
+    }
+    handler.streamDebugMetrics.recordHalfClose();
+    closingPhysicalStreams.add(handler);
+    clearCurrentPhysicalStream(false);
+    try {
+      requestObserver.onCompleted();
+    } catch (Exception e) {
+      logger.debug(
+          "Exception while half-closing handler, onPhysicalStreamCompletion will for the stream",
+          e);
+    }
+    @NonNull PhysicalStreamHandler newStreamHandler = newResponseHandler();
+    newStreamHandler.streamDebugMetrics.recordStart();
+    currentPhysicalStream = newStreamHandler;
+    currentPhysicalStreamForDebug.set(currentPhysicalStream);
+    try {
+      requestObserver.reset(physicalStreamFactory.apply(new ResponseObserver(newStreamHandler)));
+    } catch (Exception e) {
+      onPhysicalStreamCompletion(Status.fromThrowable(e), newStreamHandler);
+    }
+    try {
+      onFlushPending(true);
+    } catch (Exception e) {
+      logger.debug(
+          "Exception while flushing pending to current stream, onPhysicalStreamCompletion will be called and handle",
+          e);
     }
   }
 
@@ -546,7 +556,8 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
         try {
           onFlushPending(false);
         } catch (WindmillStreamShutdownException e) {
-          // XXX figure out
+          logger.debug(
+              "Requests will be flushed by onPhysicalStreamCompletion of the current stream.", e);
         }
         return;
       }
