@@ -1462,7 +1462,7 @@ class WorkerOptions(PipelineOptions):
         help=(
             'The time limit (minute) that an SDK worker allows for a PTransform'
             ' operation to process one element before signaling the runner harness'
-            ' to restart the SDKworker.'))
+            ' to restart the SDK worker.'))
 
   def validate(self, validator):
     errors = []
