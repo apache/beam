@@ -53,7 +53,7 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T>, Function<R
   private final Factory<SchemaUserTypeCreator> schemaTypeCreatorFactory;
 
   @SuppressFBWarnings("SE_TRANSIENT_FIELD_NOT_RESTORED")
-  private transient @MonotonicNonNull Function[] fieldConverters;
+  private transient volatile @MonotonicNonNull Function[] fieldConverters;
 
   public FromRowUsingCreator(
       TypeDescriptor<T> typeDescriptor, GetterBasedSchemaProvider schemaProvider) {
@@ -102,11 +102,17 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T>, Function<R
     return (T) creator.create(params);
   }
 
-  private synchronized void initFieldConverters(Schema schema) {
+   private synchronized void initFieldConverters(Schema schema) {
+    Function[] value = fieldConverters;
     if (fieldConverters == null) {
-      CachingFactory<List<FieldValueTypeInformation>> typeFactory =
-          new CachingFactory<>(schemaProvider::fieldValueTypeInformations);
-      fieldConverters = fieldConverters(typeDescriptor, schema, typeFactory);
+      synchronized (this) {
+        value = fieldConverters;
+        if (fieldConverters == null) {
+          CachingFactory<List<FieldValueTypeInformation>> typeFactory =
+              new CachingFactory<>(schemaProvider::fieldValueTypeInformations);
+          fieldConverters = value = fieldConverters(typeDescriptor, schema, typeFactory);
+        }
+      }
     }
   }
 
