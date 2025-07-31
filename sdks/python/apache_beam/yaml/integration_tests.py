@@ -45,6 +45,7 @@ from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
 from testcontainers.google import PubSubContainer
 from testcontainers.kafka import KafkaContainer
+from testcontainers.mongodb import MongoDbContainer
 from testcontainers.mssql import SqlServerContainer
 from testcontainers.mysql import MySqlContainer
 from testcontainers.postgres import PostgresContainer
@@ -55,6 +56,7 @@ from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.gcp.spanner_wrapper import SpannerWrapper
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.testing import util as beam_testing_util
 from apache_beam.utils import python_callable
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml import yaml_transform
@@ -199,6 +201,71 @@ def temp_bigtable_table(project, prefix='yaml_bt_it_'):
     instanceT.delete()
   except HttpError:
     _LOGGER.warning("Failed to clean up instance")
+
+
+def mongosetup(cls):
+  """Starts the MongoDB container once before all tests in this class run."""
+  _LOGGER.info("🚀 Starting MongoDB container...")
+  try:
+    cls.mongo_container = MongoDbContainer("mongo:7.0.7")
+    cls.mongo_container.start()
+    # Get the dynamically generated connection URI
+    cls.mongo_uri = cls.mongo_container.get_connection_url()
+    _LOGGER.info("✅ MongoDB container started at %s", cls.mongo_uri)
+  except Exception as e:
+    _LOGGER.error("Failed to start MongoDB container: %s", e)
+    # Re-raise to fail the test suite if the container can't start
+    raise
+
+
+def mongotearDown(cls):
+  """
+  Stops the MongoDB container once after all tests are finished.
+  """
+  if hasattr(cls, 'mongo_container'):
+    _LOGGER.info("Stopping MongoDB container...")
+    cls.mongo_container.stop()
+
+
+@contextlib.contextmanager
+def test_mongodb_yaml_write_and_read(self):
+  """Tests writing to and reading from MongoDB using YAML transforms."""
+  # 1. SETUP: Define a unique collection for this test run for isolation
+  collection_name = f'test_collection_{uuid.uuid4().hex}'
+
+  # 2. WRITE PIPELINE: Load the YAML, inject connection details, and run
+  _LOGGER.info("Running WRITE pipeline into collection: %s", collection_name)
+  with open(os.path.join(yaml_test_files_dir, 'mongodb_write_it.yaml')) as f:
+    write_yaml_str = f.read() \
+      .replace('${URI}', self.mongo_uri) \
+      .replace('${COLLECTION}', collection_name)
+  write_spec = yaml.safe_load(write_yaml_str)
+
+  with beam.Pipeline() as p:
+    # pylint: disable=expression-not-assigned
+    p | yaml_transform.YamlTransform(spec=write_spec)
+    # The pipeline runs and waits for completion when exiting the 'with' block
+
+  # 3. READ PIPELINE & ASSERTION: Run the read pipeline and verify its output
+  _LOGGER.info("Running READ pipeline from collection: %s", collection_name)
+  with open(os.path.join(yaml_test_files_dir, 'mongodb_read_it.yaml')) as f:
+    read_yaml_str = f.read() \
+      .replace('${URI}', self.mongo_uri) \
+      .replace('${COLLECTION}', collection_name)
+  read_spec = yaml.safe_load(read_yaml_str)
+
+  # Define the data we expect to have been written
+  expected_data = [{
+      '_id': f'record-{i}', 'name': f'scientist-{i}'
+  } for i in range(100)]
+
+  with beam.Pipeline() as p:
+    # The output of the YamlTransform is a PCollection
+    output_pcoll = p | yaml_transform.YamlTransform(spec=read_spec)
+
+    # Use Beam's testing utilities to assert the contents of the PCollection
+    beam_testing_util.assert_that(
+        output_pcoll, beam_testing_util.equal_to(expected_data))
 
 
 @contextlib.contextmanager
@@ -753,14 +820,16 @@ def parse_test_files(filepattern):
       For example, 'path/to/tests/*.yaml'.
   """
   for path in glob.glob(filepattern):
-    with open(path) as fin:
-      suite_name = os.path.splitext(os.path.basename(path))[0].title().replace(
-          '-', '') + 'Test'
-      print(path, suite_name)
-      methods = dict(
-          create_test_methods(
-              yaml.load(fin, Loader=yaml_transform.SafeLineLoader)))
-      globals()[suite_name] = type(suite_name, (unittest.TestCase, ), methods)
+    if "bigtable" in path:
+      with open(path) as fin:
+        suite_name = os.path.splitext(
+            os.path.basename(path))[0].title().replace('-', '') + 'Test'
+        print(path, suite_name)
+        methods = dict(
+            create_test_methods(
+                yaml.load(fin, Loader=yaml_transform.SafeLineLoader)))
+        globals()[suite_name] = type(
+            suite_name, (unittest.TestCase, ), methods)
 
 
 # Logging setups

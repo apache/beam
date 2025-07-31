@@ -171,6 +171,7 @@ pipelines:
         #                   column_families: {cf1: {cq2:
         #                                             [BeamSchema_3281a0ae_fe85_474b_9030_86fbed58833a(value=b'value2', timestamp_micros=1000)], 'cq1': [BeamSchema_3281a0ae_fe85_474b_9030_86fbed58833a(value=b'value1', timestamp_micros=5000)]}}}
 
+
         - type: LogForTesting
 
 
