@@ -47,8 +47,6 @@ _LOGGER = logging.getLogger(__name__)
 # 5 minutes * 60 seconds * 1000 millis * 1000 micros * 1000 nanoseconds
 DEFAULT_LOG_LULL_TIMEOUT_NS = 5 * 60 * 1000 * 1000 * 1000
 
-DEFAULT_RESTART_LULL_TIMEOUT_NS = 10 * 60 * 1000 * 1000 * 1000
-
 # Full thread dump is performed at most every 20 minutes.
 LOG_LULL_FULL_THREAD_DUMP_INTERVAL_S = 20 * 60
 
@@ -168,8 +166,7 @@ class FnApiWorkerStatusHandler(object):
       enable_heap_dump=False,
       worker_id=None,
       log_lull_timeout_ns=DEFAULT_LOG_LULL_TIMEOUT_NS,
-      restart_lull_timeout_ns=DEFAULT_RESTART_LULL_TIMEOUT_NS,
-      element_processing_timeout=None):
+      element_processing_timeout_minutes=None):
     """Initialize FnApiWorkerStatusHandler.
 
     Args:
@@ -188,13 +185,8 @@ class FnApiWorkerStatusHandler(object):
         self._status_channel)
     self._responses = queue.Queue()
     self.log_lull_timeout_ns = log_lull_timeout_ns
-    if element_processing_timeout:
-      self._element_processing_timeout_ns = max(
-          element_processing_timeout * 60 * 1e9, restart_lull_timeout_ns)
-      if element_processing_timeout * 60 * 1e9 < restart_lull_timeout_ns:
-        _LOGGER.error(
-            'element_processing_timeout overriden to %d ns',
-            self._element_processing_timeout_ns)
+    if element_processing_timeout_minutes:
+      self._element_processing_timeout_ns = element_processing_timeout_minutes * 60 * 1e9
     else:
       self._element_processing_timeout_ns = None
     self._last_full_thread_dump_secs = 0.0
@@ -209,10 +201,7 @@ class FnApiWorkerStatusHandler(object):
             self._bundle_process_cache),
         name='lull_operation_logger')
     self._lull_logger.daemon = True
-    try:
-      self._lull_logger.start()
-    except TimeoutError as e:
-      raise TimeoutError('%sThe SDK harness will be terminated.' % e) from e
+    self._lull_logger.start()
 
   def _get_responses(self):
     while True:

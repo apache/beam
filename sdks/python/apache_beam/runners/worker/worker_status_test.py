@@ -60,7 +60,7 @@ class FnApiWorkerStatusHandlerTest(unittest.TestCase):
     self.server.start()
     self.url = 'localhost:%s' % self.test_port
     self.fn_status_handler = FnApiWorkerStatusHandler(
-        self.url, element_processing_timeout=10)
+        self.url, element_processing_timeout_minutes=10)
 
   def tearDown(self):
     self.server.stop(5)

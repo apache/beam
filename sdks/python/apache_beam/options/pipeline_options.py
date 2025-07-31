@@ -1382,13 +1382,13 @@ class WorkerOptions(PipelineOptions):
             'the runner. Depending on the runner, there may be more than one '
             'SDK Harness process running on the same worker node.'))
     parser.add_argument(
-        '--element_processing_timeout',
+        '--element_processing_timeout_minutes',
         type=int,
         default=None,
         help=(
             'The time limit (minute) that an SDK worker allows for a PTransform'
-            ' operation before signaling the runner harness to restart the SDK'
-            ' worker.'))
+            ' operation to process one element before signaling the runner harness'
+            ' to restart the SDKworker.'))
 
   def validate(self, validator):
     errors = []
