@@ -102,7 +102,7 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T>, Function<R
     return (T) creator.create(params);
   }
 
-   private synchronized void initFieldConverters(Schema schema) {
+  private synchronized void initFieldConverters(Schema schema) {
     Function[] value = fieldConverters;
     if (value == null) {
       synchronized (this) {

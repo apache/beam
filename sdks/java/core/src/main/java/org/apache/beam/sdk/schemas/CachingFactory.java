@@ -36,7 +36,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * inner factory, so the schema comparison only need happen on the first lookup.
  */
 public class CachingFactory<CreatedT extends @NonNull Object> implements Factory<CreatedT> {
-  private volatile transient @Nullable ConcurrentHashMap<TypeDescriptor<?>, CreatedT> cache = null;
+  private transient volatile @Nullable ConcurrentHashMap<TypeDescriptor<?>, CreatedT> cache = null;
 
   private final @NotOnlyInitialized Factory<CreatedT> innerFactory;
 
