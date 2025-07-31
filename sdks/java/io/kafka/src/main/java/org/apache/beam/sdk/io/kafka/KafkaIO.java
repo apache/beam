@@ -1583,6 +1583,8 @@ public class KafkaIO {
       final KafkaIOReadImplementationCompatibilityResult compatibility =
           KafkaIOReadImplementationCompatibility.getCompatibility(this);
 
+      Read<K, V> kafkaRead = deduplicateTopics(this);
+
       // For a number of cases, we prefer using the UnboundedSource Kafka over the new SDF-based
       // Kafka source, for example,
       // * Experiments 'beam_fn_api_use_deprecated_read' and use_deprecated_read will result in
@@ -1599,9 +1601,9 @@ public class KafkaIO {
           || compatibility.supportsOnly(KafkaIOReadImplementation.LEGACY)
           || (compatibility.supports(KafkaIOReadImplementation.LEGACY)
               && runnerPrefersLegacyRead(input.getPipeline().getOptions()))) {
-        return input.apply(new ReadFromKafkaViaUnbounded<>(this, keyCoder, valueCoder));
+        return input.apply(new ReadFromKafkaViaUnbounded<>(kafkaRead, keyCoder, valueCoder));
       }
-      return input.apply(new ReadFromKafkaViaSDF<>(this, keyCoder, valueCoder));
+      return input.apply(new ReadFromKafkaViaSDF<>(kafkaRead, keyCoder, valueCoder));
     }
 
     private void checkRedistributeConfiguration() {
@@ -1646,6 +1648,29 @@ public class KafkaIO {
                 + " We recommend setting commitOffsetInFinalize to true in ReadFromKafka,"
                 + " enable.auto.commit to false, and auto.offset.reset to none");
       }
+    }
+
+    private Read<K, V> deduplicateTopics(Read<K, V> kafkaRead) {
+      final List<String> topics = getTopics();
+      if (topics != null && !topics.isEmpty()) {
+        final List<String> distinctTopics = topics.stream().distinct().collect(Collectors.toList());
+        if (topics.size() == distinctTopics.size()) {
+          return kafkaRead;
+        }
+        return kafkaRead.toBuilder().setTopics(distinctTopics).build();
+      }
+
+      final List<TopicPartition> topicPartitions = getTopicPartitions();
+      if (topicPartitions != null && !topicPartitions.isEmpty()) {
+        final List<TopicPartition> distinctTopicPartitions =
+            topicPartitions.stream().distinct().collect(Collectors.toList());
+        if (topicPartitions.size() == distinctTopicPartitions.size()) {
+          return kafkaRead;
+        }
+        return kafkaRead.toBuilder().setTopicPartitions(distinctTopicPartitions).build();
+      }
+
+      return kafkaRead;
     }
 
     // This class is designed to mimic the Flink pipeline options, so we can check for the
