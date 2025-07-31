@@ -104,10 +104,10 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T>, Function<R
 
    private synchronized void initFieldConverters(Schema schema) {
     Function[] value = fieldConverters;
-    if (fieldConverters == null) {
+    if (value == null) {
       synchronized (this) {
         value = fieldConverters;
-        if (fieldConverters == null) {
+        if (value == null) {
           CachingFactory<List<FieldValueTypeInformation>> typeFactory =
               new CachingFactory<>(schemaProvider::fieldValueTypeInformations);
           fieldConverters = value = fieldConverters(typeDescriptor, schema, typeFactory);

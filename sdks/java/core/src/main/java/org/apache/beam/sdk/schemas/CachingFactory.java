@@ -46,7 +46,7 @@ public class CachingFactory<CreatedT extends @NonNull Object> implements Factory
 
   private ConcurrentHashMap<TypeDescriptor<?>, CreatedT> getCache() {
     ConcurrentHashMap<TypeDescriptor<?>, CreatedT> value = cache;
-    if (cache == null) {
+    if (value == null) {
       synchronized (this) {
         value = cache;
         if (value == null) {
@@ -54,7 +54,7 @@ public class CachingFactory<CreatedT extends @NonNull Object> implements Factory
         }
       }
     }
-    return cache;
+    return value;
   }
 
   @Override
