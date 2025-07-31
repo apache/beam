@@ -572,7 +572,7 @@ class PTransformTest(unittest.TestCase):
       def decode(self, encoded):
         return MyObject(pickle.loads(encoded)[0])
 
-      def as_deterministic_coder(self, *args):
+      def as_deterministic_coder(self, *args, **kwargs):
         return MydeterministicObjectCoder()
 
       def to_type_hint(self):
