@@ -72,7 +72,7 @@ dependencies {
   implementation project(":sdks:java:io:google-cloud-platform")
   implementation project(":sdks:java:io:kafka")
   runtimeOnly project(":sdks:java:io:iceberg")
-  runtimeOnly project(path: ":sdks:java:io:iceberg:bqms", configuration: "shadow")
+  runtimeOnly project(":sdks:java:io:iceberg:bqms")
   implementation project(":sdks:java:managed")
   implementation project(":sdks:java:extensions:ml")
   implementation library.java.avro
