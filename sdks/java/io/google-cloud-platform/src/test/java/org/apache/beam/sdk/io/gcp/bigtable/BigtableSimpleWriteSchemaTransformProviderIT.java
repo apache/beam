@@ -156,7 +156,7 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
             .addStringField("type")
             .addByteArrayField("value")
             .addByteArrayField("column_qualifier")
-            .addByteArrayField("family_name")
+            .addStringField("family_name")
             .addField("timestamp_micros", FieldType.INT64) // Changed to INT64
             .build();
 
@@ -166,7 +166,7 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
             .withFieldValue("type", "SetCell")
             .withFieldValue("value", "new-val-1-a".getBytes(StandardCharsets.UTF_8))
             .withFieldValue("column_qualifier", "col_a".getBytes(StandardCharsets.UTF_8))
-            .withFieldValue("family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("family_name", COLUMN_FAMILY_NAME_1)
             .withFieldValue("timestamp_micros", 2000L)
             .build();
     Row mutationRow2 =
@@ -175,7 +175,7 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
             .withFieldValue("type", "SetCell")
             .withFieldValue("value", "new-val-1-c".getBytes(StandardCharsets.UTF_8))
             .withFieldValue("column_qualifier", "col_c".getBytes(StandardCharsets.UTF_8))
-            .withFieldValue("family_name", COLUMN_FAMILY_NAME_2.getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("family_name", COLUMN_FAMILY_NAME_2)
             .withFieldValue("timestamp_micros", 2000L)
             .build();
 
@@ -225,7 +225,7 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
             .addStringField("type")
             .addByteArrayField("value")
             .addByteArrayField("column_qualifier")
-            .addByteArrayField("family_name")
+            .addStringField("family_name")
             .addField("timestamp_micros", FieldType.INT64)
             .build();
     Row mutationRow =
@@ -234,7 +234,7 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
             .withFieldValue("type", "SetCell")
             .withFieldValue("value", "new-val-1".getBytes(StandardCharsets.UTF_8))
             .withFieldValue("column_qualifier", "new_col".getBytes(StandardCharsets.UTF_8))
-            .withFieldValue("family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("family_name", COLUMN_FAMILY_NAME_1)
             .withFieldValue("timestamp_micros", 999_000L)
             .build();
 
@@ -276,14 +276,14 @@ public class BigtableSimpleWriteSchemaTransformProviderIT {
             .addByteArrayField("key")
             .addStringField("type")
             .addByteArrayField("column_qualifier")
-            .addByteArrayField("family_name")
+            .addStringField("family_name")
             .build();
     Row mutationRow =
         Row.withSchema(testSchema)
             .withFieldValue("key", "key-1".getBytes(StandardCharsets.UTF_8))
             .withFieldValue("type", "DeleteFromColumn")
             .withFieldValue("column_qualifier", "col_a".getBytes(StandardCharsets.UTF_8))
-            .withFieldValue("family_name", COLUMN_FAMILY_NAME_1.getBytes(StandardCharsets.UTF_8))
+            .withFieldValue("family_name", COLUMN_FAMILY_NAME_1)
             .build();
 
     PCollection<Row> inputPCollection = p.apply(Create.of(Arrays.asList(mutationRow)));
