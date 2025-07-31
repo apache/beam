@@ -74,7 +74,7 @@ except ImportError:
 try:
   import dill
 except ImportError:
-  dill = None  # type: ignore
+  dill = None
 
 if TYPE_CHECKING:
   import proto
