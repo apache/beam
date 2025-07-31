@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
+import com.google.common.collect.Lists;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -354,22 +355,34 @@ public class BeamComplexTypeTest {
   public void testNestedDatetime() {
     List<Instant> dateTimes =
         ImmutableList.of(Instant.EPOCH, Instant.ofEpochSecond(10000), Instant.now());
+    List<Instant> nullDateTimes = Lists.newArrayList(Instant.EPOCH, null, Instant.now());
 
     Schema nestedInputSchema =
-        Schema.of(Schema.Field.of("c_dts", Schema.FieldType.array(Schema.FieldType.DATETIME)));
+        Schema.of(
+            Schema.Field.of("c_dts", Schema.FieldType.array(Schema.FieldType.DATETIME)),
+            Schema.Field.of(
+                "c_null_dts",
+                Schema.FieldType.array(Schema.FieldType.DATETIME.withNullable(true))));
     Schema inputSchema =
         Schema.of(Schema.Field.of("nested", Schema.FieldType.row(nestedInputSchema)));
 
-    Schema outputSchema = Schema.of(Schema.Field.of("f0", Schema.FieldType.DATETIME));
+    Schema outputSchema =
+        Schema.of(
+            Schema.Field.of("f0", Schema.FieldType.DATETIME),
+            Schema.Field.of("f1", Schema.FieldType.DATETIME.withNullable(true)));
 
-    Row nestedRow = Row.withSchema(nestedInputSchema).addValue(dateTimes).build();
+    Row nestedRow =
+        Row.withSchema(nestedInputSchema).addValue(dateTimes).addValue(nullDateTimes).build();
     Row row = Row.withSchema(inputSchema).addValue(nestedRow).build();
-    Row expected = Row.withSchema(outputSchema).addValue(dateTimes.get(1)).build();
+    Row expected =
+        Row.withSchema(outputSchema).addValues(dateTimes.get(1), nullDateTimes.get(1)).build();
 
     PCollection<Row> result =
         pipeline
             .apply(Create.of(row).withRowSchema(inputSchema))
-            .apply(SqlTransform.query("SELECT t.nested.c_dts[2] AS f0 FROM PCOLLECTION t"));
+            .apply(
+                SqlTransform.query(
+                    "SELECT t.nested.c_dts[2], t.nested.c_null_dts[2] AS f0 FROM PCOLLECTION t"));
 
     PAssert.that(result).containsInAnyOrder(expected);
 
