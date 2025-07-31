@@ -91,7 +91,7 @@ public class ExecutionStateSampler {
   private final Set<ExecutionStateTracker> activeStateTrackers;
 
   private final Future<Void> stateSamplingThread;
-  @Nullable private final Consumer<String> onTimeoutExceededCallback;
+  private final @Nullable Consumer<String> onTimeoutExceededCallback;
 
   @SuppressWarnings("methodref.receiver.bound" /* Synchronization ensures proper initialization */)
   public ExecutionStateSampler(
@@ -201,13 +201,13 @@ public class ExecutionStateSampler {
         Optional<String> timeoutMsg = Optional.empty();
         synchronized (activeStateTrackers) {
           for (ExecutionStateTracker activeTracker : activeStateTrackers) {
-            timeoutMsg =
-                timeoutMsg.or(
-                    () -> activeTracker.takeSample(currentTimeMillis, millisSinceLastSample));
-            if (timeoutMsg.isPresent() && this.onTimeoutExceededCallback != null) {
-              this.onTimeoutExceededCallback.accept(timeoutMsg.get());
+            if (!timeoutMsg.isPresent()) {
+              timeoutMsg = activeTracker.takeSample(currentTimeMillis, millisSinceLastSample);
             }
           }
+        }
+        if (timeoutMsg.isPresent() && this.onTimeoutExceededCallback != null) {
+          this.onTimeoutExceededCallback.accept(timeoutMsg.get());
         }
         lastSampleTimeMillis = currentTimeMillis;
         targetTimeMillis = lastSampleTimeMillis + periodMs;
