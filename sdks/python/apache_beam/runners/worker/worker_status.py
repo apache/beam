@@ -256,9 +256,9 @@ class FnApiWorkerStatusHandler(object):
             info = processor.state_sampler.get_info()
             self._log_lull_sampler_info(info, instruction)
             if self._element_processing_timeout_ns:
-              self._restart_lull(info, instruction)
+              self._terminate_sdk_worker_lull(info, instruction)
 
-  def _restart_lull(self, sampler_info, instruction):
+  def _terminate_sdk_worker_lull(self, sampler_info, instruction):
     if (sampler_info and sampler_info.time_since_transition and
         sampler_info.time_since_transition
         > self._element_processing_timeout_ns):
