@@ -225,7 +225,7 @@ class PipelineContext(object):
         default_environment, label='default_environment')
 
     self.use_fake_coders = use_fake_coders
-    self.deterministic_coder_map: Mapping[coders.Coder, coders.Coder] = {}
+    self.deterministic_coder_map: Dict[coders.Coder, coders.Coder] = {}
     self.iterable_state_read = iterable_state_read
     self.iterable_state_write = iterable_state_write
     self._requirements = set(requirements)
@@ -264,8 +264,7 @@ class PipelineContext(object):
           pipeline_options.StreamingOptions
       ).update_compatibility_version if self.pipeline_options else None
       self.deterministic_coder_map[coder] = coder.as_deterministic_coder(
-          msg,
-          update_compatibility_version=update_compatibility_version)  # type: ignore
+          msg, update_compatibility_version=update_compatibility_version)
     return self.deterministic_coder_map[coder]
 
   def element_type_from_coder_id(self, coder_id: str) -> Any:
