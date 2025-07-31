@@ -64,10 +64,12 @@ public abstract class BigQueryWriteConfiguration {
     @SchemaFieldDescription("The time partitioning type.")
     public abstract @Nullable String getType();
 
-    @SchemaFieldDescription("If not set, the table is partitioned by pseudo column '_PARTITIONTIME'; if set, the table is partitioned by this field.")
+    @SchemaFieldDescription(
+        "If not set, the table is partitioned by pseudo column '_PARTITIONTIME'; if set, the table is partitioned by this field.")
     public abstract @Nullable String getField();
 
-    @SchemaFieldDescription("The number of milliseconds for which to keep the storage for a partition.")
+    @SchemaFieldDescription(
+        "The number of milliseconds for which to keep the storage for a partition.")
     public abstract @Nullable Long getExpirationMs();
 
     @SchemaFieldDescription("If set to true, queries over this table require a partition filter.")

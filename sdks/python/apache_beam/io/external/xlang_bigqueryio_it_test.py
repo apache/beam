@@ -270,8 +270,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
               write_disposition='WRITE_TRUNCATE',
               additional_bq_parameters={'clustering': {
                   'fields': ['int']
-              }
-              }))
+              }}))
 
     # After pipeline finishes, verify clustering is applied
     table = self.bigquery_client.get_table(self.project, self.dataset_id, table)
@@ -286,32 +285,32 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
 
     EXPECTED_DATA = [
       # (int, float, numeric, string, bool, bytes, timestamp, timestamp)
-      {
-          "int": 1,
-          "float": 0.1,
-          "numeric": Decimal("1.11"),
-          "str": "a",
-          "bool": True,
-          "bytes": b'a',
-          "timestamp": Timestamp(1000, 100),
-          "event_time": Timestamp(1722243600)
-      },
-      {
-          "int": 2,
-          "float": 0.2,
-          "numeric": Decimal("2.22"),
-          "str": "b",
-          "bool": False,
-          "bytes": b'b',
-          "timestamp": Timestamp(2000, 200),
-          "event_time": Timestamp(1722277200)
-      }
-  ]
+        {
+            "int": 1,
+            "float": 0.1,
+            "numeric": Decimal("1.11"),
+            "str": "a",
+            "bool": True,
+            "bytes": b'a',
+            "timestamp": Timestamp(1000, 100),
+            "event_time": Timestamp(1722243600)
+        },
+        {
+            "int": 2,
+            "float": 0.2,
+            "numeric": Decimal("2.22"),
+            "str": "b",
+            "bool": False,
+            "bytes": b'b',
+            "timestamp": Timestamp(2000, 200),
+            "event_time": Timestamp(1722277200)
+        }
+    ]
 
     bq_matcher = BigqueryFullResultMatcher(
         project=self.project,
-        query="SELECT * FROM {}.{} WHERE DATE(event_time) = '2024-07-29'"
-              .format(self.dataset_id, table),
+        query="SELECT * FROM {}.{} WHERE DATE(event_time) = '2024-07-29'".
+        format(self.dataset_id, table),
         data=self.parse_expected_data(EXPECTED_DATA))
 
     with beam.Pipeline(argv=self.args) as p:
@@ -325,12 +324,12 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
               create_disposition='CREATE_IF_NEEDED',
               write_disposition='WRITE_TRUNCATE',
               additional_bq_parameters={
-                'timePartitioning': {
-                    'type': 'DAY',
-                    'field': 'event_time',
-                    'expiration_ms': 2592000000,
-                    'require_partition_filter': True
-                }
+                  'timePartitioning': {
+                      'type': 'DAY',
+                      'field': 'event_time',
+                      'expiration_ms': 2592000000,
+                      'require_partition_filter': True
+                  }
               }))
 
     # After pipeline finishes, verify time partitioning is applied
