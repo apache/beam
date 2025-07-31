@@ -118,6 +118,36 @@ class MLTransformTest(unittest.TestCase):
         assert_that(
             actual_output, equal_to([SENTENCE_EMBEDDING_DIMENSION] * len(DATA)))
 
+  def test_sentence_transformer_embedding_with_beam_rows(self):
+    SENTENCE_EMBEDDING_DIMENSION = 384
+    DATA = [
+        beam.Row(id=1, log_message="Error in module A"),
+        beam.Row(id=2, log_message="Warning in module B"),
+        beam.Row(id=3, log_message="Info in module C"),
+    ]
+    ml_opts = beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle', yaml_experimental_features=['ML'])
+    with tempfile.TemporaryDirectory() as tempdir:
+      with beam.Pipeline(options=ml_opts) as p:
+        elements = p | beam.Create(DATA)
+        result = elements | YamlTransform(
+            f'''
+            type: MLTransform
+            config:
+              write_artifact_location: {tempdir}
+              transforms:
+                - type: SentenceTransformerEmbeddings
+                  config:
+                    model_name: all-MiniLM-L6-v2
+                    columns: [log_message]
+            ''')
+
+        # Perform a basic check to ensure that embeddings are generated
+        # and that the dimension of those embeddings is correct.
+        actual_output = result | beam.Map(lambda x: len(x.log_message))
+        assert_that(
+            actual_output, equal_to([SENTENCE_EMBEDDING_DIMENSION] * len(DATA)))
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
