@@ -80,20 +80,13 @@ jobs:
           java-version: |
             ${{ matrix.java_version }}
             11
-      - name: run jar Java${{ matrix.java_version }} script
-        run: |
-          ./gradlew :runners:direct-java:shadowJar :runners:direct-java:shadowTestJar \
-          -Dorg.gradle.java.home=$JAVA_HOME_${{ matrix.java_version }}_X64
       - name: run validatesRunner Java${{ matrix.java_version }} script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :runners:direct-java:validatesRunner
           arguments: |
-            -x shadowJar \
-            -x shadowTestJar \
-            -x compileJava \
-            -x compileTestJava \
-            -Dorg.gradle.java.home=$JAVA_HOME_${{ matrix.java_version }}_X64 \
+            -PtestJavaVersion=${{ matrix.java_version }} \
+            -Pjava${{ matrix.java_version }}Home=$JAVA_HOME_${{ matrix.java_version }}_X64 \
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v4
         if: ${{ !success() }}

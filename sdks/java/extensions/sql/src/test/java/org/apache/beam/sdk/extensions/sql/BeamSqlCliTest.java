@@ -43,7 +43,7 @@ import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.runtime.CalciteContextException;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.runtime.CalciteContextException;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Rule;
 import org.junit.Test;
@@ -310,8 +310,8 @@ public class BeamSqlCliTest {
     BeamSqlCli cli = new BeamSqlCli().catalogManager(catalogManager);
 
     thrown.expect(CalciteContextException.class);
-    thrown.expectMessage("Cannot set catalog: 'my_catalog' not found.");
-    cli.execute("SET CATALOG my_catalog");
+    thrown.expectMessage("Cannot use catalog: 'my_catalog' not found.");
+    cli.execute("USE CATALOG my_catalog");
   }
 
   @Test
@@ -344,15 +344,15 @@ public class BeamSqlCliTest {
 
     // catalog manager always starts with a "default" catalog
     assertEquals("default", catalogManager.currentCatalog().name());
-    cli.execute("SET CATALOG catalog_1");
+    cli.execute("USE CATALOG catalog_1");
     assertEquals("catalog_1", catalogManager.currentCatalog().name());
     assertEquals(catalog1Props, catalogManager.currentCatalog().properties());
-    cli.execute("SET CATALOG catalog_2");
+    cli.execute("USE CATALOG catalog_2");
     assertEquals("catalog_2", catalogManager.currentCatalog().name());
     assertEquals(catalog2Props, catalogManager.currentCatalog().properties());
 
     // DEFAULT is a reserved keyword, so need to encapsulate in backticks
-    cli.execute("SET CATALOG 'default'");
+    cli.execute("USE CATALOG 'default'");
     assertEquals("default", catalogManager.currentCatalog().name());
   }
 
@@ -405,7 +405,7 @@ public class BeamSqlCliTest {
     BeamSqlCli cli = new BeamSqlCli().catalogManager(catalogManager);
 
     cli.execute("CREATE CATALOG my_catalog TYPE 'local'");
-    cli.execute("SET CATALOG my_catalog");
+    cli.execute("USE CATALOG my_catalog");
     cli.execute(
         "CREATE EXTERNAL TABLE person (\n" + "id int, name varchar, age int) \n" + "TYPE 'text'");
 
@@ -413,7 +413,7 @@ public class BeamSqlCliTest {
     assertNotNull(catalogManager.currentCatalog().metaStore().getTables().get("person"));
 
     cli.execute("CREATE CATALOG my_other_catalog TYPE 'local'");
-    cli.execute("SET CATALOG my_other_catalog");
+    cli.execute("USE CATALOG my_other_catalog");
     assertEquals("my_other_catalog", catalogManager.currentCatalog().name());
     assertNull(catalogManager.currentCatalog().metaStore().getTables().get("person"));
   }

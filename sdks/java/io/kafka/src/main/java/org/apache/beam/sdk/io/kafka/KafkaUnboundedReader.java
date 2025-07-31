@@ -408,7 +408,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
   /** watermark before any records have been read. */
   private static Instant initialWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
-  public KafkaMetrics kafkaResults = KafkaSinkMetrics.kafkaMetrics();
+  private KafkaMetrics kafkaResults = KafkaSinkMetrics.kafkaMetrics();
   private Stopwatch stopwatch = Stopwatch.createUnstarted();
 
   private Set<String> kafkaTopics;
@@ -494,11 +494,10 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     }
 
     synchronized long backlogMessageCount() {
-      if (latestOffset < 0 || nextOffset < 0) {
+      if (latestOffset < 0 || nextOffset < 0 || latestOffset < nextOffset) {
         return UnboundedReader.BACKLOG_UNKNOWN;
       }
-      double remaining = latestOffset - nextOffset;
-      return Math.max(0, (long) Math.ceil(remaining));
+      return latestOffset - nextOffset;
     }
 
     synchronized TimestampPolicyContext mkTimestampPolicyContext() {

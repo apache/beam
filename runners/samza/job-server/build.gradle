@@ -198,6 +198,12 @@ tasks.register("validatesPortableRunner") {
     dependsOn validatesPortableRunnerEmbedded
 }
 
+def testJavaVersion = project.findProperty('testJavaVersion')
+String testJavaHome = null
+if (testJavaVersion) {
+    testJavaHome = project.findProperty("java${testJavaVersion}Home")
+}
+
 def jobPort = BeamModulePlugin.getRandomPort()
 def artifactPort = BeamModulePlugin.getRandomPort()
 
@@ -205,14 +211,18 @@ def setupTask = project.tasks.register("samzaJobServerSetup", Exec) {
     dependsOn shadowJar
     def pythonDir = project.project(":sdks:python").projectDir
     def samzaJobServerJar = shadowJar.archivePath
-
+    if (testJavaHome) {
+        environment "JAVA_HOME", testJavaHome
+    }
     executable 'sh'
     args '-c', "$pythonDir/scripts/run_job_server.sh stop --group_id ${project.name} && $pythonDir/scripts/run_job_server.sh start --group_id ${project.name} --job_port ${jobPort} --artifact_port ${artifactPort} --job_server_jar ${samzaJobServerJar}"
 }
 
 def cleanupTask = project.tasks.register("samzaJobServerCleanup", Exec) {
     def pythonDir = project.project(":sdks:python").projectDir
-
+    if (testJavaHome) {
+        environment "JAVA_HOME", testJavaHome
+    }
     executable 'sh'
     args '-c', "$pythonDir/scripts/run_job_server.sh stop --group_id ${project.name}"
 }

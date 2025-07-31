@@ -146,9 +146,6 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
           if (!BackOffUtils.next(Sleeper.DEFAULT, backoff)) {
             return Optional.empty();
           }
-        } catch (IOException ioe) {
-          LOG.warn("Error backing off, will not retry: ", ioe);
-          return Optional.empty();
         } catch (InterruptedException ie) {
           Thread.currentThread().interrupt();
           return Optional.empty();

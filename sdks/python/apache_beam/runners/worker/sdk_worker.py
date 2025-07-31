@@ -458,7 +458,7 @@ class BundleProcessorCache(object):
     self.known_not_running_instruction_ids = collections.OrderedDict(
     )  # type: collections.OrderedDict[str, bool]
     self.failed_instruction_ids = collections.OrderedDict(
-    )  # type: collections.OrderedDict[str, bool]
+    )  # type: collections.OrderedDict[str, Exception]
     self.active_bundle_processors = {
     }  # type: Dict[str, Tuple[str, bundle_processor.BundleProcessor]]
     self.cached_bundle_processors = collections.defaultdict(
@@ -547,9 +547,11 @@ class BundleProcessorCache(object):
     """
     with self._lock:
       if instruction_id in self.failed_instruction_ids:
+        e = self.failed_instruction_ids[instruction_id]
         raise RuntimeError(
             'Bundle processing associated with %s has failed. '
-            'Check prior failing response for details.' % instruction_id)
+            'Check prior failing response and attached exception for details.' %
+            instruction_id) from e
       processor = self.active_bundle_processors.get(
           instruction_id, (None, None))[-1]
       if processor:
@@ -558,14 +560,14 @@ class BundleProcessorCache(object):
         return None
       raise RuntimeError('Unknown process bundle id %s.' % instruction_id)
 
-  def discard(self, instruction_id):
-    # type: (str) -> None
+  def discard(self, instruction_id, exception):
+    # type: (str, Exception) -> None
 
     """
     Marks the instruction id as failed shutting down the ``BundleProcessor``.
     """
     with self._lock:
-      self.failed_instruction_ids[instruction_id] = True
+      self.failed_instruction_ids[instruction_id] = exception
       while len(self.failed_instruction_ids) > MAX_FAILED_INSTRUCTIONS:
         self.failed_instruction_ids.popitem(last=False)
       processor = self.active_bundle_processors[instruction_id][1]
@@ -609,7 +611,7 @@ class BundleProcessorCache(object):
       self.periodic_shutdown = None
 
     for instruction_id in list(self.active_bundle_processors.keys()):
-      self.discard(instruction_id)
+      self.discard(instruction_id, RuntimeError('Shutdown invoked'))
     for cached_bundle_processors in self.cached_bundle_processors.values():
       BundleProcessorCache._shutdown_cached_bundle_processors(
           cached_bundle_processors)
@@ -718,9 +720,9 @@ class SdkWorker(object):
       if not requests_finalization:
         self.bundle_processor_cache.release(instruction_id)
       return response
-    except:  # pylint: disable=bare-except
+    except Exception as e:  # pylint: disable=bare-except
       # Don't re-use bundle processors on failure.
-      self.bundle_processor_cache.discard(instruction_id)
+      self.bundle_processor_cache.discard(instruction_id, e)
       raise
 
   def process_bundle_split(
@@ -789,8 +791,8 @@ class SdkWorker(object):
         self.bundle_processor_cache.release(request.instruction_id)
         return beam_fn_api_pb2.InstructionResponse(
             instruction_id=instruction_id, finalize_bundle=finalize_response)
-      except:
-        self.bundle_processor_cache.discard(request.instruction_id)
+      except Exception as e:
+        self.bundle_processor_cache.discard(request.instruction_id, e)
         raise
     # We can reach this state if there was an erroneous request to finalize
     # the bundle while it is being initialized or has already been finalized

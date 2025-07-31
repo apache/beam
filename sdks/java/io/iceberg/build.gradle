@@ -64,7 +64,7 @@ dependencies {
     // TODO(https://github.com/apache/beam/issues/21156): Determine how to build without this dependency
     provided "org.immutables:value:2.8.8"
     permitUnusedDeclared "org.immutables:value:2.8.8"
-    implementation library.java.vendored_calcite_1_28_0
+    implementation library.java.vendored_calcite_1_40_0
     runtimeOnly "org.apache.iceberg:iceberg-gcp:$iceberg_version"
     runtimeOnly library.java.bigdataoss_gcs_connector
     runtimeOnly library.java.hadoop_client
@@ -163,12 +163,18 @@ task integrationTest(type: Test) {
 
 task dataflowIntegrationTest(type: Test) {
     group = "Verification"
+    evaluationDependsOn(":runners:google-cloud-dataflow-java")
+    dependsOn ":runners:google-cloud-dataflow-java:buildAndPushDockerJavaContainer"
+    finalizedBy ":runners:google-cloud-dataflow-java:cleanUpDockerJavaImages"
+    def dockerJavaImageName = project.project(':runners:google-cloud-dataflow-java').ext.dockerJavaImageName
+
     def args = [
             "--runner=DataflowRunner",
             "--region=us-central1",
             "--project=${gcpProject}",
             "--tempLocation=${gcpTempLocation}",
             "--tempRoot=${gcpTempLocation}",
+            "--sdkContainerImage=${dockerJavaImageName}",
             "--experiments=use_runner_v2,use_staged_dataflow_worker_jar"
     ]
     if (project.hasProperty('enableManagedTransforms')) {

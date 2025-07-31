@@ -52,8 +52,8 @@ evaluationDependsOn(":sdks:java:container:java11")
 
 ext.dataflowLegacyEnvironmentMajorVersion = '8'
 ext.dataflowFnapiEnvironmentMajorVersion = '8'
-ext.dataflowLegacyContainerVersion = 'beam-master-20250605'
-ext.dataflowFnapiContainerVersion = 'beam-master-20250605'
+ext.dataflowLegacyContainerVersion = 'beam-master-20250729'
+ext.dataflowFnapiContainerVersion = 'beam-master-20250729'
 ext.dataflowContainerBaseRepository = 'gcr.io/cloud-dataflow/v1beta3'
 
 processResources {
@@ -164,9 +164,15 @@ def legacyPipelineOptions = [
   "--region=${gcpRegion}",
   "--tempRoot=${dataflowValidatesTempRoot}",
   "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
-  "--workerHarnessContainerImage=",
   "--experiments=enable_lineage"
 ]
+
+// For the following test tasks using legacy worker, set workerHarnessContainerImage to empty to
+// make Dataflow pick up the non-versioned container image, which handles a staged worker jar,
+// unless testJavaVersion is specified, then the client picks up the current beam-master container.
+if (!project.hasProperty('testJavaVersion')) {
+  legacyPipelineOptions += ["--workerHarnessContainerImage="]
+}
 
 def runnerV2PipelineOptions = [
   "--runner=TestDataflowRunner",
@@ -209,8 +215,6 @@ def commonRunnerV2ExcludeCategories = [
         'org.apache.beam.sdk.testing.UsesBoundedTrieMetrics', // Dataflow QM as of now does not support returning back BoundedTrie in metric result.
 ]
 
-// For the following test tasks using legacy worker, set workerHarnessContainerImage to empty to
-// make Dataflow pick up the non-versioned container image, which handles a staged worker jar.
 def createLegacyWorkerValidatesRunnerTest = { Map args ->
   def name = args.name
   def pipelineOptions = args.pipelineOptions ?: legacyPipelineOptions

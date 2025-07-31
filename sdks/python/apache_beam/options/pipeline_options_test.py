@@ -902,6 +902,58 @@ class PipelineOptionsTest(unittest.TestCase):
             'staging_location.'
         ])
 
+  def test_comma_separated_experiments(self):
+    """Test that comma-separated experiments are parsed correctly."""
+    # Test single experiment
+    options = PipelineOptions(['--experiments=abc'])
+    self.assertEqual(['abc'], options.get_all_options()['experiments'])
+
+    # Test comma-separated experiments
+    options = PipelineOptions(['--experiments=abc,def,ghi'])
+    self.assertEqual(['abc', 'def', 'ghi'],
+                     options.get_all_options()['experiments'])
+
+    # Test multiple flags with comma-separated values
+    options = PipelineOptions(
+        ['--experiments=abc,def', '--experiments=ghi,jkl'])
+    self.assertEqual(['abc', 'def', 'ghi', 'jkl'],
+                     options.get_all_options()['experiments'])
+
+    # Test with spaces around commas
+    options = PipelineOptions(['--experiments=abc, def , ghi'])
+    self.assertEqual(['abc', 'def', 'ghi'],
+                     options.get_all_options()['experiments'])
+
+    # Test empty values are filtered out
+    options = PipelineOptions(['--experiments=abc,,def,'])
+    self.assertEqual(['abc', 'def'], options.get_all_options()['experiments'])
+
+  def test_comma_separated_dataflow_service_options(self):
+    """Test that comma-separated dataflow service options are parsed
+    correctly."""
+    # Test single option
+    options = PipelineOptions(['--dataflow_service_options=option1=value1'])
+    self.assertEqual(['option1=value1'],
+                     options.get_all_options()['dataflow_service_options'])
+
+    # Test comma-separated options
+    options = PipelineOptions([
+        '--dataflow_service_options=option1=value1,option2=value2,'
+        'option3=value3'
+    ])
+    self.assertEqual(['option1=value1', 'option2=value2', 'option3=value3'],
+                     options.get_all_options()['dataflow_service_options'])
+
+    # Test multiple flags with comma-separated values
+    options = PipelineOptions([
+        '--dataflow_service_options=option1=value1,option2=value2',
+        '--dataflow_service_options=option3=value3,option4=value4'
+    ])
+    self.assertEqual([
+        'option1=value1', 'option2=value2', 'option3=value3', 'option4=value4'
+    ],
+                     options.get_all_options()['dataflow_service_options'])
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
@@ -1204,7 +1205,7 @@ public class JmsIO {
       }
 
       void connect() throws JMSException {
-        if (this.producer == null) {
+        if (this.connection == null) {
           ConnectionFactory connectionFactory = spec.getConnectionFactory();
           if (spec.getUsername() != null) {
             this.connection =
@@ -1225,11 +1226,10 @@ public class JmsIO {
           } else if (spec.getTopic() != null) {
             this.destination = session.createTopic(spec.getTopic());
           }
-          // Create producer with null destination. Destination will be set with producer.send().
-          startProducer();
         }
       }
 
+      @SuppressFBWarnings("DCN_NULLPOINTER_EXCEPTION") // TODO(#35312)
       void publishMessage(T input) throws JMSException, JmsIOException {
         Destination destinationToSendTo = destination;
         try {
@@ -1335,6 +1335,13 @@ public class JmsIO {
               throw exception;
             } else {
               publicationRetries.inc();
+              this.jmsConnection.close();
+              try {
+                this.jmsConnection.connect();
+                this.jmsConnection.startProducer();
+              } catch (JMSException e) {
+                LOG.warn("Reconnect failed, will retry", e);
+              }
             }
           }
         }

@@ -201,7 +201,7 @@ class MetricsTest(unittest.TestCase):
     # Verify user distribution counter.
     metric_results = res.metrics().query()
     matcher = MetricResultMatcher(
-        step='ApplyPardo',
+        step=hc.contains_string('ApplyPardo'),
         namespace=hc.contains_string('SomeDoFn'),
         name='element_dist',
         committed=DistributionMatcher(
@@ -209,8 +209,7 @@ class MetricsTest(unittest.TestCase):
             count_value=hc.greater_than_or_equal_to(0),
             min_value=hc.greater_than_or_equal_to(0),
             max_value=hc.greater_than_or_equal_to(0)))
-    hc.assert_that(
-        metric_results['distributions'], hc.contains_inanyorder(matcher))
+    hc.assert_that(metric_results['distributions'], hc.has_item(matcher))
 
   def test_create_counter_distribution(self):
     sampler = statesampler.StateSampler('', counters.CounterFactory())
