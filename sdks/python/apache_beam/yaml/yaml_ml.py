@@ -38,9 +38,10 @@ def _list_submodules(package):
     Lists all submodules within a given package.
     """
   submodules = []
+  skip_modules = ['base', 'handlers', 'test', 'tft', 'utils']
   for _, module_name, _ in pkgutil.walk_packages(
       package.__path__, package.__name__ + '.'):
-    if 'test' in module_name:
+    if any(skip_name in module_name for skip_name in skip_modules):
       continue
     submodules.append(module_name)
   return submodules
@@ -49,7 +50,6 @@ def _list_submodules(package):
 try:
   from apache_beam.ml.transforms import tft
   from apache_beam.ml.transforms.base import MLTransform
-  # TODO(robertwb): Is this all of them?
   _transform_constructors = tft.__dict__
 except ImportError:
   tft = None  # type: ignore

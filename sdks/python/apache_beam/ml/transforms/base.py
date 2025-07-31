@@ -183,20 +183,23 @@ class ProcessHandler(
     """
 
 
-def _dict_input_fn(columns: Sequence[str],
-                   batch: Sequence[Dict[str, Any]]) -> List[str]:
+def _dict_input_fn(
+    columns: Sequence[str], batch: Sequence[Union[Dict[str, Any],
+                                                  beam.Row]]) -> List[str]:
   """Extract text from specified columns in batch."""
+  if batch and hasattr(batch[0], '_asdict'):
+    batch = [row._asdict() for row in batch if hasattr(row, '_asdict')]
+
   if not batch or not isinstance(batch[0], dict):
     raise TypeError(
         'Expected data to be dicts, got '
         f'{type(batch[0])} instead.')
-
   result = []
   expected_keys = set(batch[0].keys())
   expected_columns = set(columns)
   # Process one batch item at a time
   for item in batch:
-    item_keys = item.keys()
+    item_keys = item.keys() if isinstance(item, dict) else set()
     if set(item_keys) != expected_keys:
       extra_keys = item_keys - expected_keys
       missing_keys = expected_keys - item_keys
@@ -212,21 +215,31 @@ def _dict_input_fn(columns: Sequence[str],
 
     # Get all columns for this item
     for col in columns:
-      result.append(item[col])
+      if isinstance(item, dict):
+        result.append(item[col])
   return result
 
 
 def _dict_output_fn(
     columns: Sequence[str],
-    batch: Sequence[Dict[str, Any]],
-    embeddings: Sequence[Any]) -> List[Dict[str, Any]]:
+    batch: Sequence[Union[Dict[str, Any], beam.Row]],
+    embeddings: Sequence[Any]) -> list[Union[dict[str, Any], beam.Row]]:
   """Map embeddings back to columns in batch."""
+  is_beam_row = False
+  if batch and hasattr(batch[0], '_asdict'):
+    is_beam_row = True
+    batch = [row._asdict() for row in batch if hasattr(row, '_asdict')]
+
   result = []
   for batch_idx, item in enumerate(batch):
     for col_idx, col in enumerate(columns):
       embedding_idx = batch_idx * len(columns) + col_idx
-      item[col] = embeddings[embedding_idx]
+      if isinstance(item, dict):
+        item[col] = embeddings[embedding_idx]
     result.append(item)
+
+  if is_beam_row:
+    result = [beam.Row(**item) for item in result if isinstance(item, dict)]
   return result
 
 
