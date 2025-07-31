@@ -48,7 +48,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @AutoService(SchemaTransformProvider.class)
 public class MongoDbReadSchemaTransformProvider
     extends TypedSchemaTransformProvider<
-    MongoDbReadSchemaTransformProvider.MongoDbReadSchemaTransformConfiguration> {
+        MongoDbReadSchemaTransformProvider.MongoDbReadSchemaTransformConfiguration> {
 
   private static final String OUTPUT_TAG = "output";
 
@@ -92,8 +92,6 @@ public class MongoDbReadSchemaTransformProvider
     @SchemaFieldDescription("The MongoDB database to read from.")
     public abstract String getDatabase();
 
-
-
     @SchemaFieldDescription("The MongoDB collection to read from.")
     public abstract String getCollection();
 
@@ -103,11 +101,9 @@ public class MongoDbReadSchemaTransformProvider
     public abstract String getFilter();
 
     public void validate() {
+      checkArgument(getUri() != null && !getUri().isEmpty(), "MongoDB URI must be specified.");
       checkArgument(
-          getUri() != null && !getUri().isEmpty(), "MongoDB URI must be specified.");
-      checkArgument(
-          getDatabase() != null && !getDatabase().isEmpty(),
-          "MongoDB database must be specified.");
+          getDatabase() != null && !getDatabase().isEmpty(), "MongoDB database must be specified.");
       checkArgument(
           getCollection() != null && !getCollection().isEmpty(),
           "MongoDB collection must be specified.");

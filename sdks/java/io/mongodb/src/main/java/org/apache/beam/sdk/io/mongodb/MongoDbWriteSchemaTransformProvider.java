@@ -25,7 +25,7 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
+import org.apache.beam.sdk.io.mongodb.MongoDbIO.Write;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
@@ -38,8 +38,12 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.schemas.Schema.Field;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.values.Row;
 import org.bson.Document;
 import org.checkerframework.checker.nullness.qual.Nullable;
+
 
 /**
  * An implementation of {@link TypedSchemaTransformProvider} for writing to MongoDB.
@@ -51,7 +55,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @AutoService(SchemaTransformProvider.class)
 public class MongoDbWriteSchemaTransformProvider
     extends TypedSchemaTransformProvider<
-    MongoDbWriteSchemaTransformProvider.MongoDbWriteSchemaTransformConfiguration> {
+        MongoDbWriteSchemaTransformProvider.MongoDbWriteSchemaTransformConfiguration> {
 
   private static final String INPUT_TAG = "input";
   private static final String OUTPUT_TAG = "output"; // Optional, for successful writes
@@ -143,14 +147,12 @@ public class MongoDbWriteSchemaTransformProvider
       this.configuration = configuration;
     }
 
-
-
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
-      PCollection<Row> beamRows = input.get(INPUT_TAG);
+      PCollection<Row> rows = input.get(INPUT_TAG);
 
-      PCollection<Document> mongoDocs =
-          beamRows.apply("ConvertToMongoDocuments", ParDo.of(new RowToMongoDocumentFn()));
+      PCollection<Document> documents =
+          rows.apply("ConvertToDocument", ParDo.of(new RowToBsonDocumentFn()));
 
       MongoDbIO.Write write =
           MongoDbIO.write()
@@ -161,18 +163,13 @@ public class MongoDbWriteSchemaTransformProvider
       if (configuration.getBatchSize() != null) {
         write = write.withBatchSize(configuration.getBatchSize());
       }
-
       if (configuration.getOrdered() != null) {
         write = write.withOrdered(configuration.getOrdered());
       }
 
-      mongoDocs.apply("WriteToMongoDb", write);
+      documents.apply("WriteToMongo", write);
 
-      // Sinks are terminal and return PDone. As per the SchemaTransform contract,
-      // we must return a PCollectionRowTuple. We'll return an empty one for the output tags.
-      PCollection<Row> emptyOutput =
-          input.getPipeline().apply(ParDo.of(new DoFn<Row, Row>() {})).setRowSchema(Schema.of());
-      return PCollectionRowTuple.of(OUTPUT_TAG, emptyOutput);
+      return PCollectionRowTuple.empty(input.getPipeline());
     }
   }
 
@@ -189,6 +186,17 @@ public class MongoDbWriteSchemaTransformProvider
         if (value != null) {
           doc.append(fieldName, value);
         }
+      }
+      out.output(doc);
+    }
+  }
+  /** Converts a Beam {@link Row} to a BSON {@link Document}. */
+  static class RowToBsonDocumentFn extends DoFn<Row, Document> {
+    @ProcessElement
+    public void processElement(@Element Row row, OutputReceiver<Document> out) {
+      Document doc = new Document();
+      for (Field field : row.getSchema().getFields()) {
+        doc.append(field.getName(), row.getValue(field.getName()));
       }
       out.output(doc);
     }
