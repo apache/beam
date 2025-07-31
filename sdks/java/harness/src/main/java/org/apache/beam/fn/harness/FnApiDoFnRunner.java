@@ -1180,18 +1180,18 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               splitResult.getWindowSplit(),
               PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN
                   + "/GetSize");
+      Coder fullInputCoder = WindowedValues.getFullCoder(inputCoder, windowCoder);
+      return constructSplitResult(
+          windowedSplitResult,
+          null,
+          fullInputCoder,
+          initialWatermark,
+          watermarkAndState,
+          pTransformId,
+          mainInputId,
+          pTransform.getOutputsMap().keySet(),
+          resumeDelay);
     }
-    Coder fullInputCoder = WindowedValues.getFullCoder(inputCoder, windowCoder);
-    return constructSplitResult(
-        windowedSplitResult,
-        null,
-        fullInputCoder,
-        initialWatermark,
-        watermarkAndState,
-        pTransformId,
-        mainInputId,
-        pTransform.getOutputsMap().keySet(),
-        resumeDelay);
   }
 
   private <K> void processTimer(
