@@ -255,7 +255,6 @@ class DoOutputsTuple(object):
     self._pcolls: Dict[Optional[str], PCollection] = {}
 
   def __or__(self, other):
-    print(f"{self[self._main_tag]=}")
     return self[self._main_tag].__or__(other)
 
   def __str__(self):
