@@ -89,7 +89,7 @@ cdef class FastPrimitivesCoderImpl(StreamCoderImpl):
   @cython.locals(t=int)
   cpdef decode_from_stream(self, InputStream stream, bint nested)
   cdef encode_special_deterministic(self, value, OutputStream stream)
-  cdef encode_type_2_66_0(self, t, OutputStream stream)
+  cdef encode_type_2_67_0(self, t, OutputStream stream)
   cdef encode_type(self, t, OutputStream stream)
   cdef decode_type(self, InputStream stream)
 

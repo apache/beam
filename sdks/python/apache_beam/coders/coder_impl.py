@@ -360,15 +360,14 @@ _ITERABLE_LIKE_TYPES = set()  # type: Set[Type]
 
 
 def _verify_dill_compat():
+  base_error = (
+      "This pipeline runs with the update_compatibility_version=2.67.0 flag. "
+      "When running with this flag on SDKs 2.68.0 or higher, you must "
+      "ensure dill==0.3.1.1 is installed. Dill is not installed.")
   if not dill:
-    raise RuntimeError("Error importing dill for encoding deterministic" \
-                       "  special dill types. Ensure dill version '0.3.1.1'" \
-                       "  is installed in the execution environment.")
+    raise RuntimeError(base_error + ". Dill is not installed.")
   if dill.__version__ != "0.3.1.1":
-    raise RuntimeError("Error verifying dill compatibility forencoding " \
-                       "deterministic special dill types. Ensure dill "
-                       "version '0.3.1.1' is installed in the execution " \
-                        "environment. Found dill version '{dill.__version__}")
+    raise RuntimeError(base_error + f". Found dill version '{dill.__version__}")
 
 
 class FastPrimitivesCoderImpl(StreamCoderImpl):
@@ -546,20 +545,23 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
         "please provide a type hint for the input of '%s'" %
         (value, type(value), self.requires_deterministic_step_label))
 
-  def encode_type_2_66_0(self, t, stream):
+  def encode_type_2_67_0(self, t, stream):
+    """
+    Encode special type with <=2.67.0 compatibility.
+    """
     _verify_dill_compat()
     stream.write(dill.dumps(t), True)
 
   def encode_type(self, t, stream):
     if self.force_use_dill:
-      return self.encode_type_2_66_0(t, stream)
+      return self.encode_type_2_67_0(t, stream)
     bs = cloudpickle_pickler.dumps(
         t, config=cloudpickle_pickler.NO_DYNAMIC_CLASS_TRACKING_CONFIG)
     stream.write(bs, True)
 
   def decode_type(self, stream):
     if self.force_use_dill:
-      return _unpickle_type_2_66_0(stream.read_all(True))
+      return _unpickle_type_2_67_0(stream.read_all(True))
     return _unpickle_type(stream.read_all(True))
 
   def decode_from_stream(self, stream, nested):
@@ -620,7 +622,10 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
 _unpickled_types = {}  # type: Dict[bytes, type]
 
 
-def _unpickle_type_2_66_0(bs):
+def _unpickle_type_2_67_0(bs):
+  """
+  Decode special type with <=2.67.0 compatibility.
+  """
   t = _unpickled_types.get(bs, None)
   if t is None:
     _verify_dill_compat()
@@ -631,12 +636,12 @@ def _unpickle_type_2_66_0(bs):
         pickle.loads(pickle.dumps(t))
       except pickle.PicklingError:
         t.__reduce__ = lambda self: (
-            _unpickle_named_tuple_2_66_0, (bs, tuple(self)))
+            _unpickle_named_tuple_2_67_0, (bs, tuple(self)))
   return t
 
 
-def _unpickle_named_tuple_2_66_0(bs, items):
-  return _unpickle_type_2_66_0(bs)(*items)
+def _unpickle_named_tuple_2_67_0(bs, items):
+  return _unpickle_type_2_67_0(bs)(*items)
 
 
 def _unpickle_type(bs):
