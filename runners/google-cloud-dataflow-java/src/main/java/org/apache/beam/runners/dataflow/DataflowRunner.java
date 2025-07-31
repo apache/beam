@@ -1221,6 +1221,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         > 0);
   }
 
+  private static final Random RANDOM = new Random();
+
   @Override
   public DataflowPipelineJob run(Pipeline pipeline) {
     // Multi-language pipelines and pipelines that include upgrades should automatically be upgraded
@@ -1363,7 +1365,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     // job previously created with the same job name, and that the job creation
     // has been effectively rejected. The SDK should return
     // Error::Already_Exists to user in that case.
-    int randomNum = new Random().nextInt(9000) + 1000;
+    int randomNum = RANDOM.nextInt(9000) + 1000;
     String requestId =
         DateTimeFormat.forPattern("YYYYMMddHHmmssmmm")
                 .withZone(DateTimeZone.UTC)

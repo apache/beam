@@ -16,10 +16,12 @@
 # limitations under the License.
 #
 
-"""
-This file contains the input data to be requested by the example tests, if
-needed.
-"""
+import typing
+
+from apache_beam.io.gcp.pubsub import PubsubMessage
+
+# This file contains the input data to be requested by the example tests, if
+# needed.
 
 
 def text_data():
@@ -54,6 +56,15 @@ def products_csv():
   ])
 
 
+def youtube_comments_csv():
+  return '\n'.join([
+      'video_id,comment_text,likes,replies',
+      'XpVt6Z1Gjjo,I AM HAPPY,1,1',
+      'XpVt6Z1Gjjo,I AM SAD,1,1',
+      'XpVt6Z1Gjjo,§ÁĐ,1,1'
+  ])
+
+
 def spanner_orders_data():
   return [{
       'order_id': 1,
@@ -78,7 +89,7 @@ def spanner_orders_data():
           }]
 
 
-def spanner_shipments_data():
+def shipments_data():
   return [{
       'shipment_id': 'S1',
       'customer_id': 'C1',
@@ -165,3 +176,80 @@ def bigquery_data():
               'customer_name': 'Claire',
               'customer_email': 'claire@gmail.com'
           }]
+
+
+def pubsub_messages_data():
+  """
+  Provides a list of PubsubMessage objects for testing.
+  """
+  return [
+      PubsubMessage(data=b"{\"label\": \"37a\", \"rank\": 1}", attributes={}),
+      PubsubMessage(data=b"{\"label\": \"37b\", \"rank\": 4}", attributes={}),
+      PubsubMessage(data=b"{\"label\": \"37c\", \"rank\": 3}", attributes={}),
+      PubsubMessage(data=b"{\"label\": \"37d\", \"rank\": 2}", attributes={}),
+  ]
+
+
+def pubsub_taxi_ride_events_data():
+  """
+  Provides a list of PubsubMessage objects for testing taxi ride events.
+  """
+  return [
+      PubsubMessage(
+          data=b"{\"ride_id\": \"1\", \"longitude\": 11.0, \"latitude\": -11.0,"
+          b"\"passenger_count\": 1, \"meter_reading\": 100.0, \"timestamp\": "
+          b"\"2025-01-01T00:29:00.00000-04:00\", \"ride_status\": \"pickup\"}",
+          attributes={}),
+      PubsubMessage(
+          data=b"{\"ride_id\": \"2\", \"longitude\": 22.0, \"latitude\": -22.0,"
+          b"\"passenger_count\": 2, \"meter_reading\": 100.0, \"timestamp\": "
+          b"\"2025-01-01T00:30:00.00000-04:00\", \"ride_status\": \"pickup\"}",
+          attributes={}),
+      PubsubMessage(
+          data=b"{\"ride_id\": \"1\", \"longitude\": 13.0, \"latitude\": -13.0,"
+          b"\"passenger_count\": 1, \"meter_reading\": 100.0, \"timestamp\": "
+          b"\"2025-01-01T00:31:00.00000-04:00\", \"ride_status\": \"enroute\"}",
+          attributes={}),
+      PubsubMessage(
+          data=b"{\"ride_id\": \"2\", \"longitude\": 24.0, \"latitude\": -24.0,"
+          b"\"passenger_count\": 2, \"meter_reading\": 100.0, \"timestamp\": "
+          b"\"2025-01-01T00:32:00.00000-04:00\", \"ride_status\": \"enroute\"}",
+          attributes={}),
+      PubsubMessage(
+          data=b"{\"ride_id\": \"3\", \"longitude\": 33.0, \"latitude\": -33.0,"
+          b"\"passenger_count\": 3, \"meter_reading\": 100.0, \"timestamp\": "
+          b"\"2025-01-01T00:35:00.00000-04:00\", \"ride_status\": \"enroute\"}",
+          attributes={}),
+      PubsubMessage(
+          data=b"{\"ride_id\": \"4\", \"longitude\": 44.0, \"latitude\": -44.0,"
+          b"\"passenger_count\": 4, \"meter_reading\": 100.0, \"timestamp\": "
+          b"\"2025-01-01T00:35:00.00000-04:00\", \"ride_status\": \"dropoff\"}",
+          attributes={}),
+      PubsubMessage(
+          data=b"{\"ride_id\": \"1\", \"longitude\": 15.0, \"latitude\": -15.0,"
+          b"\"passenger_count\": 1, \"meter_reading\": 100.0, \"timestamp\": "
+          b"\"2025-01-01T00:33:00.00000-04:00\", \"ride_status\": \"dropoff\"}",
+          attributes={}),
+      PubsubMessage(
+          data=b"{\"ride_id\": \"2\", \"longitude\": 26.0, \"latitude\": -26.0,"
+          b"\"passenger_count\": 2, \"meter_reading\": 100.0, \"timestamp\": "
+          b"\"2025-01-01T00:34:00.00000-04:00\", \"ride_status\": \"dropoff\"}",
+          attributes={}),
+  ]
+
+
+def kafka_messages_data():
+  """
+  Provides a list of Kafka messages for testing.
+  """
+  return [data.encode('utf-8') for data in text_data().split('\n')]
+
+
+class TaxiRideEventSchema(typing.NamedTuple):
+  ride_id: str
+  longitude: float
+  latitude: float
+  passenger_count: int
+  meter_reading: float
+  timestamp: str
+  ride_status: str

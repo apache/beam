@@ -26,7 +26,6 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import com.google.auto.value.AutoValue;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import java.io.IOException;
 import java.io.Serializable;
 import java.net.URLClassLoader;
 import java.sql.Connection;
@@ -492,6 +491,9 @@ public class JdbcIO {
     abstract @Nullable ValueProvider<Integer> getMaxConnections();
 
     @Pure
+    abstract @Nullable ValueProvider<Integer> getQueryTimeout();
+
+    @Pure
     abstract @Nullable ClassLoader getDriverClassLoader();
 
     @Pure
@@ -519,6 +521,8 @@ public class JdbcIO {
           ValueProvider<Collection<@Nullable String>> connectionInitSqls);
 
       abstract Builder setMaxConnections(ValueProvider<@Nullable Integer> maxConnections);
+
+      abstract Builder setQueryTimeout(ValueProvider<@Nullable Integer> queryTimeout);
 
       abstract Builder setDriverClassLoader(ClassLoader driverClassLoader);
 
@@ -622,6 +626,17 @@ public class JdbcIO {
       return builder().setMaxConnections(maxConnections).build();
     }
 
+    /** Sets the default query timeout that will be used for connections created by this source. */
+    public DataSourceConfiguration withQueryTimeout(Integer queryTimeout) {
+      checkArgument(queryTimeout != null, "queryTimeout can not be null");
+      return withQueryTimeout(ValueProvider.StaticValueProvider.of(queryTimeout));
+    }
+
+    /** Same as {@link #withQueryTimeout(Integer)} but accepting a ValueProvider. */
+    public DataSourceConfiguration withQueryTimeout(ValueProvider<@Nullable Integer> queryTimeout) {
+      return builder().setQueryTimeout(queryTimeout).build();
+    }
+
     /**
      * Sets the class loader instance to be used to load the JDBC driver. If not specified, the
      * default class loader is used.
@@ -657,6 +672,7 @@ public class JdbcIO {
         builder.addIfNotNull(DisplayData.item("jdbcUrl", getUrl()));
         builder.addIfNotNull(DisplayData.item("username", getUsername()));
         builder.addIfNotNull(DisplayData.item("driverJars", getDriverJars()));
+        builder.addIfNotNull(DisplayData.item("queryTimeout", getQueryTimeout()));
       }
     }
 
@@ -699,6 +715,12 @@ public class JdbcIO {
           Integer maxConnections = getMaxConnections().get();
           if (maxConnections != null) {
             basicDataSource.setMaxTotal(maxConnections);
+          }
+        }
+        if (getQueryTimeout() != null) {
+          Integer queryTimeout = getQueryTimeout().get();
+          if (queryTimeout != null) {
+            basicDataSource.setDefaultQueryTimeout(queryTimeout);
           }
         }
         if (getDriverClassLoader() != null) {
@@ -1927,6 +1949,8 @@ public class JdbcIO {
           .setStatement(inner.getStatement())
           .setTable(inner.getTable())
           .setAutoSharding(inner.getAutoSharding())
+          .setBatchSize(inner.getBatchSize())
+          .setMaxBatchBufferingDuration(inner.getMaxBatchBufferingDuration())
           .build();
     }
 
@@ -2033,6 +2057,10 @@ public class JdbcIO {
 
     abstract @Nullable RowMapper<V> getRowMapper();
 
+    abstract @Nullable Long getBatchSize();
+
+    abstract @Nullable Long getMaxBatchBufferingDuration();
+
     abstract Builder<T, V> toBuilder();
 
     @AutoValue.Builder
@@ -2041,6 +2069,10 @@ public class JdbcIO {
           @Nullable SerializableFunction<Void, DataSource> dataSourceProviderFn);
 
       abstract Builder<T, V> setAutoSharding(@Nullable Boolean autoSharding);
+
+      abstract Builder<T, V> setBatchSize(@Nullable Long batchSize);
+
+      abstract Builder<T, V> setMaxBatchBufferingDuration(@Nullable Long maxBatchBufferingDuration);
 
       abstract Builder<T, V> setStatement(@Nullable ValueProvider<String> statement);
 
@@ -2056,6 +2088,19 @@ public class JdbcIO {
       abstract Builder<T, V> setRowMapper(RowMapper<V> rowMapper);
 
       abstract WriteWithResults<T, V> build();
+    }
+
+    public WriteWithResults<T, V> withBatchSize(long batchSize) {
+      checkArgument(batchSize > 0, "batchSize must be > 0, but was %s", batchSize);
+      return toBuilder().setBatchSize(batchSize).build();
+    }
+
+    public WriteWithResults<T, V> withMaxBatchBufferingDuration(long maxBatchBufferingDuration) {
+      checkArgument(
+          maxBatchBufferingDuration > 0,
+          "maxBatchBufferingDuration must be > 0, but was %s",
+          maxBatchBufferingDuration);
+      return toBuilder().setMaxBatchBufferingDuration(maxBatchBufferingDuration).build();
     }
 
     public WriteWithResults<T, V> withDataSourceConfiguration(DataSourceConfiguration config) {
@@ -2151,9 +2196,16 @@ public class JdbcIO {
           autoSharding == null || (autoSharding && input.isBounded() != IsBounded.UNBOUNDED),
           "Autosharding is only supported for streaming pipelines.");
 
+      Long batchSizeAsLong = getBatchSize();
+      long batchSize = batchSizeAsLong == null ? DEFAULT_BATCH_SIZE : batchSizeAsLong;
+      Long maxBufferingDurationAsLong = getMaxBatchBufferingDuration();
+      long maxBufferingDuration =
+          maxBufferingDurationAsLong == null
+              ? DEFAULT_MAX_BATCH_BUFFERING_DURATION
+              : maxBufferingDurationAsLong;
+
       PCollection<Iterable<T>> iterables =
-          JdbcIO.<T>batchElements(
-              input, autoSharding, DEFAULT_BATCH_SIZE, DEFAULT_MAX_BATCH_BUFFERING_DURATION);
+          JdbcIO.<T>batchElements(input, autoSharding, batchSize, maxBufferingDuration);
       return iterables.apply(
           ParDo.of(
               new WriteFn<T, V>(
@@ -2165,8 +2217,8 @@ public class JdbcIO {
                       .setStatement(getStatement())
                       .setRetryConfiguration(getRetryConfiguration())
                       .setReturnResults(true)
-                      .setBatchSize(1L)
-                      .setMaxBatchBufferingDuration(DEFAULT_MAX_BATCH_BUFFERING_DURATION)
+                      .setBatchSize(1L) // We are writing iterables 1 at a time.
+                      .setMaxBatchBufferingDuration(maxBufferingDuration)
                       .build())));
     }
   }
@@ -2477,7 +2529,7 @@ public class JdbcIO {
                     preparedStatementFieldSetterList
                         .get(index)
                         .set(row, preparedStatement, index, fields.get(index));
-                  } catch (SQLException | NullPointerException e) {
+                  } catch (SQLException e) {
                     throw new RuntimeException("Error while setting data to preparedStatement", e);
                   }
                 });
@@ -2821,7 +2873,7 @@ public class JdbcIO {
     }
 
     private void executeBatch(ProcessContext context, Iterable<T> records)
-        throws SQLException, IOException, InterruptedException {
+        throws SQLException, InterruptedException {
       Long startTimeNs = System.nanoTime();
       Sleeper sleeper = Sleeper.DEFAULT;
       BackOff backoff = checkStateNotNull(retryBackOff).backoff();

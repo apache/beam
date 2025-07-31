@@ -4190,7 +4190,9 @@ public class StreamingDataflowWorkerTest {
 
   static class TestExceptionFn extends DoFn<String, String> {
 
-    boolean firstTime = true;
+    // Note that the use of static works because this DoFn is only used in a single test.  We need
+    // to use static as the DoFn is not cached after user-code exceptions.
+    static boolean firstTime = true;
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {

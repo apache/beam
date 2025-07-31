@@ -571,7 +571,7 @@ def avro_union_type_to_beam_type(union_type: List) -> schema_pb2.FieldType:
   """convert an avro union type to a beam type
 
   if the union type is a nullable, and it is a nullable union of an avro
-  primitive with a corresponding beam primitive then create a nullable beam
+  type with a corresponding beam type then create a nullable beam
   field of the corresponding beam type, otherwise return an Any type.
 
   Args:
@@ -582,11 +582,10 @@ def avro_union_type_to_beam_type(union_type: List) -> schema_pb2.FieldType:
   """
   if len(union_type) == 2 and "null" in union_type:
     for avro_type in union_type:
-      if avro_type in AVRO_PRIMITIVES_TO_BEAM_PRIMITIVES:
-        return schema_pb2.FieldType(
-            atomic_type=AVRO_PRIMITIVES_TO_BEAM_PRIMITIVES[avro_type],
-            nullable=True)
-    return schemas.typing_to_runner_api(Any)
+      if avro_type != "null":
+        beam_type = avro_type_to_beam_type(avro_type)
+        beam_type.nullable = True
+        return beam_type
   return schemas.typing_to_runner_api(Any)
 
 

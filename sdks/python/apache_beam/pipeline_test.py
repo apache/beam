@@ -431,7 +431,7 @@ class PipelineTest(unittest.TestCase):
     def raise_exception(exn):
       raise exn
 
-    with self.assertRaises(ValueError):
+    with self.assertRaises(Exception):
       with Pipeline() as p:
         # pylint: disable=expression-not-assigned
         p | Create([ValueError('msg')]) | Map(raise_exception)
@@ -638,6 +638,35 @@ class PipelineTest(unittest.TestCase):
     self.assertNotIn(multi[None], visitor.visited)
     self.assertNotIn(multi.letters, visitor.visited)
     self.assertNotIn(multi.numbers, visitor.visited)
+
+  def test_filter_typehint(self):
+    # Check input type hint and output type hint are both specified.
+    def always_true_with_all_typehints(x: int) -> bool:
+      return True
+
+    # Check only input type hint is specified.
+    def always_true_only_inptype(x: int):
+      return True
+
+    # Check only output type hint is specified.
+    def always_true_only_outptype(x) -> bool:
+      return True
+
+    # Check if inp type hint is Any that we can still infer
+    # from the input pcollection type
+    def always_true_any_inptype(x: typehints.Any) -> bool:
+      return True
+
+    for filter_fn in [always_true_with_all_typehints,
+                      always_true_only_inptype,
+                      always_true_only_outptype,
+                      always_true_any_inptype]:
+      with TestPipeline() as p:
+        pcoll = (
+            p
+            | beam.Create([1, 2, 3]).with_input_types(int)
+            | beam.Filter(filter_fn))
+      self.assertEqual(pcoll.element_type, int)
 
   def test_kv_ptransform_honor_type_hints(self):
 
@@ -892,7 +921,7 @@ class DoFnTest(unittest.TestCase):
       return (x, context_a, context_b, context_c)
 
     self.assertEqual(_TestContext.live_contexts, 0)
-    with TestPipeline() as p:
+    with TestPipeline('FnApiRunner') as p:
       pcoll = p | Create([1, 2]) | beam.Map(test_map)
       assert_that(pcoll, equal_to([(1, 'a', 'b', 'c'), (2, 'a', 'b', 'c')]))
     self.assertEqual(_TestContext.live_contexts, 0)

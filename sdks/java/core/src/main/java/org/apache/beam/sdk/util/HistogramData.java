@@ -88,7 +88,6 @@ public class HistogramData implements Serializable {
   public HistogramData(HistogramValue histogramProto) {
     int numBuckets;
     if (histogramProto.getBucketOptions().hasLinear()) {
-      System.out.println("xxx its linear");
       double start = histogramProto.getBucketOptions().getLinear().getStart();
       double width = histogramProto.getBucketOptions().getLinear().getWidth();
       numBuckets = histogramProto.getBucketOptions().getLinear().getNumberOfBuckets();
@@ -102,7 +101,6 @@ public class HistogramData implements Serializable {
         idx++;
       }
     } else {
-      System.out.println("xxx its exp");
       // Assume it's a exponential histogram if its not linear
       int scale = histogramProto.getBucketOptions().getExponential().getScale();
       numBuckets = histogramProto.getBucketOptions().getExponential().getNumberOfBuckets();
@@ -300,7 +298,6 @@ public class HistogramData implements Serializable {
     int numberOfBuckets = this.getBucketType().getNumBuckets();
 
     if (this.getBucketType() instanceof HistogramData.LinearBuckets) {
-      System.out.println("xxx linear buckets");
       HistogramData.LinearBuckets buckets = (HistogramData.LinearBuckets) this.getBucketType();
       Linear.Builder linearBuilder = Linear.newBuilder();
       linearBuilder.setNumberOfBuckets(numberOfBuckets);
@@ -313,7 +310,6 @@ public class HistogramData implements Serializable {
       builder.setBucketOptions(bucketBuilder.build());
 
     } else if (this.getBucketType() instanceof HistogramData.ExponentialBuckets) {
-      System.out.println("xxx exp buckets");
       HistogramData.ExponentialBuckets buckets =
           (HistogramData.ExponentialBuckets) this.getBucketType();
 
@@ -335,7 +331,6 @@ public class HistogramData implements Serializable {
     for (long val : this.getBucketCount()) {
       builder.addBucketCounts(val);
     }
-    System.out.println("xxxx " + builder.toString());
     return builder.build();
   }
 

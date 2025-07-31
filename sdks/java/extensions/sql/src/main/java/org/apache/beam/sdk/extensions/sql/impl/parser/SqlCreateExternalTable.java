@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.impl.parser;
 
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
-import static org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.Static.RESOURCE;
+import static org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.Static.RESOURCE;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
@@ -29,19 +29,19 @@ import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteSchema;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalcitePrepare;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalciteSchema;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlCreate;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlIdentifier;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlKind;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlNode;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlNodeList;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlOperator;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlSpecialOperator;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlUtil;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlWriter;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.Pair;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalcitePrepare;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalciteSchema;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlCreate;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlIdentifier;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlKind;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlNode;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlNodeList;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlOperator;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlSpecialOperator;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlUtil;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlWriter;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.Pair;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Parse tree for {@code CREATE EXTERNAL TABLE} statement. */
@@ -152,16 +152,17 @@ public class SqlCreateExternalTable extends SqlCreate implements BeamSqlParser.E
     }
 
     BeamCalciteSchema schema = (BeamCalciteSchema) pair.left.schema;
+    Table table = toTable();
     if (partitionFields != null) {
       checkArgument(
-          schema.resolveMetastore().supportsPartitioning(),
+          schema.resolveMetastore().supportsPartitioning(table),
           "Invalid use of 'PARTITIONED BY()': Table '%s' of type '%s' "
               + "does not support partitioning.",
           SqlDdlNodes.name(name),
           SqlDdlNodes.getString(type));
     }
 
-    schema.resolveMetastore().createTable(toTable());
+    schema.resolveMetastore().createTable(table);
   }
 
   private void unparseColumn(SqlWriter writer, Schema.Field column) {

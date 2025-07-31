@@ -20,7 +20,7 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.bigtable;
 import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.io.gcp.bigtable.RowUtils.KEY;
 import static org.apache.beam.sdk.io.gcp.bigtable.RowUtils.byteStringUtf8;
-import static org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlKind.LIKE;
+import static org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlKind.LIKE;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.bigtable.v2.RowFilter;
@@ -28,10 +28,10 @@ import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTableFilter;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexCall;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexInputRef;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexLiteral;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexCall;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexInputRef;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexLiteral;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexNode;
 
 /**
  * BigtableFilter for queries with WHERE clause.

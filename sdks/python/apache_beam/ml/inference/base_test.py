@@ -1044,20 +1044,20 @@ class RunInferenceBaseTest(unittest.TestCase):
 
   def test_run_inference_unkeyed_examples_with_keyed_model_handler(self):
     pipeline = TestPipeline()
-    with self.assertRaises(TypeError):
+    with self.assertRaisesRegex(Exception, "object is not iterable"):
       examples = [1, 3, 5]
       model_handler = base.KeyedModelHandler(FakeModelHandler())
       _ = (
           pipeline | 'Unkeyed' >> beam.Create(examples)
           | 'RunUnkeyed' >> base.RunInference(model_handler))
-      pipeline.run()
+      pipeline.run().wait_until_finish()
 
   def test_run_inference_keyed_examples_with_unkeyed_model_handler(self):
     pipeline = TestPipeline()
     examples = [1, 3, 5]
     keyed_examples = [(i, example) for i, example in enumerate(examples)]
     model_handler = FakeModelHandler()
-    with self.assertRaises(TypeError):
+    with self.assertRaisesRegex(Exception, "can only concatenate tuple"):
       _ = (
           pipeline | 'keyed' >> beam.Create(keyed_examples)
           | 'RunKeyed' >> base.RunInference(model_handler))

@@ -47,7 +47,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.commons.lang3.tuple.Pair;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -114,23 +114,57 @@ public class FilterUtilsTest {
         .withFieldType(Types.StringType.get())
         .validate();
 
-    // date
+    // date string
     TestCase.expecting(lessThan("field_1", daysFromDate(LocalDate.parse("2025-05-03"))))
         .fromFilter("\"field_1\" < '2025-05-03'")
         .withFieldType(Types.DateType.get())
         .validate();
 
-    // time
+    // date
+    TestCase.expecting(lessThan("field_1", daysFromDate(LocalDate.parse("2025-05-03"))))
+        .fromFilter("\"field_1\" < DATE '2025-05-03'")
+        .withFieldType(Types.DateType.get())
+        .validate();
+
+    // time string
     TestCase.expecting(lessThan("field_1", microsFromTime(LocalTime.parse("10:30:05.123"))))
         .fromFilter("\"field_1\" < '10:30:05.123'")
         .withFieldType(Types.TimeType.get())
         .validate();
 
-    // datetime
+    // time
+    TestCase.expecting(lessThan("field_1", microsFromTime(LocalTime.parse("10:30:05.123"))))
+        .fromFilter("\"field_1\" < TIME '10:30:05.123'")
+        .withFieldType(Types.TimeType.get())
+        .validate();
+
+    // datetime - timestamp string
     TestCase.expecting(
             lessThan(
                 "field_1", microsFromTimestamp(LocalDateTime.parse("2025-05-03T10:30:05.123"))))
         .fromFilter("\"field_1\" < '2025-05-03T10:30:05.123'")
+        .withFieldType(Types.TimestampType.withoutZone())
+        .validate();
+
+    // datetime - timestamp
+    TestCase.expecting(
+            lessThan(
+                "field_1", microsFromTimestamp(LocalDateTime.parse("2025-05-03T10:30:05.123"))))
+        .fromFilter("\"field_1\" < TIMESTAMP '2025-05-03 10:30:05.123'")
+        .withFieldType(Types.TimestampType.withoutZone())
+        .validate();
+
+    // datetime - date string
+    TestCase.expecting(
+            lessThan("field_1", microsFromTimestamp(LocalDateTime.parse("2025-05-03T00:00:00"))))
+        .fromFilter("\"field_1\" < '2025-05-03'")
+        .withFieldType(Types.TimestampType.withoutZone())
+        .validate();
+
+    // datetime - date
+    TestCase.expecting(
+            lessThan("field_1", microsFromTimestamp(LocalDateTime.parse("2025-05-03T00:00:00"))))
+        .fromFilter("\"field_1\" < DATE '2025-05-03'")
         .withFieldType(Types.TimestampType.withoutZone())
         .validate();
   }
@@ -155,23 +189,59 @@ public class FilterUtilsTest {
         .withFieldType(Types.StringType.get())
         .validate();
 
-    // date
+    // date string
     TestCase.expecting(lessThanOrEqual("field_1", daysFromDate(LocalDate.parse("2025-05-03"))))
         .fromFilter("\"field_1\" <= '2025-05-03'")
         .withFieldType(Types.DateType.get())
         .validate();
 
-    // time
+    // date
+    TestCase.expecting(lessThanOrEqual("field_1", daysFromDate(LocalDate.parse("2025-05-03"))))
+        .fromFilter("\"field_1\" <= DATE '2025-05-03'")
+        .withFieldType(Types.DateType.get())
+        .validate();
+
+    // time string
     TestCase.expecting(lessThanOrEqual("field_1", microsFromTime(LocalTime.parse("10:30:05.123"))))
         .fromFilter("\"field_1\" <= '10:30:05.123'")
         .withFieldType(Types.TimeType.get())
         .validate();
 
-    // datetime
+    // time
+    TestCase.expecting(lessThanOrEqual("field_1", microsFromTime(LocalTime.parse("10:30:05.123"))))
+        .fromFilter("\"field_1\" <= TIME '10:30:05.123'")
+        .withFieldType(Types.TimeType.get())
+        .validate();
+
+    // datetime - timestamp string
     TestCase.expecting(
             lessThanOrEqual(
                 "field_1", microsFromTimestamp(LocalDateTime.parse("2025-05-03T10:30:05.123"))))
         .fromFilter("\"field_1\" <= '2025-05-03T10:30:05.123'")
+        .withFieldType(Types.TimestampType.withoutZone())
+        .validate();
+
+    // datetime - timestamp
+    TestCase.expecting(
+            lessThanOrEqual(
+                "field_1", microsFromTimestamp(LocalDateTime.parse("2025-05-03T10:30:05.123"))))
+        .fromFilter("\"field_1\" <= TIMESTAMP '2025-05-03 10:30:05.123'")
+        .withFieldType(Types.TimestampType.withoutZone())
+        .validate();
+
+    // datetime - date string
+    TestCase.expecting(
+            lessThanOrEqual(
+                "field_1", microsFromTimestamp(LocalDateTime.parse("2025-05-03T00:00:00"))))
+        .fromFilter("\"field_1\" <= '2025-05-03'")
+        .withFieldType(Types.TimestampType.withoutZone())
+        .validate();
+
+    // datetime - date
+    TestCase.expecting(
+            lessThanOrEqual(
+                "field_1", microsFromTimestamp(LocalDateTime.parse("2025-05-03T00:00:00"))))
+        .fromFilter("\"field_1\" <= DATE '2025-05-03'")
         .withFieldType(Types.TimestampType.withoutZone())
         .validate();
   }
@@ -196,23 +266,57 @@ public class FilterUtilsTest {
         .withFieldType(Types.StringType.get())
         .validate();
 
-    // date
+    // date string
     TestCase.expecting(greaterThan("field_1", daysFromDate(LocalDate.parse("2025-05-03"))))
         .fromFilter("\"field_1\" > '2025-05-03'")
         .withFieldType(Types.DateType.get())
         .validate();
 
-    // time
+    // date
+    TestCase.expecting(greaterThan("field_1", daysFromDate(LocalDate.parse("2025-05-03"))))
+        .fromFilter("\"field_1\" > DATE '2025-05-03'")
+        .withFieldType(Types.DateType.get())
+        .validate();
+
+    // time string
     TestCase.expecting(greaterThan("field_1", microsFromTime(LocalTime.parse("10:30:05.123"))))
         .fromFilter("\"field_1\" > '10:30:05.123'")
         .withFieldType(Types.TimeType.get())
         .validate();
 
-    // datetime
+    // time
+    TestCase.expecting(greaterThan("field_1", microsFromTime(LocalTime.parse("10:30:05.123"))))
+        .fromFilter("\"field_1\" > TIME '10:30:05.123'")
+        .withFieldType(Types.TimeType.get())
+        .validate();
+
+    // datetime - timestamp string
     TestCase.expecting(
             greaterThan(
                 "field_1", microsFromTimestamp(LocalDateTime.parse("2025-05-03T10:30:05.123"))))
         .fromFilter("\"field_1\" > '2025-05-03T10:30:05.123'")
+        .withFieldType(Types.TimestampType.withoutZone())
+        .validate();
+
+    // datetime - timestamp
+    TestCase.expecting(
+            greaterThan(
+                "field_1", microsFromTimestamp(LocalDateTime.parse("2025-05-03T10:30:05.123"))))
+        .fromFilter("\"field_1\" > TIMESTAMP '2025-05-03 10:30:05.123'")
+        .withFieldType(Types.TimestampType.withoutZone())
+        .validate();
+
+    // datetime - date string
+    TestCase.expecting(
+            greaterThan("field_1", microsFromTimestamp(LocalDateTime.parse("2025-05-03T00:00:00"))))
+        .fromFilter("\"field_1\" > '2025-05-03'")
+        .withFieldType(Types.TimestampType.withoutZone())
+        .validate();
+
+    // datetime - date
+    TestCase.expecting(
+            greaterThan("field_1", microsFromTimestamp(LocalDateTime.parse("2025-05-03T00:00:00"))))
+        .fromFilter("\"field_1\" > DATE '2025-05-03'")
         .withFieldType(Types.TimestampType.withoutZone())
         .validate();
   }
@@ -237,24 +341,61 @@ public class FilterUtilsTest {
         .withFieldType(Types.StringType.get())
         .validate();
 
-    // date
+    // date string
     TestCase.expecting(greaterThanOrEqual("field_1", daysFromDate(LocalDate.parse("2025-05-03"))))
         .fromFilter("\"field_1\" >= '2025-05-03'")
         .withFieldType(Types.DateType.get())
         .validate();
 
-    // time
+    // date
+    TestCase.expecting(greaterThanOrEqual("field_1", daysFromDate(LocalDate.parse("2025-05-03"))))
+        .fromFilter("\"field_1\" >= DATE '2025-05-03'")
+        .withFieldType(Types.DateType.get())
+        .validate();
+
+    // time string
     TestCase.expecting(
             greaterThanOrEqual("field_1", microsFromTime(LocalTime.parse("10:30:05.123"))))
         .fromFilter("\"field_1\" >= '10:30:05.123'")
         .withFieldType(Types.TimeType.get())
         .validate();
 
-    // datetime
+    // time
+    TestCase.expecting(
+            greaterThanOrEqual("field_1", microsFromTime(LocalTime.parse("10:30:05.123"))))
+        .fromFilter("\"field_1\" >= TIME '10:30:05.123'")
+        .withFieldType(Types.TimeType.get())
+        .validate();
+
+    // datetime - timestamp string
     TestCase.expecting(
             greaterThanOrEqual(
                 "field_1", microsFromTimestamp(LocalDateTime.parse("2025-05-03T10:30:05.123"))))
         .fromFilter("\"field_1\" >= '2025-05-03T10:30:05.123'")
+        .withFieldType(Types.TimestampType.withoutZone())
+        .validate();
+
+    // datetime - timestamp
+    TestCase.expecting(
+            greaterThanOrEqual(
+                "field_1", microsFromTimestamp(LocalDateTime.parse("2025-05-03T10:30:05.123"))))
+        .fromFilter("\"field_1\" >= TIMESTAMP '2025-05-03 10:30:05.123'")
+        .withFieldType(Types.TimestampType.withoutZone())
+        .validate();
+
+    // datetime - date string
+    TestCase.expecting(
+            greaterThanOrEqual(
+                "field_1", microsFromTimestamp(LocalDateTime.parse("2025-05-03T00:00:00"))))
+        .fromFilter("\"field_1\" >= '2025-05-03'")
+        .withFieldType(Types.TimestampType.withoutZone())
+        .validate();
+
+    // datetime - date
+    TestCase.expecting(
+            greaterThanOrEqual(
+                "field_1", microsFromTimestamp(LocalDateTime.parse("2025-05-03T00:00:00"))))
+        .fromFilter("\"field_1\" >= DATE '2025-05-03'")
         .withFieldType(Types.TimestampType.withoutZone())
         .validate();
   }
@@ -279,22 +420,55 @@ public class FilterUtilsTest {
         .withFieldType(Types.StringType.get())
         .validate();
 
-    // date
+    // date string
     TestCase.expecting(equal("field_1", daysFromDate(LocalDate.parse("2025-05-03"))))
         .fromFilter("\"field_1\" = '2025-05-03'")
         .withFieldType(Types.DateType.get())
         .validate();
 
-    // time
+    // date
+    TestCase.expecting(equal("field_1", daysFromDate(LocalDate.parse("2025-05-03"))))
+        .fromFilter("\"field_1\" = DATE '2025-05-03'")
+        .withFieldType(Types.DateType.get())
+        .validate();
+
+    // time string
     TestCase.expecting(equal("field_1", microsFromTime(LocalTime.parse("10:30:05.123"))))
         .fromFilter("\"field_1\" = '10:30:05.123'")
         .withFieldType(Types.TimeType.get())
         .validate();
 
-    // datetime
+    // time
+    TestCase.expecting(equal("field_1", microsFromTime(LocalTime.parse("10:30:05.123"))))
+        .fromFilter("\"field_1\" = TIME '10:30:05.123'")
+        .withFieldType(Types.TimeType.get())
+        .validate();
+
+    // datetime - timestamp string
     TestCase.expecting(
             equal("field_1", microsFromTimestamp(LocalDateTime.parse("2025-05-03T10:30:05.123"))))
         .fromFilter("\"field_1\" = '2025-05-03T10:30:05.123'")
+        .withFieldType(Types.TimestampType.withoutZone())
+        .validate();
+
+    // datetime - timestamp
+    TestCase.expecting(
+            equal("field_1", microsFromTimestamp(LocalDateTime.parse("2025-05-03T10:30:05.123"))))
+        .fromFilter("\"field_1\" = TIMESTAMP '2025-05-03 10:30:05.123'")
+        .withFieldType(Types.TimestampType.withoutZone())
+        .validate();
+
+    // datetime - date string
+    TestCase.expecting(
+            equal("field_1", microsFromTimestamp(LocalDateTime.parse("2025-05-03T00:00:00"))))
+        .fromFilter("\"field_1\" = '2025-05-03'")
+        .withFieldType(Types.TimestampType.withoutZone())
+        .validate();
+
+    // datetime - date
+    TestCase.expecting(
+            equal("field_1", microsFromTimestamp(LocalDateTime.parse("2025-05-03T00:00:00"))))
+        .fromFilter("\"field_1\" = DATE '2025-05-03'")
         .withFieldType(Types.TimestampType.withoutZone())
         .validate();
   }
@@ -319,23 +493,57 @@ public class FilterUtilsTest {
         .withFieldType(Types.StringType.get())
         .validate();
 
-    // date
+    // date string
     TestCase.expecting(notEqual("field_1", daysFromDate(LocalDate.parse("2025-05-03"))))
         .fromFilter("\"field_1\" <> '2025-05-03'")
         .withFieldType(Types.DateType.get())
         .validate();
 
-    // time
+    // date
+    TestCase.expecting(notEqual("field_1", daysFromDate(LocalDate.parse("2025-05-03"))))
+        .fromFilter("\"field_1\" <> DATE '2025-05-03'")
+        .withFieldType(Types.DateType.get())
+        .validate();
+
+    // time string
     TestCase.expecting(notEqual("field_1", microsFromTime(LocalTime.parse("10:30:05.123"))))
         .fromFilter("\"field_1\" <> '10:30:05.123'")
         .withFieldType(Types.TimeType.get())
         .validate();
 
-    // datetime
+    // time
+    TestCase.expecting(notEqual("field_1", microsFromTime(LocalTime.parse("10:30:05.123"))))
+        .fromFilter("\"field_1\" <> TIME '10:30:05.123'")
+        .withFieldType(Types.TimeType.get())
+        .validate();
+
+    // datetime - timestamp string
     TestCase.expecting(
             notEqual(
                 "field_1", microsFromTimestamp(LocalDateTime.parse("2025-05-03T10:30:05.123"))))
         .fromFilter("\"field_1\" <> '2025-05-03T10:30:05.123'")
+        .withFieldType(Types.TimestampType.withoutZone())
+        .validate();
+
+    // datetime - timestamp
+    TestCase.expecting(
+            notEqual(
+                "field_1", microsFromTimestamp(LocalDateTime.parse("2025-05-03T10:30:05.123"))))
+        .fromFilter("\"field_1\" <> TIMESTAMP '2025-05-03 10:30:05.123'")
+        .withFieldType(Types.TimestampType.withoutZone())
+        .validate();
+
+    // datetime - date string
+    TestCase.expecting(
+            notEqual("field_1", microsFromTimestamp(LocalDateTime.parse("2025-05-03T00:00:00"))))
+        .fromFilter("\"field_1\" <> '2025-05-03'")
+        .withFieldType(Types.TimestampType.withoutZone())
+        .validate();
+
+    // datetime - date
+    TestCase.expecting(
+            notEqual("field_1", microsFromTimestamp(LocalDateTime.parse("2025-05-03T00:00:00"))))
+        .fromFilter("\"field_1\" <> DATE '2025-05-03'")
         .withFieldType(Types.TimestampType.withoutZone())
         .validate();
   }

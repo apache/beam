@@ -27,6 +27,15 @@ boolean IfExistsOpt() :
     { return false; }
 }
 
+boolean CascadeOpt() :
+{
+}
+{
+    <CASCADE> { return true; }
+|
+    { return false; }
+}
+
 SqlNodeList Options() :
 {
     final Span s;
@@ -213,14 +222,14 @@ SqlCreate SqlCreateCatalog(Span s, boolean replace) :
 }
 
 /**
- * SET CATALOG catalog_name
+ * USE CATALOG catalog_name
  */
-SqlCall SqlSetCatalog(Span s, String scope) :
+SqlCall SqlUseCatalog(Span s, String scope) :
 {
     final SqlNode catalogName;
 }
 {
-    <SET> {
+    <USE> {
         s.add(this);
     }
     <CATALOG>
@@ -230,7 +239,7 @@ SqlCall SqlSetCatalog(Span s, String scope) :
         catalogName = SimpleIdentifier()
     )
     {
-        return new SqlSetCatalog(
+        return new SqlUseCatalog(
             s.end(this),
             scope,
             catalogName);
@@ -254,6 +263,86 @@ SqlDrop SqlDropCatalog(Span s, boolean replace) :
         return new SqlDropCatalog(s.end(this), ifExists, catalogName);
     }
 }
+
+/**
+ * CREATE DATABASE ( IF NOT EXISTS )? database_name
+ */
+SqlCreate SqlCreateDatabase(Span s, boolean replace) :
+{
+    final boolean ifNotExists;
+    final SqlNode databaseName;
+}
+{
+    <DATABASE> {
+        s.add(this);
+    }
+
+    ifNotExists = IfNotExistsOpt()
+    (
+        databaseName = StringLiteral()
+        |
+        databaseName = SimpleIdentifier()
+    )
+
+    {
+        return new SqlCreateDatabase(
+            s.end(this),
+            replace,
+            ifNotExists,
+            databaseName);
+    }
+}
+
+/**
+ * USE DATABASE database_name
+ */
+SqlCall SqlUseDatabase(Span s, String scope) :
+{
+    final SqlNode databaseName;
+}
+{
+    <USE> {
+        s.add(this);
+    }
+    <DATABASE>
+    (
+        databaseName = StringLiteral()
+        |
+        databaseName = SimpleIdentifier()
+    )
+    {
+        return new SqlUseDatabase(
+            s.end(this),
+            scope,
+            databaseName);
+    }
+}
+
+/**
+ * DROP DATABASE [ IF EXISTS ] database_name [ RESTRICT | CASCADE ]
+ */
+SqlDrop SqlDropDatabase(Span s, boolean replace) :
+{
+    final boolean ifExists;
+    final SqlNode databaseName;
+    final boolean cascade;
+}
+{
+    <DATABASE>
+    ifExists = IfExistsOpt()
+    (
+        databaseName = StringLiteral()
+        |
+        databaseName = SimpleIdentifier()
+    )
+
+    cascade = CascadeOpt()
+
+    {
+        return new SqlDropDatabase(s.end(this), ifExists, databaseName, cascade);
+    }
+}
+
 
 SqlNodeList PartitionFieldList() :
 {
