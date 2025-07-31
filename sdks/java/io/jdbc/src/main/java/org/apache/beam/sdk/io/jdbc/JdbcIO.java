@@ -1248,7 +1248,7 @@ public class JdbcIO {
         try {
           return schemaRegistry.getSchemaCoder(outputType);
         } catch (NoSuchSchemaException e) {
-          LOG.warn(
+          LOG.info(
               "Unable to infer a schema for type {}. Attempting to infer a coder without a schema.",
               outputType);
         }
