@@ -239,6 +239,27 @@ class MainInputTest(unittest.TestCase):
     with self.assertRaises(ValueError):
       _ = res['undeclared tag']
 
+  def test_typed_dofn_multi_output_default_main(self):
+    """
+    Test that the main pcollection of a multi-output pcoll pardo
+    is used by default when a PTransform is applied to it.
+    """
+    class NoEvenTagMyDoFn(beam.DoFn):
+      def process(self, element):
+        if element % 2:
+          yield beam.pvalue.TaggedOutput('odd', element)
+        else:
+          yield element
+
+    with beam.Pipeline() as p:
+      res = (
+          p
+          | beam.Create([1, 2, 3])
+          | beam.ParDo(NoEvenTagMyDoFn(tag_even=False)).with_outputs('odd'))
+      assert_that(
+          res | beam.Map(lambda x: x), equal_to([2]), label='even_check')
+      assert_that(res.odd, equal_to([1, 3]), label='odd_check')
+
   def test_typed_dofn_multi_output_no_tags(self):
     class MyDoFn(beam.DoFn):
       def process(self, element):
