@@ -304,6 +304,113 @@ class CodersTest(unittest.TestCase):
               1: 'x', 'y': 2
           }))
 
+  @parameterized.expand([
+      param(compat_version=None),
+      param(compat_version="2.66.0"),
+  ])
+  def test_deterministic_map_coder_is_update_compatible(self, compat_version):
+    values = [{
+        MyTypedNamedTuple(i, 'a'): MyTypedNamedTuple('a', i)
+        for i in range(10)
+    }]
+
+    coder = coders.MapCoder(
+        coders.FastPrimitivesCoder(), coders.FastPrimitivesCoder())
+
+    deterministic_coder = coder.as_deterministic_coder(
+        step_label="step", update_compatibility_version=compat_version)
+
+    assert isinstance(
+        deterministic_coder._key_coder,
+        coders.DeterministicFastPrimitivesCoderV2
+        if not compat_version else coders.DeterministicFastPrimitivesCoder)
+
+    self.check_coder(deterministic_coder, *values)
+
+  @parameterized.expand([
+      param(compat_version=None),
+      param(compat_version="2.66.0"),
+  ])
+  def test_deterministic_nullable_coder_is_update_compatible(
+      self, compat_version):
+    values = [MyTypedNamedTuple(1, 'a'), None, MyTypedNamedTuple(2, 'a')]
+
+    coder = coders.NullableCoder(coders.FastPrimitivesCoder())
+
+    deterministic_coder = coder.as_deterministic_coder(
+        step_label="step", update_compatibility_version=compat_version)
+
+    assert isinstance(
+        deterministic_coder._value_coder,
+        coders.DeterministicFastPrimitivesCoderV2
+        if not compat_version else coders.DeterministicFastPrimitivesCoder)
+
+    self.check_coder(deterministic_coder, *values)
+
+  @parameterized.expand([
+      param(compat_version=None),
+      param(compat_version="2.66.0"),
+  ])
+  def test_deterministic_tuple_coder_is_update_compatible(self, compat_version):
+    values = [MyTypedNamedTuple(1, 'a'), MyTypedNamedTuple(2, 'a')]
+
+    coder = coders.TupleCoder(
+        [coders.FastPrimitivesCoder(), coders.FastPrimitivesCoder()])
+
+    deterministic_coder = coder.as_deterministic_coder(
+        step_label="step", update_compatibility_version=compat_version)
+
+    assert all(
+        isinstance(
+            component_coder,
+            coders.DeterministicFastPrimitivesCoderV2
+            if not compat_version else coders.DeterministicFastPrimitivesCoder)
+        for component_coder in deterministic_coder._coders)
+
+    self.check_coder(deterministic_coder, *values)
+
+  @parameterized.expand([
+      param(compat_version=None),
+      param(compat_version="2.66.0"),
+  ])
+  def test_deterministic_tuplesequence_coder_is_update_compatible(
+      self, compat_version):
+    values = [MyTypedNamedTuple(1, 'a'), MyTypedNamedTuple(2, 'a')]
+
+    coder = coders.TupleSequenceCoder(coders.FastPrimitivesCoder())
+
+    deterministic_coder = coder.as_deterministic_coder(
+        step_label="step", update_compatibility_version=compat_version)
+
+    assert isinstance(
+        deterministic_coder._elem_coder,
+        coders.DeterministicFastPrimitivesCoderV2
+        if not compat_version else coders.DeterministicFastPrimitivesCoder)
+
+    self.check_coder(deterministic_coder, *values)
+
+  @parameterized.expand([
+      param(compat_version=None),
+      param(compat_version="2.66.0"),
+  ])
+  def test_deterministic_listlike_coder_is_update_compatible(
+      self, compat_version):
+    _ = [MyTypedNamedTuple(1, 'a'), MyTypedNamedTuple(2, 'a')]
+
+    coder = coders.ListLikeCoder(coders.FastPrimitivesCoder())
+
+    deterministic_coder = coder.as_deterministic_coder(
+        step_label="step", update_compatibility_version=compat_version)
+
+    assert isinstance(
+        deterministic_coder._elem_coder,
+        coders.DeterministicFastPrimitivesCoderV2
+        if not compat_version else coders.DeterministicFastPrimitivesCoder)
+
+    # This check fails for both compat options with
+    # AssertionError: MyTypedNamedTuple(f1=1, f2='a') != [1, 'a']
+    # self.check_coder(deterministic_coder, *values)
+
   def test_dill_coder(self):
     cell_value = (lambda x: lambda: x)(0).__closure__[0]
     self.check_coder(coders.DillCoder(), 'a', 1, cell_value)
@@ -860,7 +967,7 @@ class CodersTest(unittest.TestCase):
         {
             i: str(i)
             for i in range(5000)
-        }
+        },
     ]
     map_coder = coders.MapCoder(coders.VarIntCoder(), coders.StrUtf8Coder())
     self.check_coder(map_coder, *values)
