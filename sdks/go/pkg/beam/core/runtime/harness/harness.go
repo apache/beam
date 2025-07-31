@@ -410,7 +410,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 
 		data := NewScopedDataManager(c.data, instID)
 		state := NewScopedStateReaderWithCache(c.state, instID, c.cache)
-        timeoutDuration := parseTimeoutDurationFlag(ctx, beam.PipelineOptions.Get("element_processing_timeout"))
+		timeoutDuration := parseTimeoutDurationFlag(ctx, beam.PipelineOptions.Get("element_processing_timeout"))
 
 		sampler := newSampler(store, timeoutDuration)
 		go func() {
@@ -697,7 +697,6 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		return fail(ctx, instID, "Unexpected request: %v", req)
 	}
 }
-
 
 // Parses the element_processing_timeout flag and returns the corresponding time.Duration.
 // The element_processing_timeout flag is expected to be a duration string (e.g., "5m", "1h", etc.)or -1.
