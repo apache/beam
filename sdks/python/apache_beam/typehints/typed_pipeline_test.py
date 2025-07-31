@@ -255,7 +255,7 @@ class MainInputTest(unittest.TestCase):
       res = (
           p
           | beam.Create([1, 2, 3])
-          | beam.ParDo(NoEvenTagMyDoFn(tag_even=False)).with_outputs('odd'))
+          | beam.ParDo(NoEvenTagMyDoFn()).with_outputs('odd'))
       assert_that(
           res | beam.Map(lambda x: x), equal_to([2]), label='even_check')
       assert_that(res.odd, equal_to([1, 3]), label='odd_check')
