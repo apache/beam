@@ -989,16 +989,17 @@ class DeterministicFastPrimitivesCoder(FastCoder):
 def _should_force_use_dill(update_compatibility_version):
   from apache_beam.transforms.util import is_v1_prior_to_v2
 
-  if not is_v1_prior_to_v2(v1=update_compatibility_version, v2="2.67.0"):
+  if not is_v1_prior_to_v2(v1=update_compatibility_version, v2="2.68.0"):
     return False
 
   try:
     import dill
     assert dill.__version__ == "0.3.1.1"
   except Exception as e:
-    raise RuntimeError("Error using dill for encoding special types. Ensure" \
-                       " dill version '0.3.1.1' is installed in execution and" \
-                      f" runtime environment. Error {e}")
+    raise RuntimeError("This pipeline runs with the " \
+    "update_compatibility_version=2.67.0 flag. When running with this flag " \
+    "on SDKs 2.68.0 or higher, you must ensure dill==0.3.1.1 is installed. " \
+    f"Error {e}")
   return True
 
 
