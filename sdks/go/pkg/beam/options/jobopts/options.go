@@ -22,9 +22,8 @@ import (
 	"flag"
 	"fmt"
 	"strings"
-	"time"
-
 	"sync/atomic"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
@@ -101,6 +100,9 @@ var (
 
 	// ResourceHints flag takes whole pipeline hints for resources.
 	ResourceHints stringSlice
+
+	// Flag to set the timeout for processing an element in a PTransform operation. If set to -1, there is no timeout.
+	ElementProcessingTimeout = flag.Duration("element_processing_timeout", -1, "The timeout for processing an element in a PTransform operation. If set to -1, there is no timeout.")
 )
 
 type missingFlagError error
@@ -177,6 +179,15 @@ func GetExperiments() []string {
 		return nil
 	}
 	return strings.Split(*Experiments, ",")
+}
+
+// GetElementProcessingTimeout returns the element processing timeout. If the flag is set to -1,
+// there is no timeout.
+func GetElementProcessingTimeout() time.Duration {
+	if *ElementProcessingTimeout == -1 {
+		return 0 * time.Minute
+	}
+	return *ElementProcessingTimeout
 }
 
 // GetPipelineResourceHints parses known standard hints and returns the flag set hints for the pipeline.
