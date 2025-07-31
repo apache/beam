@@ -578,7 +578,7 @@ if __name__ == '__main__':
               'tensorflow>=2.12.0',
               'torch>=1.9.0'
           ],
-          'tft': ['tensorflow_transform>=1.15.0,<1.16.0'],
+          'tft': ['tensorflow_transform>=1.14.0,<1.15.0'],
           'onnx': [
               'onnxruntime==1.13.1',
               'torch==1.13.1',
