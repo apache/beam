@@ -541,7 +541,7 @@ class YamlTransformE2ETest(unittest.TestCase):
           ''')
 
   def test_flatten_unifies_different_types(self):
-    """Test that Flatten correctly unifies schemas with different 
+    """Test that Flatten correctly unifies schemas with different
     field types."""
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
@@ -647,7 +647,7 @@ class YamlTransformE2ETest(unittest.TestCase):
     schemas."""
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle')) as p:
-      result = p | YamlTransform(
+      _ = p | YamlTransform(
           '''
             type: composite
             transforms:
@@ -673,41 +673,19 @@ class YamlTransformE2ETest(unittest.TestCase):
                        categories: []}
               - type: Flatten
                 input: [Create1, Create2, Create3]
-            output: Flatten
+              - type: AssertEqual
+                input: Flatten
+                config:
+                  elements:
+                    - {id: 1, name: 'Product A', price: 29.99,
+                       categories: ['electronics', 'gadgets']}
+                    - {id: 2, name: 'Product B', price: 15.50,
+                       categories: ['books']}
+                    - {id: 3, name: 'Product C', categories: ['clothing']}
+                    - {id: 4, name: 'Product D', price: 99.99}
+                    - {id: 5, name: 'Product E', price: 5.00,
+                       categories: []}
           ''')
-
-      # Verify that the result contains all expected elements
-      # with proper schema unification
-      def check_result(actual):
-        expected_ids = {1, 2, 3, 4, 5}
-        actual_ids = {
-            getattr(row, 'id', row.get('id') if hasattr(row, 'get') else None)
-            for row in actual
-        }
-        assert actual_ids == expected_ids, (
-            f"Expected IDs {expected_ids}, got {actual_ids}")
-
-        # Check that all rows have required fields
-        for row in actual:
-          row_id = getattr(
-              row, 'id', row.get('id') if hasattr(row, 'get') else None)
-          name = getattr(
-              row, 'name', row.get('name') if hasattr(row, 'get') else None)
-          assert row_id is not None, f"Missing id field in row {row}"
-          assert name is not None, f"Missing name field in row {row}"
-          # Optional fields should be present but may be None/empty
-          price = getattr(
-              row, 'price', row.get('price') if hasattr(row, 'get') else None)
-          categories = getattr(
-              row,
-              'categories',
-              row.get('categories') if hasattr(row, 'get') else None)
-          assert price is not None or row_id == 3, \
-              f"Missing price field in row {row}"
-          assert categories is not None or row_id == 4, \
-              f"Missing categories field in row {row}"
-
-      assert_that(result, check_result)
 
 
 class ErrorHandlingTest(unittest.TestCase):
