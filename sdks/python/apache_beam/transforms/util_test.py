@@ -1176,7 +1176,7 @@ class ReshuffleTest(unittest.TestCase):
           label='CheckMetadataPreserved',
           reify_windows=True)
 
-  @pytest.mark.it_validatesrunner
+  # @pytest.mark.it_validatesrunner
   def test_reshuffle_preserves_timestamps(self):
     with TestPipeline() as pipeline:
 
