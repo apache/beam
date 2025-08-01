@@ -1,0 +1,153 @@
+# coding=utf-8
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+pipeline:
+  type: chain
+  transforms:
+#    - type: ReadFromCsv
+#      name: ReadLogs
+#      config:
+#        path: "gs://apache-beam-testing-charlesng/Hadoop_2k.log_structured.csv"
+#
+#    - type: WriteToIceberg
+#      name: WriteToIceberg
+#      config:
+#        table: "demo.logs"
+#        catalog_name: "rest_catalog"
+#        catalog_properties:
+#          type: "rest"
+#          warehouse: "gs://apache-beam-testing-charlesng"
+#          uri: "https://biglake.googleapis.com/iceberg/v1beta/restcatalog"
+#          token:
+#          oauth2-server-uri: "https://oauth2.googleapis.com/token"
+#          header.x-goog-user-project: "apache-beam-testing"
+
+
+################################################################################
+
+
+#    - type: ReadFromIceberg
+#      name: ReadFromIceberg
+#      config:
+#        table: "demo.logs"
+#        catalog_name: "rest_catalog"
+#        catalog_properties:
+#          type: "rest"
+#          warehouse: "gs://apache-beam-testing-charlesng"
+#          uri: "https://biglake.googleapis.com/iceberg/v1beta/restcatalog"
+#          token:
+#          oauth2-server-uri: "https://oauth2.googleapis.com/token"
+#          header.x-goog-user-project: "apache-beam-testing"
+
+#    - type: LogForTesting
+
+    - type: Create
+      name: CreateSampleData
+      config:
+        elements:
+          - { id: 1, log_message: "Error in module A" }
+          - { id: 2, log_message: "Warning in module B" }
+          - { id: 3, log_message: "Info in module C" }
+
+    - type: MapToFields
+      name: MapToFields
+      config:
+        fields:
+          id: id
+          log_message: log_message
+          embedding: log_message
+
+    - type: MLTransform
+      name: Preprocessing
+      config:
+        write_artifact_location: "gs://apache-beam-testing-charlesng/beam_ml_artifacts"
+        transforms:
+          - type: SentenceTransformerEmbeddings
+            config: { model_name: all-MiniLM-L6-v2, columns: [ embedding ] }
+
+#    - type: TextEmbedding
+#      name: TextEmbedding
+#      config:
+#        model_name: "all-MiniLM-L6-v2"
+#        columns: [ embedding ]
+##        artifact_location: "gs://apache-beam-testing-charlesng/beam_ml_artifacts"
+#        artifact_location: ./tmp
+#
+#    - type: Normalize
+#      name: Normalize
+#      config:
+#        column: embedding
+
+    - type: MapToFields
+      name: MapToFieldsAfterEmbedding
+      config:
+        language: python
+        fields:
+          id:
+            expression: id
+            output_type: integer
+          log_message:
+            expression: log_message
+            output_type: string
+          embedding:
+            expression: embedding
+            output_type:
+              type: array
+              items:
+                type: number
+
+    - type: WriteToBigQuery
+      name: WriteToBigQuery
+      config:
+        table: "apache-beam-testing.charlesnguyen.test"
+        write_disposition: "WRITE_TRUNCATE"
+        create_disposition: "CREATE_IF_NEEDED"
+
+#    - type: LogForTesting
+
+
+################################################################################
+
+
+#    - type: ReadFromBigQuery
+#      name: ReadFromBigQuery
+#      config:
+#        table: "apache-beam-testing.charlesnguyen.test"
+#        fields: [embedding]
+#
+#    - type: KNN
+#      name: KNN
+#      config:
+##        model_artifact_path: "gs://apache-beam-testing-charlesng/beam_ml_artifacts"
+#        model_artifact_path: ./knn_model.pkl
+#
+#    - type: LogForTesting
+
+
+providers:
+  - type: pythonPackage
+    config:
+      packages:
+        - ./dist/log_clustering_provider-0.1.0.tar.gz
+    transforms:
+      Normalize: "clustering.Normalize"
+      TextEmbedding: "clustering.TextEmbedding"
+      KNN: "clustering.KNN"
+
+options:
+  yaml_experimental_features: ['ML']
