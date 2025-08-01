@@ -53,8 +53,13 @@ pipeline:
         timestamp:
           callable: |
             from datetime import datetime, timezone
+            import re
+
+            _PAD_MICROS = re.compile(r'\.(\d{1,5})([+-]\d{2}:\d{2})$')
+
             def fn(row):
-              return datetime.fromisoformat(row.timestamp).astimezone(timezone.utc)
+                ts = _PAD_MICROS.sub(lambda m: '.' + m.group(1).ljust(6, '0') + m.group(2), row.timestamp)
+                return datetime.fromisoformat(ts).astimezone(timezone.utc)
 
     # Assign windows to each element of the unbounded PCollection.
     - type: WindowInto
