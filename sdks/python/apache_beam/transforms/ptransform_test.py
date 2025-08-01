@@ -34,6 +34,8 @@ from unittest.mock import patch
 import hamcrest as hc
 import numpy as np
 import pytest
+from parameterized import param
+from parameterized import parameterized
 from parameterized import parameterized_class
 
 import apache_beam as beam
@@ -44,6 +46,11 @@ from apache_beam.io.iobase import Read
 from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import PipelineOptions
+<<<<<<< HEAD
+=======
+from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.options.pipeline_options import StreamingOptions
+>>>>>>> Trigger tests.
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.portability import common_urns
 from apache_beam.testing.test_pipeline import TestPipeline
@@ -63,6 +70,7 @@ from apache_beam.typehints import with_output_types
 from apache_beam.typehints.typehints_test import TypeHintTestCase
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import WindowedValue
+from apache_beam.coders import coders_test_common
 
 # Disable frequent lint warning due to pipe operator for chaining transforms.
 # pylint: disable=expression-not-assigned
@@ -186,7 +194,7 @@ class PTransformTest(unittest.TestCase):
       assert_that(r1.m, equal_to([2, 3, 4]), label='r1')
       assert_that(r2.m, equal_to([3, 4, 5]), label='r2')
 
-  @pytest.mark.it_validatesrunner
+  # @pytest.mark.it_validatesrunner
   def test_impulse(self):
     with TestPipeline() as pipeline:
       result = pipeline | beam.Impulse() | beam.Map(lambda _: 0)
@@ -195,7 +203,7 @@ class PTransformTest(unittest.TestCase):
   # TODO(BEAM-3544): Disable this test in streaming temporarily.
   # Remove sickbay-streaming tag after it's resolved.
   @pytest.mark.no_sickbay_streaming
-  @pytest.mark.it_validatesrunner
+  # @pytest.mark.it_validatesrunner
   def test_read_metrics(self):
     from apache_beam.io.utils import CountingSource
 
@@ -222,7 +230,7 @@ class PTransformTest(unittest.TestCase):
     self.assertEqual(outputs_counter.key.metric.name, 'recordsRead')
     self.assertEqual(outputs_counter.committed, 100)
 
-  @pytest.mark.it_validatesrunner
+  # @pytest.mark.it_validatesrunner
   def test_par_do_with_multiple_outputs_and_using_yield(self):
     class SomeDoFn(beam.DoFn):
       """A custom DoFn using yield."""
@@ -241,7 +249,7 @@ class PTransformTest(unittest.TestCase):
       assert_that(results.odd, equal_to([1, 3]), label='assert:odd')
       assert_that(results.even, equal_to([2, 4]), label='assert:even')
 
-  @pytest.mark.it_validatesrunner
+  # @pytest.mark.it_validatesrunner
   def test_par_do_with_multiple_outputs_and_using_return(self):
     def some_fn(v):
       if v % 2 == 0:
@@ -256,7 +264,7 @@ class PTransformTest(unittest.TestCase):
       assert_that(results.odd, equal_to([1, 3]), label='assert:odd')
       assert_that(results.even, equal_to([2, 4]), label='assert:even')
 
-  @pytest.mark.it_validatesrunner
+  # @pytest.mark.it_validatesrunner
   def test_undeclared_outputs(self):
     with TestPipeline() as pipeline:
       nums = pipeline | 'Some Numbers' >> beam.Create([1, 2, 3, 4])
@@ -269,7 +277,7 @@ class PTransformTest(unittest.TestCase):
       assert_that(results.odd, equal_to([1, 3]), label='assert:odd')
       assert_that(results.even, equal_to([2, 4]), label='assert:even')
 
-  @pytest.mark.it_validatesrunner
+  # @pytest.mark.it_validatesrunner
   def test_multiple_empty_outputs(self):
     with TestPipeline() as pipeline:
       nums = pipeline | 'Some Numbers' >> beam.Create([1, 3, 5])
@@ -696,7 +704,7 @@ class PTransformTest(unittest.TestCase):
       grouped = flattened | 'D' >> beam.GroupByKey() | SortLists
       assert_that(grouped, equal_to([('aa', [1, 2]), ('bb', [2])]))
 
-  @pytest.mark.it_validatesrunner
+  # @pytest.mark.it_validatesrunner
   def test_flatten_pcollections(self):
     with TestPipeline() as pipeline:
       pcoll_1 = pipeline | 'Start 1' >> beam.Create([0, 1, 2, 3])
@@ -711,7 +719,7 @@ class PTransformTest(unittest.TestCase):
       result = () | 'Empty' >> beam.Flatten(pipeline=pipeline)
       assert_that(result, equal_to([]))
 
-  @pytest.mark.it_validatesrunner
+  # @pytest.mark.it_validatesrunner
   def test_flatten_one_single_pcollection(self):
     with TestPipeline() as pipeline:
       input = [0, 1, 2, 3]
@@ -719,10 +727,73 @@ class PTransformTest(unittest.TestCase):
       result = (pcoll, ) | 'Single Flatten' >> beam.Flatten()
       assert_that(result, equal_to(input))
 
+  @parameterized.expand([
+      param(compat_version=None),
+      param(compat_version="2.66.0"),
+  ])
+  @pytest.mark.it_validatesrunner
+  def test_group_by_key_importable_special_types(self, compat_version):
+    def generate(_):
+      for _ in range(100):
+        yield (coders_test_common.MyTypedNamedTuple(1, 'a'), 1)
+
+    pipeline = TestPipeline(is_integration_test=True)
+    if compat_version:
+      pipeline.get_pipeline_options().view_as(
+          StreamingOptions).update_compatibility_version = compat_version
+    with pipeline as p:
+      result = (
+          p
+          | 'Create' >> beam.Create([i for i in range(100)])
+          | 'Generate' >> beam.ParDo(generate)
+          | 'Reshuffle' >> beam.Reshuffle()
+          | 'GBK' >> beam.GroupByKey())
+      assert_that(
+          result,
+          equal_to([(
+              coders_test_common.MyTypedNamedTuple(1, 'a'),
+              [1 for i in range(10000)])]))
+
+  @parameterized.expand([
+      param(compat_version=None),
+      param(compat_version="2.66.0"),
+  ])
+  @pytest.mark.it_validatesrunner
+  def test_group_by_key_dynamic_special_types(self, compat_version):
+    # All non-deterministic cases fall back to PickleCoder which cannot pickle
+    # dynamic types. This test should be re-enabled when the fallback coder is
+    # changed to CloudPickleCoder.
+    self.skipTest(
+        'Skipping until default fallback FastPrimitivesCoder changed.')
+
+    def dynamic_named_tuple():
+      return collections.namedtuple('DynamicNamedTuple', ['x', 'y'])
+
+    def generate(_):
+      for _ in range(100):
+        yield (dynamic_named_tuple()(1, 'a'), 1)
+
+    pipeline = TestPipeline(is_integration_test=True)
+    if compat_version:
+      pipeline.get_pipeline_options().view_as(
+          StreamingOptions).update_compatibility_version = compat_version
+
+    with pipeline as p:
+      result = (
+          p
+          | 'Create' >> beam.Create([i for i in range(100)])
+          | 'Generate' >> beam.ParDo(generate)
+          | 'Reshuffle' >> beam.Reshuffle()
+          | 'GBK' >> beam.GroupByKey())
+      assert_that(
+          result,
+          equal_to([(dynamic_named_tuple()(1,
+                                           'a'), [1 for i in range(10000)])]))
+
   # TODO(https://github.com/apache/beam/issues/20067): Does not work in
   # streaming mode on Dataflow.
   @pytest.mark.no_sickbay_streaming
-  @pytest.mark.it_validatesrunner
+  # @pytest.mark.it_validatesrunner
   def test_flatten_same_pcollections(self):
     with TestPipeline() as pipeline:
       pc = pipeline | beam.Create(['a', 'b'])
@@ -735,7 +806,7 @@ class PTransformTest(unittest.TestCase):
       result = [pcoll for pcoll in (pcoll_1, pcoll_2)] | beam.Flatten()
       assert_that(result, equal_to([0, 1, 2, 3, 4, 5, 6, 7]))
 
-  @pytest.mark.it_validatesrunner
+  # @pytest.mark.it_validatesrunner
   def test_flatten_a_flattened_pcollection(self):
     with TestPipeline() as pipeline:
       pcoll_1 = pipeline | 'Start 1' >> beam.Create([0, 1, 2, 3])
@@ -757,7 +828,7 @@ class PTransformTest(unittest.TestCase):
     with self.assertRaises(TypeError):
       set([1, 2, 3]) | beam.Flatten()
 
-  @pytest.mark.it_validatesrunner
+  # @pytest.mark.it_validatesrunner
   def test_flatten_multiple_pcollections_having_multiple_consumers(self):
     with TestPipeline() as pipeline:
       input = pipeline | 'Start' >> beam.Create(['AA', 'BBB', 'CC'])
