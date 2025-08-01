@@ -1,0 +1,40 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+[tool.poetry]
+name = "log_clustering_provider"
+version = "0.1.0"
+description = "A provider for clustering logs with Apache Beam and sklearn"
+authors = ["Your Name <you@example.com>"]
+license = "Apache License 2.0"
+readme = "README.md"
+packages = [
+    { include = "clustering.py" },
+]
+
+
+[tool.poetry.dependencies]
+python = "^3.11"
+apache-beam = {extras = ["gcp", "yaml"], version = "^2.66.0"}
+scikit-learn = "^1.7"
+numpy = "^2.2.0"
+sentence-transformers = "^5.0.0"
+pyod = "^2.0.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
