@@ -23,9 +23,6 @@ project_id: "testing-me-460223"
 
 # Secret service configuration
 
-# Secret name prefix used for the secrets in the secret manager
-secret_name_prefix: "beam-secrets"
-
 # Default secret rotation interval in days
 rotation_interval: 30
 
@@ -39,4 +36,4 @@ bucket_name: "testing-me-460223-tfstate"
 # The log file will be stored in the bucket with the following prefix
 log_file_prefix: "beam-secrets-rotation"
 # Logging level for the secrets rotation service
-logging_level: "INFO" # Options: DEBUG, INFO, WARNING, ERROR, CRITICAL
+logging_level: "DEBUG" # Options: DEBUG, INFO, WARNING, ERROR, CRITICAL
