@@ -140,7 +140,7 @@ class TestBigQueryEnrichmentIT(BigQueryEnrichmentIT):
 
   def setUp(self) -> None:
     self.condition_template = "id = {}"
-    self.retries = 3
+    self.retries = 10
     self._start_container()
 
   def _start_container(self):
@@ -151,6 +151,15 @@ class TestBigQueryEnrichmentIT(BigQueryEnrichmentIT):
         self.host = self.container.get_container_host_ip()
         self.port = self.container.get_exposed_port(6379)
         self.client = self.container.get_client()
+
+        # Ping Redis to ensure it's ready
+        for _ in range(10):
+          try:
+            if self.client.ping():
+              break
+          except Exception:
+            time.sleep(0.5)
+
         break
       except Exception as e:
         if i == self.retries - 1:
@@ -160,7 +169,8 @@ class TestBigQueryEnrichmentIT(BigQueryEnrichmentIT):
           raise e
 
   def tearDown(self) -> None:
-    self.container.stop()
+    if hasattr(self, 'container') and self.container:
+      self.container.stop()
     self.client = None
 
   def test_bigquery_enrichment(self):

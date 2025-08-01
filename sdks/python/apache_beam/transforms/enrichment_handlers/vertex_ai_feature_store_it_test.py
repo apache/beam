@@ -71,17 +71,26 @@ class TestVertexAIFeatureStoreHandler(unittest.TestCase):
     self.entity_type_name = "entity_id"
     self.api_endpoint = "us-central1-aiplatform.googleapis.com"
     self.feature_ids = ['title', 'genres']
-    self.retries = 3
+    self.retries = 10
     self._start_container()
 
   def _start_container(self):
-    for i in range(3):
+    for i in range(self.retries):
       try:
         self.container = RedisContainer(image='redis:7.2.4')
         self.container.start()
         self.host = self.container.get_container_host_ip()
         self.port = self.container.get_exposed_port(6379)
         self.client = self.container.get_client()
+
+        # Ping Redis to ensure it's ready
+        for _ in range(10):
+          try:
+            if self.client.ping():
+              break
+          except Exception:
+            time.sleep(0.5)
+
         break
       except Exception as e:
         if i == self.retries - 1:
@@ -89,7 +98,8 @@ class TestVertexAIFeatureStoreHandler(unittest.TestCase):
           raise e
 
   def tearDown(self) -> None:
-    self.container.stop()
+    if hasattr(self, 'container') and self.container:
+      self.container.stop()
     self.client = None
 
   def test_vertex_ai_feature_store_bigtable_serving_enrichment(self):

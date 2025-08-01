@@ -206,7 +206,7 @@ class FakeCallerForCache(Caller[str, str]):
 @pytest.mark.uses_testcontainer
 class TestRedisCache(unittest.TestCase):
   def setUp(self) -> None:
-    self.retries = 3
+    self.retries = 10
     self._start_container()
 
   def test_rrio_cache_all_miss(self):
@@ -288,7 +288,8 @@ class TestRedisCache(unittest.TestCase):
       res.wait_until_finish()
 
   def tearDown(self) -> None:
-    self.container.stop()
+    if hasattr(self, 'container') and self.container:
+      self.container.stop()
 
   def _start_container(self):
     for i in range(self.retries):
@@ -298,6 +299,15 @@ class TestRedisCache(unittest.TestCase):
         self.host = self.container.get_container_host_ip()
         self.port = self.container.get_exposed_port(6379)
         self.client = self.container.get_client()
+
+        # Ping Redis to ensure it's ready
+        for _ in range(10):
+          try:
+            if self.client.ping():
+              break
+          except Exception:
+            time.sleep(0.5)
+
         break
       except Exception as e:
         if i == self.retries - 1:

@@ -167,7 +167,7 @@ class TestBigTableEnrichment(unittest.TestCase):
     instance = client.instance(self.instance_id)
     self.table = instance.table(self.table_id)
     create_rows(self.table)
-    self.retries = 3
+    self.retries = 10
     self._start_container()
 
   def _start_container(self):
@@ -178,6 +178,15 @@ class TestBigTableEnrichment(unittest.TestCase):
         self.host = self.container.get_container_host_ip()
         self.port = self.container.get_exposed_port(6379)
         self.client = self.container.get_client()
+
+        # Ping Redis to ensure it's ready
+        for _ in range(10):
+          try:
+            if self.client.ping():
+              break
+          except Exception:
+            time.sleep(0.5)
+
         break
       except Exception as e:
         if i == self.retries - 1:
@@ -185,7 +194,8 @@ class TestBigTableEnrichment(unittest.TestCase):
           raise e
 
   def tearDown(self) -> None:
-    self.container.stop()
+    if hasattr(self, 'container') and self.container:
+      self.container.stop()
     self.table = None
 
   def test_enrichment_with_bigtable(self):
