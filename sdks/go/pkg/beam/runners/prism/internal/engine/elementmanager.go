@@ -1021,7 +1021,7 @@ func (em *ElementManager) FailBundle(rb RunBundle) {
 func (em *ElementManager) ReturnResiduals(rb RunBundle, firstRsIndex int, inputInfo PColInfo, residuals Residuals) {
 	stage := em.stages[rb.StageID]
 
-	stage.splitBundle(rb, firstRsIndex)
+	stage.splitBundle(rb, firstRsIndex, em)
 	unprocessedElements := reElementResiduals(residuals.Data, inputInfo, rb)
 	if len(unprocessedElements) > 0 {
 		slog.Debug("ReturnResiduals: unprocessed elements", "bundle", rb, "count", len(unprocessedElements))
@@ -1909,7 +1909,7 @@ func (ss *stageState) makeInProgressBundle(genBundID func() string, toProcess []
 	return bundID
 }
 
-func (ss *stageState) splitBundle(rb RunBundle, firstResidual int) {
+func (ss *stageState) splitBundle(rb RunBundle, firstResidual int, em *ElementManager) {
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
 
@@ -1920,8 +1920,9 @@ func (ss *stageState) splitBundle(rb RunBundle, firstResidual int) {
 	res := es.es[firstResidual:]
 
 	es.es = prim
-	ss.pending = append(ss.pending, res...)
-	heap.Init(&ss.pending)
+
+	// we don't need to increment pending count in em, since it is already pending
+	ss.kind.addPending(ss, em, res)
 	ss.inprogress[rb.BundleID] = es
 }
 
