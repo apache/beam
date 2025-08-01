@@ -21,7 +21,6 @@
 import logging
 import os
 import tempfile
-import typing
 import unittest
 from typing import TypeVar
 
@@ -330,7 +329,9 @@ class CreateInferOutputSchemaTest(unittest.TestCase):
                                beam.Row(a='foo')]).infer_output_type(None)
     self.assertEqual(
         output_type,
-        row_type.RowTypeConstraint.from_fields([('a', typing.Union[int, str])]))
+        row_type.RowTypeConstraint.from_fields([
+            ('a', typehints.Union[int, str])
+        ]))
 
   def test_single_type_for_field(self):
     output_type = beam.Create([beam.Row(a=1),
@@ -343,7 +344,8 @@ class CreateInferOutputSchemaTest(unittest.TestCase):
                                beam.Row(a=None)]).infer_output_type(None)
     self.assertEqual(
         output_type,
-        row_type.RowTypeConstraint.from_fields([('a', typing.Optional[int])]))
+        row_type.RowTypeConstraint.from_fields([('a', typehints.Optional[int])
+                                                ]))
 
   def test_none_type_for_field_raises_error(self):
     with self.assertRaisesRegex(TypeError,
