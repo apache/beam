@@ -110,6 +110,7 @@ import org.codehaus.commons.compiler.CompileException;
 import org.codehaus.janino.ScriptEvaluator;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
+import org.joda.time.base.AbstractInstant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -632,8 +633,10 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
         case BOOLEAN:
           return Expressions.convert_(value, Boolean.class);
         case DATETIME:
+          // AbstractInstant handles both joda Instant and DateTime
           return nullOr(
-              value, Expressions.call(Expressions.convert_(value, DateTime.class), "getMillis"));
+              value,
+              Expressions.call(Expressions.convert_(value, AbstractInstant.class), "getMillis"));
         case BYTES:
           return nullOr(
               value, Expressions.new_(ByteString.class, Expressions.convert_(value, byte[].class)));
