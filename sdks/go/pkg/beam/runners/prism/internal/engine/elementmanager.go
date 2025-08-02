@@ -1922,6 +1922,9 @@ func (ss *stageState) splitBundle(rb RunBundle, firstResidual int, em *ElementMa
 	es.es = prim
 
 	for _, e := range res {
+		delete(ss.inprogressKeysByBundle[rb.BundleID], string(e.keyBytes))
+		delete(ss.inprogressKeys, string(e.keyBytes))
+
 		if e.IsTimer() {
 			ss.watermarkHolds.Drop(e.holdTimestamp, 1)
 			ss.inprogressHoldsByBundle[rb.BundleID][e.holdTimestamp]--
