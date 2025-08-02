@@ -167,7 +167,8 @@ def create_harness(environment, dry_run=False):
       enable_heap_dump=enable_heap_dump,
       data_sampler=data_sampler,
       deferred_exception=deferred_exception,
-      runner_capabilities=runner_capabilities)
+      runner_capabilities=runner_capabilities,
+      sdk_options=sdk_pipeline_options)
   return fn_log_handler, sdk_harness, sdk_pipeline_options
 
 
