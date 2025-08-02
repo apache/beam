@@ -125,7 +125,8 @@ class TestSecretManagerUnit(unittest.TestCase):
         self.mock_client.create_secret.return_value = mock_secret
         self.mock_client.secret_path.return_value = mock_secret.name
         
-        result = self.manager.create_secret(self.test_secret_id)
+        with mock.patch.object(self.manager, '_secret_exists', side_effect=[False, True]):
+            result = self.manager.create_secret(self.test_secret_id)
         
         self.assertEqual(result, mock_secret.name)
         self.assertIn(self.test_secret_id, self.manager.secrets_ids)
@@ -163,11 +164,12 @@ class TestSecretManagerUnit(unittest.TestCase):
 
     def test_get_secret_not_exists(self):
         """Test retrieving a secret that doesn't exist."""
-        with self.assertRaises(ValueError) as context:
-            self.manager.get_secret(self.test_secret_id)
+        with mock.patch.object(self.manager, '_secret_exists', return_value=False):
+            with self.assertRaises(ValueError) as context:
+                self.manager.get_secret(self.test_secret_id)
         
-        self.assertIn("does not exist", str(context.exception))
-        self.mock_client.get_secret.assert_not_called()
+            self.assertIn("does not exist", str(context.exception))
+            self.mock_client.get_secret.assert_not_called()
 
     def test_delete_secret_success(self):
         """Test successfully deleting a secret."""
@@ -175,17 +177,17 @@ class TestSecretManagerUnit(unittest.TestCase):
         secret_path = f"projects/{self.project_id}/secrets/{self.test_secret_id}"
         self.mock_client.secret_path.return_value = secret_path
         
-        self.manager.delete_secret(self.test_secret_id)
+        with mock.patch.object(self.manager, '_secret_exists', side_effect=[True, False]):
+            self.manager.delete_secret(self.test_secret_id)
         
         self.assertNotIn(self.test_secret_id, self.manager.secrets_ids)
         self.mock_client.delete_secret.assert_called_once_with(request={"name": secret_path})
 
     def test_delete_secret_not_exists(self):
         """Test deleting a secret that doesn't exist."""
-        with self.assertRaises(ValueError) as context:
+        with mock.patch.object(self.manager, '_secret_exists', return_value=False):
             self.manager.delete_secret(self.test_secret_id)
         
-        self.assertIn("does not exist", str(context.exception))
         self.mock_client.delete_secret.assert_not_called()
 
     def test_add_secret_version_new_secret(self):
@@ -228,10 +230,12 @@ class TestSecretManagerUnit(unittest.TestCase):
 
     def test_add_secret_version_invalid_payload(self):
         """Test adding a version with invalid payload type."""
-        with self.assertRaises(TypeError) as context:
-            self.manager.add_secret_version(self.test_secret_id, 123)  # Invalid type
+        with mock.patch.object(self.manager, '_secret_exists', side_effect=[False, True]):
+            with mock.patch.object(self.manager, 'create_secret', return_value="mocked_path"):
+                with self.assertRaises(TypeError) as context:
+                    self.manager.add_secret_version(self.test_secret_id, 123)  # type: ignore
         
-        self.assertIn("Payload must be a bytes object", str(context.exception))
+                self.assertIn("Payload must be a bytes object", str(context.exception))
 
     def test_add_secret_version_exceeds_max_versions(self):
         """Test adding a version when max versions is exceeded."""
@@ -249,9 +253,9 @@ class TestSecretManagerUnit(unittest.TestCase):
         # After adding new version, we have 3 versions (exceeds max of 2)
         mock_versions_after = mock_versions_before + [new_version]
         
-        # Mock the disable response for the exceeding version (version 3, the last one)
+        # Mock the disable response for version "1" (the first/oldest that will be purged)
         disable_response = mock.MagicMock()
-        disable_response.name = f"projects/{self.project_id}/secrets/{self.test_secret_id}/versions/3"
+        disable_response.name = f"projects/{self.project_id}/secrets/{self.test_secret_id}/versions/1"
         disable_response.state = secretmanager.SecretVersion.State.DISABLED
         
         self.mock_client.create_secret.return_value = mock_secret
@@ -261,10 +265,13 @@ class TestSecretManagerUnit(unittest.TestCase):
         self.mock_client.get_secret.return_value = mock_secret
         self.mock_client.disable_secret_version.return_value = disable_response
         
-        result = self.manager.add_secret_version(self.test_secret_id, self.test_payload)
+        # Mock the helper methods
+        with mock.patch.object(self.manager, '_secret_exists', return_value=True):
+            with mock.patch.object(self.manager, '_secret_version_exists', return_value=True):
+                with mock.patch.object(self.manager, '_secret_version_is_enabled', side_effect=[True, False]):
+                    result = self.manager.add_secret_version(self.test_secret_id, self.test_payload)
         
         self.assertEqual(result, new_version.name)
-        # Should disable the exceeding version
         self.mock_client.disable_secret_version.assert_called_once()
 
     def test_list_secret_versions_success(self):
@@ -278,17 +285,18 @@ class TestSecretManagerUnit(unittest.TestCase):
         self.mock_client.secret_path.return_value = f"projects/{self.project_id}/secrets/{self.test_secret_id}"
         self.mock_client.list_secret_versions.return_value = mock_versions
         
-        result = self.manager.list_secret_versions(self.test_secret_id)
+        with mock.patch.object(self.manager, '_secret_exists', return_value=True):
+            result = self.manager._get_secret_versions(self.test_secret_id)
         
         self.assertEqual(result, mock_versions)
         self.mock_client.list_secret_versions.assert_called_once()
 
     def test_list_secret_versions_not_exists(self):
         """Test listing versions for a secret that doesn't exist."""
-        with self.assertRaises(ValueError) as context:
-            self.manager.list_secret_versions(self.test_secret_id)
-        
-        self.assertIn("does not exist", str(context.exception))
+        with mock.patch.object(self.manager, '_secret_exists', return_value=False):
+            result = self.manager._get_secret_versions(self.test_secret_id)
+            
+        self.assertEqual(result, [])
 
     def test_get_latest_secret_version_id(self):
         """Test getting the latest secret version ID."""
@@ -301,7 +309,8 @@ class TestSecretManagerUnit(unittest.TestCase):
         self.mock_client.secret_path.return_value = f"projects/{self.project_id}/secrets/{self.test_secret_id}"
         self.mock_client.list_secret_versions.return_value = mock_versions
         
-        result = self.manager.get_latest_secret_version_id(self.test_secret_id)
+        with mock.patch.object(self.manager, '_secret_exists', return_value=True):
+            result = self.manager._get_latest_secret_version_id(self.test_secret_id)
         
         # Should return the first enabled version (latest)
         self.assertEqual(result, "1")
@@ -317,8 +326,8 @@ class TestSecretManagerUnit(unittest.TestCase):
         self.mock_client.list_secret_versions.return_value = mock_versions
         
         with self.assertRaises(ValueError) as context:
-            self.manager.get_latest_secret_version_id(self.test_secret_id)
-        
+            self.manager._get_latest_secret_version_id(self.test_secret_id)
+
         self.assertIn("No enabled versions found", str(context.exception))
 
     def test_get_oldest_secret_version_id(self):
@@ -332,9 +341,10 @@ class TestSecretManagerUnit(unittest.TestCase):
         
         self.mock_client.secret_path.return_value = f"projects/{self.project_id}/secrets/{self.test_secret_id}"
         self.mock_client.list_secret_versions.return_value = mock_versions
-        
-        result = self.manager.get_oldest_secret_version_id(self.test_secret_id)
-        
+
+        with mock.patch.object(self.manager, '_secret_exists', return_value=True):
+            result = self.manager._get_oldest_secret_version_id(self.test_secret_id)
+
         # Should return the last enabled version in reversed order (oldest)
         self.assertEqual(result, "3")
 
@@ -360,7 +370,8 @@ class TestSecretManagerUnit(unittest.TestCase):
         self.mock_client.list_secret_versions.return_value = mock_versions
         self.mock_client.access_secret_version.return_value = mock_response
         
-        result = self.manager.get_secret_version(self.test_secret_id, "latest")
+        with mock.patch.object(self.manager, '_secret_exists', return_value=True):
+            result = self.manager.get_secret_version(self.test_secret_id, "latest")
         
         self.assertEqual(result, self.test_payload)
         expected_name = f"projects/{self.project_id}/secrets/{self.test_secret_id}/versions/2"
@@ -390,7 +401,10 @@ class TestSecretManagerUnit(unittest.TestCase):
         self.mock_client.list_secret_versions.return_value = mock_versions
         self.mock_client.disable_secret_version.return_value = mock_response
         
-        self.manager.disable_secret_version(self.test_secret_id, "1")
+        with mock.patch.object(self.manager, '_secret_exists', return_value=True):
+            with mock.patch.object(self.manager, '_secret_version_exists', return_value=True):
+                with mock.patch.object(self.manager, '_secret_version_is_enabled', side_effect=[True, False]):
+                    self.manager.disable_secret_version(self.test_secret_id, "1")
         
         expected_name = f"projects/{self.project_id}/secrets/{self.test_secret_id}/versions/1"
         self.mock_client.disable_secret_version.assert_called_once_with(request={"name": expected_name})
@@ -410,7 +424,10 @@ class TestSecretManagerUnit(unittest.TestCase):
         self.mock_client.list_secret_versions.return_value = mock_versions
         self.mock_client.disable_secret_version.return_value = mock_response
         
-        self.manager.disable_secret_version(self.test_secret_id, "oldest")
+        # Mock helper methods
+        with mock.patch.object(self.manager, '_secret_exists', return_value=True):
+            with mock.patch.object(self.manager, '_secret_version_is_enabled', side_effect=[True, False]):
+                self.manager.disable_secret_version(self.test_secret_id, "oldest")
         
         expected_name = f"projects/{self.project_id}/secrets/{self.test_secret_id}/versions/2"
         self.mock_client.disable_secret_version.assert_called_once_with(request={"name": expected_name})
@@ -430,7 +447,10 @@ class TestSecretManagerUnit(unittest.TestCase):
         self.mock_client.list_secret_versions.return_value = mock_versions
         self.mock_client.disable_secret_version.return_value = mock_response
         
-        self.manager.disable_secret_version(self.test_secret_id, "latest")
+        # Mock helper methods
+        with mock.patch.object(self.manager, '_secret_exists', return_value=True):
+            with mock.patch.object(self.manager, '_secret_version_is_enabled', side_effect=[True, False]):
+                self.manager.disable_secret_version(self.test_secret_id, "latest")
         
         expected_name = f"projects/{self.project_id}/secrets/{self.test_secret_id}/versions/1"
         self.mock_client.disable_secret_version.assert_called_once_with(request={"name": expected_name})
@@ -476,8 +496,11 @@ class TestSecretManagerUnit(unittest.TestCase):
         self.mock_client.get_secret.return_value = mock_secret
         self.mock_client.disable_secret_version.return_value = disable_response
         
-        # Call rotate_secret
-        self.manager.rotate_secret(self.test_secret_id, self.test_payload)
+        # Mock the helper methods to avoid issues
+        with mock.patch.object(self.manager, '_secret_exists', return_value=True):
+            with mock.patch.object(self.manager, '_secret_version_exists', return_value=True):
+                with mock.patch.object(self.manager, '_secret_version_is_enabled', side_effect=[True, False]):
+                    self.manager.rotate_secret(self.test_secret_id, self.test_payload)
         
         # Verify add_secret_version was called
         self.mock_client.add_secret_version.assert_called_once()
@@ -543,7 +566,7 @@ class TestSecretManagerIntegration(unittest.TestCase):
         self.assertIsNotNone(version2)
         
         # List versions
-        versions = self.manager.list_secret_versions(self.test_secret_id)
+        versions = self.manager._get_secret_versions(self.test_secret_id)
         self.assertGreaterEqual(len(versions), 2)
         
         # Get specific version
@@ -573,7 +596,7 @@ class TestSecretManagerIntegration(unittest.TestCase):
         self.manager.add_secret_version(self.test_secret_id, b"payload3")
         
         # Check that only 2 versions are enabled
-        versions = self.manager.list_secret_versions(self.test_secret_id)
+        versions = self.manager._get_secret_versions(self.test_secret_id)
         enabled_versions = [v for v in versions if v.state == secretmanager.SecretVersion.State.ENABLED]
         self.assertLessEqual(len(enabled_versions), 2)
 
