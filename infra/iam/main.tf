@@ -24,7 +24,7 @@ terraform {
   }
 
   backend "gcs" {
-    bucket  = "beam-terraform-infra-state"
+    bucket  = "testing-me-460223-tfstate"
     prefix  = "terraform/state"
   }
 }
@@ -32,4 +32,9 @@ terraform {
 variable "project_id" {
   description = "The GCP project ID."
   type        = string
+}
+
+module "beam_roles" {
+  source     = "./beam_roles"
+  project_id = var.project_id
 }
