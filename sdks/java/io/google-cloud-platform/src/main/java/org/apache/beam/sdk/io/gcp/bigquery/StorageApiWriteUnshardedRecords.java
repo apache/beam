@@ -366,7 +366,9 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
           // if this is a PENDING stream, we won't be using it again after cleaning up this
           // destination state, so clear it from the cache
           if (!useDefaultStream) {
-            APPEND_CLIENTS.invalidate(streamName);
+            synchronized (APPEND_CLIENTS) {
+              APPEND_CLIENTS.invalidate(streamName);
+            }
           }
           appendClientInfo = null;
         }
@@ -561,7 +563,9 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
             if (cachedAppendClient != null
                 && System.identityHashCode(cachedAppendClient)
                     == System.identityHashCode(appendClientInfo)) {
-              APPEND_CLIENTS.invalidate(cacheEntryKey);
+              synchronized (APPEND_CLIENTS) {
+                APPEND_CLIENTS.invalidate(cacheEntryKey);
+              }
             }
           }
           appendClientInfo = null;
