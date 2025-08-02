@@ -44,7 +44,7 @@ pipeline:
           text:
             callable: |
               def func(row):
-                # Kafka RAW format reads messages as bytes 
+                # Kafka RAW format reads messages as bytes
                 # in the 'payload' field of a Row
                 return row.payload.decode('utf-8')
     # Step 3: Write records out to Iceberg

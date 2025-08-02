@@ -21,7 +21,7 @@ select
    ,grouping(s_state)+grouping(s_county) as lochierarchy
    ,rank() over (
  	partition by grouping(s_state)+grouping(s_county),
- 	case when grouping(s_county) = 0 then s_state end 
+ 	case when grouping(s_county) = 0 then s_state end
  	order by sum(ss_net_profit) desc) as rank_within_parent
  from
     store_sales
@@ -40,7 +40,7 @@ select
  			    and d_date_sk = ss_sold_date_sk
  			    and s_store_sk  = ss_store_sk
                       group by s_state
-                     ) tmp1 
+                     ) tmp1
                where ranking <= 5
              )
  group by rollup(s_state,s_county)

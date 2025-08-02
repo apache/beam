@@ -154,7 +154,7 @@ class MySQLVectorWriterConfig(VectorDatabaseWriteConfig):
       ),
       conflict_resolution: Optional[ConflictResolution] = None):
     """Configuration for writing vectors to MySQL using jdbc.
-    
+
     Supports flexible schema configuration through column specifications and
     conflict resolution strategies with MySQL-specific syntax.
 
@@ -174,7 +174,7 @@ class MySQLVectorWriterConfig(VectorDatabaseWriteConfig):
             strategy for handling insert conflicts. ON DUPLICATE KEY UPDATE.
             None by default, meaning errors are thrown when attempting to insert
             duplicates.
-    
+
     Examples:
         Simple case with default schema:
 

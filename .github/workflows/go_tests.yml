@@ -53,14 +53,14 @@ jobs:
         run: cd sdks && go test -timeout=25m -coverprofile=coverage.txt -covermode=atomic ./go/pkg/... ./go/container/... ./java/container/... ./python/container/... ./typescript/container/...
       - uses: codecov/codecov-action@v3
         with:
-          flags: go 
+          flags: go
           files: ./sdks/coverage.txt
           name: go-unittests
       - name: Run fmt
         run: cd sdks/go/pkg/beam && go fmt ./...; git diff-index --quiet HEAD || (echo "Run go fmt before checking in changes" && exit 1)
       - name: Run vet
-        run: | 
-          cd sdks/go/pkg/beam 
+        run: |
+          cd sdks/go/pkg/beam
           go vet --copylocks=false --unsafeptr=false ./...
       - name: Run Staticcheck
         run: |

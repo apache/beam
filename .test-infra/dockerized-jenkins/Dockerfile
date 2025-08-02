@@ -37,4 +37,3 @@ COPY --chown=jenkins seedjobconfig.xml /var/jenkins_real_home/jobs/sample_seed_j
 # Disable setup wizard
 RUN echo $JENKINS_VERSION > /usr/share/jenkins/ref/jenkins.install.UpgradeWizard.state
 RUN echo $JENKINS_VERSION > /usr/share/jenkins/ref/jenkins.install.InstallUtil.lastExecVersion
-

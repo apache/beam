@@ -63,6 +63,3 @@ with beam.Pipeline() as p:
             | beam.combiners.Sample.FixedSizeGlobally(10) \
             | beam.FlatMap(lambda cost: cost) \
             | Output(prefix = 'Taxi cost: ')
-
-
-

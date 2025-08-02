@@ -24,8 +24,8 @@ from apache_beam.transforms.external_transform_provider import ExternalTransform
 from apache_beam.typehints.row_type import RowTypeConstraint
 """A Python multi-language pipeline that counts words using multiple Java SchemaTransforms.
 
-This pipeline reads an input text file then extracts the words, counts them, and writes the results Java 
-SchemaTransforms. The transforms are listed below and can be found in 
+This pipeline reads an input text file then extracts the words, counts them, and writes the results Java
+SchemaTransforms. The transforms are listed below and can be found in
 src/main/java/org/apache/beam/examples/schematransforms/:
 - `ExtractWordsProvider`
 - `JavaCountProvider`
@@ -36,7 +36,7 @@ These Java transforms are accessible to the Python pipeline via an expansion ser
 for instructions on how to download the jar and run this expansion service.
 
 This example aims to demonstrate how to use the `ExternalTransformProvider` utility, which dynamically generates and
-provides user-friendly wrappers for external transforms. 
+provides user-friendly wrappers for external transforms.
 
 Example commands for executing this program:
 

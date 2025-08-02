@@ -50,7 +50,7 @@ pipelines:
               - {value: 123, rank: 0}
               - {value: 456, rank: 1}
               - {value: 789, rank: 2}
-    
+
   # Postgres read pipeline without driver_class_name
   # This is to prevent https://github.com/apache/beam/issues/35122 from
   # happening again.

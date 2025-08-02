@@ -33,7 +33,7 @@ resource "google_cloudbuild_trigger" "playground_infrastructure" {
       machine_type = var.cloudbuild_machine_type
       logging      = "GCS_ONLY"
     }
-    logs_bucket = "gs://${var.cloudbuild_bucket_private}" 
+    logs_bucket = "gs://${var.cloudbuild_bucket_private}"
 
     step {
       id     = "run_gradle"
@@ -89,7 +89,7 @@ resource "google_cloudbuild_trigger" "playground_to_gke" {
       machine_type = var.cloudbuild_machine_type
       logging      = "GCS_ONLY"
     }
-    logs_bucket = "gs://${var.cloudbuild_bucket_private}" 
+    logs_bucket = "gs://${var.cloudbuild_bucket_private}"
     step {
       id     = "run_gradle"
       script = file("../../../../infrastructure/cloudbuild/cloudbuild_playground_deploy.sh")
@@ -146,7 +146,7 @@ resource "google_cloudbuild_trigger" "playground_ci" {
       machine_type = var.cloudbuild_machine_type
       logging      = "GCS_ONLY"
     }
-    logs_bucket = "gs://${var.cloudbuild_bucket_private}" 
+    logs_bucket = "gs://${var.cloudbuild_bucket_private}"
     step {
       id     = "Run CI"
       script = file("../../../../infrastructure/cloudbuild/cloudbuild_playground_ci_examples.sh")
@@ -199,7 +199,7 @@ resource "google_cloudbuild_trigger" "playground_cd" {
       machine_type = var.cloudbuild_machine_type
       logging      = "GCS_ONLY"
     }
-    logs_bucket = "gs://${var.cloudbuild_bucket_private}" 
+    logs_bucket = "gs://${var.cloudbuild_bucket_private}"
     step {
       id     = "Run CD"
       script = file("../../../../infrastructure/cloudbuild/cloudbuild_playground_cd_examples.sh")
@@ -246,7 +246,7 @@ resource "google_cloudbuild_trigger" "playground_cd_manual" {
       machine_type = var.cloudbuild_machine_type
       logging      = "GCS_ONLY"
     }
-    logs_bucket = "gs://${var.cloudbuild_bucket_private}" 
+    logs_bucket = "gs://${var.cloudbuild_bucket_private}"
     step {
       id     = "Run CD"
       script = file("../../../../infrastructure/cloudbuild/cloudbuild_playground_cd_examples.sh")
@@ -266,4 +266,3 @@ resource "google_cloudbuild_trigger" "playground_cd_manual" {
   }
 
 }
-

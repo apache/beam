@@ -101,4 +101,3 @@ switch (oneOfValue.getCaseEnumType().toString()) {
     return processBytes(oneOfValue.getValue(bytes[].class));
 }
 ```
-

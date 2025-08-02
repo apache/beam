@@ -41,7 +41,7 @@ pipelines:
       streaming: true
 
 
-# TODO: Current PubSubIO doesn't have a max_read_time_seconds parameter like 
+# TODO: Current PubSubIO doesn't have a max_read_time_seconds parameter like
 # Kafka does.  Without it, the ReadFromPubSub will run forever.  This is not a
 # trival change. For now, we will live with the mocked tests located
 # [here](https://github.com/apache/beam/blob/bea04446b41c86856c24d0a9761622092ed9936f/sdks/python/apache_beam/yaml/yaml_io_test.py#L83).
@@ -58,4 +58,3 @@ pipelines:
 
   #   options:
   #     streaming: true
-

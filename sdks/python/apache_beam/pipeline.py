@@ -115,11 +115,11 @@ __all__ = ['Pipeline', 'transform_annotations']
 
 
 class Pipeline(HasDisplayData):
-  """A pipeline object that manages a DAG of 
-  :class:`~apache_beam.transforms.ptransform.PTransform` s 
+  """A pipeline object that manages a DAG of
+  :class:`~apache_beam.transforms.ptransform.PTransform` s
   and their :class:`~apache_beam.pvalue.PValue` s.
 
-  Conceptually the :class:`~apache_beam.transforms.ptransform.PTransform` s are 
+  Conceptually the :class:`~apache_beam.transforms.ptransform.PTransform` s are
   the DAG's nodes and the :class:`~apache_beam.pvalue.PValue` s are the edges.
 
   All the transforms applied to the pipeline must have distinct full labels.

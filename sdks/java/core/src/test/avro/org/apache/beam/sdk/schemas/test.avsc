@@ -27,4 +27,3 @@
     { "name": "map", "type": ["null", {"type": "map", "values": ["null", "TestAvroNested"]}]}
   ]
 }
-

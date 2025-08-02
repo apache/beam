@@ -42,7 +42,7 @@ code_review:
 
     # Post PR summary when opened.
     # Type boolean, default: true.
-    summary: true 
+    summary: true
 
     # Post code review on PR open.
     # Type boolean, default: true.

@@ -40,4 +40,3 @@ class Output(beam.PTransform):
 with beam.Pipeline() as p:
   (p | beam.Create(['Hello Beam'])
    | Output())
-

@@ -25,10 +25,10 @@ from typing import Optional
 @dataclass
 class ConnectionConfig:
   """Configuration for connecting to a JDBC database.
-    
+
     Provides connection details and options for connecting to a database
     instance.
-    
+
     Attributes:
         jdbc_url: JDBC URL for the database instance.
             Example: 'jdbc:postgresql://host:port/database'
@@ -42,7 +42,7 @@ class ConnectionConfig:
             WriteToJdbc. These may include 'driver_jars', 'expansion_service',
             'classpath', etc. See full set of args at
             :class:`~apache_beam.io.jdbc.WriteToJdbc`
-    
+
     Example:
         >>> config = AlloyDBConnectionConfig(
         ...     jdbc_url='jdbc:postgresql://localhost:5432/mydb',
@@ -63,9 +63,9 @@ class ConnectionConfig:
 @dataclass
 class WriteConfig:
   """Configuration writing to JDBC database.
-    
+
     Modifies the write behavior when writing via JdbcIO.
-    
+
     Attributes:
         autosharding: Enable automatic re-sharding of bundles to scale the
             number of shards with workers.

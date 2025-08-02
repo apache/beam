@@ -365,4 +365,3 @@ composite `PTransform` that performs both the read operation and the reshard.
 
 See Beam’s [PTransform style guide](/contribute/ptransform-style-guide/#exposing-a-ptransform-vs-something-else)
 for additional information about wrapping with a `PTransform`.
-

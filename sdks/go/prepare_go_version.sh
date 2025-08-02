@@ -21,7 +21,7 @@
 #
 # Accepts the following require flag:
 #    --version -> A string for a fully qualified go version, eg go1.16.5 or go1.18beta1
-#        The list of available versions are at https://go.dev/dl/ 
+#        The list of available versions are at https://go.dev/dl/
 
 
 set -e
@@ -29,7 +29,7 @@ set -e
 # The specific Go version used by default for Beam infrastructure.
 #
 # This variable is also used as the execution command downscript.
-# The list of downloadable versions are at https://go.dev/dl/ 
+# The list of downloadable versions are at https://go.dev/dl/
 GOVERS="invalid"
 
 if ! command -v go &> /dev/null
@@ -48,9 +48,9 @@ MINGOVERSION="go1.16.0"
 # oldest version, and checking if it contains "min". When it doesn't, it's
 # the go print out, and it means the system version is later than the minimum.
 if (echo "min version $MINGOVERSION os/arch"; go version) | sort -Vk3 -s |tail -1 | grep -q min;
-then 
+then
   # Outputing the system Go version for debugging purposes.
-  echo "System Go installation at `which go` is `go version`, is older than the minimum required for hermetic, reproducible Beam builds. Want $MINGOVERSION. See http://go.dev/doc/install for installation instructions."; 
+  echo "System Go installation at `which go` is `go version`, is older than the minimum required for hermetic, reproducible Beam builds. Want $MINGOVERSION. See http://go.dev/doc/install for installation instructions.";
   exit 1
 fi
 

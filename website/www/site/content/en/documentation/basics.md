@@ -614,4 +614,3 @@ For more information about Splittable `DoFn`, see the following pages:
 Take a look at our [other documentation](/documentation/) such as the Beam
 programming guide, pipeline execution information, and transform reference
 catalogs.
-

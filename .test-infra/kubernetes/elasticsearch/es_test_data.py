@@ -15,10 +15,10 @@
 # limitations under the License.
 
 # Script to populate data on Elasticsearch
-# Hashcode for 1000 records is 42e254c8689050ed0a617ff5e80ea392, 
-# For test with query to select one record from 1000 docs, 
+# Hashcode for 1000 records is 42e254c8689050ed0a617ff5e80ea392,
+# For test with query to select one record from 1000 docs,
 # hashcode is d7a7e4e42c2ca7b83ef7c1ad1ebce000
-# Hashcode for 50m records (~20 gigs) is 42e254c8689050ed0a617ff5e80ea392 
+# Hashcode for 50m records (~20 gigs) is 42e254c8689050ed0a617ff5e80ea392
 #!/usr/bin/python
 
 import json
@@ -44,8 +44,8 @@ _dict_data = None
 def delete_index(idx_name):
     try:
         url = "%s/%s?refresh=true" % (tornado.options.options.es_url, idx_name)
-        request = tornado.httpclient.HTTPRequest(url, method="DELETE", request_timeout=240, 
-                                                 auth_username=tornado.options.options.username, 
+        request = tornado.httpclient.HTTPRequest(url, method="DELETE", request_timeout=240,
+                                                 auth_username=tornado.options.options.username,
                                                  auth_password=tornado.options.options.password)
         response = tornado.httpclient.HTTPClient().fetch(request)
         logging.info('Deleting index  "%s" done   %s' % (idx_name, response.body))
@@ -67,7 +67,7 @@ def create_index(idx_name):
     try:
         logging.info('Trying to create index %s' % (url))
         request = tornado.httpclient.HTTPRequest(url, method="PUT", body=body, request_timeout=240,
-                                                 auth_username=tornado.options.options.username, 
+                                                 auth_username=tornado.options.options.username,
                                                  auth_password=tornado.options.options.password)
         response = tornado.httpclient.HTTPClient().fetch(request)
         logging.info('Creating index "%s" done   %s' % (idx_name, response.body))
@@ -83,7 +83,7 @@ def upload_batch(upload_data_txt):
                                                  method="POST", body=upload_data_txt,
                                                  request_timeout=
                                                  tornado.options.options.http_upload_timeout,
-                                                 auth_username=tornado.options.options.username, 
+                                                 auth_username=tornado.options.options.username,
                                                  auth_password=tornado.options.options.password)
         response = yield async_http_client.fetch(request)
     except Exception as ex:
@@ -93,7 +93,7 @@ def upload_batch(upload_data_txt):
     result = json.loads(response.body.decode('utf-8'))
     res_txt = "OK" if not result['errors'] else "FAILED"
     took = int(result['took'])
-    logging.info("Upload: %s - upload took: %5dms, total docs uploaded: %7d" % (res_txt, took, 
+    logging.info("Upload: %s - upload took: %5dms, total docs uploaded: %7d" % (res_txt, took,
                                                                                 upload_data_count))
 
 
@@ -118,7 +118,7 @@ def get_data_for_format(format,count):
 
     elif field_type == "int":
         return_val = count
-    
+
     elif field_type == "ipv4":
         return_val = "{0}.{1}.{2}.{3}".format(1,2,3,count%255)
 
@@ -133,7 +133,7 @@ def get_data_for_format(format,count):
     elif field_type == "dict":
         mydict = dict(a=field_name + str(count), b=field_name + str(count), c=field_name + str(count),
                       d=field_name + str(count), e=field_name + str(count), f=field_name + str(count),
-                      g=field_name + str(count), h=field_name + str(count), i=field_name + str(count), 
+                      g=field_name + str(count), h=field_name + str(count), i=field_name + str(count),
                       j=field_name + str(count))
         return_val = ", ".join("=".join(_) for _ in mydict.items())
 
@@ -181,7 +181,7 @@ def set_index_refresh(val):
     url = "%s/%s/_settings" % (tornado.options.options.es_url, tornado.options.options.index_name)
     try:
         request = tornado.httpclient.HTTPRequest(url, method="PUT", body=body, request_timeout=240,
-                                                 auth_username=tornado.options.options.username, 
+                                                 auth_username=tornado.options.options.username,
                                                  auth_password=tornado.options.options.password)
         http_client = tornado.httpclient.HTTPClient()
         http_client.fetch(request)
@@ -213,7 +213,7 @@ def generate_test_data():
         global _dict_data
         with open(tornado.options.options.dict_file, 'r') as f:
             _dict_data = f.readlines()
-        logging.info("Loaded %d words from the %s" % (len(_dict_data), 
+        logging.info("Loaded %d words from the %s" % (len(_dict_data),
                                                       tornado.options.options.dict_file))
 
     format = tornado.options.options.format.split(',')
@@ -260,37 +260,37 @@ def generate_test_data():
 
     took_secs = int(time.time() - ts_start)
 
-    logging.info("Done - total docs uploaded: %d, took %d seconds" % 
+    logging.info("Done - total docs uploaded: %d, took %d seconds" %
     			 (tornado.options.options.count, took_secs))
 
 
 if __name__ == '__main__':
-    tornado.options.define("es_url", type=str, default='http://localhost:9200/', 
+    tornado.options.define("es_url", type=str, default='http://localhost:9200/',
                            help="URL of your Elasticsearch node")
-    tornado.options.define("index_name", type=str, default='test_data', 
+    tornado.options.define("index_name", type=str, default='test_data',
                            help="Name of the index to store your messages")
     tornado.options.define("index_type", type=str, default='test_type', help="Type")
-    tornado.options.define("batch_size", type=int, default=1000, 
+    tornado.options.define("batch_size", type=int, default=1000,
                            help="Elasticsearch bulk index batch size")
-    tornado.options.define("num_of_shards", type=int, default=2, 
+    tornado.options.define("num_of_shards", type=int, default=2,
                            help="Number of shards for ES index")
-    tornado.options.define("http_upload_timeout", type=int, default=3, 
+    tornado.options.define("http_upload_timeout", type=int, default=3,
                            help="Timeout in seconds when uploading data")
     tornado.options.define("count", type=int, default=100000, help="Number of docs to generate")
-    tornado.options.define("format", type=str, default='name:str,age:int,last_updated:ts', 
+    tornado.options.define("format", type=str, default='name:str,age:int,last_updated:ts',
                            help="message format")
-    tornado.options.define("num_of_replicas", type=int, default=0, 
+    tornado.options.define("num_of_replicas", type=int, default=0,
                            help="Number of replicas for ES index")
-    tornado.options.define("force_init_index", type=bool, default=False, 
+    tornado.options.define("force_init_index", type=bool, default=False,
                            help="Force deleting and re-initializing the Elasticsearch index")
-    tornado.options.define("set_refresh", type=bool, default=False, 
+    tornado.options.define("set_refresh", type=bool, default=False,
                            help="Set refresh rate to -1 before starting the upload")
-    tornado.options.define("out_file", type=str, default=False, 
+    tornado.options.define("out_file", type=str, default=False,
                            help="If set, write test data to out_file as well.")
-    tornado.options.define("id_type", type=str, default=None, 
+    tornado.options.define("id_type", type=str, default=None,
                            help="Type of 'id' to use for the docs, \
                            valid settings are int and uuid4, None is default")
-    tornado.options.define("dict_file", type=str, default=None, 
+    tornado.options.define("dict_file", type=str, default=None,
                            help="Name of dictionary file to use")
     tornado.options.define("username", type=str, default=None, help="Username for elasticsearch")
     tornado.options.define("password", type=str, default=None, help="Password for elasticsearch")

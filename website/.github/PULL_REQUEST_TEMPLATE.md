@@ -14,4 +14,3 @@ https://apache-beam-website-pull-requests.storage.googleapis.com/PULL_REQUEST_NU
 
 Finally, it will help us expedite review of your Pull Request if you tag
 someone (e.g. @username) to look at it.
-

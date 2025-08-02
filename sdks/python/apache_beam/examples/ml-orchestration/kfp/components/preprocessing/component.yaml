@@ -61,4 +61,3 @@ implementation:
       {inputValue: beam_runner},
     ]
 # [END preprocessing_component_definition]
-

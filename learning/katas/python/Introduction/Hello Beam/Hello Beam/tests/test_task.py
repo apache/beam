@@ -31,4 +31,3 @@ class TestCase(unittest.TestCase):
 
         self.assertIn('Hello Beam', output, 'The input element should contain "Hello Beam".')
         self.assertEqual(1, len(output), 'The output should contain a single element.')
-
