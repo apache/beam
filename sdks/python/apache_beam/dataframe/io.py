@@ -789,7 +789,8 @@ class ReadViaPandas(beam.PTransform):
       objects_as_strings=True,
       include_filename=False,
       **kwargs):
-    kwargs['include_filename'] = include_filename
+    if format == 'csv':
+      kwargs['include_filename'] = include_filename
     self._reader = globals()['read_%s' % format](*args, **kwargs)
     self._include_indexes = include_indexes
     self._objects_as_strings = objects_as_strings
