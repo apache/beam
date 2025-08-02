@@ -1921,6 +1921,12 @@ func (ss *stageState) splitBundle(rb RunBundle, firstResidual int, em *ElementMa
 
 	es.es = prim
 
+	for _, e := range res {
+		if e.IsTimer() {
+			ss.watermarkHolds.Drop(e.holdTimestamp, 1)
+			ss.inprogressHoldsByBundle[rb.BundleID][e.holdTimestamp]--
+		}
+	}
 	// we don't need to increment pending count in em, since it is already pending
 	ss.kind.addPending(ss, em, res)
 	ss.inprogress[rb.BundleID] = es
