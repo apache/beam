@@ -176,6 +176,7 @@ class SdkHarness(object):
       # that should be reported to the runner when proocessing the first bundle.
       deferred_exception=None,  # type: Optional[Exception]
       runner_capabilities=frozenset(),  # type: FrozenSet[str]
+      element_processing_timeout_minutes=None,  # type: Optional[int]
   ):
     # type: (...) -> None
     self._alive = True
@@ -207,6 +208,7 @@ class SdkHarness(object):
     self._profiler_factory = profiler_factory
     self.data_sampler = data_sampler
     self.runner_capabilities = runner_capabilities
+    self.element_processing_timeout_minutes = element_processing_timeout_minutes
 
     def default_factory(id):
       # type: (str) -> beam_fn_api_pb2.ProcessBundleDescriptor
@@ -230,7 +232,12 @@ class SdkHarness(object):
             status_address,
             self._bundle_processor_cache,
             self._state_cache,
-            enable_heap_dump)  # type: Optional[FnApiWorkerStatusHandler]
+            enable_heap_dump,
+            element_processing_timeout_minutes=self.
+            element_processing_timeout_minutes
+        )  # type: Optional[FnApiWorkerStatusHandler]
+      except TimeoutError as e:
+        self._shutdown_due_to_element_processing_timeout(e)
       except Exception:
         traceback_string = traceback.format_exc()
         _LOGGER.warning(
@@ -408,6 +415,11 @@ class SdkHarness(object):
     # type: () -> SdkWorker
     return SdkWorker(
         self._bundle_processor_cache, profiler_factory=self._profiler_factory)
+
+  def _shutdown_due_to_element_processing_timeout(
+      self, err: TimeoutError) -> None:
+    _LOGGER.error('%sThe SDK harness will be terminated.', str(err))
+    sys.exit(1)
 
 
 class BundleProcessorCache(object):
