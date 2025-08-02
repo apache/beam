@@ -236,6 +236,13 @@ class DataInputOperation(RunnerIOOperation):
             str(self.windowed_coder)) from exn
       self.output(decoded_value)
 
+  def advance_for_timer(self, timer: userstate.Timer):
+    with self.splitting_lock:
+      if self.index == self.stop - 1:
+        return None
+      self.index += 1
+    return timer
+
   def monitoring_infos(
       self, transform_id: str, tag_to_pcollection_id: Dict[str, str]
   ) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]:
@@ -1268,8 +1275,12 @@ class BundleProcessor(object):
                     element.transform_id,
                     element.timer_family_id)].timer_coder_impl)
             for timer_data in timer_coder_impl.decode_all(element.timers):
-              self.ops[element.transform_id].process_timer(
-                  element.timer_family_id, timer_data)
+              timer_data = input_op_by_transform_id[
+                  expected_input_ops[0].transform_id].advance_for_timer(
+                      timer_data)
+              if timer_data:
+                self.ops[element.transform_id].process_timer(
+                    element.timer_family_id, timer_data)
           elif isinstance(element, beam_fn_api_pb2.Elements.Data):
             input_op_by_transform_id[element.transform_id].process_encoded(
                 element.data)
