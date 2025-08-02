@@ -86,6 +86,53 @@ class MLTransformTest(unittest.TestCase):
             equal_to([5]),
             label='CheckVocab')
 
+  def test_ml_transform_read_with_map_to_fields(self):
+    ml_opts = beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle', yaml_experimental_features=['ML'])
+    with tempfile.TemporaryDirectory() as tempdir:
+      # First, write the artifacts.
+      with beam.Pipeline(options=ml_opts) as p:
+        elements = p | beam.Create(TRAIN_DATA)
+        _ = elements | YamlTransform(
+            f'''
+            type: MLTransform
+            config:
+              write_artifact_location: {tempdir}
+              transforms:
+                - type: ScaleTo01
+                  config:
+                    columns: [num]
+                - type: ComputeAndApplyVocabulary
+                  config:
+                    columns: [text]
+                    split_string_by_delimiter: ' ,.'
+            ''')
+
+      # Now, read the artifacts and use MapToFields.
+      with beam.Pipeline(options=ml_opts) as p:
+        elements = p | beam.Create(TEST_DATA)
+        result = elements | YamlTransform(
+            f'''
+            type: chain
+            transforms:
+              - type: MLTransform
+                config:
+                  read_artifact_location: {tempdir}
+              - type: MapToFields
+                config:
+                  language: python
+                  fields:
+                    num_scaled: "num[0]"
+                    text_vocab: text
+            ''')
+
+        def check_row(row):
+          assert row.num_scaled == 0.75
+          assert len(set(row.text_vocab)) == 5
+          return row.num_scaled
+
+        assert_that(result | beam.Map(check_row), equal_to([0.75]))
+
   def test_sentence_transformer_embedding(self):
     SENTENCE_EMBEDDING_DIMENSION = 384
     DATA = [{
