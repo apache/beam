@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
 import java.io.PrintWriter;
+import java.time.Duration;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -68,7 +69,8 @@ final class GrpcGetWorkStream
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
       int logEveryNStreamFailures,
       boolean requestBatchedGetWorkResponse,
-      WorkItemReceiver receiver) {
+      WorkItemReceiver receiver,
+      Duration halfClosePhysicalStreamAfter) {
     super(
         LOG,
         "GetWorkStream",
@@ -77,7 +79,8 @@ final class GrpcGetWorkStream
         streamObserverFactory,
         streamRegistry,
         logEveryNStreamFailures,
-        backendWorkerToken);
+        backendWorkerToken,
+        halfClosePhysicalStreamAfter);
     this.request = request;
     this.receiver = receiver;
     this.inflightMessages = new AtomicLong();
@@ -97,7 +100,8 @@ final class GrpcGetWorkStream
       Set<AbstractWindmillStream<?, ?>> streamRegistry,
       int logEveryNStreamFailures,
       boolean requestBatchedGetWorkResponse,
-      WorkItemReceiver receiver) {
+      WorkItemReceiver receiver,
+      Duration halfClosePhysicalStreamAfter) {
     return new GrpcGetWorkStream(
         backendWorkerToken,
         startGetWorkRpcFn,
@@ -107,7 +111,8 @@ final class GrpcGetWorkStream
         streamRegistry,
         logEveryNStreamFailures,
         requestBatchedGetWorkResponse,
-        receiver);
+        receiver,
+        halfClosePhysicalStreamAfter);
   }
 
   private void sendRequestExtension(long moreItems, long moreBytes) {
@@ -163,7 +168,11 @@ final class GrpcGetWorkStream
   }
 
   @Override
-  protected synchronized void onNewStream() throws WindmillStreamShutdownException {
+  protected synchronized void onFlushPending(boolean isNewStream)
+      throws WindmillStreamShutdownException {
+    if (!isNewStream) {
+      return;
+    }
     inflightMessages.set(request.getMaxItems());
     inflightBytes.set(request.getMaxBytes());
     trySend(

@@ -112,7 +112,8 @@ final class GrpcGetDataStream
       AtomicLong idGenerator,
       int streamingRpcBatchLimit,
       boolean sendKeyedGetDataRequests,
-      Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses) {
+      Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses,
+      java.time.Duration halfClosePhysicalStreamAfter) {
     super(
         LOG,
         "GetDataStream",
@@ -121,7 +122,8 @@ final class GrpcGetDataStream
         streamObserverFactory,
         streamRegistry,
         logEveryNStreamFailures,
-        backendWorkerToken);
+        backendWorkerToken,
+        halfClosePhysicalStreamAfter);
     this.idGenerator = idGenerator;
     this.jobHeader = jobHeader;
     this.streamingRpcBatchLimit = streamingRpcBatchLimit;
@@ -146,7 +148,8 @@ final class GrpcGetDataStream
       AtomicLong idGenerator,
       int streamingRpcBatchLimit,
       boolean sendKeyedGetDataRequests,
-      Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses) {
+      Consumer<List<Windmill.ComputationHeartbeatResponse>> processHeartbeatResponses,
+      java.time.Duration halfClosePhysicalStreamAfter) {
     return new GrpcGetDataStream(
         backendWorkerToken,
         startGetDataRpcFn,
@@ -158,7 +161,8 @@ final class GrpcGetDataStream
         idGenerator,
         streamingRpcBatchLimit,
         sendKeyedGetDataRequests,
-        processHeartbeatResponses);
+        processHeartbeatResponses,
+        halfClosePhysicalStreamAfter);
   }
 
   private static WindmillStreamShutdownException shutdownExceptionFor(QueuedBatch batch) {
@@ -189,7 +193,7 @@ final class GrpcGetDataStream
       }
 
       if (!trySend(batch.asGetDataRequest())) {
-        // The stream broke before this call went through; onNewStream will retry the fetch.
+        // The stream broke before this call went through; onFlushPending will retry the fetch.
         LOG.debug("GetData stream broke before call started.");
       }
     }
@@ -260,8 +264,11 @@ final class GrpcGetDataStream
   }
 
   @Override
-  protected synchronized void onNewStream() throws WindmillStreamShutdownException {
-    trySend(StreamingGetDataRequest.newBuilder().setHeader(jobHeader).build());
+  protected synchronized void onFlushPending(boolean isNewStream)
+      throws WindmillStreamShutdownException {
+    if (isNewStream) {
+      trySend(StreamingGetDataRequest.newBuilder().setHeader(jobHeader).build());
+    }
     while (!batches.isEmpty()) {
       QueuedBatch batch = checkNotNull(batches.peekFirst());
       verify(!batch.isEmpty());
@@ -494,8 +501,9 @@ final class GrpcGetDataStream
     final @Nullable GetDataPhysicalStreamHandler currentGetDataPhysicalStream =
         (GetDataPhysicalStreamHandler) currentPhysicalStream;
     if (currentGetDataPhysicalStream == null) {
-      // Leave the batch finalized but in the batches queue.  Finalized batches will be sent on the
-      // new stream in onNewStream.
+      // Leave the batch finalized but in the batches queue.  Finalized batches will be sent on a
+      // new streamm in
+      // onFlushPending.
       return;
     }
 
