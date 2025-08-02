@@ -53,15 +53,14 @@ pipelines:
           config:
             path: "{TEMP_DIR}/out.csv*"
             include_filename: true
-        - type: Map
+        - type: MapToFields
           name: Check Filename
           config:
-            expression: |
-              lambda row: {
-                'label': row.label,
-                'rank': row.rank,
-                'filename_ok': row.filename.startswith(f'{TEMP_DIR}/out.csv')
-              }
+            language: python
+            fields:
+              label: label
+              rank: rank
+              filename_ok: filename.startswith(f'{TEMP_DIR}/out.csv')
         - type: AssertEqual
           config:
             elements:
