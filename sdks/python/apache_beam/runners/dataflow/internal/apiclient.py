@@ -83,6 +83,8 @@ _LEGACY_ENVIRONMENT_MAJOR_VERSION = '8'
 _FNAPI_ENVIRONMENT_MAJOR_VERSION = '8'
 
 _LOGGER = logging.getLogger(__name__)
+# Fix issue: https://github.com/apache/beam/issues/35013
+_LOGGER.setLevel(logging.INFO)
 
 _PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW = ['3.9', '3.10', '3.11', '3.12', '3.13']
 
