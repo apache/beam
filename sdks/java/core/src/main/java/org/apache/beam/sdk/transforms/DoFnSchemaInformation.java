@@ -224,7 +224,7 @@ public abstract class DoFnSchemaInformation implements Serializable {
       this.rowSelector = new RowSelectorContainer(inputSchema, selectDescriptor, true);
     }
 
-    public static <InputT, OutputT> UnboxingConversionFunction of(
+    public static <InputT> UnboxingConversionFunction of(
         Schema inputSchema,
         SerializableFunction<InputT, Row> toRowFunction,
         FieldAccessDescriptor selectDescriptor,

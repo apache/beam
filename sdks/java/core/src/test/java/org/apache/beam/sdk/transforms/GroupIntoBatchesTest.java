@@ -82,9 +82,9 @@ public class GroupIntoBatchesTest implements Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(GroupIntoBatchesTest.class);
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
   @Rule public transient Timeout globalTimeout = Timeout.seconds(1200);
-  private transient ArrayList<KV<String, String>> data = createTestData(EVEN_NUM_ELEMENTS);
+  private transient List<KV<String, String>> data = createTestData(EVEN_NUM_ELEMENTS);
 
-  private static ArrayList<KV<String, String>> createTestData(long numElements) {
+  private static List<KV<String, String>> createTestData(long numElements) {
     String[] scientists = {
       "Einstein",
       "Darwin",

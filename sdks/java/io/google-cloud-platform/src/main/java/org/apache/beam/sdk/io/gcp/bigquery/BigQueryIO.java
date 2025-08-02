@@ -551,7 +551,8 @@ import org.slf4j.LoggerFactory;
  * using {@link Write#withPrimaryKey}.
  */
 @SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20506)
+  "nullness", // TODO(https://github.com/apache/beam/issues/20506),
+  "SameNameButDifferent"
 })
 public class BigQueryIO {
 

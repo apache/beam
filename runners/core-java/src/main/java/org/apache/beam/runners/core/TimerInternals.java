@@ -222,12 +222,7 @@ public interface TimerInternals {
      */
     public static TimerData of(
         StateNamespace namespace, Instant timestamp, Instant outputTimestamp, TimeDomain domain) {
-      String timerId =
-          new StringBuilder()
-              .append(domain.ordinal())
-              .append(':')
-              .append(timestamp.getMillis())
-              .toString();
+      String timerId = String.valueOf(domain.ordinal()) + ':' + timestamp.getMillis();
       return of(timerId, namespace, timestamp, outputTimestamp, domain);
     }
 
