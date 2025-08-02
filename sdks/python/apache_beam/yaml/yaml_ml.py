@@ -22,6 +22,7 @@ from collections.abc import Callable
 from importlib import import_module
 from typing import Any
 from typing import Optional
+from apache_beam.typehints.schemas import named_fields_from_element_type
 
 import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
@@ -275,11 +276,6 @@ class VertexAIModelHandlerJSONProvider(ModelHandlerProvider):
                                           ('model_id', Optional[str])])
 
 
-def get_user_schema_fields(user_type):
-  return [(name, type(typ) if not isinstance(typ, type) else typ)
-          for (name, typ) in user_type._fields] if user_type else []
-
-
 @beam.ptransform.ptransform_fn
 def run_inference(
     pcoll,
@@ -472,9 +468,8 @@ def run_inference(
 
   model_handler_provider = ModelHandlerProvider.create_handler(model_handler)
   model_handler_provider.validate(model_handler['config'])
-  user_type = RowTypeConstraint.from_user_type(pcoll.element_type.user_type)
   schema = RowTypeConstraint.from_fields(
-      get_user_schema_fields(user_type) +
+      named_fields_from_element_type(pcoll.element_type) +
       [(str(inference_tag), model_handler_provider.inference_output_type())])
 
   return (
@@ -514,10 +509,35 @@ def ml_transform(
   options.YamlOptions.check_enabled(pcoll.pipeline, 'ML')
   # TODO(robertwb): Perhaps _config_to_obj could be pushed into MLTransform
   # itself for better cross-language support?
-  return pcoll | MLTransform(
+  result = pcoll | MLTransform(
       write_artifact_location=write_artifact_location,
       read_artifact_location=read_artifact_location,
       transforms=[_config_to_obj(t) for t in transforms] if transforms else [])
+
+  if transforms and any(t.get('type') == 'SentenceTransformerEmbeddings'
+                        for t in transforms):
+    from apache_beam.typehints import List
+    try:
+      if pcoll.element_type:
+        new_fields = named_fields_from_element_type(pcoll.element_type)
+        columns_to_change = set()
+        for t_spec in transforms:
+          if t_spec.get('type') == 'SentenceTransformerEmbeddings':
+            columns_to_change.update(
+                t_spec.get('config', {}).get('columns', []))
+
+        final_fields = []
+        for name, typ in new_fields:
+          if name in columns_to_change:
+            final_fields.append((name, List[float]))
+          else:
+            final_fields.append((name, typ))
+        output_schema = RowTypeConstraint.from_fields(final_fields)
+        return result | beam.Map(lambda x: x).with_output_types(output_schema)
+    except TypeError:
+      # If we can't get a schema, just return the result.
+      pass
+  return result
 
 
 if tft is not None:
