@@ -44,7 +44,6 @@ QueryFn = Callable[[beam.Row], str]
 ConditionValueFn = Callable[[beam.Row], list[Any]]
 
 
-
 @dataclass
 class CustomQueryConfig:
   """Configuration for using a custom query function."""
@@ -74,8 +73,6 @@ class TableFieldsQueryConfig:
           "where_clause_fields")
 
 
-
-
 @dataclass
 class TableFunctionQueryConfig:
   """Configuration for using table name, where clause, and a value function."""
@@ -92,8 +89,6 @@ class TableFunctionQueryConfig:
     if not self.where_clause_value_fn:
       raise ValueError(
           "TableFunctionQueryConfig must provide " + "where_clause_value_fn")
-
-
 
 
 class DatabaseTypeAdapter(Enum):
@@ -374,7 +369,9 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
     return responses
 
   def _execute_query(
-      self, query: str, params: Optional[dict] = None,
+      self,
+      query: str,
+      params: Optional[dict] = None,
       is_batch: bool = False) -> Union[List[Dict[str, Any]], Dict[str, Any]]:
     connection = None
     try:
@@ -441,8 +438,7 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
     # Combine clauses and update query.
     where_clause_batched = ' OR '.join(where_clauses)
     return self.query_template.replace(
-        self._query_config.where_clause_template,
-        where_clause_batched)
+        self._query_config.where_clause_template, where_clause_batched)
 
   def _create_batch_clause(self, batch_index: int) -> str:
     """Create a WHERE clause for a single batch item with unique parameter
@@ -499,8 +495,10 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
     """
     if isinstance(self._query_config, TableFieldsQueryConfig):
       return {
-          field_name: val for field_name, val in zip(
-              self._query_config.where_clause_fields, values)}
+          field_name: val
+          for field_name, val in zip(
+              self._query_config.where_clause_fields, values)
+      }
     else:  # TableFunctionQueryConfig.
       _, param_dict = self._get_unique_template_and_params(
           self._query_config.where_clause_template, values)
@@ -535,13 +533,13 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
     for i in reversed(range(len(param_positions))):
       start, end, _ = param_positions[i]
       unique_name = unique_param_names[i]
-      updated_template = (updated_template[:start] +
-                         f':{unique_name}' +
-                         updated_template[end:])
+      updated_template = (
+          updated_template[:start] + f':{unique_name}' + updated_template[end:])
 
     # Build parameter dictionary.
     param_dict = {
-        unique_name: val for unique_name, val in zip(unique_param_names, values)
+        unique_name: val
+        for unique_name, val in zip(unique_param_names, values)
     }
 
     return updated_template, param_dict

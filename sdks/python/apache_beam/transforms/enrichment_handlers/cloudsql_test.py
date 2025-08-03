@@ -235,8 +235,7 @@ class TestCloudSQLEnrichment(unittest.TestCase):
         connection_config=connection_config, query_config=config)
 
     # Test simple parameter extraction.
-    self.assertEqual(
-        handler._extract_parameter_names("id = :id"), ["id"])
+    self.assertEqual(handler._extract_parameter_names("id = :id"), ["id"])
 
     # Test multiple parameters.
     self.assertEqual(
@@ -380,9 +379,10 @@ class TestCloudSQLEnrichment(unittest.TestCase):
     requests = [beam.Row(id=1, name="Alice"), beam.Row(id=2, name="Bob")]
 
     result = handler._build_batch_query(requests, batch_size=2)
-    expected = ("SELECT * FROM users WHERE "
-                "(id = :batch_0_id AND name = :batch_0_name) OR "
-                "(id = :batch_1_id AND name = :batch_1_name)")
+    expected = (
+        "SELECT * FROM users WHERE "
+        "(id = :batch_0_id AND name = :batch_0_name) OR "
+        "(id = :batch_1_id AND name = :batch_1_name)")
     self.assertEqual(result, expected)
 
   def test_build_parameters_dict_batch(self):
@@ -462,8 +462,7 @@ class TestCloudSQLEnrichment(unittest.TestCase):
         handler._extract_parameter_names("SELECT * FROM users"), [])
 
     # Test template with malformed parameters (should not match).
-    self.assertEqual(
-        handler._extract_parameter_names("id = :"), [])
+    self.assertEqual(handler._extract_parameter_names("id = :"), [])
 
     # Test template with numeric parameter names.
     self.assertEqual(
