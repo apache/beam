@@ -977,7 +977,7 @@ try:
       path: str,
       *,
       splittable: bool = True,
-      include_filename: bool = False,
+      filename_column: Optional[str] = None,
       **kwargs):
     """A PTransform for reading comma-separated values (csv) files into a
     PCollection.
@@ -990,8 +990,8 @@ try:
         This should be set to False if single records span multiple lines (e.g.
         a quoted field has a newline inside of it).  Setting this to false may
         disable liquid sharding.
-      include_filename (bool): Whether to include the source filename in each
-        record.
+      filename_column (str): If not None, the name of the column to add
+        to each record, containing the filename of the source file.
       **kwargs: Extra arguments passed to `pandas.read_csv` (see below).
     """
     from apache_beam.dataframe.io import ReadViaPandas
@@ -999,7 +999,7 @@ try:
         'csv',
         path,
         splittable=splittable,
-        include_filename=include_filename,
+        filename_column=filename_column,
         **kwargs)
 
   @append_pandas_args(

@@ -1775,7 +1775,8 @@ class CsvTest(unittest.TestCase):
       with TestPipeline() as p:
         pcoll = (
             p
-            | beam.io.ReadFromCsv(file_path + '*', include_filename=True)
+            | beam.io.ReadFromCsv(
+                file_path + '*', filename_column='source_filename')
             | beam.Map(lambda t: beam.Row(**dict(zip(type(t)._fields, t)))))
 
         # Get the sharded file name
@@ -1784,7 +1785,8 @@ class CsvTest(unittest.TestCase):
         sharded_file_path = files[0]
 
         expected = [
-            beam.Row(a=r.a, b=r.b, filename=sharded_file_path) for r in records
+            beam.Row(a=r.a, b=r.b, source_filename=sharded_file_path)
+            for r in records
         ]
         assert_that(pcoll, equal_to(expected))
 

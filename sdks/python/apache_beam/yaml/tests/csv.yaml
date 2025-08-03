@@ -52,7 +52,7 @@ pipelines:
         - type: ReadFromCsv
           config:
             path: "{TEMP_DIR}/out.csv*"
-            include_filename: true
+            filename_column: "source_file"
         - type: MapToFields
           name: Check Filename
           config:
@@ -60,7 +60,7 @@ pipelines:
             fields:
               label: label
               rank: rank
-              filename_ok: filename.startswith(f'{TEMP_DIR}/out.csv')
+              filename_ok: source_file.startswith(f'{TEMP_DIR}/out.csv')
         - type: AssertEqual
           config:
             elements:

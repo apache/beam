@@ -169,7 +169,7 @@
         path: 'path'
         delimiter: 'sep'
         comment: 'comment'
-        include_filename: 'include_filename'
+        filename_column: 'filename_column'
       'WriteToCsv':
         path: 'path'
         delimiter: 'sep'

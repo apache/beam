@@ -93,7 +93,7 @@ def read_csv(path, *args, splittable=False, binary=True, **kwargs):
   newlines may result in partial records and data corruption."""
   if 'nrows' in kwargs:
     raise ValueError('nrows not yet supported')
-  include_filename = kwargs.pop('include_filename', False)
+  filename_column = kwargs.pop('filename_column', None)
   return _ReadFromPandas(
       pd.read_csv,
       path,
@@ -102,7 +102,7 @@ def read_csv(path, *args, splittable=False, binary=True, **kwargs):
       incremental=True,
       binary=binary,
       splitter=_TextFileSplitter(args, kwargs) if splittable else None,
-      include_filename=include_filename)
+      filename_column=filename_column)
 
 
 def _as_pc(df, label=None):
@@ -257,7 +257,7 @@ class _ReadFromPandas(beam.PTransform):
       binary=True,
       incremental=False,
       splitter=False,
-      include_filename=False):
+      filename_column=None):
     if 'compression' in kwargs:
       raise NotImplementedError('compression')
     if not isinstance(path, str):
@@ -269,7 +269,7 @@ class _ReadFromPandas(beam.PTransform):
     self.binary = binary
     self.incremental = incremental
     self.splitter = splitter
-    self.include_filename = include_filename
+    self.filename_column = filename_column
 
   def expand(self, root):
     paths_pcoll = root | beam.Create([self.path])
@@ -289,8 +289,8 @@ class _ReadFromPandas(beam.PTransform):
           sample = next(stream)
       else:
         sample = self.reader(handle, *self.args, **self.kwargs)
-    if self.include_filename:
-      sample['filename'] = ''
+    if self.filename_column:
+      sample[self.filename_column] = ''
 
     matches_pcoll = paths_pcoll | fileio.MatchAll()
     indices_pcoll = (
@@ -316,7 +316,7 @@ class _ReadFromPandas(beam.PTransform):
                 self.binary,
                 self.incremental,
                 self.splitter,
-                self.include_filename),
+                self.filename_column),
             path_indices=beam.pvalue.AsSingleton(indices_pcoll)))
     from apache_beam.dataframe import convert
     return convert.to_dataframe(pcoll, proxy=sample[:0])
@@ -595,7 +595,7 @@ class _ReadFromPandasDoFn(beam.DoFn, beam.RestrictionProvider):
       binary,
       incremental,
       splitter,
-      include_filename=False):
+      filename_column=None):
     # avoid pickling issues
     if reader.__module__.startswith('pandas.'):
       reader = reader.__name__
@@ -605,7 +605,7 @@ class _ReadFromPandasDoFn(beam.DoFn, beam.RestrictionProvider):
     self.binary = binary
     self.incremental = incremental
     self.splitter = splitter
-    self.include_filename = include_filename
+    self.filename_column = filename_column
 
   def initial_restriction(self, readable_file):
     return beam.io.restriction_trackers.OffsetRange(
@@ -658,8 +658,8 @@ class _ReadFromPandasDoFn(beam.DoFn, beam.RestrictionProvider):
       else:
         frames = [reader(handle, *self.args, **self.kwargs)]
       for df in frames:
-        if self.include_filename:
-          df['filename'] = readable_file.metadata.path
+        if self.filename_column:
+          df[self.filename_column] = readable_file.metadata.path
         yield _shift_range_index(start_index, df)
       if not self.incremental:
         # Satisfy the SDF contract by claiming the whole range.
@@ -787,14 +787,15 @@ class ReadViaPandas(beam.PTransform):
       *args,
       include_indexes=False,
       objects_as_strings=True,
-      include_filename=False,
+      filename_column=None,
       **kwargs):
     if format == 'csv':
-      kwargs['include_filename'] = include_filename
+      kwargs['filename_column'] = filename_column
+    self._reader = globals()['read_%s' % format](*args, **kwargs)
     self._reader = globals()['read_%s' % format](*args, **kwargs)
     self._include_indexes = include_indexes
     self._objects_as_strings = objects_as_strings
-    self._include_filename = include_filename
+    self._filename_column = filename_column
 
   def expand(self, p):
     from apache_beam.dataframe import convert  # avoid circular import
