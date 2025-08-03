@@ -588,7 +588,7 @@ func (em *ElementManager) InputForBundle(rb RunBundle, info PColInfo) [][]byte {
 	return es.ToData(info)
 }
 
-// DataAndTimerInputForBundle returns pre-allocated data for the given bundle and the estimated number of elements.
+// DataAndTimerInputForBundle returns pre-allocated data for the given bundle and the estimated number of data elements.
 // Elements are encoded with the PCollection's coders.
 func (em *ElementManager) DataAndTimerInputForBundle(rb RunBundle, info PColInfo) ([]*Block, int) {
 	ss := em.stages[rb.StageID]
@@ -596,14 +596,16 @@ func (em *ElementManager) DataAndTimerInputForBundle(rb RunBundle, info PColInfo
 	defer ss.mu.Unlock()
 	es := ss.inprogress[rb.BundleID]
 
-	var total int
+	var total_data int
 
 	var ret []*Block
 	cur := &Block{}
 	for _, e := range es.es {
 		switch {
 		case e.IsTimer() && (cur.Kind != BlockTimer || e.family != cur.Family || cur.Transform != e.transform):
-			total += len(cur.Bytes)
+			if cur.Kind == BlockData {
+				total_data += len(cur.Bytes)
+			}
 			cur = &Block{
 				Kind:      BlockTimer,
 				Transform: e.transform,
@@ -631,7 +633,6 @@ func (em *ElementManager) DataAndTimerInputForBundle(rb RunBundle, info PColInfo
 
 			cur.Bytes = append(cur.Bytes, buf.Bytes())
 		case cur.Kind != BlockData:
-			total += len(cur.Bytes)
 			cur = &Block{
 				Kind: BlockData,
 			}
@@ -644,8 +645,10 @@ func (em *ElementManager) DataAndTimerInputForBundle(rb RunBundle, info PColInfo
 			cur.Bytes = append(cur.Bytes, buf.Bytes())
 		}
 	}
-	total += len(cur.Bytes)
-	return ret, total
+	if cur.Kind == BlockData {
+		total_data += len(cur.Bytes)
+	}
+	return ret, total_data
 }
 
 // BlockKind indicates how the block is to be handled.
