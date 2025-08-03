@@ -337,7 +337,7 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
       param_dict = self._build_single_param_dict(values)
       response = self._execute_query(
           self.query_template, params=param_dict, is_batch=False)
-    return request, beam.Row(**response)
+    return request, beam.Row(**response)  # type: ignore[arg-type]
 
   def _process_batch_request(self, requests: list[beam.Row]):
     """Process batch requests and match responses to original requests."""
@@ -362,7 +362,7 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
     result: Union[List[Dict[str, Any]], Dict[str, Any]] = self._execute_query(
         raw_query, params=param_dict, is_batch=True)
     for response in result:
-      response_row = beam.Row(**response)
+      response_row = beam.Row(**response)  # type: ignore[arg-type]
       response_key = self.create_row_key(response_row)
       if response_key in requests_map:
         responses.append((requests_map[response_key], response_row))
@@ -437,12 +437,17 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
 
     # Combine clauses and update query.
     where_clause_batched = ' OR '.join(where_clauses)
+    # We know this is a table-based config from the check above.
+    assert isinstance(self._query_config, table_query_configs)
     return self.query_template.replace(
         self._query_config.where_clause_template, where_clause_batched)
 
   def _create_batch_clause(self, batch_index: int) -> str:
     """Create a WHERE clause for a single batch item with unique parameter
     names."""
+    # This method is only called for table-based query configs
+    table_query_configs = (TableFieldsQueryConfig, TableFunctionQueryConfig)
+    assert isinstance(self._query_config, table_query_configs)
     clause = self._query_config.where_clause_template
 
     # Extract parameter names from the template using regex.
@@ -473,6 +478,9 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
       # For batched queries, use unique parameter names per batch item.
       if batch_size > 1:
         # Extract parameter names from the template using regex.
+        # Batching is only used with table-based query configs
+        table_query_configs = (TableFieldsQueryConfig, TableFunctionQueryConfig)
+        assert isinstance(self._query_config, table_query_configs)
         param_names = self._extract_parameter_names(
             self._query_config.where_clause_template)
         for param_name, val in zip(param_names, current_values):
@@ -500,6 +508,7 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
               self._query_config.where_clause_fields, values)
       }
     else:  # TableFunctionQueryConfig.
+      assert isinstance(self._query_config, TableFunctionQueryConfig)
       _, param_dict = self._get_unique_template_and_params(
           self._query_config.where_clause_template, values)
       return param_dict
