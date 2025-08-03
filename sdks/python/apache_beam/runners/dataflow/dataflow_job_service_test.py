@@ -65,8 +65,7 @@ class DirectPipelineTemplateTest(unittest.TestCase):
     port = job_servicer.start_grpc_server(0)
     try:
       template_path = (
-          'gs://apache-beam-testing-temp/test/template-{}'
-          .format(time.time()))
+          'gs://apache-beam-testing-temp/test/template-{}'.format(time.time()))
       options = PipelineOptions(
           runner='PortableRunner',
           job_endpoint=f'localhost:{port}',
