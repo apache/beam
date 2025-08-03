@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import re
 from abc import ABC
 from abc import abstractmethod
 from collections.abc import Callable
@@ -41,6 +42,7 @@ from apache_beam.transforms.enrichment import EnrichmentSourceHandler
 
 QueryFn = Callable[[beam.Row], str]
 ConditionValueFn = Callable[[beam.Row], list[Any]]
+
 
 
 @dataclass
@@ -72,6 +74,8 @@ class TableFieldsQueryConfig:
           "where_clause_fields")
 
 
+
+
 @dataclass
 class TableFunctionQueryConfig:
   """Configuration for using table name, where clause, and a value function."""
@@ -88,6 +92,8 @@ class TableFunctionQueryConfig:
     if not self.where_clause_value_fn:
       raise ValueError(
           "TableFunctionQueryConfig must provide " + "where_clause_value_fn")
+
+
 
 
 class DatabaseTypeAdapter(Enum):
@@ -203,18 +209,19 @@ class ExternalSQLDBConnectionConfig(ConnectionConfig):
       be properly closed by the caller when no longer needed.
       """
     if self.db_adapter == DatabaseTypeAdapter.POSTGRESQL:
-      sql_connector = lambda: pg8000.connect(
+      return lambda: pg8000.connect(
           host=self.host, port=self.port, database=self.db_id, user=self.user,
           password=self.password, **self.connect_kwargs)
     elif self.db_adapter == DatabaseTypeAdapter.MYSQL:
-      sql_connector = lambda: pymysql.connect(
+      return lambda: pymysql.connect(
           host=self.host, port=self.port, database=self.db_id, user=self.user,
           password=self.password, **self.connect_kwargs)
     elif self.db_adapter == DatabaseTypeAdapter.SQLSERVER:
-      sql_connector = lambda: pytds.connect(
+      return lambda: pytds.connect(
           dsn=self.host, port=self.port, database=self.db_id, user=self.user,
           password=self.password, **self.connect_kwargs)
-    return sql_connector
+    else:
+      raise ValueError(f"Unsupported database adapter: {self.db_adapter}")
 
   def get_db_url(self) -> str:
     return self.db_adapter.to_sqlalchemy_dialect() + "://"
@@ -264,7 +271,7 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
         instance_connection_uri="apache-beam-testing:us-central1:itests",
         user='postgres',
         password= os.getenv("CLOUDSQL_PG_PASSWORD"))
-      query_config=TableFieldsQueryConfig('my_table',"id = '{}'",['id']),
+      query_config=TableFieldsQueryConfig('my_table',"id = :param0",['id']),
       cloudsql_handler = CloudSQLEnrichmentHandler(
         connection_config=connection_config,
         query_config=query_config,
@@ -316,15 +323,68 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
     self._engine = create_engine(
         url=self._connection_config.get_db_url(), creator=connector)
 
+  def __call__(
+      self, request: Union[beam.Row, list[beam.Row]], *_args, **_kwargs):
+    """Handle requests by delegating to single or batch processing."""
+    if isinstance(request, list):
+      return self._process_batch_request(request)
+    else:
+      return self._process_single_request(request)
+
+  def _process_single_request(self, request: beam.Row):
+    """Process a single request and return with its response."""
+    response: Union[List[Dict[str, Any]], Dict[str, Any]]
+    if isinstance(self._query_config, CustomQueryConfig):
+      query = self._query_config.query_fn(request)
+      response = self._execute_query(query, is_batch=False)
+    else:
+      values = self._extract_values_from_request(request)
+      param_dict = self._build_single_param_dict(values)
+      response = self._execute_query(
+          self.query_template, params=param_dict, is_batch=False)
+    return request, beam.Row(**response)
+
+  def _process_batch_request(self, requests: list[beam.Row]):
+    """Process batch requests and match responses to original requests."""
+    values, responses = [], []
+    requests_map: dict[Any, Any] = {}
+    batch_size = len(requests)
+
+    # Build the appropriate query (single or batched).
+    raw_query = self._build_batch_query(requests, batch_size)
+
+    # Extract where_clause_fields values and map the generated request key to
+    # the original request object..
+    for req in requests:
+      current_values = self._extract_values_from_request(req)
+      values.extend(current_values)
+      requests_map[self.create_row_key(req)] = req
+
+    # Build named parameters dictionary for parameterized query.
+    param_dict = self._build_parameters_dict(requests, batch_size)
+
+    # Execute the parameterized query with validated parameters.
+    result: Union[List[Dict[str, Any]], Dict[str, Any]] = self._execute_query(
+        raw_query, params=param_dict, is_batch=True)
+    for response in result:
+      response_row = beam.Row(**response)
+      response_key = self.create_row_key(response_row)
+      if response_key in requests_map:
+        responses.append((requests_map[response_key], response_row))
+    return responses
+
   def _execute_query(
-      self, query: str,
-      is_batch: bool) -> Union[List[Dict[str, Any]], Dict[str, Any]]:
+      self, query: str, params: Optional[dict] = None,
+      is_batch: bool = False) -> Union[List[Dict[str, Any]], Dict[str, Any]]:
     connection = None
     try:
       connection = self._engine.connect()
       transaction = connection.begin()
       try:
-        result = connection.execute(text(query))
+        if params:
+          result = connection.execute(text(query), params)
+        else:
+          result = connection.execute(text(query))
         # Materialize results while transaction is active.
         data: Union[List[Dict[str, Any]], Dict[str, Any]]
         if is_batch:
@@ -346,83 +406,186 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
       if connection:
         connection.close()
 
-  def __call__(self, request: Union[beam.Row, list[beam.Row]], *args, **kwargs):
-    """Handle requests by delegating to single or batch processing."""
-    if isinstance(request, list):
-      return self._process_batch_request(request)
-    else:
-      return self._process_single_request(request)
+  def _build_batch_query(
+      self, requests: list[beam.Row], batch_size: int) -> str:
+    """Build batched query with unique parameter names for multiple requests.
 
-  def _process_batch_request(self, requests: list[beam.Row]):
-    """Process batch requests and match responses to original requests."""
-    values, responses = [], []
-    requests_map: dict[Any, Any] = {}
-    batch_size = len(requests)
-    raw_query = self.query_template
+    This method extracts parameter placeholders from the where_clause_template
+    using regex and creates unique parameter names for each batch item. The
+    parameter names in the template can be any valid identifiers (e.g., :id,
+    :param_0, :user_name) and don't need to match field names exactly.
 
-    # For multiple requests in the batch, combine the WHERE clause conditions
-    # using 'OR' and update the query template to handle all requests.
+    For batch queries, placeholders are replaced with unique names like
+    :batch_0_id, :batch_1_param_0, etc., based on the actual parameter names
+    found in the template.
+
+    Args:
+      requests: List of beam.Row requests to process
+      batch_size: Number of requests in the batch
+
+    Returns:
+      SQL query string with batched WHERE clauses using unique parameter names
+    """
+    # Single request - return original query.
+    if batch_size <= 1:
+      return self.query_template
+
+    # Only batch table-based query configs.
     table_query_configs = (TableFieldsQueryConfig, TableFunctionQueryConfig)
-    if batch_size > 1 and isinstance(self._query_config, table_query_configs):
-      where_clause_template_batched = ' OR '.join(
-          [fr'({self._query_config.where_clause_template})'] * batch_size)
-      raw_query = self.query_template.replace(
-          self._query_config.where_clause_template,
-          where_clause_template_batched)
+    if not isinstance(self._query_config, table_query_configs):
+      return self.query_template
 
-    # Extract where_clause_fields values and map the generated request key to
-    # the original request object.
-    for req in requests:
-      request_dict = req._asdict()
-      try:
-        if isinstance(self._query_config, TableFunctionQueryConfig):
-          current_values = self._query_config.where_clause_value_fn(req)
-        elif isinstance(self._query_config, TableFieldsQueryConfig):
-          current_values = [
-              request_dict[field]
-              for field in self._query_config.where_clause_fields
-          ]
-      except KeyError as e:
-        raise KeyError(
-            "Make sure the values passed in `where_clause_fields` are "
-            " thekeys in the input `beam.Row`." + str(e))
-      values.extend(current_values)
-      requests_map[self.create_row_key(req)] = req
+    # Build batched WHERE clauses.
+    where_clauses = [self._create_batch_clause(i) for i in range(batch_size)]
 
-    # Formulate the query, execute it, and return a list of original requests
-    # paired with their responses.
-    query = raw_query.format(*values)
-    result: Union[List[Dict[str, Any]], Dict[str, Any]] = self._execute_query(
-        query, is_batch=True)
-    for response in result:
-      response_row = beam.Row(**response)
-      response_key = self.create_row_key(response_row)
-      if response_key in requests_map:
-        responses.append((requests_map[response_key], response_row))
-    return responses
+    # Combine clauses and update query.
+    where_clause_batched = ' OR '.join(where_clauses)
+    return self.query_template.replace(
+        self._query_config.where_clause_template,
+        where_clause_batched)
 
-  def _process_single_request(self, request: beam.Row):
-    """Process a single request and return with its response."""
-    request_dict = request._asdict()
-    if isinstance(self._query_config, CustomQueryConfig):
-      query = self._query_config.query_fn(request)
-    else:
-      try:
-        if isinstance(self._query_config, TableFunctionQueryConfig):
-          values = self._query_config.where_clause_value_fn(request)
-        elif isinstance(self._query_config, TableFieldsQueryConfig):
-          values = [
-              request_dict[field]
-              for field in self._query_config.where_clause_fields
-          ]
-      except KeyError as e:
-        raise KeyError(
-            "Make sure the values passed in `where_clause_fields` are "
-            "the keys in the input `beam.Row`." + str(e))
-      query = self.query_template.format(*values)
-    response: Union[List[Dict[str, Any]], Dict[str, Any]] = self._execute_query(
-        query, is_batch=False)
-    return request, beam.Row(**response)
+  def _create_batch_clause(self, batch_index: int) -> str:
+    """Create a WHERE clause for a single batch item with unique parameter
+    names."""
+    clause = self._query_config.where_clause_template
+
+    # Extract parameter names from the template using regex.
+    param_names = self._extract_parameter_names(
+        self._query_config.where_clause_template)
+    for param_name in param_names:
+      old_param = f':{param_name}'
+      new_param = f':batch_{batch_index}_{param_name}'
+      clause = clause.replace(old_param, new_param)
+
+    return f'({clause})'
+
+  def _build_parameters_dict(
+      self, requests: list[beam.Row], batch_size: int) -> dict:
+    """Build named parameters dictionary for parameterized queries.
+
+    Args:
+      requests: List of beam.Row requests to process
+      batch_size: Number of requests in the batch
+
+    Returns:
+      Dictionary mapping parameter names to validated values
+    """
+    param_dict = {}
+    for i, req in enumerate(requests):
+      current_values = self._extract_values_from_request(req)
+
+      # For batched queries, use unique parameter names per batch item.
+      if batch_size > 1:
+        # Extract parameter names from the template using regex.
+        param_names = self._extract_parameter_names(
+            self._query_config.where_clause_template)
+        for param_name, val in zip(param_names, current_values):
+          param_dict[f'batch_{i}_{param_name}'] = val
+      else:
+        # For single request, use the helper function.
+        single_param_dict = self._build_single_param_dict(current_values)
+        param_dict.update(single_param_dict)
+
+    return param_dict
+
+  def _build_single_param_dict(self, values: list[Any]) -> dict[str, Any]:
+    """Build parameter dictionary for single request processing.
+
+    Args:
+      values: List of parameter values
+
+    Returns:
+      Dictionary mapping parameter names to values
+    """
+    if isinstance(self._query_config, TableFieldsQueryConfig):
+      return {
+          field_name: val for field_name, val in zip(
+              self._query_config.where_clause_fields, values)}
+    else:  # TableFunctionQueryConfig.
+      _, param_dict = self._get_unique_template_and_params(
+          self._query_config.where_clause_template, values)
+      return param_dict
+
+  def _get_unique_template_and_params(
+      self, template: str, values: list[Any]) -> tuple[str, dict[str, Any]]:
+    """Generate unique binding parameter names for duplicate templates.
+
+    Args:
+      template: SQL template with potentially duplicate binding parameter names
+      values: List of parameter values
+
+    Returns:
+      Tuple of (updated_template, param_dict) with unique binding names.
+    """
+    param_names = self._extract_parameter_names(template)
+    unique_param_names = [
+        f"{param_name}_{i}" if param_names.count(param_name) > 1 else param_name
+        for i, param_name in enumerate(param_names)
+    ]
+
+    # Update template by replacing each parameter occurrence in order.
+    updated_template = template
+    param_positions = []
+
+    # Find all parameter positions.
+    for match in re.finditer(r':(\w+)', template):
+      param_positions.append((match.start(), match.end(), match.group(1)))
+
+    # Replace parameters from right to left to avoid position shifts.
+    for i in reversed(range(len(param_positions))):
+      start, end, _ = param_positions[i]
+      unique_name = unique_param_names[i]
+      updated_template = (updated_template[:start] +
+                         f':{unique_name}' +
+                         updated_template[end:])
+
+    # Build parameter dictionary.
+    param_dict = {
+        unique_name: val for unique_name, val in zip(unique_param_names, values)
+    }
+
+    return updated_template, param_dict
+
+  def _extract_values_from_request(self, request: beam.Row) -> list[Any]:
+    """Extract parameter values from a request based on query configuration.
+
+    Args:
+      request: The beam.Row request to extract values from
+
+    Returns:
+      List of parameter values
+
+    Raises:
+      KeyError: If required fields are missing from the request
+    """
+    try:
+      if isinstance(self._query_config, TableFunctionQueryConfig):
+        return [
+            val for val in self._query_config.where_clause_value_fn(request)
+        ]
+      elif isinstance(self._query_config, TableFieldsQueryConfig):
+        request_dict = request._asdict()
+        return [
+            request_dict[field]
+            for field in self._query_config.where_clause_fields
+        ]
+      else:
+        raise ValueError("Unsupported query configuration type")
+    except KeyError as e:
+      raise KeyError(
+          "Make sure the values passed in `where_clause_fields` are "
+          "the keys in the input `beam.Row`." + str(e))
+
+  def _extract_parameter_names(self, template: str) -> list[str]:
+    """Extract parameter names from a SQL template string.
+
+    Args:
+      template: SQL template string with named parameters (e.g., "id = :id")
+
+    Returns:
+      List of parameter names found in the template (e.g., ["id"])
+    """
+    return re.findall(r':(\w+)', template)
 
   def create_row_key(self, row: beam.Row):
     if isinstance(self._query_config, TableFunctionQueryConfig):
@@ -435,10 +598,6 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
               for where_clause_field in self._query_config.where_clause_fields))
     raise ValueError(
         "Either where_clause_fields or where_clause_value_fn must be specified")
-
-  def __exit__(self, exc_type, exc_val, exc_tb):
-    self._engine.dispose(close=True)
-    self._engine = None
 
   def get_cache_key(self, request: Union[beam.Row, list[beam.Row]]):
     if isinstance(self._query_config, CustomQueryConfig):
@@ -471,7 +630,7 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
       try:
         if isinstance(self._query_config, TableFunctionQueryConfig):
           current_values = self._query_config.where_clause_value_fn(request)
-        else:  # TableFieldsQueryConfig
+        else:  # TableFieldsQueryConfig.
           current_values = [
               req_dict[field]
               for field in self._query_config.where_clause_fields
@@ -483,6 +642,10 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
             "Make sure the values passed in `where_clause_fields` are the "
             "keys in the input `beam.Row`." + str(e))
       return cache_key
+
+  def __exit__(self, _exc_type, _exc_val, _exc_tb):
+    self._engine.dispose(close=True)
+    self._engine = None
 
   def batch_elements_kwargs(self) -> Mapping[str, Any]:
     """Returns a kwargs suitable for `beam.BatchElements`."""

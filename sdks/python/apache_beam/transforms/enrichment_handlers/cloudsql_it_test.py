@@ -320,7 +320,7 @@ class BaseTestSQLEnrichment(unittest.TestCase):
 
     query_config = TableFieldsQueryConfig(
         table_id=self._table_id,
-        where_clause_template="id = {}",
+        where_clause_template="id = :id",
         where_clause_fields=fields)
 
     handler = CloudSQLEnrichmentHandler(
@@ -348,7 +348,7 @@ class BaseTestSQLEnrichment(unittest.TestCase):
 
     query_config = TableFieldsQueryConfig(
         table_id=self._table_id,
-        where_clause_template="id = {}",
+        where_clause_template="id = :id",
         where_clause_fields=fields)
 
     handler = CloudSQLEnrichmentHandler(
@@ -375,7 +375,7 @@ class BaseTestSQLEnrichment(unittest.TestCase):
 
     query_config = TableFieldsQueryConfig(
         table_id=self._table_id,
-        where_clause_template="id = {} AND distribution_center_id = {}",
+        where_clause_template="id = :id AND distribution_center_id = :param_1",
         where_clause_fields=fields)
 
     handler = CloudSQLEnrichmentHandler(
@@ -421,7 +421,7 @@ class BaseTestSQLEnrichment(unittest.TestCase):
 
     query_config = TableFunctionQueryConfig(
         table_id=self._table_id,
-        where_clause_template="id = {}",
+        where_clause_template="id = :param_0",
         where_clause_value_fn=where_clause_value_fn)
 
     handler = CloudSQLEnrichmentHandler(
@@ -442,7 +442,7 @@ class BaseTestSQLEnrichment(unittest.TestCase):
 
     query_config = TableFunctionQueryConfig(
         table_id=self._table_id,
-        where_clause_template="id = {}",
+        where_clause_template="id = :id",
         where_clause_value_fn=where_clause_value_fn)
 
     handler = CloudSQLEnrichmentHandler(
@@ -473,7 +473,7 @@ class BaseTestSQLEnrichment(unittest.TestCase):
 
     query_config = TableFunctionQueryConfig(
         table_id=self._table_id,
-        where_clause_template="id = {}",
+        where_clause_template="id = :param_0",
         where_clause_value_fn=where_clause_value_fn)
 
     handler = CloudSQLEnrichmentHandler(
