@@ -450,7 +450,7 @@ if __name__ == '__main__':
               'oracledb>=3.1.1'
           ],
           'gcp': [
-              'cachetools>=3.1.0,<6',
+              'cachetools>=3.1.0,<7',
               'google-api-core>=2.0.0,<3',
               'google-apitools>=0.5.31,<0.5.32; python_version <= "3.12"',
               'google-apitools>=0.5.32,<0.5.33; python_version >= "3.13"',
