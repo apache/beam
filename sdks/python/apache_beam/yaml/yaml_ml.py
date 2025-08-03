@@ -22,13 +22,13 @@ from collections.abc import Callable
 from importlib import import_module
 from typing import Any
 from typing import Optional
-from apache_beam.typehints.schemas import named_fields_from_element_type
 
 import apache_beam as beam
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.ml.inference import RunInference
 from apache_beam.ml.inference.base import KeyedModelHandler
 from apache_beam.typehints.row_type import RowTypeConstraint
+from apache_beam.typehints.schemas import named_fields_from_element_type
 from apache_beam.utils import python_callable
 from apache_beam.yaml import options
 from apache_beam.yaml.yaml_utils import SafeLineLoader
