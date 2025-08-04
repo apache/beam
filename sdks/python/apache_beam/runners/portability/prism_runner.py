@@ -111,6 +111,19 @@ def _rename_if_different(src, dst):
     os.rename(src, dst)
 
 
+def _get_prism_log_level(log_level: str) -> str:
+  """Returns a validated log level for Prism.
+
+  The accepted values are "debug", "info", "warn", and "error".
+  """
+  if log_level.lower() in ["debug", "info", "warn", "error"]:
+    return log_level.lower()
+
+  raise ValueError(
+      f'Unknown prism log level: "{log_level}". '
+      'Available values are "debug", "info", "warn", and "error".')
+
+
 class PrismJobServer(job_server.SubprocessJobServer):
   BIN_CACHE = os.path.expanduser("~/.apache_beam/cache/prism/bin")
 
@@ -129,6 +142,8 @@ class PrismJobServer(job_server.SubprocessJobServer):
 
     job_options = options.view_as(pipeline_options.JobServerOptions)
     self._job_port = job_options.job_port
+
+    self._log_level = _get_prism_log_level(prism_options.prism_log_level)
 
   # the method is only kept for testing and backward compatibility
   @classmethod
@@ -425,6 +440,8 @@ class PrismJobServer(job_server.SubprocessJobServer):
     return [
         '--job_port',
         job_port,
+        '--log_level',
+        self._log_level,
         '--serve_http',
         False,
     ]

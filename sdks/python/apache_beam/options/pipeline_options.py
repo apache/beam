@@ -226,7 +226,7 @@ class _CommaSeparatedListAction(argparse.Action):
   a list. This allows options like --experiments=abc,def to be treated
   as separate experiments 'abc' and 'def', similar to how Java SDK handles
   them.
-  
+
   If there are key=value experiments in a raw argument, the remaining part of
   the argument are treated as values and won't split further. For example:
   'abc,def,master_key=k1=v1,k2=v2' becomes
@@ -1942,6 +1942,12 @@ class PrismRunnerOptions(PipelineOptions):
         'downloading a zipped prism binary, for the current platform. If '
         'prism_location is set to a Github Release page URL, them it will use '
         'that release page as a base when constructing the download URL.')
+    parser.add_argument(
+        '--prism_log_level',
+        default="info",
+        help=(
+            'Controls the log level in Prism. Values can be "debug", "info", '
+            '"warn", and "error". Default log level is "info".'))
 
 
 class TestOptions(PipelineOptions):
