@@ -85,8 +85,7 @@ fi
 options=""
 test_paths=""
 
-# On Windows, convert backslashes to forward slashes to prevent `eval` from
-# misinterpreting them as escape characters. This is the only change needed.
+# On Windows, convert backslashes to forward slashes
 posargs=${posargs//\\//}
 
 # Safely split the posargs string into individual arguments.
