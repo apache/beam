@@ -24,11 +24,77 @@ from google.auth.transport.requests import Request
 from google.api_core import exceptions
 
 class ServiceAccountManager:
-    def __init__(self, project_id: str, logger: logging.Logger) -> None:
+    def __init__(self, project_id: str, logger: logging.Logger, max_retries: int = 3) -> None:
         self.project_id = project_id
         self.client = iam_admin_v1.IAMClient()
         self.logger = logger
+        self.max_retries = max_retries
         self.logger.info(f"Initialized ServiceAccountManager for project: {self.project_id}")
+
+    def _normalize_account_email(self, account_id: str) -> str:
+        """
+        Normalizes the account identifier to a full email format.
+        
+        Args:
+            account_id (str): The unique identifier or email of the service account.
+            
+        Returns:
+            str: The full service account email address.
+        """
+        # Handle both account ID and full email formats
+        if "@" in account_id and account_id.endswith(".iam.gserviceaccount.com"):
+            # account_id is already a full email
+            return account_id
+        else:
+            # account_id is just the account name
+            return f"{account_id}@{self.project_id}.iam.gserviceaccount.com"
+
+    def _get_service_accounts(self) -> List[iam_admin_v1.ServiceAccount]:
+        """
+        Retrieves all service accounts in the specified project.
+
+        Returns:
+            List[iam_admin_v1.ServiceAccount]: A list of service account objects.
+        """
+        request = types.ListServiceAccountsRequest()
+        request.name = f"projects/{self.project_id}"
+
+        accounts = self.client.list_service_accounts(request=request)
+        self.logger.debug(f"Listed service accounts: {[account.email for account in accounts.accounts]}")
+        return list(accounts.accounts)
+    
+    def _service_account_exists(self, account_id: str) -> bool:
+        """
+        Checks if a service account with the given account_id exists in the project.
+
+        Args:
+            account_id (str): The unique identifier or email of the service account.
+
+        Returns:
+            bool: True if the service account exists, False otherwise.
+        """
+        try:
+            self.get_service_account(account_id)
+            return True
+        except exceptions.NotFound:
+            return False
+        
+    def _service_account_is_enabled(self, account_id: str) -> bool:
+        """
+        Checks if a service account is enabled.
+
+        Args:
+            account_id (str): The unique identifier or email of the service account.
+
+        Returns:
+            bool: True if the service account is enabled, False otherwise.
+        """
+        try:
+            service_account = self.get_service_account(account_id)
+            return not service_account.disabled
+        except exceptions.NotFound:
+            self.logger.error(f"Service account {account_id} not found")
+            return False
 
     def create_service_account(self, account_id: str, display_name: Optional[str] = None) -> types.ServiceAccount:
         """
@@ -51,14 +117,22 @@ class ServiceAccountManager:
 
         try:
             account = self.client.create_service_account(request=request)
+
+            # Wait for the service account to be created
+            delay = 1
+            for _ in range(self.max_retries):
+                if self._service_account_exists(account_id):
+                    break
+                time.sleep(delay)
+                delay *= 2
+            else:
+                self.logger.error(f"Service account {account_id} creation timed out after {self.max_retries} retries.")
+                raise exceptions.DeadlineExceeded(f"Service account {account_id} creation timed out.")
+
             self.logger.info(f"Created service account: {account.email}")
             return account
         except exceptions.Conflict:
-            service_account_email = f"{account_id}@{self.project_id}.iam.gserviceaccount.com"
-            get_request = types.GetServiceAccountRequest()
-            get_request.name = f"projects/{self.project_id}/serviceAccounts/{service_account_email}"
-            
-            existing_account = self.client.get_service_account(request=get_request)
+            existing_account = self.get_service_account(account_id)
             self.logger.info(f"Service account already exists: {existing_account.email}")
             return existing_account
     
@@ -72,8 +146,10 @@ class ServiceAccountManager:
         Returns:
             types.ServiceAccount: The service account object.
         """
+        service_account_email = self._normalize_account_email(account_id)
+
         request = types.GetServiceAccountRequest()
-        request.name = f"projects/{self.project_id}/serviceAccounts/{account_id}"
+        request.name = f"projects/{self.project_id}/serviceAccounts/{service_account_email}"
 
         try:
             service_account = self.client.get_service_account(request=request)
@@ -83,56 +159,57 @@ class ServiceAccountManager:
             self.logger.error(f"Service account {account_id} not found")
             raise
     
-    def enable_service_account(self, account_id: str) -> types.ServiceAccount:
+    def enable_service_account(self, account_id: str) -> None:
         """
         Enables a service account in the specified project.
 
         Args:
             account_id (str): The unique identifier or email of the service account to enable.
-        
-        Returns:
-            types.ServiceAccount: The updated service account object.
         """
+        service_account_email = self._normalize_account_email(account_id)
         request = types.EnableServiceAccountRequest()
-        name = f"projects/{self.project_id}/serviceAccounts/{account_id}"
-        request.name = name
+        request.name = f"projects/{self.project_id}/serviceAccounts/{service_account_email}"
 
         self.client.enable_service_account(request=request)
-        time.sleep(5)
 
-        service_account = self.get_service_account(account_id)
-        if not service_account.disabled:
-            self.logger.info(f"Enabled service account: {account_id}")
+        # Wait for the service account to be enabled
+        delay = 1
+        for _ in range(self.max_retries):
+            if self._service_account_is_enabled(account_id):
+                break
+            time.sleep(delay)
+            delay *= 2
         else:
-            self.logger.warning(f"Failed to enable service account: {account_id}")
-        return service_account
+            self.logger.error(f"Service account {account_id} enabling timed out after {self.max_retries} retries.")
+            raise exceptions.DeadlineExceeded(f"Service account {account_id} enabling timed out.")
+        
+        self.logger.info(f"Enabled service account: {account_id}")
 
-    def disable_service_account(self, account_id: str) -> types.ServiceAccount:
+    def disable_service_account(self, account_id: str) -> None:
         """
         Disables a service account in the specified project.
 
         Args:
             account_id (str): The unique identifier or email of the service account to disable.
-        
-        Returns:
-            types.ServiceAccount: The updated service account object.
         """
+        service_account_email = self._normalize_account_email(account_id)
         request = types.DisableServiceAccountRequest()
-        name = f"projects/{self.project_id}/serviceAccounts/{account_id}"
-        request.name = name
+        request.name = f"projects/{self.project_id}/serviceAccounts/{service_account_email}"
 
         self.client.disable_service_account(request=request)
-        time.sleep(5)
 
-        get_request = types.GetServiceAccountRequest()
-        get_request.name = name
-
-        service_account = self.client.get_service_account(request=get_request)
-        if service_account.disabled:
-            self.logger.info(f"Disabled service account: {account_id}")
+        # Wait for the service account to be disabled
+        delay = 1
+        for _ in range(self.max_retries):
+            if not self._service_account_is_enabled(account_id):
+                break
+            time.sleep(delay)
+            delay *= 2
         else:
-            self.logger.warning(f"Failed to disable service account: {account_id}")
-        return service_account
+            self.logger.error(f"Service account {account_id} disabling timed out after {self.max_retries} retries.")
+            raise exceptions.DeadlineExceeded(f"Service account {account_id} disabling timed out.")
+        
+        self.logger.info(f"Disabled service account: {account_id}")
 
     def delete_service_account(self, account_id: str) -> None:
         """
@@ -141,26 +218,57 @@ class ServiceAccountManager:
         Args:
             account_id (str): The unique identifier or email of the service account to delete.
         """
+        service_account_email = self._normalize_account_email(account_id)
         request = types.DeleteServiceAccountRequest()
-        request.name = f"projects/{self.project_id}/serviceAccounts/{account_id}"
+        request.name = f"projects/{self.project_id}/serviceAccounts/{service_account_email}"
 
         self.client.delete_service_account(request=request)
+
+        # Wait for the service account to be deleted
+        delay = 1
+        for _ in range(self.max_retries):
+            if not self._service_account_exists(account_id):
+                break
+            time.sleep(delay)
+            delay *= 2
+        else:
+            self.logger.error(f"Service account {account_id} deletion timed out after {self.max_retries} retries.")
+            raise exceptions.DeadlineExceeded(f"Service account {account_id} deletion timed out.")
+
         self.logger.info(f"Deleted service account: {account_id}")
 
-    def list_service_accounts(self) -> List[iam_admin_v1.ServiceAccount]:
+    def _get_service_account_keys(self, account_id: str) -> List[iam_admin_v1.ServiceAccountKey]:
         """
-        Lists all service accounts in the specified project.
+        Retrieves all keys for the specified service account.
 
+        Args:
+            account_id (str): The unique identifier or email of the service account.
+        
         Returns:
-            List[iam_admin_v1.ServiceAccount]: A list of service account objects.
+            List[iam_admin_v1.ServiceAccountKey]: A list of service account key objects.
         """
-        request = types.ListServiceAccountsRequest()
-        request.name = f"projects/{self.project_id}"
+        service_account_email = self._normalize_account_email(account_id)
+        request = types.ListServiceAccountKeysRequest()
+        request.name = f"projects/{self.project_id}/serviceAccounts/{service_account_email}"
 
-        accounts = self.client.list_service_accounts(request=request)
-        self.logger.info(f"Listed service accounts: {[account.email for account in accounts.accounts]}")
-        return list(accounts.accounts)
+        response = self.client.list_service_account_keys(request=request)
+        self.logger.debug(f"Listed keys for service account: {account_id}")
+        return list(response.keys)
+    
+    def _service_account_key_exists(self, account_id: str, key_id: str) -> bool:
+        """
+        Checks if a service account key exists for the specified service account.
 
+        Args:
+            account_id (str): The unique identifier or email of the service account.
+            key_id (str): The ID of the service account key to check.
+        
+        Returns:
+            bool: True if the key exists, False otherwise.
+        """
+        keys = self._get_service_account_keys(account_id)
+        return any(key.name.endswith(key_id) for key in keys)
+    
     def create_service_account_key(self, account_id: str) -> types.ServiceAccountKey:
         """
         Creates a key for the specified service account.
@@ -174,8 +282,9 @@ class ServiceAccountManager:
             types.ServiceAccountKey: The created service account key object.
             str: The private key ID of the created key.
         """
+        service_account_email = self._normalize_account_email(account_id)
         get_request = types.GetServiceAccountRequest()
-        get_request.name = f"projects/{self.project_id}/serviceAccounts/{account_id}"
+        get_request.name = f"projects/{self.project_id}/serviceAccounts/{service_account_email}"
         
         try:
             service_account = self.client.get_service_account(request=get_request)
@@ -187,9 +296,21 @@ class ServiceAccountManager:
             raise
 
         request = types.CreateServiceAccountKeyRequest()
-        request.name = f"projects/{self.project_id}/serviceAccounts/{account_id}"
+        request.name = f"projects/{self.project_id}/serviceAccounts/{service_account_email}"
 
         key = self.client.create_service_account_key(request=request)
+
+        # Wait for the key to be created
+        delay = 1
+        for _ in range(self.max_retries):
+            if self._service_account_key_exists(account_id, key.name.split('/')[-1]):
+                break
+            time.sleep(delay)
+            delay *= 2
+        else:
+            self.logger.error(f"Service account key creation for {account_id} timed out after {self.max_retries} retries.")
+            raise exceptions.DeadlineExceeded(f"Service account key creation for {account_id} timed out.")
+
         self.logger.info(f"Created service account key for {account_id}")
         return key
     
@@ -205,12 +326,12 @@ class ServiceAccountManager:
             exceptions.NotFound: If the key does not exist.
             exceptions.FailedPrecondition: If the key cannot be deleted due to constraints.
         """
+        service_account_email = self._normalize_account_email(account_id)
         request = types.DeleteServiceAccountKeyRequest()
-        request.name = f"projects/{self.project_id}/serviceAccounts/{account_id}/keys/{key_id}"
+        request.name = f"projects/{self.project_id}/serviceAccounts/{service_account_email}/keys/{key_id}"
 
         try:
             self.client.delete_service_account_key(request=request)
-            self.logger.info(f"Deleted service account key: {key_id} for account: {account_id}")
         except exceptions.NotFound:
             self.logger.warning(f"Service account key {key_id} not found for account: {account_id} (may have been already deleted)")
             raise
@@ -220,6 +341,20 @@ class ServiceAccountManager:
         except Exception as e:
             self.logger.error(f"Unexpected error deleting service account key {key_id} for account: {account_id}. Error: {e}")
             raise
+
+        # Wait for the key to be deleted
+        delay = 1
+        for _ in range(self.max_retries):
+            if not self._service_account_key_exists(account_id, key_id):
+                break
+            time.sleep(delay)
+            delay *= 2
+        else:
+            self.logger.error(f"Service account key deletion for {account_id} timed out after {self.max_retries} retries.")
+            raise exceptions.DeadlineExceeded(f"Service account key deletion for {account_id} timed out.")
+
+        self.logger.info(f"Deleted service account key: {key_id} for account: {account_id}")
+
 
     def delete_oldest_service_account_keys(self, account_id: str, max_keys: int = 2) -> List[types.ServiceAccountKey]:
         """
@@ -233,7 +368,7 @@ class ServiceAccountManager:
         Returns:
             List[types.ServiceAccountKey]: A list of service account keys that were deleted.
         """
-        keys = self.list_service_account_keys(account_id)
+        keys = self._get_service_account_keys(account_id)
         if not keys:
             self.logger.info(f"No keys found for service account: {account_id}")
             return []
@@ -266,32 +401,14 @@ class ServiceAccountManager:
 
         return deleted_keys
 
-    def list_service_account_keys(self, account_id: str) -> List[iam_admin_v1.ServiceAccountKey]:
-        """
-        Lists all keys for the specified service account.
-
-        Args:
-            account_id (str): The unique identifier or email of the service account.
-        
-        Returns:
-            List[iam_admin_v1.ServiceAccountKey]: A list of service account key objects.
-        """
-        request = types.ListServiceAccountKeysRequest()
-        request.name = f"projects/{self.project_id}/serviceAccounts/{account_id}"
-
-        response = self.client.list_service_account_keys(request=request)
-        self.logger.info(f"Listed keys for service account: {account_id}")
-        return list(response.keys)
     
-    def test_service_account_key(self, key_data: bytes, max_retries: int = 5, initial_delay: float = 1.0) -> bool:
+    def test_service_account_key(self, key_data: bytes) -> bool:
         """
         Tests if a service account key is valid by attempting to authenticate and make an API call.
         Includes retry logic to handle key propagation delays.
 
         Args:
             key_data (bytes): The private key data from the service account key.
-            max_retries (int): Maximum number of retry attempts (default: 5).
-            initial_delay (float): Initial delay between retries in seconds (default: 1.0).
         
         Returns:
             bool: True if the key is valid and can authenticate, False otherwise.
@@ -301,8 +418,9 @@ class ServiceAccountManager:
         except json.JSONDecodeError as json_error:
             self.logger.error(f"Invalid JSON in service account key: {json_error}")
             return False
-        
-        for attempt in range(max_retries):
+
+        delay = 1
+        for attempt in range(self.max_retries):
             try:
                 credentials = service_account.Credentials.from_service_account_info(
                     key_info,
@@ -316,12 +434,12 @@ class ServiceAccountManager:
                 return True
                     
             except Exception as auth_error:
-                if attempt < max_retries - 1:  # Don't log on the last attempt
-                    delay = initial_delay * (2 ** attempt)  # Exponential backoff
+                if attempt < self.max_retries - 1:  # Don't log on the last attempt
+                    delay *= 2
                     self.logger.warning(f"Authentication attempt {attempt + 1} failed (will retry in {delay}s): {auth_error}")
                     time.sleep(delay)
                 else:
-                    self.logger.error(f"Authentication failed with service account key after {max_retries} attempts: {auth_error}")
+                    self.logger.error(f"Authentication failed with service account key after {self.max_retries} attempts: {auth_error}")
                     return False
         
         return False

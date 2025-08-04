@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import time
 import os
 import unittest
 from unittest import mock
@@ -73,7 +72,8 @@ class TestServiceAccountManagerUnit(unittest.TestCase):
         expected_account = self._create_mock_service_account(self.test_account_id)
         self.mock_iam_client.create_service_account.return_value = expected_account
 
-        result = self.manager.create_service_account(self.test_account_id, self.test_display_name)
+        with mock.patch.object(self.manager, '_service_account_exists', return_value=True):
+            result = self.manager.create_service_account(self.test_account_id, self.test_display_name)
 
         self.assertEqual(result, expected_account)
         self.mock_iam_client.create_service_account.assert_called_once()
@@ -102,35 +102,44 @@ class TestServiceAccountManagerUnit(unittest.TestCase):
     def test_enable_service_account(self):
         """Test enabling a service account."""
         enabled_account = self._create_mock_service_account(self.test_account_id, disabled=False)
-        self.mock_iam_client.get_service_account.return_value = enabled_account
+        
+        with mock.patch.object(self.manager, '_service_account_is_enabled', return_value=True):
+            self.manager.enable_service_account(self.test_account_id)
 
-        result = self.manager.enable_service_account(self.test_account_id)
-
-        self.assertEqual(result, enabled_account)
         self.mock_iam_client.enable_service_account.assert_called_once()
-        self.mock_iam_client.get_service_account.assert_called()
+        
+        # Verify the request structure
+        call_args = self.mock_iam_client.enable_service_account.call_args
+        request = call_args[1]['request']
+        expected_name = f"projects/{self.project_id}/serviceAccounts/{self.test_account_id}@{self.project_id}.iam.gserviceaccount.com"
+        self.assertEqual(request.name, expected_name)
 
     def test_disable_service_account(self):
         """Test disabling a service account."""
         disabled_account = self._create_mock_service_account(self.test_account_id, disabled=True)
-        self.mock_iam_client.get_service_account.return_value = disabled_account
+        
+        with mock.patch.object(self.manager, '_service_account_is_enabled', return_value=False):
+            self.manager.disable_service_account(self.test_account_id)
 
-        result = self.manager.disable_service_account(self.test_account_id)
-
-        self.assertEqual(result, disabled_account)
         self.mock_iam_client.disable_service_account.assert_called_once()
-        self.mock_iam_client.get_service_account.assert_called()
+        
+        # Verify the request structure
+        call_args = self.mock_iam_client.disable_service_account.call_args
+        request = call_args[1]['request']
+        expected_name = f"projects/{self.project_id}/serviceAccounts/{self.test_account_id}@{self.project_id}.iam.gserviceaccount.com"
+        self.assertEqual(request.name, expected_name)
 
     def test_delete_service_account(self):
         """Test deleting a service account."""
-        self.manager.delete_service_account(self.test_account_id)
+        with mock.patch.object(self.manager, '_service_account_exists', return_value=False):
+            self.manager.delete_service_account(self.test_account_id)
 
         self.mock_iam_client.delete_service_account.assert_called_once()
 
         # Verify the request structure
         call_args = self.mock_iam_client.delete_service_account.call_args
         request = call_args[1]['request']
-        expected_name = f"projects/{self.project_id}/serviceAccounts/{self.test_account_id}"
+        expected_name = f"projects/{self.project_id}/serviceAccounts/{self.test_account_id}@{self.project_id}.iam.gserviceaccount.com"
         self.assertEqual(request.name, expected_name)
 
     def test_list_service_accounts(self):
@@ -147,7 +156,7 @@ class TestServiceAccountManagerUnit(unittest.TestCase):
         mock_response.__iter__ = lambda self: iter(mock_accounts)
         self.mock_iam_client.list_service_accounts.return_value = mock_response
 
-        result = self.manager.list_service_accounts()
+        result = self.manager._get_service_accounts()
 
         self.assertEqual(result, mock_accounts)
         self.mock_iam_client.list_service_accounts.assert_called_once()
@@ -164,8 +173,9 @@ class TestServiceAccountManagerUnit(unittest.TestCase):
         
         self.mock_iam_client.get_service_account.return_value = enabled_account
         self.mock_iam_client.create_service_account_key.return_value = mock_key
-
-        result = self.manager.create_service_account_key(self.test_account_id)
+        
+        with mock.patch.object(self.manager, '_service_account_key_exists', return_value=True):
+            result = self.manager.create_service_account_key(self.test_account_id)
 
         self.assertEqual(result, mock_key)
         self.mock_iam_client.get_service_account.assert_called_once()
@@ -177,15 +187,17 @@ class TestServiceAccountManagerUnit(unittest.TestCase):
         enabled_account = self._create_mock_service_account(self.test_account_id, disabled=False)
         mock_key = self._create_mock_service_account_key(self.test_account_id)
         
-        # First call returns disabled account, second call in enable_service_account, third call in enable_service_account returns enabled account
-        self.mock_iam_client.get_service_account.side_effect = [disabled_account, enabled_account, enabled_account]
+        # First call returns disabled account, then we mock the enable flow
+        self.mock_iam_client.get_service_account.return_value = disabled_account
         self.mock_iam_client.create_service_account_key.return_value = mock_key
 
-        result = self.manager.create_service_account_key(self.test_account_id)
+        with mock.patch.object(self.manager, '_service_account_is_enabled', return_value=True), \
+             mock.patch.object(self.manager, '_service_account_key_exists', return_value=True):
+            result = self.manager.create_service_account_key(self.test_account_id)
 
         self.assertEqual(result, mock_key)
-        # Should call get_service_account twice: once to check if it's disabled, and once after enabling it
-        self.assertEqual(self.mock_iam_client.get_service_account.call_count, 2)
+        # Should call get_service_account once to check if it's disabled
+        self.mock_iam_client.get_service_account.assert_called_once()
         self.mock_iam_client.enable_service_account.assert_called_once()
         self.mock_iam_client.create_service_account_key.assert_called_once()
 
@@ -200,7 +212,8 @@ class TestServiceAccountManagerUnit(unittest.TestCase):
         """Test deleting a service account key."""
         key_id = "test-key-id"
         
-        self.manager.delete_service_account_key(self.test_account_id, key_id)
+        with mock.patch.object(self.manager, '_service_account_key_exists', return_value=False):
+            self.manager.delete_service_account_key(self.test_account_id, key_id)
 
         self.mock_iam_client.delete_service_account_key.assert_called_once()
 
@@ -215,7 +228,7 @@ class TestServiceAccountManagerUnit(unittest.TestCase):
         mock_response.keys = mock_keys
         self.mock_iam_client.list_service_account_keys.return_value = mock_response
 
-        result = self.manager.list_service_account_keys(self.test_account_id)
+        result = self.manager._get_service_account_keys(self.test_account_id)
 
         self.assertEqual(result, mock_keys)
         self.mock_iam_client.list_service_account_keys.assert_called_once()
@@ -258,6 +271,59 @@ class TestServiceAccountManagerUnit(unittest.TestCase):
 
         self.assertFalse(result)
 
+    def test_create_service_account_timeout(self):
+        """Test service account creation timeout scenario."""
+        expected_account = self._create_mock_service_account(self.test_account_id)
+        self.mock_iam_client.create_service_account.return_value = expected_account
+
+        # Mock the helper method to always return False (service account never exists)
+        with mock.patch.object(self.manager, '_service_account_exists', return_value=False):
+            with self.assertRaises(exceptions.DeadlineExceeded):
+                self.manager.create_service_account(self.test_account_id, self.test_display_name)
+
+    def test_enable_service_account_timeout(self):
+        """Test service account enabling timeout scenario."""
+        # Mock the helper method to always return False (service account never gets enabled)
+        with mock.patch.object(self.manager, '_service_account_is_enabled', return_value=False):
+            with self.assertRaises(exceptions.DeadlineExceeded):
+                self.manager.enable_service_account(self.test_account_id)
+
+    def test_disable_service_account_timeout(self):
+        """Test service account disabling timeout scenario."""
+        # Mock the helper method to always return True (service account never gets disabled)
+        with mock.patch.object(self.manager, '_service_account_is_enabled', return_value=True):
+            with self.assertRaises(exceptions.DeadlineExceeded):
+                self.manager.disable_service_account(self.test_account_id)
+
+    def test_delete_service_account_timeout(self):
+        """Test service account deletion timeout scenario."""
+        # Mock the helper method to always return True (service account never gets deleted)
+        with mock.patch.object(self.manager, '_service_account_exists', return_value=True):
+            with self.assertRaises(exceptions.DeadlineExceeded):
+                self.manager.delete_service_account(self.test_account_id)
+
+    def test_create_service_account_key_timeout(self):
+        """Test service account key creation timeout scenario."""
+        enabled_account = self._create_mock_service_account(self.test_account_id, disabled=False)
+        mock_key = self._create_mock_service_account_key(self.test_account_id)
+        
+        self.mock_iam_client.get_service_account.return_value = enabled_account
+        self.mock_iam_client.create_service_account_key.return_value = mock_key
+        
+        # Mock the helper method to always return False (key never gets created)
+        with mock.patch.object(self.manager, '_service_account_key_exists', return_value=False):
+            with self.assertRaises(exceptions.DeadlineExceeded):
+                self.manager.create_service_account_key(self.test_account_id)
+
+    def test_delete_service_account_key_timeout(self):
+        """Test service account key deletion timeout scenario."""
+        key_id = "test-key-id"
+        
+        # Mock the helper method to always return True (key never gets deleted)
+        with mock.patch.object(self.manager, '_service_account_key_exists', return_value=True):
+            with self.assertRaises(exceptions.DeadlineExceeded):
+                self.manager.delete_service_account_key(self.test_account_id, key_id)
+
 # Run these real tests just if the environment variables are set correctly
 # export GOOGLE_CLOUD_PROJECT = "your-project-id"
 
@@ -280,10 +346,16 @@ class TestServiceAccountManagerIntegration(unittest.TestCase):
     def tearDown(self):
         """Tear down test fixtures."""
         # Clean up any service accounts created during tests
-        accounts = self.manager.list_service_accounts()
-        for account in accounts:
-            if account.email.startswith("integration-test-account-"):
-                self.manager.delete_service_account(account.email)
+        try:
+            accounts = self.manager._get_service_accounts()
+            for account in accounts:
+                if account.email.startswith("integration-test-account-"):
+                    try:
+                        self.manager.delete_service_account(account.email)
+                    except Exception as e:
+                        self.logger.warning(f"Failed to delete service account {account.email}: {e}")
+        except Exception as e:
+            self.logger.warning(f"Failed to list service accounts during tearDown: {e}")
 
     def test_full_service_account_lifecycle(self):
         """Test creating and deleting a service account."""
@@ -292,15 +364,14 @@ class TestServiceAccountManagerIntegration(unittest.TestCase):
 
         # Create service account
         account = self.manager.create_service_account(account_id, display_name)
-        account_id = account.email
+        service_account_email = account.email
         self.assertEqual(account.display_name, display_name)
 
         # Verify service account exists - with delayed check
-        time.sleep(5)
-        self.assertIn(account.email, [a.email for a in self.manager.list_service_accounts()])
+        self.assertIn(service_account_email, [a.email for a in self.manager._get_service_accounts()])
 
         # Create a key for the service account
-        key = self.manager.create_service_account_key(account_id)
+        key = self.manager.create_service_account_key(service_account_email)
         self.assertIsNotNone(key.private_key_data)
 
         # Test the key (now includes retry logic for propagation delays)
@@ -308,24 +379,22 @@ class TestServiceAccountManagerIntegration(unittest.TestCase):
         self.assertTrue(key_valid)
 
         # List keys for the service account - with delayed check
-        time.sleep(3)  # Reduced delay since test_service_account_key has retry logic
-        self.assertIn(key.name, [k.name for k in self.manager.list_service_account_keys(account_id)])
+        self.assertIn(key.name, [k.name for k in self.manager._get_service_account_keys(service_account_email)])
 
         # Delete the service account key
-        self.manager.delete_service_account_key(account_id, key.name.split('/')[-1])
+        self.manager.delete_service_account_key(service_account_email, key.name.split('/')[-1])
 
         # Add multiple keys to the service account
         keys = []
         for _ in range(5):
-            key = self.manager.create_service_account_key(account_id)
+            key = self.manager.create_service_account_key(service_account_email)
             # Test the key (retry logic handles propagation delay)
             key_valid = self.manager.test_service_account_key(key.private_key_data)
             self.assertTrue(key_valid)
             keys.append(key)
 
         # Delete oldest keys
-        time.sleep(8)  # Allow some time for the keys to be ready
-        deleted_keys = self.manager.delete_oldest_service_account_keys(account_id, max_keys=2)
+        deleted_keys = self.manager.delete_oldest_service_account_keys(service_account_email, max_keys=2)
         self.assertIsNotNone(deleted_keys)
         self.assertEqual(len(deleted_keys), 3) # Should delete only the oldest keys
         # The first two keys should not be valid anymore
@@ -339,26 +408,25 @@ class TestServiceAccountManagerIntegration(unittest.TestCase):
             self.assertTrue(key_valid)
 
         # Disable the service account
-        self.manager.disable_service_account(account_id)
+        self.manager.disable_service_account(service_account_email)
 
         # Verify service account is disabled
-        account = self.manager.get_service_account(account_id)
+        account = self.manager.get_service_account(service_account_email)
         self.assertTrue(account.disabled)
 
         # Enable the service account
-        self.manager.enable_service_account(account_id)
+        self.manager.enable_service_account(service_account_email)
 
         # Verify service account is enabled
-        account = self.manager.get_service_account(account_id)
+        account = self.manager.get_service_account(service_account_email)
         self.assertFalse(account.disabled)
 
         # Delete the service account
-        self.manager.delete_service_account(account_id)
+        self.manager.delete_service_account(service_account_email)
 
-        # Verify service account is deleted
-        time.sleep(8)
-        accounts = self.manager.list_service_accounts()
-        self.assertNotIn(account, accounts)
+        # Verify service account is deleted - using get_service_account with exception handling
+        with self.assertRaises(exceptions.NotFound):
+            self.manager.get_service_account(service_account_email)
 
 if __name__ == '__main__':
     # Configure logging to reduce noise during testing
