@@ -25,6 +25,7 @@
 # $2 - additional arguments not parsed by tox (typically module names or
 #   '-k keyword')
 # $3 - optional arguments to pytest
+#!/bin/bash
 
 envname=${1?First argument required: suite base name}
 posargs=$2
@@ -83,6 +84,10 @@ fi
 # Parse posargs to separate pytest options from test paths.
 options=""
 test_paths=""
+
+# On Windows, convert backslashes to forward slashes to prevent `eval` from
+# misinterpreting them as escape characters. This is the only change needed.
+posargs=${posargs//\\//}
 
 # Safely split the posargs string into individual arguments.
 eval "set -- $posargs"
