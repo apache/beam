@@ -284,7 +284,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     table_id = '{}:{}.{}'.format(self.project, self.dataset_id, table)
 
     EXPECTED_DATA = [
-      # (int, float, numeric, string, bool, bytes, timestamp, timestamp)
+        # (int, float, numeric, string, bool, bytes, timestamp, timestamp)
         {
             "int": 1,
             "float": 0.1,
