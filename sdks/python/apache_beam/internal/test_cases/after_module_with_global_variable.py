@@ -21,6 +21,6 @@ GLOBAL_VARIABLE = lambda: 3
 
 
 def my_function():
-  a = 1
+  a = 1  # pylint: disable=unused-variable
   b = lambda: 2
   return b
