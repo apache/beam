@@ -17,7 +17,7 @@
 
 """Module for testing code path generation with functions.
 Counterpart to before_module_with_functions and is used as a test case
-for adding a lambda function.
+for adding a function.
 """
 
 def another_function():
