@@ -77,8 +77,6 @@ public class BigQueryManagedIT {
   private static final SerializableFunction<Long, Row> ROW_FUNC =
       l -> Row.withSchema(SCHEMA).addValue(Long.toString(l)).addValue(l).addValue(l % 3).build();
 
-  // .addValue(org.joda.time.Instant.parse("2025-07-29T03:15:03.241Z"))
-
   private static final List<Row> ROWS =
       LongStream.range(0, 20).mapToObj(ROW_FUNC::apply).collect(Collectors.toList());
 
@@ -134,7 +132,7 @@ public class BigQueryManagedIT {
     PAssert.that(outputRows).containsInAnyOrder(ROWS);
     readPipeline.run().waitUntilFinish();
 
-    // Asserting clustering
+    // Asserting clustering and time partitioning
     Table tableMetadata =
         BQ_CLIENT.getTableResource(PROJECT, BIG_QUERY_DATASET_ID, testName.getMethodName());
     Assert.assertEquals(CLUSTERING, tableMetadata.getClustering());
