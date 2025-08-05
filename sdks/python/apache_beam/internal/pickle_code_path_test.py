@@ -19,6 +19,7 @@
 
 import unittest
 
+# pylint: disable=unused-import
 from apache_beam.internal import code_object_pickler
 from apache_beam.internal.test_cases import after_module_add_function
 from apache_beam.internal.test_cases import after_module_add_lambda_variable
