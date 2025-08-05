@@ -19,6 +19,6 @@
 
 
 def my_function():
-  a = lambda: 1
+  a = lambda: 1  # pylint: disable=unused-variable
   b = lambda: 2
   return b
