@@ -133,10 +133,9 @@ test_cases = [
         (
             "apache_beam.internal.code_object_pickler_test"
             ".get_lambda_from_dictionary_same_args.__code__.co_consts"
-            "[<lambda>, ('x',), "
-            + hashlib.md5(
-                get_lambda_from_dictionary_same_args().__code__.co_code
-            ).hexdigest() + "]")),
+            "[<lambda>, ('x',), " + hashlib.md5(
+                get_lambda_from_dictionary_same_args().__code__.co_code).
+            hexdigest() + "]")),
     (
         function_with_lambda_default_argument(),
         (
@@ -181,7 +180,7 @@ test_cases = [
         (
             "apache_beam.internal.code_object_pickler_test"
             ".ClassWithNestedLambda.process.__code__.co_consts"
-            "[get_lambda_from_dictionary].co_consts""[<lambda>, ('x',)]")),
+            "[get_lambda_from_dictionary].co_consts[<lambda>, ('x',)]")),
     (
         ClassWithNestedLambda.process,
         "apache_beam.internal.code_object_pickler_test.ClassWithNestedLambda"
