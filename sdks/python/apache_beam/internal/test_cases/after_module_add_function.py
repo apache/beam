@@ -16,8 +16,8 @@
 #
 
 """Module for testing code path generation with functions.
-Counterpart to before_module_with_functions and is used to test that
-code paths don't change is a function is added to the code.
+Counterpart to before_module_with_functions and is used as a test case
+for adding a lambda function.
 """
 
 def another_function():
