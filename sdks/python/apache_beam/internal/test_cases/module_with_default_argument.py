@@ -15,7 +15,9 @@
 # limitations under the License.
 #
 
-"""Module for testing code path generation with functions."""
+"""Module for testing code path generation with functions.
+Used as a test case for default arguments.
+"""
 
 
 def function_with_lambda_default_argument(fn=lambda x: 1):
