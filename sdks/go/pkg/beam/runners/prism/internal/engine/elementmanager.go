@@ -1929,6 +1929,7 @@ func (ss *stageState) splitBundle(rb RunBundle, firstResidual int, em *ElementMa
 		delete(ss.inprogressKeys, string(e.keyBytes))
 
 		if e.IsTimer() {
+			slog.Warn("Unexpected split on a bundle with timers. See https://github.com/apache/beam/issues/35771 for information.")
 			ss.watermarkHolds.Drop(e.holdTimestamp, 1)
 			ss.inprogressHoldsByBundle[rb.BundleID][e.holdTimestamp]--
 		}
