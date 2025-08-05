@@ -38,19 +38,19 @@ import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlBasicCall;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlIdentifier;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlKind;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlLiteral;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlNode;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlNodeList;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlOperator;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.parser.SqlParseException;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.parser.SqlParser;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.type.SqlTypeName;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.DateString;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.TimeString;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.TimestampString;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlBasicCall;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlIdentifier;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlKind;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlLiteral;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlNode;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlNodeList;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlOperator;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.parser.SqlParseException;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.parser.SqlParser;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.DateString;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.TimeString;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.TimestampString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.Schema;
@@ -153,7 +153,17 @@ public class FilterUtils {
   }
 
   private static Expression convert(SqlNode expression, Schema schema) throws SqlParseException {
-    checkArgument(expression instanceof SqlBasicCall);
+    if (expression instanceof SqlIdentifier) {
+      String fieldName = ((SqlIdentifier) expression).getSimple();
+      Types.NestedField field = schema.caseInsensitiveFindField(fieldName);
+      if (field.type().equals(Types.BooleanType.get())) {
+        return Expressions.equal(field.name(), true);
+      }
+    }
+    checkArgument(
+        expression instanceof SqlBasicCall,
+        String.format(
+            "Expected SqlBasicCall, got %s: %s", expression.getClass().getName(), expression));
     SqlBasicCall call = (SqlBasicCall) expression;
 
     SqlOperator op = call.getOperator();
@@ -340,7 +350,7 @@ public class FilterUtils {
         return literal.getValueAs(String.class);
       case DATE:
         LocalDate date;
-        if (SqlTypeName.STRING_TYPES.contains(typeName)) {
+        if (SqlTypeName.STRING_TYPES.contains(typeName) || SqlTypeName.UNKNOWN.equals(typeName)) {
           date = LocalDate.parse(literal.getValueAs(String.class));
         } else if (SqlTypeName.DATE.equals(typeName)) {
           DateString dateValue = literal.getValueAs(DateString.class);
@@ -351,7 +361,7 @@ public class FilterUtils {
         return DateTimeUtil.daysFromDate(date);
       case TIME:
         LocalTime time;
-        if (SqlTypeName.STRING_TYPES.contains(typeName)) {
+        if (SqlTypeName.STRING_TYPES.contains(typeName) || SqlTypeName.UNKNOWN.equals(typeName)) {
           time = LocalTime.parse(literal.getValueAs(String.class));
         } else if (SqlTypeName.TIME.equals(typeName)) {
           TimeString timeString = literal.getValueAs(TimeString.class);
@@ -362,7 +372,7 @@ public class FilterUtils {
         return DateTimeUtil.microsFromTime(time);
       case TIMESTAMP:
         LocalDateTime datetime;
-        if (SqlTypeName.STRING_TYPES.contains(typeName)) {
+        if (SqlTypeName.STRING_TYPES.contains(typeName) || SqlTypeName.UNKNOWN.equals(typeName)) {
           String value = literal.getValueAs(String.class);
           datetime = getLocalDateTime(value);
         } else if (SqlTypeName.DATE.equals(typeName)) {

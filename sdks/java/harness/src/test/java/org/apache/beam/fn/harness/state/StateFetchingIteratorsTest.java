@@ -47,6 +47,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
+import org.apache.beam.sdk.fn.data.WeightedList;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterator;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -283,12 +284,13 @@ public class StateFetchingIteratorsTest {
     public void testBlocksWeight() throws Exception {
       List<Block<String>> originalBlocks =
           Arrays.asList(
-              Block.mutatedBlock(Arrays.asList("A"), 10),
-              Block.mutatedBlock(Arrays.asList("B"), Long.MAX_VALUE / 2),
-              Block.mutatedBlock(Arrays.asList("C"), Long.MAX_VALUE / 2),
-              Block.mutatedBlock(Arrays.asList("D"), 5));
+              Block.mutatedBlock(WeightedList.of(Arrays.asList("A"), 10_000)),
+              Block.mutatedBlock(WeightedList.of(Arrays.asList("B"), Long.MAX_VALUE / 2)),
+              Block.mutatedBlock(WeightedList.of(Arrays.asList("C"), Long.MAX_VALUE / 2)),
+              Block.mutatedBlock(WeightedList.of(Arrays.asList("D"), 5)));
       BlocksPrefix<String> blocks = new BlocksPrefix<>(originalBlocks.subList(0, 2));
-      assertEquals(10 + Long.MAX_VALUE / 2, blocks.getWeight());
+      assertTrue(10_000 + Long.MAX_VALUE / 2 < blocks.getWeight());
+      assertTrue(blocks.getWeight() < 10_000 + Long.MAX_VALUE / 2 + 100);
 
       BlocksPrefix<String> blocksOverflow = new BlocksPrefix<>(originalBlocks);
       assertEquals(Long.MAX_VALUE, blocksOverflow.getWeight());

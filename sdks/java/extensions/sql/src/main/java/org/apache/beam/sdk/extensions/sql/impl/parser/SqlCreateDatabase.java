@@ -18,26 +18,26 @@
 package org.apache.beam.sdk.extensions.sql.impl.parser;
 
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
-import static org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.Static.RESOURCE;
+import static org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.Static.RESOURCE;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.client.util.Lists;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.CatalogManagerSchema;
 import org.apache.beam.sdk.extensions.sql.impl.CatalogSchema;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalcitePrepare;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalciteSchema;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Schema;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlCreate;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlIdentifier;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlKind;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlNode;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlOperator;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlSpecialOperator;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlUtil;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlWriter;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.Pair;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalcitePrepare;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalciteSchema;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.Schema;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlCreate;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlIdentifier;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlKind;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlNode;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlOperator;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlSpecialOperator;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlUtil;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlWriter;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.Pair;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -82,31 +82,7 @@ public class SqlCreateDatabase extends SqlCreate implements BeamSqlParser.Execut
     @Nullable
     String catalogName = components.size() > 1 ? components.get(components.size() - 2) : null;
 
-    @Nullable CatalogSchema catalogSchema;
-    if (schema instanceof CatalogManagerSchema) {
-      CatalogManagerSchema catalogManagerSchema = (CatalogManagerSchema) schema;
-      // override with catalog name if present.
-      if (catalogName != null) {
-        Schema s =
-            checkStateNotNull(
-                catalogManagerSchema.getSubSchema(catalogName),
-                "Could not find Calcite Schema for catalog '%s'.",
-                catalogName);
-        checkState(
-            s instanceof CatalogSchema,
-            "Catalog '%s' had unexpected Calcite Schema of type %s. Expected type: %s.",
-            catalogName,
-            s.getClass(),
-            CatalogSchema.class.getSimpleName());
-        catalogSchema = (CatalogSchema) s;
-      } else {
-        catalogSchema = catalogManagerSchema.getCurrentCatalogSchema();
-      }
-    }
-    //    else if (schema instanceof CatalogSchema) {
-    //      catalogSchema = (CatalogSchema) schema;
-    //    }
-    else {
+    if (!(schema instanceof CatalogManagerSchema)) {
       throw SqlUtil.newContextException(
           databaseName.getParserPosition(),
           RESOURCE.internal(
@@ -114,6 +90,24 @@ public class SqlCreateDatabase extends SqlCreate implements BeamSqlParser.Execut
                   + databaseName
                   + "' with unexpected Calcite Schema of type "
                   + schema.getClass()));
+    }
+
+    CatalogManagerSchema catalogManagerSchema = (CatalogManagerSchema) schema;
+    CatalogSchema catalogSchema = catalogManagerSchema.getCurrentCatalogSchema();
+    // override if a catalog name is present
+    if (catalogName != null) {
+      Schema overridden =
+          checkStateNotNull(
+              catalogManagerSchema.getSubSchema(catalogName),
+              "Could not find Calcite Schema for catalog '%s'.",
+              catalogName);
+      checkState(
+          overridden instanceof CatalogSchema,
+          "Catalog '%s' had unexpected Calcite Schema of type %s. Expected type: %s.",
+          catalogName,
+          overridden.getClass(),
+          CatalogSchema.class.getSimpleName());
+      catalogSchema = (CatalogSchema) overridden;
     }
 
     catalogSchema.createDatabase(databaseName, ifNotExists);

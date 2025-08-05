@@ -38,8 +38,8 @@ dependencies {
   implementation "jline:jline:2.14.6"
   permitUnusedDeclared "jline:jline:2.14.6" // BEAM-11761
   implementation "sqlline:sqlline:1.4.0"
-  implementation library.java.vendored_calcite_1_28_0
-  permitUnusedDeclared library.java.vendored_calcite_1_28_0
+  implementation library.java.vendored_calcite_1_40_0
+  permitUnusedDeclared library.java.vendored_calcite_1_40_0
   testImplementation project(path: ":sdks:java:core", configuration: "shadow")
   testImplementation project(path: ":sdks:java:io:google-cloud-platform")
   testImplementation project(path: ":sdks:java:extensions:google-cloud-platform-core")

@@ -81,3 +81,37 @@ pipelines:
               - {sdk: MapReduce, year: 2004}
               - {sdk: Flume}
               - {sdk: MillWheel, year: 2008}
+
+  # Simple Create with explicit null value
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - {sdk: MapReduce, year: 2004}
+              - {sdk: Flume, year: null}
+              - {sdk: MillWheel, year: 2008}
+        - type: AssertEqual
+          config:
+            elements:
+              - {sdk: MapReduce, year: 2004}
+              - {sdk: Flume, year: null}
+              - {sdk: MillWheel, year: 2008}
+
+  # Simple Create with explicit null values for the entire record
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - {sdk: MapReduce, year: 2004}
+              - {sdk: null, year: null}
+              - {sdk: MillWheel, year: 2008}
+        - type: AssertEqual
+          config:
+            elements:
+              - {sdk: MapReduce, year: 2004}
+              - {}
+              - {sdk: MillWheel, year: 2008}
