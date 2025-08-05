@@ -19,10 +19,10 @@
 
 
 def my_function():
-  a = 1
+  a = 1  # pylint: disable=unused-variable
   b = lambda: 2
 
-  def nested_function():
+  def nested_function():  # pylint: disable=unused-variable
     c = 3
     return c
 
