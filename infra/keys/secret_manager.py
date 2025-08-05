@@ -16,7 +16,7 @@
 import google_crc32c
 import logging
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from google.cloud import secretmanager
 from typing import List, Union
 
@@ -341,6 +341,30 @@ class SecretManager:
         error_msg = f"No enabled versions found for secret {secret_id}."
         self.logger.error(error_msg)
         raise ValueError(error_msg)
+
+    def _is_key_rotation_due(self, secret_id: str) -> bool:
+        """
+        Checks if the key rotation is due based on the last version created timestamp.
+
+        Args:
+            secret_id (str): The ID of the secret to check.
+        Returns:
+            bool: True if the key rotation is due, False otherwise.
+        """
+        self.logger.debug(f"Checking if key rotation is due for secret '{secret_id}'")
+        secret = self.get_secret(secret_id)
+        last_version_created_at = secret.labels.get("last_version_created_at")
+        
+        if not last_version_created_at:
+            self.logger.debug(f"No last version created timestamp found for secret '{secret_id}'")
+            return False
+        
+        last_version_date = datetime.strptime(last_version_created_at, "%Y%m%d_%H%M%S").replace(tzinfo=timezone.utc)
+        due_date = last_version_date + timedelta(days=self.rotation_interval)
+        
+        is_due = datetime.now(timezone.utc) >= due_date
+        self.logger.debug(f"Key rotation due for secret '{secret_id}': {is_due}")
+        return is_due
 
     def add_secret_version(self, secret_id: str, payload: Union[bytes, str]) -> str:
         """

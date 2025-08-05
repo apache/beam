@@ -17,8 +17,9 @@ import os
 import logging
 import unittest
 import time
+from typing import Optional
 from unittest import mock
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from secret_manager import SecretManager
 from google.cloud import secretmanager
 
@@ -56,7 +57,7 @@ class TestSecretManagerUnit(unittest.TestCase):
         """Tear down test fixtures."""
         self.client_patcher.stop()
 
-    def _create_mock_secret(self, secret_id: str, labels: dict = None) -> secretmanager.Secret:
+    def _create_mock_secret(self, secret_id: str, labels: Optional[dict] = None) -> secretmanager.Secret:
         """Helper method to create a mock secret."""
         mock_secret = mock.MagicMock(spec=secretmanager.Secret)
         mock_secret.name = f"projects/{self.project_id}/secrets/{secret_id}"
@@ -523,6 +524,260 @@ class TestSecretManagerUnit(unittest.TestCase):
             self.manager.rotate_secret(self.test_secret_id, self.test_payload)
         
         self.assertIn("API Error", str(context.exception))
+
+    def test_secret_version_exists_true(self):
+        """Test checking if a secret version exists when it does."""
+        self.manager.secrets_ids = [self.test_secret_id]
+        mock_versions = [self._create_mock_secret_version(self.test_secret_id, "1")]
+        
+        self.mock_client.secret_path.return_value = f"projects/{self.project_id}/secrets/{self.test_secret_id}"
+        self.mock_client.list_secret_versions.return_value = mock_versions
+        
+        with mock.patch.object(self.manager, '_secret_exists', return_value=True):
+            result = self.manager._secret_version_exists(self.test_secret_id, "1")
+        
+        self.assertTrue(result)
+
+    def test_secret_version_exists_false(self):
+        """Test checking if a secret version exists when it doesn't."""
+        self.manager.secrets_ids = [self.test_secret_id]
+        mock_versions = [self._create_mock_secret_version(self.test_secret_id, "1")]
+        
+        self.mock_client.secret_path.return_value = f"projects/{self.project_id}/secrets/{self.test_secret_id}"
+        self.mock_client.list_secret_versions.return_value = mock_versions
+        
+        with mock.patch.object(self.manager, '_secret_exists', return_value=True):
+            result = self.manager._secret_version_exists(self.test_secret_id, "999")
+        
+        self.assertFalse(result)
+
+    def test_secret_version_exists_secret_not_exists(self):
+        """Test checking if a secret version exists when the secret doesn't exist."""
+        with mock.patch.object(self.manager, '_secret_exists', return_value=False):
+            result = self.manager._secret_version_exists(self.test_secret_id, "1")
+        
+        self.assertFalse(result)
+
+    def test_secret_version_is_enabled_true(self):
+        """Test checking if a secret version is enabled when it is."""
+        self.manager.secrets_ids = [self.test_secret_id]
+        mock_versions = [self._create_mock_secret_version(self.test_secret_id, "1", secretmanager.SecretVersion.State.ENABLED)]
+        
+        self.mock_client.secret_path.return_value = f"projects/{self.project_id}/secrets/{self.test_secret_id}"
+        self.mock_client.list_secret_versions.return_value = mock_versions
+        
+        with mock.patch.object(self.manager, '_secret_exists', return_value=True):
+            result = self.manager._secret_version_is_enabled(self.test_secret_id, "1")
+        
+        self.assertTrue(result)
+
+    def test_secret_version_is_enabled_false(self):
+        """Test checking if a secret version is enabled when it's disabled."""
+        self.manager.secrets_ids = [self.test_secret_id]
+        mock_versions = [self._create_mock_secret_version(self.test_secret_id, "1", secretmanager.SecretVersion.State.DISABLED)]
+        
+        self.mock_client.secret_path.return_value = f"projects/{self.project_id}/secrets/{self.test_secret_id}"
+        self.mock_client.list_secret_versions.return_value = mock_versions
+        
+        with mock.patch.object(self.manager, '_secret_exists', return_value=True):
+            result = self.manager._secret_version_is_enabled(self.test_secret_id, "1")
+        
+        self.assertFalse(result)
+
+    def test_secret_version_is_enabled_not_exists(self):
+        """Test checking if a secret version is enabled when it doesn't exist."""
+        self.manager.secrets_ids = [self.test_secret_id]
+        mock_versions = [self._create_mock_secret_version(self.test_secret_id, "1")]
+        
+        self.mock_client.secret_path.return_value = f"projects/{self.project_id}/secrets/{self.test_secret_id}"
+        self.mock_client.list_secret_versions.return_value = mock_versions
+        
+        with mock.patch.object(self.manager, '_secret_exists', return_value=True):
+            result = self.manager._secret_version_is_enabled(self.test_secret_id, "999")
+        
+        self.assertFalse(result)
+
+    def test_secret_version_is_enabled_secret_not_exists(self):
+        """Test checking if a secret version is enabled when the secret doesn't exist."""
+        with mock.patch.object(self.manager, '_secret_exists', return_value=False):
+            result = self.manager._secret_version_is_enabled(self.test_secret_id, "1")
+        
+        self.assertFalse(result)
+
+    def test_get_enabled_secret_versions_success(self):
+        """Test getting enabled secret versions successfully."""
+        self.manager.secrets_ids = [self.test_secret_id]
+        mock_versions = [
+            self._create_mock_secret_version(self.test_secret_id, "1", secretmanager.SecretVersion.State.ENABLED),
+            self._create_mock_secret_version(self.test_secret_id, "2", secretmanager.SecretVersion.State.DISABLED),
+            self._create_mock_secret_version(self.test_secret_id, "3", secretmanager.SecretVersion.State.ENABLED),
+        ]
+        
+        self.mock_client.secret_path.return_value = f"projects/{self.project_id}/secrets/{self.test_secret_id}"
+        self.mock_client.list_secret_versions.return_value = mock_versions
+        
+        with mock.patch.object(self.manager, '_secret_exists', return_value=True):
+            result = self.manager._get_enabled_secret_versions(self.test_secret_id)
+        
+        # Should return only the enabled versions
+        self.assertEqual(len(result), 2)
+        enabled_version_ids = [v.name.split("/")[-1] for v in result]
+        self.assertIn("1", enabled_version_ids)
+        self.assertIn("3", enabled_version_ids)
+        self.assertNotIn("2", enabled_version_ids)
+
+    def test_purge_old_secret_versions_no_purge_needed(self):
+        """Test purging old versions when no purge is needed."""
+        self.manager.max_versions_to_keep = 3
+        self.manager.secrets_ids = [self.test_secret_id]
+        mock_versions = [
+            self._create_mock_secret_version(self.test_secret_id, "1"),
+            self._create_mock_secret_version(self.test_secret_id, "2"),
+        ]
+        
+        self.mock_client.secret_path.return_value = f"projects/{self.project_id}/secrets/{self.test_secret_id}"
+        self.mock_client.list_secret_versions.return_value = mock_versions
+        
+        with mock.patch.object(self.manager, '_secret_exists', return_value=True):
+            # Should not call disable_secret_version
+            with mock.patch.object(self.manager, 'disable_secret_version') as mock_disable:
+                self.manager._purge_old_secret_versions(self.test_secret_id)
+                mock_disable.assert_not_called()
+
+    def test_purge_old_secret_versions_purge_needed(self):
+        """Test purging old versions when purge is needed."""
+        self.manager.max_versions_to_keep = 2
+        self.manager.secrets_ids = [self.test_secret_id]
+        mock_versions = [
+            self._create_mock_secret_version(self.test_secret_id, "1"),
+            self._create_mock_secret_version(self.test_secret_id, "2"),
+            self._create_mock_secret_version(self.test_secret_id, "3"),
+        ]
+        
+        self.mock_client.secret_path.return_value = f"projects/{self.project_id}/secrets/{self.test_secret_id}"
+        self.mock_client.list_secret_versions.return_value = mock_versions
+        
+        with mock.patch.object(self.manager, '_secret_exists', return_value=True):
+            with mock.patch.object(self.manager, 'disable_secret_version') as mock_disable:
+                self.manager._purge_old_secret_versions(self.test_secret_id)
+                # Should disable the oldest version (version "1")
+                mock_disable.assert_called_once_with(self.test_secret_id, version_id="1")
+
+    def test_is_key_rotation_due_true(self):
+        """Test key rotation due check when rotation is due."""
+        self.manager.rotation_interval = 30
+        self.manager.secrets_ids = [self.test_secret_id]
+        
+        # Create a secret with a timestamp 31 days ago
+        old_timestamp = (datetime.now(timezone.utc) - timedelta(days=31)).strftime("%Y%m%d_%H%M%S")
+        mock_secret = self._create_mock_secret(self.test_secret_id, {
+            "created_by": "secretmanager-service",
+            "last_version_created_at": old_timestamp,
+        })
+        
+        self.mock_client.secret_path.return_value = mock_secret.name
+        self.mock_client.get_secret.return_value = mock_secret
+        
+        result = self.manager._is_key_rotation_due(self.test_secret_id)
+        
+        self.assertTrue(result)
+
+    def test_is_key_rotation_due_false(self):
+        """Test key rotation due check when rotation is not due."""
+        self.manager.rotation_interval = 30
+        self.manager.secrets_ids = [self.test_secret_id]
+        
+        # Create a secret with a timestamp 10 days ago
+        recent_timestamp = (datetime.now(timezone.utc) - timedelta(days=10)).strftime("%Y%m%d_%H%M%S")
+        mock_secret = self._create_mock_secret(self.test_secret_id, {
+            "created_by": "secretmanager-service",
+            "last_version_created_at": recent_timestamp,
+        })
+        
+        self.mock_client.secret_path.return_value = mock_secret.name
+        self.mock_client.get_secret.return_value = mock_secret
+        
+        result = self.manager._is_key_rotation_due(self.test_secret_id)
+        
+        self.assertFalse(result)
+
+    def test_is_key_rotation_due_no_timestamp(self):
+        """Test key rotation due check when no timestamp is available."""
+        self.manager.secrets_ids = [self.test_secret_id]
+        
+        # Create a secret without last_version_created_at timestamp
+        mock_secret = self._create_mock_secret(self.test_secret_id, {
+            "created_by": "secretmanager-service",
+        })
+        
+        self.mock_client.secret_path.return_value = mock_secret.name
+        self.mock_client.get_secret.return_value = mock_secret
+        
+        result = self.manager._is_key_rotation_due(self.test_secret_id)
+        
+        self.assertFalse(result)
+
+    def test_secret_exists_true(self):
+        """Test checking if a secret exists when it does exist and is managed by the service."""
+        mock_secret = self._create_mock_secret(self.test_secret_id)
+        self.mock_client.secret_path.return_value = mock_secret.name
+        self.mock_client.get_secret.return_value = mock_secret
+        
+        result = self.manager._secret_exists(self.test_secret_id)
+        
+        self.assertTrue(result)
+
+    def test_secret_exists_false_not_managed(self):
+        """Test checking if a secret exists when it exists but is not managed by the service."""
+        mock_secret = self._create_mock_secret(self.test_secret_id, {
+            "created_by": "other-service",
+        })
+        self.mock_client.secret_path.return_value = mock_secret.name
+        self.mock_client.get_secret.return_value = mock_secret
+        
+        result = self.manager._secret_exists(self.test_secret_id)
+        
+        self.assertFalse(result)
+
+    def test_secret_exists_false_not_found(self):
+        """Test checking if a secret exists when it doesn't exist."""
+        self.mock_client.secret_path.return_value = f"projects/{self.project_id}/secrets/{self.test_secret_id}"
+        self.mock_client.get_secret.side_effect = Exception("Not found")
+        
+        result = self.manager._secret_exists(self.test_secret_id)
+        
+        self.assertFalse(result)
+
+    def test_get_secret_version_oldest(self):
+        """Test getting the oldest secret version."""
+        self.manager.secrets_ids = [self.test_secret_id]
+        mock_versions = [
+            self._create_mock_secret_version(self.test_secret_id, "1"),
+            self._create_mock_secret_version(self.test_secret_id, "2"),
+        ]
+        mock_response = self._create_mock_access_response(self.test_payload)
+        
+        self.mock_client.secret_path.return_value = f"projects/{self.project_id}/secrets/{self.test_secret_id}"
+        self.mock_client.list_secret_versions.return_value = mock_versions
+        self.mock_client.access_secret_version.return_value = mock_response
+        
+        with mock.patch.object(self.manager, '_secret_exists', return_value=True):
+            result = self.manager.get_secret_version(self.test_secret_id, "oldest")
+        
+        self.assertEqual(result, self.test_payload)
+        expected_name = f"projects/{self.project_id}/secrets/{self.test_secret_id}/versions/2"
+        self.mock_client.access_secret_version.assert_called_once_with(request={"name": expected_name})
+
+    def test_get_secret_version_secret_not_in_cache(self):
+        """Test getting a secret version when secret is not in cache."""
+        # secret_id is not in secrets_ids
+        mock_response = self._create_mock_access_response(self.test_payload)
+        self.mock_client.access_secret_version.return_value = mock_response
+        
+        with self.assertRaises(ValueError) as context:
+            self.manager.get_secret_version(self.test_secret_id, "1")
+        
+        self.assertIn("does not exist", str(context.exception))
 
 
 # Integration tests (skipped unless environment variables are set)
