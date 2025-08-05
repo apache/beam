@@ -15,6 +15,36 @@
 # limitations under the License.
 #
 
+"""Customizations to how Python code objects are pickled.
+
+This module provides functions for pickling code objects, especially lambdas,
+in a consistent way. It addresses issues with non-deterministic pickling by
+creating a unique identifier that is invariant to small changes in the source
+code.
+
+The code object identifiers consists of a sequence of the following parts
+separated by periods:
+- Module names - The name of the module the code object is in
+- Class names - The name of a class containing the code object. There can be
+  multiple of these in the same identifier in the case of nested
+  classes.
+- Function names - The name of the function containing the code object.
+  There can be multiple of these in the case of nested functions.
+- __code__ - Attribute indicating that we are entering the code object of a
+  function/method.
+- __co_consts__[<name>] - The name of the local variable containing the
+  code object. In the case of lambdas, the name is created by using the
+  signature of the lambda and hashing the bytecode, as shown below.
+
+Examples:
+- __main__.top_level_function.__code__
+- __main__.ClassWithNestedFunction.process.__code__.co_consts[nested_function]
+- __main__.ClassWithNestedLambda.process.__code__.co_consts[
+    get_lambda_from_dictionary].co_consts[<lambda>, ('x',)]
+- __main__.ClassWithNestedLambda.process.__code__.co_consts[
+    <lambda>, ('x',), 1234567890]
+"""
+
 import collections
 import hashlib
 import inspect
