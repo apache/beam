@@ -206,6 +206,8 @@ class KeyService:
         self.logger.debug("Creating service accounts if they do not exist")
         for account in self.service_accounts:
             account_id = account['account_id']
+            authorized_users = [user['email'] for user in account.get('authorized_users', [])]
+
             try:
                 # Check if the service account already exists
                 if not self.service_account_manager._service_account_exists(account_id):
@@ -221,6 +223,12 @@ class KeyService:
                     self.logger.info(f"Creating secret for service account: {account_id}")
                     self.secret_manager_client.create_secret(secret_name)
 
+                # Check if the secret has the correct access policy
+                if self.secret_manager_client.is_different_user_access(secret_name, authorized_users):
+                    self.logger.info(f"Updating access policy for secret {secret_name}")
+                    self.secret_manager_client.update_secret_access(secret_name, authorized_users)
+
+                # Start the service account key creation process, ensuring at least one key exists
                 self._start_service_account_key(account_id)
 
                 # Check if the service account key exists

@@ -23,6 +23,7 @@ service_accounts:
     display_name: "Service account for Beam secrets rotation"
     authorized_users:
       - email: "enriquecaol04@gmail.com"
+      - email: "pabloem@google.com"
   - account_id: "test-service-account-2"
     display_name: "Another service account for Beam secrets rotation"
     authorized_users:
