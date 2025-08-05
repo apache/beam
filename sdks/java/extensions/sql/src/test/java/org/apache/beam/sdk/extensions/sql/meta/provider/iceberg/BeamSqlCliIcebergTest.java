@@ -40,6 +40,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.runtime.CalciteContextException;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.junit.Before;
 import org.junit.ClassRule;
@@ -47,7 +48,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
-import org.testcontainers.shaded.org.checkerframework.checker.nullness.qual.Nullable;
 
 /** UnitTest for {@link BeamSqlCli} using Iceberg catalog. */
 public class BeamSqlCliIcebergTest {

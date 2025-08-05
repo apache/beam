@@ -19,7 +19,6 @@ package org.apache.beam.sdk.extensions.sql.impl.parser;
 
 import static org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.Static.RESOURCE;
 
-import com.google.api.client.util.Lists;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.CatalogManagerSchema;
 import org.apache.beam.sdk.extensions.sql.impl.CatalogSchema;
@@ -39,6 +38,7 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.parser.SqlP
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.Pair;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 
 public class SqlDropDatabase extends SqlDrop implements BeamSqlParser.ExecutableStatement {
   private static final SqlOperator OPERATOR =

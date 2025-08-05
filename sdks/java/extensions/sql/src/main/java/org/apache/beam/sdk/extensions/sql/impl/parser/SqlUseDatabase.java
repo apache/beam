@@ -19,7 +19,6 @@ package org.apache.beam.sdk.extensions.sql.impl.parser;
 
 import static org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.Static.RESOURCE;
 
-import com.google.api.client.util.Lists;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.CatalogManagerSchema;
@@ -38,6 +37,7 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlUtil;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.Pair;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 
 public class SqlUseDatabase extends SqlSetOption implements BeamSqlParser.ExecutableStatement {
   private final SqlIdentifier databaseName;
