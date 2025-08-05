@@ -32,8 +32,8 @@ import org.apache.beam.vendor.calcite.v1_28_0.com.fasterxml.jackson.databind.Obj
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Test;
 
-/** UnitTest for {@link IcebergTableProvider}. */
-public class IcebergTableProviderTest {
+/** UnitTest for {@link IcebergMetastore}. */
+public class IcebergMetastoreTest {
   private final IcebergCatalog catalog =
       new IcebergCatalog(
           "test_catalog",
@@ -46,7 +46,7 @@ public class IcebergTableProviderTest {
 
   @Test
   public void testGetTableType() {
-    assertNotNull(catalog.metaStore().getProvider("iceberg"));
+    assertEquals("iceberg", catalog.metaStore(catalog.currentDatabase()).getTableType());
   }
 
   @Test
@@ -59,7 +59,7 @@ public class IcebergTableProviderTest {
         fakeTableBuilder("my_table")
             .properties(TableUtils.parseProperties(propertiesString))
             .build();
-    BeamSqlTable sqlTable = catalog.metaStore().buildBeamSqlTable(table);
+    BeamSqlTable sqlTable = catalog.metaStore(catalog.currentDatabase()).buildBeamSqlTable(table);
 
     assertNotNull(sqlTable);
     assertTrue(sqlTable instanceof IcebergTable);

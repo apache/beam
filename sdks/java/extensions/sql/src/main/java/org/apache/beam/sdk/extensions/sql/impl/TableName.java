@@ -22,9 +22,15 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
+import com.google.api.client.util.Lists;
 import com.google.auto.value.AutoValue;
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
@@ -59,6 +65,12 @@ public abstract class TableName {
 
   /** Table name, the last element of the fully-specified table name with path. */
   public abstract String getTableName();
+
+  /** Splits the input String by "." separator and returns a new {@link TableName}. */
+  public static TableName create(String path) {
+    List<String> components = Lists.newArrayList(Splitter.on(".").split(path));
+    return create(components);
+  }
 
   /** Full table name with path. */
   public static TableName create(List<String> fullPath) {
@@ -96,5 +108,23 @@ public abstract class TableName {
   public TableName removePrefix() {
     List<String> pathPostfix = getPath().stream().skip(1).collect(toList());
     return TableName.create(pathPostfix, getTableName());
+  }
+
+  /** Returns the database name in this table path. */
+  @Pure
+  public @Nullable String database() {
+    return isCompound() ? Iterables.getLast(getPath()) : null;
+  }
+
+  @Pure
+  public @Nullable String catalog() {
+    return getPath().size() > 1 ? getPath().get(0) : null;
+  }
+
+  @Override
+  public final String toString() {
+    List<String> components =
+        ImmutableList.<String>builder().addAll(getPath()).add(getTableName()).build();
+    return String.join(".", components);
   }
 }

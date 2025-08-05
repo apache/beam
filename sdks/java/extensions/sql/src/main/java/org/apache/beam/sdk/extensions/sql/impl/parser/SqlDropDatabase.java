@@ -17,13 +17,13 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.parser;
 
-import static java.lang.String.format;
 import static org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.Static.RESOURCE;
 
+import com.google.api.client.util.Lists;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteSchema;
-import org.apache.beam.sdk.extensions.sql.meta.catalog.Catalog;
-import org.apache.beam.sdk.extensions.sql.meta.catalog.CatalogManager;
+import org.apache.beam.sdk.extensions.sql.impl.CatalogManagerSchema;
+import org.apache.beam.sdk.extensions.sql.impl.CatalogSchema;
+import org.apache.beam.sdk.extensions.sql.impl.TableName;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalcitePrepare;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Schema;
@@ -37,22 +37,19 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlUtil;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlWriter;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.Pair;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class SqlDropDatabase extends SqlDrop implements BeamSqlParser.ExecutableStatement {
-  private static final Logger LOG = LoggerFactory.getLogger(SqlDropDatabase.class);
   private static final SqlOperator OPERATOR =
       new SqlSpecialOperator("DROP DATABASE", SqlKind.OTHER_DDL);
   private final SqlIdentifier databaseName;
   private final boolean cascade;
 
   public SqlDropDatabase(
-      SqlParserPos pos, boolean ifExists, SqlNode databaseName, boolean cascade) {
+      SqlParserPos pos, boolean ifExists, SqlIdentifier databaseName, boolean cascade) {
     super(OPERATOR, pos, ifExists);
-    this.databaseName = SqlDdlNodes.getIdentifier(databaseName, pos);
+    this.databaseName = databaseName;
     this.cascade = cascade;
   }
 
@@ -74,45 +71,21 @@ public class SqlDropDatabase extends SqlDrop implements BeamSqlParser.Executable
   public void execute(CalcitePrepare.Context context) {
     final Pair<CalciteSchema, String> pair = SqlDdlNodes.schema(context, true, databaseName);
     Schema schema = pair.left.schema;
-    String name = pair.right;
 
-    if (!(schema instanceof BeamCalciteSchema)) {
-      throw SqlUtil.newContextException(
-          databaseName.getParserPosition(),
-          RESOURCE.internal("Schema is not of instance BeamCalciteSchema"));
-    }
-
-    BeamCalciteSchema beamCalciteSchema = (BeamCalciteSchema) schema;
-    @Nullable CatalogManager catalogManager = beamCalciteSchema.getCatalogManager();
-    if (catalogManager == null) {
+    if (!(schema instanceof CatalogManagerSchema)) {
       throw SqlUtil.newContextException(
           databaseName.getParserPosition(),
           RESOURCE.internal(
-              String.format(
-                  "Unexpected 'DROP DATABASE' call using Schema '%s' that is not a Catalog.",
-                  name)));
+              "Attempting to drop database '"
+                  + databaseName
+                  + "' with unexpected Calcite Schema of type "
+                  + schema.getClass()));
     }
 
-    Catalog catalog = catalogManager.currentCatalog();
-    try {
-      LOG.info("Dropping database '{}'", name);
-      boolean dropped = catalog.dropDatabase(name, cascade);
-
-      if (dropped) {
-        LOG.info("Successfully dropped database '{}'", name);
-      } else if (ifExists) {
-        LOG.info("Database '{}' does not exist.", name);
-      } else {
-        throw SqlUtil.newContextException(
-            databaseName.getParserPosition(),
-            RESOURCE.internal(String.format("Database '%s' does not exist.", name)));
-      }
-    } catch (Exception e) {
-      throw SqlUtil.newContextException(
-          databaseName.getParserPosition(),
-          RESOURCE.internal(
-              format("Encountered an error when dropping database '%s': %s", name, e)));
-    }
+    List<String> components = Lists.newArrayList(Splitter.on(".").split(databaseName.toString()));
+    TableName pathOverride = TableName.create(components, "");
+    CatalogSchema catalogSchema = ((CatalogManagerSchema) schema).getCatalogSchema(pathOverride);
+    catalogSchema.dropDatabase(databaseName, cascade, ifExists);
   }
 
   @Override

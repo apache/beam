@@ -20,8 +20,7 @@ package org.apache.beam.sdk.extensions.sql.impl.parser;
 import static org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.Static.RESOURCE;
 
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteSchema;
-import org.apache.beam.sdk.extensions.sql.meta.catalog.CatalogManager;
+import org.apache.beam.sdk.extensions.sql.impl.CatalogManagerSchema;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalcitePrepare;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Schema;
@@ -36,12 +35,8 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlWriter;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.Pair;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class SqlDropCatalog extends SqlDrop implements BeamSqlParser.ExecutableStatement {
-  private static final Logger LOG = LoggerFactory.getLogger(SqlDropCatalog.class);
   private static final SqlOperator OPERATOR =
       new SqlSpecialOperator("DROP CATALOG", SqlKind.OTHER_DDL);
   private final SqlIdentifier catalogName;
@@ -64,45 +59,18 @@ public class SqlDropCatalog extends SqlDrop implements BeamSqlParser.ExecutableS
   public void execute(CalcitePrepare.Context context) {
     final Pair<CalciteSchema, String> pair = SqlDdlNodes.schema(context, true, catalogName);
     Schema schema = pair.left.schema;
-    String name = pair.right;
 
-    if (!(schema instanceof BeamCalciteSchema)) {
-      throw SqlUtil.newContextException(
-          catalogName.getParserPosition(),
-          RESOURCE.internal("Schema is not of instance BeamCalciteSchema"));
-    }
-
-    BeamCalciteSchema beamCalciteSchema = (BeamCalciteSchema) schema;
-    @Nullable CatalogManager catalogManager = beamCalciteSchema.getCatalogManager();
-    if (catalogManager == null) {
+    if (!(schema instanceof CatalogManagerSchema)) {
       throw SqlUtil.newContextException(
           catalogName.getParserPosition(),
           RESOURCE.internal(
-              String.format(
-                  "Unexpected 'DROP CATALOG' call for Schema '%s' that is not a Catalog.", name)));
+              "Attempting to drop a catalog '"
+                  + SqlDdlNodes.name(catalogName)
+                  + "' with unexpected Calcite Schema of type "
+                  + schema.getClass()));
     }
 
-    if (catalogManager.getCatalog(name) == null) {
-      if (!ifExists) {
-        throw SqlUtil.newContextException(
-            catalogName.getParserPosition(),
-            RESOURCE.internal(String.format("Cannot drop catalog: '%s' not found.", name)));
-      }
-      LOG.info("Ignoring 'DROP CATALOG` call for non-existent catalog: {}", name);
-      return;
-    }
-
-    if (catalogManager.currentCatalog().name().equals(name)) {
-      throw SqlUtil.newContextException(
-          catalogName.getParserPosition(),
-          RESOURCE.internal(
-              String.format(
-                  "Unable to drop active catalog '%s'. Please switch to another catalog first.",
-                  name)));
-    }
-
-    catalogManager.dropCatalog(name);
-    LOG.info("Successfully dropped catalog '{}'", name);
+    ((CatalogManagerSchema) schema).dropCatalog(catalogName, ifExists);
   }
 
   @Override

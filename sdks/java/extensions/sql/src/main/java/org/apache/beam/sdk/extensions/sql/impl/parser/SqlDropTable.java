@@ -17,11 +17,23 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.parser;
 
+import static org.apache.beam.sdk.extensions.sql.impl.parser.SqlDdlNodes.name;
+import static org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.Static.RESOURCE;
+
+import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteSchema;
+import org.apache.beam.sdk.extensions.sql.impl.CatalogManagerSchema;
+import org.apache.beam.sdk.extensions.sql.impl.CatalogSchema;
+import org.apache.beam.sdk.extensions.sql.impl.TableName;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalcitePrepare;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalciteSchema;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Schema;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlIdentifier;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlKind;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlOperator;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlSpecialOperator;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlUtil;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.Pair;
 
 /** Parse tree for {@code DROP TABLE} statement. */
 public class SqlDropTable extends SqlDropObject {
@@ -31,6 +43,39 @@ public class SqlDropTable extends SqlDropObject {
   /** Creates a SqlDropTable. */
   SqlDropTable(SqlParserPos pos, boolean ifExists, SqlIdentifier name) {
     super(OPERATOR, pos, ifExists, name);
+  }
+
+  @Override
+  public void execute(CalcitePrepare.Context context) {
+    final Pair<CalciteSchema, String> pair = SqlDdlNodes.schema(context, true, name);
+    TableName pathOverride = TableName.create(name.toString());
+    Schema schema = pair.left.schema;
+
+    BeamCalciteSchema beamCalciteSchema;
+    if (schema instanceof CatalogManagerSchema) {
+      CatalogSchema catalogSchema = ((CatalogManagerSchema) schema).getCatalogSchema(pathOverride);
+      beamCalciteSchema = catalogSchema.getDatabaseSchema(pathOverride);
+    } else if (schema instanceof BeamCalciteSchema) {
+      beamCalciteSchema = (BeamCalciteSchema) schema;
+    } else {
+      throw SqlUtil.newContextException(
+          name.getParserPosition(),
+          RESOURCE.internal(
+              "Attempting to drop a table using unexpected Calcite Schema of type "
+                  + schema.getClass()));
+    }
+
+    if (beamCalciteSchema.getTable(pair.right) == null) {
+      // Table does not exist.
+      if (!ifExists) {
+        // They did not specify IF EXISTS, so give error.
+        throw SqlUtil.newContextException(
+            name.getParserPosition(), RESOURCE.tableNotFound(name.toString()));
+      }
+      return;
+    }
+
+    beamCalciteSchema.getTableProvider().dropTable(pair.right);
   }
 }
 

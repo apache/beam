@@ -116,9 +116,9 @@ public class JdbcDriverTest {
   public void testDriverManager_defaultUserAgent() throws Exception {
     Connection connection = DriverManager.getConnection(JdbcDriver.CONNECT_STRING_PREFIX);
     SchemaPlus rootSchema = ((CalciteConnection) connection).getRootSchema();
-    BeamCalciteSchema beamSchema =
-        (BeamCalciteSchema) CalciteSchema.from(rootSchema.getSubSchema("beam")).schema;
-    Map<String, String> pipelineOptions = beamSchema.getPipelineOptions();
+    CatalogManagerSchema catalogManagerSchema =
+        (CatalogManagerSchema) CalciteSchema.from(rootSchema.getSubSchema("beam")).schema;
+    Map<String, String> pipelineOptions = catalogManagerSchema.connection().getPipelineOptionsMap();
     assertThat(pipelineOptions.get("userAgent"), containsString("BeamSQL"));
   }
 
@@ -127,9 +127,9 @@ public class JdbcDriverTest {
   public void testDriverManager_hasUserAgent() throws Exception {
     JdbcConnection connection =
         (JdbcConnection) DriverManager.getConnection(JdbcDriver.CONNECT_STRING_PREFIX);
-    BeamCalciteSchema schema = connection.getCurrentBeamSchema();
+    CatalogManagerSchema schema = connection.getCurrentBeamSchema();
     assertThat(
-        schema.getPipelineOptions().get("userAgent"),
+        schema.connection().getPipelineOptionsMap().get("userAgent"),
         equalTo("BeamSQL/" + ReleaseInfo.getReleaseInfo().getVersion()));
   }
 
@@ -140,9 +140,9 @@ public class JdbcDriverTest {
         DriverManager.getConnection(
             JdbcDriver.CONNECT_STRING_PREFIX + "beam.userAgent=Secret Agent");
     SchemaPlus rootSchema = ((CalciteConnection) connection).getRootSchema();
-    BeamCalciteSchema beamSchema =
-        (BeamCalciteSchema) CalciteSchema.from(rootSchema.getSubSchema("beam")).schema;
-    Map<String, String> pipelineOptions = beamSchema.getPipelineOptions();
+    CatalogManagerSchema catalogManagerSchema =
+        (CatalogManagerSchema) CalciteSchema.from(rootSchema.getSubSchema("beam")).schema;
+    Map<String, String> pipelineOptions = catalogManagerSchema.connection().getPipelineOptionsMap();
     assertThat(pipelineOptions.get("userAgent"), equalTo("Secret Agent"));
   }
 
@@ -154,9 +154,9 @@ public class JdbcDriverTest {
             JdbcDriver.CONNECT_STRING_PREFIX
                 + "beam.foo=baz;beam.foobizzle=mahshizzle;other=smother");
     SchemaPlus rootSchema = ((CalciteConnection) connection).getRootSchema();
-    BeamCalciteSchema beamSchema =
-        (BeamCalciteSchema) CalciteSchema.from(rootSchema.getSubSchema("beam")).schema;
-    Map<String, String> pipelineOptions = beamSchema.getPipelineOptions();
+    CatalogManagerSchema catalogManagerSchema =
+        (CatalogManagerSchema) CalciteSchema.from(rootSchema.getSubSchema("beam")).schema;
+    Map<String, String> pipelineOptions = catalogManagerSchema.connection().getPipelineOptionsMap();
     assertThat(pipelineOptions.get("foo"), equalTo("baz"));
     assertThat(pipelineOptions.get("foobizzle"), equalTo("mahshizzle"));
     assertThat(pipelineOptions.get("other"), nullValue());

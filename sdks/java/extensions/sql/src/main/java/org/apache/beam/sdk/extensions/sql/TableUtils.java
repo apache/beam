@@ -63,6 +63,10 @@ public class TableUtils {
     }
   }
 
+  public static ObjectNode parseProperties(Map<String, String> map) {
+    return objectMapper.valueToTree(map);
+  }
+
   public static Map<String, Object> convertNode2Map(JsonNode jsonNode) {
     return objectMapper.convertValue(jsonNode, new TypeReference<Map<String, Object>>() {});
   }

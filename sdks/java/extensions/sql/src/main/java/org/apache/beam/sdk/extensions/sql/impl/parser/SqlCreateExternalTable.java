@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.parser;
 
+import static org.apache.beam.sdk.extensions.sql.impl.parser.SqlDdlNodes.name;
+import static org.apache.beam.sdk.extensions.sql.impl.parser.SqlDdlNodes.schema;
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.Static.RESOURCE;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
@@ -26,11 +28,15 @@ import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.TableUtils;
 import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteSchema;
+import org.apache.beam.sdk.extensions.sql.impl.CatalogManagerSchema;
+import org.apache.beam.sdk.extensions.sql.impl.CatalogSchema;
+import org.apache.beam.sdk.extensions.sql.impl.TableName;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
-import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalcitePrepare;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalciteSchema;
+import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Schema;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlCreate;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlIdentifier;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlKind;
@@ -50,7 +56,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 })
 public class SqlCreateExternalTable extends SqlCreate implements BeamSqlParser.ExecutableStatement {
   private final SqlIdentifier name;
-  private final List<Schema.Field> columnList;
+  private final List<Field> columnList;
   private final SqlNode type;
   private final SqlNode comment;
   private final SqlNode location;
@@ -66,7 +72,7 @@ public class SqlCreateExternalTable extends SqlCreate implements BeamSqlParser.E
       boolean replace,
       boolean ifNotExists,
       SqlIdentifier name,
-      List<Schema.Field> columnList,
+      List<Field> columnList,
       SqlNode type,
       SqlNodeList partitionFields,
       SqlNode comment,
@@ -144,28 +150,42 @@ public class SqlCreateExternalTable extends SqlCreate implements BeamSqlParser.E
       }
       return;
     }
-    // Table does not exist. Create it.
-    if (!(pair.left.schema instanceof BeamCalciteSchema)) {
+
+    Schema schema = pair.left.schema;
+
+    BeamCalciteSchema beamCalciteSchema;
+    //    String catalogName = "default";
+    if (schema instanceof CatalogManagerSchema) {
+      TableName pathOverride = TableName.create(name.toString());
+      CatalogSchema catalogSchema = ((CatalogManagerSchema) schema).getCatalogSchema(pathOverride);
+      beamCalciteSchema = catalogSchema.getDatabaseSchema(pathOverride);
+      //      catalogName = catalogSchema.getCatalog().name();
+    } else if (schema instanceof BeamCalciteSchema) {
+      beamCalciteSchema = (BeamCalciteSchema) schema;
+    } else {
       throw SqlUtil.newContextException(
           name.getParserPosition(),
-          RESOURCE.internal("Schema is not instanceof BeamCalciteSchema"));
+          RESOURCE.internal(
+              "Attempting to create a table with unexpected Calcite Schema of type "
+                  + schema.getClass()));
     }
-
-    BeamCalciteSchema schema = (BeamCalciteSchema) pair.left.schema;
+    //    String databaseName = beamCalciteSchema.name();
+    //    String tableName = name(name);
     Table table = toTable();
+
     if (partitionFields != null) {
       checkArgument(
-          schema.resolveMetastore().supportsPartitioning(table),
+          beamCalciteSchema.getTableProvider().supportsPartitioning(table),
           "Invalid use of 'PARTITIONED BY()': Table '%s' of type '%s' "
               + "does not support partitioning.",
-          SqlDdlNodes.name(name),
+          name(name),
           SqlDdlNodes.getString(type));
     }
 
-    schema.resolveMetastore().createTable(table);
+    beamCalciteSchema.getTableProvider().createTable(table);
   }
 
-  private void unparseColumn(SqlWriter writer, Schema.Field column) {
+  private void unparseColumn(SqlWriter writer, Field column) {
     writer.sep(",");
     writer.identifier(column.getName(), false);
     writer.identifier(CalciteUtils.toSqlTypeName(column.getType()).name(), false);
@@ -190,11 +210,12 @@ public class SqlCreateExternalTable extends SqlCreate implements BeamSqlParser.E
   private Table toTable() {
     return Table.builder()
         .type(SqlDdlNodes.getString(type))
-        .name(SqlDdlNodes.name(name))
+        .name(name(name))
         .schema(columnList.stream().collect(toSchema()))
         .partitionFields(parsePartitionFields())
         .comment(SqlDdlNodes.getString(comment))
         .location(SqlDdlNodes.getString(location))
+        //        .path(path)
         .properties(
             (tblProperties == null)
                 ? TableUtils.emptyProperties()

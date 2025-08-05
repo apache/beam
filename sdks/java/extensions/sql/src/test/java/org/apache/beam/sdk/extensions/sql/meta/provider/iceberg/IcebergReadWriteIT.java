@@ -184,9 +184,8 @@ public class IcebergReadWriteIT {
 
     // 3) verify a real Iceberg table was created, with the right partition spec
     IcebergCatalog catalog = (IcebergCatalog) catalogManager.currentCatalog();
-    IcebergTableProvider provider =
-        (IcebergTableProvider) catalog.metaStore().getProvider("iceberg");
-    Catalog icebergCatalog = provider.catalogConfig.catalog();
+    IcebergMetastore metastore = catalog.metaStore(DATASET);
+    Catalog icebergCatalog = metastore.catalogConfig.catalog();
     PartitionSpec expectedSpec = PartitionSpec.unpartitioned();
     if (withPartitionFields) {
       expectedSpec =
@@ -202,7 +201,7 @@ public class IcebergReadWriteIT {
     assertEquals("my_catalog." + tableIdentifier, icebergTable.name());
     assertTrue(icebergTable.location().startsWith(warehouse));
     assertEquals(expectedSpec, icebergTable.spec());
-    Schema expectedSchema = checkStateNotNull(provider.getTable("TEST")).getSchema();
+    Schema expectedSchema = checkStateNotNull(metastore.getTable("TEST")).getSchema();
     assertEquals(expectedSchema, IcebergUtils.icebergSchemaToBeamSchema(icebergTable.schema()));
 
     // 4) write to underlying Iceberg table

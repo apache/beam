@@ -31,6 +31,7 @@ import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamPCollectionTable;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.meta.catalog.CatalogManager;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.InMemoryCatalogManager;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
@@ -128,6 +129,8 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
 
   abstract Map<String, TableProvider> tableProviderMap();
 
+  abstract CatalogManager catalogManager();
+
   abstract @Nullable String defaultTableProvider();
 
   abstract @Nullable String queryPlannerClassName();
@@ -136,8 +139,8 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
   public PCollection<Row> expand(PInput input) {
     TableProvider inputTableProvider =
         new ReadOnlyTableProvider(PCOLLECTION_NAME, toTableMap(input));
-    InMemoryCatalogManager catalogManager = new InMemoryCatalogManager();
-    catalogManager.registerTableProvider(PCOLLECTION_NAME, inputTableProvider);
+    CatalogManager catalogManager = catalogManager();
+    catalogManager.registerTableProvider(inputTableProvider);
     BeamSqlEnvBuilder sqlEnvBuilder = BeamSqlEnv.builder(catalogManager);
 
     // TODO: validate duplicate functions.
@@ -240,6 +243,10 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
     return withTableProvider(name, tableProvider).toBuilder().setDefaultTableProvider(name).build();
   }
 
+  public SqlTransform withCatalogManager(CatalogManager catalogManager) {
+    return toBuilder().setCatalogManager(catalogManager).build();
+  }
+
   public SqlTransform withQueryPlannerClass(Class<? extends QueryPlanner> clazz) {
     return toBuilder().setQueryPlannerClassName(clazz.getName()).build();
   }
@@ -313,6 +320,7 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
         .setUdafDefinitions(Collections.emptyList())
         .setUdfDefinitions(Collections.emptyList())
         .setTableProviderMap(Collections.emptyMap())
+        .setCatalogManager(new InMemoryCatalogManager())
         .setAutoLoading(true);
   }
 
@@ -332,6 +340,8 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
     abstract Builder setAutoLoading(boolean autoLoading);
 
     abstract Builder setTableProviderMap(Map<String, TableProvider> tableProviderMap);
+
+    abstract Builder setCatalogManager(CatalogManager catalogManager);
 
     abstract Builder setDefaultTableProvider(@Nullable String defaultTableProvider);
 

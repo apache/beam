@@ -41,6 +41,7 @@ import org.apache.beam.sdk.extensions.sql.meta.catalog.InMemoryCatalogManager;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.UdfUdafProvider;
+import org.apache.beam.sdk.extensions.sql.meta.store.MetaStore;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
@@ -51,7 +52,6 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Function
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlKind;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.tools.RuleSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Contains the metadata of tables/UDF functions, and exposes APIs to
@@ -150,7 +150,6 @@ public class BeamSqlEnv {
     private static final String CALCITE_PLANNER =
         "org.apache.beam.sdk.extensions.sql.impl.CalciteQueryPlanner";
     private String queryPlannerClassName;
-    private @Nullable TableProvider defaultTableProvider;
     private CatalogManager catalogManager;
     private String currentSchemaName;
     private Map<String, TableProvider> schemaMap;
@@ -162,8 +161,12 @@ public class BeamSqlEnv {
     private BeamSqlEnvBuilder(TableProvider tableProvider) {
       checkNotNull(tableProvider, "Table provider for the default schema must be sets.");
 
-      defaultTableProvider = tableProvider;
-      catalogManager = new InMemoryCatalogManager();
+      if (tableProvider instanceof MetaStore) {
+        catalogManager = new InMemoryCatalogManager((MetaStore) tableProvider);
+      } else {
+        catalogManager = new InMemoryCatalogManager();
+        catalogManager.registerTableProvider(tableProvider);
+      }
       queryPlannerClassName = CALCITE_PLANNER;
       schemaMap = new HashMap<>();
       functionSet = new HashSet<>();
@@ -264,12 +267,7 @@ public class BeamSqlEnv {
     public BeamSqlEnv build() {
       checkStateNotNull(pipelineOptions);
 
-      JdbcConnection jdbcConnection;
-      if (defaultTableProvider != null) {
-        jdbcConnection = JdbcDriver.connect(defaultTableProvider, pipelineOptions);
-      } else {
-        jdbcConnection = JdbcDriver.connect(catalogManager, pipelineOptions);
-      }
+      JdbcConnection jdbcConnection = JdbcDriver.connect(catalogManager, pipelineOptions);
 
       configureSchemas(jdbcConnection);
 

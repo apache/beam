@@ -17,10 +17,12 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.iceberg;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.InMemoryCatalog;
-import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -29,7 +31,7 @@ public class IcebergCatalog extends InMemoryCatalog {
   // TODO(ahmedabu98): extend this to the IO implementation so
   //  other SDKs can make use of it too
   private static final String BEAM_HADOOP_PREFIX = "beam.catalog.hadoop";
-  private final InMemoryMetaStore metaStore = new InMemoryMetaStore();
+  private final Map<String, IcebergMetastore> metaStores = new HashMap<>();
   @VisibleForTesting final IcebergCatalogConfig catalogConfig;
 
   public IcebergCatalog(String name, Map<String, String> properties) {
@@ -52,12 +54,18 @@ public class IcebergCatalog extends InMemoryCatalog {
             .setCatalogProperties(catalogProps.build())
             .setConfigProperties(hadoopProps.build())
             .build();
-    metaStore.registerProvider(new IcebergTableProvider(catalogConfig));
   }
 
   @Override
-  public InMemoryMetaStore metaStore() {
-    return metaStore;
+  public IcebergMetastore metaStore(String db) {
+    metaStores.putIfAbsent(db, new IcebergMetastore(db, catalogConfig));
+    return metaStores.get(db);
+    //    @Nullable IcebergMetastore metaStore = metaStores.get(db);
+    //    if (metaStore == null) {
+    //      metaStore = new IcebergMetastore(db, catalogConfig);
+    //      metaStores.put(db, metaStore);
+    //    }
+    //    return metaStore;
   }
 
   @Override
@@ -71,8 +79,15 @@ public class IcebergCatalog extends InMemoryCatalog {
   }
 
   @Override
+  public void useDatabase(String database) {
+    checkArgument(listDatabases().contains(database), "Database '%s' does not exist.");
+    currentDatabase = database;
+  }
+
+  @Override
   public boolean dropDatabase(String database, boolean cascade) {
     boolean removed = catalogConfig.dropNamespace(database, cascade);
+    metaStores.remove(database);
     if (database.equals(currentDatabase)) {
       currentDatabase = null;
     }

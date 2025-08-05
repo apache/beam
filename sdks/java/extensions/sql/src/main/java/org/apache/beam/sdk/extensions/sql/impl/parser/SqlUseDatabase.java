@@ -17,14 +17,14 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.parser;
 
-import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.Static.RESOURCE;
 
+import com.google.api.client.util.Lists;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.impl.BeamCalciteSchema;
-import org.apache.beam.sdk.extensions.sql.meta.catalog.Catalog;
-import org.apache.beam.sdk.extensions.sql.meta.catalog.CatalogManager;
+import org.apache.beam.sdk.extensions.sql.impl.CatalogManagerSchema;
+import org.apache.beam.sdk.extensions.sql.impl.CatalogSchema;
+import org.apache.beam.sdk.extensions.sql.impl.TableName;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalcitePrepare;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Schema;
@@ -37,19 +37,16 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlSpecialO
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlUtil;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.Pair;
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 
 public class SqlUseDatabase extends SqlSetOption implements BeamSqlParser.ExecutableStatement {
-  private static final Logger LOG = LoggerFactory.getLogger(SqlUseDatabase.class);
   private final SqlIdentifier databaseName;
 
   private static final SqlOperator OPERATOR = new SqlSpecialOperator("USE DATABASE", SqlKind.OTHER);
 
-  public SqlUseDatabase(SqlParserPos pos, String scope, SqlNode databaseName) {
+  public SqlUseDatabase(SqlParserPos pos, String scope, SqlIdentifier databaseName) {
     super(pos, scope, SqlDdlNodes.getIdentifier(databaseName, pos), null);
-    this.databaseName = SqlDdlNodes.getIdentifier(databaseName, pos);
+    this.databaseName = databaseName;
   }
 
   @Override
@@ -66,38 +63,32 @@ public class SqlUseDatabase extends SqlSetOption implements BeamSqlParser.Execut
   public void execute(CalcitePrepare.Context context) {
     final Pair<CalciteSchema, String> pair = SqlDdlNodes.schema(context, true, databaseName);
     Schema schema = pair.left.schema;
-    String name = checkStateNotNull(pair.right);
+    String path = databaseName.toString();
+    List<String> components = Lists.newArrayList(Splitter.on(".").split(path));
+    TableName pathOverride = TableName.create(components, "");
 
-    if (!(schema instanceof BeamCalciteSchema)) {
-      throw SqlUtil.newContextException(
-          databaseName.getParserPosition(),
-          RESOURCE.internal("Schema is not of instance BeamCalciteSchema"));
-    }
-
-    BeamCalciteSchema beamCalciteSchema = (BeamCalciteSchema) schema;
-    @Nullable CatalogManager catalogManager = beamCalciteSchema.getCatalogManager();
-    if (catalogManager == null) {
+    if (!(schema instanceof CatalogManagerSchema)) {
       throw SqlUtil.newContextException(
           databaseName.getParserPosition(),
           RESOURCE.internal(
-              String.format(
-                  "Unexpected 'USE DATABASE' call using Schema '%s' that is not a Catalog.",
-                  name)));
+              "Attempting to create database '"
+                  + path
+                  + "' with unexpected Calcite Schema of type "
+                  + schema.getClass()));
     }
 
-    Catalog catalog = catalogManager.currentCatalog();
-    if (!catalog.listDatabases().contains(name)) {
-      throw SqlUtil.newContextException(
-          databaseName.getParserPosition(),
-          RESOURCE.internal(String.format("Cannot use database: '%s' not found.", name)));
+    CatalogManagerSchema catalogManagerSchema = (CatalogManagerSchema) schema;
+    CatalogSchema catalogSchema = catalogManagerSchema.getCatalogSchema(pathOverride);
+    // if database exists in a different catalog, we need to also switch to that catalog
+    if (pathOverride.catalog() != null
+        && !pathOverride
+            .catalog()
+            .equals(catalogManagerSchema.getCurrentCatalogSchema().getCatalog().name())) {
+      SqlIdentifier catalogIdentifier =
+          new SqlIdentifier(pathOverride.catalog(), databaseName.getParserPosition());
+      catalogManagerSchema.useCatalog(catalogIdentifier);
     }
 
-    if (name.equals(catalog.currentDatabase())) {
-      LOG.info("Database '{}' is already in use.", name);
-      return;
-    }
-
-    catalog.useDatabase(name);
-    LOG.info("Switched to database '{}'.", name);
+    catalogSchema.useDatabase(databaseName);
   }
 }

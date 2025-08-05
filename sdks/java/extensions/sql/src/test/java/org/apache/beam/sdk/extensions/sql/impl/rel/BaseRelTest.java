@@ -31,11 +31,13 @@ public abstract class BaseRelTest {
   protected static BeamSqlEnv env = BeamSqlEnv.readOnly("test", tables);
 
   protected static PCollection<Row> compilePipeline(String sql, Pipeline pipeline) {
+    env = BeamSqlEnv.readOnly("test", tables);
     return BeamSqlRelUtils.toPCollection(pipeline, env.parseQuery(sql));
   }
 
   protected static void registerTable(String tableName, BeamSqlTable table) {
     tables.put(tableName, table);
+    env = BeamSqlEnv.readOnly("test", tables);
   }
 
   protected static BeamSqlTable getTable(String tableName) {

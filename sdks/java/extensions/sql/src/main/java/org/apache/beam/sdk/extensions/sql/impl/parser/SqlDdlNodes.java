@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.impl.parser;
 
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import java.util.List;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.jdbc.CalcitePrepare;
@@ -50,23 +51,33 @@ public class SqlDdlNodes {
   /** Returns the schema in which to create an object. */
   static Pair<CalciteSchema, String> schema(
       CalcitePrepare.Context context, boolean mutable, SqlIdentifier id) {
-    final List<String> path;
-    if (id.isSimple()) {
-      path = context.getDefaultSchemaPath();
-    } else {
+    CalciteSchema rootSchema = mutable ? context.getMutableRootSchema() : context.getRootSchema();
+    @Nullable CalciteSchema schema = null;
+    List<String> path = null;
+    if (!id.isSimple()) {
       path = Util.skipLast(id.names);
+      schema = childSchema(rootSchema, path);
     }
-    CalciteSchema schema = mutable ? context.getMutableRootSchema() : context.getRootSchema();
-    for (String p : path) {
-      schema = schema.getSubSchema(p, true);
-      if (schema == null) {
-        throw new AssertionError(String.format("Got null sub-schema for path '%s' in %s", p, path));
-      }
+    // if id isSimple or if the above returned a null schema, use default schema path
+    if (schema == null) {
+      path = context.getDefaultSchemaPath();
+      schema = childSchema(rootSchema, path);
     }
-    return Pair.of(schema, name(id));
+    return Pair.of(checkStateNotNull(schema, "Got null sub-schema for path '%s'", path), name(id));
   }
 
-  static String name(SqlIdentifier id) {
+  private static @Nullable CalciteSchema childSchema(CalciteSchema rootSchema, List<String> path) {
+    @Nullable CalciteSchema schema = rootSchema;
+    for (String p : path) {
+      if (schema == null) {
+        break;
+      }
+      schema = schema.getSubSchema(p, true);
+    }
+    return schema;
+  }
+
+  public static String name(SqlIdentifier id) {
     if (id.isSimple()) {
       return id.getSimple();
     } else {

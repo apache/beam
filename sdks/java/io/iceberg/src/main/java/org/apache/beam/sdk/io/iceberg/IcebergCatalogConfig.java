@@ -32,11 +32,13 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.SupportsNamespaces;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.exceptions.AlreadyExistsException;
+import org.apache.iceberg.exceptions.NoSuchTableException;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
@@ -150,6 +152,34 @@ public abstract class IcebergCatalogConfig implements Serializable {
     } catch (AlreadyExistsException e) {
       throw new TableAlreadyExistsException(e);
     }
+  }
+
+  public @Nullable IcebergTableInfo loadTable(String tableIdentifier) {
+    TableIdentifier icebergIdentifier = TableIdentifier.parse(tableIdentifier);
+    try {
+      Table table = catalog().loadTable(icebergIdentifier);
+      return IcebergTableInfo.create(
+          tableIdentifier,
+          IcebergUtils.icebergSchemaToBeamSchema(table.schema()),
+          table.properties());
+    } catch (NoSuchTableException ignored) {
+      return null;
+    }
+  }
+
+  // Helper class to pass information to Beam SQL module without relying on Iceberg deps
+  @AutoValue
+  public abstract static class IcebergTableInfo {
+    public abstract String getIdentifier();
+
+    public abstract Schema getSchema();
+
+    public abstract Map<String, String> getProperties();
+
+    static IcebergTableInfo create(
+        String identifier, Schema schema, Map<String, String> properties) {
+      return new AutoValue_IcebergCatalogConfig_IcebergTableInfo(identifier, schema, properties);
+    };
   }
 
   public boolean dropTable(String tableIdentifier) {

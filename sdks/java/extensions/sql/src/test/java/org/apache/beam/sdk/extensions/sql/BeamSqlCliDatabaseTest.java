@@ -17,9 +17,17 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
+import static org.apache.beam.sdk.extensions.sql.meta.catalog.Catalog.DEFAULT;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
+import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.extensions.sql.meta.catalog.Catalog;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.InMemoryCatalogManager;
+import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestTableProvider;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.runtime.CalciteContextException;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.junit.Before;
@@ -43,7 +51,7 @@ public class BeamSqlCliDatabaseTest {
   public void testCreateDatabase() {
     cli.execute("CREATE DATABASE my_database");
     assertEquals(
-        ImmutableSet.of("default", "my_database"), catalogManager.currentCatalog().listDatabases());
+        ImmutableSet.of(DEFAULT, "my_database"), catalogManager.currentCatalog().listDatabases());
   }
 
   @Test
@@ -59,15 +67,15 @@ public class BeamSqlCliDatabaseTest {
     cli.execute("CREATE DATABASE my_database");
     cli.execute("CREATE DATABASE IF NOT EXISTS my_database");
     assertEquals(
-        ImmutableSet.of("default", "my_database"), catalogManager.currentCatalog().listDatabases());
+        ImmutableSet.of(DEFAULT, "my_database"), catalogManager.currentCatalog().listDatabases());
   }
 
   @Test
   public void testUseDatabase() {
-    assertEquals("default", catalogManager.currentCatalog().currentDatabase());
+    assertEquals(DEFAULT, catalogManager.currentCatalog().currentDatabase());
     cli.execute("CREATE DATABASE my_database");
     cli.execute("CREATE DATABASE my_database2");
-    assertEquals("default", catalogManager.currentCatalog().currentDatabase());
+    assertEquals(DEFAULT, catalogManager.currentCatalog().currentDatabase());
     cli.execute("USE DATABASE my_database");
     assertEquals("my_database", catalogManager.currentCatalog().currentDatabase());
     cli.execute("USE DATABASE my_database2");
@@ -76,7 +84,7 @@ public class BeamSqlCliDatabaseTest {
 
   @Test
   public void testUseDatabase_doesNotExist() {
-    assertEquals("default", catalogManager.currentCatalog().currentDatabase());
+    assertEquals(DEFAULT, catalogManager.currentCatalog().currentDatabase());
     thrown.expect(CalciteContextException.class);
     thrown.expectMessage("Cannot use database: 'non_existent' not found.");
     cli.execute("USE DATABASE non_existent");
@@ -86,16 +94,100 @@ public class BeamSqlCliDatabaseTest {
   public void testDropDatabase() {
     cli.execute("CREATE DATABASE my_database");
     assertEquals(
-        ImmutableSet.of("default", "my_database"), catalogManager.currentCatalog().listDatabases());
+        ImmutableSet.of(DEFAULT, "my_database"), catalogManager.currentCatalog().listDatabases());
     cli.execute("DROP DATABASE my_database");
-    assertEquals(ImmutableSet.of("default"), catalogManager.currentCatalog().listDatabases());
+    assertEquals(ImmutableSet.of(DEFAULT), catalogManager.currentCatalog().listDatabases());
   }
 
   @Test
   public void testDropDatabase_nonexistent() {
-    assertEquals(ImmutableSet.of("default"), catalogManager.currentCatalog().listDatabases());
+    assertEquals(ImmutableSet.of(DEFAULT), catalogManager.currentCatalog().listDatabases());
     thrown.expect(CalciteContextException.class);
     thrown.expectMessage("Database 'my_database' does not exist.");
     cli.execute("DROP DATABASE my_database");
+  }
+
+  @Test
+  public void testCreateInsertDropTableUsingDefaultDatabase() {
+    Catalog catalog = catalogManager.currentCatalog();
+    // create new database db_1
+    cli.execute("CREATE DATABASE db_1");
+    cli.execute("USE DATABASE db_1");
+    assertEquals("db_1", catalog.currentDatabase());
+    assertEquals(ImmutableSet.of(DEFAULT, "db_1"), catalog.listDatabases());
+
+    // create new table
+    TestTableProvider testTableProvider = new TestTableProvider();
+    catalogManager.registerTableProvider(testTableProvider);
+    cli.execute("CREATE EXTERNAL TABLE person(id int, name varchar, age int) TYPE 'test'");
+    // table should be inside the currently used database
+    Table table = catalog.metaStore("db_1").getTable("person");
+    assertNotNull(table);
+
+    // write to the table
+    cli.execute("INSERT INTO person VALUES(123, 'John', 34)");
+    TestTableProvider.TableWithRows tableWithRows = testTableProvider.tables().get(table.getName());
+    assertEquals(1, tableWithRows.getRows().size());
+    Row row = tableWithRows.getRows().get(0);
+    Row expectedRow =
+        Row.withSchema(
+                Schema.builder()
+                    .addNullableInt32Field("id")
+                    .addNullableStringField("name")
+                    .addNullableInt32Field("age")
+                    .build())
+            .addValues(123, "John", 34)
+            .build();
+    assertEquals(expectedRow, row);
+
+    // drop table, using the current database
+    cli.execute("DROP TABLE person");
+    assertNull(catalogManager.currentCatalog().metaStore("db_1").getTable("person"));
+  }
+
+  @Test
+  public void testCreateInsertDropTableUsingOtherDatabase() {
+    Catalog catalog = catalogManager.currentCatalog();
+    // create database db_1
+    cli.execute("CREATE DATABASE db_1");
+    cli.execute("USE DATABASE db_1");
+    assertEquals("db_1", catalog.currentDatabase());
+    assertEquals(ImmutableSet.of(DEFAULT, "db_1"), catalog.listDatabases());
+
+    // switch to other database db_2
+    cli.execute("CREATE DATABASE db_2");
+    cli.execute("USE DATABASE db_2");
+    assertEquals("db_2", catalog.currentDatabase());
+
+    // create table from another database
+    TestTableProvider testTableProvider = new TestTableProvider();
+    catalogManager.registerTableProvider(testTableProvider);
+    cli.execute("CREATE EXTERNAL TABLE db_1.person(id int, name varchar, age int) TYPE 'test'");
+    // current database should not have the table
+    assertNull(catalog.metaStore("db_2").getTable("person"));
+
+    // other database should have the table
+    Table table = catalog.metaStore("db_1").getTable("person");
+    assertNotNull(table);
+
+    // write to table from another database
+    cli.execute("INSERT INTO db_1.person VALUES(123, 'John', 34)");
+    TestTableProvider.TableWithRows tableWithRows = testTableProvider.tables().get(table.getName());
+    assertEquals(1, tableWithRows.getRows().size());
+    Row row = tableWithRows.getRows().get(0);
+    Row expectedRow =
+        Row.withSchema(
+                Schema.builder()
+                    .addNullableInt32Field("id")
+                    .addNullableStringField("name")
+                    .addNullableInt32Field("age")
+                    .build())
+            .addValues(123, "John", 34)
+            .build();
+    assertEquals(expectedRow, row);
+
+    // drop table, overriding the current database
+    cli.execute("DROP TABLE db_1.person");
+    assertNull(catalogManager.currentCatalog().metaStore("db_1").getTable("person"));
   }
 }

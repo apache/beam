@@ -19,23 +19,34 @@ package org.apache.beam.sdk.extensions.sql.meta.catalog;
 
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
+import java.util.Set;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
+import org.apache.beam.sdk.extensions.sql.meta.store.MetaStore;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class InMemoryCatalogManager implements CatalogManager {
   private final Map<String, Catalog> catalogs = new HashMap<>();
-  private final Map<String, TableProvider> tableProviderMap = new HashMap<>();
+  private final Set<TableProvider> tableProviders = new HashSet<>();
   private String currentCatalogName;
 
   public InMemoryCatalogManager() {
     this.catalogs.put("default", new InMemoryCatalog("default", Collections.emptyMap()));
+    this.currentCatalogName = "default";
+  }
+
+  /** To keep backwards compatibility, extends an option to set a default metastore. */
+  public InMemoryCatalogManager(MetaStore defaultMetastore) {
+    this.catalogs.put(
+        "default", new InMemoryCatalog("default", defaultMetastore, Collections.emptyMap()));
     this.currentCatalogName = "default";
   }
 
@@ -45,7 +56,7 @@ public class InMemoryCatalogManager implements CatalogManager {
         !catalogs.containsKey(name), "Catalog with name '%s' already exists.", name);
 
     Catalog catalog = findAndCreateCatalog(name, type, properties);
-    tableProviderMap.values().forEach(catalog.metaStore()::registerProvider);
+    tableProviders.forEach(catalog::registerTableProvider);
     catalogs.put(name, catalog);
   }
 
@@ -73,9 +84,15 @@ public class InMemoryCatalogManager implements CatalogManager {
   }
 
   @Override
-  public void registerTableProvider(String name, TableProvider tableProvider) {
-    tableProviderMap.put(name, tableProvider);
-    catalogs.values().forEach(catalog -> catalog.metaStore().registerProvider(tableProvider));
+  public void registerTableProvider(TableProvider tableProvider) {
+    catalogs.values().forEach(catalog -> catalog.registerTableProvider(tableProvider));
+    tableProviders.add(tableProvider);
+  }
+
+  @Override
+  public void clearTableProviders() {
+    catalogs.values().forEach(Catalog::clearTableProviders);
+    tableProviders.clear();
   }
 
   private Catalog findAndCreateCatalog(String name, String type, Map<String, String> properties) {
@@ -114,5 +131,10 @@ public class InMemoryCatalogManager implements CatalogManager {
       throw new RuntimeException(
           String.format("Encountered an error when constructing Catalog '%s'", name), e);
     }
+  }
+
+  @Override
+  public Collection<Catalog> catalogs() {
+    return catalogs.values();
   }
 }

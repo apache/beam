@@ -270,7 +270,7 @@ SqlDrop SqlDropCatalog(Span s, boolean replace) :
 SqlCreate SqlCreateDatabase(Span s, boolean replace) :
 {
     final boolean ifNotExists;
-    final SqlNode databaseName;
+    final SqlIdentifier databaseName;
 }
 {
     <DATABASE> {
@@ -278,11 +278,7 @@ SqlCreate SqlCreateDatabase(Span s, boolean replace) :
     }
 
     ifNotExists = IfNotExistsOpt()
-    (
-        databaseName = StringLiteral()
-        |
-        databaseName = SimpleIdentifier()
-    )
+    databaseName = CompoundIdentifier()
 
     {
         return new SqlCreateDatabase(
@@ -298,18 +294,14 @@ SqlCreate SqlCreateDatabase(Span s, boolean replace) :
  */
 SqlCall SqlUseDatabase(Span s, String scope) :
 {
-    final SqlNode databaseName;
+    final SqlIdentifier databaseName;
 }
 {
     <USE> {
         s.add(this);
     }
     <DATABASE>
-    (
-        databaseName = StringLiteral()
-        |
-        databaseName = SimpleIdentifier()
-    )
+    databaseName = CompoundIdentifier()
     {
         return new SqlUseDatabase(
             s.end(this),
@@ -324,17 +316,13 @@ SqlCall SqlUseDatabase(Span s, String scope) :
 SqlDrop SqlDropDatabase(Span s, boolean replace) :
 {
     final boolean ifExists;
-    final SqlNode databaseName;
+    final SqlIdentifier databaseName;
     final boolean cascade;
 }
 {
     <DATABASE>
     ifExists = IfExistsOpt()
-    (
-        databaseName = StringLiteral()
-        |
-        databaseName = SimpleIdentifier()
-    )
+    databaseName = CompoundIdentifier()
 
     cascade = CascadeOpt()
 

@@ -17,9 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.catalog;
 
+import java.util.Collection;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class EmptyCatalogManager implements CatalogManager {
@@ -49,14 +51,25 @@ public class EmptyCatalogManager implements CatalogManager {
   }
 
   @Override
-  public void registerTableProvider(String name, TableProvider tableProvider) {
+  public void registerTableProvider(TableProvider tableProvider) {
     throw new UnsupportedOperationException(
         "ReadOnlyCatalogManager does not support registering a table provider");
+  }
+
+  @Override
+  public void clearTableProviders() {
+    throw new UnsupportedOperationException(
+        "ReadOnlyCatalogManager does not support clearing table providers");
   }
 
   @Override
   public void createCatalog(String name, String type, Map<String, String> properties) {
     throw new UnsupportedOperationException(
         "ReadOnlyCatalogManager does not support catalog creation");
+  }
+
+  @Override
+  public Collection<Catalog> catalogs() {
+    return ImmutableSet.of(EMPTY);
   }
 }

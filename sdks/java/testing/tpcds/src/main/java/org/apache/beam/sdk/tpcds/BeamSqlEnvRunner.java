@@ -35,6 +35,7 @@ import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.extensions.sql.meta.catalog.Catalog;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.InMemoryCatalogManager;
 import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTableProvider;
 import org.apache.beam.sdk.io.TextIO;
@@ -117,7 +118,8 @@ public class BeamSqlEnvRunner {
               .properties(properties)
               .type("text")
               .build();
-      inMemoryCatalogManager.currentCatalog().metaStore().createTable(table);
+      Catalog catalog = inMemoryCatalogManager.currentCatalog();
+      catalog.metaStore(catalog.currentDatabase()).createTable(table);
     }
   }
 
