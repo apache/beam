@@ -20,12 +20,12 @@
 
 class MyClass:
   def another_function(self):
-    a = 1
+    a = 1  # pylint: disable=unused-variable
     b = lambda: 2
     return b
 
 
 def my_function():
-  a = 1
+  a = 1  # pylint: disable=unused-variable
   b = lambda: 2
   return b
