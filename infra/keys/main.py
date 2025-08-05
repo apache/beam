@@ -19,6 +19,7 @@ import logging
 import argparse
 import sys
 from typing import List, TypedDict
+from google.api_core.exceptions import PermissionDenied
 # Importing custom modules
 from gcp_logger import GCSLogHandler, GCPLogger
 from secret_manager import SecretManager
@@ -106,7 +107,6 @@ Examples:
   python main.py                        # Initialize service accounts and setup
   python main.py --cron                 # Run key rotation for accounts that need it
   python main.py --get-key my-sa        # Get the latest key for service account 'my-sa'
-  python main.py --generate-key my-sa   # Manually rotate key for service account 'my-sa'
         """
     )
     
@@ -121,12 +121,6 @@ Examples:
         metavar='ACCOUNT_ID',
         type=str,
         help='Get the latest key for the specified service account ID'
-    )
-    group.add_argument(
-        '--generate-key',
-        metavar='ACCOUNT_ID',
-        type=str,
-        help='Manually rotate (generate new) key for the specified service account ID'
     )
     
     return parser.parse_args()
@@ -425,37 +419,12 @@ def main():
                 else:
                     print(f"No key found for service account: {account_id}")
                     sys.exit(1)
+            except PermissionDenied as e:
+                print(f"Permission denied when accessing the key for {account_id}: {e}")
+                sys.exit(1)
             except Exception as e:
                 print(f"Error retrieving key for {account_id}: {e}")
                 sys.exit(1)
-                
-        elif args.generate_key:
-            account_id = args.generate_key
-            print(f"Manually rotating key for service account: {account_id}")
-            
-            # Validate that the account exists in configuration
-            account_ids = [account['account_id'] for account in service_accounts_config['service_accounts']]
-            if account_id not in account_ids:
-                print(f"Error: Service account '{account_id}' not found in configuration.")
-                print(f"Available accounts: {', '.join(account_ids)}")
-                sys.exit(1)
-            
-            try:
-                key_service.rotate_service_account_key(account_id)
-                print(f"Key rotation completed successfully for service account: {account_id}")
-                
-                print("\nRetrieving the new key...")
-                key = key_service.get_latest_service_account_key(account_id)
-                if key:
-                    print(f"New key for {account_id}:")
-                    print(key)
-                else:
-                    print(f"Warning: Could not retrieve the new key for {account_id}")
-                    
-            except Exception as e:
-                print(f"Error rotating key for {account_id}: {e}")
-                sys.exit(1)
-                
         else:
             # Default behavior: initialize service accounts and setup
             print("KeyService initialized successfully.")
