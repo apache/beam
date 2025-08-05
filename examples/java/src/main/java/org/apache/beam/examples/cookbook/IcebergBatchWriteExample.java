@@ -59,6 +59,9 @@ public class IcebergBatchWriteExample {
   public static final Schema AGGREGATED_SCHEMA =
       Schema.builder().addStringField("browser").addInt64Field("transaction_count").build();
 
+  public static final String BQ_TABLE =
+      "bigquery-public-data.google_analytics_sample.ga_sessions_20170801";
+
   private static Row flattenAnalyticsRow(Row row) {
     Row device = Preconditions.checkStateNotNull(row.getRow("device"));
     Row totals = Preconditions.checkStateNotNull(row.getRow("totals"));
@@ -182,7 +185,7 @@ public class IcebergBatchWriteExample {
 
     Map<String, Object> bigQueryReadConfig =
         ImmutableMap.<String, Object>builder()
-            .put("table", "bigquery-public-data.google_analytics_sample.ga_sessions_20170801")
+            .put("table", BQ_TABLE)
             .put("fields", ImmutableList.of("device.browser", "totals.transactions"))
             .put("row_restriction", "totals.transactions is not null")
             .build();
