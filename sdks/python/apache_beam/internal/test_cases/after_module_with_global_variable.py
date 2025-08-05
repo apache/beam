@@ -15,7 +15,10 @@
 # limitations under the License.
 #
 
-"""Module for testing code path generation with a global variable."""
+"""Module for testing code path generation with functions.
+Counterpart to before_module_with_functions and is used as a test case
+for adding a global variable.
+"""
 
 GLOBAL_VARIABLE = lambda: 3
 
