@@ -14,6 +14,7 @@
 # limitations under the License.
 
 import os
+import logging
 import unittest
 from unittest import mock
 from service_account import ServiceAccountManager
@@ -270,6 +271,263 @@ class TestServiceAccountManagerUnit(unittest.TestCase):
         result = self.manager.test_service_account_key(key_data)
 
         self.assertFalse(result)
+
+    def test_normalize_account_email_with_email(self):
+        """Test normalizing account email when input is already a full email."""
+        full_email = f"{self.test_account_id}@{self.project_id}.iam.gserviceaccount.com"
+        result = self.manager._normalize_account_email(full_email)
+        self.assertEqual(result, full_email)
+
+    def test_normalize_account_email_with_id(self):
+        """Test normalizing account email when input is just the account ID."""
+        result = self.manager._normalize_account_email(self.test_account_id)
+        expected_email = f"{self.test_account_id}@{self.project_id}.iam.gserviceaccount.com"
+        self.assertEqual(result, expected_email)
+
+    def test_service_account_exists_true(self):
+        """Test _service_account_exists when service account exists."""
+        mock_account = self._create_mock_service_account(self.test_account_id)
+        self.mock_iam_client.get_service_account.return_value = mock_account
+        
+        result = self.manager._service_account_exists(self.test_account_id)
+        
+        self.assertTrue(result)
+        self.mock_iam_client.get_service_account.assert_called_once()
+
+    def test_service_account_exists_false(self):
+        """Test _service_account_exists when service account does not exist."""
+        self.mock_iam_client.get_service_account.side_effect = exceptions.NotFound("Not found")
+        
+        result = self.manager._service_account_exists(self.test_account_id)
+        
+        self.assertFalse(result)
+        self.mock_iam_client.get_service_account.assert_called_once()
+
+    def test_service_account_is_enabled_true(self):
+        """Test _service_account_is_enabled when service account is enabled."""
+        mock_account = self._create_mock_service_account(self.test_account_id, disabled=False)
+        self.mock_iam_client.get_service_account.return_value = mock_account
+        
+        result = self.manager._service_account_is_enabled(self.test_account_id)
+        
+        self.assertTrue(result)
+        self.mock_iam_client.get_service_account.assert_called_once()
+
+    def test_service_account_is_enabled_false(self):
+        """Test _service_account_is_enabled when service account is disabled."""
+        mock_account = self._create_mock_service_account(self.test_account_id, disabled=True)
+        self.mock_iam_client.get_service_account.return_value = mock_account
+        
+        result = self.manager._service_account_is_enabled(self.test_account_id)
+        
+        self.assertFalse(result)
+        self.mock_iam_client.get_service_account.assert_called_once()
+
+    def test_service_account_is_enabled_not_found(self):
+        """Test _service_account_is_enabled when service account does not exist."""
+        self.mock_iam_client.get_service_account.side_effect = exceptions.NotFound("Not found")
+        
+        result = self.manager._service_account_is_enabled(self.test_account_id)
+        
+        self.assertFalse(result)
+        self.mock_iam_client.get_service_account.assert_called_once()
+
+    def test_get_service_account_success(self):
+        """Test successful retrieval of a service account."""
+        mock_account = self._create_mock_service_account(self.test_account_id)
+        self.mock_iam_client.get_service_account.return_value = mock_account
+        
+        result = self.manager.get_service_account(self.test_account_id)
+        
+        self.assertEqual(result, mock_account)
+        self.mock_iam_client.get_service_account.assert_called_once()
+
+    def test_get_service_account_not_found(self):
+        """Test retrieval of a non-existent service account."""
+        self.mock_iam_client.get_service_account.side_effect = exceptions.NotFound("Not found")
+        
+        with self.assertRaises(exceptions.NotFound):
+            self.manager.get_service_account(self.test_account_id)
+        
+        self.mock_iam_client.get_service_account.assert_called_once()
+
+    def test_service_account_key_exists_true(self):
+        """Test _service_account_key_exists when key exists."""
+        key_id = "test-key-id"
+        mock_key = self._create_mock_service_account_key(self.test_account_id, key_id)
+        mock_response = mock.MagicMock()
+        mock_response.keys = [mock_key]
+        self.mock_iam_client.list_service_account_keys.return_value = mock_response
+        
+        result = self.manager._service_account_key_exists(self.test_account_id, key_id)
+        
+        self.assertTrue(result)
+        self.mock_iam_client.list_service_account_keys.assert_called_once()
+
+    def test_service_account_key_exists_false(self):
+        """Test _service_account_key_exists when key does not exist."""
+        key_id = "test-key-id"
+        other_key = self._create_mock_service_account_key(self.test_account_id, "other-key-id")
+        mock_response = mock.MagicMock()
+        mock_response.keys = [other_key]
+        self.mock_iam_client.list_service_account_keys.return_value = mock_response
+        
+        result = self.manager._service_account_key_exists(self.test_account_id, key_id)
+        
+        self.assertFalse(result)
+        self.mock_iam_client.list_service_account_keys.assert_called_once()
+
+    def test_delete_service_account_key_not_found(self):
+        """Test deleting a non-existent service account key."""
+        key_id = "non-existent-key"
+        self.mock_iam_client.delete_service_account_key.side_effect = exceptions.NotFound("Key not found")
+        
+        with self.assertRaises(exceptions.NotFound):
+            self.manager.delete_service_account_key(self.test_account_id, key_id)
+        
+        self.mock_iam_client.delete_service_account_key.assert_called_once()
+
+    def test_delete_service_account_key_failed_precondition(self):
+        """Test deleting a service account key with failed precondition."""
+        key_id = "test-key-id"
+        self.mock_iam_client.delete_service_account_key.side_effect = exceptions.FailedPrecondition("Cannot delete")
+        
+        with self.assertRaises(exceptions.FailedPrecondition):
+            self.manager.delete_service_account_key(self.test_account_id, key_id)
+        
+        self.mock_iam_client.delete_service_account_key.assert_called_once()
+
+    def test_delete_service_account_key_unexpected_error(self):
+        """Test deleting a service account key with unexpected error."""
+        key_id = "test-key-id"
+        self.mock_iam_client.delete_service_account_key.side_effect = Exception("Unexpected error")
+        
+        with self.assertRaises(Exception):
+            self.manager.delete_service_account_key(self.test_account_id, key_id)
+        
+        self.mock_iam_client.delete_service_account_key.assert_called_once()
+
+    def test_delete_oldest_service_account_keys_no_keys(self):
+        """Test deleting oldest keys when no keys exist."""
+        mock_response = mock.MagicMock()
+        mock_response.keys = []
+        self.mock_iam_client.list_service_account_keys.return_value = mock_response
+        
+        result = self.manager.delete_oldest_service_account_keys(self.test_account_id)
+        
+        self.assertEqual(result, [])
+        self.mock_iam_client.list_service_account_keys.assert_called_once()
+
+    def test_delete_oldest_service_account_keys_within_limit(self):
+        """Test deleting oldest keys when key count is within limit."""
+        mock_keys = []
+        for i, key_id in enumerate(["key1", "key2"]):
+            key = mock.MagicMock()
+            key.name = f"projects/{self.project_id}/serviceAccounts/{self.test_account_id}@{self.project_id}.iam.gserviceaccount.com/keys/{key_id}"
+            # Create comparable timestamps
+            timestamp = mock.MagicMock()
+            timestamp.__lt__ = lambda self, other, idx=i: idx < getattr(other, '_idx', 0)
+            timestamp._idx = i
+            key.valid_after_time = timestamp
+            mock_keys.append(key)
+        
+        mock_response = mock.MagicMock()
+        mock_response.keys = mock_keys
+        self.mock_iam_client.list_service_account_keys.return_value = mock_response
+        
+        result = self.manager.delete_oldest_service_account_keys(self.test_account_id, max_keys=2)
+        
+        self.assertEqual(result, [])
+        self.mock_iam_client.list_service_account_keys.assert_called_once()
+
+    def test_delete_oldest_service_account_keys_success(self):
+        """Test successfully deleting oldest keys."""
+        # Create mock keys with mock timestamps
+        mock_keys = []
+        for i in range(5):
+            key = mock.MagicMock()
+            key.name = f"projects/{self.project_id}/serviceAccounts/{self.test_account_id}@{self.project_id}.iam.gserviceaccount.com/keys/key{i}"
+            # Create comparable timestamps
+            timestamp = mock.MagicMock()
+            timestamp.__lt__ = lambda self, other, idx=i: idx < getattr(other, '_idx', 0)
+            timestamp._idx = i
+            key.valid_after_time = timestamp
+            mock_keys.append(key)
+        
+        mock_response = mock.MagicMock()
+        mock_response.keys = mock_keys
+        self.mock_iam_client.list_service_account_keys.return_value = mock_response
+        
+        with mock.patch.object(self.manager, '_service_account_key_exists', return_value=False):
+            result = self.manager.delete_oldest_service_account_keys(self.test_account_id, max_keys=2)
+        
+        # Should delete 3 oldest keys (5 - 2 = 3)
+        self.assertEqual(len(result), 3)
+        # Verify delete was called for each oldest key
+        self.assertEqual(self.mock_iam_client.delete_service_account_key.call_count, 3)
+
+    def test_delete_oldest_service_account_keys_with_failures(self):
+        """Test deleting oldest keys with some deletion failures."""
+        mock_keys = []
+        for i in range(4):
+            key = mock.MagicMock()
+            key.name = f"projects/{self.project_id}/serviceAccounts/{self.test_account_id}@{self.project_id}.iam.gserviceaccount.com/keys/key{i}"
+            # Create comparable timestamps
+            timestamp = mock.MagicMock()
+            timestamp.__lt__ = lambda self, other, idx=i: idx < getattr(other, '_idx', 0)
+            timestamp._idx = i
+            key.valid_after_time = timestamp
+            mock_keys.append(key)
+        
+        mock_response = mock.MagicMock()
+        mock_response.keys = mock_keys
+        self.mock_iam_client.list_service_account_keys.return_value = mock_response
+        
+        # Mock first deletion to fail, second to succeed
+        self.mock_iam_client.delete_service_account_key.side_effect = [
+            exceptions.NotFound("Key not found"),
+            None  # Success
+        ]
+        
+        with mock.patch.object(self.manager, '_service_account_key_exists', return_value=False):
+            result = self.manager.delete_oldest_service_account_keys(self.test_account_id, max_keys=2)
+        
+        # Should return only the successfully deleted key
+        self.assertEqual(len(result), 1)
+        self.assertEqual(self.mock_iam_client.delete_service_account_key.call_count, 2)
+
+    @mock.patch('service_account.time.sleep')
+    def test_test_service_account_key_retry_success(self, mock_sleep):
+        """Test service account key testing with retry logic success."""
+        mock_credentials = mock.MagicMock()
+        
+        # First attempt fails, second succeeds
+        mock_credentials.refresh.side_effect = [Exception("Auth failed"), None]
+        
+        with mock.patch('service_account.service_account.Credentials.from_service_account_info', return_value=mock_credentials):
+            key_data = b'{"type": "service_account", "project_id": "test-project"}'
+            result = self.manager.test_service_account_key(key_data)
+        
+        self.assertTrue(result)
+        self.assertEqual(mock_credentials.refresh.call_count, 2)
+        mock_sleep.assert_called_once_with(2)  # delay is doubled before sleep (1 * 2 = 2)
+
+    @mock.patch('service_account.time.sleep')
+    def test_test_service_account_key_retry_exhausted(self, mock_sleep):
+        """Test service account key testing when all retries are exhausted."""
+        mock_credentials = mock.MagicMock()
+        mock_credentials.refresh.side_effect = Exception("Auth failed")
+        
+        with mock.patch('service_account.service_account.Credentials.from_service_account_info', return_value=mock_credentials):
+            key_data = b'{"type": "service_account", "project_id": "test-project"}'
+            result = self.manager.test_service_account_key(key_data)
+        
+        self.assertFalse(result)
+        self.assertEqual(mock_credentials.refresh.call_count, 3)  # max_retries
+        # Sleep is called with 2, then 4 (delay is doubled each time)
+        self.assertEqual(mock_sleep.call_count, 2)  # 2 retry delays
+        mock_sleep.assert_any_call(2)  # First retry delay (1 * 2)
+        mock_sleep.assert_any_call(4)  # Second retry delay (2 * 2)
 
     def test_create_service_account_timeout(self):
         """Test service account creation timeout scenario."""

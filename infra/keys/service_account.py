@@ -254,7 +254,7 @@ class ServiceAccountManager:
         response = self.client.list_service_account_keys(request=request)
         self.logger.debug(f"Listed keys for service account: {account_id}")
         return list(response.keys)
-    
+
     def _service_account_key_exists(self, account_id: str, key_id: str) -> bool:
         """
         Checks if a service account key exists for the specified service account.
@@ -274,6 +274,7 @@ class ServiceAccountManager:
         Creates a key for the specified service account.
         Remember the private key ID is only returned once.
         If the service account is disabled, it will be enabled first.
+        Includes retry logic to handle service account propagation delays.
 
         Args:
             account_id (str): The unique identifier or email of the service account.
@@ -283,36 +284,55 @@ class ServiceAccountManager:
             str: The private key ID of the created key.
         """
         service_account_email = self._normalize_account_email(account_id)
-        get_request = types.GetServiceAccountRequest()
-        get_request.name = f"projects/{self.project_id}/serviceAccounts/{service_account_email}"
         
-        try:
-            service_account = self.client.get_service_account(request=get_request)
-            if service_account.disabled:
-                self.logger.info(f"Service account {account_id} is disabled. Enabling it first.")
-                self.enable_service_account(account_id)
-        except exceptions.NotFound:
-            self.logger.error(f"Service account {account_id} not found")
-            raise
-
-        request = types.CreateServiceAccountKeyRequest()
-        request.name = f"projects/{self.project_id}/serviceAccounts/{service_account_email}"
-
-        key = self.client.create_service_account_key(request=request)
-
-        # Wait for the key to be created
+        # Retry logic for service account access and key creation
         delay = 1
-        for _ in range(self.max_retries):
-            if self._service_account_key_exists(account_id, key.name.split('/')[-1]):
-                break
-            time.sleep(delay)
-            delay *= 2
-        else:
-            self.logger.error(f"Service account key creation for {account_id} timed out after {self.max_retries} retries.")
-            raise exceptions.DeadlineExceeded(f"Service account key creation for {account_id} timed out.")
+        for attempt in range(self.max_retries):
+            try:
+                # Check if service account exists and get its state
+                get_request = types.GetServiceAccountRequest()
+                get_request.name = f"projects/{self.project_id}/serviceAccounts/{service_account_email}"
+                
+                service_account = self.client.get_service_account(request=get_request)
+                if service_account.disabled:
+                    self.logger.info(f"Service account {account_id} is disabled. Enabling it first.")
+                    self.enable_service_account(account_id)
+                
+                # Create the key
+                request = types.CreateServiceAccountKeyRequest()
+                request.name = f"projects/{self.project_id}/serviceAccounts/{service_account_email}"
+                
+                key = self.client.create_service_account_key(request=request)
+                
+                # Wait for the key to be created and available
+                key_delay = 1
+                for _ in range(self.max_retries):
+                    if self._service_account_key_exists(account_id, key.name.split('/')[-1]):
+                        break
+                    time.sleep(key_delay)
+                    key_delay *= 2
+                else:
+                    self.logger.error(f"Service account key creation for {account_id} timed out after {self.max_retries} retries.")
+                    raise exceptions.DeadlineExceeded(f"Service account key creation for {account_id} timed out.")
 
-        self.logger.info(f"Created service account key for {account_id}")
-        return key
+                self.logger.info(f"Created service account key for {account_id}")
+                return key
+                
+            except exceptions.NotFound as e:
+                if attempt < self.max_retries - 1:
+                    self.logger.warning(f"Service account {account_id} not found (attempt {attempt + 1}/{self.max_retries}), retrying in {delay}s. This may be due to propagation delay.")
+                    time.sleep(delay)
+                    delay *= 2
+                else:
+                    self.logger.error(f"Service account {account_id} not found after {self.max_retries} attempts")
+                    raise
+            except Exception as e:
+                # For other exceptions, don't retry
+                self.logger.error(f"Error creating service account key for {account_id}: {e}")
+                raise
+        
+        # This should not be reached due to the raise in the except block
+        raise exceptions.NotFound(f"Service account {account_id} not found after {self.max_retries} attempts")
     
     def delete_service_account_key(self, account_id: str, key_id: str) -> None:
         """
