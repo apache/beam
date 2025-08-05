@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.tpcds;
 
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.util.ArrayList;
@@ -119,7 +120,7 @@ public class BeamSqlEnvRunner {
               .type("text")
               .build();
       Catalog catalog = inMemoryCatalogManager.currentCatalog();
-      catalog.metaStore(catalog.currentDatabase()).createTable(table);
+      catalog.metaStore(checkStateNotNull(catalog.currentDatabase())).createTable(table);
     }
   }
 
