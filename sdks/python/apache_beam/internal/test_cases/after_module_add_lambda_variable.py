@@ -19,7 +19,7 @@
 
 
 def my_function():
-  a = 1
+  a = 1  # pylint: disable=unused-variable
   b = lambda: 2
-  new_lambda_variable = lambda: 4
+  new_lambda_variable = lambda: 4  # pylint: disable=unused-variable
   return b
