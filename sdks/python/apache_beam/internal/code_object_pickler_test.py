@@ -18,8 +18,9 @@
 import hashlib
 import unittest
 
-from apache_beam.internal import code_object_pickler
 from parameterized import parameterized
+
+from apache_beam.internal import code_object_pickler
 
 
 def top_level_function():
