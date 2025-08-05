@@ -15,8 +15,10 @@
 # limitations under the License.
 #
 
-"""Module for testing code path generation with functions."""
-
+"""Module for testing code path generation with functions.
+Counterpart to before_module_with_functions and is used to test that
+code paths don't change is a function is added to the code.
+"""
 
 def another_function():
   a = 1  # pylint: disable=unused-variable
