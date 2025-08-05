@@ -15,7 +15,10 @@
 # limitations under the License.
 #
 
-"""Module for testing code path generation with functions."""
+"""Module for testing code path generation with functions.
+Counterpart to after_module_with_functions and is used as a test case
+for various code changes.
+"""
 
 
 def my_function():
