@@ -403,6 +403,12 @@ final class GrpcGetDataStream
       }
       currentGetDataStream.pending.clear();
     }
+    for (PhysicalStreamHandler handler : closingPhysicalStreams) {
+      for (AppendableInputStream ais : ((GetDataPhysicalStreamHandler) handler).pending.values()) {
+        ais.cancel();
+      }
+      ((GetDataPhysicalStreamHandler) handler).pending.clear();
+    }
     batches.forEach(
         batch -> {
           batch.markFinalized();

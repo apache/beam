@@ -252,10 +252,16 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   private void startStream() {
     while (true) {
       @NonNull PhysicalStreamHandler streamHandler = newResponseHandler();
-      try {
-        synchronized (this) {
+      synchronized (this) {
+        try {
           checkState(currentPhysicalStream == null, "Overwriting existing physical stream");
           checkState(halfCloseFuture == null, "Unexpected half-close future");
+          if (isShutdown) {
+            // No need to start the stream. shutdown() or onPhysicalStreamCompletion will be
+            // responsible for completing
+            // shutdown.
+            return;
+          }
           debugMetrics.recordStart();
           streamHandler.streamDebugMetrics.recordStart();
           currentPhysicalStream = streamHandler;
@@ -272,34 +278,30 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
                     TimeUnit.SECONDS);
           }
           return;
-        }
-      } catch (WindmillStreamShutdownException e) {
-        // shutdown() is responsible for cleaning up pending requests.
-        logger.debug("Stream was shutdown while creating new stream.", e);
-        break;
-      } catch (Exception e) {
-        logger.error("Failed to create new stream, retrying: ", e);
-        clearCurrentPhysicalStream(true);
-        try {
-          long sleep = backoff.nextBackOffMillis();
-          debugMetrics.recordRestartReason("Failed to create new stream, retrying: " + e);
-          debugMetrics.recordSleep(sleep);
-          sleeper.sleep(sleep);
-        } catch (InterruptedException ie) {
-          Thread.currentThread().interrupt();
-          logger.info(
-              "Interrupted during {} creation backoff. The stream will not be created.",
-              getClass());
-          // Shutdown the stream to clean up any dangling resources and pending requests.
-          shutdown();
+        } catch (WindmillStreamShutdownException e) {
+          logger.debug("Stream was shutdown while creating new stream.", e);
+          clearCurrentPhysicalStream(true);
           break;
+        } catch (Exception e) {
+          logger.error("Failed to create new stream, retrying: ", e);
+          clearCurrentPhysicalStream(true);
+          debugMetrics.recordRestartReason("Failed to create new stream, retrying: " + e);
         }
       }
+      // Backoff outside the synchronized block.
+      try {
+        long sleep = backoff.nextBackOffMillis();
+        debugMetrics.recordSleep(sleep);
+        sleeper.sleep(sleep);
+      } catch (InterruptedException ie) {
+        Thread.currentThread().interrupt();
+        logger.info(
+            "Interrupted during {} creation backoff. The stream will not be created.", getClass());
+        // Shutdown the stream to clean up any dangling resources and pending requests.
+        shutdown();
+        break;
+      }
     }
-
-    // We were never able to start the stream, remove it from the stream registry. Otherwise, it is
-    // removed when closed.
-    streamRegistry.remove(this);
   }
 
   /**
@@ -460,8 +462,18 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
         isShutdown = true;
         debugMetrics.recordShutdown();
         shutdownInternal();
+        if (currentPhysicalStream == null && closingPhysicalStreams.isEmpty()) {
+          completeShutdown();
+        }
       }
     }
+  }
+
+  private void completeShutdown() {
+    logger.debug("Completing shutdown of stream after shutdown and all streams terminated.");
+    streamRegistry.remove(AbstractWindmillStream.this);
+    finishLatch.countDown();
+    executor.shutdownNow();
   }
 
   protected synchronized void shutdownInternal() {}
@@ -538,7 +550,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   private void onPhysicalStreamCompletion(Status status, PhysicalStreamHandler handler) {
     synchronized (this) {
       final boolean wasActiveStream = currentPhysicalStream == handler;
-      if (currentPhysicalStream == handler) {
+      if (wasActiveStream) {
         clearCurrentPhysicalStream(true);
       } else {
         checkState(closingPhysicalStreams.remove(handler));
@@ -551,10 +563,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
         shutdown();
       }
       if (isShutdown && currentPhysicalStream == null && closingPhysicalStreams.isEmpty()) {
-        logger.debug("Completing shutdown of stream after shutdown and all streams terminated.");
-        streamRegistry.remove(AbstractWindmillStream.this);
-        finishLatch.countDown();
-        executor.shutdownNow();
+        completeShutdown();
         return;
       }
       if (currentPhysicalStream != null) {
@@ -566,7 +575,8 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
         }
         return;
       }
-      if (!wasActiveStream) {
+      if (isShutdown || !wasActiveStream) {
+        // No new stream needs to be created, one exists or we're shutting down.
         return;
       }
     }
