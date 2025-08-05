@@ -1945,6 +1945,7 @@ class PrismRunnerOptions(PipelineOptions):
     parser.add_argument(
         '--prism_log_level',
         default="info",
+        choices=["debug", "info", "warn", "error"],
         help=(
             'Controls the log level in Prism. Values can be "debug", "info", '
             '"warn", and "error". Default log level is "info".'))
