@@ -46,15 +46,16 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * A Calcite {@link Schema} that corresponds to a {@link CatalogManager}. This is typically the root
+ * node of a pipeline. Child schemas are of type {@link CatalogSchema}.
+ */
 public class CatalogManagerSchema implements Schema {
   private static final Logger LOG = LoggerFactory.getLogger(CatalogManagerSchema.class);
   private final JdbcConnection connection;
   private final CatalogManager catalogManager;
   private final Map<String, CatalogSchema> catalogSubSchemas = new HashMap<>();
-  /**
-   * Creates a Calcite {@link Schema} representing a {@link CatalogManager}. This will typically be
-   * the root node of a pipeline.
-   */
+
   CatalogManagerSchema(JdbcConnection jdbcConnection, CatalogManager catalogManager) {
     this.connection = jdbcConnection;
     this.catalogManager = catalogManager;
@@ -156,8 +157,7 @@ public class CatalogManagerSchema implements Schema {
   }
 
   public CatalogSchema getCatalogSchema(TableName tablePath) {
-    @Nullable
-    Schema catalogSchema = tablePath.catalog() != null ? getSubSchema(tablePath.catalog()) : null;
+    @Nullable Schema catalogSchema = getSubSchema(tablePath.catalog());
     if (catalogSchema == null) {
       catalogSchema = getCurrentCatalogSchema();
     }
@@ -178,7 +178,10 @@ public class CatalogManagerSchema implements Schema {
   }
 
   @Override
-  public @Nullable Schema getSubSchema(String name) {
+  public @Nullable Schema getSubSchema(@Nullable String name) {
+    if (name == null) {
+      return null;
+    }
     @Nullable CatalogSchema catalogSchema = catalogSubSchemas.get(name);
     if (catalogSchema == null) {
       @Nullable Catalog catalog = catalogManager.getCatalog(name);
@@ -190,7 +193,9 @@ public class CatalogManagerSchema implements Schema {
     if (catalogSchema != null) {
       return catalogSchema;
     }
-    // name could be referring to an underlying metastore.
+
+    // ** Backwards compatibility **
+    // Name could be referring to a BeamCalciteSchema.
     // Attempt to fetch from current catalog
     return getCurrentCatalogSchema().getSubSchema(name);
   }

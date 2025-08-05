@@ -265,7 +265,7 @@ SqlDrop SqlDropCatalog(Span s, boolean replace) :
 }
 
 /**
- * CREATE DATABASE ( IF NOT EXISTS )? database_name
+ * CREATE DATABASE ( IF NOT EXISTS )? ( catalog_name '.' )? database_name
  */
 SqlCreate SqlCreateDatabase(Span s, boolean replace) :
 {
@@ -290,7 +290,7 @@ SqlCreate SqlCreateDatabase(Span s, boolean replace) :
 }
 
 /**
- * USE DATABASE database_name
+ * USE DATABASE ( catalog_name '.' )? database_name
  */
 SqlCall SqlUseDatabase(Span s, String scope) :
 {
@@ -351,7 +351,7 @@ SqlNodeList PartitionFieldList() :
  * Note: This example is probably out of sync with the code.
  *
  * CREATE EXTERNAL TABLE ( IF NOT EXISTS )?
- *   ( database_name '.' )? table_name '(' column_def ( ',' column_def )* ')'
+ *   ( catalog_name '.' )? ( database_name '.' )? table_name '(' column_def ( ',' column_def )* ')'
  *   TYPE type_name
  *   ( PARTITIONED BY '(' partition_field ( ',' partition_field )* ')' )?
  *   ( COMMENT comment_string )?

@@ -43,7 +43,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// TODO: CONSOLIDATE THIS CLASS WITH BeamCalciteSchema
+/**
+ * A Calcite {@link Schema} that corresponds to a {@link Catalog}. Child schemas are of type {@link
+ * BeamCalciteSchema}.
+ */
 public class CatalogSchema implements Schema {
   private static final Logger LOG = LoggerFactory.getLogger(CatalogSchema.class);
   private final JdbcConnection connection;

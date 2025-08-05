@@ -35,7 +35,11 @@ import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.SchemaVe
 import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.schema.Schemas;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/** Adapter from {@link TableProvider} to {@link Schema}. */
+/**
+ * A Calcite {@link Schema} that corresponds to a {@link TableProvider} or {@link
+ * org.apache.beam.sdk.extensions.sql.meta.store.MetaStore}. In Beam SQL, a DATABASE refers to a
+ * {@link BeamCalciteSchema}.
+ */
 @SuppressWarnings({"keyfor", "nullness"}) // TODO(https://github.com/apache/beam/issues/20497)
 public class BeamCalciteSchema implements Schema {
   private JdbcConnection connection;
@@ -45,7 +49,6 @@ public class BeamCalciteSchema implements Schema {
 
   /** Creates a {@link BeamCalciteSchema} representing a {@link TableProvider}. */
   BeamCalciteSchema(String name, JdbcConnection jdbcConnection, TableProvider tableProvider) {
-    System.out.println("xxx [BeamCalciteSchema] init: " + tableProvider.getTableType());
     this.connection = jdbcConnection;
     this.tableProvider = tableProvider;
     this.subSchemas = new HashMap<>();
