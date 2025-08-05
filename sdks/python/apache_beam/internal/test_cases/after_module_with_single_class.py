@@ -15,7 +15,10 @@
 # limitations under the License.
 #
 
-"""Module for testing code path generation with a single class."""
+"""Module for testing code path generation with functions.
+Counterpart to before_module_with_functions and is used as a test case
+for adding a class.
+"""
 
 
 class MyClass:
