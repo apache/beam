@@ -384,8 +384,8 @@ class ServiceAccountManager:
 
     def delete_oldest_service_account_keys(self, account_id: str, max_keys: int = 2) -> List[types.ServiceAccountKey]:
         """
-        Deletes the oldest key for the specified service account.
-        If no keys exist, returns None.
+        Deletes the oldest keys for the specified service account, keeping at least max_keys.
+        Always ensures that at least 1 key remains to prevent service account from becoming unusable.
 
         Args:
             account_id (str): The unique identifier or email of the service account.
@@ -401,18 +401,31 @@ class ServiceAccountManager:
         
         # Sort keys by creation time (oldest first)
         keys.sort(key=lambda k: k.valid_after_time)
-
-        # If the number of keys is less than or equal to max_keys, do not delete any keys
-        if len(keys) <= max_keys:
-            self.logger.info(f"Service account {account_id} has {len(keys)} keys, not deleting any.")
+        
+        # Ensure we never delete all keys - always keep at least 1
+        min_keys_to_keep = max(1, max_keys)
+        
+        # If the number of keys is less than or equal to the number we want to keep, do not delete any keys
+        if len(keys) <= min_keys_to_keep:
+            self.logger.info(f"Service account {account_id} has {len(keys)} keys, keeping all (minimum: {min_keys_to_keep}).")
             return []
+        
+        self.logger.info(f"Service account {account_id} has {len(keys)} keys, will delete {len(keys) - min_keys_to_keep} oldest keys.")
         
         deleted_keys = []
         failed_deletions = []
-        while len(keys) > max_keys:
+        while len(keys) > min_keys_to_keep:
             oldest_key = keys.pop(0)
+            key_id = oldest_key.name.split('/')[-1]
+            
+            # Double-check: never delete if it would leave the account with no keys
+            current_keys = self._get_service_account_keys(account_id)
+            if len(current_keys) <= 1:
+                self.logger.warning(f"Skipping deletion of key {key_id} - would leave service account {account_id} with no keys.")
+                break
+                
             try:
-                self.delete_service_account_key(account_id, oldest_key.name.split('/')[-1])
+                self.delete_service_account_key(account_id, key_id)
                 deleted_keys.append(oldest_key)
                 self.logger.info(f"Deleted oldest service account key: {oldest_key.name} for account: {account_id}")
             except (exceptions.NotFound, exceptions.FailedPrecondition) as e:
