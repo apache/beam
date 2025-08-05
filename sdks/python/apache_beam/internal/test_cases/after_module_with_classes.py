@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""Module for testing code path generation with functions.
+"""Module for testing code path generation with classes.
 Counterpart to before_module_with_classes and is used as a test case
 for various code changes.
 """
