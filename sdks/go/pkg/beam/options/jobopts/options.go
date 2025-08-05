@@ -91,17 +91,17 @@ var (
 	// executing them and fails early if the pipelines don't pass.
 	Strict = flag.Bool("beam_strict", false, "Apply additional validation to pipelines.")
 
-	// Flag to retain docker containers created by the runner. If false, then
+	// RetrainDockerContainers flag to retain docker containers created by the runner. If false, then
 	// containers are deleted once the job ends, even if it failed.
 	RetainDockerContainers = flag.Bool("retain_docker_containers", false, "Retain Docker containers created by the runner.")
 
-	// Flag to set the degree of parallelism. If not set, the configured Flink default is used, or 1 if none can be found.
+	// Parallelisn flag to set the degree of parallelism. If not set, the configured Flink default is used, or 1 if none can be found.
 	Parallelism = flag.Int("parallelism", -1, "The degree of parallelism to be used when distributing operations onto Flink workers.")
 
 	// ResourceHints flag takes whole pipeline hints for resources.
 	ResourceHints stringSlice
 
-	// Flag to set the timeout for processing an element in a PTransform operation. If set to -1, there is no timeout.
+	// ElementProcessingTimeout flag to set the timeout for processing an element in a PTransform operation. If set to -1, there is no timeout.
 	ElementProcessingTimeout = flag.Duration("element_processing_timeout", -1, "The timeout for processing an element in a PTransform operation. If set to -1, there is no timeout.")
 )
 
