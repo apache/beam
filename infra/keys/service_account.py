@@ -23,11 +23,17 @@ from google.oauth2 import service_account
 from google.auth.transport.requests import Request
 from google.api_core import exceptions
 
+class ServiceAccountManagerLoggerAdapter(logging.LoggerAdapter):
+    """Logger adapter that adds a prefix to all log messages."""
+    
+    def process(self, msg, kwargs):
+        return f"[ServiceAccountManager] {msg}", kwargs
+
 class ServiceAccountManager:
     def __init__(self, project_id: str, logger: logging.Logger, max_retries: int = 3) -> None:
         self.project_id = project_id
         self.client = iam_admin_v1.IAMClient()
-        self.logger = logger
+        self.logger = ServiceAccountManagerLoggerAdapter(logger, {})
         self.max_retries = max_retries
         self.logger.info(f"Initialized ServiceAccountManager for project: {self.project_id}")
 

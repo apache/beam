@@ -20,6 +20,11 @@ from datetime import datetime, timezone, timedelta
 from google.cloud import secretmanager
 from typing import List, Union
 
+class SecretManagerLoggerAdapter(logging.LoggerAdapter):
+    """Logger adapter that adds a prefix to all log messages."""
+    
+    def process(self, msg, kwargs):
+        return f"[SecretManager] {msg}", kwargs
 
 class SecretManager:
     """Service to manage GCP API keys rotation."""
@@ -29,7 +34,7 @@ class SecretManager:
     max_versions_to_keep: int # The maximum number of secret versions to keep
     max_retries: int # The maximum number of retries for API calls
     client: secretmanager.SecretManagerServiceClient # GCP Secret Manager client
-    logger: logging.Logger # Logger for logging messages
+    logger: Union[logging.Logger, logging.LoggerAdapter] # Logger for logging messages
     secrets_ids: List[str] # List of secret IDs managed by this service
 
     def __init__(self, project_id: str, logger: logging.Logger, rotation_interval: int = 30, max_versions_to_keep: int = 5, max_retries: int = 3) -> None:
@@ -38,7 +43,7 @@ class SecretManager:
         self.max_versions_to_keep = max_versions_to_keep
         self.max_retries = max_retries
         self.client = secretmanager.SecretManagerServiceClient()
-        self.logger = logger
+        self.logger = SecretManagerLoggerAdapter(logger, {})
         self.logger.info(f"Initialized SecretManager for project '{self.project_id}'")
         self.secrets_ids = self._get_secrets_ids()
 
