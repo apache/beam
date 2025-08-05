@@ -20,6 +20,7 @@ Counterpart to before_module_with_functions and is used as a test case
 for adding a function.
 """
 
+
 def another_function():
   a = 1  # pylint: disable=unused-variable
   b = lambda: 2
