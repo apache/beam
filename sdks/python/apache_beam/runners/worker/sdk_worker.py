@@ -208,7 +208,7 @@ class SdkHarness(object):
     self._profiler_factory = profiler_factory
     self.data_sampler = data_sampler
     self.runner_capabilities = runner_capabilities
-    self.element_processing_timeout_minutes = element_processing_timeout_minutes
+    self._element_processing_timeout_minutes = element_processing_timeout_minutes
 
     def default_factory(id):
       # type: (str) -> beam_fn_api_pb2.ProcessBundleDescriptor
@@ -234,7 +234,7 @@ class SdkHarness(object):
             self._state_cache,
             enable_heap_dump,
             element_processing_timeout_minutes=self.
-            element_processing_timeout_minutes
+            _element_processing_timeout_minutes
         )  # type: Optional[FnApiWorkerStatusHandler]
       except TimeoutError as e:
         self._shutdown_due_to_element_processing_timeout(e)
