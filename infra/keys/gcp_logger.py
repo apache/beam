@@ -65,6 +65,9 @@ class GCSLogHandler(logging.Handler):
             record: Log record to emit
         """
         try:
+            if self.log_buffer.closed:
+                return
+                
             log_entry = self.format(record)
             self.log_buffer.write(log_entry + '\n')
             self.session_logs.append(log_entry)
@@ -88,7 +91,8 @@ class GCSLogHandler(logging.Handler):
             complete_log_content = '\n'.join(self.session_logs) + '\n'
             blob.upload_from_string(complete_log_content, content_type='text/plain')
             
-            self.log_buffer = io.StringIO()
+            if not self.log_buffer.closed:
+                self.log_buffer = io.StringIO()
             self.log_entries_count = 0
             
         except Exception as e:
