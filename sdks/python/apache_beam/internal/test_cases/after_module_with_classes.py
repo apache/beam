@@ -20,9 +20,9 @@
 
 class AddLocalVariable:
   def my_method(self):
-    a = 1
+    a = 1  # pylint: disable=unused-variable
     b = lambda: 2
-    new_local_variable = 3
+    new_local_variable = 3  # pylint: disable=unused-variable
     return b
 
 
@@ -34,9 +34,9 @@ class RemoveLocalVariable:
 
 class AddLambdaVariable:
   def my_method(self):
-    a = 1
+    a = 1  # pylint: disable=unused-variable
     b = lambda: 2
-    c = lambda: 3
+    c = lambda: 3  # pylint: disable=unused-variable
     return b
 
 
@@ -48,21 +48,21 @@ class RemoveLambdaVariable:
 
 class ClassWithNestedFunction:
   def my_method(self):
-    def nested_function():
+    def nested_function():  # pylint: disable=unused-variable
       c = 3
       return c
 
-    a = 1
+    a = 1  # pylint: disable=unused-variable
     b = lambda: 2
     return b
 
 
 class ClassWithNestedFunction2:
   def my_method(self):
-    a = 1
+    a = 1  # pylint: disable=unused-variable
     b = lambda: 2
 
-    def nested_function():
+    def nested_function():  # pylint: disable=unused-variable
       c = 3
       return c
 
@@ -71,19 +71,19 @@ class ClassWithNestedFunction2:
 
 class ClassWithTwoMethods:
   def another_method(self):
-    a = 1
+    a = 1  # pylint: disable=unused-variable
     b = lambda: 2
     return b
 
   def my_method(self):
-    a = 1
+    a = 1  # pylint: disable=unused-variable
     b = lambda: 2
     return b
 
 
 class RemoveMethod:
   def my_method(self):
-    a = 1
+    a = 1  # pylint: disable=unused-variable
 
     b = lambda: 2
     return b
