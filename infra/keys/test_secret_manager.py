@@ -779,6 +779,186 @@ class TestSecretManagerUnit(unittest.TestCase):
         
         self.assertIn("does not exist", str(context.exception))
 
+    def test_is_different_user_access_secret_not_exists(self):
+        """Test is_different_user_access when secret doesn't exist."""
+        with mock.patch.object(self.manager, '_secret_exists', return_value=False):
+            result = self.manager.is_different_user_access(self.test_secret_id, ["user@example.com"])
+        
+        self.assertTrue(result)
+
+    def test_is_different_user_access_same_users(self):
+        """Test is_different_user_access when users are the same."""
+        self.manager.secrets_ids = [self.test_secret_id]
+        
+        # Mock the IAM policy with same users
+        mock_binding = mock.MagicMock()
+        mock_binding.role = "roles/secretmanager.secretAccessor"
+        mock_binding.members = ["user:user1@example.com", "user:user2@example.com"]
+        
+        mock_policy = mock.MagicMock()
+        mock_policy.bindings = [mock_binding]
+        
+        self.mock_client.secret_path.return_value = f"projects/{self.project_id}/secrets/{self.test_secret_id}"
+        self.mock_client.get_iam_policy.return_value = mock_policy
+        
+        with mock.patch.object(self.manager, '_secret_exists', return_value=True):
+            result = self.manager.is_different_user_access(
+                self.test_secret_id, 
+                ["user1@example.com", "user2@example.com"]
+            )
+        
+        self.assertFalse(result)
+
+    def test_is_different_user_access_different_users(self):
+        """Test is_different_user_access when users are different."""
+        self.manager.secrets_ids = [self.test_secret_id]
+        
+        # Mock the IAM policy with different users
+        mock_binding = mock.MagicMock()
+        mock_binding.role = "roles/secretmanager.secretAccessor"
+        mock_binding.members = ["user:old_user@example.com"]
+        
+        mock_policy = mock.MagicMock()
+        mock_policy.bindings = [mock_binding]
+        
+        self.mock_client.secret_path.return_value = f"projects/{self.project_id}/secrets/{self.test_secret_id}"
+        self.mock_client.get_iam_policy.return_value = mock_policy
+        
+        with mock.patch.object(self.manager, '_secret_exists', return_value=True):
+            result = self.manager.is_different_user_access(
+                self.test_secret_id, 
+                ["new_user@example.com"]
+            )
+        
+        self.assertTrue(result)
+
+    def test_is_different_user_access_no_accessor_binding(self):
+        """Test is_different_user_access when there's no accessor binding."""
+        self.manager.secrets_ids = [self.test_secret_id]
+        
+        # Mock the IAM policy with no accessor bindings
+        mock_binding = mock.MagicMock()
+        mock_binding.role = "roles/secretmanager.secretVersionManager"
+        mock_binding.members = ["user:admin@example.com"]
+        
+        mock_policy = mock.MagicMock()
+        mock_policy.bindings = [mock_binding]
+        
+        self.mock_client.secret_path.return_value = f"projects/{self.project_id}/secrets/{self.test_secret_id}"
+        self.mock_client.get_iam_policy.return_value = mock_policy
+        
+        with mock.patch.object(self.manager, '_secret_exists', return_value=True):
+            result = self.manager.is_different_user_access(
+                self.test_secret_id, 
+                ["user@example.com"]
+            )
+        
+        self.assertTrue(result)
+
+    def test_is_different_user_access_api_error(self):
+        """Test is_different_user_access when API call fails."""
+        self.manager.secrets_ids = [self.test_secret_id]
+        
+        self.mock_client.secret_path.return_value = f"projects/{self.project_id}/secrets/{self.test_secret_id}"
+        self.mock_client.get_iam_policy.side_effect = Exception("API Error")
+        
+        with mock.patch.object(self.manager, '_secret_exists', return_value=True):
+            result = self.manager.is_different_user_access(
+                self.test_secret_id, 
+                ["user@example.com"]
+            )
+        
+        self.assertTrue(result)
+
+    def test_update_secret_access_secret_not_exists(self):
+        """Test update_secret_access when secret doesn't exist."""
+        with mock.patch.object(self.manager, '_secret_exists', return_value=False):
+            with self.assertRaises(ValueError) as context:
+                self.manager.update_secret_access(self.test_secret_id, ["user@example.com"])
+        
+        self.assertIn("does not exist", str(context.exception))
+
+    def test_update_secret_access_existing_binding(self):
+        """Test update_secret_access when accessor binding already exists."""
+        self.manager.secrets_ids = [self.test_secret_id]
+        
+        # Mock the IAM policy with existing accessor binding
+        mock_binding = mock.MagicMock()
+        mock_binding.role = "roles/secretmanager.secretAccessor"
+        mock_binding.members = ["user:old_user@example.com"]
+        
+        mock_policy = mock.MagicMock()
+        mock_policy.bindings = [mock_binding]
+        
+        self.mock_client.secret_path.return_value = f"projects/{self.project_id}/secrets/{self.test_secret_id}"
+        self.mock_client.get_iam_policy.return_value = mock_policy
+        
+        with mock.patch.object(self.manager, '_secret_exists', return_value=True):
+            self.manager.update_secret_access(
+                self.test_secret_id, 
+                ["new_user@example.com"]
+            )
+        
+        # Verify the binding was updated
+        self.assertEqual(mock_binding.members, ["user:new_user@example.com"])
+        self.mock_client.set_iam_policy.assert_called_once()
+
+    def test_update_secret_access_new_binding(self):
+        """Test update_secret_access when no accessor binding exists."""
+        self.manager.secrets_ids = [self.test_secret_id]
+        
+        # Mock the IAM policy with no accessor bindings
+        mock_binding = mock.MagicMock()
+        mock_binding.role = "roles/secretmanager.secretVersionManager"
+        mock_binding.members = ["user:admin@example.com"]
+        
+        # Create a mock bindings collection that supports the add() method
+        mock_bindings = mock.MagicMock()
+        mock_bindings.__iter__ = mock.MagicMock(return_value=iter([mock_binding]))
+        mock_bindings.add = mock.MagicMock()
+        
+        mock_policy = mock.MagicMock()
+        mock_policy.bindings = mock_bindings
+
+        self.mock_client.secret_path.return_value = f"projects/{self.project_id}/secrets/{self.test_secret_id}"
+        self.mock_client.get_iam_policy.return_value = mock_policy
+        
+        with mock.patch.object(self.manager, '_secret_exists', return_value=True):
+            self.manager.update_secret_access(
+                self.test_secret_id, 
+                ["user@example.com"]
+            )
+        
+        # Verify new binding was added
+        mock_bindings.add.assert_called_once()
+        self.mock_client.set_iam_policy.assert_called_once()
+
+    def test_update_secret_access_multiple_users(self):
+        """Test update_secret_access with multiple users."""
+        self.manager.secrets_ids = [self.test_secret_id]
+        
+        # Mock the IAM policy with existing accessor binding
+        mock_binding = mock.MagicMock()
+        mock_binding.role = "roles/secretmanager.secretAccessor"
+        mock_binding.members = ["user:old_user@example.com"]
+        
+        mock_policy = mock.MagicMock()
+        mock_policy.bindings = [mock_binding]
+        
+        self.mock_client.secret_path.return_value = f"projects/{self.project_id}/secrets/{self.test_secret_id}"
+        self.mock_client.get_iam_policy.return_value = mock_policy
+        
+        with mock.patch.object(self.manager, '_secret_exists', return_value=True):
+            self.manager.update_secret_access(
+                self.test_secret_id, 
+                ["user1@example.com", "user2@example.com", "user3@example.com"]
+            )
+        
+        # Verify the binding was updated with all users
+        expected_members = ["user:user1@example.com", "user:user2@example.com", "user:user3@example.com"]
+        self.assertEqual(mock_binding.members, expected_members)
+        self.mock_client.set_iam_policy.assert_called_once()
+
 
 # Integration tests (skipped unless environment variables are set)
 @unittest.skipUnless(

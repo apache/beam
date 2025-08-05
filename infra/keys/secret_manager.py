@@ -206,6 +206,91 @@ class SecretManager:
 
         self.logger.info(f"Successfully deleted secret '{secret_id}'")
 
+    def is_different_user_access(self, secret_id: str, allowed_users: List[str]) -> bool:
+        """
+        Checks if the current access policy of a secret allows only the specified users to read it.
+        This is used to determine if an update is needed.
+
+        Args:
+            secret_id (str): The ID of the secret to check access for.
+            allowed_users (List[str]): A list of user emails to check against the current access policy.
+        Returns:
+            bool: True if the current access policy is different from the specified users, False otherwise.
+        """
+        self.logger.debug(f"Checking if access for secret '{secret_id}' differs from allowed users: {allowed_users}")
+
+        if not self._secret_exists(secret_id):
+            self.logger.debug(f"Secret '{secret_id}' does not exist, cannot check access")
+            return True
+        
+        accessor_role = "roles/secretmanager.secretAccessor"
+        resource_name = self.client.secret_path(self.project_id, secret_id)
+        
+        try:
+            policy = self.client.get_iam_policy(request={"resource": resource_name})
+        except Exception as e:
+            self.logger.error(f"Failed to get IAM policy for secret '{secret_id}': {e}")
+            return True
+
+        current_members = set()
+        for binding in policy.bindings:
+            if binding.role == accessor_role:
+                current_members.update(binding.members)
+
+        allowed_members = {f"user:{user_email}" for user_email in allowed_users}
+        
+        is_different = current_members != allowed_members
+        self.logger.debug(f"Current members: {current_members}")
+        self.logger.debug(f"Allowed members: {allowed_members}")
+        self.logger.debug(f"Access for secret '{secret_id}' differs: {is_different}")
+        return is_different
+
+    def update_secret_access(self, secret_id: str, allowed_users: List[str]) -> None:
+        """
+        Updates the access policy of a secret to allow only the specified users to read it.
+        Any existing users will be removed and replaced with the new list.
+
+        Args:
+            secret_id (str): The ID of the secret to update access for.
+            allowed_users (List[str]): A list of user emails to grant read access to.
+        """
+        self.logger.debug(f"Updating access for secret '{secret_id}' to allow users: {allowed_users}")
+
+        if not self._secret_exists(secret_id):
+            error_msg = f"Secret {secret_id} does not exist. Please create it first."
+            self.logger.error(error_msg)
+            raise ValueError(error_msg)
+        
+        accessor_role = "roles/secretmanager.secretAccessor"
+        resource_name = self.client.secret_path(self.project_id, secret_id)
+        policy = self.client.get_iam_policy(request={"resource": resource_name})
+
+        members = [f"user:{user_email}" for user_email in allowed_users]
+
+        binding_found = False
+        for binding in policy.bindings:
+            if binding.role == accessor_role:
+                binding.members[:] = members
+                self.logger.debug(f"Replaced members for role '{accessor_role}' in secret '{secret_id}' with: {allowed_users}")
+                binding_found = True
+                break
+        
+        if not binding_found:
+            policy.bindings.add(
+                role=accessor_role,
+                members=members
+            )
+            self.logger.debug(f"Created new binding for role '{accessor_role}' in secret '{secret_id}'")
+
+        self.client.set_iam_policy(
+            request={
+                "resource": resource_name,
+                "policy": policy
+            }
+        )
+
+        self.logger.info(f"Successfully updated access for secret '{secret_id}' to allow users: {allowed_users}")
+
     def _get_secret_versions(self, secret_id: str) -> List[secretmanager.SecretVersion]:
         """
        Retrieves all versions of a secret.
