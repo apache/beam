@@ -42,27 +42,27 @@ class CodePathTest(unittest.TestCase):
     with self.assertRaisesRegex(ValueError, "Path must not be empty"):
       code_object_pickler._get_code_from_stable_reference("")
 
-  def test_get_code_from_stable_reference_invalid_default_index_raises_exception(self):
+  def test_get_code_from_stable_reference_invalid_default_index_raises_exception(self):  # pylint: disable=line-too-long
     with self.assertRaisesRegex(ValueError, "out of bounds"):
       code_object_pickler._get_code_from_stable_reference(
           "apache_beam.internal.test_cases.module_with_default_argument."
           "function_with_lambda_default_argument.__defaults__[1]")
 
-  def test_get_code_from_stable_reference_invalid_single_name_path_raises_exception(self):
+  def test_get_code_from_stable_reference_invalid_single_name_path_raises_exception(self):  # pylint: disable=line-too-long
     with self.assertRaisesRegex(AttributeError,
                                 "Could not find code object with path"):
       code_object_pickler._get_code_from_stable_reference(
           "apache_beam.internal.test_cases.before_module_with_lambdas."
           "my_function.__code__.co_consts[something]")
 
-  def test_get_code_from_stable_reference_invalid_lambda_with_args_path_raises_exception(self):
+  def test_get_code_from_stable_reference_invalid_lambda_with_args_path_raises_exception(self):  # pylint: disable=line-too-long
     with self.assertRaisesRegex(AttributeError,
                                 "Could not find code object with path"):
       code_object_pickler._get_code_from_stable_reference(
           "apache_beam.internal.test_cases.before_module_with_lambdas."
           "my_function.__code__.co_consts[<lambda>, ('x',)]")
 
-  def test_get_code_from_stable_reference_invalid_lambda_with_hash_path_raises_exception(self):
+  def test_get_code_from_stable_reference_invalid_lambda_with_hash_path_raises_exception(self):  # pylint: disable=line-too-long
     with self.assertRaisesRegex(AttributeError,
                                 "Could not find code object with path"):
       code_object_pickler._get_code_from_stable_reference(
