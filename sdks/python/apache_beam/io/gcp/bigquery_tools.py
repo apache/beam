@@ -66,6 +66,7 @@ from apache_beam.typehints.row_type import RowTypeConstraint
 from apache_beam.typehints.typehints import Any
 from apache_beam.utils import retry
 from apache_beam.utils.histogram import LinearBucket
+from apache_beam.io.gcp.internal.clients.bigquery.bigquery_v2_messages import BigqueryTablesGetRequest
 
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -772,7 +773,12 @@ class BigQueryWrapper(object):
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
       retry_filter=retry.retry_on_server_errors_timeout_or_quota_issues_filter)
-  def get_table(self, project_id, dataset_id, table_id):
+  def get_table(
+      self,
+      project_id,
+      dataset_id,
+      table_id,
+      view=BigqueryTablesGetRequest.ViewValueValuesEnum.BASIC):
     """Lookup a table's metadata object.
 
     Args:
@@ -780,6 +786,7 @@ class BigQueryWrapper(object):
       project_id: table lookup parameter
       dataset_id: table lookup parameter
       table_id: table lookup parameter
+      view: table information parameter
 
     Returns:
       bigquery.Table instance
@@ -787,7 +794,7 @@ class BigQueryWrapper(object):
       HttpError: if lookup failed.
     """
     request = bigquery.BigqueryTablesGetRequest(
-        projectId=project_id, datasetId=dataset_id, tableId=table_id)
+        projectId=project_id, datasetId=dataset_id, tableId=table_id, view=view)
     response = self.client.tables.Get(request)
     return response
 
