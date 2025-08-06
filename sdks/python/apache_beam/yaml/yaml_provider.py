@@ -27,6 +27,7 @@ import inspect
 import json
 import logging
 import os
+import platform
 import re
 import shutil
 import subprocess
@@ -383,23 +384,41 @@ class ExternalJavaProvider(ExternalProvider):
     self._jar_provider = jar_provider
     self._classpath = classpath
 
+
   def available(self):
     # pylint: disable=subprocess-run-check
-    trial = subprocess.run(['which', subprocess_server.JavaHelper.get_java()],
-                           capture_output=True)
-    if trial.returncode == 0:
-      return True
-    else:
-
       def try_decode(bs):
-        try:
-          return bs.decode()
-        except UnicodeError:
-          return bs
+          try:
+              return bs.decode()
+          except UnicodeError:
+              return bs
+      java = subprocess_server.JavaHelper.get_java()
+      try:
+          if platform.system() == 'Windows':
+              trial = subprocess.run(['where', java], capture_output=True)
+          else:
+              trial = subprocess.run(['which', java], capture_output=True)
+          if trial.returncode == 0:
+              return True
+          else:
+              return NotAvailableWithReason(
+                  f'Unable to locate java executable: '
+                  f'{try_decode(trial.stdout)}{try_decode(trial.stderr)}'
+              )
+      except (FileNotFoundError, OSError):
+          try:
+              java_path = shutil.which(java)
+              if java_path:
+                  return True
+              else:
+                  return NotAvailableWithReason(
+                      'Unable to locate java executable: java not found in PATH'
+                  )
+          except Exception as e:
+              return NotAvailableWithReason(
+                  f'Unable to locate java executable: {str(e)}'
+              )
 
-      return NotAvailableWithReason(
-          f'Unable to locate java executable: '
-          f'{try_decode(trial.stdout)}{try_decode(trial.stderr)}')
 
   def cache_artifacts(self):
     return [self._jar_provider()]
