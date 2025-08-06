@@ -21,16 +21,20 @@
 
 This module is used to manage Google Cloud service accounts, including creating, retrieving, enabling, and deleting service accounts and their keys. It uses the Google Cloud IAM API to perform these operations.
 
-## Features
+## User usage
 
-- Create service accounts and service account keys.
-- Store service account keys securely in Google Secret Manager.
-- Rotate service account keys regularly.
-- Enable and disable service accounts.
+We use the `keys.py` script to manage service account keys. In order to use this script you will need to:
 
-## Usage
+1. Generate a change over `keys.yaml` file, where your email address is listed as an authorized user for the service accounts you want to manage.
+2. Open a pull request with the changes to the `keys.yaml` file. The change will be reviewed and merged by the Infra team.
+3. Once your changes are merged, install the required python packages: `pip install -r requirements.txt` and authenticate with Google Cloud using the `gcloud auth application-default login` command.
+4. Run `keys.py --get-key <service_account_id>` to get the latest key for a service account. The key will be printed to the console, and you can use it to authenticate with Google Cloud services.
 
-We use the main.py script to manage service account keys. The script can be run with different commands to create, rotate, or retrieve service account keys.
+> Remember this keys are rotated regularly, so you will need to run the command again to get the latest key after a rotation, the rotation days are defined in the `config.yaml` file.
+
+## Administrative usage
+
+This section is intended for developers who need to manage service accounts and their keys at a higher level. A regular user should not need to access this section.
 
 ### Prerequisites
 
@@ -38,7 +42,11 @@ We use the main.py script to manage service account keys. The script can be run 
 - Appropriate permissions to manage service accounts and secrets in your Google Cloud project.
 - Required Python packages installed (see requirements.txt).
 
-### Configuration
+### How it works
+
+This module provide a script `keys.py` that allows you to manage the service accounts and their keys. This script is run as a cron job daily to ensure that service account keys are rotated regularly and that the latest keys are available for authorized users. It is also run every time a PR is merged over the `keys.yaml` file to ensure that the service accounts, their keys and authorized users are up to date.
+
+### Files
 
 #### config.yaml
 
@@ -59,26 +67,18 @@ service_accounts:
 
 Where:
 
-- `account_id`: The unique identifier for the service account.
+- `account_id`: The unique identifier for the service account. The email address of the service account will be `<account_id>@<project_id>.iam.gserviceaccount.com`.
 - `display_name`: A human-readable name for the service account.
-- `authorized_users`: A list of users who will be granted access to the service account.
+- `authorized_users`: A list of users who will be granted access to the service account's keys. Each user is specified by their email address. This users will be able to retrieve the keys and act on behalf of the service account.
 
 The accounts defined in this file will be created if they do not already exist when running the script.
 
 ### Rotation
 
-Service account keys should be rotated regularly to maintain security. The `--generate-key` flag in the `main.py` script can be used to create a new key for a service account. The script will also disable and delete the oldest key, ensuring that at least one key remains active.
+Service account keys should be rotated regularly to maintain security. To automate key rotation, you can set up a cron job that runs the command:
 
 ```bash
-python main.py --generate-key my-service-account
-```
-
-#### Cron rotation
-
-To automate key rotation, you can set up a cron job that runs the command:
-
-```bash
-python main.py --cron
+python keys.py --cron
 ```
 
 This will rotate keys for all service accounts defined in the `keys.yaml` file that have achieved the age threshold (e.g., 30 days). The age threshold can be adjusted in the `config.yaml` file.
