@@ -188,13 +188,12 @@ def _dict_input_fn(
                                                   beam.Row]]) -> List[str]:
   """Extract text from specified columns in batch."""
   if batch and hasattr(batch[0], '_asdict'):
-    batch = [row._asdict() for row in batch if hasattr(row, '_asdict')]
+    batch = [row._asdict() if hasattr(row, '_asdict') else row for row in batch]
 
   if not batch or not isinstance(batch[0], dict):
     raise TypeError(
         'Expected data to be dicts, got '
         f'{type(batch[0])} instead.')
-
   result = []
   expected_keys = set(batch[0].keys())
   expected_columns = set(columns)
@@ -229,7 +228,7 @@ def _dict_output_fn(
   is_beam_row = False
   if batch and hasattr(batch[0], '_asdict'):
     is_beam_row = True
-    batch = [row._asdict() for row in batch if hasattr(row, '_asdict')]
+    batch = [row._asdict() if hasattr(row, '_asdict') else row for row in batch]
 
   result = []
   for batch_idx, item in enumerate(batch):
