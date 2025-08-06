@@ -57,10 +57,10 @@ def load_config() -> ConfigDict:
     if not config:
         raise ValueError("Configuration file is empty or invalid.")
     
-    required_keys = ['project_id', 'rotation_interval', 'max_versions_to_keep', 'bucket_name', 'log_file_prefix']
-    for key in required_keys:
-        if key not in config:
-            raise ValueError(f"Missing required configuration key: {key}")
+    required_keys = set(['project_id', 'rotation_interval', 'max_versions_to_keep', 'bucket_name', 'log_file_prefix'])
+    missing_keys = required_keys - config.keys()
+    if missing_keys:
+        raise ValueError(f"Missing required configuration keys: {', '.join(missing_keys)}")
     
     if not isinstance(config['rotation_interval'], int) or config['rotation_interval'] <= 0:
         raise ValueError("Configuration 'rotation_interval' must be a positive integer.")
