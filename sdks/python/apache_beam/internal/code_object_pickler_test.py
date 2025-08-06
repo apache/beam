@@ -202,7 +202,7 @@ class CodeObjectPicklerTest(unittest.TestCase):
 
   @parameterized.expand(test_cases)
   def test_roundtrip(self, callable, _):
-    path = code_object_pickler._get_code_path(callable)
+    path = code_object_pickler.get_code_path(callable)
     actual = code_object_pickler._get_code_from_stable_reference(path)
     self.assertEqual(actual, callable.__code__)
 
