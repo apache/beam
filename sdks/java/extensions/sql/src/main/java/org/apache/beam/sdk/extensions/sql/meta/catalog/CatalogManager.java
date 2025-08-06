@@ -58,8 +58,5 @@ public interface CatalogManager {
    */
   void registerTableProvider(TableProvider tableProvider);
 
-  /** Clears registered providers from all underlying {@link Catalog}s. */
-  void clearTableProviders();
-
   Collection<Catalog> catalogs();
 }

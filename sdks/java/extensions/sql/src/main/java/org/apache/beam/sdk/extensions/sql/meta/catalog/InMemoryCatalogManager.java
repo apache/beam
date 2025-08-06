@@ -89,12 +89,6 @@ public class InMemoryCatalogManager implements CatalogManager {
     tableProviders.add(tableProvider);
   }
 
-  @Override
-  public void clearTableProviders() {
-    catalogs.values().forEach(Catalog::clearTableProviders);
-    tableProviders.clear();
-  }
-
   private Catalog findAndCreateCatalog(String name, String type, Map<String, String> properties) {
     ImmutableList.Builder<Catalog> list = ImmutableList.builder();
     for (CatalogRegistrar catalogRegistrar :

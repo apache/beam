@@ -91,7 +91,4 @@ public interface Catalog {
 
   /** Registers this {@link TableProvider} and propagates it to underlying {@link MetaStore}s. */
   void registerTableProvider(TableProvider provider);
-
-  /** Clears registered providers from all underlying {@link MetaStore}s. */
-  void clearTableProviders();
 }

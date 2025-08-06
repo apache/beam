@@ -28,7 +28,6 @@ import java.io.IOException;
 import java.util.UUID;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.BeamSqlCli;
-import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
@@ -203,32 +202,25 @@ public class BeamSqlCliIcebergTest {
     assertEquals("other_namespace", catalogManager.currentCatalog().currentDatabase());
 
     // insert from old catalog to new table in new catalog
+    sqlEnv.executeDdl(
+        "CREATE EXTERNAL TABLE other_table( \n"
+            + "   c_integer INTEGER, \n"
+            + "   c_boolean BOOLEAN, \n"
+            + "   c_timestamp TIMESTAMP, \n"
+            + "   c_varchar VARCHAR) \n"
+            + "TYPE 'iceberg'\n");
+    BeamRelNode insertNode2 =
+        sqlEnv.parseQuery("INSERT INTO other_table SELECT * FROM catalog_1.my_namespace.my_table");
     Pipeline p2 = Pipeline.create();
-    p2.apply(
-        SqlTransform.query("INSERT INTO other_table SELECT * FROM catalog_1.my_namespace.my_table")
-            .withDdlString(
-                "CREATE EXTERNAL TABLE other_table( \n"
-                    + "   c_integer INTEGER, \n"
-                    + "   c_boolean BOOLEAN, \n"
-                    + "   c_timestamp TIMESTAMP, \n"
-                    + "   c_varchar VARCHAR) \n"
-                    + "TYPE 'iceberg'\n")
-            .withCatalogManager(catalogManager));
+    BeamSqlRelUtils.toPCollection(p2, insertNode2);
     p2.run().waitUntilFinish();
 
-    // clear PCollection from the above run
-    catalogManager.clearTableProviders();
-
     // switch over to catalog 1 and read table inside catalog 2
+    sqlEnv.executeDdl("USE DATABASE catalog_1.my_namespace");
+    BeamRelNode insertNode3 =
+        sqlEnv.parseQuery("SELECT * FROM catalog_2.other_namespace.other_table");
     Pipeline p3 = Pipeline.create();
-    PCollection<Row> output =
-        p3.apply(
-            SqlTransform.query("SELECT * FROM catalog_2.other_namespace.other_table")
-                .withDdlString("USE DATABASE catalog_1.my_namespace")
-                .withCatalogManager(catalogManager));
-    p3.run().waitUntilFinish();
-    assertEquals("catalog_1", catalogManager.currentCatalog().name());
-    assertEquals("my_namespace", catalogManager.currentCatalog().currentDatabase());
+    PCollection<Row> output = BeamSqlRelUtils.toPCollection(p3, insertNode3);
 
     // validate read contents
     Schema expectedSchema =
@@ -240,5 +232,7 @@ public class BeamSqlCliIcebergTest {
                 .addValues(2147483647, true, DateTime.parse("2025-07-31T20:17:40.123Z"), "varchar")
                 .build());
     p3.run().waitUntilFinish();
+    assertEquals("catalog_1", catalogManager.currentCatalog().name());
+    assertEquals("my_namespace", catalogManager.currentCatalog().currentDatabase());
   }
 }

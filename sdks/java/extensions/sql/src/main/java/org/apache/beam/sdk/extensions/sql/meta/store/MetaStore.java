@@ -27,7 +27,4 @@ public interface MetaStore extends TableProvider {
    * @param provider
    */
   void registerProvider(TableProvider provider);
-
-  /** Clears all registered providers. */
-  void clearProviders();
 }

@@ -141,9 +141,4 @@ public class IcebergMetastore implements MetaStore {
   public void registerProvider(TableProvider provider) {
     // no-op
   }
-
-  @Override
-  public void clearProviders() {
-    // no-op
-  }
 }

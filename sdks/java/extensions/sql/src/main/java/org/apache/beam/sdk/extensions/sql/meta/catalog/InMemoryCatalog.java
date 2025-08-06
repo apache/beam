@@ -113,10 +113,4 @@ public class InMemoryCatalog implements Catalog {
     tableProviders.add(provider);
     metaStores.values().forEach(m -> m.registerProvider(provider));
   }
-
-  @Override
-  public void clearTableProviders() {
-    tableProviders.clear();
-    metaStores.values().forEach(MetaStore::clearProviders);
-  }
 }

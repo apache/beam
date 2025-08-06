@@ -119,11 +119,6 @@ public class InMemoryMetaStore implements MetaStore {
     this.tables.putAll(tables);
   }
 
-  @Override
-  public void clearProviders() {
-    providers.clear();
-  }
-
   Map<String, TableProvider> getProviders() {
     return providers;
   }

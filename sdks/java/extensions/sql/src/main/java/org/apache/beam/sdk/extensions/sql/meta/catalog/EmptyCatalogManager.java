@@ -57,12 +57,6 @@ public class EmptyCatalogManager implements CatalogManager {
   }
 
   @Override
-  public void clearTableProviders() {
-    throw new UnsupportedOperationException(
-        "ReadOnlyCatalogManager does not support clearing table providers");
-  }
-
-  @Override
   public void createCatalog(String name, String type, Map<String, String> properties) {
     throw new UnsupportedOperationException(
         "ReadOnlyCatalogManager does not support catalog creation");
