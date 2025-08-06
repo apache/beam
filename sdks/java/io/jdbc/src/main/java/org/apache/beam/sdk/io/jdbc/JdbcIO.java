@@ -356,8 +356,8 @@ public class JdbcIO {
    * {@link PCollection} as query parameters.
    *
    * <p>The substitution is configured via {@link ReadAll#withParameterSetter}. Substitutions
-   * allowed by Jdbc API's {@link PreparedStatement} are supported. In particular, read from
-   * multiple tables are not supported.
+   * allowed by the JDBC API's {@link PreparedStatement} are supported. In particular, this does not
+   * support parameterizing the table name to read from a different table for each input element.
    *
    * @param <ParameterT> Type of the data representing query parameters.
    * @param <OutputT> Type of the data to be read.
@@ -1180,15 +1180,15 @@ public class JdbcIO {
     }
 
     /**
-     * Provide a {@link PreparedStatementSetter} to replace the query string for each input element
-     * for ReadAll transform.
+     * Sets the {@link PreparedStatementSetter} to set the parameters of the query for each input
+     * element.
      *
      * <p>For example,
      *
      * <pre>{@code
      * JdbcIO.<String, Row>readAll()
-     *     .withQuery("select * from table where field == ?")
-     *     .withParameterSetter((element, preparedStatement) -> {preparedStatement.setString(1, element)})
+     *     .withQuery("select * from table where field = ?")
+     *     .withParameterSetter((element, preparedStatement) -> preparedStatement.setString(1, element))
      * }</pre>
      */
     public ReadAll<ParameterT, OutputT> withParameterSetter(
