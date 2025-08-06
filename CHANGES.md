@@ -73,6 +73,9 @@
 ## New Features / Improvements
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Milvus Search sink I/O connector added (Python) ([#35708](https://github.com/apache/beam/pull/35708)).
+  Beam now supports writing vector data to Milvus collections and partitions for
+  RAG applications.
 
 ## Breaking Changes
 
