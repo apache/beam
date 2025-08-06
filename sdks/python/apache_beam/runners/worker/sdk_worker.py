@@ -159,25 +159,26 @@ class SdkHarness(object):
   REQUEST_METHOD_PREFIX = '_request_'
 
   def __init__(
-      self,
-      control_address: str,
-      credentials: Optional[grpc.ChannelCredentials] = None,
-      worker_id: Optional[str] = None,
+      self,  # type: SdkWorker
+      control_address,  # type: str
+      credentials=None,  # type: Optional[grpc.ChannelCredentials]
+      worker_id=None,  # type: Optional[str]
       # Caching is disabled by default
-      state_cache_size: int = 0,
+      state_cache_size=0,  # type: int
       # time-based data buffering is disabled by default
-      data_buffer_time_limit_ms: int = 0,
-      profiler_factory: Optional[Callable[..., Profile]] = None,
-      status_address: Optional[str] = None,
+      data_buffer_time_limit_ms=0,  # type: int
+      profiler_factory=None,  # type: Optional[Callable[..., Profile]]
+      status_address=None,  # type: Optional[str]
       # Heap dump through status api is disabled by default
-      enable_heap_dump: bool = False,
-      data_sampler: Optional[data_sampler.DataSampler] = None,
+      enable_heap_dump=False,  # type: bool
+      data_sampler=None,  # type: Optional[data_sampler.DataSampler]
       # Unrecoverable SDK harness initialization error (if any)
       # that should be reported to the runner when proocessing the first bundle.
-      deferred_exception: Optional[Exception] = None,
-      runner_capabilities: FrozenSet[str] = frozenset(),
-      element_processing_timeout_minutes: Optional[int] = None,
-  ) -> None:
+      deferred_exception=None,  # type: Optional[Exception]
+      runner_capabilities=frozenset(),  # type: FrozenSet[str]
+      element_processing_timeout_minutes=None,  # type: Optional[int]
+  ):
+    # type: (...) -> None
     self._alive = True
     self._worker_index = 0
     self._worker_id = worker_id
@@ -250,7 +251,7 @@ class SdkHarness(object):
     self._worker_thread_pool = thread_pool_executor.shared_unbounded_instance()
     self._responses = queue.Queue(
     )  # type: queue.Queue[Union[beam_fn_api_pb2.InstructionResponse, Sentinel]]
-    _LOGGER.info('Initializing SDK Harness with unbounded number of workers.')
+    _LOGGER.info('Initializing SDKHarness with unbounded number of workers.')
 
   def run(self):
     # type: () -> None
