@@ -35,7 +35,7 @@ class SecretManager:
     max_retries: int # The maximum number of retries for API calls
     client: secretmanager.SecretManagerServiceClient # GCP Secret Manager client
     logger: Union[logging.Logger, logging.LoggerAdapter] # Logger for logging messages
-    secrets_ids: List[str] # List of secret IDs managed by this service
+    secret_ids: List[str] # List of secret IDs managed by this service
 
     def __init__(self, project_id: str, logger: logging.Logger, rotation_interval: int = 30, max_versions_to_keep: int = 5, max_retries: int = 3) -> None:
         self.project_id = project_id
@@ -45,7 +45,7 @@ class SecretManager:
         self.client = secretmanager.SecretManagerServiceClient()
         self.logger = SecretManagerLoggerAdapter(logger, {})
         self.logger.info(f"Initialized SecretManager for project '{self.project_id}'")
-        self.secrets_ids = self._get_secrets_ids()
+        self.secret_ids = self._get_secrets_ids()
 
     def _get_secrets_ids(self) -> List[str]:
         """
@@ -105,7 +105,7 @@ class SecretManager:
         Returns:
             str: The secret path of the newly created secret.
         """
-        if secret_id in self.secrets_ids:
+        if secret_id in self.secret_ids:
             self.logger.debug(f"Secret '{secret_id}' already exists, returning existing secret path")
             name = self.client.secret_path(self.project_id, secret_id)
             return name
@@ -135,7 +135,7 @@ class SecretManager:
         for _ in range(self.max_retries):
             if self._secret_exists(secret_id):
                 self.logger.debug(f"Secret '{secret_id}' is now available")
-                self.secrets_ids.append(secret_id)
+                self.secret_ids.append(secret_id)
                 break
             self.logger.debug(f"Secret '{secret_id}' not found, retrying in {delay} seconds")
             time.sleep(delay)
@@ -159,14 +159,14 @@ class SecretManager:
         """
         self.logger.info(f"Retrieving secret '{secret_id}'")
 
-        if secret_id not in self.secrets_ids:
+        if secret_id not in self.secret_ids:
             self.logger.debug(f"Secret '{secret_id}' not in cached secrets, checking existence")
             if not self._secret_exists(secret_id):
                 self.logger.error(f"Secret '{secret_id}' does not exist")
                 raise ValueError(f"Secret {secret_id} does not exist. Please create it first.")
             else:
                 self.logger.debug(f"Secret '{secret_id}' exists but is not in cached secrets, updating cache")
-                self.secrets_ids.append(secret_id)
+                self.secret_ids.append(secret_id)
 
         name = self.client.secret_path(self.project_id, secret_id)
         return self.client.get_secret(request={"name": name})
@@ -192,9 +192,9 @@ class SecretManager:
         for _ in range(self.max_retries):
             if not self._secret_exists(secret_id):
                 self.logger.debug(f"Secret '{secret_id}' is now deleted")
-                if secret_id in self.secrets_ids:
+                if secret_id in self.secret_ids:
                     self.logger.debug(f"Removing '{secret_id}' from cached secrets")
-                    self.secrets_ids.remove(secret_id)
+                    self.secret_ids.remove(secret_id)
                 break
             self.logger.debug(f"Secret '{secret_id}' still exists, retrying in {delay} seconds")
             time.sleep(delay)
@@ -536,7 +536,7 @@ class SecretManager:
         """
         self.logger.info(f"Retrieving version '{version_id}' of secret '{secret_id}'")
 
-        if secret_id not in self.secrets_ids:
+        if secret_id not in self.secret_ids:
             error_msg = f"Secret {secret_id} does not exist. Please create it first."
             self.logger.error(error_msg)
             raise ValueError(error_msg)
@@ -574,7 +574,7 @@ class SecretManager:
         """
         self.logger.info(f"Disabling version '{version_id}' of secret '{secret_id}'")
 
-        if secret_id not in self.secrets_ids:
+        if secret_id not in self.secret_ids:
             self.logger.warning(f"Attempt to disable version of non-existent secret '{secret_id}'")
             return
 
@@ -630,7 +630,7 @@ class SecretManager:
             secret_id (str): The ID of the secret to rotate.
             new_version_payload (bytes|str): The payload for the new secret version.
         """
-        if secret_id not in self.secrets_ids:
+        if secret_id not in self.secret_ids:
             error_msg = f"Secret {secret_id} does not exist. Please create it first."
             self.logger.error(error_msg)
             raise ValueError(error_msg)
