@@ -192,7 +192,7 @@ test_cases = [
 class CodeObjectPicklerTest(unittest.TestCase):
   @parameterized.expand(test_cases)
   def test_get_code_path(self, callable, expected):
-    actual = code_object_pickler._get_code_path(callable)
+    actual = code_object_pickler.get_code_path(callable)
     self.assertEqual(actual, expected)
 
   @parameterized.expand(test_cases)
