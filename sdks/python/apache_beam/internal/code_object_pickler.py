@@ -308,7 +308,7 @@ _ARGUMENT_PATTERN = re.compile(r"'([^']*)'")
 
 
 def _get_code_object_from_single_name_pattern(
-    obj: Module, name_result: re.Match[str], path: str):
+    obj: types.ModuleType, name_result: re.Match[str], path: str):
   """Returns the code object from a name pattern.
 
   Args:
@@ -333,7 +333,7 @@ def _get_code_object_from_single_name_pattern(
 
 
 def _get_code_object_from_lambda_with_args_pattern(
-    obj: Module, lambda_with_args_result: re.Match[str], path: str):
+    obj: types.ModuleType, lambda_with_args_result: re.Match[str], path: str):
   """Returns the code object from a lambda with args pattern.
 
   Args:
@@ -359,7 +359,7 @@ def _get_code_object_from_lambda_with_args_pattern(
 
 
 def _get_code_object_from_lambda_with_hash_pattern(
-    obj: Module, lambda_with_hash_result: re.Match[str], path: str):
+    obj: types.ModuleType, lambda_with_hash_result: re.Match[str], path: str):
   """Returns the code object from a lambda with hash pattern.
 
   Args:
