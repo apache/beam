@@ -1,12 +1,12 @@
 {
   "commentedAboutFailingChecks": true,
   "reviewersAssignedForLabels": {
-    "python": "tvalentyn",
-    "java": "chamikaramj",
+    "python": "damccorm",
+    "java": "kennknowles",
     "spanner": "nielm"
   },
   "nextAction": "Reviewers",
-  "stopReviewerNotifications": true,
+  "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
   "committerAssigned": false
 }
