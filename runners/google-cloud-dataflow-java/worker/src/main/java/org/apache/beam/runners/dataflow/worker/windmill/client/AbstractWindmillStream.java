@@ -505,45 +505,23 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
   }
 
   @SuppressWarnings("ReferenceEquality")
-  private synchronized void onHalfClosePhysicalStreamTimeout(PhysicalStreamHandler handler) {
-    if (currentPhysicalStream != handler || clientClosed || isShutdown) {
-      return;
-    }
-    handler.streamDebugMetrics.recordHalfClose();
-    closingPhysicalStreams.add(handler);
-    clearCurrentPhysicalStream(false);
-    try {
-      requestObserver.onCompleted();
-    } catch (Exception e) {
-      logger.debug(
-          "Exception while half-closing handler, onPhysicalStreamCompletion will for the stream",
-          e);
-    }
-    @NonNull PhysicalStreamHandler newStreamHandler = newResponseHandler();
-    newStreamHandler.streamDebugMetrics.recordStart();
-    currentPhysicalStream = newStreamHandler;
-    currentPhysicalStreamForDebug.set(currentPhysicalStream);
-    try {
-      requestObserver.reset(physicalStreamFactory.apply(new ResponseObserver(newStreamHandler)));
-    } catch (Exception e) {
-      onPhysicalStreamCompletion(Status.fromThrowable(e), newStreamHandler);
-    }
-    try {
-      onFlushPending(true);
-      if (clientClosed) {
-        halfClose();
-      } else if (!halfClosePhysicalStreamAfter.isZero()) {
-        halfCloseFuture =
-            executor.schedule(
-                () -> onHalfClosePhysicalStreamTimeout(newStreamHandler),
-                halfClosePhysicalStreamAfter.getSeconds(),
-                TimeUnit.SECONDS);
+  private void onHalfClosePhysicalStreamTimeout(PhysicalStreamHandler handler) {
+    synchronized (this) {
+      if (currentPhysicalStream != handler || clientClosed || isShutdown) {
+        return;
       }
-    } catch (Exception e) {
-      logger.debug(
-          "Exception while flushing pending to current stream, onPhysicalStreamCompletion will be called and handle",
-          e);
+      handler.streamDebugMetrics.recordHalfClose();
+      closingPhysicalStreams.add(handler);
+      clearCurrentPhysicalStream(false);
+      try {
+        requestObserver.onCompleted();
+      } catch (Exception e) {
+        logger.debug(
+            "Exception while half-closing handler, onPhysicalStreamCompletion will for the stream",
+            e);
+      }
     }
+    startStream();
   }
 
   @SuppressWarnings("ReferenceEquality")
@@ -556,7 +534,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
         checkState(closingPhysicalStreams.remove(handler));
       }
       handler.onDone(status);
-      if (wasActiveStream
+      if (currentPhysicalStream == null
           && clientClosed
           && !handler.hasPendingRequests()
           && closingPhysicalStreams.stream().noneMatch(PhysicalStreamHandler::hasPendingRequests)) {

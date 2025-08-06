@@ -139,14 +139,7 @@ public class GrpcGetDataStreamTest {
     FakeWindmillGrpcService.GetDataStreamInfo streamInfo = waitForConnectionAndConsumeHeader();
 
     // These will block until they are successfully sent.
-    Windmill.KeyedGetDataRequest keyedGetDataRequest =
-        Windmill.KeyedGetDataRequest.newBuilder()
-            .setKey(ByteString.EMPTY)
-            .setShardingKey(1)
-            .setCacheToken(1)
-            .setWorkToken(1)
-            .build();
-
+    Windmill.KeyedGetDataRequest keyedGetDataRequest = createTestRequest(1);
     CompletableFuture<Windmill.KeyedGetDataResponse> sendFuture =
         CompletableFuture.supplyAsync(
             () -> {
@@ -161,12 +154,7 @@ public class GrpcGetDataStreamTest {
     assertThat(request.getRequestIdList()).containsExactly(1L);
     assertEquals(keyedGetDataRequest, request.getStateRequest(0).getRequests(0));
 
-    Windmill.KeyedGetDataResponse keyedGetDataResponse =
-        Windmill.KeyedGetDataResponse.newBuilder()
-            .setShardingKey(1)
-            .setKey(ByteString.EMPTY)
-            .build();
-
+    Windmill.KeyedGetDataResponse keyedGetDataResponse = createTestResponse(1);
     streamInfo.responseObserver.onNext(
         Windmill.StreamingGetDataResponse.newBuilder()
             .addRequestId(1)
@@ -199,14 +187,7 @@ public class GrpcGetDataStreamTest {
                             }
                           }
                           try {
-                            getDataStream.requestKeyedData(
-                                "computationId",
-                                Windmill.KeyedGetDataRequest.newBuilder()
-                                    .setKey(ByteString.EMPTY)
-                                    .setShardingKey(i)
-                                    .setCacheToken(i)
-                                    .setWorkToken(i)
-                                    .build());
+                            getDataStream.requestKeyedData("computationId", createTestRequest(i));
                           } catch (WindmillStreamShutdownException e) {
                             throw new RuntimeException(e);
                           }
@@ -328,6 +309,22 @@ public class GrpcGetDataStreamTest {
     getDataStream.shutdown();
   }
 
+  private Windmill.KeyedGetDataRequest createTestRequest(long id) {
+    return Windmill.KeyedGetDataRequest.newBuilder()
+        .setKey(ByteString.EMPTY)
+        .setShardingKey(id)
+        .setCacheToken(id * 100)
+        .setWorkToken(id * 1000)
+        .build();
+  }
+
+  private Windmill.KeyedGetDataResponse createTestResponse(long id) {
+    return Windmill.KeyedGetDataResponse.newBuilder()
+        .setShardingKey(id)
+        .setKey(ByteString.EMPTY)
+        .build();
+  }
+
   @Test
   public void testRequestKeyedData_multiplePhysicalStreams()
       throws InterruptedException, ExecutionException {
@@ -338,13 +335,8 @@ public class GrpcGetDataStreamTest {
     FakeWindmillGrpcService.GetDataStreamInfo streamInfo = waitForConnectionAndConsumeHeader();
 
     // These will block until they are successfully sent.
-    Windmill.KeyedGetDataRequest keyedGetDataRequest =
-        Windmill.KeyedGetDataRequest.newBuilder()
-            .setKey(ByteString.EMPTY)
-            .setShardingKey(1)
-            .setCacheToken(1)
-            .setWorkToken(1)
-            .build();
+    Windmill.KeyedGetDataRequest keyedGetDataRequest = createTestRequest(1);
+
     CompletableFuture<Windmill.KeyedGetDataResponse> sendFuture =
         CompletableFuture.supplyAsync(
             () -> {
@@ -367,13 +359,7 @@ public class GrpcGetDataStreamTest {
     // Previous stream client should be half-closed.
     assertNull(streamInfo.onDone.get());
 
-    Windmill.KeyedGetDataRequest keyedGetDataRequest2 =
-        Windmill.KeyedGetDataRequest.newBuilder()
-            .setKey(ByteString.EMPTY)
-            .setShardingKey(2)
-            .setCacheToken(2)
-            .setWorkToken(2)
-            .build();
+    Windmill.KeyedGetDataRequest keyedGetDataRequest2 = createTestRequest(2);
     CompletableFuture<Windmill.KeyedGetDataResponse> sendFuture2 =
         CompletableFuture.supplyAsync(
             () -> {
@@ -387,22 +373,14 @@ public class GrpcGetDataStreamTest {
     assertThat(request2.getRequestIdList()).containsExactly(2L);
     assertEquals(keyedGetDataRequest2, request2.getStateRequest(0).getRequests(0));
 
-    Windmill.KeyedGetDataResponse keyedGetDataResponse2 =
-        Windmill.KeyedGetDataResponse.newBuilder()
-            .setShardingKey(2)
-            .setKey(ByteString.EMPTY)
-            .build();
+    Windmill.KeyedGetDataResponse keyedGetDataResponse2 = createTestResponse(2);
     streamInfo2.responseObserver.onNext(
         Windmill.StreamingGetDataResponse.newBuilder()
             .addRequestId(2)
             .addSerializedResponse(keyedGetDataResponse2.toByteString())
             .build());
 
-    Windmill.KeyedGetDataResponse keyedGetDataResponse =
-        Windmill.KeyedGetDataResponse.newBuilder()
-            .setShardingKey(1)
-            .setKey(ByteString.EMPTY)
-            .build();
+    Windmill.KeyedGetDataResponse keyedGetDataResponse = createTestResponse(1);
     streamInfo.responseObserver.onNext(
         Windmill.StreamingGetDataResponse.newBuilder()
             .addRequestId(1)
@@ -437,13 +415,7 @@ public class GrpcGetDataStreamTest {
     FakeWindmillGrpcService.GetDataStreamInfo streamInfo = waitForConnectionAndConsumeHeader();
 
     // These will block until they are successfully sent.
-    Windmill.KeyedGetDataRequest keyedGetDataRequest =
-        Windmill.KeyedGetDataRequest.newBuilder()
-            .setKey(ByteString.EMPTY)
-            .setShardingKey(1)
-            .setCacheToken(1)
-            .setWorkToken(1)
-            .build();
+    Windmill.KeyedGetDataRequest keyedGetDataRequest = createTestRequest(1);
     CompletableFuture<Windmill.KeyedGetDataResponse> sendFuture =
         CompletableFuture.supplyAsync(
             () -> {
@@ -466,13 +438,7 @@ public class GrpcGetDataStreamTest {
     // Previous stream client should be half-closed.
     assertNull(streamInfo.onDone.get());
 
-    Windmill.KeyedGetDataRequest keyedGetDataRequest2 =
-        Windmill.KeyedGetDataRequest.newBuilder()
-            .setKey(ByteString.EMPTY)
-            .setShardingKey(2)
-            .setCacheToken(2)
-            .setWorkToken(2)
-            .build();
+    Windmill.KeyedGetDataRequest keyedGetDataRequest2 = createTestRequest(2);
     CompletableFuture<Windmill.KeyedGetDataResponse> sendFuture2 =
         CompletableFuture.supplyAsync(
             () -> {
@@ -486,11 +452,7 @@ public class GrpcGetDataStreamTest {
     assertThat(request2.getRequestIdList()).containsExactly(2L);
     assertEquals(keyedGetDataRequest2, request2.getStateRequest(0).getRequests(0));
 
-    Windmill.KeyedGetDataResponse keyedGetDataResponse2 =
-        Windmill.KeyedGetDataResponse.newBuilder()
-            .setShardingKey(2)
-            .setKey(ByteString.EMPTY)
-            .build();
+    Windmill.KeyedGetDataResponse keyedGetDataResponse2 = createTestResponse(2);
     streamInfo2.responseObserver.onNext(
         Windmill.StreamingGetDataResponse.newBuilder()
             .addRequestId(2)
@@ -512,11 +474,7 @@ public class GrpcGetDataStreamTest {
     assertNull(streamInfo2.onDone.get());
     assertFalse(getDataStream.awaitTermination(10, TimeUnit.MILLISECONDS));
 
-    Windmill.KeyedGetDataResponse keyedGetDataResponse =
-        Windmill.KeyedGetDataResponse.newBuilder()
-            .setShardingKey(1)
-            .setKey(ByteString.EMPTY)
-            .build();
+    Windmill.KeyedGetDataResponse keyedGetDataResponse = createTestResponse(1);
     streamInfo2.responseObserver.onNext(
         Windmill.StreamingGetDataResponse.newBuilder()
             .addRequestId(1)
@@ -540,13 +498,7 @@ public class GrpcGetDataStreamTest {
     FakeWindmillGrpcService.GetDataStreamInfo streamInfo = waitForConnectionAndConsumeHeader();
 
     // These will block until they are successfully sent.
-    Windmill.KeyedGetDataRequest keyedGetDataRequest =
-        Windmill.KeyedGetDataRequest.newBuilder()
-            .setKey(ByteString.EMPTY)
-            .setShardingKey(1)
-            .setCacheToken(1)
-            .setWorkToken(1)
-            .build();
+    Windmill.KeyedGetDataRequest keyedGetDataRequest = createTestRequest(1);
     CompletableFuture<Windmill.KeyedGetDataResponse> sendFuture =
         CompletableFuture.supplyAsync(
             () -> {
@@ -573,13 +525,7 @@ public class GrpcGetDataStreamTest {
     FakeWindmillGrpcService.GetDataStreamInfo streamInfo3 = waitForConnectionAndConsumeHeader();
     assertNull(streamInfo.onDone.get());
 
-    Windmill.KeyedGetDataRequest keyedGetDataRequest2 =
-        Windmill.KeyedGetDataRequest.newBuilder()
-            .setKey(ByteString.EMPTY)
-            .setShardingKey(2)
-            .setCacheToken(2)
-            .setWorkToken(2)
-            .build();
+    Windmill.KeyedGetDataRequest keyedGetDataRequest2 = createTestRequest(2);
     CompletableFuture<Windmill.KeyedGetDataResponse> sendFuture2 =
         CompletableFuture.supplyAsync(
             () -> {
@@ -593,22 +539,14 @@ public class GrpcGetDataStreamTest {
     assertThat(request2.getRequestIdList()).containsExactly(2L);
     assertEquals(keyedGetDataRequest2, request2.getStateRequest(0).getRequests(0));
 
-    Windmill.KeyedGetDataResponse keyedGetDataResponse2 =
-        Windmill.KeyedGetDataResponse.newBuilder()
-            .setShardingKey(2)
-            .setKey(ByteString.EMPTY)
-            .build();
+    Windmill.KeyedGetDataResponse keyedGetDataResponse2 = createTestResponse(2);
     streamInfo3.responseObserver.onNext(
         Windmill.StreamingGetDataResponse.newBuilder()
             .addRequestId(2)
             .addSerializedResponse(keyedGetDataResponse2.toByteString())
             .build());
 
-    Windmill.KeyedGetDataResponse keyedGetDataResponse =
-        Windmill.KeyedGetDataResponse.newBuilder()
-            .setShardingKey(1)
-            .setKey(ByteString.EMPTY)
-            .build();
+    Windmill.KeyedGetDataResponse keyedGetDataResponse = createTestResponse(1);
     streamInfo.responseObserver.onNext(
         Windmill.StreamingGetDataResponse.newBuilder()
             .addRequestId(1)
@@ -637,13 +575,7 @@ public class GrpcGetDataStreamTest {
     FakeWindmillGrpcService.GetDataStreamInfo streamInfo = waitForConnectionAndConsumeHeader();
 
     // These will block until they are successfully sent.
-    Windmill.KeyedGetDataRequest keyedGetDataRequest =
-        Windmill.KeyedGetDataRequest.newBuilder()
-            .setKey(ByteString.EMPTY)
-            .setShardingKey(1)
-            .setCacheToken(1)
-            .setWorkToken(1)
-            .build();
+    Windmill.KeyedGetDataRequest keyedGetDataRequest = createTestRequest(1);
     CompletableFuture<Windmill.KeyedGetDataResponse> sendFuture =
         CompletableFuture.supplyAsync(
             () -> {
@@ -664,13 +596,7 @@ public class GrpcGetDataStreamTest {
     FakeWindmillGrpcService.GetDataStreamInfo streamInfo2 = waitForConnectionAndConsumeHeader();
     assertNull(streamInfo.onDone.get());
 
-    Windmill.KeyedGetDataRequest keyedGetDataRequest2 =
-        Windmill.KeyedGetDataRequest.newBuilder()
-            .setKey(ByteString.EMPTY)
-            .setShardingKey(2)
-            .setCacheToken(2)
-            .setWorkToken(2)
-            .build();
+    Windmill.KeyedGetDataRequest keyedGetDataRequest2 = createTestRequest(2);
     CompletableFuture<Windmill.KeyedGetDataResponse> sendFuture2 =
         CompletableFuture.supplyAsync(
             () -> {
@@ -694,22 +620,14 @@ public class GrpcGetDataStreamTest {
     assertThat(request3.getRequestIdList()).containsExactly(2L);
     assertEquals(keyedGetDataRequest2, request3.getStateRequest(0).getRequests(0));
 
-    Windmill.KeyedGetDataResponse keyedGetDataResponse2 =
-        Windmill.KeyedGetDataResponse.newBuilder()
-            .setShardingKey(2)
-            .setKey(ByteString.EMPTY)
-            .build();
+    Windmill.KeyedGetDataResponse keyedGetDataResponse2 = createTestResponse(2);
     streamInfo3.responseObserver.onNext(
         Windmill.StreamingGetDataResponse.newBuilder()
             .addRequestId(2)
             .addSerializedResponse(keyedGetDataResponse2.toByteString())
             .build());
 
-    Windmill.KeyedGetDataResponse keyedGetDataResponse =
-        Windmill.KeyedGetDataResponse.newBuilder()
-            .setShardingKey(1)
-            .setKey(ByteString.EMPTY)
-            .build();
+    Windmill.KeyedGetDataResponse keyedGetDataResponse = createTestResponse(1);
     streamInfo.responseObserver.onNext(
         Windmill.StreamingGetDataResponse.newBuilder()
             .addRequestId(1)
@@ -738,13 +656,7 @@ public class GrpcGetDataStreamTest {
     FakeWindmillGrpcService.GetDataStreamInfo streamInfo = waitForConnectionAndConsumeHeader();
 
     // Request 1, Stream 1
-    Windmill.KeyedGetDataRequest keyedGetDataRequest1 =
-        Windmill.KeyedGetDataRequest.newBuilder()
-            .setKey(ByteString.EMPTY)
-            .setShardingKey(1)
-            .setCacheToken(1)
-            .setWorkToken(1)
-            .build();
+    Windmill.KeyedGetDataRequest keyedGetDataRequest1 = createTestRequest(1);
     CompletableFuture<Windmill.KeyedGetDataResponse> sendFuture1 =
         CompletableFuture.supplyAsync(
             () -> {
@@ -764,13 +676,7 @@ public class GrpcGetDataStreamTest {
     assertNull(streamInfo.onDone.get());
 
     // Request 2, Stream 2
-    Windmill.KeyedGetDataRequest keyedGetDataRequest2 =
-        Windmill.KeyedGetDataRequest.newBuilder()
-            .setKey(ByteString.EMPTY)
-            .setShardingKey(2)
-            .setCacheToken(2)
-            .setWorkToken(2)
-            .build();
+    Windmill.KeyedGetDataRequest keyedGetDataRequest2 = createTestRequest(2);
     CompletableFuture<Windmill.KeyedGetDataResponse> sendFuture2 =
         CompletableFuture.supplyAsync(
             () -> {
@@ -790,13 +696,7 @@ public class GrpcGetDataStreamTest {
     assertNull(streamInfo2.onDone.get());
 
     // Request 3, Stream 3
-    Windmill.KeyedGetDataRequest keyedGetDataRequest3 =
-        Windmill.KeyedGetDataRequest.newBuilder()
-            .setKey(ByteString.EMPTY)
-            .setShardingKey(3)
-            .setCacheToken(3)
-            .setWorkToken(3)
-            .build();
+    Windmill.KeyedGetDataRequest keyedGetDataRequest3 = createTestRequest(3);
     CompletableFuture<Windmill.KeyedGetDataResponse> sendFuture3 =
         CompletableFuture.supplyAsync(
             () -> {
@@ -811,22 +711,14 @@ public class GrpcGetDataStreamTest {
     assertEquals(keyedGetDataRequest3, request3.getStateRequest(0).getRequests(0));
 
     // Respond to all requests
-    Windmill.KeyedGetDataResponse keyedGetDataResponse1 =
-        Windmill.KeyedGetDataResponse.newBuilder()
-            .setShardingKey(1)
-            .setKey(ByteString.EMPTY)
-            .build();
+    Windmill.KeyedGetDataResponse keyedGetDataResponse1 = createTestResponse(1);
     streamInfo.responseObserver.onNext(
         Windmill.StreamingGetDataResponse.newBuilder()
             .addRequestId(1)
             .addSerializedResponse(keyedGetDataResponse1.toByteString())
             .build());
 
-    Windmill.KeyedGetDataResponse keyedGetDataResponse2 =
-        Windmill.KeyedGetDataResponse.newBuilder()
-            .setShardingKey(2)
-            .setKey(ByteString.EMPTY)
-            .build();
+    Windmill.KeyedGetDataResponse keyedGetDataResponse2 = createTestResponse(2);
     streamInfo2.responseObserver.onNext(
         Windmill.StreamingGetDataResponse.newBuilder()
             .addRequestId(2)
@@ -834,11 +726,7 @@ public class GrpcGetDataStreamTest {
             .build());
     streamInfo2.responseObserver.onCompleted();
 
-    Windmill.KeyedGetDataResponse keyedGetDataResponse3 =
-        Windmill.KeyedGetDataResponse.newBuilder()
-            .setShardingKey(3)
-            .setKey(ByteString.EMPTY)
-            .build();
+    Windmill.KeyedGetDataResponse keyedGetDataResponse3 = createTestResponse(3);
     streamInfo3.responseObserver.onNext(
         Windmill.StreamingGetDataResponse.newBuilder()
             .addRequestId(3)
@@ -869,13 +757,7 @@ public class GrpcGetDataStreamTest {
             java.time.Duration.ofSeconds(60), triggeredExecutor);
     FakeWindmillGrpcService.GetDataStreamInfo streamInfo = waitForConnectionAndConsumeHeader();
 
-    Windmill.KeyedGetDataRequest keyedGetDataRequest =
-        Windmill.KeyedGetDataRequest.newBuilder()
-            .setKey(ByteString.EMPTY)
-            .setShardingKey(1)
-            .setCacheToken(1)
-            .setWorkToken(1)
-            .build();
+    Windmill.KeyedGetDataRequest keyedGetDataRequest = createTestRequest(1);
     CompletableFuture<Windmill.KeyedGetDataResponse> sendFuture =
         CompletableFuture.supplyAsync(
             () -> {
@@ -915,11 +797,7 @@ public class GrpcGetDataStreamTest {
     assertNull(streamInfo2.onDone.get());
     assertFalse(getDataStream.awaitTermination(10, TimeUnit.MILLISECONDS));
 
-    Windmill.KeyedGetDataResponse keyedGetDataResponse =
-        Windmill.KeyedGetDataResponse.newBuilder()
-            .setShardingKey(1)
-            .setKey(ByteString.EMPTY)
-            .build();
+    Windmill.KeyedGetDataResponse keyedGetDataResponse = createTestResponse(1);
     streamInfo2.responseObserver.onNext(
         Windmill.StreamingGetDataResponse.newBuilder()
             .addRequestId(1)
@@ -943,13 +821,7 @@ public class GrpcGetDataStreamTest {
     FakeWindmillGrpcService.GetDataStreamInfo streamInfo = waitForConnectionAndConsumeHeader();
 
     // Request 1, Stream 1
-    Windmill.KeyedGetDataRequest keyedGetDataRequest1 =
-        Windmill.KeyedGetDataRequest.newBuilder()
-            .setKey(ByteString.EMPTY)
-            .setShardingKey(1)
-            .setCacheToken(1)
-            .setWorkToken(1)
-            .build();
+    Windmill.KeyedGetDataRequest keyedGetDataRequest1 = createTestRequest(1);
     CompletableFuture<Windmill.KeyedGetDataResponse> sendFuture1 =
         CompletableFuture.supplyAsync(
             () -> {
@@ -969,13 +841,7 @@ public class GrpcGetDataStreamTest {
     assertNull(streamInfo.onDone.get());
 
     // Request 2, Stream 2
-    Windmill.KeyedGetDataRequest keyedGetDataRequest2 =
-        Windmill.KeyedGetDataRequest.newBuilder()
-            .setKey(ByteString.EMPTY)
-            .setShardingKey(2)
-            .setCacheToken(2)
-            .setWorkToken(2)
-            .build();
+    Windmill.KeyedGetDataRequest keyedGetDataRequest2 = createTestRequest(2);
     CompletableFuture<Windmill.KeyedGetDataResponse> sendFuture2 =
         CompletableFuture.supplyAsync(
             () -> {
@@ -995,13 +861,7 @@ public class GrpcGetDataStreamTest {
     assertNull(streamInfo2.onDone.get());
 
     // Request 3, Stream 3
-    Windmill.KeyedGetDataRequest keyedGetDataRequest3 =
-        Windmill.KeyedGetDataRequest.newBuilder()
-            .setKey(ByteString.EMPTY)
-            .setShardingKey(3)
-            .setCacheToken(3)
-            .setWorkToken(3)
-            .build();
+    Windmill.KeyedGetDataRequest keyedGetDataRequest3 = createTestRequest(3);
     CompletableFuture<Windmill.KeyedGetDataResponse> sendFuture3 =
         CompletableFuture.supplyAsync(
             () -> {
@@ -1031,6 +891,104 @@ public class GrpcGetDataStreamTest {
     streamInfo.responseObserver.onCompleted();
     assertFalse(getDataStream.awaitTermination(0, TimeUnit.MILLISECONDS));
     streamInfo2.responseObserver.onError(new RuntimeException("test"));
+    assertTrue(getDataStream.awaitTermination(10, TimeUnit.SECONDS));
+  }
+
+  @Test
+  public void testRequestKeyedData_multiplePhysicalStreams_multipleHandovers_halfClose()
+      throws InterruptedException, ExecutionException {
+    TriggeredScheduledExecutorService triggeredExecutor = new TriggeredScheduledExecutorService();
+    GrpcGetDataStream getDataStream =
+        createGetDataStreamWithPhysicalStreamHandover(
+            java.time.Duration.ofSeconds(60), triggeredExecutor);
+    FakeWindmillGrpcService.GetDataStreamInfo streamInfo = waitForConnectionAndConsumeHeader();
+
+    // Request 1, Stream 1
+    Windmill.KeyedGetDataRequest keyedGetDataRequest1 = createTestRequest(1);
+    CompletableFuture<Windmill.KeyedGetDataResponse> sendFuture1 =
+        CompletableFuture.supplyAsync(
+            () -> {
+              try {
+                return getDataStream.requestKeyedData("computationId", keyedGetDataRequest1);
+              } catch (WindmillStreamShutdownException e) {
+                throw new RuntimeException(e);
+              }
+            });
+    Windmill.StreamingGetDataRequest request1 = streamInfo.requests.take();
+    assertThat(request1.getRequestIdList()).containsExactly(1L);
+    assertEquals(keyedGetDataRequest1, request1.getStateRequest(0).getRequests(0));
+
+    // Trigger handover 1
+    assertTrue(triggeredExecutor.unblockNextFuture());
+    FakeWindmillGrpcService.GetDataStreamInfo streamInfo2 = waitForConnectionAndConsumeHeader();
+    assertNull(streamInfo.onDone.get());
+
+    // Request 2, Stream 2
+    Windmill.KeyedGetDataRequest keyedGetDataRequest2 = createTestRequest(2);
+    CompletableFuture<Windmill.KeyedGetDataResponse> sendFuture2 =
+        CompletableFuture.supplyAsync(
+            () -> {
+              try {
+                return getDataStream.requestKeyedData("computationId", keyedGetDataRequest2);
+              } catch (WindmillStreamShutdownException e) {
+                throw new RuntimeException(e);
+              }
+            });
+    Windmill.StreamingGetDataRequest request2 = streamInfo2.requests.take();
+    assertThat(request2.getRequestIdList()).containsExactly(2L);
+    assertEquals(keyedGetDataRequest2, request2.getStateRequest(0).getRequests(0));
+
+    // Trigger handover 2 before streamInfo2 completes
+    assertTrue(triggeredExecutor.unblockNextFuture());
+    FakeWindmillGrpcService.GetDataStreamInfo streamInfo3 = waitForConnectionAndConsumeHeader();
+    assertNull(streamInfo2.onDone.get());
+
+    // Request 3, Stream 3
+    Windmill.KeyedGetDataRequest keyedGetDataRequest3 = createTestRequest(3);
+    CompletableFuture<Windmill.KeyedGetDataResponse> sendFuture3 =
+        CompletableFuture.supplyAsync(
+            () -> {
+              try {
+                return getDataStream.requestKeyedData("computationId", keyedGetDataRequest3);
+              } catch (WindmillStreamShutdownException e) {
+                throw new RuntimeException(e);
+              }
+            });
+    Windmill.StreamingGetDataRequest request3 = streamInfo3.requests.take();
+    assertThat(request3.getRequestIdList()).containsExactly(3L);
+    assertEquals(keyedGetDataRequest3, request3.getStateRequest(0).getRequests(0));
+
+    // Half-close while there are active streams and verify it isn't completed until all the streams
+    // are done. Streams with requests should have requests resent.
+    fakeService.expectNoMoreStreams();
+    assertFalse(getDataStream.awaitTermination(0, TimeUnit.SECONDS));
+    getDataStream.halfClose();
+    assertNull(streamInfo.onDone.get());
+    assertFalse(getDataStream.awaitTermination(10, TimeUnit.MILLISECONDS));
+
+    Windmill.KeyedGetDataResponse keyedGetDataResponse3 = createTestResponse(3);
+    streamInfo3.responseObserver.onNext(
+        Windmill.StreamingGetDataResponse.newBuilder()
+            .addRequestId(3)
+            .addSerializedResponse(keyedGetDataResponse3.toByteString())
+            .build());
+    assertThat(sendFuture3.join()).isEqualTo(keyedGetDataResponse3);
+
+    assertFalse(getDataStream.awaitTermination(0, TimeUnit.MILLISECONDS));
+    Windmill.KeyedGetDataResponse keyedGetDataResponse = createTestResponse(1);
+    streamInfo.responseObserver.onNext(
+        Windmill.StreamingGetDataResponse.newBuilder()
+            .addRequestId(1)
+            .addSerializedResponse(keyedGetDataResponse.toByteString())
+            .build());
+    assertThat(sendFuture1.join()).isEqualTo(keyedGetDataResponse);
+
+    streamInfo.responseObserver.onCompleted();
+    assertFalse(getDataStream.awaitTermination(0, TimeUnit.MILLISECONDS));
+
+    streamInfo2.responseObserver.onError(new RuntimeException("fake response error"));
+    streamInfo3.responseObserver.onCompleted();
+    assertThrows("fake response error", CompletionException.class, sendFuture2::join);
     assertTrue(getDataStream.awaitTermination(10, TimeUnit.SECONDS));
   }
 

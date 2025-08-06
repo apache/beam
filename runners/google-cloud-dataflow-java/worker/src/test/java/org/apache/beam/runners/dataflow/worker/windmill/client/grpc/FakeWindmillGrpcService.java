@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
@@ -81,6 +82,17 @@ class FakeWindmillGrpcService
 
     @Override
     public void onNext(RequestT request) {
+      if (streamInfo.onDone.isDone()) {
+        try {
+          if (streamInfo.onDone.get() == null) {
+            throw new IllegalStateException("Stream already half-closed.");
+          } else {
+            throw new IllegalStateException("Stream already closed with error.");
+          }
+        } catch (InterruptedException | ExecutionException e) {
+          throw new RuntimeException(e);
+        }
+      }
       errorCollector.checkThat(streamInfo.requests.add(request), Matchers.is(true));
     }
 

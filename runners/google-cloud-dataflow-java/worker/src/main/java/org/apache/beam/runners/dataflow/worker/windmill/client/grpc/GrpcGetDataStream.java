@@ -512,8 +512,7 @@ final class GrpcGetDataStream
         (GetDataPhysicalStreamHandler) currentPhysicalStream;
     if (currentGetDataPhysicalStream == null) {
       // Leave the batch finalized but in the batches queue.  Finalized batches will be sent on a
-      // new streamm in
-      // onFlushPending.
+      // new stream in onFlushPending.
       return;
     }
 
