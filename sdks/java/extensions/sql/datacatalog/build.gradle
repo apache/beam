@@ -46,7 +46,6 @@ dependencies {
   implementation library.java.slf4j_api
 
   testImplementation project(":sdks:java:extensions:sql")
-  testImplementation project(":sdks:java:extensions:sql:zetasql")
   testImplementation project(":runners:direct-java")
   testImplementation project(":sdks:java:io:google-cloud-platform")
   testImplementation library.java.google_api_services_bigquery

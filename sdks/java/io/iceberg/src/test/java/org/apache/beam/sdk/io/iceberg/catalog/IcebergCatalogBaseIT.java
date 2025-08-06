@@ -141,6 +141,7 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class IcebergCatalogBaseIT implements Serializable {
   private static final long SETUP_TEARDOWN_SLEEP_MS = 5000;
+  private static final long AFTER_UPDATE_SLEEP_MS = 2000;
 
   public abstract Catalog createCatalog();
 
@@ -956,11 +957,15 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     Table table = catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA);
 
     populateTable(table, "a"); // first snapshot
+    Thread.sleep(AFTER_UPDATE_SLEEP_MS);
     List<Row> expectedRows = populateTable(table, "b"); // second snapshot
     Snapshot from = table.currentSnapshot();
+    Thread.sleep(AFTER_UPDATE_SLEEP_MS);
     expectedRows.addAll(populateTable(table, "c")); // third snapshot
     Snapshot to = table.currentSnapshot();
+    Thread.sleep(AFTER_UPDATE_SLEEP_MS);
     populateTable(table, "d"); // fourth snapshot
+    Thread.sleep(AFTER_UPDATE_SLEEP_MS);
 
     Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
     if (useSnapshotBoundary) {

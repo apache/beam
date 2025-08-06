@@ -17,15 +17,24 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.catalog;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
+
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
 import org.apache.beam.sdk.extensions.sql.meta.store.MetaStore;
 import org.apache.beam.sdk.util.Preconditions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class InMemoryCatalog implements Catalog {
   private final String name;
   private final Map<String, String> properties;
   private final InMemoryMetaStore metaStore = new InMemoryMetaStore();
+  private final HashSet<String> databases = new HashSet<>(Collections.singleton(DEFAULT));
+  protected @Nullable String currentDatabase = DEFAULT;
 
   public InMemoryCatalog(String name, Map<String, String> properties) {
     this.name = name;
@@ -51,5 +60,37 @@ public class InMemoryCatalog implements Catalog {
   @Override
   public Map<String, String> properties() {
     return Preconditions.checkStateNotNull(properties, "InMemoryCatalog has not been initialized");
+  }
+
+  @Override
+  public boolean createDatabase(String database) {
+    return databases.add(database);
+  }
+
+  @Override
+  public void useDatabase(String database) {
+    checkArgument(listDatabases().contains(database), "Database '%s' does not exist.");
+    currentDatabase = database;
+  }
+
+  @Override
+  public @Nullable String currentDatabase() {
+    return currentDatabase;
+  }
+
+  @Override
+  public boolean dropDatabase(String database, boolean cascade) {
+    checkState(!cascade, getClass().getSimpleName() + " does not support CASCADE.");
+
+    boolean removed = databases.remove(database);
+    if (database.equals(currentDatabase)) {
+      currentDatabase = null;
+    }
+    return removed;
+  }
+
+  @Override
+  public Set<String> listDatabases() {
+    return databases;
   }
 }

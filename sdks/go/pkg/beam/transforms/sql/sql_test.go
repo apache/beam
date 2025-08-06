@@ -190,7 +190,6 @@ func TestMultipleOptions(t *testing.T) {
 		{
 			name:          "all_options",
 			inputName:     "test",
-			dialect:       "zetasql",
 			expansionAddr: "localhost:8080",
 			typ:           reflect.TypeOf(int64(0)),
 			customOpt:     sqlx.Option{Urn: "test"},

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.bigquery;
 
-import static org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.rel2sql.SqlImplementor.POS;
+import static org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.rel2sql.SqlImplementor.POS;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -27,27 +27,27 @@ import org.apache.beam.repackaged.core.org.apache.commons.lang3.text.translate.C
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.text.translate.EntityArrays;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.text.translate.JavaUnicodeEscaper;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.text.translate.LookupTranslator;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.avatica.util.ByteString;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.avatica.util.TimeUnitRange;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.rel2sql.RelToSqlConverter;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.rel2sql.SqlImplementor;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rel.type.RelDataType;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexCall;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexDynamicParam;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexLiteral;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexLocalRef;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexNode;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.rex.RexProgram;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlDynamicParam;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlKind;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlLiteral;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlNode;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.SqlWriter;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.parser.SqlParserPos;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.type.SqlTypeFamily;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.sql.type.SqlTypeName;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.BitString;
-import org.apache.beam.vendor.calcite.v1_28_0.org.apache.calcite.util.TimestampString;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.avatica.util.ByteString;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.avatica.util.TimeUnitRange;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.rel2sql.RelToSqlConverter;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.rel2sql.SqlImplementor;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataType;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexCall;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexDynamicParam;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexLiteral;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexLocalRef;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexProgram;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlDynamicParam;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlKind;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlLiteral;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlNode;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlWriter;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.type.SqlTypeFamily;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.BitString;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.util.TimestampString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -128,9 +128,11 @@ public class BeamSqlUnparseContext extends SqlImplementor.SimpleContext {
     } else if (SqlKind.SEARCH.equals(rex.getKind())) {
       // Workaround CALCITE-4716
       RexCall search = (RexCall) rex;
-      RexLocalRef ref = (RexLocalRef) search.operands.get(1);
-      RexLiteral literal = (RexLiteral) program.getExprList().get(ref.getIndex());
-      rex = search.clone(search.getType(), ImmutableList.of(search.operands.get(0), literal));
+      if (search.operands.get(1) instanceof RexLocalRef) {
+        RexLocalRef ref = (RexLocalRef) search.operands.get(1);
+        RexLiteral literal = (RexLiteral) program.getExprList().get(ref.getIndex());
+        rex = search.clone(search.getType(), ImmutableList.of(search.operands.get(0), literal));
+      }
     }
 
     return super.toSql(program, rex);

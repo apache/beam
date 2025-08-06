@@ -907,7 +907,7 @@ class BeamModulePlugin implements Plugin<Project> {
         threetenbp                                  : "org.threeten:threetenbp:1.6.8",
         vendored_grpc_1_69_0                        : "org.apache.beam:beam-vendor-grpc-1_69_0:0.1",
         vendored_guava_32_1_2_jre                   : "org.apache.beam:beam-vendor-guava-32_1_2-jre:0.1",
-        vendored_calcite_1_28_0                     : "org.apache.beam:beam-vendor-calcite-1_28_0:0.2",
+        vendored_calcite_1_40_0                     : "org.apache.beam:beam-vendor-calcite-1_40_0:0.1",
         woodstox_core_asl                           : "org.codehaus.woodstox:woodstox-core-asl:4.4.1",
         zstd_jni                                    : "com.github.luben:zstd-jni:1.5.6-3",
         quickcheck_core                             : "com.pholser:junit-quickcheck-core:$quickcheck_version",
@@ -1832,13 +1832,12 @@ class BeamModulePlugin implements Plugin<Project> {
       project.ext.includeInJavaBom = configuration.publish
       project.ext.exportJavadoc = configuration.exportJavadoc
 
-      boolean publishEnabledByCommand = isRelease(project) || project.hasProperty('publishing')
       if (forkJavaVersion == '') {
         // project needs newer version and not served.
         // If not publishing ,disable the project. Otherwise, fail the build
         def msg = "project ${project.name} needs newer Java version to compile. Consider set -Pjava${project.javaVersion}Home"
-        if (publishEnabledByCommand) {
-          throw new GradleException("Publish enabled but " + msg + ".")
+        if (isRelease(project)) {
+          throw new GradleException("Release enabled but " + msg + ".")
         } else {
           logger.config(msg + " if needed.")
           project.tasks.each {
@@ -1846,7 +1845,7 @@ class BeamModulePlugin implements Plugin<Project> {
           }
         }
       }
-      if (publishEnabledByCommand && configuration.publish) {
+      if ((isRelease(project) || project.hasProperty('publishing')) && configuration.publish) {
         project.apply plugin: "maven-publish"
 
         // plugin to support repository authentication via ~/.m2/settings.xml

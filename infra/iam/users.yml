@@ -1,0 +1,547 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Exported IAM policy for project apache-beam-testing
+# Generated on 2025-07-30 22:43:34 UTC
+
+- username: WhatWouldAustinDo
+  email: WhatWouldAustinDo@gmail.com
+  permissions:
+  - role: roles/editor
+- username: a.khorbaladze
+  email: a.khorbaladze@akvelon.us
+  permissions:
+  - role: roles/container.admin
+  - role: roles/editor
+  - role: roles/iam.serviceAccountUser
+  - role: roles/secretmanager.admin
+- username: aaronleeiv
+  email: aaronleeiv@google.com
+  permissions:
+  - role: roles/editor
+- username: abbymotley
+  email: abbymotley@google.com
+  permissions:
+  - role: roles/viewer
+- username: ahmedabualsaud
+  email: ahmedabualsaud@google.com
+  permissions:
+  - role: roles/biglake.admin
+  - role: roles/editor
+  - role: roles/owner
+- username: akarys.akvelon
+  email: akarys.akvelon@gmail.com
+  permissions:
+  - role: roles/bigquery.admin
+  - role: roles/container.admin
+  - role: roles/editor
+  - role: roles/secretmanager.secretAccessor
+- username: aleksandr.dudko
+  email: aleksandr.dudko@akvelon.com
+  permissions:
+  - role: roles/viewer
+- username: alex.kosolapov
+  email: alex.kosolapov@akvelon.com
+  permissions:
+  - role: roles/viewer
+- username: alexey.inkin
+  email: alexey.inkin@akvelon.com
+  permissions:
+  - role: roles/viewer
+- username: altay
+  email: altay@google.com
+  permissions:
+  - role: roles/owner
+  - role: roles/viewer
+- username: anandinguva
+  email: anandinguva@google.com
+  permissions:
+  - role: roles/editor
+- username: andres.vervaecke
+  email: andres.vervaecke@ml6.eu
+  permissions:
+  - role: roles/viewer
+- username: andrey.devyatkin
+  email: andrey.devyatkin@akvelon.com
+  permissions:
+  - role: roles/cloudsql.instanceUser
+  - role: roles/dataflow.admin
+  - role: roles/iam.serviceAccountAdmin
+  - role: roles/owner
+  - role: roles/storage.admin
+- username: anikin
+  email: anikin@google.com
+  permissions:
+  - role: roles/editor
+- username: archbtw
+  email: archbtw@google.com
+  permissions:
+  - role: roles/editor
+- username: arne.vandendorpe
+  email: arne.vandendorpe@ml6.eu
+  permissions:
+  - role: roles/viewer
+- username: aroraarnav
+  email: aroraarnav@google.com
+  permissions:
+  - role: roles/owner
+- username: asfgnome
+  email: asfgnome@gmail.com
+  permissions:
+  - role: roles/owner
+- username: ashokrd2
+  email: ashokrd2@gmail.com
+  permissions:
+  - role: roles/editor
+- username: bjornpedersen
+  email: bjornpedersen@google.com
+  permissions:
+  - role: roles/viewer
+- username: bvolpato
+  email: bvolpato@google.com
+  permissions:
+  - role: roles/viewer
+- username: byronellis
+  email: byronellis@google.com
+  permissions:
+  - role: roles/viewer
+- username: ccychenzo
+  email: ccychenzo@gmail.com
+  permissions:
+  - role: roles/editor
+- username: chamikara
+  email: chamikara@google.com
+  permissions:
+  - role: roles/owner
+- username: cloud-data-workflow-dev
+  email: cloud-data-workflow-dev@prod.google.com
+  permissions:
+  - role: roles/compute.instanceAdmin.v1
+  - role: roles/compute.networkViewer
+  - role: roles/meshconfig.admin
+  - role: roles/storage.objectAdmin
+  - role: roles/trafficdirector.client
+- username: cvandermerwe
+  email: cvandermerwe@google.com
+  permissions:
+  - role: roles/compute.networkAdmin
+  - role: roles/editor
+- username: damondouglas
+  email: damondouglas@google.com
+  permissions:
+  - role: roles/editor
+  - role: roles/owner
+- username: dannymccormick
+  email: dannymccormick@google.com
+  permissions:
+  - role: roles/bigquery.dataOwner
+  - role: roles/container.admin
+  - role: roles/iam.serviceAccountUser
+  - role: roles/owner
+  - role: roles/resourcemanager.projectIamAdmin
+- username: dcrhodes
+  email: dcrhodes@google.com
+  permissions:
+  - role: roles/bigquery.dataViewer
+  - role: roles/bigquery.user
+- username: deepchowdhury
+  email: deepchowdhury@google.com
+  permissions:
+  - role: roles/viewer
+- username: derrickaw
+  email: derrickaw@google.com
+  permissions:
+  - role: roles/editor
+- username: dippatel
+  email: dippatel@google.com
+  permissions:
+  - role: roles/editor
+  - role: roles/resourcemanager.projectIamAdmin
+  - role: roles/spanner.admin
+- username: dippatel
+  email: dippatel@prod.google.com
+  permissions:
+  - role: roles/editor
+  - role: roles/iam.serviceAccountTokenCreator
+- username: djagaluru
+  email: djagaluru@google.com
+  permissions:
+  - role: roles/viewer
+- username: djerek.vlado6
+  email: djerek.vlado6@gmail.com
+  permissions:
+  - role: organizations/433637338589/roles/GceStorageAdmin
+  - role: roles/cloudfunctions.admin
+  - role: roles/container.admin
+  - role: roles/dataproc.admin
+  - role: roles/editor
+  - role: roles/secretmanager.secretAccessor
+- username: dpcollins
+  email: dpcollins@google.com
+  permissions:
+  - role: roles/viewer
+- username: ellading
+  email: ellading@google.com
+  permissions:
+  - role: roles/editor
+- username: enriquecaol04
+  email: enriquecaol04@gmail.com
+  permissions:
+  - role: roles/viewer
+- username: fozzie
+  email: fozzie@google.com
+  permissions:
+  - role: roles/owner
+- username: francisohara
+  email: francisohara@google.com
+  permissions:
+  - role: roles/bigquery.user
+  - role: roles/dataflow.admin
+  - role: roles/iam.serviceAccountTokenCreator
+  - role: roles/iam.serviceAccountUser
+- username: giomar.osorio
+  email: giomar.osorio@wizeline.com
+  permissions:
+  - role: roles/editor
+- username: harrisonlim
+  email: harrisonlim@google.com
+  permissions:
+  - role: roles/editor
+- username: hejia
+  email: hejia@google.com
+  permissions:
+  - role: roles/iam.securityReviewer
+  - role: roles/viewer
+- username: jasper.van.den.bossche
+  email: jasper.van.den.bossche@ml6.eu
+  permissions:
+  - role: roles/editor
+- username: jeffreylwang
+  email: jeffreylwang@google.com
+  permissions:
+  - role: roles/editor
+- username: jkinard
+  email: jkinard@google.com
+  permissions:
+  - role: roles/editor
+- username: johnjcasey
+  email: johnjcasey@google.com
+  permissions:
+  - role: roles/editor
+  - role: roles/owner
+- username: joseinigo
+  email: joseinigo@google.com
+  permissions:
+  - role: roles/editor
+- username: jrmccluskey
+  email: jrmccluskey@google.com
+  permissions:
+  - role: roles/editor
+  - role: roles/owner
+- username: k.loyola.gutierrez
+  email: k.loyola.gutierrez@akvelon.com
+  permissions:
+  - role: roles/container.admin
+  - role: roles/editor
+- username: kenn
+  email: kenn@apache.org
+  permissions:
+  - role: roles/owner
+- username: kerrydc
+  email: kerrydc@google.com
+  permissions:
+  - role: roles/cloudasset.owner
+  - role: roles/dataflow.admin
+  - role: roles/owner
+  - role: roles/resourcemanager.projectIamAdmin
+- username: klk
+  email: klk@google.com
+  permissions:
+  - role: roles/editor
+  - role: roles/owner
+- username: kmj
+  email: kmj@google.com
+  permissions:
+  - role: roles/bigquery.user
+- username: lahariguduru
+  email: lahariguduru@google.com
+  permissions:
+  - role: roles/bigquery.user
+  - role: roles/dataflow.admin
+  - role: roles/iam.serviceAccountTokenCreator
+  - role: roles/iam.serviceAccountUser
+- username: limatthew
+  email: limatthew@google.com
+  permissions:
+  - role: roles/viewer
+- username: maggiejz
+  email: maggiejz@google.com
+  permissions:
+  - role: roles/editor
+- username: manavgarg
+  email: manavgarg@google.com
+  permissions:
+  - role: roles/editor
+- username: meetsea
+  email: meetsea@google.com
+  permissions:
+  - role: roles/editor
+- username: naireenhussain
+  email: naireenhussain@google.com
+  permissions:
+  - role: roles/editor
+- username: nickllx
+  email: nickllx@google.com
+  permissions:
+  - role: roles/editor
+- username: oleg.borisevich
+  email: oleg.borisevich@akvelon.com
+  permissions:
+  - role: roles/cloudbuild.builds.editor
+  - role: roles/cloudfunctions.admin
+  - role: roles/compute.admin
+  - role: roles/container.clusterViewer
+  - role: roles/container.developer
+  - role: roles/datastore.user
+  - role: roles/firebase.admin
+  - role: roles/iam.securityAdmin
+  - role: roles/iam.serviceAccountCreator
+  - role: roles/iam.serviceAccountUser
+  - role: roles/monitoring.admin
+  - role: roles/secretmanager.admin
+  - role: roles/secretmanager.secretAccessor
+  - role: roles/secretmanager.viewer
+  - role: roles/serviceusage.serviceUsageAdmin
+  - role: roles/storage.admin
+- username: pabloem
+  email: pabloem@google.com
+  permissions:
+  - role: roles/iap.tunnelResourceAccessor
+  - role: roles/owner
+- username: pandey.ayu
+  email: pandey.ayu@gmail.com
+  permissions:
+  - role: roles/editor
+- username: pandiana
+  email: pandiana@google.com
+  permissions:
+  - role: roles/editor
+- username: phucnh402
+  email: phucnh402@gmail.com
+  permissions:
+  - role: roles/biglake.admin
+  - role: roles/container.admin
+  - role: roles/dataflow.admin
+  - role: roles/editor
+  - role: roles/iam.serviceAccountUser
+  - role: roles/logging.logWriter
+  - role: roles/logging.viewer
+  - role: roles/storage.admin
+- username: polecito.em
+  email: polecito.em@gmail.com
+  permissions:
+  - role: roles/editor
+- username: pranavbhandari
+  email: pranavbhandari@google.com
+  permissions:
+  - role: roles/bigquery.admin
+  - role: roles/editor
+- username: rajkumargupta
+  email: rajkumargupta@google.com
+  permissions:
+  - role: roles/owner
+- username: rebo
+  email: rebo@google.com
+  permissions:
+  - role: roles/editor
+- username: reebaq212
+  email: reebaq212@gmail.com
+  permissions:
+  - role: roles/bigquery.admin
+  - role: roles/editor
+  - role: roles/pubsub.editor
+  - role: roles/spanner.databaseAdmin
+  - role: roles/storage.objectCreator
+  - role: roles/storage.objectViewer
+- username: relax
+  email: relax@google.com
+  permissions:
+  - role: roles/owner
+- username: rezarokni
+  email: rezarokni@google.com
+  permissions:
+  - role: roles/bigquery.admin
+  - role: roles/dataflow.admin
+  - role: roles/pubsub.admin
+  - role: roles/storage.objectAdmin
+- username: riteshghorse
+  email: riteshghorse@google.com
+  permissions:
+  - role: roles/editor
+  - role: roles/owner
+- username: robbe.sneyders
+  email: robbe.sneyders@ml6.eu
+  permissions:
+  - role: roles/editor
+- username: robertwb
+  email: robertwb@google.com
+  permissions:
+  - role: roles/owner
+  - role: roles/viewer
+- username: rosinha
+  email: rosinha@google.com
+  permissions:
+  - role: roles/editor
+- username: ruilongjiang
+  email: ruilongjiang@google.com
+  permissions:
+  - role: roles/editor
+- username: ruslan.shamunov
+  email: ruslan.shamunov@akvelon.com
+  permissions:
+  - role: roles/artifactregistry.admin
+  - role: roles/compute.admin
+  - role: roles/container.admin
+  - role: roles/datastore.indexAdmin
+  - role: roles/dns.admin
+  - role: roles/editor
+  - role: roles/iam.roleAdmin
+  - role: roles/iam.securityAdmin
+  - role: roles/iam.serviceAccountAdmin
+  - role: roles/iam.serviceAccountCreator
+  - role: roles/iam.serviceAccountUser
+  - role: roles/redis.admin
+  - role: roles/servicemanagement.quotaAdmin
+  - role: roles/storage.admin
+- username: ryanmadden
+  email: ryanmadden@google.com
+  permissions:
+  - role: roles/editor
+- username: saadatssu
+  email: saadatssu@gmail.com
+  permissions:
+  - role: roles/editor
+- username: samuelw
+  email: samuelw@google.com
+  permissions:
+  - role: roles/editor
+- username: sergey.makarkin
+  email: sergey.makarkin@akvelon.com
+  permissions:
+  - role: roles/editor
+  - role: roles/iam.workloadIdentityPoolAdmin
+  - role: roles/secretmanager.admin
+- username: shunping
+  email: shunping@google.com
+  permissions:
+  - role: roles/editor
+  - role: roles/iam.serviceAccountTokenCreator
+  - role: roles/iam.serviceAccountUser
+  - role: roles/owner
+- username: siyuez
+  email: siyuez@google.com
+  permissions:
+  - role: roles/editor
+  - role: roles/viewer
+- username: skp
+  email: skp@google.com
+  permissions:
+  - role: roles/editor
+- username: sniemitz
+  email: sniemitz@google.com
+  permissions:
+  - role: roles/editor
+- username: svetaksundhar
+  email: svetaksundhar@google.com
+  permissions:
+  - role: roles/editor
+- username: talatu
+  email: talatu@google.com
+  permissions:
+  - role: roles/owner
+- username: tannapareddy
+  email: tannapareddy@google.com
+  permissions:
+  - role: organizations/433637338589/roles/GcsBucketOwner
+  - role: roles/biglake.admin
+  - role: roles/bigquery.admin
+  - role: roles/dataproc.admin
+  - role: roles/editor
+  - role: roles/owner
+  - role: roles/pubsub.admin
+  - role: roles/storage.admin
+- username: tanusharmaa
+  email: tanusharmaa@google.com
+  permissions:
+  - role: roles/editor
+- username: tarunannapareddy1997
+  email: tarunannapareddy1997@gmail.com
+  permissions:
+  - role: roles/bigquery.admin
+- username: timur.sultanov.akvelon
+  email: timur.sultanov.akvelon@gmail.com
+  permissions:
+  - role: roles/editor
+- username: valentyn
+  email: valentyn@google.com
+  permissions:
+  - role: roles/owner
+- username: vitaly.terentyev.akv
+  email: vitaly.terentyev.akv@gmail.com
+  permissions:
+  - role: roles/container.admin
+  - role: roles/editor
+  - role: roles/iam.serviceAccountAdmin
+  - role: roles/iam.workloadIdentityPoolAdmin
+  - role: roles/secretmanager.secretAccessor
+- username: vladislav.chunikhin
+  email: vladislav.chunikhin@akvelon.com
+  permissions:
+  - role: roles/editor
+- username: vlado.djerek
+  email: vlado.djerek@akvelon.com
+  permissions:
+  - role: organizations/433637338589/roles/GceStorageAdmin
+  - role: roles/cloudfunctions.admin
+  - role: roles/container.admin
+  - role: roles/dataproc.admin
+  - role: roles/owner
+  - role: roles/secretmanager.secretAccessor
+- username: xqhu
+  email: xqhu@google.com
+  permissions:
+  - role: roles/editor
+  - role: roles/iam.serviceAccountTokenCreator
+  - role: roles/owner
+  - role: roles/storage.admin
+- username: yathu
+  email: yathu@google.com
+  permissions:
+  - role: roles/editor
+  - role: roles/iam.serviceAccountTokenCreator
+  - role: roles/owner
+- username: ylabur
+  email: ylabur@google.com
+  permissions:
+  - role: roles/editor
+- username: yyingwang
+  email: yyingwang@google.com
+  permissions:
+  - role: roles/editor
+- username: zhoufek
+  email: zhoufek@google.com
+  permissions:
+  - role: roles/editor

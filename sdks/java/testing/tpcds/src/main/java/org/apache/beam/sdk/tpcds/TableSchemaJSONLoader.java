@@ -19,6 +19,10 @@ package org.apache.beam.sdk.tpcds;
 
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.node.TextNode;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -27,9 +31,6 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Resources;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.reflect.ClassPath;
-import org.json.simple.JSONArray;
-import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
 
 /**
  * TableSchemaJSONLoader can get all table's names from resource/schemas directory and parse a
@@ -51,8 +52,9 @@ public class TableSchemaJSONLoader {
     String path = "schemas/" + tableName + ".json";
     String schema = Resources.toString(Resources.getResource(path), StandardCharsets.UTF_8);
 
-    JSONObject jsonObject = (JSONObject) new JSONParser().parse(schema);
-    JSONArray jsonArray = (JSONArray) jsonObject.get("schema");
+    ObjectMapper mapper = new ObjectMapper();
+
+    ArrayNode jsonArray = (ArrayNode) mapper.readTree(schema).get("schema");
     if (jsonArray == null) {
       throw new RuntimeException("Can't get Json array for \"schema\" key.");
     }
@@ -62,19 +64,20 @@ public class TableSchemaJSONLoader {
 
     Iterator jsonArrIterator = jsonArray.iterator();
     while (jsonArrIterator.hasNext()) {
-      Map jsonMap = checkArgumentNotNull((Map) jsonArrIterator.next());
-      Iterator recordIterator = jsonMap.entrySet().iterator();
+      ObjectNode jsonMap = checkArgumentNotNull((ObjectNode) jsonArrIterator.next());
+      Iterator recordIterator = jsonMap.properties().iterator();
       while (recordIterator.hasNext()) {
         Map.Entry pair = checkArgumentNotNull((Map.Entry) recordIterator.next());
         Object key = checkArgumentNotNull(pair.getKey());
+        TextNode valueNode = (TextNode) checkArgumentNotNull(pair.getValue());
+        String value = valueNode.textValue();
         if (key.equals("type")) {
           // If the key of the pair is "type", make some modification before appending it to the
           // schemaStringBuilder, then append a comma.
-          String typeName = checkArgumentNotNull((String) pair.getValue());
-          if (typeName.equalsIgnoreCase("identifier") || typeName.equalsIgnoreCase("integer")) {
+          if (value.equalsIgnoreCase("identifier") || value.equalsIgnoreCase("integer")) {
             // Use long type to represent int, prevent overflow
             schemaStringBuilder.append("bigint");
-          } else if (typeName.contains("decimal")) {
+          } else if (value.contains("decimal")) {
             // Currently Beam SQL doesn't handle "decimal" type properly, use "double" to replace it
             // for now.
             schemaStringBuilder.append("double");
@@ -87,7 +90,7 @@ public class TableSchemaJSONLoader {
         } else {
           // If the key of the pair is "name", directly append it to the StringBuilder, then append
           // a space.
-          schemaStringBuilder.append(pair.getValue());
+          schemaStringBuilder.append(value);
           schemaStringBuilder.append(' ');
         }
       }

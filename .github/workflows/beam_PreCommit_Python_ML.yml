@@ -58,7 +58,7 @@ env:
 jobs:
   beam_PreCommit_Python_ML:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 180
     strategy:
       fail-fast: false
@@ -66,6 +66,13 @@ jobs:
         job_name: ['beam_PreCommit_Python_ML']
         job_phrase: ['Run Python_ML PreCommit']
         python_version: ['3.9','3.10','3.11','3.12']
+        # Run on both self-hosted and GitHub-hosted runners.
+        # Some tests (marked require_docker_in_docker) can't run on Beam's
+        # self-hosted runners due to Docker-in-Docker environment constraint.
+        # These tests will only execute on ubuntu-latest (GitHub-hosted).
+        # Context: https://github.com/apache/beam/pull/35585
+        # Temporary removed the ubuntu-latest env till resolving deps issues.
+        os: [[self-hosted, ubuntu-20.04, main]]
     if: |
       github.event_name == 'push' ||
       github.event_name == 'pull_request_target' ||
@@ -96,7 +103,11 @@ jobs:
         with:
           gradle-command: :sdks:python:test-suites:tox:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:testPy${{steps.set_py_ver_clean.outputs.py_ver_clean}}ML
           arguments: |
-            -Pposargs=apache_beam/ml/ \
+            -Pposargs="${{
+              contains(matrix.os, 'self-hosted') &&
+              'apache_beam/ml/ -m (not require_docker_in_docker)' ||
+                'apache_beam/ml/ -m require_docker_in_docker'
+            }}" \
             -PpythonVersion=${{ matrix.python_version }}
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v4

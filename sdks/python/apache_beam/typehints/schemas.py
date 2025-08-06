@@ -151,11 +151,21 @@ def named_fields_to_schema(
   if isinstance(names_and_types, dict):
     names_and_types = names_and_types.items()
 
+  _, cached_schema = schema_registry.by_id.get(schema_id, (None, None))
+  if cached_schema:
+    type_by_name_from_schema = {
+        field.name: field.type
+        for field in cached_schema.fields
+    }
+  else:
+    type_by_name_from_schema = {}
+
   schema = schema_pb2.Schema(
       fields=[
           schema_pb2.Field(
               name=name,
-              type=typing_to_runner_api(type),
+              type=type_by_name_from_schema.get(
+                  name, typing_to_runner_api(type)),
               options=[
                   option_to_runner_api(option_tuple)
                   for option_tuple in field_options.get(name, [])

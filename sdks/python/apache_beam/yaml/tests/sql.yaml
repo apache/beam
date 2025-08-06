@@ -65,9 +65,8 @@ pipelines:
 
             - type: Sql
               config:
-                dialect: zetasql
                 query:
-                  "SELECT a, cast(b AS STRING) as s FROM PCOLLECTION"
+                  "SELECT a, cast(b AS VARCHAR) as s FROM PCOLLECTION"
 
             - type: AssertEqual
               config:
@@ -76,3 +75,21 @@ pipelines:
                   - {a: "x", s: "2"}
                   - {a: "x", s: "3"}
                   - {a: "y", s: "10"}
+
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          name: CreateSampleData
+          config:
+            elements:
+              - { id: 1, name: "John" }
+              - { id: 2, name: "Jane" }
+        - type: Sql
+          name: sql
+          config:
+            query: >
+              SELECT *, CURRENT_TIMESTAMP AS ingest_timestamp FROM PCOLLECTION
+        - type: PyTransform
+          config:
+            constructor: apache_beam.transforms.util.LogElements

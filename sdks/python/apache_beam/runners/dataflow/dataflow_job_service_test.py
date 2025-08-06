@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+import time
 import unittest
 
 import apache_beam as beam
@@ -63,6 +64,8 @@ class DirectPipelineTemplateTest(unittest.TestCase):
         None, beam_job_type=dataflow_job_service.DataflowBeamJob)
     port = job_servicer.start_grpc_server(0)
     try:
+      template_path = (
+          'gs://apache-beam-testing-temp/test/template-{}'.format(time.time()))
       options = PipelineOptions(
           runner='PortableRunner',
           job_endpoint=f'localhost:{port}',
@@ -70,7 +73,7 @@ class DirectPipelineTemplateTest(unittest.TestCase):
           region='us-central1',
           staging_location='gs://apache-beam-testing-stg/stg/',
           temp_location='gs://apache-beam-testing-temp/tmp',
-          template_location='gs://apache-beam-testing-temp/test/template',
+          template_location=template_path,
       )
       with beam.Pipeline(options=options) as p:
         _ = p | beam.Create([1, 2, 3]) | beam.Map(lambda x: x * x)

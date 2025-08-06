@@ -57,13 +57,13 @@ public class CachesTest {
           }
         };
 
-    Cache<Object, Object> cache = Caches.forMaximumBytes(2 * MB);
+    Cache<Object, Object> cache = Caches.forMaximumBytes(3 * MB - 1);
     cache.put(shrinkableKey, WeightedValue.of(shrinkable, MB));
     // Check that we didn't evict it yet
     assertSame(shrinkable, cache.peek(shrinkableKey));
 
     // The next insertion should cause the value to be "shrunk"
-    cache.put(WeightedValue.of("other", 1), WeightedValue.of("value", 1));
+    cache.put(WeightedValue.of("other", 1), WeightedValue.of("value", MB));
     assertEquals("wasShrunk", cache.peek(shrinkableKey));
   }
 
@@ -209,18 +209,18 @@ public class CachesTest {
     assertThat(cache.describeStats(), containsString("evictions 0"));
 
     // Test eviction, evict all the other 200 elements that were added
-    cache.put(WeightedValue.of(1000, 100 * MB), new ShrinkableString("value", 900 * MB));
-    assertThat(cache.describeStats(), containsString("used/max 1000/1000 MB"));
+    cache.put(WeightedValue.of(1000, 100 * MB), new ShrinkableString("value", 899 * MB));
+    assertThat(cache.describeStats(), containsString("used/max 999/1000 MB"));
     assertThat(cache.describeStats(), containsString("evictions 200"));
 
     // Test shrinking, 900 -> 450 + 100 + 55 + 1 = 606
     cache.put(WeightedValue.of(1001, MB), new ShrinkableString("value", 55 * MB));
-    assertThat(cache.describeStats(), containsString("used/max 606/1000 MB"));
+    assertThat(cache.describeStats(), containsString("used/max 605/1000 MB"));
     assertThat(cache.describeStats(), containsString("evictions 201"));
 
     // Test composite key namespace is weighed as well.
-    // 33 + 8 + 3 = 44 more then last used/max of 606 = 650
-    Caches.subCache(cache, WeightedValue.of("subCache", 33 * MB))
+    // 34 + 8 + 3 = 45 more then last used/max of 605 = 650
+    Caches.subCache(cache, WeightedValue.of("subCache", 34 * MB))
         .put(WeightedValue.of("subCacheKey", 8 * MB), WeightedValue.of("subCacheValue", 3 * MB));
     assertThat(cache.describeStats(), containsString("used/max 650/1000 MB"));
   }

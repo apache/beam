@@ -221,7 +221,7 @@ progress:
 
 			// Check if there has been any measurable progress by the input, or all output pcollections since last report.
 			slow := previousIndex == index["index"] && previousTotalCount == index["totalCount"]
-			if slow && unsplit {
+			if slow && unsplit && b.EstimatedInputElements > 0 {
 				slog.Debug("splitting report", "bundle", rb, "index", index)
 				sr, err := b.Split(ctx, wk, 0.5 /* fraction of remainder */, nil /* allowed splits */)
 				if err != nil {

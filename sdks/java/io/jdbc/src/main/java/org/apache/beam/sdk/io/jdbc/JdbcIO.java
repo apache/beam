@@ -1248,7 +1248,7 @@ public class JdbcIO {
         try {
           return schemaRegistry.getSchemaCoder(outputType);
         } catch (NoSuchSchemaException e) {
-          LOG.warn(
+          LOG.info(
               "Unable to infer a schema for type {}. Attempting to infer a coder without a schema.",
               outputType);
         }
@@ -1949,6 +1949,8 @@ public class JdbcIO {
           .setStatement(inner.getStatement())
           .setTable(inner.getTable())
           .setAutoSharding(inner.getAutoSharding())
+          .setBatchSize(inner.getBatchSize())
+          .setMaxBatchBufferingDuration(inner.getMaxBatchBufferingDuration())
           .build();
     }
 
@@ -2055,6 +2057,10 @@ public class JdbcIO {
 
     abstract @Nullable RowMapper<V> getRowMapper();
 
+    abstract @Nullable Long getBatchSize();
+
+    abstract @Nullable Long getMaxBatchBufferingDuration();
+
     abstract Builder<T, V> toBuilder();
 
     @AutoValue.Builder
@@ -2063,6 +2069,10 @@ public class JdbcIO {
           @Nullable SerializableFunction<Void, DataSource> dataSourceProviderFn);
 
       abstract Builder<T, V> setAutoSharding(@Nullable Boolean autoSharding);
+
+      abstract Builder<T, V> setBatchSize(@Nullable Long batchSize);
+
+      abstract Builder<T, V> setMaxBatchBufferingDuration(@Nullable Long maxBatchBufferingDuration);
 
       abstract Builder<T, V> setStatement(@Nullable ValueProvider<String> statement);
 
@@ -2078,6 +2088,19 @@ public class JdbcIO {
       abstract Builder<T, V> setRowMapper(RowMapper<V> rowMapper);
 
       abstract WriteWithResults<T, V> build();
+    }
+
+    public WriteWithResults<T, V> withBatchSize(long batchSize) {
+      checkArgument(batchSize > 0, "batchSize must be > 0, but was %s", batchSize);
+      return toBuilder().setBatchSize(batchSize).build();
+    }
+
+    public WriteWithResults<T, V> withMaxBatchBufferingDuration(long maxBatchBufferingDuration) {
+      checkArgument(
+          maxBatchBufferingDuration > 0,
+          "maxBatchBufferingDuration must be > 0, but was %s",
+          maxBatchBufferingDuration);
+      return toBuilder().setMaxBatchBufferingDuration(maxBatchBufferingDuration).build();
     }
 
     public WriteWithResults<T, V> withDataSourceConfiguration(DataSourceConfiguration config) {
@@ -2173,9 +2196,16 @@ public class JdbcIO {
           autoSharding == null || (autoSharding && input.isBounded() != IsBounded.UNBOUNDED),
           "Autosharding is only supported for streaming pipelines.");
 
+      Long batchSizeAsLong = getBatchSize();
+      long batchSize = batchSizeAsLong == null ? DEFAULT_BATCH_SIZE : batchSizeAsLong;
+      Long maxBufferingDurationAsLong = getMaxBatchBufferingDuration();
+      long maxBufferingDuration =
+          maxBufferingDurationAsLong == null
+              ? DEFAULT_MAX_BATCH_BUFFERING_DURATION
+              : maxBufferingDurationAsLong;
+
       PCollection<Iterable<T>> iterables =
-          JdbcIO.<T>batchElements(
-              input, autoSharding, DEFAULT_BATCH_SIZE, DEFAULT_MAX_BATCH_BUFFERING_DURATION);
+          JdbcIO.<T>batchElements(input, autoSharding, batchSize, maxBufferingDuration);
       return iterables.apply(
           ParDo.of(
               new WriteFn<T, V>(
@@ -2187,8 +2217,8 @@ public class JdbcIO {
                       .setStatement(getStatement())
                       .setRetryConfiguration(getRetryConfiguration())
                       .setReturnResults(true)
-                      .setBatchSize(1L)
-                      .setMaxBatchBufferingDuration(DEFAULT_MAX_BATCH_BUFFERING_DURATION)
+                      .setBatchSize(1L) // We are writing iterables 1 at a time.
+                      .setMaxBatchBufferingDuration(maxBufferingDuration)
                       .build())));
     }
   }

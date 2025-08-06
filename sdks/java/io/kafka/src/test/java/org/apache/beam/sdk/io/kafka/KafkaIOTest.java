@@ -392,7 +392,8 @@ public class KafkaIOTest {
         false, /*redistribute*/
         false, /*allowDuplicates*/
         0, /*numKeys*/
-        null /*offsetDeduplication*/);
+        null, /*offsetDeduplication*/
+        null /*topics*/);
   }
 
   static KafkaIO.Read<Integer, Long> mkKafkaReadTransformWithOffsetDedup(
@@ -404,7 +405,23 @@ public class KafkaIOTest {
         true, /*redistribute*/
         false, /*allowDuplicates*/
         100, /*numKeys*/
-        true /*offsetDeduplication*/);
+        true, /*offsetDeduplication*/
+        null /*topics*/);
+  }
+
+  static KafkaIO.Read<Integer, Long> mkKafkaReadTransformWithTopics(
+      int numElements,
+      @Nullable SerializableFunction<KV<Integer, Long>, Instant> timestampFn,
+      List<String> topics) {
+    return mkKafkaReadTransform(
+        numElements,
+        numElements,
+        timestampFn,
+        false, /*redistribute*/
+        false, /*allowDuplicates*/
+        0, /*numKeys*/
+        null, /*offsetDeduplication*/
+        topics /*topics*/);
   }
 
   /**
@@ -418,15 +435,21 @@ public class KafkaIOTest {
       @Nullable Boolean redistribute,
       @Nullable Boolean withAllowDuplicates,
       @Nullable Integer numKeys,
-      @Nullable Boolean offsetDeduplication) {
+      @Nullable Boolean offsetDeduplication,
+      @Nullable List<String> topics) {
 
     KafkaIO.Read<Integer, Long> reader =
         KafkaIO.<Integer, Long>read()
             .withBootstrapServers(mkKafkaServers)
-            .withTopics(mkKafkaTopics)
+            .withTopics(topics != null ? topics : mkKafkaTopics)
             .withConsumerFactoryFn(
                 new ConsumerFactoryFn(
-                    mkKafkaTopics, 10, numElements, OffsetResetStrategy.EARLIEST)) // 20 partitions
+                    topics != null
+                        ? topics.stream().distinct().collect(Collectors.toList())
+                        : mkKafkaTopics,
+                    10,
+                    numElements,
+                    OffsetResetStrategy.EARLIEST)) // 20 partitions
             .withKeyDeserializer(IntegerDeserializer.class)
             .withValueDeserializer(LongDeserializer.class);
     if (maxNumRecords != null) {
@@ -649,6 +672,21 @@ public class KafkaIOTest {
   }
 
   @Test
+  public void testUnboundedSourceWithDuplicateTopics() {
+    int numElements = 1000;
+    List<String> topics = ImmutableList.of("topic_a", "topic_b", "topic_a");
+
+    PCollection<Long> input =
+        p.apply(
+                mkKafkaReadTransformWithTopics(numElements, new ValueAsTimestampFn(), topics)
+                    .withoutMetadata())
+            .apply(Values.create());
+
+    addCountingAsserts(input, numElements);
+    p.run();
+  }
+
+  @Test
   public void testRiskyConfigurationWarnsProperly() {
     int numElements = 1000;
 
@@ -682,7 +720,8 @@ public class KafkaIOTest {
                         true, /*redistribute*/
                         true, /*allowDuplicates*/
                         0, /*numKeys*/
-                        null /*offsetDeduplication*/)
+                        null, /*offsetDeduplication*/
+                        null /*topics*/)
                     .commitOffsetsInFinalize()
                     .withConsumerConfigUpdates(
                         ImmutableMap.of(ConsumerConfig.GROUP_ID_CONFIG, "group_id"))
@@ -709,7 +748,8 @@ public class KafkaIOTest {
                         true, /*redistribute*/
                         false, /*allowDuplicates*/
                         0, /*numKeys*/
-                        null /*offsetDeduplication*/)
+                        null, /*offsetDeduplication*/
+                        null /*topics*/)
                     .commitOffsetsInFinalize()
                     .withConsumerConfigUpdates(
                         ImmutableMap.of(ConsumerConfig.GROUP_ID_CONFIG, "group_id"))
@@ -737,7 +777,8 @@ public class KafkaIOTest {
                         false, /*redistribute*/
                         false, /*allowDuplicates*/
                         0, /*numKeys*/
-                        null /*offsetDeduplication*/)
+                        null, /*offsetDeduplication*/
+                        null /*topics*/)
                     .withRedistributeNumKeys(100)
                     .commitOffsetsInFinalize()
                     .withConsumerConfigUpdates(
@@ -2109,7 +2150,8 @@ public class KafkaIOTest {
                         false, /*redistribute*/
                         false, /*allowDuplicates*/
                         0, /*numKeys*/
-                        null /*offsetDeduplication*/)
+                        null, /*offsetDeduplication*/
+                        null /*topics*/)
                     .withStartReadTime(new Instant(startTime))
                     .withoutMetadata())
             .apply(Values.create());
@@ -2154,7 +2196,8 @@ public class KafkaIOTest {
                     false, /*redistribute*/
                     false, /*allowDuplicates*/
                     0, /*numKeys*/
-                    null /*offsetDeduplication*/)
+                    null, /*offsetDeduplication*/
+                    null /*topics*/)
                 .withStartReadTime(new Instant(startTime))
                 .withoutMetadata())
         .apply(Values.create());

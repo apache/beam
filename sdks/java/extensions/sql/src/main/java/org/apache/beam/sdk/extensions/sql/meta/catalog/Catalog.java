@@ -18,8 +18,10 @@
 package org.apache.beam.sdk.extensions.sql.meta.catalog;
 
 import java.util.Map;
+import java.util.Set;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.meta.store.MetaStore;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Represents a named and configurable container for managing tables. Is defined with a type and
@@ -28,11 +30,54 @@ import org.apache.beam.sdk.extensions.sql.meta.store.MetaStore;
  */
 @Internal
 public interface Catalog {
+  // Default database name
+  String DEFAULT = "default";
+
   /** A type that defines this catalog. */
   String type();
 
   /** The underlying {@link MetaStore} that actually manages tables. */
   MetaStore metaStore();
+
+  /**
+   * Produces the currently active database. Can be null if no database is active.
+   *
+   * @return the current active database
+   */
+  @Nullable
+  String currentDatabase();
+
+  /**
+   * Creates a database with this name.
+   *
+   * @param databaseName
+   * @return true if the database was created, false otherwise.
+   */
+  boolean createDatabase(String databaseName);
+
+  /**
+   * Returns a set of existing databases accessible to this catalog.
+   *
+   * @return a set of existing database names
+   */
+  Set<String> listDatabases();
+
+  /**
+   * Switches to use the specified database.
+   *
+   * @param databaseName
+   */
+  void useDatabase(String databaseName);
+
+  /**
+   * Drops the database with this name. If cascade is true, the catalog should first drop all tables
+   * contained in this database.
+   *
+   * @param databaseName
+   * @param cascade
+   * @return true if the database was dropped, false otherwise.
+   */
+  boolean dropDatabase(String databaseName, boolean cascade);
 
   /** The name of this catalog, specified by the user. */
   String name();

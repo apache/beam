@@ -64,6 +64,19 @@ NUM_INSTANCE = 18
 RAND_LEN = 15
 SCOPES = ['https://www.googleapis.com/auth/cloud-platform']
 
+# Tag 00081190 contains temp store name which contains currentDate
+VOLATILE_TAGS = {"00081190"}
+
+
+def normalize_outer(elem: dict) -> dict:
+  elem = dict(elem)  # shallow copy
+  elem["result"] = [normalize_instance(d) for d in elem.get("result", [])]
+  return elem
+
+
+def normalize_instance(instance: dict) -> dict:
+  return {k: v for k, v in instance.items() if k not in VOLATILE_TAGS}
+
 
 def random_string_generator(length):
   letters_and_digits = string.ascii_letters + string.digits
@@ -173,17 +186,22 @@ class DICOMIoIntegrationTest(unittest.TestCase):
       results_all = (
           p
           | 'create all dict' >> beam.Create([input_dict_all])
-          | 'search all' >> DicomSearch())
+          | 'search all' >> DicomSearch()
+          | 'normalize all' >> beam.Map(normalize_outer))
       results_refine = (
           p
           | 'create refine dict' >> beam.Create([input_dict_refine])
-          | 'search refine' >> DicomSearch())
+          | 'search refine' >> DicomSearch()
+          | 'normalize refine' >> beam.Map(normalize_outer))
+
+      expected_all_norm = normalize_outer(expected_dict_all)
+      expected_refine_norm = normalize_outer(expected_dict_refine)
 
       assert_that(
-          results_all, equal_to([expected_dict_all]), label='all search assert')
+          results_all, equal_to([expected_all_norm]), label='all search assert')
       assert_that(
           results_refine,
-          equal_to([expected_dict_refine]),
+          equal_to([expected_refine_norm]),
           label='refine search assert')
 
   @pytest.mark.it_postcommit
@@ -218,8 +236,13 @@ class DICOMIoIntegrationTest(unittest.TestCase):
 
     self.assertEqual(status_code, 200)
 
-    # List comparison based on different version of python
-    self.assertCountEqual(result, self.expected_output_all_metadata)
+    actual_norm = [normalize_instance(r) for r in result]
+    expected_norm = [
+        normalize_instance(r) for r in self.expected_output_all_metadata
+    ]
+
+    # Order-insensitive deep equality
+    self.assertCountEqual(actual_norm, expected_norm)
 
 
 if __name__ == '__main__':

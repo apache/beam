@@ -65,7 +65,7 @@ func OutputType(t reflect.Type, components ...typex.FullType) Option {
 	}
 }
 
-// Dialect specifies the SQL dialect, e.g. use 'zetasql' for ZetaSQL.
+// Dialect specifies the SQL dialect. It is always Calcite
 func Dialect(dialect string) Option {
 	return func(o sqlx.Options) {
 		o.(*options).dialect = dialect
