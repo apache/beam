@@ -104,9 +104,8 @@ def parse_arguments():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python main.py                        # Initialize service accounts and setup
-  python main.py --cron                 # Run key rotation for accounts that need it
-  python main.py --get-key my-sa        # Get the latest key for service account 'my-sa'
+  python keys.py --cron                 # Run key rotation for accounts that need it, ran only by cron job
+  python keys.py --get-key my-sa        # Get the latest key for service account 'my-sa', ran by users
         """
     )
     
@@ -131,13 +130,14 @@ class KeyService:
     # Configuration
     project_id: str
     service_accounts: List[ServiceAccount]
+    enable_logging: bool
 
     # Clients
     secret_manager_client: SecretManager
     service_account_manager: ServiceAccountManager
     logger: logging.Logger
 
-    def __init__(self, config: ConfigDict, service_accounts_config: ServiceAccountsConfig) -> None:
+    def __init__(self, config: ConfigDict, service_accounts_config: ServiceAccountsConfig, enable_logging: bool = True) -> None:
         """
         Initializes the KeyService with the provided configuration.
 
@@ -149,6 +149,9 @@ class KeyService:
                 - bucket_name: GCS bucket name for logging
                 - log_file_prefix: Prefix for log file names
                 - logging_level: Logging level (e.g., 'INFO', 'DEBUG')
+            service_accounts_config (ServiceAccountsConfig): Configuration for service accounts.
+                - service_accounts: List of service accounts to manage and their configuration
+            enable_logging (bool): Whether to enable logging. Defaults to True.
         Raises:
             ValueError: If any required configuration parameter is missing.
         """
@@ -161,32 +164,43 @@ class KeyService:
         logging_level = config['logging_level']
 
         self.service_accounts = service_accounts_config['service_accounts']
+        self.enable_logging = enable_logging
 
-        self.logger = GCPLogger("KeyService", logging_level, bucket_name, log_file_prefix, self.project_id)
+        if self.enable_logging:
+            self.logger = GCPLogger("KeyService", logging_level, bucket_name, log_file_prefix, self.project_id)
+        else:
+            # Create a null logger that doesn't actually log anything
+            self.logger = logging.getLogger("KeyService")
+            self.logger.setLevel(logging.CRITICAL + 1)  # Set to a level higher than CRITICAL to disable all logging
+            
         self.secret_manager_client = SecretManager(self.project_id, self.logger, rotation_interval, max_versions_to_keep)
         self.service_account_manager = ServiceAccountManager(self.project_id, self.logger)
 
-        self._start_all_service_accounts()
-        self.logger.info(f"Initialized KeyService for project: {self.project_id}")
+        if self.enable_logging:
+            self._start_all_service_accounts()
+            self.logger.info(f"Initialized KeyService for project: {self.project_id}")
 
     def __del__(self) -> None:
         """Manually flush all logs to Google Cloud Storage."""
         try:
-            for handler in self.logger.handlers:
-                if isinstance(handler, GCSLogHandler):
-                    handler.flush_to_gcs()
+            if self.enable_logging:
+                for handler in self.logger.handlers:
+                    if isinstance(handler, GCSLogHandler):
+                        handler.flush_to_gcs()
         except Exception:
             pass
 
     def cleanup(self) -> None:
         """Explicit cleanup method to flush logs and close resources."""
         try:
-            self.logger.info("KeyService cleanup: Flushing logs to Google Cloud Storage")
-            for handler in self.logger.handlers:
-                if isinstance(handler, GCSLogHandler):
-                    handler.flush_to_gcs()
+            if self.enable_logging:
+                self.logger.info("KeyService cleanup: Flushing logs to Google Cloud Storage")
+                for handler in self.logger.handlers:
+                    if isinstance(handler, GCSLogHandler):
+                        handler.flush_to_gcs()
         except Exception as e:
-            self.logger.error(f"Error during cleanup: {e}")
+            if self.enable_logging:
+                self.logger.error(f"Error during cleanup: {e}")
 
     def _start_all_service_accounts(self) -> None:
         """
@@ -393,15 +407,16 @@ def main():
         config = load_config()
         service_accounts_config = load_service_accounts_config()
         
-        key_service = KeyService(config, service_accounts_config)
-        
         if args.cron:
             print("Running cron job for key rotation...")
+            key_service = KeyService(config, service_accounts_config)
             key_service._cron_job()
             print("Cron job completed successfully.")
             
         elif args.get_key:
             account_id = args.get_key
+            # If just a user getting the key, disable logging
+            key_service = KeyService(config, service_accounts_config, enable_logging=False)
             print(f"Retrieving latest key for service account: {account_id}")
             
             # Validate that the account exists in configuration
@@ -426,9 +441,7 @@ def main():
                 print(f"Error retrieving key for {account_id}: {e}")
                 sys.exit(1)
         else:
-            # Default behavior: initialize service accounts and setup
-            print("KeyService initialized successfully.")
-            print("Service accounts and secrets have been set up.")
+            print("You must specify either --cron to run the cron job or --get-key <ACCOUNT_ID> to retrieve a key.")
             
     except Exception as e:
         print(f"An error occurred: {e}")
