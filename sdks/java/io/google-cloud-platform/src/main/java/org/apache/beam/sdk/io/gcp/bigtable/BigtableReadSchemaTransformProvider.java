@@ -68,14 +68,14 @@ public class BigtableReadSchemaTransformProvider
               "column_families",
               Schema.FieldType.STRING,
               Schema.FieldType.map(
-                  Schema.FieldType.STRING,
+                  Schema.FieldType.BYTES,
                   Schema.FieldType.array(Schema.FieldType.row(CELL_SCHEMA))))
           .build();
   public static final Schema FLATTENED_ROW_SCHEMA =
       Schema.builder()
           .addByteArrayField("key")
           .addStringField("family_name")
-          .addByteArrayField("column_qualifier")
+          .addByteField("column_qualifier")
           .addArrayField("cells", Schema.FieldType.row(CELL_SCHEMA))
           .build();
 
@@ -210,16 +210,16 @@ public class BigtableReadSchemaTransformProvider
 
       if (Boolean.FALSE.equals(configuration.getFlatten())) {
         // Non-flattening logic (original behavior): one output row per Bigtable row.
-        Map<String, Map<String, List<Row>>> families = new HashMap<>();
+        Map<String, Map<ByteString, List<Row>>> families = new HashMap<>();
         for (Family fam : bigtableRow.getFamiliesList()) {
-          Map<String, List<Row>> columns = new HashMap<>();
+          Map<ByteString, List<Row>> columns = new HashMap<>();
           for (Column col : fam.getColumnsList()) {
 
             List<Cell> bigTableCells = col.getCellsList();
 
             List<Row> cells = convertCells(bigTableCells);
 
-            columns.put(col.getQualifier().toStringUtf8(), cells);
+            columns.put(col.getQualifier(), cells);
           }
           families.put(fam.getName(), columns);
         }
@@ -250,7 +250,7 @@ public class BigtableReadSchemaTransformProvider
                 Row.withSchema(FLATTENED_ROW_SCHEMA)
                     .withFieldValue("key", key)
                     .withFieldValue("family_name", familyName)
-                    .withFieldValue("column_qualifier", qualifierName.toByteArray())
+                    .withFieldValue("column_qualifier", qualifierName)
                     .withFieldValue("cells", cells)
                     .build();
             out.output(flattenedRow);

@@ -56,7 +56,6 @@ from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.gcp.spanner_wrapper import SpannerWrapper
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.testing import util as beam_testing_util
 from apache_beam.utils import python_callable
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml import yaml_transform
@@ -203,69 +202,58 @@ def temp_bigtable_table(project, prefix='yaml_bt_it_'):
     _LOGGER.warning("Failed to clean up instance")
 
 
-def mongosetup(cls):
-  """Starts the MongoDB container once before all tests in this class run."""
-  _LOGGER.info("🚀 Starting MongoDB container...")
-  try:
-    cls.mongo_container = MongoDbContainer("mongo:7.0.7")
-    cls.mongo_container.start()
-    # Get the dynamically generated connection URI
-    cls.mongo_uri = cls.mongo_container.get_connection_url()
-    _LOGGER.info("✅ MongoDB container started at %s", cls.mongo_uri)
-  except Exception as e:
-    _LOGGER.error("Failed to start MongoDB container: %s", e)
-    # Re-raise to fail the test suite if the container can't start
-    raise
-
-
-def mongotearDown(cls):
-  """
-  Stops the MongoDB container once after all tests are finished.
-  """
-  if hasattr(cls, 'mongo_container'):
-    _LOGGER.info("Stopping MongoDB container...")
-    cls.mongo_container.stop()
-
-
 @contextlib.contextmanager
-def test_mongodb_yaml_write_and_read(self):
-  """Tests writing to and reading from MongoDB using YAML transforms."""
-  # 1. SETUP: Define a unique collection for this test run for isolation
-  collection_name = f'test_collection_{uuid.uuid4().hex}'
+def temp_mongodb_table():
+  """
+  provides a temporary MongoDB instance.
 
-  # 2. WRITE PIPELINE: Load the YAML, inject connection details, and run
-  _LOGGER.info("Running WRITE pipeline into collection: %s", collection_name)
-  with open(os.path.join(yaml_test_files_dir, 'mongodb_write_it.yaml')) as f:
-    write_yaml_str = f.read() \
-      .replace('${URI}', self.mongo_uri) \
-      .replace('${COLLECTION}', collection_name)
-  write_spec = yaml.safe_load(write_yaml_str)
+  starts a MongoDB container, creates a unique database
+  and collection name for test isolation, and yields them as a dictionary.
 
-  with beam.Pipeline() as p:
-    # pylint: disable=expression-not-assigned
-    p | yaml_transform.YamlTransform(spec=write_spec)
-    # The pipeline runs and waits for completion when exiting the 'with' block
+  This allows YAML test files to get connection details without hardcoding them.
+  Example usage in a YAML test file's fixture section:
 
-  # 3. READ PIPELINE & ASSERTION: Run the read pipeline and verify its output
-  _LOGGER.info("Running READ pipeline from collection: %s", collection_name)
-  with open(os.path.join(yaml_test_files_dir, 'mongodb_read_it.yaml')) as f:
-    read_yaml_str = f.read() \
-      .replace('${URI}', self.mongo_uri) \
-      .replace('${COLLECTION}', collection_name)
-  read_spec = yaml.safe_load(read_yaml_str)
+  fixtures:
+    - name: mongo_vars
+      type: path.to.this.file.mongodb_fixture
 
-  # Define the data we expect to have been written
-  expected_data = [{
-      '_id': f'record-{i}', 'name': f'scientist-{i}'
-  } for i in range(100)]
+  Then, in the pipeline definition, you can use placeholders like:
+  - uri: ${mongo_vars.URI}
+  - database: ${mongo_vars.DATABASE}
+  - collection: ${mongo_vars.COLLECTION}
+  """
+  _LOGGER.info("Setting up MongoDB fixture...")
+  # Initialize and start the MongoDB container.
+  # This will pull the 'mongo:7.0.7' image if it's not available locally.
+  mongo_container = MongoDbContainer("mongo:7.0.7")
+  try:
+    mongo_container.start()
 
-  with beam.Pipeline() as p:
-    # The output of the YamlTransform is a PCollection
-    output_pcoll = p | yaml_transform.YamlTransform(spec=read_spec)
+    # Get the dynamically generated connection URI.
+    mongo_uri = mongo_container.get_connection_url()
 
-    # Use Beam's testing utilities to assert the contents of the PCollection
-    beam_testing_util.assert_that(
-        output_pcoll, beam_testing_util.equal_to(expected_data))
+    # Generate a unique database and collection name for this test run to ensure
+    # isolation between different test files.
+    db_name = f'db_{uuid.uuid4().hex}'
+    collection_name = f'collection_{uuid.uuid4().hex}'
+
+    _LOGGER.info(
+        "MongoDB container started. URI: [%s], DB: [%s], Collection: [%s]",
+        mongo_uri,
+        db_name,
+        collection_name)
+
+    yield {
+        'URI': mongo_uri,
+        'DATABASE': db_name,
+        'COLLECTION': collection_name,
+    }
+
+  finally:
+    # This block executes after the test suite finishes.
+    _LOGGER.info("Tearing down MongoDB fixture...")
+    mongo_container.stop()
+    _LOGGER.info("MongoDB container stopped.")
 
 
 @contextlib.contextmanager
@@ -820,16 +808,14 @@ def parse_test_files(filepattern):
       For example, 'path/to/tests/*.yaml'.
   """
   for path in glob.glob(filepattern):
-    if "bigtable" in path:
-      with open(path) as fin:
-        suite_name = os.path.splitext(
-            os.path.basename(path))[0].title().replace('-', '') + 'Test'
-        print(path, suite_name)
-        methods = dict(
-            create_test_methods(
-                yaml.load(fin, Loader=yaml_transform.SafeLineLoader)))
-        globals()[suite_name] = type(
-            suite_name, (unittest.TestCase, ), methods)
+    with open(path) as fin:
+      suite_name = os.path.splitext(os.path.basename(path))[0].title().replace(
+          '-', '') + 'Test'
+      print(path, suite_name)
+      methods = dict(
+          create_test_methods(
+              yaml.load(fin, Loader=yaml_transform.SafeLineLoader)))
+      globals()[suite_name] = type(suite_name, (unittest.TestCase, ), methods)
 
 
 # Logging setups

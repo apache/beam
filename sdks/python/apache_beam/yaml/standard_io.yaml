@@ -405,7 +405,7 @@
   config:
     mappings:
       'ReadFromMongoDB':
-        connection_uri: "connection_uri://user:pass@host:27017"
+        connection_uri: "connection_uri"
         database: "database"
         collection: "collection"
       'WriteToMongoDB':
