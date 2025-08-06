@@ -22,12 +22,10 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.sdk.io.mongodb.MongoDbIO.Write;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
-import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
@@ -38,12 +36,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.schemas.Schema.Field;
-import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.sdk.values.Row;
 import org.bson.Document;
-import org.checkerframework.checker.nullness.qual.Nullable;
-
 
 /**
  * An implementation of {@link TypedSchemaTransformProvider} for writing to MongoDB.
@@ -58,7 +51,6 @@ public class MongoDbWriteSchemaTransformProvider
         MongoDbWriteSchemaTransformProvider.MongoDbWriteSchemaTransformConfiguration> {
 
   private static final String INPUT_TAG = "input";
-
 
   @Override
   protected SchemaTransform from(MongoDbWriteSchemaTransformConfiguration configuration) {
@@ -75,7 +67,6 @@ public class MongoDbWriteSchemaTransformProvider
     return Collections.singletonList(INPUT_TAG);
   }
 
-
   /** Configuration class for the MongoDB Write transform. */
   @DefaultSchema(AutoValueSchema.class)
   @AutoValue
@@ -90,13 +81,13 @@ public class MongoDbWriteSchemaTransformProvider
     @SchemaFieldDescription("The MongoDB collection to write to.")
     public abstract String getCollection();
 
-//    @SchemaFieldDescription("The number of documents to include in each batch write.")
-//    @Nullable
-//    public abstract Long getBatchSize();
-//
-//    @SchemaFieldDescription("Whether the writes should be performed in an ordered manner.")
-//    @Nullable
-//    public abstract Boolean getOrdered();
+    //    @SchemaFieldDescription("The number of documents to include in each batch write.")
+    //    @Nullable
+    //    public abstract Long getBatchSize();
+    //
+    //    @SchemaFieldDescription("Whether the writes should be performed in an ordered manner.")
+    //    @Nullable
+    //    public abstract Boolean getOrdered();
 
     public void validate() {
       checkArgument(getUri() != null && !getUri().isEmpty(), "MongoDB URI must be specified.");
@@ -150,12 +141,12 @@ public class MongoDbWriteSchemaTransformProvider
               .withDatabase(configuration.getDatabase())
               .withCollection(configuration.getCollection());
 
-//      if (configuration.getBatchSize() != null) {
-//        write = write.withBatchSize(configuration.getBatchSize());
-//      }
-//      if (configuration.getOrdered() != null) {
-//        write = write.withOrdered(configuration.getOrdered());
-//      }
+      //      if (configuration.getBatchSize() != null) {
+      //        write = write.withBatchSize(configuration.getBatchSize());
+      //      }
+      //      if (configuration.getOrdered() != null) {
+      //        write = write.withOrdered(configuration.getOrdered());
+      //      }
 
       documents.apply("WriteToMongo", write);
 
