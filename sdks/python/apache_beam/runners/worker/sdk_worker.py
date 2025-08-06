@@ -160,25 +160,24 @@ class SdkHarness(object):
 
   def __init__(
       self,
-      control_address,  # type: str
-      credentials=None,  # type: Optional[grpc.ChannelCredentials]
-      worker_id=None,  # type: Optional[str]
+      control_address: str,
+      credentials: Optional[grpc.ChannelCredentials] = None,
+      worker_id: Optional[str] = None,
       # Caching is disabled by default
-      state_cache_size=0,  # type: int
+      state_cache_size: int = 0,
       # time-based data buffering is disabled by default
-      data_buffer_time_limit_ms=0,  # type: int
-      profiler_factory=None,  # type: Optional[Callable[..., Profile]]
-      status_address=None,  # type: Optional[str]
+      data_buffer_time_limit_ms: int = 0,
+      profiler_factory: Optional[Callable[..., Profile]] = None,
+      status_address: Optional[str] = None,
       # Heap dump through status api is disabled by default
-      enable_heap_dump=False,  # type: bool
-      data_sampler=None,  # type: Optional[data_sampler.DataSampler]
+      enable_heap_dump: bool = False,
+      data_sampler: Optional[data_sampler.DataSampler] = None,
       # Unrecoverable SDK harness initialization error (if any)
       # that should be reported to the runner when proocessing the first bundle.
-      deferred_exception=None,  # type: Optional[Exception]
-      runner_capabilities=frozenset(),  # type: FrozenSet[str]
-      element_processing_timeout_minutes=None,  # type: Optional[int]
-  ):
-    # type: (...) -> None
+      deferred_exception: Optional[Exception] = None,
+      runner_capabilities: FrozenSet[str] = frozenset(),
+      element_processing_timeout_minutes: Optional[int] = None,
+  ) -> None:
     self._alive = True
     self._worker_index = 0
     self._worker_id = worker_id
@@ -243,8 +242,6 @@ class SdkHarness(object):
         _LOGGER.warning(
             'Error creating worker status request handler, '
             'skipping status report. Trace back: %s' % traceback_string)
-    else:
-      self._status_handler = None
 
     # TODO(BEAM-8998) use common
     # thread_pool_executor.shared_unbounded_instance() to process bundle
@@ -253,7 +250,7 @@ class SdkHarness(object):
     self._worker_thread_pool = thread_pool_executor.shared_unbounded_instance()
     self._responses = queue.Queue(
     )  # type: queue.Queue[Union[beam_fn_api_pb2.InstructionResponse, Sentinel]]
-    _LOGGER.info('Initializing SDKHarness with unbounded number of workers.')
+    _LOGGER.info('Initializing SDK Harness with unbounded number of workers.')
 
   def run(self):
     # type: () -> None
