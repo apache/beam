@@ -400,14 +400,9 @@
 #MongoDB
 - type: renaming
   transforms:
-    'ReadFromMongoDB': 'ReadFromMongoDB'
     'WriteToMongoDB': 'WriteToMongoDB'
   config:
     mappings:
-      'ReadFromMongoDB':
-        connection_uri: "connection_uri"
-        database: "database"
-        collection: "collection"
       'WriteToMongoDB':
         connection_uri: "connection_uri"
         database: "database"
@@ -415,7 +410,6 @@
     underlying_provider:
       type: beamJar
       transforms:
-        'ReadFromBigTable': 'beam:schematransform:org.apache.beam:mongodb_read:v1'
-        'WriteToBigTable': 'beam:schematransform:org.apache.beam:mongodb_write:v1'
+        'WriteToMongoDB': 'beam:schematransform:org.apache.beam:mongodb_write:v1'
       config:
         gradle_target: ':sdks:java:io:mongodb:shadowJar'
