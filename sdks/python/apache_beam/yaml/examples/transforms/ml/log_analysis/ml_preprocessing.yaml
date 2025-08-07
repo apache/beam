@@ -1,0 +1,93 @@
+# coding=utf-8
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+pipeline:
+  type: chain
+  transforms:
+    - type: ReadFromIceberg
+      name: ReadFromIceberg
+      config:
+        table: "logs_dataset.logs_hdfs"
+        catalog_name: "rest_catalog"
+        catalog_properties:
+          warehouse: "gs://apache-beam-testing-charlesng/batch-log-analysis"
+          catalog-impl: "org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog"
+          io-impl: "org.apache.iceberg.gcp.gcs.GCSFileIO"
+          gcp_project: "apache-beam-testing"
+          gcp_location: "us-central1"
+
+    - type: MapToFields
+      name: MapToFields
+      config:
+        fields:
+          id: LineId
+          log_message: Content
+          embedding: Content
+
+    - type: MLTransform
+      name: Embedding
+      config:
+        write_artifact_location: "gs://apache-beam-testing-charlesng/batch-log-analysis/beam-ml-artifacts"
+        transforms:
+          - type: SentenceTransformerEmbeddings
+            config: { model_name: all-MiniLM-L6-v2, columns: [ embedding ] }
+
+    - type: MapToFields
+      name: Normalize
+      config:
+        language: python
+        fields:
+          id:
+            callable: "lambda row: row.id"
+          log_message:
+            callable: "lambda row: row.log_message"
+          embedding:
+            callable: |
+              import numpy as np
+              def normalize(row):
+                  embedding = row.embedding
+                  norm = np.linalg.norm(embedding)
+                  return embedding / norm
+
+    - type: MapToFields
+      name: MapToFieldsAfterEmbedding
+      config:
+        language: python
+        fields:
+          id:
+            expression: id
+            output_type: integer
+          log_message:
+            expression: log_message
+            output_type: string
+          embedding:
+            expression: embedding
+            output_type:
+              type: array
+              items:
+                type: number
+
+    - type: WriteToBigQuery
+      name: WriteToBigQuery
+      config:
+        table: "apache-beam-testing.charlesnguyen.test"
+        write_disposition: "WRITE_TRUNCATE"
+        create_disposition: "CREATE_IF_NEEDED"
+
+options:
+  yaml_experimental_features: [ 'ML' ]

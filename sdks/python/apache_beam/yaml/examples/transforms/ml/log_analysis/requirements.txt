@@ -1,0 +1,3 @@
+numpy>=2.2.0,<2.3.0
+sentence-transformers~=5.0.0
+pyod~=2.0.5
