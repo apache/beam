@@ -1093,6 +1093,8 @@ public class KafkaIO {
 
     /**
      * Sets redistribute transform that hints to the runner to try to redistribute the work evenly.
+     *
+     * @return an updated {@link Read} transform.
      */
     public Read<K, V> withRedistribute() {
       return toBuilder().setRedistributed(true).build();
@@ -1105,6 +1107,9 @@ public class KafkaIO {
      * <p>Must be used with {@link KafkaIO#withRedistribute()}.
      *
      * <p>Not compatible with {@link KafkaIO#withOffsetDeduplication()}.
+     *
+     * @param allowDuplicates specifies whether to allow duplicates.
+     * @return an updated {@link Read} transform.
      */
     public Read<K, V> withAllowDuplicates(Boolean allowDuplicates) {
       return toBuilder().setAllowDuplicates(allowDuplicates).build();
@@ -1114,10 +1119,13 @@ public class KafkaIO {
      * <p>Redistributes Kafka messages into a distinct number of keys for processing in subsequent
      * steps.
      *
-     * <p>Specifying an explicit number of keys is generally receommended over redistributing
+     * <p>Specifying an explicit number of keys is generally recommended over redistributing
      * into an unbounded key space.
      *
      * <p>Must be used with {@link KafkaIO#withRedistribute()}.
+     *
+     * @param redistributeNumKeys specifies the total number of keys for redistributing inputs.
+     * @return an updated {@link Read} transform.
      */
     public Read<K, V> withRedistributeNumKeys(int redistributeNumKeys) {
       return toBuilder().setRedistributeNumKeys(redistributeNumKeys).build();
@@ -1130,6 +1138,9 @@ public class KafkaIO {
      * <p>Must be used with {@link KafkaIO#withRedistribute()}.
      *
      * <p>Not compatible with {@link KafkaIO#withAllowDuplicates()}.
+     *
+     * @param offsetDeduplication specifies whether to enable offset-based deduplication.
+     * @return an updated {@link Read} transform.
      */
     public Read<K, V> withOffsetDeduplication(Boolean offsetDeduplication) {
       return toBuilder().setOffsetDeduplication(offsetDeduplication).build();
