@@ -280,8 +280,7 @@ public class ChannelCacheTest {
             },
             () -> notifyWhenChannelClosed.get().countDown());
     WindmillServiceAddress someAddress = mock(WindmillServiceAddress.class);
-    when(someAddress.getKind())
-        .thenReturn(WindmillServiceAddress.Kind.AUTHENTICATED_GCP_SERVICE_ADDRESS);
+    when(someAddress.getKind()).thenReturn(WindmillServiceAddress.Kind.GCP_SERVICE_ADDRESS);
 
     UserWorkerGrpcFlowControlSettings emptyFlowControlSettings =
         UserWorkerGrpcFlowControlSettings.newBuilder().build();
