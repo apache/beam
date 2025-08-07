@@ -1093,6 +1093,8 @@ public class KafkaIO {
 
     /**
      * Sets redistribute transform that hints to the runner to try to redistribute the work evenly.
+     * 
+     * @return an updated {@link Read} transform.
      */
     public Read<K, V> withRedistribute() {
       return toBuilder().setRedistributed(true).build();
