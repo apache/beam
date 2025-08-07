@@ -27,6 +27,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -34,8 +35,10 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillConnection;
@@ -120,6 +123,32 @@ public class GrpcCommitWorkStreamTest {
             GrpcWindmillStreamFactory.of(TEST_JOB_HEADER)
                 .build()
                 .createCommitWorkStream(CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel));
+    commitWorkStream.start();
+    return commitWorkStream;
+  }
+
+  private GrpcCommitWorkStream createCommitWorkStreamWithPhysicalStreamHandover(
+      ScheduledExecutorService executor) {
+    GrpcCommitWorkStream commitWorkStream =
+        (GrpcCommitWorkStream)
+            GrpcWindmillStreamFactory.of(TEST_JOB_HEADER)
+                .setDirectStreamingRpcPhysicalStreamHalfCloseAfter(Duration.ofMinutes(1))
+                .setScheduledExecutorServiceSupplier(
+                    new Supplier<ScheduledExecutorService>() {
+                      private final AtomicBoolean vended = new AtomicBoolean();
+
+                      @Override
+                      public ScheduledExecutorService get() {
+                        assertFalse(vended.getAndSet(true));
+                        return executor;
+                      }
+                    })
+                .build()
+                .createDirectCommitWorkStream(
+                    WindmillConnection.builder()
+                        .setStubSupplier(
+                            () -> CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel))
+                        .build());
     commitWorkStream.start();
     return commitWorkStream;
   }
@@ -476,17 +505,7 @@ public class GrpcCommitWorkStreamTest {
   public void testCommitWorkItem_multiplePhysicalStreams() throws Exception {
     TriggeredScheduledExecutorService triggeredExecutor = new TriggeredScheduledExecutorService();
     GrpcCommitWorkStream commitWorkStream =
-        (GrpcCommitWorkStream)
-            GrpcWindmillStreamFactory.of(TEST_JOB_HEADER)
-                .setDirectStreamingRpcPhysicalStreamHalfCloseAfter(java.time.Duration.ofSeconds(60))
-                .setScheduledExecutorService(triggeredExecutor)
-                .build()
-                .createDirectCommitWorkStream(
-                    WindmillConnection.builder()
-                        .setStubSupplier(
-                            () -> CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel))
-                        .build());
-    commitWorkStream.start();
+        createCommitWorkStreamWithPhysicalStreamHandover(triggeredExecutor);
     FakeWindmillGrpcService.CommitStreamInfo streamInfo = waitForConnectionAndConsumeHeader();
 
     // Send a request where the response is captured in a future.
@@ -555,16 +574,7 @@ public class GrpcCommitWorkStreamTest {
   public void testCommitWorkItem_multiplePhysicalStreams_OldStreamFails() throws Exception {
     TriggeredScheduledExecutorService triggeredExecutor = new TriggeredScheduledExecutorService();
     GrpcCommitWorkStream commitWorkStream =
-        (GrpcCommitWorkStream)
-            GrpcWindmillStreamFactory.of(TEST_JOB_HEADER)
-                .setDirectStreamingRpcPhysicalStreamHalfCloseAfter(java.time.Duration.ofSeconds(60))
-                .setScheduledExecutorService(triggeredExecutor)
-                .build()
-                .createDirectCommitWorkStream(
-                    WindmillConnection.builder()
-                        .setStubSupplier(
-                            () -> CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel))
-                        .build());
+        createCommitWorkStreamWithPhysicalStreamHandover(triggeredExecutor);
     commitWorkStream.start();
     FakeWindmillGrpcService.CommitStreamInfo streamInfo = waitForConnectionAndConsumeHeader();
 
@@ -641,16 +651,7 @@ public class GrpcCommitWorkStreamTest {
       throws Exception {
     TriggeredScheduledExecutorService triggeredExecutor = new TriggeredScheduledExecutorService();
     GrpcCommitWorkStream commitWorkStream =
-        (GrpcCommitWorkStream)
-            GrpcWindmillStreamFactory.of(TEST_JOB_HEADER)
-                .setDirectStreamingRpcPhysicalStreamHalfCloseAfter(java.time.Duration.ofSeconds(60))
-                .setScheduledExecutorService(triggeredExecutor)
-                .build()
-                .createDirectCommitWorkStream(
-                    WindmillConnection.builder()
-                        .setStubSupplier(
-                            () -> CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel))
-                        .build());
+        createCommitWorkStreamWithPhysicalStreamHandover(triggeredExecutor);
     commitWorkStream.start();
     FakeWindmillGrpcService.CommitStreamInfo streamInfo = waitForConnectionAndConsumeHeader();
 
@@ -718,16 +719,7 @@ public class GrpcCommitWorkStreamTest {
       throws Exception {
     TriggeredScheduledExecutorService triggeredExecutor = new TriggeredScheduledExecutorService();
     GrpcCommitWorkStream commitWorkStream =
-        (GrpcCommitWorkStream)
-            GrpcWindmillStreamFactory.of(TEST_JOB_HEADER)
-                .setDirectStreamingRpcPhysicalStreamHalfCloseAfter(java.time.Duration.ofSeconds(60))
-                .setScheduledExecutorService(triggeredExecutor)
-                .build()
-                .createDirectCommitWorkStream(
-                    WindmillConnection.builder()
-                        .setStubSupplier(
-                            () -> CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel))
-                        .build());
+        createCommitWorkStreamWithPhysicalStreamHandover(triggeredExecutor);
     commitWorkStream.start();
     FakeWindmillGrpcService.CommitStreamInfo streamInfo = waitForConnectionAndConsumeHeader();
 
@@ -801,16 +793,7 @@ public class GrpcCommitWorkStreamTest {
   public void testCommitWorkItem_multiplePhysicalStreams_multipleHandovers() throws Exception {
     TriggeredScheduledExecutorService triggeredExecutor = new TriggeredScheduledExecutorService();
     GrpcCommitWorkStream commitWorkStream =
-        (GrpcCommitWorkStream)
-            GrpcWindmillStreamFactory.of(TEST_JOB_HEADER)
-                .setDirectStreamingRpcPhysicalStreamHalfCloseAfter(java.time.Duration.ofSeconds(60))
-                .setScheduledExecutorService(triggeredExecutor)
-                .build()
-                .createDirectCommitWorkStream(
-                    WindmillConnection.builder()
-                        .setStubSupplier(
-                            () -> CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel))
-                        .build());
+        createCommitWorkStreamWithPhysicalStreamHandover(triggeredExecutor);
     commitWorkStream.start();
     FakeWindmillGrpcService.CommitStreamInfo streamInfo1 = waitForConnectionAndConsumeHeader();
 
@@ -902,16 +885,7 @@ public class GrpcCommitWorkStreamTest {
       throws Exception {
     TriggeredScheduledExecutorService triggeredExecutor = new TriggeredScheduledExecutorService();
     GrpcCommitWorkStream commitWorkStream =
-        (GrpcCommitWorkStream)
-            GrpcWindmillStreamFactory.of(TEST_JOB_HEADER)
-                .setDirectStreamingRpcPhysicalStreamHalfCloseAfter(java.time.Duration.ofSeconds(60))
-                .setScheduledExecutorService(triggeredExecutor)
-                .build()
-                .createDirectCommitWorkStream(
-                    WindmillConnection.builder()
-                        .setStubSupplier(
-                            () -> CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel))
-                        .build());
+        createCommitWorkStreamWithPhysicalStreamHandover(triggeredExecutor);
     commitWorkStream.start();
     FakeWindmillGrpcService.CommitStreamInfo streamInfo1 = waitForConnectionAndConsumeHeader();
 
@@ -968,16 +942,7 @@ public class GrpcCommitWorkStreamTest {
       throws Exception {
     TriggeredScheduledExecutorService triggeredExecutor = new TriggeredScheduledExecutorService();
     GrpcCommitWorkStream commitWorkStream =
-        (GrpcCommitWorkStream)
-            GrpcWindmillStreamFactory.of(TEST_JOB_HEADER)
-                .setDirectStreamingRpcPhysicalStreamHalfCloseAfter(java.time.Duration.ofSeconds(60))
-                .setScheduledExecutorService(triggeredExecutor)
-                .build()
-                .createDirectCommitWorkStream(
-                    WindmillConnection.builder()
-                        .setStubSupplier(
-                            () -> CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel))
-                        .build());
+        createCommitWorkStreamWithPhysicalStreamHandover(triggeredExecutor);
     commitWorkStream.start();
     FakeWindmillGrpcService.CommitStreamInfo streamInfo1 = waitForConnectionAndConsumeHeader();
 
@@ -1063,16 +1028,7 @@ public class GrpcCommitWorkStreamTest {
       throws Exception {
     TriggeredScheduledExecutorService triggeredExecutor = new TriggeredScheduledExecutorService();
     GrpcCommitWorkStream commitWorkStream =
-        (GrpcCommitWorkStream)
-            GrpcWindmillStreamFactory.of(TEST_JOB_HEADER)
-                .setDirectStreamingRpcPhysicalStreamHalfCloseAfter(java.time.Duration.ofSeconds(60))
-                .setScheduledExecutorService(triggeredExecutor)
-                .build()
-                .createDirectCommitWorkStream(
-                    WindmillConnection.builder()
-                        .setStubSupplier(
-                            () -> CloudWindmillServiceV1Alpha1Grpc.newStub(inProcessChannel))
-                        .build());
+        createCommitWorkStreamWithPhysicalStreamHandover(triggeredExecutor);
     commitWorkStream.start();
     FakeWindmillGrpcService.CommitStreamInfo streamInfo1 = waitForConnectionAndConsumeHeader();
 

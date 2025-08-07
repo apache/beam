@@ -36,6 +36,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -122,7 +124,16 @@ public class GrpcGetDataStreamTest {
         (GrpcGetDataStream)
             GrpcWindmillStreamFactory.of(TEST_JOB_HEADER)
                 .setDirectStreamingRpcPhysicalStreamHalfCloseAfter(handover)
-                .setScheduledExecutorService(executor)
+                .setScheduledExecutorServiceSupplier(
+                    new Supplier<ScheduledExecutorService>() {
+                      private final AtomicBoolean vended = new AtomicBoolean();
+
+                      @Override
+                      public ScheduledExecutorService get() {
+                        assertFalse(vended.getAndSet(true));
+                        return executor;
+                      }
+                    })
                 .build()
                 .createDirectGetDataStream(
                     WindmillConnection.builder()
@@ -986,7 +997,14 @@ public class GrpcGetDataStreamTest {
     streamInfo.responseObserver.onCompleted();
     assertFalse(getDataStream.awaitTermination(0, TimeUnit.MILLISECONDS));
 
-    streamInfo2.responseObserver.onError(new RuntimeException("fake response error"));
+    Windmill.KeyedGetDataResponse keyedGetDataResponse2 = createTestResponse(2);
+    streamInfo.responseObserver.onNext(
+        Windmill.StreamingGetDataResponse.newBuilder()
+            .addRequestId(1)
+            .addSerializedResponse(keyedGetDataResponse2.toByteString())
+            .build());
+    assertThat(sendFuture2.join()).isEqualTo(keyedGetDataResponse2);
+    streamInfo2.responseObserver.onCompleted();
     streamInfo3.responseObserver.onCompleted();
     assertThrows("fake response error", CompletionException.class, sendFuture2::join);
     assertTrue(getDataStream.awaitTermination(10, TimeUnit.SECONDS));

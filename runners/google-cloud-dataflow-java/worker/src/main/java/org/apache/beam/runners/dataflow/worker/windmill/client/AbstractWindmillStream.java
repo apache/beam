@@ -537,7 +537,7 @@ public abstract class AbstractWindmillStream<RequestT, ResponseT> implements Win
       if (currentPhysicalStream == null
           && clientClosed
           && !handler.hasPendingRequests()
-          && closingPhysicalStreams.stream().noneMatch(PhysicalStreamHandler::hasPendingRequests)) {
+          && closingPhysicalStreams.isEmpty()) {
         shutdown();
       }
       if (isShutdown && currentPhysicalStream == null && closingPhysicalStreams.isEmpty()) {
