@@ -596,7 +596,6 @@ jobs:
         run: |
           python gen_managed_doc.py --output_location ${{ runner.temp }}/managed-io.md
       - name: Create commit on beam branch
-        id: create_commit
         working-directory: beam
         run: |
           git checkout -b $BRANCH_NAME
@@ -604,16 +603,9 @@ jobs:
           git config user.name $GITHUB_ACTOR
           git config user.email actions@"$RUNNER_NAME".local
           git add -A
-          if ! git diff-index --quiet HEAD --; then
-            git commit -m "Update managed-io.md for release ${{ github.event.inputs.RELEASE }}."
-            git push -f --set-upstream origin $BRANCH_NAME
-            echo "commit_made=true" >> $GITHUB_OUTPUT
-          else
-            echo "No changes detected in managed-io.md. Skipping commit and PR creation."
-            echo "commit_made=false" >> $GITHUB_OUTPUT
-          fi
+          git commit --allow-empty -m "Update managed-io.md for release ${{ github.event.inputs.RELEASE }}."
+          git push -f --set-upstream origin $BRANCH_NAME
       - name: Create beam PR
-        if: steps.create_commit.outputs.commit_made == 'true'
         working-directory: beam
         env:
           GH_TOKEN: ${{ github.event.inputs.REPO_TOKEN }}
