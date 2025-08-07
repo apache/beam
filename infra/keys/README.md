@@ -71,7 +71,7 @@ Where:
 - `display_name`: A human-readable name for the service account.
 - `authorized_users`: A list of users who will be granted access to the service account's keys. Each user is specified by their email address. This users will be able to retrieve the keys and act on behalf of the service account.
 
-The accounts defined in this file will be created if they do not already exist when running the script.
+Service accounts are created the first time the cron is run, or when the `keys.yaml` file is updated with a new service account. The script checks if the service account already exists in Google Cloud, and if not, it creates it. If the service account already exists but it is not managed by the Secret Manager, it creates a new key, storing it in the Secret Manager and ignore the rest. This ensures that the service account is always up to date with the latest keys and authorized users.
 
 ### Rotation
 

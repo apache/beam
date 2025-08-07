@@ -33,7 +33,7 @@ KEYS_FILE = 'keys.yaml'
 class ConfigDict(TypedDict):
     project_id: str
     rotation_interval: int
-    max_versions_to_keep: int
+    grace_period: int
     bucket_name: str
     log_file_prefix: str
     logging_level: str
@@ -56,16 +56,16 @@ def load_config() -> ConfigDict:
 
     if not config:
         raise ValueError("Configuration file is empty or invalid.")
-    
-    required_keys = set(['project_id', 'rotation_interval', 'max_versions_to_keep', 'bucket_name', 'log_file_prefix'])
+
+    required_keys = set(['project_id', 'rotation_interval', 'grace_period', 'bucket_name', 'log_file_prefix'])
     missing_keys = required_keys - config.keys()
     if missing_keys:
         raise ValueError(f"Missing required configuration keys: {', '.join(missing_keys)}")
     
     if not isinstance(config['rotation_interval'], int) or config['rotation_interval'] <= 0:
         raise ValueError("Configuration 'rotation_interval' must be a positive integer.")
-    if not isinstance(config['max_versions_to_keep'], int) or config['max_versions_to_keep'] <= 0:
-        raise ValueError("Configuration 'max_versions_to_keep' must be a positive integer.")
+    if not isinstance(config['grace_period'], int) or config['grace_period'] < 0:
+        raise ValueError("Configuration 'grace_period' must be a non-negative integer.")
     if not isinstance(config['bucket_name'], str) or not config['bucket_name'].strip():
         raise ValueError("Configuration 'bucket_name' must be a non-empty string.")
     if not isinstance(config['log_file_prefix'], str) or not config['log_file_prefix'].strip():
@@ -158,7 +158,7 @@ class KeyService:
 
         self.project_id = config['project_id']
         rotation_interval = config['rotation_interval']
-        max_versions_to_keep = config['max_versions_to_keep']
+        grace_period = config['grace_period']
         bucket_name = config['bucket_name']
         log_file_prefix = config['log_file_prefix']
         logging_level = config['logging_level']
@@ -172,12 +172,11 @@ class KeyService:
             # Create a null logger that doesn't actually log anything
             self.logger = logging.getLogger("KeyService")
             self.logger.setLevel(logging.CRITICAL + 1)  # Set to a level higher than CRITICAL to disable all logging
-            
-        self.secret_manager_client = SecretManager(self.project_id, self.logger, rotation_interval, max_versions_to_keep)
+
+        self.secret_manager_client = SecretManager(self.project_id, self.logger, rotation_interval, grace_period)
         self.service_account_manager = ServiceAccountManager(self.project_id, self.logger)
 
         if self.enable_logging:
-            self._start_all_service_accounts()
             self.logger.info(f"Initialized KeyService for project: {self.project_id}")
 
     def __del__(self) -> None:
@@ -206,9 +205,11 @@ class KeyService:
         """
         Reads the service accounts configuration and checks for service accounts.
 
-        1. If a service account does not exist, it will be created.
-        2. If a secret does not exist, it will be created.
-        3. If a service account does not have a key, it will be created.
+        1. If a service account exists and is managed, it checks if the secret exists and updates access if needed.
+        2. If the service account exists but the secret does not, it creates the secret and clears the service account
+              keys as now keys will be managed by the Secret Manager.
+        3. If neither the service account nor the secret exists , it creates both.
+        4. If any other case is encountered, it logs an error and skips the account.
         """
 
         self.logger.debug("Creating service accounts if they do not exist")
@@ -217,163 +218,94 @@ class KeyService:
             authorized_users = [user['email'] for user in account.get('authorized_users', [])]
 
             try:
-                # Check if the service account already exists
-                if not self.service_account_manager._service_account_exists(account_id):
-                    self.logger.debug(f"Service account {account_id} does not exist, creating it")
-                    display_name = account['display_name']
-                    self.logger.info(f"Creating service account: {account_id}")
-                    self.service_account_manager.create_service_account(account_id, display_name)
-
-                # Check if the secret for the service account exists
                 secret_name = f"{account_id}-key"
-                if not self.secret_manager_client._secret_exists(secret_name):
-                    self.logger.debug(f"Secret {secret_name} does not exist, creating it")
-                    self.logger.info(f"Creating secret for service account: {account_id}")
-                    self.secret_manager_client.create_secret(secret_name)
+                # If service account and secret exists and is managed, just check permissions
+                if self.service_account_manager._service_account_exists(account_id) and self.secret_manager_client._secret_is_managed(secret_name):
+                    self.logger.debug(f"Service account {account_id} and secret {secret_name} already exist and are managed")
+                    if self.secret_manager_client.is_different_user_access(secret_name, authorized_users):
+                        self.logger.debug(f"Updating access policy for secret {secret_name}")
+                        self.secret_manager_client.update_secret_access(secret_name, authorized_users)
 
-                # Check if the secret has the correct access policy
-                if self.secret_manager_client.is_different_user_access(secret_name, authorized_users):
-                    self.logger.info(f"Updating access policy for secret {secret_name}")
+                # If the service account exists but the secret does not, create the secret and a key and ignore the existing keys
+                elif self.service_account_manager._service_account_exists(account_id) and not self.secret_manager_client._secret_exists(secret_name):
+                    self.logger.debug(f"Service account {account_id} exists but secret {secret_name} does not, creating secret and a new key")
+                    self.secret_manager_client.create_secret(secret_name)
                     self.secret_manager_client.update_secret_access(secret_name, authorized_users)
 
-                # Start the service account key creation process, ensuring at least one key exists
-                self._start_service_account_key(account_id)
+                    new_key = self.service_account_manager.create_service_account_key(account_id)
+                    new_key_id = new_key.name.split('/')[-1]
+                    self.secret_manager_client.add_secret_version(secret_name, new_key_id, new_key.private_key_data)
 
-                # Check if the service account key exists
+                # If neither secret nor service account exists, create and initialize both
+                elif not self.service_account_manager._service_account_exists(account_id) and not self.secret_manager_client._secret_exists(secret_name):
+                    self.logger.debug(f"Service account {account_id} and secret {secret_name} do not exist, creating both")
+                    display_name = account['display_name']
+                    
+                    self.service_account_manager.create_service_account(account_id, display_name)
+
+                    secret_name = self.secret_manager_client.create_secret(secret_name)
+                    self.secret_manager_client.update_secret_access(secret_name, authorized_users)
+
+                    new_key = self.service_account_manager.create_service_account_key(account_id)
+                    new_key_id = new_key.name.split('/')[-1]
+                    self.secret_manager_client.add_secret_version(secret_name, new_key_id, new_key.private_key_data)
+
+                else:
+                    # Any other case is not supported
+                    self.logger.error(f"Unexpected state for service account {account_id}")
+
             except Exception as e:
                 self.logger.error(f"Error creating service account or secret for {account_id}: {e}")
 
-    def _start_service_account_key(self, account_id: str) -> None:
-        """
-        Creates a service account key for a given service account during initialization.
-        This method ensures that each service account has at least one key available.
-        During initialization, we always create a key if none exists in Secret Manager.
-        
-        Args:
-            account_id (str): The ID of the service account to create a key for.
-        """
-        self.logger.debug(f"Starting service account key for {account_id}")
-        try:
-            if not self.service_account_manager._service_account_exists(account_id):
-                self.logger.error(f"Service account {account_id} does not exist, cannot create key")
-                return
-            
-            # Check if a key exists in Secret Manager
-            secret_name = f"{account_id}-key"
-            try:
-                existing_secret = self.secret_manager_client.get_secret_version(secret_name, "latest")
-                if existing_secret:
-                    self.logger.debug(f"Service account {account_id} already has a key in Secret Manager, skipping key creation.")
-                    return
-            except Exception:
-                self.logger.debug(f"No existing key found in Secret Manager for {account_id}")
-            
-            # If no key exists in Secret Manager, create a new key
-            self.logger.debug(f"Creating service account key for {account_id}")
-            self.create_and_save_service_account_key(account_id)
-            self.logger.debug(f"Service account key for {account_id} created and saved successfully.")
-
-        except Exception as e:
-            self.logger.error(f"Error creating service account key for {account_id}: {e}")
-
-    def _cron_job(self) -> None:
+    def cron(self) -> None:
         """
         Cron job to rotate service account keys and secrets.
+
         This method should be called periodically based on the rotation interval.
-        It will rotate keys that have not been rotated in the last rotation_interval days.
+        It will:
+
+        1. Check each service account to see if its key is due for rotation.
+            1.1. If the key is due for rotation, it will rotate the key and update the secret in Secret Manager.
+            1.2. If the key is not due for rotation, it will log that no action is needed.
+        2. Check for keys that have expired the grace period and delete them from both the service account and Secret Manager.
         """
 
         self.logger.info("Starting cron job for service account key rotation")
+        self._start_all_service_accounts()
+
         for account in self.service_accounts:
             account_id = account['account_id']
+            secret_name = f"{account_id}-key"
             try:
-                secret_name = f"{account_id}-key"
-                # Check if the service account is due for key rotation
                 if self.secret_manager_client._is_key_rotation_due(secret_name):
-                    self.logger.info(f"Rotating service account key for {account_id}")
-                    self.rotate_service_account_key(account_id)
+                    self.logger.info(f"Service account key for {account_id} is due for rotation, rotating key")
+                    new_key = self.service_account_manager.create_service_account_key(account_id)
+                    new_key_id = new_key.name.split('/')[-1]
+                    self.secret_manager_client.add_secret_version(secret_name, new_key_id, new_key.private_key_data)
                 else:
                     self.logger.debug(f"Service account key for {account_id} is not due for rotation")
             except Exception as e:
                 self.logger.error(f"Error during cron job for service account {account_id}: {e}")
 
-    def create_and_save_service_account_key(self, account_id: str) -> None:
-        """
-        Creates a service account key and saves it to the Secret Manager.
+        # Check for keys that have expired the grace period and delete them
         
-        Args:
-            account_id (str): The ID of the service account to create a key for.
-        """
-        self.logger.info(f"Creating and saving service account key for {account_id}")
-        try:
-            # Verify service account exists and is enabled
-            if not self.service_account_manager._service_account_exists(account_id):
-                raise ValueError(f"Service account {account_id} does not exist")
-            
-            # Create the service account key
-            key = self.service_account_manager.create_service_account_key(account_id)
+        self.logger.info("Checking for keys that have expired the grace period")
+        keys_to_delete = self.secret_manager_client.cron()
+        for secret_id, key_ids in keys_to_delete:
+            try:
+                for key_id in key_ids:
+                    self.logger.info(f"Deleting expired key {key_id} for secret {secret_id}")
+                    self.service_account_manager.delete_service_account_key(secret_id, key_id)
+            except Exception as e:
+                self.logger.error(f"Error deleting expired keys for secret {secret_id}: {e}")
+                continue
 
-            if key:
-                secret_name = f"{account_id}-key"
-                self.logger.info(f"Saving service account key for {account_id} to Secret Manager")
-                self.secret_manager_client.add_secret_version(secret_name, key.private_key_data)
-                self.logger.info(f"Successfully created and saved service account key for {account_id}")
-            else:
-                self.logger.warning(f"No key created for service account {account_id}.")
-                raise ValueError(f"Failed to create key for service account {account_id}")
-        except Exception as e:
-            self.logger.error(f"Error creating and saving service account key for {account_id}: {e}")
-            raise
-
-    def delete_and_disable_oldest_service_account_key(self, account_id: str) -> None:
-        """
-        Disables the oldest secret version and deletes the oldest service account key for a given service account.
-        Ensures that at least one key remains active.
-        
-        Args:
-            account_id (str): The ID of the service account to delete the oldest key for.
-        """
-        self.logger.info(f"Deleting and disabling oldest service account key for {account_id}")
-        try:
-            secret_name = f"{account_id}-key"
-            # First, delete old service account keys (keeping 1 newest)
-            self.service_account_manager.delete_oldest_service_account_keys(account_id, max_keys=1)
-            # Then disable old secret versions
-            self.secret_manager_client.disable_secret_version(secret_name, "oldest")
-        except Exception as e:
-            self.logger.error(f"Error deleting and disabling oldest service account key for {account_id}: {e}")
-
-    def rotate_service_account_key(self, account_id: str) -> None:
-        """
-        Rotates the service account key for a given service account.
-        This process creates a new key first, then safely removes old keys.
-        
-        Args:
-            account_id (str): The ID of the service account to rotate the key for.
-        """
-        self.logger.info(f"Rotating service account key for {account_id}")
-        try:
-            # Check if service account exists before attempting rotation
-            if not self.service_account_manager._service_account_exists(account_id):
-                raise ValueError(f"Service account {account_id} does not exist")
-            
-            # Create new key first to ensure we always have at least one working key
-            self.logger.info(f"Creating new service account key for {account_id}")
-            self.create_and_save_service_account_key(account_id)
-            
-            # Only delete old keys after the new key is successfully created and saved
-            self.logger.info(f"Cleaning up old keys for {account_id}")
-            self.delete_and_disable_oldest_service_account_key(account_id)
-            
-            self.logger.info(f"Successfully rotated service account key for {account_id}")
-        except Exception as e:
-            self.logger.error(f"Error rotating service account key for {account_id}: {e}")
-            raise
+        self.logger.info("Cron job for service account key rotation completed")
 
     def get_latest_service_account_key(self, account_id: str) -> str:
         """
         Retrieves the latest service account key for a given service account.
-        
+         
         Args:
             account_id (str): The ID of the service account to retrieve the key for.
         
@@ -383,13 +315,13 @@ class KeyService:
         self.logger.info(f"Retrieving latest service account key for {account_id}")
         try:
             secret_name = f"{account_id}-key"
-            key_bytes = self.secret_manager_client.get_secret_version(secret_name, "latest")
+            key_bytes = self.secret_manager_client.get_latest_secret_version(secret_name)
             if not key_bytes:
                 self.logger.warning(f"No key found for service account {account_id}.")
                 raise ValueError(f"No key found for service account {account_id}.")
 
             self.logger.debug(f"Latest service account key for {account_id} retrieved successfully.")
-            return key_bytes.decode('utf-8')
+            return key_bytes[1].decode('utf-8')
         except Exception as e:
             self.logger.error(f"Error retrieving latest service account key for {account_id}: {e}")
             return ""
@@ -410,7 +342,7 @@ def main():
         if args.cron:
             print("Running cron job for key rotation...")
             key_service = KeyService(config, service_accounts_config)
-            key_service._cron_job()
+            key_service.cron()
             print("Cron job completed successfully.")
             
         elif args.get_key:

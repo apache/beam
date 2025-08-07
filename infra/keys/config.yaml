@@ -25,9 +25,8 @@ project_id: "testing-me-460223"
 
 # Default secret rotation interval in days
 rotation_interval: 30
-
-# The maximum number of secrets versions to keep in the secret manager
-max_versions_to_keep: 5
+# Time the disabled secret versions will be kept before deletion
+grace_period: 7
 
 # LOGGING
 
