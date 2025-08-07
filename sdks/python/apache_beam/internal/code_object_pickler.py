@@ -183,7 +183,10 @@ def _search_module_or_class(
         first_part, _search(callable, getattr(node, first_part), rest))
 
 
-def _search_function(callable: Callable, node: Any, qual_name_parts: list[str]):
+def _search_function(
+  callable: types.FunctionType,
+  node: types.FunctionType,
+  qual_name_parts: list[str]):
   """Searches a function to create a stable reference code path.
 
   Args:
@@ -195,8 +198,7 @@ def _search_function(callable: Callable, node: Any, qual_name_parts: list[str]):
     The stable reference to the code object, or None if not found.
   """
   first_part = qual_name_parts[0]
-  if (hasattr(callable, '__code__') and hasattr(node, '__code__') and
-      node.__code__ == callable.__code__):
+  if (node.__code__ == callable.__code__):
     if len(qual_name_parts) > 1:
       raise ValueError('Qual name parts too long')
     return '__code__'
@@ -208,7 +210,10 @@ def _search_function(callable: Callable, node: Any, qual_name_parts: list[str]):
         '__code__', _search(callable, node.__code__, qual_name_parts))
 
 
-def _search_code(callable: Callable, node: Any, qual_name_parts: list[str]):
+def _search_code(
+  callable: types.FunctionType,
+  node: types.CodeType,
+  qual_name_parts: list[str]):
   """Searches a code object to create a stable reference code path.
 
   Args:
@@ -249,7 +254,7 @@ def _search_code(callable: Callable, node: Any, qual_name_parts: list[str]):
 
 def _search_lambda(
     callable: Callable,
-    code_objects_by_name: dict[str, list[Callable]],
+    code_objects_by_name: dict[str, list[types.CodeType]],
     qual_name_parts: list[str]):
   """Searches a lambda to create a stable reference code path.
 
@@ -311,7 +316,7 @@ _ARGUMENT_PATTERN = re.compile(r"'([^']*)'")
 
 
 def _get_code_object_from_single_name_pattern(
-    obj: Callable, name_result: re.Match[str], path: str):
+    obj: types.CodeType, name_result: re.Match[str], path: str):
   """Returns the code object from a name pattern.
 
   Args:
@@ -324,11 +329,8 @@ def _get_code_object_from_single_name_pattern(
 
   Raises:
     ValueError: If the pattern is invalid.
-    AttributeError: If the code object is not found or the object does not have
-      the co_consts attribute.
+    AttributeError: If the code object is not found.
   """
-  if not hasattr(obj, 'co_consts'):
-    raise AttributeError(f'Object {obj} has no co_consts attribute')
   if len(name_result.groups()) > 1:
     raise ValueError(f'Invalid pattern for single name: {name_result.group(0)}')
   # Groups are indexed starting at 1, group(0) is the entire match.
@@ -340,7 +342,7 @@ def _get_code_object_from_single_name_pattern(
 
 
 def _get_code_object_from_lambda_with_args_pattern(
-    obj: Callable, lambda_with_args_result: re.Match[str], path: str):
+    obj: types.CodeType, lambda_with_args_result: re.Match[str], path: str):
   """Returns the code object from a lambda with args pattern.
 
   Args:
@@ -352,11 +354,8 @@ def _get_code_object_from_lambda_with_args_pattern(
     The code object.
 
   Raises:
-    AttributeError: If the code object is not found or the object does not have
-      the co_consts attribute.
+    AttributeError: If the code object is not found.
   """
-  if not hasattr(obj, 'co_consts'):
-    raise AttributeError(f'Object {obj} has no co_consts attribute')
   name = lambda_with_args_result.group(1)
   code_objects = collections.defaultdict(list)
   for co_const in obj.co_consts:
@@ -372,7 +371,7 @@ def _get_code_object_from_lambda_with_args_pattern(
 
 
 def _get_code_object_from_lambda_with_hash_pattern(
-    obj: Callable, lambda_with_hash_result: re.Match[str], path: str):
+    obj: types.CodeType, lambda_with_hash_result: re.Match[str], path: str):
   """Returns the code object from a lambda with hash pattern.
 
   Args:
@@ -384,11 +383,8 @@ def _get_code_object_from_lambda_with_hash_pattern(
     The code object.
 
   Raises:
-    AttributeError: If the code object is not found or the object does not have
-      the co_consts attribute.
+    AttributeError: If the code object is not found.
   """
-  if not hasattr(obj, 'co_consts'):
-    raise AttributeError(f'Object {obj} has no co_consts attribute')
   name = lambda_with_hash_result.group(1)
   code_objects = collections.defaultdict(list)
   for co_const in obj.co_consts:
@@ -421,7 +417,7 @@ def _get_code_from_stable_reference(path: str):
   if not path:
     raise ValueError('Path must not be empty.')
   parts = path.split('.')
-  obj: Callable = sys.modules[parts[0]]
+  obj = sys.modules[parts[0]]
   for part in parts[1:]:
     if name_result := _SINGLE_NAME_PATTERN.fullmatch(part):
       obj = _get_code_object_from_single_name_pattern(obj, name_result, path)
@@ -443,7 +439,7 @@ def _get_code_from_stable_reference(path: str):
   return obj
 
 
-def _signature(obj: Callable):
+def _signature(obj: types.CodeType):
   """Returns the signature of a code object.
 
   The signature is the names of the arguments of the code object. This is used
@@ -455,15 +451,12 @@ def _signature(obj: Callable):
   Returns:
     A tuple of the names of the arguments of the code object.
   """
-  if isinstance(obj, types.CodeType):
-    arg_count = (
-        obj.co_argcount + obj.co_kwonlyargcount +
-        (obj.co_flags & 4 == 4)  # PyCF_VARARGS
-        + (obj.co_flags & 8 == 8)  # PyCF_VARKEYWORDS
-    )
-    return obj.co_varnames[:arg_count]
-  else:
-    return None
+  arg_count = (
+      obj.co_argcount + obj.co_kwonlyargcount +
+      (obj.co_flags & 4 == 4)  # PyCF_VARARGS
+      + (obj.co_flags & 8 == 8)  # PyCF_VARKEYWORDS
+  )
+  return obj.co_varnames[:arg_count]
 
 
 def _create_bytecode_hash(code_object: types.CodeType):
@@ -474,10 +467,5 @@ def _create_bytecode_hash(code_object: types.CodeType):
 
   Returns:
     The hash of the code object.
-
-  Raises:
-    TypeError: If the object given is not a code object.
   """
-  if not isinstance(code_object, types.CodeType):
-    raise TypeError(f'{code_object} is not a code object')
   return hashlib.md5(code_object.co_code).hexdigest()
