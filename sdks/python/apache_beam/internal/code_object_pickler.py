@@ -78,8 +78,8 @@ def get_code_path(callable: Callable):
       - __main__.ClassWithNestedLambda.process.__code__.co_consts[
         <lambda>, ('x',), 1234567890]
   """
-  if not hasattr(callable, '__module__') or not hasattr(
-      callable, '__qualname__'):
+  if not hasattr(callable, '__module__') or not hasattr(callable,
+                                                        '__qualname__'):
     return None
   code_path = _extend_path(
       callable.__module__,
@@ -109,8 +109,7 @@ def _extend_path(prefix: str, suffix: str):
   return prefix + '.' + suffix
 
 
-def _search(
-    callable: Callable, node: Any, qual_name_parts: list[str]):
+def _search(callable: Callable, node: Any, qual_name_parts: list[str]):
   """Searches an object to create a stable reference code path.
 
   Recursively searches the tree of objects starting from node to find the
@@ -133,9 +132,8 @@ def _search(
   if node is None:
     return None
   if not qual_name_parts:
-    if (hasattr(node, '__code__')
-        and hasattr(callable, '__code__')
-        and node.__code__ == callable.__code__):
+    if (hasattr(node, '__code__') and hasattr(callable, '__code__') and
+        node.__code__ == callable.__code__):
       return '__code__'
     else:
       return None
@@ -168,9 +166,9 @@ def _search_module_or_class(
   if first_part == '<lambda>':
     for name in dir(node):
       value = getattr(node, name)
-      if (hasattr(callable, '__code__')
-          and isinstance(value, type(callable))
-          and value.__code__ == callable.__code__):
+      if (hasattr(callable, '__code__') and
+          isinstance(value, type(callable)) and
+          value.__code__ == callable.__code__):
         return name + '.__code__'
       elif (isinstance(value, types.FunctionType) and
             value.__defaults__ is not None):
@@ -197,9 +195,8 @@ def _search_function(callable: Callable, node: Any, qual_name_parts: list[str]):
     The stable reference to the code object, or None if not found.
   """
   first_part = qual_name_parts[0]
-  if (hasattr(callable, '__code__')
-      and hasattr(node, '__code__')
-      and node.__code__ == callable.__code__):
+  if (hasattr(callable, '__code__') and hasattr(node, '__code__') and
+      node.__code__ == callable.__code__):
     if len(qual_name_parts) > 1:
       raise ValueError('Qual name parts too long')
     return '__code__'
@@ -252,7 +249,7 @@ def _search_code(callable: Callable, node: Any, qual_name_parts: list[str]):
 
 def _search_lambda(
     callable: Callable,
-    code_objects_by_name: dict[str, list[types.CodeType]],
+    code_objects_by_name: dict[str, list[Callable]],
     qual_name_parts: list[str]):
   """Searches a lambda to create a stable reference code path.
 
@@ -424,7 +421,7 @@ def _get_code_from_stable_reference(path: str):
   if not path:
     raise ValueError('Path must not be empty.')
   parts = path.split('.')
-  obj = sys.modules[parts[0]]
+  obj: Callable = sys.modules[parts[0]]
   for part in parts[1:]:
     if name_result := _SINGLE_NAME_PATTERN.fullmatch(part):
       obj = _get_code_object_from_single_name_pattern(obj, name_result, path)
