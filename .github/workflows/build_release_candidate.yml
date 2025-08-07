@@ -545,3 +545,68 @@ jobs:
           svn add --force --parents prism
           svn status
           svn commit -m "Staging Prism artifacts for Apache Beam ${RELEASE} RC${RC_NUM}" --non-interactive --username "${{ github.event.inputs.APACHE_ID }}" --password "${{ github.event.inputs.APACHE_PASSWORD }}"
+
+  managed_io_docs_pr:
+    if:  ${{ fromJson(github.event.inputs.STAGE).managed_io_docs_pr == 'yes'}}
+    runs-on: ubuntu-22.04
+    env:
+      BRANCH_NAME: updates_managed_io_docs_${{ github.event.inputs.RELEASE }}
+      BEAM_ROOT_DIR: ${{ github.workspace }}/beam
+      MANAGED_IO_DOCS_PATH: website/www/site/content/en/documentation/io/managed-io.md
+    steps:
+      - name: Checkout Beam Repo
+        uses: actions/checkout@v4
+        with:
+          ref: "v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
+          repository: apache/beam
+          path: beam
+          token: ${{ github.event.inputs.REPO_TOKEN }}
+          persist-credentials: false
+      - name: Install Python 3.9
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+      - name: Install Java 11
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+      - name: Remove default github maven configuration
+        # This step is a workaround to avoid a decryption issue of Beam's
+        # net.linguica.gradle.maven.settings plugin and github's provided maven
+        # settings.xml file
+        run: rm ~/.m2/settings.xml || true
+      - name: Install SDK
+        working-directory: beam/sdks/python
+        run: |
+          pip install -e.
+      - name: Build Expansion Service Jar
+        working-directory: beam
+        run: |
+          ./gradlew sdks:java:io:expansion-service:shadowJar
+      - name: Build GCP Expansion Service Jar
+        working-directory: beam
+        run: |
+          ./gradlew sdks:java:io:google-cloud-platform:expansion-service:shadowJar
+      - name: Generate Managed IO Docs
+        working-directory: beam/sdks/python
+        run: |
+          python gen_managed_doc.py --output_location ${{ runner.temp }}/managed-io.md
+      - name: Create commit on beam branch
+        working-directory: beam
+        run: |
+          git checkout -b $BRANCH_NAME
+          mv ${{ runner.temp }}/managed-io.md ${{ env.MANAGED_IO_DOCS_PATH }}
+          git config user.name $GITHUB_ACTOR
+          git config user.email actions@"$RUNNER_NAME".local
+          git add -A
+          git commit -m "Update managed-io.md for release ${{ github.event.inputs.RELEASE }}."
+          git push -f --set-upstream origin $BRANCH_NAME
+      - name: Create beam PR
+        working-directory: beam
+        env:
+          GH_TOKEN: ${{ github.event.inputs.REPO_TOKEN }}
+          PR_TITLE: "Update managed-io.md for ${{ github.event.inputs.RELEASE }} release"
+          PR_BODY: "Content generated from release ${{ github.event.inputs.RELEASE }}."
+        run: |
+          gh pr create -t "$PR_TITLE" -b "$PR_BODY" --base master --repo apache/beam
